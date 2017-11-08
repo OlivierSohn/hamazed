@@ -1,33 +1,66 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
+
 module Lib
     ( run
     ) where
 
 
-import Control.Exception( ArithException(..)
-                        , finally
-                        , throw )
-import Control.Monad( when )
-import Data.Time( UTCTime
-                , diffUTCTime
-                , getCurrentTime )
-import System.Console.ANSI( setCursorPosition )
-import System.IO( getChar
-                , hFlush
-                , stdout )
-import System.Timeout( timeout )
+import           Prelude hiding ( Left
+                                , Right
+                                , putStrLn
+                                , sum )
+import qualified Prelude (putStrLn)
 
 
-import Console( configureConsoleFor
-              , ConsoleConfig(..) )
-import Threading( runAndWaitForTermination )
+import           Control.Exception( ArithException(..)
+                                  , finally
+                                  , throw )
+import           Data.Time( UTCTime
+                          , diffUTCTime
+                          , getCurrentTime )
+import           Data.Maybe( fromMaybe )
+import           GHC.Generics( Generic )
+import           System.Console.ANSI( setCursorPosition )
+import           System.IO( getChar
+                          , hFlush
+                          , stdout )
+import           System.Timeout( timeout )
+
+
+import           Console( configureConsoleFor
+                        , ConsoleConfig(..) )
+import           Threading( runAndWaitForTermination )
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
 
+data Direction = Up | Down | Left | Right
+
+data Action = Frame Direction | Throw
+
+newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show)
+newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show)
+
+data Coords = Coords {
+    _x :: !Row
+  , _y :: !Col
+} deriving (Generic, Eq, Show)
+
+
+sum :: Coords -> Coords -> Coords
+sum (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
+
+
 data GameState = GameState {
     _startTime :: !UTCTime
-  , _updateCounter :: Int
+  , _updateCounter :: !Int
+  , _upperLeftCorner :: !Coords
+}
+
+newtype RenderState = RenderState {
+    _currentUpperLeftCorner :: Coords
 }
 
 
@@ -51,7 +84,7 @@ showUpdateTick t =
   ++ replicate nRightBlanks ' '
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime updateTick) =
+showTimer currentTime (GameState startTime updateTick _) =
   let timeExact = diffUTCTime currentTime startTime
       time = floor timeExact :: Integer
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
@@ -74,36 +107,70 @@ gameWorker :: IO ()
 gameWorker = makeInitialState >>= loop
 
 
+zeroCoords :: Coords
+zeroCoords = Coords (Row 0) (Col 0)
+
+
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState t 0
+  return $ GameState t 0 zeroCoords
 
 
 loop :: GameState -> IO ()
-loop state = do
-  setCursorPosition 0 0
-  printTimer state
-  updateGame state >>= loop
+loop state@(GameState _ _ coords@(Coords (Row row) (Col col))) = do
+  setCursorPosition row col
+  let r = RenderState coords
+  updateGame state r >>= loop
 
 
-printTimer :: GameState -> IO ()
-printTimer s = do
+printTimer :: GameState -> RenderState -> IO RenderState
+printTimer s r = do
   t <- getCurrentTime
-  putStrLn $ showTimer t s
+  putStrLn r $ showTimer t s
 
 
 -- Game update:
 -- Wait one second for a key to be pressed. If timeout, return.
 -- Print the pressed key.
 -- If the 'o' key was pressed, throw an overflow exception.
-updateGame :: GameState -> IO GameState
-updateGame (GameState t updateCounter) = do
+updateGame :: GameState -> RenderState -> IO GameState
+updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = do
   let eraMilliSeconds = 160 -- this controls the game loop frequency.
                            -- 20 seems to match screen refresh frewquency
   mayInput <- timeout (eraMilliSeconds * 1000) getChar
-  mapM_ (\c -> putStrLn [c] >> when (c == 'o') (do
-    putStrLn $ "Boom! The '" ++ [c] ++ "' key throws an overflow exception in the game thread."
-    throw Overflow)) mayInput
+  action <- mapM (return . (\case
+    'o' -> Just Throw
+    's' -> Just $ Frame Down
+    'w' -> Just $ Frame Up
+    'a' -> Just $ Frame Left
+    'd' -> Just $ Frame Right
+    _   -> Nothing
+      )) mayInput
+
+  let newUpdateCounter = (updateCounter + 1) `mod` maxUpdateTick
+      offsetCoords = case action of
+        (Just (Just (Frame Down)))  -> Coords (Row   1) (Col   0)
+        (Just (Just (Frame Up)))    -> Coords (Row$ -1) (Col   0)
+        (Just (Just (Frame Left)))  -> Coords (Row   0) (Col$ -1)
+        (Just (Just (Frame Right))) -> Coords (Row   0) (Col   1)
+        _ -> zeroCoords
+
+  r2 <- printTimer state (RenderState $ sum rCoords offsetCoords)
+  r3_ <- mapM (\c -> putStrLn r2 [c]) mayInput
+  let r3 = fromMaybe r2 r3_
+  _ <- case action of
+    (Just (Just Throw)) -> do
+      _ <- putStrLn r3 "Boom! An overflow exception was thrown in the game thread."
+      throw Overflow
+    _ -> return ()
+
   hFlush stdout
-  return $ GameState t $ (updateCounter + 1) `mod` maxUpdateTick
+  return $ GameState t newUpdateCounter $ sum oldCoords offsetCoords
+
+
+putStrLn :: RenderState -> String -> IO RenderState
+putStrLn (RenderState (Coords (Row r) (Col c))) str = do
+  setCursorPosition r c
+  Prelude.putStrLn str
+  return $ RenderState $ Coords (Row $ r + 1) (Col c)

@@ -60,8 +60,13 @@ computeTime (Timer t1) t2 =
   in floor t
 
 data World = World{
-  _ball :: !Coords
+    _ball :: !Coords
+  , _howBallMoves :: Coords -> Coords
 }
+
+
+ballMotion :: Coords -> Coords
+ballMotion (Coords (Row r) (Col c)) = Coords (Row $ r+1) (Col $ c+1)
 
 data GameState = GameState {
     _startTime :: !Timer
@@ -130,7 +135,7 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState (Timer t) 0 zeroCoords $ World $ Coords (Row 10) (Col 10)
+  return $ GameState (Timer t) 0 zeroCoords $ World (Coords (Row 10) (Col 10)) ballMotion
 
 
 loop :: GameState -> IO ()
@@ -157,7 +162,7 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
-renderGame state@(GameState t c frameCorner w) (RenderState renderCorner) maybeAction = do
+renderGame state@(GameState t c frameCorner w@(World ball fBallMotion)) (RenderState renderCorner) maybeAction = do
 
   -- TODO make this generic
   let frameOffset = case maybeAction of
@@ -173,9 +178,9 @@ renderGame state@(GameState t c frameCorner w) (RenderState renderCorner) maybeA
     _ -> return ()
 
   _ <- renderWorld r2 w
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) w
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ World (fBallMotion ball) ballMotion
 
 -- TODO returned RenderState should be at the bottom of the world
 renderWorld :: RenderState -> World -> IO RenderState
-renderWorld (RenderState renderCoords) (World worldCoords) = renderStrLn loc "O"
+renderWorld (RenderState renderCoords) (World worldCoords _) = renderStrLn loc "O"
   where loc = RenderState $ sumCoords renderCoords worldCoords

@@ -5,19 +5,17 @@ module Lib
 
 
 import           Prelude hiding ( Left
-                                , Right
-                                , putStrLn )
-import qualified Prelude (putStrLn)
+                                , Right )
 
 
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
+import           Data.Maybe( fromMaybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
-import           System.Console.ANSI( setCursorPosition
-                                    , clearScreen )
+import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
                           , hFlush
                           , stdout )
@@ -25,7 +23,9 @@ import           System.Timeout( timeout )
 
 
 import           Console( configureConsoleFor
-                        , ConsoleConfig(..) )
+                        , ConsoleConfig(..)
+                        , renderStrLn
+                        , RenderState(..) )
 import           Geo( sumCoords
                     , coordsForDirection
                     , Col(..)
@@ -51,16 +51,26 @@ actionFromChar c = case c of
   _   -> Nothing
 
 
+newtype Timer = Timer { _initialTime :: UTCTime }
+
+
+computeTime :: Timer -> UTCTime -> Int
+computeTime (Timer t1) t2 =
+  let t = diffUTCTime t2 t1
+  in floor t
+
+
 data GameState = GameState {
-    _startTime :: !UTCTime
+    _startTime :: !Timer
   , _updateCounter :: !Int
   , _upperLeftCorner :: !Coords
 }
 
-newtype RenderState = RenderState {
-    _currentUpperLeftCorner :: Coords
-}
-
+eraMicros :: Int
+eraMicros = eraMillis * 1000
+  where
+    eraMillis = 160 -- this controls the game loop frequency.
+                    -- 20 seems to match screen refresh frequency
 
 maxUpdateTick :: Int
 maxUpdateTick = 10
@@ -84,8 +94,7 @@ showUpdateTick t =
 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick _) =
-  let timeExact = diffUTCTime currentTime startTime
-      time = floor timeExact :: Integer
+  let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
 
@@ -117,12 +126,11 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState t 0 zeroCoords
+  return $ GameState (Timer t) 0 zeroCoords
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ coords@(Coords (Row row) (Col col))) = do
-  setCursorPosition row col
+loop state@(GameState _ _ coords) = do
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -130,43 +138,34 @@ loop state@(GameState _ _ coords@(Coords (Row row) (Col col))) = do
 printTimer :: GameState -> RenderState -> IO RenderState
 printTimer s r = do
   t <- getCurrentTime
-  putStrLn r $ showTimer t s
+  renderStrLn r $ showTimer t s
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame s r = do
-  clearScreen
-  newGameState <- renderGame s r
-  hFlush stdout
-  return newGameState
+updateGame s r =
+  (clearScreen >> getAction >>= renderGame s r) `finally` hFlush stdout
 
 
-renderGame :: GameState -> RenderState -> IO GameState
-renderGame state@(GameState t c frameCorner) (RenderState renderCorner) = do
+getAction :: IO (Maybe Action)
+getAction = do
+  a <- timeout eraMicros getChar >>= mapM (return . actionFromChar)
+  return $ fromMaybe Nothing a
 
-  let eraMillis = 160 -- this controls the game loop frequency.
-                      -- 20 seems to match screen refresh frequency
-      eraMicros = eraMillis * 1000
-  maybeAction <- timeout eraMicros getChar >>= mapM (return . actionFromChar)
 
+renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
+renderGame state@(GameState t c frameCorner) (RenderState renderCorner) maybeAction = do
+
+  -- TODO make this generic
   let frameOffset = case maybeAction of
-        (Just (Just (Frame a))) -> coordsForDirection a
+        (Just (Frame a)) -> coordsForDirection a
         _ -> zeroCoords
       r = RenderState $ sumCoords renderCorner frameOffset
-
   r2 <- printTimer state r
 
   _ <- case maybeAction of
-    (Just (Just Throw)) -> do
-      _ <- putStrLn r2 "Boom! An overflow exception was thrown in the game thread."
+    (Just Throw) -> do
+      _ <- renderStrLn r2 "Boom! An overflow exception was thrown in the game thread."
       throw Overflow
     _ -> return ()
 
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset)
-
-
-putStrLn :: RenderState -> String -> IO RenderState
-putStrLn (RenderState (Coords (Row r) (Col c))) str = do
-  setCursorPosition r c
-  Prelude.putStrLn str
-  return $ RenderState $ Coords (Row $ r + 1) (Col c)

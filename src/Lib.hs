@@ -59,11 +59,15 @@ computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
   in floor t
 
+data World = World{
+  _ball :: !Coords
+}
 
 data GameState = GameState {
     _startTime :: !Timer
   , _updateCounter :: !Int
   , _upperLeftCorner :: !Coords
+  , _world :: !World
 }
 
 eraMicros :: Int
@@ -93,7 +97,7 @@ showUpdateTick t =
 
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime updateTick _) =
+showTimer currentTime (GameState startTime updateTick _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
@@ -126,11 +130,11 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState (Timer t) 0 zeroCoords
+  return $ GameState (Timer t) 0 zeroCoords $ World $ Coords (Row 10) (Col 10)
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ coords) = do
+loop state@(GameState _ _ coords _) = do
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -153,7 +157,7 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
-renderGame state@(GameState t c frameCorner) (RenderState renderCorner) maybeAction = do
+renderGame state@(GameState t c frameCorner w) (RenderState renderCorner) maybeAction = do
 
   -- TODO make this generic
   let frameOffset = case maybeAction of
@@ -168,4 +172,10 @@ renderGame state@(GameState t c frameCorner) (RenderState renderCorner) maybeAct
       throw Overflow
     _ -> return ()
 
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset)
+  _ <- renderWorld r2 w
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) w
+
+-- TODO returned RenderState should be at the bottom of the world
+renderWorld :: RenderState -> World -> IO RenderState
+renderWorld (RenderState renderCoords) (World worldCoords) = renderStrLn loc "O"
+  where loc = RenderState $ sumCoords renderCoords worldCoords

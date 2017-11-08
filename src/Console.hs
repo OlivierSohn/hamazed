@@ -7,7 +7,7 @@ import System.Console.ANSI( clearScreen
                           , showCursor )
 import System.IO( hSetBuffering
                 , hSetEcho
-                , BufferMode( NoBuffering, LineBuffering )
+                , BufferMode( .. )
                 , stdin
                 , stdout )
 
@@ -29,7 +29,8 @@ configureConsoleFor config = do
       Gaming  -> False
       Editing -> True
   hSetBuffering stdout $ case config of
-      Gaming  -> NoBuffering
+      Gaming  -> BlockBuffering Nothing -- use a big buffer, which we will flush
+                                        -- after each game update
       Editing -> LineBuffering
   case config of
     Gaming  -> hideCursor >> clearScreen

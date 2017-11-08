@@ -11,7 +11,9 @@ import Data.Time( UTCTime
                 , diffUTCTime
                 , getCurrentTime )
 import System.Console.ANSI( setCursorPosition )
-import System.IO( getChar )
+import System.IO( getChar
+                , hFlush
+                , stdout )
 import System.Timeout( timeout )
 
 
@@ -30,16 +32,28 @@ data GameState = GameState {
 
 
 maxUpdateTick :: Int
-maxUpdateTick = 100
+maxUpdateTick = 10
+
+
+tickRepresentationLength :: Int
+tickRepresentationLength = quot maxUpdateTick 2
 
 
 showUpdateTick :: Int -> String
-showUpdateTick t = replicate t ' ' ++ "." ++ replicate (maxUpdateTick - t - 1) ' '
+showUpdateTick t =
+  let nDotsBefore = max 0 (t + tickRepresentationLength - maxUpdateTick)
+      nLeftBlanks = t - nDotsBefore
+      nDotsAfter = tickRepresentationLength - nDotsBefore
+      nRightBlanks = maxUpdateTick - t - tickRepresentationLength
+  in replicate nDotsBefore  '.'
+  ++ replicate nLeftBlanks  ' '
+  ++ replicate nDotsAfter   '.'
+  ++ replicate nRightBlanks ' '
 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick) =
   let delta = diffUTCTime currentTime startTime
-  in "|" ++ showUpdateTick updateTick ++ "|" ++ show (floor delta :: Integer) ++ "|"
+  in "|" ++ showUpdateTick updateTick ++ "| " ++ show (floor delta :: Integer) ++ " |"
 
 
 --------------------------------------------------------------------------------
@@ -84,9 +98,11 @@ printTimer s = do
 -- If the 'o' key was pressed, throw an overflow exception.
 updateGame :: GameState -> IO GameState
 updateGame (GameState t updateCounter) = do
-  let eraMilliSeconds = 5 -- this controls the game loop frequency
+  let eraMilliSeconds = 160 -- this controls the game loop frequency.
+                           -- 20 seems to match screen refresh frewquency
   mayInput <- timeout (eraMilliSeconds * 1000) getChar
   mapM_ (\c -> putStrLn [c] >> when (c == 'o') (do
     putStrLn $ "Boom! The '" ++ [c] ++ "' key throws an overflow exception in the game thread."
     throw Overflow)) mayInput
+  hFlush stdout
   return $ GameState t $ (updateCounter + 1) `mod` maxUpdateTick

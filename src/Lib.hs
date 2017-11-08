@@ -60,21 +60,17 @@ makeInitialState = do
 loop :: GameState -> IO ()
 loop state = do
   printTimer state
-  newState <- updateGame state
-  loop newState
+  updateGame state >>= loop
 
 printTimer :: GameState -> IO ()
 printTimer s = do
   t <- getCurrentTime
-  let time = showTimer t s
-  putStr time
+  putStr $ showTimer t s
 
 
 updateGame :: GameState -> IO GameState
 updateGame state = do
   let eraSecond = 1
   mayInput <- timeout (eraSecond * 1000 * 1000) getChar
-  case mayInput of
-    Just char -> putChar char
-    Nothing   -> return ()
+  mapM_ putChar mayInput
   return state

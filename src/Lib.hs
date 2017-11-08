@@ -16,8 +16,8 @@ import           Control.Exception( ArithException(..)
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
-import           Data.Maybe( fromMaybe )
-import           System.Console.ANSI( setCursorPosition )
+import           System.Console.ANSI( setCursorPosition
+                                    , clearScreen )
 import           System.IO( getChar
                           , hFlush
                           , stdout )
@@ -89,6 +89,10 @@ showTimer currentTime (GameState startTime updateTick _) =
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
 
+nextUpdateCounter :: Int -> Int
+nextUpdateCounter c = (c + 1) `mod` maxUpdateTick
+
+
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
@@ -129,23 +133,28 @@ printTimer s r = do
   putStrLn r $ showTimer t s
 
 
--- Game update:
--- Wait one second for a key to be pressed. If timeout, return.
--- Print the pressed key.
--- If the 'o' key was pressed, throw an overflow exception.
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = do
+updateGame s r = do
+  clearScreen
+  newGameState <- renderGame s r
+  hFlush stdout
+  return newGameState
+
+
+renderGame :: GameState -> RenderState -> IO GameState
+renderGame state@(GameState t c frameCorner) (RenderState renderCorner) = do
+
   let eraMillis = 160 -- this controls the game loop frequency.
                       -- 20 seems to match screen refresh frequency
       eraMicros = eraMillis * 1000
   maybeAction <- timeout eraMicros getChar >>= mapM (return . actionFromChar)
 
-  let newUpdateCounter = (updateCounter + 1) `mod` maxUpdateTick
-      offsetCoords = case maybeAction of
+  let frameOffset = case maybeAction of
         (Just (Just (Frame a))) -> coordsForDirection a
         _ -> zeroCoords
+      r = RenderState $ sumCoords renderCorner frameOffset
 
-  r2 <- printTimer state (RenderState $ sumCoords rCoords offsetCoords)
+  r2 <- printTimer state r
 
   _ <- case maybeAction of
     (Just (Just Throw)) -> do
@@ -153,8 +162,7 @@ updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = d
       throw Overflow
     _ -> return ()
 
-  hFlush stdout
-  return $ GameState t newUpdateCounter $ sumCoords oldCoords offsetCoords
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset)
 
 
 putStrLn :: RenderState -> String -> IO RenderState

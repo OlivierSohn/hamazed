@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Lib
@@ -8,8 +7,7 @@ module Lib
 
 import           Prelude hiding ( Left
                                 , Right
-                                , putStrLn
-                                , sum )
+                                , putStrLn )
 import qualified Prelude (putStrLn)
 
 
@@ -20,7 +18,6 @@ import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
 import           Data.Maybe( fromMaybe )
-import           GHC.Generics( Generic )
 import           System.Console.ANSI( setCursorPosition )
 import           System.IO( getChar
                           , hFlush
@@ -30,27 +27,19 @@ import           System.Timeout( timeout )
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..) )
+import           Geo( sumCoords
+                    , coordsForDirection
+                    , Col(..)
+                    , Coords(..)
+                    , Direction(..)
+                    , Row(..) )
 import           Threading( runAndWaitForTermination )
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
 
-data Direction = Up | Down | Left | Right
-
 data Action = Frame Direction | Throw
-
-newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show)
-newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show)
-
-data Coords = Coords {
-    _x :: !Row
-  , _y :: !Col
-} deriving (Generic, Eq, Show)
-
-
-sum :: Coords -> Coords -> Coords
-sum (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
 
 data GameState = GameState {
@@ -82,6 +71,7 @@ showUpdateTick t =
   ++ replicate nLeftBlanks  ' '
   ++ replicate nDotsAfter   '.'
   ++ replicate nRightBlanks ' '
+
 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick _) =
@@ -150,13 +140,10 @@ updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = d
 
   let newUpdateCounter = (updateCounter + 1) `mod` maxUpdateTick
       offsetCoords = case action of
-        (Just (Just (Frame Down)))  -> Coords (Row   1) (Col   0)
-        (Just (Just (Frame Up)))    -> Coords (Row$ -1) (Col   0)
-        (Just (Just (Frame Left)))  -> Coords (Row   0) (Col$ -1)
-        (Just (Just (Frame Right))) -> Coords (Row   0) (Col   1)
+        (Just (Just (Frame a))) -> coordsForDirection a
         _ -> zeroCoords
 
-  r2 <- printTimer state (RenderState $ sum rCoords offsetCoords)
+  r2 <- printTimer state (RenderState $ sumCoords rCoords offsetCoords)
   r3_ <- mapM (\c -> putStrLn r2 [c]) mayInput
   let r3 = fromMaybe r2 r3_
   _ <- case action of
@@ -166,7 +153,7 @@ updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = d
     _ -> return ()
 
   hFlush stdout
-  return $ GameState t newUpdateCounter $ sum oldCoords offsetCoords
+  return $ GameState t newUpdateCounter $ sumCoords oldCoords offsetCoords
 
 
 putStrLn :: RenderState -> String -> IO RenderState

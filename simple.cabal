@@ -18,6 +18,7 @@ library
   exposed-modules:     Lib
   other-modules:       Console
                      , Threading
+                     , Geo
   build-depends:       base
                      , ansi-terminal
                      , time

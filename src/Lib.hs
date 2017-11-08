@@ -6,7 +6,8 @@ module Lib
 import Data.Time ( UTCTime
                  , diffUTCTime
                  , getCurrentTime)
-import System.Console.ANSI()
+import System.Console.ANSI( setCursorPosition
+                          , clearScreen )
 import System.IO( getChar
                 , hSetBuffering
                 , hSetEcho
@@ -47,7 +48,7 @@ configure = do
   -- we want the console to update immediately
   -- TODO will this be still needed once we use more complex stuff ?
   hSetBuffering stdout NoBuffering
-
+  clearScreen
 
 makeInitialState :: IO GameState
 makeInitialState = do
@@ -57,6 +58,7 @@ makeInitialState = do
 
 loop :: GameState -> IO ()
 loop state = do
+  setCursorPosition 0 0
   printTimer state
   updateGame state >>= loop
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 
 module Lib
     ( run
@@ -40,6 +39,16 @@ import           Threading( runAndWaitForTermination )
 --------------------------------------------------------------------------------
 
 data Action = Frame Direction | Throw
+
+
+actionFromChar :: Char -> Maybe Action
+actionFromChar c = case c of
+  'o' -> Just Throw
+  's' -> Just $ Frame Down
+  'w' -> Just $ Frame Up
+  'a' -> Just $ Frame Left
+  'd' -> Just $ Frame Right
+  _   -> Nothing
 
 
 data GameState = GameState {
@@ -126,29 +135,21 @@ printTimer s r = do
 -- If the 'o' key was pressed, throw an overflow exception.
 updateGame :: GameState -> RenderState -> IO GameState
 updateGame state@(GameState t updateCounter oldCoords) (RenderState rCoords) = do
-  let eraMilliSeconds = 160 -- this controls the game loop frequency.
-                           -- 20 seems to match screen refresh frewquency
-  mayInput <- timeout (eraMilliSeconds * 1000) getChar
-  action <- mapM (return . (\case
-    'o' -> Just Throw
-    's' -> Just $ Frame Down
-    'w' -> Just $ Frame Up
-    'a' -> Just $ Frame Left
-    'd' -> Just $ Frame Right
-    _   -> Nothing
-      )) mayInput
+  let eraMillis = 160 -- this controls the game loop frequency.
+                      -- 20 seems to match screen refresh frequency
+      eraMicros = eraMillis * 1000
+  maybeAction <- timeout eraMicros getChar >>= mapM (return . actionFromChar)
 
   let newUpdateCounter = (updateCounter + 1) `mod` maxUpdateTick
-      offsetCoords = case action of
+      offsetCoords = case maybeAction of
         (Just (Just (Frame a))) -> coordsForDirection a
         _ -> zeroCoords
 
   r2 <- printTimer state (RenderState $ sumCoords rCoords offsetCoords)
-  r3_ <- mapM (\c -> putStrLn r2 [c]) mayInput
-  let r3 = fromMaybe r2 r3_
-  _ <- case action of
+
+  _ <- case maybeAction of
     (Just (Just Throw)) -> do
-      _ <- putStrLn r3 "Boom! An overflow exception was thrown in the game thread."
+      _ <- putStrLn r2 "Boom! An overflow exception was thrown in the game thread."
       throw Overflow
     _ -> return ()
 

@@ -16,6 +16,8 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Lib
+  other-modules:       Console
+                     , Threading
   build-depends:       base
                      , ansi-terminal
                      , time

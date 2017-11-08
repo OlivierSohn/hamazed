@@ -3,31 +3,21 @@ module Lib
     ) where
 
 
-import Control.Concurrent( forkFinally
-                         , MVar
-                         , newEmptyMVar
-                         , putMVar
-                         , readMVar )
 import Control.Exception( ArithException(..)
                         , finally
-                        , SomeException(..)
                         , throw )
 import Control.Monad( when )
 import Data.Time( UTCTime
                 , diffUTCTime
                 , getCurrentTime )
-import System.Console.ANSI( clearScreen
-                          , hideCursor
-                          , setCursorPosition
-                          , showCursor )
-import System.IO( getChar
-                , hSetBuffering
-                , hSetEcho
-                , BufferMode( NoBuffering, LineBuffering )
-                , stdin
-                , stdout )
+import System.Console.ANSI( setCursorPosition )
+import System.IO( getChar )
 import System.Timeout( timeout )
 
+
+import Console( configureConsoleFor
+              , ConsoleConfig(..) )
+import Threading( runAndWaitForTermination )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -35,15 +25,21 @@ import System.Timeout( timeout )
 
 data GameState = GameState {
     _startTime :: !UTCTime
+  , _updateCounter :: Int
 }
 
-data ConsoleConfig = Game | Edition
 
+maxUpdateTick :: Int
+maxUpdateTick = 100
+
+
+showUpdateTick :: Int -> String
+showUpdateTick t = replicate t ' ' ++ "." ++ replicate (maxUpdateTick - t - 1) ' '
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime) =
+showTimer currentTime (GameState startTime updateTick) =
   let delta = diffUTCTime currentTime startTime
-  in show (round delta :: Integer)
+  in "|" ++ showUpdateTick updateTick ++ "|" ++ show (floor delta :: Integer) ++ "|"
 
 
 --------------------------------------------------------------------------------
@@ -52,57 +48,21 @@ showTimer currentTime (GameState startTime) =
 
 run :: IO ()
 run =
-  (setupConsoleFor Game >> runGameAndWaitForTermination)
+  (configureConsoleFor Gaming >> runAndWaitForTermination gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally`
-   setupConsoleFor Edition
+   configureConsoleFor Editing
 
 
-runGameAndWaitForTermination :: IO ()
-runGameAndWaitForTermination = do
-  -- launch game thread
-  gameThreadTerminated <- myForkIO gameThread
-  -- wait for game thread to finish
-  readMVar gameThreadTerminated
-
-
--- This function was introduced so that the parent thread can wait on the
--- returned MVar to be set to know that the child thread has terminated.
--- cf https://hackage.haskell.org/package/base-4.10.0.0/docs/Control-Concurrent.html#g:12
-myForkIO :: IO () -> IO (MVar ())
-myForkIO io = do
-  mvar <- newEmptyMVar
-  _ <- forkFinally io (\e -> handleTerminationCause e >> putMVar mvar ())
-  return mvar
-
-
-handleTerminationCause :: Either SomeException a -> IO()
-handleTerminationCause (Left e) = putStrLn $ "Game thread terminates abnormaly: " ++ show e
-handleTerminationCause _        = return ()
-
-
-gameThread :: IO ()
-gameThread = makeInitialState >>= loop
-
-
-setupConsoleFor :: ConsoleConfig -> IO ()
-setupConsoleFor config = do
-  hSetEcho stdin $ case config of
-      Game    -> False
-      Edition -> True
-  hSetBuffering stdout $ case config of
-      Game    -> NoBuffering
-      Edition -> LineBuffering
-  case config of
-    Game    -> hideCursor >> clearScreen
-    Edition -> showCursor  -- do not clearScreen, to retain a potential printed exception
+gameWorker :: IO ()
+gameWorker = makeInitialState >>= loop
 
 
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState t
+  return $ GameState t 0
 
 
 loop :: GameState -> IO ()
@@ -115,7 +75,7 @@ loop state = do
 printTimer :: GameState -> IO ()
 printTimer s = do
   t <- getCurrentTime
-  putStr $ showTimer t s
+  putStrLn $ showTimer t s
 
 
 -- Game update:
@@ -123,13 +83,10 @@ printTimer s = do
 -- Print the pressed key.
 -- If the 'o' key was pressed, throw an overflow exception.
 updateGame :: GameState -> IO GameState
-updateGame state = do
-  let eraSecond = 1
-  mayInput <- timeout (eraSecond * 1000 * 1000) getChar
-  -- TODO try to chain putChar with the lambda after
-  mapM_ putChar mayInput
-  mapM_ (\c -> when (c == 'o') (do
-    putStrLn ""
-    putStrLn $ "You lost! The '" ++ [c] ++ "' key throws an overflow exception in the game thread."
+updateGame (GameState t updateCounter) = do
+  let eraMilliSeconds = 5 -- this controls the game loop frequency
+  mayInput <- timeout (eraMilliSeconds * 1000) getChar
+  mapM_ (\c -> putStrLn [c] >> when (c == 'o') (do
+    putStrLn $ "Boom! The '" ++ [c] ++ "' key throws an overflow exception in the game thread."
     throw Overflow)) mayInput
-  return state
+  return $ GameState t $ (updateCounter + 1) `mod` maxUpdateTick

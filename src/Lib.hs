@@ -59,14 +59,23 @@ computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
   in floor t
 
+
+data PosSpeed = PosSpeed {
+    _pos :: !Coords
+  , _speed :: !Coords
+}
 data World = World{
-    _ball :: !Coords
-  , _howBallMoves :: Coords -> Coords
+    _ball :: !PosSpeed
+  , _howBallMoves :: PosSpeed -> PosSpeed
 }
 
 
-ballMotion :: Coords -> Coords
-ballMotion (Coords (Row r) (Col c)) = Coords (Row $ r+1) (Col $ c+1)
+ballMotion :: PosSpeed -> PosSpeed
+ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr') (Col dc'))) =
+    PosSpeed (Coords (Row $ r+dr) (Col $ c+dc)) (Coords (Row dr) (Col dc))
+  where
+    dr = if r > 0 && r < 10 then dr' else negate dr'
+    dc = if c > 0 && c < 10 then dc' else negate dc'
 
 data GameState = GameState {
     _startTime :: !Timer
@@ -135,7 +144,8 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  return $ GameState (Timer t) 0 zeroCoords $ World (Coords (Row 10) (Col 10)) ballMotion
+  let newWorld = World (PosSpeed (Coords (Row 3) (Col 7)) (Coords (Row 1) (Col 1))) ballMotion
+  return $ GameState (Timer t) 0 zeroCoords newWorld
 
 
 loop :: GameState -> IO ()
@@ -182,5 +192,5 @@ renderGame state@(GameState t c frameCorner w@(World ball fBallMotion)) (RenderS
 
 -- TODO returned RenderState should be at the bottom of the world
 renderWorld :: RenderState -> World -> IO RenderState
-renderWorld (RenderState renderCoords) (World worldCoords _) = renderStrLn loc "O"
+renderWorld (RenderState renderCoords) (World (PosSpeed worldCoords _) _) = renderStrLn loc "O"
   where loc = RenderState $ sumCoords renderCoords worldCoords

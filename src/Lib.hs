@@ -6,15 +6,13 @@ module Lib
 import Data.Time ( UTCTime
                  , diffUTCTime
                  , getCurrentTime)
-import Data.Time.Clock ()
-
+import System.Console.ANSI()
 import System.IO( getChar
                 , hSetBuffering
                 , hSetEcho
                 , BufferMode( NoBuffering )
                 , stdin
                 , stdout)
-import System.Console.ANSI()
 import System.Timeout (timeout)
 
 
@@ -34,7 +32,7 @@ showTimer currentTime (GameState startTime) =
 
 
 --------------------------------------------------------------------------------
--- Impure
+-- IO
 --------------------------------------------------------------------------------
 
 run :: IO ()
@@ -61,6 +59,7 @@ loop :: GameState -> IO ()
 loop state = do
   printTimer state
   updateGame state >>= loop
+
 
 printTimer :: GameState -> IO ()
 printTimer s = do

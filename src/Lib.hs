@@ -52,8 +52,9 @@ showUpdateTick t =
 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick) =
-  let delta = diffUTCTime currentTime startTime
-  in "|" ++ showUpdateTick updateTick ++ "| time: " ++ show (floor delta :: Integer) ++ " |"
+  let timeExact = diffUTCTime currentTime startTime
+      time = floor timeExact :: Integer
+  in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
 
 --------------------------------------------------------------------------------

@@ -34,7 +34,8 @@ import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
                     , Direction(..)
-                    , Row(..) )
+                    , Row(..)
+                    , zeroCoords )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
 
@@ -143,21 +144,20 @@ gameWorker :: IO ()
 gameWorker = makeInitialState >>= loop
 
 
-zeroCoords :: Coords
-zeroCoords = Coords (Row 0) (Col 0)
-
-
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
   balls <- replicateM 20 createRandomBall
   return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion)
 
+
 randomPos :: IO Int
 randomPos = getStdRandom $ randomR (0,worldSize-1)
 
+
 randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-2,2)
+
 
 createRandomBall :: IO PosSpeed
 createRandomBall = do
@@ -193,7 +193,6 @@ getAction = do
 
 renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
 renderGame state@(GameState t c frameCorner (World balls fBallMotion)) (RenderState renderCorner) maybeAction = do
-
   -- TODO make this generic
   let frameOffset = case maybeAction of
         (Just (Frame a)) -> coordsForDirection a
@@ -209,6 +208,7 @@ renderGame state@(GameState t c frameCorner (World balls fBallMotion)) (RenderSt
 
   mapM_ (renderWorld r2) balls
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ World (map fBallMotion balls) ballMotion
+
 
 -- TODO returned RenderState should be at the bottom of the world
 renderWorld :: RenderState -> PosSpeed -> IO RenderState

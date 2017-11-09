@@ -5,7 +5,8 @@ module Geo ( Direction(..)
            , Coords(..)
            , coordsForDirection
            , Row(..)
-           , sumCoords ) where
+           , sumCoords
+           , zeroCoords ) where
 
 
 import           Prelude hiding ( Left
@@ -26,6 +27,10 @@ data Coords = Coords {
     _x :: !Row
   , _y :: !Col
 } deriving (Generic, Eq, Show)
+
+
+zeroCoords :: Coords
+zeroCoords = Coords (Row 0) (Col 0)
 
 
 sumCoords :: Coords -> Coords -> Coords

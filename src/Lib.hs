@@ -35,6 +35,7 @@ import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
                     , Direction(..)
+                    , mkLine
                     , Row(..)
                     , translateCoord
                     , zeroCoords )
@@ -123,12 +124,14 @@ location (Coords (Row r) (Col c))
   where inside x = x >= 0 && x < worldSize
 
 ballMotion :: PosSpeed -> PosSpeed
-ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-    mirrorIfNeeded newPosSpeed
+ballMotion = doBallMotion . mirrorIfNeeded
+
+doBallMotion :: PosSpeed -> PosSpeed
+doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
+    PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row dr) (Col dc))
   where
     newR = r + dr
     newC = c + dc
-    newPosSpeed = PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row dr) (Col dc))
 
 
 mirrorSpeedIfNeeded :: Int -> Int -> Int
@@ -300,18 +303,19 @@ renderGame state@(GameState t c frameCorner world@(World balls _ ship@(PosSpeed 
   mapM_ (render r2 'O') balls
   -- render laser
   _ <- case action of
-    Action Laser dir -> renderLaser shipCoords dir r2
+    Action Laser dir -> do
+      let translatedCenter = translateCoord dir shipCoords
+      case location translatedCenter of
+        OutsideWorld -> return r2 -- 0 length ray
+        InsideWorld -> do
+          let laserEnd = extend translatedCenter dir
+              laserRay = mkLine translatedCenter laserEnd
+          renderLine laserRay (laserChar dir) r2
     Throw            -> throw Overflow
     _                -> return r2
   -- render ship
   _ <- render r2 '+' ship
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world
-
-
-renderLaser :: Coords -> Direction -> RenderState -> IO RenderState
-renderLaser c1 dir = do
-  let c2 = extend c1 dir
-  renderLine c1 c2 $ laserChar dir
 
 
 renderWorldFrame :: RenderState -> IO RenderState

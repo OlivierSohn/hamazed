@@ -17,6 +17,7 @@ import           System.IO( hSetBuffering
 
 import           Geo( Col(..)
                     , Coords(..)
+                    , Line(..)
                     , sumCoords
                     , Row(..) )
 
@@ -56,11 +57,11 @@ renderStrLn str (RenderState (Coords (Row r) (Col c))) = do
   return $ RenderState $ Coords (Row $ r + 1) (Col c)
 
 
-renderLine :: Coords -> Coords -> Char -> RenderState -> IO RenderState
-renderLine (Coords row@(Row r1) col@(Col c1)) (Coords (Row r2) (Col c2)) =
-  if r1 == r2
-    then renderHorizontalLine row c1 c2
-    else renderVerticalLine   col r1 r2
+renderLine :: Line -> Char -> RenderState -> IO RenderState
+renderLine l = case l of
+  Horizontal row c1 c2 -> renderHorizontalLine row c1 c2
+  Vertical col r1 r2   -> renderVerticalLine   col r1 r2
+  Oblique _ _ -> error "oblique line rendering is not supported"
 
 
 renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState

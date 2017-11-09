@@ -124,7 +124,10 @@ ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 
 
 mirrorSpeedIfNeeded :: Int -> Int -> Int
-mirrorSpeedIfNeeded x dx = if x > 0 && x < worldSize-1 then dx else negate dx
+mirrorSpeedIfNeeded x dx
+  | x <= 0           = negate dx
+  | x >= worldSize-1 = negate dx
+  | otherwise        = dx
 
 {--
 constrainPos :: Int -> Int

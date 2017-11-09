@@ -18,7 +18,7 @@ import           GHC.Generics( Generic )
 -- Pure
 --------------------------------------------------------------------------------
 
-data Direction = Up | Down | Left | Right
+data Direction = Up | Down | Left | Right deriving (Eq, Show)
 
 newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show)
 newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show)

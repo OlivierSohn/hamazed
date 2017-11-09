@@ -35,6 +35,7 @@ import           Geo( sumCoords
                     , Coords(..)
                     , Direction(..)
                     , Row(..)
+                    , translateCoord
                     , zeroCoords )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
@@ -107,12 +108,18 @@ nextWorld action (World balls move (PosSpeed shipPos shipSpeed)) =
 
 
 worldSize :: Int
-worldSize = 30
+worldSize = 35
 
+nBalls :: Int
+nBalls = 20
 
-inWorld :: Coords -> Bool
-inWorld (Coords (Row r) (Col c)) = inWorldCoord r && inWorldCoord c
-  where inWorldCoord x = x >= 0 && x < worldSize
+data Location = InsideWorld | OutsideWorld
+
+location :: Coords -> Location
+location (Coords (Row r) (Col c))
+  | inside r && inside c = InsideWorld
+  | otherwise            = OutsideWorld
+  where inside x = x >= 0 && x < worldSize
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
@@ -124,10 +131,10 @@ ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 
 
 mirrorSpeedIfNeeded :: Int -> Int -> Int
-mirrorSpeedIfNeeded x dx
-  | x <= 0           = negate dx
-  | x >= worldSize-1 = negate dx
-  | otherwise        = dx
+mirrorSpeedIfNeeded x
+  | x <= 0           = abs
+  | x >= worldSize-1 = negate . abs
+  | otherwise        = id
 
 {--
 constrainPos :: Int -> Int
@@ -168,7 +175,7 @@ eraMicros = eraMillis * 1000
                     -- 20 seems to match screen refresh frequency
 
 maxUpdateTick :: Int
-maxUpdateTick = 10
+maxUpdateTick = worldSize
 
 
 tickRepresentationLength :: Int
@@ -217,13 +224,13 @@ gameWorker = makeInitialState >>= loop
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  balls <- replicateM 5 createRandomPosSpeed
+  balls <- replicateM nBalls createRandomPosSpeed
   ship <- createRandomPosSpeed
   return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion ship)
 
 
 randomPos :: IO Int
-randomPos = getStdRandom $ randomR (0,worldSize-2)
+randomPos = getStdRandom $ randomR (0,worldSize-1)
 
 
 randomSpeed :: IO Int
@@ -236,7 +243,7 @@ createRandomPosSpeed = do
   y <- randomPos
   dx <- randomSpeed
   dy <- randomSpeed
-  return $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
+  return $ mirrorIfNeeded $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
 
 
 loop :: GameState -> IO ()
@@ -267,7 +274,8 @@ renderGame state@(GameState t c frameCorner world@(World balls _ ship)) (RenderS
   -- adjust frame position
   let frameOffset = coordsFor Frame action
 
-  r2 <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset
+  r <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset
+  r2 <- renderWorldFrame r
 
   _ <- case action of
     Throw -> do
@@ -280,10 +288,29 @@ renderGame state@(GameState t c frameCorner world@(World balls _ ship)) (RenderS
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world
 
 
--- TODO returned RenderState should be at the bottom of the world
+renderWorldFrame :: RenderState -> IO RenderState
+renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
+  let horizontalWall = replicate (worldSize + 2)
+      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
+
+  -- upper wall
+  (RenderState renderCoords) <- renderStrLn upperLeft $ horizontalWall '_'
+  let worldCoords = translateCoord Right renderCoords
+
+  -- left & right walls
+  let leftWallCoords = take worldSize $ iterate (translateCoord Down) renderCoords
+      toRight = Coords (Row 0) (Col $ worldSize+1)
+      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRight
+  mapM_ (\c -> renderStrLn (RenderState c) ['|']) (leftWallCoords ++ rightWallCoords)
+
+  -- lower wall
+  _ <- renderStrLn lowerLeft  $ horizontalWall 'T'
+  return $ RenderState worldCoords
+
+
 render :: RenderState -> Char -> PosSpeed -> IO RenderState
-render r@(RenderState renderCoords) chr (PosSpeed worldCoords _) =
-  if inWorld worldCoords
-  then renderStrLn loc [chr]
-  else return r
+render r@(RenderState renderCoords) char (PosSpeed worldCoords _) =
+  case location worldCoords of
+    InsideWorld -> renderStrLn loc [char]
+    _       -> return r
   where loc = RenderState $ sumCoords renderCoords worldCoords

@@ -6,6 +6,7 @@ module Geo ( Direction(..)
            , coordsForDirection
            , Row(..)
            , sumCoords
+           , translateCoord
            , zeroCoords ) where
 
 
@@ -42,3 +43,7 @@ coordsForDirection Down  = Coords (Row   1) (Col   0)
 coordsForDirection Up    = Coords (Row$ -1) (Col   0)
 coordsForDirection Left  = Coords (Row   0) (Col$ -1)
 coordsForDirection Right = Coords (Row   0) (Col   1)
+
+
+translateCoord :: Direction -> Coords -> Coords
+translateCoord dir = sumCoords $ coordsForDirection dir

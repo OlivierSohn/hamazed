@@ -4,7 +4,7 @@ A terminal ascii game I write to practice some Haskell!
 
 # Backlog
 
-- draw the bounds of the world
+- the balls that go faster should be drawn more frequently
 - handle repeated keys by not making the game fast forward
 - ship with laser
 

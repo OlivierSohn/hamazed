@@ -11,10 +11,13 @@ import           Prelude hiding ( Left
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
+import           Control.Monad( replicateM )
 import           Data.Maybe( fromMaybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
+import           System.Random( getStdRandom
+                              , randomR )
 import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
                           , hFlush
@@ -71,7 +74,7 @@ data World = World{
 }
 
 worldSize :: Int
-worldSize = 20
+worldSize = 30
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr') (Col dc'))) =
@@ -147,10 +150,22 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  let balls = [PosSpeed (Coords (Row 3) (Col 7)) (Coords (Row 1) (Col 1)),
-               PosSpeed (Coords (Row 4) (Col 1)) (Coords (Row 2) (Col 1))]
-      newWorld = World balls ballMotion
-  return $ GameState (Timer t) 0 zeroCoords newWorld
+  balls <- replicateM 20 createRandomBall
+  return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion)
+
+randomPos :: IO Int
+randomPos = getStdRandom $ randomR (0,worldSize-1)
+
+randomSpeed :: IO Int
+randomSpeed = getStdRandom $ randomR (-2,2)
+
+createRandomBall :: IO PosSpeed
+createRandomBall = do
+  x <- randomPos
+  y <- randomPos
+  dx <- randomSpeed
+  dy <- randomSpeed
+  return $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
 
 
 loop :: GameState -> IO ()

@@ -4,7 +4,7 @@ A terminal ascii game I write to practice some Haskell!
 
 # Backlog
 
-- have elements of the world randomly advance, with a probability that increases over time
+- lookahead for collisions
 
 - make a brick-breaking game
 - make a tower based defense game

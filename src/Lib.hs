@@ -27,6 +27,7 @@ import           System.Timeout( timeout )
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
+                        , renderLine
                         , renderStrLn
                         , RenderState(..) )
 import           Geo( sumCoords
@@ -168,6 +169,23 @@ data GameState = GameState {
   , _world :: !World
 }
 
+
+laserChar :: Direction -> Char
+laserChar dir = case dir of
+  Up -> '|'
+  Down -> '|'
+  Left -> '-'
+  Right -> '-'
+
+
+extend :: Coords -> Direction -> Coords
+extend (Coords (Row r) (Col c)) dir = case dir of
+  Up -> Coords (Row 0) (Col c)
+  Left -> Coords (Row r) (Col 0)
+  Down -> Coords (Row (worldSize-1)) (Col c)
+  Right -> Coords (Row r) (Col (worldSize-1))
+
+
 eraMicros :: Int
 eraMicros = eraMillis * 1000
   where
@@ -255,7 +273,7 @@ loop state@(GameState _ _ coords _) = do
 printTimer :: GameState -> RenderState -> IO RenderState
 printTimer s r = do
   t <- getCurrentTime
-  renderStrLn r $ showTimer t s
+  renderStrLn (showTimer t s) r
 
 
 updateGame :: GameState -> RenderState -> IO GameState
@@ -270,22 +288,30 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState
-renderGame state@(GameState t c frameCorner world@(World balls _ ship)) (RenderState renderCorner) action = do
-  -- adjust frame position
+renderGame state@(GameState t c frameCorner world@(World balls _ ship@(PosSpeed shipCoords _))) (RenderState renderCorner) action = do
   let frameOffset = coordsFor Frame action
 
+  -- render timer
   r <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset
+  -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
-  _ <- case action of
-    Throw -> do
-      _ <- renderStrLn r2 "Boom! An overflow exception was thrown in the game thread."
-      throw Overflow
-    _ -> return ()
-
+  -- render balls
   mapM_ (render r2 'O') balls
+  -- render laser
+  _ <- case action of
+    Action Laser dir -> renderLaser shipCoords dir r2
+    Throw            -> throw Overflow
+    _                -> return r2
+  -- render ship
   _ <- render r2 '+' ship
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world
+
+
+renderLaser :: Coords -> Direction -> RenderState -> IO RenderState
+renderLaser c1 dir = do
+  let c2 = extend c1 dir
+  renderLine c1 c2 $ laserChar dir
 
 
 renderWorldFrame :: RenderState -> IO RenderState
@@ -294,23 +320,23 @@ renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
       lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
 
   -- upper wall
-  (RenderState renderCoords) <- renderStrLn upperLeft $ horizontalWall '_'
+  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
   let worldCoords = translateCoord Right renderCoords
 
   -- left & right walls
   let leftWallCoords = take worldSize $ iterate (translateCoord Down) renderCoords
       toRight = Coords (Row 0) (Col $ worldSize+1)
       rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRight
-  mapM_ (\c -> renderStrLn (RenderState c) ['|']) (leftWallCoords ++ rightWallCoords)
+  mapM_ (renderStrLn ['|'] . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
-  _ <- renderStrLn lowerLeft  $ horizontalWall 'T'
+  _ <- renderStrLn (horizontalWall 'T') lowerLeft
   return $ RenderState worldCoords
 
 
 render :: RenderState -> Char -> PosSpeed -> IO RenderState
 render r@(RenderState renderCoords) char (PosSpeed worldCoords _) =
   case location worldCoords of
-    InsideWorld -> renderStrLn loc [char]
-    _       -> return r
+    InsideWorld -> renderStrLn [char] loc
+    _           -> return r
   where loc = RenderState $ sumCoords renderCoords worldCoords

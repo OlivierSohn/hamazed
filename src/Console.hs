@@ -1,7 +1,8 @@
 module Console ( ConsoleConfig(..)
                , configureConsoleFor
                , renderStrLn
-               , RenderState(..) ) where
+               , RenderState(..)
+               , renderLine ) where
 
 import           System.Console.ANSI( clearScreen
                                     , hideCursor
@@ -16,6 +17,7 @@ import           System.IO( hSetBuffering
 
 import           Geo( Col(..)
                     , Coords(..)
+                    , sumCoords
                     , Row(..) )
 
 
@@ -47,8 +49,28 @@ configureConsoleFor config = do
     Editing -> showCursor  -- do not clearScreen, to retain a potential printed exception
 
 
-renderStrLn :: RenderState -> String -> IO RenderState
-renderStrLn (RenderState (Coords (Row r) (Col c))) str = do
+renderStrLn :: String -> RenderState -> IO RenderState
+renderStrLn str (RenderState (Coords (Row r) (Col c))) = do
   setCursorPosition r c
   Prelude.putStrLn str
   return $ RenderState $ Coords (Row $ r + 1) (Col c)
+
+
+renderLine :: Coords -> Coords -> Char -> RenderState -> IO RenderState
+renderLine (Coords row@(Row r1) col@(Col c1)) (Coords (Row r2) (Col c2)) =
+  if r1 == r2
+    then renderHorizontalLine row c1 c2
+    else renderVerticalLine   col r1 r2
+
+
+renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState
+renderVerticalLine col r1 r2 char rs@(RenderState upperLeft) = do
+  let rows = [(min r1 r2)..(max r1 r2)]
+  res <- mapM (renderStrLn [char] . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
+  return $ case res of
+    [] ->  rs
+    x:_ -> x
+
+renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO RenderState
+renderHorizontalLine row c1 c2 char (RenderState upperLeft) =
+  renderStrLn (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))

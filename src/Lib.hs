@@ -148,7 +148,7 @@ makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
   let balls = [PosSpeed (Coords (Row 3) (Col 7)) (Coords (Row 1) (Col 1)),
-               PosSpeed (Coords (Row 4) (Col 2)) (Coords (Row 2) (Col 1))]
+               PosSpeed (Coords (Row 4) (Col 1)) (Coords (Row 2) (Col 1))]
       newWorld = World balls ballMotion
   return $ GameState (Timer t) 0 zeroCoords newWorld
 
@@ -177,7 +177,7 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
-renderGame state@(GameState t c frameCorner w@(World balls fBallMotion)) (RenderState renderCorner) maybeAction = do
+renderGame state@(GameState t c frameCorner (World balls fBallMotion)) (RenderState renderCorner) maybeAction = do
 
   -- TODO make this generic
   let frameOffset = case maybeAction of

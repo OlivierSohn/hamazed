@@ -4,9 +4,7 @@ A terminal ascii game I write to practice some Haskell!
 
 # Backlog
 
-- forever bouncing ball:
-in a 10x10 square, use a 'O' ball that goes diagonally
-
+- have elements of the world randomly advance, with a probability that increases over time
 
 - make a brick-breaking game
 - make a tower based defense game

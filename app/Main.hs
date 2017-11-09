@@ -3,4 +3,6 @@ module Main where
 import Lib (run)
 
 main :: IO ()
-main = run
+main = do
+  _ <- run
+  return ()

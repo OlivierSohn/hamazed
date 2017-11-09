@@ -32,7 +32,8 @@ import           Geo( sumCoords
                     , Coords(..)
                     , Direction(..)
                     , Row(..) )
-import           Threading( runAndWaitForTermination )
+import           Threading( runAndWaitForTermination
+                          , Termination(..) )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -69,13 +70,15 @@ data World = World{
   , _howBallMoves :: PosSpeed -> PosSpeed
 }
 
+worldSize :: Int
+worldSize = 20
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr') (Col dc'))) =
     PosSpeed (Coords (Row $ r+dr) (Col $ c+dc)) (Coords (Row dr) (Col dc))
   where
-    dr = if r > 0 && r < 10 then dr' else negate dr'
-    dc = if c > 0 && c < 10 then dc' else negate dc'
+    dr = if r > 0 && r < worldSize then dr' else negate dr'
+    dc = if c > 0 && c < worldSize then dc' else negate dc'
 
 data GameState = GameState {
     _startTime :: !Timer
@@ -124,7 +127,7 @@ nextUpdateCounter c = (c + 1) `mod` maxUpdateTick
 -- IO
 --------------------------------------------------------------------------------
 
-run :: IO ()
+run :: IO Termination
 run =
   (configureConsoleFor Gaming >> runAndWaitForTermination gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence

@@ -217,13 +217,13 @@ gameWorker = makeInitialState >>= loop
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  balls <- replicateM 20 createRandomPosSpeed
+  balls <- replicateM 5 createRandomPosSpeed
   ship <- createRandomPosSpeed
   return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion ship)
 
 
 randomPos :: IO Int
-randomPos = getStdRandom $ randomR (0,worldSize-1)
+randomPos = getStdRandom $ randomR (0,worldSize-2)
 
 
 randomSpeed :: IO Int

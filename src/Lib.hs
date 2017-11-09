@@ -66,7 +66,7 @@ data PosSpeed = PosSpeed {
   , _speed :: !Coords
 }
 data World = World{
-    _ball :: !PosSpeed
+    _ball :: ![PosSpeed]
   , _howBallMoves :: PosSpeed -> PosSpeed
 }
 
@@ -147,7 +147,9 @@ zeroCoords = Coords (Row 0) (Col 0)
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  let newWorld = World (PosSpeed (Coords (Row 3) (Col 7)) (Coords (Row 1) (Col 1))) ballMotion
+  let balls = [PosSpeed (Coords (Row 3) (Col 7)) (Coords (Row 1) (Col 1)),
+               PosSpeed (Coords (Row 4) (Col 2)) (Coords (Row 2) (Col 1))]
+      newWorld = World balls ballMotion
   return $ GameState (Timer t) 0 zeroCoords newWorld
 
 
@@ -175,7 +177,7 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Maybe Action -> IO GameState
-renderGame state@(GameState t c frameCorner w@(World ball fBallMotion)) (RenderState renderCorner) maybeAction = do
+renderGame state@(GameState t c frameCorner w@(World balls fBallMotion)) (RenderState renderCorner) maybeAction = do
 
   -- TODO make this generic
   let frameOffset = case maybeAction of
@@ -190,10 +192,10 @@ renderGame state@(GameState t c frameCorner w@(World ball fBallMotion)) (RenderS
       throw Overflow
     _ -> return ()
 
-  _ <- renderWorld r2 w
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ World (fBallMotion ball) ballMotion
+  mapM_ (renderWorld r2) balls
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ World (map fBallMotion balls) ballMotion
 
 -- TODO returned RenderState should be at the bottom of the world
-renderWorld :: RenderState -> World -> IO RenderState
-renderWorld (RenderState renderCoords) (World (PosSpeed worldCoords _) _) = renderStrLn loc "O"
+renderWorld :: RenderState -> PosSpeed -> IO RenderState
+renderWorld (RenderState renderCoords) (PosSpeed worldCoords _) = renderStrLn loc "O"
   where loc = RenderState $ sumCoords renderCoords worldCoords

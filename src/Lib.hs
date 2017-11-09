@@ -180,9 +180,9 @@ laserChar dir = case dir of
 
 extend :: Coords -> Direction -> Coords
 extend (Coords (Row r) (Col c)) dir = case dir of
-  Up -> Coords (Row 0) (Col c)
-  Left -> Coords (Row r) (Col 0)
-  Down -> Coords (Row (worldSize-1)) (Col c)
+  Up    -> Coords (Row 0) (Col c)
+  Left  -> Coords (Row r) (Col 0)
+  Down  -> Coords (Row (worldSize-1)) (Col c)
   Right -> Coords (Row r) (Col (worldSize-1))
 
 

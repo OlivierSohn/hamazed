@@ -12,9 +12,6 @@ module Geo ( Direction(..)
            , translateCoord
            , zeroCoords ) where
 
-
-import           Prelude hiding ( Left
-                                , Right )
 import           GHC.Generics( Generic )
 
 
@@ -22,7 +19,7 @@ import           GHC.Generics( Generic )
 -- Pure
 --------------------------------------------------------------------------------
 
-data Direction = Up | Down | Left | Right deriving (Eq, Show)
+data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
 
 newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show)
 newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show)
@@ -44,8 +41,8 @@ sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ 
 coordsForDirection :: Direction -> Coords
 coordsForDirection Down  = Coords (Row   1) (Col   0)
 coordsForDirection Up    = Coords (Row$ -1) (Col   0)
-coordsForDirection Left  = Coords (Row   0) (Col$ -1)
-coordsForDirection Right = Coords (Row   0) (Col   1)
+coordsForDirection LEFT  = Coords (Row   0) (Col$ -1)
+coordsForDirection RIGHT = Coords (Row   0) (Col   1)
 
 
 translateCoord :: Direction -> Coords -> Coords

@@ -29,7 +29,7 @@ import           Geo( Col(..)
 data ConsoleConfig = Gaming | Editing
 
 newtype RenderState = RenderState {
-    _currentUpperLeftCorner :: Coords
+    _currentUpperLEFTCorner :: Coords
 }
 
 --------------------------------------------------------------------------------
@@ -65,13 +65,13 @@ renderSegment l = case l of
 
 
 renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState
-renderVerticalLine col r1 r2 char rs@(RenderState upperLeft) = do
+renderVerticalLine col r1 r2 char rs@(RenderState upperLEFT) = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  res <- mapM (renderStrLn [char] . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
+  res <- mapM (renderStrLn [char] . (\r -> RenderState $ sumCoords upperLEFT $ Coords (Row r) col)) rows
   return $ case res of
     [] ->  rs
     x:_ -> x
 
 renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO RenderState
-renderHorizontalLine row c1 c2 char (RenderState upperLeft) =
-  renderStrLn (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))
+renderHorizontalLine row c1 c2 char (RenderState upperLEFT) =
+  renderStrLn (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLEFT $ Coords row (Col (min c1 c2))

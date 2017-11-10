@@ -4,10 +4,6 @@ module Lib
     ) where
 
 
-import           Prelude hiding ( Left
-                                , Right )
-
-
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
@@ -36,25 +32,26 @@ import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
                     , Direction(..)
-                    , mkSegment
                     , Row(..)
                     , segmentContains
                     , translateCoord
                     , zeroCoords )
+import           Laser( LaserType(..)
+                      , laserChar
+                      , shootLaserFromShip )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
+import           World( Action(..)
+                      , ActionTarget(..)
+                      , actionFromChar
+                      , Location(..)
+                      , location
+                      , worldSize )
+
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
-
-data Action = Action ActionTarget Direction |
-              Timeout |
-              Nonsense |
-              Throw deriving (Show)
-
-data ActionTarget = Frame | Ship | Laser deriving(Eq, Show)
-
 
 coordsFor :: ActionTarget -> Action -> Coords
 coordsFor target action = fromMaybe zeroCoords $ maybeCoordsFor target action
@@ -65,23 +62,6 @@ maybeCoordsFor targetFilter (Action actionTarget dir)
    | actionTarget == targetFilter = Just $ coordsForDirection dir
    | otherwise = Nothing
 maybeCoordsFor _ _ = Nothing
-
-actionFromChar :: Char -> Action
-actionFromChar c = case c of
-  'o' -> Throw
-  'g' -> Action Frame Down
-  't' -> Action Frame Up
-  'f' -> Action Frame Left
-  'h' -> Action Frame Right
-  'k' -> Action Laser Down
-  'i' -> Action Laser Up
-  'j' -> Action Laser Left
-  'l' -> Action Laser Right
-  's' -> Action Ship Down
-  'w' -> Action Ship Up
-  'a' -> Action Ship Left
-  'd' -> Action Ship Right
-  _   -> Nonsense
 
 
 newtype Timer = Timer { _initialTime :: UTCTime }
@@ -113,17 +93,6 @@ nextWorld action (World _ move (PosSpeed shipPos shipSpeed)) balls =
       ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
   in World (map (\(Number ps n) -> Number (move ps) n) balls) move (move ship)
 
-
-worldSize :: Int
-worldSize = 35
-
-data Location = InsideWorld | OutsideWorld
-
-location :: Coords -> Location
-location (Coords (Row r) (Col c))
-  | inside r && inside c = InsideWorld
-  | otherwise            = OutsideWorld
-  where inside x = x >= 0 && x < worldSize
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion = doBallMotion . mirrorIfNeeded
@@ -170,25 +139,9 @@ mirrorIfNeeded (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 data GameState = GameState {
     _startTime :: !Timer
   , _updateCounter :: !Int
-  , _upperLeftCorner :: !Coords
+  , _upperLEFTCorner :: !Coords
   , _world :: !World
 }
-
-
-laserChar :: Direction -> Char
-laserChar dir = case dir of
-  Up -> '|'
-  Down -> '|'
-  Left -> '-'
-  Right -> '-'
-
-
-extend :: Coords -> Direction -> Coords
-extend (Coords (Row r) (Col c)) dir = case dir of
-  Up    -> Coords (Row 0) (Col c)
-  Left  -> Coords (Row r) (Col 0)
-  Down  -> Coords (Row (worldSize-1)) (Col c)
-  Right -> Coords (Row r) (Col (worldSize-1))
 
 
 eraMicros :: Int
@@ -208,13 +161,13 @@ tickRepresentationLength = quot maxUpdateTick 2
 showUpdateTick :: Int -> String
 showUpdateTick t =
   let nDotsBefore = max 0 (t + tickRepresentationLength - maxUpdateTick)
-      nLeftBlanks = t - nDotsBefore
+      nLEFTBlanks = t - nDotsBefore
       nDotsAfter = tickRepresentationLength - nDotsBefore
-      nRightBlanks = maxUpdateTick - t - tickRepresentationLength
+      nRIGHTBlanks = maxUpdateTick - t - tickRepresentationLength
   in replicate nDotsBefore  '.'
-  ++ replicate nLeftBlanks  ' '
+  ++ replicate nLEFTBlanks  ' '
   ++ replicate nDotsAfter   '.'
-  ++ replicate nRightBlanks ' '
+  ++ replicate nRIGHTBlanks ' '
 
 
 showTimer :: UTCTime -> GameState -> String
@@ -305,22 +258,22 @@ renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipC
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
-  -- render laser
+  -- make laser
   mayLaserRay <- case action of
     Action Laser dir -> do
-      let translatedCenter = translateCoord dir shipCoords
-      case location translatedCenter of
-        OutsideWorld -> return Nothing
-        InsideWorld -> do
-          let laserEnd = extend translatedCenter dir
-              laserRay = mkSegment translatedCenter laserEnd
-          _ <- renderSegment laserRay (laserChar dir) r2
-          return $ Just laserRay
+      let res = shootLaserFromShip shipCoords dir Infinite
+      -- render laser
+      _ <- case res of
+        (Just laserRay) -> renderSegment laserRay (laserChar dir) r2
+        Nothing -> return r2
+      return res
     Throw            -> throw Overflow
     _                -> return Nothing
-  -- render balls
+
+  -- render numbers
   mapM_ (\(Number (PosSpeed b _) i) -> render r2 (intToDigit i) b) balls
 
+  -- compute remaining numbers
   let newBalls = case mayLaserRay of
         Nothing       -> balls
         Just laserRay -> mapMaybe (\ball@(Number (PosSpeed b _) _) ->
@@ -333,22 +286,22 @@ renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipC
 
 
 renderWorldFrame :: RenderState -> IO RenderState
-renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame upperLEFT@(RenderState upperLEFTCoords) = do
   let horizontalWall = replicate (worldSize + 2)
-      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
+      lowerLEFT = RenderState $ sumCoords upperLEFTCoords $ Coords (Row $ worldSize+1) (Col 0)
 
   -- upper wall
-  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
-  let worldCoords = translateCoord Right renderCoords
+  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLEFT
+  let worldCoords = translateCoord RIGHT renderCoords
 
   -- left & right walls
   let leftWallCoords = take worldSize $ iterate (translateCoord Down) renderCoords
-      toRight = Coords (Row 0) (Col $ worldSize+1)
-      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRight
+      toRIGHT = Coords (Row 0) (Col $ worldSize+1)
+      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRIGHT
   mapM_ (renderStrLn ['|'] . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
-  _ <- renderStrLn (horizontalWall 'T') lowerLeft
+  _ <- renderStrLn (horizontalWall 'T') lowerLEFT
   return $ RenderState worldCoords
 
 

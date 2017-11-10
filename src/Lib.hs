@@ -4,19 +4,21 @@ module Lib
     ) where
 
 
+import           Control.Concurrent( threadDelay )
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
+import           Control.Monad.Loops( unfoldM )
 import           Data.Char( intToDigit )
-import           Data.Maybe( fromMaybe
-                           , mapMaybe )
+import           Data.Maybe( mapMaybe )
 import           Data.Time( UTCTime
                           , getCurrentTime )
 import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
                           , hFlush
+                          , hReady
+                          , stdin
                           , stdout )
-import           System.Timeout( timeout )
 
 
 import           Console( configureConsoleFor
@@ -99,6 +101,7 @@ makeInitialState = do
 
 loop :: GameState -> IO ()
 loop state@(GameState _ _ coords _) = do
+  threadDelay eraMicros
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -114,10 +117,22 @@ updateGame s r =
   (clearScreen >> getAction >>= renderGame s r) `finally` hFlush stdout
 
 
+readOneChar :: IO (Maybe Char)
+readOneChar = do
+  hasMore <- hReady stdin
+  if hasMore
+    then do
+      c <- getChar
+      return $ Just c
+    else
+      return Nothing
+
 getAction :: IO Action
 getAction = do
-  a <- timeout eraMicros getChar >>= mapM (return . actionFromChar)
-  return $ fromMaybe Timeout a
+  inputs <- unfoldM readOneChar
+  return $ case inputs of
+    [] -> Timeout
+    l -> actionFromChar $ last l
 
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState

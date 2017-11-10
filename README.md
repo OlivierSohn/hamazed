@@ -5,7 +5,9 @@ A terminal ascii game I write to practice some Haskell!
 # Backlog
 
 - handle repeated keys by not making the game fast forward
+-- use a timeout of 0 for getChar, loop until timeout is reached
 
+- try BlockBuffering (Just 80000) to reduce flicker
 - destroy animation
 - ship is destroyed if touched by a number
 - laser shoots only the first thing

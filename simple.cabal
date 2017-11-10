@@ -24,6 +24,7 @@ library
                      , World
   build-depends:       base
                      , ansi-terminal
+                     , monad-loops
                      , time
                      , random
   default-language:    Haskell2010

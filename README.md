@@ -4,10 +4,11 @@ A terminal ascii game I write to practice some Haskell!
 
 # Backlog
 
+- handle repeated keys by not making the game fast forward
+
 - destroy animation
 - ship is destroyed if touched by a number
 - laser shoots only the first thing
-- handle repeated keys by not making the game fast forward
 - laser has limited reach
 
 - when ship and number go in opposite direction and ship shoots at each iteration

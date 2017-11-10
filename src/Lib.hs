@@ -12,7 +12,8 @@ import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
 import           Control.Monad( replicateM )
-import           Data.Maybe( fromMaybe )
+import           Data.Maybe( fromMaybe
+                           , mapMaybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
@@ -27,7 +28,7 @@ import           System.Timeout( timeout )
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
-                        , renderLine
+                        , renderSegment
                         , renderStrLn
                         , RenderState(..) )
 import           Geo( sumCoords
@@ -35,8 +36,9 @@ import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
                     , Direction(..)
-                    , mkLine
+                    , mkSegment
                     , Row(..)
+                    , segmentContains
                     , translateCoord
                     , zeroCoords )
 import           Threading( runAndWaitForTermination
@@ -102,8 +104,8 @@ data World = World{
 }
 
 
-nextWorld :: Action -> World -> World
-nextWorld action (World balls move (PosSpeed shipPos shipSpeed)) =
+nextWorld :: Action -> World -> [PosSpeed] -> World
+nextWorld action (World _ move (PosSpeed shipPos shipSpeed)) balls =
   let shipAcceleration = coordsFor Ship action
       ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
   in World (map move balls) move (move ship)
@@ -291,7 +293,7 @@ getAction = do
 
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState
-renderGame state@(GameState t c frameCorner world@(World balls _ ship@(PosSpeed shipCoords _))) (RenderState renderCorner) action = do
+renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipCoords _))) (RenderState renderCorner) action = do
   let frameOffset = coordsFor Frame action
 
   -- render timer
@@ -299,23 +301,31 @@ renderGame state@(GameState t c frameCorner world@(World balls _ ship@(PosSpeed 
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
-  -- render balls
-  mapM_ (render r2 'O') balls
   -- render laser
-  _ <- case action of
+  mayLaserRay <- case action of
     Action Laser dir -> do
       let translatedCenter = translateCoord dir shipCoords
       case location translatedCenter of
-        OutsideWorld -> return r2 -- 0 length ray
+        OutsideWorld -> return Nothing
         InsideWorld -> do
           let laserEnd = extend translatedCenter dir
-              laserRay = mkLine translatedCenter laserEnd
-          renderLine laserRay (laserChar dir) r2
+              laserRay = mkSegment translatedCenter laserEnd
+          _ <- renderSegment laserRay (laserChar dir) r2
+          return $ Just laserRay
     Throw            -> throw Overflow
-    _                -> return r2
+    _                -> return Nothing
+  -- render balls
+  mapM_ (\(PosSpeed b _) -> render r2 'O' b) balls
+
+  let newBalls = case mayLaserRay of
+        Nothing       -> balls
+        Just laserRay -> mapMaybe (\ball@(PosSpeed b _) ->
+          if segmentContains laserRay b
+            then Nothing
+            else Just ball) balls
   -- render ship
-  _ <- render r2 '+' ship
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world
+  _ <- render r2 '+' shipCoords
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world newBalls
 
 
 renderWorldFrame :: RenderState -> IO RenderState
@@ -338,8 +348,8 @@ renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
   return $ RenderState worldCoords
 
 
-render :: RenderState -> Char -> PosSpeed -> IO RenderState
-render r@(RenderState renderCoords) char (PosSpeed worldCoords _) =
+render :: RenderState -> Char -> Coords -> IO RenderState
+render r@(RenderState renderCoords) char worldCoords =
   case location worldCoords of
     InsideWorld -> renderStrLn [char] loc
     _           -> return r

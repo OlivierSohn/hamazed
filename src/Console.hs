@@ -2,7 +2,7 @@ module Console ( ConsoleConfig(..)
                , configureConsoleFor
                , renderStrLn
                , RenderState(..)
-               , renderLine ) where
+               , renderSegment ) where
 
 import           System.Console.ANSI( clearScreen
                                     , hideCursor
@@ -17,7 +17,7 @@ import           System.IO( hSetBuffering
 
 import           Geo( Col(..)
                     , Coords(..)
-                    , Line(..)
+                    , Segment(..)
                     , sumCoords
                     , Row(..) )
 
@@ -57,11 +57,11 @@ renderStrLn str (RenderState (Coords (Row r) (Col c))) = do
   return $ RenderState $ Coords (Row $ r + 1) (Col c)
 
 
-renderLine :: Line -> Char -> RenderState -> IO RenderState
-renderLine l = case l of
+renderSegment :: Segment -> Char -> RenderState -> IO RenderState
+renderSegment l = case l of
   Horizontal row c1 c2 -> renderHorizontalLine row c1 c2
   Vertical col r1 r2   -> renderVerticalLine   col r1 r2
-  Oblique _ _ -> error "oblique line rendering is not supported"
+  Oblique _ _ -> error "oblique segment rendering is not supported"
 
 
 renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState

@@ -5,14 +5,13 @@ module Lib
     ) where
 
 
-import           Control.Concurrent( threadDelay )
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
-import           Control.Monad.Loops( unfoldM )
 import           Data.Char( intToDigit )
 import           Data.Maybe( mapMaybe )
 import           Data.Time( UTCTime
+                          , diffUTCTime
                           , getCurrentTime )
 import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
@@ -20,7 +19,7 @@ import           System.IO( getChar
                           , hReady
                           , stdin
                           , stdout )
-
+import           System.Timeout( timeout )
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
@@ -42,8 +41,8 @@ import           Laser( LaserType(..)
                       , shootLaserFromShip )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
-import           Timing( computeTime
-                       , eraMicros
+import           Timing( addMotionStepDuration
+                       , computeTime
                        , nextUpdateCounter
                        , showUpdateTick
                        , Timer(..) )
@@ -53,6 +52,7 @@ import           World( Action(..)
                       , coordsForActionTargets
                       , Location(..)
                       , location
+                      , moveWorld
                       , mkWorld
                       , nextWorld
                       , World(..)
@@ -66,11 +66,11 @@ import           World( Action(..)
 
 data GameState = GameState {
     _startTime :: !Timer
+  , _nextMotionStep :: !UTCTime
   , _updateCounter :: !Int
-  , _upperLEFTCorner :: !Coords
+  , _upperLeftCorner :: !Coords
   , _world :: !World
 }
-
 
 data LaserRay = LaserRay {
     _laserRayDir :: !Direction
@@ -79,7 +79,7 @@ data LaserRay = LaserRay {
 
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime updateTick _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
@@ -104,12 +104,11 @@ makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
   world <- mkWorld
-  return $ GameState (Timer t) 0 zeroCoords world
+  return $ GameState (Timer t) t 0 zeroCoords world
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ coords _) = do
-  threadDelay eraMicros
+loop state@(GameState _ _ _ coords _) = do
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -121,8 +120,25 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame s r =
-  (clearScreen >> getActions >>= renderGame s r) `finally` hFlush stdout
+updateGame state@(GameState a _ c d world) r = do
+  action <- getAction state
+  case action of
+    Nonsense -> return state
+    Timeout  -> do
+      -- change position of objects in the world and compute the new deadline
+      curTime <- getCurrentTime
+      let newState = GameState a (addMotionStepDuration curTime) c d (moveWorld world)
+      updateGame2 action newState r
+    _        ->
+      updateGame2 action state r
+
+
+updateGame2 :: Action -> GameState -> RenderState -> IO GameState
+updateGame2 a s r = do
+  clearScreen
+  res <- renderGame s r a
+  hFlush stdout
+  return res
 
 
 readOneChar :: IO (Maybe Char)
@@ -135,15 +151,37 @@ readOneChar = do
     else
       return Nothing
 
+{--
+import           Control.Monad.Loops( unfoldM )
 
 getActions :: IO [Action]
 getActions = do
   inputs <- unfoldM readOneChar
   return $ map actionFromChar inputs
+--}
 
 
-renderGame :: GameState -> RenderState -> [Action] -> IO GameState
-renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipCoords _))) (RenderState renderCorner) actions = do
+getAction :: GameState -> IO Action
+getAction (GameState _ nextMotionStep _ _ _) = do
+  t <- getCurrentTime
+  let remainingSeconds = diffUTCTime nextMotionStep t
+      remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
+  if remainingMicros < 0
+    then return Timeout
+    else do
+      maybeC <- timeout remainingMicros readOneChar
+      case maybeC of
+        (Just (Just c)) -> return $ actionFromChar c
+        (Just _) -> return Nonsense
+        _ -> return Timeout
+
+
+renderGame :: GameState -> RenderState -> Action -> IO GameState
+renderGame
+ state@(GameState t motionStepDeadline c frameCorner world@(World balls _ (PosSpeed shipCoords _)))
+ (RenderState renderCorner)
+ action = do
+  let actions = [action]
   -- modify world according to actions:
   --   Frame /
   let frameOffset = coordsForActionTargets Frame actions
@@ -167,23 +205,23 @@ renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipC
   -- render lasers
   mapM_ (\(LaserRay dir seg) -> renderSegment seg (laserChar dir) r2) laserRays
 
-  -- render numbers
+  -- render numbers, including the ones that will be destroyed, if any
   mapM_ (\(Number (PosSpeed b _) i) -> render r2 (intToDigit i) b) balls
 
-  -- compute remaining numbers
-  let newBalls = filter (\(Number (PosSpeed b _) _) -> (not (any (\(LaserRay _ seg) -> segmentContains b seg) laserRays))) balls
   -- render ship
   _ <- render r2 '+' shipCoords
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld actions world newBalls
+  -- compute remaining numbers
+  let newBalls = filter (\(Number (PosSpeed b _) _) -> (not (any (\(LaserRay _ seg) -> segmentContains b seg) laserRays))) balls
+  return $ GameState t motionStepDeadline (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world newBalls
 
 
 renderWorldFrame :: RenderState -> IO RenderState
-renderWorldFrame upperLEFT@(RenderState upperLEFTCoords) = do
+renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
   let horizontalWall = replicate (worldSize + 2)
-      lowerLEFT = RenderState $ sumCoords upperLEFTCoords $ Coords (Row $ worldSize+1) (Col 0)
+      lowerLEFT = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
 
   -- upper wall
-  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLEFT
+  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
   let worldCoords = translateCoord RIGHT renderCoords
 
   -- left & right walls

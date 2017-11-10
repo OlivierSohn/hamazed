@@ -1,6 +1,7 @@
 
 module Timing
-    ( computeTime
+    ( addMotionStepDuration
+    , computeTime
     , eraMicros
     , nextUpdateCounter
     , showUpdateTick
@@ -8,8 +9,9 @@ module Timing
     ) where
 
 
-import           Data.Time( UTCTime
-                          , diffUTCTime )
+import           Data.Time( addUTCTime
+                          , diffUTCTime
+                          , UTCTime )
 import           World( worldSize )
 
 
@@ -22,6 +24,11 @@ computeTime (Timer t1) t2 =
   in floor t
 
 
+motionStepDurationSeconds :: Float
+motionStepDurationSeconds = fromIntegral eraMicros / 1000000
+
+addMotionStepDuration :: UTCTime -> UTCTime
+addMotionStepDuration = addUTCTime (realToFrac motionStepDurationSeconds)
 
 eraMicros :: Int
 eraMicros = eraMillis * 1000

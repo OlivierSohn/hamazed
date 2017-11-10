@@ -8,6 +8,7 @@ module World
     , Location(..)
     , location
     , mkWorld
+    , moveWorld
     , nextWorld
     , Number(..)
     , World(..)
@@ -99,12 +100,17 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
-nextWorld :: [Action] -> World -> [Number] -> World
-nextWorld actions (World _ move (PosSpeed shipPos shipSpeed)) balls =
-  let shipAcceleration = coordsForActionTargets Ship actions
-      ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World (map (\(Number ps n) -> Number (move ps) n) balls) move (move ship)
+-- this function does 2 things:
+-- - it replaces the numbers
+-- - if Action is move ship, it changes ship acceleration
+nextWorld :: Action -> World -> [Number] -> World
+nextWorld action (World _ changePos (PosSpeed shipPos shipSpeed)) balls =
+  let shipAcceleration = coordsForActionTargets Ship [action]
+      shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
+  in World balls changePos shipSamePosChangedSpeed
 
+moveWorld :: World -> World
+moveWorld (World balls changePos ship) = World (map (\(Number ps n) -> Number (changePos ps) n) balls) changePos (changePos ship)
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion = doBallMotion . mirrorIfNeeded

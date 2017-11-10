@@ -11,7 +11,8 @@ module Geo ( Direction(..)
            , segmentContains
            , sumCoords
            , translateCoord
-           , zeroCoords ) where
+           , zeroCoords
+           ) where
 
 import           GHC.Generics( Generic )
 

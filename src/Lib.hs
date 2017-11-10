@@ -11,7 +11,6 @@ import           Data.Char( intToDigit )
 import           Data.Maybe( fromMaybe
                            , mapMaybe )
 import           Data.Time( UTCTime
-                          , diffUTCTime
                           , getCurrentTime )
 import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
@@ -39,6 +38,11 @@ import           Laser( LaserType(..)
                       , shootLaserFromShip )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
+import           Timing( computeTime
+                       , eraMicros
+                       , nextUpdateCounter
+                       , showUpdateTick
+                       , Timer(..) )
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
@@ -56,15 +60,6 @@ import           World( Action(..)
 -- Pure
 --------------------------------------------------------------------------------
 
-newtype Timer = Timer { _initialTime :: UTCTime }
-
-
-computeTime :: Timer -> UTCTime -> Int
-computeTime (Timer t1) t2 =
-  let t = diffUTCTime t2 t1
-  in floor t
-
-
 data GameState = GameState {
     _startTime :: !Timer
   , _updateCounter :: !Int
@@ -72,41 +67,10 @@ data GameState = GameState {
   , _world :: !World
 }
 
-
-eraMicros :: Int
-eraMicros = eraMillis * 1000
-  where
-    eraMillis = 160 -- this controls the game loop frequency.
-                    -- 20 seems to match screen refresh frequency
-
-maxUpdateTick :: Int
-maxUpdateTick = worldSize
-
-
-tickRepresentationLength :: Int
-tickRepresentationLength = quot maxUpdateTick 2
-
-
-showUpdateTick :: Int -> String
-showUpdateTick t =
-  let nDotsBefore = max 0 (t + tickRepresentationLength - maxUpdateTick)
-      nLEFTBlanks = t - nDotsBefore
-      nDotsAfter = tickRepresentationLength - nDotsBefore
-      nRIGHTBlanks = maxUpdateTick - t - tickRepresentationLength
-  in replicate nDotsBefore  '.'
-  ++ replicate nLEFTBlanks  ' '
-  ++ replicate nDotsAfter   '.'
-  ++ replicate nRIGHTBlanks ' '
-
-
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
-
-
-nextUpdateCounter :: Int -> Int
-nextUpdateCounter c = (c + 1) `mod` maxUpdateTick
 
 
 --------------------------------------------------------------------------------

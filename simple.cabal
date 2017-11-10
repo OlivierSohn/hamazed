@@ -20,6 +20,7 @@ library
                      , Geo
                      , Laser
                      , Threading
+                     , Timing
                      , World
   build-depends:       base
                      , ansi-terminal

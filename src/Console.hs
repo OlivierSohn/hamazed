@@ -2,7 +2,8 @@ module Console ( ConsoleConfig(..)
                , configureConsoleFor
                , renderStrLn
                , RenderState(..)
-               , renderSegment ) where
+               , renderSegment
+               ) where
 
 import           System.Console.ANSI( clearScreen
                                     , hideCursor

@@ -29,6 +29,7 @@ import           Console( configureConsoleFor
 import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
+                    , coordsForDirection
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
@@ -49,7 +50,6 @@ import           Timing( addMotionStepDuration
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
-                      , coordsForActionTargets
                       , Location(..)
                       , location
                       , moveWorld
@@ -120,21 +120,24 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a _ c d world) r = do
+updateGame state@(GameState a b c d world) r = do
   action <- getAction state
   case action of
     Nonsense -> return state
-    Timeout  -> do
-      -- change position of objects in the world and compute the new deadline
-      curTime <- getCurrentTime
-      let newState = GameState a (addMotionStepDuration curTime) c d (moveWorld world)
-      updateGame2 action newState r
-    _        ->
-      updateGame2 action state r
+    _ -> do
+      newState <- case action of
+        Timeout  -> do
+          -- change position of objects in the world and compute the new deadline
+          curTime <- getCurrentTime
+          return $ GameState a (addMotionStepDuration curTime) c d (moveWorld world)
+        (Action Frame dir) -> do
+          let frameOffset = coordsForDirection dir
+          return $ GameState a b c (sumCoords d frameOffset) world
+        _        -> return state
+      updateGame2 action r newState
 
-
-updateGame2 :: Action -> GameState -> RenderState -> IO GameState
-updateGame2 a s r = do
+updateGame2 :: Action -> RenderState -> GameState -> IO GameState
+updateGame2 a r s = do
   clearScreen
   res <- renderGame s r a
   hFlush stdout
@@ -179,15 +182,11 @@ getAction (GameState _ nextMotionStep _ _ _) = do
 renderGame :: GameState -> RenderState -> Action -> IO GameState
 renderGame
  state@(GameState t motionStepDeadline c frameCorner world@(World balls _ (PosSpeed shipCoords _)))
- (RenderState renderCorner)
+ renderCorner
  action = do
   let actions = [action]
-  -- modify world according to actions:
-  --   Frame /
-  let frameOffset = coordsForActionTargets Frame actions
-
   -- render timer
-  r <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset
+  r <- printTimer state renderCorner
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
@@ -212,7 +211,7 @@ renderGame
   _ <- render r2 '+' shipCoords
   -- compute remaining numbers
   let newBalls = filter (\(Number (PosSpeed b _) _) -> (not (any (\(LaserRay _ seg) -> segmentContains b seg) laserRays))) balls
-  return $ GameState t motionStepDeadline (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world newBalls
+  return $ GameState t motionStepDeadline (nextUpdateCounter c) frameCorner $ nextWorld action world newBalls
 
 
 renderWorldFrame :: RenderState -> IO RenderState

@@ -11,7 +11,7 @@ import           Prelude hiding ( Left
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
-import           Control.Monad( replicateM )
+import           Data.Char( intToDigit )
 import           Data.Maybe( fromMaybe
                            , mapMaybe )
 import           Data.Time( UTCTime
@@ -98,24 +98,24 @@ data PosSpeed = PosSpeed {
   , _speed :: !Coords
 }
 data World = World{
-    _ball :: ![PosSpeed]
+    _worldNumber :: ![Number]
   , _howBallMoves :: PosSpeed -> PosSpeed
-  , _ship :: !PosSpeed
+  , _worldShip :: !PosSpeed
+}
+data Number = Number {
+    _numberPosSpeed :: !PosSpeed
+  , _numberNum :: !Int
 }
 
-
-nextWorld :: Action -> World -> [PosSpeed] -> World
+nextWorld :: Action -> World -> [Number] -> World
 nextWorld action (World _ move (PosSpeed shipPos shipSpeed)) balls =
   let shipAcceleration = coordsFor Ship action
       ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World (map move balls) move (move ship)
+  in World (map (\(Number ps n) -> Number (move ps) n) balls) move (move ship)
 
 
 worldSize :: Int
 worldSize = 35
-
-nBalls :: Int
-nBalls = 20
 
 data Location = InsideWorld | OutsideWorld
 
@@ -247,17 +247,21 @@ gameWorker = makeInitialState >>= loop
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  balls <- replicateM nBalls createRandomPosSpeed
+  balls <- mapM createRandomNumber [0..9]
   ship <- createRandomPosSpeed
   return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion ship)
 
+createRandomNumber :: Int -> IO Number
+createRandomNumber i = do
+  ps <- createRandomPosSpeed
+  return $ Number ps i
 
 randomPos :: IO Int
 randomPos = getStdRandom $ randomR (0,worldSize-1)
 
 
 randomSpeed :: IO Int
-randomSpeed = getStdRandom $ randomR (-2,2)
+randomSpeed = getStdRandom $ randomR (-1,1)
 
 
 createRandomPosSpeed :: IO PosSpeed
@@ -315,11 +319,11 @@ renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipC
     Throw            -> throw Overflow
     _                -> return Nothing
   -- render balls
-  mapM_ (\(PosSpeed b _) -> render r2 'O' b) balls
+  mapM_ (\(Number (PosSpeed b _) i) -> render r2 (intToDigit i) b) balls
 
   let newBalls = case mayLaserRay of
         Nothing       -> balls
-        Just laserRay -> mapMaybe (\ball@(PosSpeed b _) ->
+        Just laserRay -> mapMaybe (\ball@(Number (PosSpeed b _) _) ->
           if segmentContains laserRay b
             then Nothing
             else Just ball) balls

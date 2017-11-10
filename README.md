@@ -4,9 +4,9 @@ A terminal ascii game I write to practice some Haskell!
 
 # Backlog
 
-- the balls that go faster should be drawn more frequently
+- laser shoots only the first thing
 - handle repeated keys by not making the game fast forward
-- ship with laser
+- the balls that go faster should be drawn more frequently
 
 - make a brick-breaking game
 - make a tower based defense game

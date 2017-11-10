@@ -4,6 +4,7 @@ module Geo ( Direction(..)
            , Col(..)
            , Coords(..)
            , coordsForDirection
+           , PosSpeed(..)
            , Segment(..)
            , mkSegment
            , Row(..)
@@ -66,3 +67,9 @@ segmentContains :: Segment -> Coords -> Bool
 segmentContains (Horizontal row c1 c2) (Coords row' (Col c)) = row' == row && rangeContains c1 c2 c
 segmentContains (Vertical   col r1 r2) (Coords (Row r) col') = col' == col && rangeContains r1 r2 r
 segmentContains _ _ = error "segmentContains cannot operate on oblique segments"
+
+
+data PosSpeed = PosSpeed {
+    _pos :: !Coords
+  , _speed :: !Coords
+}

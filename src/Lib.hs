@@ -13,8 +13,6 @@ import           Data.Maybe( fromMaybe
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
-import           System.Random( getStdRandom
-                              , randomR )
 import           System.Console.ANSI( clearScreen )
 import           System.IO( getChar
                           , hFlush
@@ -28,10 +26,10 @@ import           Console( configureConsoleFor
                         , renderStrLn
                         , RenderState(..) )
 import           Geo( sumCoords
-                    , coordsForDirection
                     , Col(..)
                     , Coords(..)
                     , Direction(..)
+                    , PosSpeed(..)
                     , Row(..)
                     , segmentContains
                     , translateCoord
@@ -44,25 +42,19 @@ import           Threading( runAndWaitForTermination
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
+                      , coordsForActionTarget
                       , Location(..)
                       , location
+                      , mkWorld
+                      , nextWorld
+                      , World(..)
+                      , Number(..)
                       , worldSize )
 
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
-
-coordsFor :: ActionTarget -> Action -> Coords
-coordsFor target action = fromMaybe zeroCoords $ maybeCoordsFor target action
-
-
-maybeCoordsFor :: ActionTarget -> Action -> Maybe Coords
-maybeCoordsFor targetFilter (Action actionTarget dir)
-   | actionTarget == targetFilter = Just $ coordsForDirection dir
-   | otherwise = Nothing
-maybeCoordsFor _ _ = Nothing
-
 
 newtype Timer = Timer { _initialTime :: UTCTime }
 
@@ -72,69 +64,6 @@ computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
   in floor t
 
-
-data PosSpeed = PosSpeed {
-    _pos :: !Coords
-  , _speed :: !Coords
-}
-data World = World{
-    _worldNumber :: ![Number]
-  , _howBallMoves :: PosSpeed -> PosSpeed
-  , _worldShip :: !PosSpeed
-}
-data Number = Number {
-    _numberPosSpeed :: !PosSpeed
-  , _numberNum :: !Int
-}
-
-nextWorld :: Action -> World -> [Number] -> World
-nextWorld action (World _ move (PosSpeed shipPos shipSpeed)) balls =
-  let shipAcceleration = coordsFor Ship action
-      ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World (map (\(Number ps n) -> Number (move ps) n) balls) move (move ship)
-
-
-ballMotion :: PosSpeed -> PosSpeed
-ballMotion = doBallMotion . mirrorIfNeeded
-
-doBallMotion :: PosSpeed -> PosSpeed
-doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-    PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row dr) (Col dc))
-  where
-    newR = r + dr
-    newC = c + dc
-
-
-mirrorSpeedIfNeeded :: Int -> Int -> Int
-mirrorSpeedIfNeeded x
-  | x <= 0           = abs
-  | x >= worldSize-1 = negate . abs
-  | otherwise        = id
-
-{--
-constrainPos :: Int -> Int
-constrainPos r
-  | r < 0 = negate r
-  | r >= worldSize = 2 * worldSize - r
-  | otherwise = r
-
-constrainPosSticky :: Int -> Int
-constrainPosSticky r
-  | r < 0 = 0
-  | r >= worldSize = worldSize - 1
-  | otherwise = r
---}
-
-mirrorIfNeeded :: PosSpeed -> PosSpeed
-mirrorIfNeeded (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-  let newDr = mirrorSpeedIfNeeded r dr
-      newDc = mirrorSpeedIfNeeded c dc
-      -- we chose to not constrain the positions as it leads to unnatural motions
-      -- the tradeoff is just to not render them
-      newR = r
-      newC = c
-
-  in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
 data GameState = GameState {
     _startTime :: !Timer
@@ -200,30 +129,8 @@ gameWorker = makeInitialState >>= loop
 makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
-  balls <- mapM createRandomNumber [0..9]
-  ship <- createRandomPosSpeed
-  return $ GameState (Timer t) 0 zeroCoords (World balls ballMotion ship)
-
-createRandomNumber :: Int -> IO Number
-createRandomNumber i = do
-  ps <- createRandomPosSpeed
-  return $ Number ps i
-
-randomPos :: IO Int
-randomPos = getStdRandom $ randomR (0,worldSize-1)
-
-
-randomSpeed :: IO Int
-randomSpeed = getStdRandom $ randomR (-1,1)
-
-
-createRandomPosSpeed :: IO PosSpeed
-createRandomPosSpeed = do
-  x <- randomPos
-  y <- randomPos
-  dx <- randomSpeed
-  dy <- randomSpeed
-  return $ mirrorIfNeeded $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
+  world <- mkWorld
+  return $ GameState (Timer t) 0 zeroCoords world
 
 
 loop :: GameState -> IO ()
@@ -251,7 +158,7 @@ getAction = do
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState
 renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipCoords _))) (RenderState renderCorner) action = do
-  let frameOffset = coordsFor Frame action
+  let frameOffset = coordsForActionTarget Frame action
 
   -- render timer
   r <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset

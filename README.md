@@ -9,11 +9,12 @@ The corresponding period is a fixed number called "motion update period"
 
 # Backlog
 
+- in coordsForActionTargets, for ship only, if Left Right are encountered
+in the same motion step, they produce no change in speed but a change in position.
+This allows quick left right to move of one pixel.
 
-- allow multiple actions within a single motion step
 - if multiple laser shots happen, render at exact time when it occurs
 -- render everything
-
 
 - try BlockBuffering (Just 80000) to reduce flicker
 - destroy animation

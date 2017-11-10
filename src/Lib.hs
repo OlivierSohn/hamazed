@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 
 module Lib
     ( run
@@ -32,6 +33,7 @@ import           Geo( sumCoords
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
+                    , Segment(..)
                     , segmentContains
                     , translateCoord
                     , zeroCoords )
@@ -48,7 +50,7 @@ import           Timing( computeTime
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
-                      , coordsForActionTarget
+                      , coordsForActionTargets
                       , Location(..)
                       , location
                       , mkWorld
@@ -114,7 +116,7 @@ printTimer s r = do
 
 updateGame :: GameState -> RenderState -> IO GameState
 updateGame s r =
-  (clearScreen >> getAction >>= renderGame s r) `finally` hFlush stdout
+  (clearScreen >> getActions >>= renderGame s r) `finally` hFlush stdout
 
 
 readOneChar :: IO (Maybe Char)
@@ -127,49 +129,51 @@ readOneChar = do
     else
       return Nothing
 
-getAction :: IO Action
-getAction = do
+
+getActions :: IO [Action]
+getActions = do
   inputs <- unfoldM readOneChar
-  return $ case inputs of
-    [] -> Timeout
-    l -> actionFromChar $ last l
+  return $ map actionFromChar inputs
 
 
-renderGame :: GameState -> RenderState -> Action -> IO GameState
-renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipCoords _))) (RenderState renderCorner) action = do
-  let frameOffset = coordsForActionTarget Frame action
+renderGame :: GameState -> RenderState -> [Action] -> IO GameState
+renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipCoords _))) (RenderState renderCorner) actions = do
+  -- modify world according to actions:
+  --   Frame /
+  let frameOffset = coordsForActionTargets Frame actions
 
   -- render timer
   r <- printTimer state $ RenderState $ sumCoords renderCorner frameOffset
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
-  -- make laser
-  mayLaserRay <- case action of
-    Action Laser dir -> do
-      let res = shootLaserFromShip shipCoords dir Infinite
-      -- render laser
-      _ <- case res of
-        (Just laserRay) -> renderSegment laserRay (laserChar dir) r2
-        Nothing -> return r2
-      return res
-    Throw            -> throw Overflow
-    _                -> return Nothing
+  -- make lasers
+  let laserRays = mapMaybe
+        (\case
+          (Action Laser dir) ->
+            case shootLaserFromShip shipCoords dir Infinite of
+              (Just ray) -> Just $ LaserRay dir ray
+              Nothing -> Nothing
+          Throw -> throw Overflow
+          _     -> Nothing
+        ) actions
+
+  -- render lasers
+  mapM_ (\(LaserRay dir seg) -> renderSegment seg (laserChar dir) r2) laserRays
 
   -- render numbers
   mapM_ (\(Number (PosSpeed b _) i) -> render r2 (intToDigit i) b) balls
 
   -- compute remaining numbers
-  let newBalls = case mayLaserRay of
-        Nothing       -> balls
-        Just laserRay -> mapMaybe (\ball@(Number (PosSpeed b _) _) ->
-          if segmentContains laserRay b
-            then Nothing
-            else Just ball) balls
+  let newBalls = filter (\(Number (PosSpeed b _) _) -> (not (any (\(LaserRay _ seg) -> segmentContains b seg) laserRays))) balls
   -- render ship
   _ <- render r2 '+' shipCoords
-  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld action world newBalls
+  return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld actions world newBalls
 
+data LaserRay = LaserRay {
+    _laserRayDir :: !Direction
+  , _laserRaySeg :: !Segment
+}
 
 renderWorldFrame :: RenderState -> IO RenderState
 renderWorldFrame upperLEFT@(RenderState upperLEFTCoords) = do

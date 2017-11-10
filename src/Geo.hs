@@ -64,9 +64,9 @@ mkSegment coord1@(Coords row@(Row r1) col@(Col c1)) coord2@(Coords (Row r2) (Col
 rangeContains :: Int -> Int -> Int -> Bool
 rangeContains r1 r2 i = (r2-i) + (i-r1) == (r2-r1)
 
-segmentContains :: Segment -> Coords -> Bool
-segmentContains (Horizontal row c1 c2) (Coords row' (Col c)) = row' == row && rangeContains c1 c2 c
-segmentContains (Vertical   col r1 r2) (Coords (Row r) col') = col' == col && rangeContains r1 r2 r
+segmentContains :: Coords -> Segment-> Bool
+segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = row' == row && rangeContains c1 c2 c
+segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = col' == col && rangeContains r1 r2 r
 segmentContains _ _ = error "segmentContains cannot operate on oblique segments"
 
 

@@ -1,8 +1,9 @@
+
 module World
     ( Action(..)
     , ActionTarget(..)
     , actionFromChar
-    , coordsForActionTarget
+    , coordsForActionTargets
     , extend
     , Location(..)
     , location
@@ -14,7 +15,8 @@ module World
     ) where
 
 
-import           Data.Maybe( fromMaybe )
+import           Data.List( foldl' )
+import           Data.Maybe( mapMaybe )
 import           System.Random( getStdRandom
                               , randomR )
 
@@ -37,15 +39,17 @@ data ActionTarget = Frame | Ship | Laser deriving(Eq, Show)
 data Location = InsideWorld | OutsideWorld
 
 
-coordsForActionTarget :: ActionTarget -> Action -> Coords
-coordsForActionTarget target action = fromMaybe zeroCoords $ maybeCoordsFor target action
+coordsForActionTargets :: ActionTarget -> [Action] -> Coords
+coordsForActionTargets target actions = foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
 
+filterActions :: ActionTarget -> [Action] -> [Direction]
+filterActions target = mapMaybe (maybeDirectionFor target)
 
-maybeCoordsFor :: ActionTarget -> Action -> Maybe Coords
-maybeCoordsFor targetFilter (Action actionTarget dir)
-   | actionTarget == targetFilter = Just $ coordsForDirection dir
+maybeDirectionFor :: ActionTarget -> Action -> Maybe Direction
+maybeDirectionFor targetFilter (Action actionTarget dir)
+   | actionTarget == targetFilter = Just dir
    | otherwise = Nothing
-maybeCoordsFor _ _ = Nothing
+maybeDirectionFor _ _ = Nothing
 
 
 actionFromChar :: Char -> Action
@@ -95,9 +99,9 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
-nextWorld :: Action -> World -> [Number] -> World
-nextWorld action (World _ move (PosSpeed shipPos shipSpeed)) balls =
-  let shipAcceleration = coordsForActionTarget Ship action
+nextWorld :: [Action] -> World -> [Number] -> World
+nextWorld actions (World _ move (PosSpeed shipPos shipSpeed)) balls =
+  let shipAcceleration = coordsForActionTargets Ship actions
       ship = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
   in World (map (\(Number ps n) -> Number (move ps) n) balls) move (move ship)
 

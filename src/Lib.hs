@@ -71,11 +71,17 @@ data GameState = GameState {
   , _world :: !World
 }
 
+
+data LaserRay = LaserRay {
+    _laserRayDir :: !Direction
+  , _laserRaySeg :: !Segment
+}
+
+
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime updateTick _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
-
 
 --------------------------------------------------------------------------------
 -- IO
@@ -170,10 +176,6 @@ renderGame state@(GameState t c frameCorner world@(World balls _ (PosSpeed shipC
   _ <- render r2 '+' shipCoords
   return $ GameState t (nextUpdateCounter c) (sumCoords frameCorner frameOffset) $ nextWorld actions world newBalls
 
-data LaserRay = LaserRay {
-    _laserRayDir :: !Direction
-  , _laserRaySeg :: !Segment
-}
 
 renderWorldFrame :: RenderState -> IO RenderState
 renderWorldFrame upperLEFT@(RenderState upperLEFTCoords) = do

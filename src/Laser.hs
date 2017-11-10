@@ -33,7 +33,7 @@ shootLaser laserStart dir laserType =
 
 laserChar :: Direction -> Char
 laserChar dir = case dir of
-  Up -> '|'
-  Down -> '|'
-  LEFT -> '-'
+  Up    -> '|'
+  Down  -> '|'
+  LEFT  -> '-'
   RIGHT -> '-'

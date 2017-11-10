@@ -2,10 +2,18 @@
 
 A terminal ascii game I write to practice some Haskell!
 
+# Glossary (of terms used in the backlog)
+
+A "motion step" is a temporal duration during which the positions are fixed.
+The corresponding period is a fixed number called "motion update period"
+
 # Backlog
 
-- handle repeated keys by not making the game fast forward
--- use a timeout of 0 for getChar, loop until timeout is reached
+
+- allow multiple actions within a single motion step
+- if multiple laser shots happen, render at exact time when it occurs
+-- render everything
+
 
 - try BlockBuffering (Just 80000) to reduce flicker
 - destroy animation

@@ -9,7 +9,7 @@ import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
 import           Data.Char( intToDigit )
-import           Data.Maybe( mapMaybe )
+import           Data.Maybe( maybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
@@ -78,6 +78,10 @@ data LaserRay = LaserRay {
 }
 
 
+survivingNumbers :: [Number] -> LaserRay -> [Number]
+survivingNumbers l (LaserRay _ seg) = filter (\(Number (PosSpeed pos _) _) -> (not $ segmentContains pos seg)) l
+
+
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime _ updateTick _ _) =
   let time = computeTime startTime currentTime
@@ -121,20 +125,22 @@ printTimer s r = do
 
 updateGame :: GameState -> RenderState -> IO GameState
 updateGame state@(GameState a b c d world) r = do
-  action <- getAction state
-  case action of
-    Nonsense -> return state
-    _ -> do
-      newState <- case action of
-        Timeout  -> do
-          -- change position of objects in the world and compute the new deadline
-          curTime <- getCurrentTime
-          return $ GameState a (addMotionStepDuration curTime) c d (moveWorld world)
-        (Action Frame dir) -> do
-          let frameOffset = coordsForDirection dir
-          return $ GameState a b c (sumCoords d frameOffset) world
-        _        -> return state
-      updateGame2 action r newState
+  getAction state >>=
+    (\action -> case action of
+      Nonsense -> return state
+      Throw    -> throw Overflow
+      _        -> updateGame2 action r =<<
+        (case action of
+          Timeout  -> do
+            -- change position of objects in the world and compute the new deadline
+            curTime <- getCurrentTime
+            return $ GameState a (addMotionStepDuration curTime) c d (moveWorld world)
+          (Action Frame dir) -> do
+            -- offset the drawing frame
+            let frameOffset = coordsForDirection dir
+            return $ GameState a b c (sumCoords d frameOffset) world
+          _        -> return state
+        ))
 
 updateGame2 :: Action -> RenderState -> GameState -> IO GameState
 updateGame2 a r s = do
@@ -181,37 +187,33 @@ getAction (GameState _ nextMotionStep _ _ _) = do
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState
 renderGame
- state@(GameState t motionStepDeadline c frameCorner world@(World balls _ (PosSpeed shipCoords _)))
+ state@(GameState a b c frameCorner world@(World balls _ (PosSpeed shipCoords _)))
  renderCorner
  action = do
-  let actions = [action]
   -- render timer
   r <- printTimer state renderCorner
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
-  -- make lasers
-  let laserRays = mapMaybe
-        (\case
-          (Action Laser dir) ->
-            case shootLaserFromShip shipCoords dir Infinite of
-              (Just ray) -> Just $ LaserRay dir ray
-              Nothing -> Nothing
-          Throw -> throw Overflow
-          _     -> Nothing
-        ) actions
+  -- make laser
+  let maybeLaserRay = case action of
+        (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
+        _     -> Nothing
 
-  -- render lasers
-  mapM_ (\(LaserRay dir seg) -> renderSegment seg (laserChar dir) r2) laserRays
+  -- render laser
+  _ <- case maybeLaserRay of
+    (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir) r2
+    Nothing -> return r2
 
   -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\(Number (PosSpeed b _) i) -> render r2 (intToDigit i) b) balls
+  mapM_ (\(Number (PosSpeed pos _) i) -> render r2 (intToDigit i) pos) balls
 
   -- render ship
   _ <- render r2 '+' shipCoords
-  -- compute remaining numbers
-  let newBalls = filter (\(Number (PosSpeed b _) _) -> (not (any (\(LaserRay _ seg) -> segmentContains b seg) laserRays))) balls
-  return $ GameState t motionStepDeadline (nextUpdateCounter c) frameCorner $ nextWorld action world newBalls
+
+  let remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
+
+  return $ GameState a b (nextUpdateCounter c) frameCorner $ nextWorld action world remainingBalls
 
 
 renderWorldFrame :: RenderState -> IO RenderState

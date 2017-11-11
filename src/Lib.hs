@@ -199,6 +199,8 @@ renderGame
   let maybeLaserRay = case action of
         (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
         _     -> Nothing
+      remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
+      res = GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
 
   -- render laser
   _ <- case maybeLaserRay of
@@ -211,9 +213,7 @@ renderGame
   -- render ship
   _ <- render r2 '+' shipCoords
 
-  let remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
-
-  return $ GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
+  return res
 
 
 renderWorldFrame :: RenderState -> IO RenderState

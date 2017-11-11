@@ -10,6 +10,7 @@ import           Control.Exception( ArithException(..)
                                   , throw )
 import           Control.Monad( when )
 import           Data.Char( intToDigit )
+import           Data.List( partition )
 import           Data.Maybe( isNothing
                            , maybe )
 import           Data.Time( UTCTime
@@ -28,7 +29,6 @@ import           Console( configureConsoleFor
                         , renderChar_
                         , renderSegment
                         , renderStrLn
-                        , renderStrLn_
                         , RenderState(..) )
 import           Geo( sumCoords
                     , Col(..)
@@ -79,6 +79,7 @@ data GameState = GameState {
   , _upperLeftCorner :: !Coords
   , _world :: !World
   , _gameStateLaserRay :: !(Maybe (LaserRay Actual))
+  , _gameShotNumbers :: ![Int]
 }
 
 data LaserRay a = LaserRay {
@@ -89,22 +90,23 @@ data LaserRay a = LaserRay {
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 nextGameState :: GameState -> Action -> GameState
-nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) _) action =
+nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) _ g) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite, pred ammo)
           _     -> (Nothing, ammo)
         else (Nothing, ammo)
-      (remainingBalls, maybeLaserRay) = maybe (balls, Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
-  in GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay
+      ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
+      destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
+  in GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay $ g ++ destroyedNumbers
 
-survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> ([Number], Maybe (LaserRay Actual))
+survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> (([Number],[Number]), Maybe (LaserRay Actual))
 survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy of
-  RayDestroysAll -> (filter (\(Number (PosSpeed pos _) _) -> (isNothing $ segmentContains pos seg)) l, justFull)
+  RayDestroysAll -> (partition (\(Number (PosSpeed pos _) _) -> (isNothing $ segmentContains pos seg)) l, justFull)
   RayDestroysFirst ->
     let (rayActual, mayCoord) = stopRayAtFirstCollision (map (\(Number (PosSpeed pos _) _) -> pos) l) theoreticalRay
-        remainingNumbers = (case mayCoord of
-          Nothing -> id
-          (Just pos') -> filter (\(Number (PosSpeed pos _) _) -> pos /= pos')) l
+        remainingNumbers = case mayCoord of
+          Nothing -> (l,[])
+          (Just pos') -> partition (\(Number (PosSpeed pos _) _) -> pos /= pos') l
     in (remainingNumbers, Just $ LaserRay dir rayActual)
  where
    justFull = Just $ LaserRay dir $ Ray seg
@@ -114,7 +116,7 @@ shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _)) =
    any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ _ _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
@@ -139,11 +141,11 @@ makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
   world <- mkWorld
-  return $ GameState (Timer t) t 0 zeroCoords world Nothing
+  return $ GameState (Timer t) t 0 zeroCoords world Nothing []
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ _ coords _ _) = do
+loop state@(GameState _ _ _ coords _ _ _) = do
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -155,7 +157,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world f) r =
+updateGame state@(GameState a b c d world f g) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -166,13 +168,13 @@ updateGame state@(GameState a b c d world f) r =
             -- change position of objects in the world and compute the new deadline
             curTime <- getCurrentTime
             let newWorld = moveWorld world
-                newState = GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d newWorld f
+                newState = GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d newWorld f g
             when (shipCollides newWorld) $ throw Overflow
             return newState
           (Action Frame dir) -> do
             -- offset the drawing frame
             let frameOffset = coordsForDirection dir
-            return $ GameState a b c (sumCoords d frameOffset) world f
+            return $ GameState a b c (sumCoords d frameOffset) world f g
           _        -> return state
         ))
 
@@ -206,7 +208,7 @@ getActions = do
 
 
 getAction :: GameState -> IO Action
-getAction (GameState _ nextMotionStep _ _ _ _) = do
+getAction (GameState _ nextMotionStep _ _ _ _ _) = do
   t <- getCurrentTime
   let remainingSeconds = diffUTCTime nextMotionStep t
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
@@ -221,9 +223,9 @@ getAction (GameState _ nextMotionStep _ _ _ _) = do
 
 
 renderGame :: GameState -> RenderState -> IO ()
-renderGame state@(GameState _ _ _ _ (World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) maybeLaserRay) frameCorner = do
+renderGame state@(GameState _ _ _ _ (World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) maybeLaserRay shotNumbers) frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do
-    renderAmmo ammo r
+    _ <- renderAmmo ammo r >>= renderShotNumbers shotNumbers
     renderWorldFrame r >>= (\worldCorner -> do
       _ <- case maybeLaserRay of
         (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
@@ -234,13 +236,17 @@ renderGame state@(GameState _ _ _ _ (World balls _ (BattleShip (PosSpeed shipCoo
   return ()
 
 
-renderAmmo :: Int -> RenderState -> IO ()
+renderShotNumbers :: [Int] -> RenderState -> IO RenderState
+renderShotNumbers nums =
+  renderStrLn ("Shot: " ++ show nums)
+
+renderAmmo :: Int -> RenderState -> IO RenderState
 renderAmmo ammo (RenderState upperLeftCoords) = do
   let vmargin = 1
       hmargin = 1
       translate = Coords (Row vmargin) (Col $ worldSize+2+hmargin)
       corner = sumCoords upperLeftCoords translate
-  renderStrLn_ ("Ammo: " ++ show ammo) $ RenderState corner
+  renderStrLn ("Ammo: " ++ show ammo) $ RenderState corner
 
 renderWorldFrame :: RenderState -> IO RenderState
 renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do

@@ -108,9 +108,6 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
--- this function does 2 things:
--- - it replaces the numbers
--- - if Action is move ship, it changes ship acceleration
 nextWorld :: Action -> World -> [Number] -> Int -> World
 nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _)) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]

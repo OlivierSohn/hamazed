@@ -155,8 +155,9 @@ gameWorker = makeInitialState 1 >>= loop
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   t <- getCurrentTime
-  world <- mkWorld
-  return $ GameState (Timer t) t 0 zeroCoords world Nothing [] 15 level
+  let nums = [1..(3+level)]
+  world <- mkWorld nums
+  return $ GameState (Timer t) t 0 zeroCoords world Nothing [] (sum nums `quot` 2) level
 
 
 loop :: GameState -> IO ()

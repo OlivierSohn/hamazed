@@ -170,9 +170,9 @@ mirrorIfNeeded (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: IO World
-mkWorld = do
-  balls <- mapM createRandomNumber [0..9]
+mkWorld :: [Int] -> IO World
+mkWorld nums = do
+  balls <- mapM createRandomNumber nums
   ship <- createRandomPosSpeed
   return (World balls ballMotion (BattleShip ship 10))
 

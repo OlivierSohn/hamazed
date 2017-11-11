@@ -196,8 +196,8 @@ renderGame
       remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
       res = GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
 
-  printTimer state frameCorner >>= renderWorldFrame >>= (do
-    case maybeLaserRay of
+  _ <- printTimer state frameCorner >>= renderWorldFrame >>= (do
+    _ <- case maybeLaserRay of
       (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir)
       Nothing -> return
     -- render numbers, including the ones that will be destroyed, if any

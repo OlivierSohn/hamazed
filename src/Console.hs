@@ -3,6 +3,7 @@ module Console ( ConsoleConfig(..)
                , renderChar
                , renderChar_
                , renderStrLn
+               , renderStrLn_
                , RenderState(..)
                , renderSegment
                ) where
@@ -66,6 +67,11 @@ renderChar_ char (RenderState (Coords (Row r) (Col c))) = do
   putChar char
   return ()
 
+
+renderStrLn_ :: String -> RenderState -> IO ()
+renderStrLn_ str (RenderState (Coords (Row r) (Col c))) = do
+  setCursorPosition r c
+  Prelude.putStrLn str
 
 renderStrLn :: String -> RenderState -> IO RenderState
 renderStrLn str (RenderState (Coords (Row r) (Col c))) = do

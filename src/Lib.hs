@@ -28,6 +28,7 @@ import           Console( configureConsoleFor
                         , renderChar_
                         , renderSegment
                         , renderStrLn
+                        , renderStrLn_
                         , RenderState(..) )
 import           Geo( sumCoords
                     , Col(..)
@@ -220,16 +221,26 @@ getAction (GameState _ nextMotionStep _ _ _ _) = do
 
 
 renderGame :: GameState -> RenderState -> IO ()
-renderGame state@(GameState _ _ _ _ (World balls _ (BattleShip (PosSpeed shipCoords _) _)) maybeLaserRay) frameCorner = do
-  _ <- printTimer state frameCorner >>= renderWorldFrame >>= (\worldCorner -> do
-    _ <- case maybeLaserRay of
-      (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
-      Nothing -> return worldCorner
-    -- render numbers, including the ones that will be destroyed, if any
-    mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos worldCorner) balls
-    render_ '+' shipCoords worldCorner)
+renderGame state@(GameState _ _ _ _ (World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) maybeLaserRay) frameCorner = do
+  _ <- printTimer state frameCorner >>= (\r -> do
+    renderAmmo ammo r
+    renderWorldFrame r >>= (\worldCorner -> do
+      _ <- case maybeLaserRay of
+        (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
+        Nothing -> return worldCorner
+      -- render numbers, including the ones that will be destroyed, if any
+      mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos worldCorner) balls
+      render_ '+' shipCoords worldCorner))
   return ()
 
+
+renderAmmo :: Int -> RenderState -> IO ()
+renderAmmo ammo (RenderState upperLeftCoords) = do
+  let vmargin = 1
+      hmargin = 1
+      translate = Coords (Row vmargin) (Col $ worldSize+2+hmargin)
+      corner = sumCoords upperLeftCoords translate
+  renderStrLn_ ("Ammo: " ++ show ammo) $ RenderState corner
 
 renderWorldFrame :: RenderState -> IO RenderState
 renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do

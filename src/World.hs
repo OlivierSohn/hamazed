@@ -3,6 +3,7 @@ module World
     ( Action(..)
     , ActionTarget(..)
     , actionFromChar
+    , BattleShip(..)
     , coordsForActionTargets
     , extend
     , Location(..)
@@ -35,7 +36,10 @@ data Action = Action ActionTarget Direction |
               Nonsense |
               Throw deriving (Show)
 
-data ActionTarget = Frame | Ship | Laser deriving(Eq, Show)
+data ActionTarget = Frame
+                  | Ship
+                  | Laser
+                  deriving(Eq, Show)
 
 data Location = InsideWorld | OutsideWorld
 
@@ -90,10 +94,14 @@ extend (Coords (Row r) (Col c)) dir = case dir of
   RIGHT -> Coords (Row r) (Col (worldSize-1))
 
 
+data BattleShip = BattleShip {
+    _shipPosSpeed :: !PosSpeed
+  , _shipAmmo :: !Int
+}
 data World = World{
     _worldNumber :: ![Number]
   , _howBallMoves :: PosSpeed -> PosSpeed
-  , _worldShip :: !PosSpeed
+  , _worldShip :: !BattleShip
 }
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
@@ -103,14 +111,15 @@ data Number = Number {
 -- this function does 2 things:
 -- - it replaces the numbers
 -- - if Action is move ship, it changes ship acceleration
-nextWorld :: Action -> World -> [Number] -> World
-nextWorld action (World _ changePos (PosSpeed shipPos shipSpeed)) balls =
+nextWorld :: Action -> World -> [Number] -> Int -> World
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _)) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos shipSamePosChangedSpeed
+  in World balls changePos $ BattleShip shipSamePosChangedSpeed ammo
 
 moveWorld :: World -> World
-moveWorld (World balls changePos ship) = World (map (\(Number ps n) -> Number (changePos ps) n) balls) changePos (changePos ship)
+moveWorld (World balls changePos (BattleShip ship ammo)) =
+  World (map (\(Number ps n) -> Number (changePos ps) n) balls) changePos $ BattleShip (changePos ship) ammo
 
 ballMotion :: PosSpeed -> PosSpeed
 ballMotion = doBallMotion . mirrorIfNeeded
@@ -163,7 +172,7 @@ mkWorld :: IO World
 mkWorld = do
   balls <- mapM createRandomNumber [0..9]
   ship <- createRandomPosSpeed
-  return (World balls ballMotion ship)
+  return (World balls ballMotion (BattleShip ship 10))
 
 
 randomPos :: IO Int

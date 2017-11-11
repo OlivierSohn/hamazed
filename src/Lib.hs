@@ -187,11 +187,11 @@ getAction (GameState _ nextMotionStep _ _ _) = do
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState
 renderGame
- state@(GameState a b c frameCorner world@(World balls _ (PosSpeed shipCoords _)))
- renderCorner
+ state@(GameState a b c fc world@(World balls _ (PosSpeed shipCoords _)))
+ frameCorner
  action = do
   -- render timer
-  r <- printTimer state renderCorner
+  r <- printTimer state frameCorner
   -- render enclosing rectangle
   r2 <- renderWorldFrame r
 
@@ -213,7 +213,7 @@ renderGame
 
   let remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
 
-  return $ GameState a b (nextUpdateCounter c) frameCorner $ nextWorld action world remainingBalls
+  return $ GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
 
 
 renderWorldFrame :: RenderState -> IO RenderState

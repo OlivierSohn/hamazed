@@ -12,7 +12,7 @@ module Timing
 import           Data.Time( addUTCTime
                           , diffUTCTime
                           , UTCTime )
-import           World( worldSize )
+import           World( WorldSize(..) )
 
 
 newtype Timer = Timer { _initialTime :: UTCTime }
@@ -36,25 +36,23 @@ eraMicros = eraMillis * 1000
     eraMillis = 160 -- this controls the game loop frequency.
                     -- 20 seems to match screen refresh frequency
 
-maxUpdateTick :: Int
-maxUpdateTick = worldSize
+
+tickRepresentationLength :: WorldSize -> Int
+tickRepresentationLength (WorldSize worldSize) = quot worldSize 2
 
 
-tickRepresentationLength :: Int
-tickRepresentationLength = quot maxUpdateTick 2
-
-
-showUpdateTick :: Int -> String
-showUpdateTick t =
-  let nDotsBefore = max 0 (t + tickRepresentationLength - maxUpdateTick)
+showUpdateTick :: Int -> WorldSize -> String
+showUpdateTick t ws@(WorldSize worldSize) =
+  let l = tickRepresentationLength ws
+      nDotsBefore = max 0 (t + l - worldSize)
       nLEFTBlanks = t - nDotsBefore
-      nDotsAfter = tickRepresentationLength - nDotsBefore
-      nRIGHTBlanks = maxUpdateTick - t - tickRepresentationLength
+      nDotsAfter = l - nDotsBefore
+      nRIGHTBlanks = worldSize - t - l
   in replicate nDotsBefore  '.'
   ++ replicate nLEFTBlanks  ' '
   ++ replicate nDotsAfter   '.'
   ++ replicate nRIGHTBlanks ' '
 
 
-nextUpdateCounter :: Int -> Int
-nextUpdateCounter c = (c + 1) `mod` maxUpdateTick
+nextUpdateCounter :: WorldSize -> Int -> Int
+nextUpdateCounter (WorldSize worldSize) c = (c + 1) `mod` worldSize

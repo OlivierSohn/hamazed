@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 
 module World
     ( Action(..)
@@ -14,12 +15,13 @@ module World
     , nextWorld
     , Number(..)
     , World(..)
-    , worldSize
+    , WorldSize(..)
     ) where
 
 
 import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
+import           GHC.Generics( Generic )
 import           System.Random( getStdRandom
                               , randomR )
 
@@ -31,6 +33,8 @@ import           Geo( Col(..)
                     , Row(..)
                     , sumCoords
                     , zeroCoords )
+
+newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, Show)
 
 data Action = Action ActionTarget Direction |
               Timeout |
@@ -75,19 +79,15 @@ actionFromChar c = case c of
   _   -> Nonsense
 
 
-worldSize :: Int
-worldSize = 35
-
-
-location :: Coords -> Location
-location (Coords (Row r) (Col c))
+location :: Coords -> WorldSize -> Location
+location (Coords (Row r) (Col c)) (WorldSize worldSize)
   | inside r && inside c = InsideWorld
   | otherwise            = OutsideWorld
   where inside x = x >= 0 && x < worldSize
 
 
-extend :: Coords -> Direction -> Coords
-extend (Coords (Row r) (Col c)) dir = case dir of
+extend :: Coords -> Direction -> WorldSize -> Coords
+extend (Coords (Row r) (Col c)) dir (WorldSize worldSize) = case dir of
   Up    -> Coords (Row 0) (Col c)
   LEFT  -> Coords (Row r) (Col 0)
   Down  -> Coords (Row (worldSize-1)) (Col c)
@@ -98,11 +98,14 @@ data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
   , _shipAmmo :: !Int
 }
+
 data World = World{
     _worldNumber :: ![Number]
-  , _howBallMoves :: PosSpeed -> PosSpeed
+  , _howBallMoves :: WorldSize -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
+  , _worldWorldSize :: !WorldSize
 }
+
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
   , _numberNum :: !Int
@@ -110,21 +113,21 @@ data Number = Number {
 
 
 shipCollides :: World -> Bool
-shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _)) =
+shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _) _) =
    any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 nextWorld :: Action -> World -> [Number] -> Int -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _)) balls ammo =
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _) size) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos $ BattleShip shipSamePosChangedSpeed ammo
+  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo) size
 
 moveWorld :: World -> World
-moveWorld (World balls changePos (BattleShip ship ammo)) =
-  World (map (\(Number ps n) -> Number (changePos ps) n) balls) changePos $ BattleShip (changePos ship) ammo
+moveWorld (World balls changePos (BattleShip ship ammo) size) =
+  World (map (\(Number ps n) -> Number (changePos size ps) n) balls) changePos (BattleShip (changePos size ship) ammo) size
 
-ballMotion :: PosSpeed -> PosSpeed
-ballMotion = doBallMotion . mirrorIfNeeded
+ballMotion :: WorldSize -> PosSpeed -> PosSpeed
+ballMotion worldSize = doBallMotion . mirrorIfNeeded worldSize
 
 doBallMotion :: PosSpeed -> PosSpeed
 doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
@@ -134,8 +137,8 @@ doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
     newC = c + dc
 
 
-mirrorSpeedIfNeeded :: Int -> Int -> Int
-mirrorSpeedIfNeeded x
+mirrorSpeedIfNeeded :: WorldSize -> Int -> Int -> Int
+mirrorSpeedIfNeeded (WorldSize worldSize) x
   | x <= 0           = abs
   | x >= worldSize-1 = negate . abs
   | otherwise        = id
@@ -154,10 +157,10 @@ constrainPosSticky r
   | otherwise = r
 --}
 
-mirrorIfNeeded :: PosSpeed -> PosSpeed
-mirrorIfNeeded (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-  let newDr = mirrorSpeedIfNeeded r dr
-      newDc = mirrorSpeedIfNeeded c dc
+mirrorIfNeeded :: WorldSize -> PosSpeed -> PosSpeed
+mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
+  let newDr = mirrorSpeedIfNeeded worldSize r dr
+      newDc = mirrorSpeedIfNeeded worldSize c dc
       -- we chose to not constrain the positions as it leads to unnatural motions
       -- the tradeoff is just to not render them
       newR = r
@@ -170,31 +173,31 @@ mirrorIfNeeded (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: [Int] -> IO World
-mkWorld nums = do
-  balls <- mapM createRandomNumber nums
-  ship <- createRandomPosSpeed
-  return (World balls ballMotion (BattleShip ship 10))
+mkWorld :: WorldSize -> [Int] -> IO World
+mkWorld worldSize nums = do
+  balls <- mapM (createRandomNumber worldSize) nums
+  ship <- createRandomPosSpeed worldSize
+  return (World balls ballMotion (BattleShip ship 10) worldSize)
 
 
-randomPos :: IO Int
-randomPos = getStdRandom $ randomR (0,worldSize-1)
+randomPos :: WorldSize -> IO Int
+randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)
 
 
 randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-1,1)
 
 
-createRandomPosSpeed :: IO PosSpeed
-createRandomPosSpeed = do
-  x <- randomPos
-  y <- randomPos
+createRandomPosSpeed :: WorldSize -> IO PosSpeed
+createRandomPosSpeed worldSize = do
+  x <- randomPos worldSize
+  y <- randomPos worldSize
   dx <- randomSpeed
   dy <- randomSpeed
-  return $ mirrorIfNeeded $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
+  return $ mirrorIfNeeded worldSize $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
 
 
-createRandomNumber :: Int -> IO Number
-createRandomNumber i = do
-  ps <- createRandomPosSpeed
+createRandomNumber :: WorldSize -> Int -> IO Number
+createRandomNumber worldSize i = do
+  ps <- createRandomPosSpeed worldSize
   return $ Number ps i

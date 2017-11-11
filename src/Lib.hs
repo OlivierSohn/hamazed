@@ -66,7 +66,7 @@ import           World( Action(..)
                       , shipCollides
                       , World(..)
                       , Number(..)
-                      , worldSize )
+                      , WorldSize(..) )
 
 
 --------------------------------------------------------------------------------
@@ -96,9 +96,9 @@ data LaserRay a = LaserRay {
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 nextGameState :: GameState -> Action -> (GameState, Maybe GameStops)
-nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) _ g h i) action =
+nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo) sz) _ g h i) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
-          (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite, pred ammo)
+          (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
         else (Nothing, ammo)
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
@@ -131,9 +131,9 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ _ _ _ _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize) _ _ _ _) =
   let time = computeTime startTime currentTime
-  in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
+  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
 
 --------------------------------------------------------------------------------
 -- IO
@@ -156,7 +156,8 @@ makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   t <- getCurrentTime
   let nums = [1..(3+level)]
-  world <- mkWorld nums
+      sz = WorldSize $ 35 `quot` level
+  world <- mkWorld sz nums
   return $ GameState (Timer t) t 0 zeroCoords world Nothing [] (sum nums `quot` 2) level
 
 
@@ -173,7 +174,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world f g h i) r =
+updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -181,7 +182,7 @@ updateGame state@(GameState a b c d world f g h i) r =
         (case action of
           Timeout ->
             getCurrentTime >>= (\t ->
-              return $ GameState a (addMotionStepDuration t) (nextUpdateCounter c) d (moveWorld world) f g h i)
+              return $ GameState a (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld world) f g h i)
           (Action Frame dir) ->
             return $ GameState a b c (sumCoords d $ coordsForDirection dir) world f g h i
           _        -> return state
@@ -249,18 +250,18 @@ getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo))
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) sz)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do
-    _ <- rightColumn r >>= renderLevel level >>= renderAmmo ammo >>= renderTarget target >>= renderShotNumbers shotNumbers
-    renderWorldFrame r >>= (\worldCorner -> do
+    _ <- rightColumn sz r >>= renderLevel level >>= renderAmmo ammo >>= renderTarget target >>= renderShotNumbers shotNumbers
+    renderWorldFrame sz r >>= (\worldCorner -> do
       _ <- case maybeLaserRay of
         (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
         Nothing -> return worldCorner
       -- render numbers, including the ones that will be destroyed, if any
-      mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos worldCorner) balls
-      render_ '+' shipCoords worldCorner))
+      mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
+      render_ '+' shipCoords sz worldCorner))
   return ()
 
 
@@ -273,11 +274,11 @@ renderTarget n =
   renderStrLn ("Target: " ++ show n)
 
 
-rightColumn :: RenderState -> IO RenderState
-rightColumn (RenderState upperLeftCoords) = do
+rightColumn :: WorldSize -> RenderState -> IO RenderState
+rightColumn (WorldSize worldSize) (RenderState upperLeftCoords) = do
   let vmargin = 1
       hmargin = 1
-      translate = Coords (Row vmargin) (Col $ worldSize+2+hmargin)
+      translate = Coords (Row vmargin) (Col $ worldSize + 2 + hmargin)
       corner = sumCoords upperLeftCoords translate
   return $ RenderState corner
 
@@ -289,8 +290,8 @@ renderAmmo :: Int -> RenderState -> IO RenderState
 renderAmmo ammo =
   renderStrLn ("Ammo: " ++ show ammo)
 
-renderWorldFrame :: RenderState -> IO RenderState
-renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame :: WorldSize -> RenderState -> IO RenderState
+renderWorldFrame (WorldSize worldSize) upperLeft@(RenderState upperLeftCoords) = do
   let horizontalWall = replicate (worldSize + 2)
       lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
 
@@ -309,9 +310,9 @@ renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
   return $ RenderState worldCoords
 
 
-render_ :: Char -> Coords -> RenderState -> IO ()
-render_ char worldCoords (RenderState renderCoords) =
-  case location worldCoords of
+render_ :: Char -> Coords -> WorldSize -> RenderState -> IO ()
+render_ char worldCoords worldSize (RenderState renderCoords) =
+  case location worldCoords worldSize of
     InsideWorld -> renderChar_ char loc
     _           -> return ()
   where loc = RenderState $ sumCoords renderCoords worldCoords

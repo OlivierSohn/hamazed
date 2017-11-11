@@ -21,24 +21,25 @@ import           Geo( Coords(..)
                     , translateCoord )
 import           World( extend
                       , Location(..)
-                      , location )
+                      , location
+                      , WorldSize)
 
 data LaserType = Infinite
 newtype Ray a = Ray Segment
 data Theoretical -- with no obstacle
 data Actual      -- with obstacles
 
-shootLaserFromShip :: Coords -> Direction -> LaserType -> Maybe (Ray Theoretical)
+shootLaserFromShip :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
 shootLaserFromShip shipCoords dir = shootLaser (translateCoord dir shipCoords) dir
 
-shootLaser :: Coords -> Direction -> LaserType -> Maybe (Ray Theoretical)
-shootLaser laserStart dir laserType =
-  case location laserStart of
+shootLaser :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
+shootLaser laserStart dir laserType worldSize =
+  case location laserStart worldSize of
     OutsideWorld -> Nothing
     InsideWorld ->
       case laserType of
         Infinite ->
-          let laserEnd = extend laserStart dir
+          let laserEnd = extend laserStart dir worldSize
           in Just $ Ray $ mkSegment laserStart laserEnd
 
 

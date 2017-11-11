@@ -8,6 +8,7 @@ module Lib
 import           Control.Exception( ArithException(..)
                                   , finally
                                   , throw )
+import           Control.Monad( when )
 import           Data.Char( intToDigit )
 import           Data.Maybe( maybe )
 import           Data.Time( UTCTime
@@ -91,6 +92,9 @@ nextGameState (GameState a b c d world@(World balls _ (PosSpeed shipCoords _)) _
       remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
   in GameState a b c d (nextWorld action world remainingBalls) maybeLaserRay
 
+shipCollides :: World -> Bool
+shipCollides (World balls _ (PosSpeed shipCoords _)) =
+   any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime _ updateTick _ _ _) =
@@ -144,7 +148,10 @@ updateGame state@(GameState a b c d world f) r =
           Timeout  -> do
             -- change position of objects in the world and compute the new deadline
             curTime <- getCurrentTime
-            return $ GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d (moveWorld world) f
+            let newWorld = moveWorld world
+                newState = GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d newWorld f
+            when (shipCollides newWorld) $ throw Overflow
+            return newState
           (Action Frame dir) -> do
             -- offset the drawing frame
             let frameOffset = coordsForDirection dir

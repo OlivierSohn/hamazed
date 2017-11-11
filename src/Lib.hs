@@ -5,13 +5,13 @@ module Lib
     ) where
 
 
-import           Control.Exception( ArithException(..)
-                                  , finally
-                                  , throw )
-import           Control.Monad( when )
+import           Control.Concurrent( threadDelay )
+import           Control.Exception( finally )
+import           Control.Monad.Loops( unfoldM )
 import           Data.Char( intToDigit )
 import           Data.List( partition )
-import           Data.Maybe( isNothing
+import           Data.Maybe( fromMaybe
+                           , isNothing
                            , maybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
@@ -83,6 +83,9 @@ data GameState = GameState {
   , _gameTarget :: !Int
 }
 
+data GameStops = Lost String
+               | Won
+
 data LaserRay a = LaserRay {
     _laserRayDir :: !Direction
   , _laserRaySeg :: !(Ray a)
@@ -90,7 +93,7 @@ data LaserRay a = LaserRay {
 
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
-nextGameState :: GameState -> Action -> GameState
+nextGameState :: GameState -> Action -> (GameState, Maybe GameStops)
 nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo)) _ g h) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite, pred ammo)
@@ -98,7 +101,20 @@ nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed ship
         else (Nothing, ammo)
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-  in GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay (g ++ destroyedNumbers) h
+      allShotNumbers = g ++ destroyedNumbers
+      sumNumbers = sum allShotNumbers
+      normal = case compare sumNumbers h of
+        LT -> Nothing
+        EQ -> Just Won
+        GT -> Just $ Lost $ show sumNumbers ++ " is bigger than " ++ show h
+  in (GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay allShotNumbers h,
+      case action of
+        Timeout ->
+          if shipCollides world
+            then Just $ Lost "collision"
+            else normal
+        _ -> normal)
+
 
 survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> (([Number],[Number]), Maybe (LaserRay Actual))
 survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy of
@@ -162,31 +178,39 @@ updateGame state@(GameState a b c d world f g h) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
-      Throw    -> throw Overflow
       _        -> updateGame2 action r =<<
         (case action of
-          Timeout  -> do
-            -- change position of objects in the world and compute the new deadline
-            curTime <- getCurrentTime
-            let newWorld = moveWorld world
-                newState = GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d newWorld f g h
-            when (shipCollides newWorld) $ throw Overflow
-            return newState
-          (Action Frame dir) -> do
-            -- offset the drawing frame
-            let frameOffset = coordsForDirection dir
-            return $ GameState a b c (sumCoords d frameOffset) world f g h
+          Timeout ->
+            getCurrentTime >>= (\t ->
+              return $ GameState a (addMotionStepDuration t) (nextUpdateCounter c) d (moveWorld world) f g h)
+          (Action Frame dir) ->
+            return $ GameState a b c (sumCoords d $ coordsForDirection dir) world f g h
           _        -> return state
         ))
 
 updateGame2 :: Action -> RenderState -> GameState -> IO GameState
 updateGame2 a r s = do
   clearScreen
-  let res = nextGameState s a
-  renderGame res r
+  let (s2, termination) = nextGameState s a
+  renderGame s2 r
+  maybeS3 <- mapM (handle s2) termination
+  let s3 = fromMaybe s2 maybeS3
   hFlush stdout
-  return res
+  return s3
 
+
+handle :: GameState -> GameStops -> IO GameState
+handle _ stop = do
+  putStrLn $ case stop of
+    (Lost reason) -> " You Lose (" ++ reason ++ ")"
+    Won           -> " You Win!! Congratulations."
+  hFlush stdout -- write previous messages
+  threadDelay $ 2 * 1000000
+  putStrLn "Press a key to continue ..."
+  unfoldM readOneChar -- flush inputs
+  hFlush stdout -- write previous message
+  getChar       -- wait for a key press
+  makeInitialState
 
 readOneChar :: IO (Maybe Char)
 readOneChar = do
@@ -199,8 +223,6 @@ readOneChar = do
       return Nothing
 
 {--
-import           Control.Monad.Loops( unfoldM )
-
 getActions :: IO [Action]
 getActions = do
   inputs <- unfoldM readOneChar
@@ -243,7 +265,7 @@ renderShotNumbers nums =
 
 renderTarget :: Int -> RenderState -> IO RenderState
 renderTarget n =
-  renderStrLn ("Target sum: " ++ show n)
+  renderStrLn ("Target: " ++ show n)
 
 
 renderAmmo :: Int -> RenderState -> IO RenderState

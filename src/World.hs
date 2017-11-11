@@ -33,8 +33,8 @@ import           Geo( Col(..)
 
 data Action = Action ActionTarget Direction |
               Timeout |
-              Nonsense |
-              Throw deriving (Show)
+              Nonsense
+              deriving (Show)
 
 data ActionTarget = Frame
                   | Ship
@@ -59,7 +59,6 @@ maybeDirectionFor _ _ = Nothing
 
 actionFromChar :: Char -> Action
 actionFromChar c = case c of
-  'o' -> Throw
   'g' -> Action Frame Down
   't' -> Action Frame Up
   'f' -> Action Frame LEFT

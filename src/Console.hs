@@ -1,5 +1,7 @@
 module Console ( ConsoleConfig(..)
                , configureConsoleFor
+               , renderChar
+               , renderChar_
                , renderStrLn
                , RenderState(..)
                , renderSegment
@@ -51,6 +53,20 @@ configureConsoleFor config = do
     Editing -> showCursor  -- do not clearScreen, to retain a potential printed exception
 
 
+renderChar :: Char -> RenderState -> IO RenderState
+renderChar char (RenderState (Coords (Row r) (Col c))) = do
+  setCursorPosition r c
+  putChar char
+  return $ RenderState $ Coords (Row $ r + 1) (Col c)
+
+
+renderChar_ :: Char -> RenderState -> IO ()
+renderChar_ char (RenderState (Coords (Row r) (Col c))) = do
+  setCursorPosition r c
+  putChar char
+  return ()
+
+
 renderStrLn :: String -> RenderState -> IO RenderState
 renderStrLn str (RenderState (Coords (Row r) (Col c))) = do
   setCursorPosition r c
@@ -68,7 +84,7 @@ renderSegment l = case l of
 renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState
 renderVerticalLine col r1 r2 char rs@(RenderState upperLeft) = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  res <- mapM (renderStrLn [char] . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
+  res <- mapM (renderChar char . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
   return $ case res of
     [] ->  rs
     x:_ -> x

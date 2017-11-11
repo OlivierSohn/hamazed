@@ -23,6 +23,7 @@ import           System.Timeout( timeout )
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
+                        , renderChar_
                         , renderSegment
                         , renderStrLn
                         , RenderState(..) )
@@ -70,6 +71,7 @@ data GameState = GameState {
   , _updateCounter :: !Int
   , _upperLeftCorner :: !Coords
   , _world :: !World
+  , _gameStateLaserRay :: !(Maybe LaserRay)
 }
 
 data LaserRay = LaserRay {
@@ -81,9 +83,17 @@ data LaserRay = LaserRay {
 survivingNumbers :: [Number] -> LaserRay -> [Number]
 survivingNumbers l (LaserRay _ seg) = filter (\(Number (PosSpeed pos _) _) -> (not $ segmentContains pos seg)) l
 
+nextGameState :: GameState -> Action -> GameState
+nextGameState (GameState a b c d world@(World balls _ (PosSpeed shipCoords _)) _) action =
+  let maybeLaserRay = case action of
+        (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
+        _     -> Nothing
+      remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
+  in GameState a b c d (nextWorld action world remainingBalls) maybeLaserRay
+
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick ++ "| " ++ show time ++ " |"
 
@@ -108,11 +118,11 @@ makeInitialState :: IO GameState
 makeInitialState = do
   t <- getCurrentTime
   world <- mkWorld
-  return $ GameState (Timer t) t 0 zeroCoords world
+  return $ GameState (Timer t) t 0 zeroCoords world Nothing
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ _ coords _) = do
+loop state@(GameState _ _ _ coords _ _) = do
   let r = RenderState coords
   updateGame state r >>= loop
 
@@ -124,7 +134,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world) r =
+updateGame state@(GameState a b c d world f) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -134,18 +144,19 @@ updateGame state@(GameState a b c d world) r =
           Timeout  -> do
             -- change position of objects in the world and compute the new deadline
             curTime <- getCurrentTime
-            return $ GameState a (addMotionStepDuration curTime) c d (moveWorld world)
+            return $ GameState a (addMotionStepDuration curTime) (nextUpdateCounter c) d (moveWorld world) f
           (Action Frame dir) -> do
             -- offset the drawing frame
             let frameOffset = coordsForDirection dir
-            return $ GameState a b c (sumCoords d frameOffset) world
+            return $ GameState a b c (sumCoords d frameOffset) world f
           _        -> return state
         ))
 
 updateGame2 :: Action -> RenderState -> GameState -> IO GameState
 updateGame2 a r s = do
   clearScreen
-  res <- renderGame s r a
+  let res = nextGameState s a
+  renderGame res r
   hFlush stdout
   return res
 
@@ -171,7 +182,7 @@ getActions = do
 
 
 getAction :: GameState -> IO Action
-getAction (GameState _ nextMotionStep _ _ _) = do
+getAction (GameState _ nextMotionStep _ _ _ _) = do
   t <- getCurrentTime
   let remainingSeconds = diffUTCTime nextMotionStep t
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
@@ -185,32 +196,22 @@ getAction (GameState _ nextMotionStep _ _ _) = do
         ) <$> timeout remainingMicros readOneChar
 
 
-renderGame :: GameState -> RenderState -> Action -> IO GameState
-renderGame
- state@(GameState a b c fc world@(World balls _ (PosSpeed shipCoords _)))
- frameCorner
- action = do
-  let maybeLaserRay = case action of
-        (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
-        _     -> Nothing
-      remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
-      res = GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
-
+renderGame :: GameState -> RenderState -> IO ()
+renderGame state@(GameState _ _ _ _ (World balls _ (PosSpeed shipCoords _)) maybeLaserRay) frameCorner = do
   _ <- printTimer state frameCorner >>= renderWorldFrame >>= (\worldCorner -> do
     _ <- case maybeLaserRay of
       (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir) worldCorner
       Nothing -> return worldCorner
     -- render numbers, including the ones that will be destroyed, if any
-    mapM_ (\(Number (PosSpeed pos _) i) -> render (intToDigit i) pos worldCorner) balls
-    render '+' shipCoords worldCorner)
-
-  return res
+    mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos worldCorner) balls
+    render_ '+' shipCoords worldCorner)
+  return ()
 
 
 renderWorldFrame :: RenderState -> IO RenderState
 renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
   let horizontalWall = replicate (worldSize + 2)
-      lowerLEFT = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
+      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
 
   -- upper wall
   (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
@@ -218,18 +219,18 @@ renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
 
   -- left & right walls
   let leftWallCoords = take worldSize $ iterate (translateCoord Down) renderCoords
-      toRIGHT = Coords (Row 0) (Col $ worldSize+1)
-      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRIGHT
-  mapM_ (renderStrLn ['|'] . RenderState) (leftWallCoords ++ rightWallCoords)
+      toRight = Coords (Row 0) (Col $ worldSize+1)
+      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRight
+  mapM_ (renderChar_ '|' . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
-  _ <- renderStrLn (horizontalWall 'T') lowerLEFT
+  _ <- renderStrLn (horizontalWall 'T') lowerLeft
   return $ RenderState worldCoords
 
 
-render :: Char -> Coords -> RenderState -> IO RenderState
-render char worldCoords r@(RenderState renderCoords) =
+render_ :: Char -> Coords -> RenderState -> IO ()
+render_ char worldCoords (RenderState renderCoords) =
   case location worldCoords of
-    InsideWorld -> renderStrLn [char] loc
-    _           -> return r
+    InsideWorld -> renderChar_ char loc
+    _           -> return ()
   where loc = RenderState $ sumCoords renderCoords worldCoords

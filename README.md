@@ -13,6 +13,7 @@ The corresponding period is a fixed number called "motion update period"
 - laser shoots only the first letter
 - destroy animation
 
+- it could be worth calling hPutStr once per frame (using a buffer in RenderState)
 - try BlockBuffering (Just 80000) to reduce flicker
 - laser has limited reach
 

@@ -124,7 +124,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world) r = do
+updateGame state@(GameState a b c d world) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -177,12 +177,12 @@ getAction (GameState _ nextMotionStep _ _ _) = do
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
   if remainingMicros < 0
     then return Timeout
-    else do
-      maybeC <- timeout remainingMicros readOneChar
-      case maybeC of
-        (Just (Just c)) -> return $ actionFromChar c
-        (Just _) -> return Nonsense
-        _ -> return Timeout
+    else
+      (\case
+        (Just (Just c)) -> actionFromChar c
+        (Just _) -> Nonsense
+        _ -> Timeout
+        ) <$> timeout remainingMicros readOneChar
 
 
 renderGame :: GameState -> RenderState -> Action -> IO GameState

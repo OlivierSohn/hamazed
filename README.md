@@ -13,11 +13,6 @@ The corresponding period is a fixed number called "motion update period"
 - laser shoots only the first letter
 - destroy animation
 
-- in coordsForActionTargets, for ship only, if Left Right are encountered
-in the same motion step, they produce no change in speed but a change in position
-for the next motion step.
-This allows quick left right to move of one pixel.
-
 - try BlockBuffering (Just 80000) to reduce flicker
 - laser has limited reach
 

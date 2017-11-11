@@ -4,6 +4,7 @@ module World
     , ActionTarget(..)
     , actionFromChar
     , BattleShip(..)
+    , shipCollides
     , coordsForActionTargets
     , extend
     , Location(..)
@@ -106,6 +107,11 @@ data Number = Number {
     _numberPosSpeed :: !PosSpeed
   , _numberNum :: !Int
 }
+
+
+shipCollides :: World -> Bool
+shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _)) =
+   any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 nextWorld :: Action -> World -> [Number] -> Int -> World
 nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _)) balls ammo =

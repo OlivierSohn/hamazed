@@ -10,7 +10,8 @@ import           Control.Exception( ArithException(..)
                                   , throw )
 import           Control.Monad( when )
 import           Data.Char( intToDigit )
-import           Data.Maybe( maybe )
+import           Data.Maybe( isNothing
+                           , maybe )
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
@@ -35,13 +36,16 @@ import           Geo( sumCoords
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
-                    , Segment(..)
                     , segmentContains
                     , translateCoord
                     , zeroCoords )
 import           Laser( LaserType(..)
                       , laserChar
-                      , shootLaserFromShip )
+                      , Ray(..)
+                      , Theoretical
+                      , Actual
+                      , shootLaserFromShip
+                      , stopRayAtFirstCollision )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
 import           Timing( addMotionStepDuration
@@ -72,25 +76,35 @@ data GameState = GameState {
   , _updateCounter :: !Int
   , _upperLeftCorner :: !Coords
   , _world :: !World
-  , _gameStateLaserRay :: !(Maybe LaserRay)
+  , _gameStateLaserRay :: !(Maybe (LaserRay Actual))
 }
 
-data LaserRay = LaserRay {
+data LaserRay a = LaserRay {
     _laserRayDir :: !Direction
-  , _laserRaySeg :: !Segment
+  , _laserRaySeg :: !(Ray a)
 }
 
-
-survivingNumbers :: [Number] -> LaserRay -> [Number]
-survivingNumbers l (LaserRay _ seg) = filter (\(Number (PosSpeed pos _) _) -> (not $ segmentContains pos seg)) l
+data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 nextGameState :: GameState -> Action -> GameState
 nextGameState (GameState a b c d world@(World balls _ (PosSpeed shipCoords _)) _) action =
-  let maybeLaserRay = case action of
+  let maybeLaserRayTheoretical = case action of
         (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
         _     -> Nothing
-      remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
+      (remainingBalls, maybeLaserRay) = maybe (balls, Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
   in GameState a b c d (nextWorld action world remainingBalls) maybeLaserRay
+
+survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> ([Number], Maybe (LaserRay Actual))
+survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy of
+  RayDestroysAll -> (filter (\(Number (PosSpeed pos _) _) -> (isNothing $ segmentContains pos seg)) l, justFull)
+  RayDestroysFirst ->
+    let (rayActual, mayCoord) = stopRayAtFirstCollision (map (\(Number (PosSpeed pos _) _) -> pos) l) theoreticalRay
+    in ((case mayCoord of
+      Nothing -> l
+      (Just pos') -> filter (\(Number (PosSpeed pos _) _) -> pos /= pos') l)
+      , Just $ LaserRay dir rayActual)
+ where
+   justFull = Just $ LaserRay dir $ Ray seg
 
 shipCollides :: World -> Bool
 shipCollides (World balls _ (PosSpeed shipCoords _)) =
@@ -207,7 +221,7 @@ renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _ (World balls _ (PosSpeed shipCoords _)) maybeLaserRay) frameCorner = do
   _ <- printTimer state frameCorner >>= renderWorldFrame >>= (\worldCorner -> do
     _ <- case maybeLaserRay of
-      (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir) worldCorner
+      (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
       Nothing -> return worldCorner
     -- render numbers, including the ones that will be destroyed, if any
     mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos worldCorner) balls

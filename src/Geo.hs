@@ -7,8 +7,9 @@ module Geo ( Direction(..)
            , PosSpeed(..)
            , Segment(..)
            , mkSegment
-           , Row(..)
+           , changeSegmentLength
            , segmentContains
+           , Row(..)
            , sumCoords
            , translateCoord
            , zeroCoords
@@ -61,14 +62,20 @@ mkSegment coord1@(Coords row@(Row r1) col@(Col c1)) coord2@(Coords (Row r2) (Col
   | c1 == c2  = Vertical   col r1 r2
   | otherwise = Oblique coord1 coord2
 
-rangeContains :: Int -> Int -> Int -> Bool
-rangeContains r1 r2 i = abs (r2-i) + abs (i-r1) == abs (r2-r1)
+changeSegmentLength :: Int -> Segment -> Segment
+changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + i
+changeSegmentLength i (Vertical   col r1 _) = Vertical col r1 $ r1 + i
+changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments"
 
-segmentContains :: Coords -> Segment-> Bool
-segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = row' == row && rangeContains c1 c2 c
-segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = col' == col && rangeContains r1 r2 r
+-- returns the distance from segment start
+segmentContains :: Coords -> Segment-> Maybe Int
+segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = if row' == row then rangeContains c1 c2 c else Nothing
+segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = if col' == col then rangeContains r1 r2 r else Nothing
 segmentContains _ _ = error "segmentContains cannot operate on oblique segments"
 
+-- returns Just (value - range start) if it is contained
+rangeContains :: Int -> Int -> Int -> Maybe Int
+rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i - r1) else Nothing
 
 data PosSpeed = PosSpeed {
     _pos :: !Coords

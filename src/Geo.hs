@@ -62,7 +62,7 @@ mkSegment coord1@(Coords row@(Row r1) col@(Col c1)) coord2@(Coords (Row r2) (Col
   | otherwise = Oblique coord1 coord2
 
 rangeContains :: Int -> Int -> Int -> Bool
-rangeContains r1 r2 i = (r2-i) + (i-r1) == (r2-r1)
+rangeContains r1 r2 i = abs (r2-i) + abs (i-r1) == abs (r2-r1)
 
 segmentContains :: Coords -> Segment-> Bool
 segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = row' == row && rangeContains c1 c2 c

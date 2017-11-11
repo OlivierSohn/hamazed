@@ -96,7 +96,7 @@ data LaserRay a = LaserRay {
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 nextGameState :: GameState -> Action -> (GameState, Maybe GameStops)
-nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo) sz) _ g h i) action =
+nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo) _ sz) _ g h i) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
@@ -120,7 +120,7 @@ nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed ship
 
 survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> (([Number],[Number]), Maybe (LaserRay Actual))
 survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy of
-  RayDestroysAll -> (partition (\(Number (PosSpeed pos _) _) -> (isNothing $ segmentContains pos seg)) l, justFull)
+  RayDestroysAll   -> (partition (\(Number (PosSpeed pos _) _) -> (isNothing $ segmentContains pos seg)) l, justFull)
   RayDestroysFirst ->
     let (rayActual, mayCoord) = stopRayAtFirstCollision (map (\(Number (PosSpeed pos _) _) -> pos) l) theoreticalRay
         remainingNumbers = case mayCoord of
@@ -131,7 +131,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize) _ _ _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ _ worldSize) _ _ _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
 
@@ -174,7 +174,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
+updateGame state@(GameState a b c d world@(World _ _ _ _ sz) f g h i) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -182,7 +182,7 @@ updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
         (case action of
           Timeout ->
             getCurrentTime >>= (\t ->
-              return $ GameState a (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld world) f g h i)
+              return $ GameState a (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld t world) f g h i)
           (Action Frame dir) ->
             return $ GameState a b c (sumCoords d $ coordsForDirection dir) world f g h i
           _        -> return state
@@ -250,7 +250,7 @@ getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) sz)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) _ sz)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do

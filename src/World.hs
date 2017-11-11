@@ -20,7 +20,11 @@ module World
 
 
 import           Data.List( foldl' )
-import           Data.Maybe( mapMaybe )
+import           Data.Maybe( isNothing
+                           , mapMaybe )
+import           Data.Time( addUTCTime
+                          , getCurrentTime
+                          , UTCTime )
 import           GHC.Generics( Generic )
 import           System.Random( getStdRandom
                               , randomR )
@@ -103,6 +107,7 @@ data World = World{
     _worldNumber :: ![Number]
   , _howBallMoves :: WorldSize -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
+  , _worldShipSafeUntil :: !(Maybe UTCTime)
   , _worldWorldSize :: !WorldSize
 }
 
@@ -113,18 +118,24 @@ data Number = Number {
 
 
 shipCollides :: World -> Bool
-shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _) _) =
+shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _) safeTime _) =
+  isNothing safeTime &&
    any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 nextWorld :: Action -> World -> [Number] -> Int -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _) size) balls ammo =
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _) safeTime size) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo) size
+  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo) safeTime size
 
-moveWorld :: World -> World
-moveWorld (World balls changePos (BattleShip ship ammo) size) =
-  World (map (\(Number ps n) -> Number (changePos size ps) n) balls) changePos (BattleShip (changePos size ship) ammo) size
+moveWorld :: UTCTime -> World -> World
+moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo) safeTime size) =
+  let newSafeTime = case safeTime of
+        (Just t) -> if curTime > t then Nothing else safeTime
+        _        -> Nothing
+      newBalls = map (\(Number ps n) -> Number (changePos size ps) n) balls
+      newShip = BattleShip (changePos size shipPosSpeed) ammo
+  in World newBalls changePos newShip newSafeTime size
 
 ballMotion :: WorldSize -> PosSpeed -> PosSpeed
 ballMotion worldSize = doBallMotion . mirrorIfNeeded worldSize
@@ -177,7 +188,8 @@ mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
   ship <- createRandomPosSpeed worldSize
-  return (World balls ballMotion (BattleShip ship 10) worldSize)
+  t <- getCurrentTime
+  return $ World balls ballMotion (BattleShip ship 10) (Just $ addUTCTime 5 t) worldSize
 
 
 randomPos :: WorldSize -> IO Int

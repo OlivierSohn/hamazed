@@ -190,28 +190,19 @@ renderGame
  state@(GameState a b c fc world@(World balls _ (PosSpeed shipCoords _)))
  frameCorner
  action = do
-  -- render timer
-  r <- printTimer state frameCorner
-  -- render enclosing rectangle
-  r2 <- renderWorldFrame r
-
-  -- make laser
   let maybeLaserRay = case action of
         (Action Laser dir) -> LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite
         _     -> Nothing
       remainingBalls = maybe balls (survivingNumbers balls) maybeLaserRay
       res = GameState a b (nextUpdateCounter c) fc $ nextWorld action world remainingBalls
 
-  -- render laser
-  _ <- case maybeLaserRay of
-    (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir) r2
-    Nothing -> return r2
-
-  -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\(Number (PosSpeed pos _) i) -> render r2 (intToDigit i) pos) balls
-
-  -- render ship
-  _ <- render r2 '+' shipCoords
+  printTimer state frameCorner >>= renderWorldFrame >>= (do
+    case maybeLaserRay of
+      (Just (LaserRay laserDir laserSeg)) -> renderSegment laserSeg (laserChar laserDir)
+      Nothing -> return
+    -- render numbers, including the ones that will be destroyed, if any
+    mapM_ (\(Number (PosSpeed pos _) i) -> render (intToDigit i) pos) balls
+    render '+' shipCoords)
 
   return res
 
@@ -236,8 +227,8 @@ renderWorldFrame upperLeft@(RenderState upperLeftCoords) = do
   return $ RenderState worldCoords
 
 
-render :: RenderState -> Char -> Coords -> IO RenderState
-render r@(RenderState renderCoords) char worldCoords =
+render :: Char -> Coords -> RenderState -> IO RenderState
+render char worldCoords r@(RenderState renderCoords) =
   case location worldCoords of
     InsideWorld -> renderStrLn [char] loc
     _           -> return r

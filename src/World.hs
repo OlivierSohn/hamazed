@@ -5,6 +5,8 @@ module World
     , ActionTarget(..)
     , actionFromChar
     , Animation(..)
+    , mkAnimation
+    , drawPoint
     , renderAnimations
     , BattleShip(..)
     , shipCollides
@@ -137,6 +139,13 @@ data Animation = Animation {
   , _animationRender :: Int -> WorldSize -> RenderState -> IO ()
 }
 
+mkAnimation :: (Int -> WorldSize -> RenderState -> IO ())
+            -> UTCTime
+            -> Animation
+mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) 0 render
+
+
+
 animationIsOver :: Animation -> Bool
 animationIsOver (Animation _ i _) = i == 60
 
@@ -144,8 +153,8 @@ shipCollides :: World -> [Number]
 shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
    filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
-nextWorld :: Action -> World -> [Number] -> Int -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size anims) balls ammo =
+nextWorld :: Action -> World -> [Number] -> Int -> [Animation] -> World
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size _) balls ammo anims =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
   in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime) size anims
@@ -236,7 +245,6 @@ drawPoint i (WorldSize s) (RenderState upperLeftCoords) =
     let pos = Coords (Row 0) (Col i)
     renderChar_ '.' $ RenderState $ sumCoords pos upperLeftCoords
 
-
 renderAnimations :: WorldSize -> RenderState -> [Animation] -> IO ()
 renderAnimations sz r = mapM_ (\(Animation _ i render) -> render i sz r)
 
@@ -245,7 +253,7 @@ mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
   ship <- createRandomPosSpeed worldSize
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize [Animation (addUTCTime animationPeriod t) 0 drawPoint]
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize []
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)

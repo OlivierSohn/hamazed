@@ -4,6 +4,7 @@ module World
     ( Action(..)
     , ActionTarget(..)
     , actionFromChar
+    , Animation(..)
     , BattleShip(..)
     , shipCollides
     , coordsForActionTargets
@@ -13,6 +14,7 @@ module World
     , mkWorld
     , moveWorld
     , nextWorld
+    , stepEarliestAnimations
     , Number(..)
     , Step(..)
     , World(..)
@@ -20,10 +22,13 @@ module World
     ) where
 
 
-import           Data.List( foldl' )
+import           Data.List( foldl'
+                          , minimumBy
+                          , partition )
 import           Data.Maybe( mapMaybe )
 import           Data.Time( addUTCTime
                           , getCurrentTime
+                          , NominalDiffTime
                           , UTCTime )
 import           GHC.Generics( Generic )
 import           System.Random( getStdRandom
@@ -114,6 +119,7 @@ data World = World{
   , _howBallMoves :: WorldSize -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldWorldSize :: !WorldSize
+  , _worldAnimations :: ![Animation]
 }
 
 data Number = Number {
@@ -121,25 +127,30 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
+data Animation = Animation {
+    _animationNextTime :: !UTCTime
+  , _animationCounter  :: !Int
+}
 
 shipCollides :: World -> [Number]
-shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _) =
+shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
    filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 nextWorld :: Action -> World -> [Number] -> Int -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size) balls ammo =
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size anims) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime) size
+  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime) size anims
 
+-- move the world elements (numbers, ship), but do NOT advance the animations
 moveWorld :: UTCTime -> World -> World
-moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime) size) =
+moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime) size anims) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
       newBalls = map (\(Number ps n) -> Number (changePos size ps) n) balls
       newShip = BattleShip (changePos size shipPosSpeed) ammo newSafeTime
-  in World newBalls changePos newShip size
+  in World newBalls changePos newShip size anims
 
 ballMotion :: WorldSize -> PosSpeed -> PosSpeed
 ballMotion worldSize = doBallMotion . mirrorIfNeeded worldSize
@@ -181,6 +192,24 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
       newC = c
   in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
+animationPeriod :: Data.Time.NominalDiffTime
+animationPeriod = 0.2
+
+timeOf :: Animation -> UTCTime
+timeOf (Animation t _) = t
+
+-- steps the animations which will be done the soonest
+stepClosest :: [Animation] -> [Animation]
+stepClosest [] = error "should never happen"
+stepClosest l = let m = minimum $ map timeOf l
+                    (closest, other) = partition (\a -> timeOf a == m) l
+                in other ++ map stepAnimation closest
+
+stepAnimation :: Animation -> Animation
+stepAnimation (Animation t i) = Animation (addUTCTime animationPeriod t) $ succ i
+
+stepEarliestAnimations :: World -> World
+stepEarliestAnimations (World a b c d animations) = World a b c d (stepClosest animations)
 
 --------------------------------------------------------------------------------
 -- IO
@@ -191,7 +220,7 @@ mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
   ship <- createRandomPosSpeed worldSize
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t))  worldSize
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize [Animation (addUTCTime animationPeriod t) 0]
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)

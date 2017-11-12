@@ -67,6 +67,7 @@ import           Util( showListOrSingleton )
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
+                      , Animation(..)
                       , BattleShip(..)
                       , Location(..)
                       , location
@@ -75,6 +76,7 @@ import           World( Action(..)
                       , nextWorld
                       , shipCollides
                       , Step(..)
+                      , stepEarliestAnimations
                       , World(..)
                       , Number(..)
                       , WorldSize(..) )
@@ -107,7 +109,7 @@ data LaserRay a = LaserRay {
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 nextGameState :: GameState -> Action -> GameState
-nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo _) sz) _ g h i) action =
+nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo _) sz _) _ g h i) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
@@ -118,7 +120,7 @@ nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed ship
   in GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay allShotNumbers h i
 
 computeStop :: GameState -> Action -> Maybe GameStops
-computeStop (GameState _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _) _ allShots target _) lastAction =
+computeStop (GameState _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _ _) _ allShots target _) lastAction =
     checkShipCollision <|> checkSum <|> checkAmmo
   where
     checkShipCollision = case lastAction of
@@ -126,7 +128,7 @@ computeStop (GameState _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _) 
         if isJust safeTime then Nothing
           else case map (\(Number _ n) -> n) $ shipCollides world of
             [] -> Nothing
-            l  -> Just $ Lost $ "ship collides with " ++ showListOrSingleton l
+            l  -> Just $ Lost $ "collision with " ++ showListOrSingleton l
       _ -> Nothing
 
     sumNumbers = sum allShots
@@ -151,9 +153,9 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize) _ _ _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize anims) _ _ _ _) =
   let time = computeTime startTime currentTime
-  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
+  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |" ++ show (map (\(Animation _ t) -> t) anims)
 
 --------------------------------------------------------------------------------
 -- IO
@@ -194,7 +196,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
+updateGame state@(GameState a b c d world@(World _ _ _ sz animations) f g h i) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -205,7 +207,8 @@ updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
               return $ GameState a (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld t world) f g h i)
           (Action Frame dir) ->
             return $ GameState a b c (sumCoords d $ coordsForDirection dir) world f g h i
-          (Timeout AnimationStep) -> return state -- TODO animation
+          (Timeout AnimationStep) ->
+            return $ GameState a b c d (stepEarliestAnimations world) f g h i
           _        -> return state
         ))
 
@@ -246,17 +249,17 @@ handle (GameState _ _ _ _ _ _ _ _ l) stop = do
                         Won      -> "go to next level"
       putStrLn $ "Press a key to " ++ action ++ " ..."
   setSGR [SetColor Foreground Vivid White]
-  unfoldM_ readOneChar -- flush inputs
+  unfoldM_ readOneCharNonBlocking -- flush inputs
   hFlush stdout        -- write previous message
   _ <- getChar         -- wait for a key press
   makeInitialState level
 
-readOneChar :: IO (Maybe Char)
-readOneChar = do
+readOneCharNonBlocking :: IO (Maybe Char)
+readOneCharNonBlocking = do
   hasMore <- hReady stdin
   if hasMore
     then do
-      c <- getChar
+      c <- getChar -- getChar will not block, because 'hReady stdin'
       return $ Just c
     else
       return Nothing
@@ -264,7 +267,7 @@ readOneChar = do
 {--
 getActions :: IO [Action]
 getActions = do
-  inputs <- unfoldM readOneChar
+  inputs <- unfoldM readOneCharNonBlocking
   return $ map actionFromChar inputs
 --}
 
@@ -274,20 +277,24 @@ getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do -- TODO animation : ad
   t <- getCurrentTime
   let remainingSeconds = diffUTCTime nextMotionStep t
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
-  if remainingMicros < 0
-    then return $ Timeout WorldStep
-    else
-      (\case
-        Nothing   -> Timeout WorldStep
-        Just mayChar -> case mayChar of
-          (Just char) -> actionFromChar char
-          Nothing     -> Nonsense
-        ) <$> timeout remainingMicros readOneChar
+  getActionWithTimeout remainingMicros WorldStep
 
+getActionWithTimeout :: Int -> Step -> IO Action
+getActionWithTimeout remainingMicros step =
+  (\case
+    Nothing   -> Timeout step
+    Just char -> actionFromChar char
+    ) <$> getCharOrTimeout remainingMicros
+
+getCharOrTimeout :: Int -> IO (Maybe Char)
+getCharOrTimeout remainingMicros =
+  if remainingMicros < 0
+    then return Nothing
+    else timeout remainingMicros getChar
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz animations)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do

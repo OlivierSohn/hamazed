@@ -29,6 +29,7 @@ import           GHC.Generics( Generic )
 import           System.Random( getStdRandom
                               , randomR )
 
+
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -147,7 +148,6 @@ doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
     newR = r + dr
     newC = c + dc
 
-
 mirrorSpeedIfNeeded :: WorldSize -> Int -> Int -> Int
 mirrorSpeedIfNeeded (WorldSize worldSize) x
   | x <= 0           = abs
@@ -176,7 +176,6 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
       -- the tradeoff is just to not render them
       newR = r
       newC = c
-
   in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
 
@@ -191,14 +190,11 @@ mkWorld worldSize nums = do
   t <- getCurrentTime
   return $ World balls ballMotion (BattleShip ship 10) (Just $ addUTCTime 5 t) worldSize
 
-
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)
 
-
 randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-1,1)
-
 
 createRandomPosSpeed :: WorldSize -> IO PosSpeed
 createRandomPosSpeed worldSize = do
@@ -207,7 +203,6 @@ createRandomPosSpeed worldSize = do
   dx <- randomSpeed
   dy <- randomSpeed
   return $ mirrorIfNeeded worldSize $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
-
 
 createRandomNumber :: WorldSize -> Int -> IO Number
 createRandomNumber worldSize i = do

@@ -16,7 +16,13 @@ import           Data.Maybe( fromMaybe
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
-import           System.Console.ANSI( clearScreen )
+import           System.Console.ANSI( clearScreen
+                                    , setSGR
+                                    , SGR(..)
+                                    , ConsoleLayer(..)
+                                    , ColorIntensity(..)
+                                    , Color(..)
+                                     )
 import           System.IO( getChar
                           , hFlush
                           , hReady
@@ -201,12 +207,17 @@ updateGame2 a r s = do
 
 handle :: GameState -> GameStops -> IO GameState
 handle (GameState _ _ _ _ _ _ _ _ l) stop = do
+  let color = case stop of
+        (Lost _) -> Yellow
+        Won      -> Green
+  setSGR [SetColor Foreground Vivid color]
   putStrLn $ case stop of
     (Lost reason) -> " You Lose (" ++ reason ++ ")"
     Won           -> " You Win!! Congratulations."
   hFlush stdout -- write previous messages
   threadDelay $ 2 * 1000000
   putStrLn "Press a key to continue ..."
+  setSGR [SetColor Foreground Vivid White]
   unfoldM_ readOneChar -- flush inputs
   hFlush stdout        -- write previous message
   _ <- getChar         -- wait for a key press
@@ -250,7 +261,7 @@ getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) _ sz)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) safeTime sz)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do
@@ -261,7 +272,11 @@ renderGame state@(GameState _ _ _ _
         Nothing -> return worldCorner
       -- render numbers, including the ones that will be destroyed, if any
       mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
-      render_ '+' shipCoords sz worldCorner))
+      let shipColor = if isNothing safeTime then Blue else Red
+      setSGR [SetColor Foreground Vivid shipColor]
+      render_ '+' shipCoords sz worldCorner
+      setSGR [SetColor Foreground Vivid White]))
+
   return ()
 
 

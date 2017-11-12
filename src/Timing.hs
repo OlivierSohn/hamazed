@@ -45,13 +45,13 @@ showUpdateTick :: Int -> WorldSize -> String
 showUpdateTick t ws@(WorldSize worldSize) =
   let l = tickRepresentationLength ws
       nDotsBefore = max 0 (t + l - worldSize)
-      nLEFTBlanks = t - nDotsBefore
+      nLeftBlanks = t - nDotsBefore
       nDotsAfter = l - nDotsBefore
-      nRIGHTBlanks = worldSize - t - l
+      nRightBlanks = worldSize - t - l
   in replicate nDotsBefore  '.'
-  ++ replicate nLEFTBlanks  ' '
+  ++ replicate nLeftBlanks  ' '
   ++ replicate nDotsAfter   '.'
-  ++ replicate nRIGHTBlanks ' '
+  ++ replicate nRightBlanks ' '
 
 
 nextUpdateCounter :: WorldSize -> Int -> Int

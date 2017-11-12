@@ -38,7 +38,7 @@ import           Geo( Col(..)
 data ConsoleConfig = Gaming | Editing
 
 newtype RenderState = RenderState {
-    _currentUpperLEFTCorner :: Coords
+    _currentUpperLeftCorner :: Coords
 }
 
 --------------------------------------------------------------------------------

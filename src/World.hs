@@ -5,6 +5,7 @@ module World
     , ActionTarget(..)
     , actionFromChar
     , Animation(..)
+    , renderAnimations
     , BattleShip(..)
     , shipCollides
     , coordsForActionTargets
@@ -36,6 +37,8 @@ import           System.Random( getStdRandom
                               , randomR )
 
 
+import           Console( RenderState(..)
+                        , renderChar_ )
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -131,10 +134,11 @@ data Number = Number {
 data Animation = Animation {
     _animationNextTime :: !UTCTime
   , _animationCounter  :: !Int
+  , _animationRender :: Int -> RenderState -> IO ()
 }
 
 animationIsOver :: Animation -> Bool
-animationIsOver (Animation _ i) = i == 60
+animationIsOver (Animation _ i _) = i == 60
 
 shipCollides :: World -> [Number]
 shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
@@ -200,7 +204,7 @@ animationPeriod :: Data.Time.NominalDiffTime
 animationPeriod = 0.05
 
 timeOf :: Animation -> UTCTime
-timeOf (Animation t _) = t
+timeOf (Animation t _ _) = t
 
 -- steps the animations which will be done the soonest
 stepClosest :: [Animation] -> [Animation]
@@ -210,7 +214,7 @@ stepClosest l = let m = minimum $ map timeOf l
                 in other ++ filter (not . animationIsOver) (map stepAnimation closest)
 
 stepAnimation :: Animation -> Animation
-stepAnimation (Animation t i) = Animation (addUTCTime animationPeriod t) $ succ i
+stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (succ i) f
 
 stepEarliestAnimations :: World -> World
 stepEarliestAnimations (World a b c d animations) = World a b c d (stepClosest animations)
@@ -226,12 +230,21 @@ earliestAnimationTime animations = Just $ minimum $ map timeOf animations
 -- IO
 --------------------------------------------------------------------------------
 
+drawPoint :: Int -> RenderState -> IO ()
+drawPoint i (RenderState upperLeftCoords) = do
+  let pos = Coords (Row 0) (Col i)
+  renderChar_ '.' $ RenderState $ sumCoords pos upperLeftCoords
+
+
+renderAnimations :: RenderState -> [Animation] -> IO ()
+renderAnimations r = mapM_ (\(Animation _ i render) -> render i r)
+
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
   ship <- createRandomPosSpeed worldSize
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize [Animation (addUTCTime animationPeriod t) 0]
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize [Animation (addUTCTime animationPeriod t) 0 drawPoint]
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)

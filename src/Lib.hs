@@ -76,6 +76,7 @@ import           World( Action(..)
                       , moveWorld
                       , mkWorld
                       , nextWorld
+                      , renderAnimations
                       , shipCollides
                       , Step(..)
                       , stepEarliestAnimations
@@ -157,7 +158,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize anims) _ _ _ _) =
   let time = computeTime startTime currentTime
-  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |" ++ show (map (\(Animation _ t) -> t) anims)
+  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |" ++ show (map (\(Animation _ t _) -> t) anims)
 
 --------------------------------------------------------------------------------
 -- IO
@@ -294,24 +295,29 @@ getCharOrTimeout remainingMicros =
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz _)
-                   maybeLaserRay shotNumbers target level)
+                   (World _ _ (BattleShip _ ammo _) sz animations)
+                   _ shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do
     _ <- rightColumn sz r >>= renderLevel level >>= renderAmmo ammo >>= renderTarget target >>= renderShotNumbers shotNumbers
-    renderWorldFrame sz r >>= (\worldCorner -> do
-      _ <- case maybeLaserRay of
-        (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
-        Nothing -> return worldCorner
-      -- render numbers, including the ones that will be destroyed, if any
-      mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
-      let shipColor = if isNothing safeTime then Blue else Red
-      setSGR [SetColor Foreground Vivid shipColor]
-      render_ '+' shipCoords sz worldCorner
-      setSGR [SetColor Foreground Vivid White]))
+    renderWorldFrame sz r >>= (\worldCorner -> renderAnimations worldCorner animations >> renderWorld state worldCorner))
 
   return ()
 
+-- TODO pass World instead of GameState, move laser to World
+renderWorld :: GameState -> RenderState -> IO ()
+renderWorld (GameState _ _ _ _
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime) sz _)
+                   maybeLaserRay _ _ _) worldCorner = do
+  _ <- case maybeLaserRay of
+    (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
+    Nothing -> return worldCorner
+  -- render numbers, including the ones that will be destroyed, if any
+  mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
+  let shipColor = if isNothing safeTime then Blue else Red
+  setSGR [SetColor Foreground Vivid shipColor]
+  render_ '+' shipCoords sz worldCorner
+  setSGR [SetColor Foreground Vivid White]
 
 renderShotNumbers :: [Int] -> RenderState -> IO RenderState
 renderShotNumbers nums =

@@ -162,7 +162,7 @@ makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   t <- getCurrentTime
   let nums = [1..(3+level)]
-      sz = WorldSize $ 35 `quot` level
+      sz = WorldSize $ 35 + 2 * (1-level)
   world <- mkWorld sz nums
   return $ GameState (Timer t) t 0 zeroCoords world Nothing [] (sum nums `quot` 2) level
 

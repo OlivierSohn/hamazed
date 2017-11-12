@@ -4,12 +4,13 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 
 # Backlog
 
-- put a limit (15) on the number of numbers to avoid double digit stuff
-- number of lasers available is different for each direction
-- when ship and number go in opposite direction and ship shoots at each iteration
-it can miss the number. To fix that we can require the ship to have speed .5 at max
-- if letters are shot fast enough, get a bonus (auto shoot)
 - destroy animation
+- make target more visible
+
+- write a help
+- current implementation is easy mode, make a medium mode where the
+numbers of lasers available is different for each direction
+and a hard mode where there is a timeout on each level
 
 - it could be worth calling hPutStr once per frame (using a buffer in RenderState)
 - try BlockBuffering (Just 80000) to reduce flicker

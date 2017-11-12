@@ -123,9 +123,9 @@ nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed sh
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
-      newAnimations = case destroyedNumbers of
+      newAnimations = case destroyedBalls of
         [] -> animations
-        _ -> mkAnimation drawPoint t : animations
+        (Number (PosSpeed pos _) _):[] -> mkAnimation (explosion pos) t : animations
   in GameState a t b c d (nextWorld action world remainingBalls newAmmo newAnimations) maybeLaserRay allShotNumbers h i
 
 computeStop :: GameState -> Action -> Maybe GameStops

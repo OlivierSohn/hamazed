@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 
 module World
     ( Action(..)
@@ -23,7 +22,6 @@ module World
     , Step(..)
     , World(..)
     , animationIsOver
-    , WorldSize(..)
     ) where
 
 
@@ -39,6 +37,7 @@ import           System.Random( getStdRandom
                               , randomR )
 
 
+import           Animation( Animation(..) )
 import           Console( RenderState(..)
                         , renderChar_ )
 import           Geo( Col(..)
@@ -49,8 +48,7 @@ import           Geo( Col(..)
                     , Row(..)
                     , sumCoords
                     , zeroCoords )
-
-newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, Show)
+import           WorldSize( WorldSize(..) )
 
 data Action = Action ActionTarget Direction |
               Timeout Step |
@@ -133,22 +131,6 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
-data Animation = Animation {
-    _animationNextTime :: !UTCTime
-  , _animationCounter  :: !Int
-  , _animationRender :: Int -> WorldSize -> RenderState -> IO ()
-}
-
-mkAnimation :: (Int -> WorldSize -> RenderState -> IO ())
-            -> UTCTime
-            -> Animation
-mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) 0 render
-
-
-
-animationIsOver :: Animation -> Bool
-animationIsOver (Animation _ i _) = i == 60
-
 shipCollides :: World -> [Number]
 shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
    filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
@@ -209,44 +191,15 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
       newC = c
   in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
-animationPeriod :: Data.Time.NominalDiffTime
-animationPeriod = 0.05
-
-timeOf :: Animation -> UTCTime
-timeOf (Animation t _ _) = t
-
--- steps the animations which will be done the soonest
-stepClosest :: [Animation] -> [Animation]
-stepClosest [] = error "should never happen"
-stepClosest l = let m = minimum $ map timeOf l
-                    (closest, other) = partition (\a -> timeOf a == m) l
-                in other ++ filter (not . animationIsOver) (map stepAnimation closest)
-
-stepAnimation :: Animation -> Animation
-stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (succ i) f
-
 stepEarliestAnimations :: World -> World
 stepEarliestAnimations (World a b c d animations) = World a b c d (stepClosest animations)
 
 earliestAnimationTimeInWorld :: World -> Maybe UTCTime
 earliestAnimationTimeInWorld (World _ _ _ _ animations) = earliestAnimationTime animations
 
-earliestAnimationTime :: [Animation] -> Maybe UTCTime
-earliestAnimationTime []         = Nothing
-earliestAnimationTime animations = Just $ minimum $ map timeOf animations
-
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
-
-drawPoint :: Int -> WorldSize -> RenderState -> IO ()
-drawPoint i (WorldSize s) (RenderState upperLeftCoords) =
-  if i >= s then return () else do
-    let pos = Coords (Row 0) (Col i)
-    renderChar_ '.' $ RenderState $ sumCoords pos upperLeftCoords
-
-renderAnimations :: WorldSize -> RenderState -> [Animation] -> IO ()
-renderAnimations sz r = mapM_ (\(Animation _ i render) -> render i sz r)
 
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld worldSize nums = do

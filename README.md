@@ -4,6 +4,7 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 
 # Backlog
 
+- when lose, do not stop animations, stop only move.
 - make laser ray render persist until next motion step.
 - do not count duplicate laser shots in same motion step.
 - make destroy animations in the background with a faster refresh rate than the rest:

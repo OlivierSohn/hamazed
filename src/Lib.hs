@@ -257,10 +257,9 @@ handle (GameState _ _ _ _ _ _ _ _ l) stop = do
 
 readOneCharNonBlocking :: IO (Maybe Char)
 readOneCharNonBlocking =
-  hReady stdin >>= \canRead ->
-    if canRead
-      then Just <$> getChar -- getChar will not block, because 'hReady stdin'
-      else return Nothing
+  hReady stdin >>= \case
+    True  -> Just <$> getChar -- getChar will not block, because 'hReady stdin'
+    False -> return Nothing
 
 {--
 getActions :: IO [Action]

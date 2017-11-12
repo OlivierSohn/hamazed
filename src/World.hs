@@ -134,7 +134,7 @@ data Number = Number {
 data Animation = Animation {
     _animationNextTime :: !UTCTime
   , _animationCounter  :: !Int
-  , _animationRender :: Int -> RenderState -> IO ()
+  , _animationRender :: Int -> WorldSize -> RenderState -> IO ()
 }
 
 animationIsOver :: Animation -> Bool
@@ -230,14 +230,15 @@ earliestAnimationTime animations = Just $ minimum $ map timeOf animations
 -- IO
 --------------------------------------------------------------------------------
 
-drawPoint :: Int -> RenderState -> IO ()
-drawPoint i (RenderState upperLeftCoords) = do
-  let pos = Coords (Row 0) (Col i)
-  renderChar_ '.' $ RenderState $ sumCoords pos upperLeftCoords
+drawPoint :: Int -> WorldSize -> RenderState -> IO ()
+drawPoint i (WorldSize s) (RenderState upperLeftCoords) =
+  if i >= s then return () else do
+    let pos = Coords (Row 0) (Col i)
+    renderChar_ '.' $ RenderState $ sumCoords pos upperLeftCoords
 
 
-renderAnimations :: RenderState -> [Animation] -> IO ()
-renderAnimations r = mapM_ (\(Animation _ i render) -> render i r)
+renderAnimations :: WorldSize -> RenderState -> [Animation] -> IO ()
+renderAnimations sz r = mapM_ (\(Animation _ i render) -> render i sz r)
 
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld worldSize nums = do

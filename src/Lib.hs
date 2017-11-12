@@ -299,8 +299,15 @@ renderGame state@(GameState _ _ _ _
                    _ shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do
-    _ <- rightColumn sz r >>= renderLevel level >>= renderAmmo ammo >>= renderTarget target >>= renderShotNumbers shotNumbers
-    renderWorldFrame sz r >>= (\worldCorner -> renderAnimations worldCorner animations >> renderWorld state worldCorner))
+    _ <- rightColumn sz r >>=
+      renderLevel level >>=
+        renderAmmo ammo >>=
+          renderTarget target >>=
+            renderShotNumbers shotNumbers
+    renderWorldFrame sz r >>=
+      (\worldCorner ->
+        renderAnimations sz worldCorner animations >>
+        renderWorld state worldCorner))
 
   return ()
 

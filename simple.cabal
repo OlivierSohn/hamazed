@@ -21,6 +21,7 @@ library
                      , Laser
                      , Threading
                      , Timing
+                     , Util
                      , World
   build-depends:       base
                      , ansi-terminal

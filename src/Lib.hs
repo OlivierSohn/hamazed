@@ -5,6 +5,7 @@ module Lib
     ) where
 
 
+import           Control.Applicative( (<|>) )
 import           Control.Concurrent( threadDelay )
 import           Control.Exception( finally )
 import           Control.Monad( forever )
@@ -12,6 +13,7 @@ import           Control.Monad.Loops( unfoldM_ )
 import           Data.Char( intToDigit )
 import           Data.List( partition )
 import           Data.Maybe( fromMaybe
+                           , isJust
                            , isNothing
                            , maybe )
 import           Data.Time( UTCTime
@@ -29,6 +31,7 @@ import           System.IO( getChar
                           , stdin
                           , stdout )
 import           System.Timeout( timeout )
+
 
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
@@ -60,6 +63,7 @@ import           Timing( addMotionStepDuration
                        , nextUpdateCounter
                        , showUpdateTick
                        , Timer(..) )
+import           Util( showListOrSingleton )
 import           World( Action(..)
                       , ActionTarget(..)
                       , actionFromChar
@@ -102,8 +106,8 @@ data LaserRay a = LaserRay {
 
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
-nextGameState :: GameState -> Action -> (GameState, Maybe GameStops)
-nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo) _ sz) _ g h i) action =
+nextGameState :: GameState -> Action -> GameState
+nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo _) sz) _ g h i) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
@@ -111,19 +115,28 @@ nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed ship
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
-      sumNumbers = sum allShotNumbers
-      normal = case compare sumNumbers h of
-        LT -> Nothing
-        EQ -> Just Won
-        GT -> Just $ Lost $ show sumNumbers ++ " is bigger than " ++ show h
-  in (GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay allShotNumbers h i,
-      case action of
-        (Timeout WorldStep) ->
-          if shipCollides world
-            then Just $ Lost "collision"
-            else normal
-        _ -> normal)
+  in GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay allShotNumbers h i
 
+computeStop :: GameState -> Action -> Maybe GameStops
+computeStop (GameState _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _) _ allShots target _) lastAction =
+    checkShipCollision <|> checkSum <|> checkAmmo
+  where
+    checkShipCollision = case lastAction of
+      (Timeout WorldStep) ->
+        if isJust safeTime then Nothing
+          else case map (\(Number _ n) -> n) $ shipCollides world of
+            [] -> Nothing
+            l  -> Just $ Lost $ "ship collides with " ++ showListOrSingleton l
+      _ -> Nothing
+
+    sumNumbers = sum allShots
+    checkSum = case compare sumNumbers target of
+      LT -> Nothing
+      EQ -> Just Won
+      GT -> Just $ Lost $ "sum " ++ show sumNumbers ++ " is bigger than target " ++ show target
+    checkAmmo
+      | ammo <= 0 = Just $ Lost "no ammo left"
+      | otherwise = Nothing
 
 survivingNumbers :: [Number] -> LaserPolicy -> LaserRay Theoretical -> (([Number],[Number]), Maybe (LaserRay Actual))
 survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy of
@@ -138,7 +151,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ _ worldSize) _ _ _ _) =
+showTimer currentTime (GameState startTime _ updateTick _ (World _ _ _ worldSize) _ _ _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
 
@@ -181,7 +194,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world@(World _ _ _ _ sz) f g h i) r =
+updateGame state@(GameState a b c d world@(World _ _ _ sz) f g h i) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -199,9 +212,10 @@ updateGame state@(GameState a b c d world@(World _ _ _ _ sz) f g h i) r =
 updateGame2 :: Action -> RenderState -> GameState -> IO GameState
 updateGame2 a r s = do
   clearScreen
-  let (s2, termination) = nextGameState s a
+  let s2 = nextGameState s a
+      shouldStop = computeStop s2 a
   renderGame s2 r
-  maybeS3 <- mapM (handle s2) termination
+  maybeS3 <- mapM (handle s2) shouldStop
   let s3 = fromMaybe s2 maybeS3
   hFlush stdout
   return s3
@@ -273,7 +287,7 @@ getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do -- TODO animation : ad
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo) safeTime sz)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do

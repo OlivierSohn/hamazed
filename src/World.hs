@@ -21,8 +21,7 @@ module World
 
 
 import           Data.List( foldl' )
-import           Data.Maybe( isNothing
-                           , mapMaybe )
+import           Data.Maybe( mapMaybe )
 import           Data.Time( addUTCTime
                           , getCurrentTime
                           , UTCTime )
@@ -68,7 +67,7 @@ filterActions target = mapMaybe (maybeDirectionFor target)
 maybeDirectionFor :: ActionTarget -> Action -> Maybe Direction
 maybeDirectionFor targetFilter (Action actionTarget dir)
    | actionTarget == targetFilter = Just dir
-   | otherwise = Nothing
+   | otherwise                    = Nothing
 maybeDirectionFor _ _ = Nothing
 
 
@@ -107,13 +106,13 @@ extend (Coords (Row r) (Col c)) dir (WorldSize worldSize) = case dir of
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
   , _shipAmmo :: !Int
+  , _shipSafeUntil :: !(Maybe UTCTime)
 }
 
 data World = World{
     _worldNumber :: ![Number]
   , _howBallMoves :: WorldSize -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
-  , _worldShipSafeUntil :: !(Maybe UTCTime)
   , _worldWorldSize :: !WorldSize
 }
 
@@ -123,25 +122,24 @@ data Number = Number {
 }
 
 
-shipCollides :: World -> Bool
-shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _) safeTime _) =
-  isNothing safeTime &&
-   any (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
+shipCollides :: World -> [Number]
+shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _) =
+   filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
 
 nextWorld :: Action -> World -> [Number] -> Int -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _) safeTime size) balls ammo =
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size) balls ammo =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo) safeTime size
+  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime) size
 
 moveWorld :: UTCTime -> World -> World
-moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo) safeTime size) =
+moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime) size) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
       newBalls = map (\(Number ps n) -> Number (changePos size ps) n) balls
-      newShip = BattleShip (changePos size shipPosSpeed) ammo
-  in World newBalls changePos newShip newSafeTime size
+      newShip = BattleShip (changePos size shipPosSpeed) ammo newSafeTime
+  in World newBalls changePos newShip size
 
 ballMotion :: WorldSize -> PosSpeed -> PosSpeed
 ballMotion worldSize = doBallMotion . mirrorIfNeeded worldSize
@@ -193,7 +191,7 @@ mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
   ship <- createRandomPosSpeed worldSize
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10) (Just $ addUTCTime 5 t) worldSize
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t))  worldSize
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)

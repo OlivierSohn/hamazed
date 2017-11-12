@@ -11,7 +11,12 @@ module Console ( ConsoleConfig(..)
 import           System.Console.ANSI( clearScreen
                                     , hideCursor
                                     , setCursorPosition
-                                    , showCursor )
+                                    , setSGR
+                                    , showCursor
+                                    , SGR(..)
+                                    , ConsoleLayer(..)
+                                    , ColorIntensity(..)
+                                    , Color(..) )
 import           System.IO( hSetBuffering
                           , hSetEcho
                           , BufferMode( .. )
@@ -50,8 +55,13 @@ configureConsoleFor config = do
                                         -- after each game update
       Editing -> LineBuffering
   case config of
-    Gaming  -> hideCursor >> clearScreen
-    Editing -> showCursor  -- do not clearScreen, to retain a potential printed exception
+    Gaming  -> do
+      hideCursor
+      clearScreen
+    Editing -> do
+      showCursor
+      -- do not clearScreen, to retain a potential printed exception
+      setSGR [SetColor Foreground Vivid White]
 
 
 renderChar :: Char -> RenderState -> IO RenderState

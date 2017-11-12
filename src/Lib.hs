@@ -7,6 +7,7 @@ module Lib
 
 import           Control.Concurrent( threadDelay )
 import           Control.Exception( finally )
+import           Control.Monad( forever )
 import           Control.Monad.Loops( unfoldM_ )
 import           Data.Char( intToDigit )
 import           Data.List( partition )
@@ -21,8 +22,7 @@ import           System.Console.ANSI( clearScreen
                                     , SGR(..)
                                     , ConsoleLayer(..)
                                     , ColorIntensity(..)
-                                    , Color(..)
-                                     )
+                                    , Color(..) )
 import           System.IO( getChar
                           , hFlush
                           , hReady
@@ -214,16 +214,25 @@ handle (GameState _ _ _ _ _ _ _ _ l) stop = do
   putStrLn $ case stop of
     (Lost reason) -> " You Lose (" ++ reason ++ ")"
     Won           -> " You Win!! Congratulations."
+  let level = case stop of
+        (Lost _) -> 1
+        Won      -> succ l
   hFlush stdout -- write previous messages
   threadDelay $ 2 * 1000000
-  putStrLn "Press a key to continue ..."
+  if level == 13
+    then forever (do
+      putStrLn "You reached the end of the game, your skills are really impressive! Now you can hit Ctrl + C to quit!"
+      hFlush stdout
+      threadDelay 1000000)
+    else do
+      let action = case stop of
+                        (Lost _) -> "restart"
+                        Won      -> "go to next level"
+      putStrLn $ "Press a key to " ++ action ++ " ..."
   setSGR [SetColor Foreground Vivid White]
   unfoldM_ readOneChar -- flush inputs
   hFlush stdout        -- write previous message
   _ <- getChar         -- wait for a key press
-  let level = case stop of
-        (Lost _) -> 1
-        Won      -> succ l
   makeInitialState level
 
 readOneChar :: IO (Maybe Char)

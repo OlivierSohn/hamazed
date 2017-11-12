@@ -14,6 +14,7 @@ module World
     , moveWorld
     , nextWorld
     , Number(..)
+    , Step(..)
     , World(..)
     , WorldSize(..)
     ) where
@@ -42,9 +43,13 @@ import           Geo( Col(..)
 newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, Show)
 
 data Action = Action ActionTarget Direction |
-              Timeout |
+              Timeout Step |
               Nonsense
-              deriving (Show)
+              deriving(Show)
+
+data Step = WorldStep
+          | AnimationStep
+          deriving(Show)
 
 data ActionTarget = Frame
                   | Ship

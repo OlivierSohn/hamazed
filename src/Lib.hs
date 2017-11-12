@@ -70,6 +70,7 @@ import           World( Action(..)
                       , mkWorld
                       , nextWorld
                       , shipCollides
+                      , Step(..)
                       , World(..)
                       , Number(..)
                       , WorldSize(..) )
@@ -117,7 +118,7 @@ nextGameState (GameState a b c d world@(World balls _ (BattleShip (PosSpeed ship
         GT -> Just $ Lost $ show sumNumbers ++ " is bigger than " ++ show h
   in (GameState a b c d (nextWorld action world remainingBalls newAmmo) maybeLaserRay allShotNumbers h i,
       case action of
-        Timeout ->
+        (Timeout WorldStep) ->
           if shipCollides world
             then Just $ Lost "collision"
             else normal
@@ -186,11 +187,12 @@ updateGame state@(GameState a b c d world@(World _ _ _ _ sz) f g h i) r =
       Nonsense -> return state
       _        -> updateGame2 action r =<<
         (case action of
-          Timeout ->
+          (Timeout WorldStep) ->
             getCurrentTime >>= (\t ->
               return $ GameState a (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld t world) f g h i)
           (Action Frame dir) ->
             return $ GameState a b c (sumCoords d $ coordsForDirection dir) world f g h i
+          (Timeout AnimationStep) -> return state -- TODO animation
           _        -> return state
         ))
 
@@ -254,17 +256,18 @@ getActions = do
 
 
 getAction :: GameState -> IO Action
-getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do
+getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do -- TODO animation : add an animation list, each animation contains time of next animation step
   t <- getCurrentTime
   let remainingSeconds = diffUTCTime nextMotionStep t
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
   if remainingMicros < 0
-    then return Timeout
+    then return $ Timeout WorldStep
     else
       (\case
-        (Just (Just c)) -> actionFromChar c
-        (Just _) -> Nonsense
-        _ -> Timeout
+        Nothing   -> Timeout WorldStep
+        Just mayChar -> case mayChar of
+          (Just char) -> actionFromChar char
+          Nothing     -> Nonsense
         ) <$> timeout remainingMicros readOneChar
 
 

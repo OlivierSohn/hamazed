@@ -19,6 +19,7 @@ library
   other-modules:       Console
                      , Geo
                      , Laser
+                     , NonBlockingIO
                      , Threading
                      , Timing
                      , Util

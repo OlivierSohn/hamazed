@@ -10,6 +10,7 @@ import           Control.Concurrent( threadDelay )
 import           Control.Exception( finally )
 import           Control.Monad( forever )
 import           Control.Monad.Loops( unfoldM_ )
+
 import           Data.Char( intToDigit )
 import           Data.List( partition )
 import           Data.Maybe( fromMaybe
@@ -19,6 +20,7 @@ import           Data.Maybe( fromMaybe
 import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
+
 import           System.Console.ANSI( clearScreen
                                     , setSGR
                                     , SGR(..)
@@ -27,12 +29,11 @@ import           System.Console.ANSI( clearScreen
                                     , Color(..) )
 import           System.IO( getChar
                           , hFlush
-                          , hReady
-                          , stdin
                           , stdout )
 import           System.Timeout( timeout )
 
 
+import           NonBlockingIO( tryGetChar )
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
                         , renderChar_
@@ -250,16 +251,10 @@ handle (GameState _ _ _ _ _ _ _ _ l) stop = do
                         Won      -> "go to next level"
       putStrLn $ "Press a key to " ++ action ++ " ..."
   setSGR [SetColor Foreground Vivid White]
-  unfoldM_ readOneCharNonBlocking -- flush inputs
-  hFlush stdout        -- write previous message
-  _ <- getChar         -- wait for a key press
+  unfoldM_ tryGetChar -- flush inputs
+  hFlush stdout       -- write previous message
+  _ <- getChar        -- wait for a key press
   makeInitialState level
-
-readOneCharNonBlocking :: IO (Maybe Char)
-readOneCharNonBlocking =
-  hReady stdin >>= \case
-    True  -> Just <$> getChar -- getChar will not block, because 'hReady stdin'
-    False -> return Nothing
 
 {--
 getActions :: IO [Action]

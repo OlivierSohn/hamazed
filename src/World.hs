@@ -19,6 +19,7 @@ module World
     , Number(..)
     , Step(..)
     , World(..)
+    , animationIsOver
     , WorldSize(..)
     ) where
 
@@ -132,6 +133,9 @@ data Animation = Animation {
   , _animationCounter  :: !Int
 }
 
+animationIsOver :: Animation -> Bool
+animationIsOver (Animation _ i) = i == 60
+
 shipCollides :: World -> [Number]
 shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
    filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
@@ -203,7 +207,7 @@ stepClosest :: [Animation] -> [Animation]
 stepClosest [] = error "should never happen"
 stepClosest l = let m = minimum $ map timeOf l
                     (closest, other) = partition (\a -> timeOf a == m) l
-                in other ++ map stepAnimation closest
+                in other ++ filter (not . animationIsOver) (map stepAnimation closest)
 
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i) = Animation (addUTCTime animationPeriod t) $ succ i

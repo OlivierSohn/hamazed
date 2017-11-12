@@ -14,6 +14,7 @@ module World
     , mkWorld
     , moveWorld
     , nextWorld
+    , earliestAnimationTimeInWorld
     , stepEarliestAnimations
     , Number(..)
     , Step(..)
@@ -23,7 +24,6 @@ module World
 
 
 import           Data.List( foldl'
-                          , minimumBy
                           , partition )
 import           Data.Maybe( mapMaybe )
 import           Data.Time( addUTCTime
@@ -49,11 +49,11 @@ newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, S
 data Action = Action ActionTarget Direction |
               Timeout Step |
               Nonsense
-              deriving(Show)
+              deriving(Eq, Show)
 
 data Step = WorldStep
           | AnimationStep
-          deriving(Show)
+          deriving(Eq, Show)
 
 data ActionTarget = Frame
                   | Ship
@@ -193,7 +193,7 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
   in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
 animationPeriod :: Data.Time.NominalDiffTime
-animationPeriod = 0.2
+animationPeriod = 0.05
 
 timeOf :: Animation -> UTCTime
 timeOf (Animation t _) = t
@@ -210,6 +210,13 @@ stepAnimation (Animation t i) = Animation (addUTCTime animationPeriod t) $ succ 
 
 stepEarliestAnimations :: World -> World
 stepEarliestAnimations (World a b c d animations) = World a b c d (stepClosest animations)
+
+earliestAnimationTimeInWorld :: World -> Maybe UTCTime
+earliestAnimationTimeInWorld (World _ _ _ _ animations) = earliestAnimationTime animations
+
+earliestAnimationTime :: [Animation] -> Maybe UTCTime
+earliestAnimationTime []         = Nothing
+earliestAnimationTime animations = Just $ minimum $ map timeOf animations
 
 --------------------------------------------------------------------------------
 -- IO

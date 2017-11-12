@@ -69,6 +69,7 @@ import           World( Action(..)
                       , actionFromChar
                       , Animation(..)
                       , BattleShip(..)
+                      , earliestAnimationTimeInWorld
                       , Location(..)
                       , location
                       , moveWorld
@@ -129,7 +130,7 @@ computeStop (GameState _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _ _
           else case map (\(Number _ n) -> n) $ shipCollides world of
             [] -> Nothing
             l  -> Just $ Lost $ "collision with " ++ showListOrSingleton l
-      _ -> Nothing
+      _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
 
     sumNumbers = sum allShots
     checkSum = case compare sumNumbers target of
@@ -196,7 +197,7 @@ printTimer s r = do
 
 
 updateGame :: GameState -> RenderState -> IO GameState
-updateGame state@(GameState a b c d world@(World _ _ _ sz animations) f g h i) r =
+updateGame state@(GameState a b c d world@(World _ _ _ sz _) f g h i) r =
   getAction state >>=
     (\action -> case action of
       Nonsense -> return state
@@ -255,14 +256,11 @@ handle (GameState _ _ _ _ _ _ _ _ l) stop = do
   makeInitialState level
 
 readOneCharNonBlocking :: IO (Maybe Char)
-readOneCharNonBlocking = do
-  hasMore <- hReady stdin
-  if hasMore
-    then do
-      c <- getChar -- getChar will not block, because 'hReady stdin'
-      return $ Just c
-    else
-      return Nothing
+readOneCharNonBlocking =
+  hReady stdin >>= \canRead ->
+    if canRead
+      then Just <$> getChar -- getChar will not block, because 'hReady stdin'
+      else return Nothing
 
 {--
 getActions :: IO [Action]
@@ -271,13 +269,21 @@ getActions = do
   return $ map actionFromChar inputs
 --}
 
+data StepDeadline = StepDeadline {
+    _stepDeadlineTime :: !UTCTime
+  , _stepDeadlineType :: !Step
+} deriving(Eq, Show)
 
 getAction :: GameState -> IO Action
-getAction (GameState _ nextMotionStep _ _ _ _ _ _ _) = do -- TODO animation : add an animation list, each animation contains time of next animation step
+getAction (GameState _ nextMotionStep _ _ world _ _ _ _) = do
   t <- getCurrentTime
-  let remainingSeconds = diffUTCTime nextMotionStep t
+  let (stepTime, stepType) =
+        maybe (nextMotionStep, WorldStep)
+          (\a -> if a < nextMotionStep then (a, AnimationStep) else (nextMotionStep, WorldStep))
+          $ earliestAnimationTimeInWorld world
+      remainingSeconds = diffUTCTime stepTime t
       remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
-  getActionWithTimeout remainingMicros WorldStep
+  getActionWithTimeout remainingMicros stepType
 
 getActionWithTimeout :: Int -> Step -> IO Action
 getActionWithTimeout remainingMicros step =
@@ -294,7 +300,7 @@ getCharOrTimeout remainingMicros =
 
 renderGame :: GameState -> RenderState -> IO ()
 renderGame state@(GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz animations)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime) sz _)
                    maybeLaserRay shotNumbers target level)
            frameCorner = do
   _ <- printTimer state frameCorner >>= (\r -> do

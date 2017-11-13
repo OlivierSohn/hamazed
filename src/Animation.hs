@@ -129,4 +129,4 @@ renderAnimation points a sz state = do
 renderPoints :: [Coords] -> Char -> WorldSize -> RenderState -> IO Location
 renderPoints points char sz state = do
   locations <- mapM (\c -> renderCharIfInFrame char c sz state) points
-  return $ if all (== OutsideWorld) locations then OutsideWorld else InsideWorld
+  return $ if null locations || all (== OutsideWorld) locations then OutsideWorld else InsideWorld

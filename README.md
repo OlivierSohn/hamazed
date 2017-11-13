@@ -5,6 +5,7 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 # Backlog
 
 ## Animation Design
+- infinite animation using rebound on walls
 - when first explosion element hits the world limits, a second explosion occurs using a circle
 - take number speed & laser direction into account for animation
 - make gravity based animations : initial velocity, rebound on walls, lose % velocity when hitting the bottom

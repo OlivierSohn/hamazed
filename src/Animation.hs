@@ -30,7 +30,8 @@ import           Geo( Coords(..)
                     , translatedFullCircleFromQuarterArc )
 import           WorldSize( WorldSize(..)
                           , Location(..)
-                          , location )
+                          , location
+                          , rebound )
 
 
 data Animation = Animation {
@@ -114,9 +115,10 @@ simpleExplosion center a = do
   renderAnimation points $ setRender a $ simpleExplosion center
 
 quantitativeExplosion :: Int -> Coords -> Animation -> WorldSize -> RenderState -> IO (Maybe Animation)
-quantitativeExplosion number center a = do
-  let points = quantitativeExplosionPure number center a
-  renderAnimation points $ setRender a $ quantitativeExplosion number center
+quantitativeExplosion number center a sz = do
+  let originalPoints = quantitativeExplosionPure number center a
+      points = map (rebound sz) originalPoints
+  renderAnimation points (setRender a $ quantitativeExplosion number center) sz
 
 renderAnimation :: [Coords] -> Animation -> WorldSize -> RenderState -> IO (Maybe Animation)
 renderAnimation points a sz state = do

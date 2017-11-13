@@ -33,8 +33,8 @@ import           System.Random( getStdRandom
 
 import           Animation( Animation(..)
                           , mkAnimation
-                          , stepClosest
-                          , earliestAnimationTime )
+                          , earliestAnimationTime
+                          , stepEarliest )
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -180,7 +180,7 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
   in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
 
 stepEarliestAnimations :: World -> World
-stepEarliestAnimations (World a b c d animations) = World a b c d (stepClosest animations)
+stepEarliestAnimations (World a b c d animations) = World a b c d (stepEarliest animations)
 
 earliestAnimationTimeInWorld :: World -> Maybe UTCTime
 earliestAnimationTimeInWorld (World _ _ _ _ animations) = earliestAnimationTime animations

@@ -2,7 +2,7 @@
 module Animation
     ( Animation(..)
     , mkAnimation
-    , stepClosest
+    , stepEarliest
     , earliestAnimationTime
     , simpleExplosion
     , quantitativeExplosion
@@ -18,8 +18,8 @@ import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime )
 import           Data.Maybe(isJust)
-import           System.Random( getStdRandom
-                              , randomR )
+--import           System.Random( getStdRandom
+--                              , randomR )
 
 
 import           Console( RenderState(..)
@@ -67,22 +67,23 @@ quantitativeExplosionPure number center (Animation _ iteration _) =
 animationPeriod :: Data.Time.NominalDiffTime
 animationPeriod = 0.02
 
-timeOf :: Animation -> UTCTime
-timeOf (Animation t _ _) = t
+-- step the animations whose deadline are the earliest
+stepEarliest :: [Animation] -> [Animation]
+stepEarliest l = let (earliest, other) = partitionEarliest l
+                 in other ++ map stepAnimation earliest
 
--- steps the animations which will be done the soonest
-stepClosest :: [Animation] -> [Animation]
-stepClosest [] = error "should never happen"
-stepClosest l = let m = minimum $ map timeOf l
-                    (closest, other) = partition (\a -> timeOf a == m) l
-                in other ++ map stepAnimation closest
+partitionEarliest :: [Animation] -> ([Animation], [Animation])
+partitionEarliest l =
+    maybe ([],[]) partitionOnDeadline (earliestAnimationTime l)
+  where
+    partitionOnDeadline deadline = partition (\(Animation deadline' _ _) -> deadline' == deadline) l
 
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (succ i) f
 
 earliestAnimationTime :: [Animation] -> Maybe UTCTime
 earliestAnimationTime []         = Nothing
-earliestAnimationTime animations = Just $ minimum $ map timeOf animations
+earliestAnimationTime animations = Just $ minimum $ map (\(Animation deadline _ _) -> deadline) animations
 
 
 --------------------------------------------------------------------------------

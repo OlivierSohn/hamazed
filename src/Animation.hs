@@ -14,10 +14,11 @@ module Animation
 import           Control.Monad( filterM )
 
 import           Data.List( partition )
+import           Data.Maybe( isJust
+                           , mapMaybe )
 import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime )
-import           Data.Maybe(isJust)
 --import           System.Random( getStdRandom
 --                              , randomR )
 
@@ -31,7 +32,7 @@ import           Geo( Coords(..)
 import           WorldSize( WorldSize(..)
                           , Location(..)
                           , location
-                          , rebound )
+                          , reboundMaxRecurse )
 
 
 data Animation = Animation {
@@ -117,7 +118,7 @@ simpleExplosion center a = do
 quantitativeExplosion :: Int -> Coords -> Animation -> WorldSize -> RenderState -> IO (Maybe Animation)
 quantitativeExplosion number center a sz = do
   let originalPoints = quantitativeExplosionPure number center a
-      points = map (rebound sz) originalPoints
+      points = mapMaybe (reboundMaxRecurse sz 4) originalPoints
   renderAnimation points (setRender a $ quantitativeExplosion number center) sz
 
 renderAnimation :: [Coords] -> Animation -> WorldSize -> RenderState -> IO (Maybe Animation)

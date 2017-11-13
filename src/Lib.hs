@@ -72,7 +72,7 @@ import           World( Action(..)
                       , actionFromChar
                       , Animation(..)
                       , BattleShip(..)
-                      , earliestAnimationTimeInWorld
+                      , earliestAnimationDeadline
                       , Location(..)
                       , location
                       , moveWorld
@@ -133,7 +133,7 @@ computeStop (GameState _ _ _ _ _ world@(World _ _ (BattleShip _ ammo safeTime) _
     checkShipCollision <|> checkSum <|> checkAmmo
   where
     checkShipCollision = case lastAction of
-      (Timeout WorldStep) ->
+      (Timeout GameStep) ->
         if isJust safeTime then Nothing
           else case map (\(Number _ n) -> n) $ shipCollides world of
             [] -> Nothing
@@ -167,6 +167,25 @@ showTimer currentTime (GameState startTime _ _ updateTick _ (World _ _ _ worldSi
   in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
   -- to debug animations, add the following line to the preceeding line
   -- ++ show (map (\(Animation _ t _) -> t) anims)
+
+replaceAnimations :: [Animation] -> GameState -> GameState
+replaceAnimations anims (GameState a b c d e (World wa wb wc wd _) f g h i) =
+  GameState a b c d e (World wa wb wc wd anims) f g h i
+
+data Deadline = Deadline {
+    _deadlineTime :: !UTCTime
+  , _deadlineType :: !Step
+} deriving(Eq, Show)
+
+earliestDeadline :: GameState -> Deadline
+earliestDeadline (GameState _ _ nextGameStep _ _ world _ _ _ _) =
+  let gameDeadline = Deadline nextGameStep GameStep
+      pickEarliest animationDeadline =
+        if animationDeadline < nextGameStep
+          then Deadline animationDeadline AnimationStep
+          else gameDeadline
+  in maybe gameDeadline pickEarliest $ earliestAnimationDeadline world
+
 
 --------------------------------------------------------------------------------
 -- IO
@@ -213,7 +232,7 @@ updateGame state@(GameState a _ b c d world@(World _ _ _ sz _) f g h i) r =
       Nonsense -> return state
       _        -> updateGame2 action r =<<
         ((\t -> case action of
-          (Timeout WorldStep) -> GameState a t (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld t world) f g h i
+          (Timeout GameStep) -> GameState a t (addMotionStepDuration t) (nextUpdateCounter sz c) d (moveWorld t world) f g h i
           (Action Frame dir)  -> GameState a t b c (sumCoords d $ coordsForDirection dir) world f g h i
           (Timeout AnimationStep) -> GameState a t b c d (stepEarliestAnimations world) f g h i
           _                       -> state
@@ -262,38 +281,26 @@ handle (GameState _ _ _ _ _ _ _ _ _ l) stop = do
   _ <- getChar        -- wait for a key press
   makeInitialState level
 
-replaceAnimations :: [Animation] -> GameState -> GameState
-replaceAnimations anims (GameState a b c d e (World wa wb wc wd _) f g h i) =
-  GameState a b c d e (World wa wb wc wd anims) f g h i
-
-data StepDeadline = StepDeadline {
-    _stepDeadlineTime :: !UTCTime
-  , _stepDeadlineType :: !Step
-} deriving(Eq, Show)
-
 getAction :: GameState -> IO Action
-getAction (GameState _ _ nextMotionStep _ _ world _ _ _ _) = do
+getAction state = do
   t <- getCurrentTime
-  let (stepTime, stepType) =
-        maybe (nextMotionStep, WorldStep)
-          (\a -> if a < nextMotionStep then (a, AnimationStep) else (nextMotionStep, WorldStep))
-          $ earliestAnimationTimeInWorld world
-      remainingSeconds = diffUTCTime stepTime t
-      remainingMicros = floor (remainingSeconds * 10^(6 :: Int))
-  getActionWithTimeout remainingMicros stepType
+  let (Deadline deadline deadlineType) = earliestDeadline state
+      timeToDeadlineSeconds = diffUTCTime deadline t
+      timeToDeadlineMicros = floor (timeToDeadlineSeconds * 10^(6 :: Int))
+  getActionWithinDurationMicros timeToDeadlineMicros deadlineType
 
-getActionWithTimeout :: Int -> Step -> IO Action
-getActionWithTimeout remainingMicros step =
+getActionWithinDurationMicros :: Int -> Step -> IO Action
+getActionWithinDurationMicros durationMicros step =
   (\case
     Nothing   -> Timeout step
     Just char -> actionFromChar char
-    ) <$> getCharOrTimeout remainingMicros
+    ) <$> getCharWithinDurationMicros durationMicros
 
-getCharOrTimeout :: Int -> IO (Maybe Char)
-getCharOrTimeout remainingMicros =
-  if remainingMicros < 0
+getCharWithinDurationMicros :: Int -> IO (Maybe Char)
+getCharWithinDurationMicros durationMicros =
+  if durationMicros < 0
     then return Nothing
-    else timeout remainingMicros getChar
+    else timeout durationMicros getChar
 
 renderGame :: GameState -> RenderState -> IO [Animation]
 renderGame state@(GameState _ _ _ _ _

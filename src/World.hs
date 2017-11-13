@@ -14,7 +14,7 @@ module World
     , mkWorld
     , moveWorld
     , nextWorld
-    , earliestAnimationTimeInWorld
+    , earliestAnimationDeadline
     , stepEarliestAnimations
     , Number(..)
     , Step(..)
@@ -33,7 +33,7 @@ import           System.Random( getStdRandom
 
 import           Animation( Animation(..)
                           , mkAnimation
-                          , earliestAnimationTime
+                          , earliestDeadline
                           , stepEarliest )
 import           Geo( Col(..)
                     , Coords(..)
@@ -52,7 +52,7 @@ data Action = Action ActionTarget Direction |
               Nonsense
               deriving(Eq, Show)
 
-data Step = WorldStep
+data Step = GameStep
           | AnimationStep
           deriving(Eq, Show)
 
@@ -182,8 +182,8 @@ mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Co
 stepEarliestAnimations :: World -> World
 stepEarliestAnimations (World a b c d animations) = World a b c d (stepEarliest animations)
 
-earliestAnimationTimeInWorld :: World -> Maybe UTCTime
-earliestAnimationTimeInWorld (World _ _ _ _ animations) = earliestAnimationTime animations
+earliestAnimationDeadline :: World -> Maybe UTCTime
+earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animations
 
 --------------------------------------------------------------------------------
 -- IO

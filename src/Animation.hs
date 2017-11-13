@@ -3,7 +3,7 @@ module Animation
     ( Animation(..)
     , mkAnimation
     , stepEarliest
-    , earliestAnimationTime
+    , earliestDeadline
     , simpleExplosion
     , quantitativeExplosion
     , renderAnimations
@@ -69,21 +69,21 @@ animationPeriod = 0.02
 
 -- step the animations whose deadline are the earliest
 stepEarliest :: [Animation] -> [Animation]
-stepEarliest l = let (earliest, other) = partitionEarliest l
-                 in other ++ map stepAnimation earliest
+stepEarliest l = let (earliest, latest) = partitionEarliest l
+                 in latest ++ map stepAnimation earliest
 
 partitionEarliest :: [Animation] -> ([Animation], [Animation])
 partitionEarliest l =
-    maybe ([],[]) partitionOnDeadline (earliestAnimationTime l)
+    maybe ([],[]) partitionOnDeadline (earliestDeadline l)
   where
     partitionOnDeadline deadline = partition (\(Animation deadline' _ _) -> deadline' == deadline) l
 
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (succ i) f
 
-earliestAnimationTime :: [Animation] -> Maybe UTCTime
-earliestAnimationTime []         = Nothing
-earliestAnimationTime animations = Just $ minimum $ map (\(Animation deadline _ _) -> deadline) animations
+earliestDeadline :: [Animation] -> Maybe UTCTime
+earliestDeadline []         = Nothing
+earliestDeadline animations = Just $ minimum $ map (\(Animation deadline _ _) -> deadline) animations
 
 
 --------------------------------------------------------------------------------

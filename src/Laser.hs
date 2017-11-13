@@ -18,7 +18,7 @@ import           Geo( Coords(..)
                     , mkSegment
                     , Segment(..)
                     , segmentContains
-                    , translateCoord )
+                    , translateInDir )
 import           World( extend
                       , Location(..)
                       , location)
@@ -31,7 +31,7 @@ data Theoretical -- with no obstacle
 data Actual      -- with obstacles
 
 shootLaserFromShip :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
-shootLaserFromShip shipCoords dir = shootLaser (translateCoord dir shipCoords) dir
+shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
 
 shootLaser :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
 shootLaser laserStart dir laserType worldSize =

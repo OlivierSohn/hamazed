@@ -12,8 +12,11 @@ module Geo ( Direction(..)
            , rotateByQuarters
            , Row(..)
            , sumCoords
-           , translateCoord
+           , translateInDir
            , zeroCoords
+           -- circles
+           , translatedFullCircle
+           , translatedFullCircleFromQuarterArc
            ) where
 
 import           GHC.Generics( Generic )
@@ -49,8 +52,8 @@ coordsForDirection LEFT  = Coords (Row   0) (Col$ -1)
 coordsForDirection RIGHT = Coords (Row   0) (Col   1)
 
 
-translateCoord :: Direction -> Coords -> Coords
-translateCoord dir = sumCoords $ coordsForDirection dir
+translateInDir :: Direction -> Coords -> Coords
+translateInDir dir = translate $ coordsForDirection dir
 
 
 data Segment = Horizontal Row Int Int
@@ -89,3 +92,44 @@ rotateByQuarters co@(Coords (Row r) (Col c)) =
   Coords (Row c) (Col $ -r),
   Coords (Row $ -c) (Col r),
   Coords (Row $ -r) (Col $ -c)]
+
+
+-- Circle Functions ------------------------------------------------------------
+
+mkPointOnCircle :: Float -> Float -> Coords
+mkPointOnCircle radius angle =
+  let x = radius * sin angle
+      y = radius * cos angle
+      toInt flt = floor $ 0.5 + flt
+  in Coords (Row $ toInt y) (Col $ toInt x)
+
+discretizeArcOfCircle :: Float -> Float -> Float -> Int -> [Coords]
+discretizeArcOfCircle radius arcAngle firstAngle resolution =
+  let angleIncrement = arcAngle / (fromIntegral resolution :: Float)
+  in  map (\i ->
+        let angle = firstAngle + angleIncrement * (fromIntegral i :: Float)
+        in mkPointOnCircle radius angle) [0..resolution]
+
+fullCircleFromQuarterArc :: Float -> Float -> Int -> [Coords]
+fullCircleFromQuarterArc radius firstAngle quarterArcResolution =
+  let quarterArcAngle = pi/2
+      quarterCircle = discretizeArcOfCircle radius quarterArcAngle firstAngle quarterArcResolution
+  in  concatMap rotateByQuarters quarterCircle
+
+fullCircle :: Float -> Float -> Int -> [Coords]
+fullCircle radius firstAngle resolution =
+  let totalAngle = 2*pi
+  in  discretizeArcOfCircle radius totalAngle firstAngle resolution
+
+translatedFullCircleFromQuarterArc :: Coords -> Float -> Float -> Int -> [Coords]
+translatedFullCircleFromQuarterArc center radius firstAngle resolution =
+  let circle = fullCircleFromQuarterArc radius firstAngle resolution
+  in map (translate center) circle
+
+translatedFullCircle :: Coords -> Float -> Float -> Int -> [Coords]
+translatedFullCircle center radius firstAngle resolution =
+  let circle = fullCircle radius firstAngle resolution
+  in map (translate center) circle
+
+translate :: Coords -> Coords -> Coords
+translate = sumCoords

@@ -4,31 +4,38 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 
 # Backlog
 
-- figure out how to store a state in the animations
-- explode animation should convert to gravity based when hitting the boundaries, and lose % velocity when hitting the bottom.
-Create a composing function: compose (explosion, 1) (gravity, INFINITE)
+## Animation Design
+- when first explosion element hits the world limits, a second explosion occurs using a circle
+- take number speed & laser direction into account for animation
+- make gravity based animations : initial velocity, rebound on walls, lose % velocity when hitting the bottom
+- combine animation types : explode animation converts to gravity based upon hitting the boundaries
 
+## Game Fluidity
 - when lose, do not stop animations, stop only move.
 - make laser ray render persist until next motion step.
 - do not count duplicate laser shots in same motion step.
-- make destroy animations in the background with a faster refresh rate than the rest:
-  - gravity based (parabollas)
-  - an expanding circle
 
-To do that we will need to add an Action "AnimationTimeout"
+## Visibility
+- make target more visible (color?)
 
-- make target more visible
+- write a help :
+ -- The goal of the game is to hit numbers to reach a target. When a number is hit with a laser ray (i j k l) it is added to the current sum. The target is exactly the sum of all numbers divided by 2.
+During the 5 first seconds, the ship is immune to collisions, drawn in red, and then turns blue. If the ship collides
+with a number the game is over.
 
-- write a help : during the 5 first seconds, the ship is immune to collisions
+## Difficulty
 - current implementation is easy mode, make a medium mode where the
 numbers of lasers available is different for each direction
 and a hard mode where there is a timeout on each level.
+An easier mode would be to have the ship be totally immune to collisions.
 
-Also change the motion period for various difficulty levels
+- Change the motion period for various difficulty levels
 
+## Rendering optimizations
 - it could be worth calling hPutStr once per frame (using a buffer in RenderState)
 - try BlockBuffering (Just 80000) to reduce flicker
 
+## Future games
 - make a brick-breaking game
 - make a tower based defense game
 - make a pong

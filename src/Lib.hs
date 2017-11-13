@@ -49,7 +49,7 @@ import           Geo( sumCoords
                     , PosSpeed(..)
                     , Row(..)
                     , segmentContains
-                    , translateCoord
+                    , translateInDir
                     , zeroCoords )
 import           Laser( LaserType(..)
                       , laserChar
@@ -359,12 +359,12 @@ renderWorldFrame (WorldSize worldSize) upperLeft@(RenderState upperLeftCoords) =
 
   -- upper wall
   (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
-  let worldCoords = translateCoord RIGHT renderCoords
+  let worldCoords = translateInDir RIGHT renderCoords
 
   -- left & right walls
-  let leftWallCoords = take worldSize $ iterate (translateCoord Down) renderCoords
+  let leftWallCoords = take worldSize $ iterate (translateInDir Down) renderCoords
       toRight = Coords (Row 0) (Col $ worldSize+1)
-      rightWallCoords = take worldSize $ iterate (translateCoord Down) $ sumCoords renderCoords toRight
+      rightWallCoords = take worldSize $ iterate (translateInDir Down) $ sumCoords renderCoords toRight
   mapM_ (renderChar_ '|' . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall

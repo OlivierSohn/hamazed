@@ -7,11 +7,11 @@ module Animation
     , drawPoint
     , explosion
     , renderAnimations
-    , animationIsOver
     , WorldSize(..)
     ) where
 
 
+import           Control.Monad( filterM )
 import           Data.List( partition )
 import           Data.Time( addUTCTime
                           , NominalDiffTime
@@ -28,14 +28,17 @@ import           WorldSize( WorldSize(..)
                           , Location(..)
                           , location )
 
+data AnimationProgress = AnimationInProgress
+                       | AnimationDone
+                       deriving(Eq, Show)
 
 data Animation = Animation {
     _animationNextTime :: !UTCTime
   , _animationCounter  :: !Int
-  , _animationRender :: Int -> WorldSize -> RenderState -> IO ()
+  , _animationRender :: Int -> WorldSize -> RenderState -> IO AnimationProgress
 }
 
-mkAnimation :: (Int -> WorldSize -> RenderState -> IO ())
+mkAnimation :: (Int -> WorldSize -> RenderState -> IO AnimationProgress)
             -> UTCTime
             -> Animation
 mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) 0 render
@@ -69,8 +72,9 @@ earliestAnimationTime animations = Just $ minimum $ map timeOf animations
 --------------------------------------------------------------------------------
 
 
-renderAnimations :: WorldSize -> RenderState -> [Animation] -> IO ()
-renderAnimations sz r = mapM_ (\(Animation _ i render) -> render i sz r)
+renderAnimations :: WorldSize -> RenderState -> [Animation] -> IO [Animation]
+renderAnimations sz r =
+  filterM (\(Animation _ i render) -> ((==) AnimationInProgress <$> render i sz r))
 
 
 makePoint :: Int -> Coords
@@ -93,14 +97,18 @@ makePointOnCircle radius angle =
       toInt flt = floor $ 0.5 + flt
   in Coords (Row $ toInt y) (Col $ toInt x)
 
-
-explosion :: Coords -> Int -> WorldSize -> RenderState -> IO ()
-explosion center intRadius sz state = do
+discretizeArcOfCircle :: Float -> Float -> [Coords]
+discretizeArcOfCircle radius arcAngle =
   let resolution = 8 :: Integer
-      radius = fromIntegral intRadius :: Float
-      angleIncrement = pi/(2.0 * (fromIntegral resolution :: Float))
-      quarterCircle = map (\i ->
+      angleIncrement = arcAngle / (fromIntegral resolution :: Float)
+  in  map (\i ->
         let angle = angleIncrement * (fromIntegral i :: Float)
         in makePointOnCircle radius angle) [0..resolution]
+
+explosion :: Int -> Coords -> Int -> WorldSize -> RenderState -> IO AnimationProgress
+explosion _ center iteration sz state = do
+  let radius = fromIntegral iteration :: Float
+      quarterCircle = discretizeArcOfCircle radius (pi/2)
       circle = map (sumCoords center) $ concatMap rotateByQuarters quarterCircle
   mapM_ (\c -> renderCharIfInFrame '.' c sz state) circle
+  if iteration > 20 then return AnimationDone else return AnimationInProgress

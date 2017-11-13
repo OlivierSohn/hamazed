@@ -124,7 +124,7 @@ nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed sh
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newAnimations = case destroyedBalls of
-        Number (PosSpeed pos _) _:_ -> mkAnimation (explosion pos) t : animations
+        Number (PosSpeed pos _) n:_ -> mkAnimation (explosion n pos) t : animations
         _ -> animations
   in GameState a t b c d (nextWorld action world remainingBalls newAmmo newAnimations) maybeLaserRay allShotNumbers h i
 
@@ -162,9 +162,11 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 showTimer :: UTCTime -> GameState -> String
-showTimer currentTime (GameState startTime _ _ updateTick _ (World _ _ _ worldSize anims) _ _ _ _) =
+showTimer currentTime (GameState startTime _ _ updateTick _ (World _ _ _ worldSize _) _ _ _ _) =
   let time = computeTime startTime currentTime
-  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |" ++ show (map (\(Animation _ t _) -> t) anims)
+  in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
+  -- to debug animations, add the following line to the preceeding line
+  -- ++ show (map (\(Animation _ t _) -> t) anims)
 
 --------------------------------------------------------------------------------
 -- IO
@@ -222,9 +224,10 @@ updateGame2 a r s = do
   clearScreen
   let s2 = nextGameState s a
       shouldStop = computeStop s2 a
-  renderGame s2 r
-  maybeS3 <- mapM (handle s2) shouldStop
-  let s3 = fromMaybe s2 maybeS3
+  animations <- renderGame s2 r
+  let s2a = replaceAnimations animations s2
+  maybeS3 <- mapM (handle s2a) shouldStop
+  let s3 = fromMaybe s2a maybeS3
   hFlush stdout
   return s3
 
@@ -259,12 +262,9 @@ handle (GameState _ _ _ _ _ _ _ _ _ l) stop = do
   _ <- getChar        -- wait for a key press
   makeInitialState level
 
-{--
-getActions :: IO [Action]
-getActions = do
-  inputs <- unfoldM readOneCharNonBlocking
-  return $ map actionFromChar inputs
---}
+replaceAnimations :: [Animation] -> GameState -> GameState
+replaceAnimations anims (GameState a b c d e (World wa wb wc wd _) f g h i) =
+  GameState a b c d e (World wa wb wc wd anims) f g h i
 
 data StepDeadline = StepDeadline {
     _stepDeadlineTime :: !UTCTime
@@ -295,23 +295,22 @@ getCharOrTimeout remainingMicros =
     then return Nothing
     else timeout remainingMicros getChar
 
-renderGame :: GameState -> RenderState -> IO ()
+renderGame :: GameState -> RenderState -> IO [Animation]
 renderGame state@(GameState _ _ _ _ _
                    (World _ _ (BattleShip _ ammo _) sz animations)
                    _ shotNumbers target level)
-           frameCorner = do
-  _ <- printTimer state frameCorner >>= (\r -> do
+           frameCorner =
+  printTimer state frameCorner >>= (\r -> do
     _ <- rightColumn sz r >>=
       renderLevel level >>=
         renderAmmo ammo >>=
           renderTarget target >>=
             renderShotNumbers shotNumbers
     renderWorldFrame sz r >>=
-      (\worldCorner ->
-        renderAnimations sz worldCorner animations >>
-        renderWorld state worldCorner))
-
-  return ()
+      (\worldCorner -> do
+        activeAnimations <- renderAnimations sz worldCorner animations
+        renderWorld state worldCorner
+        return activeAnimations))
 
 -- TODO pass World instead of GameState, move laser to World
 renderWorld :: GameState -> RenderState -> IO ()

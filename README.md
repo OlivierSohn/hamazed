@@ -4,6 +4,10 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 
 # Backlog
 
+- find a better way to stop an animation than the hardcoded value used.
+- explode animation should convert to gravity based when hitting the boundaries, and lose % velocity when hitting the bottom.
+Create a composing function: compose (explosion, 1) (gravity, INFINITE)
+
 - when lose, do not stop animations, stop only move.
 - make laser ray render persist until next motion step.
 - do not count duplicate laser shots in same motion step.

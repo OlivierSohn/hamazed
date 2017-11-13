@@ -33,7 +33,7 @@ import           System.IO( getChar
 import           System.Timeout( timeout )
 
 
-import           Animation( explosion
+import           Animation( quantitativeExplosion
                           , renderAnimations )
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
@@ -124,7 +124,7 @@ nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed sh
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newAnimations = case destroyedBalls of
-        Number (PosSpeed pos _) n:_ -> mkAnimation (explosion n pos) t : animations
+        Number (PosSpeed pos _) n:_ -> mkAnimation (quantitativeExplosion n pos) t : animations
         _ -> animations
   in GameState a t b c d (nextWorld action world remainingBalls newAmmo newAnimations) maybeLaserRay allShotNumbers h i
 

@@ -14,7 +14,9 @@ import           Geo( Coords(..)
 
 newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, Show)
 
-data Location = InsideWorld | OutsideWorld
+data Location = InsideWorld
+              | OutsideWorld
+              deriving(Eq, Show)
 
 location :: Coords -> WorldSize -> Location
 location (Coords (Row r) (Col c)) (WorldSize worldSize)

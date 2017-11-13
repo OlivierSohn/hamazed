@@ -1,10 +1,10 @@
 # What is it?
 
-A terminal ascii game I write to practice some Haskell! It has 12 levels, and I reached level 9 once.
+A terminal ascii game I write to practice some Haskell! It has 12 levels, and I reached level 9 twice!
 
 # Backlog
 
-- find a better way to stop an animation than the hardcoded value used.
+- figure out how to store a state in the animations
 - explode animation should convert to gravity based when hitting the boundaries, and lose % velocity when hitting the bottom.
 Create a composing function: compose (explosion, 1) (gravity, INFINITE)
 

@@ -9,6 +9,7 @@ module Geo ( Direction(..)
            , mkSegment
            , changeSegmentLength
            , segmentContains
+           , rotateByQuarters
            , Row(..)
            , sumCoords
            , translateCoord
@@ -81,3 +82,10 @@ data PosSpeed = PosSpeed {
     _pos :: !Coords
   , _speed :: !Coords
 }
+
+rotateByQuarters :: Coords -> [Coords]
+rotateByQuarters co@(Coords (Row r) (Col c)) =
+  [co,
+  Coords (Row c) (Col $ -r),
+  Coords (Row $ -c) (Col r),
+  Coords (Row $ -r) (Col $ -c)]

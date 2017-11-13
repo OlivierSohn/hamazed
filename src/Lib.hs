@@ -33,7 +33,8 @@ import           System.IO( getChar
 import           System.Timeout( timeout )
 
 
-import           NonBlockingIO( tryGetChar )
+import           Animation( explosion
+                          , renderAnimations )
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
                         , renderChar_
@@ -57,6 +58,7 @@ import           Laser( LaserType(..)
                       , Actual
                       , shootLaserFromShip
                       , stopRayAtFirstCollision )
+import           NonBlockingIO( tryGetChar )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
 import           Timing( addMotionStepDuration
@@ -70,7 +72,6 @@ import           World( Action(..)
                       , actionFromChar
                       , Animation(..)
                       , BattleShip(..)
-                      , drawPoint
                       , earliestAnimationTimeInWorld
                       , Location(..)
                       , location
@@ -78,13 +79,12 @@ import           World( Action(..)
                       , mkAnimation
                       , mkWorld
                       , nextWorld
-                      , renderAnimations
                       , shipCollides
                       , Step(..)
                       , stepEarliestAnimations
                       , World(..)
-                      , Number(..)
-                      , WorldSize(..) )
+                      , Number(..) )
+import           WorldSize( WorldSize(..) )
 
 
 --------------------------------------------------------------------------------
@@ -124,8 +124,8 @@ nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed sh
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newAnimations = case destroyedBalls of
-        [] -> animations
-        (Number (PosSpeed pos _) _):[] -> mkAnimation (explosion pos) t : animations
+        Number (PosSpeed pos _) _:_ -> mkAnimation (explosion pos) t : animations
+        _ -> animations
   in GameState a t b c d (nextWorld action world remainingBalls newAmmo newAnimations) maybeLaserRay allShotNumbers h i
 
 computeStop :: GameState -> Action -> Maybe GameStops

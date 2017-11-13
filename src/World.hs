@@ -5,8 +5,6 @@ module World
     , actionFromChar
     , Animation(..)
     , mkAnimation
-    , drawPoint
-    , renderAnimations
     , BattleShip(..)
     , shipCollides
     , coordsForActionTargets
@@ -21,25 +19,22 @@ module World
     , Number(..)
     , Step(..)
     , World(..)
-    , animationIsOver
     ) where
 
 
-import           Data.List( foldl'
-                          , partition )
+import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
 import           Data.Time( addUTCTime
                           , getCurrentTime
-                          , NominalDiffTime
                           , UTCTime )
-import           GHC.Generics( Generic )
 import           System.Random( getStdRandom
                               , randomR )
 
 
-import           Animation( Animation(..) )
-import           Console( RenderState(..)
-                        , renderChar_ )
+import           Animation( Animation(..)
+                          , mkAnimation
+                          , stepClosest
+                          , earliestAnimationTime )
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -48,7 +43,9 @@ import           Geo( Col(..)
                     , Row(..)
                     , sumCoords
                     , zeroCoords )
-import           WorldSize( WorldSize(..) )
+import           WorldSize( WorldSize(..)
+                          , Location(..)
+                          , location )
 
 data Action = Action ActionTarget Direction |
               Timeout Step |
@@ -63,8 +60,6 @@ data ActionTarget = Frame
                   | Ship
                   | Laser
                   deriving(Eq, Show)
-
-data Location = InsideWorld | OutsideWorld
 
 
 coordsForActionTargets :: ActionTarget -> [Action] -> Coords
@@ -95,13 +90,6 @@ actionFromChar c = case c of
   'a' -> Action Ship LEFT
   'd' -> Action Ship RIGHT
   _   -> Nonsense
-
-
-location :: Coords -> WorldSize -> Location
-location (Coords (Row r) (Col c)) (WorldSize worldSize)
-  | inside r && inside c = InsideWorld
-  | otherwise            = OutsideWorld
-  where inside x = x >= 0 && x < worldSize
 
 
 extend :: Coords -> Direction -> WorldSize -> Coords

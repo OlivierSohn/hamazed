@@ -12,7 +12,7 @@ module Timing
 import           Data.Time( addUTCTime
                           , diffUTCTime
                           , UTCTime )
-import           World( WorldSize(..) )
+import           WorldSize( WorldSize(..) )
 
 
 newtype Timer = Timer { _initialTime :: UTCTime }

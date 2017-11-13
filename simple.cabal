@@ -25,6 +25,7 @@ library
                      , Timing
                      , Util
                      , World
+                     , WorldSize
   build-depends:       base
                      , ansi-terminal
                      , monad-loops

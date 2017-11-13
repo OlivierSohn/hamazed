@@ -21,8 +21,9 @@ import           Geo( Coords(..)
                     , translateCoord )
 import           World( extend
                       , Location(..)
-                      , location
-                      , WorldSize)
+                      , location)
+import           WorldSize( WorldSize(..) )
+
 
 data LaserType = Infinite
 newtype Ray a = Ray Segment

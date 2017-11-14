@@ -429,7 +429,7 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
         let action = case stop of
                           (Lost _) -> "restart"
                           Won      -> "continue"
-        in "Hit any key to " ++ action ++ " ...") from
+        in "Hit a key to " ++ action ++ " ...") from
     return ()
 
 showShotNumbers :: [Int] -> String

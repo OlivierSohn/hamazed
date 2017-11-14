@@ -4,8 +4,9 @@ A terminal ascii game I write to practice some Haskell! It has 12 levels, and I 
 
 # Backlog
 
+- type for Iteration
+
 ## Animation Design
-- infinite animation using rebound on walls
 - when first explosion element hits the world limits, a second explosion occurs using a circle
 - take number speed & laser direction into account for animation
 - make gravity based animations : initial velocity, rebound on walls, lose % velocity when hitting the bottom
@@ -25,6 +26,9 @@ During the 5 first seconds, the ship is immune to collisions, drawn in red, and 
 with a number the game is over.
 
 ## Difficulty
+- choosing different prime numbers for width and height would increase the complexity
+because the trajectories would "change all the time". Right now width == height so it's easy to chose
+a spot where no number will ever be.
 - current implementation is easy mode, make a medium mode where the
 numbers of lasers available is different for each direction
 and a hard mode where there is a timeout on each level.

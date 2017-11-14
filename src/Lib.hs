@@ -27,11 +27,12 @@ import           System.Console.ANSI( clearScreen
                                     , ConsoleLayer(..)
                                     , ColorIntensity(..)
                                     , Color(..) )
+import qualified System.Console.Terminal.Size as Terminal(size
+                                                         , Window(..))
 import           System.IO( getChar
                           , hFlush
                           , stdout )
 import           System.Timeout( timeout )
-
 
 import           Animation( quantitativeExplosionThenSimpleExplosion
                           , renderAnimations )
@@ -51,8 +52,7 @@ import           Geo( sumCoords
                     , PosSpeed(..)
                     , Row(..)
                     , segmentContains
-                    , translateInDir
-                    , zeroCoords )
+                    , translateInDir )
 import           Laser( LaserType(..)
                       , laserChar
                       , Ray(..)
@@ -63,9 +63,9 @@ import           Laser( LaserType(..)
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
 import           Timing( addMotionStepDuration
-                       , computeTime
                        , nextUpdateCounter
-                       , showUpdateTick
+                       --, computeTime
+                       --, showUpdateTick
                        , Timer(..) )
 import           Util( showListOrSingleton )
 import           World( Action(..)
@@ -212,12 +212,15 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
  where
    justFull = Just $ LaserRay dir $ Ray seg
 
+
+{--
 showTimer :: UTCTime -> GameState -> String
 showTimer currentTime (GameState startTime _ _ updateTick _ (World _ _ _ worldSize _) _ _ _ _) =
   let time = computeTime startTime currentTime
   in "|" ++ showUpdateTick updateTick worldSize ++ "| " ++ show time ++ " |"
   -- to debug animations, add the following line to the preceeding line
   -- ++ show (map (\(Animation _ t _) -> t) anims)
+--}
 
 replaceAnimations :: [Animation] -> GameState -> GameState
 replaceAnimations anims (GameState a b c d e (World wa wb wc wd _) f g h i) =
@@ -277,10 +280,13 @@ gameWorker = makeInitialState firstLevel >>= loop
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   t <- getCurrentTime
+  termSize <- Terminal.size
   let nums = [1..(3+level)] -- more and more numbers as level increases
-      sz = WorldSize $ 35 + 2 * (1-level) -- less and less space as level increases
-  world <- mkWorld sz nums
-  return $ GameState (Timer t) t t 0 zeroCoords world Nothing [] (sum nums `quot` 2) $ Level level Nothing
+      worldSz = 35 + 2 * (1-level) -- less and less space as level increases
+      sz = worldSz + 2 -- with walls
+      coords = maybe (Coords (Row 3) (Col 3)) (\(Terminal.Window h w) -> Coords (Row $ quot (h-sz) 2) (Col $ quot (w-sz) 2)) termSize
+  world <- mkWorld (WorldSize worldSz) nums
+  return $ GameState (Timer t) t t 0 coords world Nothing [] (sum nums `quot` 20000) $ Level level Nothing
 
 
 loop :: GameState -> IO ()
@@ -288,11 +294,12 @@ loop state =
   updateGame state >>= loop
 
 
+{--
 printTimer :: GameState -> IO RenderState
 printTimer s@(GameState _ _ _ _ r _ _ _ _ _) = do
   t <- getCurrentTime
   renderStrLn (showTimer t s) (RenderState r)
-
+--}
 
 updateGame :: GameState -> IO GameState
 updateGame state = getAction state >>= updateGameUsingAction state
@@ -353,20 +360,21 @@ getCharWithinDurationMicros durationMicros =
     else timeout durationMicros getChar
 
 renderGame :: GameState -> IO [Animation]
-renderGame state@(GameState _ _ _ _ _
+renderGame state@(GameState _ _ _ _ upperLeft
                    (World _ _ (BattleShip _ ammo _) sz animations)
-                   _ shotNumbers target (Level level _)) =
-  printTimer state >>= (\r -> do
-    _ <- rightColumn sz r >>=
-      renderLevel level >>=
-        renderAmmo ammo >>=
-          renderTarget target >>=
-            renderShotNumbers shotNumbers
-    renderWorldFrame sz r >>=
-      (\worldCorner -> do
-        activeAnimations <- renderAnimations sz worldCorner animations
-        renderWorld state worldCorner
-        return activeAnimations))
+                   _ shotNumbers target (Level level _)) = do
+  --printTimer state
+  let r = RenderState upperLeft
+  _ <- rightColumn sz r >>=
+    renderLevel level >>=
+      renderAmmo ammo >>=
+        renderTarget target >>=
+          renderShotNumbers shotNumbers
+  renderWorldFrame sz r >>=
+    (\worldCorner -> do
+      activeAnimations <- renderAnimations sz worldCorner animations
+      renderWorld state worldCorner
+      return activeAnimations)
 
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _ _ _
@@ -396,7 +404,7 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
   setSGR [SetColor Foreground Vivid White]
   when (messageState == ContinueMessage) $
     renderStrLn_ (if level == lastLevel
-      then "You reached the end of the game! Thanks for playing! (Hit Ctrl + C to quit)"
+      then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
                           (Lost _) -> "restart"

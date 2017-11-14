@@ -29,6 +29,7 @@ library
   build-depends:       base
                      , ansi-terminal
                      , monad-loops
+                     , terminal-size
                      , thyme
                      , time
                      , random

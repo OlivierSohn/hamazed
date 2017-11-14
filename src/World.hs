@@ -2,7 +2,6 @@
 module World
     ( Action(..)
     , ActionTarget(..)
-    , actionFromChar
     , Animation(..)
     , mkAnimation
     , BattleShip(..)
@@ -47,13 +46,16 @@ import           WorldSize( WorldSize(..)
                           , Location(..)
                           , location )
 
-data Action = Action ActionTarget Direction |
-              Timeout Step |
-              Nonsense
-              deriving(Eq, Show)
+data Action = Action ActionTarget Direction
+            | Timeout Step
+            | StartLevel Int
+            | EndGame
+            | Nonsense
+            deriving(Eq, Show)
 
 data Step = GameStep
           | AnimationStep
+          | MessageStep
           deriving(Eq, Show)
 
 data ActionTarget = Frame
@@ -73,23 +75,6 @@ maybeDirectionFor targetFilter (Action actionTarget dir)
    | actionTarget == targetFilter = Just dir
    | otherwise                    = Nothing
 maybeDirectionFor _ _ = Nothing
-
-
-actionFromChar :: Char -> Action
-actionFromChar c = case c of
-  'g' -> Action Frame Down
-  't' -> Action Frame Up
-  'f' -> Action Frame LEFT
-  'h' -> Action Frame RIGHT
-  'k' -> Action Laser Down
-  'i' -> Action Laser Up
-  'j' -> Action Laser LEFT
-  'l' -> Action Laser RIGHT
-  's' -> Action Ship Down
-  'w' -> Action Ship Up
-  'a' -> Action Ship LEFT
-  'd' -> Action Ship RIGHT
-  _   -> Nonsense
 
 
 extend :: Coords -> Direction -> WorldSize -> Coords

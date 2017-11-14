@@ -265,6 +265,9 @@ messageDeadline (GameState _ t _ _ _ _ _ _ _ (Level _ mayLevelFinished)) =
         ContinueMessage -> Nothing)
     mayLevelFinished
 
+goDown :: RenderState -> RenderState
+goDown (RenderState r) = RenderState $ translateInDir Down r
+
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
@@ -376,7 +379,7 @@ renderGame state@(GameState _ _ _ _ upperLeft
       leftMiddle = translate (Coords (Row half)       (Col $ -1)) upperLeft
       --rightMiddle= translate (Coords (Row half)       (Col $ full + 1)) upperLeft
   _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
-  _ <- down <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
+  _ <- goDown <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
        >>= renderRightAligned (showShotNumbers shotNumbers)
   _ <- renderCentered ("Objective : " ++ show target) (RenderState centerUp)
   renderWorldFrame sz r >>=
@@ -423,9 +426,6 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
 showShotNumbers :: [Int] -> String
 showShotNumbers nums =
   "[" ++ unwords (map show nums) ++ "]"
-
-down :: RenderState -> RenderState
-down (RenderState r) = RenderState $ translateInDir Down r
 
 renderCentered :: String -> RenderState -> IO RenderState
 renderCentered str (RenderState centerCoords) = do

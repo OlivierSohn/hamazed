@@ -277,29 +277,28 @@ gameWorker = makeInitialState firstLevel >>= loop
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   t <- getCurrentTime
-  let nums = [1..(3+level)]
-      sz = WorldSize $ 35 + 2 * (1-level)
+  let nums = [1..(3+level)] -- more and more numbers as level increases
+      sz = WorldSize $ 35 + 2 * (1-level) -- less and less space as level increases
   world <- mkWorld sz nums
   return $ GameState (Timer t) t t 0 zeroCoords world Nothing [] (sum nums `quot` 2) $ Level level Nothing
 
 
 loop :: GameState -> IO ()
-loop state@(GameState _ _ _ _ coords _ _ _ _ _) = do
-  let r = RenderState coords
-  updateGame state r >>= loop
+loop state =
+  updateGame state >>= loop
 
 
-printTimer :: GameState -> RenderState -> IO RenderState
-printTimer s r = do
+printTimer :: GameState -> IO RenderState
+printTimer s@(GameState _ _ _ _ r _ _ _ _ _) = do
   t <- getCurrentTime
-  renderStrLn (showTimer t s) r
+  renderStrLn (showTimer t s) (RenderState r)
 
 
-updateGame :: GameState -> RenderState -> IO GameState
-updateGame state r = getAction state >>= updateGameUsingAction state r
+updateGame :: GameState -> IO GameState
+updateGame state = getAction state >>= updateGameUsingAction state
 
-updateGameUsingAction :: GameState -> RenderState -> Action -> IO GameState
-updateGameUsingAction state@(GameState a _ b c d world@(World _ _ _ sz _) f g h i@(Level level mayLevelFinished)) r action =
+updateGameUsingAction :: GameState -> Action -> IO GameState
+updateGameUsingAction state@(GameState a _ b c d world@(World _ _ _ sz _) f g h i@(Level level mayLevelFinished)) action =
   case action of
     Nonsense -> return state
     StartLevel nextLevel -> makeInitialState nextLevel
@@ -315,14 +314,14 @@ updateGameUsingAction state@(GameState a _ b c d world@(World _ _ _ sz _) f g h 
                 Just (LevelFinished stop finishTime _) -> GameState a t b c d world f g h $ Level level (Just $ LevelFinished stop finishTime ContinueMessage)
                 Nothing -> state
             _ -> state
-      updateGame2 action r newState
+      updateGame2 action newState
 
 
-updateGame2 :: Action -> RenderState -> GameState -> IO GameState
-updateGame2 a r s = do
+updateGame2 :: Action -> GameState -> IO GameState
+updateGame2 a s = do
   clearScreen
   let s2 = nextGameState s a
-  animations <- renderGame s2 r
+  animations <- renderGame s2
   let s3 = replaceAnimations animations s2
   hFlush stdout
   return s3
@@ -353,12 +352,11 @@ getCharWithinDurationMicros durationMicros =
     then return Nothing
     else timeout durationMicros getChar
 
-renderGame :: GameState -> RenderState -> IO [Animation]
+renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ _ _
                    (World _ _ (BattleShip _ ammo _) sz animations)
-                   _ shotNumbers target (Level level _))
-           frameCorner =
-  printTimer state frameCorner >>= (\r -> do
+                   _ shotNumbers target (Level level _)) =
+  printTimer state >>= (\r -> do
     _ <- rightColumn sz r >>=
       renderLevel level >>=
         renderAmmo ammo >>=

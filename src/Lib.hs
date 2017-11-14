@@ -10,7 +10,8 @@ import           Control.Exception( finally )
 import           Control.Monad( when )
 
 import           Data.Char( intToDigit )
-import           Data.List( minimumBy
+import           Data.List( intercalate
+                          , minimumBy
                           , partition )
 import           Data.Maybe( mapMaybe
                            , isJust
@@ -52,7 +53,9 @@ import           Geo( sumCoords
                     , PosSpeed(..)
                     , Row(..)
                     , segmentContains
-                    , translateInDir )
+                    , translate
+                    , translateInDir
+                    , translateLeft )
 import           Laser( LaserType(..)
                       , laserChar
                       , Ray(..)
@@ -146,10 +149,13 @@ actionFromChar (Level n finished) char = case finished of
 
 actionFromCharInGame :: Char -> Action
 actionFromCharInGame c = case c of
+  -- disabling possibility to move frame, since it is placed in the center of the terminal automatically
+  {--
   'g' -> Action Frame Down
   't' -> Action Frame Up
   'f' -> Action Frame LEFT
   'h' -> Action Frame RIGHT
+--}
   'k' -> Action Laser Down
   'i' -> Action Laser Up
   'j' -> Action Laser LEFT
@@ -286,7 +292,7 @@ makeInitialState level = do
       sz = worldSz + 2 -- with walls
       coords = maybe (Coords (Row 3) (Col 3)) (\(Terminal.Window h w) -> Coords (Row $ quot (h-sz) 2) (Col $ quot (w-sz) 2)) termSize
   world <- mkWorld (WorldSize worldSz) nums
-  return $ GameState (Timer t) t t 0 coords world Nothing [] (sum nums `quot` 20000) $ Level level Nothing
+  return $ GameState (Timer t) t t 0 coords world Nothing [] (sum nums `quot` 2) $ Level level Nothing
 
 
 loop :: GameState -> IO ()
@@ -342,7 +348,6 @@ getAction state@(GameState _ _ _ _ _ _ _ _ _ level) =
       let
         timeToDeadlineSeconds = diffUTCTime deadline t
         timeToDeadlineMicros = floor (timeToDeadlineSeconds * 10^(6 :: Int))
-      hFlush stdout
       getActionWithinDurationMicros level timeToDeadlineMicros deadlineType
     Nothing -> actionFromChar level <$> getChar
 
@@ -361,12 +366,15 @@ getCharWithinDurationMicros durationMicros =
 
 renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ _ upperLeft
-                   (World _ _ (BattleShip _ ammo _) sz animations)
+                   (World _ _ (BattleShip _ ammo _) sz@(WorldSize worldSize) animations)
                    _ shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
+      full = worldSize + 2 -- with walls
+      half = quot full 2
+      centerDown = translate (Coords (Row (full + 1)) (Col half)) upperLeft
+  _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
   _ <- rightColumn sz r >>=
-    renderLevel level >>=
       renderAmmo ammo >>=
         renderTarget target >>=
           renderShotNumbers shotNumbers
@@ -413,7 +421,7 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
 
 renderShotNumbers :: [Int] -> RenderState -> IO RenderState
 renderShotNumbers nums =
-  renderStrLn ("Shot: " ++ show nums)
+  renderStrLn $ show (sum nums) ++ " = " ++ intercalate "+" (map show nums)
 
 renderTarget :: Int -> RenderState -> IO RenderState
 renderTarget n =
@@ -424,17 +432,19 @@ rightColumn :: WorldSize -> RenderState -> IO RenderState
 rightColumn (WorldSize worldSize) (RenderState upperLeftCoords) = do
   let vmargin = 1
       hmargin = 1
-      translate = Coords (Row vmargin) (Col $ worldSize + 2 + hmargin)
-      corner = sumCoords upperLeftCoords translate
+      corner = translate upperLeftCoords $ Coords (Row vmargin) (Col $ worldSize + 2 + hmargin)
   return $ RenderState corner
 
-renderLevel :: Int -> RenderState -> IO RenderState
-renderLevel l =
-  renderStrLn ("Level " ++ show l)
+renderCentered :: String -> RenderState -> IO RenderState
+renderCentered str (RenderState centerCoords) = do
+  let leftCorner = RenderState $ translateLeft (quot (length str) 2) centerCoords
+  renderStrLn_ str leftCorner
+  return $ RenderState $ translateInDir Down centerCoords
+
 
 renderAmmo :: Int -> RenderState -> IO RenderState
 renderAmmo ammo =
-  renderStrLn ("Ammo: " ++ show ammo)
+  renderStrLn ("[" ++ replicate ammo '.' ++ "]")
 
 renderWorldFrame :: WorldSize -> RenderState -> IO RenderState
 renderWorldFrame (WorldSize worldSize) upperLeft@(RenderState upperLeftCoords) = do

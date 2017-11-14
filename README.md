@@ -4,6 +4,9 @@ A terminal ascii game I write to practice some Haskell. With 12 levels, of incre
 
 # Backlog
 
+- fix display bug (screen is not cleared anymore)
+- make an animation between levels to make the world reduce progressively
+
 ## Animation Design
 - take number speed & laser direction into account for animation
 - make gravity based animations : initial velocity, rebound on walls, lose % velocity when hitting the bottom

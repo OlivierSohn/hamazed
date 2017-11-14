@@ -12,7 +12,9 @@ module Geo ( Direction(..)
            , rotateByQuarters
            , Row(..)
            , sumCoords
+           , translate
            , translateInDir
+           , translateLeft
            , zeroCoords
            -- circles
            , translatedFullCircle
@@ -132,3 +134,6 @@ translatedFullCircle center radius firstAngle resolution =
 
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
+
+translateLeft :: Int -> Coords -> Coords
+translateLeft t (Coords (Row r) (Col c)) = Coords (Row r) (Col (c-t))

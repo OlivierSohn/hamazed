@@ -10,8 +10,7 @@ import           Control.Exception( finally )
 import           Control.Monad( when )
 
 import           Data.Char( intToDigit )
-import           Data.List( intercalate
-                          , minimumBy
+import           Data.List( minimumBy
                           , partition )
 import           Data.Maybe( mapMaybe
                            , isJust
@@ -372,12 +371,14 @@ renderGame state@(GameState _ _ _ _ upperLeft
   let r = RenderState upperLeft
       full = worldSize + 2 -- with walls
       half = quot full 2
-      centerDown = translate (Coords (Row (full + 1)) (Col half)) upperLeft
+      centerUp   = translate (Coords (Row $ -1)       (Col half)) upperLeft
+      centerDown = translate (Coords (Row $ full + 1) (Col half)) upperLeft
+      leftMiddle = translate (Coords (Row half)       (Col $ -1)) upperLeft
+      --rightMiddle= translate (Coords (Row half)       (Col $ full + 1)) upperLeft
   _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
-  _ <- rightColumn sz r >>=
-      renderAmmo ammo >>=
-        renderTarget target >>=
-          renderShotNumbers shotNumbers
+  _ <- down <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
+       >>= renderRightAligned (showShotNumbers shotNumbers)
+  _ <- renderCentered ("Objective : " ++ show target) (RenderState centerUp)
   renderWorldFrame sz r >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations sz worldCorner animations
@@ -408,7 +409,7 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
   setSGR [SetColor Foreground Vivid color]
   afterFirst <- renderStrLn (case stop of
     (Lost reason) -> "You Lose (" ++ reason ++ ")"
-    Won           -> "You Win! Congratulations!!") topLeft
+    Won           -> "You Win!") topLeft
   setSGR [SetColor Foreground Vivid White]
   when (messageState == ContinueMessage) $
     renderStrLn_ (if level == lastLevel
@@ -416,24 +417,15 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
       else
         let action = case stop of
                           (Lost _) -> "restart"
-                          Won      -> "go to level " ++ show (succ level)
+                          Won      -> "continue"
         in "Hit any key to " ++ action ++ " ...") afterFirst
 
-renderShotNumbers :: [Int] -> RenderState -> IO RenderState
-renderShotNumbers nums =
-  renderStrLn $ show (sum nums) ++ " = " ++ intercalate "+" (map show nums)
+showShotNumbers :: [Int] -> String
+showShotNumbers nums =
+  "[" ++ unwords (map show nums) ++ "]"
 
-renderTarget :: Int -> RenderState -> IO RenderState
-renderTarget n =
-  renderStrLn ("Target: " ++ show n)
-
-
-rightColumn :: WorldSize -> RenderState -> IO RenderState
-rightColumn (WorldSize worldSize) (RenderState upperLeftCoords) = do
-  let vmargin = 1
-      hmargin = 1
-      corner = translate upperLeftCoords $ Coords (Row vmargin) (Col $ worldSize + 2 + hmargin)
-  return $ RenderState corner
+down :: RenderState -> RenderState
+down (RenderState r) = RenderState $ translateInDir Down r
 
 renderCentered :: String -> RenderState -> IO RenderState
 renderCentered str (RenderState centerCoords) = do
@@ -441,10 +433,11 @@ renderCentered str (RenderState centerCoords) = do
   renderStrLn_ str leftCorner
   return $ RenderState $ translateInDir Down centerCoords
 
-
-renderAmmo :: Int -> RenderState -> IO RenderState
-renderAmmo ammo =
-  renderStrLn ("[" ++ replicate ammo '.' ++ "]")
+renderRightAligned :: String -> RenderState -> IO RenderState
+renderRightAligned str (RenderState rightAlignment) = do
+  let leftCorner = RenderState $ translateLeft (length str) rightAlignment
+  renderStrLn_ str leftCorner
+  return $ RenderState $ translateInDir Down rightAlignment
 
 renderWorldFrame :: WorldSize -> RenderState -> IO RenderState
 renderWorldFrame (WorldSize worldSize) upperLeft@(RenderState upperLeftCoords) = do

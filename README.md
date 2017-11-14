@@ -4,7 +4,7 @@ A terminal ascii game I write to practice some Haskell. With 12 levels, of incre
 
 # Backlog
 
-- fix display bug (screen is not cleared anymore)
+- animate ship collision (circle)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design

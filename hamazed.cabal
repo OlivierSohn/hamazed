@@ -1,8 +1,8 @@
-name:                simple
+name:                hamazed
 version:             0.1.0.0
 -- synopsis:
 -- description:
-homepage:            https://github.com/OlivierSohn/simple#readme
+homepage:            https://github.com/OlivierSohn/hamazed#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -35,23 +35,23 @@ library
                      , random
   default-language:    Haskell2010
 
-executable simple-exe
+executable hamazed-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
-                     , simple
+                     , hamazed
   default-language:    Haskell2010
 
-test-suite simple-test
+test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base
-                     , simple
+                     , hamazed
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/simple
+  location: https://github.com/OlivierSohn/hamazed

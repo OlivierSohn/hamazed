@@ -35,11 +35,11 @@ import           System.IO( getChar
 import           System.Timeout( timeout )
 
 import           Animation( quantitativeExplosionThenSimpleExplosion
-                          , renderAnimations )
+                          , renderAnimations
+                          , simpleExplosion )
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
                         , renderChar_
-                        , renderChar
                         , renderSegment
                         , renderStrLn
                         , renderStrLn_
@@ -81,7 +81,6 @@ import           World( Action(..)
                       , mkAnimation
                       , mkWorld
                       , nextWorld
-                      , shipCollides
                       , Step(..)
                       , stepEarliestAnimations
                       , World(..)
@@ -167,7 +166,7 @@ actionFromCharInGame c = case c of
 
 
 nextGameState :: GameState -> Action -> GameState
-nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo _) sz animations) _ g target (Level i finished)) action =
+nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) sz animations) _ g target (Level i finished)) action =
   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
@@ -175,16 +174,19 @@ nextGameState (GameState a t b c d world@(World balls _ (BattleShip (PosSpeed sh
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
-      newAnimations = case destroyedBalls of
+      newAnimations = (case destroyedBalls of
         Number (PosSpeed pos _) n:_ -> mkAnimation (quantitativeExplosionThenSimpleExplosion [] n pos) t : animations
-        _ -> animations
+        _ -> animations)
+        ++ case action of
+            Timeout GameStep -> [mkAnimation (simpleExplosion shipCoords) t | not (null collisions) && isNothing safeTime]
+            _ -> []
       newWorld = nextWorld action world remainingBalls newAmmo newAnimations
       newFinished = finished <|> computeFinished t newWorld (sum allShotNumbers) target action
       newLevel = Level i newFinished
   in  GameState a t b c d newWorld maybeLaserRay allShotNumbers target newLevel
 
 computeFinished :: UTCTime -> World -> Int -> Int -> Action -> Maybe LevelFinished
-computeFinished time world@(World _ _ (BattleShip _ ammo safeTime) _ _) sumNumbers target lastAction =
+computeFinished time (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbers target lastAction =
     maybe Nothing (\stop -> Just $ LevelFinished stop time InfoMessage) allChecks
   where
     allChecks = checkShipCollision <|> checkSum <|> checkAmmo
@@ -192,7 +194,7 @@ computeFinished time world@(World _ _ (BattleShip _ ammo safeTime) _ _) sumNumbe
     checkShipCollision = case lastAction of
       (Timeout GameStep) ->
         if isJust safeTime then Nothing
-          else case map (\(Number _ n) -> n) $ shipCollides world of
+          else case map (\(Number _ n) -> n) collisions of
             [] -> Nothing
             l  -> Just $ Lost $ "collision with " ++ showListOrSingleton l
       _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
@@ -368,7 +370,7 @@ getCharWithinDurationMicros durationMicros =
 
 renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ _ upperLeft
-                   (World _ _ (BattleShip _ ammo _) sz@(WorldSize worldSize) animations)
+                   (World _ _ (BattleShip _ ammo _ _) sz@(WorldSize worldSize) animations)
                    _ shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
@@ -390,18 +392,23 @@ renderGame state@(GameState _ _ _ _ upperLeft
 
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime) sz _)
-                   maybeLaserRay _ _ (Level level levelState)) worldCorner = do
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(WorldSize s) _)
+                   maybeLaserRay _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
   _ <- case maybeLaserRay of
     (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
     Nothing -> return worldCorner
   -- render numbers, including the ones that will be destroyed, if any
   mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
-  let shipColor = if isNothing safeTime then Blue else Red
-  setSGR [SetColor Foreground Vivid shipColor]
-  afterShip <- render '+' shipCoords sz worldCorner
-  setSGR [SetColor Foreground Vivid White]
-  mapM_ (renderLevelState afterShip level) levelState
+  when (null collisions) (do
+    let shipColor = if isNothing safeTime then Blue else Red
+    setSGR [SetColor Foreground Vivid shipColor]
+    render_ '+' shipCoords sz worldCorner
+    setSGR [SetColor Foreground Vivid White])
+  let
+    full = s
+    half = quot full 2
+    rightMiddle = translate (Coords (Row half) (Col $ full + 2)) upperLeft
+  mapM_ (renderLevelState (RenderState rightMiddle) level) levelState
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) = do
@@ -414,14 +421,16 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
     (Lost reason) -> "You Lose (" ++ reason ++ ")"
     Won           -> "You Win!") topLeft
   setSGR [SetColor Foreground Vivid White]
-  when (messageState == ContinueMessage) $
-    renderStrLn_ (if level == lastLevel
+  when (messageState == ContinueMessage) $ do
+    let from = goDown afterFirst
+    _ <- renderStrLn (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
                           (Lost _) -> "restart"
                           Won      -> "continue"
-        in "Hit any key to " ++ action ++ " ...") afterFirst
+        in "Hit any key to " ++ action ++ " ...") from
+    return ()
 
 showShotNumbers :: [Int] -> String
 showShotNumbers nums =
@@ -464,11 +473,4 @@ render_ char worldCoords worldSize (RenderState renderCoords) =
   case location worldCoords worldSize of
     InsideWorld -> renderChar_ char loc
     _           -> return ()
-  where loc = RenderState $ sumCoords renderCoords worldCoords
-
-render :: Char -> Coords -> WorldSize -> RenderState -> IO RenderState
-render char worldCoords worldSize s@(RenderState renderCoords) =
-  case location worldCoords worldSize of
-    InsideWorld -> renderChar char loc
-    _           -> return s
   where loc = RenderState $ sumCoords renderCoords worldCoords

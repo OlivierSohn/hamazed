@@ -5,7 +5,6 @@ module World
     , Animation(..)
     , mkAnimation
     , BattleShip(..)
-    , shipCollides
     , coordsForActionTargets
     , extend
     , Location(..)
@@ -89,6 +88,7 @@ data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
   , _shipAmmo :: !Int
   , _shipSafeUntil :: !(Maybe UTCTime)
+  , _shipCollisions :: ![Number]
 }
 
 data World = World{
@@ -104,24 +104,25 @@ data Number = Number {
   , _numberNum :: !Int
 }
 
-shipCollides :: World -> [Number]
-shipCollides (World balls _ (BattleShip (PosSpeed shipCoords _) _ _) _ _) =
-   filter (\(Number (PosSpeed pos _) _) -> shipCoords == pos) balls
+getColliding :: Coords -> [Number] -> [Number]
+getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
 nextWorld :: Action -> World -> [Number] -> Int -> [Animation] -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime) size _) balls ammo anims =
+nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime collisions) size _) balls ammo anims =
   let shipAcceleration = coordsForActionTargets Ship [action]
       shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime) size anims
+  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime collisions) size anims
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
 moveWorld :: UTCTime -> World -> World
-moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime) size anims) =
+moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
       newBalls = map (\(Number ps n) -> Number (changePos size ps) n) balls
-      newShip = BattleShip (changePos size shipPosSpeed) ammo newSafeTime
+      newPosSpeed@(PosSpeed pos _) = changePos size shipPosSpeed
+      collisions = getColliding pos newBalls
+      newShip = BattleShip newPosSpeed ammo newSafeTime collisions
   in World newBalls changePos newShip size anims
 
 ballMotion :: WorldSize -> PosSpeed -> PosSpeed
@@ -177,9 +178,9 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld worldSize nums = do
   balls <- mapM (createRandomNumber worldSize) nums
-  ship <- createRandomPosSpeed worldSize
+  ship@(PosSpeed pos _) <- createRandomPosSpeed worldSize
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t)) worldSize []
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) worldSize []
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)

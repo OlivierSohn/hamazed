@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Animation
     ( Animation(..)
@@ -18,6 +19,9 @@ import           Data.Maybe( catMaybes
 import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime )
+
+import           GHC.Generics( Generic )
+
 --import           System.Random( getStdRandom
 --                              , randomR )
 
@@ -34,9 +38,20 @@ import           WorldSize( WorldSize(..)
                           , reboundMaxRecurse )
 
 
+newtype Iteration = Iteration Int deriving(Generic, Eq, Show, Num)
+
+zeroIteration :: Iteration
+zeroIteration = Iteration 0
+
+nextIteration :: Iteration -> Iteration
+nextIteration (Iteration i) = Iteration $ succ i
+
+previousIteration :: Iteration -> Iteration
+previousIteration (Iteration i) = Iteration $ pred i
+
 data Animation = Animation {
     _animationNextTime :: !UTCTime
-  , _animationCounter  :: !Int
+  , _animationCounter  :: !Iteration
   , _animationRender :: !(Animation -> WorldSize -> RenderState -> IO (Maybe Animation))
 }
 
@@ -47,17 +62,17 @@ data AnimationProgress = AnimationInProgress
 mkAnimation :: (Animation -> WorldSize -> RenderState -> IO (Maybe Animation))
             -> UTCTime
             -> Animation
-mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) 0 render
+mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) zeroIteration render
 
 
-simpleExplosionPure :: Coords -> Int -> [Coords]
-simpleExplosionPure center iteration =
+simpleExplosionPure :: Coords -> Iteration -> [Coords]
+simpleExplosionPure center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
       resolution = 8
   in translatedFullCircleFromQuarterArc center radius 0 resolution
 
-quantitativeExplosionPure :: Int -> Coords -> Int -> [Coords]
-quantitativeExplosionPure number center iteration =
+quantitativeExplosionPure :: Int -> Coords -> Iteration -> [Coords]
+quantitativeExplosionPure number center (Iteration iteration) =
   let numRand = 10 :: Int
       rnd = 2 :: Int -- TODO store the random number in the state of the animation
   -- rnd <- getStdRandom $ randomR (0,numRand-1)
@@ -72,16 +87,16 @@ data AnimationOrigin = AnimationOrigin {
     _animationOriginCoords :: !Coords
     -- when Just, it is the iteration (of the previous animation in the sequence)
     -- at which the animation started. If Nothing, the animation has not yet started.
-  , _animationOriginFirstIteration :: !(Maybe Int)
+  , _animationOriginFirstIteration :: !(Maybe Iteration)
 }
 
 -- | This function tests if the second animation has already begun. If it has begun, it continues it.
 -- Else If first animation is outside the world, it starts second animation.
 -- Else, it continues first animation.
-firstAnimationWhileInsideWorldThenSecondAnimation :: (Coords -> Int -> [Coords])
+firstAnimationWhileInsideWorldThenSecondAnimation :: (Coords -> Iteration -> [Coords])
                                                   -- ^ the second animation function (parameters are center and iteration)
                                                   -> WorldSize
-                                                  -> Int
+                                                  -> Iteration
                                                   -> (Coords, AnimationOrigin)
                                                   -- ^ (first animation point, current second animation origin)
                                                   -> ([Coords], AnimationOrigin)
@@ -101,24 +116,23 @@ firstAnimationWhileInsideWorldThenSecondAnimation anim2 sz iteration (anim1Point
     -- Also, at the previous iteration the resulting point was equivalent to the call hereunder
     -- with a radius 0 so we use a radius 1 here and make sure to record the previous iteration
     -- as the start of the 2nd animation, so that at the next iteration the radius will increase (= 2).
-      (anim2 anim2Origin 1, AnimationOrigin anim2Origin $ Just $ pred iteration)
+      (anim2 anim2Origin 1, AnimationOrigin anim2Origin $ Just $ previousIteration iteration)
     InsideWorld ->
     -- the first animation has not ended yet.
       ([anim1Point], AnimationOrigin anim1Point Nothing)
 
 
--- | In this function, 'Int' in the types of functions passed as arguments are iterations.
---   Coords are animation origins.
-anim1WhileInsideWorldThenAnim2 :: (Coords -> Int -> [Coords])
+-- | In this function, 'Coords' in the types of functions passed as arguments are animation origins.
+anim1WhileInsideWorldThenAnim2 :: (Coords -> Iteration -> [Coords])
                                -- ^ First animation. Regardless of iteration number, it should
                                -- returns the same number of points, and that 'same index' points
                                -- correlate across iterations.
-                               -> (Coords -> Int -> [Coords])
+                               -> (Coords -> Iteration -> [Coords])
                                -- ^ Second animation.
                                -> WorldSize
                                -> [AnimationOrigin]
                                -> Coords
-                               -> Int
+                               -> Iteration
                                -> ([Coords], [AnimationOrigin])
 anim1WhileInsideWorldThenAnim2 anim1 anim2 sz prevAnim2Origins center iteration =
   let anim1Points = anim1 center iteration
@@ -146,7 +160,7 @@ partitionEarliest l =
     partitionOnDeadline deadline = partition (\(Animation deadline' _ _) -> deadline' == deadline) l
 
 stepAnimation :: Animation -> Animation
-stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (succ i) f
+stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (nextIteration i) f
 
 earliestDeadline :: [Animation] -> Maybe UTCTime
 earliestDeadline []         = Nothing

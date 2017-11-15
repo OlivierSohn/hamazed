@@ -19,10 +19,13 @@ import           Geo( Coords(..)
                     , Segment(..)
                     , segmentContains
                     , translateInDir )
-import           World( extend
-                      , Location(..)
-                      , location)
-import           WorldSize( WorldSize(..) )
+import           Space( Space(..)
+                      , getMaterial
+                      , Material(..)
+                      , mkRectangle )
+import           World( extend )
+import           WorldSize( WorldSize(..)
+                          , Location(..))
 
 
 data LaserType = Infinite
@@ -30,17 +33,17 @@ newtype Ray a = Ray Segment
 data Theoretical -- with no obstacle
 data Actual      -- with obstacles
 
-shootLaserFromShip :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
+shootLaserFromShip :: Coords -> Direction -> LaserType -> Space -> Maybe (Ray Theoretical)
 shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
 
-shootLaser :: Coords -> Direction -> LaserType -> WorldSize -> Maybe (Ray Theoretical)
-shootLaser laserStart dir laserType worldSize =
-  case location laserStart worldSize of
-    OutsideWorld -> Nothing
-    InsideWorld ->
+shootLaser :: Coords -> Direction -> LaserType -> Space -> Maybe (Ray Theoretical)
+shootLaser laserStart dir laserType space =
+  case getMaterial laserStart space of
+    Wall -> Nothing
+    Air ->
       case laserType of
         Infinite ->
-          let laserEnd = extend laserStart dir worldSize
+          let laserEnd = extend laserStart dir space
           in Just $ Ray $ mkSegment laserStart laserEnd
 
 

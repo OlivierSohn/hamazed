@@ -21,6 +21,7 @@ library
                      , Geo
                      , Laser
                      , NonBlockingIO
+                     , Space
                      , Threading
                      , Timing
                      , Util
@@ -28,6 +29,7 @@ library
                      , WorldSize
   build-depends:       base
                      , ansi-terminal
+                     , hmatrix
                      , monad-loops
                      , terminal-size
                      , thyme

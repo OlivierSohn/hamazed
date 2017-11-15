@@ -2,9 +2,17 @@
 
 A terminal ascii game I write to practice some Haskell. With 12 levels, of increasing difficulty.
 
+In this game, you control a ship in direction, and you can shoot at moving numbers.
+The sum of numbers you shot must be equal to the objective number in order to finish a level.
+During the 5 first seconds of each level, the ship is immune to collisions with numbers, but after that,
+if the ship collides with a number the game is over.
+
 # Backlog
 
-- animate ship collision (circle)
+- try rectangular spaces (WorldSize will be a pair)
+- implement render of space (deduce which wall element based on neighbors)
+- random geometry for levels (some numbers might be cycling in separate sub spaces)
+
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
@@ -15,14 +23,7 @@ A terminal ascii game I write to practice some Haskell. With 12 levels, of incre
 ## Playability
 - make laser ray render persist until next motion step.
 - do not count duplicate laser shots in same motion step.
-- at the top, display
-                   8 (red)
-           3+1+4 = 8
-- display level at the bottom (4/12), centered
-- write a help :
- - The goal of the game is to hit numbers to reach a target. When a number is hit with a laser ray (i j k l) it is added to the current sum. The target is exactly the sum of all numbers divided by 2.
-During the 5 first seconds, the ship is immune to collisions, drawn in red, and then turns blue. If the ship collides
-with a number the game is over.
+- write a help
 
 ## Difficulty
 - choosing different prime numbers for width and height would increase the complexity

@@ -7,8 +7,6 @@ module World
     , BattleShip(..)
     , coordsForActionTargets
     , extend
-    , Location(..)
-    , location
     , mkWorld
     , moveWorld
     , nextWorld
@@ -36,14 +34,18 @@ import           Animation( Animation(..)
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
+                    , translateInDir
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
                     , sumCoords
                     , zeroCoords )
+import           Space( Space(..)
+                      , getMaterial
+                      , Material(..)
+                      , mkRectangle )
 import           WorldSize( WorldSize(..)
-                          , Location(..)
-                          , location )
+                          , Location(..) )
 
 data Action = Action ActionTarget Direction
             | Timeout Step
@@ -76,12 +78,12 @@ maybeDirectionFor targetFilter (Action actionTarget dir)
 maybeDirectionFor _ _ = Nothing
 
 
-extend :: Coords -> Direction -> WorldSize -> Coords
-extend (Coords (Row r) (Col c)) dir (WorldSize worldSize) = case dir of
-  Up    -> Coords (Row 0) (Col c)
-  LEFT  -> Coords (Row r) (Col 0)
-  Down  -> Coords (Row (worldSize-1)) (Col c)
-  RIGHT -> Coords (Row r) (Col (worldSize-1))
+extend :: Coords -> Direction -> Space -> Coords
+extend coords dir space =
+  let extended = translateInDir dir coords
+  in case getMaterial extended space of
+    Wall -> coords
+    Air -> extend extended dir space
 
 
 data BattleShip = BattleShip {
@@ -92,10 +94,10 @@ data BattleShip = BattleShip {
 }
 
 data World = World{
-    _worldNumber :: ![Number]
-  , _howBallMoves :: WorldSize -> PosSpeed -> PosSpeed
+    _worldNumbers :: ![Number]
+  , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
-  , _worldWorldSize :: !WorldSize
+  , _worldSpace :: !Space
   , _worldAnimations :: ![Animation]
 }
 
@@ -125,7 +127,7 @@ moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime 
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
   in World newBalls changePos newShip size anims
 
-ballMotion :: WorldSize -> PosSpeed -> PosSpeed
+ballMotion :: Space -> PosSpeed -> PosSpeed
 ballMotion worldSize = doBallMotion . mirrorIfNeeded worldSize
 
 doBallMotion :: PosSpeed -> PosSpeed
@@ -135,35 +137,27 @@ doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
     newR = r + dr
     newC = c + dc
 
-mirrorSpeedIfNeeded :: WorldSize -> Int -> Int -> Int
-mirrorSpeedIfNeeded (WorldSize worldSize) x
-  | x <= 0           = abs
-  | x >= worldSize-1 = negate . abs
-  | otherwise        = id
-
-{--
-constrainPos :: Int -> Int
-constrainPos r
-  | r < 0 = negate r
-  | r >= worldSize = 2 * worldSize - r
-  | otherwise = r
-
-constrainPosSticky :: Int -> Int
-constrainPosSticky r
-  | r < 0 = 0
-  | r >= worldSize = worldSize - 1
-  | otherwise = r
---}
-
-mirrorIfNeeded :: WorldSize -> PosSpeed -> PosSpeed
-mirrorIfNeeded worldSize (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-  let newDr = mirrorSpeedIfNeeded worldSize r dr
-      newDc = mirrorSpeedIfNeeded worldSize c dc
+-- when continuing with current speed, if at next iteration we encounter a wall,
+-- then we change the speed now according to the wall normal
+mirrorIfNeeded :: Space -> PosSpeed -> PosSpeed
+mirrorIfNeeded space current@(PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
+  let future = Coords (Row $ r+dr) (Col $ c+dc)
+      isWall coord = getMaterial coord space == Wall
+      (newDr, newDc) = if isWall future
+        then
+          if dr == 0
+            then (0, negate dc)
+            else
+              if dc == 0
+              then (negate dr, 0)
+              else
+                -- diagonal case
+                (if isWall (Coords (Row $ r+dr) (Col c)) then negate dr else dr,
+                  if isWall (Coords (Row r) (Col $ c+dc)) then negate dc else dc)
+        else (dr, dc)
       -- we chose to not constrain the positions as it leads to unnatural motions
       -- the tradeoff is just to not render them
-      newR = r
-      newC = c
-  in PosSpeed (Coords (Row newR) (Col newC)) (Coords (Row newDr) (Col newDc))
+  in PosSpeed (Coords (Row r) (Col c)) (Coords (Row newDr) (Col newDc))
 
 stepEarliestAnimations :: World -> World
 stepEarliestAnimations (World a b c d animations) = World a b c d (stepEarliest animations)
@@ -176,11 +170,12 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 --------------------------------------------------------------------------------
 
 mkWorld :: WorldSize -> [Int] -> IO World
-mkWorld worldSize nums = do
-  balls <- mapM (createRandomNumber worldSize) nums
-  ship@(PosSpeed pos _) <- createRandomPosSpeed worldSize
+mkWorld worldSize@(WorldSize sz) nums = do
+  let space = mkRectangle (Row sz) (Col sz)
+  balls <- mapM (createRandomNumber space) nums
+  ship@(PosSpeed pos _) <- createRandomPosSpeed space
   t <- getCurrentTime
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) worldSize []
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space []
 
 randomPos :: WorldSize -> IO Int
 randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)
@@ -188,15 +183,24 @@ randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)
 randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-1,1)
 
-createRandomPosSpeed :: WorldSize -> IO PosSpeed
-createRandomPosSpeed worldSize = do
-  x <- randomPos worldSize
-  y <- randomPos worldSize
+createRandomPosSpeed :: Space -> IO PosSpeed
+createRandomPosSpeed space@(Space _ size) = do
+  pos <- randomNonCollidingPos space
   dx <- randomSpeed
   dy <- randomSpeed
-  return $ mirrorIfNeeded worldSize $ PosSpeed (Coords (Row x) (Col y)) (Coords (Row dx) (Col dy))
+  -- todo if colliding loop
+  return $ mirrorIfNeeded space $ PosSpeed pos (Coords (Row dx) (Col dy))
 
-createRandomNumber :: WorldSize -> Int -> IO Number
-createRandomNumber worldSize i = do
-  ps <- createRandomPosSpeed worldSize
+randomNonCollidingPos :: Space -> IO Coords
+randomNonCollidingPos space@(Space _ size) = do
+  r <- randomPos size
+  c <- randomPos size
+  let coords = Coords (Row r) (Col c)
+  case getMaterial coords space of
+    Wall -> randomNonCollidingPos space
+    Air -> return coords
+
+createRandomNumber :: Space -> Int -> IO Number
+createRandomNumber space i = do
+  ps <- createRandomPosSpeed space
   return $ Number ps i

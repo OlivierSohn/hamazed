@@ -44,8 +44,7 @@ import           Space( Space(..)
                       , getMaterial
                       , Material(..)
                       , mkRectangle )
-import           WorldSize( WorldSize(..)
-                          , Location(..) )
+import           WorldSize( WorldSize(..) )
 
 data Action = Action ActionTarget Direction
             | Timeout Step
@@ -140,7 +139,7 @@ doBallMotion (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
 -- when continuing with current speed, if at next iteration we encounter a wall,
 -- then we change the speed now according to the wall normal
 mirrorIfNeeded :: Space -> PosSpeed -> PosSpeed
-mirrorIfNeeded space current@(PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
+mirrorIfNeeded space (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
   let future = Coords (Row $ r+dr) (Col $ c+dc)
       isWall coord = getMaterial coord space == Wall
       (newDr, newDc) = if isWall future
@@ -170,7 +169,7 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 --------------------------------------------------------------------------------
 
 mkWorld :: WorldSize -> [Int] -> IO World
-mkWorld worldSize@(WorldSize sz) nums = do
+mkWorld (WorldSize sz) nums = do
   let space = mkRectangle (Row sz) (Col sz)
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createRandomPosSpeed space
@@ -184,7 +183,7 @@ randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-1,1)
 
 createRandomPosSpeed :: Space -> IO PosSpeed
-createRandomPosSpeed space@(Space _ size) = do
+createRandomPosSpeed space = do
   pos <- randomNonCollidingPos space
   dx <- randomSpeed
   dy <- randomSpeed

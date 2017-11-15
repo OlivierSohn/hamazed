@@ -13,8 +13,7 @@ module Animation
 
 
 import           Data.List( partition )
-import           Data.Maybe( catMaybes
-                           , mapMaybe )
+import           Data.Maybe( catMaybes )
 import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime )
@@ -34,7 +33,6 @@ import           Geo( Coords(..)
 import           Space( Space(..)
                       , getMaterial
                       , Material(..)
-                      , mkRectangle
                       , location )
 import           WorldSize( WorldSize(..)
                           , Location(..))

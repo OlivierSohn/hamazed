@@ -64,12 +64,10 @@ import           Laser( LaserType(..)
                       , stopRayAtFirstCollision )
 import           Space( Space(..)
                       , getMaterial
-                      , Material(..)
-                      , mkRectangle )
+                      , Material(..) )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
 import           Timing( addMotionStepDuration
-                       , nextUpdateCounter
                        --, computeTime
                        --, showUpdateTick
                        , Timer(..) )
@@ -316,7 +314,7 @@ updateGame :: GameState -> IO GameState
 updateGame state = getAction state >>= updateGameUsingAction state
 
 updateGameUsingAction :: GameState -> Action -> IO GameState
-updateGameUsingAction state@(GameState a _ b d world@(World _ _ _ sz _) f g h i@(Level level mayLevelFinished)) action =
+updateGameUsingAction state@(GameState a _ b d world f g h i@(Level level mayLevelFinished)) action =
   case action of
     Nonsense -> return state
     StartLevel nextLevel -> makeInitialState nextLevel
@@ -452,7 +450,7 @@ renderRightAligned str (RenderState rightAlignment) = do
 -- TODO precompute the list of Str in the Space to avoid recreating them at each frame
 -- and allow a better rendering ( T | _ + ) depnding on neighbours
 renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame (Space mat (WorldSize worldSize)) upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame (Space _ (WorldSize worldSize)) upperLeft@(RenderState upperLeftCoords) = do
   let --colIndexes = [0..sz+1]
       --rowIndexes = [0..sz+1]
 

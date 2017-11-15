@@ -13,7 +13,7 @@ import           GHC.Generics( Generic )
 
 import           Numeric.LinearAlgebra.Data( (!)
                                            , fromLists
-                                           , Matrix(..) )
+                                           , Matrix )
 
 import           Foreign.C.Types( CInt(..) )
 
@@ -42,12 +42,12 @@ mapMaterial Wall = 1
 mapInt :: CInt -> Material
 mapInt 0 = Air
 mapInt 1 = Wall
+mapInt _ = error "mapInt with that should never happen"
 
 -- | creates an empty rectangle of size specified in parameters, with a one-element border
 mkRectangle :: Row -> Col -> Space
 mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
   let ncols = widthEmptySpace + 2
-      nrows = heightEmptySpace + 2
 
       wall = mapMaterial Wall
       air  = mapMaterial Air

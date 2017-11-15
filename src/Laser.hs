@@ -21,11 +21,8 @@ import           Geo( Coords(..)
                     , translateInDir )
 import           Space( Space(..)
                       , getMaterial
-                      , Material(..)
-                      , mkRectangle )
+                      , Material(..) )
 import           World( extend )
-import           WorldSize( WorldSize(..)
-                          , Location(..))
 
 
 data LaserType = Infinite

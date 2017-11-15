@@ -8,7 +8,6 @@ module Animation
     , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
     , renderAnimations
-    , WorldSize(..)
     ) where
 
 
@@ -34,8 +33,7 @@ import           Space( Space(..)
                       , getMaterial
                       , Material(..)
                       , location )
-import           WorldSize( WorldSize(..)
-                          , Location(..))
+import           WorldSize(Location(..))
 
 
 newtype Iteration = Iteration Int deriving(Generic, Eq, Show, Num)

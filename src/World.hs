@@ -179,6 +179,12 @@ mkWorld (WorldSize (Coords r c)) nums = do
 randomInt :: Int -> IO Int
 randomInt sz = getStdRandom $ randomR (0,sz-1)
 
+randomCoords :: WorldSize -> IO Coords
+randomCoords (WorldSize (Coords rs cs)) = do
+  r <- randomRow rs
+  c <- randomCol cs
+  return $ Coords r c
+
 randomRow :: Row -> IO Row
 randomRow (Row sz) = Row <$> randomInt sz
 
@@ -193,14 +199,11 @@ createRandomPosSpeed space = do
   pos <- randomNonCollidingPos space
   dx <- randomSpeed
   dy <- randomSpeed
-  -- todo if colliding loop
   return $ mirrorIfNeeded space $ PosSpeed pos (Coords (Row dx) (Col dy))
 
 randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ (WorldSize (Coords rs cs))) = do
-  r <- randomRow rs
-  c <- randomCol cs
-  let coords = Coords r c
+randomNonCollidingPos space@(Space _ worldSize) = do
+  coords <- randomCoords worldSize
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space
     Air -> return coords

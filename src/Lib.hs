@@ -288,18 +288,19 @@ gameWorker = makeInitialState firstLevel >>= loop
 
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
-  t <- getCurrentTime
   termSize <- Terminal.size
-  let nums = [1..(3+level)] -- more and more numbers as level increases
-      worldSz = 35 + 2 * (1-level) -- less and less space as level increases
-      rs = worldSz
-      cs = 2 * worldSz -- make it twice as large
-      size = WorldSize $ Coords (Row rs) (Col cs)
-      walls = 2
-      coords = maybe (Coords (Row 3) (Col 3)) (\(Terminal.Window h w) -> Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)) termSize
-  world <- mkWorld size nums
-  return $ GameState (Timer t) t t coords world Nothing [] (sum nums `quot` 2) $ Level level Nothing
+  let numbers = [1..(3+level)] -- more and more numbers as level increases
+      s = 35 + 2 * (1-level) -- less and less space as level increases
+      worldSize = WorldSize $ Coords (Row s) (Col (2*s))
+      coords = maybe (Coords (Row 3) (Col 3)) (`worldUpperLeftFromTermSize` worldSize) termSize
+  world <- mkWorld worldSize numbers
+  t <- getCurrentTime
+  return $ GameState (Timer t) t t coords world Nothing [] (sum numbers `quot` 2) $ Level level Nothing
 
+worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
+worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
+  let walls = 2 :: Int
+  in Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)
 
 loop :: GameState -> IO ()
 loop state =

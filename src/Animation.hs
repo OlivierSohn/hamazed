@@ -6,11 +6,12 @@ module Animation
     , stepEarliest
     , earliestDeadline
     , simpleExplosion
+    , simpleExplosionUntilCollisions
     , quantitativeExplosionThenSimpleExplosion
     , renderAnimations
     ) where
 
-
+import           Data.Either( rights )
 import           Data.List( partition )
 import           Data.Maybe( catMaybes )
 import           Data.Time( addUTCTime
@@ -18,7 +19,7 @@ import           Data.Time( addUTCTime
                           , UTCTime )
 
 import           GHC.Generics( Generic )
-
+import           Control.Exception( assert )
 --import           System.Random( getStdRandom
 --                              , randomR )
 
@@ -29,10 +30,6 @@ import           Geo( Coords(..)
                     , sumCoords
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc )
-import           Space( Space(..)
-                      , getMaterial
-                      , Material(..)
-                      , location )
 import           WorldSize(Location(..))
 
 
@@ -50,14 +47,14 @@ previousIteration (Iteration i) = Iteration $ pred i
 data Animation = Animation {
     _animationNextTime :: !UTCTime
   , _animationCounter  :: !Iteration
-  , _animationRender :: !(Animation -> Space -> RenderState -> IO (Maybe Animation))
+  , _animationRender :: !(Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 }
 
 data AnimationProgress = AnimationInProgress
                        | AnimationDone
                        deriving(Eq, Show)
 
-mkAnimation :: (Animation -> Space -> RenderState -> IO (Maybe Animation))
+mkAnimation :: (Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> UTCTime
             -> Animation
 mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) zeroIteration render
@@ -93,21 +90,21 @@ data AnimationOrigin = AnimationOrigin {
 -- Else, it continues first animation.
 firstAnimationWhileInsideWorldThenSecondAnimation :: (Coords -> Iteration -> [Coords])
                                                   -- ^ the second animation function (parameters are center and iteration)
-                                                  -> Space
+                                                  -> (Coords -> Location)
                                                   -> Iteration
                                                   -> (Coords, AnimationOrigin)
                                                   -- ^ (first animation point, current second animation origin)
                                                   -> ([Coords], AnimationOrigin)
                                                   -- ^ (resulting animation points : either [first animation point] or results of the second animation
                                                   --    , possibly modified origin of second animation (if second animation has not started yet or has just started)))
-firstAnimationWhileInsideWorldThenSecondAnimation anim2 sz iteration (anim1Point, col@(AnimationOrigin anim2Origin mayAnim2FirstIteration)) =
+firstAnimationWhileInsideWorldThenSecondAnimation anim2 getLocation iteration (anim1Point, col@(AnimationOrigin anim2Origin mayAnim2FirstIteration)) =
  case mayAnim2FirstIteration of
   (Just anim2FirstIteration) ->
   -- the second animation has started already
     let anim2Iteration = iteration - anim2FirstIteration
     in (anim2 anim2Origin anim2Iteration, col)
-  Nothing -> case getMaterial anim1Point sz of
-    Wall ->
+  Nothing -> case getLocation anim1Point of
+    OutsideWorld ->
     -- This is the first iteration where we are outside. anim1Point is the previous point
     -- which was set in the previous iteration, in the 'InsideWorld' match of this pattern match
     --
@@ -115,7 +112,7 @@ firstAnimationWhileInsideWorldThenSecondAnimation anim2 sz iteration (anim1Point
     -- with a radius 0 so we use a radius 1 here and make sure to record the previous iteration
     -- as the start of the 2nd animation, so that at the next iteration the radius will increase (= 2).
       (anim2 anim2Origin 1, AnimationOrigin anim2Origin $ Just $ previousIteration iteration)
-    Air ->
+    InsideWorld ->
     -- the first animation has not ended yet.
       ([anim1Point], AnimationOrigin anim1Point Nothing)
 
@@ -127,19 +124,19 @@ anim1WhileInsideWorldThenAnim2 :: (Coords -> Iteration -> [Coords])
                                -- correlate across iterations.
                                -> (Coords -> Iteration -> [Coords])
                                -- ^ Second animation.
-                               -> Space
+                               -> (Coords -> Location)
                                -> [AnimationOrigin]
                                -> Coords
                                -> Iteration
                                -> ([Coords], [AnimationOrigin])
-anim1WhileInsideWorldThenAnim2 anim1 anim2 sz prevAnim2Origins center iteration =
+anim1WhileInsideWorldThenAnim2 anim1 anim2 getLocation prevAnim2Origins center iteration =
   let anim1Points = anim1 center iteration
       anim2Origins =
         if null prevAnim2Origins
         then map (`AnimationOrigin` Nothing) anim1Points
         else prevAnim2Origins
       (pointsLists, newAnim2Origins) = unzip $
-        map (firstAnimationWhileInsideWorldThenSecondAnimation anim2 sz iteration) $
+        map (firstAnimationWhileInsideWorldThenSecondAnimation anim2 getLocation iteration) $
          zip anim1Points anim2Origins
   in (concat pointsLists, newAnim2Origins)
 
@@ -170,28 +167,34 @@ earliestDeadline animations = Just $ minimum $ map (\(Animation deadline _ _) ->
 --------------------------------------------------------------------------------
 
 
-renderAnimations :: Space -> RenderState -> [Animation] -> IO [Animation]
-renderAnimations sz r anims = do
-  newAnims <- mapM (\a@(Animation _ _ render) -> (render a sz r)) anims
+renderAnimations :: (Coords -> Location) -> RenderState -> [Animation] -> IO [Animation]
+renderAnimations getLocation r anims = do
+  newAnims <- mapM (\a@(Animation _ _ render) -> (render a getLocation r)) anims
   return $ catMaybes newAnims
 
-renderCharIfInFrame :: Char -> Coords -> Space -> RenderState -> IO Location
-renderCharIfInFrame char pos sz (RenderState upperLeftCoords) = do
-  let loc = location pos sz
+renderCharIfInFrame :: Char -> Coords -> (Coords -> Location) -> RenderState -> IO Location
+renderCharIfInFrame char pos getLocation (RenderState upperLeftCoords) = do
+  let loc = getLocation pos
   case loc of
     OutsideWorld -> return ()
     InsideWorld -> renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
   return loc
 
 setRender :: Animation
-          -> (Animation -> Space -> RenderState -> IO (Maybe Animation))
+          -> (Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
           -> Animation
 setRender (Animation t i _) = Animation t i
 
-simpleExplosion :: Coords -> Animation -> Space -> RenderState -> IO (Maybe Animation)
+simpleExplosion :: Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleExplosion center a@(Animation _ i _) = do
   let points = simpleExplosionPure center i
   renderAnimation points $ setRender a $ simpleExplosion center
+
+
+simpleExplosionUntilCollisions :: [Either (Coords, Iteration) Coords] -> Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosionUntilCollisions previousPoints center a@(Animation _ i _) getLocation s = do
+  let points = animateUntilCollision (simpleExplosionPure center) previousPoints i getLocation
+  renderAnimation (rights points) (setRender a $ simpleExplosionUntilCollisions points center) getLocation s
 
 {--
 quantitativeExplosion :: Int -> Coords -> Animation -> Space -> RenderState -> IO (Maybe Animation)
@@ -201,17 +204,65 @@ quantitativeExplosion number center a@(Animation _ i _) sz = do
   renderAnimation points (setRender a $ quantitativeExplosion number center) sz
 --}
 
-quantitativeExplosionThenSimpleExplosion :: [AnimationOrigin] -> Int -> Coords -> Animation -> Space -> RenderState -> IO (Maybe Animation)
+quantitativeExplosionThenSimpleExplosion :: [AnimationOrigin] -> Int -> Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 quantitativeExplosionThenSimpleExplosion anim2Origins number center a@(Animation _ i _) sz = do
   let (points, newAnim2Origins) = anim1WhileInsideWorldThenAnim2 (quantitativeExplosionPure number) simpleExplosionPure sz anim2Origins center i
   renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion newAnim2Origins number center) sz
 
-renderAnimation :: [Coords] -> Animation -> Space -> RenderState -> IO (Maybe Animation)
-renderAnimation points a sz state = do
-  loc <- renderPoints points '.' sz state
+
+renderAnimation :: [Coords] -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+renderAnimation points a getLocation state = do
+  loc <- renderPoints points '.' getLocation state
   return $ if loc == OutsideWorld then Nothing else Just a
 
-renderPoints :: [Coords] -> Char -> Space -> RenderState -> IO Location
-renderPoints points char sz state = do
-  locations <- mapM (\c -> renderCharIfInFrame char c sz state) points
+renderPoints :: [Coords] -> Char -> (Coords -> Location) -> RenderState -> IO Location
+renderPoints points char getLocation state = do
+  locations <- mapM (\c -> renderCharIfInFrame char c getLocation state) points
   return $ if null locations || all (== OutsideWorld) locations then OutsideWorld else InsideWorld
+
+
+animateUntilCollision :: (Iteration -> [Coords])
+                      -- ^ animation function which always returns the same number of Coords
+                      -> [Either (Coords, Iteration) Coords]
+                      -- ^ (empty for first iteration)
+                      --   Left  : last non-colliding coord and iteration,
+                      --   Right : non colliding coord (we don't know if the next coord will collide or not)
+                      -> Iteration
+                      -> (Coords -> Location)
+                      -- ^ collision function
+                      -> [Either (Coords, Iteration) Coords]
+animateUntilCollision animation mayPreviousState iteration =
+  let iterationResult = animation iteration
+      previousState = if null mayPreviousState
+        then
+          map Right iterationResult
+        else
+          mayPreviousState
+  in combine iterationResult previousState iteration
+
+combine :: [Coords]
+        -> [Either (Coords, Iteration) Coords]
+        -> Iteration
+        -> (Coords -> Location)
+        -> [Either (Coords, Iteration) Coords]
+combine points uncheckedPreviousPoints iteration getLocation =
+  let previousPoints = assert (length points == length uncheckedPreviousPoints) uncheckedPreviousPoints
+  in zipWith (combinePoints getLocation iteration) points previousPoints
+
+combinePoints :: (Coords -> Location)
+              -> Iteration
+              -> Coords
+              -> Either (Coords, Iteration) Coords
+              -> Either (Coords, Iteration) Coords
+combinePoints getLocation iteration point =
+  either Left (\prevPoint ->
+                  case getLocation point of
+                    OutsideWorld -> Left (prevPoint, previousIteration iteration)
+                    InsideWorld -> Right point)
+
+chainAnimationsOnCollision :: (Coords -> Location)
+                           -> [Iteration -> [Coords]]
+                          -- ^ each animation function should return a constant number of Coords across iterations
+                           -> (Iteration -> [Coords])
+                           -- ^ the returned animation function (can return different numbers of coords across iterations)
+chainAnimationsOnCollision getLocation animations = undefined

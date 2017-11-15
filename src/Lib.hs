@@ -35,6 +35,7 @@ import           System.IO( getChar
 import           System.Timeout( timeout )
 
 import           Animation( quantitativeExplosionThenSimpleExplosion
+                          , simpleExplosionUntilCollisions
                           , renderAnimations
                           , simpleExplosion )
 import           Console( configureConsoleFor
@@ -64,6 +65,7 @@ import           Laser( LaserType(..)
                       , stopRayAtFirstCollision )
 import           Space( Space(..)
                       , getMaterial
+                      , location
                       , Material(..) )
 import           Threading( runAndWaitForTermination
                           , Termination(..) )
@@ -173,11 +175,14 @@ nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed ship
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
+      animation (Number (PosSpeed pos _) n) = if n < 6
+        then quantitativeExplosionThenSimpleExplosion [] n pos
+        else simpleExplosionUntilCollisions [] pos
       newAnimations = (case destroyedBalls of
-        Number (PosSpeed pos _) n:_ -> mkAnimation (quantitativeExplosionThenSimpleExplosion [] n pos) t : animations
+        n:_ -> mkAnimation (animation n) t : animations
         _ -> animations)
         ++ case action of
-            Timeout GameStep -> [mkAnimation (simpleExplosion shipCoords) t | not (null collisions) && isNothing safeTime]
+            Timeout GameStep -> [mkAnimation (simpleExplosionUntilCollisions [] shipCoords) t | not (null collisions) && isNothing safeTime]
             _ -> []
       newWorld = nextWorld action world remainingBalls newAmmo newAnimations
       newFinished = finished <|> computeFinished t newWorld (sum allShotNumbers) target action
@@ -373,7 +378,7 @@ getCharWithinDurationMicros durationMicros =
 
 renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ upperLeft
-                   (World _ _ (BattleShip _ ammo _ _) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) animations)
+                   (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) animations)
                    _ shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
@@ -391,9 +396,9 @@ renderGame state@(GameState _ _ _ upperLeft
   _ <- goDown <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
        >>= renderRightAligned (showShotNumbers shotNumbers)
   _ <- renderCentered ("Objective : " ++ show target) (RenderState centerUp)
-  renderWorldFrame sz r >>=
+  renderWorldFrame space r >>=
     (\worldCorner -> do
-      activeAnimations <- renderAnimations sz worldCorner animations
+      activeAnimations <- renderAnimations (`location` space) worldCorner animations
       renderWorld state worldCorner
       return activeAnimations)
 

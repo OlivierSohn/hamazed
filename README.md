@@ -9,9 +9,11 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
-simple animation : should stop when encounters a collision.
+use the simpleExplosionUntilCollisions as 2nd element of the hardcoded sequence
+this will show how to generalize chained sequences on collisions
+
 implement, then genericize with "1whileInsideWorldThen2"
- 
+
 - implement render of space (deduce which wall element based on neighbors)
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 

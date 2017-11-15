@@ -42,7 +42,7 @@ mapMaterial Wall = 1
 mapInt :: CInt -> Material
 mapInt 0 = Air
 mapInt 1 = Wall
-mapInt _ = error "mapInt with that should never happen"
+mapInt _ = error "mapInt arg out of bounds"
 
 -- | creates an empty rectangle of size specified in parameters, with a one-element border
 mkRectangle :: Row -> Col -> Space
@@ -54,7 +54,11 @@ mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
 
       upperRow = replicate ncols wall
       middleRow = wall : replicate widthEmptySpace air ++ [wall]
-      l = [upperRow] ++ replicate heightEmptySpace middleRow ++ [upperRow]
+      ncolls = 0
+      nEmpty = heightEmptySpace - ncolls
+      n1 = quot nEmpty 2
+      n2 = nEmpty - n1
+      l = [upperRow] ++ replicate n1 middleRow ++ replicate ncolls upperRow ++ replicate n2 middleRow ++ [upperRow]
   in Space (fromLists l) (WorldSize $ Coords (Row heightEmptySpace) (Col widthEmptySpace))
 
 -- | 0,0 Coord corresponds to 1,1 matrix

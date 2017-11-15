@@ -9,7 +9,6 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
-- try rectangular spaces (WorldSize will be a pair)
 - implement render of space (deduce which wall element based on neighbors)
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 

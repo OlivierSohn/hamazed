@@ -292,9 +292,12 @@ makeInitialState level = do
   termSize <- Terminal.size
   let nums = [1..(3+level)] -- more and more numbers as level increases
       worldSz = 35 + 2 * (1-level) -- less and less space as level increases
-      sz = worldSz + 2 -- with walls
-      coords = maybe (Coords (Row 3) (Col 3)) (\(Terminal.Window h w) -> Coords (Row $ quot (h-sz) 2) (Col $ quot (w-sz) 2)) termSize
-  world <- mkWorld (WorldSize worldSz) nums
+      rs = worldSz
+      cs = 2 * worldSz -- make it twice as large
+      size = WorldSize $ Coords (Row rs) (Col cs)
+      walls = 2
+      coords = maybe (Coords (Row 3) (Col 3)) (\(Terminal.Window h w) -> Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)) termSize
+  world <- mkWorld size nums
   return $ GameState (Timer t) t t coords world Nothing [] (sum nums `quot` 2) $ Level level Nothing
 
 
@@ -369,15 +372,19 @@ getCharWithinDurationMicros durationMicros =
 
 renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ upperLeft
-                   (World _ _ (BattleShip _ ammo _ _) sz@(Space _ (WorldSize worldSize)) animations)
+                   (World _ _ (BattleShip _ ammo _ _) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) animations)
                    _ shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
-      full = worldSize + 2 -- with walls
-      half = quot full 2
-      centerUp   = translate (Coords (Row $ -1)       (Col half)) upperLeft
-      centerDown = translate (Coords (Row $ full + 1) (Col half)) upperLeft
-      leftMiddle = translate (Coords (Row half)       (Col $ -1)) upperLeft
+      addWallSize = (+ 2)
+      half = flip quot 2
+      mkSizes s = (addWallSize s, half s)
+      (rFull, rHalf) = mkSizes rs
+      (_    , cHalf) = mkSizes cs
+
+      centerUp   = translate (Coords (Row $ -1)        (Col cHalf)) upperLeft
+      centerDown = translate (Coords (Row $ rFull + 1) (Col cHalf)) upperLeft
+      leftMiddle = translate (Coords (Row rHalf)       (Col $ -1)) upperLeft
       --rightMiddle= translate (Coords (Row half)       (Col $ full + 1)) upperLeft
   _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
   _ <- goDown <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
@@ -391,7 +398,7 @@ renderGame state@(GameState _ _ _ upperLeft
 
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize s)) _)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) _)
                    maybeLaserRay _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
   _ <- case maybeLaserRay of
     (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
@@ -404,9 +411,7 @@ renderWorld (GameState _ _ _ _
     render_ '+' shipCoords sz worldCorner
     setSGR [SetColor Foreground Vivid White])
   let
-    full = s
-    half = quot full 2
-    rightMiddle = translate (Coords (Row half) (Col $ full + 2)) upperLeft
+    rightMiddle = translate (Coords (Row (quot rs 2)) (Col $ cs + 2)) upperLeft
   mapM_ (renderLevelState (RenderState rightMiddle) level) levelState
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
@@ -450,21 +455,21 @@ renderRightAligned str (RenderState rightAlignment) = do
 -- TODO precompute the list of Str in the Space to avoid recreating them at each frame
 -- and allow a better rendering ( T | _ + ) depnding on neighbours
 renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame (Space _ (WorldSize worldSize)) upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLeft@(RenderState upperLeftCoords) = do
   let --colIndexes = [0..sz+1]
       --rowIndexes = [0..sz+1]
 
-      horizontalWall = replicate (worldSize + 2)
-      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ worldSize+1) (Col 0)
+      horizontalWall = replicate (cs + 2)
+      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ rs+1) (Col 0)
 
   -- upper wall
   (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
   let worldCoords = translateInDir RIGHT renderCoords
 
   -- left & right walls
-  let leftWallCoords = take worldSize $ iterate (translateInDir Down) renderCoords
-      toRight = Coords (Row 0) (Col $ worldSize+1)
-      rightWallCoords = take worldSize $ iterate (translateInDir Down) $ sumCoords renderCoords toRight
+  let leftWallCoords = take rs $ iterate (translateInDir Down) renderCoords
+      toRight = Coords (Row 0) (Col $ cs+1)
+      rightWallCoords = take rs $ iterate (translateInDir Down) $ sumCoords renderCoords toRight
   mapM_ (renderChar_ '|' . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall

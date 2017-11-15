@@ -1,13 +1,12 @@
-{-# LANGUAGE DeriveGeneric #-}
 
 module WorldSize
     ( WorldSize(..)
     , Location(..)
     ) where
 
-import           GHC.Generics( Generic )
+import           Geo( Coords(..) )
 
-newtype WorldSize = WorldSize { _worldSizeValue :: Int } deriving(Generic, Eq, Show)
+newtype WorldSize = WorldSize Coords
 
 data Location = InsideWorld
               | OutsideWorld

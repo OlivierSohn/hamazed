@@ -55,14 +55,14 @@ mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
       upperRow = replicate ncols wall
       middleRow = wall : replicate widthEmptySpace air ++ [wall]
       l = [upperRow] ++ replicate heightEmptySpace middleRow ++ [upperRow]
-  in Space (fromLists l) (WorldSize widthEmptySpace)
+  in Space (fromLists l) (WorldSize $ Coords (Row heightEmptySpace) (Col widthEmptySpace))
 
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
-getMaterial (Coords (Row r) (Col c)) (Space mat (WorldSize s))
+getMaterial (Coords (Row r) (Col c)) (Space mat (WorldSize (Coords (Row rs) (Col cs))))
   | r < 0 || c < 0 = Wall
-  | r > s-1 || c > s-1 = Wall
-  | otherwise = mapInt $ mat !(r+1) !(c+1) -- TODO verify if it's not the other way around (transposed)
+  | r > rs-1 || c > cs-1 = Wall
+  | otherwise = mapInt $ mat !(r+1) !(c+1)
 
 location :: Coords -> Space -> Location
 location c s = case getMaterial c s of

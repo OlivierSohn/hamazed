@@ -12,6 +12,8 @@ module Timing
 import           Data.Time( addUTCTime
                           , diffUTCTime
                           , UTCTime )
+import           Geo( Col(..)
+                    , Coords(..) )
 import           WorldSize( WorldSize(..) )
 
 
@@ -37,22 +39,22 @@ eraMicros = eraMillis * 1000
                     -- 20 seems to match screen refresh frequency
 
 
-tickRepresentationLength :: WorldSize -> Int
-tickRepresentationLength (WorldSize worldSize) = quot worldSize 2
+tickRepresentationLength :: Col -> Int
+tickRepresentationLength (Col c) = quot c 2
 
 
 showUpdateTick :: Int -> WorldSize -> String
-showUpdateTick t ws@(WorldSize worldSize) =
-  let l = tickRepresentationLength ws
-      nDotsBefore = max 0 (t + l - worldSize)
+showUpdateTick t (WorldSize (Coords _ c@(Col cs))) =
+  let l = tickRepresentationLength c
+      nDotsBefore = max 0 (t + l - cs)
       nLeftBlanks = t - nDotsBefore
       nDotsAfter = l - nDotsBefore
-      nRightBlanks = worldSize - t - l
+      nRightBlanks = cs - t - l
   in replicate nDotsBefore  '.'
   ++ replicate nLeftBlanks  ' '
   ++ replicate nDotsAfter   '.'
   ++ replicate nRightBlanks ' '
 
 
-nextUpdateCounter :: WorldSize -> Int -> Int
-nextUpdateCounter (WorldSize worldSize) c = (c + 1) `mod` worldSize
+nextUpdateCounter :: Col -> Int -> Int
+nextUpdateCounter (Col c) i = (i + 1) `mod` c

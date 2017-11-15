@@ -169,15 +169,21 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 --------------------------------------------------------------------------------
 
 mkWorld :: WorldSize -> [Int] -> IO World
-mkWorld (WorldSize sz) nums = do
-  let space = mkRectangle (Row sz) (Col sz)
+mkWorld (WorldSize (Coords r c)) nums = do
+  let space = mkRectangle r c
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createRandomPosSpeed space
   t <- getCurrentTime
   return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space []
 
-randomPos :: WorldSize -> IO Int
-randomPos (WorldSize worldSize) = getStdRandom $ randomR (0,worldSize-1)
+randomInt :: Int -> IO Int
+randomInt sz = getStdRandom $ randomR (0,sz-1)
+
+randomRow :: Row -> IO Row
+randomRow (Row sz) = Row <$> randomInt sz
+
+randomCol :: Col -> IO Col
+randomCol (Col sz) = Col <$> randomInt sz
 
 randomSpeed :: IO Int
 randomSpeed = getStdRandom $ randomR (-1,1)
@@ -191,10 +197,10 @@ createRandomPosSpeed space = do
   return $ mirrorIfNeeded space $ PosSpeed pos (Coords (Row dx) (Col dy))
 
 randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ size) = do
-  r <- randomPos size
-  c <- randomPos size
-  let coords = Coords (Row r) (Col c)
+randomNonCollidingPos space@(Space _ (WorldSize (Coords rs cs))) = do
+  r <- randomRow rs
+  c <- randomCol cs
+  let coords = Coords r c
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space
     Air -> return coords

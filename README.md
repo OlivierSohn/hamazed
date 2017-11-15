@@ -3,9 +3,9 @@
 A terminal ascii game I write to practice some Haskell. With 12 levels, of increasing difficulty.
 
 In this game, you control a ship in direction, and you can shoot at moving numbers.
-When the sum of shot numbers is equal to the objective number of the level, the level is completed.
-During the 5 first seconds of each level, the ship is immune to collisions with numbers, but after that,
+During the 5 first seconds, the ship is immune to collisions with numbers, but after that,
 if the ship collides with a number it disintegrates.
+When the sum of shot numbers is equal to the objective number, the level is completed.
 
 # Backlog
 

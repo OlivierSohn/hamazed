@@ -9,13 +9,26 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
-- bug: cursor when editing is invisible.
+- flicker : there are several unsynchronized periods:
+  - game forward      (fixed start,  fixed period,  low  rate)
+  - animation forward (moving start, fixed period,  high rate)
+  - user actions      (moving start, moving period, low  rate)
+
+This leads to flicker. We should synchronize more to avoid flushing at very close intervals
+(I think this is what produces the flicker).
+
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions
 
 - implement render of space (deduce which wall element based on neighbors)
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 
+## Game Notions
+- when 2 rooms are separated by a wall, the wall can be destroyed by
+hitting a key (the key should be present also in the other room)
+- or each room has an objective number, once the objective is reached, a door opens to the next room
+
+## Graphics
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design

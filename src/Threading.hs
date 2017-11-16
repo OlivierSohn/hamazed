@@ -1,14 +1,17 @@
 module Threading
     ( runAndWaitForTermination
     , Termination(..)
+    , setupCapabilities
     ) where
 
 
+import           GHC.Conc(getNumProcessors)
 import           Control.Concurrent( forkFinally
                                    , MVar
                                    , newEmptyMVar
                                    , putMVar
-                                   , readMVar )
+                                   , readMVar
+                                   , setNumCapabilities )
 import           Control.Exception( SomeException(..) )
 import           Control.Monad( (>=>) )
 
@@ -21,10 +24,18 @@ data Termination = Normal | Abnormal
 
 runAndWaitForTermination :: IO () -> IO Termination
 runAndWaitForTermination io = do
+  --setupCapabilities
   -- launch game thread
   gameThreadTerminated <- myForkIO io
   -- wait for game thread to finish
   readMVar gameThreadTerminated
+
+-- TODO is it needed?
+setupCapabilities :: IO ()
+setupCapabilities = do
+  nproc <- getNumProcessors
+  let ncap = max 1 $ quot nproc 2
+  setNumCapabilities ncap
 
 
 -- This function was introduced so that the parent thread can wait on the

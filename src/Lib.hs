@@ -65,6 +65,7 @@ import           Laser( LaserType(..)
                       , stopRayAtFirstCollision )
 import           Space( Space(..)
                       , getMaterial
+                      , forEach
                       , location
                       , Material(..) )
 import           Threading( runAndWaitForTermination
@@ -461,7 +462,7 @@ renderRightAligned str (RenderState rightAlignment) = do
 -- TODO precompute the list of Str in the Space to avoid recreating them at each frame
 -- and allow a better rendering ( T | _ + ) depnding on neighbours
 renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLeft@(RenderState upperLeftCoords) = do
   let --colIndexes = [0..sz+1]
       --rowIndexes = [0..sz+1]
 
@@ -480,6 +481,9 @@ renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLeft@(Ren
 
   -- lower wall
   _ <- renderStrLn (horizontalWall 'T') lowerLeft
+
+  let wallCoordinates = forEach Wall space (sumCoords worldCoords)
+  mapM_ (renderChar_ 'Z' . RenderState) wallCoordinates
   return $ RenderState worldCoords
 
 

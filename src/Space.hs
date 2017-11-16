@@ -14,8 +14,7 @@ import           GHC.Generics( Generic )
 
 import           Numeric.LinearAlgebra.Data( (!)
                                            , fromLists
-                                           , Matrix
-                                           , atIndex )
+                                           , Matrix )
 
 import           Foreign.C.Types( CInt(..) )
 
@@ -35,14 +34,12 @@ data Material = Air
               deriving(Generic, Eq, Show)
 
 
--- TODO traverse the matrix in a smart way to use cache effectively
--- TODO also it would be nive if that smart way would match the screen lines
--- TODO this way we could render line by line instead of char by char
+-- TODO traverse the matrix row by row (matrix is row major) to use cache effectively.
+-- TODO Also, this way we can render line by line instead of char by char
 forEach :: Material -> Space -> (Coords -> a) -> [a]
 forEach material (Space mat (WorldSize (Coords (Row rs) (Col cs)))) f =
   let iMat = mapMaterial material
   in map (\(r,c) -> f (Coords (Row r) (Col c))) $ filter (\(r,c) -> iMat == mat !(r+1) !(c+1) ) [(r,c) | r <- [0..rs-1], c <- [0..cs-1] ]
-
 
 -- unfortunately I didn't find a Matrix implementation that supports arbitrary types
 -- so I need to map my type on a CInt

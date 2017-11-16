@@ -103,6 +103,8 @@ combinePoints getLocation iteration point =
                     OutsideWorld -> Left $ Tree prevPoint (previousIteration iteration) Nothing
                     InsideWorld -> Right point)
 
+-- TODO
+{--
 chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
                            -- ^ each animation function should return a constant number of Coords across iterations
                            -> Iteration
@@ -111,6 +113,7 @@ chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
                            -> Tree
                            -> Tree
 chainAnimationsOnCollision animations iteration getLocation tree = undefined
+--}
 
 chain2AnimationsOnCollision :: (Coords -> Iteration -> [Coords])
                             -- ^ animation 1
@@ -200,20 +203,20 @@ setRender :: Animation
 setRender (Animation t i _) = Animation t i
 
 simpleExplosion :: Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion state@(Tree center _ _) a@(Animation _ i _) getLocation s = do
+simpleExplosion state a@(Animation _ i _) getLocation s = do
   let newState = applyAnimation simpleExplosionPure i getLocation state
       points = getAliveCoordinates newState
-  renderAnimation points (setRender a $ simpleExplosion newState) getLocation s
+  renderAnimation points (setRender a $ simpleExplosion newState) s
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-quantitativeExplosionThenSimpleExplosion number state@(Tree center _ _) a@(Animation _ i _) getLocation = do
+quantitativeExplosionThenSimpleExplosion number state a@(Animation _ i _) getLocation = do
   let newState = chain2AnimationsOnCollision (quantitativeExplosionPure number) simpleExplosionPure i getLocation state
       points = getAliveCoordinates newState
-  renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion number newState) getLocation
+  renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion number newState)
 
 
-renderAnimation :: [Coords] -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAnimation points a getLocation state = do
+renderAnimation :: [Coords] -> Animation -> RenderState -> IO (Maybe Animation)
+renderAnimation points a state = do
   renderPoints points '.' state
   return $ if null points then Nothing else Just a
 

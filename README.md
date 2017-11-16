@@ -9,6 +9,7 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
+- bug: cursor when editing is invisible.
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions
 

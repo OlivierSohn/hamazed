@@ -5,6 +5,7 @@ module World
     , Animation(..)
     , mkAnimation
     , BattleShip(..)
+    , accelerateShip
     , coordsForActionTargets
     , extend
     , mkWorld
@@ -92,6 +93,11 @@ data BattleShip = BattleShip {
   , _shipCollisions :: ![Number]
 }
 
+accelerateShip :: Direction -> BattleShip -> BattleShip
+accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
+  let newSpeed = sumCoords speed $ coordsForDirection dir
+  in BattleShip (PosSpeed pos newSpeed) ba bb bc
+
 data World = World{
     _worldNumbers :: ![Number]
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
@@ -108,11 +114,9 @@ data Number = Number {
 getColliding :: Coords -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
-nextWorld :: Action -> World -> [Number] -> Int -> [Animation] -> World
-nextWorld action (World _ changePos (BattleShip (PosSpeed shipPos shipSpeed) _ safeTime collisions) size _) balls ammo anims =
-  let shipAcceleration = coordsForActionTargets Ship [action]
-      shipSamePosChangedSpeed = PosSpeed shipPos $ sumCoords shipSpeed shipAcceleration
-  in World balls changePos (BattleShip shipSamePosChangedSpeed ammo safeTime collisions) size anims
+nextWorld :: World -> [Number] -> Int -> [Animation] -> World
+nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _) balls ammo =
+  World balls changePos (BattleShip posspeed ammo safeTime collisions) size
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
 moveWorld :: UTCTime -> World -> World

@@ -9,7 +9,6 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
-- prerender space
 - implement render of space (deduce which wall element based on neighbors)
 
 - flicker : there are several unsynchronized periods:
@@ -28,8 +27,6 @@ the game and some animations in the same timestep (or shoot the laser and animat
 To avoid noticeable timing difference when animation deadline is merged, we could even force animations
 to happen at fixed start (eg 5 animation steps per game step, and 1 step is common). This has also
 the advantage to reduce the need to render when there are multiple animations.
-
-Do not when the speed of the ship changes (it does not change the graphics in any way).
 
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions

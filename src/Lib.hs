@@ -76,7 +76,8 @@ import           Timing( addMotionStepDuration
                        , Timer(..)
                        , diffTimeSecToMicros )
 import           Util( showListOrSingleton )
-import           World( Action(..)
+import           World( accelerateShip
+                      , Action(..)
                       , ActionTarget(..)
                       , Animation(..)
                       , BattleShip(..)
@@ -186,7 +187,7 @@ nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed ship
         ++ case action of
             Timeout GameStep -> [mkAnimation (simpleExplosion (mkAnimationTree shipCoords)) t | not (null collisions) && isNothing safeTime]
             _ -> []
-      newWorld = nextWorld action world remainingBalls newAmmo newAnimations
+      newWorld = nextWorld world remainingBalls newAmmo newAnimations
       newFinished = finished <|> computeFinished t newWorld (sum allShotNumbers) target action
       newLevel = Level i newFinished
   in  GameState a t b d newWorld maybeLaserRay allShotNumbers target newLevel
@@ -351,14 +352,23 @@ updateGameUsingAction state@(GameState a _ b d world f g h i@(Level level mayLev
 
 
 updateGame2 :: Action -> GameState -> IO GameState
-updateGame2 a s = do
-  clearScreen
-  let s2 = nextGameState s a
-  animations <- renderGame s2
-  let s3 = replaceAnimations animations s2
-  hFlush stdout
-  return s3
+updateGame2 a s =
+  case a of
+    Action Ship dir -> return $ accelerateShip' dir s
+    _ -> do
+      clearScreen
+      let s2 = nextGameState s a
+      animations <- renderGame s2
+      let s3 = replaceAnimations animations s2
+      hFlush stdout
+      return s3
 
+
+accelerateShip' :: Direction -> GameState -> GameState
+accelerateShip' dir (GameState a b c d (World wa wb ship wc wd) f g h i) =
+  let newShip = accelerateShip dir ship
+      world = World wa wb newShip wc wd
+  in GameState a b c d world f g h i
 
 getAction :: GameState -> IO Action
 getAction state@(GameState _ _ _ _ _ _ _ _ level) =

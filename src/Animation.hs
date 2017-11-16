@@ -3,17 +3,19 @@
 module Animation
     ( Animation(..)
     , mkAnimation
+    , mkAnimationRoot
+    , Tree -- constructors are hidden
     , stepEarliest
     , earliestDeadline
-    , simpleExplosion
     , simpleExplosionUntilCollisions
-    , quantitativeExplosionThenSimpleExplosion
+    , quantitativeExplosionThenSimpleExplosionUntilCollision
     , renderAnimations
     ) where
 
-import           Data.Either( rights )
 import           Data.List( partition )
-import           Data.Maybe( catMaybes )
+import           Data.Either( partitionEithers )
+import           Data.Maybe( catMaybes
+                           , fromMaybe )
 import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime )
@@ -75,70 +77,6 @@ quantitativeExplosionPure number center (Iteration iteration) =
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
   in translatedFullCircle center radius firstAngle number
 
--- | A structure used to sequence animations.
-data AnimationOrigin = AnimationOrigin {
-    -- The reference point, wrt World frame. Typically it will be the last point
-    -- of the previous animation in the sequence.
-    _animationOriginCoords :: !Coords
-    -- when Just, it is the iteration (of the previous animation in the sequence)
-    -- at which the animation started. If Nothing, the animation has not yet started.
-  , _animationOriginFirstIteration :: !(Maybe Iteration)
-}
-
--- | This function tests if the second animation has already begun. If it has begun, it continues it.
--- Else If first animation is outside the world, it starts second animation.
--- Else, it continues first animation.
-firstAnimationWhileInsideWorldThenSecondAnimation :: (Coords -> Iteration -> [Coords])
-                                                  -- ^ the second animation function (parameters are center and iteration)
-                                                  -> (Coords -> Location)
-                                                  -> Iteration
-                                                  -> (Coords, AnimationOrigin)
-                                                  -- ^ (first animation point, current second animation origin)
-                                                  -> ([Coords], AnimationOrigin)
-                                                  -- ^ (resulting animation points : either [first animation point] or results of the second animation
-                                                  --    , possibly modified origin of second animation (if second animation has not started yet or has just started)))
-firstAnimationWhileInsideWorldThenSecondAnimation anim2 getLocation iteration (anim1Point, col@(AnimationOrigin anim2Origin mayAnim2FirstIteration)) =
- case mayAnim2FirstIteration of
-  (Just anim2FirstIteration) ->
-  -- the second animation has started already
-    let anim2Iteration = iteration - anim2FirstIteration
-    in (anim2 anim2Origin anim2Iteration, col)
-  Nothing -> case getLocation anim1Point of
-    OutsideWorld ->
-    -- This is the first iteration where we are outside. anim1Point is the previous point
-    -- which was set in the previous iteration, in the 'InsideWorld' match of this pattern match
-    --
-    -- Also, at the previous iteration the resulting point was equivalent to the call hereunder
-    -- with a radius 0 so we use a radius 1 here and make sure to record the previous iteration
-    -- as the start of the 2nd animation, so that at the next iteration the radius will increase (= 2).
-      (anim2 anim2Origin 1, AnimationOrigin anim2Origin $ Just $ previousIteration iteration)
-    InsideWorld ->
-    -- the first animation has not ended yet.
-      ([anim1Point], AnimationOrigin anim1Point Nothing)
-
-
--- | In this function, 'Coords' in the types of functions passed as arguments are animation origins.
-anim1WhileInsideWorldThenAnim2 :: (Coords -> Iteration -> [Coords])
-                               -- ^ First animation. Regardless of iteration number, it should
-                               -- returns the same number of points, and that 'same index' points
-                               -- correlate across iterations.
-                               -> (Coords -> Iteration -> [Coords])
-                               -- ^ Second animation.
-                               -> (Coords -> Location)
-                               -> [AnimationOrigin]
-                               -> Coords
-                               -> Iteration
-                               -> ([Coords], [AnimationOrigin])
-anim1WhileInsideWorldThenAnim2 anim1 anim2 getLocation prevAnim2Origins center iteration =
-  let anim1Points = anim1 center iteration
-      anim2Origins =
-        if null prevAnim2Origins
-        then map (`AnimationOrigin` Nothing) anim1Points
-        else prevAnim2Origins
-      (pointsLists, newAnim2Origins) = unzip $
-        map (firstAnimationWhileInsideWorldThenSecondAnimation anim2 getLocation iteration) $
-         zip anim1Points anim2Origins
-  in (concat pointsLists, newAnim2Origins)
 
 animationPeriod :: Data.Time.NominalDiffTime
 animationPeriod = 0.02
@@ -172,79 +110,43 @@ renderAnimations getLocation r anims = do
   newAnims <- mapM (\a@(Animation _ _ render) -> (render a getLocation r)) anims
   return $ catMaybes newAnims
 
-renderCharIfInFrame :: Char -> Coords -> (Coords -> Location) -> RenderState -> IO Location
-renderCharIfInFrame char pos getLocation (RenderState upperLeftCoords) = do
-  let loc = getLocation pos
-  case loc of
-    OutsideWorld -> return ()
-    InsideWorld -> renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
-  return loc
+renderChar :: Char -> Coords -> RenderState -> IO ()
+renderChar char pos (RenderState upperLeftCoords) =
+  renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
 
 setRender :: Animation
           -> (Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
           -> Animation
 setRender (Animation t i _) = Animation t i
 
-simpleExplosion :: Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion center a@(Animation _ i _) = do
-  let points = simpleExplosionPure center i
-  renderAnimation points $ setRender a $ simpleExplosion center
+simpleExplosionUntilCollisions :: Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosionUntilCollisions state@(Tree center _ _) a@(Animation _ i _) getLocation s = do
+  let newState = animateUntilCollision (simpleExplosionPure center) state i getLocation
+      points = getLeaves newState
+  renderAnimation points (setRender a $ simpleExplosionUntilCollisions newState) getLocation s
 
-
-simpleExplosionUntilCollisions :: [Either (Coords, Iteration) Coords] -> Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosionUntilCollisions previousPoints center a@(Animation _ i _) getLocation s = do
-  let points = animateUntilCollision (simpleExplosionPure center) previousPoints i getLocation
-  renderAnimation (rights points) (setRender a $ simpleExplosionUntilCollisions points center) getLocation s
-
-{--
-quantitativeExplosion :: Int -> Coords -> Animation -> Space -> RenderState -> IO (Maybe Animation)
-quantitativeExplosion number center a@(Animation _ i _) sz = do
-  let originalPoints = quantitativeExplosionPure number center i
-      points = mapMaybe (reboundMaxRecurse sz 4) originalPoints
-  renderAnimation points (setRender a $ quantitativeExplosion number center) sz
---}
-
-quantitativeExplosionThenSimpleExplosion :: [AnimationOrigin] -> Int -> Coords -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-quantitativeExplosionThenSimpleExplosion anim2Origins number center a@(Animation _ i _) sz = do
-  let (points, newAnim2Origins) = anim1WhileInsideWorldThenAnim2 (quantitativeExplosionPure number) simpleExplosionPure sz anim2Origins center i
-  renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion newAnim2Origins number center) sz
+quantitativeExplosionThenSimpleExplosionUntilCollision :: Int -> Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+quantitativeExplosionThenSimpleExplosionUntilCollision number state@(Tree center _ _) a@(Animation _ i _) getLocation = do
+  let newState = chain2AnimationsOnCollision (quantitativeExplosionPure number center) simpleExplosionPure i getLocation state
+      points = getLeaves newState
+  renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosionUntilCollision number newState) getLocation
 
 
 renderAnimation :: [Coords] -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 renderAnimation points a getLocation state = do
-  loc <- renderPoints points '.' getLocation state
-  return $ if loc == OutsideWorld then Nothing else Just a
+  renderPoints points '.' state
+  return $ if null points then Nothing else Just a
 
-renderPoints :: [Coords] -> Char -> (Coords -> Location) -> RenderState -> IO Location
-renderPoints points char getLocation state = do
-  locations <- mapM (\c -> renderCharIfInFrame char c getLocation state) points
-  return $ if null locations || all (== OutsideWorld) locations then OutsideWorld else InsideWorld
+renderPoints :: [Coords] -> Char -> RenderState -> IO ()
+renderPoints points char state =
+  mapM_ (\c -> renderChar char c state) points
 
-
-animateUntilCollision :: (Iteration -> [Coords])
-                      -- ^ animation function which always returns the same number of Coords
-                      -> [Either (Coords, Iteration) Coords]
-                      -- ^ (empty for first iteration)
-                      --   Left  : last non-colliding coord and iteration,
-                      --   Right : non colliding coord (we don't know if the next coord will collide or not)
-                      -> Iteration
-                      -> (Coords -> Location)
-                      -- ^ collision function
-                      -> [Either (Coords, Iteration) Coords]
-animateUntilCollision animation mayPreviousState iteration =
-  let iterationResult = animation iteration
-      previousState = if null mayPreviousState
-        then
-          map Right iterationResult
-        else
-          mayPreviousState
-  in combine iterationResult previousState iteration
 
 combine :: [Coords]
-        -> [Either (Coords, Iteration) Coords]
+        -> [Either Tree Coords]
         -> Iteration
         -> (Coords -> Location)
-        -> [Either (Coords, Iteration) Coords]
+        -> [Either Tree Coords]
 combine points uncheckedPreviousPoints iteration getLocation =
   let previousPoints = assert (length points == length uncheckedPreviousPoints) uncheckedPreviousPoints
   in zipWith (combinePoints getLocation iteration) points previousPoints
@@ -252,17 +154,84 @@ combine points uncheckedPreviousPoints iteration getLocation =
 combinePoints :: (Coords -> Location)
               -> Iteration
               -> Coords
-              -> Either (Coords, Iteration) Coords
-              -> Either (Coords, Iteration) Coords
+              -> Either Tree Coords
+              -> Either Tree Coords
 combinePoints getLocation iteration point =
   either Left (\prevPoint ->
                   case getLocation point of
-                    OutsideWorld -> Left (prevPoint, previousIteration iteration)
+                    OutsideWorld -> Left $ Tree prevPoint (previousIteration iteration) Nothing
                     InsideWorld -> Right point)
 
 chainAnimationsOnCollision :: (Coords -> Location)
                            -> [Iteration -> [Coords]]
-                          -- ^ each animation function should return a constant number of Coords across iterations
+                           -- ^ each animation function should return a constant number of Coords across iterations
                            -> (Iteration -> [Coords])
                            -- ^ the returned animation function (can return different numbers of coords across iterations)
 chainAnimationsOnCollision getLocation animations = undefined
+
+-- \ This datastructure allows to sequence animations easily.
+--
+-- An animation is typically defined by an origin coordinate, and gives birth to
+-- a set of moving points (like an explosion).
+-- Once a moving point of the animation collides with the world, the animation
+-- typically stops, and maybe another animation starts at that point.
+data Tree = Tree {
+    _treeRoot :: !Coords
+    -- ^ where the animation starts
+  , _treeStart :: !Iteration
+    -- ^ when the animation starts (relatively to parent if any)
+  , _treeBranches :: !(Maybe [Either Tree Coords])
+    -- ^ the current animation results : an element is 'Coords' if the animation is still alive
+    -- for this element, else 'Tree'. Typically an animation is alive for an element until there is
+    -- a collision with the world. This collision my give birth to another animation tree.
+}
+
+getLeaves :: Tree -> [Coords]
+getLeaves (Tree _ _ Nothing) = []
+getLeaves (Tree _ _ (Just [])) = []
+getLeaves (Tree _ _ (Just branches)) =
+  let (trees, coordinates) = partitionEithers branches
+      recurse = concatMap getLeaves trees
+  in coordinates ++ recurse
+
+mkAnimationRoot :: Coords -> Tree
+mkAnimationRoot c = Tree c 0 Nothing
+
+chain2AnimationsOnCollision :: (Iteration -> [Coords])
+                            -- ^ animation 1
+                            -> (Coords -> Iteration -> [Coords])
+                            -- ^ animation 2 (is passed a reference point)
+                            -> Iteration
+                            -> (Coords -> Location)
+                            -- ^ collision function
+                            -> Tree
+                            -> Tree
+chain2AnimationsOnCollision anim1 anim2 iteration getLocation tree  =
+  let (Tree a b branches) = animateUntilCollision anim1 tree iteration getLocation
+      newBranches = Just $ case branches of
+        Nothing -> error "animateUntilCollision was supposed to create a Just ?"
+        Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
+  in Tree a b newBranches
+
+applyAnimation :: (Coords -> Iteration -> [Coords])
+               -> Iteration
+               -> (Coords -> Location)
+               -> Tree
+               -> Tree
+applyAnimation animation globalIteration getLocation (Tree root startIteration branches) =
+  let iteration = globalIteration - startIteration
+      points = animation root iteration
+      newBranches = combine points (fromMaybe (map Right points) branches) iteration getLocation
+  in Tree root startIteration $ Just newBranches
+
+animateUntilCollision :: (Iteration -> [Coords])
+                      -- ^ animation function which always returns the same number of Coords
+                      -> Tree
+                      -> Iteration
+                      -> (Coords -> Location)
+                      -- ^ collision function
+                      -> Tree
+animateUntilCollision animation (Tree a b mayPreviousState) iteration getLocation =
+  let iterationResult = animation iteration
+      previousState = fromMaybe (map Right iterationResult) mayPreviousState
+  in Tree a b $ Just (combine iterationResult previousState iteration getLocation)

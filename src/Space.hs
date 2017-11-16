@@ -54,7 +54,7 @@ mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
 
       upperRow = replicate ncols wall
       middleRow = wall : replicate widthEmptySpace air ++ [wall]
-      ncolls = 0
+      ncolls = 8
       nEmpty = heightEmptySpace - ncolls
       n1 = quot nEmpty 2
       n2 = nEmpty - n1

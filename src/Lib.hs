@@ -34,11 +34,10 @@ import           System.IO( getChar
                           , stdout )
 import           System.Timeout( timeout )
 
-import           Animation( quantitativeExplosionThenSimpleExplosionUntilCollision
-                          , simpleExplosionUntilCollisions
-                          , renderAnimations
+import           Animation( quantitativeExplosionThenSimpleExplosion
                           , simpleExplosion
-                          , mkAnimationRoot )
+                          , renderAnimations
+                          , mkAnimationTree )
 import           Console( configureConsoleFor
                         , ConsoleConfig(..)
                         , renderChar_
@@ -177,13 +176,13 @@ nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed ship
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       animation (Number (PosSpeed pos _) n) = if n < 6
-        then quantitativeExplosionThenSimpleExplosionUntilCollision n (mkAnimationRoot pos)
-        else simpleExplosionUntilCollisions (mkAnimationRoot pos)
+        then quantitativeExplosionThenSimpleExplosion n (mkAnimationTree pos)
+        else simpleExplosion (mkAnimationTree pos)
       newAnimations = (case destroyedBalls of
         n:_ -> mkAnimation (animation n) t : animations
         _ -> animations)
         ++ case action of
-            Timeout GameStep -> [mkAnimation (simpleExplosionUntilCollisions (mkAnimationRoot shipCoords)) t | not (null collisions) && isNothing safeTime]
+            Timeout GameStep -> [mkAnimation (simpleExplosion (mkAnimationTree shipCoords)) t | not (null collisions) && isNothing safeTime]
             _ -> []
       newWorld = nextWorld action world remainingBalls newAmmo newAnimations
       newFinished = finished <|> computeFinished t newWorld (sum allShotNumbers) target action

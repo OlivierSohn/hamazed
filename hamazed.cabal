@@ -31,10 +31,11 @@ library
                      , ansi-terminal
                      , hmatrix
                      , monad-loops
+                     , random
                      , terminal-size
                      , thyme
                      , time
-                     , random
+                     , vector
   default-language:    Haskell2010
 
 executable hamazed-exe

@@ -65,7 +65,7 @@ import           Laser( LaserType(..)
                       , stopRayAtFirstCollision )
 import           Space( Space(..)
                       , getMaterial
-                      , forEach
+                      , forEachRow
                       , location
                       , Material(..) )
 import           Threading( runAndWaitForTermination
@@ -482,10 +482,16 @@ renderWorldFrame space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLef
   -- lower wall
   _ <- renderStrLn (horizontalWall 'T') lowerLeft
 
-  let wallCoordinates = forEach Wall space (sumCoords worldCoords)
-  mapM_ (renderChar_ 'Z' . RenderState) wallCoordinates
+  let renderByRow r materialByColumn = renderStrLn_ (makeSpaceRowRep cs materialByColumn) $ RenderState $ sumCoords worldCoords $ Coords r (Col 0)
+
+  forEachRow space renderByRow
   return $ RenderState worldCoords
 
+makeSpaceRowRep :: Int -> (Col -> Material) -> String
+makeSpaceRowRep ncols accessMaterial =
+  map ((\c -> case accessMaterial c of
+        Wall -> 'Z'
+        Air -> ' ') . Col) [0..ncols-1]
 
 render_ :: Char -> Coords -> Space -> RenderState -> IO ()
 render_ char worldCoords space (RenderState renderCoords) =

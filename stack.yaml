@@ -47,6 +47,8 @@ flags: {}
 # Extra package databases containing global packages
 extra-package-dbs: []
 
+# to have GC stats add:
+#   -with-rtsopts=-sstderr
 ghc-options:
   "hamazed": -threaded -rtsopts -with-rtsopts=-maxN4 -O2 -fexcess-precision -optc-ffast-math
 

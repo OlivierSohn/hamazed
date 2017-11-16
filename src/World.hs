@@ -202,7 +202,7 @@ createRandomPosSpeed space = do
   return $ mirrorIfNeeded space $ PosSpeed pos (Coords (Row dx) (Col dy))
 
 randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ worldSize) = do
+randomNonCollidingPos space@(Space _ worldSize _) = do
   coords <- randomCoords worldSize
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space

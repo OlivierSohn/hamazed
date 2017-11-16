@@ -7,6 +7,7 @@ module Animation
     , stepEarliest
     , earliestDeadline
     , renderAnimations
+    , animationPeriod
     -- | animations
     , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
@@ -158,7 +159,7 @@ quantitativeExplosionPure number center (Iteration iteration) =
   in translatedFullCircle center radius firstAngle number
 
 
-animationPeriod :: Data.Time.NominalDiffTime
+animationPeriod :: NominalDiffTime
 animationPeriod = 0.02
 
 -- step the animations whose deadline are the earliest

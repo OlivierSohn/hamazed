@@ -9,6 +9,9 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
+- prerender space
+- implement render of space (deduce which wall element based on neighbors)
+
 - flicker : there are several unsynchronized periods:
   - game forward      (fixed start,  fixed period,  low  rate)
   - animation forward (moving start, fixed period,  high rate)
@@ -17,10 +20,20 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 This leads to flicker. We should synchronize more to avoid flushing at very close intervals
 (I think this is what produces the flicker).
 
+Prioritize deadlines : animation deadlines have a low priority over game, user actions, messages.
+
+Merge deadlines when they are close to one another, typically both update
+the game and some animations in the same timestep (or shoot the laser and animate in the same time step).
+
+To avoid noticeable timing difference when animation deadline is merged, we could even force animations
+to happen at fixed start (eg 5 animation steps per game step, and 1 step is common). This has also
+the advantage to reduce the need to render when there are multiple animations.
+
+Do not when the speed of the ship changes (it does not change the graphics in any way).
+
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions
 
-- implement render of space (deduce which wall element based on neighbors)
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 
 ## Game Notions
@@ -53,8 +66,10 @@ An easier mode would be to have the ship be totally immune to collisions.
 - Change the motion period for various difficulty levels
 
 ## Rendering optimizations
+- Reduce the amount of commands sent to the buffer, so that render goes faster
+- use Text instead of String / Data-Text-IO to write strings from Text
 - it could be worth calling hPutStr once per frame (using a buffer in RenderState)
-- try BlockBuffering (Just 80000) to reduce flicker
+- try BlockBuffering (Just 80000)
 
 ## Future games
 - make a brick-breaking game

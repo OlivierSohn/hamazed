@@ -2,6 +2,7 @@
 module Timing
     ( addMotionStepDuration
     , computeTime
+    , diffTimeSecToMicros
     , eraMicros
     , nextUpdateCounter
     , showUpdateTick
@@ -11,10 +12,16 @@ module Timing
 
 import           Data.Time( addUTCTime
                           , diffUTCTime
+                          , NominalDiffTime
                           , UTCTime )
 import           Geo( Col(..)
                     , Coords(..) )
 import           WorldSize( WorldSize(..) )
+
+
+
+diffTimeSecToMicros :: NominalDiffTime -> Int
+diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
 
 
 newtype Timer = Timer { _initialTime :: UTCTime }

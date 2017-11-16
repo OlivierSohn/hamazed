@@ -6,6 +6,7 @@ module Lib
 
 
 import           Control.Applicative( (<|>) )
+--import           Control.Concurrent( threadDelay )
 import           Control.Exception( finally )
 import           Control.Monad( when )
 
@@ -65,7 +66,6 @@ import           Laser( LaserType(..)
                       , stopRayAtFirstCollision )
 import           Space( Space(..)
                       , getMaterial
-                      , forEachRow
                       , location
                       , Material(..) )
 import           Threading( runAndWaitForTermination
@@ -73,7 +73,8 @@ import           Threading( runAndWaitForTermination
 import           Timing( addMotionStepDuration
                        --, computeTime
                        --, showUpdateTick
-                       , Timer(..) )
+                       , Timer(..)
+                       , diffTimeSecToMicros )
 import           Util( showListOrSingleton )
 import           World( Action(..)
                       , ActionTarget(..)
@@ -324,7 +325,13 @@ updateGame :: GameState -> IO GameState
 updateGame state = getAction state >>= updateGameUsingAction state
 
 updateGameUsingAction :: GameState -> Action -> IO GameState
-updateGameUsingAction state@(GameState a _ b d world f g h i@(Level level mayLevelFinished)) action =
+updateGameUsingAction state@(GameState a _ b d world f g h i@(Level level mayLevelFinished)) action = {--do
+  tMayTooEarly <- getCurrentTime
+  let diff = diffUTCTime tMayTooEarly prevTime
+      minTimeBetweenUpdates = 0.08 -- this should be time between now and previous hFlush
+      needSleepMicros = diffTimeSecToMicros $ minTimeBetweenUpdates - diff
+  when (needSleepMicros > 0) $ threadDelay needSleepMicros
+  --}
   case action of
     Nonsense -> return state
     StartLevel nextLevel -> makeInitialState nextLevel
@@ -359,8 +366,7 @@ getAction state@(GameState _ _ _ _ _ _ _ _ level) =
     (Just (Deadline deadline deadlineType)) -> do
       t <- getCurrentTime
       let
-        timeToDeadlineSeconds = diffUTCTime deadline t
-        timeToDeadlineMicros = floor (timeToDeadlineSeconds * 10^(6 :: Int))
+        timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline t
       getActionWithinDurationMicros level timeToDeadlineMicros deadlineType
     Nothing -> actionFromChar level <$> getChar
 
@@ -379,7 +385,7 @@ getCharWithinDurationMicros durationMicros =
 
 renderGame :: GameState -> IO [Animation]
 renderGame state@(GameState _ _ _ upperLeft
-                   (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) animations)
+                   (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
                    _ shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
@@ -405,7 +411,7 @@ renderGame state@(GameState _ _ _ upperLeft
 
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) _)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
                    maybeLaserRay _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
   _ <- case maybeLaserRay of
     (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
@@ -462,11 +468,8 @@ renderRightAligned str (RenderState rightAlignment) = do
 -- TODO precompute the list of Str in the Space to avoid recreating them at each frame
 -- and allow a better rendering ( T | _ + ) depnding on neighbours
 renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLeft@(RenderState upperLeftCoords) = do
-  let --colIndexes = [0..sz+1]
-      --rowIndexes = [0..sz+1]
-
-      horizontalWall = replicate (cs + 2)
+renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft@(RenderState upperLeftCoords) = do
+  let horizontalWall = replicate (cs + 2)
       lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ rs+1) (Col 0)
 
   -- upper wall
@@ -482,16 +485,9 @@ renderWorldFrame space@(Space _ (WorldSize (Coords (Row rs) (Col cs)))) upperLef
   -- lower wall
   _ <- renderStrLn (horizontalWall 'T') lowerLeft
 
-  let renderByRow r materialByColumn = renderStrLn_ (makeSpaceRowRep cs materialByColumn) $ RenderState $ sumCoords worldCoords $ Coords r (Col 0)
+  mapM_ (\(r, str) -> renderStrLn_ str $ RenderState $ sumCoords worldCoords $ Coords (Row r) (Col 0))$ zip [0..] renderedWorld
 
-  forEachRow space renderByRow
   return $ RenderState worldCoords
-
-makeSpaceRowRep :: Int -> (Col -> Material) -> String
-makeSpaceRowRep ncols accessMaterial =
-  map ((\c -> case accessMaterial c of
-        Wall -> 'Z'
-        Air -> ' ') . Col) [0..ncols-1]
 
 render_ :: Char -> Coords -> Space -> RenderState -> IO ()
 render_ char worldCoords space (RenderState renderCoords) =

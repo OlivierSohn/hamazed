@@ -178,9 +178,7 @@ nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed ship
       ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
-      animation (Number (PosSpeed pos _) n) = if n < 6
-        then quantitativeExplosionThenSimpleExplosion n (mkAnimationTree pos)
-        else simpleExplosion (mkAnimationTree pos)
+      animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (max 6 n) (mkAnimationTree pos)
       newAnimations = (case destroyedBalls of
         n:_ -> mkAnimation (animation n) t : animations
         _ -> animations)

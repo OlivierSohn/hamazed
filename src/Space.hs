@@ -75,11 +75,12 @@ mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
 
       upperRow = replicate ncols wall
       middleRow = wall : replicate widthEmptySpace air ++ [wall]
+      collisionRow = wall : replicate 2 air ++ replicate (ncols-6) wall ++ replicate 2 air ++ [wall]
       ncolls = 8
       nEmpty = heightEmptySpace - ncolls
       n1 = quot nEmpty 2
       n2 = nEmpty - n1
-      l = [upperRow] ++ replicate n1 middleRow ++ replicate ncolls upperRow ++ replicate n2 middleRow ++ [upperRow]
+      l = [upperRow] ++ replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow ++ [upperRow]
       mat = fromLists l
       size = WorldSize $ Coords (Row heightEmptySpace) (Col widthEmptySpace)
   in Space mat size $ render mat size

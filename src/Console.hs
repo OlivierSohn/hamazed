@@ -41,17 +41,15 @@ import           Geo( Col(..)
                     , Row(..) )
 
 {--
-import qualified RenderBackend.Classic as Backend(
---}
+import qualified RenderBackend.Full as Backend( --}
 --{--
-import qualified RenderBackend.DoubleBuffering as Backend(
---}
-                                                           beginFrame
-                                                         , endFrame
-                                                         , moveTo
-                                                         , renderChar
-                                                         , renderStr
-                                                         , setForeground )
+import qualified RenderBackend.Incremental as Backend( --}
+                                                        beginFrame
+                                                      , endFrame
+                                                      , moveTo
+                                                      , renderChar
+                                                      , renderStr
+                                                      , setForeground )
 
 --------------------------------------------------------------------------------
 -- Pure

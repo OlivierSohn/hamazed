@@ -1,11 +1,21 @@
 # What is it?
 
-A terminal ascii game I write to practice some Haskell. With 12 levels, of increasing difficulty.
+A terminal ascii game I write to practice some Haskell. It has 12 levels of increasing difficulty.
 
 In this game, you control a ship in direction, and you can shoot at moving numbers.
 During the 5 first seconds, the ship is immune to collisions with numbers, but after that,
 if the ship collides with a number it disintegrates.
 When the sum of shot numbers is equal to the objective number, the level is completed.
+
+Version history:
+- 1.0 : The world is a square.
+
+# Credits
+
+Rafael Ibraim published https://gist.github.com/ibraimgm/40e307d70feeb4f117cd which is
+incremental rendering in the console. It avoids to have to clear the console and redraw
+everything at each frame, instead only the parts of the console that have changed are
+rendered. It removes unwanted flickering effects.
 
 # Backlog
 

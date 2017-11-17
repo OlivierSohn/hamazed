@@ -1,12 +1,12 @@
 
-module RenderBackend.Classic(
-                              beginFrame
-                            , endFrame
-                            , setForeground
-                            , moveTo
-                            , renderChar
-                            , renderStr
-                            ) where
+module RenderBackend.Full(
+                            beginFrame
+                          , endFrame
+                          , setForeground
+                          , moveTo
+                          , renderChar
+                          , renderStr
+                          ) where
 
 import           Imajuscule.Prelude
 

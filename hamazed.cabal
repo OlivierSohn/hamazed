@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
-copyright:           All rights reserved to Olivier Sohn
+copyright:           (c) 2017 Olivier Sohn
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
@@ -17,12 +17,12 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
   other-modules:       Imajuscule.Prelude
-                     , RenderBackend.Classic
-                     , RenderBackend.DoubleBuffering
+                     , RenderBackend.Full
+                     , RenderBackend.Incremental
+                     , RenderBackend.Internal.Incremental
                      , Animation
                      , Console
                      , Geo
-                     , IncrementalRender
                      , Laser
                      , NonBlockingIO
                      , Space

@@ -15,10 +15,11 @@
 --      because the values will probably be in a closer cache.
 --   - introduce modOptimized to optimize modulos, because most of the time,
 --      the value is returned unchanged so a simple comparison is enough.
+--   - inline some functions
 --
 -- TODO allow using Text
 
-module IncrementalRender
+module RenderBackend.Internal.Incremental
        (
          bSetForeground
        , bSetBackground
@@ -107,9 +108,11 @@ fastMod a b
   | 0 <= a && a < b = a    -- fast path
   | otherwise = a `mod` b  -- slow path
 
+{-# INLINE positionFromXY #-}
 positionFromXY :: Int -> Int -> Int
 positionFromXY x y = (y * bufferWidth + x) `fastMod` bufferSize
 
+{-# INLINE xyFromPosition #-}
 xyFromPosition :: Int -> (Int, Int)
 xyFromPosition pos = (x, y)
   where

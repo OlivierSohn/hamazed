@@ -13,11 +13,14 @@ Version history:
 # Credits
 
 Rafael Ibraim published https://gist.github.com/ibraimgm/40e307d70feeb4f117cd which is
-incremental rendering in the console. It avoids to have to clear the console and redraw
+delta rendering in the console. It avoids to have to clear the console and redraw
 everything at each frame, instead only the parts of the console that have changed are
 rendered. It removes unwanted flickering effects.
 
 # Backlog
+
+- find a way to make laser shots visible to the user even when they happen at the very
+end of a game step
 
 - use Text instead of String in rendered world
 
@@ -25,29 +28,37 @@ rendered. It removes unwanted flickering effects.
 
 - implement render of space (deduce which wall element based on neighbors)
 
-- flicker : there are several unsynchronized periods:
-  - game forward      (fixed start,  fixed period,  low  rate)
-  - animation forward (moving start, fixed period,  high rate)
-  - user actions      (moving start, moving period, low  rate)
-
-This leads to flicker. We should synchronize more to avoid flushing at very close intervals
-(I think this is what produces the flicker).
-
-If we implement a delay in game loop, we should measure time between last flush and now
-
-Prioritize deadlines : animation deadlines have a low priority over game, user actions, messages.
-
-Merge deadlines when they are close to one another, typically both update
-the game and some animations in the same timestep (or shoot the laser and animate in the same time step).
-
-To avoid noticeable timing difference when animation deadline is merged, we could even force animations
-to happen at fixed start (eg 5 animation steps per game step, and 1 step is common). This has also
-the advantage to reduce the need to render when there are multiple animations.
-
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions
 
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
+
+# Event driven aspect
+The game is driven by these events:
+
+|evt name         |start of the period|period length|rate|number of instances at any given time|
+|-----------------|-------------------|-------------|----|-------------------------------------|
+|game forward     |start of game      |constant     |med |1                                    |
+|animation forward|anytime            |constant     |high|0..n                                 |
+|user event       |anytime            |not periodic |low |0..1                                 |
+
+- As of today, if an animation takes a long time to compute (more that its period), it will slow down
+the game because there is no notion of priority. We could implement following priorities:
+game forward > user events > animation forward. The algorithm to find the deadline to address in the
+next loop is then :
+  - traversing event types by decreasing priorities, find the first overdue deadline.
+  - If an overdue deadline was found, address in the next game loop, else address
+the closest deadline.
+
+- Flicker can happen if we flush at very close intervals. This behaviour has been greatly improved
+by using delta rendering, however, I don't think that it fixes it entirely. So there are a few
+things we could do to help keeping a minimal time between flush intervals while keeping a good
+game aspect:
+  - Handle deadlines that are close to one another using the same rendering frame (typically update
+the game and animate in the same frame, or shoot the laser and animate).
+  - To avoid noticeable timing difference when animation deadline is merged, we could even force animations
+to happen at fixed start (eg 5 animation steps per game step, and 1 step is common). This has also
+the advantage to reduce the need to render when there are multiple animations.
 
 ## Game Notions
 - when 2 rooms are separated by a wall, the wall can be destroyed by

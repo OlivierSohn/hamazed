@@ -17,9 +17,9 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
   other-modules:       Imajuscule.Prelude
-                     , RenderBackend.Full
-                     , RenderBackend.Incremental
-                     , RenderBackend.Internal.Incremental
+                     , RenderBackends.Full
+                     , RenderBackends.Delta
+                     , RenderBackends.Internal.Delta
                      , Animation
                      , Console
                      , Geo

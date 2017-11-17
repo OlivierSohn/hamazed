@@ -1,5 +1,5 @@
 
-module RenderBackend.Full(
+module RenderBackends.Full(
                             beginFrame
                           , endFrame
                           , setForeground

@@ -41,15 +41,15 @@ import           Geo( Col(..)
                     , Row(..) )
 
 {--
-import qualified RenderBackend.Full as Backend( --}
+import qualified RenderBackends.Full as Backend( --}
 --{--
-import qualified RenderBackend.Incremental as Backend( --}
-                                                        beginFrame
-                                                      , endFrame
-                                                      , moveTo
-                                                      , renderChar
-                                                      , renderStr
-                                                      , setForeground )
+import qualified RenderBackends.Delta as Backend( --}
+                                                  beginFrame
+                                                , endFrame
+                                                , moveTo
+                                                , renderChar
+                                                , renderStr
+                                                , setForeground )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -70,10 +70,10 @@ configureConsoleFor config = do
   hSetEcho stdin $ case config of
       Gaming  -> False
       Editing -> True
-  -- TODO the backends should handle this
   hSetBuffering stdout $ case config of
-      Gaming  -> BlockBuffering Nothing -- use a big buffer, which we will flush
-                                        -- after each game update
+      Gaming  ->
+        -- TODO the backends should handle this
+        BlockBuffering Nothing -- use a big buffer, flush it after each game update
       Editing -> LineBuffering
   case config of
     Gaming  -> do

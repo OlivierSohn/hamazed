@@ -19,7 +19,7 @@
 --
 -- TODO allow using Text
 
-module RenderBackend.Internal.Incremental
+module RenderBackends.Internal.Delta
        (
          bSetForeground
        , bSetBackground

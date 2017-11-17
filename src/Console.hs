@@ -40,10 +40,10 @@ import           Geo( Col(..)
                     , Direction(..)
                     , Row(..) )
 
---{--
+{--
 import qualified RenderBackend.Classic as Backend(
 --}
-{--
+--{--
 import qualified RenderBackend.DoubleBuffering as Backend(
 --}
                                                            beginFrame

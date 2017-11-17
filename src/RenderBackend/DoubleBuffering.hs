@@ -9,6 +9,9 @@ module RenderBackend.DoubleBuffering(
 
 import           Imajuscule.Prelude
 
+import           System.IO( hFlush
+                          , stdout )
+
 import           IncrementalRender( blitBuffer
                                   , bSetForeground
                                   , bGotoXY
@@ -20,16 +23,14 @@ import           IncrementalRender( blitBuffer
 import           Geo( Coords(..)
                     , Col(..)
                     , Row(..))
-
 beginFrame :: IO ()
 beginFrame = return ()
 
 endFrame :: IO ()
-endFrame = blitBuffer
+endFrame = blitBuffer >> hFlush stdout
 
 moveTo :: Coords -> IO ()
-moveTo (Coords (Row r) (Col c)) =
-  bGotoXY r c
+moveTo (Coords (Row r) (Col c)) = bGotoXY r c
 
 renderChar :: Char -> IO ()
 renderChar = bPutChar

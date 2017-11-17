@@ -22,21 +22,32 @@ import           Imajuscule.Prelude
 
 import qualified Prelude ( putChar )
 
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import System.IO.Unsafe (unsafePerformIO)
-import Control.Monad (when)
-import Data.Array.IO (IOArray, newArray, writeArray, readArray)
-import System.Console.ANSI(ColorIntensity(..), Color(..), setCursorPosition, setSGR, SGR(..), ConsoleLayer(..))
+import           Data.IORef( IORef
+                           , newIORef
+                           , readIORef
+                           , writeIORef )
+import           System.IO.Unsafe( unsafePerformIO )
+import           Control.Monad( when )
+import           Data.Array.IO( IOArray
+                              , newArray
+                              , writeArray
+                              , readArray )
+import           System.Console.ANSI( ColorIntensity(..)
+                                    , Color(..)
+                                    , setCursorPosition
+                                    , setSGR
+                                    , SGR(..)
+                                    , ConsoleLayer(..) )
 
 -- constant data
 bufferWidth :: Int
-bufferWidth = 80
+bufferWidth = 221
 
 bufferHeight :: Int
-bufferHeight = 25
+bufferHeight = 53
 
 bufferMax :: Int
-bufferMax = bufferWidth * bufferHeight - 1 --From (0,0) to  (79, 24)
+bufferMax = bufferWidth * bufferHeight - 1 --TODO document/understand -1
 
 -- type definitions and global instance
 type ColorPair = (ColorIntensity, Color)
@@ -73,6 +84,7 @@ positionFromXY x y = (y * bufferWidth + x) `mod` (bufferMax + 1)
 xyFromPosition :: Int -> (Int, Int)
 xyFromPosition pos = (x, y)
   where
+    -- TODO document
     maxX = bufferWidth - 1
     pos' = pos `mod` (bufferMax + 1)
     x = if pos' > maxX then pos' `mod` bufferWidth else pos'

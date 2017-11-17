@@ -33,7 +33,7 @@ end of a game step
 
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 
-# Event driven aspect
+## Event driven aspect
 The game is driven by these events:
 
 |evt name         |start of the period|period length|rate|number of instances at any given time|

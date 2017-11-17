@@ -160,10 +160,10 @@ actionFromCharInGame c = case c of
   'i' -> Action Laser Up
   'j' -> Action Laser LEFT
   'l' -> Action Laser RIGHT
-  's' -> Action Ship Down
-  'w' -> Action Ship Up
-  'a' -> Action Ship LEFT
-  'd' -> Action Ship RIGHT
+  'd' -> Action Ship Down
+  'e' -> Action Ship Up
+  's' -> Action Ship LEFT
+  'f' -> Action Ship RIGHT
   _   -> Nonsense
 
 

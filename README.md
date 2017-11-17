@@ -7,6 +7,10 @@ During the 5 first seconds, the ship is immune to collisions with numbers, but a
 if the ship collides with a number it disintegrates.
 When the sum of shot numbers is equal to the objective number, the level is completed.
 
+Keyboard Controls:
+- for ship : sedf
+- for laser: jikl
+
 Version history:
 - 1.0 : The world is a square.
 
@@ -20,7 +24,9 @@ rendered. It removes unwanted flickering effects.
 # Backlog
 
 - find a way to make laser shots visible to the user even when they happen at the very
-end of a game step
+end of a game step:
+  - after a laser shot we could guarantee a minimal time before the next render
+  - or we could draw it for several seconds (then we need a timeout to remove it)
 
 - use Text instead of String in rendered world
 

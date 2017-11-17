@@ -25,6 +25,8 @@ import           IncrementalRender( blitBuffer, bClear
 import           Geo( Coords(..)
                     , Col(..)
                     , Row(..))
+
+
 beginFrame :: IO ()
 beginFrame = return ()
 

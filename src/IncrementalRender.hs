@@ -1,17 +1,20 @@
--- source: https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
--- with the following modifications:
+-- Initial code from Rafael Ibraim : https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
+--
+-- With the following modifications:
 --   - use strict fields in record to avoid lazy evaluation
 --   - simplify code of bPutStr
---   - make imports explicit
---   - don't move cursor at the end of blitBuffer (I think it's another concern
---      that should be handled by the caller using System.Console.ASCII.hideCursor)
---   - introduce bPutCharRaw that doesn't change the position in the buffer
 --   - write applyBuffer using guards
+--   - make imports explicit
+--   - in blitBuffer I removed the code that moves the cursor, as I think it's another concern
+--      that should be handled by the user of this module using System.Console.ASCII.hideCursor)
+--   - introduce bPutCharRaw that doesn't change the position in the buffer (to optimize
+--       when moving the position is not needed)
 --   - add the function bClear that clears the buffer using the initial color
 --   - add a Bool parameter to blitBuffer to say if we want to clear the source buffer:
---      it might be faster to clear while blitting due to the way the cache works.
---   - introduce modOptimized to optimize modulos for this case where most of the time,
---      the value is returned unchanged.
+--      it might be faster to clear while blitting, instead of calling bClear afterwards,
+--      because the values will probably be in a closer cache.
+--   - introduce modOptimized to optimize modulos, because most of the time,
+--      the value is returned unchanged so a simple comparison is enough.
 --
 -- TODO allow using Text
 
@@ -96,6 +99,8 @@ screenBuffer = unsafePerformIO $ do b1 <- emptyBufferArray
 needDrawing :: BufferCell -> BufferCell -> Bool
 needDrawing a b = a /= b
 
+-- | Modulo optimized for cases where most of the time,
+--    a < b (for a mod b)
 {-# INLINE fastMod #-}
 fastMod :: Int -> Int -> Int
 fastMod a b

@@ -30,7 +30,7 @@ endFrame :: IO ()
 endFrame = blitBuffer >> hFlush stdout
 
 moveTo :: Coords -> IO ()
-moveTo (Coords (Row r) (Col c)) = bGotoXY r c
+moveTo (Coords (Row r) (Col c)) = bGotoXY c r
 
 renderChar :: Char -> IO ()
 renderChar = bPutChar

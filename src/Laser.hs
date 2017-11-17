@@ -9,6 +9,7 @@ module Laser
     , shootLaserFromShip
     ) where
 
+import           Imajuscule.Prelude
 
 import           Data.List( minimumBy )
 import           Data.Maybe( isJust )

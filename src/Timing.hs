@@ -9,6 +9,7 @@ module Timing
     , Timer(..)
     ) where
 
+import           Imajuscule.Prelude
 
 import           Data.Time( addUTCTime
                           , diffUTCTime

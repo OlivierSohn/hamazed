@@ -1,6 +1,8 @@
 module Main where
 
-import Lib (run)
+import           Prelude(IO, return)
+
+import           Lib (run)
 
 main :: IO ()
 main = do

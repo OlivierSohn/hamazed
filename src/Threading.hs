@@ -4,6 +4,8 @@ module Threading
     , setupCapabilities
     ) where
 
+import           Imajuscule.Prelude
+import qualified Prelude
 
 import           GHC.Conc(getNumProcessors)
 import           Control.Concurrent( forkFinally
@@ -49,5 +51,5 @@ myForkIO io = do
 
 
 handleTerminationCause :: Either SomeException a -> IO Termination
-handleTerminationCause (Left e) = putStrLn ("Game thread terminates abnormaly: " ++ show e) >> return Abnormal
+handleTerminationCause (Left e) = Prelude.putStrLn ("Game thread terminates abnormaly: " ++ show e) >> return Abnormal
 handleTerminationCause _        = return Normal

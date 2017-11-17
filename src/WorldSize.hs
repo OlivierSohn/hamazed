@@ -4,6 +4,8 @@ module WorldSize
     , Location(..)
     ) where
 
+import           Imajuscule.Prelude
+
 import           Geo( Coords(..) )
 
 newtype WorldSize = WorldSize Coords

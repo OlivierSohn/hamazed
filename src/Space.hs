@@ -9,6 +9,7 @@ module Space
     , mkRectangle
     ) where
 
+import           Imajuscule.Prelude
 
 import           Data.Vector.Storable( slice )
 import           GHC.Generics( Generic )

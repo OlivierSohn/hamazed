@@ -21,6 +21,8 @@ module Geo ( Direction(..)
            , translatedFullCircleFromQuarterArc
            ) where
 
+import           Imajuscule.Prelude
+
 import           GHC.Generics( Generic )
 
 --------------------------------------------------------------------------------

@@ -13,6 +13,10 @@ module Animation
     , quantitativeExplosionThenSimpleExplosion
     ) where
 
+
+import           Imajuscule.Prelude
+
+
 import           Data.List( partition )
 import           Data.Either( partitionEithers )
 import           Data.Maybe( catMaybes

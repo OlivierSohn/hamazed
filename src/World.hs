@@ -18,6 +18,7 @@ module World
     , World(..)
     ) where
 
+import           Imajuscule.Prelude
 
 import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )

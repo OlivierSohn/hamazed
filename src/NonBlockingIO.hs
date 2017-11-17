@@ -4,6 +4,7 @@ module NonBlockingIO
     ( tryGetChar
     ) where
 
+import           Imajuscule.Prelude
 
 import           System.IO( getChar
                           , hReady

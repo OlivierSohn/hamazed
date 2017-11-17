@@ -13,7 +13,14 @@ module IncrementalRender
        , bPutChar
        , bPutStr
        , blitBuffer
+       -- reexports from System.Console.ANSI
+       , ColorIntensity(..)
+       , Color(..)
        ) where
+
+import           Imajuscule.Prelude
+
+import qualified Prelude ( putChar )
 
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
 import System.IO.Unsafe (unsafePerformIO)
@@ -136,7 +143,7 @@ drawCellChanges ((fromFGI, fromFGC), (fromBGI, fromBGC), fromV) ((toFGI, toFGC),
     then setSGR [SetColor Foreground fromFGI fromFGC, SetColor Background fromBGI fromBGC]
     else setSGR [SetColor Foreground bbFGI bbFGC, SetColor Background bbBGI bbBGC]
   when (valueChanged || colorChanged) $ do gotoCursorPosition position
-                                           putChar fromV
+                                           Prelude.putChar fromV
 
 gotoCursorPosition :: Int -> IO ()
 gotoCursorPosition pos = setCursorPosition y x

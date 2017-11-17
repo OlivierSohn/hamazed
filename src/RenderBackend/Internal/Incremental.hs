@@ -105,8 +105,8 @@ needDrawing a b = a /= b
 {-# INLINE fastMod #-}
 fastMod :: Int -> Int -> Int
 fastMod a b
-  | 0 <= a && a < b = a    -- fast path
-  | otherwise = a `mod` b  -- slow path
+  | 0 <= a && a < b = a          -- fast path
+  | otherwise       = a `mod` b  -- slow path
 
 {-# INLINE positionFromXY #-}
 positionFromXY :: Int -> Int -> Int

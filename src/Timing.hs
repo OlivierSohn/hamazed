@@ -40,9 +40,11 @@ motionStepDurationSeconds = fromIntegral eraMicros / 1000000
 addMotionStepDuration :: UTCTime -> UTCTime
 addMotionStepDuration = addUTCTime (realToFrac motionStepDurationSeconds)
 
+-- using the "incremental" render backend, there is no flicker
+-- using the "full" render backend, flicker starts at 40
 eraMicros :: Int
 eraMicros = eraMillis * 1000
-  where -- flicker with 40, but not 60
+  where
     eraMillis = 160 -- this controls the game loop frequency.
                     -- 20 seems to match screen refresh frequency
 

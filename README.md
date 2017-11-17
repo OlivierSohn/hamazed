@@ -19,10 +19,9 @@ rendered. It removes unwanted flickering effects.
 
 # Backlog
 
-- when ship goes too fast it is possible to go through walls ! fix it...
-- test flicker with blit buffer
+- use Text instead of String in rendered world
 
-- when laser is shot, just redraw what is needed : laser ray + number in color
+- when ship goes too fast it is possible to go through walls ! fix it...
 
 - implement render of space (deduce which wall element based on neighbors)
 
@@ -80,9 +79,7 @@ An easier mode would be to have the ship be totally immune to collisions.
 - Change the motion period for various difficulty levels
 
 ## Rendering optimizations
-- Reduce the amount of commands sent to the buffer, so that render goes faster
-- use Text instead of String / Data-Text-IO to write strings from Text
-- it could be worth calling hPutStr once per frame (using a buffer in RenderState)
+- when shooting the laser, we could render less to optimize lag
 - try BlockBuffering (Just 80000)
 
 ## Future games

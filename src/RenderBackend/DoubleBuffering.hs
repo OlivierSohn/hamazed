@@ -9,13 +9,15 @@ module RenderBackend.DoubleBuffering(
 
 import           Imajuscule.Prelude
 
+import           Control.Monad( void )
+
 import           System.IO( hFlush
                           , stdout )
 
-import           IncrementalRender( blitBuffer
+import           IncrementalRender( blitBuffer, bClear
                                   , bSetForeground
                                   , bGotoXY
-                                  , bPutChar
+                                  , bPutCharRaw
                                   , bPutStr
                                   , Color(..)
                                   , ColorIntensity(..) )
@@ -27,13 +29,13 @@ beginFrame :: IO ()
 beginFrame = return ()
 
 endFrame :: IO ()
-endFrame = blitBuffer >> hFlush stdout
+endFrame = blitBuffer True {- clear buffer -} >> hFlush stdout
 
 moveTo :: Coords -> IO ()
 moveTo (Coords (Row r) (Col c)) = bGotoXY c r
 
 renderChar :: Char -> IO ()
-renderChar = bPutChar
+renderChar c = void (bPutCharRaw c)
 
 renderStr :: String -> IO ()
 renderStr = bPutStr

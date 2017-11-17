@@ -9,6 +9,7 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
+- when ship goes too fast it is possible to go through walls ! fix it...
 - test flicker with blit buffer
 
 - when laser is shot, just redraw what is needed : laser ray + number in color

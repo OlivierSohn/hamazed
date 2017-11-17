@@ -1,8 +1,18 @@
 -- source: https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
--- with modifications:
---   use strict fields in record to avoid lazy evaluation
---   simplify bPutStr
---   make imports explicit
+-- with the following modifications:
+--   - use strict fields in record to avoid lazy evaluation
+--   - simplify code of bPutStr
+--   - make imports explicit
+--   - don't move cursor at the end of blitBuffer (I think it's another concern
+--      that should be handled by the caller using System.Console.ASCII.hideCursor)
+--   - introduce bPutCharRaw that doesn't change the position in the buffer
+--   - write applyBuffer using guards
+--   - add the function bClear that clears the buffer using the initial color
+--   - add a Bool parameter to blitBuffer to say if we want to clear the source buffer:
+--      it might be faster to clear while blitting due to the way the cache works.
+--   - introduce modOptimized to optimize modulos for this case where most of the time,
+--      the value is returned unchanged.
+--
 -- TODO allow using Text
 
 module IncrementalRender
@@ -11,7 +21,9 @@ module IncrementalRender
        , bSetBackground
        , bGotoXY
        , bPutChar
+       , bPutCharRaw
        , bPutStr
+       , bClear
        , blitBuffer
        -- reexports from System.Console.ANSI
        , ColorIntensity(..)
@@ -41,13 +53,16 @@ import           System.Console.ANSI( ColorIntensity(..)
 
 -- constant data
 bufferWidth :: Int
-bufferWidth = 221
+bufferWidth = 300
 
 bufferHeight :: Int
-bufferHeight = 53
+bufferHeight = 70
 
-bufferMax :: Int
-bufferMax = bufferWidth * bufferHeight - 1 --TODO document/understand -1
+bufferMaxIdx :: Int
+bufferMaxIdx = bufferSize - 1
+
+bufferSize :: Int
+bufferSize = bufferWidth * bufferHeight
 
 -- type definitions and global instance
 type ColorPair = (ColorIntensity, Color)
@@ -63,7 +78,10 @@ data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    }
 
 emptyBufferArray :: IO BufferArray
-emptyBufferArray = newArray (0, bufferMax) (foreground, background, ' ')
+emptyBufferArray = newArray (0, bufferMaxIdx) initialCell
+
+initialCell :: BufferCell
+initialCell = (foreground, background, ' ')
   where
     foreground = (Dull, White)
     background = (Dull, Black)
@@ -78,17 +96,21 @@ screenBuffer = unsafePerformIO $ do b1 <- emptyBufferArray
 needDrawing :: BufferCell -> BufferCell -> Bool
 needDrawing a b = a /= b
 
+{-# INLINE fastMod #-}
+fastMod :: Int -> Int -> Int
+fastMod a b
+  | 0 <= a && a < b = a    -- fast path
+  | otherwise = a `mod` b  -- slow path
+
 positionFromXY :: Int -> Int -> Int
-positionFromXY x y = (y * bufferWidth + x) `mod` (bufferMax + 1)
+positionFromXY x y = (y * bufferWidth + x) `fastMod` bufferSize
 
 xyFromPosition :: Int -> (Int, Int)
 xyFromPosition pos = (x, y)
   where
-    -- TODO document
-    maxX = bufferWidth - 1
-    pos' = pos `mod` (bufferMax + 1)
-    x = if pos' > maxX then pos' `mod` bufferWidth else pos'
-    y = if pos' >= bufferWidth then pos' `div` bufferWidth else 0
+    pos' = pos `fastMod` bufferSize
+    x = pos' - y * bufferWidth
+    y = pos' `div` bufferWidth
 
 -- functions that query/modify the buffer
 bSetForeground :: ColorPair -> IO ()
@@ -106,41 +128,56 @@ bGotoXY x y = do
   screen <- readIORef screenBuffer
   writeIORef screenBuffer screen{currX = x, currY = y}
 
-bPutChar :: Char -> IO ()
-bPutChar c = do
+-- | Write a char and return the position of the written char in the buffer
+bPutCharRaw :: Char -> IO Int
+bPutCharRaw c = do
   screen <- readIORef screenBuffer
   let x = currX screen
       y = currY screen
       fg = currFg screen
       bg = currBg screen
       pos = positionFromXY x y
-      (x', y') = xyFromPosition (pos + 1)
       buff = backBuffer screen
-  writeIORef screenBuffer screen{currX = x', currY = y'}
   writeArray buff pos (fg, bg, c)
+  return pos
+
+-- | Write a char and advance in the buffer
+bPutChar :: Char -> IO ()
+bPutChar c = do
+  pos <- bPutCharRaw c
+  screen <- readIORef screenBuffer
+  let (x', y') = xyFromPosition (pos + 1)
+  writeIORef screenBuffer screen{currX = x', currY = y'}
 
 bPutStr :: String -> IO ()
 bPutStr = mapM_ bPutChar
 
+bClear :: IO ()
+bClear = do
+  screen <- readIORef screenBuffer
+  let buff = backBuffer screen
+  mapM_ (\pos -> writeArray buff pos initialCell) [0..bufferMaxIdx]
+
 -- blit the backbuffer into the main buffer and change the screen
-blitBuffer :: IO ()
-blitBuffer = do
+blitBuffer :: Bool
+           -- ^ Clear the source buffer
+           -> IO ()
+blitBuffer clearSource = do
   screen <- readIORef screenBuffer
   let current = currBuffer screen
       back = backBuffer screen
-  applyBuffer back current bufferMax
-  -- just to remove the cursor from view. Also, leave the console in a better position
-  -- when the user leaves the game/simulation
-  setCursorPosition (bufferHeight - 1) (bufferWidth - 1)
+  applyBuffer back current bufferMaxIdx clearSource
 
-applyBuffer :: BufferArray -> BufferArray -> Int -> IO ()
-applyBuffer _ _ (-1) = return ()
-applyBuffer from to position = do
+applyBuffer :: BufferArray -> BufferArray -> Int -> Bool -> IO ()
+applyBuffer from to position clearFrom
+  | position < 0 = return ()
+  | otherwise = do
   cellFrom <- readArray from position
+  when clearFrom $ writeArray from position initialCell
   cellTo <- readArray to position
   when (needDrawing cellFrom cellTo) $ drawCellChanges cellFrom cellTo position
   writeArray to position cellFrom
-  applyBuffer from to (position - 1)
+  applyBuffer from to (pred position) clearFrom
 
 {-# ANN drawCellChanges "HLint: ignore Too strict if" #-}
 drawCellChanges :: BufferCell -> BufferCell -> Int -> IO ()

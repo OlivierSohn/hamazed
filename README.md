@@ -9,6 +9,10 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 # Backlog
 
+- test flicker with blit buffer
+
+- when laser is shot, just redraw what is needed : laser ray + number in color
+
 - implement render of space (deduce which wall element based on neighbors)
 
 - flicker : there are several unsynchronized periods:
@@ -18,6 +22,8 @@ When the sum of shot numbers is equal to the objective number, the level is comp
 
 This leads to flicker. We should synchronize more to avoid flushing at very close intervals
 (I think this is what produces the flicker).
+
+If we implement a delay in game loop, we should measure time between last flush and now
 
 Prioritize deadlines : animation deadlines have a low priority over game, user actions, messages.
 

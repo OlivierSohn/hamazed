@@ -22,25 +22,22 @@ import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
 
-import           System.Console.ANSI( clearScreen
-                                    , setSGR
-                                    , SGR(..)
-                                    , ConsoleLayer(..)
-                                    , ColorIntensity(..)
-                                    , Color(..) )
 import qualified System.Console.Terminal.Size as Terminal(size
                                                          , Window(..))
-import           System.IO( getChar
-                          , hFlush
-                          , stdout )
+import           System.IO( getChar )
 import           System.Timeout( timeout )
 
 import           Animation( quantitativeExplosionThenSimpleExplosion
                           , simpleExplosion
                           , renderAnimations
                           , mkAnimationTree )
-import           Console( configureConsoleFor
+import           Console( ColorIntensity(..)
+                        , Color(..)
+                        , configureConsoleFor
                         , ConsoleConfig(..)
+                        , beginFrame
+                        , endFrame
+                        , setForeground
                         , renderChar_
                         , renderSegment
                         , renderStrLn
@@ -354,12 +351,11 @@ updateGame2 a s =
   case a of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      clearScreen
+      beginFrame
       let s2 = nextGameState s a
       animations <- renderGame s2
-      let s3 = replaceAnimations animations s2
-      hFlush stdout
-      return s3
+      endFrame
+      return $ replaceAnimations animations s2
 
 
 accelerateShip' :: Direction -> GameState -> GameState
@@ -421,16 +417,16 @@ renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _ _
                    (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
                    maybeLaserRay _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
-  _ <- case maybeLaserRay of
+  case maybeLaserRay of
     (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
-    Nothing -> return worldCorner
+    Nothing -> return ()
   -- render numbers, including the ones that will be destroyed, if any
   mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
   when (null collisions) (do
     let shipColor = if isNothing safeTime then Blue else Red
-    setSGR [SetColor Foreground Vivid shipColor]
+    setForeground Vivid shipColor
     render_ '+' shipCoords sz worldCorner
-    setSGR [SetColor Foreground Vivid White])
+    setForeground Vivid White)
   let
     rightMiddle = translate (Coords (Row (quot rs 2)) (Col $ cs + 2)) upperLeft
   mapM_ (renderLevelState (RenderState rightMiddle) level) levelState
@@ -441,14 +437,14 @@ renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) 
         (Lost _) -> Yellow
         Won      -> Green
       topLeft = RenderState $ translateInDir RIGHT coords
-  setSGR [SetColor Foreground Vivid color]
+  setForeground Vivid color
   afterFirst <- renderStrLn (case stop of
     (Lost reason) -> "You Lose (" ++ reason ++ ")"
     Won           -> "You Win!") topLeft
-  setSGR [SetColor Foreground Vivid White]
+  setForeground Vivid White
   when (messageState == ContinueMessage) $ do
     let from = goDown afterFirst
-    _ <- renderStrLn (if level == lastLevel
+    renderStrLn_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
@@ -491,7 +487,7 @@ renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) 
   mapM_ (renderChar_ '|' . RenderState) (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
-  _ <- renderStrLn (horizontalWall 'T') lowerLeft
+  renderStrLn_ (horizontalWall 'T') lowerLeft
 
   mapM_ (\(r, str) -> renderStrLn_ str $ RenderState $ sumCoords worldCoords $ Coords (Row r) (Col 0))$ zip [0..] renderedWorld
 

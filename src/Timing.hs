@@ -41,7 +41,7 @@ addMotionStepDuration = addUTCTime (realToFrac motionStepDurationSeconds)
 
 eraMicros :: Int
 eraMicros = eraMillis * 1000
-  where
+  where -- flicker with 40, but not 60
     eraMillis = 160 -- this controls the game loop frequency.
                     -- 20 seems to match screen refresh frequency
 

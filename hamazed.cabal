@@ -19,6 +19,7 @@ library
   other-modules:       Animation
                      , Console
                      , Geo
+                     , IncrementalRender
                      , Laser
                      , NonBlockingIO
                      , Space
@@ -27,7 +28,8 @@ library
                      , Util
                      , World
                      , WorldSize
-  build-depends:       base
+  build-depends:       array
+                     , base
                      , ansi-terminal
                      , hmatrix
                      , monad-loops

@@ -1,11 +1,17 @@
 module Console ( ConsoleConfig(..)
                , configureConsoleFor
-               , renderChar
+               -- rendering functions
+               , beginFrame
+               , endFrame
+               , setForeground
                , renderChar_
                , renderStrLn
                , renderStrLn_
                , RenderState(..)
                , renderSegment
+               -- reexport System.Console.ANSI
+               , ColorIntensity(..)
+               , Color(..)
                ) where
 
 import           System.Console.ANSI( clearScreen
@@ -19,6 +25,7 @@ import           System.Console.ANSI( clearScreen
                                     , Color(..) )
 import           System.IO( hSetBuffering
                           , hSetEcho
+                          , hFlush
                           , BufferMode( .. )
                           , stdin
                           , stdout )
@@ -63,13 +70,14 @@ configureConsoleFor config = do
       -- do not clearScreen, to retain a potential printed exception
       setSGR [SetColor Foreground Vivid White]
 
+beginFrame :: IO ()
+beginFrame = clearScreen
 
-renderChar :: Char -> RenderState -> IO RenderState
-renderChar char (RenderState (Coords (Row r) (Col c))) = do
-  setCursorPosition r c
-  putChar char
-  return $ RenderState $ Coords (Row $ r + 1) (Col c)
+endFrame :: IO ()
+endFrame = hFlush stdout
 
+setForeground :: ColorIntensity -> Color -> IO ()
+setForeground ci c = setSGR [SetColor Foreground ci c]
 
 renderChar_ :: Char -> RenderState -> IO ()
 renderChar_ char (RenderState (Coords (Row r) (Col c))) = do
@@ -81,30 +89,27 @@ renderChar_ char (RenderState (Coords (Row r) (Col c))) = do
 renderStrLn_ :: String -> RenderState -> IO ()
 renderStrLn_ str (RenderState (Coords (Row r) (Col c))) = do
   setCursorPosition r c
-  Prelude.putStrLn str
+  putStr str
 
 renderStrLn :: String -> RenderState -> IO RenderState
 renderStrLn str (RenderState (Coords (Row r) (Col c))) = do
   setCursorPosition r c
-  Prelude.putStrLn str
+  putStr str
   return $ RenderState $ Coords (Row $ r + 1) (Col c)
 
 
-renderSegment :: Segment -> Char -> RenderState -> IO RenderState
+renderSegment :: Segment -> Char -> RenderState -> IO ()
 renderSegment l = case l of
   Horizontal row c1 c2 -> renderHorizontalLine row c1 c2
   Vertical col r1 r2   -> renderVerticalLine   col r1 r2
   Oblique _ _ -> error "oblique segment rendering is not supported"
 
 
-renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO RenderState
-renderVerticalLine col r1 r2 char rs@(RenderState upperLeft) = do
+renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO ()
+renderVerticalLine col r1 r2 char (RenderState upperLeft) = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  res <- mapM (renderChar char . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
-  return $ case res of
-    [] ->  rs
-    x:_ -> x
+  mapM_ (renderChar_ char . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
 
-renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO RenderState
+renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO ()
 renderHorizontalLine row c1 c2 char (RenderState upperLeft) =
-  renderStrLn (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))
+  renderStrLn_ (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))

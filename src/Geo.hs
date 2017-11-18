@@ -7,6 +7,7 @@ module Geo ( Direction(..)
            , PosSpeed(..)
            , Segment(..)
            , mkSegment
+           , showSegment
            , changeSegmentLength
            , segmentContains
            , rotateByQuarters
@@ -68,6 +69,11 @@ mkSegment coord1@(Coords row@(Row r1) col@(Col c1)) coord2@(Coords (Row r2) (Col
   | r1 == r2  = Horizontal row c1 c2
   | c1 == c2  = Vertical   col r1 r2
   | otherwise = Oblique coord1 coord2
+
+showSegment :: Segment -> [Coords]
+showSegment (Horizontal row c1 c2) = map (Coords row . Col) [(min c1 c2)..(max c1 c2)]
+showSegment (Vertical col r1 r2)   = map (flip Coords col . Row) [(min r1 r2)..(max r1 r2)]
+showSegment (Oblique _ _)          = error "oblique segment rendering is not supported"
 
 changeSegmentLength :: Int -> Segment -> Segment
 changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + i

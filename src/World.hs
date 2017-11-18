@@ -1,7 +1,9 @@
 
 module World
-    ( Action(..)
+    ( Event(..)
+    , TimedEvent(..)
     , ActionTarget(..)
+    , getKeyTime
     , Animation(..)
     , mkAnimation
     , BattleShip(..)
@@ -12,7 +14,6 @@ module World
     , moveWorld
     , nextWorld
     , earliestAnimationDeadline
-    , stepEarliestAnimations
     , Number(..)
     , Step(..)
     , World(..)
@@ -31,8 +32,7 @@ import           System.Random( getStdRandom
 
 import           Animation( Animation(..)
                           , mkAnimation
-                          , earliestDeadline
-                          , stepEarliest )
+                          , earliestDeadline )
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -46,10 +46,14 @@ import           Space( Space(..)
                       , getMaterial
                       , Material(..)
                       , mkRectangle )
+import           Timing( KeyTime(..) )
 import           WorldSize( WorldSize(..) )
 
-data Action = Action ActionTarget Direction
-            | Timeout Step
+
+data TimedEvent = TimedEvent Event UTCTime
+
+data Event =  Action ActionTarget Direction
+            | Timeout Step KeyTime
             | StartLevel Int
             | EndGame
             | Nonsense
@@ -66,13 +70,18 @@ data ActionTarget = Frame
                   deriving(Eq, Show)
 
 
-coordsForActionTargets :: ActionTarget -> [Action] -> Coords
+getKeyTime :: Event -> Maybe KeyTime
+getKeyTime (Timeout _ k) = Just k
+getKeyTime _             = Nothing
+
+
+coordsForActionTargets :: ActionTarget -> [Event] -> Coords
 coordsForActionTargets target actions = foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
 
-filterActions :: ActionTarget -> [Action] -> [Direction]
+filterActions :: ActionTarget -> [Event] -> [Direction]
 filterActions target = mapMaybe (maybeDirectionFor target)
 
-maybeDirectionFor :: ActionTarget -> Action -> Maybe Direction
+maybeDirectionFor :: ActionTarget -> Event -> Maybe Direction
 maybeDirectionFor targetFilter (Action actionTarget dir)
    | actionTarget == targetFilter = Just dir
    | otherwise                    = Nothing
@@ -163,10 +172,7 @@ mirrorIfNeeded space (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc
       -- the tradeoff is just to not render them
   in PosSpeed (Coords (Row r) (Col c)) (Coords (Row newDr) (Col newDc))
 
-stepEarliestAnimations :: World -> World
-stepEarliestAnimations (World a b c d animations) = World a b c d (stepEarliest animations)
-
-earliestAnimationDeadline :: World -> Maybe UTCTime
+earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animations
 
 --------------------------------------------------------------------------------

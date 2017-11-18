@@ -7,14 +7,13 @@ module Lib
 import           Imajuscule.Prelude
 
 import           Control.Applicative( (<|>) )
---import           Control.Concurrent( threadDelay )
 import           Control.Exception( finally )
 import           Control.Monad( when )
 
 import           Data.Char( intToDigit )
 import           Data.List( minimumBy
                           , partition )
-import           Data.Maybe( mapMaybe
+import           Data.Maybe( catMaybes
                            , isJust
                            , isNothing
                            , maybe )
@@ -30,6 +29,7 @@ import           System.Timeout( timeout )
 
 import           Animation( quantitativeExplosionThenSimpleExplosion
                           , simpleExplosion
+                          , simpleLaser
                           , renderAnimations
                           , mkAnimationTree )
 import           Console( ColorIntensity(..)
@@ -40,7 +40,6 @@ import           Console( ColorIntensity(..)
                         , endFrame
                         , setForeground
                         , renderChar_
-                        , renderSegment
                         , renderStrLn
                         , renderStrLn_
                         , RenderState(..) )
@@ -72,11 +71,14 @@ import           Timing( addMotionStepDuration
                        --, computeTime
                        --, showUpdateTick
                        , Timer(..)
+                       , KeyTime(..)
                        , diffTimeSecToMicros )
 import           Util( showListOrSingleton )
 import           World( accelerateShip
-                      , Action(..)
+                      , Event(..)
+                      , TimedEvent(..)
                       , ActionTarget(..)
+                      , getKeyTime
                       , Animation(..)
                       , BattleShip(..)
                       , earliestAnimationDeadline
@@ -85,7 +87,6 @@ import           World( accelerateShip
                       , mkWorld
                       , nextWorld
                       , Step(..)
-                      , stepEarliestAnimations
                       , World(..)
                       , Number(..) )
 import           WorldSize( WorldSize(..) )
@@ -97,11 +98,9 @@ import           WorldSize( WorldSize(..) )
 
 data GameState = GameState {
     _startTime :: !Timer
-  , _curTime :: !UTCTime
-  , _nextMotionStep :: !UTCTime
+  , _nextMotionStep :: !KeyTime
   , _upperLeftCorner :: !Coords
   , _world :: !World
-  , _gameStateLaserRay :: !(Maybe (LaserRay Actual))
   , _gameShotNumbers :: ![Int]
   , _gameTarget :: !Int
   , _gameStateLevel :: !Level
@@ -138,17 +137,17 @@ data LaserRay a = LaserRay {
 
 data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
-actionFromChar :: Level -> Char -> Action
-actionFromChar (Level n finished) char = case finished of
-  Nothing -> actionFromCharInGame char
+eventFromChar :: Level -> Char -> Event
+eventFromChar (Level n finished) char = case finished of
+  Nothing -> eventFromCharInGame char
   Just (LevelFinished stop _ ContinueMessage) ->
     case stop of
       Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
       (Lost _) -> StartLevel firstLevel
   _ -> Nonsense -- between level end and proposal to continue
 
-actionFromCharInGame :: Char -> Action
-actionFromCharInGame c = case c of
+eventFromCharInGame :: Char -> Event
+eventFromCharInGame c = case c of
   -- disabling possibility to move frame, since it is placed in the center of the terminal automatically
   {--
   'g' -> Action Frame Down
@@ -167,9 +166,11 @@ actionFromCharInGame c = case c of
   _   -> Nonsense
 
 
-nextGameState :: GameState -> Action -> GameState
-nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) sz animations) _ g target (Level i finished)) action =
-  let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case action of
+nextGameState :: GameState -> TimedEvent -> GameState
+nextGameState
+ (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) sz animations) g target (Level i finished))
+ te@(TimedEvent event t) =
+  let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case event of
           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
           _     -> (Nothing, ammo)
         else (Nothing, ammo)
@@ -177,25 +178,27 @@ nextGameState (GameState a t b d world@(World balls _ (BattleShip (PosSpeed ship
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (max 6 n) (mkAnimationTree pos)
+      keyTime = KeyTime t
       newAnimations = (case destroyedBalls of
-        n:_ -> mkAnimation (animation n) t : animations
+        n:_ -> mkAnimation (animation n) keyTime : animations
         _ -> animations)
-        ++ case action of
-            Timeout GameStep -> [mkAnimation (simpleExplosion (mkAnimationTree shipCoords)) t | not (null collisions) && isNothing safeTime]
+        ++ case event of
+            Timeout GameStep k -> [mkAnimation (simpleExplosion (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
             _ -> []
+        ++ maybe [] (\(LaserRay laserDir (Ray laserSeg)) -> [mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime]) maybeLaserRay
       newWorld = nextWorld world remainingBalls newAmmo newAnimations
-      newFinished = finished <|> computeFinished t newWorld (sum allShotNumbers) target action
+      newFinished = finished <|> computeFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i newFinished
-  in  GameState a t b d newWorld maybeLaserRay allShotNumbers target newLevel
+  in  GameState a b d newWorld allShotNumbers target newLevel
 
-computeFinished :: UTCTime -> World -> Int -> Int -> Action -> Maybe LevelFinished
-computeFinished time (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbers target lastAction =
-    maybe Nothing (\stop -> Just $ LevelFinished stop time InfoMessage) allChecks
+computeFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
+computeFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbers target (TimedEvent lastEvent t) =
+    maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
     allChecks = checkShipCollision <|> checkSum <|> checkAmmo
 
-    checkShipCollision = case lastAction of
-      (Timeout GameStep) ->
+    checkShipCollision = case lastEvent of
+      (Timeout GameStep _) ->
         if isJust safeTime then Nothing
           else case map (\(Number _ n) -> n) collisions of
             [] -> Nothing
@@ -233,32 +236,32 @@ showTimer currentTime (GameState startTime _ _ updateTick _ (World _ _ _ worldSi
 --}
 
 replaceAnimations :: [Animation] -> GameState -> GameState
-replaceAnimations anims (GameState a b c e (World wa wb wc wd _) f g h i) =
-  GameState a b c e (World wa wb wc wd anims) f g h i
+replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =
+  GameState a c e (World wa wb wc wd anims) f g h
 
 data Deadline = Deadline {
-    _deadlineTime :: !UTCTime
+    _deadlineTime :: !KeyTime
   , _deadlineType :: !Step
 } deriving(Eq, Show)
 
-earliestDeadline :: GameState -> Maybe Deadline
-earliestDeadline s =
-  let l = listDeadlines s
+earliestDeadline :: GameState -> UTCTime -> Maybe Deadline
+earliestDeadline s t =
+  let l = listDeadlines s t
   in  if null l then Nothing else Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
 
-listDeadlines :: GameState -> [Deadline]
-listDeadlines state = mapMaybe (\f -> f state) [gameDeadline, animationDeadline, messageDeadline]
+listDeadlines :: GameState -> UTCTime -> [Deadline]
+listDeadlines s@(GameState _ _ _ _ _ _ level) t = catMaybes [gameDeadline s, animationDeadline s, messageDeadline level t]
 
 gameDeadline :: GameState -> Maybe Deadline
-gameDeadline (GameState _ _ nextGameStep _ _ _ _ _ (Level _ levelFinished)) =
+gameDeadline (GameState _ nextGameStep _ _ _ _ (Level _ levelFinished)) =
   maybe (Just $ Deadline nextGameStep GameStep) (const Nothing) levelFinished
 
 animationDeadline :: GameState -> Maybe Deadline
-animationDeadline (GameState _ _ _ _ world _ _ _ _) =
+animationDeadline (GameState _ _ _ world _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
 
-messageDeadline :: GameState -> Maybe Deadline
-messageDeadline (GameState _ t _ _ _ _ _ _ (Level _ mayLevelFinished)) =
+messageDeadline :: Level -> UTCTime -> Maybe Deadline
+messageDeadline (Level _ mayLevelFinished) t =
   maybe Nothing
   (\(LevelFinished _ timeFinished messageType) ->
       case messageType of
@@ -266,7 +269,7 @@ messageDeadline (GameState _ t _ _ _ _ _ _ (Level _ mayLevelFinished)) =
           let finishedSinceSeconds = diffUTCTime t timeFinished
               delay = 2
               nextMessageStep = addUTCTime (delay - finishedSinceSeconds) t
-          in  Just $ Deadline nextMessageStep MessageStep
+          in  Just $ Deadline (KeyTime nextMessageStep) MessageStep
         ContinueMessage -> Nothing)
     mayLevelFinished
 
@@ -299,7 +302,7 @@ makeInitialState level = do
       coords = maybe (Coords (Row 3) (Col 3)) (`worldUpperLeftFromTermSize` worldSize) termSize
   world <- mkWorld worldSize numbers
   t <- getCurrentTime
-  return $ GameState (Timer t) t t coords world Nothing [] (sum numbers `quot` 2) $ Level level Nothing
+  return $ GameState (Timer t) (KeyTime t) coords world [] (sum numbers `quot` 2) $ Level level Nothing
 
 worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
 worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
@@ -319,67 +322,67 @@ printTimer s@(GameState _ _ _ _ r _ _ _ _ _) = do
 --}
 
 updateGame :: GameState -> IO GameState
-updateGame state = getAction state >>= updateGameUsingAction state
+updateGame state = getTimedEvent state >>= updateGameUsingTimedEvent state
 
-updateGameUsingAction :: GameState -> Action -> IO GameState
-updateGameUsingAction state@(GameState a _ b d world f g h i@(Level level mayLevelFinished)) action = {--do
-  tMayTooEarly <- getCurrentTime
-  let diff = diffUTCTime tMayTooEarly prevTime
-      minTimeBetweenUpdates = 0.08 -- this should be time between now and previous hFlush
-      needSleepMicros = diffTimeSecToMicros $ minTimeBetweenUpdates - diff
-  when (needSleepMicros > 0) $ threadDelay needSleepMicros
-  --}
-  case action of
+updateGameUsingTimedEvent :: GameState -> TimedEvent -> IO GameState
+updateGameUsingTimedEvent
+ state@(GameState a b d world f g h@(Level level mayLevelFinished))
+ te@(TimedEvent event t) =
+  case event of
     Nonsense -> return state
     StartLevel nextLevel -> makeInitialState nextLevel
     _        -> do
-      t <- getCurrentTime
-      let newState = case action of
-            (Timeout GameStep) -> GameState a t (addMotionStepDuration t) d (moveWorld t world) f g h i
-            (Action Frame dir)  -> GameState a t b (sumCoords d $ coordsForDirection dir) world f g h i
-            (Timeout AnimationStep) -> GameState a t b d (stepEarliestAnimations world) f g h i
-            (Timeout MessageStep) -> -- TODO this part is ugly, we should not have to deduce so much
+      let newState = case event of
+            (Timeout GameStep gt) -> GameState a (addMotionStepDuration gt) d (moveWorld t world) f g h
+            (Action Frame dir)  -> GameState a b (sumCoords d $ coordsForDirection dir) world f g h
+            (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
                                      -- MessageStep is probably the wrong abstraction level
               case mayLevelFinished of
-                Just (LevelFinished stop finishTime _) -> GameState a t b d world f g h $ Level level (Just $ LevelFinished stop finishTime ContinueMessage)
+                Just (LevelFinished stop finishTime _) -> GameState a b d world f g $ Level level (Just $ LevelFinished stop finishTime ContinueMessage)
                 Nothing -> state
             _ -> state
-      updateGame2 action newState
+      updateGame2 te newState
 
-
-updateGame2 :: Action -> GameState -> IO GameState
-updateGame2 a s =
-  case a of
+updateGame2 :: TimedEvent -> GameState -> IO GameState
+updateGame2 te@(TimedEvent event _) s =
+  case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
       beginFrame
-      let s2 = nextGameState s a
-      animations <- renderGame s2
+      let s2 = nextGameState s te
+      animations <- renderGame (getKeyTime event) s2
       endFrame
       return $ replaceAnimations animations s2
 
 
 accelerateShip' :: Direction -> GameState -> GameState
-accelerateShip' dir (GameState a b c d (World wa wb ship wc wd) f g h i) =
+accelerateShip' dir (GameState a c d (World wa wb ship wc wd) f g h) =
   let newShip = accelerateShip dir ship
       world = World wa wb newShip wc wd
-  in GameState a b c d world f g h i
+  in GameState a c d world f g h
 
-getAction :: GameState -> IO Action
-getAction state@(GameState _ _ _ _ _ _ _ _ level) =
-  case earliestDeadline state of
-    (Just (Deadline deadline deadlineType)) -> do
-      t <- getCurrentTime
+
+getTimedEvent :: GameState -> IO TimedEvent
+getTimedEvent state =
+  getEvent state >>= \evt -> do
+    t <- getCurrentTime
+    return $ TimedEvent evt t
+
+getEvent :: GameState -> IO Event
+getEvent state@(GameState _ _ _ _ _ _ level) = do
+  t <- getCurrentTime
+  case earliestDeadline state t of
+    (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline t
-      getActionWithinDurationMicros level timeToDeadlineMicros deadlineType
-    Nothing -> actionFromChar level <$> getChar
+      getEventWithinDurationMicros level timeToDeadlineMicros k deadlineType
+    Nothing -> eventFromChar level <$> getChar
 
-getActionWithinDurationMicros :: Level -> Int -> Step -> IO Action
-getActionWithinDurationMicros level durationMicros step =
+getEventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
+getEventWithinDurationMicros level durationMicros k step =
   (\case
-    Nothing   -> Timeout step
-    Just char -> actionFromChar level char
+    Nothing   -> Timeout step k
+    Just char -> eventFromChar level char
     ) <$> getCharWithinDurationMicros durationMicros
 
 getCharWithinDurationMicros :: Int -> IO (Maybe Char)
@@ -388,10 +391,10 @@ getCharWithinDurationMicros durationMicros =
     then return Nothing
     else timeout durationMicros getChar
 
-renderGame :: GameState -> IO [Animation]
-renderGame state@(GameState _ _ _ upperLeft
+renderGame :: Maybe KeyTime -> GameState -> IO [Animation]
+renderGame k state@(GameState _ _ upperLeft
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
-                   _ shotNumbers target (Level level _)) = do
+                   shotNumbers target (Level level _)) = do
   --printTimer state
   let r = RenderState upperLeft
       addWallSize = (+ 2)
@@ -403,24 +406,21 @@ renderGame state@(GameState _ _ _ upperLeft
       centerUp   = translate (Coords (Row $ -1)        (Col cHalf)) upperLeft
       centerDown = translate (Coords (Row $ rFull + 1) (Col cHalf)) upperLeft
       leftMiddle = translate (Coords (Row rHalf)       (Col $ -1)) upperLeft
-      --rightMiddle= translate (Coords (Row half)       (Col $ full + 1)) upperLeft
   _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
   _ <- goDown <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
        >>= renderRightAligned (showShotNumbers shotNumbers)
   _ <- renderCentered ("Objective : " ++ show target) (RenderState centerUp)
   renderWorldFrame space r >>=
     (\worldCorner -> do
-      activeAnimations <- renderAnimations (`location` space) worldCorner animations
+      activeAnimations <- renderAnimations k (`location` space) worldCorner animations
       renderWorld state worldCorner
       return activeAnimations)
 
+-- TODO remove LaserRay from GameState
 renderWorld :: GameState -> RenderState -> IO ()
-renderWorld (GameState _ _ _ _
+renderWorld (GameState _ _ _
                    (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
-                   maybeLaserRay _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
-  case maybeLaserRay of
-    (Just (LaserRay laserDir (Ray laserSeg))) -> renderSegment laserSeg (laserChar laserDir) worldCorner
-    Nothing -> return ()
+                   _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
   -- render numbers, including the ones that will be destroyed, if any
   mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
   when (null collisions) (do

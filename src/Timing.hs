@@ -1,12 +1,15 @@
 
 module Timing
     ( addMotionStepDuration
+    , addAnimationStepDuration
+    , animationSpeed
     , computeTime
     , diffTimeSecToMicros
     , eraMicros
     , nextUpdateCounter
     , showUpdateTick
     , Timer(..)
+    , KeyTime(..)
     ) where
 
 import           Imajuscule.Prelude
@@ -20,6 +23,9 @@ import           Geo( Col(..)
 import           WorldSize( WorldSize(..) )
 
 
+-- I introduce this type to prevent equality test which make no sense, like
+-- between "current system time" and a time that was computed
+newtype KeyTime = KeyTime UTCTime deriving(Eq, Ord, Show)
 
 diffTimeSecToMicros :: NominalDiffTime -> Int
 diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
@@ -34,11 +40,26 @@ computeTime (Timer t1) t2 =
   in floor t
 
 
-motionStepDurationSeconds :: Float
+-- the console can refresh at approx. 21 fps, hence this value (1/25)
+-- TODO unify names with below
+animationPeriod :: NominalDiffTime
+animationPeriod = 0.04
+
+-- the number of increments added at each step
+animationSpeed :: Int
+animationSpeed = 2
+
+motionStepDurationSeconds :: NominalDiffTime
 motionStepDurationSeconds = fromIntegral eraMicros / 1000000
 
-addMotionStepDuration :: UTCTime -> UTCTime
-addMotionStepDuration = addUTCTime (realToFrac motionStepDurationSeconds)
+addMotionStepDuration :: KeyTime -> KeyTime
+addMotionStepDuration = addDuration motionStepDurationSeconds
+
+addAnimationStepDuration :: KeyTime -> KeyTime
+addAnimationStepDuration = addDuration animationPeriod
+
+addDuration :: NominalDiffTime -> KeyTime -> KeyTime
+addDuration durationSeconds (KeyTime t) = KeyTime $ addUTCTime durationSeconds t
 
 -- using the "incremental" render backend, there is no flicker
 -- using the "full" render backend, flicker starts at 40

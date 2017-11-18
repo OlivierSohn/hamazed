@@ -5,6 +5,7 @@
 module Imajuscule.Prelude ( Eq
                           , Show
                           , Num
+                          , Ord
                           , Bool(..)
                           , Char
                           , Float
@@ -73,6 +74,7 @@ module Imajuscule.Prelude ( Eq
                           , pi
                           , floor
                           , otherwise
+                          , id
                           , Monad(..)
                           ) where
 

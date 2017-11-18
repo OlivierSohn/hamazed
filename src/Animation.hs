@@ -4,26 +4,20 @@ module Animation
     ( Animation(..)
     , mkAnimation
     , mkAnimationTree
-    , stepEarliest
     , earliestDeadline
     , renderAnimations
-    , animationPeriod
     -- | animations
     , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
+    , simpleLaser
     ) where
 
 
 import           Imajuscule.Prelude
 
-
-import           Data.List( partition )
 import           Data.Either( partitionEithers )
 import           Data.Maybe( catMaybes
                            , fromMaybe )
-import           Data.Time( addUTCTime
-                          , NominalDiffTime
-                          , UTCTime )
 
 import           GHC.Generics( Generic )
 import           Control.Exception( assert )
@@ -34,9 +28,14 @@ import           Control.Exception( assert )
 import           Console( RenderState(..)
                         , renderChar_ )
 import           Geo( Coords(..)
+                    , Segment(..)
                     , sumCoords
+                    , showSegment
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc )
+import           Timing( KeyTime(..)
+                       , addAnimationStepDuration
+                       , animationSpeed)
 import           WorldSize(Location(..))
 
 
@@ -46,22 +45,30 @@ zeroIteration :: Iteration
 zeroIteration = Iteration 0
 
 nextIteration :: Iteration -> Iteration
-nextIteration (Iteration i) = Iteration $ succ i
+nextIteration (Iteration i) = Iteration $ i + animationSpeed
 
 previousIteration :: Iteration -> Iteration
-previousIteration (Iteration i) = Iteration $ pred i
+previousIteration (Iteration i) = Iteration $ i - animationSpeed
+
+data StepType = Update
+              | Same
 
 data Animation = Animation {
-    _animationNextTime :: !UTCTime
-  , _animationCounter  :: !Iteration
-  , _animationRender :: !(Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+    _animationNextTime :: !KeyTime
+  , _animationCounter :: !Iteration
+  , _animationRender :: !(StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 }
 
-mkAnimation :: (Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
-            -> UTCTime
+mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+            -> KeyTime
             -> Animation
-mkAnimation render currentTime = Animation (addUTCTime animationPeriod currentTime) zeroIteration render
+mkAnimation render t = Animation t {-do not increment, it will be done while rendering-} zeroIteration render
 
+
+getStep :: Maybe KeyTime -> Animation -> StepType
+getStep mayKey (Animation k' i _)
+  | i == zeroIteration = Update -- initialize step
+  | otherwise          = maybe Same (\k -> if k == k' then Update else Same) mayKey
 
 -- \ This datastructure is used to keep a state of the animation progress, not globally,
 --   but locally on each animation point. It is also recursive, so that we can sequence
@@ -162,25 +169,10 @@ quantitativeExplosionPure number center (Iteration iteration) =
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
   in translatedFullCircle center radius firstAngle number
 
-
-animationPeriod :: NominalDiffTime
-animationPeriod = 0.02
-
--- step the animations whose deadline are the earliest
-stepEarliest :: [Animation] -> [Animation]
-stepEarliest l = let (earliest, latest) = partitionEarliest l
-                 in latest ++ map stepAnimation earliest
-
-partitionEarliest :: [Animation] -> ([Animation], [Animation])
-partitionEarliest l =
-    maybe ([],[]) partitionOnDeadline (earliestDeadline l)
-  where
-    partitionOnDeadline deadline = partition (\(Animation deadline' _ _) -> deadline' == deadline) l
-
 stepAnimation :: Animation -> Animation
-stepAnimation (Animation t i f) = Animation (addUTCTime animationPeriod t) (nextIteration i) f
+stepAnimation (Animation t i f) = Animation (addAnimationStepDuration t) (nextIteration i) f
 
-earliestDeadline :: [Animation] -> Maybe UTCTime
+earliestDeadline :: [Animation] -> Maybe KeyTime
 earliestDeadline animations =
   if null animations
     then
@@ -193,29 +185,48 @@ earliestDeadline animations =
 -- IO
 --------------------------------------------------------------------------------
 
-renderAnimations :: (Coords -> Location) -> RenderState -> [Animation] -> IO [Animation]
-renderAnimations getLocation r anims = do
-  newAnims <- mapM (\a@(Animation _ _ render) -> (render a getLocation r)) anims
-  return $ catMaybes newAnims
+renderAnimations :: Maybe KeyTime -> (Coords -> Location) -> RenderState -> [Animation] -> IO [Animation]
+renderAnimations k getLocation r anims =
+  catMaybes <$> mapM (\a@(Animation _ _ render) -> do
+    let step = getStep k a
+        a' = (case step of
+          Update -> stepAnimation
+          Same   -> id) a
+    render step a' getLocation r) anims
 
 renderChar :: Char -> Coords -> RenderState -> IO ()
 renderChar char pos (RenderState upperLeftCoords) =
   renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
 
 setRender :: Animation
-          -> (Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+          -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
           -> Animation
 setRender (Animation t i _) = Animation t i
 
-simpleExplosion :: Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion state a@(Animation _ i _) getLocation s = do
-  let newState = applyAnimation simpleExplosionPure i getLocation state
+simpleExplosion :: Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosion state step a@(Animation _ i _) getLocation s = do
+  let newState = case step of
+        Update -> applyAnimation simpleExplosionPure i getLocation state
+        Same -> state
       points = getAliveCoordinates newState
   renderAnimation points (setRender a $ simpleExplosion newState) s
 
-quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-quantitativeExplosionThenSimpleExplosion number state a@(Animation _ i _) getLocation = do
-  let newState = chain2AnimationsOnCollision (quantitativeExplosionPure number) simpleExplosionPure i getLocation state
+simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
+  let points = showSegment seg
+      replacementChar = case laserChar of
+        '|' -> '.'
+        '=' -> '-'
+        _ -> error "unsupported case in simpleLaser"
+      char = if assert (i > 0) i > animationSpeed then replacementChar else laserChar
+  renderPoints points char state
+  return $ if assert (i > 0) i > 2 * animationSpeed then Nothing else Just a
+
+quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+quantitativeExplosionThenSimpleExplosion number state step a@(Animation _ i _) getLocation = do
+  let newState = case step of
+        Update -> chain2AnimationsOnCollision (quantitativeExplosionPure number) simpleExplosionPure i getLocation state
+        Same   -> state
       points = getAliveCoordinates newState
   renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion number newState)
 

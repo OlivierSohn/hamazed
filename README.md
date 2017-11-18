@@ -23,10 +23,14 @@ rendered. It removes unwanted flickering effects.
 
 # Backlog
 
-- find a way to make laser shots visible to the user even when they happen at the very
-end of a game step:
-  - after a laser shot we could guarantee a minimal time before the next render
-  - or we could draw it for several seconds (then we need a timeout to remove it)
+- it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
+there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
+It would be nice to synchronize animation exactly with console fps to have a better fluidity
+
+- http://dev.stephendiehl.com/hask/#what-to-avoid
+- http://www.stephendiehl.com/posts/protolude.html
+
+- fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity
 
 - use Text instead of String in rendered world
 

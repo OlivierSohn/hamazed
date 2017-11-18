@@ -61,5 +61,5 @@ laserChar :: Direction -> Char
 laserChar dir = case dir of
   Up    -> '|'
   Down  -> '|'
-  LEFT  -> '-'
-  RIGHT -> '-'
+  LEFT  -> '='
+  RIGHT -> '='

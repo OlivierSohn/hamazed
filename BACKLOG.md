@@ -1,5 +1,6 @@
 
 # Backlog
+- rename renderStrLn,_ to renderStr,_
 
 - when ship goes too fast it is possible to go through walls ! fix it...
 

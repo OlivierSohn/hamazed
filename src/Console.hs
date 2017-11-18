@@ -5,8 +5,8 @@ module Console ( ConsoleConfig(..)
                , endFrame
                , setForeground
                , renderChar_
-               , renderStrLn
-               , renderStrLn_
+               , renderStr
+               , renderStr_
                , RenderState(..)
                , renderSegment
                -- reexport System.Console.ANSI
@@ -100,13 +100,13 @@ renderChar_ char (RenderState c) = do
   return ()
 
 
-renderStrLn_ :: String -> RenderState -> IO ()
-renderStrLn_ str (RenderState c) = do
+renderStr_ :: String -> RenderState -> IO ()
+renderStr_ str (RenderState c) = do
   Backend.moveTo c
   Backend.renderStr str
 
-renderStrLn :: String -> RenderState -> IO RenderState
-renderStrLn str (RenderState c) = do
+renderStr :: String -> RenderState -> IO RenderState
+renderStr str (RenderState c) = do
   Backend.moveTo c
   Backend.renderStr str
   return $ RenderState $ translateInDir Down c
@@ -126,4 +126,4 @@ renderVerticalLine col r1 r2 char (RenderState upperLeft) = do
 
 renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO ()
 renderHorizontalLine row c1 c2 char (RenderState upperLeft) =
-  renderStrLn_ (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))
+  renderStr_ (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))

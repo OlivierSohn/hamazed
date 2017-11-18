@@ -39,8 +39,8 @@ import           Console( ColorIntensity(..)
                         , endFrame
                         , setForeground
                         , renderChar_
-                        , renderStrLn
-                        , renderStrLn_ )
+                        , renderStr
+                        , renderStr_ )
 import           Geo( Col(..)
                     , Coords(..)
                     , Direction(..)
@@ -55,6 +55,8 @@ import           Laser( LaserType(..)
                       , shootLaserFromShip
                       , stopRayAtFirstCollision )
 import           Render( renderChar
+                       , Alignment(..)
+                       , renderAlignedStr
                        , RenderState
                        , go
                        , move
@@ -388,10 +390,10 @@ renderGame k state@(GameState _ _ upperLeft
       centerUp   = translate (Row $ -1)        (Col cHalf) upperLeft
       centerDown = translate (Row $ rFull + 1) (Col cHalf) upperLeft
       leftMiddle = translate (Row rHalf)       (Col $ -1)  upperLeft
-  _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) centerDown
-  _ <- go Down <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") leftMiddle
-       >>= renderRightAligned (showShotNumbers shotNumbers)
-  _ <- renderCentered ("Objective : " ++ show target) centerUp
+  _ <- renderAlignedStr Centered ("Level " ++ show level ++ " of " ++ show lastLevel) centerDown
+  _ <- go Down <$> renderAlignedStr RightAligned ("[" ++ replicate ammo '.' ++ "]") leftMiddle
+       >>= renderAlignedStr RightAligned (showShotNumbers shotNumbers)
+  _ <- renderAlignedStr Centered ("Objective : " ++ show target) centerUp
   renderWorldFrame space upperLeft >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations k (`location` space) worldCorner animations
@@ -401,14 +403,14 @@ renderGame k state@(GameState _ _ upperLeft
 -- TODO remove LaserRay from GameState
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
+                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
                    _ _ (Level level levelState)) worldCorner = do
   -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
+  mapM_ (\(Number (PosSpeed pos _) i) -> renderIfNotColliding (intToDigit i) pos space worldCorner) balls
   when (null collisions) (do
     let shipColor = if isNothing safeTime then Blue else Red
     setForeground Vivid shipColor
-    render_ '+' shipCoords sz worldCorner
+    renderIfNotColliding '+' shipCoords space worldCorner
     setForeground Vivid White)
   let
     rightMiddle = translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner
@@ -421,12 +423,12 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
         Won      -> Green
       topLeft = go RIGHT coords
   setForeground Vivid color
-  afterFirst <- renderStrLn (case stop of
+  afterFirst <- renderStr (case stop of
     (Lost reason) -> "You Lose (" ++ reason ++ ")"
     Won           -> "You Win!") topLeft
   setForeground Vivid White
   when (messageState == ContinueMessage) $
-    renderStrLn_ (if level == lastLevel
+    renderStr_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
@@ -439,25 +441,13 @@ showShotNumbers :: [Int] -> String
 showShotNumbers nums =
   "[" ++ unwords (map show nums) ++ "]"
 
-renderCentered :: String -> RenderState -> IO RenderState
-renderCentered str center = do
-  let leftCorner = move (quot (length str) 2) LEFT center
-  renderStrLn_ str leftCorner
-  return $ go Down center
-
-renderRightAligned :: String -> RenderState -> IO RenderState
-renderRightAligned str rightAlignment = do
-  let leftCorner = move (length str) LEFT rightAlignment
-  renderStrLn_ str leftCorner
-  return $ go Down rightAlignment
-
 renderWorldFrame :: Space -> RenderState -> IO RenderState
 renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do
   let horizontalWall = replicate (cs + 2)
       lowerLeft = move (rs+1) Down upperLeft
 
   -- upper wall
-  renderState <- renderStrLn (horizontalWall '_') upperLeft
+  renderState <- renderStr (horizontalWall '_') upperLeft
   let worldCoords = go RIGHT renderState
 
   -- left & right walls
@@ -466,14 +456,15 @@ renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) 
   mapM_ (renderChar_ '|') (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
-  renderStrLn_ (horizontalWall 'T') lowerLeft
+  renderStr_ (horizontalWall 'T') lowerLeft
 
-  mapM_ (\(r, str) -> renderStrLn_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
+  -- world
+  mapM_ (\(r, str) -> renderStr_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
 
   return worldCoords
 
-render_ :: Char -> Coords -> Space -> RenderState -> IO ()
-render_ char worldCoords space r =
+renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
+renderIfNotColliding char worldCoords space r =
   case getMaterial worldCoords space of
     Air  -> renderChar char worldCoords r
     Wall -> return ()

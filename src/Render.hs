@@ -1,6 +1,8 @@
 module Render (
           renderChar
         , renderPoints
+        , Alignment(..)
+        , renderAlignedStr
         , Coords(..)
         , RenderState(..)
         , go
@@ -15,7 +17,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
 import           Console( RenderState(..)
-                        , renderChar_ )
+                        , renderChar_
+                        , renderStr_ )
 import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)
@@ -66,6 +69,18 @@ renderChar char pos (RenderState upperLeftCoords) =
 renderPoints :: Char -> RenderState -> [Coords] -> IO ()
 renderPoints char state =
   mapM_ (\c -> renderChar char c state)
+
+data Alignment = Centered
+               | RightAligned
+
+renderAlignedStr :: Alignment -> String -> RenderState -> IO RenderState
+renderAlignedStr a str ref = do
+  let amount = case a of
+        Centered     -> quot (length str) 2
+        RightAligned -> length str
+      leftCorner = Render.move amount LEFT ref
+  renderStr_ str leftCorner
+  return $ go Down ref
 
 mkRenderStateToCenterWorld :: WorldSize -> IO RenderState
 mkRenderStateToCenterWorld s =

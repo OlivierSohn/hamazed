@@ -7,8 +7,9 @@ module World
     , moveWorld
     , nextWorld
     , earliestAnimationDeadline
-    , Number(..)
     , World(..)
+    -- | reexports    
+    , Number(..)
     ) where
 
 import           Imajuscule.Prelude

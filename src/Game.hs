@@ -6,7 +6,6 @@ module Game(
 
 import           Imajuscule.Prelude
 
-import           Control.Applicative( (<|>) )
 import           Control.Exception( assert )
 import           Control.Monad( when )
 
@@ -48,6 +47,14 @@ import           Laser( LaserRay(..)
                       , LaserType(..)
                       , LaserPolicy(..)
                       , mkLaserAnimation )
+import           Level( Level(..)
+                      , LevelFinished(..)
+                      , eventFromChar
+                      , isLevelFinished
+                      , MessageState(..)
+                      , GameStops(..)
+                      , firstLevel
+                      , lastLevel )
 import           Number( Number(..)
                        , survivingNumbers )
 import           Render( RenderState
@@ -71,7 +78,6 @@ import           Timing( Timer(..)
                        , getCurrentTime
                        , diffTimeSecToMicros
                        , addMotionStepDuration )
-import           Util( showListOrSingleton )
 import           World( World(..)
                       , mkWorld
                       , BattleShip(..)
@@ -94,78 +100,6 @@ data GameState = GameState {
   , _gameStateLevel :: !Level
 }
 
-data Level = Level {
-    _levelNumber :: !Int
-  , _levelStatus :: !(Maybe LevelFinished)
-}
-
-lastLevel :: Int
-lastLevel = 12
-
-firstLevel :: Int
-firstLevel = 1
-
-data LevelFinished = LevelFinished {
-    _levelFinishedResult :: !GameStops
-  , _levelFinishedWhen :: !UTCTime
-  , _levelFinishedCurrentMessage :: !MessageState
-}
-
-
-computeFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
-computeFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbers target (TimedEvent lastEvent t) =
-    maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
-  where
-    allChecks = checkShipCollision <|> checkSum <|> checkAmmo
-
-    checkShipCollision = case lastEvent of
-      (Timeout GameStep _) ->
-        maybe
-          (case map (\(Number _ n) -> n) collisions of
-            [] -> Nothing
-            l  -> Just $ Lost $ "collision with " ++ showListOrSingleton l)
-          (const Nothing)
-          safeTime
-      _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
-
-    checkSum = case compare sumNumbers target of
-      LT -> Nothing
-      EQ -> Just Won
-      GT -> Just $ Lost $ "sum " ++ show sumNumbers ++ " is bigger than target " ++ show target
-    checkAmmo
-      | ammo <= 0 = Just $ Lost "no ammo left"
-      | otherwise = Nothing
-
-data MessageState = InfoMessage
-                  | ContinueMessage
-                  deriving(Eq, Show)
-
-data GameStops = Lost String
-               | Won
-
-
-eventFromChar :: Level -> Char -> Event
-eventFromChar (Level n finished) char = case finished of
-  Nothing -> eventFromCharInGame char
-  Just (LevelFinished stop _ ContinueMessage) ->
-    case stop of
-      Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
-      (Lost _) -> StartLevel firstLevel
-  _ -> Nonsense -- between level end and proposal to continue
-
-eventFromCharInGame :: Char -> Event
-eventFromCharInGame c = case c of
-  'k' -> Action Laser Down
-  'i' -> Action Laser Up
-  'j' -> Action Laser LEFT
-  'l' -> Action Laser RIGHT
-  'd' -> Action Ship Down
-  'e' -> Action Ship Up
-  's' -> Action Ship LEFT
-  'f' -> Action Ship RIGHT
-  _   -> Nonsense
-
-
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
   (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) sz animations) g target (Level i finished))
@@ -187,7 +121,7 @@ nextGameState
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
        newWorld = nextWorld world remainingBalls newAmmo newAnimations
-       newFinished = finished <|> computeFinished newWorld (sum allShotNumbers) target te
+       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
        newLevel = Level i newFinished
    in  GameState a b d newWorld allShotNumbers target newLevel
 

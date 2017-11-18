@@ -26,6 +26,7 @@ library
                      , Game
                      , Geo
                      , Laser
+                     , Level
                      , NonBlockingIO
                      , Number
                      , Render

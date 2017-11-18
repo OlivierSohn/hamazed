@@ -2,7 +2,9 @@
 -- since I provide equivalent functions that should be used instead to
 -- render the game
 
-module Imajuscule.Prelude ( Eq
+module Imajuscule.Prelude (
+                            -- | Prelude reexports
+                            Eq
                           , Show
                           , Num
                           , Ord
@@ -78,6 +80,10 @@ module Imajuscule.Prelude ( Eq
                           , otherwise
                           , id
                           , Monad(..)
+                          -- | Control.Applicative reexports
+                          , (<|>)
                           ) where
 
 import Prelude
+
+import           Control.Applicative( (<|>) )

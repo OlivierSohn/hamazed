@@ -1,6 +1,7 @@
 
 module Event
     ( Event(..)
+    , eventFromChar
     , TimedEvent(..)
     , ActionTarget(..)
     , getKeyTime
@@ -40,6 +41,18 @@ data Step = GameStep
 data ActionTarget = Ship
                   | Laser
                   deriving(Eq, Show)
+
+eventFromChar :: Char -> Event
+eventFromChar c = case c of
+  'k' -> Action Laser Down
+  'i' -> Action Laser Up
+  'j' -> Action Laser LEFT
+  'l' -> Action Laser RIGHT
+  'd' -> Action Ship Down
+  'e' -> Action Ship Up
+  's' -> Action Ship LEFT
+  'f' -> Action Ship RIGHT
+  _   -> Nonsense
 
 
 getKeyTime :: Event -> Maybe KeyTime

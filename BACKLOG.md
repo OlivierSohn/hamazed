@@ -25,6 +25,7 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 ## Random world constraints
 
 - prevent "wall only" worlds
+- prevent "reduced rectangle" effect (i.e. make sure on each side there is Air touching the border)
 - interconnect subspaces by corridors of width 2
 
 ## Event driven aspect

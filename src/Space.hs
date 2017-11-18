@@ -12,6 +12,8 @@ module Space
 
 import           Imajuscule.Prelude
 
+import           Control.Exception( assert )
+
 import           GHC.Generics( Generic )
 
 import           Data.Vector.Storable( slice )
@@ -88,7 +90,7 @@ mkDeterministicallyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (
 --  it uses IO for random numbers
 mkRandomlyFilledRectangle :: WorldSize -> IO Space
 mkRandomlyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
-  let multFactor = 2
+  let multFactor = 16
       mkRandomRow _ = replicateElements multFactor . take (quot widthEmptySpace multFactor) <$> rands
   randMatHalf <- mapM mkRandomRow [0..quot heightEmptySpace multFactor - 1]
 
@@ -96,9 +98,20 @@ mkRandomlyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col width
   return $ mkSpaceFromInnerMat s innerMat
 
 mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
-mkSpaceFromInnerMat s innerMat =
-  let mat = fromLists $ addBorder s innerMat
+mkSpaceFromInnerMat s innerMatMaybeSmaller =
+  let innerMat = extend s innerMatMaybeSmaller
+      mat = fromLists $ addBorder s innerMat
   in Space mat s $ render mat s
+
+extend :: WorldSize -> [[a]] -> [[a]]
+extend (WorldSize (Coords (Row rs) (Col cs))) mat =
+  extend' rs $ map (extend' cs) mat
+
+extend' :: Int -> [a] -> [a]
+extend' _ [] = error "extend empty list not supported"
+extend' sz l@(e:_) =
+  let len = length l
+  in replicate (sz - assert (len <= sz) len) e ++ l
 
 rands :: IO [CInt]
 rands = randomRsIO (0,1)

@@ -43,6 +43,11 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 
 - random geometry for levels (some numbers might be cycling in separate sub spaces)
 
+## Random world constraints
+
+- prevent "wall only" worlds
+- interconnect subspaces by corridors of width 2
+
 ## Event driven aspect
 The game is driven by these events:
 

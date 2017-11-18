@@ -5,7 +5,6 @@ module Timing
     , animationSpeed
     , computeTime
     , diffTimeSecToMicros
-    , eraMicros
     , nextUpdateCounter
     , showUpdateTick
     , Timer(..)
@@ -46,7 +45,6 @@ computeTime (Timer t1) t2 =
 
 
 -- the console can refresh at approx. 21 fps, hence this value (1/25)
--- TODO unify names with below
 animationPeriod :: NominalDiffTime
 animationPeriod = 0.04
 
@@ -55,7 +53,7 @@ animationSpeed :: Int
 animationSpeed = 2
 
 gamePeriod :: NominalDiffTime
-gamePeriod = fromIntegral eraMicros / 1000000
+gamePeriod = fromIntegral gamePeriodMicros / 1000000
 
 addGameStepDuration :: KeyTime -> KeyTime
 addGameStepDuration = addDuration gamePeriod
@@ -68,11 +66,11 @@ addDuration durationSeconds (KeyTime t) = KeyTime $ addUTCTime durationSeconds t
 
 -- using the "incremental" render backend, there is no flicker
 -- using the "full" render backend, flicker starts at 40
-eraMicros :: Int
-eraMicros = eraMillis * 1000
+gamePeriodMicros :: Int
+gamePeriodMicros = gamePeriodMillis * 1000
   where
-    eraMillis = 160 -- this controls the game loop frequency.
-                    -- 20 seems to match screen refresh frequency
+    gamePeriodMillis = 160 -- this controls the game loop frequency.
+                           -- 20 seems to match screen refresh frequency
 
 
 tickRepresentationLength :: Col -> Int

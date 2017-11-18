@@ -22,9 +22,12 @@ library
                      , RenderBackends.Internal.Delta
                      , Animation
                      , Console
+                     , Event
+                     , Game
                      , Geo
                      , Laser
                      , NonBlockingIO
+                     , Number
                      , Render
                      , Space
                      , Threading

@@ -10,14 +10,20 @@ module Timing
     , showUpdateTick
     , Timer(..)
     , KeyTime(..)
+    -- | reexports
+    , UTCTime(..)
+    , diffUTCTime
+    , addUTCTime
+    , getCurrentTime
     ) where
 
 import           Imajuscule.Prelude
 
 import           Data.Time( addUTCTime
                           , diffUTCTime
+                          , getCurrentTime
                           , NominalDiffTime
-                          , UTCTime )
+                          , UTCTime(..) )
 import           Geo( Col(..)
                     , Coords(..) )
 import           WorldSize( WorldSize(..) )

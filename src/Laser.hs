@@ -1,21 +1,29 @@
 
 module Laser
     ( LaserType(..)
+    , LaserRay(..)
+    , LaserPolicy(..)
     , laserChar
     , Ray(..)
     , Theoretical
     , Actual
     , stopRayAtFirstCollision
     , shootLaserFromShip
+    , mkLaserAnimation
     ) where
 
 import           Imajuscule.Prelude
 
 import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
+
+import           Animation( Animation
+                          , mkAnimation
+                          , simpleLaser)
 import           Geo( Coords(..)
                     , changeSegmentLength
                     , Direction(..)
+                    , extend
                     , mkSegment
                     , Segment(..)
                     , segmentContains
@@ -23,10 +31,18 @@ import           Geo( Coords(..)
 import           Space( Space(..)
                       , getMaterial
                       , Material(..) )
-import           World( extend )
+import           Timing( KeyTime )
 
+
+data LaserRay a = LaserRay {
+    _laserRayDir :: !Direction
+  , _laserRaySeg :: !(Ray a)
+}
+
+data LaserPolicy = RayDestroysFirst | RayDestroysAll
 
 data LaserType = Infinite
+
 newtype Ray a = Ray Segment
 data Theoretical -- with no obstacle
 data Actual      -- with obstacles
@@ -41,7 +57,8 @@ shootLaser laserStart dir laserType space =
     Air ->
       case laserType of
         Infinite ->
-          let laserEnd = extend laserStart dir space
+          let continueExtension c = getMaterial c space == Air
+              laserEnd = extend laserStart dir continueExtension
           in Just $ Ray $ mkSegment laserStart laserEnd
 
 
@@ -63,3 +80,7 @@ laserChar dir = case dir of
   Down  -> '|'
   LEFT  -> '='
   RIGHT -> '='
+
+mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
+mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
+  mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime

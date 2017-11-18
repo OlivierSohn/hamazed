@@ -1,28 +1,18 @@
-
 module World
-    ( Event(..)
-    , TimedEvent(..)
-    , ActionTarget(..)
-    , getKeyTime
-    , Animation(..)
+    ( Animation(..)
     , mkAnimation
     , BattleShip(..)
     , accelerateShip
-    , coordsForActionTargets
-    , extend
     , mkWorld
     , moveWorld
     , nextWorld
     , earliestAnimationDeadline
     , Number(..)
-    , Step(..)
     , World(..)
     ) where
 
 import           Imajuscule.Prelude
 
-import           Data.List( foldl' )
-import           Data.Maybe( mapMaybe )
 import           Data.Time( addUTCTime
                           , getCurrentTime
                           , UTCTime )
@@ -36,12 +26,12 @@ import           Animation( Animation(..)
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
-                    , translateInDir
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
-                    , sumCoords
-                    , zeroCoords )
+                    , sumCoords )
+import           Number( Number(..)
+                       , getColliding )
 import           Space( Space(..)
                       , getMaterial
                       , Material(..)
@@ -50,50 +40,6 @@ import           Timing( KeyTime(..) )
 import           WorldSize( WorldSize(..) )
 
 
-data TimedEvent = TimedEvent Event UTCTime
-
-data Event =  Action ActionTarget Direction
-            | Timeout Step KeyTime
-            | StartLevel Int
-            | EndGame
-            | Nonsense
-            deriving(Eq, Show)
-
-data Step = GameStep
-          | AnimationStep
-          | MessageStep
-          deriving(Eq, Show)
-
-data ActionTarget = Ship
-                  | Laser
-                  deriving(Eq, Show)
-
-
-getKeyTime :: Event -> Maybe KeyTime
-getKeyTime (Timeout _ k) = Just k
-getKeyTime _             = Nothing
-
-
-coordsForActionTargets :: ActionTarget -> [Event] -> Coords
-coordsForActionTargets target actions = foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
-
-filterActions :: ActionTarget -> [Event] -> [Direction]
-filterActions target = mapMaybe (maybeDirectionFor target)
-
-maybeDirectionFor :: ActionTarget -> Event -> Maybe Direction
-maybeDirectionFor targetFilter (Action actionTarget dir)
-   | actionTarget == targetFilter = Just dir
-   | otherwise                    = Nothing
-maybeDirectionFor _ _ = Nothing
-
-
-extend :: Coords -> Direction -> Space -> Coords
-extend coords dir space =
-  let extended = translateInDir dir coords
-  in case getMaterial extended space of
-    Wall -> coords
-    Air -> extend extended dir space
-
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
@@ -101,6 +47,7 @@ data BattleShip = BattleShip {
   , _shipSafeUntil :: !(Maybe UTCTime)
   , _shipCollisions :: ![Number]
 }
+
 
 accelerateShip :: Direction -> BattleShip -> BattleShip
 accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
@@ -114,14 +61,6 @@ data World = World{
   , _worldSpace :: !Space
   , _worldAnimations :: ![Animation]
 }
-
-data Number = Number {
-    _numberPosSpeed :: !PosSpeed
-  , _numberNum :: !Int
-}
-
-getColliding :: Coords -> [Number] -> [Number]
-getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
 nextWorld :: World -> [Number] -> Int -> [Animation] -> World
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _) balls ammo =

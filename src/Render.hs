@@ -3,12 +3,13 @@ module Render (
         , renderPoints
         , Alignment(..)
         , renderAlignedStr
-        , Coords(..)
-        , RenderState(..)
         , go
         , Render.move
         , translate
         , mkRenderStateToCenterWorld
+        -- | reexports
+        , Coords(..)
+        , RenderState(..)
         ) where
 
 import           Imajuscule.Prelude

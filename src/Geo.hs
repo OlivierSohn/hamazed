@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Geo ( Direction(..)
+           , extend
            , Col(..)
            , Coords(..)
            , coordsForDirection
@@ -147,3 +148,12 @@ translate = sumCoords
 
 move :: Int -> Direction -> Coords -> Coords
 move t dir c = sumCoords c $ multiply t $ coordsForDirection dir
+
+extend :: Coords -> Direction -> (Coords -> Bool) -> Coords
+extend coords dir continue =
+  let loc = translateInDir dir coords
+  in if continue loc
+       then
+         extend loc dir continue
+       else
+         loc

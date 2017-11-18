@@ -21,8 +21,6 @@ import           Data.Maybe( catMaybes
 
 import           GHC.Generics( Generic )
 import           Control.Exception( assert )
---import           System.Random( getStdRandom
---                              , randomR )
 
 
 import           Geo( Coords

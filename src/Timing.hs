@@ -1,6 +1,6 @@
 
 module Timing
-    ( addMotionStepDuration
+    ( addGameStepDuration
     , addAnimationStepDuration
     , animationSpeed
     , computeTime
@@ -39,7 +39,6 @@ diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
 
 newtype Timer = Timer { _initialTime :: UTCTime }
 
-
 computeTime :: Timer -> UTCTime -> Int
 computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
@@ -55,11 +54,11 @@ animationPeriod = 0.04
 animationSpeed :: Int
 animationSpeed = 2
 
-motionStepDurationSeconds :: NominalDiffTime
-motionStepDurationSeconds = fromIntegral eraMicros / 1000000
+gamePeriod :: NominalDiffTime
+gamePeriod = fromIntegral eraMicros / 1000000
 
-addMotionStepDuration :: KeyTime -> KeyTime
-addMotionStepDuration = addDuration motionStepDurationSeconds
+addGameStepDuration :: KeyTime -> KeyTime
+addGameStepDuration = addDuration gamePeriod
 
 addAnimationStepDuration :: KeyTime -> KeyTime
 addAnimationStepDuration = addDuration animationPeriod

@@ -61,7 +61,7 @@ import           Timing( Timer(..)
                        , KeyTime(..)
                        , UTCTime
                        , getCurrentTime
-                       , addMotionStepDuration )
+                       , addGameStepDuration )
 import           World( World(..)
                       , mkWorld
                       , BattleShip(..)
@@ -145,7 +145,6 @@ accelerateShip' dir (GameState a c d (World wa wb ship wc wd) f g h) =
 gameWorker :: IO ()
 gameWorker = makeInitialState firstLevel >>= loop
 
-
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
@@ -185,7 +184,7 @@ updateGameUsingTimedEvent
     StartLevel nextLevel -> makeInitialState nextLevel
     _        -> do
       let newState = case event of
-            (Timeout GameStep gt) -> GameState a (addMotionStepDuration gt) d (moveWorld t world) f g h
+            (Timeout GameStep gt) -> GameState a (addGameStepDuration gt) d (moveWorld t world) f g h
             (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
                                      -- MessageStep is probably the wrong abstraction level
               case mayLevelFinished of

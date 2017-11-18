@@ -23,8 +23,6 @@ import           Data.Time( UTCTime
                           , diffUTCTime
                           , getCurrentTime )
 
-import qualified System.Console.Terminal.Size as Terminal(size
-                                                         , Window(..))
 import           System.IO( getChar )
 import           System.Timeout( timeout )
 
@@ -42,18 +40,13 @@ import           Console( ColorIntensity(..)
                         , setForeground
                         , renderChar_
                         , renderStrLn
-                        , renderStrLn_
-                        , RenderState(..) )
-import           Geo( sumCoords
-                    , Col(..)
+                        , renderStrLn_ )
+import           Geo( Col(..)
                     , Coords(..)
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
-                    , segmentContains
-                    , translate
-                    , translateInDir
-                    , translateLeft )
+                    , segmentContains )
 import           Laser( LaserType(..)
                       , laserChar
                       , Ray(..)
@@ -61,6 +54,12 @@ import           Laser( LaserType(..)
                       , Actual
                       , shootLaserFromShip
                       , stopRayAtFirstCollision )
+import           Render( renderChar
+                       , RenderState
+                       , go
+                       , move
+                       , translate
+                       , mkRenderStateToCenterWorld )
 import           Space( Space(..)
                       , getMaterial
                       , location
@@ -99,7 +98,7 @@ import           WorldSize( WorldSize(..) )
 data GameState = GameState {
     _startTime :: !Timer
   , _nextMotionStep :: !KeyTime
-  , _upperLeftCorner :: !Coords
+  , _upperLeftCorner :: !RenderState
   , _world :: !World
   , _gameShotNumbers :: ![Int]
   , _gameTarget :: !Int
@@ -266,9 +265,6 @@ messageDeadline (Level _ mayLevelFinished) t =
         ContinueMessage -> Nothing)
     mayLevelFinished
 
-goDown :: RenderState -> RenderState
-goDown (RenderState r) = RenderState $ translateInDir Down r
-
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
@@ -288,20 +284,14 @@ gameWorker = makeInitialState firstLevel >>= loop
 
 makeInitialState :: Int -> IO GameState
 makeInitialState level = do
-  termSize <- Terminal.size
   let numbers = [1..(3+level)] -- more and more numbers as level increases
       s = 36 + 2 * (1-level) -- less and less space as level increases
       -- we need even world dimensions to ease level construction
       worldSize = WorldSize $ Coords (Row $ assert (even s) s) (Col (2*s))
-      coords = maybe (Coords (Row 3) (Col 3)) (`worldUpperLeftFromTermSize` worldSize) termSize
+  coords <- mkRenderStateToCenterWorld worldSize
   world <- mkWorld worldSize numbers
   t <- getCurrentTime
   return $ GameState (Timer t) (KeyTime t) coords world [] (sum numbers `quot` 2) $ Level level Nothing
-
-worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
-worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
-  let walls = 2 :: Int
-  in Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)
 
 loop :: GameState -> IO ()
 loop state =
@@ -389,21 +379,20 @@ renderGame k state@(GameState _ _ upperLeft
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
                    shotNumbers target (Level level _)) = do
   --printTimer state
-  let r = RenderState upperLeft
-      addWallSize = (+ 2)
+  let addWallSize = (+ 2)
       half = flip quot 2
       mkSizes s = (addWallSize s, half s)
       (rFull, rHalf) = mkSizes rs
       (_    , cHalf) = mkSizes cs
 
-      centerUp   = translate (Coords (Row $ -1)        (Col cHalf)) upperLeft
-      centerDown = translate (Coords (Row $ rFull + 1) (Col cHalf)) upperLeft
-      leftMiddle = translate (Coords (Row rHalf)       (Col $ -1)) upperLeft
-  _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) $ RenderState centerDown
-  _ <- goDown <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") (RenderState leftMiddle)
+      centerUp   = translate (Row $ -1)        (Col cHalf) upperLeft
+      centerDown = translate (Row $ rFull + 1) (Col cHalf) upperLeft
+      leftMiddle = translate (Row rHalf)       (Col $ -1)  upperLeft
+  _ <- renderCentered ("Level " ++ show level ++ " of " ++ show lastLevel) centerDown
+  _ <- go Down <$> renderRightAligned ("[" ++ replicate ammo '.' ++ "]") leftMiddle
        >>= renderRightAligned (showShotNumbers shotNumbers)
-  _ <- renderCentered ("Objective : " ++ show target) (RenderState centerUp)
-  renderWorldFrame space r >>=
+  _ <- renderCentered ("Objective : " ++ show target) centerUp
+  renderWorldFrame space upperLeft >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations k (`location` space) worldCorner animations
       renderWorld state worldCorner
@@ -413,7 +402,7 @@ renderGame k state@(GameState _ _ upperLeft
 renderWorld :: GameState -> RenderState -> IO ()
 renderWorld (GameState _ _ _
                    (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) sz@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
-                   _ _ (Level level levelState)) worldCorner@(RenderState upperLeft) = do
+                   _ _ (Level level levelState)) worldCorner = do
   -- render numbers, including the ones that will be destroyed, if any
   mapM_ (\(Number (PosSpeed pos _) i) -> render_ (intToDigit i) pos sz worldCorner) balls
   when (null collisions) (do
@@ -422,74 +411,69 @@ renderWorld (GameState _ _ _
     render_ '+' shipCoords sz worldCorner
     setForeground Vivid White)
   let
-    rightMiddle = translate (Coords (Row (quot rs 2)) (Col $ cs + 2)) upperLeft
-  mapM_ (renderLevelState (RenderState rightMiddle) level) levelState
+    rightMiddle = translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner
+  mapM_ (renderLevelState rightMiddle level) levelState
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
-renderLevelState (RenderState coords) level (LevelFinished stop _ messageState) = do
+renderLevelState coords level (LevelFinished stop _ messageState) = do
   let color = case stop of
         (Lost _) -> Yellow
         Won      -> Green
-      topLeft = RenderState $ translateInDir RIGHT coords
+      topLeft = go RIGHT coords
   setForeground Vivid color
   afterFirst <- renderStrLn (case stop of
     (Lost reason) -> "You Lose (" ++ reason ++ ")"
     Won           -> "You Win!") topLeft
   setForeground Vivid White
-  when (messageState == ContinueMessage) $ do
-    let from = goDown afterFirst
+  when (messageState == ContinueMessage) $
     renderStrLn_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
                           (Lost _) -> "restart"
                           Won      -> "continue"
-        in "Hit a key to " ++ action ++ " ...") from
-    return ()
+        in "Hit a key to " ++ action ++ " ...") (go Down afterFirst)
+--    return ()
 
 showShotNumbers :: [Int] -> String
 showShotNumbers nums =
   "[" ++ unwords (map show nums) ++ "]"
 
 renderCentered :: String -> RenderState -> IO RenderState
-renderCentered str (RenderState centerCoords) = do
-  let leftCorner = RenderState $ translateLeft (quot (length str) 2) centerCoords
+renderCentered str center = do
+  let leftCorner = move (quot (length str) 2) LEFT center
   renderStrLn_ str leftCorner
-  return $ RenderState $ translateInDir Down centerCoords
+  return $ go Down center
 
 renderRightAligned :: String -> RenderState -> IO RenderState
-renderRightAligned str (RenderState rightAlignment) = do
-  let leftCorner = RenderState $ translateLeft (length str) rightAlignment
+renderRightAligned str rightAlignment = do
+  let leftCorner = move (length str) LEFT rightAlignment
   renderStrLn_ str leftCorner
-  return $ RenderState $ translateInDir Down rightAlignment
+  return $ go Down rightAlignment
 
--- TODO precompute the list of Str in the Space to avoid recreating them at each frame
--- and allow a better rendering ( T | _ + ) depnding on neighbours
 renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft@(RenderState upperLeftCoords) = do
+renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do
   let horizontalWall = replicate (cs + 2)
-      lowerLeft = RenderState $ sumCoords upperLeftCoords $ Coords (Row $ rs+1) (Col 0)
+      lowerLeft = move (rs+1) Down upperLeft
 
   -- upper wall
-  (RenderState renderCoords) <- renderStrLn (horizontalWall '_') upperLeft
-  let worldCoords = translateInDir RIGHT renderCoords
+  renderState <- renderStrLn (horizontalWall '_') upperLeft
+  let worldCoords = go RIGHT renderState
 
   -- left & right walls
-  let leftWallCoords = take rs $ iterate (translateInDir Down) renderCoords
-      toRight = Coords (Row 0) (Col $ cs+1)
-      rightWallCoords = take rs $ iterate (translateInDir Down) $ sumCoords renderCoords toRight
-  mapM_ (renderChar_ '|' . RenderState) (leftWallCoords ++ rightWallCoords)
+  let leftWallCoords = take rs $ iterate (go Down) renderState
+      rightWallCoords = take rs $ iterate (go Down) $ move (cs+1) RIGHT renderState
+  mapM_ (renderChar_ '|') (leftWallCoords ++ rightWallCoords)
 
   -- lower wall
   renderStrLn_ (horizontalWall 'T') lowerLeft
 
-  mapM_ (\(r, str) -> renderStrLn_ str $ RenderState $ sumCoords worldCoords $ Coords (Row r) (Col 0))$ zip [0..] renderedWorld
+  mapM_ (\(r, str) -> renderStrLn_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
 
-  return $ RenderState worldCoords
+  return worldCoords
 
 render_ :: Char -> Coords -> Space -> RenderState -> IO ()
-render_ char worldCoords space (RenderState renderCoords) =
+render_ char worldCoords space r =
   case getMaterial worldCoords space of
-    Air  -> renderChar_ char loc
+    Air  -> renderChar char worldCoords r
     Wall -> return ()
-  where loc = RenderState $ sumCoords renderCoords worldCoords

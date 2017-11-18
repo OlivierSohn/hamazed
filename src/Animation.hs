@@ -25,15 +25,14 @@ import           Control.Exception( assert )
 --                              , randomR )
 
 
-import           Console( RenderState(..)
-                        , renderChar_ )
-import           Geo( Coords(..)
-                    , Segment(..)
-                    , sumCoords
+import           Geo( Coords
+                    , Segment
                     , showSegment
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc )
-import           Timing( KeyTime(..)
+import           Render( RenderState
+                       , renderPoints )
+import           Timing( KeyTime
                        , addAnimationStepDuration
                        , animationSpeed)
 import           WorldSize(Location(..))
@@ -194,10 +193,6 @@ renderAnimations k getLocation r anims =
           Same   -> id) a
     render step a' getLocation r) anims
 
-renderChar :: Char -> Coords -> RenderState -> IO ()
-renderChar char pos (RenderState upperLeftCoords) =
-  renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
-
 setRender :: Animation
           -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
           -> Animation
@@ -219,7 +214,7 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
         '=' -> '-'
         _ -> error "unsupported case in simpleLaser"
       char = if assert (i > 0) i > animationSpeed then replacementChar else laserChar
-  renderPoints points char state
+  renderPoints char state points
   return $ if assert (i > 0) i > 2 * animationSpeed then Nothing else Just a
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
@@ -233,9 +228,5 @@ quantitativeExplosionThenSimpleExplosion number state step a@(Animation _ i _) g
 
 renderAnimation :: [Coords] -> Animation -> RenderState -> IO (Maybe Animation)
 renderAnimation points a state = do
-  renderPoints points '.' state
+  renderPoints '.' state points
   return $ if null points then Nothing else Just a
-
-renderPoints :: [Coords] -> Char -> RenderState -> IO ()
-renderPoints points char state =
-  mapM_ (\c -> renderChar char c state) points

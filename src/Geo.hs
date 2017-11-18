@@ -6,6 +6,7 @@ module Geo ( Direction(..)
            , coordsForDirection
            , PosSpeed(..)
            , Segment(..)
+           , move
            , mkSegment
            , showSegment
            , changeSegmentLength
@@ -15,7 +16,6 @@ module Geo ( Direction(..)
            , sumCoords
            , translate
            , translateInDir
-           , translateLeft
            , zeroCoords
            -- circles
            , translatedFullCircle
@@ -55,6 +55,8 @@ coordsForDirection Up    = Coords (Row$ -1) (Col   0)
 coordsForDirection LEFT  = Coords (Row   0) (Col$ -1)
 coordsForDirection RIGHT = Coords (Row   0) (Col   1)
 
+multiply :: Int -> Coords -> Coords
+multiply n (Coords (Row r) (Col c)) = Coords (Row $ r*n) (Col $ c*n)
 
 translateInDir :: Direction -> Coords -> Coords
 translateInDir dir = translate $ coordsForDirection dir
@@ -143,5 +145,5 @@ translatedFullCircle center radius firstAngle resolution =
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
 
-translateLeft :: Int -> Coords -> Coords
-translateLeft t (Coords (Row r) (Col c)) = Coords (Row r) (Col (c-t))
+move :: Int -> Direction -> Coords -> Coords
+move t dir c = sumCoords c $ multiply t $ coordsForDirection dir

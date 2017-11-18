@@ -25,6 +25,7 @@ library
                      , Geo
                      , Laser
                      , NonBlockingIO
+                     , Render
                      , Space
                      , Threading
                      , Timing

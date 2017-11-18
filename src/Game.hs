@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 
 module Game(
         gameWorker
@@ -10,9 +9,6 @@ import           Control.Exception( assert )
 import           Control.Monad( when )
 
 import           Data.Char( intToDigit )
-
-import           System.IO( getChar )
-import           System.Timeout( timeout )
 
 import           Data.List( minimumBy )
 import           Data.Maybe( catMaybes
@@ -32,6 +28,7 @@ import           Console( ColorIntensity(..)
                         , renderChar_
                         , renderStr
                         , renderStr_ )
+import           Deadline( Deadline(..) )
 import           Geo( Col(..)
                     , Coords(..)
                     , Direction(..)
@@ -49,9 +46,10 @@ import           Laser( LaserRay(..)
                       , mkLaserAnimation )
 import           Level( Level(..)
                       , LevelFinished(..)
-                      , eventFromChar
+                      , getEventForMaybeDeadline
                       , isLevelFinished
                       , MessageState(..)
+                      , messageDeadline
                       , GameStops(..)
                       , firstLevel
                       , lastLevel )
@@ -73,10 +71,7 @@ import           Space( Space(..)
 import           Timing( Timer(..)
                        , KeyTime(..)
                        , UTCTime
-                       , diffUTCTime
-                       , addUTCTime
                        , getCurrentTime
-                       , diffTimeSecToMicros
                        , addMotionStepDuration )
 import           World( World(..)
                       , mkWorld
@@ -129,11 +124,6 @@ replaceAnimations :: [Animation] -> GameState -> GameState
 replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =
   GameState a c e (World wa wb wc wd anims) f g h
 
-data Deadline = Deadline {
-    _deadlineTime :: !KeyTime
-  , _deadlineType :: !Step
-} deriving(Eq, Show)
-
 earliestDeadline :: GameState -> UTCTime -> Maybe Deadline
 earliestDeadline s t =
   let l = listDeadlines s t
@@ -149,20 +139,6 @@ gameDeadline (GameState _ nextGameStep _ _ _ _ (Level _ levelFinished)) =
 animationDeadline :: GameState -> Maybe Deadline
 animationDeadline (GameState _ _ _ world _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
-
-messageDeadline :: Level -> UTCTime -> Maybe Deadline
-messageDeadline (Level _ mayLevelFinished) t =
-  maybe Nothing
-  (\(LevelFinished _ timeFinished messageType) ->
-    case messageType of
-      InfoMessage ->
-        let finishedSinceSeconds = diffUTCTime t timeFinished
-            delay = 2
-            nextMessageStep = addUTCTime (delay - finishedSinceSeconds) t
-        in  Just $ Deadline (KeyTime nextMessageStep) MessageStep
-      ContinueMessage -> Nothing)
-  mayLevelFinished
-
 
 
 accelerateShip' :: Direction -> GameState -> GameState
@@ -207,26 +183,8 @@ getTimedEvent state =
 getEvent :: GameState -> IO Event
 getEvent state@(GameState _ _ _ _ _ _ level) = do
   t <- getCurrentTime
-  case earliestDeadline state t of
-    (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
-      let
-        timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline t
-      getEventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> eventFromChar level <$> getChar
-
-getEventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
-getEventWithinDurationMicros level durationMicros k step =
-  (\case
-    Nothing   -> Timeout step k
-    Just char -> eventFromChar level char
-    ) <$> getCharWithinDurationMicros durationMicros
-
-getCharWithinDurationMicros :: Int -> IO (Maybe Char)
-getCharWithinDurationMicros durationMicros =
-  if durationMicros < 0
-    then return Nothing
-    else timeout durationMicros getChar
-
+  let deadline = earliestDeadline state t
+  getEventForMaybeDeadline level deadline t
 
 updateGameUsingTimedEvent :: GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent

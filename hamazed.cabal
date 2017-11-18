@@ -22,6 +22,7 @@ library
                      , RenderBackends.Internal.Delta
                      , Animation
                      , Console
+                     , Deadline
                      , Event
                      , Game
                      , Geo

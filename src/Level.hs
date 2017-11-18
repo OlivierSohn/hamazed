@@ -1,22 +1,32 @@
+{-# LANGUAGE LambdaCase #-}
 
 module Level
     ( Level(..)
     , LevelFinished(..)
     , isLevelFinished
-    , Level.eventFromChar
     , MessageState(..)
     , GameStops(..)
     , firstLevel
     , lastLevel
+    , messageDeadline
+    , getEventForMaybeDeadline
     ) where
 
 import           Imajuscule.Prelude
 
+import           System.IO( getChar )
+import           System.Timeout( timeout )
+
+import           Deadline( Deadline(..) )
 import           Event( Event(..)
                       , eventFromChar
                       , Step(..)
                       , TimedEvent(..) )
-import           Timing( UTCTime )
+import           Timing( UTCTime
+                       , KeyTime(..)
+                       , diffTimeSecToMicros
+                       , diffUTCTime
+                       , addUTCTime )
 import           Util( showListOrSingleton )
 import           World( BattleShip(..)
                       , Number(..)
@@ -80,3 +90,38 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbe
     checkAmmo
       | ammo <= 0 = Just $ Lost "no ammo left"
       | otherwise = Nothing
+
+messageDeadline :: Level -> UTCTime -> Maybe Deadline
+messageDeadline (Level _ mayLevelFinished) t =
+  maybe Nothing
+  (\(LevelFinished _ timeFinished messageType) ->
+    case messageType of
+      InfoMessage ->
+        let finishedSinceSeconds = diffUTCTime t timeFinished
+            delay = 2
+            nextMessageStep = addUTCTime (delay - finishedSinceSeconds) t
+        in  Just $ Deadline (KeyTime nextMessageStep) MessageStep
+      ContinueMessage -> Nothing)
+  mayLevelFinished
+
+getEventForMaybeDeadline :: Level -> Maybe Deadline -> UTCTime -> IO Event
+getEventForMaybeDeadline level mayDeadline curTime =
+  case mayDeadline of
+    (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
+      let
+        timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline curTime
+      eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
+    Nothing -> Level.eventFromChar level <$> getChar
+
+eventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
+eventWithinDurationMicros level durationMicros k step =
+  (\case
+    Nothing   -> Timeout step k
+    Just char -> Level.eventFromChar level char
+    ) <$> getCharWithinDurationMicros durationMicros
+
+getCharWithinDurationMicros :: Int -> IO (Maybe Char)
+getCharWithinDurationMicros durationMicros =
+  if durationMicros < 0
+    then return Nothing
+    else timeout durationMicros getChar

@@ -156,4 +156,4 @@ extend coords dir continue =
        then
          extend loc dir continue
        else
-         loc
+         coords

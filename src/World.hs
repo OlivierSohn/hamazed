@@ -64,8 +64,7 @@ data Step = GameStep
           | MessageStep
           deriving(Eq, Show)
 
-data ActionTarget = Frame
-                  | Ship
+data ActionTarget = Ship
                   | Laser
                   deriving(Eq, Show)
 

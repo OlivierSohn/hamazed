@@ -47,7 +47,6 @@ import           Console( ColorIntensity(..)
 import           Geo( sumCoords
                     , Col(..)
                     , Coords(..)
-                    , coordsForDirection
                     , Direction(..)
                     , PosSpeed(..)
                     , Row(..)
@@ -149,13 +148,6 @@ eventFromChar (Level n finished) char = case finished of
 
 eventFromCharInGame :: Char -> Event
 eventFromCharInGame c = case c of
-  -- disabling possibility to move frame, since it is placed in the center of the terminal automatically
-  {--
-  'g' -> Action Frame Down
-  't' -> Action Frame Up
-  'f' -> Action Frame LEFT
-  'h' -> Action Frame RIGHT
---}
   'k' -> Action Laser Down
   'i' -> Action Laser Up
   'j' -> Action Laser LEFT
@@ -336,7 +328,6 @@ updateGameUsingTimedEvent
     _        -> do
       let newState = case event of
             (Timeout GameStep gt) -> GameState a (addMotionStepDuration gt) d (moveWorld t world) f g h
-            (Action Frame dir)  -> GameState a b (sumCoords d $ coordsForDirection dir) world f g h
             (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
                                      -- MessageStep is probably the wrong abstraction level
               case mayLevelFinished of

@@ -36,6 +36,7 @@ library
                      , ansi-terminal
                      , hmatrix
                      , monad-loops
+                     , monadlist
                      , random
                      , terminal-size
                      , thyme

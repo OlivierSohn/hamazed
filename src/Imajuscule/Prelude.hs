@@ -70,6 +70,8 @@ module Imajuscule.Prelude ( Eq
                           , negate
                           , div
                           , quot
+                          , even
+                          , odd
                           , error
                           , pi
                           , floor

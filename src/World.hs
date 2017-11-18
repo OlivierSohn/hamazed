@@ -45,7 +45,7 @@ import           Geo( Col(..)
 import           Space( Space(..)
                       , getMaterial
                       , Material(..)
-                      , mkRectangle )
+                      , mkRandomlyFilledRectangle )
 import           Timing( KeyTime(..) )
 import           WorldSize( WorldSize(..) )
 
@@ -190,8 +190,8 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 --------------------------------------------------------------------------------
 
 mkWorld :: WorldSize -> [Int] -> IO World
-mkWorld (WorldSize (Coords r c)) nums = do
-  space <- mkRectangle r c
+mkWorld s nums = do
+  space <- mkRandomlyFilledRectangle s
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createRandomPosSpeed space
   t <- getCurrentTime

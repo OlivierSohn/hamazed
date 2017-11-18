@@ -6,13 +6,15 @@ module Space
     , getMaterial
     , forEachRow
     , location
-    , mkRectangle
+    , mkDeterministicallyFilledRectangle
+    , mkRandomlyFilledRectangle
     ) where
 
 import           Imajuscule.Prelude
 
-import           Data.Vector.Storable( slice )
 import           GHC.Generics( Generic )
+
+import           Data.Vector.Storable( slice )
 
 import           Numeric.LinearAlgebra.Data( (!)
                                            , fromLists
@@ -24,12 +26,14 @@ import           Foreign.C.Types( CInt(..) )
 import           Geo( Coords(..)
                     , Col(..)
                     , Row(..) )
+import           Util( replicateElements
+                     , randomRsIO )
 import           WorldSize( Location(..)
                           , WorldSize(..) )
 
 data Space = Space {
     _space :: !(Matrix CInt)
-  , _spaceSize :: !WorldSize -- ^ represents the aabb of the Air (TODO support non square aabbs)
+  , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
   , _spaceRender :: ![String]
 }
 
@@ -66,26 +70,49 @@ mapInt 0 = Air
 mapInt 1 = Wall
 mapInt _ = error "mapInt arg out of bounds"
 
--- | creates an empty rectangle of size specified in parameters, with a one-element border
-mkRectangle :: Row -> Col -> Space
-mkRectangle (Row heightEmptySpace) (Col widthEmptySpace) =
-  let ncols = widthEmptySpace + 2
-
-      wall = mapMaterial Wall
+mkDeterministicallyFilledRectangle :: WorldSize -> IO Space
+mkDeterministicallyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
+  let wall = mapMaterial Wall
       air  = mapMaterial Air
 
-      upperRow = replicate ncols wall
-      middleRow = wall : replicate widthEmptySpace air ++ [wall]
-      collisionRow = wall : replicate 2 air ++ replicate (ncols-6) wall ++ replicate 2 air ++ [wall]
+      middleRow = replicate widthEmptySpace air
+      collisionRow = replicate 2 air ++ replicate (widthEmptySpace-4) wall ++ replicate 2 air
       ncolls = 8
       nEmpty = heightEmptySpace - ncolls
       n1 = quot nEmpty 2
       n2 = nEmpty - n1
-      l = [upperRow] ++ replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow ++ [upperRow]
-      mat = fromLists l
-      size = WorldSize $ Coords (Row heightEmptySpace) (Col widthEmptySpace)
-  in Space mat size $ render mat size
+      l = replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow
+  return $ mkSpaceFromInnerMat s l
 
+-- | creates a rectangle of size specified in parameters, with a one-element border.
+--  it uses IO for random numbers
+mkRandomlyFilledRectangle :: WorldSize -> IO Space
+mkRandomlyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
+  let multFactor = 2
+      mkRandomRow _ = replicateElements multFactor . take (quot widthEmptySpace multFactor) <$> rands
+  randMatHalf <- mapM mkRandomRow [0..quot heightEmptySpace multFactor - 1]
+
+  let innerMat = replicateElements multFactor randMatHalf
+  return $ mkSpaceFromInnerMat s innerMat
+
+mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
+mkSpaceFromInnerMat s innerMat =
+  let mat = fromLists $ addBorder s innerMat
+  in Space mat s $ render mat s
+
+rands :: IO [CInt]
+rands = randomRsIO (0,1)
+
+addBorder :: WorldSize -> [[CInt]] -> [[CInt]]
+addBorder (WorldSize (Coords _ (Col widthEmptySpace))) l =
+  let ncols = widthEmptySpace + 2 * borderSize
+      wall = mapMaterial Wall
+      wallRow = replicate ncols wall
+      encloseIn b e = b ++ e ++ b
+  in encloseIn (replicate borderSize wallRow) $ map (encloseIn $ replicate borderSize wall) l
+
+borderSize :: Int
+borderSize = 1
 
 render :: Matrix CInt -> WorldSize -> [String]
 render mat s@(WorldSize (Coords _ (Col cs))) =

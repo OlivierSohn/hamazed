@@ -23,6 +23,8 @@ rendered. It removes unwanted flickering effects.
 
 # Backlog
 
+- when ship goes too fast it is possible to go through walls ! fix it...
+
 - it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
 there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
 It would be nice to synchronize animation exactly with console fps to have a better fluidity
@@ -33,8 +35,6 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 - fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity
 
 - use Text instead of String in rendered world
-
-- when ship goes too fast it is possible to go through walls ! fix it...
 
 - implement render of space (deduce which wall element based on neighbors)
 

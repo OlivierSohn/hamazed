@@ -7,7 +7,8 @@ module Lib
 import           Imajuscule.Prelude
 
 import           Control.Applicative( (<|>) )
-import           Control.Exception( finally )
+import           Control.Exception( assert
+                                  , finally )
 import           Control.Monad( when )
 
 import           Data.Char( intToDigit )
@@ -297,8 +298,9 @@ makeInitialState :: Int -> IO GameState
 makeInitialState level = do
   termSize <- Terminal.size
   let numbers = [1..(3+level)] -- more and more numbers as level increases
-      s = 35 + 2 * (1-level) -- less and less space as level increases
-      worldSize = WorldSize $ Coords (Row s) (Col (2*s))
+      s = 36 + 2 * (1-level) -- less and less space as level increases
+      -- we need even world dimensions to ease level construction
+      worldSize = WorldSize $ Coords (Row $ assert (even s) s) (Col (2*s))
       coords = maybe (Coords (Row 3) (Col 3)) (`worldUpperLeftFromTermSize` worldSize) termSize
   world <- mkWorld worldSize numbers
   t <- getCurrentTime

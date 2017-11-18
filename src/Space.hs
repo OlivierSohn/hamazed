@@ -3,6 +3,7 @@
 module Space
     ( Space(..)
     , renderSpace
+    , renderIfNotColliding
     , Material(..)
     , getMaterial
     , forEachRow
@@ -36,7 +37,8 @@ import           Geo( Coords(..)
 import           Render( RenderState
                        , RenderState
                        , go
-                       , move )
+                       , move
+                       , renderChar)
 import           Util( replicateElements
                      , randomRsIO )
 import           WorldSize( Location(..)
@@ -176,6 +178,12 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
   mapM_ (\(r, str) -> renderStr_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
 
   return worldCoords
+
+renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
+renderIfNotColliding char worldCoords space r =
+  case getMaterial worldCoords space of
+    Air  -> renderChar char worldCoords r
+    Wall -> return ()
 
 {--
 

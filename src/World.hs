@@ -3,17 +3,20 @@ module World
     , mkAnimation
     , BattleShip(..)
     , accelerateShip
+    , World(..)
     , mkWorld
     , moveWorld
     , nextWorld
+    , renderWorld
     , earliestAnimationDeadline
-    , World(..)
     -- | reexports
     , Number(..)
     ) where
 
 import           Imajuscule.Prelude
 
+import           Data.Char( intToDigit )
+import           Data.Maybe( isNothing )
 import           Data.Time( addUTCTime
                           , getCurrentTime
                           , UTCTime )
@@ -24,6 +27,9 @@ import           System.Random( getStdRandom
 import           Animation( Animation(..)
                           , mkAnimation
                           , earliestDeadline )
+import           Console( ColorIntensity(..)
+                        , Color(..)
+                        , setForeground )
 import           Geo( Col(..)
                     , Coords(..)
                     , coordsForDirection
@@ -33,7 +39,9 @@ import           Geo( Col(..)
                     , sumCoords )
 import           Number( Number(..)
                        , getColliding )
+import           Render( RenderState )
 import           Space( Space(..)
+                      , renderIfNotColliding
                       , getMaterial
                       , Material(..)
                       , mkRandomlyFilledSpace )
@@ -172,3 +180,13 @@ createRandomNumber :: Space -> Int -> IO Number
 createRandomNumber space i = do
   ps <- createRandomPosSpeed space
   return $ Number ps i
+
+renderWorld :: World -> RenderState -> IO ()
+renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _) worldCorner = do
+  -- render numbers, including the ones that will be destroyed, if any
+  mapM_ (\(Number (PosSpeed pos _) i) -> renderIfNotColliding (intToDigit i) pos space worldCorner) balls
+  when (null collisions) (do
+    let shipColor = if isNothing safeTime then Blue else Red
+    setForeground Vivid shipColor
+    renderIfNotColliding '+' shipCoords space worldCorner
+    setForeground Vivid White)

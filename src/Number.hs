@@ -1,5 +1,6 @@
 module Number(
     Number(..)
+  , showShotNumbers
   , getColliding
   , survivingNumbers
   ) where
@@ -40,3 +41,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
     in (remainingNumbers, Just $ LaserRay dir rayActual)
  where
    justFull = Just $ LaserRay dir $ Ray seg
+
+showShotNumbers :: [Int] -> String
+showShotNumbers nums =
+  "[" ++ unwords (map show nums) ++ "]"

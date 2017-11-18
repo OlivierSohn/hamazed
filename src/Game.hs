@@ -6,9 +6,6 @@ module Game(
 import           Imajuscule.Prelude
 
 import           Control.Exception( assert )
-import           Control.Monad( when )
-
-import           Data.Char( intToDigit )
 
 import           Data.List( minimumBy )
 import           Data.Maybe( catMaybes
@@ -20,11 +17,8 @@ import           Animation( Animation(..)
                           , renderAnimations
                           , mkAnimationTree
                           , mkAnimation )
-import           Console( ColorIntensity(..)
-                        , Color(..)
-                        , beginFrame
-                        , endFrame
-                        , setForeground )
+import           Console( beginFrame
+                        , endFrame )
 import           Deadline( Deadline(..) )
 import           Geo( Col(..)
                     , Coords(..)
@@ -43,27 +37,25 @@ import           Laser( LaserRay(..)
                       , mkLaserAnimation )
 import           Level( Level(..)
                       , LevelFinished(..)
+                      , renderLevel
                       , getEventForMaybeDeadline
                       , isLevelFinished
                       , MessageState(..)
                       , messageDeadline
                       , firstLevel
-                      , lastLevel
-                      , renderLevelState )
+                      , lastLevel )
 import           Number( Number(..)
-                       , survivingNumbers )
+                       , survivingNumbers
+                       , showShotNumbers )
 import           Render( RenderState
                        , mkRenderStateToCenterWorld
                        , translate
-                       , renderChar
                        , Alignment(..)
                        , renderAlignedStr
                        , RenderState
                        , go )
 import           Space( Space(..)
-                       , getMaterial
                        , location
-                       , Material(..)
                        , renderSpace )
 import           Timing( Timer(..)
                        , KeyTime(..)
@@ -76,7 +68,8 @@ import           World( World(..)
                       , nextWorld
                       , earliestAnimationDeadline
                       , accelerateShip
-                      , moveWorld )
+                      , moveWorld
+                      , renderWorld )
 import          WorldSize( WorldSize(..)
                          , mkWorldSize
                          , Height(..)
@@ -233,30 +226,14 @@ renderGame k state@(GameState _ _ upperLeft
   renderSpace space upperLeft >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations k (`location` space) worldCorner animations
-      renderWorld state worldCorner
+      renderWorldAndLevel state worldCorner
       return activeAnimations)
 
-renderWorld :: GameState -> RenderState -> IO ()
-renderWorld (GameState _ _ _
-                   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
-                   _ _ (Level level levelState)) worldCorner = do
-  -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\(Number (PosSpeed pos _) i) -> renderIfNotColliding (intToDigit i) pos space worldCorner) balls
-  when (null collisions) (do
-    let shipColor = if isNothing safeTime then Blue else Red
-    setForeground Vivid shipColor
-    renderIfNotColliding '+' shipCoords space worldCorner
-    setForeground Vivid White)
+renderWorldAndLevel :: GameState -> RenderState -> IO ()
+renderWorldAndLevel (GameState _ _ _
+                   world@(World _ _ _ (Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
+                   _ _ level) worldCorner = do
+  renderWorld world worldCorner
   let
     rightMiddle = translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner
-  mapM_ (renderLevelState rightMiddle level) levelState
-
-showShotNumbers :: [Int] -> String
-showShotNumbers nums =
-  "[" ++ unwords (map show nums) ++ "]"
-
-renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
-renderIfNotColliding char worldCoords space r =
-  case getMaterial worldCoords space of
-    Air  -> renderChar char worldCoords r
-    Wall -> return ()
+  renderLevel level rightMiddle

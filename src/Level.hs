@@ -3,6 +3,7 @@
 module Level
     ( Level(..)
     , LevelFinished(..)
+    , renderLevel
     , isLevelFinished
     , renderLevelState
     , MessageState(..)
@@ -28,9 +29,9 @@ import           Event( Event(..)
                       , eventFromChar
                       , Step(..)
                       , TimedEvent(..) )
-import           Geo(Direction(..))
-import           Render(RenderState(..)
-                       , go)
+import           Geo( Direction(..) )
+import           Render( RenderState(..)
+                       , go )
 import           Timing( UTCTime
                        , KeyTime(..)
                        , diffTimeSecToMicros
@@ -154,3 +155,8 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
                           (Lost _) -> "restart"
                           Won      -> "continue"
         in "Hit a key to " ++ action ++ " ...") (go Down afterFirst)
+
+
+renderLevel :: Level -> RenderState -> IO ()
+renderLevel (Level level levelState) rightMiddle =
+  mapM_ (renderLevelState rightMiddle level) levelState

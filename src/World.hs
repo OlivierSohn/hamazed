@@ -156,18 +156,28 @@ mirrorIfNeeded :: Space -> PosSpeed -> PosSpeed
 mirrorIfNeeded space (PosSpeed (Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
   let future = Coords (Row $ r+dr) (Col $ c+dc)
       isWall coord = getMaterial coord space == Wall
-      (newDr, newDc) = if isWall future
-        then
-          if dr == 0
-            then (0, negate dc)
-            else
-              if dc == 0
-              then (negate dr, 0)
-              else
-                -- diagonal case
-                (if isWall (Coords (Row $ r+dr) (Col c)) then negate dr else dr,
-                  if isWall (Coords (Row r) (Col $ c+dc)) then negate dc else dc)
-        else (dr, dc)
+      (newDr, newDc) = case getMaterial future space of
+        Wall
+          | dr == 0   -> (0, negate dc)
+          | dc == 0   -> (negate dr, 0)
+          | otherwise -> -- diagonal case
+                case (isWall (Coords (Row $ r+dr) (Col c)),
+                      isWall (Coords (Row r) (Col $ c+dc))) of
+                        (True, True)   -> (negate dr, negate dc)
+                        (False, False) -> (negate dr, negate dc)
+                        (True, False)  -> (negate dr, dc)
+                        (False, True)  -> (dr, negate dc)
+        Air
+          | dr == 0   -> (dr, dc)
+          | dc == 0   -> (dr, dc)
+          | otherwise -> -- diagonal case
+                case (isWall (Coords (Row $ r+dr) (Col c)),
+                      isWall (Coords (Row r) (Col $ c+dc))) of
+                        (True, True)   -> (negate dr, negate dc)
+                        (False, False) -> (dr, dc)
+                        (True, False)  -> (negate dr, dc)
+                        (False, True)  -> (dr, negate dc)
+
       -- we chose to not constrain the positions as it leads to unnatural motions
       -- the tradeoff is just to not render them
   in PosSpeed (Coords (Row r) (Col c)) (Coords (Row newDr) (Col newDc))
@@ -181,7 +191,7 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld (WorldSize (Coords r c)) nums = do
-  let space = mkRectangle r c
+  space <- mkRectangle r c
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createRandomPosSpeed space
   t <- getCurrentTime

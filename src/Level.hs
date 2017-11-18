@@ -4,6 +4,7 @@ module Level
     ( Level(..)
     , LevelFinished(..)
     , isLevelFinished
+    , renderLevelState
     , MessageState(..)
     , GameStops(..)
     , firstLevel
@@ -17,11 +18,19 @@ import           Imajuscule.Prelude
 import           System.IO( getChar )
 import           System.Timeout( timeout )
 
+import           Console( Color(..)
+                        , ColorIntensity(..)
+                        , setForeground
+                        , renderStr
+                        , renderStr_ )
 import           Deadline( Deadline(..) )
 import           Event( Event(..)
                       , eventFromChar
                       , Step(..)
                       , TimedEvent(..) )
+import           Geo(Direction(..))
+import           Render(RenderState(..)
+                       , go)
 import           Timing( UTCTime
                        , KeyTime(..)
                        , diffTimeSecToMicros
@@ -125,3 +134,23 @@ getCharWithinDurationMicros durationMicros =
   if durationMicros < 0
     then return Nothing
     else timeout durationMicros getChar
+
+renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
+renderLevelState coords level (LevelFinished stop _ messageState) = do
+  let color = case stop of
+        (Lost _) -> Yellow
+        Won      -> Green
+      topLeft = go RIGHT coords
+  setForeground Vivid color
+  afterFirst <- renderStr (case stop of
+    (Lost reason) -> "You Lose (" ++ reason ++ ")"
+    Won           -> "You Win!") topLeft
+  setForeground Vivid White
+  when (messageState == ContinueMessage) $
+    renderStr_ (if level == lastLevel
+      then "You reached the end of the game! Hit Ctrl + C to quit."
+      else
+        let action = case stop of
+                          (Lost _) -> "restart"
+                          Won      -> "continue"
+        in "Hit a key to " ++ action ++ " ...") (go Down afterFirst)

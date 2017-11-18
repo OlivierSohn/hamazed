@@ -24,10 +24,7 @@ import           Console( ColorIntensity(..)
                         , Color(..)
                         , beginFrame
                         , endFrame
-                        , setForeground
-                        , renderChar_
-                        , renderStr
-                        , renderStr_ )
+                        , setForeground )
 import           Deadline( Deadline(..) )
 import           Geo( Col(..)
                     , Coords(..)
@@ -50,9 +47,9 @@ import           Level( Level(..)
                       , isLevelFinished
                       , MessageState(..)
                       , messageDeadline
-                      , GameStops(..)
                       , firstLevel
-                      , lastLevel )
+                      , lastLevel
+                      , renderLevelState )
 import           Number( Number(..)
                        , survivingNumbers )
 import           Render( RenderState
@@ -62,12 +59,12 @@ import           Render( RenderState
                        , Alignment(..)
                        , renderAlignedStr
                        , RenderState
-                       , go
-                       , move )
+                       , go )
 import           Space( Space(..)
-                     , getMaterial
-                     , location
-                     , Material(..) )
+                       , getMaterial
+                       , location
+                       , Material(..)
+                       , renderSpace )
 import           Timing( Timer(..)
                        , KeyTime(..)
                        , UTCTime
@@ -216,7 +213,6 @@ updateGame2 te@(TimedEvent event _) s =
       return $ replaceAnimations animations s2
 
 
-
 renderGame :: Maybe KeyTime -> GameState -> IO [Animation]
 renderGame k state@(GameState _ _ upperLeft
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
@@ -234,7 +230,7 @@ renderGame k state@(GameState _ _ upperLeft
   _ <- go Down <$> renderAlignedStr RightAligned ("[" ++ replicate ammo '.' ++ "]") leftMiddle
        >>= renderAlignedStr RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedStr Centered ("Objective : " ++ show target) centerUp
-  renderWorldFrame space upperLeft >>=
+  renderSpace space upperLeft >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations k (`location` space) worldCorner animations
       renderWorld state worldCorner
@@ -255,51 +251,9 @@ renderWorld (GameState _ _ _
     rightMiddle = translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner
   mapM_ (renderLevelState rightMiddle level) levelState
 
-renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
-renderLevelState coords level (LevelFinished stop _ messageState) = do
-  let color = case stop of
-        (Lost _) -> Yellow
-        Won      -> Green
-      topLeft = go RIGHT coords
-  setForeground Vivid color
-  afterFirst <- renderStr (case stop of
-    (Lost reason) -> "You Lose (" ++ reason ++ ")"
-    Won           -> "You Win!") topLeft
-  setForeground Vivid White
-  when (messageState == ContinueMessage) $
-    renderStr_ (if level == lastLevel
-      then "You reached the end of the game! Hit Ctrl + C to quit."
-      else
-        let action = case stop of
-                          (Lost _) -> "restart"
-                          Won      -> "continue"
-        in "Hit a key to " ++ action ++ " ...") (go Down afterFirst)
-
 showShotNumbers :: [Int] -> String
 showShotNumbers nums =
   "[" ++ unwords (map show nums) ++ "]"
-
-renderWorldFrame :: Space -> RenderState -> IO RenderState
-renderWorldFrame (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do
-  let horizontalWall = replicate (cs + 2)
-      lowerLeft = move (rs+1) Down upperLeft
-
-  -- upper wall
-  renderState <- renderStr (horizontalWall '_') upperLeft
-  let worldCoords = go RIGHT renderState
-
-  -- left & right walls
-  let leftWallCoords = take rs $ iterate (go Down) renderState
-      rightWallCoords = take rs $ iterate (go Down) $ move (cs+1) RIGHT renderState
-  mapM_ (renderChar_ '|') (leftWallCoords ++ rightWallCoords)
-
-  -- lower wall
-  renderStr_ (horizontalWall 'T') lowerLeft
-
-  -- world
-  mapM_ (\(r, str) -> renderStr_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
-
-  return worldCoords
 
 renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
 renderIfNotColliding char worldCoords space r =

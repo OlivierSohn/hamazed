@@ -2,12 +2,13 @@
 
 module Space
     ( Space(..)
+    , renderSpace
     , Material(..)
     , getMaterial
     , forEachRow
     , location
-    , mkDeterministicallyFilledRectangle
-    , mkRandomlyFilledRectangle
+    , mkDeterministicallyFilledSpace
+    , mkRandomlyFilledSpace
     ) where
 
 import           Imajuscule.Prelude
@@ -25,9 +26,17 @@ import           Numeric.LinearAlgebra.Data( (!)
 
 import           Foreign.C.Types( CInt(..) )
 
+import           Console( renderChar_
+                        , renderStr
+                        , renderStr_ )
 import           Geo( Coords(..)
                     , Col(..)
+                    , Direction(..)
                     , Row(..) )
+import           Render( RenderState
+                       , RenderState
+                       , go
+                       , move )
 import           Util( replicateElements
                      , randomRsIO )
 import           WorldSize( Location(..)
@@ -72,8 +81,8 @@ mapInt 0 = Air
 mapInt 1 = Wall
 mapInt _ = error "mapInt arg out of bounds"
 
-mkDeterministicallyFilledRectangle :: WorldSize -> IO Space
-mkDeterministicallyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
+mkDeterministicallyFilledSpace :: WorldSize -> IO Space
+mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
   let wall = mapMaterial Wall
       air  = mapMaterial Air
 
@@ -88,8 +97,8 @@ mkDeterministicallyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (
 
 -- | creates a rectangle of size specified in parameters, with a one-element border.
 --  it uses IO for random numbers
-mkRandomlyFilledRectangle :: WorldSize -> IO Space
-mkRandomlyFilledRectangle s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
+mkRandomlyFilledSpace :: WorldSize -> IO Space
+mkRandomlyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
   let multFactor = 16
       mkRandomRow _ = replicateElements multFactor . take (quot widthEmptySpace multFactor) <$> rands
   randMatHalf <- mapM mkRandomRow [0..quot heightEmptySpace multFactor - 1]
@@ -144,6 +153,29 @@ location :: Coords -> Space -> Location
 location c s = case getMaterial c s of
   Wall -> OutsideWorld
   Air  -> InsideWorld
+
+
+renderSpace :: Space -> RenderState -> IO RenderState
+renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do
+  let horizontalWall = replicate (cs + 2)
+      lowerLeft = move (rs+1) Down upperLeft
+
+  -- upper wall
+  renderState <- renderStr (horizontalWall '_') upperLeft
+  let worldCoords = go RIGHT renderState
+
+  -- left & right walls
+  let leftWallCoords = take rs $ iterate (go Down) renderState
+      rightWallCoords = take rs $ iterate (go Down) $ move (cs+1) RIGHT renderState
+  mapM_ (renderChar_ '|') (leftWallCoords ++ rightWallCoords)
+
+  -- lower wall
+  renderStr_ (horizontalWall 'T') lowerLeft
+
+  -- world
+  mapM_ (\(r, str) -> renderStr_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
+
+  return worldCoords
 
 {--
 

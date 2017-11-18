@@ -8,7 +8,7 @@ module World
     , nextWorld
     , earliestAnimationDeadline
     , World(..)
-    -- | reexports    
+    -- | reexports
     , Number(..)
     ) where
 
@@ -36,7 +36,7 @@ import           Number( Number(..)
 import           Space( Space(..)
                       , getMaterial
                       , Material(..)
-                      , mkRandomlyFilledRectangle )
+                      , mkRandomlyFilledSpace )
 import           Timing( KeyTime(..) )
 import           WorldSize( WorldSize(..) )
 
@@ -130,7 +130,7 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 
 mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld s nums = do
-  space <- mkRandomlyFilledRectangle s
+  space <- mkRandomlyFilledSpace s
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createRandomPosSpeed space
   t <- getCurrentTime

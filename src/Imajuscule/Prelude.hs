@@ -82,8 +82,11 @@ module Imajuscule.Prelude (
                           , Monad(..)
                           -- | Control.Applicative reexports
                           , (<|>)
+                          -- | Control.Monad reexports
+                          , when
                           ) where
 
 import Prelude
 
 import           Control.Applicative( (<|>) )
+import           Control.Monad( when )

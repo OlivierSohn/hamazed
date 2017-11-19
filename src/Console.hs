@@ -45,9 +45,9 @@ import           Geo( Col(..)
                     , Direction(..)
                     , Row(..) )
 
---{--
-import qualified RenderBackends.Full as Backend( --}
 {--
+import qualified RenderBackends.Full as Backend( --}
+--{--
 import qualified RenderBackends.Delta as Backend( --}
                                                   beginFrame
                                                 , endFrame

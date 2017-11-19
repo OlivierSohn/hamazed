@@ -3,7 +3,9 @@
 module Util
     ( showListOrSingleton
     , replicateElements
+    , takeWhileInclusive
     , randomRsIO
+    , range
     ) where
 
 import           Imajuscule.Prelude
@@ -25,5 +27,21 @@ showListOrSingleton l   = pack $ show l
 replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)
 
+
+takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
+takeWhileInclusive _ [] = []
+takeWhileInclusive p (x:xs) = x : if p x
+                                    then
+                                      takeWhileInclusive p xs
+                                    else
+                                      []
+
+
+range :: Enum a => Ord a
+      => a
+      -> a
+      -> [a]
+range n m = if m < n then [n,(pred n)..m] else [n..m]
+
 randomRsIO :: Random a => (a,a) -> IO [a]
-randomRsIO range = getStdRandom $ split >>> first (randomRs range)
+randomRsIO range_ = getStdRandom $ split >>> first (randomRs range_)

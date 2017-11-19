@@ -8,6 +8,7 @@ module Geo ( Direction(..)
            , coordsForDirection
            , PosSpeed(..)
            , Segment(..)
+           , bresenham
            , move
            , mkSegment
            , showSegment
@@ -16,6 +17,7 @@ module Geo ( Direction(..)
            , rotateByQuarters
            , Row(..)
            , sumCoords
+           , diffCoords
            , translate
            , translateInDir
            , zeroCoords
@@ -27,6 +29,9 @@ module Geo ( Direction(..)
 import           Imajuscule.Prelude
 
 import           GHC.Generics( Generic )
+
+import           Util( takeWhileInclusive
+                     , range )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -45,10 +50,17 @@ data Coords = Coords {
 zeroCoords :: Coords
 zeroCoords = Coords (Row 0) (Col 0)
 
-
 sumCoords :: Coords -> Coords -> Coords
 sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
+-- | a - b
+diffCoords :: Coords
+           -- ^ a
+           -> Coords
+           -- ^ b
+           -> Coords
+           -- ^ a - b
+diffCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 - r2) (Col $ c1 - c2)
 
 coordsForDirection :: Direction -> Coords
 coordsForDirection Down  = Coords (Row   1) (Col   0)
@@ -96,7 +108,7 @@ rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i -
 data PosSpeed = PosSpeed {
     _pos :: !Coords
   , _speed :: !Coords
-}
+} deriving (Generic, Eq, Show, Ord)
 
 rotateByQuarters :: Coords -> [Coords]
 rotateByQuarters co@(Coords (Row r) (Col c)) =
@@ -157,3 +169,27 @@ extend coords dir continue =
          extend loc dir continue
        else
          coords
+
+bresenham :: Segment -> [Coords]
+bresenham (Horizontal r c1 c2) = map (Coords r . Col) $ range c1 c2
+bresenham (Vertical c r1 r2)   = map (flip Coords c . Row) $ range r1 r2
+bresenham (Oblique (Coords (Row y0) (Col x0)) c2@(Coords (Row y1) (Col x1))) =
+  takeWhileInclusive (/= c2) $ map (\(x,y) -> Coords (Row y) (Col x) ) $ bla (x0,y0) (x1,y1)
+
+-- adapted from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Haskell
+balancedWord :: Int -> Int -> Int -> [Int]
+balancedWord p q eps
+  | eps + p < q = 0 : balancedWord p q (eps + p)
+  | otherwise   = 1 : balancedWord p q (eps + p - q)
+
+-- | Bresenham's line algorithm.
+-- Includes the first point and goes through the second to infinity.
+bla :: (Int, Int) -> (Int, Int) -> [(Int, Int)]
+bla (x0, y0) (x1, y1) =
+  let (dx, dy) = (x1 - x0, y1 - y0)
+      xyStep b (x, y) = (x + signum dx,     y + signum dy * b)
+      yxStep b (x, y) = (x + signum dx * b, y + signum dy)
+      (p, q, step) | abs dx > abs dy = (abs dy, abs dx, xyStep)
+                   | otherwise       = (abs dx, abs dy, yxStep)
+      walk w xy = xy : walk (tail w) (step (head w) xy)
+  in  walk (balancedWord p q 0) (x0, y0)

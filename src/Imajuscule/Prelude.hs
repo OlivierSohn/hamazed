@@ -9,6 +9,7 @@ module Imajuscule.Prelude (
                             Eq
                           , Show
                           , Num
+                          , Enum
                           , Ord
                           , Bool(..)
                           , Char
@@ -33,6 +34,7 @@ module Imajuscule.Prelude (
                           , take
                           , tail
                           , last
+                          , head
                           , iterate
                           , unwords
                           , flip
@@ -65,6 +67,7 @@ module Imajuscule.Prelude (
                           , succ
                           , realToFrac
                           , fromIntegral
+                          , signum
                           , sin
                           , cos
                           , mod

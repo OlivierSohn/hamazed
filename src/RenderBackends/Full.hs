@@ -7,6 +7,7 @@ module RenderBackends.Full(
                           , moveTo
                           , renderChar
                           , renderStr
+                          , renderTxt
                           , preferredBuffering
                           ) where
 
@@ -16,6 +17,7 @@ import qualified Prelude( putChar
                         , putStr )
 
 import           Data.String( String )
+import           Data.Text( Text, unpack )
 
 import           System.Console.ANSI( Color(..)
                                     , ColorIntensity(..)
@@ -51,6 +53,9 @@ renderChar = Prelude.putChar
 
 renderStr :: String -> IO ()
 renderStr = Prelude.putStr
+
+renderTxt :: Text -> IO ()
+renderTxt = Prelude.putStr . unpack
 
 setForeground :: ColorIntensity -> Color -> IO ()
 setForeground ci c = setSGR [SetColor Foreground ci c]

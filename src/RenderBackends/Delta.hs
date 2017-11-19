@@ -7,7 +7,7 @@ module RenderBackends.Delta(
                           , moveTo
                           , renderChar
                           , renderStr
-                          , renderText
+                          , renderTxt
                           , preferredBuffering
                           ) where
 
@@ -53,8 +53,8 @@ renderChar c = void (bPutCharRaw c)
 renderStr :: String -> IO ()
 renderStr = bPutStr
 
-renderText :: Text -> IO ()
-renderText = bPutText
+renderTxt :: Text -> IO ()
+renderTxt = bPutText
 
 setForeground :: ColorIntensity -> Color -> IO ()
 setForeground a b = bSetForeground (a,b)

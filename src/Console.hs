@@ -45,16 +45,16 @@ import           Geo( Col(..)
                     , Direction(..)
                     , Row(..) )
 
-{--
-import qualified RenderBackends.Full as Backend( --}
 --{--
+import qualified RenderBackends.Full as Backend( --}
+{--
 import qualified RenderBackends.Delta as Backend( --}
                                                   beginFrame
                                                 , endFrame
                                                 , moveTo
                                                 , renderChar
                                                 , renderStr
-                                                , renderText
+                                                , renderTxt
                                                 , setForeground
                                                 , preferredBuffering )
 
@@ -114,7 +114,7 @@ renderStr_ str (RenderState c) = do
 renderText_ :: Text -> RenderState -> IO ()
 renderText_ txt (RenderState c) = do
   Backend.moveTo c
-  Backend.renderText txt
+  Backend.renderTxt txt
 
 renderStr :: String -> RenderState -> IO RenderState
 renderStr str (RenderState c) = do

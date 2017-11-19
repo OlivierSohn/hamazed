@@ -172,7 +172,10 @@ extend' :: Int -> [a] -> [a]
 extend' _ [] = error "extend empty list not supported"
 extend' sz l@(e:_) =
   let len = length l
-  in replicate (sz - assert (len <= sz) len) e ++ l
+      addsTotal = sz - assert (len <= sz) len
+      addsLeft = quot addsTotal 2
+      addsRight = addsTotal - addsLeft
+  in replicate addsLeft e ++ l ++ replicate addsRight (last l)
 
 rands :: IO [CInt]
 rands = randomRsIO (0,1)

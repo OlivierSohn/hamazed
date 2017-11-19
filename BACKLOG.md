@@ -1,6 +1,15 @@
 
 # Backlog
 
+- make sure the ship is not at the place of a number at the beginning
+
+- let users chose
+ - if they want walls
+  - random
+  - deterministic
+  - no wall
+ - the shape of the world (square, 2xsquare)
+
 - when ship goes too fast it is possible to go through walls ! fix it...
 
 - it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps

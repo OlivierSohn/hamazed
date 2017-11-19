@@ -31,6 +31,8 @@ module Imajuscule.Prelude (
                           , mapM
                           , mapM_
                           , take
+                          , tail
+                          , last
                           , iterate
                           , unwords
                           , flip

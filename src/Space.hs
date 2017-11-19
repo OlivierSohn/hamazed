@@ -118,10 +118,17 @@ mkRandomlyFilledSpace s = do
   let innerMat = replicateElements multFactor $ map (replicateElements multFactor) smallWorldMat
   return $ mkSpaceFromInnerMat s innerMat
 
--- | This function generates a random world that has a single "Air" connected component
---   (so that the ship can access every Air point in the level).
---  It might take a long time (TODO compute compexity) especially if worldsize is big
---  and multFactor is small.
+-- | This function generates a random world with the constraint that it should have
+--   a single "Air" connected component. The function recurses and builds a new random world
+--   until the constraint is met.
+--  It might take "a long time" especially if worldsize is big and multFactor is small.
+--  An interesting problem would be to compute the complexity of this function.
+--  To do so we need to know the probability
+--  to have a unique connected component in the random graph defined in the function.
+--  TODO We could measure, on average, how many tries it takes to generate a graph
+--  that meets the requirement for usual values of:
+--  - probability of having air vs. a wall at any cell
+--  - size of the small world
 mkSmallWorld :: WorldSize
              -- ^ Size of the big world
              -> Int

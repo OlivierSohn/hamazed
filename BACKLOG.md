@@ -3,12 +3,14 @@
 
 - make sure the ship is not at the place of a number at the beginning
 
-- let users chose
- - if they want walls
+- let users chose:
+ - walls
   - random
   - deterministic
-  - no wall
- - the shape of the world (square, 2xsquare)
+  - none
+ - shape of the world
+  - square
+  - 2x1 rectangle
 
 - when ship goes too fast it is possible to go through walls ! fix it...
 
@@ -25,6 +27,11 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 - generalize chained sequences on collisions
 
 ## Random world constraints
+
+- take the biggest connected component (in terms of area? number of cells? both?) and put
+numbers and ship in it. The other air connected components can be converted to walls.
+This relaxes the constraint on having a single connected component.
+
 - prevent "reduced rectangle" effect (i.e. make sure on each side there is Air touching the border)
 
 ## Event driven aspect

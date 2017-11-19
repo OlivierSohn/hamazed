@@ -189,9 +189,19 @@ mkWorld :: WorldSize -> [Int] -> IO World
 mkWorld s nums = do
   space <- mkRandomlyFilledSpace s
   balls <- mapM (createRandomNumber space) nums
-  ship@(PosSpeed pos _) <- createRandomPosSpeed space
+  ship@(PosSpeed pos _) <- createShipPos space balls
   t <- getCurrentTime
   return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space []
+
+createShipPos :: Space -> [Number] -> IO PosSpeed
+createShipPos space numbers = do
+  let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
+  candidate@(PosSpeed pos _) <- createRandomPosSpeed space
+  if pos `notElem` numPositions
+    then
+      return candidate
+    else
+      createShipPos space numbers
 
 randomInt :: Int -> IO Int
 randomInt sz = getStdRandom $ randomR (0,sz-1)

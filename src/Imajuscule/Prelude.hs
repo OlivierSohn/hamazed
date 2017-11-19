@@ -19,6 +19,9 @@ module Imajuscule.Prelude (
                           , Maybe(..)
                           , Either(..)
                           , Ordering(..)
+                          , all
+                          , any
+                          , notElem
                           , null
                           , minimum
                           , either

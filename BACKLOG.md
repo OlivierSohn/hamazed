@@ -2,7 +2,6 @@
 # Backlog
 
 - make sure the ship is not at the place of a number at the beginning
-- when ship goes too fast it is possible to go through walls ! fix it...
 
 - let users chose:
  - shape of the world

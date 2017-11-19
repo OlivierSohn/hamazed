@@ -114,7 +114,7 @@ combinePoints getLocation iteration point =
                     OutsideWorld -> Left $ Tree prevPoint (previousIteration iteration) Nothing
                     InsideWorld -> Right point)
 
--- TODO
+-- TODO generic chaining of animations
 {--
 chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
                            -- ^ each animation function should return a constant number of Coords across iterations

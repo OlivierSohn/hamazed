@@ -8,6 +8,7 @@ module RenderBackends.Delta(
                           , renderChar
                           , renderStr
                           , renderText
+                          , preferredBuffering
                           ) where
 
 import           Imajuscule.Prelude
@@ -18,7 +19,8 @@ import           Data.Text( Text )
 import           Data.String( String )
 
 import           System.IO( hFlush
-                          , stdout )
+                          , stdout
+                          , BufferMode(..) )
 
 import           RenderBackends.Internal.Delta( blitBuffer
                                               , bSetForeground
@@ -33,6 +35,8 @@ import           Geo( Coords(..)
                     , Col(..)
                     , Row(..))
 
+preferredBuffering :: BufferMode
+preferredBuffering = BlockBuffering Nothing
 
 beginFrame :: IO ()
 beginFrame = return ()

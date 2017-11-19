@@ -7,6 +7,7 @@ module RenderBackends.Full(
                           , moveTo
                           , renderChar
                           , renderStr
+                          , preferredBuffering
                           ) where
 
 import           Imajuscule.Prelude
@@ -24,12 +25,16 @@ import           System.Console.ANSI( Color(..)
                                     , SGR(..)
                                     , ConsoleLayer(..) )
 import           System.IO( hFlush
-                          , stdout )
+                          , stdout
+                          , BufferMode(..) )
 
 import           Geo( Coords(..)
                     , Col(..)
                     , Row(..))
 
+
+preferredBuffering :: BufferMode
+preferredBuffering = BlockBuffering Nothing
 
 beginFrame :: IO ()
 beginFrame = clearScreen

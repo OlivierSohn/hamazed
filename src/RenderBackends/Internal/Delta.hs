@@ -44,8 +44,7 @@ import           Data.IORef( IORef
                            , readIORef
                            , writeIORef )
 import           Data.String( String )
-import           Data.Text( Text
-                          , unpack )
+import           Data.Text( Text, unpack )
 
 import           System.IO.Unsafe( unsafePerformIO )
 import           Control.Monad( when )

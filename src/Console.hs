@@ -55,7 +55,8 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , renderChar
                                                 , renderStr
                                                 , renderText
-                                                , setForeground )
+                                                , setForeground
+                                                , preferredBuffering )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -78,8 +79,7 @@ configureConsoleFor config = do
       Editing -> True
   hSetBuffering stdout $ case config of
       Gaming  ->
-        -- TODO the backends should handle this
-        BlockBuffering Nothing -- use a big buffer, flush it after each game update
+        Backend.preferredBuffering
       Editing -> LineBuffering
   case config of
     Gaming  -> do

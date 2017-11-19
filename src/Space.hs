@@ -18,14 +18,20 @@ import           Imajuscule.Prelude
 import           Control.Exception( assert )
 
 import           GHC.Generics( Generic )
+
+import           Data.Graph( Graph
+                           , graphFromEdges
+                           , components )
 import           Data.Text( Text, pack )
 import           Data.List(length)
+import           Data.Maybe(mapMaybe)
 import           Data.Vector.Storable( slice )
 
 import           Numeric.LinearAlgebra.Data( (!)
                                            , fromLists
                                            , flatten
-                                           , Matrix )
+                                           , Matrix
+                                           , size )
 
 import           Foreign.C.Types( CInt(..) )
 
@@ -36,7 +42,8 @@ import           Console( renderChar_
 import           Geo( Coords(..)
                     , Col(..)
                     , Direction(..)
-                    , Row(..) )
+                    , Row(..)
+                    , translateInDir )
 import           Render( RenderState
                        , RenderState
                        , go
@@ -103,13 +110,53 @@ mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col 
 -- | creates a rectangle of size specified in parameters, with a one-element border.
 --  it uses IO for random numbers
 mkRandomlyFilledSpace :: WorldSize -> IO Space
-mkRandomlyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
-  let multFactor = 16
-      mkRandomRow _ = replicateElements multFactor . take (quot widthEmptySpace multFactor) <$> rands
-  randMatHalf <- mapM mkRandomRow [0..quot heightEmptySpace multFactor - 1]
+mkRandomlyFilledSpace s = do
+  let multFactor = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
+                     -- 6 has always been ok
+  smallWorldMat <- mkSmallWorld s multFactor
 
-  let innerMat = replicateElements multFactor randMatHalf
+  let innerMat = replicateElements multFactor $ map (replicateElements multFactor) smallWorldMat
   return $ mkSpaceFromInnerMat s innerMat
+
+-- | This function generates a random world that has a single "Air" connected component
+--   (so that the ship can access every Air point in the level).
+--  It might take a long time (TODO compute compexity) especially if worldsize is big
+--  and multFactor is small.
+mkSmallWorld :: WorldSize
+             -- ^ Size of the big world
+             -> Int
+             -- ^ Pixel width (if 1, the small world will have the same size as the big one)
+             -> IO [[CInt]]
+             -- ^ the "small world"
+mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) multFactor = do
+  let ncols = quot widthEmptySpace multFactor
+      nrows = quot heightEmptySpace multFactor
+      mkRandomRow _ = take ncols <$> rands -- TODO use a Matrix directly
+  smallMat <- mapM mkRandomRow [0..nrows-1]
+
+  let mat = fromLists smallMat
+      graph = graphOfIndex (mapMaterial Air) mat
+  case components graph of
+    [_] -> return smallMat -- TODO return Matrix (mat) instead of list of list
+    _   -> mkSmallWorld s multFactor
+
+graphOfIndex :: CInt -> Matrix CInt -> Graph
+graphOfIndex matchIdx mat =
+  let sz@(nrows,ncols) = size mat
+      coords = [Coords (Row r) (Col c) | c <-[0..ncols-1], r <- [0..nrows-1], mat ! r ! c == matchIdx]
+      edges = map (\c -> (c, c, connectedNeighbours matchIdx c mat sz)) coords
+      (graph, _, _) = graphFromEdges edges
+  in graph
+
+connectedNeighbours :: CInt -> Coords -> Matrix CInt -> (Int, Int) -> [Coords]
+connectedNeighbours matchIdx coords mat (nrows,ncols) =
+  let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
+  in mapMaybe (\other@(Coords (Row r) (Col c)) ->
+        if r < 0 || c < 0 || r >= nrows || c >= ncols || mat !r !c /= matchIdx
+          then
+            Nothing
+          else
+            Just other) neighbours
 
 mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =

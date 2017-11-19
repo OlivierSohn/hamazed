@@ -41,6 +41,7 @@ library
   build-depends:       array
                      , ansi-terminal
                      , base
+                     , containers
                      , hmatrix
                      , monad-loops
                      , monadlist

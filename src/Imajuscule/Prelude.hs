@@ -86,6 +86,7 @@ module Imajuscule.Prelude (
                           , when
                           -- | Data.Monoid reexports
                           , (<>)
+                          , undefined
                           ) where
 
 import           Prelude

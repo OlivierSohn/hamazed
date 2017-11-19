@@ -1,6 +1,5 @@
 
 # Backlog
-- rename renderStrLn,_ to renderStr,_
 
 - when ship goes too fast it is possible to go through walls ! fix it...
 
@@ -13,18 +12,11 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 
 - fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity
 
-- implement render of space (deduce which wall element based on neighbors)
-
 - reconsider which animations to use once gravity based animations are available
 - generalize chained sequences on collisions
 
-- random geometry for levels (some numbers might be cycling in separate sub spaces)
-
 ## Random world constraints
-
-- prevent "wall only" worlds
 - prevent "reduced rectangle" effect (i.e. make sure on each side there is Air touching the border)
-- interconnect subspaces by corridors of width 2
 
 ## Event driven aspect
 The game is driven by these events:

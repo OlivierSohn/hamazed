@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Util
     ( showListOrSingleton
@@ -7,6 +8,8 @@ module Util
 
 import           Imajuscule.Prelude
 
+import           Data.Text(Text, pack)
+
 import           Control.Arrow( (>>>)
                               , first )
 
@@ -15,9 +18,9 @@ import           System.Random( Random(..)
                               , split )
 
 
-showListOrSingleton :: Show a => [a] -> String
-showListOrSingleton [e] = show e
-showListOrSingleton l   = show l
+showListOrSingleton :: Show a => [a] -> Text
+showListOrSingleton [e] = pack $ show e
+showListOrSingleton l   = pack $ show l
 
 replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)

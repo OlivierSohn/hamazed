@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Console ( ConsoleConfig(..)
                , configureConsoleFor
                -- rendering functions
@@ -7,6 +9,7 @@ module Console ( ConsoleConfig(..)
                , renderChar_
                , renderStr
                , renderStr_
+               , renderText_
                , RenderState(..)
                , renderSegment
                -- reexport System.Console.ANSI
@@ -16,6 +19,8 @@ module Console ( ConsoleConfig(..)
 
 import           Imajuscule.Prelude
 
+import           Data.String( String )
+import           Data.Text( Text )
 
 import           System.Console.ANSI( clearScreen
                                     , hideCursor
@@ -49,6 +54,7 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , moveTo
                                                 , renderChar
                                                 , renderStr
+                                                , renderText
                                                 , setForeground )
 
 --------------------------------------------------------------------------------
@@ -104,6 +110,11 @@ renderStr_ :: String -> RenderState -> IO ()
 renderStr_ str (RenderState c) = do
   Backend.moveTo c
   Backend.renderStr str
+
+renderText_ :: Text -> RenderState -> IO ()
+renderText_ txt (RenderState c) = do
+  Backend.moveTo c
+  Backend.renderText txt
 
 renderStr :: String -> RenderState -> IO RenderState
 renderStr str (RenderState c) = do

@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Level
@@ -16,14 +18,15 @@ module Level
 
 import           Imajuscule.Prelude
 
+import           Data.Text( Text, pack )
+
 import           System.IO( getChar )
 import           System.Timeout( timeout )
 
 import           Console( Color(..)
                         , ColorIntensity(..)
                         , setForeground
-                        , renderStr
-                        , renderStr_ )
+                        , renderText_ )
 import           Deadline( Deadline(..) )
 import           Event( Event(..)
                       , eventFromChar
@@ -31,6 +34,7 @@ import           Event( Event(..)
                       , TimedEvent(..) )
 import           Geo( Direction(..) )
 import           Render( RenderState(..)
+                       , move
                        , go )
 import           Timing( UTCTime
                        , KeyTime(..)
@@ -63,7 +67,7 @@ data MessageState = InfoMessage
                   | ContinueMessage
                   deriving(Eq, Show)
 
-data GameStops = Lost String
+data GameStops = Lost Text
                | Won
 
 
@@ -88,7 +92,7 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbe
         maybe
           (case map (\(Number _ n) -> n) collisions of
             [] -> Nothing
-            l  -> Just $ Lost $ "collision with " ++ showListOrSingleton l)
+            l  -> Just $ Lost $ "collision with " <> showListOrSingleton l)
           (const Nothing)
           safeTime
       _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
@@ -96,9 +100,9 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbe
     checkSum = case compare sumNumbers target of
       LT -> Nothing
       EQ -> Just Won
-      GT -> Just $ Lost $ "sum " ++ show sumNumbers ++ " is bigger than target " ++ show target
+      GT -> Just $ Lost $ pack $ "sum " ++ show sumNumbers ++ " is bigger than target " ++ show target
     checkAmmo
-      | ammo <= 0 = Just $ Lost "no ammo left"
+      | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing
 
 messageDeadline :: Level -> UTCTime -> Maybe Deadline
@@ -143,18 +147,18 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
         Won      -> Green
       topLeft = go RIGHT coords
   setForeground Vivid color
-  afterFirst <- renderStr (case stop of
-    (Lost reason) -> "You Lose (" ++ reason ++ ")"
+  renderText_ (case stop of
+    (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
   setForeground Vivid White
   when (messageState == ContinueMessage) $
-    renderStr_ (if level == lastLevel
+    renderText_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of
                           (Lost _) -> "restart"
                           Won      -> "continue"
-        in "Hit a key to " ++ action ++ " ...") (go Down afterFirst)
+        in "Hit a key to " <> action <> " ...") (move 2 Down topLeft)
 
 
 renderLevel :: Level -> RenderState -> IO ()

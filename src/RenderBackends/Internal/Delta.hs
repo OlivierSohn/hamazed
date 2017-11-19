@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- Initial code from Rafael Ibraim : https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
 --
 -- With the following modifications:
@@ -16,8 +18,6 @@
 --   - introduce modOptimized to optimize modulos, because most of the time,
 --      the value is returned unchanged so a simple comparison is enough.
 --   - inline some functions
---
--- TODO allow using Text
 
 module RenderBackends.Internal.Delta
        (
@@ -27,6 +27,7 @@ module RenderBackends.Internal.Delta
        , bPutChar
        , bPutCharRaw
        , bPutStr
+       , bPutText
        , bClear
        , blitBuffer
        -- reexports from System.Console.ANSI
@@ -42,6 +43,10 @@ import           Data.IORef( IORef
                            , newIORef
                            , readIORef
                            , writeIORef )
+import           Data.String( String )
+import           Data.Text( Text
+                          , unpack )
+
 import           System.IO.Unsafe( unsafePerformIO )
 import           Control.Monad( when )
 import           Data.Array.IO( IOArray
@@ -160,6 +165,10 @@ bPutChar c = do
 bPutStr :: String -> IO ()
 bPutStr = mapM_ bPutChar
 
+bPutText :: Text -> IO ()
+bPutText text =
+  mapM_ bPutChar (unpack text)
+
 bClear :: IO ()
 bClear = do
   screen <- readIORef screenBuffer
@@ -187,7 +196,6 @@ applyBuffer from to position clearFrom
   writeArray to position cellFrom
   applyBuffer from to (pred position) clearFrom
 
-{-# ANN drawCellChanges "HLint: ignore Too strict if" #-}
 drawCellChanges :: BufferCell -> BufferCell -> Int -> IO ()
 drawCellChanges ((fromFGI, fromFGC), (fromBGI, fromBGC), fromV) ((toFGI, toFGC), (toBGI, toBGC), toV) position = do
   screen <- readIORef screenBuffer

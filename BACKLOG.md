@@ -13,8 +13,6 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 
 - fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity
 
-- use Text instead of String in rendered world
-
 - implement render of space (deduce which wall element based on neighbors)
 
 - reconsider which animations to use once gravity based animations are available

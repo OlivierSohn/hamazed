@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Animation
@@ -15,6 +16,7 @@ module Animation
 
 import           Imajuscule.Prelude
 
+import           Data.List( length )
 import           Data.Either( partitionEithers )
 import           Data.Maybe( catMaybes
                            , fromMaybe )

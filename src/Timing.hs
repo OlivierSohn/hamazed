@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Timing
     ( addGameStepDuration
@@ -18,6 +19,7 @@ module Timing
 
 import           Imajuscule.Prelude
 
+import           Data.Text( Text, pack )
 import           Data.Time( addUTCTime
                           , diffUTCTime
                           , getCurrentTime
@@ -77,14 +79,14 @@ tickRepresentationLength :: Col -> Int
 tickRepresentationLength (Col c) = quot c 2
 
 
-showUpdateTick :: Int -> WorldSize -> String
+showUpdateTick :: Int -> WorldSize -> Text
 showUpdateTick t (WorldSize (Coords _ c@(Col cs))) =
   let l = tickRepresentationLength c
       nDotsBefore = max 0 (t + l - cs)
       nLeftBlanks = t - nDotsBefore
       nDotsAfter = l - nDotsBefore
       nRightBlanks = cs - t - l
-  in replicate nDotsBefore  '.'
+  in pack $ replicate nDotsBefore  '.'
   ++ replicate nLeftBlanks  ' '
   ++ replicate nDotsAfter   '.'
   ++ replicate nRightBlanks ' '

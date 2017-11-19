@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Game(
         gameWorker
@@ -6,10 +8,10 @@ module Game(
 import           Imajuscule.Prelude
 
 import           Control.Exception( assert )
-
 import           Data.List( minimumBy )
 import           Data.Maybe( catMaybes
                            , isNothing )
+import           Data.Text( pack )
 
 import           Animation( Animation(..)
                           , quantitativeExplosionThenSimpleExplosion
@@ -51,7 +53,7 @@ import           Render( RenderState
                        , mkRenderStateToCenterWorld
                        , translate
                        , Alignment(..)
-                       , renderAlignedStr
+                       , renderAlignedTxt
                        , RenderState
                        , go )
 import           Space( Space(..)
@@ -218,10 +220,10 @@ renderGame k state@(GameState _ _ upperLeft
       centerUp   = translate (Row $ -1)        (Col cHalf) upperLeft
       centerDown = translate (Row $ rFull + 1) (Col cHalf) upperLeft
       leftMiddle = translate (Row rHalf)       (Col $ -1)  upperLeft
-  _ <- renderAlignedStr Centered ("Level " ++ show level ++ " of " ++ show lastLevel) centerDown
-  _ <- go Down <$> renderAlignedStr RightAligned ("[" ++ replicate ammo '.' ++ "]") leftMiddle
-       >>= renderAlignedStr RightAligned (showShotNumbers shotNumbers)
-  _ <- renderAlignedStr Centered ("Objective : " ++ show target) centerUp
+  _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
+  _ <- go Down <$> renderAlignedTxt RightAligned ("[" <> pack (replicate ammo '.') <> "]") leftMiddle
+       >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)
+  _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=
     (\worldCorner -> do
       activeAnimations <- renderAnimations k (`location` space) worldCorner animations

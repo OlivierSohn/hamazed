@@ -1,8 +1,10 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Render (
           renderChar
         , renderPoints
         , Alignment(..)
-        , renderAlignedStr
+        , renderAlignedTxt
         , go
         , Render.move
         , translate
@@ -14,12 +16,14 @@ module Render (
 
 import           Imajuscule.Prelude
 
+import           Data.Text( Text, length )
+
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
 import           Console( RenderState(..)
                         , renderChar_
-                        , renderStr_ )
+                        , renderText_ )
 import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)
@@ -74,13 +78,13 @@ renderPoints char state =
 data Alignment = Centered
                | RightAligned
 
-renderAlignedStr :: Alignment -> String -> RenderState -> IO RenderState
-renderAlignedStr a str ref = do
+renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
+renderAlignedTxt a txt ref = do
   let amount = case a of
-        Centered     -> quot (length str) 2
-        RightAligned -> length str
+        Centered     -> quot (length txt) 2
+        RightAligned -> length txt
       leftCorner = Render.move amount LEFT ref
-  renderStr_ str leftCorner
+  renderText_ txt leftCorner
   return $ go Down ref
 
 mkRenderStateToCenterWorld :: WorldSize -> IO RenderState

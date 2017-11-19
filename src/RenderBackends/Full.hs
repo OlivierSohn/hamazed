@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module RenderBackends.Full(
                             beginFrame
@@ -12,6 +13,8 @@ import           Imajuscule.Prelude
 
 import qualified Prelude( putChar
                         , putStr )
+
+import           Data.String( String )
 
 import           System.Console.ANSI( Color(..)
                                     , ColorIntensity(..)

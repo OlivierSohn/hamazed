@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module RenderBackends.Delta(
                             beginFrame
                           , endFrame
@@ -5,11 +7,15 @@ module RenderBackends.Delta(
                           , moveTo
                           , renderChar
                           , renderStr
+                          , renderText
                           ) where
 
 import           Imajuscule.Prelude
 
 import           Control.Monad( void )
+
+import           Data.Text( Text )
+import           Data.String( String )
 
 import           System.IO( hFlush
                           , stdout )
@@ -19,6 +25,7 @@ import           RenderBackends.Internal.Delta( blitBuffer
                                               , bGotoXY
                                               , bPutCharRaw
                                               , bPutStr
+                                              , bPutText
                                               , Color(..)
                                               , ColorIntensity(..) )
 
@@ -41,6 +48,9 @@ renderChar c = void (bPutCharRaw c)
 
 renderStr :: String -> IO ()
 renderStr = bPutStr
+
+renderText :: Text -> IO ()
+renderText = bPutText
 
 setForeground :: ColorIntensity -> Color -> IO ()
 setForeground a b = bSetForeground (a,b)

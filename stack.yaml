@@ -51,7 +51,7 @@ extra-package-dbs: []
 # to have GC stats add:
 #   -with-rtsopts=-sstderr
 ghc-options:
-  "hamazed": -XNoImplicitPrelude -threaded -rtsopts -with-rtsopts=-maxN4 -O2 -fexcess-precision -optc-ffast-math
+  "hamazed": -threaded -rtsopts -with-rtsopts=-maxN4 -O2 -fexcess-precision -optc-ffast-math
 
 # Control whether we use the GHC we find on the path
 # system-ghc: true

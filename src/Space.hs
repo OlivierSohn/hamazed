@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Space
@@ -17,7 +18,8 @@ import           Imajuscule.Prelude
 import           Control.Exception( assert )
 
 import           GHC.Generics( Generic )
-
+import           Data.Text( Text, pack )
+import           Data.List(length)
 import           Data.Vector.Storable( slice )
 
 import           Numeric.LinearAlgebra.Data( (!)
@@ -29,7 +31,8 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Console( renderChar_
                         , renderStr
-                        , renderStr_ )
+                        , renderStr_
+                        , renderText_ )
 import           Geo( Coords(..)
                     , Col(..)
                     , Direction(..)
@@ -47,7 +50,7 @@ import           WorldSize( Location(..)
 data Space = Space {
     _space :: !(Matrix CInt)
   , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
-  , _spaceRender :: ![String]
+  , _spaceRender :: ![Text]
 }
 
 data Material = Air
@@ -138,9 +141,9 @@ addBorder (WorldSize (Coords _ (Col widthEmptySpace))) l =
 borderSize :: Int
 borderSize = 1
 
-render :: Matrix CInt -> WorldSize -> [String]
+render :: Matrix CInt -> WorldSize -> [Text]
 render mat s@(WorldSize (Coords _ (Col cs))) =
-  forEachRowPure mat s (\accessMaterial -> map (\c -> case accessMaterial (Col c) of
+  map pack $ forEachRowPure mat s (\accessMaterial -> map (\c -> case accessMaterial (Col c) of
     Wall -> 'Z'
     Air -> ' ') [0..cs-1])
 
@@ -175,7 +178,7 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
   renderStr_ (horizontalWall 'T') lowerLeft
 
   -- world
-  mapM_ (\(r, str) -> renderStr_ str (move r Down worldCoords)) $ zip [0..] renderedWorld
+  mapM_ (\(r, txt) -> renderText_ txt (move r Down worldCoords)) $ zip [0..] renderedWorld
 
   return worldCoords
 

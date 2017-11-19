@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Number(
     Number(..)
   , showShotNumbers
@@ -8,8 +10,8 @@ module Number(
 import           Imajuscule.Prelude
 
 import           Data.List( partition )
-
 import           Data.Maybe( isNothing )
+import           Data.Text(Text, pack)
 
 import           Geo( Coords(..)
                     , PosSpeed(..)
@@ -42,6 +44,6 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
  where
    justFull = Just $ LaserRay dir $ Ray seg
 
-showShotNumbers :: [Int] -> String
+showShotNumbers :: [Int] -> Text
 showShotNumbers nums =
-  "[" ++ unwords (map show nums) ++ "]"
+  pack $ "[" ++ unwords (map show nums) ++ "]"

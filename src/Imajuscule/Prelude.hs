@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- initially I needed this custom Prelude to hide putStr and putChar,
 -- since I provide equivalent functions that should be used instead to
 -- render the game
@@ -13,7 +15,6 @@ module Imajuscule.Prelude (
                           , Float
                           , IO
                           , Int
-                          , String
                           , Maybe(..)
                           , Either(..)
                           , Ordering(..)
@@ -29,7 +30,6 @@ module Imajuscule.Prelude (
                           , show
                           , mapM
                           , mapM_
-                          , length
                           , take
                           , iterate
                           , unwords
@@ -84,9 +84,13 @@ module Imajuscule.Prelude (
                           , (<|>)
                           -- | Control.Monad reexports
                           , when
+                          -- | Data.Monoid reexports
+                          , (<>)
                           ) where
 
-import Prelude
+import           Prelude
 
 import           Control.Applicative( (<|>) )
 import           Control.Monad( when )
+
+import           Data.Monoid ((<>))

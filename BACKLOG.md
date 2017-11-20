@@ -37,12 +37,6 @@ The game is driven by these events:
 |animation forward|anytime            |constant     |high|0..n                                 |3       |
 |user event       |anytime            |not periodic |low |0..1                                 |2       |
 
-- The following priorities:
-game forward > user events > animation forward. The algorithm to find the deadline to address in the
-next loop is then :
-  - traversing event types by decreasing priorities, find the first overdue deadline.
-  - If an overdue deadline was found, address it now, else address the closest deadline.
-
 - Flicker can happen if we flush at very close intervals. This behaviour has been greatly improved
 by using delta rendering, however, I don't think that it fixes it entirely. So there are a few
 things we could do to help keeping a minimal time between flush intervals while keeping a good

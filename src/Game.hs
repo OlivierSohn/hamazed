@@ -7,7 +7,7 @@ module Game(
 
 import           Imajuscule.Prelude
 
-import           Data.List( minimumBy )
+import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes
                            , isNothing )
 import           Data.Text( pack )
@@ -97,7 +97,7 @@ nextGameState
        ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
        destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
        allShotNumbers = g ++ destroyedNumbers
-       animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (max 6 n) (mkAnimationTree pos)
+       animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
        keyTime = KeyTime t
        newAnimations = (case destroyedBalls of
          n:_ -> mkAnimation (animation n) keyTime : animations
@@ -116,13 +116,22 @@ replaceAnimations :: [Animation] -> GameState -> GameState
 replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =
   GameState a c e (World wa wb wc wd anims) f g h
 
-earliestDeadline :: GameState -> UTCTime -> Maybe Deadline
-earliestDeadline s t =
-  let l = listDeadlines s t
-  in  if null l then Nothing else Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
+nextDeadline :: GameState -> UTCTime -> Maybe Deadline
+nextDeadline s t =
+  let l = getDeadlinesByDecreasingPriority s t
+  in  overdueDeadline t l <|> earliestDeadline l
 
-listDeadlines :: GameState -> UTCTime -> [Deadline]
-listDeadlines s@(GameState _ _ _ _ _ _ level) t = catMaybes [gameDeadline s, animationDeadline s, messageDeadline level t]
+earliestDeadline :: [Deadline] -> Maybe Deadline
+earliestDeadline [] = Nothing
+earliestDeadline l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
+
+overdueDeadline :: UTCTime -> [Deadline] -> Maybe Deadline
+overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
+
+-- | priorities are : message > game forward > animation forward
+getDeadlinesByDecreasingPriority :: GameState -> UTCTime -> [Deadline]
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ _ level) t =
+  catMaybes [messageDeadline level t, gameDeadline s, animationDeadline s]
 
 gameDeadline :: GameState -> Maybe Deadline
 gameDeadline (GameState _ nextGameStep _ _ _ _ (Level _ levelFinished)) =
@@ -178,7 +187,7 @@ getTimedEvent state =
 getEvent :: GameState -> IO Event
 getEvent state@(GameState _ _ _ _ _ _ level) = do
   t <- getCurrentTime
-  let deadline = earliestDeadline state t
+  let deadline = nextDeadline state t
   getEventForMaybeDeadline level deadline t
 
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState

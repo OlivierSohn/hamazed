@@ -31,7 +31,7 @@ This relaxes the constraint on having a single connected component.
 ## Event driven aspect
 The game is driven by these events:
 
-|evt name         |start of the period|period length|rate|number of instances at any given time|
+|event            |start of the period|period length|rate|number of instances at any given time|
 |-----------------|-------------------|-------------|----|-------------------------------------|
 |game forward     |start of game      |constant     |med |1                                    |
 |animation forward|anytime            |constant     |high|0..n                                 |

@@ -1,12 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Deadline( Deadline(..)
-) where
+module Deadline(
+        Deadline(..)
+      ) where
 
 import           Imajuscule.Prelude
 
 import           Timing( KeyTime(..) )
-import           Event(Step(..))
+import           Event( Step(..) )
 
 data Deadline = Deadline {
     _deadlineTime :: !KeyTime

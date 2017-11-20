@@ -225,7 +225,7 @@ renderGame k state@(GameState _ _ upperLeft
 
       centerUp   = translate (Row $ -1)        (Col cHalf) upperLeft
       centerDown = translate (Row $ rFull + 1) (Col cHalf) upperLeft
-      leftMiddle = translate (Row rHalf)       (Col $ -1)  upperLeft
+      leftMiddle = translate (Row $ rHalf + 1)       (Col $ -1)  upperLeft
   _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
   _ <- go Down <$> renderAlignedTxt RightAligned ("[" <> pack (replicate ammo '.') <> "]") leftMiddle
        >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)

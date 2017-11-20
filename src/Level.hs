@@ -18,6 +18,8 @@ module Level
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.Loops( unfoldM_ )
+
 import           Data.Text( Text, pack )
 
 import           System.IO( getChar )
@@ -33,6 +35,7 @@ import           Event( Event(..)
                       , Step(..)
                       , TimedEvent(..) )
 import           Geo( Direction(..) )
+import           NonBlockingIO( tryGetChar )
 import           Render( RenderState(..)
                        , move
                        , go )
@@ -140,7 +143,11 @@ getCharWithinDurationMicros durationMicros =
     then
       return Nothing
     else
-      timeout durationMicros getChar
+      timeout durationMicros (
+        getChar >>=
+          -- flush stdin to avoid repeated keys being used later
+          (\c -> unfoldM_ tryGetChar >>
+           return c))
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do

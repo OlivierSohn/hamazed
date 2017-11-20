@@ -1,8 +1,6 @@
 
 # Backlog
 
-- [bug] when a simple explosion starts from a corner, it traverses diagonally
-
 - use a state monad for full rendering (to store the color)
 - use a monad for delta rendering
 

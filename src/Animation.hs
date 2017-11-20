@@ -101,9 +101,9 @@ combine :: [Coords]
         -> Iteration
         -> (Coords -> Location)
         -> [Either Tree Coords]
-combine points uncheckedPreviousPoints iteration getLocation =
-  let previousPoints = assert (length points == length uncheckedPreviousPoints) uncheckedPreviousPoints
-  in zipWith (combinePoints getLocation iteration) points previousPoints
+combine points uncheckedPreviousState iteration getLocation =
+  let previousState = assert (length points == length uncheckedPreviousState) uncheckedPreviousState
+  in zipWith (combinePoints getLocation iteration) points previousState
 
 combinePoints :: (Coords -> Location)
               -> Iteration
@@ -154,14 +154,10 @@ applyAnimation :: (Coords -> Iteration -> [Coords])
 applyAnimation animation globalIteration getLocation (Tree root startIteration branches) =
   let iteration = globalIteration - startIteration
       points = animation root iteration
-      treeOrCoords = fromMaybe (map checkLocation points) branches
-      checkLocation p =
-        if getLocation p == OutsideWorld
-          then
-            Left $ Tree p (previousIteration iteration) Nothing
-          else
-            Right p
-      newBranches = combine points treeOrCoords iteration getLocation
+      previousState = fromMaybe (replicate (length points) $ Right $ assert (getLocation root == InsideWorld) root) branches
+      -- if previousState contains only Left(s), the animation does not need to be computed.
+      -- I wonder if lazyness takes care of that or not?
+      newBranches = combine points previousState iteration getLocation
   in Tree root startIteration $ Just newBranches
 
 simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]

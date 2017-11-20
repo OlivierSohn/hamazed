@@ -61,4 +61,4 @@ setForeground :: ColorIntensity -> Color -> IO (ColorIntensity, Color)
 setForeground a b = bSetForeground (a,b)
 
 restoreForeground :: (ColorIntensity, Color) -> IO ()
-restoreForeground c = void $ bSetForeground c
+restoreForeground = void . uncurry setForeground

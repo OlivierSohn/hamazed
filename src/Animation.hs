@@ -24,12 +24,14 @@ import           Data.Maybe( catMaybes
 import           GHC.Generics( Generic )
 import           Control.Exception( assert )
 
-
+import           Collision( firstCollision )
 import           Geo( Coords
                     , Segment
+                    , mkSegment
                     , showSegment
                     , translatedFullCircle
-                    , translatedFullCircleFromQuarterArc )
+                    , translatedFullCircleFromQuarterArc
+                    , bresenham )
 import           Render( RenderState
                        , renderPoints )
 import           Timing( KeyTime
@@ -109,10 +111,12 @@ combinePoints :: (Coords -> Location)
               -> Either Tree Coords
               -> Either Tree Coords
 combinePoints getLocation iteration point =
-  either Left (\prevPoint ->
-                  case getLocation point of
-                    OutsideWorld -> Left $ Tree prevPoint (previousIteration iteration) Nothing
-                    InsideWorld -> Right point)
+  either Left (\prevPoint -> let trajectory = bresenham (mkSegment prevPoint point) -- prevPoint is collision-free, so we drop it
+                                 collision = firstCollision getLocation trajectory
+                             in  maybe
+                                   (Right point)
+                                   (\_ -> Left $ Tree prevPoint (previousIteration iteration) Nothing)
+                                   collision)
 
 -- TODO generic chaining of animations
 {--

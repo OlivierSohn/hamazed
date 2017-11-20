@@ -81,10 +81,10 @@ render (GameParameters shape wall) = do
       renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
         renderAlignedTxt_ Centered "------------------"
       prevFg <- setForeground Vivid Yellow
-      go Down <$> renderTxt "Chose world size:" (move 5 Up left) >>=
+      go Down <$> renderTxt "- World shape" (move 5 Up left) >>=
           renderTxt "'1' -> width = height" >>=
             renderTxt_ "'2' -> width = 2 x height"
-      go Down <$> renderTxt "Chose walls:" left >>=
+      go Down <$> renderTxt "- World walls" left >>=
           renderTxt "'e' -> no walls" >>=
             renderTxt "'r' -> deterministic walls" >>=
               renderTxt_ "'t' -> random walls"

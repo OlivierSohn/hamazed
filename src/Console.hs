@@ -21,15 +21,18 @@ module Console ( ConsoleConfig(..)
 
 import           Imajuscule.Prelude
 
+import           Data.Maybe( fromMaybe )
 import           Data.String( String )
 import           Data.Text( Text )
+
+import qualified System.Console.Terminal.Size as Terminal( size
+                                                         , Window(..))
 
 import           System.Console.ANSI( clearScreen
                                     , hideCursor
                                     , setSGR
+                                    , setCursorPosition
                                     , showCursor
-                                    , SGR(..)
-                                    , ConsoleLayer(..)
                                     , ColorIntensity(..)
                                     , Color(..) )
 import           System.IO( hSetBuffering
@@ -91,7 +94,10 @@ configureConsoleFor config = do
     Editing -> do
       showCursor
       -- do not clearScreen, to retain a potential printed exception
-      setSGR [SetColor Foreground Vivid White]
+      setSGR []
+      maySz <- Terminal.size
+      let (Terminal.Window x _) = fromMaybe (Terminal.Window 0 0) maySz
+      setCursorPosition x 0
 
 beginFrame :: IO ()
 beginFrame = Backend.beginFrame

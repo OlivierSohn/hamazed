@@ -22,6 +22,7 @@ library
                      , RenderBackends.Delta
                      , RenderBackends.Internal.Delta
                      , Animation
+                     , Collision
                      , Console
                      , Deadline
                      , Event

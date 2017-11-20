@@ -8,13 +8,14 @@ module Event
     , getKeyTime
     , coordsForActionTargets
     , Step(..)
+    , Meta(..)
     ) where
 
 
 import           Imajuscule.Prelude
 
 import           Data.List( foldl' )
-
+import           Data.Char ( ord )
 import           Data.Maybe( mapMaybe )
 
 import           Geo( Coords(..)
@@ -31,8 +32,14 @@ data Event =  Action ActionTarget Direction
             | Timeout Step KeyTime
             | StartLevel Int
             | EndGame
+            | Interrupt Meta
             | Nonsense
             deriving(Eq, Show)
+
+data Meta = Configure
+          | Quit
+          | Help
+          deriving(Eq, Show)
 
 data Step = GameStep
           | AnimationStep
@@ -53,7 +60,9 @@ eventFromChar c = case c of
   'e' -> Action Ship Up
   's' -> Action Ship LEFT
   'f' -> Action Ship RIGHT
-  _   -> Nonsense
+  _   -> case ord c of
+    27 {-esc-} -> Interrupt Quit
+    _          -> Nonsense
 
 
 getKeyTime :: Event -> Maybe KeyTime

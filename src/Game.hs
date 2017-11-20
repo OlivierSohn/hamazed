@@ -29,6 +29,7 @@ import           Geo( Col(..)
 import           Event( Event(..)
                       , TimedEvent(..)
                       , Step(..)
+                      , Meta(..)
                       , ActionTarget(..)
                       , getKeyTime )
 import           GameParameters( GameParameters(..) )
@@ -156,10 +157,16 @@ makeInitialState (GameParameters shape wallType) level = do
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
-  updateGame params state >>= loop params
+  updateGame params state >>= (\(st, mayMeta) ->
+    maybe (loop params st) (\_ -> return ()) mayMeta)
 
-updateGame :: GameParameters -> GameState -> IO GameState
-updateGame params state = getTimedEvent state >>= updateGameUsingTimedEvent params state
+updateGame :: GameParameters -> GameState -> IO (GameState, Maybe Meta)
+updateGame params state = getTimedEvent state >>= (\evt ->
+  case evt of
+    TimedEvent (Interrupt i) _ -> return (state, Just i)
+    _                 -> do
+      st <- updateGameUsingTimedEvent params state evt
+      return (st, Nothing))
 
 getTimedEvent :: GameState -> IO TimedEvent
 getTimedEvent state =

@@ -4,6 +4,7 @@ module RenderBackends.Full(
                             beginFrame
                           , endFrame
                           , setForeground
+                          , restoreForeground
                           , moveTo
                           , renderChar
                           , renderStr
@@ -57,5 +58,12 @@ renderStr = Prelude.putStr
 renderTxt :: Text -> IO ()
 renderTxt = Prelude.putStr . unpack
 
-setForeground :: ColorIntensity -> Color -> IO ()
-setForeground ci c = setSGR [SetColor Foreground ci c]
+-- | limited support : the returned value is hardcoded because there is no way
+--   of getting the current color using System.Console.ANSI. TODO use a state monad
+setForeground :: ColorIntensity -> Color -> IO (ColorIntensity, Color)
+setForeground ci c =
+  setSGR [SetColor Foreground ci c] >>
+    return (Vivid, White)
+
+restoreForeground :: (ColorIntensity, Color) -> IO ()
+restoreForeground = void . uncurry setForeground

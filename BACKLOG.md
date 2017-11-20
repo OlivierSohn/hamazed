@@ -1,6 +1,8 @@
 
 # Backlog
 
+- use a state monad for full rendering (to store the color)
+- use a monad for delta rendering
 - fix animations, they should use bresenham to detect collisions on trajectory
   between previous point (excluded) and now
 

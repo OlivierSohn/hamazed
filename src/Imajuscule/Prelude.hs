@@ -38,6 +38,7 @@ module Imajuscule.Prelude (
                           , tail
                           , last
                           , head
+                          , drop
                           , iterate
                           , unwords
                           , flip
@@ -87,11 +88,14 @@ module Imajuscule.Prelude (
                           , floor
                           , otherwise
                           , id
+                          , curry
+                          , uncurry
                           , Monad(..)
                           -- | Control.Applicative reexports
                           , (<|>)
                           -- | Control.Monad reexports
                           , when
+                          , void
                           -- | Data.Monoid reexports
                           , (<>)
                           , undefined
@@ -102,7 +106,7 @@ module Imajuscule.Prelude (
 import           Prelude
 
 import           Control.Applicative( (<|>) )
-import           Control.Monad( when )
+import           Control.Monad( when, void )
 import           Control.Exception( assert )
 
 import           Data.Monoid ((<>))

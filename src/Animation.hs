@@ -115,7 +115,7 @@ combinePoints getLocation iteration point =
                                  collision =  firstCollision getLocation trajectory
                              in  maybe
                                    (Right $ assert (getLocation point == InsideWorld) point)
-                                   (const $ Left $ Tree prevPoint (previousIteration iteration) Nothing)
+                                   (\(_, preCollisionCoords) -> Left $ Tree preCollisionCoords (previousIteration iteration) Nothing)
                                    collision)
 
 -- TODO generic chaining of animations

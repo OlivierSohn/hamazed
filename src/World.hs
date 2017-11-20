@@ -31,7 +31,8 @@ import           Animation( Animation(..)
                           , earliestDeadline )
 import           Console( ColorIntensity(..)
                         , Color(..)
-                        , setForeground )
+                        , setForeground
+                        , restoreForeground )
 import           Geo( Col(..)
                     , Coords(..)
                     , mkSegment
@@ -252,6 +253,6 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
   mapM_ (\(Number (PosSpeed pos _) i) -> renderIfNotColliding (intToDigit i) pos space worldCorner) balls
   when (null collisions) (do
     let shipColor = if isNothing safeTime then Blue else Red
-    setForeground Vivid shipColor
+    prevFg <- setForeground Vivid shipColor
     renderIfNotColliding '+' shipCoords space worldCorner
-    setForeground Vivid White)
+    restoreForeground prevFg)

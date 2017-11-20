@@ -1,19 +1,11 @@
 
 # Backlog
 
+- fix animations, they should use bresenham to detect collisions on trajectory
+  between previous point (excluded) and now
+
 - let users chose:
-  - shape of the world
-    - square
-    - 2x1 rectangle
-  - animation types
-  - walls
-    - none
-    - deterministic
-    - random
-      - blocksize
-      - strategy
-        - one cc
-        - biggest cc
+  - blocksize
 
 - it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
 there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.

@@ -4,6 +4,7 @@ module RenderBackends.Delta(
                             beginFrame
                           , endFrame
                           , setForeground
+                          , restoreForeground
                           , moveTo
                           , renderChar
                           , renderStr
@@ -56,5 +57,8 @@ renderStr = bPutStr
 renderTxt :: Text -> IO ()
 renderTxt = bPutText
 
-setForeground :: ColorIntensity -> Color -> IO ()
+setForeground :: ColorIntensity -> Color -> IO (ColorIntensity, Color)
 setForeground a b = bSetForeground (a,b)
+
+restoreForeground :: (ColorIntensity, Color) -> IO ()
+restoreForeground c = void $ bSetForeground c

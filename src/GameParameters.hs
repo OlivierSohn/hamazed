@@ -16,7 +16,11 @@ import           System.IO( getChar )
 
 import           Console( beginFrame
                         , endFrame
-                        , renderTxt, renderTxt_ )
+                        , setForeground
+                        , restoreForeground
+                        , renderTxt, renderTxt_
+                        , Color(..)
+                        , ColorIntensity(..) )
 import           Render( move, mkRenderStateToCenterWorld, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
                        , Coords(..), Row(..), Col(..), Direction(..) )
@@ -30,8 +34,8 @@ data GameParameters = GameParameters {
   , _gameParamsWallTypes :: !WallType
 }
 
---minRandomBlockSize :: Int
---minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
+minRandomBlockSize :: Int
+minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
                        -- 6 has always been ok
 
 initialParameters :: GameParameters
@@ -51,10 +55,13 @@ update params = do
       update $ updateFromChar c params
 
 updateFromChar :: Char -> GameParameters -> GameParameters
-updateFromChar c p@(GameParameters _ wallType) =
+updateFromChar c p@(GameParameters shape wallType) =
   case c of
     '1' -> GameParameters Square wallType
     '2' -> GameParameters Rectangle2x1 wallType
+    'e' -> GameParameters shape None
+    'r' -> GameParameters shape Deterministic
+    't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
 render :: GameParameters -> IO ()
@@ -71,10 +78,17 @@ render (GameParameters shape wall) = do
           middleLow    = move (rs-1)           Down middle
           leftMargin = 3
           left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-      renderAlignedTxt Centered "World configuration" (go Down middle) >>=
-        renderAlignedTxt_ Centered "-------------------"
-      go Down <$> renderTxt "Chose world size:" left >>=
+      renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
+        renderAlignedTxt_ Centered "------------------"
+      prevFg <- setForeground Vivid Yellow
+      go Down <$> renderTxt "Chose world size:" (move 5 Up left) >>=
           renderTxt "'1' -> width = height" >>=
-            renderTxt_ "'2' -> width = height * 2"
+            renderTxt_ "'2' -> width = 2 x height"
+      go Down <$> renderTxt "Chose walls:" left >>=
+          renderTxt "'e' -> no walls" >>=
+            renderTxt "'r' -> deterministic walls" >>=
+              renderTxt_ "'t' -> random walls"
+      _ <- setForeground Vivid Green
       renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
+      restoreForeground prevFg
   endFrame

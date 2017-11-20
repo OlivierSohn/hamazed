@@ -125,10 +125,11 @@ xyFromPosition pos = (x, y)
     y = pos' `div` bufferWidth
 
 -- functions that query/modify the buffer
-bSetForeground :: ColorPair -> IO ()
+bSetForeground :: ColorPair -> IO ColorPair
 bSetForeground fg = do
-  screen <- readIORef screenBuffer
+  screen@(ConsoleBuffer _ _ prev _ _ _ ) <- readIORef screenBuffer
   writeIORef screenBuffer screen{currFg = fg}
+  return prev
 
 bSetBackground :: ColorPair -> IO ()
 bSetBackground bg = do

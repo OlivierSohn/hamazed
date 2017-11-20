@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Game(
-        gameWorker
+        runGameWorker
       ) where
 
 import           Imajuscule.Prelude
@@ -32,6 +32,8 @@ import           Event( Event(..)
                       , Step(..)
                       , ActionTarget(..)
                       , getKeyTime )
+import           GameParameters( GameParameters(..)
+                               , WorldShape(..) )
 import           Laser( LaserRay(..)
                       , shootLaserFromShip
                       , LaserType(..)
@@ -144,26 +146,29 @@ accelerateShip' dir (GameState a c d (World wa wb ship wc wd) f g h) =
 -- IO
 --------------------------------------------------------------------------------
 
-gameWorker :: IO ()
-gameWorker = makeInitialState firstLevel >>= loop
+runGameWorker :: GameParameters -> IO ()
+runGameWorker params = makeInitialState params firstLevel >>= loop params
 
-makeInitialState :: Int -> IO GameState
-makeInitialState level = do
+makeInitialState :: GameParameters -> Int -> IO GameState
+makeInitialState (GameParameters shape wallType) level = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
       s = 36 + 2 * (1-level) -- less and less space as level increases
       -- we need even world dimensions to ease level construction
-      worldSize = mkWorldSize (Height $ assert (even s) s) (Width (2*s))
+      width = assert (even s) s * case shape of
+        Square       -> 1
+        Rectangle2x1 -> 2
+      worldSize = mkWorldSize (Height s) (Width width)
   coords <- mkRenderStateToCenterWorld worldSize
-  world <- mkWorld worldSize numbers
+  world <- mkWorld worldSize wallType numbers
   t <- getCurrentTime
   return $ GameState (Timer t) (KeyTime t) coords world [] (sum numbers `quot` 2) $ Level level Nothing
 
-loop :: GameState -> IO ()
-loop state =
-  updateGame state >>= loop
+loop :: GameParameters -> GameState -> IO ()
+loop params state =
+  updateGame params state >>= loop params
 
-updateGame :: GameState -> IO GameState
-updateGame state = getTimedEvent state >>= updateGameUsingTimedEvent state
+updateGame :: GameParameters -> GameState -> IO GameState
+updateGame params state = getTimedEvent state >>= updateGameUsingTimedEvent params state
 
 getTimedEvent :: GameState -> IO TimedEvent
 getTimedEvent state =
@@ -177,13 +182,14 @@ getEvent state@(GameState _ _ _ _ _ _ level) = do
   let deadline = earliestDeadline state t
   getEventForMaybeDeadline level deadline t
 
-updateGameUsingTimedEvent :: GameState -> TimedEvent -> IO GameState
+updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
+ params
  state@(GameState a b d world f g h@(Level level mayLevelFinished))
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
-    StartLevel nextLevel -> makeInitialState nextLevel
+    StartLevel nextLevel -> makeInitialState params nextLevel
     _        -> do
       let newState = case event of
             (Timeout GameStep gt) -> GameState a (addGameStepDuration gt) d (moveWorld t world) f g h

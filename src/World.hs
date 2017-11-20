@@ -32,6 +32,7 @@ import           Animation( Animation(..)
 import           Console( ColorIntensity(..)
                         , Color(..)
                         , setForeground )
+import           GameParameters( WallType(..) )
 import           Geo( Col(..)
                     , Coords(..)
                     , mkSegment
@@ -48,7 +49,9 @@ import           Space( Space(..)
                       , renderIfNotColliding
                       , getMaterial
                       , Material(..)
-                      , mkRandomlyFilledSpace )
+                      , mkRandomlyFilledSpace
+                      , mkDeterministicallyFilledSpace
+                      , mkEmptySpace )
 import           Timing( KeyTime(..) )
 import           WorldSize( WorldSize(..) )
 
@@ -185,9 +188,12 @@ earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animatio
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: WorldSize -> [Int] -> IO World
-mkWorld s nums = do
-  space <- mkRandomlyFilledSpace s
+mkWorld :: WorldSize -> WallType -> [Int] -> IO World
+mkWorld s walltype nums = do
+  space <- case walltype of
+    None          -> return $ mkEmptySpace s
+    Deterministic -> return $ mkDeterministicallyFilledSpace s
+    Random rParams    -> mkRandomlyFilledSpace rParams s
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createShipPos space balls
   t <- getCurrentTime

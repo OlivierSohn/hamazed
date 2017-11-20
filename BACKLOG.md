@@ -1,21 +1,19 @@
 
 # Backlog
 
-- make sure the ship is not at the place of a number at the beginning
-
 - let users chose:
- - shape of the world
-  - square
-  - 2x1 rectangle
- - animation types
- - walls
-  - none
-  - deterministic
-  - random
-   - blocksize
-   - strategy
-    - one cc
-    - biggest cc
+  - shape of the world
+    - square
+    - 2x1 rectangle
+  - animation types
+  - walls
+    - none
+    - deterministic
+    - random
+      - blocksize
+      - strategy
+        - one cc
+        - biggest cc
 
 - it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
 there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
@@ -31,8 +29,9 @@ It would be nice to synchronize animation exactly with console fps to have a bet
 
 ## Random world constraints
 
-- take the biggest connected component (in terms of area? number of cells? both?) and put
-numbers and ship in it. The other air connected components can be converted to walls.
+- allow multiple connected components, but use the biggest connected component
+(in terms of area? number of cells? both?) and put numbers and ship in it.
+The other air connected components could be converted to walls.
 This relaxes the constraint on having a single connected component.
 
 - prevent "reduced rectangle" effect (i.e. make sure on each side there is Air touching the border)

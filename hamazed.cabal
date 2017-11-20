@@ -26,6 +26,7 @@ library
                      , Deadline
                      , Event
                      , Game
+                     , GameParameters
                      , Geo
                      , Laser
                      , Level

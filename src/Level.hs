@@ -137,8 +137,10 @@ eventWithinDurationMicros level durationMicros k step =
 getCharWithinDurationMicros :: Int -> IO (Maybe Char)
 getCharWithinDurationMicros durationMicros =
   if durationMicros < 0
-    then return Nothing
-    else timeout durationMicros getChar
+    then
+      return Nothing
+    else
+      timeout durationMicros getChar
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do

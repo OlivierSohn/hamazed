@@ -11,6 +11,7 @@ module Space
     , location
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
+    , mkEmptySpace
     ) where
 
 import           Imajuscule.Prelude
@@ -39,6 +40,8 @@ import           Console( renderChar_
                         , renderStr
                         , renderStr_
                         , renderText_ )
+import           GameParameters( RandomParameters(..)
+                               , Strategy(..) )
 import           Geo( Coords(..)
                     , Col(..)
                     , Direction(..)
@@ -93,8 +96,13 @@ mapInt 0 = Air
 mapInt 1 = Wall
 mapInt _ = error "mapInt arg out of bounds"
 
-mkDeterministicallyFilledSpace :: WorldSize -> IO Space
-mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) = do
+mkEmptySpace :: WorldSize -> Space
+mkEmptySpace s =
+  let air  = mapMaterial Air
+  in mkSpaceFromInnerMat s [[air]]
+
+mkDeterministicallyFilledSpace :: WorldSize -> Space
+mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) =
   let wall = mapMaterial Wall
       air  = mapMaterial Air
 
@@ -105,17 +113,15 @@ mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col 
       n1 = quot nEmpty 2
       n2 = nEmpty - n1
       l = replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow
-  return $ mkSpaceFromInnerMat s l
+  in mkSpaceFromInnerMat s l
 
 -- | creates a rectangle of size specified in parameters, with a one-element border.
 --  it uses IO for random numbers
-mkRandomlyFilledSpace :: WorldSize -> IO Space
-mkRandomlyFilledSpace s = do
-  let multFactor = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
-                     -- 6 has always been ok
-  smallWorldMat <- mkSmallWorld s multFactor
+mkRandomlyFilledSpace :: RandomParameters -> WorldSize -> IO Space
+mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
+  smallWorldMat <- mkSmallWorld s blockSize strategy
 
-  let innerMat = replicateElements multFactor $ map (replicateElements multFactor) smallWorldMat
+  let innerMat = replicateElements blockSize $ map (replicateElements blockSize) smallWorldMat
   return $ mkSpaceFromInnerMat s innerMat
 
 -- | This function generates a random world with the constraint that it should have
@@ -133,9 +139,10 @@ mkSmallWorld :: WorldSize
              -- ^ Size of the big world
              -> Int
              -- ^ Pixel width (if 1, the small world will have the same size as the big one)
+             -> Strategy
              -> IO [[CInt]]
              -- ^ the "small world"
-mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) multFactor = do
+mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) multFactor strategy = do
   let ncols = quot widthEmptySpace multFactor
       nrows = quot heightEmptySpace multFactor
       mkRandomRow _ = take ncols <$> rands -- TODO use a Matrix directly
@@ -143,9 +150,10 @@ mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace)))
 
   let mat = fromLists smallMat
       graph = graphOfIndex (mapMaterial Air) mat
-  case components graph of
-    [_] -> return smallMat -- TODO return Matrix (mat) instead of list of list
-    _   -> mkSmallWorld s multFactor
+  case strategy of
+    StrictlyOneComponent -> case components graph of
+      [_] -> return smallMat -- TODO return Matrix (mat) instead of list of list
+      _   -> mkSmallWorld s multFactor strategy
 
 graphOfIndex :: CInt -> Matrix CInt -> Graph
 graphOfIndex matchIdx mat =

@@ -111,11 +111,11 @@ combinePoints :: (Coords -> Location)
               -> Either Tree Coords
               -> Either Tree Coords
 combinePoints getLocation iteration point =
-  either Left (\prevPoint -> let trajectory = bresenham (mkSegment prevPoint point) -- prevPoint is collision-free, so we drop it
-                                 collision = firstCollision getLocation trajectory
+  either Left (\prevPoint -> let trajectory = bresenham (mkSegment (assert (getLocation prevPoint == InsideWorld) prevPoint) point)
+                                 collision =  firstCollision getLocation trajectory
                              in  maybe
-                                   (Right point)
-                                   (\_ -> Left $ Tree prevPoint (previousIteration iteration) Nothing)
+                                   (Right $ assert (getLocation point == InsideWorld) point)
+                                   (const $ Left $ Tree prevPoint (previousIteration iteration) Nothing)
                                    collision)
 
 -- TODO generic chaining of animations
@@ -142,7 +142,7 @@ chain2AnimationsOnCollision :: (Coords -> Iteration -> [Coords])
 chain2AnimationsOnCollision anim1 anim2 iteration getLocation tree  =
   let (Tree a b branches) = applyAnimation anim1 iteration getLocation tree
       newBranches = Just $ case branches of
-        Nothing -> error "animateUntilCollision was supposed to create a Just ?"
+        Nothing -> error "applyAnimation was supposed to create a Just ?"
         Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
   in Tree a b newBranches
 
@@ -154,7 +154,14 @@ applyAnimation :: (Coords -> Iteration -> [Coords])
 applyAnimation animation globalIteration getLocation (Tree root startIteration branches) =
   let iteration = globalIteration - startIteration
       points = animation root iteration
-      newBranches = combine points (fromMaybe (map Right points) branches) iteration getLocation
+      treeOrCoords = fromMaybe (map checkLocation points) branches
+      checkLocation p =
+        if getLocation p == OutsideWorld
+          then
+            Left $ Tree p (previousIteration iteration) Nothing
+          else
+            Right p
+      newBranches = combine points treeOrCoords iteration getLocation
   in Tree root startIteration $ Just newBranches
 
 simpleExplosionPure :: Coords -> Iteration -> [Coords]

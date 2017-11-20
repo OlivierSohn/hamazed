@@ -3,8 +3,8 @@
 
 - use a state monad for full rendering (to store the color)
 - use a monad for delta rendering
-- fix animations, they should use bresenham to detect collisions on trajectory
-  between previous point (excluded) and now
+- fix animations, sometimes it goes diagonally through a wall
+  - is it because of speed = 2?
 
 - let users chose:
   - blocksize

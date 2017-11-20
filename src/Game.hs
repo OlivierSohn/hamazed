@@ -158,7 +158,7 @@ makeInitialState (GameParameters shape wallType) level = do
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
   updateGame params state >>= (\(st, mayMeta) ->
-    maybe (loop params st) (\_ -> return ()) mayMeta)
+    maybe (loop params st) (const $ return ()) mayMeta)
 
 updateGame :: GameParameters -> GameState -> IO (GameState, Maybe Meta)
 updateGame params state = getTimedEvent state >>= (\evt ->

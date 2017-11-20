@@ -5,6 +5,9 @@ module Space
     ( Space(..)
     , renderSpace
     , renderIfNotColliding
+    , WallType(..)
+    , RandomParameters(..)
+    , Strategy(..)
     , Material(..)
     , getMaterial
     , forEachRow
@@ -39,9 +42,7 @@ import           Foreign.C.Types( CInt(..) )
 import           Console( renderChar_
                         , renderStr
                         , renderStr_
-                        , renderText_ )
-import           GameParameters( RandomParameters(..)
-                               , Strategy(..) )
+                        , renderTxt_ )
 import           Geo( Coords(..)
                     , Col(..)
                     , Direction(..)
@@ -56,6 +57,18 @@ import           Util( replicateElements
                      , randomRsIO )
 import           WorldSize( Location(..)
                           , WorldSize(..) )
+
+
+data WallType = None
+              | Deterministic
+              | Random RandomParameters
+
+data Strategy = StrictlyOneComponent
+
+data RandomParameters = RandomParameters {
+    _randomWallsBlockSize :: !Int
+  , _randomWallsStrategy :: !Strategy
+}
 
 data Space = Space {
     _space :: !(Matrix CInt)
@@ -243,7 +256,7 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
   renderStr_ (horizontalWall 'T') lowerLeft
 
   -- world
-  mapM_ (\(r, txt) -> renderText_ txt (move r Down worldCoords)) $ zip [0..] renderedWorld
+  mapM_ (\(r, txt) -> renderTxt_ txt (move r Down worldCoords)) $ zip [0..] renderedWorld
 
   return worldCoords
 

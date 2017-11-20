@@ -32,7 +32,6 @@ import           Animation( Animation(..)
 import           Console( ColorIntensity(..)
                         , Color(..)
                         , setForeground )
-import           GameParameters( WallType(..) )
 import           Geo( Col(..)
                     , Coords(..)
                     , mkSegment
@@ -46,6 +45,7 @@ import           Number( Number(..)
                        , getColliding )
 import           Render( RenderState )
 import           Space( Space(..)
+                      , WallType(..)
                       , renderIfNotColliding
                       , getMaterial
                       , Material(..)

@@ -29,10 +29,8 @@ import           Geo( Coords(..)
                     , Segment(..)
                     , segmentContains
                     , translateInDir )
-import           Space( Space(..)
-                      , getMaterial
-                      , Material(..) )
 import           Timing( KeyTime )
+import           WorldSize( Location(..) )
 
 
 data LaserRay a = LaserRay {
@@ -48,17 +46,17 @@ newtype Ray a = Ray Segment
 data Theoretical -- with no obstacle
 data Actual      -- with obstacles
 
-shootLaserFromShip :: Coords -> Direction -> LaserType -> Space -> Maybe (Ray Theoretical)
+shootLaserFromShip :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)
 shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
 
-shootLaser :: Coords -> Direction -> LaserType -> Space -> Maybe (Ray Theoretical)
-shootLaser laserStart dir laserType space =
-  case getMaterial laserStart space of
-    Wall -> Nothing
-    Air ->
+shootLaser :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)
+shootLaser laserStart dir laserType getLocation =
+  case getLocation laserStart of
+    OutsideWorld -> Nothing
+    InsideWorld ->
       case laserType of
         Infinite ->
-          let continueExtension c = getMaterial c space == Air
+          let continueExtension c = getLocation c == InsideWorld
               laserEnd = extend laserStart dir continueExtension
           in Just $ Ray $ mkSegment laserStart laserEnd
 

@@ -28,7 +28,7 @@ import           System.Timeout( timeout )
 import           Console( Color(..)
                         , ColorIntensity(..)
                         , setForeground
-                        , renderText_ )
+                        , renderTxt_ )
 import           Deadline( Deadline(..) )
 import           Event( Event(..)
                       , eventFromChar
@@ -156,12 +156,12 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
         Won      -> Green
       topLeft = go RIGHT coords
   setForeground Vivid color
-  renderText_ (case stop of
+  renderTxt_ (case stop of
     (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
   setForeground Vivid White
   when (messageState == ContinueMessage) $
-    renderText_ (if level == lastLevel
+    renderTxt_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
         let action = case stop of

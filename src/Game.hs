@@ -7,7 +7,6 @@ module Game(
 
 import           Imajuscule.Prelude
 
-import           Control.Exception( assert )
 import           Data.List( minimumBy )
 import           Data.Maybe( catMaybes
                            , isNothing )
@@ -32,8 +31,7 @@ import           Event( Event(..)
                       , Step(..)
                       , ActionTarget(..)
                       , getKeyTime )
-import           GameParameters( GameParameters(..)
-                               , WorldShape(..) )
+import           GameParameters( GameParameters(..) )
 import           Laser( LaserRay(..)
                       , shootLaserFromShip
                       , LaserType(..)
@@ -75,9 +73,7 @@ import           World( World(..)
                       , moveWorld
                       , renderWorld )
 import          WorldSize( WorldSize(..)
-                         , mkWorldSize
-                         , Height(..)
-                         , Width(..) )
+                         , worldSizeFromLevel )
 
 data GameState = GameState {
     _startTime :: !Timer
@@ -91,10 +87,10 @@ data GameState = GameState {
 
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) sz animations) g target (Level i finished))
+  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions) space animations) g target (Level i finished))
   te@(TimedEvent event t) =
    let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case event of
-           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite sz, pred ammo)
+           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
            _     -> (Nothing, ammo)
          else (Nothing, ammo)
        ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
@@ -152,12 +148,7 @@ runGameWorker params = makeInitialState params firstLevel >>= loop params
 makeInitialState :: GameParameters -> Int -> IO GameState
 makeInitialState (GameParameters shape wallType) level = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
-      s = 36 + 2 * (1-level) -- less and less space as level increases
-      -- we need even world dimensions to ease level construction
-      width = assert (even s) s * case shape of
-        Square       -> 1
-        Rectangle2x1 -> 2
-      worldSize = mkWorldSize (Height s) (Width width)
+      worldSize = worldSizeFromLevel level shape
   coords <- mkRenderStateToCenterWorld worldSize
   world <- mkWorld worldSize wallType numbers
   t <- getCurrentTime
@@ -223,9 +214,9 @@ renderGame k state@(GameState _ _ upperLeft
       (rFull, rHalf) = mkSizes rs
       (_    , cHalf) = mkSizes cs
 
-      centerUp   = translate (Row $ -1)        (Col cHalf) upperLeft
-      centerDown = translate (Row $ rFull + 1) (Col cHalf) upperLeft
-      leftMiddle = translate (Row $ rHalf + 1)       (Col $ -1)  upperLeft
+      centerUp   = translate (Row $ -1)        (Col $ cHalf + 1) upperLeft
+      centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
+      leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
   _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
   _ <- go Down <$> renderAlignedTxt RightAligned ("[" <> pack (replicate ammo '.') <> "]") leftMiddle
        >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)

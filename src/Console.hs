@@ -9,7 +9,8 @@ module Console ( ConsoleConfig(..)
                , renderChar_
                , renderStr
                , renderStr_
-               , renderText_
+               , renderTxt
+               , renderTxt_
                , RenderState(..)
                , renderSegment
                -- reexport System.Console.ANSI
@@ -106,22 +107,23 @@ renderChar_ char (RenderState c) = do
   return ()
 
 
+renderStr :: String -> RenderState -> IO RenderState
+renderStr str r@(RenderState c) =
+  renderStr_ str r >> return (RenderState $ translateInDir Down c)
+
 renderStr_ :: String -> RenderState -> IO ()
 renderStr_ str (RenderState c) = do
   Backend.moveTo c
   Backend.renderStr str
 
-renderText_ :: Text -> RenderState -> IO ()
-renderText_ txt (RenderState c) = do
+renderTxt :: Text -> RenderState -> IO RenderState
+renderTxt txt r@(RenderState c) =
+  renderTxt_ txt r >> return (RenderState $ translateInDir Down c)
+
+renderTxt_ :: Text -> RenderState -> IO ()
+renderTxt_ txt (RenderState c) = do
   Backend.moveTo c
   Backend.renderTxt txt
-
-renderStr :: String -> RenderState -> IO RenderState
-renderStr str (RenderState c) = do
-  Backend.moveTo c
-  Backend.renderStr str
-  return $ RenderState $ translateInDir Down c
-
 
 renderSegment :: Segment -> Char -> RenderState -> IO ()
 renderSegment l = case l of

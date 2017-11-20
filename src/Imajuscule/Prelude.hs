@@ -95,11 +95,14 @@ module Imajuscule.Prelude (
                           -- | Data.Monoid reexports
                           , (<>)
                           , undefined
+                          -- | Control.Exception reexports
+                          , assert
                           ) where
 
 import           Prelude
 
 import           Control.Applicative( (<|>) )
 import           Control.Monad( when )
+import           Control.Exception( assert )
 
 import           Data.Monoid ((<>))

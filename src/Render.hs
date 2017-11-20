@@ -5,12 +5,16 @@ module Render (
         , renderPoints
         , Alignment(..)
         , renderAlignedTxt
+        , renderAlignedTxt_
         , go
         , Render.move
         , translate
         , mkRenderStateToCenterWorld
         -- | reexports
         , Coords(..)
+        , Row(..)
+        , Col(..)
+        , Direction(..)
         , RenderState(..)
         ) where
 
@@ -23,7 +27,7 @@ import qualified System.Console.Terminal.Size as Terminal( size
 
 import           Console( RenderState(..)
                         , renderChar_
-                        , renderText_ )
+                        , renderTxt_ )
 import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)
@@ -78,14 +82,17 @@ renderPoints char state =
 data Alignment = Centered
                | RightAligned
 
-renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
-renderAlignedTxt a txt ref = do
+renderAlignedTxt_ :: Alignment -> Text -> RenderState -> IO ()
+renderAlignedTxt_ a txt ref = do
   let amount = case a of
-        Centered     -> quot (length txt) 2
+        Centered     -> 1 + quot (length txt) 2
         RightAligned -> length txt
       leftCorner = Render.move amount LEFT ref
-  renderText_ txt leftCorner
-  return $ go Down ref
+  renderTxt_ txt leftCorner
+
+renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
+renderAlignedTxt a txt ref =
+  renderAlignedTxt_ a txt ref >> return (go Down ref)
 
 mkRenderStateToCenterWorld :: WorldSize -> IO RenderState
 mkRenderStateToCenterWorld s =

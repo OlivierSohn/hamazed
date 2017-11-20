@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GameParameters(
         GameParameters(..)
@@ -11,28 +12,69 @@ module GameParameters(
 
 import           Imajuscule.Prelude
 
+import           System.IO( getChar )
+
+import           Console( beginFrame
+                        , endFrame
+                        , renderTxt, renderTxt_ )
+import           Render( move, mkRenderStateToCenterWorld, renderAlignedTxt_
+                       , Alignment(..), go, renderAlignedTxt
+                       , Coords(..), Row(..), Col(..), Direction(..) )
+import           Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
+import           World( mkWorld, World(..), renderWorld )
+import           WorldSize( WorldSize(..), WorldShape(..), worldSizeFromLevel )
+
+
 data GameParameters = GameParameters {
     _gameParamsWorldShape :: !WorldShape
   , _gameParamsWallTypes :: !WallType
-}
-
-data WorldShape = Square
-                | Rectangle2x1
-
-data WallType = None
-              | Deterministic
-              | Random RandomParameters
-
-data Strategy = StrictlyOneComponent
-
-data RandomParameters = RandomParameters {
-    _randomWallsBlockSize :: !Int
-  , _randomWallsStrategy :: !Strategy
 }
 
 --minRandomBlockSize :: Int
 --minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
                        -- 6 has always been ok
 
+initialParameters :: GameParameters
+initialParameters = GameParameters Square None
+
 getGameParameters :: IO GameParameters
-getGameParameters = return $ GameParameters Square None
+getGameParameters = update initialParameters
+
+update :: GameParameters -> IO GameParameters
+update params = do
+  render params
+  c <- getChar
+  if c == ' '
+    then
+      return params
+    else
+      update $ updateFromChar c params
+
+updateFromChar :: Char -> GameParameters -> GameParameters
+updateFromChar c p@(GameParameters _ wallType) =
+  case c of
+    '1' -> GameParameters Square wallType
+    '2' -> GameParameters Rectangle2x1 wallType
+    _ -> p
+
+render :: GameParameters -> IO ()
+render (GameParameters shape wall) = do
+  beginFrame
+  let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
+  coords <- mkRenderStateToCenterWorld worldSize
+  world@(World _ _ _ space _) <- mkWorld worldSize wall []
+  renderSpace space coords >>=
+    \worldCoords -> do
+      renderWorld world worldCoords
+      let middle = move (quot cs 2) RIGHT worldCoords
+          middleCenter = move (quot (rs-1) 2 ) Down middle
+          middleLow    = move (rs-1)           Down middle
+          leftMargin = 3
+          left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
+      renderAlignedTxt Centered "World configuration" (go Down middle) >>=
+        renderAlignedTxt_ Centered "-------------------"
+      go Down <$> renderTxt "Chose world size:" left >>=
+          renderTxt "'1' -> width = height" >>=
+            renderTxt_ "'2' -> width = height * 2"
+      renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
+  endFrame

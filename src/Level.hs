@@ -32,6 +32,8 @@ import           Console( Color(..)
                         , renderTxt_ )
 import           Deadline( Deadline(..) )
 import           Event( Event(..)
+                      , priority
+                      , userEventPriority
                       , eventFromChar
                       , Step(..)
                       , TimedEvent(..) )
@@ -129,26 +131,36 @@ getEventForMaybeDeadline level mayDeadline curTime =
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline curTime
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> Level.eventFromChar level <$> getChar
+    Nothing -> Level.eventFromChar level <$> getCharThenFlush
 
 eventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
 eventWithinDurationMicros level durationMicros k step =
   (\case
     Nothing   -> Timeout step k
     Just char -> Level.eventFromChar level char
-    ) <$> getCharWithinDurationMicros durationMicros
+    ) <$> getCharWithinDurationMicros durationMicros step
 
-getCharWithinDurationMicros :: Int -> IO (Maybe Char)
-getCharWithinDurationMicros durationMicros =
+getCharWithinDurationMicros :: Int -> Step -> IO (Maybe Char)
+getCharWithinDurationMicros durationMicros step =
   if durationMicros < 0
+    -- overdue
     then
-      return Nothing
+      if priority step < userEventPriority
+        then
+          tryGetChar >>= \r -> flushStdin >> return r
+        else
+          return Nothing
     else
-      timeout durationMicros (
-        getChar >>=
-          -- flush stdin to avoid repeated keys being used later
-          (\c -> unfoldM_ tryGetChar >>
-           return c))
+      timeout durationMicros getCharThenFlush
+
+-- used to avoid repeated keys being used later
+flushStdin :: IO ()
+flushStdin = unfoldM_ tryGetChar
+
+getCharThenFlush :: IO Char
+getCharThenFlush =
+  getChar >>=
+    (\c -> flushStdin >> return c)
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do

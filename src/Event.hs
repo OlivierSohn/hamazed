@@ -2,6 +2,8 @@
 
 module Event
     ( Event(..)
+    , userEventPriority
+    , priority
     , eventFromChar
     , TimedEvent(..)
     , ActionTarget(..)
@@ -46,6 +48,15 @@ data Step = GameStep
           | AnimationStep
           | MessageStep
           deriving(Eq, Show)
+
+priority :: Step -> Int
+priority MessageStep = 0
+priority GameStep    = 1
+-- userEvent is here
+priority AnimationStep = 3
+
+userEventPriority :: Int
+userEventPriority = 2
 
 data ActionTarget = Ship
                   | Laser

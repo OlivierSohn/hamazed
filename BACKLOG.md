@@ -31,14 +31,13 @@ This relaxes the constraint on having a single connected component.
 ## Event driven aspect
 The game is driven by these events:
 
-|event            |start of the period|period length|rate|number of instances at any given time|
-|-----------------|-------------------|-------------|----|-------------------------------------|
-|game forward     |start of game      |constant     |med |1                                    |
-|animation forward|anytime            |constant     |high|0..n                                 |
-|user event       |anytime            |not periodic |low |0..1                                 |
+|event            |start of the period|period length|rate|number of instances at any given time|priority|
+|-----------------|-------------------|-------------|----|-------------------------------------|--------|
+|game forward     |start of game      |constant     |med |1                                    |1       |
+|animation forward|anytime            |constant     |high|0..n                                 |3       |
+|user event       |anytime            |not periodic |low |0..1                                 |2       |
 
-- As of today, if an animation takes a long time to compute (more that its period), it will slow down
-the game because there is no notion of priority. We could implement following priorities:
+- The following priorities:
 game forward > user events > animation forward. The algorithm to find the deadline to address in the
 next loop is then :
   - traversing event types by decreasing priorities, find the first overdue deadline.

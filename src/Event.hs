@@ -30,6 +30,7 @@ data TimedEvent = TimedEvent Event UTCTime
 
 data Event =  Action ActionTarget Direction
             | Timeout Step KeyTime
+            | Explosion Int
             | StartLevel Int
             | EndGame
             | Interrupt Meta
@@ -60,6 +61,7 @@ eventFromChar c = case c of
   'e' -> Action Ship Up
   's' -> Action Ship LEFT
   'f' -> Action Ship RIGHT
+  ' ' -> Explosion 2
   _   -> case ord c of
     27 {-esc-} -> Interrupt Quit
     _          -> Nonsense

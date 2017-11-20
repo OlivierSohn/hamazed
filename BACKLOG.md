@@ -1,10 +1,10 @@
 
 # Backlog
 
+- [bug] when a simple explosion starts from a corner, it traverses diagonally
+
 - use a state monad for full rendering (to store the color)
 - use a monad for delta rendering
-- fix animations, sometimes it goes diagonally through a wall
-  - is it because of speed = 2?
 
 - let users chose:
   - blocksize
@@ -44,8 +44,7 @@ the game because there is no notion of priority. We could implement following pr
 game forward > user events > animation forward. The algorithm to find the deadline to address in the
 next loop is then :
   - traversing event types by decreasing priorities, find the first overdue deadline.
-  - If an overdue deadline was found, address in the next game loop, else address
-the closest deadline.
+  - If an overdue deadline was found, address it now, else address the closest deadline.
 
 - Flicker can happen if we flush at very close intervals. This behaviour has been greatly improved
 by using delta rendering, however, I don't think that it fixes it entirely. So there are a few

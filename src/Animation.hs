@@ -164,10 +164,9 @@ applyAnimation animation globalIteration getLocation (Tree root startIteration b
       newBranches = combine points treeOrCoords iteration getLocation
   in Tree root startIteration $ Just newBranches
 
-simpleExplosionPure :: Coords -> Iteration -> [Coords]
-simpleExplosionPure center (Iteration iteration) =
+simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
+simpleExplosionPure resolution center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
-      resolution = 8
   in translatedFullCircleFromQuarterArc center radius 0 resolution
 
 quantitativeExplosionPure :: Int -> Coords -> Iteration -> [Coords]
@@ -209,14 +208,6 @@ setRender :: Animation
           -> Animation
 setRender (Animation t i _) = Animation t i
 
-simpleExplosion :: Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion state step a@(Animation _ i _) getLocation s = do
-  let newState = case step of
-        Update -> applyAnimation simpleExplosionPure i getLocation state
-        Same -> state
-      points = getAliveCoordinates newState
-  renderAnimation points (setRender a $ simpleExplosion newState) s
-
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
   let points = showSegment seg
@@ -229,13 +220,27 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
   return $ if assert (i > 0) i > 2 * animationSpeed then Nothing else Just a
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-quantitativeExplosionThenSimpleExplosion number state step a@(Animation _ i _) getLocation = do
-  let newState = case step of
-        Update -> chain2AnimationsOnCollision (quantitativeExplosionPure number) simpleExplosionPure i getLocation state
-        Same   -> state
-      points = getAliveCoordinates newState
-  renderAnimation points (setRender a $ quantitativeExplosionThenSimpleExplosion number newState)
+quantitativeExplosionThenSimpleExplosion number = animate fPure f
+  where
+    fPure = chain2AnimationsOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
+    f = quantitativeExplosionThenSimpleExplosion number
 
+simpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosion resolution = animate fPure f
+  where
+    fPure = applyAnimation (simpleExplosionPure resolution)
+    f = simpleExplosion resolution
+
+animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
+        -- ^ the pure animation function
+        -> (Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+        -- ^ the IO animation function
+        ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+animate pureAnim ioAnim state step a@(Animation _ i _) getLocation = do
+  let newState = case step of
+        Update -> pureAnim i getLocation state
+        Same -> state
+  renderAnimation (getAliveCoordinates newState) (setRender a $ ioAnim newState)
 
 renderAnimation :: [Coords] -> Animation -> RenderState -> IO (Maybe Animation)
 renderAnimation points a state = do

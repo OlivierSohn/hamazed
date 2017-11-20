@@ -103,7 +103,8 @@ nextGameState
          n:_ -> mkAnimation (animation n) keyTime : animations
          _ -> animations)
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
+              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
+              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
        newWorld = nextWorld world remainingBalls newAmmo newAnimations

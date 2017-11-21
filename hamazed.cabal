@@ -41,7 +41,7 @@ library
                      , World
                      , WorldSize
   build-depends:       array
-                     , ansi-terminal >= 0.7.1.1
+                     , ansi-terminal
                      , base
                      , containers
                      , hmatrix

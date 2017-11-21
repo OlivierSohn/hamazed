@@ -10,7 +10,7 @@ module Animation
     -- | animations
     , simpleExplosion
     , gravityExplosion
-    , gravityExplosionSpreading
+    , gravityExplosionThenSimpleExplosion
     , quantitativeExplosionThenSimpleExplosion
     , simpleLaser
     ) where
@@ -35,8 +35,6 @@ import           Geo( Coords
                     , translatedFullCircleFromQuarterArc
                     , parabola
                     , Vec2(..)
-                    , rotateByQuarters
-                    , sumVec2d
                     , pos2vec
                     , vec2coords
                     , bresenham )
@@ -173,12 +171,6 @@ gravityExplosionPure initialSpeed origin (Iteration iteration) =
   let o = pos2vec origin
   in  [vec2coords $ parabola o initialSpeed iteration]
 
-gravityExplosionSpreadingPure :: Vec2 -> Coords -> Iteration -> [Coords]
-gravityExplosionSpreadingPure initialSpeed origin (Iteration iteration) =
-  let o = pos2vec origin
-      initialSpeeds = map (sumVec2d initialSpeed) $ rotateByQuarters $ Vec2 1 1
-  in  map (\iSpeed -> vec2coords $ parabola o iSpeed iteration) initialSpeeds
-
 simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
 simpleExplosionPure resolution center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
@@ -248,17 +240,18 @@ simpleExplosion resolution = animate fPure f
     fPure = applyAnimation (simpleExplosionPure resolution)
     f = simpleExplosion resolution
 
+gravityExplosionThenSimpleExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+gravityExplosionThenSimpleExplosion initialSpeed = animate fPure f
+  where
+    fPure = chain2AnimationsOnCollision (gravityExplosionPure initialSpeed) (simpleExplosionPure 8)
+    f = gravityExplosionThenSimpleExplosion initialSpeed
+
+
 gravityExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 gravityExplosion initialSpeed = animate fPure f
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
-
-gravityExplosionSpreading :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-gravityExplosionSpreading initialSpeed = animate fPure f
-  where
-    fPure = applyAnimation (gravityExplosionSpreadingPure initialSpeed)
-    f = gravityExplosionSpreading initialSpeed
 
 animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
         -- ^ the pure animation function

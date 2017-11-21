@@ -15,6 +15,7 @@ import           Data.Text( pack )
 import           Animation( Animation(..)
                           , simpleExplosion
                           , gravityExplosion
+                          , gravityExplosionThenSimpleExplosion
                           , renderAnimations
                           , mkAnimationTree
                           , mkAnimation )
@@ -131,7 +132,7 @@ destroyNumbersAnimations nums event keyTime =
 
       speeds = map (sumVec2d (scalarProd 2 sp)) variations
       --animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
-      anim pos speedLaser = gravityExplosion speedLaser (mkAnimationTree pos)
+      anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos)
       animation (Number (PosSpeed pos _) _) = map (anim pos) speeds
   in case nums of
     n:_ -> map (`mkAnimation` keyTime) (animation n)

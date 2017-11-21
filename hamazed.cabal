@@ -1,7 +1,9 @@
 name:                hamazed
 version:             0.1.0.0
--- synopsis:
--- description:
+Category:            Game
+Synopsis:            A game with numbers, a spaceship and a laser.
+Description:         The goal is to shoot the numbers that should add up to the
+                     objective of the level.
 homepage:            https://github.com/OlivierSohn/hamazed#readme
 license:             BSD3
 license-file:        LICENSE

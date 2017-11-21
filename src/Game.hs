@@ -13,7 +13,6 @@ import           Data.Maybe( catMaybes
 import           Data.Text( pack )
 
 import           Animation( Animation(..)
-                          , quantitativeExplosionThenSimpleExplosion
                           , simpleExplosion
                           , gravityExplosion
                           , renderAnimations
@@ -24,7 +23,11 @@ import           Console( beginFrame
 import           Deadline( Deadline(..) )
 import           Geo( Col(..)
                     , Coords(..)
+                    , speed2vec
+                    , coordsForDirection
                     , Direction(..)
+                    , sumVec2d
+                    , scalarProd
                     , PosSpeed(..)
                     , Row(..)
                     , Vec2(..) )
@@ -97,25 +100,42 @@ nextGameState
            _     -> (Nothing, ammo)
          else (Nothing, ammo)
        ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
-       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-       allShotNumbers = g ++ destroyedNumbers
 
-       animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
        keyTime = KeyTime t
-       newAnimations = (case destroyedBalls of
-         n:_ -> mkAnimation (animation n) keyTime : animations
-         _ -> animations)
+       newAnimations =
+         destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
               Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
               Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime]
               GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
+         ++ animations
 
        newWorld = nextWorld world remainingBalls newAmmo newAnimations
+       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
+       allShotNumbers = g ++ destroyedNumbers
        newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
        newLevel = Level i newFinished
    in  GameState a b d newWorld allShotNumbers target newLevel
+
+destroyNumbersAnimations :: [Number] -> Event -> KeyTime -> [Animation]
+destroyNumbersAnimations nums event keyTime =
+  let sp = case event of
+        (Action Laser dir) -> speed2vec $ coordsForDirection dir
+        _ -> Vec2 0 0
+      variations = [ Vec2 0.3     (-0.4)
+                   , Vec2 (-0.55) (-0.29)
+                   , Vec2 (-0.1)  0.9
+                   , Vec2 1.2     0.2]
+
+      speeds = map (sumVec2d (scalarProd 2 sp)) variations
+      --animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
+      anim pos speedLaser = gravityExplosion speedLaser (mkAnimationTree pos)
+      animation (Number (PosSpeed pos _) _) = map (anim pos) speeds
+  in case nums of
+    n:_ -> map (`mkAnimation` keyTime) (animation n)
+    _ -> []
 
 replaceAnimations :: [Animation] -> GameState -> GameState
 replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =

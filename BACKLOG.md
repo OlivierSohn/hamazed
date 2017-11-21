@@ -56,8 +56,9 @@ hitting a key (the key should be present also in the other room)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
+- use a different animation when the target is met?
 - take number speed & laser direction into account for animation
-- make gravity based animations : initial velocity, rebound on walls, lose % velocity when hitting the bottom
+- make gravity based animations rebound on walls, lose % velocity when hitting the bottom
 - combine animation types : explode animation converts to gravity based upon hitting the boundaries
 
 ## Playability

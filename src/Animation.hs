@@ -10,6 +10,7 @@ module Animation
     -- | animations
     , simpleExplosion
     , gravityExplosion
+    , gravityExplosionSpreading
     , quantitativeExplosionThenSimpleExplosion
     , simpleLaser
     ) where
@@ -33,8 +34,10 @@ import           Geo( Coords
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc
                     , parabola
-                    , Vec2
-                    , coords2vec
+                    , Vec2(..)
+                    , rotateByQuarters
+                    , sumVec2d
+                    , pos2vec
                     , vec2coords
                     , bresenham )
 import           Render( RenderState
@@ -167,13 +170,19 @@ applyAnimation animation globalIteration getLocation (Tree root startIteration b
 
 gravityExplosionPure :: Vec2 -> Coords -> Iteration -> [Coords]
 gravityExplosionPure initialSpeed origin (Iteration iteration) =
-  let o = coords2vec origin
+  let o = pos2vec origin
   in  [vec2coords $ parabola o initialSpeed iteration]
+
+gravityExplosionSpreadingPure :: Vec2 -> Coords -> Iteration -> [Coords]
+gravityExplosionSpreadingPure initialSpeed origin (Iteration iteration) =
+  let o = pos2vec origin
+      initialSpeeds = map (sumVec2d initialSpeed) $ rotateByQuarters $ Vec2 1 1
+  in  map (\iSpeed -> vec2coords $ parabola o iSpeed iteration) initialSpeeds
 
 simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
 simpleExplosionPure resolution center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
-      c = coords2vec center
+      c = pos2vec center
   in map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution
 
 quantitativeExplosionPure :: Int -> Coords -> Iteration -> [Coords]
@@ -183,7 +192,7 @@ quantitativeExplosionPure number center (Iteration iteration) =
   -- rnd <- getStdRandom $ randomR (0,numRand-1)
       radius = fromIntegral iteration :: Float
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
-      c = coords2vec center
+      c = pos2vec center
   in map vec2coords $ translatedFullCircle c radius firstAngle number
 
 stepAnimation :: Animation -> Animation
@@ -244,6 +253,12 @@ gravityExplosion initialSpeed = animate fPure f
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
+
+gravityExplosionSpreading :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+gravityExplosionSpreading initialSpeed = animate fPure f
+  where
+    fPure = applyAnimation (gravityExplosionSpreadingPure initialSpeed)
+    f = gravityExplosionSpreading initialSpeed
 
 animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
         -- ^ the pure animation function

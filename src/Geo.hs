@@ -21,8 +21,12 @@ module Geo ( Direction(..)
            , translateInDir
            , zeroCoords
            , Vec2(..)
+           , rotateByQuarters
            , vec2coords
-           , coords2vec
+           , pos2vec
+           , speed2vec
+           , sumVec2d
+           , scalarProd
            -- circles
            , translatedFullCircle
            , translatedFullCircleFromQuarterArc
@@ -126,8 +130,11 @@ data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
 sumVec2d :: Vec2 -> Vec2 -> Vec2
 sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
 
-coords2vec :: Coords -> Vec2
-coords2vec (Coords (Row r) (Col c)) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)
+pos2vec :: Coords -> Vec2
+pos2vec (Coords (Row r) (Col c)) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)
+
+speed2vec :: Coords -> Vec2
+speed2vec (Coords (Row r) (Col c)) = Vec2 (fromIntegral c) (fromIntegral r)
 
 vec2coords :: Vec2 -> Coords
 vec2coords (Vec2 x y) = Coords (Row $ floor y) (Col $ floor x)
@@ -148,8 +155,8 @@ gravity = Vec2 0 0.2
 --   v0 = initial velocity
 parabola :: Vec2 -> Vec2 -> Int -> Vec2
 parabola r0 v0 time =
-  let t = 1 * fromIntegral time
-  in sumVec2d (scalarProd (0.5*t*t) gravity)  (sumVec2d r0 (scalarProd t v0))
+  let t = 0.4 * fromIntegral time
+  in sumVec2d (scalarProd (0.5*t*t) gravity) (sumVec2d r0 (scalarProd t v0))
 
 -- Circle Functions ------------------------------------------------------------
 

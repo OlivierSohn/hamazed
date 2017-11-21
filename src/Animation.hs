@@ -224,9 +224,11 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
         '|' -> '.'
         '=' -> '-'
         _ -> error "unsupported case in simpleLaser"
-      char = if assert (i > 0) i > animationSpeed then replacementChar else laserChar
+      iterationUseReplacement = 2 * animationSpeed
+      iterationStop = 4 * animationSpeed
+      char = if assert (i > 0) i > iterationUseReplacement then replacementChar else laserChar
   renderPoints char state points
-  return $ if assert (i > 0) i > 2 * animationSpeed then Nothing else Just a
+  return $ if assert (i > 0) i > iterationStop then Nothing else Just a
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 quantitativeExplosionThenSimpleExplosion number = animate fPure f

@@ -7,7 +7,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
-copyright:           (c) 2017 Olivier Sohn
+copyright:           2017 Olivier Sohn
 category:            Web
 build-type:          Simple
 extra-source-files:  README.md
@@ -41,7 +41,7 @@ library
                      , World
                      , WorldSize
   build-depends:       array
-                     , ansi-terminal
+                     , ansi-terminal >= 0.7.1.1
                      , base
                      , containers
                      , hmatrix

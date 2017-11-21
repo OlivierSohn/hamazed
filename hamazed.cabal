@@ -42,7 +42,7 @@ library
                      , WorldSize
   build-depends:       array
                      , ansi-terminal
-                     , base
+                     , base >= 4.9 && < 4.10
                      , containers
                      , matrix
                      , monad-loops

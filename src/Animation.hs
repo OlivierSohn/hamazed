@@ -34,6 +34,8 @@ import           Geo( Coords
                     , translatedFullCircleFromQuarterArc
                     , parabola
                     , Vec2
+                    , coords2vec
+                    , vec2coords
                     , bresenham )
 import           Render( RenderState
                        , renderPoints )
@@ -165,12 +167,14 @@ applyAnimation animation globalIteration getLocation (Tree root startIteration b
 
 gravityExplosionPure :: Vec2 -> Coords -> Iteration -> [Coords]
 gravityExplosionPure initialSpeed origin (Iteration iteration) =
-  [parabola origin initialSpeed iteration]
+  let o = coords2vec origin
+  in  [vec2coords $ parabola o initialSpeed iteration]
 
 simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
 simpleExplosionPure resolution center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
-  in translatedFullCircleFromQuarterArc center radius 0 resolution
+      c = coords2vec center
+  in map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution
 
 quantitativeExplosionPure :: Int -> Coords -> Iteration -> [Coords]
 quantitativeExplosionPure number center (Iteration iteration) =
@@ -179,7 +183,8 @@ quantitativeExplosionPure number center (Iteration iteration) =
   -- rnd <- getStdRandom $ randomR (0,numRand-1)
       radius = fromIntegral iteration :: Float
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
-  in translatedFullCircle center radius firstAngle number
+      c = coords2vec center
+  in map vec2coords $ translatedFullCircle c radius firstAngle number
 
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i f) = Animation (addAnimationStepDuration t) (nextIteration i) f

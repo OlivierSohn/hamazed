@@ -14,7 +14,6 @@ module Geo ( Direction(..)
            , showSegment
            , changeSegmentLength
            , segmentContains
-           , rotateByQuarters
            , Row(..)
            , sumCoords
            , diffCoords
@@ -22,6 +21,8 @@ module Geo ( Direction(..)
            , translateInDir
            , zeroCoords
            , Vec2(..)
+           , vec2coords
+           , coords2vec
            -- circles
            , translatedFullCircle
            , translatedFullCircleFromQuarterArc
@@ -113,12 +114,12 @@ data PosSpeed = PosSpeed {
   , _speed :: !Coords
 } deriving (Generic, Eq, Show, Ord)
 
-rotateByQuarters :: Coords -> [Coords]
-rotateByQuarters co@(Coords (Row r) (Col c)) =
-  [co,
-  Coords (Row c) (Col $ -r),
-  Coords (Row $ -c) (Col r),
-  Coords (Row $ -r) (Col $ -c)]
+rotateByQuarters :: Vec2 -> [Vec2]
+rotateByQuarters v@(Vec2 x y) =
+  [v,
+  Vec2 x $ -y,
+  Vec2 (-x) $ -y,
+  Vec2 (-x) y]
 
 data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
 
@@ -145,47 +146,46 @@ gravity = Vec2 0 0.2
 --   t = time
 --   r0 = initial position
 --   v0 = initial velocity
-parabola :: Coords -> Vec2 -> Int -> Coords
+parabola :: Vec2 -> Vec2 -> Int -> Vec2
 parabola r0 v0 time =
   let t = 1 * fromIntegral time
-  in vec2coords $ sumVec2d (scalarProd (0.5*t*t) gravity)  (sumVec2d (coords2vec r0) (scalarProd t v0))
+  in sumVec2d (scalarProd (0.5*t*t) gravity)  (sumVec2d r0 (scalarProd t v0))
 
 -- Circle Functions ------------------------------------------------------------
 
-mkPointOnCircle :: Float -> Float -> Coords
+mkPointOnCircle :: Float -> Float -> Vec2
 mkPointOnCircle radius angle =
   let x = radius * sin angle
       y = radius * cos angle
-      toInt flt = floor $ 0.5 + flt
-  in Coords (Row $ toInt y) (Col $ toInt x)
+  in Vec2 x y
 
-discretizeArcOfCircle :: Float -> Float -> Float -> Int -> [Coords]
+discretizeArcOfCircle :: Float -> Float -> Float -> Int -> [Vec2]
 discretizeArcOfCircle radius arcAngle firstAngle resolution =
   let angleIncrement = arcAngle / (fromIntegral resolution :: Float)
   in  map (\i ->
         let angle = firstAngle + angleIncrement * (fromIntegral i :: Float)
         in mkPointOnCircle radius angle) [0..resolution]
 
-fullCircleFromQuarterArc :: Float -> Float -> Int -> [Coords]
+fullCircleFromQuarterArc :: Float -> Float -> Int -> [Vec2]
 fullCircleFromQuarterArc radius firstAngle quarterArcResolution =
   let quarterArcAngle = pi/2
       quarterCircle = discretizeArcOfCircle radius quarterArcAngle firstAngle quarterArcResolution
   in  concatMap rotateByQuarters quarterCircle
 
-fullCircle :: Float -> Float -> Int -> [Coords]
+fullCircle :: Float -> Float -> Int -> [Vec2]
 fullCircle radius firstAngle resolution =
   let totalAngle = 2*pi
   in  discretizeArcOfCircle radius totalAngle firstAngle resolution
 
-translatedFullCircleFromQuarterArc :: Coords -> Float -> Float -> Int -> [Coords]
+translatedFullCircleFromQuarterArc :: Vec2 -> Float -> Float -> Int -> [Vec2]
 translatedFullCircleFromQuarterArc center radius firstAngle resolution =
   let circle = fullCircleFromQuarterArc radius firstAngle resolution
-  in map (translate center) circle
+  in map (sumVec2d center) circle
 
-translatedFullCircle :: Coords -> Float -> Float -> Int -> [Coords]
+translatedFullCircle :: Vec2 -> Float -> Float -> Int -> [Vec2]
 translatedFullCircle center radius firstAngle resolution =
   let circle = fullCircle radius firstAngle resolution
-  in map (translate center) circle
+  in map (sumVec2d center) circle
 
 translate :: Coords -> Coords -> Coords
 translate = sumCoords

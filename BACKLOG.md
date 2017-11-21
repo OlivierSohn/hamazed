@@ -1,9 +1,6 @@
 
 # Backlog
 
-- use a state monad for full rendering (to store the color)
-- use a monad for delta rendering
-
 - let users chose:
   - blocksize
 
@@ -57,12 +54,9 @@ hitting a key (the key should be present also in the other room)
 
 ## Animation Design
 - use a different animation when the target is met?
-- take number speed & laser direction into account for animation
 - make gravity based animations rebound on walls, lose % velocity when hitting the bottom
-- combine animation types : explode animation converts to gravity based upon hitting the boundaries
 
 ## Playability
-- make laser ray render persist until next motion step.
 - do not count duplicate laser shots in same motion step.
 - write a help
 
@@ -78,7 +72,6 @@ An easier mode would be to have the ship be totally immune to collisions.
 - Change the motion period for various difficulty levels
 
 ## Rendering optimizations
-- when shooting the laser, we could render less to optimize lag
 - try BlockBuffering (Just 80000)
 
 ## Future games

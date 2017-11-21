@@ -1,6 +1,22 @@
 
 # Backlog
 
+- support rgb colors in Delta rendering
+
+https://stackoverflow.com/questions/27159322/rgb-values-of-the-colors-in-the-ansi-extended-colors-index-17-255/27165165#27165165
+
+with r,g,b between 0 and 5,
+colorNumber = 16 + 36 * r + 6 * g + b
+
+https://stackoverflow.com/questions/15682537/ansi-color-specific-rgb-sequence-bash
+
+- use colors in animation (one per instance). make the color darker with time, make the hue change also.
+
+- make a package for Delta rendering:
+  - review function names
+  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
+  - CI: https://github.com/hvr/multi-ghc-travis
+
 - let users chose:
   - blocksize
 
@@ -9,6 +25,7 @@ there will be every once in a while a frame than will be slow (as if a frame was
 It would be nice to synchronize animation exactly with console fps to have a better fluidity
 
 - http://dev.stephendiehl.com/hask/#what-to-avoid
+
 - http://www.stephendiehl.com/posts/protolude.html
 
 - fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity

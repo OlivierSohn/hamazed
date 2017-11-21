@@ -44,7 +44,7 @@ library
                      , ansi-terminal
                      , base
                      , containers
-                     , hmatrix
+                     , matrix
                      , monad-loops
                      , monadlist
                      , random

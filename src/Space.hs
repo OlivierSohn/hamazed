@@ -29,13 +29,12 @@ import           Data.Graph( Graph
 import           Data.Text( Text, pack )
 import           Data.List(length)
 import           Data.Maybe(mapMaybe)
-import           Data.Vector.Storable( slice )
-
-import           Numeric.LinearAlgebra.Data( (!)
-                                           , fromLists
-                                           , flatten
-                                           , Matrix
-                                           , size )
+import           Data.Vector(Vector, slice, (!))
+import           Data.Matrix( getElem
+                            , fromLists
+                            , getMatrixAsVector
+                            , Matrix
+                            , nrows, ncols )
 
 import           Foreign.C.Types( CInt(..) )
 
@@ -156,10 +155,10 @@ mkSmallWorld :: WorldSize
              -> IO [[CInt]]
              -- ^ the "small world"
 mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) multFactor strategy = do
-  let ncols = quot widthEmptySpace multFactor
-      nrows = quot heightEmptySpace multFactor
-      mkRandomRow _ = take ncols <$> rands -- TODO use a Matrix directly
-  smallMat <- mapM mkRandomRow [0..nrows-1]
+  let nCols = quot widthEmptySpace multFactor
+      nRows = quot heightEmptySpace multFactor
+      mkRandomRow _ = take nCols <$> rands -- TODO use a Matrix directly
+  smallMat <- mapM mkRandomRow [0..nRows-1]
 
   let mat = fromLists smallMat
       graph = graphOfIndex (mapMaterial Air) mat
@@ -170,17 +169,27 @@ mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace)))
 
 graphOfIndex :: CInt -> Matrix CInt -> Graph
 graphOfIndex matchIdx mat =
-  let sz@(nrows,ncols) = size mat
-      coords = [Coords (Row r) (Col c) | c <-[0..ncols-1], r <- [0..nrows-1], mat ! r ! c == matchIdx]
+  let sz@(nRows,nCols) = size mat
+      coords = [Coords (Row r) (Col c) | c <-[0..nCols-1], r <- [0..nRows-1], mat `at` (r, c) == matchIdx]
       edges = map (\c -> (c, c, connectedNeighbours matchIdx c mat sz)) coords
       (graph, _, _) = graphFromEdges edges
   in graph
 
+-- these functions adapt the API of matrix to the API of hmatrix
+size :: Matrix a -> (Int, Int)
+size mat = (nrows mat, ncols mat)
+
+flatten :: Matrix a -> Vector a
+flatten = getMatrixAsVector
+
+at :: Matrix a -> (Int, Int) -> a
+at mat (i, j) = getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
+
 connectedNeighbours :: CInt -> Coords -> Matrix CInt -> (Int, Int) -> [Coords]
-connectedNeighbours matchIdx coords mat (nrows,ncols) =
+connectedNeighbours matchIdx coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
   in mapMaybe (\other@(Coords (Row r) (Col c)) ->
-        if r < 0 || c < 0 || r >= nrows || c >= ncols || mat !r !c /= matchIdx
+        if r < 0 || c < 0 || r >= nRows || c >= nCols || mat `at` (r, c) /= matchIdx
           then
             Nothing
           else
@@ -210,9 +219,9 @@ rands = randomRsIO (0,1)
 
 addBorder :: WorldSize -> [[CInt]] -> [[CInt]]
 addBorder (WorldSize (Coords _ (Col widthEmptySpace))) l =
-  let ncols = widthEmptySpace + 2 * borderSize
+  let nCols = widthEmptySpace + 2 * borderSize
       wall = mapMaterial Wall
-      wallRow = replicate ncols wall
+      wallRow = replicate nCols wall
       encloseIn b e = b ++ e ++ b
   in encloseIn (replicate borderSize wallRow) $ map (encloseIn $ replicate borderSize wall) l
 
@@ -230,7 +239,7 @@ getMaterial :: Coords -> Space -> Material
 getMaterial (Coords (Row r) (Col c)) (Space mat (WorldSize (Coords (Row rs) (Col cs))) _)
   | r < 0 || c < 0 = Wall
   | r > rs-1 || c > cs-1 = Wall
-  | otherwise = mapInt $ mat !(r+1) !(c+1)
+  | otherwise = mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 location :: Coords -> Space -> Location
 location c s = case getMaterial c s of

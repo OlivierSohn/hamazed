@@ -21,9 +21,12 @@ module Geo ( Direction(..)
            , translate
            , translateInDir
            , zeroCoords
+           , Vec2(..)
            -- circles
            , translatedFullCircle
            , translatedFullCircleFromQuarterArc
+           -- curves
+           , parabola
            ) where
 
 import           Imajuscule.Prelude
@@ -117,6 +120,35 @@ rotateByQuarters co@(Coords (Row r) (Col c)) =
   Coords (Row $ -c) (Col r),
   Coords (Row $ -r) (Col $ -c)]
 
+data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
+
+sumVec2d :: Vec2 -> Vec2 -> Vec2
+sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
+
+coords2vec :: Coords -> Vec2
+coords2vec (Coords (Row r) (Col c)) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)
+
+vec2coords :: Vec2 -> Coords
+vec2coords (Vec2 x y) = Coords (Row $ floor y) (Col $ floor x)
+
+scalarProd :: Float -> Vec2 -> Vec2
+scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
+
+gravity :: Vec2
+gravity = Vec2 0 0.2
+
+-- using https://en.wikipedia.org/wiki/Equations_of_motion :
+-- equation [2] in "Constant linear acceleration in any direction"
+--   r = r0 + v0t + .5*at^2
+-- where
+--   a = gravity force
+--   t = time
+--   r0 = initial position
+--   v0 = initial velocity
+parabola :: Coords -> Vec2 -> Int -> Coords
+parabola r0 v0 time =
+  let t = 1 * fromIntegral time
+  in vec2coords $ sumVec2d (scalarProd (0.5*t*t) gravity)  (sumVec2d (coords2vec r0) (scalarProd t v0))
 
 -- Circle Functions ------------------------------------------------------------
 

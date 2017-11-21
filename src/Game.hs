@@ -15,6 +15,7 @@ import           Data.Text( pack )
 import           Animation( Animation(..)
                           , quantitativeExplosionThenSimpleExplosion
                           , simpleExplosion
+                          , gravityExplosion
                           , renderAnimations
                           , mkAnimationTree
                           , mkAnimation )
@@ -25,7 +26,8 @@ import           Geo( Col(..)
                     , Coords(..)
                     , Direction(..)
                     , PosSpeed(..)
-                    , Row(..) )
+                    , Row(..)
+                    , Vec2(..) )
 import           Event( Event(..)
                       , TimedEvent(..)
                       , Step(..)
@@ -97,6 +99,7 @@ nextGameState
        ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
        destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
        allShotNumbers = g ++ destroyedNumbers
+
        animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
        keyTime = KeyTime t
        newAnimations = (case destroyedBalls of
@@ -105,8 +108,10 @@ nextGameState
          ++ case event of
               Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
               Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime]
+              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
+
        newWorld = nextWorld world remainingBalls newAmmo newAnimations
        newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
        newLevel = Level i newFinished

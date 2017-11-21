@@ -9,6 +9,7 @@ module Animation
     , renderAnimations
     -- | animations
     , simpleExplosion
+    , gravityExplosion
     , quantitativeExplosionThenSimpleExplosion
     , simpleLaser
     ) where
@@ -31,6 +32,8 @@ import           Geo( Coords
                     , showSegment
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc
+                    , parabola
+                    , Vec2
                     , bresenham )
 import           Render( RenderState
                        , renderPoints )
@@ -160,6 +163,10 @@ applyAnimation animation globalIteration getLocation (Tree root startIteration b
       newBranches = combine points previousState iteration getLocation
   in Tree root startIteration $ Just newBranches
 
+gravityExplosionPure :: Vec2 -> Coords -> Iteration -> [Coords]
+gravityExplosionPure initialSpeed origin (Iteration iteration) =
+  [parabola origin initialSpeed iteration]
+
 simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
 simpleExplosionPure resolution center (Iteration iteration) =
   let radius = fromIntegral iteration :: Float
@@ -226,6 +233,12 @@ simpleExplosion resolution = animate fPure f
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
     f = simpleExplosion resolution
+
+gravityExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+gravityExplosion initialSpeed = animate fPure f
+  where
+    fPure = applyAnimation (gravityExplosionPure initialSpeed)
+    f = gravityExplosion initialSpeed
 
 animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
         -- ^ the pure animation function

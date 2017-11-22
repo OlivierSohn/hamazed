@@ -1,14 +1,7 @@
 
 # Backlog
 
-- support rgb colors in Delta rendering
-
-https://stackoverflow.com/questions/27159322/rgb-values-of-the-colors-in-the-ansi-extended-colors-index-17-255/27165165#27165165
-
-with r,g,b between 0 and 5,
-colorNumber = 16 + 36 * r + 6 * g + b
-
-https://stackoverflow.com/questions/15682537/ansi-color-specific-rgb-sequence-bash
+- allow to use space for collision animation only in debug
 
 - use colors in animation (one per instance). make the color darker with time, make the hue change also.
 
@@ -89,6 +82,7 @@ An easier mode would be to have the ship be totally immune to collisions.
 - Change the motion period for various difficulty levels
 
 ## Rendering optimizations
+- it could be more efficient to have a global contiguous buffer for the string that will be actually written.
 - try BlockBuffering (Just 80000)
 
 ## Future games

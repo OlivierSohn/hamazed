@@ -4,12 +4,14 @@ module RenderBackends.Delta(
                             beginFrame
                           , endFrame
                           , setForeground
+                          , setRawForeground
                           , restoreForeground
                           , moveTo
                           , renderChar
                           , renderStr
                           , renderTxt
                           , preferredBuffering
+                          , Raw8Color(..)
                           ) where
 
 import           Imajuscule.Prelude
@@ -25,12 +27,14 @@ import           System.IO( hFlush
 
 import           RenderBackends.Internal.Delta( blitBuffer
                                               , bSetForeground
+                                              , bSetRawForeground
                                               , bGotoXY
                                               , bPutCharRaw
                                               , bPutStr
                                               , bPutText
                                               , Color(..)
-                                              , ColorIntensity(..) )
+                                              , ColorIntensity(..)
+                                              , Raw8Color(..) )
 
 import           Geo( Coords(..)
                     , Col(..)
@@ -57,8 +61,11 @@ renderStr = bPutStr
 renderTxt :: Text -> IO ()
 renderTxt = bPutText
 
-setForeground :: ColorIntensity -> Color -> IO (ColorIntensity, Color)
+setForeground :: ColorIntensity -> Color -> IO Raw8Color
 setForeground a b = bSetForeground (a,b)
 
-restoreForeground :: (ColorIntensity, Color) -> IO ()
-restoreForeground = void . uncurry setForeground
+setRawForeground :: Raw8Color -> IO Raw8Color
+setRawForeground = bSetRawForeground
+
+restoreForeground :: Raw8Color -> IO ()
+restoreForeground = void . setRawForeground

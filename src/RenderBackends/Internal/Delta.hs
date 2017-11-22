@@ -18,11 +18,16 @@
 --   - introduce modOptimized to optimize modulos, because most of the time,
 --      the value is returned unchanged so a simple comparison is enough.
 --   - inline some functions
+--   - Reworked logic of drawCell / applyBuffer to draw only when strictly required.
+--     To that end, we keep track of the current color of the console while drawing.
+--   - Add support for Raw8Color (8-bits ANSI colors)
 
 module RenderBackends.Internal.Delta
        (
          bSetForeground
+       , bSetRawForeground
        , bSetBackground
+       , bSetRawBackground
        , bGotoXY
        , bPutChar
        , bPutCharRaw
@@ -33,11 +38,15 @@ module RenderBackends.Internal.Delta
        -- reexports from System.Console.ANSI
        , ColorIntensity(..)
        , Color(..)
+       , RGB8Color(..)
+       , Gray8Color(..)
+       , Raw8Color(..) -- Constructors is exported bu the preferred way to describe colors is with
+                       -- (ColorIntensity, Color) or RGB8Color or Gray8Color
        ) where
 
 import           Imajuscule.Prelude
 
-import qualified Prelude ( putChar )
+import qualified Prelude ( putChar, putStr )
 
 import           Data.IORef( IORef
                            , newIORef
@@ -54,8 +63,11 @@ import           Data.Array.IO( IOArray
                               , readArray )
 import           System.Console.ANSI( ColorIntensity(..)
                                     , Color(..)
+                                    , Raw8Color(..)
+                                    , RGB8Color(..)
+                                    , Gray8Color(..)
                                     , setCursorPosition
-                                    , setSGR
+                                    , setSGRCode
                                     , SGR(..)
                                     , ConsoleLayer(..) )
 
@@ -74,13 +86,18 @@ bufferSize = bufferWidth * bufferHeight
 
 -- type definitions and global instance
 type ColorPair = (ColorIntensity, Color)
-type BufferCell = (ColorPair, ColorPair, Char)
+
+-- We could use a newtype but I'm worried that unboxing doesn't happen recursively enough
+-- to unbox everything here...
+type Colors = (Raw8Color, Raw8Color) -- (foregroud color, background color)
+
+type BufferCell = (Colors, Char)
 type BufferArray = IOArray Int BufferCell
 
 data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    , currY :: !Int
-                                   , currFg :: !ColorPair
-                                   , currBg :: !ColorPair
+                                   , currFg :: !Raw8Color
+                                   , currBg :: !Raw8Color
                                    , currBuffer :: !BufferArray
                                    , backBuffer :: !BufferArray
                                    }
@@ -88,17 +105,37 @@ data ConsoleBuffer = ConsoleBuffer { currX :: !Int
 emptyBufferArray :: IO BufferArray
 emptyBufferArray = newArray (0, bufferMaxIdx) initialCell
 
+initialForeground :: Raw8Color
+initialForeground = color8Code Dull White
+
+initialBackground :: Raw8Color
+initialBackground = color8Code Dull Black
+
 initialCell :: BufferCell
-initialCell = (foreground, background, ' ')
-  where
-    foreground = (Dull, White)
-    background = (Dull, Black)
+initialCell = ((initialForeground, initialBackground), ' ')
+
+color8Code :: ColorIntensity -> Color -> Raw8Color
+color8Code intensity color =
+  let code = colorToCode color
+  in  Raw8Color $ if intensity == Vivid then 8 + code else code
+
+-- copied from System.Control.ANSI
+colorToCode :: Color -> Int
+colorToCode color = case color of
+  Black   -> 0
+  Red     -> 1
+  Green   -> 2
+  Yellow  -> 3
+  Blue    -> 4
+  Magenta -> 5
+  Cyan    -> 6
+  White   -> 7
 
 {-# NOINLINE screenBuffer #-}
 screenBuffer :: IORef ConsoleBuffer
 screenBuffer = unsafePerformIO $ do b1 <- emptyBufferArray
                                     b2 <- emptyBufferArray
-                                    newIORef (ConsoleBuffer 0 0 (Dull, White) (Dull, Black) b1 b2)
+                                    newIORef (ConsoleBuffer 0 0 initialForeground initialBackground b1 b2)
 
 -- aux. functions
 needDrawing :: BufferCell -> BufferCell -> Bool
@@ -125,14 +162,20 @@ xyFromPosition pos = (x, y)
     y = pos' `div` bufferWidth
 
 -- functions that query/modify the buffer
-bSetForeground :: ColorPair -> IO ColorPair
-bSetForeground fg = do
+bSetForeground :: ColorPair -> IO Raw8Color
+bSetForeground p = bSetRawForeground (uncurry color8Code p)
+
+bSetRawForeground :: Raw8Color -> IO Raw8Color
+bSetRawForeground fg = do
   screen@(ConsoleBuffer _ _ prev _ _ _ ) <- readIORef screenBuffer
   writeIORef screenBuffer screen{currFg = fg}
   return prev
 
 bSetBackground :: ColorPair -> IO ()
-bSetBackground bg = do
+bSetBackground p = bSetRawBackground (uncurry color8Code p)
+
+bSetRawBackground :: Raw8Color -> IO ()
+bSetRawBackground bg = do
   screen <- readIORef screenBuffer
   writeIORef screenBuffer screen{currBg = bg}
 
@@ -151,7 +194,7 @@ bPutCharRaw c = do
       bg = currBg screen
       pos = positionFromXY x y
       buff = backBuffer screen
-  writeArray buff pos (fg, bg, c)
+  writeArray buff pos ((fg, bg), c)
   return pos
 
 -- | Write a char and advance in the buffer
@@ -183,32 +226,47 @@ blitBuffer clearSource = do
   screen <- readIORef screenBuffer
   let current = currBuffer screen
       back = backBuffer screen
-  applyBuffer back current bufferMaxIdx clearSource
+  applyBuffer back current bufferMaxIdx clearSource Nothing
 
-applyBuffer :: BufferArray -> BufferArray -> Int -> Bool -> IO ()
-applyBuffer from to position clearFrom
-  | position < 0 = return ()
-  | otherwise = do
-  cellFrom <- readArray from position
-  when clearFrom $ writeArray from position initialCell
-  cellTo <- readArray to position
-  when (needDrawing cellFrom cellTo) $ drawCellChanges cellFrom cellTo position
-  writeArray to position cellFrom
-  applyBuffer from to (pred position) clearFrom
+applyBuffer :: BufferArray
+            -- ^ buffer containing new values
+            -> BufferArray
+            -- ^ buffer containing old values
+            -> Int
+            -- ^ the position in the buffers
+            -> Bool
+            -- ^ should we clear the buffer containing the new values?
+            -> Maybe Colors
+            -- ^ The current console color, if it is known
+            -> IO ()
+applyBuffer from to position clearFrom mayCurrentConsoleColor
+  | position >= 0 = do
+      cellFrom <- readArray from position
+      when clearFrom $ writeArray from position initialCell
+      cellTo <- readArray to position
+      mayNewConsoleColor <- if needDrawing cellFrom cellTo
+                              then
+                                do
+                                  gotoCursorPosition position
+                                  res <- drawCell cellFrom mayCurrentConsoleColor
+                                  return $ Just res
+                              else
+                                return Nothing
+      writeArray to position cellFrom
+      applyBuffer from to (pred position) clearFrom (mayNewConsoleColor <|> mayCurrentConsoleColor)
+  | otherwise = return ()
 
-drawCellChanges :: BufferCell -> BufferCell -> Int -> IO ()
-drawCellChanges ((fromFGI, fromFGC), (fromBGI, fromBGC), fromV) ((toFGI, toFGC), (toBGI, toBGC), toV) position = do
-  screen <- readIORef screenBuffer
-  let (bbFGI, bbFGC) = currFg screen
-      (bbBGI, bbBGC) = currBg screen
-      colorChanged = (fromFGI /= toFGI) || (fromFGC /= toFGC) || (fromBGI /= toBGI) || (fromBGC /= toBGC) ||
-                     (fromFGI /= bbFGI) || (fromFGC /= bbFGC) || (fromBGI /= bbBGI) || (fromBGC /= bbBGC)
-      valueChanged = fromV /= toV
-  if colorChanged
-    then setSGR [SetColor Foreground fromFGI fromFGC, SetColor Background fromBGI fromBGC]
-    else setSGR [SetColor Foreground bbFGI bbFGC, SetColor Background bbBGI bbBGC]
-  when (valueChanged || colorChanged) $ do gotoCursorPosition position
-                                           Prelude.putChar fromV
+drawCell :: BufferCell -> Maybe Colors -> IO Colors
+drawCell (color@(fg, bg), char) maybeCurrentConsoleColor = do
+  let (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
+      sgrs = [SetRaw8Color Foreground fg | fgChange] ++
+             [SetRaw8Color Background bg | bgChange]
+  if null sgrs
+    then
+      Prelude.putChar char
+    else
+      Prelude.putStr $ setSGRCode sgrs ++ [char]
+  return color
 
 gotoCursorPosition :: Int -> IO ()
 gotoCursorPosition pos = setCursorPosition y x

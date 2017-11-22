@@ -37,6 +37,9 @@ resolver: lts-9.12
 # will not be run. This is useful for tweaking upstream packages.
 packages:
 - '.'
+- location:
+    git: https://github.com/OlivierSohn/ansi-terminal.git
+    commit: d2c31559a685f17ba956d359fed5f91e9cc549a7
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:

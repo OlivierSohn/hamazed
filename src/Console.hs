@@ -6,6 +6,7 @@ module Console ( ConsoleConfig(..)
                , beginFrame
                , endFrame
                , setForeground
+               , setRawForeground
                , Backend.restoreForeground
                , renderChar_
                , renderStr
@@ -61,8 +62,10 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , renderStr
                                                 , renderTxt
                                                 , setForeground
+                                                , setRawForeground
                                                 , restoreForeground
-                                                , preferredBuffering )
+                                                , preferredBuffering
+                                                , Raw8Color(..) )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -105,8 +108,11 @@ beginFrame = Backend.beginFrame
 endFrame :: IO ()
 endFrame = Backend.endFrame
 
-setForeground :: ColorIntensity -> Color -> IO (ColorIntensity, Color)
+setForeground :: ColorIntensity -> Color -> IO Backend.Raw8Color
 setForeground = Backend.setForeground
+
+setRawForeground :: Backend.Raw8Color -> IO Backend.Raw8Color
+setRawForeground = Backend.setRawForeground
 
 renderChar_ :: Char -> RenderState -> IO ()
 renderChar_ char (RenderState c) = do

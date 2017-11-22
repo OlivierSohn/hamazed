@@ -65,7 +65,7 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , setRawForeground
                                                 , restoreForeground
                                                 , preferredBuffering
-                                                , Raw8Color(..) )
+                                                , Color8Code(..) )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -108,10 +108,10 @@ beginFrame = Backend.beginFrame
 endFrame :: IO ()
 endFrame = Backend.endFrame
 
-setForeground :: ColorIntensity -> Color -> IO Backend.Raw8Color
+setForeground :: ColorIntensity -> Color -> IO Backend.Color8Code
 setForeground = Backend.setForeground
 
-setRawForeground :: Backend.Raw8Color -> IO Backend.Raw8Color
+setRawForeground :: Backend.Color8Code -> IO Backend.Color8Code
 setRawForeground = Backend.setRawForeground
 
 renderChar_ :: Char -> RenderState -> IO ()

@@ -20,7 +20,7 @@
 --   - inline some functions
 --   - Reworked logic of drawCell / applyBuffer to draw only when strictly required.
 --     To that end, we keep track of the current color of the console while drawing.
---   - Add support for Raw8Color (8-bits ANSI colors)
+--   - Add support for 8-bits ANSI colors
 
 module RenderBackends.Internal.Delta
        (
@@ -38,10 +38,9 @@ module RenderBackends.Internal.Delta
        -- reexports from System.Console.ANSI
        , ColorIntensity(..)
        , Color(..)
-       , RGB8Color(..)
-       , Gray8Color(..)
-       , Raw8Color(..) -- Constructors is exported bu the preferred way to describe colors is with
-                       -- (ColorIntensity, Color) or RGB8Color or Gray8Color
+       , Color8(..)
+       , Color8Code(..) -- Constructors is exported but the preferred way to describe colors is with
+                        -- (ColorIntensity, Color) or RGB8Color or Gray8Color
        ) where
 
 import           Imajuscule.Prelude
@@ -63,9 +62,8 @@ import           Data.Array.IO( IOArray
                               , readArray )
 import           System.Console.ANSI( ColorIntensity(..)
                                     , Color(..)
-                                    , Raw8Color(..)
-                                    , RGB8Color(..)
-                                    , Gray8Color(..)
+                                    , Color8(..)
+                                    , Color8Code(..)
                                     , setCursorPosition
                                     , setSGRCode
                                     , SGR(..)
@@ -89,15 +87,15 @@ type ColorPair = (ColorIntensity, Color)
 
 -- We could use a newtype but I'm worried that unboxing doesn't happen recursively enough
 -- to unbox everything here...
-type Colors = (Raw8Color, Raw8Color) -- (foregroud color, background color)
+type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
 type BufferCell = (Colors, Char)
 type BufferArray = IOArray Int BufferCell
 
 data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    , currY :: !Int
-                                   , currFg :: !Raw8Color
-                                   , currBg :: !Raw8Color
+                                   , currFg :: !Color8Code
+                                   , currBg :: !Color8Code
                                    , currBuffer :: !BufferArray
                                    , backBuffer :: !BufferArray
                                    }
@@ -105,19 +103,19 @@ data ConsoleBuffer = ConsoleBuffer { currX :: !Int
 emptyBufferArray :: IO BufferArray
 emptyBufferArray = newArray (0, bufferMaxIdx) initialCell
 
-initialForeground :: Raw8Color
+initialForeground :: Color8Code
 initialForeground = color8Code Dull White
 
-initialBackground :: Raw8Color
+initialBackground :: Color8Code
 initialBackground = color8Code Dull Black
 
 initialCell :: BufferCell
 initialCell = ((initialForeground, initialBackground), ' ')
 
-color8Code :: ColorIntensity -> Color -> Raw8Color
+color8Code :: ColorIntensity -> Color -> Color8Code
 color8Code intensity color =
   let code = colorToCode color
-  in  Raw8Color $ if intensity == Vivid then 8 + code else code
+  in  Color8Code $ if intensity == Vivid then 8 + code else code
 
 -- copied from System.Control.ANSI
 colorToCode :: Color -> Int
@@ -162,10 +160,10 @@ xyFromPosition pos = (x, y)
     y = pos' `div` bufferWidth
 
 -- functions that query/modify the buffer
-bSetForeground :: ColorPair -> IO Raw8Color
+bSetForeground :: ColorPair -> IO Color8Code
 bSetForeground p = bSetRawForeground (uncurry color8Code p)
 
-bSetRawForeground :: Raw8Color -> IO Raw8Color
+bSetRawForeground :: Color8Code -> IO Color8Code
 bSetRawForeground fg = do
   screen@(ConsoleBuffer _ _ prev _ _ _ ) <- readIORef screenBuffer
   writeIORef screenBuffer screen{currFg = fg}
@@ -174,7 +172,7 @@ bSetRawForeground fg = do
 bSetBackground :: ColorPair -> IO ()
 bSetBackground p = bSetRawBackground (uncurry color8Code p)
 
-bSetRawBackground :: Raw8Color -> IO ()
+bSetRawBackground :: Color8Code -> IO ()
 bSetRawBackground bg = do
   screen <- readIORef screenBuffer
   writeIORef screenBuffer screen{currBg = bg}
@@ -259,8 +257,8 @@ applyBuffer from to position clearFrom mayCurrentConsoleColor
 drawCell :: BufferCell -> Maybe Colors -> IO Colors
 drawCell (color@(fg, bg), char) maybeCurrentConsoleColor = do
   let (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
-      sgrs = [SetRaw8Color Foreground fg | fgChange] ++
-             [SetRaw8Color Background bg | bgChange]
+      sgrs = [SetColor8Code Foreground fg | fgChange] ++
+             [SetColor8Code Background bg | bgChange]
   if null sgrs
     then
       Prelude.putChar char

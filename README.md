@@ -23,7 +23,7 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
   - add explosion animations
   - optimize rendering using delta rendering
 - 1.0 :
- - The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
+  - The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
 
 # Credits
 

@@ -1,23 +1,35 @@
 # What is it?
 
-A terminal ascii game I write to practice some Haskell. It has 12 levels of increasing difficulty.
+A terminal ascii game I write - to practice writing Haskell. While writing it,
+several times it felt like the code I was writing could have been made simpler
+and more flexible using abstractions or functional notions which I didn't know of yet
+(especially for the part on Animations and how to chain them).
+So if you happen to read the code and find places where it would make sense to refactor
+don't hesitate to tell me, by opening an issue or submitting a merge request!
 
-In this game, you control a ship in direction, and you can shoot at moving numbers.
-During the 5 first seconds, the ship is immune to collisions with numbers, but after that,
-if the ship collides with a number it disintegrates.
-When the sum of shot numbers is equal to the objective number, the level is completed.
+The game can be somewhat configured by the user (size and kind of the world) and
+has 12 levels of increasing difficulty. The aim is to shoot at moving numbers to
+reach a given sum to go to the next level.
 
-Keyboard Controls:
+The keyboard controls are mapped this way:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'
 
+During the 5 first seconds of each level, the ship is immune to collisions with numbers.
+
 Version history:
-- master (under development) : add randomness to world generation, walls, and fancier animations.
+- master (under development) :
+  - add randomness to world generation, walls, and fancier animations.
+  - optimize rendering using delta rendering.
 - 1.0 : The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
 
 # Credits
 
-Rafael Ibraim published https://gist.github.com/ibraimgm/40e307d70feeb4f117cd which is
-delta rendering in the console. It avoids to have to clear the console and redraw
-everything at each frame, instead only the parts of the console that have changed are
-rendered. It removes unwanted flickering effects.
+## Delta rendering
+
+The delta rendering code is based on code written by Rafael Ibraim:
+https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
+
+It avoids to have to clear the console and redraw everything at each frame,
+instead only the parts of the console that have changed are rendered,
+removing unwanted flickering side effects.

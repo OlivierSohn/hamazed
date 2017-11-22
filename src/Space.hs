@@ -10,7 +10,6 @@ module Space
     , Strategy(..)
     , Material(..)
     , getMaterial
-    , forEachRow
     , location
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
@@ -78,15 +77,6 @@ data Space = Space {
 data Material = Air
               | Wall
               deriving(Generic, Eq, Show)
-
-forEachRow :: (Monad m) => Space -> (Row -> (Col -> Material) -> m ()) -> m ()
-forEachRow (Space mat (WorldSize (Coords (Row rs) (Col cs))) _) f = do
-  let rows = [0..rs-1]
-      colInternalLength = cs+2
-      matAsOneVector = flatten mat -- this is O(1)
-  mapM_ (\r -> do
-    let row = slice (1 + (r+1) * colInternalLength) cs matAsOneVector
-    f (Row r) (\(Col c) -> mapInt $ row ! c)) rows
 
 forEachRowPure :: Matrix CInt -> WorldSize -> ((Col -> Material) -> b) -> [b]
 forEachRowPure mat (WorldSize (Coords (Row rs) (Col cs))) f =

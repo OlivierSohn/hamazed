@@ -20,6 +20,7 @@ import           System.Random( Random(..)
                               , split )
 
 
+{-# INLINABLE showListOrSingleton #-}
 showListOrSingleton :: Show a => [a] -> Text
 showListOrSingleton [e] = pack $ show e
 showListOrSingleton l   = pack $ show l
@@ -36,12 +37,13 @@ takeWhileInclusive p (x:xs) = x : if p x
                                     else
                                       []
 
-
+{-# INLINE range #-}
 range :: Enum a => Ord a
       => a
       -> a
       -> [a]
 range n m = if m < n then [n,(pred n)..m] else [n..m]
 
+{-# INLINE randomRsIO #-}
 randomRsIO :: Random a => (a,a) -> IO [a]
 randomRsIO range_ = getStdRandom $ split >>> first (randomRs range_)

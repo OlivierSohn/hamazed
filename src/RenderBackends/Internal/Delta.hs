@@ -100,8 +100,8 @@ data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    , backBuffer :: !BufferArray
                                    }
 
-emptyBufferArray :: IO BufferArray
-emptyBufferArray = newArray (0, bufferMaxIdx) initialCell
+newBufferArray :: BufferCell -> IO BufferArray
+newBufferArray cell = newArray (0, bufferMaxIdx) cell
 
 initialForeground :: Color8Code
 initialForeground = color8Code Dull White
@@ -109,8 +109,14 @@ initialForeground = color8Code Dull White
 initialBackground :: Color8Code
 initialBackground = color8Code Dull Black
 
+noColor :: Color8Code
+noColor = Color8Code (-1)
+
 initialCell :: BufferCell
 initialCell = ((initialForeground, initialBackground), ' ')
+
+nocolorCell :: BufferCell
+nocolorCell = ((noColor, noColor), ' ')
 
 color8Code :: ColorIntensity -> Color -> Color8Code
 color8Code intensity color =
@@ -131,9 +137,10 @@ colorToCode color = case color of
 
 {-# NOINLINE screenBuffer #-}
 screenBuffer :: IORef ConsoleBuffer
-screenBuffer = unsafePerformIO $ do b1 <- emptyBufferArray
-                                    b2 <- emptyBufferArray
-                                    newIORef (ConsoleBuffer 0 0 initialForeground initialBackground b1 b2)
+screenBuffer = unsafePerformIO $ do cur  <- newBufferArray nocolorCell -- We initialize to different colors
+                                    back <- newBufferArray initialCell -- so that in first render the whole console
+                                                                       -- is drawn to.
+                                    newIORef (ConsoleBuffer 0 0 initialForeground initialBackground cur back)
 
 -- aux. functions
 needDrawing :: BufferCell -> BufferCell -> Bool
@@ -214,7 +221,10 @@ bClear :: IO ()
 bClear = do
   screen <- readIORef screenBuffer
   let buff = backBuffer screen
-  mapM_ (\pos -> writeArray buff pos initialCell) [0..bufferMaxIdx]
+  fillBuffer initialCell buff
+
+fillBuffer :: BufferCell -> BufferArray -> IO ()
+fillBuffer cell buffer = mapM_ (\pos -> writeArray buffer pos cell) [0..bufferMaxIdx]
 
 -- blit the backbuffer into the main buffer and change the screen
 blitBuffer :: Bool

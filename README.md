@@ -17,6 +17,10 @@ The keyboard controls are mapped this way:
 
 During the 5 first seconds of each level, the ship is immune to collisions with numbers.
 
+# Supported platforms:
+- OSX
+- Linux (but not tested yet)
+
 # Version history
 - 2.0 :
   - make world configurable (square or rectangle, with or without random walls)
@@ -24,6 +28,12 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
   - optimize rendering using delta rendering
 - 1.0 :
   - The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
+
+# Build
+
+You can build and run using the following command in the root folder of the project:
+
+`stack build --pedantic && stack exec hamazed-exe`
 
 # Credits
 

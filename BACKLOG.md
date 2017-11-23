@@ -91,6 +91,14 @@ An easier mode would be to have the ship be totally immune to collisions.
 - it could be more efficient to have a global contiguous buffer for the string that will be actually written.
 - try BlockBuffering (Just 80000)
 
+## Windows support
+
+- The keyboard input is not flushed until we press enter: it is a known bug
+    https://ghc.haskell.org/trac/ghc/ticket/2189
+  - potential workaround :
+  before calling `getChar`, call `hIsReady stdin` : if it returns true,
+    send a newline as input then call `getChar` (use https://stackoverflow.com/questions/19578565/simulating-keystrokes-with-haskell-on-windows)
+
 ## Future games
 - make a brick-breaking game
 - make a tower based defense game

@@ -13,6 +13,7 @@ module Animation
     , gravityExplosionThenSimpleExplosion
     , quantitativeExplosionThenSimpleExplosion
     , simpleLaser
+    , animatedNumber
     ) where
 
 
@@ -187,6 +188,10 @@ quantitativeExplosionPure number center (Iteration iteration) =
       c = pos2vec center
   in map vec2coords $ translatedFullCircle c radius firstAngle number
 
+animateNumberPure :: Int -> Coords -> Iteration -> [Coords]
+animateNumberPure 1 = simpleExplosionPure 8
+animateNumberPure n = simpleExplosionPure n
+
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i f) = Animation (addAnimationStepDuration t) (nextIteration i) f
 
@@ -254,6 +259,29 @@ gravityExplosion initialSpeed = animate fPure f
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
+
+animatedNumber :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+animatedNumber n = animate' (mkAnimator animateNumberPure animatedNumber n)
+
+data Animator a = Animator {
+    _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
+  , _animatorIO   :: !(Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+}
+
+mkAnimator :: (t -> Coords -> Iteration -> [Coords])
+           -> (t
+               -> Tree
+               -> StepType
+               -> Animation
+               -> (Coords -> Location)
+               -> RenderState
+               -> IO (Maybe Animation))
+           -> t
+           -> Animator a
+mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params)
+
+animate' :: Animator a -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+animate' (Animator pure_ io_) = animate pure_ io_
 
 animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
         -- ^ the pure animation function

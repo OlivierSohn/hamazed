@@ -8,8 +8,8 @@ So if you happen to read the code and find places where it would make sense to r
 don't hesitate to tell me, by opening an issue or submitting a merge request!
 
 The game can be somewhat configured by the user (size and kind of the world) and
-has 12 levels of increasing difficulty. The aim is to shoot at moving numbers to
-reach a given sum to go to the next level.
+has 12 levels of increasing difficulty. The aim is to reach a given sum by shooting
+at moving numbers.
 
 The keyboard controls are mapped this way:
 - ship acceleration : 's' 'e' 'd' 'f'

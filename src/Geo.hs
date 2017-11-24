@@ -35,6 +35,8 @@ module Geo ( Direction(..)
            , translatedFullCircleFromQuarterArc
            -- curves
            , parabola
+           -- poly extremities
+           , polyExtremities
            ) where
 
 import           Imajuscule.Prelude
@@ -202,6 +204,10 @@ mkPointOnCircle radius angle =
   let x = radius * sin angle
       y = radius * cos angle
   in Vec2 x y
+
+polyExtremities :: Int -> Coords -> Int -> Float -> [Coords]
+polyExtremities nSides center radius startAngle =
+  map (sumCoords center . vec2coords) $ discretizeArcOfCircle (fromIntegral radius) (2.0*pi) startAngle nSides
 
 discretizeArcOfCircle :: Float -> Float -> Float -> Int -> [Vec2]
 discretizeArcOfCircle radius arcAngle firstAngle resolution =

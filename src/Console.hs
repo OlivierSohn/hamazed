@@ -87,8 +87,7 @@ configureConsoleFor config = do
       Gaming  -> False
       Editing -> True
   hSetBuffering stdout $ case config of
-      Gaming  ->
-        Backend.preferredBuffering
+      Gaming  -> Backend.preferredBuffering
       Editing -> LineBuffering
   case config of
     Gaming  -> do

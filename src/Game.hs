@@ -137,7 +137,7 @@ destroyNumbersAnimations nums event keyTime =
       anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos)
       animation pos = map ((\f -> (f, Speed 2)) . anim pos) speeds
   in case nums of
-    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), (Speed 1))])
+    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), Speed 1)])
     _ -> []
 
 replaceAnimations :: [Animation] -> GameState -> GameState

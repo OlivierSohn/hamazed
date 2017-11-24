@@ -70,6 +70,7 @@ resample input n m
                           in  resampleRec m' n 0 (overRepIdx, 0) input nCopiesMin
        in  assert (verifyResample input m res) res
 
+
 resampleRec :: Int
             -- ^ over-represented samples count
             -> Int
@@ -95,6 +96,7 @@ resampleRec m' n curIdx (overRepIdx, s) l@(_:_) nCopiesMin =
         | otherwise = (nCopiesMin    , (overRepIdx    , s))
   in replicate nCopies (head l) ++ resampleRec m' n (succ curIdx) nextState (tail l) nCopiesMin
 
+
 -- | Returns maxBound when there is no over-representation
 getOverRepIdx :: Int -> Int -> Int -> Int
 getOverRepIdx m' n s
@@ -105,6 +107,7 @@ getOverRepIdx m' n s
                 else
                   maxBound
   | otherwise = assert (m' == 0) maxBound
+
 
 verifyResample :: [a]
                -- ^ the input

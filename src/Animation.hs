@@ -31,10 +31,13 @@ import           Control.Exception( assert )
 
 import           Collision( firstCollision )
 import           Geo( Coords
+                    , bresenham
+                    , bresenhamLength
                     , Segment
                     , Direction(..)
                     , mkSegment
                     , move
+                    , polyExtremities
                     , rotateCcw
                     , showSegment
                     , translatedFullCircle
@@ -42,9 +45,7 @@ import           Geo( Coords
                     , parabola
                     , Vec2(..)
                     , pos2vec
-                    , vec2coords
-                    , bresenham
-                    , bresenhamLength )
+                    , vec2coords )
 import           Render( RenderState
                        , renderPoints )
 import           Resample( resample )
@@ -218,16 +219,32 @@ quantitativeExplosionPure number center (Frame iteration) =
 animateNumberPure :: Int -> Coords -> Frame -> [Coords]
 animateNumberPure 1 = simpleExplosionPure 8
 animateNumberPure 2 = rotatingBar Up
-animateNumberPure n = simpleExplosionPure n
+animateNumberPure n = polygon n
 
+-- TODO make it rotate, like the name says :)
 rotatingBar :: Direction -> Coords -> Frame -> [Coords]
 rotatingBar dir first (Frame i) =
   let centerBar = move (assert (i > 0) i) dir first
       orthoDir = rotateCcw 1 dir
       startBar = move i orthoDir centerBar
       endBar = move (-i) orthoDir centerBar
-      numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
-  in sampledBresenham numpoints startBar endBar
+  in  connect2 startBar endBar
+
+polygon :: Int -> Coords -> Frame -> [Coords]
+polygon nSides center (Frame i) =
+  let startAngle = if odd nSides then pi else pi/4.0
+      extremities = polyExtremities nSides center i startAngle
+  in connect extremities
+
+connect :: [Coords] -> [Coords]
+connect []  = []
+connect l@[_] = l
+connect (a:rest@(b:_)) = connect2 a b ++ connect rest
+
+connect2 :: Coords -> Coords -> [Coords]
+connect2 start end =
+  let numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
+  in sampledBresenham numpoints start end
 
 sampledBresenham :: Int -> Coords -> Coords -> [Coords]
 sampledBresenham nSamples start end =
@@ -303,7 +320,8 @@ gravityExplosion initialSpeed = animate fPure f
     f = gravityExplosion initialSpeed
 
 animatedNumber :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-animatedNumber n = animate' (mkAnimator animateNumberPure animatedNumber n)
+animatedNumber n =
+  animate' (mkAnimator animateNumberPure animatedNumber n)
 
 data Animator a = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
@@ -322,6 +340,8 @@ mkAnimator :: (t -> Coords -> Frame -> [Coords])
            -> Animator a
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params)
 
+-- if this function is not inlined, in optimized mode, the program loops forever when trigerring the animation. TODO test with latest GHC
+{-# INLINE animate' #-}
 animate' :: Animator a -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 animate' (Animator pure_ io_) = animate pure_ io_
 

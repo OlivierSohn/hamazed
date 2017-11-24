@@ -86,10 +86,12 @@ module Imajuscule.Prelude (
                           , error
                           , pi
                           , floor
+                          , ceiling
                           , otherwise
                           , id
                           , curry
                           , uncurry
+                          , maxBound
                           , Monad(..)
                           -- | Control.Applicative reexports
                           , (<|>)

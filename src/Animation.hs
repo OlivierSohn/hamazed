@@ -1,8 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Animation
     ( Animation(..)
+    , Speed(..)
     , mkAnimation
     , mkAnimationTree
     , earliestDeadline
@@ -30,7 +32,10 @@ import           Control.Exception( assert )
 import           Collision( firstCollision )
 import           Geo( Coords
                     , Segment
+                    , Direction(..)
                     , mkSegment
+                    , move
+                    , rotateCcw
                     , showSegment
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc
@@ -38,45 +43,61 @@ import           Geo( Coords
                     , Vec2(..)
                     , pos2vec
                     , vec2coords
-                    , bresenham )
+                    , bresenham
+                    , bresenhamLength )
 import           Render( RenderState
                        , renderPoints )
+import           Resample( resample )
 import           Timing( KeyTime
-                       , addAnimationStepDuration
-                       , animationSpeed)
+                       , addAnimationStepDuration )
 import           WorldSize(Location(..))
 
 
-newtype Iteration = Iteration Int deriving(Generic, Eq, Show, Num)
+newtype Iteration = Iteration (Speed, Frame) deriving(Generic, Eq, Show)
+newtype Frame = Frame Int deriving(Generic, Eq, Show, Num)
+newtype Speed = Speed Int deriving(Generic, Eq, Show, Num)
 
-zeroIteration :: Iteration
-zeroIteration = Iteration 0
+{-# INLINE zeroIteration #-}
+zeroIteration :: Speed -> Iteration
+zeroIteration s = Iteration (s,zeroFrame)
 
+{-# INLINE zeroFrame #-}
+zeroFrame :: Frame
+zeroFrame = Frame 0
+
+{-# INLINE nextIteration #-}
 nextIteration :: Iteration -> Iteration
-nextIteration (Iteration i) = Iteration $ i + animationSpeed
+nextIteration (Iteration(s@(Speed speed), Frame i)) = Iteration (s, Frame (i + speed))
 
+{-# INLINE previousIteration #-}
 previousIteration :: Iteration -> Iteration
-previousIteration (Iteration i) = Iteration $ i - animationSpeed
+previousIteration (Iteration(s@(Speed speed), Frame i)) = Iteration (s, Frame (i - speed))
 
 data StepType = Update
               | Same
 
 data Animation = Animation {
     _animationNextTime :: !KeyTime
-  , _animationCounter :: !Iteration
+  , _animationIteration :: !Iteration
   , _animationRender :: !(StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 }
 
 mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> KeyTime
+            -> Speed
             -> Animation
-mkAnimation render t = Animation t {-do not increment, it will be done while rendering-} zeroIteration render
+mkAnimation render t speed = Animation t {-do not increment, it will be done while rendering-} (zeroIteration speed) render
 
 
 getStep :: Maybe KeyTime -> Animation -> StepType
-getStep mayKey (Animation k' i _)
-  | i == zeroIteration = Update -- initialize step
+getStep mayKey (Animation k' (Iteration(_,frame)) _)
+  | frame == zeroFrame = Update -- initialize step
   | otherwise          = maybe Same (\k -> if k == k' then Update else Same) mayKey
+
+applyStep :: StepType -> Animation -> Animation
+applyStep = \case
+               Update -> stepAnimation
+               Same   -> id
 
 -- \ This datastructure is used to keep a state of the animation progress, not globally,
 --   but locally on each animation point. It is also recursive, so that we can sequence
@@ -84,7 +105,7 @@ getStep mayKey (Animation k' i _)
 data Tree = Tree {
     _treeRoot :: !Coords
     -- ^ where the animation begins
-  , _treeStart :: !Iteration
+  , _treeStart :: !Frame
     -- ^ when the animation begins (relatively to the parent animation if any)
   , _treeBranches :: !(Maybe [Either Tree Coords])
     -- ^ There is one element in the list per animation point.
@@ -122,7 +143,13 @@ combinePoints getLocation iteration point =
                                  collision =  firstCollision getLocation trajectory
                              in  maybe
                                    (Right $ assert (getLocation point == InsideWorld) point)
-                                   (\(_, preCollisionCoords) -> Left $ Tree preCollisionCoords (previousIteration iteration) Nothing)
+                                   (\(_, preCollisionCoords) ->
+                                        -- TODO use currentFrame instead of previous and verify combining animations look good:
+                                        -- using the previous was an historical choice when there was no notion of trajectory
+                                        -- but now, since here we move to the precoliision, it makes sense to not skip a frame
+                                        -- anymore
+                                        let (Iteration(_,frame)) = previousIteration iteration
+                                        in Left $ Tree preCollisionCoords frame Nothing)
                                    collision)
 
 -- TODO generic chaining of animations
@@ -137,9 +164,9 @@ chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
 chainAnimationsOnCollision animations iteration getLocation tree = undefined
 --}
 
-chain2AnimationsOnCollision :: (Coords -> Iteration -> [Coords])
+chain2AnimationsOnCollision :: (Coords -> Frame -> [Coords])
                             -- ^ animation 1
-                            -> (Coords -> Iteration -> [Coords])
+                            -> (Coords -> Frame -> [Coords])
                             -- ^ animation 2
                             -> Iteration
                             -> (Coords -> Location)
@@ -153,33 +180,33 @@ chain2AnimationsOnCollision anim1 anim2 iteration getLocation tree  =
         Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
   in Tree a b newBranches
 
-applyAnimation :: (Coords -> Iteration -> [Coords])
+applyAnimation :: (Coords -> Frame -> [Coords])
                -> Iteration
                -> (Coords -> Location)
                -> Tree
                -> Tree
-applyAnimation animation globalIteration getLocation (Tree root startIteration branches) =
-  let iteration = globalIteration - startIteration
-      points = animation root iteration
+applyAnimation animation iteration@(Iteration (_,globalFrame)) getLocation (Tree root startFrame branches) =
+  let frame = globalFrame - startFrame
+      points = animation root frame
       previousState = fromMaybe (replicate (length points) $ Right $ assert (getLocation root == InsideWorld) root) branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
       newBranches = combine points previousState iteration getLocation
-  in Tree root startIteration $ Just newBranches
+  in Tree root startFrame $ Just newBranches
 
-gravityExplosionPure :: Vec2 -> Coords -> Iteration -> [Coords]
-gravityExplosionPure initialSpeed origin (Iteration iteration) =
+gravityExplosionPure :: Vec2 -> Coords -> Frame -> [Coords]
+gravityExplosionPure initialSpeed origin (Frame iteration) =
   let o = pos2vec origin
   in  [vec2coords $ parabola o initialSpeed iteration]
 
-simpleExplosionPure :: Int -> Coords -> Iteration -> [Coords]
-simpleExplosionPure resolution center (Iteration iteration) =
+simpleExplosionPure :: Int -> Coords -> Frame -> [Coords]
+simpleExplosionPure resolution center (Frame iteration) =
   let radius = fromIntegral iteration :: Float
       c = pos2vec center
   in map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution
 
-quantitativeExplosionPure :: Int -> Coords -> Iteration -> [Coords]
-quantitativeExplosionPure number center (Iteration iteration) =
+quantitativeExplosionPure :: Int -> Coords -> Frame -> [Coords]
+quantitativeExplosionPure number center (Frame iteration) =
   let numRand = 10 :: Int
       rnd = 2 :: Int -- TODO store the random number in the state of the animation
   -- rnd <- getStdRandom $ randomR (0,numRand-1)
@@ -188,9 +215,26 @@ quantitativeExplosionPure number center (Iteration iteration) =
       c = pos2vec center
   in map vec2coords $ translatedFullCircle c radius firstAngle number
 
-animateNumberPure :: Int -> Coords -> Iteration -> [Coords]
+animateNumberPure :: Int -> Coords -> Frame -> [Coords]
 animateNumberPure 1 = simpleExplosionPure 8
+animateNumberPure 2 = rotatingBar Up
 animateNumberPure n = simpleExplosionPure n
+
+rotatingBar :: Direction -> Coords -> Frame -> [Coords]
+rotatingBar dir first (Frame i) =
+  let centerBar = move (assert (i > 0) i) dir first
+      orthoDir = rotateCcw 1 dir
+      startBar = move i orthoDir centerBar
+      endBar = move (-i) orthoDir centerBar
+      numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
+  in sampledBresenham numpoints startBar endBar
+
+sampledBresenham :: Int -> Coords -> Coords -> [Coords]
+sampledBresenham nSamples start end =
+  let l = bresenhamLength start end
+      seg = mkSegment start end
+      bres = bresenham seg
+  in resample bres (assert (l == length bres) l) nSamples
 
 stepAnimation :: Animation -> Animation
 stepAnimation (Animation t i f) = Animation (addAnimationStepDuration t) (nextIteration i) f
@@ -212,9 +256,7 @@ renderAnimations :: Maybe KeyTime -> (Coords -> Location) -> RenderState -> [Ani
 renderAnimations k getLocation r anims =
   catMaybes <$> mapM (\a@(Animation _ _ render) -> do
     let step = getStep k a
-        a' = (case step of
-          Update -> stepAnimation
-          Same   -> id) a
+        a' = applyStep step a
     render step a' getLocation r) anims
 
 setRender :: Animation
@@ -223,14 +265,14 @@ setRender :: Animation
 setRender (Animation t i _) = Animation t i
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleLaser seg laserChar _ a@(Animation _ (Iteration i) _) _ state = do
+simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, Frame i)) _) _ state = do
   let points = showSegment seg
       replacementChar = case laserChar of
         '|' -> '.'
         '=' -> '-'
         _ -> error "unsupported case in simpleLaser"
-      iterationUseReplacement = 2 * animationSpeed
-      iterationStop = 4 * animationSpeed
+      iterationUseReplacement = 2 * speed
+      iterationStop = 4 * speed
       char = if assert (i > 0) i > iterationUseReplacement then replacementChar else laserChar
   renderPoints char state points
   return $ if assert (i > 0) i > iterationStop then Nothing else Just a
@@ -268,7 +310,7 @@ data Animator a = Animator {
   , _animatorIO   :: !(Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 }
 
-mkAnimator :: (t -> Coords -> Iteration -> [Coords])
+mkAnimator :: (t -> Coords -> Frame -> [Coords])
            -> (t
                -> Tree
                -> StepType

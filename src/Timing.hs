@@ -3,7 +3,6 @@
 module Timing
     ( addGameStepDuration
     , addAnimationStepDuration
-    , animationSpeed
     , computeTime
     , diffTimeSecToMicros
     , nextUpdateCounter
@@ -49,10 +48,6 @@ computeTime (Timer t1) t2 =
 -- the console can refresh at approx. 21 fps, hence this value (1/25)
 animationPeriod :: NominalDiffTime
 animationPeriod = 0.04
-
--- the number of increments added at each step
-animationSpeed :: Int
-animationSpeed = 2
 
 gamePeriod :: NominalDiffTime
 gamePeriod = fromIntegral gamePeriodMicros / 1000000

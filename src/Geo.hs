@@ -3,12 +3,15 @@
 
 module Geo ( Direction(..)
            , extend
+           , rotateCcw
            , Col(..)
            , Coords(..)
            , coordsForDirection
            , PosSpeed(..)
            , Segment(..)
+           , balancedWord
            , bresenham
+           , bresenhamLength
            , move
            , mkSegment
            , showSegment
@@ -47,6 +50,22 @@ import           Util( takeWhileInclusive
 
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
 
+{-# INLINE ccwDirections #-}
+ccwDirections :: Int -> Direction
+ccwDirections i = case i `mod` 4 of
+                    0 -> Up
+                    1 -> LEFT
+                    2 -> Down
+                    3 -> RIGHT
+                    n -> error $ "out of bound modulo : " ++ show n
+
+{-# INLINE ccwDirectionsIndex #-}
+ccwDirectionsIndex :: Direction -> Int
+ccwDirectionsIndex Up = 0
+ccwDirectionsIndex LEFT = 1
+ccwDirectionsIndex Down = 2
+ccwDirectionsIndex RIGHT = 3
+
 newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord)
 newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord)
 
@@ -55,13 +74,16 @@ data Coords = Coords {
   , _y :: !Col
 } deriving (Generic, Eq, Show, Ord)
 
+{-# INLINE zeroCoords #-}
 zeroCoords :: Coords
 zeroCoords = Coords (Row 0) (Col 0)
 
+{-# INLINE sumCoords #-}
 sumCoords :: Coords -> Coords -> Coords
 sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
 -- | a - b
+{-# INLINE diffCoords #-}
 diffCoords :: Coords
            -- ^ a
            -> Coords
@@ -70,12 +92,17 @@ diffCoords :: Coords
            -- ^ a - b
 diffCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 - r2) (Col $ c1 - c2)
 
+{-# INLINE rotateCcw #-}
+rotateCcw :: Int -> Direction -> Direction
+rotateCcw n dir = ccwDirections $ n + ccwDirectionsIndex dir
+
 coordsForDirection :: Direction -> Coords
 coordsForDirection Down  = Coords (Row   1) (Col   0)
 coordsForDirection Up    = Coords (Row$ -1) (Col   0)
 coordsForDirection LEFT  = Coords (Row   0) (Col$ -1)
 coordsForDirection RIGHT = Coords (Row   0) (Col   1)
 
+{-# INLINE multiply #-}
 multiply :: Int -> Coords -> Coords
 multiply n (Coords (Row r) (Col c)) = Coords (Row $ r*n) (Col $ c*n)
 
@@ -98,18 +125,21 @@ showSegment (Horizontal row c1 c2) = map (Coords row . Col) [(min c1 c2)..(max c
 showSegment (Vertical col r1 r2)   = map (flip Coords col . Row) [(min r1 r2)..(max r1 r2)]
 showSegment (Oblique _ _)          = error "oblique segment rendering is not supported"
 
+{-# INLINE changeSegmentLength #-}
 changeSegmentLength :: Int -> Segment -> Segment
 changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + i
 changeSegmentLength i (Vertical   col r1 _) = Vertical col r1 $ r1 + i
 changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments"
 
 -- returns the distance from segment start
+{-# INLINABLE segmentContains #-}
 segmentContains :: Coords -> Segment-> Maybe Int
 segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = if row' == row then rangeContains c1 c2 c else Nothing
 segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = if col' == col then rangeContains r1 r2 r else Nothing
 segmentContains _ _ = error "segmentContains cannot operate on oblique segments"
 
 -- returns Just (value - range start) if it is contained
+{-# INLINABLE rangeContains #-}
 rangeContains :: Int -> Int -> Int -> Maybe Int
 rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i - r1) else Nothing
 
@@ -118,6 +148,7 @@ data PosSpeed = PosSpeed {
   , _speed :: !Coords
 } deriving (Generic, Eq, Show, Ord)
 
+{-# INLINE rotateByQuarters #-}
 rotateByQuarters :: Vec2 -> [Vec2]
 rotateByQuarters v@(Vec2 x y) =
   [v,
@@ -127,21 +158,27 @@ rotateByQuarters v@(Vec2 x y) =
 
 data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
 
+{-# INLINE sumVec2d #-}
 sumVec2d :: Vec2 -> Vec2 -> Vec2
 sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
 
+{-# INLINE pos2vec #-}
 pos2vec :: Coords -> Vec2
 pos2vec (Coords (Row r) (Col c)) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)
 
+{-# INLINE speed2vec #-}
 speed2vec :: Coords -> Vec2
 speed2vec (Coords (Row r) (Col c)) = Vec2 (fromIntegral c) (fromIntegral r)
 
+{-# INLINE vec2coords #-}
 vec2coords :: Vec2 -> Coords
 vec2coords (Vec2 x y) = Coords (Row $ floor y) (Col $ floor x)
 
+{-# INLINE scalarProd #-}
 scalarProd :: Float -> Vec2 -> Vec2
 scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
 
+{-# INLINE gravity #-}
 gravity :: Vec2
 gravity = Vec2 0 0.2
 
@@ -194,6 +231,7 @@ translatedFullCircle center radius firstAngle resolution =
   let circle = fullCircle radius firstAngle resolution
   in map (sumVec2d center) circle
 
+{-# INLINE translate #-}
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
 
@@ -208,6 +246,11 @@ extend coords dir continue =
          extend loc dir continue
        else
          coords
+
+{-# INLINE bresenhamLength #-}
+bresenhamLength :: Coords -> Coords -> Int
+bresenhamLength (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2))
+  = 1 + max (abs (r1-r2)) (abs (c1-c2))
 
 bresenham :: Segment -> [Coords]
 bresenham (Horizontal r c1 c2) = map (Coords r . Col) $ range c1 c2

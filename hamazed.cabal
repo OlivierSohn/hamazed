@@ -19,6 +19,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Lib
+                     , Resample
   other-modules:       Imajuscule.Prelude
                      , RenderBackends.Full
                      , RenderBackends.Delta
@@ -42,9 +43,9 @@ library
                      , Util
                      , World
                      , WorldSize
-  build-depends:       array
+  build-depends:       base >= 4.8 && < 4.10
                      , ansi-terminal
-                     , base >= 4.8 && < 4.10
+                     , array
                      , containers
                      , matrix
                      , monad-loops

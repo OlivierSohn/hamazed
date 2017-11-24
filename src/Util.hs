@@ -25,9 +25,9 @@ showListOrSingleton :: Show a => [a] -> Text
 showListOrSingleton [e] = pack $ show e
 showListOrSingleton l   = pack $ show l
 
+{-# INLINE replicateElements #-}
 replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)
-
 
 takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
 takeWhileInclusive _ [] = []

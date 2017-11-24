@@ -12,7 +12,8 @@ import           Data.Maybe( catMaybes
                            , isNothing )
 import           Data.Text( pack )
 
-import           Animation( Animation(..)
+import           Animation( Animation
+                          , Speed(..)
                           , simpleExplosion
                           , gravityExplosion
                           , gravityExplosionThenSimpleExplosion
@@ -107,9 +108,9 @@ nextGameState
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k | not (null collisions) && isNothing safeTime]
-              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime]
-              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime]
+              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) | not (null collisions) && isNothing safeTime]
+              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2)]
+              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2)]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
          ++ animations
@@ -134,9 +135,9 @@ destroyNumbersAnimations nums event keyTime =
       speeds = map (sumVec2d (scalarProd 2 sp)) variations
       --animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
       anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos)
-      animation pos = map (anim pos) speeds
+      animation pos = map ((\f -> (f, Speed 2)) . anim pos) speeds
   in case nums of
-    Number (PosSpeed pos _) n:_ -> map (`mkAnimation` keyTime) (animation pos ++ [animatedNumber n (mkAnimationTree pos)])
+    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), (Speed 1))])
     _ -> []
 
 replaceAnimations :: [Animation] -> GameState -> GameState

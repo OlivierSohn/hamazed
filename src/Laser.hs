@@ -19,6 +19,7 @@ import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
 import           Animation( Animation
+                          , Speed(..)
                           , mkAnimation
                           , simpleLaser)
 import           Geo( Coords(..)
@@ -82,4 +83,4 @@ laserChar dir = case dir of
 
 mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
 mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
-  mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime
+  mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime (Speed 1 {- for laser animation speed doesn't matter -})

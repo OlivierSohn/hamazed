@@ -341,7 +341,7 @@ mkAnimator :: (t -> Coords -> Frame -> [Coords])
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params)
 
 -- if this function is not inlined, in optimized mode, the program loops forever when trigerring the animation. TODO test with latest GHC
-{-# INLINE animate' #-}
+--{-# INLINE animate' #-}
 animate' :: Animator a -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 animate' (Animator pure_ io_) = animate pure_ io_
 

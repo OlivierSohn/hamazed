@@ -51,7 +51,7 @@ import           Render( RenderState
 import           Resample( resample )
 import           Timing( KeyTime
                        , addAnimationStepDuration )
-import           WorldSize(Location(..))
+import           WorldSize( Location(..) )
 
 
 newtype Iteration = Iteration (Speed, Frame) deriving(Generic, Eq, Show)
@@ -224,17 +224,35 @@ animateNumberPure n = polygon n
 -- TODO make it rotate, like the name says :)
 rotatingBar :: Direction -> Coords -> Frame -> [Coords]
 rotatingBar dir first (Frame i) =
-  let centerBar = move (assert (i > 0) i) dir first
+  let radius = animateRadius (assert (i > 0) i) 2
+      centerBar = move i dir first
       orthoDir = rotateCcw 1 dir
-      startBar = move i orthoDir centerBar
-      endBar = move (-i) orthoDir centerBar
+      startBar = move radius orthoDir centerBar
+      endBar = move (-radius) orthoDir centerBar
   in  connect2 startBar endBar
 
 polygon :: Int -> Coords -> Frame -> [Coords]
-polygon nSides center (Frame i) =
+polygon  nSides center (Frame i) =
   let startAngle = if odd nSides then pi else pi/4.0
-      extremities = polyExtremities nSides center i startAngle
-  in connect extremities
+      radius = animateRadius (1 + quot i 2) nSides
+      extremities = polyExtremities nSides center radius startAngle
+  in if radius <= 0
+       then
+         []
+       else
+         connect extremities
+
+animateRadius :: Int -> Int -> Int
+animateRadius i nSides =
+  let limit
+          | nSides <= 4 = 5
+          | nSides <= 6 = 7
+          | otherwise   = 10
+  in if i < limit
+       then
+         i
+       else
+         max 0 (2 * limit - i)
 
 connect :: [Coords] -> [Coords]
 connect []  = []

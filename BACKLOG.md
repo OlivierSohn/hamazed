@@ -1,6 +1,10 @@
 
 # Backlog
 
+- take into account the fact that character width and height are not equal,
+so geometric figures are stretched in height. We could compensate for that by using
+a stretching factor in poly function and circle function
+
 - allow to use space for collision animation only in debug
 
 - use colors in animation (one per instance). make the color darker with time, make the hue change also.

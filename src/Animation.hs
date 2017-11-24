@@ -30,6 +30,7 @@ import           GHC.Generics( Generic )
 import           Control.Exception( assert )
 
 import           Collision( firstCollision )
+import           Console( setRawForeground, restoreForeground, color8ToCode, Color8(..) )
 import           Geo( Coords
                     , bresenham
                     , bresenhamLength
@@ -47,7 +48,8 @@ import           Geo( Coords
                     , pos2vec
                     , vec2coords )
 import           Render( RenderState
-                       , renderPoints )
+                       , renderPoints
+                       , Color8Code(..) )
 import           Resample( resample )
 import           Timing( KeyTime
                        , addAnimationStepDuration )
@@ -300,7 +302,7 @@ setRender :: Animation
 setRender (Animation t i _) = Animation t i
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, Frame i)) _) _ state = do
+simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))) _) _ state = do
   let points = showSegment seg
       replacementChar = case laserChar of
         '|' -> '.'
@@ -309,30 +311,30 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, Frame i)) _)
       iterationUseReplacement = 2 * speed
       iterationStop = 4 * speed
       char = if assert (i > 0) i > iterationUseReplacement then replacementChar else laserChar
-  renderPoints char state points
+  _ <- renderAnimation char points a (colorFromFrame f) state
   return $ if assert (i > 0) i > iterationStop then Nothing else Just a
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-quantitativeExplosionThenSimpleExplosion number = animate fPure f
+quantitativeExplosionThenSimpleExplosion number = animate fPure f colorFromFrame
   where
     fPure = chain2AnimationsOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
     f = quantitativeExplosionThenSimpleExplosion number
 
 simpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion resolution = animate fPure f
+simpleExplosion resolution = animate fPure f colorFromFrame
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
     f = simpleExplosion resolution
 
 gravityExplosionThenSimpleExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-gravityExplosionThenSimpleExplosion initialSpeed = animate fPure f
+gravityExplosionThenSimpleExplosion initialSpeed = animate fPure f colorFromFrame
   where
     fPure = chain2AnimationsOnCollision (gravityExplosionPure initialSpeed) (simpleExplosionPure 8)
     f = gravityExplosionThenSimpleExplosion initialSpeed
 
 
 gravityExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-gravityExplosion initialSpeed = animate fPure f
+gravityExplosion initialSpeed = animate fPure f colorFromFrame
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
@@ -344,6 +346,7 @@ animatedNumber n =
 data Animator a = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
   , _animatorIO   :: !(Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+  , _animatorColorFromFrame :: !(Frame -> Color8Code)
 }
 
 mkAnimator :: (t -> Coords -> Frame -> [Coords])
@@ -356,25 +359,38 @@ mkAnimator :: (t -> Coords -> Frame -> [Coords])
                -> IO (Maybe Animation))
            -> t
            -> Animator a
-mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params)
+mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
 -- if this function is not inlined, in optimized mode, the program loops forever when trigerring the animation. TODO test with latest GHC
 {-# INLINE animate' #-}
 animate' :: Animator a -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-animate' (Animator pure_ io_) = animate pure_ io_
+animate' (Animator pure_ io_ colorFunc) = animate pure_ io_ colorFunc
 
 animate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
         -- ^ the pure animation function
         -> (Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
         -- ^ the IO animation function
+        -> (Frame -> Color8Code)
         ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-animate pureAnim ioAnim state step a@(Animation _ i _) getLocation = do
+animate pureAnim ioAnim colorFunc state step a@(Animation _ i@(Iteration(_, frame)) _) getLocation = do
   let newState = case step of
         Update -> pureAnim i getLocation state
         Same -> state
-  renderAnimation (getAliveCoordinates newState) (setRender a $ ioAnim newState)
+  renderAnimation '.' (getAliveCoordinates newState) (setRender a $ ioAnim newState) (colorFunc frame)
 
-renderAnimation :: [Coords] -> Animation -> RenderState -> IO (Maybe Animation)
-renderAnimation points a state = do
-  renderPoints '.' state points
+colorFromFrame :: Frame -> Color8Code
+colorFromFrame (Frame f) = color8ToCode $ RGB8Color r g b
+  where
+    r = 4
+    g = (0 + quot f 6) `mod` 2 -- [0..1] , slow
+    b = (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster
+
+-- use functions with : saturation (which depth in the 6x6x6 cube)
+-- bresenham 3d
+
+renderAnimation :: Char -> [Coords] -> Animation -> Color8Code -> RenderState -> IO (Maybe Animation)
+renderAnimation char points a colorCode state = do
+  fg <- setRawForeground colorCode
+  renderPoints char state points
+  restoreForeground fg
   return $ if null points then Nothing else Just a

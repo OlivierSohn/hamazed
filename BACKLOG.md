@@ -1,6 +1,10 @@
 
 # Backlog
 
+- make color functions with bresenham 3d
+
+- check if the bug exists without strict functions in Animator
+
 - take into account the fact that character width and height are not equal,
 so geometric figures are stretched in height. We could compensate for that by using
 a stretching factor in poly function and circle function
@@ -67,12 +71,6 @@ hitting a key (the key should be present also in the other room)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
-- for each number use a corresponding shape :
-  - 1 : circle (simpleExplosion)
-  - 2 : rotating bar that goes up
-  - 3 : triangle
-  - 4 : square
-  - etc...
 - use a different animation when the target is met?
 - make gravity based animations rebound on walls, lose % velocity when hitting the bottom
 

@@ -281,3 +281,27 @@ bla (x0, y0) (x1, y1) =
                    | otherwise       = (abs dx, abs dy, yxStep)
       walk w xy = xy : walk (tail w) (step (head w) xy)
   in  walk (balancedWord p q 0) (x0, y0)
+
+-- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
+{--
+bres run rise1 rise2
+    | run < 0  =   [(-x,  y,  z) | (x, y, z) <- bres (-run) rise1 rise2]
+    | rise1 < 0  = [( x, -y,  z) | (x, y, z) <- bres run (-rise1) rise2]
+    | rise2 < 0  = [( x,  y, -z) | (x, y, z) <- bres run rise1 (-rise2)]
+    | rise1 > (max run rise2) =
+        [( x, y, z) | (y, x, z) <- bres rise1 run rise2]
+    | rise2 > (max run rise1) =
+        [( x, y, z) | (z, x, y) <- bres rise2 run rise1]
+    | otherwise = zip3 [0..run]
+                       (map fst $ iterate (step rise1) (0, run `div` 2))
+                       (map fst $ iterate (step rise2) (0, run `div` 2))
+
+    where
+        step rise (y, error)
+            | error' < 0 = (y + 1, error' + run)
+            | otherwise  = (y, error')
+            where error' = error - rise
+
+line (x1, y1, z1) (x2, y2, z2) =
+    [(x1+x, y1+y, z1+z) | (x, y, z) <- bres (x2-x1) (y2-y1) (z2-z1)]
+--}

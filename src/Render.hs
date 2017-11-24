@@ -16,6 +16,7 @@ module Render (
         , Col(..)
         , Direction(..)
         , RenderState(..)
+        , Color8Code(..)
         ) where
 
 import           Imajuscule.Prelude
@@ -27,7 +28,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
 
 import           Console( RenderState(..)
                         , renderChar_
-                        , renderTxt_ )
+                        , renderTxt_
+                        , Color8Code(..) )
 import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)

@@ -18,6 +18,10 @@ module Console ( ConsoleConfig(..)
                -- reexport System.Console.ANSI
                , ColorIntensity(..)
                , Color(..)
+               , Color8Code(..)
+               , Color8(..)
+               -- reexport System.Console.ANSI.Codes
+               , color8ToCode
                ) where
 
 import           Imajuscule.Prelude
@@ -35,7 +39,10 @@ import           System.Console.ANSI( clearScreen
                                     , setCursorPosition
                                     , showCursor
                                     , ColorIntensity(..)
-                                    , Color(..) )
+                                    , Color(..)
+                                    , Color8Code(..)
+                                    , Color8(..) )
+import           System.Console.ANSI.Codes( color8ToCode )
 import           System.IO( hSetBuffering
                           , hSetEcho
                           , BufferMode( .. )
@@ -64,8 +71,7 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , setForeground
                                                 , setRawForeground
                                                 , restoreForeground
-                                                , preferredBuffering
-                                                , Color8Code(..) )
+                                                , preferredBuffering )
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -107,10 +113,10 @@ beginFrame = Backend.beginFrame
 endFrame :: IO ()
 endFrame = Backend.endFrame
 
-setForeground :: ColorIntensity -> Color -> IO Backend.Color8Code
+setForeground :: ColorIntensity -> Color -> IO Color8Code
 setForeground = Backend.setForeground
 
-setRawForeground :: Backend.Color8Code -> IO Backend.Color8Code
+setRawForeground :: Color8Code -> IO Color8Code
 setRawForeground = Backend.setRawForeground
 
 renderChar_ :: Char -> RenderState -> IO ()

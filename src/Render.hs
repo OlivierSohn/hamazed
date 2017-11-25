@@ -46,8 +46,8 @@ import           WorldSize( WorldSize(..) )
 -- Pure
 --------------------------------------------------------------------------------
 
--- | Mininmal margin between the uuper left corner of the console
---   and the upper left corner of the world
+-- | Minimal margin between the upper left corner of the console
+--   and upper left corner of the world
 minimalWorldMargin :: Int
 minimalWorldMargin = 4
 

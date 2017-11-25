@@ -2,7 +2,7 @@
 
 -- | This module was created to break a cycle between Color and Animation.Types
 
-module Animation.Animator
+module Animation.Design.Animator
     (
        mkAnimator
      , renderAndUpdate'
@@ -11,8 +11,8 @@ module Animation.Animator
 
 import           Imajuscule.Prelude
 
-import           Animation.Animate
 import           Animation.Design.Apply
+import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
 import           Geo( Coords )

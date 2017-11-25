@@ -1,8 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module World
-    ( Animation(..)
-    , BattleShip(..)
+    ( BattleShip(..)
     , accelerateShip
     , World(..)
     , mkWorld
@@ -25,8 +24,8 @@ import           System.Random( getStdRandom
                               , randomR )
 
 
-import           Animation( Animation(..)
-                          , earliestDeadline )
+import           Animation( Animation )
+import           Animation.Util( earliestDeadline )
 import           Collision( CollisionStatus(..)
                           , mirrorIfNeeded
                           , firstCollision )

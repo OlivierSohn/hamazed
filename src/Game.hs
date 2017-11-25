@@ -18,9 +18,9 @@ import           Animation( Animation
                           , gravityExplosion
                           , gravityExplosionThenSimpleExplosion
                           , animatedNumber
-                          , renderAnimations
                           , mkAnimationTree
                           , mkAnimation )
+import           Animation.RenderUpdate
 import           Console( beginFrame
                         , endFrame )
 import           Deadline( Deadline(..) )
@@ -268,7 +268,7 @@ renderGame k state@(GameState _ _ upperLeft
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=
     (\worldCorner -> do
-      activeAnimations <- renderAnimations k (`location` space) worldCorner animations
+      activeAnimations <- renderAndUpdateAnimations k (`location` space) worldCorner animations
       renderWorldAndLevel state worldCorner
       return activeAnimations)
 

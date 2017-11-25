@@ -44,6 +44,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
  where
    justFull = Just $ LaserRay dir $ Ray seg
 
+-- TODO draw them in their color
 showShotNumbers :: [Int] -> Text
 showShotNumbers nums =
   pack $ "[" ++ unwords (map show nums) ++ "]"

@@ -35,10 +35,8 @@ import           Data.Matrix( getElem
 
 import           Foreign.C.Types( CInt(..) )
 
-import           Console( renderChar_
-                        , renderStr
-                        , renderStr_
-                        , renderTxt_ )
+import           Color
+import           Console
 import           Geo( Coords(..)
                     , Col(..)
                     , Direction(..)
@@ -240,6 +238,8 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
   let horizontalWall = replicate (cs + 2)
       lowerLeft = move (rs+1) Down upperLeft
 
+  fg <- setRawForeground worldFrameColor
+
   -- upper wall
   renderState <- renderStr (horizontalWall '_') upperLeft
   let worldCoords = go RIGHT renderState
@@ -254,6 +254,8 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
 
   -- world
   mapM_ (\(r, txt) -> renderTxt_ txt (move r Down worldCoords)) $ zip [0..] renderedWorld
+
+  restoreForeground fg
 
   return worldCoords
 

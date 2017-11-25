@@ -39,7 +39,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/OlivierSohn/ansi-terminal.git
-    commit: e6a2b1ff2e1aebd902c1791583b80ef481f370c5
+    commit: fb21cdbd3c479e9dc4c4c6b01bb926e6b063a170
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:

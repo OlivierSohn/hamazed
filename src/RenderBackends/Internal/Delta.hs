@@ -28,6 +28,7 @@ module RenderBackends.Internal.Delta
        , bSetRawForeground
        , bSetBackground
        , bSetRawBackground
+       , bSetColors
        , bGotoXY
        , bPutChar
        , bPutCharRaw
@@ -124,7 +125,7 @@ color8Code intensity color =
   in  Color8Code $ if intensity == Vivid then 8 + code else code
 
 -- copied from System.Control.ANSI
-colorToCode :: Color -> Int
+colorToCode :: Color -> Word8
 colorToCode color = case color of
   Black   -> 0
   Red     -> 1
@@ -183,6 +184,13 @@ bSetRawBackground :: Color8Code -> IO ()
 bSetRawBackground bg = do
   screen <- readIORef screenBuffer
   writeIORef screenBuffer screen{currBg = bg}
+
+bSetColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
+bSetColors (fg,bg) = do
+  screen@(ConsoleBuffer _ _ prevFg prevBg _ _ ) <- readIORef screenBuffer
+  writeIORef screenBuffer screen{currFg = fg, currBg = bg}
+  return (prevFg, prevBg)
+
 
 bGotoXY :: Int -> Int -> IO ()
 bGotoXY x y = do

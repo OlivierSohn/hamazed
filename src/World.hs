@@ -29,10 +29,8 @@ import           Animation.Util( earliestDeadline )
 import           Collision( CollisionStatus(..)
                           , mirrorIfNeeded
                           , firstCollision )
-import           Console( ColorIntensity(..)
-                        , Color(..)
-                        , setForeground
-                        , restoreForeground )
+import           Color
+import           Console
 import           Geo( Col(..)
                     , Coords(..)
                     , mkSegment
@@ -189,9 +187,15 @@ createRandomNumber space i = do
 renderWorld :: World -> RenderState -> IO ()
 renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _) worldCorner = do
   -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\(Number (PosSpeed pos _) i) -> renderIfNotColliding (intToDigit i) pos space worldCorner) balls
+  mapM_ (\b -> renderNumber b space worldCorner) balls
   when (null collisions) (do
-    let shipColor = if isNothing safeTime then Blue else Red
-    prevFg <- setForeground Vivid shipColor
+    let colors = if isNothing safeTime then shipColors else shipColorsSafe
+    c <- setColors colors
     renderIfNotColliding '+' shipCoords space worldCorner
-    restoreForeground prevFg)
+    restoreColors c)
+
+renderNumber :: Number -> Space -> RenderState -> IO ()
+renderNumber (Number (PosSpeed pos _) i) space r = do
+  fg <- setRawForeground $ numberColor i
+  renderIfNotColliding (intToDigit i) pos space r
+  restoreForeground fg

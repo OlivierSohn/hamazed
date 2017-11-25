@@ -103,6 +103,10 @@ module Imajuscule.Prelude (
                           , undefined
                           -- | Control.Exception reexports
                           , assert
+                          -- | Data.Word reexports
+                          , Word8
+                          -- | Data.Text reexports
+                          , Text
                           ) where
 
 import           Prelude
@@ -112,3 +116,5 @@ import           Control.Monad( when, void )
 import           Control.Exception( assert )
 
 import           Data.Monoid ((<>))
+import           Data.Word( Word8 )
+import           Data.Text( Text )

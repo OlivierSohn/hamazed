@@ -43,6 +43,7 @@ library
                      , Geo
                      , Laser
                      , Level
+                     , Level.Types
                      , NonBlockingIO
                      , Number
                      , Render

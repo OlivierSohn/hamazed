@@ -20,16 +20,13 @@ import           Imajuscule.Prelude
 
 import           Control.Monad.Loops( unfoldM_ )
 
-import           Data.Text( Text, pack )
+import           Data.Text( pack )
 
 import           System.IO( getChar )
 import           System.Timeout( timeout )
 
-import           Console( Color(..)
-                        , ColorIntensity(..)
-                        , setForeground
-                        , restoreForeground
-                        , renderTxt_ )
+import           Color
+import           Console
 import           Deadline( Deadline(..) )
 import           Event( Event(..)
                       , priority
@@ -38,6 +35,7 @@ import           Event( Event(..)
                       , Step(..)
                       , TimedEvent(..) )
 import           Geo( Direction(..) )
+import           Level.Types
 import           NonBlockingIO( tryGetChar )
 import           Render( RenderState(..)
                        , move
@@ -52,30 +50,11 @@ import           World( BattleShip(..)
                       , Number(..)
                       , World(..) )
 
-data Level = Level {
-    _levelNumber :: !Int
-  , _levelStatus :: !(Maybe LevelFinished)
-}
-
 lastLevel :: Int
 lastLevel = 12
 
 firstLevel :: Int
 firstLevel = 1
-
-data LevelFinished = LevelFinished {
-    _levelFinishedResult :: !GameStops
-  , _levelFinishedWhen :: !UTCTime
-  , _levelFinishedCurrentMessage :: !MessageState
-}
-
-data MessageState = InfoMessage
-                  | ContinueMessage
-                  deriving(Eq, Show)
-
-data GameStops = Lost Text
-               | Won
-
 
 eventFromChar :: Level -> Char -> Event
 eventFromChar (Level n finished) char = case finished of
@@ -164,16 +143,15 @@ getCharThenFlush =
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do
-  let color = case stop of
-        (Lost _) -> Yellow
-        Won      -> Green
+  let color = messageColor stop
       topLeft = go RIGHT coords
-  prevFg <- setForeground Vivid color
+  fg <- setRawForeground color
   renderTxt_ (case stop of
     (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
-  restoreForeground prevFg
-  when (messageState == ContinueMessage) $
+  restoreForeground fg
+  when (messageState == ContinueMessage) $ do
+    fg2 <- setRawForeground neutralMessageColor
     renderTxt_ (if level == lastLevel
       then "You reached the end of the game! Hit Ctrl + C to quit."
       else
@@ -181,6 +159,7 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
                           (Lost _) -> "restart"
                           Won      -> "continue"
         in "Hit a key to " <> action <> " ...") (move 2 Down topLeft)
+    restoreForeground fg2
 
 
 renderLevel :: Level -> RenderState -> IO ()

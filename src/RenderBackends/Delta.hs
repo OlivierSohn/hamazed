@@ -4,6 +4,8 @@ module RenderBackends.Delta(
                             beginFrame
                           , endFrame
                           , setForeground
+                          , setColors
+                          , restoreColors
                           , setRawForeground
                           , restoreForeground
                           , moveTo
@@ -28,6 +30,7 @@ import           System.IO( hFlush
 import           RenderBackends.Internal.Delta( blitBuffer
                                               , bSetForeground
                                               , bSetRawForeground
+                                              , bSetColors
                                               , bGotoXY
                                               , bPutCharRaw
                                               , bPutStr
@@ -69,3 +72,9 @@ setRawForeground = bSetRawForeground
 
 restoreForeground :: Color8Code -> IO ()
 restoreForeground = void . setRawForeground
+
+setColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
+setColors = bSetColors
+
+restoreColors :: (Color8Code, Color8Code) -> IO ()
+restoreColors = void . bSetColors

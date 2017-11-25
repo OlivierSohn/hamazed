@@ -1,7 +1,21 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+{--based on https://en.wikipedia.org/wiki/ANSI_escape_code#Colors--}
+
 module Color (
-    colorFromFrame
+  -- default colors
+    worldFrameColor
+  , colorFromFrame
+  , numberColor
+  , shipColors
+  , shipColorsSafe
+  , shipColorSafe
+  , shipColor
+  , messageColor
+  , neutralMessageColor
+    -- create colors
+  , gray
+  , rgb
 ) where
 
 import           Imajuscule.Prelude
@@ -10,11 +24,77 @@ import           System.Console.ANSI.Codes( color8ToCode )
 import           System.Console.ANSI(Color8Code(..), Color8(..))
 
 import           Animation.Types
+import           Level.Types
 
+
+neutralMessageColor :: Color8Code
+neutralMessageColor = gray 10
+
+messageColor :: GameStops -> Color8Code
+messageColor Won      = rgb 4 3 1
+messageColor (Lost _) = gray 6
+
+shipColors :: (Color8Code, Color8Code)
+shipColors = (shipColor, shipBgColor)
+
+shipColorsSafe :: (Color8Code, Color8Code)
+shipColorsSafe = (shipColorSafe, shipBgColorSafe)
+
+shipColor :: Color8Code
+shipColor = white
+
+shipColorSafe :: Color8Code
+shipColorSafe = rgb 5 0 0
+
+shipBgColor :: Color8Code
+shipBgColor = black
+
+shipBgColorSafe :: Color8Code
+shipBgColorSafe = rgb 1 0 0
+
+numberColor :: Int -> Color8Code
+numberColor i = color8ToCode $ RGB8Color r g b
+  where
+    r = 5
+    g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
+    b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
 
 colorFromFrame :: Frame -> Color8Code
 colorFromFrame (Frame f) = color8ToCode $ RGB8Color r g b
   where
     r = 4
-    g = (0 + quot f 6) `mod` 2 -- [0..1] , slow changes
-    b = (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster changes
+    g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes
+    b = fromIntegral $ (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster changes
+
+worldFrameColor :: Color8Code
+worldFrameColor = rgb 2 1 1
+
+--------------------------------------------------------------------------------
+
+white :: Color8Code
+white = Color8Code 15
+
+black :: Color8Code
+black = Color8Code 0
+
+firstGray :: Word8
+firstGray = 232
+
+grayRange :: Word8
+grayRange = 24
+
+firstRGB :: Word8
+firstRGB = 16
+
+rgbRange :: Word8
+rgbRange = 6
+
+gray :: Word8 -> Color8Code
+gray i
+  | i >= grayRange = error "out of range gray"
+  | otherwise      = Color8Code $ fromIntegral (i + firstGray)
+
+rgb :: Word8 -> Word8 -> Word8 -> Color8Code
+rgb r g b
+  | r >= rgbRange || g >= rgbRange || b >= rgbRange = error "out of range rgb"
+  | otherwise = Color8Code $ fromIntegral $ firstRGB + 36 * r + 6 * g + b

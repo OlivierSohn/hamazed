@@ -1,7 +1,7 @@
 
 # Backlog
 
-- make color functions with bresenham 3d
+- make color functions with bresenham 3d (code commented in Geo)
 
 - check if the bug exists without strict functions in Animator
 

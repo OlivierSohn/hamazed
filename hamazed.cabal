@@ -25,6 +25,12 @@ library
                      , RenderBackends.Delta
                      , RenderBackends.Internal.Delta
                      , Animation
+                     , Animation.Animate
+                     , Animation.Animator
+                     , Animation.Design.Apply
+                     , Animation.Design.Chain
+                     , Animation.Types
+                     , Color
                      , Collision
                      , Console
                      , Deadline

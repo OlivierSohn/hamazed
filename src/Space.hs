@@ -18,8 +18,6 @@ module Space
 
 import           Imajuscule.Prelude
 
-import           Control.Exception( assert )
-
 import           GHC.Generics( Generic )
 
 import           Data.Graph( Graph

@@ -3,6 +3,7 @@
 module Render (
           renderChar
         , renderPoints
+        , renderColored
         , Alignment(..)
         , renderAlignedTxt
         , renderAlignedTxt_
@@ -29,6 +30,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
 import           Console( RenderState(..)
                         , renderChar_
                         , renderTxt_
+                        , setRawForeground
+                        , restoreForeground
                         , Color8Code(..) )
 import           Geo( Coords(..)
                     , Direction(..)
@@ -80,6 +83,12 @@ renderChar char pos (RenderState upperLeftCoords) =
 renderPoints :: Char -> RenderState -> [Coords] -> IO ()
 renderPoints char state =
   mapM_ (\c -> renderChar char c state)
+
+renderColored :: Char -> [Coords] -> Color8Code -> RenderState -> IO ()
+renderColored char points colorCode state = do
+  fg <- setRawForeground colorCode
+  renderPoints char state points
+  restoreForeground fg
 
 data Alignment = Centered
                | RightAligned

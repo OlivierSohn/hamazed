@@ -31,7 +31,7 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
 
 # Build
 
-You can build and run using the following command in the root folder of the project:
+You can build and run using `stack`:
 
 `stack build --pedantic && stack exec hamazed-exe`
 

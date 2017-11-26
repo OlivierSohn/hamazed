@@ -23,8 +23,7 @@ import           GHC.Generics( Generic )
 import           Data.Graph( Graph
                            , graphFromEdges
                            , components )
-import           Data.Text( Text, pack )
-import           Data.List(length)
+import           Data.List(length, group, concat, mapAccumL)
 import           Data.Maybe(mapMaybe)
 import           Data.Vector(Vector, slice, (!))
 import           Data.Matrix( getElem
@@ -42,11 +41,7 @@ import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)
                     , translateInDir )
-import           Render( RenderState
-                       , RenderState
-                       , go
-                       , move
-                       , renderChar)
+import           Render
 import           Util( replicateElements
                      , randomRsIO )
 import           WorldSize( Location(..)
@@ -64,24 +59,26 @@ data RandomParameters = RandomParameters {
   , _randomWallsStrategy :: !Strategy
 }
 
+newtype RenderGroup = RenderGroup (Row, Col, (Color8Code, Color8Code), Char, Int)
+
 data Space = Space {
     _space :: !(Matrix CInt)
   , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
-  , _spaceRender :: ![Text]
+  , _spaceRender :: ![RenderGroup]
 }
 
 data Material = Air
               | Wall
               deriving(Generic, Eq, Show)
 
-forEachRowPure :: Matrix CInt -> WorldSize -> ((Col -> Material) -> b) -> [b]
+forEachRowPure :: Matrix CInt -> WorldSize -> (Row -> (Col -> Material) -> b) -> [b]
 forEachRowPure mat (WorldSize (Coords (Row rs) (Col cs))) f =
   let rows = [0..rs-1]
       colInternalLength = cs+2
       matAsOneVector = flatten mat -- this is O(1)
   in map (\r -> do
     let row = slice (1 + (r+1) * colInternalLength) cs matAsOneVector
-    f (\(Col c) -> mapInt $ row ! c)) rows
+    f (Row r) (\(Col c) -> mapInt $ row ! c)) rows
 
 -- unfortunately I didn't find a Matrix implementation that supports arbitrary types
 -- so I need to map my type on a CInt
@@ -214,11 +211,25 @@ addBorder (WorldSize (Coords _ (Col widthEmptySpace))) l =
 borderSize :: Int
 borderSize = 1
 
-render :: Matrix CInt -> WorldSize -> [Text]
+render :: Matrix CInt -> WorldSize -> [RenderGroup]
 render mat s@(WorldSize (Coords _ (Col cs))) =
-  map pack $ forEachRowPure mat s (\accessMaterial -> map (\c -> case accessMaterial (Col c) of
-    Wall -> 'Z'
-    Air -> ' ') [0..cs-1])
+  concat $
+    forEachRowPure mat s $
+      \row accessMaterial ->
+          snd $ mapAccumL
+                  (\col@(Col c) listMaterials@(material:_) ->
+                     let count = length listMaterials
+                     in (Col (c+count),
+                         RenderGroup
+                           (row, col,
+                            case material of
+                              Wall -> wallColors
+                              Air -> airColors,
+                            case material of
+                              Wall -> 'Z'
+                              Air -> ' ',
+                            count)))
+                  (Col 0) $ group $ map (accessMaterial . Col) [0..cs-1]
 
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
@@ -239,7 +250,6 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
       lowerLeft = move (rs+1) Down upperLeft
 
   fg <- setRawForeground worldFrameColor
-
   -- upper wall
   renderState <- renderStr (horizontalWall '_') upperLeft
   let worldCoords = go RIGHT renderState
@@ -251,13 +261,17 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
 
   -- lower wall
   renderStr_ (horizontalWall 'T') lowerLeft
-
-  -- world
-  mapM_ (\(r, txt) -> renderTxt_ txt (move r Down worldCoords)) $ zip [0..] renderedWorld
-
   restoreForeground fg
 
+  -- world
+  mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
+
+
+renderGroup :: RenderState -> RenderGroup -> IO ()
+renderGroup worldCoords (RenderGroup (r, c, colors, char, count)) =
+  renderColoredChars count char colors $ translate r c worldCoords
+
 
 renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
 renderIfNotColliding char worldCoords space r =

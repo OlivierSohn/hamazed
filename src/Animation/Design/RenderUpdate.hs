@@ -38,7 +38,35 @@ renderAndUpdate pureAnim ioAnim colorFunc state step a@(Animation t i@(Iteration
                           Just $ case step of
                                 Update -> Animation t i $ ioAnim newState
                                 Same -> a
-  renderColored '.' points (colorFunc frame) r
+  renderColored '|' points (colorFunc frame) r
+  -- TODO alternate the animations:
+  -- use the number that was shot (handle when multiple are shot?)
+  -- $   is funny
+  -- ?   is surprising
+  -- d   is beautiful
+  -- R   is visible
+  -- O   is bubbly
+  -- o   too
+  -- ^   is birds
+  -- à   is interesting
+  -- {   is birds too
+  -- [   is craws
+  -- |   is subtle
+  -- !   is subtle
+  -- :   is nice
+  -- ¨   is very light
+  -- `   is very light
+  -- &   is nice
+  -- #   is heavy
+  -- @   is round
+  -- =   is nice too
+  -- -   is light
+  -- \   is sharp
+  -- /   is sharp
+  -- *   is rich
+
+  -- + is too agressive
+  -- % is not readable
   return nextAnimation
 
 

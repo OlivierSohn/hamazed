@@ -10,6 +10,7 @@ module RenderBackends.Delta(
                           , restoreForeground
                           , moveTo
                           , renderChar
+                          , renderChars
                           , renderStr
                           , renderTxt
                           , preferredBuffering
@@ -33,6 +34,7 @@ import           RenderBackends.Internal.Delta( blitBuffer
                                               , bSetColors
                                               , bGotoXY
                                               , bPutCharRaw
+                                              , bPutCharsRaw
                                               , bPutStr
                                               , bPutText
                                               , Color(..)
@@ -57,6 +59,9 @@ moveTo (Coords (Row r) (Col c)) = bGotoXY c r
 
 renderChar :: Char -> IO ()
 renderChar c = void (bPutCharRaw c)
+
+renderChars :: Int -> Char -> IO ()
+renderChars = bPutCharsRaw
 
 renderStr :: String -> IO ()
 renderStr = bPutStr

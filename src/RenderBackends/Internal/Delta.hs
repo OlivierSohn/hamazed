@@ -32,6 +32,7 @@ module RenderBackends.Internal.Delta
        , bGotoXY
        , bPutChar
        , bPutCharRaw
+       , bPutCharsRaw
        , bPutStr
        , bPutText
        , bClear
@@ -102,7 +103,7 @@ data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    }
 
 newBufferArray :: BufferCell -> IO BufferArray
-newBufferArray cell = newArray (0, bufferMaxIdx) cell
+newBufferArray = newArray (0, bufferMaxIdx)
 
 initialForeground :: Color8Code
 initialForeground = color8Code Dull White
@@ -209,6 +210,17 @@ bPutCharRaw c = do
       buff = backBuffer screen
   writeArray buff pos ((fg, bg), c)
   return pos
+
+bPutCharsRaw :: Int -> Char -> IO ()
+bPutCharsRaw count c = do
+  screen <- readIORef screenBuffer
+  let x = currX screen
+      y = currY screen
+      fg = currFg screen
+      bg = currBg screen
+      buff = backBuffer screen
+  mapM_ (\i -> let pos = positionFromXY (x+i) y
+               in writeArray buff pos ((fg, bg), c)) [0..count-1]
 
 -- | Write a char and advance in the buffer
 bPutChar :: Char -> IO ()

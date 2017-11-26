@@ -11,6 +11,7 @@ module Console ( ConsoleConfig(..)
                , setRawForeground
                , Backend.restoreForeground
                , renderChar_
+               , renderChars
                , renderStr
                , renderStr_
                , renderTxt
@@ -68,6 +69,7 @@ import qualified RenderBackends.Delta as Backend( --}
                                                 , endFrame
                                                 , moveTo
                                                 , renderChar
+                                                , renderChars
                                                 , renderStr
                                                 , renderTxt
                                                 , setForeground
@@ -134,6 +136,12 @@ renderChar_ char (RenderState c) = do
   Backend.moveTo c
   Backend.renderChar char
   return ()
+
+
+renderChars :: Int -> Char -> RenderState -> IO ()
+renderChars count char (RenderState c) = do
+  Backend.moveTo c
+  Backend.renderChars count char
 
 
 renderStr :: String -> RenderState -> IO RenderState

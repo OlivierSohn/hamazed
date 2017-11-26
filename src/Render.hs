@@ -4,6 +4,7 @@ module Render (
           renderChar
         , renderPoints
         , renderColored
+        , renderColoredChars
         , Alignment(..)
         , renderAlignedTxt
         , renderAlignedTxt_
@@ -27,12 +28,7 @@ import           Data.Text( Text, length )
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
-import           Console( RenderState(..)
-                        , renderChar_
-                        , renderTxt_
-                        , setRawForeground
-                        , restoreForeground
-                        , Color8Code(..) )
+import           Console
 import           Geo( Coords(..)
                     , Direction(..)
                     , Row(..)
@@ -89,6 +85,12 @@ renderColored char points colorCode state = do
   fg <- setRawForeground colorCode
   renderPoints char state points
   restoreForeground fg
+
+renderColoredChars :: Int -> Char -> (Color8Code, Color8Code) -> RenderState -> IO ()
+renderColoredChars count char colors state = do
+  c <- setColors colors
+  renderChars count char state
+  restoreColors c
 
 data Alignment = Centered
                | RightAligned

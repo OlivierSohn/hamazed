@@ -7,12 +7,17 @@ module Color (
     worldFrameColor
   , colorFromFrame
   , numberColor
+  , wallColors
+  , airColors
   , shipColors
   , shipColorsSafe
   , shipColorSafe
   , shipColor
   , messageColor
   , neutralMessageColor
+  -- 4-bit colors
+  , white
+  , black
     -- create colors
   , gray
   , rgb
@@ -26,6 +31,11 @@ import           System.Console.ANSI(Color8Code(..), Color8(..))
 import           Animation.Types
 import           Level.Types
 
+wallColors :: (Color8Code, Color8Code)
+wallColors = (gray 3, gray 0)
+
+airColors :: (Color8Code, Color8Code)
+airColors = (white, black)
 
 neutralMessageColor :: Color8Code
 neutralMessageColor = gray 10
@@ -41,7 +51,7 @@ shipColorsSafe :: (Color8Code, Color8Code)
 shipColorsSafe = (shipColorSafe, shipBgColorSafe)
 
 shipColor :: Color8Code
-shipColor = white
+shipColor = rgb 5 4 4
 
 shipColorSafe :: Color8Code
 shipColorSafe = rgb 5 0 0

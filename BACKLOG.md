@@ -71,8 +71,8 @@ hitting a key (the key should be present also in the other room)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
+- when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
-- make gravity based animations rebound on walls, lose % velocity when hitting the bottom
 
 ## Playability
 - do not count duplicate laser shots in same motion step.

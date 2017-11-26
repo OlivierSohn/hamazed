@@ -1,12 +1,21 @@
 
 # Backlog
 
-- animations that grow and then shrink should be immune to collisions
-  - today the detection of when to transition animation, and the detection of should we render
-  the animation point are the same thing.
-  - try with the approach : render always, transition never (getLocation returns insideworld always)
-  - if it's not satisfactory, allow to decouple tests () with a complex datastructure to not
-  do the test a second time when rendering, if detection functions are the same.
+- Animation should have a SequenceTriggerAndRenderFunctions :
+  -   Same !(Coord -> Location)
+    | Separate !(Coord -> Location) !(Coord -> Location)
+
+    we use a sum type to optimize the case where we don't need to do the test for rendering
+    because we know by construction that the animation points still alive are inside the world
+
+  - we should terminate an animation if the number of alive points is 0 (not if the number of rendered points is 0)
+
+  - applications :
+    - animations that grow and then shrink should be immune to collisions but render only if not colliding
+    - for final explosion, use a location function based on terminal size to go beyond the world's limits
+      and to explosionThenGravity or gravityExplosionThenSimpleExplosion
+
+  - for gravity-based animations we could allow to go through the edge of the world (but not through other walls)
 
 - make color functions with bresenham 3d (code commented in Geo)
 
@@ -76,7 +85,6 @@ hitting a key (the key should be present also in the other room)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
-- make an animation when user loses.
 - when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
 

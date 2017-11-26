@@ -21,26 +21,18 @@ niceChars :: Array Int Char
 niceChars = listArray (0, length chars - 1) chars
   where chars = "$?dROo^à{[|!:¨`&#@=\\/*"
 
-  -- dollar   is funny
-  -- ?   is surprising
-  -- d   is beautiful
-  -- R   is visible
-  -- O   is bubbly
-  -- o   too
-  -- ^   is birds
-  -- à   is interesting
-  -- {   is birds too
-  -- [   is craws
-  -- |   is subtle
-  -- !   is subtle
-  -- :   is nice
-  -- ¨   is very light
-  -- `   is very light
-  -- &   is nice
-  -- #   is heavy
-  -- @   is round
-  -- =   is nice too
-  -- -   is light
-  -- \   is sharp
-  -- /   is sharp
-  -- *   is rich
+  -- characters by type:
+  -- funny      : $
+  -- surprising : ?
+  -- beautiful  : d
+  -- visible    : R
+  -- bubbly     : O o
+  -- birds      : ^ { [
+  -- interesting: à
+  -- subtle     : | !
+  -- nice       : : & =
+  -- very light : ¨ `
+  -- heavy      : #
+  -- round      : @
+  -- sharp      : \ /
+  -- rich       : *

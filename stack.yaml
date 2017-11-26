@@ -38,8 +38,8 @@ resolver: lts-9.12
 packages:
 - '.'
 - location:
-    git: https://github.com/OlivierSohn/ansi-terminal.git
-    commit: fb21cdbd3c479e9dc4c4c6b01bb926e6b063a170
+    git: https://github.com/mpilgrem/ansi-terminal.git
+    commit: 42f1dc8e8607ab33a62b187b0b5212b14f50b5aa
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
 extra-deps:

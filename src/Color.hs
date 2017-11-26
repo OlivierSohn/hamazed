@@ -25,8 +25,10 @@ module Color (
 
 import           Imajuscule.Prelude
 
-import           System.Console.ANSI.Codes( color8ToCode )
-import           System.Console.ANSI(Color8Code(..), Color8(..))
+import           System.Console.ANSI.Codes( xterm256ColorToCode )
+import           System.Console.ANSI(Color8Code(..), Xterm256Color(..))
+
+import Data.Colour.SRGB --(Colour, RGB (..), sRGB, toSRGB)
 
 import           Animation.Types
 import           Level.Types
@@ -63,14 +65,14 @@ shipBgColorSafe :: Color8Code
 shipBgColorSafe = rgb 1 0 0
 
 numberColor :: Int -> Color8Code
-numberColor i = color8ToCode $ RGB8Color r g b
+numberColor i = xterm256ColorToCode $ RGBColor (RGB r g b)
   where
     r = 5
     g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
     b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
 
 colorFromFrame :: Frame -> Color8Code
-colorFromFrame (Frame f) = color8ToCode $ RGB8Color r g b
+colorFromFrame (Frame f) = xterm256ColorToCode $ RGBColor (RGB r g b)
   where
     r = 4
     g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes

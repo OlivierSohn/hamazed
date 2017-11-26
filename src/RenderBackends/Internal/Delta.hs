@@ -40,7 +40,7 @@ module RenderBackends.Internal.Delta
        -- reexports from System.Console.ANSI
        , ColorIntensity(..)
        , Color(..)
-       , Color8(..)
+       , Xterm256Color(..)
        , Color8Code(..) -- Constructors is exported but the preferred way to describe colors is with
                         -- (ColorIntensity, Color) or RGB8Color or Gray8Color
        ) where
@@ -64,7 +64,7 @@ import           Data.Array.IO( IOArray
                               , readArray )
 import           System.Console.ANSI( ColorIntensity(..)
                                     , Color(..)
-                                    , Color8(..)
+                                    , Xterm256Color(..)
                                     , Color8Code(..)
                                     , setCursorPosition
                                     , setSGRCode
@@ -287,8 +287,8 @@ applyBuffer from to position clearFrom mayCurrentConsoleColor
 drawCell :: BufferCell -> Maybe Colors -> IO Colors
 drawCell (color@(fg, bg), char) maybeCurrentConsoleColor = do
   let (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
-      sgrs = [SetColor8Code Foreground fg | fgChange] ++
-             [SetColor8Code Background bg | bgChange]
+      sgrs = [SetPaletteColor Foreground fg | fgChange] ++
+             [SetPaletteColor Background bg | bgChange]
   if null sgrs
     then
       Prelude.putChar char

@@ -53,10 +53,11 @@ hitting a key (the key should be present also in the other room)
 - or each room has an objective number, once the objective is reached, a door opens to the next room
 
 ## Animation Design
-- Animation should have a Bool saying if the alive points should be collision checked or not.
-If not, before rendering we should filter them with the collision function.
-  - we should terminate an animation if the number of alive points is 0 (not if the number of rendered points is 0)
-  - this way, animations that grow and then shrink can be immune to collisions but render only if not colliding
+->
+- Today the contract of pure animation functions is that they should return
+a constant number of animation points that are correlated across frames.
+We could also make them say "After frame x, since my animation is done
+I will return an empty list"
 
 - have several lists of animations
   - each list has a different collision function:
@@ -70,6 +71,7 @@ If not, before rendering we should filter them with the collision function.
       - try explosionThenGravity or gravityExplosionThenSimpleExplosion
     - for gravity-based animations we could allow to go through the edge of the world (but not through other walls)
 - generalize chained sequences on collisions
+  - try passing a list of functions to the tree's 'treeOnWall' Rebound
 - make an animation between levels to make the world reduce progressively
 - use bresenham 3d for smooth color gradients (code commented in Geo)
 - when an animation point touches the world frame, make it change color

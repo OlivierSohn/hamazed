@@ -24,7 +24,7 @@ import           System.Random( getStdRandom
                               , randomR )
 
 
-import           Animation( Animation )
+import           Animation.Types
 import           Animation.Util( earliestDeadline )
 import           Collision( CollisionStatus(..)
                           , mirrorIfNeeded

@@ -11,6 +11,7 @@ module Animation.Types
     -- |
     , Tree(..)
     , mkAnimationTree
+    , OnWall(..)
     -- |
     , StepType(..)
     -- | Iteration and constructors
@@ -60,7 +61,24 @@ data Tree = Tree {
     -- ^ There is one element in the list per animation point.
     -- 'Right Coords' elements are still alive (typically they didn't collide yet with the world).
     -- 'Left Tree' elements are dead for this animation and maybe gave birth to another animation.
+  , _treeOnWall :: !OnWall -- TODO should also contain info for next sequences
+    -- ^ What the animation points do when they meet a wall
 }
+
+data OnWall = Traverse -- Collisions are ignored.
+                       -- You must ensure that the corresponding pure animation function
+                       -- will return a list of 0 coordinates for each frame after a given frame,
+                       -- else the animation will never terminate.
+            | ReboundAnd OnWall -- On collision, the next sequence of the animation starts.
+            | Stop           -- On collision, animation stops.
+
+-- TODO use this generalize animation chaining ?
+{--
+data Continuation = Continuation {
+    _continuationFunction :: !(),
+    _continuationOnWall :: !OnWall
+}
+--}
 
 data Animation = Animation {
     _animationNextTime :: !KeyTime
@@ -74,6 +92,7 @@ data Animation = Animation {
     --   and may return an updated Animation
 }
 
+
 data StepType = Update
               | Same
 
@@ -85,7 +104,7 @@ newtype Frame = Frame Int deriving(Generic, Eq, Show, Num)
 -- Constructors
 --------------------------------------------------------------------------------
 
-mkAnimationTree :: Coords -> Tree
+mkAnimationTree :: Coords -> OnWall -> Tree
 mkAnimationTree c = Tree c 0 Nothing
 
 

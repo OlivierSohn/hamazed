@@ -14,7 +14,7 @@ import           Data.Either( partitionEithers )
 import           Animation.Types
 import           Geo( Coords )
 import           Render( RenderState, renderColored )
-import           WorldSize( Location )
+import           WorldSize
 
 
 -- | Updates the state (Tree), computes the points to render from state and
@@ -26,7 +26,7 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
                 ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim ioAnim colorFunc state step a@(Animation t i@(Iteration(_, frame)) char _) getLocation r = do
+renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ _ onWall) step a@(Animation t i@(Iteration(_, frame)) char _) getLocation r = do
   let newState = case step of
         Update -> pureAnim i getLocation state
         Same -> state
@@ -38,14 +38,18 @@ renderAndUpdate pureAnim ioAnim colorFunc state step a@(Animation t i@(Iteration
                           Just $ case step of
                                 Update -> Animation t i char $ ioAnim newState
                                 Same -> a
-  renderColored char points (colorFunc frame) r
+      renderedPoints = case onWall of
+        ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
+        Traverse  -> filter (( == InsideWorld ) . getLocation) points -- some live points may collide
+        Stop      -> error "animation should have stopped"
+  renderColored char renderedPoints (colorFunc frame) r
 
   return nextAnimation
 
 
 getAliveCoordinates :: Tree -> [Coords]
-getAliveCoordinates (Tree _ _ Nothing) = []
-getAliveCoordinates (Tree _ _ (Just [])) = []
-getAliveCoordinates (Tree _ _ (Just branches)) =
+getAliveCoordinates (Tree _ _ Nothing _) = []
+getAliveCoordinates (Tree _ _ (Just []) _) = []
+getAliveCoordinates (Tree _ _ (Just branches) _) =
   let (children, aliveCoordinates) = partitionEithers branches
   in concatMap getAliveCoordinates children ++ aliveCoordinates

@@ -13,9 +13,8 @@ import           Data.Maybe( catMaybes
                            , isNothing )
 import           Data.Text( pack )
 
-import           Animation( Animation
-                          , Speed(..)
-                          , simpleExplosion
+import           Animation.Types
+import           Animation( simpleExplosion
                           , gravityExplosion
                           , gravityExplosionThenSimpleExplosion
                           , animatedNumber
@@ -105,12 +104,13 @@ nextGameState
 
        keyTime = KeyTime t
        char = niceChar $ getSeconds t
+       tree = mkAnimationTree shipCoords
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) char | not (null collisions) && isNothing safeTime]
-              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2) char]
-              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2) char]
+              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (tree $ ReboundAnd Stop)) k (Speed 2) char | not (null collisions) && isNothing safeTime]
+              Explosion resolution -> [mkAnimation (simpleExplosion resolution (tree $ ReboundAnd Stop)) keyTime (Speed 2) char]
+              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (tree $ ReboundAnd $ ReboundAnd Stop)) keyTime (Speed 2) char]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
          ++ animations
@@ -134,10 +134,12 @@ destroyNumbersAnimations nums event keyTime =
 
       speeds = map (sumVec2d (scalarProd 2 sp)) variations
       --animation (Number (PosSpeed pos _) n) = quantitativeExplosionThenSimpleExplosion (min 6 n) (mkAnimationTree pos)
-      anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos)
+      anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))
       animation pos = map ((\f -> (f, Speed 2)) . anim pos) speeds
   in case nums of
-    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed $ intToDigit n) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), Speed 1)])
+    Number (PosSpeed pos _) n:_ ->
+      let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
+      in  map (\(f,speed) -> mkAnimation f keyTime speed $ intToDigit n) animations
     _ -> []
 
 replaceAnimations :: [Animation] -> GameState -> GameState

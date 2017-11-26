@@ -1,9 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Animation
-    ( Animation
-    , Speed(..)
-    , mkAnimation
+    ( mkAnimation
     , mkAnimationTree
     -- | animations
     , simpleExplosion

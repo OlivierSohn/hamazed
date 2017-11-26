@@ -15,11 +15,8 @@ import           Animation.Types
 import           Geo( Coords
                     , bresenham
                     , bresenhamLength
-                    , Direction(..)
                     , mkSegment
-                    , move
                     , polyExtremities
-                    , rotateCcw
                     , translatedFullCircle
                     , translatedFullCircleFromQuarterArc
                     , parabola
@@ -51,30 +48,20 @@ quantitativeExplosionPure number center (Frame iteration) =
   in map vec2coords $ translatedFullCircle c radius firstAngle number
 
 animateNumberPure :: Int -> Coords -> Frame -> [Coords]
-animateNumberPure 1 = simpleExplosionPure 8
-animateNumberPure 2 = rotatingBar Up
-animateNumberPure n = polygon n
-
--- TODO make it rotate, like the name says :)
-rotatingBar :: Direction -> Coords -> Frame -> [Coords]
-rotatingBar dir first (Frame i) =
-  let radius = animateRadius (assert (i > 0) i) 2
-      centerBar = move i dir first
-      orthoDir = rotateCcw 1 dir
-      startBar = move radius orthoDir centerBar
-      endBar = move (-radius) orthoDir centerBar
-  in  connect2 startBar endBar
-
-polygon :: Int -> Coords -> Frame -> [Coords]
-polygon  nSides center (Frame i) =
-  let startAngle = if odd nSides then pi else pi/4.0
-      radius = animateRadius (1 + quot i 2) nSides
-      extremities = polyExtremities nSides center radius startAngle
-  in if radius <= 0
+animateNumberPure n center (Frame i) =
+  let r = animateRadius (1 + quot i 2) n
+  in if r <= 0
        then
          []
        else
-         connect extremities
+         case n of
+            1 -> simpleExplosionPure 8 center $ Frame r
+            _ -> polygon n r center
+
+polygon :: Int -> Int -> Coords -> [Coords]
+polygon nSides radius center =
+  let startAngle = if odd nSides then pi else pi/4.0
+  in connect $ polyExtremities nSides center radius startAngle
 
 animateRadius :: Int -> Int -> Int
 animateRadius i nSides =

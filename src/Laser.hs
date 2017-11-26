@@ -18,9 +18,8 @@ import           Imajuscule.Prelude
 import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
-import           Animation( Animation
-                          , Speed(..)
-                          , mkAnimation
+import           Animation.Types
+import           Animation( mkAnimation
                           , simpleLaser)
 import           Geo( Coords(..)
                     , changeSegmentLength

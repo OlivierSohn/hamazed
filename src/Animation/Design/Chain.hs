@@ -24,11 +24,11 @@ chainOnCollision :: (Coords -> Frame -> [Coords])
                  -> Tree
                  -> Tree
 chainOnCollision anim1 anim2 iteration getLocation tree  =
-  let (Tree a b branches) = applyAnimation anim1 iteration getLocation tree
+  let (Tree a b branches onWall) = applyAnimation anim1 iteration getLocation tree
       newBranches = Just $ case branches of
         Nothing -> error "applyAnimation was supposed to create a Just ?"
         Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
-  in Tree a b newBranches
+  in Tree a b newBranches onWall
 
 -- TODO generic chaining of animations
 {--

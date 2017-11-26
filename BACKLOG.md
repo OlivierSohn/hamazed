@@ -1,52 +1,23 @@
 
 # Backlog
 
-- Animation should have a SequenceTriggerAndRenderFunctions :
-  -   Same !(Coord -> Location)
-    | Separate !(Coord -> Location) !(Coord -> Location)
-
-    we use a sum type to optimize the case where we don't need to do the test for rendering
-    because we know by construction that the animation points still alive are inside the world
-
-  - we should terminate an animation if the number of alive points is 0 (not if the number of rendered points is 0)
-
-  - applications :
-    - animations that grow and then shrink should be immune to collisions but render only if not colliding
-    - for final explosion, use a location function based on terminal size to go beyond the world's limits
-      and to explosionThenGravity or gravityExplosionThenSimpleExplosion
-
-  - for gravity-based animations we could allow to go through the edge of the world (but not through other walls)
-
-- make color functions with bresenham 3d (code commented in Geo)
+## Geometry
 
 - take into account the fact that character width and height are not equal,
 so geometric figures are stretched in height. We could compensate for that by using
 a stretching factor in poly function and circle function
 
-- allow to use space for collision animation only in debug
-
-- use colors in animation (one per instance). make the color darker with time, make the hue change also.
+## Packaging
 
 - make a package for Delta rendering:
   - review function names
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
+## Configurability
+
 - let users chose:
   - blocksize
-
-- it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
-there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
-It would be nice to synchronize animation exactly with console fps to have a better fluidity
-
-- http://dev.stephendiehl.com/hask/#what-to-avoid
-
-- http://www.stephendiehl.com/posts/protolude.html
-
-- fancy laser animation: at each step, one less point or they could fall down with gravity + random, and fade in intensity
-
-- reconsider which animations to use once gravity based animations are available
-- generalize chained sequences on collisions
 
 ## Random world constraints
 
@@ -81,16 +52,35 @@ the advantage to reduce the need to render when there are multiple animations.
 hitting a key (the key should be present also in the other room)
 - or each room has an objective number, once the objective is reached, a door opens to the next room
 
-## Graphics
-- make an animation between levels to make the world reduce progressively
-
 ## Animation Design
+- Animation should have a Bool saying if the alive points should be collision checked or not.
+If not, before rendering we should filter them with the collision function.
+  - we should terminate an animation if the number of alive points is 0 (not if the number of rendered points is 0)
+  - this way, animations that grow and then shrink can be immune to collisions but render only if not colliding
+
+- have several lists of animations
+  - each list has a different collision function:
+    - world
+    - world (inner walls only)
+    - terminal
+  - or keep one list but animation passes a parameter to function to say which check to do
+     ... how could this parameter depend on the sequence of the animation? could it be preapplied?
+  - applications :
+    - final explosion happends in the terminal.
+      - try explosionThenGravity or gravityExplosionThenSimpleExplosion
+    - for gravity-based animations we could allow to go through the edge of the world (but not through other walls)
+- generalize chained sequences on collisions
+- make an animation between levels to make the world reduce progressively
+- use bresenham 3d for smooth color gradients (code commented in Geo)
 - when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
 
 ## Playability
 - do not count duplicate laser shots in same motion step.
 - write a help
+- it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
+there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
+It would be nice to synchronize animation exactly with console fps to have a better fluidity
 
 ## Difficulty
 - choosing different prime numbers for width and height would increase the complexity

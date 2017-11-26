@@ -29,7 +29,7 @@ import           Render( RenderState, renderColored )
 import           WorldSize( Location )
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))) _) _ state = do
+simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))) _ _) _ state = do
   let points = showSegment seg
       replacementChar = case laserChar of
         '|' -> '.'

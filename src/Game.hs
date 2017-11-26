@@ -7,6 +7,7 @@ module Game(
 
 import           Imajuscule.Prelude
 
+import           Data.Char( intToDigit )
 import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes
                            , isNothing )
@@ -108,9 +109,9 @@ nextGameState
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) | not (null collisions) && isNothing safeTime]
-              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2)]
-              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2)]
+              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) '|' | not (null collisions) && isNothing safeTime]
+              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2) '$']
+              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2) 'R']
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
          ++ animations
@@ -137,7 +138,7 @@ destroyNumbersAnimations nums event keyTime =
       anim pos speedLaser = gravityExplosionThenSimpleExplosion speedLaser (mkAnimationTree pos)
       animation pos = map ((\f -> (f, Speed 2)) . anim pos) speeds
   in case nums of
-    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), Speed 1)])
+    Number (PosSpeed pos _) n:_ -> map (\(f,speed) -> mkAnimation f keyTime speed $ intToDigit n) (animation pos ++ [(animatedNumber n (mkAnimationTree pos), Speed 1)])
     _ -> []
 
 replaceAnimations :: [Animation] -> GameState -> GameState

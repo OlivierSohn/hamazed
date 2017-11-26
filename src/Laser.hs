@@ -83,4 +83,6 @@ laserChar dir = case dir of
 
 mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
 mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
-  mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime (Speed 1 {- for laser animation speed doesn't matter -})
+  let fakeChar = '?'      -- overriden by the implementation
+      fakeSpeed = Speed 1 {- for laser animation speed doesn't matter -}
+  in mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime fakeSpeed fakeChar

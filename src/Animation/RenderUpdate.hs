@@ -20,7 +20,7 @@ import           WorldSize( Location )
 
 
 computeStep :: Maybe KeyTime -> Animation -> StepType
-computeStep mayKey (Animation k' (Iteration(_,frame)) _)
+computeStep mayKey (Animation k' (Iteration(_,frame)) _ _)
   | frame == zeroFrame = Update -- initialize step
   | otherwise          = maybe Same (\k -> if k == k' then Update else Same) mayKey
 
@@ -34,7 +34,7 @@ update = \case
 
 stepAnimation :: Animation
               -> Animation
-stepAnimation (Animation t i f) = Animation (addAnimationStepDuration t) (nextIteration i) f
+stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
 
 
 renderAndUpdateAnimations :: Maybe KeyTime
@@ -43,7 +43,7 @@ renderAndUpdateAnimations :: Maybe KeyTime
                           -> [Animation]
                           -> IO [Animation]
 renderAndUpdateAnimations k getLocation r anims =
-  catMaybes <$> mapM (\a@(Animation _ _ render) -> do
+  catMaybes <$> mapM (\a@(Animation _ _ _ render) -> do
     let step = computeStep k a
         a' = update step a
     render step a' getLocation r) anims

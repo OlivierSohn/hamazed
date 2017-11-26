@@ -67,6 +67,8 @@ data Animation = Animation {
     -- ^ The time at which this animation becomes obsolete
   , _animationIteration :: !Iteration
     -- ^ The iteration
+  , _animationChar :: !Char
+    -- ^ The char used to render the animation points
   , _animationRender :: !(StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
     --   and may return an updated Animation
@@ -90,8 +92,9 @@ mkAnimationTree c = Tree c 0 Nothing
 mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> KeyTime
             -> Speed
+            -> Char
             -> Animation
-mkAnimation render t speed = Animation t {-do not increment, it will be done while rendering-} (zeroIteration speed) render
+mkAnimation render t speed char = Animation t {-do not increment, it will be done while rendering-} (zeroIteration speed) char render
 
 
 zeroIteration :: Speed -> Iteration

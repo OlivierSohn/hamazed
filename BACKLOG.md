@@ -1,6 +1,10 @@
 
 # Backlog
 
+- alternate the chars used in animations
+
+- use the number that was shot for animations (what about when multiple are shot?)
+
 - make color functions with bresenham 3d (code commented in Geo)
 
 - check if the bug exists without strict functions in Animator

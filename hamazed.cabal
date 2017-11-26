@@ -28,6 +28,7 @@ library
                      , Animation.Design.Animator
                      , Animation.Design.Apply
                      , Animation.Design.Chain
+                     , Animation.Design.Chars
                      , Animation.Design.RenderUpdate
                      , Animation.Design.Geo
                      , Animation.RenderUpdate

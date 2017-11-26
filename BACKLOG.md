@@ -1,13 +1,9 @@
 
 # Backlog
 
-- alternate the chars used in animations
-
-- use the number that was shot for animations (what about when multiple are shot?)
+- animations that grow and then shrink should be immune to collisions
 
 - make color functions with bresenham 3d (code commented in Geo)
-
-- check if the bug exists without strict functions in Animator
 
 - take into account the fact that character width and height are not equal,
 so geometric figures are stretched in height. We could compensate for that by using
@@ -75,6 +71,7 @@ hitting a key (the key should be present also in the other room)
 - make an animation between levels to make the world reduce progressively
 
 ## Animation Design
+- make an animation when user loses.
 - when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
 

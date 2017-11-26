@@ -21,6 +21,7 @@ import           Animation( Animation
                           , animatedNumber
                           , mkAnimationTree
                           , mkAnimation )
+import           Animation.Design.Chars(niceChar)
 import           Animation.RenderUpdate
 import           Console( beginFrame
                         , endFrame )
@@ -69,11 +70,8 @@ import           Render( RenderState
 import           Space( Space(..)
                        , location
                        , renderSpace )
-import           Timing( Timer(..)
-                       , KeyTime(..)
-                       , UTCTime
-                       , getCurrentTime
-                       , addGameStepDuration )
+import           Timing
+import           Util( getSeconds )
 import           World( World(..)
                       , mkWorld
                       , BattleShip(..)
@@ -106,12 +104,13 @@ nextGameState
        ((remainingBalls, destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
 
        keyTime = KeyTime t
+       char = niceChar $ getSeconds t
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) '|' | not (null collisions) && isNothing safeTime]
-              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2) '$']
-              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2) 'R']
+              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (mkAnimationTree shipCoords)) k (Speed 2) char | not (null collisions) && isNothing safeTime]
+              Explosion resolution -> [mkAnimation (simpleExplosion resolution (mkAnimationTree shipCoords)) keyTime (Speed 2) char]
+              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (mkAnimationTree shipCoords)) keyTime (Speed 2) char]
               _ -> []
          ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
          ++ animations

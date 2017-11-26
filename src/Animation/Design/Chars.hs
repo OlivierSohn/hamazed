@@ -1,15 +1,25 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Animation.Design.Chars
-    ( niceCharsForExplosions
+    ( niceChar
     ) where
 
 import           Imajuscule.Prelude
 
-import           Data.Text(pack)
+import           Data.Array.Unboxed( Array, listArray, bounds, (!) )
+import           Data.List(length)
 
-niceCharsForExplosions :: Text
-niceCharsForExplosions = pack "$?dROo^à{[|!:¨`&#@=-\\/*"
+
+niceChar :: Int -> Char
+niceChar i =
+  let l = 1 + snd (bounds niceChars)
+      index = abs $ i `mod` l
+  in niceChars ! index
+
+-- | These chars work well for explosive animations
+niceChars :: Array Int Char
+niceChars = listArray (0, length chars - 1) chars
+  where chars = "$?dROo^à{[|!:¨`&#@=\\/*"
 
   -- dollar   is funny
   -- ?   is surprising

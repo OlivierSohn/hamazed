@@ -2,6 +2,11 @@
 # Backlog
 
 - animations that grow and then shrink should be immune to collisions
+  - today the detection of when to transition animation, and the detection of should we render
+  the animation point are the same thing.
+  - try with the approach : render always, transition never (getLocation returns insideworld always)
+  - if it's not satisfactory, allow to decouple tests () with a complex datastructure to not
+  do the test a second time when rendering, if detection functions are the same.
 
 - make color functions with bresenham 3d (code commented in Geo)
 

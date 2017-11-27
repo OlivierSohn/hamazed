@@ -62,8 +62,8 @@ I will return an empty list"
 - have several lists of animations
   - each list has a different collision function:
     - world
-    - world (inner walls only)
-    - terminal
+    - world (inner walls only) + terminal
+    - terminal only
   - or keep one list but animation passes a parameter to function to say which check to do
      ... how could this parameter depend on the sequence of the animation? could it be preapplied?
   - applications :

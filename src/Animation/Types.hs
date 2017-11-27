@@ -61,7 +61,7 @@ data Tree = Tree {
     -- ^ There is one element in the list per animation point.
     -- 'Right Coords' elements are still alive (typically they didn't collide yet with the world).
     -- 'Left Tree' elements are dead for this animation and maybe gave birth to another animation.
-  , _treeOnWall :: !OnWall -- TODO should also contain info for next sequences
+  , _treeOnWall :: !OnWall
     -- ^ What the animation points do when they meet a wall
 }
 
@@ -70,7 +70,7 @@ data OnWall = Traverse -- Collisions are ignored.
                        -- will return a list of 0 coordinates for each frame after a given frame,
                        -- else the animation will never terminate.
             | ReboundAnd OnWall -- On collision, the next sequence of the animation starts.
-            | Stop           -- On collision, animation stops.
+            | Stop     -- Termination
 
 -- TODO use this generalize animation chaining ?
 {--

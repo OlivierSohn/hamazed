@@ -7,6 +7,7 @@ module Color (
     worldFrameColor
   , colorFromFrame
   , numberColor
+  , bracketsColor
   , ammoColor
   , wallColors
   , airColors
@@ -44,7 +45,10 @@ neutralMessageColor :: Color8Code
 neutralMessageColor = gray 10
 
 ammoColor :: Color8Code
-ammoColor = gray 10
+ammoColor = gray 14
+
+bracketsColor :: Color8Code
+bracketsColor = worldFrameColor
 
 messageColor :: GameStops -> Color8Code
 messageColor Won      = rgb 4 3 1

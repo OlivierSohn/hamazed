@@ -11,7 +11,7 @@ import           Data.Char( intToDigit )
 import           Data.List( minimumBy, find, foldl', notElem )
 import           Data.Maybe( catMaybes
                            , isNothing )
-import           Data.Text( pack )
+import           Data.Text( pack, singleton )
 
 import           Animation.Types
 import           Animation
@@ -260,10 +260,10 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
       centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
       leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
   _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
-  _ <- go Down <$> renderAligned RightAligned (colored "[" white
+  _ <- go Down <$> renderAligned RightAligned (colored (singleton '[') bracketsColor
                                             <> colored (pack $ replicate ammo '.') ammoColor
-                                            <> colored "]" white) leftMiddle
-       >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)
+                                            <> colored (singleton ']') bracketsColor) leftMiddle
+       >>= renderAligned RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=
     (\worldCorner -> do

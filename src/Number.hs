@@ -12,10 +12,12 @@ import           Imajuscule.Prelude
 
 import           GHC.Generics( Generic )
 
-import           Data.List( partition )
+import           Data.Char( intToDigit )
+import           Data.List( partition, foldl', length )
 import           Data.Maybe( isNothing )
-import           Data.Text(Text, pack)
+import           Data.Text(singleton, pack)
 
+import           Color
 import           Geo( Coords(..)
                     , PosSpeed(..)
                     , segmentContains )
@@ -24,8 +26,8 @@ import           Laser( Ray(..)
                       , LaserPolicy(..)
                       , Theoretical
                       , Actual
-                      , stopRayAtFirstCollision
-                      )
+                      , stopRayAtFirstCollision )
+import           Render
 
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
@@ -47,7 +49,16 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
  where
    justFull = Just $ LaserRay dir $ Ray seg
 
--- TODO draw them in their color
-showShotNumbers :: [Int] -> Text
+
+showShotNumbers :: [Int] -> ColorString
 showShotNumbers nums =
-  pack $ "[" ++ unwords (map show nums) ++ "]"
+  let lastIndex = length nums - 1
+      first = colored (singleton '[') bracketsColor
+      last_ = colored (singleton ']') bracketsColor
+      middle = snd $ foldl' (\(i,s) n -> let num = intToDigit n
+                                             t = case i of
+                                                  0 -> singleton num
+                                                  _ -> pack [num, ' ']
+                                         in (i-1, s <> colored t (numberColor n))) (lastIndex, first) nums
+
+  in middle <> last_

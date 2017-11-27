@@ -48,12 +48,17 @@ to happen at fixed start (eg 5 animation steps per game step, and 1 step is comm
 the advantage to reduce the need to render when there are multiple animations.
 
 ## Game Notions
-- when 2 rooms are separated by a wall, the wall can be destroyed by
+- 3 lives at the beginning, gain one life if you complete a level in less than 5 seconds.
+- walls are destroyable and contain ammo
+- frame walls can be destroyed in 2 laser shots
+- when 2 rooms are separated by a wall, the wall can be destroyed by using the laser.
 hitting a key (the key should be present also in the other room)
 - or each room has an objective number, once the objective is reached, a door opens to the next room
 
 ## Animation Design
 
+- a laser shot on the world frame triggers gravitation + explosion animations in the terminal (
+  and they don't come back in the world)
 - Today the contract of pure animation functions is that they should return
 a constant number of animation points that are correlated across frames.
 We could also make them say "After frame x, since my animation is done

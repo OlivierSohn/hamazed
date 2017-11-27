@@ -3,12 +3,10 @@
 
 module Animation.RenderUpdate
     (
-        renderAndUpdateAnimations
+        renderAndUpdateAnimation
     ) where
 
 import           Imajuscule.Prelude
-
-import           Data.Maybe( catMaybes )
 
 import           Animation.Types
 import           Geo( Coords )
@@ -37,13 +35,12 @@ stepAnimation :: Animation
 stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
 
 
-renderAndUpdateAnimations :: Maybe KeyTime
-                          -> (Coords -> Location)
-                          -> RenderState
-                          -> [Animation]
-                          -> IO [Animation]
-renderAndUpdateAnimations k getLocation r anims =
-  catMaybes <$> mapM (\a@(Animation _ _ _ render) -> do
-    let step = computeStep k a
-        a' = update step a
-    render step a' getLocation r) anims
+renderAndUpdateAnimation :: Maybe KeyTime
+                         -> (Coords -> Location)
+                         -> RenderState
+                         -> Animation
+                         -> IO (Maybe Animation)
+renderAndUpdateAnimation k getLocation r a@(Animation _ _ _ render) = do
+  let step = computeStep k a
+      a' = update step a
+  render step a' getLocation r

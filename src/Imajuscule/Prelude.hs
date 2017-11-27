@@ -19,6 +19,7 @@ module Imajuscule.Prelude (
                           , Maybe(..)
                           , Either(..)
                           , Ordering(..)
+                          , fmap
                           , all
                           , any
                           , notElem

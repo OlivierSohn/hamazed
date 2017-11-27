@@ -4,6 +4,8 @@ module World
     ( BattleShip(..)
     , accelerateShip
     , World(..)
+    , BoundedAnimation(..)
+    , Boundaries(..)
     , mkWorld
     , moveWorld
     , nextWorld
@@ -75,10 +77,15 @@ data World = World{
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![Animation]
+  , _worldAnimations :: ![BoundedAnimation]
 }
 
-nextWorld :: World -> [Number] -> Int -> [Animation] -> World
+data BoundedAnimation = BoundedAnimation Animation Boundaries
+
+data Boundaries = WorldFrame
+                | TerminalWindow
+
+nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _) balls ammo =
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size
 
@@ -120,7 +127,7 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
   in PosSpeed newPos speed
 
 earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline animations
+earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 --------------------------------------------------------------------------------
 -- IO

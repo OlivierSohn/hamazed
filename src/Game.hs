@@ -15,7 +15,6 @@ import           Data.Text( pack )
 
 import           Animation.Types
 import           Animation( simpleExplosion
-                          , gravityExplosion
                           , gravityExplosionThenSimpleExplosion
                           , animatedNumber
                           , mkAnimationTree
@@ -30,7 +29,7 @@ import           Geo( Col(..)
                     , speed2vec
                     , coordsForDirection
                     , Direction(..)
-                    , sumVec2d
+                    , sumVec2d, sumCoords
                     , scalarProd
                     , PosSpeed(..)
                     , Row(..)
@@ -59,36 +58,28 @@ import           Level( Level(..)
 import           Number( Number(..)
                        , survivingNumbers
                        , showShotNumbers )
-import           Render( RenderState
-                       , mkRenderStateToCenterWorld
+import           Render( RenderState, EmbeddedWorld(..), Window(..)
+                       , mkEmbeddedWorld
                        , translate
                        , Alignment(..)
                        , renderAlignedTxt
-                       , RenderState
+                       , RenderState(..)
                        , go )
 import           Space( Space(..)
                        , location
                        , renderSpace )
 import           Timing
 import           Util( getSeconds )
-import           World( World(..)
-                      , mkWorld
-                      , BattleShip(..)
-                      , nextWorld
-                      , earliestAnimationDeadline
-                      , accelerateShip
-                      , moveWorld
-                      , renderWorld )
-import          WorldSize( WorldSize(..)
-                         , worldSizeFromLevel )
+import           World
+import           WorldSize
 
 data GameState = GameState {
-    _startTime :: !Timer
-  , _nextMotionStep :: !KeyTime
-  , _upperLeftCorner :: !RenderState
-  , _world :: !World
-  , _gameShotNumbers :: ![Int]
-  , _gameTarget :: !Int
+    _gameStateStartTime :: !Timer
+  , _gameStateNextMotionStep :: !KeyTime
+  , _gameStateEmbeddedWorld :: !EmbeddedWorld
+  , _gameStateworld :: !World
+  , _gameStateShotNumbers :: ![Int]
+  , _gameStateTarget :: !Int
   , _gameStateLevel :: !Level
 }
 
@@ -108,11 +99,11 @@ nextGameState
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ case event of
-              Timeout GameStep k -> [mkAnimation (simpleExplosion 8 (tree $ ReboundAnd Stop)) k (Speed 2) char | not (null collisions) && isNothing safeTime]
-              Explosion resolution -> [mkAnimation (simpleExplosion resolution (tree $ ReboundAnd Stop)) keyTime (Speed 2) char]
-              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (tree $ ReboundAnd $ ReboundAnd Stop)) keyTime (Speed 2) char]
+              Timeout GameStep k -> [BoundedAnimation (mkAnimation (simpleExplosion 8 (tree $ ReboundAnd Stop)) k (Speed 2) char) TerminalWindow | not (null collisions) && isNothing safeTime]
+--              Explosion resolution -> [mkAnimation (simpleExplosion resolution (tree $ ReboundAnd Stop)) keyTime (Speed 2) char]
+--              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (tree $ ReboundAnd $ ReboundAnd Stop)) keyTime (Speed 2) char]
               _ -> []
-         ++ maybe [] (\ray -> [mkLaserAnimation keyTime ray]) maybeLaserRay
+         ++ maybe [] (\ray -> [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]) maybeLaserRay
          ++ animations
 
        newWorld = nextWorld world remainingBalls newAmmo newAnimations
@@ -122,7 +113,7 @@ nextGameState
        newLevel = Level i newFinished
    in  GameState a b d newWorld allShotNumbers target newLevel
 
-destroyNumbersAnimations :: [Number] -> Event -> KeyTime -> [Animation]
+destroyNumbersAnimations :: [Number] -> Event -> KeyTime -> [BoundedAnimation]
 destroyNumbersAnimations nums event keyTime =
   let sp = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir
@@ -139,10 +130,10 @@ destroyNumbersAnimations nums event keyTime =
   in case nums of
     Number (PosSpeed pos _) n:_ ->
       let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
-      in  map (\(f,speed) -> mkAnimation f keyTime speed $ intToDigit n) animations
+      in  map (\(f,speed) -> BoundedAnimation (mkAnimation f keyTime speed $ intToDigit n) WorldFrame) animations
     _ -> []
 
-replaceAnimations :: [Animation] -> GameState -> GameState
+replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
 replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =
   GameState a c e (World wa wb wc wd anims) f g h
 
@@ -190,10 +181,10 @@ makeInitialState :: GameParameters -> Int -> IO GameState
 makeInitialState (GameParameters shape wallType) level = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
       worldSize = worldSizeFromLevel level shape
-  coords <- mkRenderStateToCenterWorld worldSize
+  ew <- mkEmbeddedWorld worldSize
   world <- mkWorld worldSize wallType numbers
   t <- getCurrentTime
-  return $ GameState (Timer t) (KeyTime t) coords world [] (sum numbers `quot` 2) $ Level level Nothing
+  return $ GameState (Timer t) (KeyTime t) ew world [] (sum numbers `quot` 2) $ Level level Nothing
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
@@ -251,8 +242,8 @@ updateGame2 te@(TimedEvent event _) s =
       return $ replaceAnimations animations s2
 
 
-renderGame :: Maybe KeyTime -> GameState -> IO [Animation]
-renderGame k state@(GameState _ _ upperLeft
+renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
+renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
                    shotNumbers target (Level level _)) = do
   let addWallSize = (+ 2)
@@ -269,10 +260,24 @@ renderGame k state@(GameState _ _ upperLeft
        >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=
-    (\worldCorner -> do
-      activeAnimations <- renderAndUpdateAnimations k (`location` space) worldCorner animations
-      renderWorldAndLevel state worldCorner
-      return activeAnimations)
+    (\worldCorner@(RenderState wcc) -> do
+        activeAnimations <- mapM (\(BoundedAnimation a f) -> do
+          let worldLocation = (`location` space)
+              terminalLocation (Window h w) coordsInWorld =
+                let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
+                in if r >= 0 && r < h && c >= 0 && c < w
+                     then
+                       InsideWorld
+                     else
+                       OutsideWorld
+              fLocation = case f of
+                WorldFrame -> worldLocation
+                TerminalWindow -> maybe worldLocation terminalLocation mayTermWindow
+          fmap (`BoundedAnimation` f) <$>
+            renderAndUpdateAnimation k fLocation worldCorner a) animations
+        renderWorldAndLevel state worldCorner
+        let res = catMaybes activeAnimations
+        return res)
 
 renderWorldAndLevel :: GameState -> RenderState -> IO ()
 renderWorldAndLevel (GameState _ _ _

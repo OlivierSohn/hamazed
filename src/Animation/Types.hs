@@ -39,7 +39,7 @@ import           Timing( KeyTime )
 import           WorldSize( Location )
 
 -- | Animator contains functions to update and render an Animation.
-data Animator a = Animator {
+data Animator = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
     -- ^ a function that updates Tree
   , _animatorIO   :: !(Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))

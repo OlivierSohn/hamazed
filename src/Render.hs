@@ -11,7 +11,8 @@ module Render (
         , go
         , Render.move
         , translate
-        , mkRenderStateToCenterWorld
+        , mkEmbeddedWorld
+        , EmbeddedWorld(..)
         -- | reexports
         , Coords(..)
         , Row(..)
@@ -19,6 +20,7 @@ module Render (
         , Direction(..)
         , RenderState(..)
         , Color8Code(..)
+        , Terminal.Window(..)
         ) where
 
 import           Imajuscule.Prelude
@@ -38,6 +40,12 @@ import           Geo( Coords(..)
                     , translateInDir )
 import           WorldSize( WorldSize(..) )
 
+
+data EmbeddedWorld = EmbeddedWorld {
+    _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
+  , _embeddedWorldUpperLeft :: !RenderState
+}
+
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
@@ -56,9 +64,9 @@ move n dir (RenderState c) = RenderState $ Geo.move n dir c
 translate :: Row -> Col -> RenderState -> RenderState
 translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c
 
-worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> RenderState
+worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> EmbeddedWorld
 worldUpperLeftToCenterIt' worldSize termSize =
-   RenderState $ maybe
+   EmbeddedWorld termSize $ RenderState $ maybe
      (Coords (Row minimalWorldMargin) (Col minimalWorldMargin))
      (`worldUpperLeftFromTermSize` worldSize)
      termSize
@@ -107,6 +115,6 @@ renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
 renderAlignedTxt a txt ref =
   renderAlignedTxt_ a txt ref >> return (go Down ref)
 
-mkRenderStateToCenterWorld :: WorldSize -> IO RenderState
-mkRenderStateToCenterWorld s =
+mkEmbeddedWorld :: WorldSize -> IO EmbeddedWorld
+mkEmbeddedWorld s =
   worldUpperLeftToCenterIt' s <$> Terminal.size

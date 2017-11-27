@@ -53,11 +53,13 @@ hitting a key (the key should be present also in the other room)
 - or each room has an objective number, once the objective is reached, a door opens to the next room
 
 ## Animation Design
-->
+
 - Today the contract of pure animation functions is that they should return
 a constant number of animation points that are correlated across frames.
 We could also make them say "After frame x, since my animation is done
-I will return an empty list"
+I will return an empty list" : it could allow to stop animations that have
+"OnWall Traverse" and will continue indefinitely
+or to interpret "OnWall Traverse" as "OnWall ReboundAnd" for animations that don't guarantee they will end
 
 - have several lists of animations
   - each list has a different collision function:

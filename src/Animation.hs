@@ -28,16 +28,25 @@ import           WorldSize( Location )
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))) _ _) _ state = do
-  let points = showSegment seg
+  let points = if assert (i > 0) i > iterationStop
+                 then
+                   []
+                 else
+                   showSegment seg
       replacementChar = case laserChar of
         '|' -> '.'
         '=' -> '-'
         _ -> error "unsupported case in simpleLaser"
       iterationUseReplacement = 2 * speed
       iterationStop = 4 * speed
-      char = if assert (i > 0) i > iterationUseReplacement then replacementChar else laserChar
+      char = if i > iterationUseReplacement then replacementChar else laserChar
+      nextAnimation = if null points
+                        then
+                          Nothing
+                        else
+                          Just a
   renderColored char points (colorFromFrame f) state
-  return $ if assert (i > 0) i > iterationStop then Nothing else Just a
+  return nextAnimation
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame

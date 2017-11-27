@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Number(
     Number(..)
@@ -8,6 +9,8 @@ module Number(
   ) where
 
 import           Imajuscule.Prelude
+
+import           GHC.Generics( Generic )
 
 import           Data.List( partition )
 import           Data.Maybe( isNothing )
@@ -27,7 +30,7 @@ import           Laser( Ray(..)
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
   , _numberNum :: !Int
-}
+} deriving(Generic, Eq)
 
 getColliding :: Coords -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')

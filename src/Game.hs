@@ -136,15 +136,6 @@ destroyNumbersAnimations nums event keyTime =
       in  map (\(f,speed) -> BoundedAnimation (mkAnimation f keyTime speed $ intToDigit n) WorldFrame) animations
     _ -> []
 
-explosion :: Vec2 -> Coords -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
-explosion sp pos =
-  let variations = [ Vec2 0.3     (-0.4)
-               , Vec2 (-0.55) (-0.29)
-               , Vec2 (-0.1)  0.9
-               , Vec2 1.2     0.2]
-      speeds = map (sumVec2d sp) variations
-  in map (\s -> gravityExplosionThenSimpleExplosion s (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))) speeds
-
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
 replaceAnimations anims (GameState a c e (World wa wb wc wd _) f g h) =
   GameState a c e (World wa wb wc wd anims) f g h
@@ -272,28 +263,49 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
        >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=
-    (\worldCorner@(RenderState wcc) -> do
-        activeAnimations <- mapM (\(BoundedAnimation a f) -> do
-          let worldLocation = (`location` space)
-              worldLocationExcludingBorders = (`strictLocation` space)
-              terminalLocation (Window h w) coordsInWorld =
-                let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
-                in if r >= 0 && r < h && c >= 0 && c < w
-                     then
-                       InsideWorld
-                     else
-                       OutsideWorld
-              productLocations l l' = case l of
-                InsideWorld -> l'
-                OutsideWorld -> OutsideWorld
-              fLocation = case f of
-                WorldFrame -> worldLocation
-                TerminalWindow -> maybe worldLocation (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo)) mayTermWindow
-          fmap (`BoundedAnimation` f) <$>
-            renderAndUpdateAnimation k fLocation worldCorner a) animations
+    (\worldCorner -> do
+        activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         renderWorldAndLevel state worldCorner
-        let res = catMaybes activeAnimations
-        return res)
+        return activeAnimations)
+
+locationFunction :: Boundaries
+                 -> Space
+                 -> Maybe (Window Int)
+                 -> RenderState
+                 -> (Coords -> Location)
+locationFunction f space mayTermWindow (RenderState wcc) =
+  let worldLocation = (`location` space)
+      worldLocationExcludingBorders = (`strictLocation` space)
+      terminalLocation (Window h w) coordsInWorld =
+        let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
+        in if r >= 0 && r < h && c >= 0 && c < w
+             then
+               InsideWorld
+             else
+               OutsideWorld
+      productLocations l l' = case l of
+        InsideWorld -> l'
+        OutsideWorld -> OutsideWorld
+  in case f of
+    WorldFrame -> worldLocation
+    TerminalWindow -> maybe
+                        worldLocation
+                        (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
+                        mayTermWindow
+
+renderAnimations :: Maybe KeyTime
+                 -> Space
+                 -> Maybe (Window Int)
+                 -> RenderState
+                 -> [BoundedAnimation]
+                 -> IO [BoundedAnimation]
+renderAnimations k space mayTermWindow worldCorner animations = do
+  let renderAnimation (BoundedAnimation a f) = do
+        let fLocation = locationFunction f space mayTermWindow worldCorner
+        fmap (`BoundedAnimation` f) <$> renderAndUpdateAnimation k fLocation worldCorner a
+  activeAnimations <- mapM renderAnimation animations
+  let res = catMaybes activeAnimations
+  return res
 
 renderWorldAndLevel :: GameState -> RenderState -> IO ()
 renderWorldAndLevel (GameState _ _ _

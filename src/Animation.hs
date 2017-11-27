@@ -10,6 +10,9 @@ module Animation
     , quantitativeExplosionThenSimpleExplosion
     , simpleLaser
     , animatedNumber
+    -- | preapplied animations
+    , explosion
+    , explosion1
     ) where
 
 
@@ -22,7 +25,7 @@ import           Animation.Design.Geo
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
-import           Geo( Coords, Segment, showSegment, Vec2 )
+import           Geo
 import           Render( RenderState, renderColored )
 import           WorldSize( Location )
 
@@ -75,3 +78,21 @@ gravityExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
 animatedNumber :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
+
+
+explosion :: Vec2
+          -> Coords
+          -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
+explosion sp pos =
+  let variations = [ Vec2 0.3     (-0.4)
+                   , Vec2 (-0.55) (-0.29)
+                   , Vec2 (-0.1)  0.9
+                   , Vec2 1.2     0.2]
+      speeds = map (sumVec2d sp) variations
+  in map (`explosion1` pos) speeds
+
+explosion1 :: Vec2
+           -> Coords
+           -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+explosion1 speed pos =
+  gravityExplosionThenSimpleExplosion speed (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))

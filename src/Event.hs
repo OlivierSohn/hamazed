@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Event
     ( Event(..)
@@ -17,7 +18,6 @@ module Event
 import           Imajuscule.Prelude
 
 import           Data.List( foldl' )
-import           Data.Char ( ord )
 import           Data.Maybe( mapMaybe )
 
 import           Geo( Coords(..)
@@ -25,6 +25,7 @@ import           Geo( Coords(..)
                     , coordsForDirection
                     , sumCoords
                     , zeroCoords)
+import           IO.Types
 import           Timing( KeyTime
                        , UTCTime )
 
@@ -63,21 +64,24 @@ data ActionTarget = Ship
                   | Laser
                   deriving(Eq, Show)
 
-eventFromChar :: Char -> Event
-eventFromChar c = case c of
-  'k' -> Action Laser Down
-  'i' -> Action Laser Up
-  'j' -> Action Laser LEFT
-  'l' -> Action Laser RIGHT
-  'd' -> Action Ship Down
-  'e' -> Action Ship Up
-  's' -> Action Ship LEFT
-  'f' -> Action Ship RIGHT
-  ' ' -> Explosion 2
-  'g' -> GravityExplosion
-  _   -> case ord c of
-    27 {-esc-} -> Interrupt Quit
-    _          -> Nonsense
+eventFromChar :: Either Key Char -> Event
+eventFromChar =
+  either
+    (\case
+      Escape -> Interrupt Quit
+      _      -> Nonsense)
+    (\case
+      'k' -> Action Laser Down
+      'i' -> Action Laser Up
+      'j' -> Action Laser LEFT
+      'l' -> Action Laser RIGHT
+      'd' -> Action Ship Down
+      'e' -> Action Ship Up
+      's' -> Action Ship LEFT
+      'f' -> Action Ship RIGHT
+      ' ' -> Explosion 2
+      'g' -> GravityExplosion
+      _   -> Nonsense)
 
 
 getKeyTime :: Event -> Maybe KeyTime

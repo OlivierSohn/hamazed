@@ -42,10 +42,12 @@ library
                      , Game
                      , GameParameters
                      , Geo
+                     , IO.Blocking
+                     , IO.NonBlocking
+                     , IO.Types
                      , Laser
                      , Level
                      , Level.Types
-                     , NonBlockingIO
                      , Number
                      , Render
                      , Space

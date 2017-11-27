@@ -1,10 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Render (
-          renderChar
-        , renderPoints
+          renderAligned
         , renderColored
+        , renderColoredPoints
         , renderColoredChars
+        , renderChar
+        , renderPoints
         , Alignment(..)
         , renderAlignedTxt
         , renderAlignedTxt_
@@ -13,6 +16,8 @@ module Render (
         , translate
         , mkEmbeddedWorld
         , EmbeddedWorld(..)
+        , ColorString(..)
+        , colored
         -- | reexports
         , Coords(..)
         , Row(..)
@@ -25,6 +30,9 @@ module Render (
 
 import           Imajuscule.Prelude
 
+import           Control.Monad( foldM_ )
+
+import           Data.List( foldl' )
 import           Data.Text( Text, length )
 
 import qualified System.Console.Terminal.Size as Terminal( size
@@ -45,6 +53,19 @@ data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
   , _embeddedWorldUpperLeft :: !RenderState
 }
+
+
+newtype ColorString = ColorString [(Text, Color8Code)]
+
+colored :: Text -> Color8Code -> ColorString
+colored t c = ColorString [(t,c)]
+
+countChars :: ColorString -> Int
+countChars (ColorString cs) = foldl' (\c (txt, _) -> c + length txt) 0 cs
+
+instance Monoid ColorString where
+  mempty = ColorString [("", Color8Code 0)]
+  mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -88,8 +109,8 @@ renderPoints :: Char -> RenderState -> [Coords] -> IO ()
 renderPoints char state =
   mapM_ (\c -> renderChar char c state)
 
-renderColored :: Char -> [Coords] -> Color8Code -> RenderState -> IO ()
-renderColored char points colorCode state = do
+renderColoredPoints :: Char -> [Coords] -> Color8Code -> RenderState -> IO ()
+renderColoredPoints char points colorCode state = do
   fg <- setRawForeground colorCode
   renderPoints char state points
   restoreForeground fg
@@ -105,15 +126,35 @@ data Alignment = Centered
 
 renderAlignedTxt_ :: Alignment -> Text -> RenderState -> IO ()
 renderAlignedTxt_ a txt ref = do
-  let amount = case a of
-        Centered     -> 1 + quot (length txt) 2
-        RightAligned -> length txt
-      leftCorner = Render.move amount LEFT ref
+  let leftCorner = align a (length txt) ref
   renderTxt_ txt leftCorner
 
 renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
 renderAlignedTxt a txt ref =
   renderAlignedTxt_ a txt ref >> return (go Down ref)
+
+renderAligned :: Alignment -> ColorString -> RenderState -> IO RenderState
+renderAligned a cs ref = do
+  let leftCorner = align a (countChars cs) ref
+  _ <- renderColored cs leftCorner
+  return (go Down ref)
+
+renderColored :: ColorString -> RenderState -> IO RenderState
+renderColored (ColorString cs) ref = do
+  foldM_ (\count (txt, color) -> do
+    let l = length txt
+    fg <- setRawForeground color
+    renderTxt_ txt $ Render.move count RIGHT ref
+    restoreForeground fg
+    return $ count + l) 0 cs
+  return (go Down ref)
+
+align :: Alignment -> Int -> RenderState -> RenderState
+align a count ref =
+  let amount = case a of
+        Centered     -> 1 + quot count 2
+        RightAligned -> count
+  in Render.move amount LEFT ref
 
 mkEmbeddedWorld :: WorldSize -> IO EmbeddedWorld
 mkEmbeddedWorld s =

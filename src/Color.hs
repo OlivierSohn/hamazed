@@ -7,6 +7,7 @@ module Color (
     worldFrameColor
   , colorFromFrame
   , numberColor
+  , ammoColor
   , wallColors
   , airColors
   , shipColors
@@ -41,6 +42,9 @@ airColors = (white, black)
 
 neutralMessageColor :: Color8Code
 neutralMessageColor = gray 10
+
+ammoColor :: Color8Code
+ammoColor = gray 10
 
 messageColor :: GameStops -> Color8Code
 messageColor Won      = rgb 4 3 1

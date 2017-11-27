@@ -11,6 +11,7 @@ module Imajuscule.Prelude (
                           , Num
                           , Enum
                           , Ord
+                          , Monoid(..)
                           , Bool(..)
                           , Char
                           , Float

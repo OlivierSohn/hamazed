@@ -16,15 +16,15 @@ import           Data.Text( pack )
 import           Animation.Types
 import           Animation
 import           Animation.RenderUpdate
-import           Console( beginFrame
-                        , endFrame )
+import           Console
+import           Color
 import           Deadline( Deadline(..) )
 import           Geo( Col(..)
                     , Coords(..), zeroCoords
                     , speed2vec
                     , coordsForDirection
                     , Direction(..)
-                    , sumVec2d, sumCoords
+                    , sumCoords
                     , scalarProd
                     , PosSpeed(..)
                     , Row(..)
@@ -58,6 +58,7 @@ import           Render( RenderState, EmbeddedWorld(..), Window(..)
                        , translate
                        , Alignment(..)
                        , renderAlignedTxt
+                       , renderAligned, colored
                        , RenderState(..)
                        , go )
 import           Space
@@ -259,7 +260,9 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
       centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
       leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
   _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
-  _ <- go Down <$> renderAlignedTxt RightAligned ("[" <> pack (replicate ammo '.') <> "]") leftMiddle
+  _ <- go Down <$> renderAligned RightAligned (colored "[" white
+                                            <> colored (pack $ replicate ammo '.') ammoColor
+                                            <> colored "]" white) leftMiddle
        >>= renderAlignedTxt RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   renderSpace space upperLeft >>=

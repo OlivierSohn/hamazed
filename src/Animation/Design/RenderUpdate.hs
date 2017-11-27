@@ -13,7 +13,7 @@ import           Data.Either( partitionEithers )
 
 import           Animation.Types
 import           Geo( Coords )
-import           Render( RenderState, renderColored )
+import           Render( RenderState, renderColoredPoints )
 import           WorldSize
 
 
@@ -42,7 +42,7 @@ renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ _ onWall) step a@(Anim
         ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
         Traverse  -> filter (( == InsideWorld ) . getLocation) points -- some live points may collide
         Stop      -> error "animation should have stopped"
-  renderColored char renderedPoints (colorFunc frame) r
+  renderColoredPoints char renderedPoints (colorFunc frame) r
 
   return nextAnimation
 

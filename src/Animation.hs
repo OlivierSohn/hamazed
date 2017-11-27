@@ -26,7 +26,7 @@ import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
 import           Geo
-import           Render( RenderState, renderColored )
+import           Render( RenderState, renderColoredPoints )
 import           WorldSize( Location )
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
@@ -48,7 +48,7 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))
                           Nothing
                         else
                           Just a
-  renderColored char points (colorFromFrame f) state
+  renderColoredPoints char points (colorFromFrame f) state
   return nextAnimation
 
 quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)

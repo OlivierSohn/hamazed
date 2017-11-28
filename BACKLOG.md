@@ -109,11 +109,10 @@ An easier mode would be to have the ship be totally immune to collisions.
 
 ## Windows support
 
-- The keyboard input is not flushed until we press enter: it is a known bug
+- IO is not interruptible on Windows, it is a known bug
     https://ghc.haskell.org/trac/ghc/ticket/2189
   - potential workaround :
-  before calling `getChar`, call `hIsReady stdin` : if it returns true,
-    send a newline as input then call `getChar` (use https://stackoverflow.com/questions/19578565/simulating-keystrokes-with-haskell-on-windows)
+  before calling `getChar`, call `hIsReady stdin`
 
 ## Future games
 - make a brick-breaking game

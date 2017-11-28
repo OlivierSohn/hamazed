@@ -20,7 +20,7 @@ import           Render( RenderState )
 import           WorldSize( Location )
 
 
-mkAnimator :: (t -> Coords -> Frame -> [Coords])
+mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> (t
                -> Tree
                -> StepType

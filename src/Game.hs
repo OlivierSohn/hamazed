@@ -110,7 +110,7 @@ nextGameState
                   let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
                       (Number _ n) = head collisions
                   in  map ((`BoundedAnimation` WorldFrame) .
-                            (\(char,f) -> mkAnimation f k SkipZero (Speed 1) char)) $
+                            (\(char,f) -> mkAnimation f k SkipZero (Speed 1) (Just char))) $
                           map ((,) '|')            (explosion (speed2vec collidingNumbersSpeed) shipCoords) ++
                           map ((,) $ intToDigit n) (explosion (speed2vec shipSpeed) shipCoords)
                 else
@@ -126,7 +126,7 @@ nextGameState
                   Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
                                      explosions = explosionGravity speed $ translateInDir outDir ae
                                  in map (((`BoundedAnimation` TerminalWindow) .
-                                          (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) char)) .
+                                          (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
                                             ((,) $ niceChar $ getSeconds t))
                                               explosions
                   Nothing -> []
@@ -154,7 +154,8 @@ destroyNumbersAnimations nums event keyTime =
   in case nums of
     Number (PosSpeed pos _) n:_ ->
       let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
-      in  map (\(f,speed) -> BoundedAnimation (mkAnimation f keyTime SkipZero speed $ intToDigit n) WorldFrame) animations
+          create (f,speed) = mkAnimation f keyTime SkipZero speed $ Just $ intToDigit n
+      in  map (\a -> BoundedAnimation (create a) WorldFrame) animations
     _ -> []
 
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState

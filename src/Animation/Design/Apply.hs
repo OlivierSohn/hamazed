@@ -17,19 +17,19 @@ import           Geo( Coords , bresenham , mkSegment )
 import           WorldSize( Location(..) )
 
 
-applyAnimation :: (Coords -> Frame -> [Coords])
+applyAnimation :: (Coords -> Frame -> ([Coords], Maybe Char))
                -> Iteration
                -> (Coords -> Location)
                -> Tree
                -> Tree
-applyAnimation animation iteration@(Iteration (_,globalFrame)) getLocation (Tree root startFrame branches onWall) =
+applyAnimation animation iteration@(Iteration (_,globalFrame)) getLocation (Tree root startFrame branches onWall _) =
   let frame = globalFrame - startFrame
-      points = animation root frame
+      (points, char) = animation root frame
       previousState = fromMaybe (replicate (length points) $ Right $ assert (getLocation root == InsideWorld) root) branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
       newBranches = combine points previousState iteration getLocation onWall
-  in Tree root startFrame (Just newBranches) onWall
+  in Tree root startFrame (Just newBranches) onWall char
 
 combine :: [Coords]
         -> [Either Tree Coords]
@@ -59,8 +59,8 @@ combinePoints getLocation iteration onWall point =
                        (\(_, preCollisionCoords) ->
                             -- TODO use currentFrame instead of previous and verify combining animations look good:
                             -- using the previous was an historical choice when there was no notion of trajectory
-                            -- but now, since here we move to the precoliision, it makes sense to not skip a frame
+                            -- but now, since here we move to the precollision, it makes sense to not skip a frame
                             -- anymore
                             let (Iteration(_,frame)) = previousIteration iteration
-                            in Left $ Tree preCollisionCoords frame Nothing nextOnWall)
+                            in Left $ Tree preCollisionCoords frame Nothing nextOnWall Nothing)
                                  collision)

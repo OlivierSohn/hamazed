@@ -64,6 +64,7 @@ data Tree = Tree {
     -- 'Left Tree' elements are dead for this animation and maybe gave birth to another animation.
   , _treeOnWall :: !OnWall
     -- ^ What the animation points do when they meet a wall
+  , _treeRenderedWith :: !(Maybe Char)
 }
 
 data OnWall = Traverse -- Collisions are ignored.
@@ -86,7 +87,7 @@ data Animation = Animation {
     -- ^ The time at which this animation becomes obsolete
   , _animationIteration :: !Iteration
     -- ^ The iteration
-  , _animationChar :: !Char
+  , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points
   , _animationRender :: !(StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
@@ -109,22 +110,22 @@ newtype Frame = Frame Int deriving(Generic, Eq, Show, Num)
 --------------------------------------------------------------------------------
 
 mkAnimationTree :: Coords -> OnWall -> Tree
-mkAnimationTree c = Tree c 0 Nothing
+mkAnimationTree c ow = Tree c 0 Nothing ow Nothing
 
 
 mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> KeyTime
             -> AnimationZero
             -> Speed
-            -> Char
+            -> Maybe Char
             -> Animation
-mkAnimation render t frameInit speed char =
+mkAnimation render t frameInit speed mayChar =
   let firstIteration =
         (case frameInit of
           WithZero -> id
           SkipZero -> nextIteration)
           $ zeroIteration speed
-  in Animation t firstIteration char render
+  in Animation t firstIteration mayChar render
 
 
 zeroIteration :: Speed -> Iteration

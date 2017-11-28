@@ -4,7 +4,6 @@ module Laser
     ( LaserType(..)
     , LaserRay(..)
     , LaserPolicy(..)
-    , laserChar
     , Ray(..)
     , afterEnd
     , Theoretical
@@ -66,19 +65,10 @@ stopRayAtFirstCollision coords (Ray s) =
            minElt = minimumBy (\(_, i) (_, j) -> compare (abs i) (abs j)) l
   in limitAtFirstCollision collisions s
 
-
-laserChar :: Direction -> Char
-laserChar dir = case dir of
-  Up    -> '|'
-  Down  -> '|'
-  LEFT  -> '='
-  RIGHT -> '='
-
 mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
-mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
-  let fakeChar = '?'      -- overriden by the implementation
-      fakeSpeed = Speed 1 {- for laser animation speed doesn't matter -}
-  in mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime WithZero fakeSpeed fakeChar
+mkLaserAnimation keyTime (LaserRay _ (Ray laserSeg)) =
+  let collisionFree = fst $ extremities laserSeg -- this needs to be collision-free
+  in mkAnimation (simpleLaser laserSeg (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
 
 afterEnd :: LaserRay Actual -> Coords
 afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg

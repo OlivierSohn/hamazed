@@ -26,31 +26,34 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
                 ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ branches onWall) step' a@(Animation t i@(Iteration(_, frame)) char _) getLocation r = do
+renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ branches onWall _) step' a@(Animation t i@(Iteration(_, frame)) mayChar _) getLocation r = do
   let step = maybe Initialize (const step') branches
       newState = case step of
         Same -> state
         _    -> pureAnim i getLocation state
-      points = getAliveCoordinates newState
+      points = getAliveCoordinates mayChar newState
       nextAnimation = if null points
                         then
                           Nothing
                         else
                           Just $ case step of
                                 Same -> a
-                                _    -> Animation t i char $ ioAnim newState
+                                _    -> Animation t i mayChar $ ioAnim newState
       renderedPoints = case onWall of
         ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
-        Traverse  -> filter (( == InsideWorld ) . getLocation) points -- some live points may collide
+        Traverse  -> filter (( == InsideWorld ) . getLocation . fst) points -- some live points may collide
         Stop      -> error "animation should have stopped"
-  renderColoredPoints char renderedPoints (colorFunc frame) r
+  renderColoredPoints renderedPoints (colorFunc frame) r
 
   return nextAnimation
 
 
-getAliveCoordinates :: Tree -> [Coords]
-getAliveCoordinates (Tree _ _ Nothing _) = []
-getAliveCoordinates (Tree _ _ (Just []) _) = []
-getAliveCoordinates (Tree _ _ (Just branches) _) =
+getAliveCoordinates :: Maybe Char -> Tree -> [(Coords, Char)]
+getAliveCoordinates _ (Tree _ _ Nothing _ _) = []
+getAliveCoordinates _ (Tree _ _ (Just []) _ _) = []
+getAliveCoordinates mayCharAnim (Tree _ _ (Just branches) _ mayCharTree) =
   let (children, aliveCoordinates) = partitionEithers branches
-  in concatMap getAliveCoordinates children ++ aliveCoordinates
+      mayChar = mayCharTree <|> mayCharAnim
+  in case mayChar of
+       Nothing -> error "either the pure anim function ar the animation should specify a Just"
+       Just char -> concatMap (getAliveCoordinates mayCharAnim) children ++ map (\c -> (c, char)) aliveCoordinates

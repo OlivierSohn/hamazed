@@ -18,7 +18,7 @@ import           WorldSize( Location )
 
 -- | this function doesn't handle the Initialize step,
 --   because the Tree is needed to decide if it's initialize.
--- TODO refactor and compute the step inside render where we have all the info needed.
+-- TODO refactor and compute the step inside render where we have all the info needed. (needs https://ghc.haskell.org/trac/ghc/ticket/14521 to be fixed first)
 computeStep :: Maybe KeyTime -> Animation -> StepType
 computeStep mayKey (Animation k' _ _ _) =
   maybe

@@ -105,14 +105,14 @@ renderChar :: Char -> Coords -> RenderState -> IO ()
 renderChar char pos (RenderState upperLeftCoords) =
   renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
 
-renderPoints :: Char -> RenderState -> [Coords] -> IO ()
-renderPoints char state =
-  mapM_ (\c -> renderChar char c state)
+renderPoints :: RenderState -> [(Coords, Char)] -> IO ()
+renderPoints state =
+  mapM_ (\(c,char) -> renderChar char c state)
 
-renderColoredPoints :: Char -> [Coords] -> Color8Code -> RenderState -> IO ()
-renderColoredPoints char points colorCode state = do
+renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
+renderColoredPoints points colorCode state = do
   fg <- setRawForeground colorCode
-  renderPoints char state points
+  renderPoints state points
   restoreForeground fg
 
 renderColoredChars :: Int -> Char -> (Color8Code, Color8Code) -> RenderState -> IO ()

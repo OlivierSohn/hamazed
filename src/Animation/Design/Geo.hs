@@ -5,39 +5,45 @@ module Animation.Design.Geo
     , simpleExplosionPure
     , quantitativeExplosionPure
     , animateNumberPure
+    , simpleLaserPure
     ) where
 
 import           Imajuscule.Prelude
 
+import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Animation.Types
-import           Geo( Coords
-                    , bresenham
-                    , bresenhamLength
-                    , mkSegment
-                    , polyExtremities
-                    , translatedFullCircle
-                    , translatedFullCircleFromQuarterArc
-                    , parabola
-                    , Vec2(..)
-                    , pos2vec
-                    , vec2coords )
+import           Geo
 import           Resample( resample )
 
 
-gravityExplosionPure :: Vec2 -> Coords -> Frame -> [Coords]
+-- | doesn't use the Coords parameter
+simpleLaserPure :: Segment -> Coords -> Frame -> ([Coords], Maybe Char)
+simpleLaserPure seg _ (Frame i) =
+  let (originalChar, replacementChar) = case seg of
+        Horizontal{} -> ('=','-')
+        _            -> ('|','.')
+      char = if i>= 2 then replacementChar else originalChar
+      points = if i >= 4
+                 then
+                   []
+                 else
+                   showSegment seg
+  in (points, Just char)
+
+gravityExplosionPure :: Vec2 -> Coords -> Frame -> ([Coords], Maybe Char)
 gravityExplosionPure initialSpeed origin (Frame iteration) =
   let o = pos2vec origin
-  in  [vec2coords $ parabola o initialSpeed iteration]
+  in  ([vec2coords $ parabola o initialSpeed iteration], Nothing)
 
-simpleExplosionPure :: Int -> Coords -> Frame -> [Coords]
+simpleExplosionPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
 simpleExplosionPure resolution center (Frame iteration) =
   let radius = fromIntegral iteration :: Float
       c = pos2vec center
-  in map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution
+  in (map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution, Nothing)
 
-quantitativeExplosionPure :: Int -> Coords -> Frame -> [Coords]
+quantitativeExplosionPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
 quantitativeExplosionPure number center (Frame iteration) =
   let numRand = 10 :: Int
       rnd = 2 :: Int -- TODO store the random number in the state of the animation
@@ -45,18 +51,19 @@ quantitativeExplosionPure number center (Frame iteration) =
       radius = fromIntegral iteration :: Float
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
       c = pos2vec center
-  in map vec2coords $ translatedFullCircle c radius firstAngle number
+  in (map vec2coords $ translatedFullCircle c radius firstAngle number, Nothing)
 
-animateNumberPure :: Int -> Coords -> Frame -> [Coords]
+animateNumberPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
 animateNumberPure n center (Frame i) =
   let r = animateRadius (quot i 2) n
-  in if r < 0
+      points = if r < 0
        then
          []
        else
          case n of
-            1 -> simpleExplosionPure 8 center $ Frame r
+            1 -> fst $ simpleExplosionPure 8 center $ Frame r
             _ -> polygon n r center
+  in (points, Just $ intToDigit n)
 
 polygon :: Int -> Int -> Coords -> [Coords]
 polygon nSides radius center =

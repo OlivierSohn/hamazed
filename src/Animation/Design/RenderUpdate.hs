@@ -13,8 +13,8 @@ import           Data.Either( partitionEithers )
 
 import           Animation.Types
 import           Geo( Coords )
-import           Render( RenderState, renderColored )
-import           WorldSize( Location )
+import           Render( RenderState, renderColoredPoints )
+import           WorldSize
 
 
 -- | Updates the state (Tree), computes the points to render from state and
@@ -26,54 +26,34 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
                 ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim ioAnim colorFunc state step a@(Animation t i@(Iteration(_, frame)) _) getLocation r = do
-  let newState = case step of
-        Update -> pureAnim i getLocation state
+renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ branches onWall _) step' a@(Animation t i@(Iteration(_, frame)) mayChar _) getLocation r = do
+  let step = maybe Initialize (const step') branches
+      newState = case step of
         Same -> state
-      points = getAliveCoordinates newState
+        _    -> pureAnim i getLocation state
+      points = getAliveCoordinates mayChar newState
       nextAnimation = if null points
                         then
                           Nothing
                         else
                           Just $ case step of
-                                Update -> Animation t i $ ioAnim newState
                                 Same -> a
-  renderColored '|' points (colorFunc frame) r
-  -- TODO alternate the animations:
-  -- use the number that was shot (handle when multiple are shot?)
-  -- $   is funny
-  -- ?   is surprising
-  -- d   is beautiful
-  -- R   is visible
-  -- O   is bubbly
-  -- o   too
-  -- ^   is birds
-  -- à   is interesting
-  -- {   is birds too
-  -- [   is craws
-  -- |   is subtle
-  -- !   is subtle
-  -- :   is nice
-  -- ¨   is very light
-  -- `   is very light
-  -- &   is nice
-  -- #   is heavy
-  -- @   is round
-  -- =   is nice too
-  -- -   is light
-  -- \   is sharp
-  -- /   is sharp
-  -- *   is rich
+                                _    -> Animation t i mayChar $ ioAnim newState
+      renderedPoints = case onWall of
+        ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
+        Traverse  -> filter (( == InsideWorld ) . getLocation . fst) points -- some live points may collide
+        Stop      -> error "animation should have stopped"
+  renderColoredPoints renderedPoints (colorFunc frame) r
 
-  -- + is too agressive
-  -- % is not readable
   return nextAnimation
 
 
-
-getAliveCoordinates :: Tree -> [Coords]
-getAliveCoordinates (Tree _ _ Nothing) = []
-getAliveCoordinates (Tree _ _ (Just [])) = []
-getAliveCoordinates (Tree _ _ (Just branches)) =
+getAliveCoordinates :: Maybe Char -> Tree -> [(Coords, Char)]
+getAliveCoordinates _ (Tree _ _ Nothing _ _) = []
+getAliveCoordinates _ (Tree _ _ (Just []) _ _) = []
+getAliveCoordinates mayCharAnim (Tree _ _ (Just branches) _ mayCharTree) =
   let (children, aliveCoordinates) = partitionEithers branches
-  in concatMap getAliveCoordinates children ++ aliveCoordinates
+      mayChar = mayCharTree <|> mayCharAnim
+  in case mayChar of
+       Nothing -> error "either the pure anim function ar the animation should specify a Just"
+       Just char -> concatMap (getAliveCoordinates mayCharAnim) children ++ map (\c -> (c, char)) aliveCoordinates

@@ -18,11 +18,7 @@ module Level
 
 import           Imajuscule.Prelude
 
-import           Control.Monad.Loops( unfoldM_ )
-
 import           Data.Text( pack )
-
-import           System.IO( getChar )
 import           System.Timeout( timeout )
 
 import           Color
@@ -36,7 +32,9 @@ import           Event( Event(..)
                       , TimedEvent(..) )
 import           Geo( Direction(..) )
 import           Level.Types
-import           NonBlockingIO( tryGetChar )
+import           IO.NonBlocking
+import           IO.Blocking( getCharThenFlush )
+import           IO.Types
 import           Render( RenderState(..)
                        , move
                        , go )
@@ -56,7 +54,7 @@ lastLevel = 12
 firstLevel :: Int
 firstLevel = 1
 
-eventFromChar :: Level -> Char -> Event
+eventFromChar :: Level -> Either Key Char -> Event
 eventFromChar (Level n finished) char = case finished of
   Nothing -> Event.eventFromChar char
   Just (LevelFinished stop _ ContinueMessage) ->
@@ -119,27 +117,18 @@ eventWithinDurationMicros level durationMicros k step =
     Just char -> Level.eventFromChar level char
     ) <$> getCharWithinDurationMicros durationMicros step
 
-getCharWithinDurationMicros :: Int -> Step -> IO (Maybe Char)
+getCharWithinDurationMicros :: Int -> Step -> IO (Maybe (Either Key Char))
 getCharWithinDurationMicros durationMicros step =
   if durationMicros < 0
     -- overdue
     then
       if priority step < userEventPriority
         then
-          tryGetChar >>= \r -> flushStdin >> return r
+          tryGetCharThenFlush
         else
           return Nothing
     else
       timeout durationMicros getCharThenFlush
-
--- used to avoid repeated keys being used later
-flushStdin :: IO ()
-flushStdin = unfoldM_ tryGetChar
-
-getCharThenFlush :: IO Char
-getCharThenFlush =
-  getChar >>=
-    (\c -> flushStdin >> return c)
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do

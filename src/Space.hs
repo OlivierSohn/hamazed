@@ -11,6 +11,7 @@ module Space
     , Material(..)
     , getMaterial
     , location
+    , strictLocation
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
     , mkEmptySpace
@@ -231,18 +232,30 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
                             count)))
                   (Col 0) $ group $ map (accessMaterial . Col) [0..cs-1]
 
+getInnerMaterial :: Coords -> Space -> Material
+getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _) =
+  mapInt $ mat `at` (r+borderSize, c+borderSize)
+
+
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
-getMaterial (Coords (Row r) (Col c)) (Space mat (WorldSize (Coords (Row rs) (Col cs))) _)
-  | r < 0 || c < 0 = Wall
+getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+  | r < 0 || c < 0       = Wall
   | r > rs-1 || c > cs-1 = Wall
-  | otherwise = mapInt $ mat `at` (r+borderSize, c+borderSize)
+  | otherwise = getInnerMaterial coords space
 
-location :: Coords -> Space -> Location
-location c s = case getMaterial c s of
+materialToLocation :: Material -> Location
+materialToLocation m = case m of
   Wall -> OutsideWorld
   Air  -> InsideWorld
 
+location :: Coords -> Space -> Location
+location c s = materialToLocation $ getMaterial c s
+
+strictLocation :: Coords -> Space -> Location
+strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+    | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
+    | otherwise = materialToLocation $ getInnerMaterial coords space
 
 renderSpace :: Space -> RenderState -> IO RenderState
 renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do

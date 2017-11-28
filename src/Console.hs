@@ -22,9 +22,9 @@ module Console ( ConsoleConfig(..)
                , ColorIntensity(..)
                , Color(..)
                , Color8Code(..)
-               , Color8(..)
+               , Xterm256Color(..)
                -- reexport System.Console.ANSI.Codes
-               , color8ToCode
+               , xterm256ColorToCode
                ) where
 
 import           Imajuscule.Prelude
@@ -44,8 +44,8 @@ import           System.Console.ANSI( clearScreen
                                     , ColorIntensity(..)
                                     , Color(..)
                                     , Color8Code(..)
-                                    , Color8(..) )
-import           System.Console.ANSI.Codes( color8ToCode )
+                                    , Xterm256Color(..) )
+import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.IO( hSetBuffering
                           , hSetEcho
                           , BufferMode( .. )

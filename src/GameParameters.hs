@@ -12,8 +12,6 @@ module GameParameters(
 
 import           Imajuscule.Prelude
 
-import           System.IO( getChar )
-
 import           Console( beginFrame
                         , endFrame
                         , setForeground
@@ -21,9 +19,10 @@ import           Console( beginFrame
                         , renderTxt, renderTxt_
                         , Color(..)
                         , ColorIntensity(..) )
-import           Render( move, mkRenderStateToCenterWorld, renderAlignedTxt_
+import           IO.Blocking
+import           Render( move, mkEmbeddedWorld, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
-                       , Coords(..), Row(..), Col(..), Direction(..) )
+                       , Coords(..), Row(..), Col(..), Direction(..), EmbeddedWorld(..))
 import           Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
 import           World( mkWorld, World(..), renderWorld )
 import           WorldSize( WorldSize(..), WorldShape(..), worldSizeFromLevel )
@@ -47,12 +46,16 @@ getGameParameters = update initialParameters
 update :: GameParameters -> IO GameParameters
 update params = do
   render params
-  c <- getChar
-  if c == ' '
-    then
-      return params
-    else
-      update $ updateFromChar c params
+  ec <- getCharThenFlush
+  either
+    (\_ -> return params)
+    (\c -> if c == ' '
+            then
+              return params
+            else
+              update $ updateFromChar c params)
+    ec
+
 
 updateFromChar :: Char -> GameParameters -> GameParameters
 updateFromChar c p@(GameParameters shape wallType) =
@@ -68,7 +71,7 @@ render :: GameParameters -> IO ()
 render (GameParameters shape wall) = do
   beginFrame
   let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
-  coords <- mkRenderStateToCenterWorld worldSize
+  (EmbeddedWorld _ coords) <- mkEmbeddedWorld worldSize
   world@(World _ _ _ space _) <- mkWorld worldSize wall []
   renderSpace space coords >>=
     \worldCoords -> do

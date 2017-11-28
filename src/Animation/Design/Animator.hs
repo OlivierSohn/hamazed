@@ -20,7 +20,7 @@ import           Render( RenderState )
 import           WorldSize( Location )
 
 
-mkAnimator :: (t -> Coords -> Frame -> [Coords])
+mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> (t
                -> Tree
                -> StepType
@@ -29,8 +29,8 @@ mkAnimator :: (t -> Coords -> Frame -> [Coords])
                -> RenderState
                -> IO (Maybe Animation))
            -> t
-           -> Animator a
+           -> Animator
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
-renderAndUpdate' :: Animator a -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+renderAndUpdate' :: Animator -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 renderAndUpdate' (Animator pure_ io_ colorFunc) = renderAndUpdate pure_ io_ colorFunc

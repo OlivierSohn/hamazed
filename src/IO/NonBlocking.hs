@@ -1,16 +1,17 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module NonBlockingIO
-    ( tryGetChar
+module IO.NonBlocking
+    ( tryGetCharThenFlush
     ) where
 
 import           Imajuscule.Prelude
 
-import           System.IO( getChar
-                          , hReady
+import           System.IO( hReady
                           , stdin)
 
+import           IO.Types
+import           IO.Blocking
 
 callIf :: IO a -> IO Bool -> IO (Maybe a)
 callIf call condition =
@@ -18,7 +19,7 @@ callIf call condition =
     True  -> (Just <$> call)
     False -> (return Nothing)
 
-tryGetChar :: IO (Maybe Char)
-tryGetChar = getChar `callIf` someInputIsAvailable
+tryGetCharThenFlush :: IO (Maybe (Either Key Char))
+tryGetCharThenFlush = getCharThenFlush `callIf` someInputIsAvailable
   where
     someInputIsAvailable = hReady stdin

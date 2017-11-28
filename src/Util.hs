@@ -1,7 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Util
-    ( showListOrSingleton
+    ( getDayIndexInMonth
+    , getSeconds
+    , showListOrSingleton
     , replicateElements
     , takeWhileInclusive
     , randomRsIO
@@ -11,6 +13,7 @@ module Util
 import           Imajuscule.Prelude
 
 import           Data.Text(Text, pack)
+import           Data.Time( UTCTime(..), toGregorian )
 
 import           Control.Arrow( (>>>)
                               , first )
@@ -37,13 +40,19 @@ takeWhileInclusive p (x:xs) = x : if p x
                                     else
                                       []
 
-{-# INLINE range #-}
 range :: Enum a => Ord a
       => a
       -> a
       -> [a]
 range n m = if m < n then [n,(pred n)..m] else [n..m]
 
-{-# INLINE randomRsIO #-}
 randomRsIO :: Random a => (a,a) -> IO [a]
 randomRsIO range_ = getStdRandom $ split >>> first (randomRs range_)
+
+getDayIndexInMonth :: UTCTime -> Int
+getDayIndexInMonth (UTCTime day _) =
+  let (_, _, dayOfMonth) = toGregorian day
+  in pred dayOfMonth -- index start at 0
+
+getSeconds :: UTCTime -> Int
+getSeconds (UTCTime _ t) = floor t

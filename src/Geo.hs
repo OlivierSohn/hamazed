@@ -9,6 +9,7 @@ module Geo ( Direction(..)
            , coordsForDirection
            , PosSpeed(..)
            , Segment(..)
+           , extremities
            , balancedWord
            , bresenham
            , bresenhamLength
@@ -139,6 +140,11 @@ segmentContains :: Coords -> Segment-> Maybe Int
 segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = if row' == row then rangeContains c1 c2 c else Nothing
 segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = if col' == col then rangeContains r1 r2 r else Nothing
 segmentContains _ _ = error "segmentContains cannot operate on oblique segments"
+
+extremities :: Segment -> (Coords, Coords)
+extremities (Horizontal row c1 c2) = (Coords row (Col c1), Coords row (Col c2))
+extremities (Vertical   col r1 r2) = (Coords (Row r1) col, Coords (Row r2) col)
+extremities (Oblique c1 c2)         = (c1, c2)
 
 -- returns Just (value - range start) if it is contained
 {-# INLINABLE rangeContains #-}

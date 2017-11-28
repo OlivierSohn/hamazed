@@ -5,13 +5,15 @@ module WorldSize
     , WorldSize(..)
     , worldSizeFromLevel
     , Location(..)
+    , onFronteer
+    , contains
     ) where
 
 import           Imajuscule.Prelude
 
 import           Geo( Coords(..)
                     , Row(..)
-                    , Col(..) )
+                    , Col(..), Direction(..) )
 
 data WorldShape = Square
                 | Rectangle2x1
@@ -36,3 +38,15 @@ worldSizeFromLevel level shape =
         Square       -> 1
         Rectangle2x1 -> 2
   in mkWorldSize (Height s) (Width width)
+
+onFronteer :: Coords -> WorldSize -> Maybe Direction
+onFronteer (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
+  | r == -1 = Just Up
+  | c == -1 = Just LEFT
+  | r == rs = Just Down
+  | c == cs = Just RIGHT
+  | otherwise = Nothing
+
+contains :: Coords -> WorldSize -> Bool
+contains (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
+  = r >= -1 && c >= -1 && r <= rs && c <= cs

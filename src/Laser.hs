@@ -4,8 +4,8 @@ module Laser
     ( LaserType(..)
     , LaserRay(..)
     , LaserPolicy(..)
-    , laserChar
     , Ray(..)
+    , afterEnd
     , Theoretical
     , Actual
     , stopRayAtFirstCollision
@@ -18,18 +18,10 @@ import           Imajuscule.Prelude
 import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
-import           Animation( Animation
-                          , Speed(..)
-                          , mkAnimation
+import           Animation.Types
+import           Animation( mkAnimation
                           , simpleLaser)
-import           Geo( Coords(..)
-                    , changeSegmentLength
-                    , Direction(..)
-                    , extend
-                    , mkSegment
-                    , Segment(..)
-                    , segmentContains
-                    , translateInDir )
+import           Geo
 import           Timing( KeyTime )
 import           WorldSize( Location(..) )
 
@@ -73,14 +65,10 @@ stopRayAtFirstCollision coords (Ray s) =
            minElt = minimumBy (\(_, i) (_, j) -> compare (abs i) (abs j)) l
   in limitAtFirstCollision collisions s
 
-
-laserChar :: Direction -> Char
-laserChar dir = case dir of
-  Up    -> '|'
-  Down  -> '|'
-  LEFT  -> '='
-  RIGHT -> '='
-
 mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
-mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
-  mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime (Speed 1 {- for laser animation speed doesn't matter -})
+mkLaserAnimation keyTime (LaserRay _ (Ray laserSeg)) =
+  let collisionFree = fst $ extremities laserSeg -- this needs to be collision-free
+  in mkAnimation (simpleLaser laserSeg (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
+
+afterEnd :: LaserRay Actual -> Coords
+afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg

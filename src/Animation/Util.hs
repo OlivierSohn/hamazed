@@ -17,4 +17,4 @@ earliestDeadline animations =
     then
       Nothing
     else
-      Just $ minimum $ map (\(Animation deadline _ _) -> deadline) animations
+      Just $ minimum $ map (\(Animation deadline _ _ _) -> deadline) animations

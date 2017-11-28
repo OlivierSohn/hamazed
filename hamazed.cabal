@@ -28,6 +28,7 @@ library
                      , Animation.Design.Animator
                      , Animation.Design.Apply
                      , Animation.Design.Chain
+                     , Animation.Design.Chars
                      , Animation.Design.RenderUpdate
                      , Animation.Design.Geo
                      , Animation.RenderUpdate
@@ -41,10 +42,12 @@ library
                      , Game
                      , GameParameters
                      , Geo
+                     , IO.Blocking
+                     , IO.NonBlocking
+                     , IO.Types
                      , Laser
                      , Level
                      , Level.Types
-                     , NonBlockingIO
                      , Number
                      , Render
                      , Space
@@ -56,6 +59,7 @@ library
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal
                      , array
+                     , colour
                      , containers
                      , matrix
                      , monad-loops

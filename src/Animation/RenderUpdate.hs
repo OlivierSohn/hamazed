@@ -16,11 +16,15 @@ import           Timing( KeyTime
 import           WorldSize( Location )
 
 
-
+-- | this function doesn't handle the Initialize step,
+--   because the Tree is needed to decide if it's initialize.
+-- TODO refactor and compute the step inside render where we have all the info needed.
 computeStep :: Maybe KeyTime -> Animation -> StepType
-computeStep mayKey (Animation k' (Iteration(_,frame)) _ _)
-  | frame == zeroFrame = Update -- initialize step
-  | otherwise          = maybe Same (\k -> if k == k' then Update else Same) mayKey
+computeStep mayKey (Animation k' _ _ _) =
+  maybe
+    Same
+    (\k -> if k == k' then Update else Same)
+      mayKey
 
 
 update :: StepType
@@ -28,7 +32,7 @@ update :: StepType
        -> Animation
 update = \case
             Update -> stepAnimation
-            Same   -> id
+            _      -> id
 
 stepAnimation :: Animation
               -> Animation
@@ -42,5 +46,5 @@ renderAndUpdateAnimation :: Maybe KeyTime
                          -> IO (Maybe Animation)
 renderAndUpdateAnimation k getLocation r a@(Animation _ _ _ render) = do
   let step = computeStep k a
-      a' = update step a
-  render step a' getLocation r
+  a' <- render step a getLocation r -- TODO pass keyTime instead of step, do the update inside
+  return $ fmap (update step) a'

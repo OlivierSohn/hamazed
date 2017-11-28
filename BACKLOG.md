@@ -1,6 +1,9 @@
 
 # Backlog
 
+- for terminal, allow the points to go a little further up so that gravity makes them come back
+when shooting upwards
+
 ## Geometry
 
 - take into account the fact that character width and height are not equal,
@@ -57,8 +60,6 @@ hitting a key (the key should be present also in the other room)
 
 ## Animation Design
 
-- a laser shot on the world frame triggers gravitation + explosion animations in the terminal (
-  and they don't come back in the world)
 - Today the contract of pure animation functions is that they should return
 a constant number of animation points that are correlated across frames.
 We could also make them say "After frame x, since my animation is done

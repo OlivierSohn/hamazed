@@ -13,14 +13,15 @@ import           Data.Maybe( catMaybes
                            , isNothing )
 import           Data.Text( pack, singleton )
 
-import           Animation.Types
 import           Animation
+import           Animation.Design.Chars
 import           Animation.RenderUpdate
+import           Animation.Types
 import           Console
 import           Color
 import           Deadline( Deadline(..) )
 import           Geo( Col(..)
-                    , Coords(..), zeroCoords
+                    , Coords(..), zeroCoords, translateInDir
                     , speed2vec
                     , coordsForDirection
                     , Direction(..)
@@ -36,11 +37,7 @@ import           Event( Event(..)
                       , ActionTarget(..)
                       , getKeyTime )
 import           GameParameters( GameParameters(..) )
-import           Laser( LaserRay(..)
-                      , shootLaserFromShip
-                      , LaserType(..)
-                      , LaserPolicy(..)
-                      , mkLaserAnimation )
+import           Laser
 import           Level( Level(..)
                       , LevelFinished(..)
                       , renderLevel
@@ -63,6 +60,7 @@ import           Render( RenderState, EmbeddedWorld(..), Window(..)
                        , go )
 import           Space
 import           Timing
+import           Util
 import           World
 import           WorldSize
 
@@ -78,13 +76,21 @@ data GameState = GameState {
 
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space animations) g target (Level i finished))
+  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space _ sz _) animations) g target (Level i finished))
   te@(TimedEvent event t) =
-   let (maybeLaserRayTheoretical, newAmmo) = if ammo > 0 then case event of
-           (Action Laser dir) -> (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
-           _     -> (Nothing, ammo)
-         else (Nothing, ammo)
-       ((remainingBalls', destroyedBalls), maybeLaserRay) = maybe ((balls,[]), Nothing) (survivingNumbers balls RayDestroysFirst) maybeLaserRayTheoretical
+   let (maybeLaserRayTheoretical, newAmmo) =
+         if ammo > 0 then case event of
+           (Action Laser dir) ->
+             (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
+           _ ->
+             (Nothing, ammo)
+         else
+           (Nothing, ammo)
+       ((remainingBalls', destroyedBalls), maybeLaserRay) =
+         maybe
+           ((balls,[]), Nothing)
+           (survivingNumbers balls RayDestroysFirst)
+             maybeLaserRayTheoretical
 
        remainingBalls = case event of
          Timeout GameStep _ ->
@@ -100,22 +106,36 @@ nextGameState
             Timeout GameStep k ->
               if not (null collisions) && isNothing safeTime
                 then
-                  -- both number abd ship explode, but they exchange speeds
+                  -- number and ship explode, but they exchange speeds
                   let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
                       (Number _ n) = head collisions
                   in  map ((`BoundedAnimation` WorldFrame) .
-                            (\(char,f) -> mkAnimation f k (Speed 1) char)) $
+                            (\(char,f) -> mkAnimation f k SkipZero (Speed 1) char)) $
                           map ((,) '|')            (explosion (speed2vec collidingNumbersSpeed) shipCoords) ++
                           map ((,) $ intToDigit n) (explosion (speed2vec shipSpeed) shipCoords)
                 else
                   []
---              Explosion resolution -> [mkAnimation (simpleExplosion resolution (tree $ ReboundAnd Stop)) keyTime (Speed 2) char]
---              GravityExplosion -> [mkAnimation (gravityExplosion (Vec2 1.0 (-1.0)) (tree $ ReboundAnd $ ReboundAnd Stop)) keyTime (Speed 2) char]
             _ -> []
 
-       newAnimations = destroyNumbersAnimations destroyedBalls event keyTime
+       laserAnims = maybe
+         []
+         (\ray@(LaserRay dir _) ->
+            let ae = afterEnd ray
+                fr = onFronteer ae sz
+                borderExplosions = case fr of
+                  Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
+                                     explosions = explosionGravity speed $ translateInDir outDir ae
+                                 in map (((`BoundedAnimation` TerminalWindow) .
+                                          (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) char)) .
+                                            ((,) $ niceChar $ getSeconds t))
+                                              explosions
+                  Nothing -> []
+            in borderExplosions ++ [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]) maybeLaserRay
+
+       newAnimations =
+         destroyNumbersAnimations destroyedBalls event keyTime
          ++ eventAnims
-         ++ maybe [] (\ray -> [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]) maybeLaserRay
+         ++ laserAnims
          ++ animations
 
        newWorld = nextWorld world remainingBalls newAmmo newAnimations
@@ -134,7 +154,7 @@ destroyNumbersAnimations nums event keyTime =
   in case nums of
     Number (PosSpeed pos _) n:_ ->
       let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
-      in  map (\(f,speed) -> BoundedAnimation (mkAnimation f keyTime speed $ intToDigit n) WorldFrame) animations
+      in  map (\(f,speed) -> BoundedAnimation (mkAnimation f keyTime SkipZero speed $ intToDigit n) WorldFrame) animations
     _ -> []
 
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
@@ -276,7 +296,7 @@ locationFunction :: Boundaries
                  -> Maybe (Window Int)
                  -> RenderState
                  -> (Coords -> Location)
-locationFunction f space mayTermWindow (RenderState wcc) =
+locationFunction f space@(Space _ sz _) mayTermWindow (RenderState wcc) =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =
@@ -289,12 +309,17 @@ locationFunction f space mayTermWindow (RenderState wcc) =
       productLocations l l' = case l of
         InsideWorld -> l'
         OutsideWorld -> OutsideWorld
+
   in case f of
     WorldFrame -> worldLocation
     TerminalWindow -> maybe
                         worldLocation
-                        (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
+                        (\wd coo-> if contains coo sz then OutsideWorld else terminalLocation wd coo)
                         mayTermWindow
+    Both       -> maybe
+                    worldLocation
+                    (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
+                    mayTermWindow
 
 renderAnimations :: Maybe KeyTime
                  -> Space

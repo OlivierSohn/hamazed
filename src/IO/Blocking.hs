@@ -8,7 +8,7 @@ module IO.Blocking
 
 import           Imajuscule.Prelude
 
-import           System.IO( getChar, hReady, stdin, putStrLn )
+import           System.IO( getChar, hReady, stdin )
 
 import           Data.Char( ord )
 import           Data.List( reverse )
@@ -22,7 +22,8 @@ getCharThenFlush :: IO (Either Key Char)
 getCharThenFlush = do
   chars <- getAllChars
   let res = fromString chars
-  if (ord (head chars)) == 27 then putStrLn $ tail chars else return ()
+  -- uncomment to see escape codes
+  --if (ord (head chars)) == 27 then putStrLn $ tail chars else return ()
   return res
 
 fromString :: String -> Either Key Char

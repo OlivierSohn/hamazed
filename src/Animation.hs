@@ -13,6 +13,7 @@ module Animation
     -- | preapplied animations
     , explosion
     , explosion1
+    , explosionGravity
     ) where
 
 
@@ -31,7 +32,7 @@ import           WorldSize( Location )
 
 simpleLaser :: Segment -> Char -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))) _ _) _ state = do
-  let points = if assert (i > 0) i > iterationStop
+  let points = if i >= iterationStop
                  then
                    []
                  else
@@ -42,7 +43,7 @@ simpleLaser seg laserChar _ a@(Animation _ (Iteration (Speed speed, f@(Frame i))
         _ -> error "unsupported case in simpleLaser"
       iterationUseReplacement = 2 * speed
       iterationStop = 4 * speed
-      char = if i > iterationUseReplacement then replacementChar else laserChar
+      char = if i >= iterationUseReplacement then replacementChar else laserChar
       nextAnimation = if null points
                         then
                           Nothing
@@ -56,12 +57,6 @@ quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorF
   where
     fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
     f = quantitativeExplosionThenSimpleExplosion number
-
-simpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
-  where
-    fPure = applyAnimation (simpleExplosionPure resolution)
-    f = simpleExplosion resolution
 
 gravityExplosionThenSimpleExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 gravityExplosionThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
@@ -79,17 +74,36 @@ animatedNumber :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
 
+simpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
+  where
+    fPure = applyAnimation (simpleExplosionPure resolution)
+    f = simpleExplosion resolution
+
+explosionGravity :: Vec2
+                 -> Coords
+                 -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
+explosionGravity speed pos =
+  map (`explosionGravity1` pos) $ variations speed
+
+explosionGravity1 :: Vec2
+                  -> Coords
+                  -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+explosionGravity1 speed pos =
+  gravityExplosion speed (mkAnimationTree pos (ReboundAnd Stop))
 
 explosion :: Vec2
           -> Coords
           -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
-explosion sp pos =
-  let variations = [ Vec2 0.3     (-0.4)
-                   , Vec2 (-0.55) (-0.29)
-                   , Vec2 (-0.1)  0.9
-                   , Vec2 1.2     0.2]
-      speeds = map (sumVec2d sp) variations
-  in map (`explosion1` pos) speeds
+explosion speed pos =
+  map (`explosion1` pos) $ variations speed
+
+variations :: Vec2 -> [Vec2]
+variations sp =
+  map (sumVec2d sp) [ Vec2 0.3     (-0.4)
+                    , Vec2 (-0.55) (-0.29)
+                    , Vec2 (-0.1)  0.9
+                    , Vec2 1.2     0.2]
 
 explosion1 :: Vec2
            -> Coords

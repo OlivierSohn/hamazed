@@ -7,6 +7,7 @@ module Animation.Types
       Animator(..)
     -- | Animation and constructor
     , Animation(..)
+    , AnimationZero(..)
     , mkAnimation
     -- |
     , Tree(..)
@@ -92,9 +93,12 @@ data Animation = Animation {
     --   and may return an updated Animation
 }
 
+data AnimationZero = WithZero
+                   | SkipZero
 
-data StepType = Update
-              | Same
+data StepType = Initialize -- update the tree       , iteration doesn't change
+              | Update     -- update the tree       , iteration moves forward
+              | Same       -- do not update the tree, iteration doesn't change
 
 newtype Iteration = Iteration (Speed, Frame) deriving(Generic, Eq, Show)
 newtype Speed = Speed Int deriving(Generic, Eq, Show, Num)
@@ -110,10 +114,17 @@ mkAnimationTree c = Tree c 0 Nothing
 
 mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> KeyTime
+            -> AnimationZero
             -> Speed
             -> Char
             -> Animation
-mkAnimation render t speed char = Animation t {-do not increment, it will be done while rendering-} (zeroIteration speed) char render
+mkAnimation render t frameInit speed char =
+  let firstIteration =
+        (case frameInit of
+          WithZero -> id
+          SkipZero -> nextIteration)
+          $ zeroIteration speed
+  in Animation t firstIteration char render
 
 
 zeroIteration :: Speed -> Iteration

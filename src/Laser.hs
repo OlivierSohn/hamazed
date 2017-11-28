@@ -6,6 +6,7 @@ module Laser
     , LaserPolicy(..)
     , laserChar
     , Ray(..)
+    , afterEnd
     , Theoretical
     , Actual
     , stopRayAtFirstCollision
@@ -21,14 +22,7 @@ import           Data.Maybe( isJust )
 import           Animation.Types
 import           Animation( mkAnimation
                           , simpleLaser)
-import           Geo( Coords(..)
-                    , changeSegmentLength
-                    , Direction(..)
-                    , extend
-                    , mkSegment
-                    , Segment(..)
-                    , segmentContains
-                    , translateInDir )
+import           Geo
 import           Timing( KeyTime )
 import           WorldSize( Location(..) )
 
@@ -84,4 +78,7 @@ mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
 mkLaserAnimation keyTime (LaserRay laserDir (Ray laserSeg)) =
   let fakeChar = '?'      -- overriden by the implementation
       fakeSpeed = Speed 1 {- for laser animation speed doesn't matter -}
-  in mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime fakeSpeed fakeChar
+  in mkAnimation (simpleLaser laserSeg (laserChar laserDir)) keyTime WithZero fakeSpeed fakeChar
+
+afterEnd :: LaserRay Actual -> Coords
+afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg

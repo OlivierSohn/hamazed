@@ -84,6 +84,7 @@ data BoundedAnimation = BoundedAnimation Animation Boundaries
 
 data Boundaries = WorldFrame
                 | TerminalWindow
+                | Both
 
 nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _) balls ammo =

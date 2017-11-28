@@ -26,18 +26,19 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
                 ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ _ onWall) step a@(Animation t i@(Iteration(_, frame)) char _) getLocation r = do
-  let newState = case step of
-        Update -> pureAnim i getLocation state
+renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ branches onWall) step' a@(Animation t i@(Iteration(_, frame)) char _) getLocation r = do
+  let step = maybe Initialize (const step') branches
+      newState = case step of
         Same -> state
+        _    -> pureAnim i getLocation state
       points = getAliveCoordinates newState
       nextAnimation = if null points
                         then
                           Nothing
                         else
                           Just $ case step of
-                                Update -> Animation t i char $ ioAnim newState
                                 Same -> a
+                                _    -> Animation t i char $ ioAnim newState
       renderedPoints = case onWall of
         ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
         Traverse  -> filter (( == InsideWorld ) . getLocation) points -- some live points may collide

@@ -49,8 +49,8 @@ quantitativeExplosionPure number center (Frame iteration) =
 
 animateNumberPure :: Int -> Coords -> Frame -> [Coords]
 animateNumberPure n center (Frame i) =
-  let r = animateRadius (1 + quot i 2) n
-  in if r <= 0
+  let r = animateRadius (quot i 2) n
+  in if r < 0
        then
          []
        else
@@ -73,7 +73,7 @@ animateRadius i nSides =
        then
          i
        else
-         max 0 (2 * limit - i)
+         2 * limit - i
 
 connect :: [Coords] -> [Coords]
 connect []  = []

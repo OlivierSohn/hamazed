@@ -119,25 +119,38 @@ nextGameState
                   []
             _ -> []
 
-       laserAnims = maybe
-         []
-         (\ray@(LaserRay dir _) ->
-            let ae = afterEnd ray
-                fr = onFronteer ae sz
-                borderExplosions = case fr of
-                  Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
-                                     explosions = explosionGravity speed $ translateInDir outDir ae
-                                 in map (((`BoundedAnimation` TerminalWindow) .
-                                          (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
-                                            ((,) $ niceChar $ getSeconds t))
-                                              explosions
-                  Nothing -> []
-            in borderExplosions ++ [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]) maybeLaserRay
+       laserRayAnim =
+         maybe
+           []
+           (\ray -> [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame])
+             maybeLaserRay
+
+       outerWorldAnims =
+         if not $ null destroyedBalls
+           then
+              []
+           else
+             maybe
+               []
+               (\ray@(LaserRay dir _) ->
+                  let ae = afterEnd ray
+                      fr = onFronteer ae sz
+                      borderExplosions = case fr of
+                        Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
+                                           explosions = explosionGravity speed $ translateInDir outDir ae
+                                       in map (((`BoundedAnimation` TerminalWindow) .
+                                                (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
+                                                  ((,) $ niceChar $ getSeconds t))
+                                                    explosions
+                        Nothing -> []
+                  in borderExplosions ++ [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
+               ) maybeLaserRay
 
        newAnimations =
          destroyNumbersAnimations destroyedBalls event keyTime
          ++ eventAnims
-         ++ laserAnims
+         ++ laserRayAnim
+         ++ outerWorldAnims
          ++ animations
 
        newWorld = nextWorld world remainingBalls newAmmo newAnimations

@@ -53,5 +53,5 @@ myForkIO io = do
 
 
 handleTerminationCause :: Either SomeException a -> IO Termination
-handleTerminationCause (Left e) = Prelude.putStrLn ("Game thread terminates abnormaly: " ++ show e) >> return Abnormal
+handleTerminationCause (Left e) = Prelude.putStrLn ("From game thread:\n" ++ show e) >> return Abnormal
 handleTerminationCause _        = return Normal

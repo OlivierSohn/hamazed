@@ -69,29 +69,32 @@ updateFromChar c p@(GameParameters shape wallType) =
 
 render :: GameParameters -> IO ()
 render (GameParameters shape wall) = do
-  beginFrame
   let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
-  (EmbeddedWorld _ coords) <- mkEmbeddedWorld worldSize
-  world@(World _ _ _ space _) <- mkWorld worldSize wall []
-  renderSpace space coords >>=
-    \worldCoords -> do
-      renderWorld world worldCoords
-      let middle = move (quot cs 2) RIGHT worldCoords
-          middleCenter = move (quot (rs-1) 2 ) Down middle
-          middleLow    = move (rs-1)           Down middle
-          leftMargin = 3
-          left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-      renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
-        renderAlignedTxt_ Centered "------------------"
-      prevFg <- setForeground Vivid Yellow
-      go Down <$> renderTxt "- World shape" (move 5 Up left) >>=
-          renderTxt "'1' -> width = height" >>=
-            renderTxt_ "'2' -> width = 2 x height"
-      go Down <$> renderTxt "- World walls" left >>=
-          renderTxt "'e' -> no walls" >>=
-            renderTxt "'r' -> deterministic walls" >>=
-              renderTxt_ "'t' -> random walls"
-      _ <- setForeground Vivid Green
-      renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
-      restoreForeground prevFg
-  endFrame
+  ew <- mkEmbeddedWorld worldSize
+  case ew of
+    Left err -> error err
+    Right (EmbeddedWorld _ coords) -> do
+      beginFrame
+      world@(World _ _ _ space _) <- mkWorld worldSize wall []
+      renderSpace space coords >>=
+        \worldCoords -> do
+          renderWorld world worldCoords
+          let middle = move (quot cs 2) RIGHT worldCoords
+              middleCenter = move (quot (rs-1) 2 ) Down middle
+              middleLow    = move (rs-1)           Down middle
+              leftMargin = 3
+              left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
+          renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
+            renderAlignedTxt_ Centered "------------------"
+          prevFg <- setForeground Vivid Yellow
+          go Down <$> renderTxt "- World shape" (move 5 Up left) >>=
+              renderTxt "'1' -> width = height" >>=
+                renderTxt_ "'2' -> width = 2 x height"
+          go Down <$> renderTxt "- World walls" left >>=
+              renderTxt "'e' -> no walls" >>=
+                renderTxt "'r' -> deterministic walls" >>=
+                  renderTxt_ "'t' -> random walls"
+          _ <- setForeground Vivid Green
+          renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
+          restoreForeground prevFg
+      endFrame

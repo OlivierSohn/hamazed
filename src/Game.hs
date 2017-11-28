@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Game(
         runGameWorker
@@ -11,6 +12,7 @@ import           Data.Char( intToDigit )
 import           Data.List( minimumBy, find, foldl', notElem )
 import           Data.Maybe( catMaybes
                            , isNothing )
+import           Data.String(String)
 import           Data.Text( pack, singleton )
 
 import           Animation
@@ -200,16 +202,23 @@ accelerateShip' dir (GameState a c d (World wa wb ship wc wd) f g h) =
 --------------------------------------------------------------------------------
 
 runGameWorker :: GameParameters -> IO ()
-runGameWorker params = makeInitialState params firstLevel >>= loop params
+runGameWorker params =
+  makeInitialState params firstLevel
+    >>= \case
+            Left err -> error err
+            Right ew -> loop params ew
 
-makeInitialState :: GameParameters -> Int -> IO GameState
+makeInitialState :: GameParameters -> Int -> IO (Either String GameState)
 makeInitialState (GameParameters shape wallType) level = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
       worldSize = worldSizeFromLevel level shape
-  ew <- mkEmbeddedWorld worldSize
-  world <- mkWorld worldSize wallType numbers
-  t <- getCurrentTime
-  return $ GameState (Timer t) (KeyTime t) ew world [] (sum numbers `quot` 2) $ Level level Nothing
+  eew <- mkEmbeddedWorld worldSize
+  case eew of
+    Left err -> return $ Left err
+    Right ew -> do
+      world <- mkWorld worldSize wallType numbers
+      t <- getCurrentTime
+      return $ Right $ GameState (Timer t) (KeyTime t) ew world [] (sum numbers `quot` 2) $ Level level Nothing
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
@@ -243,7 +252,11 @@ updateGameUsingTimedEvent
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
-    StartLevel nextLevel -> makeInitialState params nextLevel
+    StartLevel nextLevel ->
+      makeInitialState params nextLevel
+        >>= \case
+              Left err -> error err
+              Right s -> return s
     _        -> do
       let newState = case event of
             (Timeout GameStep gt) -> GameState a (addGameStepDuration gt) d (moveWorld t world) f g h

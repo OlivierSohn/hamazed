@@ -1,6 +1,9 @@
 
 # Backlog
 
+
+- bug when a number is touching the border and shot, the laser animation is triggered.
+
 - for terminal, allow the points to go a little further up so that gravity makes them come back
 when shooting upwards
 

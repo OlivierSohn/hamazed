@@ -4,6 +4,7 @@ module WorldSize
     ( WorldShape(..)
     , WorldSize(..)
     , worldSizeFromLevel
+    , maxWorldSize
     , Location(..)
     , onFronteer
     , contains
@@ -30,9 +31,18 @@ data Location = InsideWorld
 mkWorldSize :: Height -> Width -> WorldSize
 mkWorldSize (Height r) (Width c) = WorldSize $ Coords (Row r) (Col c)
 
+maxLevelHeight :: Int
+maxLevelHeight = 36
+
+maxLevelWidth :: Int
+maxLevelWidth = 2 * maxLevelHeight
+
+maxWorldSize :: WorldSize
+maxWorldSize = mkWorldSize (Height maxLevelHeight) (Width maxLevelWidth)
+
 worldSizeFromLevel :: Int -> WorldShape -> WorldSize
 worldSizeFromLevel level shape =
-  let s = 36 + 2 * (1-level) -- less and less space as level increases
+  let s = maxLevelHeight + 2 * (1-level) -- less and less space as level increases
       -- we need even world dimensions to ease level construction
       width = assert (even s) s * case shape of
         Square       -> 1

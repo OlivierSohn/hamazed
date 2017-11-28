@@ -54,6 +54,7 @@ module Imajuscule.Prelude (
                           , (.)
                           , (++)
                           , (=<<)
+                          , (<=<)
                           , (<$>)
                           , (==)
                           , (/=)
@@ -114,9 +115,8 @@ module Imajuscule.Prelude (
 import           Prelude
 
 import           Control.Applicative( (<|>) )
-import           Control.Monad( when, void )
+import           Control.Monad( when, void, (<=<) )
 import           Control.Exception( assert )
-
 import           Data.Monoid ((<>))
 import           Data.Word( Word8 )
 import           Data.Text( Text )

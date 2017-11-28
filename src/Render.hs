@@ -34,6 +34,7 @@ import           Control.Monad( foldM_ )
 
 import           Data.List( foldl' )
 import           Data.Text( Text, length )
+import           Data.String( String )
 
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
@@ -46,7 +47,7 @@ import           Geo( Coords(..)
                     , move
                     , sumCoords
                     , translateInDir )
-import           WorldSize( WorldSize(..) )
+import           WorldSize( WorldSize(..), maxWorldSize )
 
 
 data EmbeddedWorld = EmbeddedWorld {
@@ -85,12 +86,24 @@ move n dir (RenderState c) = RenderState $ Geo.move n dir c
 translate :: Row -> Col -> RenderState -> RenderState
 translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c
 
-worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> EmbeddedWorld
-worldUpperLeftToCenterIt' worldSize termSize =
-   EmbeddedWorld termSize $ RenderState $ maybe
-     (Coords (Row minimalWorldMargin) (Col minimalWorldMargin))
-     (`worldUpperLeftFromTermSize` worldSize)
-     termSize
+worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords
+worldUpperLeftToCenterIt' worldSize mayTermSize =
+  case mayTermSize of
+    Just termSize@(Terminal.Window h w)  ->
+      let (WorldSize (Coords (Row rs) (Col cs))) = maxWorldSize
+          heightMargin = 2 * (1 {-outer walls-} + 2 {-2 lines above and below-})
+          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
+          minSize@(Terminal.Window minh minw) = Terminal.Window (rs + heightMargin) (cs + widthMargin)
+      in if h < minh || w < minw
+            then
+              Left $  "\nMinimum terminal size : " ++ show minSize
+                  ++ ".\nCurrent terminal size : " ++ show termSize
+                  ++ ".\nThe current terminal size doesn't match the minimum size,"
+                  ++  "\nplease adjust your terminal size and restart the executable"
+                  ++ ".\n"
+            else
+              Right $ worldUpperLeftFromTermSize termSize worldSize
+    Nothing -> Right $ Coords (Row minimalWorldMargin) (Col minimalWorldMargin)
 
 worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
 worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
@@ -156,6 +169,7 @@ align a count ref =
         RightAligned -> count
   in Render.move amount LEFT ref
 
-mkEmbeddedWorld :: WorldSize -> IO EmbeddedWorld
-mkEmbeddedWorld s =
-  worldUpperLeftToCenterIt' s <$> Terminal.size
+mkEmbeddedWorld :: WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld s = do
+  mayTermSize <- Terminal.size
+  return $ (EmbeddedWorld mayTermSize . RenderState) <$> worldUpperLeftToCenterIt' s mayTermSize

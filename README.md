@@ -19,7 +19,7 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
 
 # Supported Platforms / Terminals:
 
-This is the combinations what I've tested sofar:
+This is the combinations that I've tested sofar:
 
 |OS       |Terminal      |Support|
 |---------|--------------|-------|

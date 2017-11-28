@@ -19,6 +19,7 @@ import           Imajuscule.Prelude
 
 import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
+import           Data.String(String)
 
 import           Geo( Coords(..)
                     , Direction(..)
@@ -44,6 +45,7 @@ data Event =  Action ActionTarget Direction
 data Meta = Configure
           | Quit
           | Help
+          | InvalidTerminalSize String
           deriving(Eq, Show)
 
 data Step = GameStep

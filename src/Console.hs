@@ -47,6 +47,7 @@ import           System.Console.ANSI( clearScreen
                                     , Xterm256Color(..) )
 import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.IO( hSetBuffering
+                          , hGetBuffering
                           , hSetEcho
                           , BufferMode( .. )
                           , stdin
@@ -98,9 +99,6 @@ configureConsoleFor config = do
   hSetEcho stdin $ case config of
       Gaming  -> False
       Editing -> True
-  hSetBuffering stdout $ case config of
-      Gaming  -> Backend.preferredBuffering
-      Editing -> LineBuffering
   case config of
     Gaming  -> do
       hideCursor
@@ -112,6 +110,22 @@ configureConsoleFor config = do
       maySz <- Terminal.size
       let (Terminal.Window x _) = fromMaybe (Terminal.Window 0 0) maySz
       setCursorPosition x 0
+  let requiredOutputBuffering = case config of
+        Gaming  -> Backend.preferredBuffering
+        Editing -> LineBuffering
+  hSetBuffering stdout requiredOutputBuffering
+
+  let requiredInputBuffering = NoBuffering
+  initialIb <- hGetBuffering stdin
+  hSetBuffering stdin requiredInputBuffering
+  ib <- hGetBuffering stdin
+  when (ib /= requiredInputBuffering) $
+      error $ "input buffering mode "
+            ++ show initialIb
+            ++ " could not be changed to "
+            ++ show requiredInputBuffering
+            ++ " instead it is now "
+            ++ show ib
 
 beginFrame :: IO ()
 beginFrame = Backend.beginFrame

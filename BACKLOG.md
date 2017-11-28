@@ -108,14 +108,11 @@ An easier mode would be to have the ship be totally immune to collisions.
 
 ## Rendering optimizations
 - it could be more efficient to have a global contiguous buffer for the string that will be actually written.
-- try BlockBuffering (Just 80000)
 
 ## Windows support
 
-- IO is not interruptible on Windows, it is a known bug
+- unbufferred input is not possible on Windows:
     https://ghc.haskell.org/trac/ghc/ticket/2189
-  - potential workaround :
-  before calling `getChar`, call `hIsReady stdin`
 
 ## Future games
 - make a brick-breaking game

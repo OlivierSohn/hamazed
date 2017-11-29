@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Animation.Design.RenderUpdate
     (
@@ -14,6 +15,7 @@ import           Data.Either( partitionEithers )
 import           Animation.Types
 import           Geo( Coords )
 import           Render( RenderState, renderColoredPoints )
+import           Timing
 import           WorldSize
 
 
@@ -22,30 +24,78 @@ import           WorldSize
 --   in which the render function is preapplied the updated state.
 renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the pure animation function
-                -> (Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+                -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
-                ->  Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim ioAnim colorFunc state@(Tree _ _ branches onWall _) step' a@(Animation t i@(Iteration(_, frame)) mayChar _) getLocation r = do
-  let step = maybe Initialize (const step') branches
-      newState = case step of
-        Same -> state
-        _    -> pureAnim i getLocation state
-      points = getAliveCoordinates mayChar newState
-      nextAnimation = if null points
-                        then
-                          Nothing
-                        else
-                          Just $ case step of
-                                Same -> a
-                                _    -> Animation t i mayChar $ ioAnim newState
+                ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+renderAndUpdate pureAnim statelessIOAnim colorFunc state@(Tree _ _ _ onWall _) k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r = do
+  let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
+      alivePoints = getAliveCoordinates mayChar newState
+      -- TODO this is inaccurate : it should take into account the onWall of branches recursively
+      -- we should render recursively
       renderedPoints = case onWall of
-        ReboundAnd _ -> points -- every live point is guaranteed to be collision-free
-        Traverse  -> filter (( == InsideWorld ) . getLocation . fst) points -- some live points may collide
+        ReboundAnd _ -> alivePoints -- every alive point is guaranteed to be collision-free
+        Traverse  -> filter (( == InsideWorld ) . getLocation . fst) alivePoints -- some alive points may collide
         Stop      -> error "animation should have stopped"
   renderColoredPoints renderedPoints (colorFunc frame) r
 
-  return nextAnimation
+  return $
+    if null alivePoints
+      then
+        Nothing
+      else
+        Just nextAnimation
+
+updateStateAndAnimation :: Maybe KeyTime
+                        -> (Iteration -> (Coords -> Location) -> Tree -> Tree)
+                        -> (Coords -> Location)
+                        -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+                        -> Animation
+                        -> Tree
+                        -> (Animation, Tree)
+updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i _ _) state =
+    (nextAnimation, newState)
+  where
+    step = computeStep k a state
+    newState = case step of
+      Same -> state
+      _    -> pureAnim i getLocation state
+    nextAnimation = updateAnimation step (statelessIOAnim newState) a
+
+updateAnimation :: StepType
+                -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+                -> Animation
+                -> Animation
+updateAnimation Same _ a = a
+updateAnimation step render (Animation t i c _) =
+  update step $ Animation t i c render
+
+
+computeStep :: Maybe KeyTime -> Animation -> Tree -> StepType
+computeStep mayKey (Animation k' _ _ _) (Tree _ _ branches _ _) =
+  -- if branches is Nothing, it is the first time the animation is rendered / updated
+  -- so we need to initialize the state
+  let defaultStep =
+        maybe
+          Initialize
+          (const Same)
+            branches
+  in  maybe
+        defaultStep
+        (\k -> if k == k' then Update else defaultStep)
+          mayKey
+
+
+update :: StepType
+       -> Animation
+       -> Animation
+update = \case
+            Update -> stepAnimation
+            _      -> id
+
+stepAnimation :: Animation
+              -> Animation
+stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
 
 
 getAliveCoordinates :: Maybe Char -> Tree -> [(Coords, Char)]

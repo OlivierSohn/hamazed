@@ -43,7 +43,7 @@ import           WorldSize( Location )
 data Animator = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
     -- ^ a function that updates Tree
-  , _animatorIO :: Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+  , _animatorIO :: Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
     -- ^ a function that consumes Tree to render the animation.
     -- It is a non-strict field to avoid infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
   , _animatorColorFromFrame :: !(Frame -> Color8Code)
@@ -90,7 +90,7 @@ data Animation = Animation {
     -- ^ The iteration
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points
-  , _animationRender :: !(StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+  , _animationRender :: !(Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
     --   and may return an updated Animation
 }
@@ -114,7 +114,7 @@ mkAnimationTree :: Coords -> OnWall -> Tree
 mkAnimationTree c ow = Tree c 0 Nothing ow Nothing
 
 
-mkAnimation :: (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+mkAnimation :: (Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
             -> KeyTime
             -> AnimationZero
             -> Speed

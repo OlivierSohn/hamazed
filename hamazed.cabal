@@ -27,7 +27,6 @@ library
                      , Animation.Design.Chars
                      , Animation.Design.RenderUpdate
                      , Animation.Design.Geo
-                     , Animation.RenderUpdate
                      , Animation.Types
                      , Animation.Util
                      , Color

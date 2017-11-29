@@ -17,7 +17,6 @@ import           Data.Text( pack, singleton )
 
 import           Animation
 import           Animation.Design.Chars
-import           Animation.RenderUpdate
 import           Animation.Types
 import           Console
 import           Color
@@ -76,6 +75,7 @@ data GameState = GameState {
   , _gameStateLevel :: !Level
 }
 
+-- TODO move code for animations creation out
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
   (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space _ sz _) animations) g target (Level i finished))
@@ -355,9 +355,9 @@ renderAnimations :: Maybe KeyTime
                  -> [BoundedAnimation]
                  -> IO [BoundedAnimation]
 renderAnimations k space mayTermWindow worldCorner animations = do
-  let renderAnimation (BoundedAnimation a f) = do
+  let renderAnimation (BoundedAnimation a@(Animation _ _ _ render) f) = do
         let fLocation = locationFunction f space mayTermWindow worldCorner
-        fmap (`BoundedAnimation` f) <$> renderAndUpdateAnimation k fLocation worldCorner a
+        fmap (`BoundedAnimation` f) <$> render k a fLocation worldCorner
   activeAnimations <- mapM renderAnimation animations
   let res = catMaybes activeAnimations
   return res

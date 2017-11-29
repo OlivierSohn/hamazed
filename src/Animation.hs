@@ -28,35 +28,36 @@ import           Animation.Types
 import           Color
 import           Geo
 import           Render( RenderState )
+import           Timing
 import           WorldSize( Location )
 
-simpleLaser :: Segment -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleLaser :: Segment -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg =
   renderAndUpdate' (mkAnimator simpleLaserPure simpleLaser seg)
 
-quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+quantitativeExplosionThenSimpleExplosion :: Int -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
     f = quantitativeExplosionThenSimpleExplosion number
 
-gravityExplosionThenSimpleExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+gravityExplosionThenSimpleExplosion :: Vec2 -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 gravityExplosionThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (gravityExplosionPure initialSpeed) (simpleExplosionPure 8)
     f = gravityExplosionThenSimpleExplosion initialSpeed
 
-gravityExplosion :: Vec2 -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+gravityExplosion :: Vec2 -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 gravityExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
 
-animatedNumber :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+animatedNumber :: Int -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
 
-simpleExplosion :: Int -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleExplosion :: Int -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
@@ -64,19 +65,19 @@ simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
 
 explosionGravity :: Vec2
                  -> Coords
-                 -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
+                 -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
 explosionGravity speed pos =
   map (`explosionGravity1` pos) $ variations speed
 
 explosionGravity1 :: Vec2
                   -> Coords
-                  -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+                  -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 explosionGravity1 speed pos =
   gravityExplosion speed (mkAnimationTree pos (ReboundAnd Stop))
 
 explosion :: Vec2
           -> Coords
-          -> [StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
+          -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)]
 explosion speed pos =
   map (`explosion1` pos) $ variations speed
 
@@ -89,6 +90,6 @@ variations sp =
 
 explosion1 :: Vec2
            -> Coords
-           -> (StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+           -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
 explosion1 speed pos =
   gravityExplosionThenSimpleExplosion speed (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))

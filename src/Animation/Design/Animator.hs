@@ -17,13 +17,14 @@ import           Animation.Types
 import           Color
 import           Geo( Coords )
 import           Render( RenderState )
+import           Timing
 import           WorldSize( Location )
 
 
 mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> (t
                -> Tree
-               -> StepType
+               -> Maybe KeyTime
                -> Animation
                -> (Coords -> Location)
                -> RenderState
@@ -32,5 +33,5 @@ mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> Animator
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
-renderAndUpdate' :: Animator -> Tree -> StepType -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+renderAndUpdate' :: Animator -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 renderAndUpdate' (Animator pure_ io_ colorFunc) = renderAndUpdate pure_ io_ colorFunc

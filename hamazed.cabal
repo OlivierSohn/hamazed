@@ -19,11 +19,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Lib
-                     , Resample
   other-modules:       Imajuscule.Prelude
-                     , RenderBackends.Full
-                     , RenderBackends.Delta
-                     , RenderBackends.Internal.Delta
                      , Animation
                      , Animation.Design.Animator
                      , Animation.Design.Apply
@@ -50,6 +46,10 @@ library
                      , Level.Types
                      , Number
                      , Render
+                     , RenderBackends.Full
+                     , RenderBackends.Delta
+                     , RenderBackends.Internal.Delta
+                     , Resample
                      , Space
                      , Threading
                      , Timing

@@ -1,8 +1,7 @@
 
 # Backlog
 
-
-- bug when a number is touching the border and shot, the laser animation is triggered.
+- on new level, clear the screen to avoid artifacts if the terminal size has changed.
 
 - for terminal, allow the points to go a little further up so that gravity makes them come back
 when shooting upwards
@@ -43,17 +42,8 @@ The game is driven by these events:
 |animation forward|anytime            |constant     |high|0..n                                 |3       |
 |user event       |anytime            |not periodic |low |0..1                                 |2       |
 
-- Flicker can happen if we flush at very close intervals. This behaviour has been greatly improved
-by using delta rendering, however, I don't think that it fixes it entirely. So there are a few
-things we could do to help keeping a minimal time between flush intervals while keeping a good
-game aspect:
-  - Handle deadlines that are close to one another using the same rendering frame (typically update
-the game and animate in the same frame, or shoot the laser and animate).
-  - To avoid noticeable timing difference when animation deadline is merged, we could even force animations
-to happen at fixed start (eg 5 animation steps per game step, and 1 step is common). This has also
-the advantage to reduce the need to render when there are multiple animations.
-
 ## Game Notions
+- some numbers are hidden in the walls
 - 3 lives at the beginning, gain one life if you complete a level in less than 5 seconds.
 - walls are destroyable and contain ammo
 - frame walls can be destroyed in 2 laser shots
@@ -70,17 +60,6 @@ I will return an empty list" : it could allow to stop animations that have
 "OnWall Traverse" and will continue indefinitely
 or to interpret "OnWall Traverse" as "OnWall ReboundAnd" for animations that don't guarantee they will end
 
-- have several lists of animations
-  - each list has a different collision function:
-    - world
-    - world (inner walls only) + terminal
-    - terminal only
-  - or keep one list but animation passes a parameter to function to say which check to do
-     ... how could this parameter depend on the sequence of the animation? could it be preapplied?
-  - applications :
-    - final explosion happends in the terminal.
-      - try explosionThenGravity or gravityExplosionThenSimpleExplosion
-    - for gravity-based animations we could allow to go through the edge of the world (but not through other walls)
 - generalize chained sequences on collisions
   - try passing a list of functions to the tree's 'treeOnWall' Rebound
 - make an animation between levels to make the world reduce progressively
@@ -108,11 +87,6 @@ An easier mode would be to have the ship be totally immune to collisions.
 
 ## Rendering optimizations
 - it could be more efficient to have a global contiguous buffer for the string that will be actually written.
-
-## Windows support
-
-- unbufferred input is not possible on Windows:
-    https://ghc.haskell.org/trac/ghc/ticket/2189
 
 ## Future games
 - make a brick-breaking game

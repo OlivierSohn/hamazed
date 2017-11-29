@@ -33,15 +33,8 @@ import           Collision( CollisionStatus(..)
                           , firstCollision )
 import           Color
 import           Console
-import           Geo.Bresenham
-import           Geo( Col(..)
-                    , Coords(..)
-                    , mkSegment
-                    , coordsForDirection
-                    , Direction(..)
-                    , PosSpeed(..)
-                    , Row(..)
-                    , sumCoords )
+import           Geo.Discrete.Bresenham
+import           Geo.Discrete
 import           Number( Number(..)
                        , getColliding )
 import           Render( RenderState )

@@ -38,7 +38,7 @@ import           Foreign.C.Types( CInt(..) )
 import           Color
 import           Console
 import           Geo.Types
-import           Geo( translateInDir )
+import           Geo.Discrete( translateInDir )
 import           Render
 import           Util( replicateElements
                      , randomRsIO )

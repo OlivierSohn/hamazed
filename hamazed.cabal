@@ -37,7 +37,12 @@ library
                      , Game
                      , GameParameters
                      , Geo
-                     , Geo.Bresenham
+                     , Geo.Conversion
+                     , Geo.Continuous
+                     , Geo.Continuous.Types
+                     , Geo.Discrete
+                     , Geo.Discrete.Types
+                     , Geo.Discrete.Bresenham
                      , Geo.Types
                      , IO.Blocking
                      , IO.NonBlocking

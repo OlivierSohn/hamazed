@@ -40,10 +40,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
 import           Console
-import           Geo.Types
-import           Geo( move
-                    , sumCoords
-                    , translateInDir )
+import           Geo.Discrete.Types
+import           Geo.Discrete( move, sumCoords, translateInDir )
 import           WorldSize( WorldSize(..), maxWorldSize )
 
 
@@ -78,7 +76,7 @@ go :: Direction -> RenderState -> RenderState
 go dir (RenderState r) = RenderState $ translateInDir dir r
 
 move :: Int -> Direction -> RenderState -> RenderState
-move n dir (RenderState c) = RenderState $ Geo.move n dir c
+move n dir (RenderState c) = RenderState $ Geo.Discrete.move n dir c
 
 translate :: Row -> Col -> RenderState -> RenderState
 translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c

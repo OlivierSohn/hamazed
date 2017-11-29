@@ -1,14 +1,14 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Geo.Bresenham
+module Geo.Discrete.Bresenham
     ( bresenhamLength
     , bresenham
     ) where
 
 import           Imajuscule.Prelude
 
-import           Geo.Types
+import           Geo.Discrete.Types
 import           Util( takeWhileInclusive
                      , range )
 

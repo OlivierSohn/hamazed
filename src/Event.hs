@@ -21,10 +21,10 @@ import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
 import           Data.String(String)
 
-import           Geo.Types( Coords(..), Direction(..))
-import           Geo( coordsForDirection
-                    , sumCoords
-                    , zeroCoords)
+import           Geo.Discrete.Types( Coords(..), Direction(..))
+import           Geo.Discrete( coordsForDirection
+                             , sumCoords
+                             , zeroCoords)
 import           IO.Types
 import           Timing( KeyTime
                        , UTCTime )

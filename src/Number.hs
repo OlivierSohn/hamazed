@@ -18,8 +18,7 @@ import           Data.Maybe( isNothing )
 import           Data.Text(singleton, pack)
 
 import           Color
-import           Geo.Types
-import           Geo( segmentContains )
+import           Geo.Discrete
 import           Laser( Ray(..)
                       , LaserRay(..)
                       , LaserPolicy(..)

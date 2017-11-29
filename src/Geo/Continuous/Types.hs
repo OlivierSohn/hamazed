@@ -1,12 +1,13 @@
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Geo.Types
-    ( Direction(..)
+module Geo.Continuous.Types
+    ( Vec2(..)
     ) where
 
 import           Imajuscule.Prelude
 
 import           GHC.Generics( Generic )
 
-data Direction = Up | Down | LEFT | RIGHT deriving (Generic, Eq, Show)
+data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)

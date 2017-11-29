@@ -12,7 +12,7 @@ module WorldSize
 
 import           Imajuscule.Prelude
 
-import           Geo.Types
+import           Geo.Discrete.Types
 
 data WorldShape = Square
                 | Rectangle2x1

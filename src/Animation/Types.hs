@@ -36,7 +36,7 @@ import           GHC.Generics( Generic )
 
 import           System.Console.ANSI(Color8Code)
 
-import           Geo.Types( Coords )
+import           Geo.Discrete.Types( Coords )
 import           Render( RenderState )
 import           Timing( KeyTime )
 import           WorldSize( Location )

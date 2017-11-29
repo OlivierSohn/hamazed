@@ -26,7 +26,7 @@ import           Animation.Design.Geo
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
-import           Geo
+import           Geo.Continuous
 import           Laser.Types
 import           Render( RenderState )
 import           Timing

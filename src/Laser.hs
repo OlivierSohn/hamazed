@@ -21,7 +21,7 @@ import           Data.Maybe( isJust )
 import           Animation.Types
 import           Animation( mkAnimation
                           , simpleLaser)
-import           Geo
+import           Geo.Discrete
 import           Laser.Types
 import           Timing( KeyTime )
 import           WorldSize( Location(..) )

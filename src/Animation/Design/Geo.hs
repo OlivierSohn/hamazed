@@ -14,8 +14,10 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Animation.Types
-import           Geo
-import           Geo.Bresenham
+import           Geo.Continuous
+import           Geo.Conversion
+import           Geo.Discrete
+import           Geo.Discrete.Bresenham
 import           Laser.Types
 import           Resample( resample )
 
@@ -73,7 +75,7 @@ animateNumberPure n center (Frame i) =
 polygon :: Int -> Int -> Coords -> [Coords]
 polygon nSides radius center =
   let startAngle = if odd nSides then pi else pi/4.0
-  in connect $ polyExtremities nSides center radius startAngle
+  in connect $ map vec2coords $ polyExtremities nSides (pos2vec center) radius startAngle
 
 animateRadius :: Int -> Int -> Int
 animateRadius i nSides =

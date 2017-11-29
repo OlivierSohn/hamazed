@@ -54,8 +54,8 @@ import           System.IO( hSetBuffering
                           , stdout )
 
 
-import           Geo.Types
-import           Geo
+import           Geo.Discrete.Types
+import           Geo.Discrete
 
 {--
 import qualified RenderBackends.Full as Backend( --}

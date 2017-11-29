@@ -65,18 +65,25 @@ updateAnimation step r (Animation t i c _) =
 
 
 computeStep :: Maybe KeyTime -> Animation -> Tree -> StepType
-computeStep mayKey (Animation k' _ _ _) (Tree _ _ branches _ _) =
-  -- if branches is Nothing, it is the first time the animation is rendered / updated
-  -- so we need to initialize the state
-  let defaultStep =
+computeStep mayKey (Animation (KeyTime k') _ _ _) (Tree _ _ branches _ _) =
+  let noUpdate =
         maybe
+          -- if branches is Nothing, it is the first time the animation is rendered / updated
+          -- so we need to initialize the state
           Initialize
           (const Same)
             branches
-  in  maybe
-        defaultStep
-        (\k -> if k == k' then Update else defaultStep)
-          mayKey
+  in  case mayKey of
+        Nothing ->
+          noUpdate
+        Just (KeyTime k) ->
+          -- group animations whose keytimes are close
+          -- to reduce the amount of renderings needed
+          if diffUTCTime k' k < animationUpdateMargin
+            then
+              Update
+            else
+              noUpdate
 
 
 update :: StepType

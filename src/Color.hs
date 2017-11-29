@@ -82,7 +82,7 @@ numberColor i = xterm256ColorToCode $ RGBColor (RGB r g b)
 colorFromFrame :: Frame -> Color8Code
 colorFromFrame (Frame f) = xterm256ColorToCode $ RGBColor (RGB r g b)
   where
-    r = 4
+    r = assert (f >= 0) 4
     g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes
     b = fromIntegral $ (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster changes
 

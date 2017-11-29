@@ -13,8 +13,9 @@ import           System.Console.ANSI( Color8Code )
 import           Data.Either( partitionEithers )
 
 import           Animation.Types
+import           Console
 import           Geo( Coords )
-import           Render( RenderState, renderColoredPoints )
+import           Render
 import           Timing
 import           WorldSize
 
@@ -28,23 +29,15 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the IO animation function
                 -> (Frame -> Color8Code)
                 ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
-renderAndUpdate pureAnim statelessIOAnim colorFunc state@(Tree _ _ _ onWall _) k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r = do
+renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
-      alivePoints = getAliveCoordinates mayChar newState
-      -- TODO this is inaccurate : it should take into account the onWall of branches recursively
-      -- we should render recursively
-      renderedPoints = case onWall of
-        ReboundAnd _ -> alivePoints -- every alive point is guaranteed to be collision-free
-        Traverse  -> filter (( == InsideWorld ) . getLocation . fst) alivePoints -- some alive points may collide
-        Stop      -> error "animation should have stopped"
-  renderColoredPoints renderedPoints (colorFunc frame) r
-
+  isAlive <- render frame mayChar newState getLocation colorFunc r
   return $
-    if null alivePoints
+    if isAlive
       then
-        Nothing
-      else
         Just nextAnimation
+      else
+        Nothing
 
 updateStateAndAnimation :: Maybe KeyTime
                         -> (Iteration -> (Coords -> Location) -> Tree -> Tree)
@@ -67,8 +60,8 @@ updateAnimation :: StepType
                 -> Animation
                 -> Animation
 updateAnimation Same _ a = a
-updateAnimation step render (Animation t i c _) =
-  update step $ Animation t i c render
+updateAnimation step r (Animation t i c _) =
+  update step $ Animation t i c r
 
 
 computeStep :: Maybe KeyTime -> Animation -> Tree -> StepType
@@ -97,13 +90,32 @@ stepAnimation :: Animation
               -> Animation
 stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
 
-
-getAliveCoordinates :: Maybe Char -> Tree -> [(Coords, Char)]
-getAliveCoordinates _ (Tree _ _ Nothing _ _) = []
-getAliveCoordinates _ (Tree _ _ (Just []) _ _) = []
-getAliveCoordinates mayCharAnim (Tree _ _ (Just branches) _ mayCharTree) =
-  let (children, aliveCoordinates) = partitionEithers branches
-      mayChar = mayCharTree <|> mayCharAnim
-  in case mayChar of
-       Nothing -> error "either the pure anim function ar the animation should specify a Just"
-       Just char -> concatMap (getAliveCoordinates mayCharAnim) children ++ map (\c -> (c, char)) aliveCoordinates
+render :: Frame
+       -> Maybe Char
+       -- ^ default char to use when there is no char specified in the state
+       -> Tree
+       -> (Coords -> Location)
+       -> (Frame -> Color8Code)
+       -> RenderState
+       -> IO Bool
+       -- ^ True if at least one animation point is "alive"
+render _ _ (Tree _ _ Nothing _ _) _ _ _ = return False
+render _ _ (Tree _ _ (Just []) _ _) _ _ _ = return False
+render parentFrame mayCharAnim (Tree _ childFrame (Just branches) onWall mayCharTree) getLocation colorFunc r = do
+  let mayChar = mayCharTree <|> mayCharAnim
+  case mayChar of
+    Nothing -> error "either the pure anim function ar the animation should specify a Just"
+    Just char -> do
+      let (children, aliveCoordinates) = partitionEithers branches
+          isAlive = (not . null) aliveCoordinates
+          renderedCoordinates = case onWall of
+            ReboundAnd _ -> aliveCoordinates -- every alive point is guaranteed to be collision-free
+            Traverse  -> filter (( == InsideWorld ) . getLocation) aliveCoordinates -- some alive points may collide
+            Stop      -> error "animation should have stopped"
+          relFrame = parentFrame - childFrame
+          color = colorFunc relFrame
+      fg <- setRawForeground color
+      mapM_ (\c -> renderChar char c r) renderedCoordinates
+      restoreForeground fg
+      childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r) children
+      return $ isAlive || or childrenAlive

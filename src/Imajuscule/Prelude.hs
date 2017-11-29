@@ -51,6 +51,7 @@ module Imajuscule.Prelude (
                           , snd
                           , compare
                           , not
+                          , or
                           , (.)
                           , (++)
                           , (=<<)

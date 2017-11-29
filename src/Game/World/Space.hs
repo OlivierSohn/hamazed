@@ -259,7 +259,15 @@ strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
 renderSpace :: Space -> RenderState -> IO RenderState
-renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upperLeft = do
+renderSpace (Space _ sz renderedWorld) upperLeft =
+  renderWorldFrame sz upperLeft
+    >>= \worldCoords ->
+      mapM_ (renderGroup worldCoords) renderedWorld
+        >>
+          return worldCoords
+
+renderWorldFrame :: WorldSize -> RenderState -> IO RenderState
+renderWorldFrame (WorldSize (Coords (Row rs) (Col cs))) upperLeft = do
   let horizontalWall = replicate (cs + 2)
       lowerLeft = move (rs+1) Down upperLeft
 
@@ -276,11 +284,7 @@ renderSpace (Space _ (WorldSize (Coords (Row rs) (Col cs))) renderedWorld) upper
   -- lower wall
   renderStr_ (horizontalWall 'T') lowerLeft
   restoreForeground fg
-
-  -- world
-  mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
-
 
 renderGroup :: RenderState -> RenderGroup -> IO ()
 renderGroup worldCoords (RenderGroup (r, c, colors, char, count)) =

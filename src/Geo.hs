@@ -1,14 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
-module Geo ( Direction(..)
-           , extend
+module Geo ( extend
            , rotateCcw
-           , Col(..)
-           , Coords(..)
            , coordsForDirection
-           , PosSpeed(..)
-           , Segment(..)
            , extremities
            , balancedWord
            , bresenham
@@ -18,13 +12,11 @@ module Geo ( Direction(..)
            , showSegment
            , changeSegmentLength
            , segmentContains
-           , Row(..)
            , sumCoords
            , diffCoords
            , translate
            , translateInDir
            , zeroCoords
-           , Vec2(..)
            , rotateByQuarters
            , vec2coords
            , pos2vec
@@ -38,20 +30,19 @@ module Geo ( Direction(..)
            , parabola
            -- poly extremities
            , polyExtremities
+           -- | reexports
+           , module Geo.Types
            ) where
 
 import           Imajuscule.Prelude
 
-import           GHC.Generics( Generic )
-
+import           Geo.Types
 import           Util( takeWhileInclusive
                      , range )
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
-
-data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
 
 {-# INLINE ccwDirections #-}
 ccwDirections :: Int -> Direction
@@ -68,14 +59,6 @@ ccwDirectionsIndex Up = 0
 ccwDirectionsIndex LEFT = 1
 ccwDirectionsIndex Down = 2
 ccwDirectionsIndex RIGHT = 3
-
-newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord)
-newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord)
-
-data Coords = Coords {
-    _x :: !Row
-  , _y :: !Col
-} deriving (Generic, Eq, Show, Ord)
 
 {-# INLINE zeroCoords #-}
 zeroCoords :: Coords
@@ -113,10 +96,6 @@ translateInDir :: Direction -> Coords -> Coords
 translateInDir dir = translate $ coordsForDirection dir
 
 
-data Segment = Horizontal Row Int Int
-             | Vertical   Col Int Int
-             | Oblique    Coords Coords
-
 mkSegment :: Coords -> Coords -> Segment
 mkSegment coord1@(Coords row@(Row r1) col@(Col c1)) coord2@(Coords (Row r2) (Col c2))
   | r1 == r2  = Horizontal row c1 c2
@@ -151,11 +130,6 @@ extremities (Oblique c1 c2)         = (c1, c2)
 rangeContains :: Int -> Int -> Int -> Maybe Int
 rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i - r1) else Nothing
 
-data PosSpeed = PosSpeed {
-    _pos :: !Coords
-  , _speed :: !Coords
-} deriving (Generic, Eq, Show, Ord)
-
 {-# INLINE rotateByQuarters #-}
 rotateByQuarters :: Vec2 -> [Vec2]
 rotateByQuarters v@(Vec2 x y) =
@@ -163,8 +137,6 @@ rotateByQuarters v@(Vec2 x y) =
   Vec2 x $ -y,
   Vec2 (-x) $ -y,
   Vec2 (-x) y]
-
-data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
 
 {-# INLINE sumVec2d #-}
 sumVec2d :: Vec2 -> Vec2 -> Vec2

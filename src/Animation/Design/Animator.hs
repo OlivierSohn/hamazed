@@ -15,7 +15,6 @@ import           Animation.Design.Apply
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
-import           Geo( Coords )
 import           Render( RenderState )
 import           Timing
 import           WorldSize( Location )

@@ -40,11 +40,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
 import           Console
-import           Geo( Coords(..)
-                    , Direction(..)
-                    , Row(..)
-                    , Col(..)
-                    , move
+import           Geo.Types
+import           Geo( move
                     , sumCoords
                     , translateInDir )
 import           WorldSize( WorldSize(..), maxWorldSize )

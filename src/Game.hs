@@ -21,16 +21,12 @@ import           Animation.Types
 import           Console
 import           Color
 import           Deadline( Deadline(..) )
-import           Geo( Col(..)
-                    , Coords(..), zeroCoords, translateInDir
+import           Geo.Types
+import           Geo( zeroCoords, translateInDir
                     , speed2vec
                     , coordsForDirection
-                    , Direction(..)
                     , sumCoords
-                    , scalarProd
-                    , PosSpeed(..)
-                    , Row(..)
-                    , Vec2(..) )
+                    , scalarProd )
 import           Event( Event(..)
                       , TimedEvent(..)
                       , Step(..)

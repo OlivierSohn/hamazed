@@ -21,9 +21,8 @@ import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
 import           Data.String(String)
 
-import           Geo( Coords(..)
-                    , Direction(..)
-                    , coordsForDirection
+import           Geo.Types( Coords(..), Direction(..))
+import           Geo( coordsForDirection
                     , sumCoords
                     , zeroCoords)
 import           IO.Types

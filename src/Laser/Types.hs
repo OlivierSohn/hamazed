@@ -11,7 +11,7 @@ module Laser.Types
     ) where
 
 
-import           Geo( Direction, Segment )
+import           Geo.Types
 
 data LaserRay a = LaserRay {
     _laserRayDir :: !Direction

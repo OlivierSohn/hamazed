@@ -37,6 +37,7 @@ library
                      , Game
                      , GameParameters
                      , Geo
+                     , Geo.Types
                      , IO.Blocking
                      , IO.NonBlocking
                      , IO.Types

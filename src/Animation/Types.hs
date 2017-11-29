@@ -25,6 +25,8 @@ module Animation.Types
     -- | Frame and constructors
     , Frame(..)
     , zeroFrame
+    -- | Reexports
+    , Coords
     ) where
 
 
@@ -34,7 +36,7 @@ import           GHC.Generics( Generic )
 
 import           System.Console.ANSI(Color8Code)
 
-import           Geo( Coords )
+import           Geo.Types( Coords )
 import           Render( RenderState )
 import           Timing( KeyTime )
 import           WorldSize( Location )

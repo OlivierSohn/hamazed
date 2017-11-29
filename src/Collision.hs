@@ -8,12 +8,9 @@ module Collision
 
 import           Imajuscule.Prelude
 
-import           Geo( Col(..)
-                    , Coords(..)
-                    , mkSegment
+import           Geo.Types
+import           Geo( mkSegment
                     , bresenham
-                    , PosSpeed(..)
-                    , Row(..)
                     , sumCoords, diffCoords )
 import           WorldSize( Location(..) )
 

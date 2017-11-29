@@ -6,7 +6,7 @@ module IO.Types
     ) where
 
 
-import           Geo(Direction(..))
+import           Geo.Types( Direction(..) )
 
 data Key = Arrow Direction
          | Escape

@@ -14,7 +14,6 @@ import           Data.Either( partitionEithers )
 
 import           Animation.Types
 import           Console
-import           Geo( Coords )
 import           Render
 import           Timing
 import           WorldSize

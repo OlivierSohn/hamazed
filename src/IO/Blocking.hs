@@ -14,8 +14,8 @@ import           Data.Char( ord )
 import           Data.List( reverse )
 import           Data.String( String )
 
+import           Geo.Types( Direction(..) )
 import           IO.Types
-import           Geo( Direction(..) )
 
 
 getCharThenFlush :: IO (Either Key Char)

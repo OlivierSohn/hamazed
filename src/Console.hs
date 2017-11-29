@@ -54,13 +54,8 @@ import           System.IO( hSetBuffering
                           , stdout )
 
 
-import           Geo( Col(..)
-                    , Coords(..)
-                    , Segment(..)
-                    , sumCoords
-                    , translateInDir
-                    , Direction(..)
-                    , Row(..) )
+import           Geo.Types
+import           Geo
 
 {--
 import qualified RenderBackends.Full as Backend( --}

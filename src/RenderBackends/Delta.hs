@@ -41,9 +41,7 @@ import           RenderBackends.Internal.Delta( blitBuffer
                                               , ColorIntensity(..)
                                               , Color8Code(..) )
 
-import           Geo( Coords(..)
-                    , Col(..)
-                    , Row(..))
+import           Geo.Types( Coords(..), Col(..), Row(..))
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering Nothing

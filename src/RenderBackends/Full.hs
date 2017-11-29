@@ -31,9 +31,7 @@ import           System.IO( hFlush
                           , stdout
                           , BufferMode(..) )
 
-import           Geo( Coords(..)
-                    , Col(..)
-                    , Row(..))
+import           Geo.Types( Coords(..), Col(..), Row(..))
 
 
 preferredBuffering :: BufferMode

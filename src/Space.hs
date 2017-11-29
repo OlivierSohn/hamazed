@@ -37,11 +37,8 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Color
 import           Console
-import           Geo( Coords(..)
-                    , Col(..)
-                    , Direction(..)
-                    , Row(..)
-                    , translateInDir )
+import           Geo.Types
+import           Geo( translateInDir )
 import           Render
 import           Util( replicateElements
                      , randomRsIO )

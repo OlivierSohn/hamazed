@@ -10,7 +10,6 @@ import           Imajuscule.Prelude
 
 import           Animation.Design.Apply
 import           Animation.Types
-import           Geo( Coords )
 import           WorldSize( Location )
 
 

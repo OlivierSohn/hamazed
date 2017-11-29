@@ -26,8 +26,7 @@ import           Data.Time( addUTCTime
                           , getCurrentTime
                           , NominalDiffTime
                           , UTCTime(..) )
-import           Geo( Col(..)
-                    , Coords(..) )
+import           Geo.Types
 import           WorldSize( WorldSize(..) )
 
 

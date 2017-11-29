@@ -15,15 +15,19 @@ import           Data.List( length )
 
 import           Animation.Types
 import           Geo
+import           Laser.Types
 import           Resample( resample )
 
 
 -- | doesn't use the Coords parameter
-simpleLaserPure :: Segment -> Coords -> Frame -> ([Coords], Maybe Char)
-simpleLaserPure seg _ (Frame i) =
-  let (originalChar, replacementChar) = case seg of
-        Horizontal{} -> ('=','-')
-        _            -> ('|','.')
+simpleLaserPure :: LaserRay Actual -> Coords -> Frame -> ([Coords], Maybe Char)
+simpleLaserPure (LaserRay dir (Ray seg)) _ (Frame i) =
+  let (originalChar, replacementChar) =
+        if dir == LEFT || dir == RIGHT
+          then
+            ('=','-')
+          else
+            ('|','.')
       char = if i>= 2 then replacementChar else originalChar
       points = if i >= 4
                  then

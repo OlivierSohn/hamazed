@@ -22,22 +22,10 @@ import           Animation.Types
 import           Animation( mkAnimation
                           , simpleLaser)
 import           Geo
+import           Laser.Types
 import           Timing( KeyTime )
 import           WorldSize( Location(..) )
 
-
-data LaserRay a = LaserRay {
-    _laserRayDir :: !Direction
-  , _laserRaySeg :: !(Ray a)
-}
-
-data LaserPolicy = RayDestroysFirst | RayDestroysAll
-
-data LaserType = Infinite
-
-newtype Ray a = Ray Segment
-data Theoretical -- with no obstacle
-data Actual      -- with obstacles
 
 shootLaserFromShip :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)
 shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
@@ -65,10 +53,10 @@ stopRayAtFirstCollision coords (Ray s) =
            minElt = minimumBy (\(_, i) (_, j) -> compare (abs i) (abs j)) l
   in limitAtFirstCollision collisions s
 
-mkLaserAnimation :: KeyTime -> LaserRay a -> Animation
-mkLaserAnimation keyTime (LaserRay _ (Ray laserSeg)) =
-  let collisionFree = fst $ extremities laserSeg -- this needs to be collision-free
-  in mkAnimation (simpleLaser laserSeg (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
+mkLaserAnimation :: KeyTime -> LaserRay Actual -> Animation
+mkLaserAnimation keyTime ray@(LaserRay _ (Ray seg)) =
+  let collisionFree = fst $ extremities seg -- this needs to be collision-free
+  in mkAnimation (simpleLaser ray (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
 
 afterEnd :: LaserRay Actual -> Coords
 afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg

@@ -27,11 +27,12 @@ import           Animation.Design.RenderUpdate
 import           Animation.Types
 import           Color
 import           Geo
+import           Laser.Types
 import           Render( RenderState )
 import           Timing
 import           WorldSize( Location )
 
-simpleLaser :: Segment -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+simpleLaser :: LaserRay Actual -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg =
   renderAndUpdate' (mkAnimator simpleLaserPure simpleLaser seg)
 

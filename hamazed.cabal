@@ -41,6 +41,7 @@ library
                      , IO.NonBlocking
                      , IO.Types
                      , Laser
+                     , Laser.Types
                      , Level
                      , Level.Types
                      , Number

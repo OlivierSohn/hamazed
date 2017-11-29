@@ -8,10 +8,11 @@ module Collision
 
 import           Imajuscule.Prelude
 
-import           Geo.Discrete.Types
+import           Game.World.Size( Location(..) )
+
 import           Geo.Discrete( mkSegment , sumCoords, diffCoords )
 import           Geo.Discrete.Bresenham(bresenham)
-import           WorldSize( Location(..) )
+import           Geo.Discrete.Types
 
 
 -- | this datatype is awkward, TODO refactor

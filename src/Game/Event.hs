@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Event
+module Game.Event
     ( Event(..)
     , userEventPriority
     , priority
@@ -25,7 +25,9 @@ import           Geo.Discrete.Types( Coords(..), Direction(..))
 import           Geo.Discrete( coordsForDirection
                              , sumCoords
                              , zeroCoords)
+
 import           IO.Types
+
 import           Timing( KeyTime
                        , UTCTime )
 

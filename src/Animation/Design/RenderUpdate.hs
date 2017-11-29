@@ -13,10 +13,13 @@ import           System.Console.ANSI( Color8Code )
 import           Data.Either( partitionEithers )
 
 import           Animation.Types
-import           Console
+
+import           Game.World.Size
+
 import           Render
+import           Render.Console
+
 import           Timing
-import           WorldSize
 
 
 -- | Updates the state (Tree), computes the points to render from state and

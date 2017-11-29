@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module RenderBackends.Delta(
+module Render.Backends.Delta(
                             beginFrame
                           , endFrame
                           , setForeground
@@ -28,20 +28,9 @@ import           System.IO( hFlush
                           , stdout
                           , BufferMode(..) )
 
-import           RenderBackends.Internal.Delta( blitBuffer
-                                              , bSetForeground
-                                              , bSetRawForeground
-                                              , bSetColors
-                                              , bGotoXY
-                                              , bPutCharRaw
-                                              , bPutCharsRaw
-                                              , bPutStr
-                                              , bPutText
-                                              , Color(..)
-                                              , ColorIntensity(..)
-                                              , Color8Code(..) )
+import           Geo.Discrete.Types
 
-import           Geo.Discrete.Types( Coords(..), Col(..), Row(..))
+import           Render.Backends.Internal.Delta
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering Nothing

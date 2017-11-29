@@ -14,12 +14,14 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Animation.Types
+
+import           Game.World.Laser.Types
+
 import           Geo.Continuous
 import           Geo.Conversion
 import           Geo.Discrete
 import           Geo.Discrete.Bresenham
-import           Laser.Types
-import           Resample( resample )
+import           Geo.Discrete.Resample
 
 
 -- | doesn't use the Coords parameter

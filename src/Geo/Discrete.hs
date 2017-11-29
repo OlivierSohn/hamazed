@@ -20,7 +20,6 @@ module Geo.Discrete
 
 import           Imajuscule.Prelude
 
-import           Geo.Types
 import           Geo.Discrete.Types
 
 

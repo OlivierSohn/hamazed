@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Lib
+module Run
     ( run
     ) where
 
@@ -12,12 +12,10 @@ import           System.Info(os)
 import           Control.Exception( finally )
 
 
-import           Console( configureConsoleFor
-                        , ConsoleConfig(..) )
 import           Game( runGameWorker )
-import           GameParameters( getGameParameters )
-import           Threading( runAndWaitForTermination
-                          , Termination(..) )
+import           Game.Parameters( getGameParameters )
+import           Render.Console( configureConsoleFor, ConsoleConfig(..) )
+import           Threading( runAndWaitForTermination, Termination(..) )
 
 
 --------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Space
+module Game.World.Space
     ( Space(..)
     , renderSpace
     , renderIfNotColliding
@@ -26,24 +26,28 @@ import           Data.Graph( Graph
                            , components )
 import           Data.List(length, group, concat, mapAccumL)
 import           Data.Maybe(mapMaybe)
-import           Data.Vector(Vector, slice, (!))
 import           Data.Matrix( getElem
                             , fromLists
                             , getMatrixAsVector
                             , Matrix
                             , nrows, ncols )
+import           Data.Vector(Vector, slice, (!))
 
 import           Foreign.C.Types( CInt(..) )
 
 import           Color
-import           Console
+
+import           Game.World.Size( Location(..)
+                          , WorldSize(..) )
+
 import           Geo.Types
 import           Geo.Discrete( translateInDir )
+
 import           Render
+import           Render.Console
+
 import           Util( replicateElements
                      , randomRsIO )
-import           WorldSize( Location(..)
-                          , WorldSize(..) )
 
 
 data WallType = None

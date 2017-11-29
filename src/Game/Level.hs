@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Level
+module Game.Level
     ( Level(..)
     , LevelFinished(..)
     , renderLevel
@@ -22,31 +22,32 @@ import           Data.Text( pack )
 import           System.Timeout( timeout )
 
 import           Color
-import           Console
-import           Deadline( Deadline(..) )
-import           Event( Event(..)
-                      , priority
-                      , userEventPriority
-                      , eventFromChar
-                      , Step(..)
-                      , TimedEvent(..) )
+
+import           Game.Deadline( Deadline(..) )
+import           Game.Event
+import           Game.Level.Types
+import           Game.World( BattleShip(..)
+                      , Number(..)
+                      , World(..) )
+
 import           Geo( Direction(..) )
-import           Level.Types
+
 import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
+
+import           Render.Console
 import           Render( RenderState(..)
                        , move
                        , go )
+
 import           Timing( UTCTime
                        , KeyTime(..)
                        , diffTimeSecToMicros
                        , diffUTCTime
                        , addUTCTime )
+
 import           Util( showListOrSingleton )
-import           World( BattleShip(..)
-                      , Number(..)
-                      , World(..) )
 
 lastLevel :: Int
 lastLevel = 12
@@ -56,7 +57,7 @@ firstLevel = 1
 
 eventFromChar :: Level -> Either Key Char -> Event
 eventFromChar (Level n finished) char = case finished of
-  Nothing -> Event.eventFromChar char
+  Nothing -> Game.Event.eventFromChar char
   Just (LevelFinished stop _ ContinueMessage) ->
     case stop of
       Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
@@ -108,13 +109,13 @@ getEventForMaybeDeadline level mayDeadline curTime =
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline curTime
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> Level.eventFromChar level <$> getCharThenFlush
+    Nothing -> Game.Level.eventFromChar level <$> getCharThenFlush
 
 eventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
 eventWithinDurationMicros level durationMicros k step =
   (\case
     Nothing   -> Timeout step k
-    Just char -> Level.eventFromChar level char
+    Just char -> Game.Level.eventFromChar level char
     ) <$> getCharWithinDurationMicros durationMicros step
 
 getCharWithinDurationMicros :: Int -> Step -> IO (Maybe (Either Key Char))

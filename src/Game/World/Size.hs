@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module WorldSize
+module Game.World.Size
     ( WorldShape(..)
     , WorldSize(..)
     , worldSizeFromLevel

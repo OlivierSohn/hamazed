@@ -30,10 +30,10 @@ import           Imajuscule.Prelude
 import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.Console.ANSI(Color8Code(..), Xterm256Color(..))
 
-import Data.Colour.SRGB --(Colour, RGB (..), sRGB, toSRGB)
+import           Data.Colour.SRGB --(Colour, RGB (..), sRGB, toSRGB)
 
 import           Animation.Types
-import           Level.Types
+import           Game.Level.Types
 
 wallColors :: (Color8Code, Color8Code)
 wallColors = (gray 3, gray 0)

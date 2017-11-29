@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module RenderBackends.Full(
+module Render.Backends.Full(
                             beginFrame
                           , endFrame
                           , setForeground

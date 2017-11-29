@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module GameParameters(
+module Game.Parameters(
         GameParameters(..)
       , getGameParameters
       , WorldShape(..)
@@ -12,20 +12,17 @@ module GameParameters(
 
 import           Imajuscule.Prelude
 
-import           Console( beginFrame
-                        , endFrame
-                        , setForeground
-                        , restoreForeground
-                        , renderTxt, renderTxt_
-                        , Color(..)
-                        , ColorIntensity(..) )
+
+import           Game.World.Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
+import           Game.World( mkWorld, World(..), renderWorld )
+import           Game.World.Size( WorldSize(..), WorldShape(..), worldSizeFromLevel )
+
 import           IO.Blocking
+
+import           Render.Console
 import           Render( move, mkEmbeddedWorld, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
                        , Coords(..), Row(..), Col(..), Direction(..), EmbeddedWorld(..))
-import           Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
-import           World( mkWorld, World(..), renderWorld )
-import           WorldSize( WorldSize(..), WorldShape(..), worldSizeFromLevel )
 
 
 data GameParameters = GameParameters {

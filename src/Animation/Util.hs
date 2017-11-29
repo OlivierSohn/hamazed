@@ -8,6 +8,7 @@ module Animation.Util
 import           Imajuscule.Prelude
 
 import           Animation.Types
+
 import           Timing( KeyTime )
 
 

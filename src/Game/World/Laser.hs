@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Laser
+module Game.World.Laser
     ( LaserType(..)
     , LaserRay(..)
     , LaserPolicy(..)
@@ -21,10 +21,13 @@ import           Data.Maybe( isJust )
 import           Animation.Types
 import           Animation( mkAnimation
                           , simpleLaser)
+
 import           Geo.Discrete
-import           Laser.Types
+
+import           Game.World.Laser.Types
+import           Game.World.Size( Location(..) )
+
 import           Timing( KeyTime )
-import           WorldSize( Location(..) )
 
 
 shootLaserFromShip :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)

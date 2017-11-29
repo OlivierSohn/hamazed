@@ -39,10 +39,12 @@ import           Data.String( String )
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
-import           Console
+import           Game.World.Size( WorldSize(..), maxWorldSize )
+
 import           Geo.Discrete.Types
 import           Geo.Discrete( move, sumCoords, translateInDir )
-import           WorldSize( WorldSize(..), maxWorldSize )
+
+import           Render.Console
 
 
 data EmbeddedWorld = EmbeddedWorld {

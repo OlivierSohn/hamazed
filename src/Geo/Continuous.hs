@@ -21,7 +21,6 @@ import           Imajuscule.Prelude
 import           Geo.Continuous.Types
 
 
-
 rotateByQuarters :: Vec2 -> [Vec2]
 rotateByQuarters v@(Vec2 x y) =
   [v,

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Number(
+module Game.World.Number(
     Number(..)
   , showShotNumbers
   , getColliding
@@ -18,13 +18,16 @@ import           Data.Maybe( isNothing )
 import           Data.Text(singleton, pack)
 
 import           Color
+
 import           Geo.Discrete
-import           Laser( Ray(..)
+
+import           Game.World.Laser( Ray(..)
                       , LaserRay(..)
                       , LaserPolicy(..)
                       , Theoretical
                       , Actual
                       , stopRayAtFirstCollision )
+
 import           Render
 
 data Number = Number {

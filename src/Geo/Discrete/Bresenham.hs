@@ -9,6 +9,7 @@ module Geo.Discrete.Bresenham
 import           Imajuscule.Prelude
 
 import           Geo.Discrete.Types
+
 import           Util( takeWhileInclusive
                      , range )
 

@@ -3,7 +3,7 @@ module Main where
 import           Prelude( IO
                         , return )
 
-import           Lib( run )
+import           Run( run )
 
 main :: IO ()
 main = do

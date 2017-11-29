@@ -39,7 +39,7 @@ with an input extremity. The rest of the overrepresented samples are positionned
 
   when m' == 1, for every s in [0,m'-1] : f(s) = floor( (n - 1) / 2 )
 --}
-module Resample
+module Geo.Discrete.Resample
     ( -- | Resample "evenly with extremities".
       resample
     ) where

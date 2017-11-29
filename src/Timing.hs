@@ -26,8 +26,9 @@ import           Data.Time( addUTCTime
                           , getCurrentTime
                           , NominalDiffTime
                           , UTCTime(..) )
+
+import           Game.World.Size( WorldSize(..) )
 import           Geo.Discrete.Types
-import           WorldSize( WorldSize(..) )
 
 
 -- I introduce this type to prevent equality test which make no sense, like

@@ -12,10 +12,13 @@ import           Data.List( length )
 import           Data.Maybe( fromMaybe )
 
 import           Animation.Types
+
 import           Collision( firstCollision )
+
+import           Game.World.Size( Location(..) )
+
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete( mkSegment )
-import           WorldSize( Location(..) )
 
 
 applyAnimation :: (Coords -> Frame -> ([Coords], Maybe Char))

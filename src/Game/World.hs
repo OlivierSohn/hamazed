@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module World
+module Game.World
     ( BattleShip(..)
     , accelerateShip
     , World(..)
@@ -28,28 +28,22 @@ import           System.Random( getStdRandom
 
 import           Animation.Types
 import           Animation.Util( earliestDeadline )
-import           Collision( CollisionStatus(..)
-                          , mirrorIfNeeded
-                          , firstCollision )
+
+import           Collision
+
 import           Color
-import           Console
+
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
-import           Number( Number(..)
-                       , getColliding )
-import           Render( RenderState )
-import           Space( Space(..)
-                      , WallType(..)
-                      , renderIfNotColliding
-                      , getMaterial
-                      , location
-                      , Material(..)
-                      , mkRandomlyFilledSpace
-                      , mkDeterministicallyFilledSpace
-                      , mkEmptySpace )
-import           Timing( KeyTime(..) )
-import           WorldSize( WorldSize(..) )
+import           Game.World.Size
 
+import           Game.World.Number
+import           Game.World.Space
+
+import           Render( RenderState )
+import           Render.Console
+
+import           Timing( KeyTime(..) )
 
 
 data BattleShip = BattleShip {

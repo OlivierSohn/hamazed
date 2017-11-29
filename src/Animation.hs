@@ -25,12 +25,17 @@ import           Animation.Design.Chain
 import           Animation.Design.Geo
 import           Animation.Design.RenderUpdate
 import           Animation.Types
+
 import           Color
+
 import           Geo.Continuous
-import           Laser.Types
+
+import           Game.World.Laser.Types
+import           Game.World.Size( Location )
+
 import           Render( RenderState )
+
 import           Timing
-import           WorldSize( Location )
 
 simpleLaser :: LaserRay Actual -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
 simpleLaser seg =

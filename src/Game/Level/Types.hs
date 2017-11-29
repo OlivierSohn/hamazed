@@ -1,7 +1,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Level.Types
+module Game.Level.Types
     ( Level(..)
     , LevelFinished(..)
     , MessageState(..)

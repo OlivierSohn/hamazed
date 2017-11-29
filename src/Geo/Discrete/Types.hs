@@ -14,7 +14,9 @@ module Geo.Discrete.Types
 import           Imajuscule.Prelude
 
 import           GHC.Generics( Generic )
+
 import           Geo.Types
+
 
 newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord)
 newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord)

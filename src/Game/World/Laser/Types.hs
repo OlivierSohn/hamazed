@@ -1,7 +1,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Laser.Types
+module Game.World.Laser.Types
     ( LaserRay(..)
     , Theoretical
     , Actual

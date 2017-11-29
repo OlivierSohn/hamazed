@@ -18,7 +18,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
+  exposed-modules:     Run
   other-modules:       Imajuscule.Prelude
                      , Animation
                      , Animation.Design.Animator
@@ -30,39 +30,39 @@ library
                      , Animation.Types
                      , Animation.Util
                      , Color
-                     , Collision
-                     , Console
-                     , Deadline
-                     , Event
+                     , Render.Console
+                     , Game.Deadline
+                     , Game.Event
                      , Game
-                     , GameParameters
+                     , Game.Parameters
                      , Geo
+                     , Collision
                      , Geo.Conversion
                      , Geo.Continuous
                      , Geo.Continuous.Types
                      , Geo.Discrete
-                     , Geo.Discrete.Types
                      , Geo.Discrete.Bresenham
+                     , Geo.Discrete.Resample
+                     , Geo.Discrete.Types
                      , Geo.Types
                      , IO.Blocking
                      , IO.NonBlocking
                      , IO.Types
-                     , Laser
-                     , Laser.Types
-                     , Level
-                     , Level.Types
-                     , Number
+                     , Game.World.Laser
+                     , Game.World.Laser.Types
+                     , Game.Level
+                     , Game.Level.Types
+                     , Game.World.Number
                      , Render
-                     , RenderBackends.Full
-                     , RenderBackends.Delta
-                     , RenderBackends.Internal.Delta
-                     , Resample
-                     , Space
+                     , Render.Backends.Full
+                     , Render.Backends.Delta
+                     , Render.Backends.Internal.Delta
+                     , Game.World.Space
                      , Threading
                      , Timing
                      , Util
-                     , World
-                     , WorldSize
+                     , Game.World
+                     , Game.World.Size
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal
                      , array

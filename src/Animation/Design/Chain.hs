@@ -8,9 +8,10 @@ module Animation.Design.Chain
 
 import           Imajuscule.Prelude
 
-import           Animation.Design.Apply
 import           Animation.Types
-import           WorldSize( Location )
+import           Animation.Design.Apply
+
+import           Game.World.Size( Location )
 
 
 chainOnCollision :: (Coords -> Frame -> ([Coords], Maybe Char))

@@ -22,7 +22,7 @@
 --     To that end, we keep track of the current color of the console while drawing.
 --   - Add support for 8-bits ANSI colors
 
-module RenderBackends.Internal.Delta
+module Render.Backends.Internal.Delta
        (
          bSetForeground
        , bSetRawForeground
@@ -49,6 +49,12 @@ import           Imajuscule.Prelude
 
 import qualified Prelude ( putChar, putStr )
 
+import           Control.Monad( when )
+
+import           Data.Array.IO( IOArray
+                              , newArray
+                              , writeArray
+                              , readArray )
 import           Data.IORef( IORef
                            , newIORef
                            , readIORef
@@ -56,12 +62,6 @@ import           Data.IORef( IORef
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 
-import           System.IO.Unsafe( unsafePerformIO )
-import           Control.Monad( when )
-import           Data.Array.IO( IOArray
-                              , newArray
-                              , writeArray
-                              , readArray )
 import           System.Console.ANSI( ColorIntensity(..)
                                     , Color(..)
                                     , Xterm256Color(..)
@@ -70,6 +70,7 @@ import           System.Console.ANSI( ColorIntensity(..)
                                     , setSGRCode
                                     , SGR(..)
                                     , ConsoleLayer(..) )
+import           System.IO.Unsafe( unsafePerformIO )
 
 -- constant data
 bufferWidth :: Int

@@ -8,8 +8,8 @@ module Geo.Conversion
 
 import           Imajuscule.Prelude
 
-import           Geo.Discrete.Types
 import           Geo.Continuous.Types
+import           Geo.Discrete.Types
 
 
 pos2vec :: Coords -> Vec2

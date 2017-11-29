@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Console ( ConsoleConfig(..)
+module Render.Console ( ConsoleConfig(..)
                , configureConsoleFor
                -- rendering functions
                , beginFrame
@@ -60,7 +60,7 @@ import           Geo.Discrete
 {--
 import qualified RenderBackends.Full as Backend( --}
 --{--
-import qualified RenderBackends.Delta as Backend( --}
+import qualified Render.Backends.Delta as Backend( --}
                                                   beginFrame
                                                 , endFrame
                                                 , moveTo

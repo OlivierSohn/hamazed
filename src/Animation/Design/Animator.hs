@@ -14,10 +14,14 @@ import           Imajuscule.Prelude
 import           Animation.Design.Apply
 import           Animation.Design.RenderUpdate
 import           Animation.Types
+
 import           Color
+
+import           Game.World.Size( Location )
+
 import           Render( RenderState )
+
 import           Timing
-import           WorldSize( Location )
 
 
 mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))

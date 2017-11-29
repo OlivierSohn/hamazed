@@ -18,33 +18,25 @@ import           Data.Text( pack, singleton )
 import           Animation
 import           Animation.Design.Chars
 import           Animation.Types
-import           Console
+
 import           Color
-import           Deadline( Deadline(..) )
+
+import           Game.Deadline( Deadline(..) )
+import           Game.Event
+import           Game.Level
+import           Game.Parameters( GameParameters(..) )
+import           Game.World
+import           Game.World.Laser
+import           Game.World.Number
+import           Game.World.Size
+import           Game.World.Space
+
 import           Geo.Conversion
 import           Geo.Discrete.Types
 import           Geo.Continuous
 import           Geo.Discrete hiding(translate)
-import           Event( Event(..)
-                      , TimedEvent(..)
-                      , Step(..)
-                      , Meta(..)
-                      , ActionTarget(..)
-                      , getKeyTime )
-import           GameParameters( GameParameters(..) )
-import           Laser
-import           Level( Level(..)
-                      , LevelFinished(..)
-                      , renderLevel
-                      , getEventForMaybeDeadline
-                      , isLevelFinished
-                      , MessageState(..)
-                      , messageDeadline
-                      , firstLevel
-                      , lastLevel )
-import           Number( Number(..)
-                       , survivingNumbers
-                       , showShotNumbers )
+
+import           Render.Console
 import           Render( RenderState, EmbeddedWorld(..), Window(..)
                        , mkEmbeddedWorld
                        , translate
@@ -53,11 +45,9 @@ import           Render( RenderState, EmbeddedWorld(..), Window(..)
                        , renderAligned, colored
                        , RenderState(..)
                        , go )
-import           Space
+                       
 import           Timing
 import           Util
-import           World
-import           WorldSize
 
 data GameState = GameState {
     _gameStateStartTime :: !Timer

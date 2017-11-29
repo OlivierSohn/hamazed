@@ -37,6 +37,7 @@ library
                      , Game
                      , GameParameters
                      , Geo
+                     , Geo.Bresenham
                      , Geo.Types
                      , IO.Blocking
                      , IO.NonBlocking

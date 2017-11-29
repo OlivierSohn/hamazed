@@ -15,6 +15,7 @@ import           Data.List( length )
 
 import           Animation.Types
 import           Geo
+import           Geo.Bresenham
 import           Laser.Types
 import           Resample( resample )
 

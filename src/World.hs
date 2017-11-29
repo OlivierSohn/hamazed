@@ -33,10 +33,10 @@ import           Collision( CollisionStatus(..)
                           , firstCollision )
 import           Color
 import           Console
+import           Geo.Bresenham
 import           Geo( Col(..)
                     , Coords(..)
                     , mkSegment
-                    , bresenham
                     , coordsForDirection
                     , Direction(..)
                     , PosSpeed(..)

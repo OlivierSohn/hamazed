@@ -10,8 +10,8 @@ import           Imajuscule.Prelude
 
 import           Geo.Types
 import           Geo( mkSegment
-                    , bresenham
                     , sumCoords, diffCoords )
+import           Geo.Bresenham(bresenham)
 import           WorldSize( Location(..) )
 
 

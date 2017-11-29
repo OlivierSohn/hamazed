@@ -4,9 +4,6 @@ module Geo ( extend
            , rotateCcw
            , coordsForDirection
            , extremities
-           , balancedWord
-           , bresenham
-           , bresenhamLength
            , move
            , mkSegment
            , showSegment
@@ -37,14 +34,11 @@ module Geo ( extend
 import           Imajuscule.Prelude
 
 import           Geo.Types
-import           Util( takeWhileInclusive
-                     , range )
 
 --------------------------------------------------------------------------------
 -- Pure
 --------------------------------------------------------------------------------
 
-{-# INLINE ccwDirections #-}
 ccwDirections :: Int -> Direction
 ccwDirections i = case i `mod` 4 of
                     0 -> Up
@@ -53,23 +47,19 @@ ccwDirections i = case i `mod` 4 of
                     3 -> RIGHT
                     n -> error $ "out of bound modulo : " ++ show n
 
-{-# INLINE ccwDirectionsIndex #-}
 ccwDirectionsIndex :: Direction -> Int
 ccwDirectionsIndex Up = 0
 ccwDirectionsIndex LEFT = 1
 ccwDirectionsIndex Down = 2
 ccwDirectionsIndex RIGHT = 3
 
-{-# INLINE zeroCoords #-}
 zeroCoords :: Coords
 zeroCoords = Coords (Row 0) (Col 0)
 
-{-# INLINE sumCoords #-}
 sumCoords :: Coords -> Coords -> Coords
 sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
 -- | a - b
-{-# INLINE diffCoords #-}
 diffCoords :: Coords
            -- ^ a
            -> Coords
@@ -78,7 +68,6 @@ diffCoords :: Coords
            -- ^ a - b
 diffCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 - r2) (Col $ c1 - c2)
 
-{-# INLINE rotateCcw #-}
 rotateCcw :: Int -> Direction -> Direction
 rotateCcw n dir = ccwDirections $ n + ccwDirectionsIndex dir
 
@@ -88,7 +77,6 @@ coordsForDirection Up    = Coords (Row$ -1) (Col   0)
 coordsForDirection LEFT  = Coords (Row   0) (Col$ -1)
 coordsForDirection RIGHT = Coords (Row   0) (Col   1)
 
-{-# INLINE multiply #-}
 multiply :: Int -> Coords -> Coords
 multiply n (Coords (Row r) (Col c)) = Coords (Row $ r*n) (Col $ c*n)
 
@@ -107,14 +95,12 @@ showSegment (Horizontal row c1 c2) = map (Coords row . Col) [(min c1 c2)..(max c
 showSegment (Vertical col r1 r2)   = map (flip Coords col . Row) [(min r1 r2)..(max r1 r2)]
 showSegment (Oblique _ _)          = error "oblique segment rendering is not supported"
 
-{-# INLINE changeSegmentLength #-}
 changeSegmentLength :: Int -> Segment -> Segment
 changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + i
 changeSegmentLength i (Vertical   col r1 _) = Vertical col r1 $ r1 + i
 changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments"
 
 -- returns the distance from segment start
-{-# INLINABLE segmentContains #-}
 segmentContains :: Coords -> Segment-> Maybe Int
 segmentContains (Coords row' (Col c)) (Horizontal row c1 c2) = if row' == row then rangeContains c1 c2 c else Nothing
 segmentContains (Coords (Row r) col') (Vertical   col r1 r2) = if col' == col then rangeContains r1 r2 r else Nothing
@@ -126,11 +112,9 @@ extremities (Vertical   col r1 r2) = (Coords (Row r1) col, Coords (Row r2) col)
 extremities (Oblique c1 c2)         = (c1, c2)
 
 -- returns Just (value - range start) if it is contained
-{-# INLINABLE rangeContains #-}
 rangeContains :: Int -> Int -> Int -> Maybe Int
 rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i - r1) else Nothing
 
-{-# INLINE rotateByQuarters #-}
 rotateByQuarters :: Vec2 -> [Vec2]
 rotateByQuarters v@(Vec2 x y) =
   [v,
@@ -138,27 +122,21 @@ rotateByQuarters v@(Vec2 x y) =
   Vec2 (-x) $ -y,
   Vec2 (-x) y]
 
-{-# INLINE sumVec2d #-}
 sumVec2d :: Vec2 -> Vec2 -> Vec2
 sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
 
-{-# INLINE pos2vec #-}
 pos2vec :: Coords -> Vec2
 pos2vec (Coords (Row r) (Col c)) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)
 
-{-# INLINE speed2vec #-}
 speed2vec :: Coords -> Vec2
 speed2vec (Coords (Row r) (Col c)) = Vec2 (fromIntegral c) (fromIntegral r)
 
-{-# INLINE vec2coords #-}
 vec2coords :: Vec2 -> Coords
 vec2coords (Vec2 x y) = Coords (Row $ floor y) (Col $ floor x)
 
-{-# INLINE scalarProd #-}
 scalarProd :: Float -> Vec2 -> Vec2
 scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
 
-{-# INLINE gravity #-}
 gravity :: Vec2
 gravity = Vec2 0 0.2
 
@@ -215,7 +193,6 @@ translatedFullCircle center radius firstAngle resolution =
   let circle = fullCircle radius firstAngle resolution
   in map (sumVec2d center) circle
 
-{-# INLINE translate #-}
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
 
@@ -230,56 +207,3 @@ extend coords dir continue =
          extend loc dir continue
        else
          coords
-
-{-# INLINE bresenhamLength #-}
-bresenhamLength :: Coords -> Coords -> Int
-bresenhamLength (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2))
-  = 1 + max (abs (r1-r2)) (abs (c1-c2))
-
-bresenham :: Segment -> [Coords]
-bresenham (Horizontal r c1 c2) = map (Coords r . Col) $ range c1 c2
-bresenham (Vertical c r1 r2)   = map (flip Coords c . Row) $ range r1 r2
-bresenham (Oblique (Coords (Row y0) (Col x0)) c2@(Coords (Row y1) (Col x1))) =
-  takeWhileInclusive (/= c2) $ map (\(x,y) -> Coords (Row y) (Col x) ) $ bla (x0,y0) (x1,y1)
-
--- adapted from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Haskell
-balancedWord :: Int -> Int -> Int -> [Int]
-balancedWord p q eps
-  | eps + p < q = 0 : balancedWord p q (eps + p)
-  | otherwise   = 1 : balancedWord p q (eps + p - q)
-
--- | Bresenham's line algorithm.
--- Includes the first point and goes through the second to infinity.
-bla :: (Int, Int) -> (Int, Int) -> [(Int, Int)]
-bla (x0, y0) (x1, y1) =
-  let (dx, dy) = (x1 - x0, y1 - y0)
-      xyStep b (x, y) = (x + signum dx,     y + signum dy * b)
-      yxStep b (x, y) = (x + signum dx * b, y + signum dy)
-      (p, q, step) | abs dx > abs dy = (abs dy, abs dx, xyStep)
-                   | otherwise       = (abs dx, abs dy, yxStep)
-      walk w xy = xy : walk (tail w) (step (head w) xy)
-  in  walk (balancedWord p q 0) (x0, y0)
-
--- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
-{--
-bres run rise1 rise2
-    | run < 0  =   [(-x,  y,  z) | (x, y, z) <- bres (-run) rise1 rise2]
-    | rise1 < 0  = [( x, -y,  z) | (x, y, z) <- bres run (-rise1) rise2]
-    | rise2 < 0  = [( x,  y, -z) | (x, y, z) <- bres run rise1 (-rise2)]
-    | rise1 > (max run rise2) =
-        [( x, y, z) | (y, x, z) <- bres rise1 run rise2]
-    | rise2 > (max run rise1) =
-        [( x, y, z) | (z, x, y) <- bres rise2 run rise1]
-    | otherwise = zip3 [0..run]
-                       (map fst $ iterate (step rise1) (0, run `div` 2))
-                       (map fst $ iterate (step rise2) (0, run `div` 2))
-
-    where
-        step rise (y, error)
-            | error' < 0 = (y + 1, error' + run)
-            | otherwise  = (y, error')
-            where error' = error - rise
-
-line (x1, y1, z1) (x2, y2, z2) =
-    [(x1+x, y1+y, z1+z) | (x, y, z) <- bres (x2-x1) (y2-y1) (z2-z1)]
---}

@@ -13,7 +13,8 @@ import           Data.Maybe( fromMaybe )
 
 import           Animation.Types
 import           Collision( firstCollision )
-import           Geo( bresenham , mkSegment )
+import           Geo.Bresenham
+import           Geo( mkSegment )
 import           WorldSize( Location(..) )
 
 

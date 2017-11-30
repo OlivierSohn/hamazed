@@ -42,6 +42,8 @@ import           Game.World.Frame
 import           Game.World.Number
 import           Game.World.Space
 
+import           Math
+
 import           Render( RenderState )
 import           Render.Console
 
@@ -122,7 +124,7 @@ earliestAnimationDeadline (World _ _ _ _ animations) =
 
 earliestFrameAnimationDeadline :: World -> Maybe KeyTime
 earliestFrameAnimationDeadline (World _ _ _ (Space _ mayAnim _ _) _) =
-  maybe Nothing (\(FrameAnimation _ _ deadline) -> Just deadline) mayAnim
+  maybe Nothing (\(FrameAnimation _ _ _ _ _ deadline) -> deadline) mayAnim
 
 --------------------------------------------------------------------------------
 -- IO
@@ -138,7 +140,7 @@ mkWorld mayPrevSize s walltype nums = do
   let frameAnimation =
         maybe
           Nothing
-          (\prev -> Just $ FrameAnimation prev (zeroIteration (Speed 1)) $ addFrameAnimationStepDuration $ KeyTime t)
+          (\prev -> Just $ mkFrameAnimation prev t invQuartEaseInOut (maxNumberOfSteps prev sz))
             mayPrevSize
       space = Space mat frameAnimation sz render
   balls <- mapM (createRandomNumber space) nums

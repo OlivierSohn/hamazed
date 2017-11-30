@@ -2,8 +2,6 @@
 
 module Timing
     ( addGameStepDuration
-    , frameAnimationPeriod
-    , addFrameAnimationStepDuration
     , addAnimationStepDuration
     , animationPeriod
     , animationUpdateMargin
@@ -13,13 +11,15 @@ module Timing
     , showUpdateTick
     , Timer(..)
     , KeyTime(..)
+    , floatSecondsToNominalDiffTime
     -- | reexports
     , UTCTime(..)
-    , diffUTCTime
     , addUTCTime
+    , diffUTCTime
     , getCurrentTime
     ) where
 
+import qualified Prelude(Integer)
 import           Imajuscule.Prelude
 
 import           Data.Text( Text, pack )
@@ -40,6 +40,15 @@ newtype KeyTime = KeyTime UTCTime deriving(Eq, Ord, Show)
 diffTimeSecToMicros :: NominalDiffTime -> Int
 diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
 
+microSecondsPerSecond :: Prelude.Integer
+microSecondsPerSecond = 1000000
+
+floatSecondsToNominalDiffTime :: Float -> NominalDiffTime
+floatSecondsToNominalDiffTime f = microsecondsToNominalDiffTime $ floor (f*fromIntegral microSecondsPerSecond)
+
+microsecondsToNominalDiffTime :: Prelude.Integer -> NominalDiffTime
+microsecondsToNominalDiffTime x = fromRational (x % fromIntegral microSecondsPerSecond)
+
 
 newtype Timer = Timer { _initialTime :: UTCTime }
 
@@ -47,9 +56,6 @@ computeTime :: Timer -> UTCTime -> Int
 computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
   in floor t
-
-frameAnimationPeriod :: NominalDiffTime
-frameAnimationPeriod = 0.08
 
 -- the console can refresh at approx. 21 fps, hence this value (1/25)
 animationPeriod :: NominalDiffTime
@@ -64,9 +70,6 @@ animationUpdateMargin = 0.01
 
 gamePeriod :: NominalDiffTime
 gamePeriod = fromIntegral gamePeriodMicros / 1000000
-
-addFrameAnimationStepDuration :: KeyTime -> KeyTime
-addFrameAnimationStepDuration = addDuration frameAnimationPeriod
 
 addGameStepDuration :: KeyTime -> KeyTime
 addGameStepDuration = addDuration gamePeriod

@@ -4,6 +4,7 @@
 module Game.World.Frame
     ( renderWorldFrame
     , FrameAnimation(..)
+    , mkFrameAnimation
     , maxNumberOfSteps
     ) where
 
@@ -12,8 +13,6 @@ import           Imajuscule.Prelude
 import           Animation.Types
 
 import           Data.List( mapAccumL, zip )
-
-import           Ease
 
 import           Color
 
@@ -28,9 +27,22 @@ import           Timing
 
 data FrameAnimation = FrameAnimation {
     _frameAnimationPrevSize :: !WorldSize
+  , _frameAnimationStart :: !UTCTime
+  , _frameAnimationEase :: !(Float -> Float)
+  , _frameAnimationNSteps :: !Int -- in number of frames
   , _frameAnimationProgress :: !Iteration
-  , _frameAnimationDeadline :: !KeyTime
+  , _frameAnimationDeadline :: !(Maybe KeyTime)
 }
+
+mkFrameAnimation :: WorldSize -- ^ previous world size
+                 -> UTCTime -- ^ time at which the animation starts
+                 -> (Float -> Float) -- inverse ease function
+                 -> Int -- ^ number of steps
+                 -> FrameAnimation
+mkFrameAnimation prev t ease nsteps =
+  FrameAnimation prev t ease nsteps (Iteration (Speed 1, startFrame)) (Just $ KeyTime t)
+ where
+  startFrame = Frame (-1)
 
 countWorldFrameChars :: WorldSize -> Int
 countWorldFrameChars s =
@@ -119,16 +131,13 @@ renderWorldFrame mayAnim sz upperLeft = do
   fg <- setRawForeground worldFrameColor
   maybe
     (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
-    (\(FrameAnimation szBefore (Iteration (_, Frame i')) _) -> do
+    (\(FrameAnimation szBefore _ _ _ (Iteration (_, Frame i)) _) -> do
       let diff@(RenderState (Coords _ (Col dc))) = diffUpperLeft sz szBefore
           n = maxNumberOfSteps sz szBefore
           upperLeftBefore = sumRS diff upperLeft
-          ratio = fromIntegral i'/fromIntegral (n+1) :: Float
-          i = floor $ 0.5 + fromIntegral (n+1) * quartInOut ratio
-          -- TODO adapt frame rate based on ease : increment of one here each time,
           render diBefore di = do
-            renderFrom Extremities (n+1-(i+diBefore)) szBefore upperLeftBefore
-            renderFrom Middle      (n+1-(i+di))       sz       upperLeft
+            renderFrom Extremities (n-(i+diBefore)) szBefore upperLeftBefore
+            renderFrom Middle      (n-(i+di))       sz       upperLeft
       if dc >= 0
         then
           -- expanding animation
@@ -140,8 +149,10 @@ renderWorldFrame mayAnim sz upperLeft = do
   restoreForeground fg
   return $ go Down $ go RIGHT upperLeft
 
+-- | Includes start and end steps, ie if animation consists of no change, it returns 1.
+--   If animation consists of a single change, it returns 2.
 maxNumberOfSteps :: WorldSize -> WorldSize -> Int
-maxNumberOfSteps s s' = quot (1 + max (maxDim s) (maxDim s')) 2
+maxNumberOfSteps s s' = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
 data BuildFrom = Middle
                | Extremities -- generates the complement

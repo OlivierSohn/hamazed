@@ -288,11 +288,17 @@ updateAnim
   (GameState a _ c (World d e f (Space g mayAnim sz h) i) j k l)
    = maybe
        (error "should not happen")
-       (\(FrameAnimation prevSize it@(Iteration (_, Frame count)) deadline) ->
-           let (newGameStep, newAnim) =
-                 if count < maxNumberOfSteps prevSize sz
-                   then
-                     (Nothing, Just $ FrameAnimation prevSize (nextIteration it) $ addFrameAnimationStepDuration deadline)
+       (\(FrameAnimation prevSize startTime ease nsteps it _) ->
+         -- nsteps is the number of steps including start and end steps.
+           let nextIt@(Iteration (_, Frame nextCount)) = nextIteration it
+               (newGameStep, newAnim) =
+                 if nextCount < nsteps
+                   then do
+                     let ratio = (0.5 + fromIntegral (assert(nextCount <= nsteps - 1) nextCount)) / fromIntegral nsteps
+                         time = floatSecondsToNominalDiffTime $ animationDuration * ease (assert (ratio <= 1.0 && ratio >= 0.0) ratio)
+                         animationDuration = 1.8
+                         deadline = Just $ KeyTime $ addUTCTime time startTime
+                     (Nothing, Just $ FrameAnimation prevSize startTime ease nsteps nextIt deadline)
                    else
                      (Just $ KeyTime t, Nothing) -- TODO adjust timing if needed so that the game starts earlier or later
            in GameState a newGameStep c (World d e f (Space g newAnim sz h) i) j k l
@@ -324,7 +330,7 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
   let (WorldSize (Coords (Row rs) (Col cs)), upperLeft) =
         maybe
             (curSz, curUpperLeft)
-            (\(FrameAnimation prevSz _ _) ->
+            (\(FrameAnimation prevSz _ _ _ _ _) ->
               let d@(RenderState (Coords _ (Col dc))) = diffUpperLeft curSz prevSz
               in if dc >= 0
                   then

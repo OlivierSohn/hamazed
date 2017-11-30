@@ -114,6 +114,8 @@ module Imajuscule.Prelude (
                           , Word8
                           -- | Data.Text reexports
                           , Text
+                          -- | Data.Ratio reexports
+                          , (%)
                           ) where
 
 import           Prelude
@@ -124,3 +126,4 @@ import           Control.Exception( assert )
 import           Data.Monoid ((<>))
 import           Data.Word( Word8 )
 import           Data.Text( Text )
+import           Data.Ratio((%))

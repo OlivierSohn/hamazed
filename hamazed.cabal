@@ -18,7 +18,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Run
+  exposed-modules:     Run, Math
   other-modules:       Imajuscule.Prelude
                      , Animation
                      , Animation.Design.Animator
@@ -54,7 +54,6 @@ library
                      , Game.Level
                      , Game.Level.Types
                      , Game.World.Number
-                     , Math
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta

@@ -1,22 +1,44 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Math
-    ( invPolyEaseInOut
+    ( invQuartEaseInOut
     ) where
 
 import           Imajuscule.Prelude
 
+{--
+This is the equation we want to invert:
+
+quartInOut :: Ord a => Ease a
+quartInOut time =
+    if time < 0.5
+    then        1 / 2 *  2^4 * time  * time  * time  * time
+    else negate 1 / 2 * (2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
+
+These are the successive transformations that lead to invQuartEaseInOut implementation
+(note that there are multiple solutions, we chose the one that produces results in [0,1] range):
+
+y < 0.5 :
+  y = 2^3 * time  * time  * time  * time
+  y/(2^3) = time^4
+  (y/(2^3))^(1/4) = time
+y > 0.5 :
+  y = - 1 / 2 *(2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
+  -2*y = (2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
+  2-2*y = 2^4 * (time-1)^4
+  1-y = 2^3 * (time-1)^4
+  (1-y)/(2^3) = (time-1)^4
+  ((1-y)/(2^3))^(1/4) = (1-time)
+  1-((1-y)/(2^3))^(1/4) = time
+--}
+
 -- | returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
 -- given an nth order ease in-out function
-invPolyEaseInOut :: Int -- ^ order
-                 -> Float -- ^ value
-                 -> Float -- ^ time
-invPolyEaseInOut order y' =
-  if y < 1
+invQuartEaseInOut :: Float -- ^ value
+                  -> Float -- ^ time
+invQuartEaseInOut y =
+  if y < 0.5
     then
-      (recip (y * 2)) ** exponent
+      (y / 8.0) ** (1.0/4.0)
     else
-      2 + (recip (2 * negate y) + 2) ** exponent
- where
-   y = y' * 2
-   exponent = fromIntegral $ negate order
+      1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)

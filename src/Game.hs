@@ -288,11 +288,11 @@ updateAnim
   (GameState a b c (World d e f (Space g mayAnim sz h) i) j k l)
    = maybe
        (error "should not happen")
-       (\(FrameAnimation prevSize count deadline) ->
+       (\(FrameAnimation prevSize it@(Iteration (_, Frame count)) deadline) ->
            let (newGameStep, newAnim) =
                  if count < maxNumberOfSteps prevSize sz
                    then
-                     (Nothing, Just $ FrameAnimation prevSize (succ count) $ addFrameAnimationStepDuration deadline)
+                     (Nothing, Just $ FrameAnimation prevSize (nextIteration it) $ addFrameAnimationStepDuration deadline)
                    else
                      (Just $ KeyTime t, Nothing)
            in GameState a newGameStep c (World d e f (Space g newAnim sz h) i) j k l

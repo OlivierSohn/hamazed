@@ -9,6 +9,8 @@ module Game.World.Frame
 
 import           Imajuscule.Prelude
 
+import           Animation.Types
+
 import           Data.List( mapAccumL, zip )
 
 import           Color
@@ -24,7 +26,7 @@ import           Timing
 
 data FrameAnimation = FrameAnimation {
     _frameAnimationPrevSize :: !WorldSize
-  , _frameAnimationProgress :: !Int
+  , _frameAnimationProgress :: !Iteration
   , _frameAnimationDeadline :: !KeyTime
 }
 
@@ -115,7 +117,7 @@ renderWorldFrame mayAnim sz upperLeft = do
   fg <- setRawForeground worldFrameColor
   maybe
     (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
-    (\(FrameAnimation szBefore i _) -> do
+    (\(FrameAnimation szBefore (Iteration (_, Frame i)) _) -> do
       let diff@(RenderState (Coords (Row dr) (Col dc))) = diffUpperLeft sz szBefore
       if dc >= 0
         then do

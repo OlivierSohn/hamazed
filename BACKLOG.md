@@ -1,6 +1,8 @@
 
 # Backlog
 
+- animation should start slow and accelerate (look at 'ease' package)
+
 - text should disappear / appear progressively
 
 - start the animation when game is won

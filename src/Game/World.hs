@@ -121,7 +121,7 @@ earliestAnimationDeadline (World _ _ _ _ animations) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 earliestFrameAnimationDeadline :: World -> Maybe KeyTime
-earliestFrameAnimationDeadline (World _ _ _ (Space _ mayAnim _ _) _) = 
+earliestFrameAnimationDeadline (World _ _ _ (Space _ mayAnim _ _) _) =
   maybe Nothing (\(FrameAnimation _ _ deadline) -> Just deadline) mayAnim
 
 --------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ mkWorld mayPrevSize s walltype nums = do
   let frameAnimation =
         maybe
           Nothing
-          (\prev -> Just $ FrameAnimation prev 0 $ addFrameAnimationStepDuration $ KeyTime t)
+          (\prev -> Just $ FrameAnimation prev (zeroIteration (Speed 1)) $ addFrameAnimationStepDuration $ KeyTime t)
             mayPrevSize
       space = Space mat frameAnimation sz render
   balls <- mapM (createRandomNumber space) nums

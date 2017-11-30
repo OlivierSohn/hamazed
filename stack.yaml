@@ -7,10 +7,12 @@ packages:
 - location:
     git: https://github.com/mpilgrem/ansi-terminal.git
     commit: 42f1dc8e8607ab33a62b187b0b5212b14f50b5aa
+- location:
+    git: https://gitlab.com/OlivierSohn/Ease.git
+    commit: 1d1398100135fa6571f37ff00a9607e886773a6f
 
 extra-deps:
 - monadlist-0.0.2
-- ease-0.1.0.0
 
 flags: {}
 

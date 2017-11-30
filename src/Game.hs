@@ -343,12 +343,15 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
       centerUp   = translate (Row $ -1)        (Col $ cHalf + 1) upperLeft
       centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
       leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
-  _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
-  _ <- go Down <$> renderAligned RightAligned (colored (singleton '[') bracketsColor
-                                            <> colored (pack $ replicate ammo '.') ammoColor
-                                            <> colored (singleton ']') bracketsColor) leftMiddle
-       >>= renderAligned RightAligned (showShotNumbers shotNumbers)
-  _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
+  -- TODO animate this
+  (do
+    _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
+    _ <- go Down <$> renderAligned RightAligned (colored (singleton '[') bracketsColor
+                                              <> colored (pack $ replicate ammo '.') ammoColor
+                                              <> colored (singleton ']') bracketsColor) leftMiddle
+         >>= renderAligned RightAligned (showShotNumbers shotNumbers)
+    _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
+    return ())
 
   -- We render the world using curUpperLeft because it's the new world
   -- If instead we decide to render the old world while animationg the frame we should
@@ -358,8 +361,7 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         renderWorldAndLevel state worldCorner
         renderWorldFrame mayAnim curSz curUpperLeft -- render it last so that when it animates
-                                                 -- to reduce, it goes over numbers and ship
-
+                                                    -- to reduce, it goes over numbers and ship
         return activeAnimations)
 
 locationFunction :: Boundaries

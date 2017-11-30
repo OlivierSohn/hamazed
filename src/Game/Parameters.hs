@@ -12,6 +12,8 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
+import           Color
+
 import           Game.World( mkWorld, World(..), renderWorld )
 import           Game.World.Frame
 import           Game.World.Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
@@ -81,9 +83,10 @@ render (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
+          prevColors <- setColors configColors
           renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
             renderAlignedTxt_ Centered "------------------"
-          prevFg <- setForeground Vivid Yellow
+
           go Down <$> renderTxt "- World shape" (move 5 Up left) >>=
               renderTxt "'1' -> width = height" >>=
                 renderTxt_ "'2' -> width = 2 x height"
@@ -91,8 +94,8 @@ render (GameParameters shape wall) = do
               renderTxt "'e' -> no walls" >>=
                 renderTxt "'r' -> deterministic walls" >>=
                   renderTxt_ "'t' -> random walls"
-          _ <- setForeground Vivid Green
+
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
-          restoreForeground prevFg
+          restoreColors prevColors
           renderWorldFrame Nothing worldSize upperLeft
       endFrame

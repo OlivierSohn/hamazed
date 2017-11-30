@@ -9,6 +9,7 @@ module Color (
   , numberColor
   , bracketsColor
   , ammoColor
+  , configColors
   , wallColors
   , airColors
   , shipColors
@@ -34,6 +35,9 @@ import           Data.Colour.SRGB --(Colour, RGB (..), sRGB, toSRGB)
 
 import           Animation.Types
 import           Game.Level.Types
+
+configColors :: (Color8Code, Color8Code)
+configColors = (gray 8, gray 0)
 
 wallColors :: (Color8Code, Color8Code)
 wallColors = (gray 3, gray 0)

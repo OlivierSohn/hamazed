@@ -9,7 +9,7 @@ don't hesitate to tell me, by opening an issue or submitting a merge request!
 
 The game can be somewhat configured by the user (size and kind of the world) and
 has 12 levels of increasing difficulty. The aim is to reach a given sum by shooting
-at moving numbers.
+at moving numbers. A "random walls" mode generates the walls at random.
 
 The keyboard controls are mapped this way:
 - ship acceleration : 's' 'e' 'd' 'f'
@@ -19,13 +19,13 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
 
 # Supported Platforms / Terminals:
 
-This is the combinations that I've tested sofar:
+|OS       |Support|
+|---------|-------|
+|OS X     |Yes    |
+|Linux    |Yes    |
+|Windows  |No, due to https://ghc.haskell.org/trac/ghc/ticket/7353 |
 
-|OS       |Terminal      |Support|
-|---------|--------------|-------|
-|OS X     |Terminal      |Yes    |
-|Windows  |cmd.exe       |No (due to https://ghc.haskell.org/trac/ghc/ticket/7353) |
-|Linux    |GNOME Terminal|Yes    |
+For best results, the terminal should support 8-bit colors.
 
 # Version history
 - 2.0 :

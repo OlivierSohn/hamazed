@@ -1,16 +1,12 @@
 
 # Backlog
 
-- animation should start slow and accelerate (look at 'ease' package)
+- do not change world until new frame is there, then animate the ship and numbers
+to their new locations
 
 - text should disappear / appear progressively
 
 - start the animation when game is won
-
-- do not change world until new frame is there, then animate the ship and numbers
-to their new locations
-
-- do not trigger level animation when size doesn't change
 
 - a mode with limited visibility (a circle around the ship)
 

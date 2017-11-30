@@ -18,7 +18,7 @@ import           Geo.Discrete.Types
 data WorldShape = Square
                 | Rectangle2x1
 
-newtype WorldSize = WorldSize Coords
+newtype WorldSize = WorldSize Coords deriving(Eq, Show)
 
 newtype Width = Width Int
 newtype Height = Height Int

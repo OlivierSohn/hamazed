@@ -140,7 +140,12 @@ mkWorld mayPrevSize s walltype nums = do
   let frameAnimation =
         maybe
           Nothing
-          (\prev -> Just $ mkFrameAnimation prev t invQuartEaseInOut (maxNumberOfSteps prev sz))
+          (\prev ->
+            if prev == sz
+              then
+                Nothing
+              else
+                Just $ mkFrameAnimation prev t invQuartEaseInOut (maxNumberOfSteps prev sz))
             mayPrevSize
       space = Space mat frameAnimation sz render
   balls <- mapM (createRandomNumber space) nums

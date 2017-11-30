@@ -228,7 +228,7 @@ makeInitialState (GameParameters shape wallType) level mayPrevSize = do
     Right ew -> do
       world <- mkWorld mayPrevSize worldSize wallType numbers
       t <- getCurrentTime
-      let kt = maybe (Just $ KeyTime t) (const Nothing) mayPrevSize
+      let kt = Just $ KeyTime t
       return $ Right $ GameState (Timer t) kt ew world [] (sum numbers `quot` 2) $ Level level Nothing
 
 loop :: GameParameters -> GameState -> IO ()

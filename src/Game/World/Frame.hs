@@ -13,6 +13,8 @@ import           Animation.Types
 
 import           Data.List( mapAccumL, zip )
 
+import           Ease
+
 import           Color
 
 import           Game.World.Size
@@ -117,13 +119,16 @@ renderWorldFrame mayAnim sz upperLeft = do
   fg <- setRawForeground worldFrameColor
   maybe
     (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
-    (\(FrameAnimation szBefore (Iteration (_, Frame i)) _) -> do
+    (\(FrameAnimation szBefore (Iteration (_, Frame i')) _) -> do
       let diff@(RenderState (Coords _ (Col dc))) = diffUpperLeft sz szBefore
           n = maxNumberOfSteps sz szBefore
           upperLeftBefore = sumRS diff upperLeft
+          ratio = fromIntegral i'/fromIntegral (n+1) :: Float
+          i = floor $ 0.5 + fromIntegral (n+1) * quartInOut ratio
+          -- TODO adapt frame rate based on ease : increment of one here each time,
           render diBefore di = do
-            renderFrom Extremities (n-(i+diBefore)) szBefore upperLeftBefore
-            renderFrom Middle      (n-(i+di))       sz       upperLeft
+            renderFrom Extremities (n+1-(i+diBefore)) szBefore upperLeftBefore
+            renderFrom Middle      (n+1-(i+di))       sz       upperLeft
       if dc >= 0
         then
           -- expanding animation
@@ -136,7 +141,7 @@ renderWorldFrame mayAnim sz upperLeft = do
   return $ go Down $ go RIGHT upperLeft
 
 maxNumberOfSteps :: WorldSize -> WorldSize -> Int
-maxNumberOfSteps s s' = 1 + quot (max (maxDim s) (maxDim s')) 2
+maxNumberOfSteps s s' = quot (1 + max (maxDim s) (maxDim s')) 2
 
 data BuildFrom = Middle
                | Extremities -- generates the complement

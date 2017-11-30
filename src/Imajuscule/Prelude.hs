@@ -67,6 +67,7 @@ module Imajuscule.Prelude (
                           , (&&)
                           , ($)
                           , (*)
+                          , (**)
                           , (+)
                           , (-)
                           , (/)
@@ -75,6 +76,8 @@ module Imajuscule.Prelude (
                           , succ
                           , realToFrac
                           , fromIntegral
+                          , fromRational
+                          , recip
                           , signum
                           , sin
                           , cos

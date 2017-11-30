@@ -54,6 +54,7 @@ library
                      , Game.Level
                      , Game.Level.Types
                      , Game.World.Number
+                     , Math
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta
@@ -69,6 +70,7 @@ library
                      , array
                      , colour
                      , containers
+                     , ease
                      , matrix
                      , monad-loops
                      , monadlist

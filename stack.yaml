@@ -10,6 +10,7 @@ packages:
 
 extra-deps:
 - monadlist-0.0.2
+- ease-0.1.0.0
 
 flags: {}
 

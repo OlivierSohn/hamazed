@@ -3,7 +3,8 @@
 
 - when size goes bigger, reverse animation
 
-- do not change world until new frame is there.
+- do not change world until new frame is there, then animate the ship and numbers
+to their new locations
 
 - do not trigger level animation when size doesn't change
 

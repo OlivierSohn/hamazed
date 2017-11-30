@@ -324,8 +324,16 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
   let (sz@(WorldSize (Coords (Row rs) (Col cs))), upperLeft) =
         maybe
             (curSz, curUpperLeft)
-            (\(FrameAnimation prevSz _ _) -> (prevSz, sumRS (diffUpperLeft curSz prevSz) curUpperLeft))
-            mayAnim
+            (\(FrameAnimation prevSz _ _) ->
+              let d@(RenderState (Coords _ (Col dc))) = diffUpperLeft curSz prevSz
+              in if dc >= 0
+                  then
+                    -- animation expands the frame
+                    (curSz, curUpperLeft)
+                  else
+                    -- animation shrinks the frame
+                    (prevSz, sumRS d curUpperLeft)
+            ) mayAnim
       addWallSize = (+ 2)
       half = flip quot 2
       mkSizes s = (addWallSize s, half s)
@@ -341,11 +349,15 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
                                             <> colored (singleton ']') bracketsColor) leftMiddle
        >>= renderAligned RightAligned (showShotNumbers shotNumbers)
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
-  renderSpace space upperLeft >>=
+
+  -- We render the world using curUpperLeft because it's the new world
+  -- If instead we decide to render the old world while animationg the frame we should
+  -- pass upperLeft instead
+  renderSpace space curUpperLeft >>=
     (\worldCorner -> do
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         renderWorldAndLevel state worldCorner
-        renderWorldFrame mayAnim curSz upperLeft -- render it last so that when it animates
+        renderWorldFrame mayAnim curSz curUpperLeft -- render it last so that when it animates
                                                  -- to reduce, it goes over numbers and ship
 
         return activeAnimations)

@@ -49,7 +49,7 @@ computeTime (Timer t1) t2 =
   in floor t
 
 frameAnimationPeriod :: NominalDiffTime
-frameAnimationPeriod = 0.1
+frameAnimationPeriod = 0.4 -- 0.1
 
 -- the console can refresh at approx. 21 fps, hence this value (1/25)
 animationPeriod :: NominalDiffTime

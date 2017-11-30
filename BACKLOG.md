@@ -1,7 +1,7 @@
 
 # Backlog
 
-- when size goes bigger, reverse animation
+- start the animation at the same time vertically and horizontally
 
 - do not change world until new frame is there, then animate the ship and numbers
 to their new locations

@@ -9,7 +9,7 @@ module Game.World.Frame
 
 import           Imajuscule.Prelude
 
-import           Data.List( mapAccumL )
+import           Data.List( mapAccumL, zip )
 
 import           Color
 
@@ -150,12 +150,18 @@ ranges :: Int -> WorldSize -> RangeType -> [(Int, Int)]
 ranges progress sz =
   let h = countWorlFrameVertical sz
       w = countWorlFrameHorizontal sz
-      ext = rangeByRemovingFromTotal progress
 
+      diff = quot (w - h) 2 -- vertical and horizontal animations should start at the same time
+
+      extW = rangeByRemovingFromTotal progress w
+      extH = rangeByRemovingFromTotal (max 0 $ progress-diff) h
+
+      exts = [extW, extH, extW, extH]
       lengths = [w,h,w,h]
+
       (total, starts) = mapAccumL (\acc v -> (acc + v, acc)) 0 lengths
-      res = zipWith ext lengths starts
-  in  \case
+      res = map (\(ext, s) -> ext s) $ zip exts starts
+  in \case
         FromMiddle -> res
         FromExtremities -> complement 0 (total-1) res
 

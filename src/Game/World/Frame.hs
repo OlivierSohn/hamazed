@@ -111,7 +111,7 @@ actualRange countMax (from, to) =
 
 renderWorldFrame :: Maybe FrameAnimation -- ^ contains previous size
                  -> WorldSize -- ^ new size
-                 -> RenderState -- ^ wrt. new size
+                 -> RenderState -- ^ wrt new size
                  -> IO RenderState
 renderWorldFrame mayAnim sz upperLeft = do
   fg <- setRawForeground worldFrameColor
@@ -119,17 +119,18 @@ renderWorldFrame mayAnim sz upperLeft = do
     (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
     (\(FrameAnimation szBefore (Iteration (_, Frame i)) _) -> do
       let diff@(RenderState (Coords _ (Col dc))) = diffUpperLeft sz szBefore
+          n = maxNumberOfSteps sz szBefore
+          upperLeftBefore = sumRS diff upperLeft
+          render diBefore di = do
+            renderFrom Extremities (n-(i+diBefore)) szBefore upperLeftBefore
+            renderFrom Middle      (n-(i+di))       sz       upperLeft
       if dc >= 0
-        then do
+        then
           -- expanding animation
-          let n = maxNumberOfSteps sz szBefore
-          renderFromMiddle FromExtremities (n-(i+dc)) szBefore $ sumRS diff upperLeft
-          renderFromMiddle FromMiddle (n-i) sz upperLeft
-        else do
+          render dc 0
+        else
           -- shrinking animation
-          let n = maxNumberOfSteps sz szBefore
-          renderFromMiddle FromMiddle (n-(i-dc)) sz upperLeft
-          renderFromMiddle FromExtremities (n-i) szBefore $ sumRS diff upperLeft
+          render 0 (negate dc)
     ) mayAnim
   restoreForeground fg
   return $ go Down $ go RIGHT upperLeft
@@ -137,10 +138,10 @@ renderWorldFrame mayAnim sz upperLeft = do
 maxNumberOfSteps :: WorldSize -> WorldSize -> Int
 maxNumberOfSteps s s' = 1 + quot (max (maxDim s) (maxDim s')) 2
 
-data RangeType = FromMiddle
-               | FromExtremities -- generates the complement
+data BuildFrom = Middle
+               | Extremities -- generates the complement
 
-ranges :: Int -> WorldSize -> RangeType -> [(Int, Int)]
+ranges :: Int -> WorldSize -> BuildFrom -> [(Int, Int)]
 ranges progress sz =
   let h = countWorlFrameVertical sz
       w = countWorlFrameHorizontal sz
@@ -156,11 +157,11 @@ ranges progress sz =
       (total, starts) = mapAccumL (\acc v -> (acc + v, acc)) 0 lengths
       res = map (\(ext, s) -> ext s) $ zip exts starts
   in \case
-        FromMiddle -> res
-        FromExtremities -> complement 0 (total-1) res
+        Middle      -> res
+        Extremities -> complement 0 (total-1) res
 
-renderFromMiddle :: RangeType -> Int -> WorldSize -> RenderState -> IO ()
-renderFromMiddle rangeType progress sz r = do
+renderFrom :: BuildFrom -> Int -> WorldSize -> RenderState -> IO ()
+renderFrom rangeType progress sz r = do
   let rs = ranges progress sz rangeType
   mapM_ (\(min_, max_) -> renderPartialWorldFrame sz (r, min_, max_)) rs
 

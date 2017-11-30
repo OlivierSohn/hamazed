@@ -320,7 +320,7 @@ renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
 renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ mayAnim curSz _) animations)
                    shotNumbers target (Level level _)) = do
-  -- while we are animating the frame, the layout needs to be like it was before
+  -- while animating the frame, layout according to the largest size
   let (WorldSize (Coords (Row rs) (Col cs)), upperLeft) =
         maybe
             (curSz, curUpperLeft)

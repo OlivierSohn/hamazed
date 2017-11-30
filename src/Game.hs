@@ -56,7 +56,7 @@ data GameState = GameState {
 -- TODO move code for animations creation out
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b d world@(World balls f bs@(BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space mat mayAnim sz u) animations) g target level@(Level i finished))
+  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space _ mayAnim sz _) animations) g target (Level i finished))
   te@(TimedEvent event t) =
     maybe
       normal
@@ -285,7 +285,7 @@ updateGameUsingTimedEvent
 updateAnim :: UTCTime -> GameState -> GameState
 updateAnim
   t
-  (GameState a b c (World d e f (Space g mayAnim sz h) i) j k l)
+  (GameState a _ c (World d e f (Space g mayAnim sz h) i) j k l)
    = maybe
        (error "should not happen")
        (\(FrameAnimation prevSize it@(Iteration (_, Frame count)) deadline) ->
@@ -294,7 +294,7 @@ updateAnim
                    then
                      (Nothing, Just $ FrameAnimation prevSize (nextIteration it) $ addFrameAnimationStepDuration deadline)
                    else
-                     (Just $ KeyTime t, Nothing)
+                     (Just $ KeyTime t, Nothing) -- TODO adjust timing if needed so that the game starts earlier or later
            in GameState a newGameStep c (World d e f (Space g newAnim sz h) i) j k l
        ) mayAnim
 
@@ -321,7 +321,7 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
                    (World _ _ (BattleShip _ ammo _ _) space@(Space _ mayAnim curSz _) animations)
                    shotNumbers target (Level level _)) = do
   -- while we are animating the frame, the layout needs to be like it was before
-  let (sz@(WorldSize (Coords (Row rs) (Col cs))), upperLeft) =
+  let (WorldSize (Coords (Row rs) (Col cs)), upperLeft) =
         maybe
             (curSz, curUpperLeft)
             (\(FrameAnimation prevSz _ _) ->
@@ -344,14 +344,14 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
       centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
       leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
   -- TODO animate this
-  (do
+  do
     _ <- renderAlignedTxt Centered ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) centerDown
     _ <- go Down <$> renderAligned RightAligned (colored (singleton '[') bracketsColor
                                               <> colored (pack $ replicate ammo '.') ammoColor
                                               <> colored (singleton ']') bracketsColor) leftMiddle
          >>= renderAligned RightAligned (showShotNumbers shotNumbers)
     _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
-    return ())
+    return ()
 
   -- We render the world using curUpperLeft because it's the new world
   -- If instead we decide to render the old world while animationg the frame we should
@@ -360,8 +360,8 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
     (\worldCorner -> do
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         renderWorldAndLevel state worldCorner
-        renderWorldFrame mayAnim curSz curUpperLeft -- render it last so that when it animates
-                                                    -- to reduce, it goes over numbers and ship
+        _ <- renderWorldFrame mayAnim curSz curUpperLeft -- render it last so that when it animates
+                                                         -- to reduce, it goes over numbers and ship
         return activeAnimations)
 
 locationFunction :: Boundaries

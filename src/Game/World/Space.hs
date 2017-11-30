@@ -45,7 +45,6 @@ import           Geo.Types
 import           Geo.Discrete( translateInDir )
 
 import           Render
-import           Render.Console
 
 import           Util( replicateElements
                      , randomRsIO )
@@ -261,14 +260,10 @@ strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ _ (WorldSize (Coor
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
 renderSpace :: Space -> RenderState -> IO RenderState
-renderSpace (Space _ anim sz renderedWorld) upperLeft = do
+renderSpace (Space _ _ _ renderedWorld) upperLeft = do
   let worldCoords = go Down $ go RIGHT upperLeft
-  maybe
-    (do
-      mapM_ (renderGroup worldCoords) renderedWorld
-      return worldCoords)
-    (const $ return worldCoords) -- while animation is running do not render the world
-      anim
+  mapM_ (renderGroup worldCoords) renderedWorld
+  return worldCoords
 
 renderGroup :: RenderState -> RenderGroup -> IO ()
 renderGroup worldCoords (RenderGroup (r, c, colors, char, count)) =

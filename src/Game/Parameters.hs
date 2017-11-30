@@ -75,7 +75,7 @@ render (GameParameters shape wall) = do
     Right (EmbeddedWorld _ upperLeft) -> do
       beginFrame
       world@(World _ _ _ space _) <- mkWorld Nothing worldSize wall []
-      renderSpace space upperLeft >>=
+      _ <- renderSpace space upperLeft >>=
         \worldCoords -> do
           renderWorld world worldCoords
           let middle = move (quot cs 2) RIGHT worldCoords

@@ -118,7 +118,7 @@ renderWorldFrame mayAnim sz upperLeft = do
   maybe
     (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
     (\(FrameAnimation szBefore (Iteration (_, Frame i)) _) -> do
-      let diff@(RenderState (Coords (Row dr) (Col dc))) = diffUpperLeft sz szBefore
+      let diff@(RenderState (Coords _ (Col dc))) = diffUpperLeft sz szBefore
       if dc >= 0
         then do
           -- expanding animation
@@ -136,14 +136,6 @@ renderWorldFrame mayAnim sz upperLeft = do
 
 maxNumberOfSteps :: WorldSize -> WorldSize -> Int
 maxNumberOfSteps s s' = 1 + quot (max (maxDim s) (maxDim s')) 2
-
-augment :: WorldSize -> WorldSize
-augment (WorldSize (Coords r c)) =
-  WorldSize (Coords (r+2) (c+2))
-
-reduce :: WorldSize -> WorldSize
-reduce (WorldSize (Coords r c)) =
-  WorldSize (Coords (r-2) (c-2))
 
 data RangeType = FromMiddle
                | FromExtremities -- generates the complement
@@ -181,6 +173,3 @@ rangeByRemovingFromTotal remove total start =
   let min_ = remove
       max_ = total - 1 - remove
   in (start + min_, start + max_)
-
-rangeWithRadiusCenter :: Int -> Int -> (Int, Int)
-rangeWithRadiusCenter radius center = (center-radius, center+radius)

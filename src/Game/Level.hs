@@ -56,13 +56,14 @@ firstLevel :: Int
 firstLevel = 1
 
 eventFromChar :: Level -> Either Key Char -> Event
-eventFromChar (Level n finished) char = case finished of
-  Nothing -> Game.Event.eventFromChar char
-  Just (LevelFinished stop _ ContinueMessage) ->
-    case stop of
-      Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
-      (Lost _) -> StartLevel firstLevel
-  _ -> Nonsense -- between level end and proposal to continue
+eventFromChar (Level n finished) char =
+  case finished of
+    Nothing -> Game.Event.eventFromChar char
+    Just (LevelFinished stop _ ContinueMessage) ->
+      case stop of
+        Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
+        (Lost _) -> StartLevel firstLevel
+    _ -> Nonsense -- between level end and proposal to continue
 
 
 isLevelFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished

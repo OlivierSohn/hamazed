@@ -1,6 +1,14 @@
 
 # Backlog
 
+- when size goes bigger, reverse animation
+
+- do not change world until new frame is there.
+
+- do not trigger level animation when size doesn't change
+
+- a mode with limited visibility (a circle around the ship)
+
 - animate colors of "You win / You lost"
 using colors of numbers for win / colors of explosions for lost
 
@@ -66,6 +74,9 @@ or to interpret "OnWall Traverse" as "OnWall ReboundAnd" for animations that don
 - generalize chained sequences on collisions
   - try passing a list of functions to the tree's 'treeOnWall' Rebound
 - make an animation between levels to make the world reduce progressively
+  for this animation we need to render the frame on top of the world
+
+  it's more complicated than an animation because there are multiple chars
 - use bresenham 3d for smooth color gradients (code commented in Geo)
 - when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?

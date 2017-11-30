@@ -39,6 +39,7 @@ import           Color
 
 import           Game.World.Size( Location(..)
                           , WorldSize(..) )
+import           Game.World.Frame
 
 import           Geo.Types
 import           Geo.Discrete( translateInDir )
@@ -65,6 +66,7 @@ newtype RenderGroup = RenderGroup (Row, Col, (Color8Code, Color8Code), Char, Int
 
 data Space = Space {
     _space :: !(Matrix CInt)
+  , _spaceFrameAnimation :: !(Maybe FrameAnimation)
   , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
   , _spaceRender :: ![RenderGroup]
 }
@@ -184,7 +186,7 @@ mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =
   let innerMat = extend s innerMatMaybeSmaller
       mat = fromLists $ addBorder s innerMat
-  in Space mat s $ render mat s
+  in Space mat Nothing s $ render mat s
 
 extend :: WorldSize -> [[a]] -> [[a]]
 extend (WorldSize (Coords (Row rs) (Col cs))) mat =
@@ -234,13 +236,13 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
                   (Col 0) $ group $ map (accessMaterial . Col) [0..cs-1]
 
 getInnerMaterial :: Coords -> Space -> Material
-getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _) =
+getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
-getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ _ (WorldSize (Coords (Row rs) (Col cs))) _)
   | r < 0 || c < 0       = Wall
   | r > rs-1 || c > cs-1 = Wall
   | otherwise = getInnerMaterial coords space
@@ -254,37 +256,19 @@ location :: Coords -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
 strictLocation :: Coords -> Space -> Location
-strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ _ (WorldSize (Coords (Row rs) (Col cs))) _)
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
 renderSpace :: Space -> RenderState -> IO RenderState
-renderSpace (Space _ sz renderedWorld) upperLeft =
-  renderWorldFrame sz upperLeft
-    >>= \worldCoords ->
+renderSpace (Space _ anim sz renderedWorld) upperLeft = do
+  let worldCoords = go Down $ go RIGHT upperLeft
+  maybe
+    (do
       mapM_ (renderGroup worldCoords) renderedWorld
-        >>
-          return worldCoords
-
-renderWorldFrame :: WorldSize -> RenderState -> IO RenderState
-renderWorldFrame (WorldSize (Coords (Row rs) (Col cs))) upperLeft = do
-  let horizontalWall = replicate (cs + 2)
-      lowerLeft = move (rs+1) Down upperLeft
-
-  fg <- setRawForeground worldFrameColor
-  -- upper wall
-  renderState <- renderStr (horizontalWall '_') upperLeft
-  let worldCoords = go RIGHT renderState
-
-  -- left & right walls
-  let leftWallCoords = take rs $ iterate (go Down) renderState
-      rightWallCoords = take rs $ iterate (go Down) $ move (cs+1) RIGHT renderState
-  mapM_ (renderChar_ '|') (leftWallCoords ++ rightWallCoords)
-
-  -- lower wall
-  renderStr_ (horizontalWall 'T') lowerLeft
-  restoreForeground fg
-  return worldCoords
+      return worldCoords)
+    (const $ return worldCoords) -- while animation is running do not render the world
+      anim
 
 renderGroup :: RenderState -> RenderGroup -> IO ()
 renderGroup worldCoords (RenderGroup (r, c, colors, char, count)) =

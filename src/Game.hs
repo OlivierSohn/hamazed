@@ -26,6 +26,7 @@ import           Game.Event
 import           Game.Level
 import           Game.Parameters( GameParameters(..) )
 import           Game.World
+import           Game.World.Frame
 import           Game.World.Laser
 import           Game.World.Number
 import           Game.World.Size
@@ -37,21 +38,14 @@ import           Geo.Continuous
 import           Geo.Discrete hiding(translate)
 
 import           Render.Console
-import           Render( RenderState, EmbeddedWorld(..), Window(..)
-                       , mkEmbeddedWorld
-                       , translate
-                       , Alignment(..)
-                       , renderAlignedTxt
-                       , renderAligned, colored
-                       , RenderState(..)
-                       , go )
-                       
+import           Render
+
 import           Timing
 import           Util
 
 data GameState = GameState {
     _gameStateStartTime :: !Timer
-  , _gameStateNextMotionStep :: !KeyTime
+  , _gameStateNextMotionStep :: !(Maybe KeyTime)
   , _gameStateEmbeddedWorld :: !EmbeddedWorld
   , _gameStateworld :: !World
   , _gameStateShotNumbers :: ![Int]
@@ -62,9 +56,14 @@ data GameState = GameState {
 -- TODO move code for animations creation out
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b d world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space _ sz _) animations) g target (Level i finished))
+  (GameState a b d world@(World balls f bs@(BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions) space@(Space mat mayAnim sz u) animations) g target level@(Level i finished))
   te@(TimedEvent event t) =
-   let (maybeLaserRayTheoretical, newAmmo) =
+    maybe
+      normal
+      (const $ error "not supposed to have an animation here")
+        mayAnim
+  where
+       (maybeLaserRayTheoretical, newAmmo) =
          if ammo > 0 then case event of
            (Action Laser dir) ->
              (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
@@ -142,7 +141,7 @@ nextGameState
        allShotNumbers = g ++ destroyedNumbers
        newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
        newLevel = Level i newFinished
-   in  GameState a b d newWorld allShotNumbers target newLevel
+       normal = GameState a b d newWorld allShotNumbers target newLevel
 
 destroyNumbersAnimations :: [Number] -> Event -> KeyTime -> [BoundedAnimation]
 destroyNumbersAnimations nums event keyTime =
@@ -176,15 +175,29 @@ overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 -- | priorities are : message > game forward > animation forward
 getDeadlinesByDecreasingPriority :: GameState -> UTCTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ _ level) t =
-  catMaybes [messageDeadline level t, gameDeadline s, animationDeadline s]
+  maybe
+    (catMaybes [messageDeadline level t, gameDeadline s, animationDeadline s])
+    (: [])
+      (frameAnimationDeadline s)
 
 gameDeadline :: GameState -> Maybe Deadline
 gameDeadline (GameState _ nextGameStep _ _ _ _ (Level _ levelFinished)) =
-  maybe (Just $ Deadline nextGameStep GameStep) (const Nothing) levelFinished
+  maybe
+    (maybe
+      Nothing
+      (\s -> Just $ Deadline s GameStep)
+        nextGameStep)
+    (const Nothing)
+      levelFinished
 
 animationDeadline :: GameState -> Maybe Deadline
 animationDeadline (GameState _ _ _ world _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
+
+frameAnimationDeadline :: GameState -> Maybe Deadline
+frameAnimationDeadline (GameState _ _ _ world _ _ _) =
+  maybe Nothing (\ti -> Just $ Deadline ti FrameAnimationStep) $ earliestFrameAnimationDeadline world
+
 
 
 accelerateShip' :: Direction -> GameState -> GameState
@@ -200,22 +213,23 @@ accelerateShip' dir (GameState a c d (World wa wb ship wc wd) f g h) =
 
 runGameWorker :: GameParameters -> IO ()
 runGameWorker params =
-  makeInitialState params firstLevel
+  makeInitialState params firstLevel Nothing
     >>= \case
             Left err -> error err
             Right ew -> loop params ew
 
-makeInitialState :: GameParameters -> Int -> IO (Either String GameState)
-makeInitialState (GameParameters shape wallType) level = do
+makeInitialState :: GameParameters -> Int -> Maybe WorldSize -> IO (Either String GameState)
+makeInitialState (GameParameters shape wallType) level mayPrevSize = do
   let numbers = [1..(3+level)] -- more and more numbers as level increases
       worldSize = worldSizeFromLevel level shape
   eew <- mkEmbeddedWorld worldSize
   case eew of
     Left err -> return $ Left err
     Right ew -> do
-      world <- mkWorld worldSize wallType numbers
+      world <- mkWorld mayPrevSize worldSize wallType numbers
       t <- getCurrentTime
-      return $ Right $ GameState (Timer t) (KeyTime t) ew world [] (sum numbers `quot` 2) $ Level level Nothing
+      let kt = maybe (Just $ KeyTime t) (const Nothing) mayPrevSize
+      return $ Right $ GameState (Timer t) kt ew world [] (sum numbers `quot` 2) $ Level level Nothing
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
@@ -245,25 +259,44 @@ getEvent state@(GameState _ _ _ _ _ _ level) = do
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
  params
- state@(GameState a b d world f g h@(Level level mayLevelFinished))
+ state@(GameState a b d world@(World _ _ _ (Space _ _ prevSz _) _) f g h@(Level level mayLevelFinished))
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
     StartLevel nextLevel ->
-      makeInitialState params nextLevel
+      -- TODO make an animation between current world size and next
+      makeInitialState params nextLevel (Just prevSz)
         >>= \case
               Left err -> error err
               Right s -> return s
-    _        -> do
-      let newState = case event of
-            (Timeout GameStep gt) -> GameState a (addGameStepDuration gt) d (moveWorld t world) f g h
-            (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
-                                     -- MessageStep is probably the wrong abstraction level
-              case mayLevelFinished of
-                Just (LevelFinished stop finishTime _) -> GameState a b d world f g $ Level level (Just $ LevelFinished stop finishTime ContinueMessage)
-                Nothing -> state
-            _ -> state
-      updateGame2 te newState
+    _ -> do
+          let newState = case event of
+                (Timeout FrameAnimationStep _) -> updateAnim t state
+                (Timeout GameStep gt) -> GameState a (Just $ addGameStepDuration gt) d (moveWorld t world) f g h
+                (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
+                                         -- MessageStep is probably the wrong abstraction level
+                  case mayLevelFinished of
+                    Just (LevelFinished stop finishTime _) -> GameState a b d world f g $ Level level (Just $ LevelFinished stop finishTime ContinueMessage)
+                    Nothing -> state
+                _ -> state
+          updateGame2 te newState
+
+
+updateAnim :: UTCTime -> GameState -> GameState
+updateAnim
+  t
+  (GameState a b c (World d e f (Space g mayAnim sz h) i) j k l)
+   = maybe
+       (error "should not happen")
+       (\(FrameAnimation prevSize count deadline) ->
+           let (newGameStep, newAnim) =
+                 if count < maxNumberOfSteps prevSize sz
+                   then
+                     (Nothing, Just $ FrameAnimation prevSize (succ count) $ addFrameAnimationStepDuration deadline)
+                   else
+                     (Just $ KeyTime t, Nothing)
+           in GameState a newGameStep c (World d e f (Space g newAnim sz h) i) j k l
+       ) mayAnim
 
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2 te@(TimedEvent event _) s =
@@ -271,17 +304,29 @@ updateGame2 te@(TimedEvent event _) s =
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
       beginFrame
-      let s2 = nextGameState s te
+      let s2 =
+            maybe
+              (nextGameState s te)
+              (const s)
+                $ frameAnimation s
       animations <- renderGame (getKeyTime event) s2
       endFrame
       return $ replaceAnimations animations s2
 
+frameAnimation :: GameState -> Maybe FrameAnimation
+frameAnimation (GameState _ _ _ (World _ _ _ (Space _ anim _ _) _) _ _ _) = anim
 
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
-renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
-                   (World _ _ (BattleShip _ ammo _ _) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _) animations)
+renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow curUpperLeft)
+                   (World _ _ (BattleShip _ ammo _ _) space@(Space _ mayAnim curSz _) animations)
                    shotNumbers target (Level level _)) = do
-  let addWallSize = (+ 2)
+  -- while we are animating the frame, the layout needs to be like it was before
+  let (sz@(WorldSize (Coords (Row rs) (Col cs))), upperLeft) =
+        maybe
+            (curSz, curUpperLeft)
+            (\(FrameAnimation prevSz _ _) -> (prevSz, sumRS (diffUpperLeft curSz prevSz) curUpperLeft))
+            mayAnim
+      addWallSize = (+ 2)
       half = flip quot 2
       mkSizes s = (addWallSize s, half s)
       (rFull, rHalf) = mkSizes rs
@@ -300,6 +345,9 @@ renderGame k state@(GameState _ _ (EmbeddedWorld mayTermWindow upperLeft)
     (\worldCorner -> do
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         renderWorldAndLevel state worldCorner
+        renderWorldFrame mayAnim curSz upperLeft -- render it last so that when it animates
+                                                 -- to reduce, it goes over numbers and ship
+
         return activeAnimations)
 
 locationFunction :: Boundaries
@@ -307,7 +355,7 @@ locationFunction :: Boundaries
                  -> Maybe (Window Int)
                  -> RenderState
                  -> (Coords -> Location)
-locationFunction f space@(Space _ sz _) mayTermWindow (RenderState wcc) =
+locationFunction f space@(Space _ _ sz _) mayTermWindow (RenderState wcc) =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =
@@ -348,7 +396,7 @@ renderAnimations k space mayTermWindow worldCorner animations = do
 
 renderWorldAndLevel :: GameState -> RenderState -> IO ()
 renderWorldAndLevel (GameState _ _ _
-                   world@(World _ _ _ (Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
+                   world@(World _ _ _ (Space _ _ (WorldSize (Coords (Row rs) (Col cs))) _) _)
                    _ _ level) worldCorner = do
   renderWorld world worldCorner
   let

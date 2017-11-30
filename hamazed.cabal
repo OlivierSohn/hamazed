@@ -48,6 +48,7 @@ library
                      , IO.Blocking
                      , IO.NonBlocking
                      , IO.Types
+                     , Game.World.Frame
                      , Game.World.Laser
                      , Game.World.Laser.Types
                      , Game.Level

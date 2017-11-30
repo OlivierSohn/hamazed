@@ -2,6 +2,8 @@
 
 module Timing
     ( addGameStepDuration
+    , frameAnimationPeriod
+    , addFrameAnimationStepDuration
     , addAnimationStepDuration
     , animationPeriod
     , animationUpdateMargin
@@ -46,6 +48,8 @@ computeTime (Timer t1) t2 =
   let t = diffUTCTime t2 t1
   in floor t
 
+frameAnimationPeriod :: NominalDiffTime
+frameAnimationPeriod = 0.1
 
 -- the console can refresh at approx. 21 fps, hence this value (1/25)
 animationPeriod :: NominalDiffTime
@@ -60,6 +64,9 @@ animationUpdateMargin = 0.01
 
 gamePeriod :: NominalDiffTime
 gamePeriod = fromIntegral gamePeriodMicros / 1000000
+
+addFrameAnimationStepDuration :: KeyTime -> KeyTime
+addFrameAnimationStepDuration = addDuration frameAnimationPeriod
 
 addGameStepDuration :: KeyTime -> KeyTime
 addGameStepDuration = addDuration gamePeriod

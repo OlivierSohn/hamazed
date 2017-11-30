@@ -1,6 +1,8 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module Geo.Discrete.Types
     ( Col(..)
@@ -18,8 +20,8 @@ import           GHC.Generics( Generic )
 import           Geo.Types
 
 
-newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord)
-newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord)
+newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
+newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
 
 data Coords = Coords {
     _x :: !Row

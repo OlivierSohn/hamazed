@@ -46,18 +46,19 @@ data Event =  Action ActionTarget Direction
 data Meta = Configure
           | Quit
           | Help
-          | InvalidTerminalSize String
           deriving(Eq, Show)
 
 data Step = GameStep
           | AnimationStep
           | MessageStep
+          | FrameAnimationStep
           deriving(Eq, Show)
 
 priority :: Step -> Int
+priority FrameAnimationStep = -1
 priority MessageStep = 0
 priority GameStep    = 1
--- userEvent is here
+-- userEvent is here (in terms of priority)
 priority AnimationStep = 3
 
 userEventPriority :: Int

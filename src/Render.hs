@@ -14,10 +14,12 @@ module Render (
         , go
         , Render.move
         , translate
+        , sumRS
         , mkEmbeddedWorld
         , EmbeddedWorld(..)
         , ColorString(..)
         , colored
+        , diffUpperLeft
         -- | reexports
         , Coords(..)
         , Row(..)
@@ -46,6 +48,10 @@ import           Geo.Discrete( move, sumCoords, translateInDir )
 
 import           Render.Console
 
+
+diffUpperLeft :: WorldSize -> WorldSize -> RenderState
+diffUpperLeft (WorldSize (Coords (Row r1) (Col c1))) (WorldSize (Coords (Row r2) (Col c2))) =
+  RenderState $ Coords (Row (quot (r1 - r2) 2)) (Col (quot (c1 - c2) 2))
 
 data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
@@ -82,6 +88,9 @@ move n dir (RenderState c) = RenderState $ Geo.Discrete.move n dir c
 
 translate :: Row -> Col -> RenderState -> RenderState
 translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c
+
+sumRS :: RenderState -> RenderState -> RenderState
+sumRS (RenderState c1) (RenderState c2) = RenderState $ sumCoords c1 c2
 
 worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords
 worldUpperLeftToCenterIt' worldSize mayTermSize =

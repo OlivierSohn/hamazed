@@ -12,9 +12,9 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
-
-import           Game.World.Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
 import           Game.World( mkWorld, World(..), renderWorld )
+import           Game.World.Frame
+import           Game.World.Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
 import           Game.World.Size( WorldSize(..), WorldShape(..), worldSizeFromLevel )
 
 import           IO.Blocking
@@ -70,10 +70,10 @@ render (GameParameters shape wall) = do
   ew <- mkEmbeddedWorld worldSize
   case ew of
     Left err -> error err
-    Right (EmbeddedWorld _ coords) -> do
+    Right (EmbeddedWorld _ upperLeft) -> do
       beginFrame
-      world@(World _ _ _ space _) <- mkWorld worldSize wall []
-      renderSpace space coords >>=
+      world@(World _ _ _ space _) <- mkWorld Nothing worldSize wall []
+      renderSpace space upperLeft >>=
         \worldCoords -> do
           renderWorld world worldCoords
           let middle = move (quot cs 2) RIGHT worldCoords
@@ -94,4 +94,5 @@ render (GameParameters shape wall) = do
           _ <- setForeground Vivid Green
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
           restoreForeground prevFg
+          renderWorldFrame Nothing worldSize upperLeft
       endFrame

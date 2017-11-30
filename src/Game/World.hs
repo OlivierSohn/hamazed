@@ -11,6 +11,7 @@ module Game.World
     , nextWorld
     , renderWorld
     , earliestAnimationDeadline
+    , earliestFrameAnimationDeadline
     -- | reexports
     , Number(..)
     ) where
@@ -37,13 +38,14 @@ import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 import           Game.World.Size
 
+import           Game.World.Frame
 import           Game.World.Number
 import           Game.World.Space
 
 import           Render( RenderState )
 import           Render.Console
 
-import           Timing( KeyTime(..) )
+import           Timing
 
 
 data BattleShip = BattleShip {
@@ -115,21 +117,32 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
   in PosSpeed newPos speed
 
 earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ _ animations) = earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
+earliestAnimationDeadline (World _ _ _ _ animations) =
+  earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
+
+earliestFrameAnimationDeadline :: World -> Maybe KeyTime
+earliestFrameAnimationDeadline (World _ _ _ (Space _ mayAnim _ _) _) = 
+  maybe Nothing (\(FrameAnimation _ _ deadline) -> Just deadline) mayAnim
 
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: WorldSize -> WallType -> [Int] -> IO World
-mkWorld s walltype nums = do
-  space <- case walltype of
+mkWorld :: Maybe WorldSize -> WorldSize -> WallType -> [Int] -> IO World
+mkWorld mayPrevSize s walltype nums = do
+  (Space mat _ sz render) <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> mkRandomlyFilledSpace rParams s
+  t <- getCurrentTime
+  let frameAnimation =
+        maybe
+          Nothing
+          (\prev -> Just $ FrameAnimation prev 0 $ addFrameAnimationStepDuration $ KeyTime t)
+            mayPrevSize
+      space = Space mat frameAnimation sz render
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createShipPos space balls
-  t <- getCurrentTime
   return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space []
 
 createShipPos :: Space -> [Number] -> IO PosSpeed
@@ -168,7 +181,7 @@ createRandomPosSpeed space = do
   return $ fst $ mirrorIfNeeded (`location` space) $ PosSpeed pos (Coords (Row dx) (Col dy))
 
 randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ worldSize _) = do
+randomNonCollidingPos space@(Space _ _ worldSize _) = do
   coords <- randomCoords worldSize
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space

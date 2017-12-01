@@ -50,21 +50,19 @@ combinePoints :: (Coords -> Location)
               -> Coords
               -> Either Tree Coords
               -> Either Tree Coords
-combinePoints getLocation iteration onWall point =
-  either Left (\prevPoint ->
-    case onWall of
-      Stop               -> error "animation should have stopped already"
-      Traverse           -> Right point
-      ReboundAnd nextOnWall ->
-                 let trajectory = bresenham (mkSegment (assert (getLocation prevPoint == InsideWorld) prevPoint) point)
-                     collision = firstCollision getLocation trajectory
-                 in  maybe
-                       (Right $ assert (getLocation point == InsideWorld) point)
-                       (\(_, preCollisionCoords) ->
-                            -- TODO use currentFrame instead of previous and verify combining animations look good:
-                            -- using the previous was an historical choice when there was no notion of trajectory
-                            -- but now, since here we move to the precollision, it makes sense to not skip a frame
-                            -- anymore
-                            let (Iteration(_,frame)) = previousIteration iteration
-                            in Left $ Tree preCollisionCoords frame Nothing nextOnWall Nothing)
-                                 collision)
+combinePoints getLocation (Iteration(_,frame)) onWall point =
+  either
+    Left
+    (\prevPoint ->
+      case onWall of
+        Stop               -> error "animation should have stopped already"
+        Traverse           -> Right point
+        ReboundAnd nextOnWall ->
+                   let trajectory = bresenham (mkSegment (assert (getLocation prevPoint == InsideWorld) prevPoint) point)
+                       collision = firstCollision getLocation trajectory
+                   in  maybe
+                         (Right $ assert (getLocation point == InsideWorld) point)
+                         (\(_, preCollisionCoords) ->
+                              Left $ Tree preCollisionCoords frame Nothing nextOnWall Nothing
+                         ) collision
+    )

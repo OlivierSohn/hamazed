@@ -1,31 +1,22 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Game.World.Size
-    ( WorldShape(..)
-    , WorldSize(..)
-    , worldSizeFromLevel
+    ( worldSizeFromLevel
     , maxWorldSize
     , maxDim
-    , Location(..)
     , onFronteer
     , contains
+    , showUpdateTick
     ) where
 
 import           Imajuscule.Prelude
 
+import           Data.Text( Text, pack )
+
 import           Geo.Discrete.Types
 
-data WorldShape = Square
-                | Rectangle2x1
-
-newtype WorldSize = WorldSize Coords deriving(Eq, Show)
-
-newtype Width = Width Int
-newtype Height = Height Int
-
-data Location = InsideWorld
-              | OutsideWorld
-              deriving(Eq, Show)
+import           Game.Level.Types
+import           Game.World.Types
 
 mkWorldSize :: Height -> Width -> WorldSize
 mkWorldSize (Height r) (Width c) = WorldSize $ Coords (Row r) (Col c)
@@ -41,7 +32,7 @@ maxWorldSize = mkWorldSize (Height maxLevelHeight) (Width maxLevelWidth)
 
 worldSizeFromLevel :: Int -> WorldShape -> WorldSize
 worldSizeFromLevel level shape =
-  let s = maxLevelHeight + 2 * (1-level) -- less and less space as level increases
+  let s = maxLevelHeight + 2 * (firstLevel-level) -- less and less space as level increases
       -- we need even world dimensions to ease level construction
       width = assert (even s) s * case shape of
         Square       -> 1
@@ -62,3 +53,19 @@ contains (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
 
 maxDim :: WorldSize -> Int
 maxDim (WorldSize (Coords (Row rs) (Col cs))) = max rs cs
+
+
+showUpdateTick :: Int -> WorldSize -> Text
+showUpdateTick t (WorldSize (Coords _ c@(Col cs))) =
+  let l = tickRepresentationLength c
+      nDotsBefore = max 0 (t + l - cs)
+      nLeftBlanks = t - nDotsBefore
+      nDotsAfter = l - nDotsBefore
+      nRightBlanks = cs - t - l
+  in pack $ replicate nDotsBefore  '.'
+  ++ replicate nLeftBlanks  ' '
+  ++ replicate nDotsAfter   '.'
+  ++ replicate nRightBlanks ' '
+
+tickRepresentationLength :: Col -> Int
+tickRepresentationLength (Col c) = quot c 2

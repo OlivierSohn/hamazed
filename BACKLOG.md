@@ -1,8 +1,8 @@
 
 # Backlog
 
-- do not change world until new frame is there, then animate the ship and numbers to their new locations
-.. put the new world in the frame animation, swap with the old world once animation is finished
+- for world with rectangular shape, the walls become visible at the other side of the fronteer
+on animations. Maybe we should animate the world too.
 
 - text should disappear / appear progressively
 

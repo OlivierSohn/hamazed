@@ -2,18 +2,21 @@
 
 module Collision
     ( CollisionStatus(..)
+    , Location(..)
     , firstCollision
     , mirrorIfNeeded
     ) where
 
 import           Imajuscule.Prelude
 
-import           Game.World.Size( Location(..) )
-
 import           Geo.Discrete( mkSegment , sumCoords, diffCoords )
 import           Geo.Discrete.Bresenham(bresenham)
 import           Geo.Discrete.Types
 
+
+data Location = InsideWorld
+              | OutsideWorld
+              deriving(Eq, Show)
 
 -- | this datatype is awkward, TODO refactor
 data CollisionStatus = NoCollision -- no collision on the trajectory, position is unchanged

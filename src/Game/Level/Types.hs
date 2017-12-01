@@ -6,6 +6,8 @@ module Game.Level.Types
     , LevelFinished(..)
     , MessageState(..)
     , GameStops(..)
+    , firstLevel
+    , lastLevel
     ) where
 
 
@@ -30,3 +32,10 @@ data MessageState = InfoMessage
 
 data GameStops = Lost Text
                | Won
+
+
+lastLevel :: Int
+lastLevel = 12
+
+firstLevel :: Int
+firstLevel = 1

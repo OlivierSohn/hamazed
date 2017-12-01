@@ -12,7 +12,7 @@ module Game.World.Types
         , mkFrameAnimation
         -- | Reexports
         , module Game.World.Space.Types
-        , Terminal.Window(..)
+        , Terminal.Window
         ) where
 
 import           Imajuscule.Prelude
@@ -63,6 +63,7 @@ data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
   , _embeddedWorldUpperLeft :: !RenderState
 }
+
 
 data BoundedAnimation = BoundedAnimation Animation Boundaries
 

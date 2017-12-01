@@ -7,8 +7,6 @@ module Timing
     , animationUpdateMargin
     , computeTime
     , diffTimeSecToMicros
-    , nextUpdateCounter
-    , showUpdateTick
     , Timer(..)
     , KeyTime(..)
     , floatSecondsToNominalDiffTime
@@ -22,14 +20,12 @@ module Timing
 import qualified Prelude(Integer)
 import           Imajuscule.Prelude
 
-import           Data.Text( Text, pack )
 import           Data.Time( addUTCTime
                           , diffUTCTime
                           , getCurrentTime
                           , NominalDiffTime
                           , UTCTime(..) )
 
-import           Game.World.Size( WorldSize(..) )
 import           Geo.Discrete.Types
 
 
@@ -87,24 +83,3 @@ gamePeriodMicros = gamePeriodMillis * 1000
   where
     gamePeriodMillis = 160 -- this controls the game loop frequency.
                            -- 20 seems to match screen refresh frequency
-
-
-tickRepresentationLength :: Col -> Int
-tickRepresentationLength (Col c) = quot c 2
-
-
-showUpdateTick :: Int -> WorldSize -> Text
-showUpdateTick t (WorldSize (Coords _ c@(Col cs))) =
-  let l = tickRepresentationLength c
-      nDotsBefore = max 0 (t + l - cs)
-      nLeftBlanks = t - nDotsBefore
-      nDotsAfter = l - nDotsBefore
-      nRightBlanks = cs - t - l
-  in pack $ replicate nDotsBefore  '.'
-  ++ replicate nLeftBlanks  ' '
-  ++ replicate nDotsAfter   '.'
-  ++ replicate nRightBlanks ' '
-
-
-nextUpdateCounter :: Col -> Int -> Int
-nextUpdateCounter (Col c) i = (i + 1) `mod` c

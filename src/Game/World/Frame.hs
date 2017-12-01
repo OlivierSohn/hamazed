@@ -17,8 +17,6 @@ import           Color
 import           Game.World.Types
 import           Game.World.Size
 
-import           Geo.Discrete hiding( move )
-
 import           Render
 import           Render.Console
 

@@ -29,7 +29,6 @@ import           Color
 
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
-import           Game.World.Size
 
 import           Game.Event
 import           Game.World.Laser
@@ -38,7 +37,6 @@ import           Game.World.Ship
 import           Game.World.Space
 import           Game.World.Types
 
-import           Render
 import           Render.Console
 
 import           Timing
@@ -155,7 +153,7 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
   when (null collisions) (do
     let colors = if isNothing safeTime then shipColors else shipColorsSafe
     c <- setColors colors
-    renderIfNotColliding '+' shipCoords space worldCorner
+    renderIfNotColliding '+' shipCoords space worldCorner -- TODO render if safetime or not colliding
     restoreColors c)
 
 renderNumber :: Number -> Space -> RenderState -> IO ()

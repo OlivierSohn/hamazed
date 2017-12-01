@@ -15,8 +15,6 @@ import           Animation.Types
 
 import           Collision( firstCollision )
 
-import           Game.World.Size( Location(..) )
-
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete( mkSegment )
 

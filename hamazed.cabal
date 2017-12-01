@@ -18,7 +18,11 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Run, Math
+  exposed-modules:     Run
+                     , Math
+                     , Game.World.Size
+                     , Game.World.Space
+                     , Render.Console
   other-modules:       Imajuscule.Prelude
                      , Animation
                      , Animation.Design.Animator
@@ -30,7 +34,6 @@ library
                      , Animation.Types
                      , Animation.Util
                      , Color
-                     , Render.Console
                      , Game.Deadline
                      , Game.Event
                      , Game
@@ -50,6 +53,7 @@ library
                      , IO.Types
                      , Game.Level
                      , Game.Level.Types
+                     , Game.World
                      , Game.World.Embedded
                      , Game.World.Frame
                      , Game.World.Laser
@@ -62,12 +66,9 @@ library
                      , Render.Backends.Full
                      , Render.Backends.Delta
                      , Render.Backends.Internal.Delta
-                     , Game.World.Space
                      , Threading
                      , Timing
                      , Util
-                     , Game.World
-                     , Game.World.Size
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal
                      , array

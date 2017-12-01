@@ -8,6 +8,12 @@ module Game.World.Space.Types
     , Strategy(..)
     , Material(..)
     , RenderGroup(..)
+    , WorldShape(..)
+    , WorldSize(..)
+    , Width(..)
+    , Height(..)
+    -- | reexports
+    , module Geo.Discrete.Types
     ) where
 
 import           Imajuscule.Prelude
@@ -19,8 +25,6 @@ import           GHC.Generics( Generic )
 import           Data.Matrix( Matrix )
 
 import           Foreign.C.Types( CInt(..) )
-
-import           Game.World.Size
 
 import           Geo.Discrete.Types
 
@@ -46,3 +50,11 @@ data Space = Space {
 data Material = Air
               | Wall
               deriving(Generic, Eq, Show)
+
+data WorldShape = Square
+                | Rectangle2x1
+
+newtype WorldSize = WorldSize Coords deriving(Eq, Show)
+
+newtype Width = Width Int
+newtype Height = Height Int

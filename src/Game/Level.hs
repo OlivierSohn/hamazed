@@ -10,10 +10,10 @@ module Game.Level
     , renderLevelState
     , MessageState(..)
     , GameStops(..)
-    , firstLevel
-    , lastLevel
     , messageDeadline
     , getEventForMaybeDeadline
+    -- | reexports
+    , module Game.Level.Types
     ) where
 
 import           Imajuscule.Prelude
@@ -48,12 +48,6 @@ import           Timing( UTCTime
                        , addUTCTime )
 
 import           Util( showListOrSingleton )
-
-lastLevel :: Int
-lastLevel = 12
-
-firstLevel :: Int
-firstLevel = 1
 
 eventFromChar :: Level -> Either Key Char -> Event
 eventFromChar (Level n finished) char =

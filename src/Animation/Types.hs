@@ -27,6 +27,7 @@ module Animation.Types
     , zeroFrame
     -- | Reexports
     , Coords
+    , Location(..)
     ) where
 
 
@@ -36,7 +37,7 @@ import           GHC.Generics( Generic )
 
 import           System.Console.ANSI(Color8Code)
 
-import           Game.World.Size( Location )
+import           Collision(Location(..))
 
 import           Geo.Discrete.Types( Coords )
 

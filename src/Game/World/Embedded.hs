@@ -13,8 +13,6 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 import           Game.World.Size
 import           Game.World.Types
 
-import           Geo.Discrete.Types
-
 import           Render
 
 -- | Minimal margin between the upper left corner of the console

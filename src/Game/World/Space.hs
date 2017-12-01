@@ -10,12 +10,18 @@ module Game.World.Space
     , mkRandomlyFilledSpace
     , mkEmptySpace
     , createRandomPosSpeed
+    , locationFunction
+    -- | reexports
+    , module Game.World.Types
+    , module Render
     ) where
 
 import           Imajuscule.Prelude
 
 import           System.Random( getStdRandom
                               , randomR )
+
+import           System.Console.Terminal.Size( Window(..) )
 
 import           Data.Graph( Graph
                            , graphFromEdges
@@ -35,11 +41,10 @@ import           Color
 
 import           Collision
 
+import           Game.World.Types
 import           Game.World.Size
-import           Game.World.Space.Types
 
-import           Geo.Types
-import           Geo.Discrete hiding (extend, translate)
+import           Geo.Discrete hiding (extend, translate, move)
 
 import           Render
 
@@ -81,13 +86,18 @@ randomCol :: Col -> IO Col
 randomCol (Col sz) = Col <$> randomInt sz
 
 forEachRowPure :: Matrix CInt -> WorldSize -> (Row -> (Col -> Material) -> b) -> [b]
-forEachRowPure mat (WorldSize (Coords (Row rs) (Col cs))) f =
-  let rows = [0..rs-1]
-      colInternalLength = cs+2
+forEachRowPure mat (WorldSize (Coords (Row nRows) (Col nColumns))) f =
+  let rowIndexes = [0..nRows-1]          -- index of inner row
+      internalRowLength = nInternalColumns
+      rowLength = internalRowLength - 2
+      nInternalColumns = nColumns + 2  -- size of a column in the matrix
       matAsOneVector = flatten mat -- this is O(1)
-  in map (\r -> do
-    let row = slice (1 + (r+1) * colInternalLength) cs matAsOneVector
-    f (Row r) (\(Col c) -> mapInt $ row ! c)) rows
+  in map (\rowIdx -> do
+    let internalRowIdx = succ rowIdx
+        startInternalIdx = internalRowIdx * nInternalColumns
+        startIdx = succ startInternalIdx
+        row = slice startIdx rowLength matAsOneVector
+    f (Row rowIdx) (\(Col c) -> mapInt $ row ! c)) rowIndexes
 
 -- unfortunately I didn't find a Matrix implementation that supports arbitrary types
 -- so I need to map my type on a CInt
@@ -199,12 +209,12 @@ extend (WorldSize (Coords (Row rs) (Col cs))) mat =
 
 extend' :: Int -> [a] -> [a]
 extend' _ [] = error "extend empty list not supported"
-extend' sz l@(e:_) =
+extend' sz l@(_:_) =
   let len = length l
       addsTotal = sz - assert (len <= sz) len
       addsLeft = quot addsTotal 2
       addsRight = addsTotal - addsLeft
-  in replicate addsLeft e ++ l ++ replicate addsRight (last l)
+  in replicate addsLeft (head l) ++ l ++ replicate addsRight (last l)
 
 rands :: IO [CInt]
 rands = randomRsIO (0,1)
@@ -267,7 +277,7 @@ strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords
 
 renderSpace :: Space -> RenderState -> IO RenderState
 renderSpace (Space _ _ renderedWorld) upperLeft = do
-  let worldCoords = go Down $ go RIGHT upperLeft
+  let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
   mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
 
@@ -281,6 +291,36 @@ renderIfNotColliding char worldCoords space r =
   case getMaterial worldCoords space of
     Air  -> renderChar char worldCoords r
     Wall -> return ()
+
+locationFunction :: Boundaries
+                 -> Space
+                 -> Maybe (Window Int)
+                 -> RenderState
+                 -> (Coords -> Location)
+locationFunction f space@(Space _ sz _) mayTermWindow (RenderState wcc) =
+  let worldLocation = (`location` space)
+      worldLocationExcludingBorders = (`strictLocation` space)
+      terminalLocation (Window h w) coordsInWorld =
+        let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
+        in if r >= 0 && r < h && c >= 0 && c < w
+             then
+               InsideWorld
+             else
+               OutsideWorld
+      productLocations l l' = case l of
+        InsideWorld -> l'
+        OutsideWorld -> OutsideWorld
+
+  in case f of
+    WorldFrame -> worldLocation
+    TerminalWindow -> maybe
+                        worldLocation
+                        (\wd coo-> if contains coo sz then OutsideWorld else terminalLocation wd coo)
+                        mayTermWindow
+    Both       -> maybe
+                    worldLocation
+                    (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
+                    mayTermWindow
 
 {--
 

@@ -16,7 +16,6 @@ import           Animation
 
 import           Game.World.Space
 import           Game.Event
-import           Game.World.Types
 
 import           Geo.Discrete
 import           Geo.Conversion

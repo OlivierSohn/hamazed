@@ -31,7 +31,6 @@ import           Color
 import           Geo.Continuous
 
 import           Game.World.Laser.Types
-import           Game.World.Size( Location )
 
 import           Render( RenderState )
 

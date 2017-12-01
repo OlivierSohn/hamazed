@@ -11,8 +11,6 @@ import           Imajuscule.Prelude
 import           Animation.Types
 import           Animation.Design.Apply
 
-import           Game.World.Size( Location )
-
 
 chainOnCollision :: (Coords -> Frame -> ([Coords], Maybe Char))
                  -- ^ animation 1

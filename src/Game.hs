@@ -32,14 +32,12 @@ import           Game.World.Size
 import           Game.World.Space
 
 import           Geo.Conversion
-import           Geo.Discrete.Types
 import           Geo.Continuous
 import           Geo.Discrete hiding(translate)
 
 import           Math
 
 import           Render.Console
-import           Render
 
 import           Timing
 import           Util
@@ -342,35 +340,6 @@ renderGame k state@(GameState _ _ curWorld@(World _ _
                                                -- to reduce, it goes over numbers and ship
         return activeAnimations)
 
-locationFunction :: Boundaries
-                 -> Space
-                 -> Maybe (Window Int)
-                 -> RenderState
-                 -> (Coords -> Location)
-locationFunction f space@(Space _ sz _) mayTermWindow (RenderState wcc) =
-  let worldLocation = (`location` space)
-      worldLocationExcludingBorders = (`strictLocation` space)
-      terminalLocation (Window h w) coordsInWorld =
-        let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
-        in if r >= 0 && r < h && c >= 0 && c < w
-             then
-               InsideWorld
-             else
-               OutsideWorld
-      productLocations l l' = case l of
-        InsideWorld -> l'
-        OutsideWorld -> OutsideWorld
-
-  in case f of
-    WorldFrame -> worldLocation
-    TerminalWindow -> maybe
-                        worldLocation
-                        (\wd coo-> if contains coo sz then OutsideWorld else terminalLocation wd coo)
-                        mayTermWindow
-    Both       -> maybe
-                    worldLocation
-                    (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
-                    mayTermWindow
 
 renderAnimations :: Maybe KeyTime
                  -> Space

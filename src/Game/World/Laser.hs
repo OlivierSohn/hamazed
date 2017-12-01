@@ -25,7 +25,6 @@ import           Animation( mkAnimation
 import           Geo.Discrete
 
 import           Game.World.Laser.Types
-import           Game.World.Size( Location(..) )
 
 import           Timing( KeyTime )
 

@@ -17,8 +17,6 @@ import           Animation.Types
 
 import           Color
 
-import           Game.World.Size( Location )
-
 import           Render( RenderState )
 
 import           Timing

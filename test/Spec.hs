@@ -1,7 +1,24 @@
+
+import Game.World.Space
+import Game.World.Size
 import Math
+import Render.Console
 
 main :: IO ()
-main = do
+main = testSpace
+
+testSpace :: IO()
+testSpace = do
+  let blocksSize = 6
+      ws = worldSizeFromLevel 1 Rectangle2x1
+  s <- mkRandomlyFilledSpace (RandomParameters blocksSize StrictlyOneComponent) (WorldSize $ Coords (Row 36) (Col 72))
+  beginFrame
+  renderSpace s $ RenderState (Coords (Row 0) (Col 0))
+  endFrame
+  return ()
+
+testEase :: IO()
+testEase = do
   putStrLn ""
   test invQuartEaseInOut
   putStrLn ""

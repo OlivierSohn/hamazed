@@ -350,26 +350,26 @@ updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ mayAnim) =
       endFrame
       return $ replaceAnimations animations s2
 
+-- | When a frame animation is in progress, we layout according to the largest size
+--   to make the animation more visible
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
 renderGame k state@(GameState _ _ curWorld@(World _ _
                                                  (BattleShip _ ammo _ _)
                                                  space@(Space _ curSz _) animations
                                                  (EmbeddedWorld mayTermWindow curUpperLeft))
                    shotNumbers target (Level level _) mayAnim) = do
-  -- while animating the frame, layout according to the largest size
   let (WorldSize (Coords (Row rs) (Col cs)), upperLeft) =
         maybe
             (curSz, curUpperLeft)
-            -- TODO refactor : use upperLeft from world: (and delete function diffUpperLeft which is not robust)
             (\(FrameAnimation (World _ _ _ (Space _ nextSz _) _ (EmbeddedWorld _ nextUpperLeft)) _ _ _ _ _) ->
-              let d@(RenderState (Coords _ (Col dc))) = diffRS curUpperLeft nextUpperLeft
+              let (RenderState (Coords _ (Col dc))) = diffRS curUpperLeft nextUpperLeft
               in if dc >= 0
                   then
                     -- animation expands the frame
-                    (nextSz, curUpperLeft)
+                    (nextSz, nextUpperLeft)
                   else
                     -- animation shrinks the frame
-                    (curSz, sumRS d curUpperLeft)
+                    (curSz, curUpperLeft)
             ) mayAnim
       addWallSize = (+ 2)
       half = flip quot 2

@@ -15,11 +15,9 @@ module Render (
         , Render.move
         , translate
         , sumRS
-        , mkEmbeddedWorld
-        , EmbeddedWorld(..)
+        , diffRS
         , ColorString(..)
         , colored
-        , diffUpperLeft
         -- | reexports
         , Coords(..)
         , Row(..)
@@ -27,7 +25,6 @@ module Render (
         , Direction(..)
         , RenderState(..)
         , Color8Code(..)
-        , Terminal.Window(..)
         ) where
 
 import           Imajuscule.Prelude
@@ -36,27 +33,12 @@ import           Control.Monad( foldM_ )
 
 import           Data.List( foldl' )
 import           Data.Text( Text, length )
-import           Data.String( String )
-
-import qualified System.Console.Terminal.Size as Terminal( size
-                                                         , Window(..))
-
-import           Game.World.Size( WorldSize(..), maxWorldSize )
 
 import           Geo.Discrete.Types
-import           Geo.Discrete( move, sumCoords, translateInDir )
+import           Geo.Discrete( move, sumCoords, diffCoords, translateInDir )
 
 import           Render.Console
 
-
-diffUpperLeft :: WorldSize -> WorldSize -> RenderState
-diffUpperLeft (WorldSize (Coords (Row r1) (Col c1))) (WorldSize (Coords (Row r2) (Col c2))) =
-  RenderState $ Coords (Row (quot (r1 - r2) 2)) (Col (quot (c1 - c2) 2))
-
-data EmbeddedWorld = EmbeddedWorld {
-    _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
-  , _embeddedWorldUpperLeft :: !RenderState
-}
 
 
 newtype ColorString = ColorString [(Text, Color8Code)]
@@ -75,11 +57,6 @@ instance Monoid ColorString where
 -- Pure
 --------------------------------------------------------------------------------
 
--- | Minimal margin between the upper left corner of the console
---   and upper left corner of the world
-minimalWorldMargin :: Int
-minimalWorldMargin = 4
-
 go :: Direction -> RenderState -> RenderState
 go dir (RenderState r) = RenderState $ translateInDir dir r
 
@@ -92,29 +69,8 @@ translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c
 sumRS :: RenderState -> RenderState -> RenderState
 sumRS (RenderState c1) (RenderState c2) = RenderState $ sumCoords c1 c2
 
-worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords
-worldUpperLeftToCenterIt' worldSize mayTermSize =
-  case mayTermSize of
-    Just termSize@(Terminal.Window h w)  ->
-      let (WorldSize (Coords (Row rs) (Col cs))) = maxWorldSize
-          heightMargin = 2 * (1 {-outer walls-} + 2 {-2 lines above and below-})
-          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
-          minSize@(Terminal.Window minh minw) = Terminal.Window (rs + heightMargin) (cs + widthMargin)
-      in if h < minh || w < minw
-            then
-              Left $  "\nMinimum terminal size : " ++ show minSize
-                  ++ ".\nCurrent terminal size : " ++ show termSize
-                  ++ ".\nThe current terminal size doesn't match the minimum size,"
-                  ++  "\nplease adjust your terminal size and restart the executable"
-                  ++ ".\n"
-            else
-              Right $ worldUpperLeftFromTermSize termSize worldSize
-    Nothing -> Right $ Coords (Row minimalWorldMargin) (Col minimalWorldMargin)
-
-worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
-worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
-  let walls = 2 :: Int
-  in Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)
+diffRS :: RenderState -> RenderState -> RenderState
+diffRS (RenderState c1) (RenderState c2) = RenderState $ diffCoords c1 c2
 
 --------------------------------------------------------------------------------
 -- IO
@@ -174,8 +130,3 @@ align a count ref =
         Centered     -> 1 + quot count 2
         RightAligned -> count
   in Render.move amount LEFT ref
-
-mkEmbeddedWorld :: WorldSize -> IO (Either String EmbeddedWorld)
-mkEmbeddedWorld s = do
-  mayTermSize <- Terminal.size
-  return $ (EmbeddedWorld mayTermSize . RenderState) <$> worldUpperLeftToCenterIt' s mayTermSize

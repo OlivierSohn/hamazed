@@ -1,19 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Game.World
-    ( BattleShip(..)
-    , accelerateShip
-    , World(..)
-    , BoundedAnimation(..)
-    , Boundaries(..)
+    ( accelerateShip
     , mkWorld
     , moveWorld
     , nextWorld
     , renderWorld
     , earliestAnimationDeadline
-    , earliestFrameAnimationDeadline
     -- | reexports
     , Number(..)
+    , module Game.World.Types
     ) where
 
 import           Imajuscule.Prelude
@@ -38,24 +34,14 @@ import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 import           Game.World.Size
 
-import           Game.World.Frame
 import           Game.World.Number
 import           Game.World.Space
+import           Game.World.Types
 
-import           Math
-
-import           Render( RenderState )
+import           Render
 import           Render.Console
 
 import           Timing
-
-
-data BattleShip = BattleShip {
-    _shipPosSpeed :: !PosSpeed
-  , _shipAmmo :: !Int
-  , _shipSafeUntil :: !(Maybe UTCTime)
-  , _shipCollisions :: ![Number]
-}
 
 
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -63,27 +49,13 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = sumCoords speed $ coordsForDirection dir
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-data World = World{
-    _worldNumbers :: ![Number]
-  , _howBallMoves :: Space -> PosSpeed -> PosSpeed
-  , _worldShip :: !BattleShip
-  , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimation]
-}
-
-data BoundedAnimation = BoundedAnimation Animation Boundaries
-
-data Boundaries = WorldFrame
-                | TerminalWindow
-                | Both
-
 nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
-nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _) balls ammo =
-  World balls changePos (BattleShip posspeed ammo safeTime collisions) size
+nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
+  World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
 moveWorld :: UTCTime -> World -> World
-moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims) =
+moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
@@ -91,7 +63,7 @@ moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime 
       newPosSpeed@(PosSpeed pos _) = changePos size shipPosSpeed
       collisions = getColliding pos newBalls
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
-  in World newBalls changePos newShip size anims
+  in World newBalls changePos newShip size anims e
 
 ballMotion :: Space -> PosSpeed -> PosSpeed
 ballMotion space ps@(PosSpeed pos _) =
@@ -119,38 +91,24 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
   in PosSpeed newPos speed
 
 earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ _ animations) =
+earliestAnimationDeadline (World _ _ _ _ animations _) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
-
-earliestFrameAnimationDeadline :: World -> Maybe KeyTime
-earliestFrameAnimationDeadline (World _ _ _ (Space _ mayAnim _ _) _) =
-  maybe Nothing (\(FrameAnimation _ _ _ _ _ deadline) -> deadline) mayAnim
 
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: Maybe WorldSize -> WorldSize -> WallType -> [Int] -> IO World
-mkWorld mayPrevSize s walltype nums = do
-  (Space mat _ sz render) <- case walltype of
+mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> IO World
+mkWorld e s walltype nums = do
+  (Space mat sz render) <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> mkRandomlyFilledSpace rParams s
   t <- getCurrentTime
-  let frameAnimation =
-        maybe
-          Nothing
-          (\prev ->
-            if prev == sz
-              then
-                Nothing
-              else
-                Just $ mkFrameAnimation prev t invQuartEaseInOut (maxNumberOfSteps prev sz))
-            mayPrevSize
-      space = Space mat frameAnimation sz render
+  let space = Space mat sz render
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createShipPos space balls
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space []
+  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
 
 createShipPos :: Space -> [Number] -> IO PosSpeed
 createShipPos space numbers = do
@@ -188,7 +146,7 @@ createRandomPosSpeed space = do
   return $ fst $ mirrorIfNeeded (`location` space) $ PosSpeed pos (Coords (Row dx) (Col dy))
 
 randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ _ worldSize _) = do
+randomNonCollidingPos space@(Space _ worldSize _) = do
   coords <- randomCoords worldSize
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space
@@ -199,9 +157,10 @@ createRandomNumber space i = do
   ps <- createRandomPosSpeed space
   return $ Number ps i
 
-renderWorld :: World -> RenderState -> IO ()
-renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _) worldCorner = do
+renderWorld :: World -> IO ()
+renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
+  let worldCorner = go Down $ go RIGHT upperLeft
   mapM_ (\b -> renderNumber b space worldCorner) balls
   when (null collisions) (do
     let colors = if isNothing safeTime then shipColors else shipColorsSafe

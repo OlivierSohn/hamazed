@@ -3,8 +3,6 @@
 
 module Game.World.Frame
     ( renderWorldFrame
-    , FrameAnimation(..)
-    , mkFrameAnimation
     , maxNumberOfSteps
     ) where
 
@@ -16,33 +14,13 @@ import           Data.List( mapAccumL, zip )
 
 import           Color
 
+import           Game.World.Types
 import           Game.World.Size
 
 import           Geo.Discrete hiding( move )
 
 import           Render
 import           Render.Console
-
-import           Timing
-
-data FrameAnimation = FrameAnimation {
-    _frameAnimationPrevSize :: !WorldSize
-  , _frameAnimationStart :: !UTCTime
-  , _frameAnimationEase :: !(Float -> Float)
-  , _frameAnimationNSteps :: !Int -- in number of frames
-  , _frameAnimationProgress :: !Iteration
-  , _frameAnimationDeadline :: !(Maybe KeyTime)
-}
-
-mkFrameAnimation :: WorldSize -- ^ previous world size
-                 -> UTCTime -- ^ time at which the animation starts
-                 -> (Float -> Float) -- inverse ease function
-                 -> Int -- ^ number of steps
-                 -> FrameAnimation
-mkFrameAnimation prev t ease nsteps =
-  FrameAnimation prev t ease nsteps (Iteration (Speed 1, startFrame)) (Just $ KeyTime t)
- where
-  startFrame = Frame (-1)
 
 countWorldFrameChars :: WorldSize -> Int
 countWorldFrameChars s =
@@ -123,21 +101,20 @@ actualRange :: Int -> (Int, Int) -> (Int, Int)
 actualRange countMax (from, to) =
   (max 0 from, min to $ pred countMax)
 
-renderWorldFrame :: Maybe FrameAnimation -- ^ contains previous size
-                 -> WorldSize -- ^ new size
-                 -> RenderState -- ^ wrt new size
-                 -> IO RenderState
-renderWorldFrame mayAnim sz upperLeft = do
+renderWorldFrame :: Maybe FrameAnimation -- ^ maybe contains next world
+                 -> World -- ^ current world
+                 -> IO ()
+renderWorldFrame mayAnim (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUpperLeft)) = do
   fg <- setRawForeground worldFrameColor
   maybe
-    (renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1))
-    (\(FrameAnimation szBefore _ _ _ (Iteration (_, Frame i)) _) -> do
-      let diff@(RenderState (Coords _ (Col dc))) = diffUpperLeft sz szBefore
-          n = maxNumberOfSteps sz szBefore
-          upperLeftBefore = sumRS diff upperLeft
+    (renderPartialWorldFrame szCur (curUpperLeft, 0, countWorldFrameChars szCur - 1))
+    (\(FrameAnimation (World _ _ _ (Space _ szNext _) _ (EmbeddedWorld _ nextUpperLeft))
+                      _ _ _ (Iteration (_, Frame i)) _) -> do
+      let (RenderState (Coords _ (Col dc))) = diffRS curUpperLeft nextUpperLeft
+          n = maxNumberOfSteps szCur szNext
           render diBefore di = do
-            renderFrom Extremities (n-(i+diBefore)) szBefore upperLeftBefore
-            renderFrom Middle      (n-(i+di))       sz       upperLeft
+            renderFrom Extremities (n-(i+diBefore)) szCur    curUpperLeft
+            renderFrom Middle      (n-(i+di))       szNext  nextUpperLeft
       if dc >= 0
         then
           -- expanding animation
@@ -147,7 +124,6 @@ renderWorldFrame mayAnim sz upperLeft = do
           render 0 (negate dc)
     ) mayAnim
   restoreForeground fg
-  return $ go Down $ go RIGHT upperLeft
 
 -- | Includes start and end steps, ie if animation consists of no change, it returns 1.
 --   If animation consists of a single change, it returns 2.

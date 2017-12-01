@@ -48,12 +48,15 @@ library
                      , IO.Blocking
                      , IO.NonBlocking
                      , IO.Types
+                     , Game.Level
+                     , Game.Level.Types
+                     , Game.World.Embedded
                      , Game.World.Frame
                      , Game.World.Laser
                      , Game.World.Laser.Types
-                     , Game.Level
-                     , Game.Level.Types
                      , Game.World.Number
+                     , Game.World.Space.Types
+                     , Game.World.Types
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta

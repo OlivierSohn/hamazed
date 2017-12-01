@@ -1,14 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Game.World.Space
-    ( Space(..)
-    , renderSpace
+    ( renderSpace
     , renderIfNotColliding
-    , WallType(..)
-    , RandomParameters(..)
-    , Strategy(..)
-    , Material(..)
     , getMaterial
     , location
     , strictLocation
@@ -18,8 +12,6 @@ module Game.World.Space
     ) where
 
 import           Imajuscule.Prelude
-
-import           GHC.Generics( Generic )
 
 import           Data.Graph( Graph
                            , graphFromEdges
@@ -37,9 +29,8 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Color
 
-import           Game.World.Size( Location(..)
-                          , WorldSize(..) )
-import           Game.World.Frame
+import           Game.World.Size
+import           Game.World.Space.Types
 
 import           Geo.Types
 import           Geo.Discrete( translateInDir )
@@ -48,31 +39,6 @@ import           Render
 
 import           Util( replicateElements
                      , randomRsIO )
-
-
-data WallType = None
-              | Deterministic
-              | Random RandomParameters
-
-data Strategy = StrictlyOneComponent
-
-data RandomParameters = RandomParameters {
-    _randomWallsBlockSize :: !Int
-  , _randomWallsStrategy :: !Strategy
-}
-
-newtype RenderGroup = RenderGroup (Row, Col, (Color8Code, Color8Code), Char, Int)
-
-data Space = Space {
-    _space :: !(Matrix CInt)
-  , _spaceFrameAnimation :: !(Maybe FrameAnimation)
-  , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
-  , _spaceRender :: ![RenderGroup]
-}
-
-data Material = Air
-              | Wall
-              deriving(Generic, Eq, Show)
 
 forEachRowPure :: Matrix CInt -> WorldSize -> (Row -> (Col -> Material) -> b) -> [b]
 forEachRowPure mat (WorldSize (Coords (Row rs) (Col cs))) f =
@@ -185,7 +151,7 @@ mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =
   let innerMat = extend s innerMatMaybeSmaller
       mat = fromLists $ addBorder s innerMat
-  in Space mat Nothing s $ render mat s
+  in Space mat s $ render mat s
 
 extend :: WorldSize -> [[a]] -> [[a]]
 extend (WorldSize (Coords (Row rs) (Col cs))) mat =
@@ -235,13 +201,13 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
                   (Col 0) $ group $ map (accessMaterial . Col) [0..cs-1]
 
 getInnerMaterial :: Coords -> Space -> Material
-getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _ _) =
+getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
-getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ _ (WorldSize (Coords (Row rs) (Col cs))) _)
+getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
   | r < 0 || c < 0       = Wall
   | r > rs-1 || c > cs-1 = Wall
   | otherwise = getInnerMaterial coords space
@@ -255,12 +221,12 @@ location :: Coords -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
 strictLocation :: Coords -> Space -> Location
-strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ _ (WorldSize (Coords (Row rs) (Col cs))) _)
+strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
 renderSpace :: Space -> RenderState -> IO RenderState
-renderSpace (Space _ _ _ renderedWorld) upperLeft = do
+renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = go Down $ go RIGHT upperLeft
   mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords

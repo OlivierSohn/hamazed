@@ -67,7 +67,7 @@ eventFromChar (Level n finished) char =
 
 
 isLevelFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
-isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _) sumNumbers target (TimedEvent lastEvent t) =
+isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimedEvent lastEvent t) =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
     allChecks = checkShipCollision <|> checkSum <|> checkAmmo

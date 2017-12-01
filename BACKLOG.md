@@ -1,8 +1,8 @@
 
 # Backlog
 
-- do not change world until new frame is there, then animate the ship and numbers
-to their new locations
+- do not change world until new frame is there, then animate the ship and numbers to their new locations
+.. put the new world in the frame animation, swap with the old world once animation is finished
 
 - text should disappear / appear progressively
 

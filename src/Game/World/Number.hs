@@ -1,16 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Game.World.Number(
-    Number(..)
-  , showShotNumbers
+    showShotNumbers
   , getColliding
   , survivingNumbers
   ) where
 
 import           Imajuscule.Prelude
-
-import           GHC.Generics( Generic )
 
 import           Data.Char( intToDigit )
 import           Data.List( partition, foldl', length )
@@ -21,6 +17,7 @@ import           Color
 
 import           Geo.Discrete
 
+import           Game.World.Types
 import           Game.World.Laser( Ray(..)
                       , LaserRay(..)
                       , LaserPolicy(..)
@@ -29,11 +26,6 @@ import           Game.World.Laser( Ray(..)
                       , stopRayAtFirstCollision )
 
 import           Render
-
-data Number = Number {
-    _numberPosSpeed :: !PosSpeed
-  , _numberNum :: !Int
-} deriving(Generic, Eq)
 
 getColliding :: Coords -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')

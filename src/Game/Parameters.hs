@@ -14,17 +14,18 @@ import           Imajuscule.Prelude
 
 import           Color
 
-import           Game.World( mkWorld, World(..), renderWorld )
+import           Game.World
 import           Game.World.Frame
-import           Game.World.Space( renderSpace, RandomParameters(..), Strategy(..), WallType(..) )
-import           Game.World.Size( WorldSize(..), WorldShape(..), worldSizeFromLevel )
+import           Game.World.Space
+import           Game.World.Size
+import           Game.World.Embedded
 
 import           IO.Blocking
 
 import           Render.Console
-import           Render( move, mkEmbeddedWorld, renderAlignedTxt_
+import           Render( move, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
-                       , Coords(..), Row(..), Col(..), Direction(..), EmbeddedWorld(..))
+                       , Coords(..), Row(..), Col(..), Direction(..))
 
 
 data GameParameters = GameParameters {
@@ -72,12 +73,12 @@ render (GameParameters shape wall) = do
   ew <- mkEmbeddedWorld worldSize
   case ew of
     Left err -> error err
-    Right (EmbeddedWorld _ upperLeft) -> do
+    Right rew@(EmbeddedWorld _ upperLeft) -> do
       beginFrame
-      world@(World _ _ _ space _) <- mkWorld Nothing worldSize wall []
+      world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall []
       _ <- renderSpace space upperLeft >>=
         \worldCoords -> do
-          renderWorld world worldCoords
+          renderWorld world
           let middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle
@@ -97,5 +98,5 @@ render (GameParameters shape wall) = do
 
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
           restoreColors prevColors
-          renderWorldFrame Nothing worldSize upperLeft
+          renderWorldFrame Nothing world
       endFrame

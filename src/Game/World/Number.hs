@@ -1,12 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Game.World.Number(
     showShotNumbers
   , getColliding
   , survivingNumbers
+  , destroyedNumbersAnimations
   ) where
 
 import           Imajuscule.Prelude
+
+import           Animation
 
 import           Data.Char( intToDigit )
 import           Data.List( partition, foldl', length )
@@ -15,15 +19,15 @@ import           Data.Text(singleton, pack)
 
 import           Color
 
+import           Game.World.Types
+import           Game.World.Laser
+import           Game.Event
+
+import           Geo.Conversion
+import           Geo.Continuous
 import           Geo.Discrete
 
-import           Game.World.Types
-import           Game.World.Laser( Ray(..)
-                      , LaserRay(..)
-                      , LaserPolicy(..)
-                      , Theoretical
-                      , Actual
-                      , stopRayAtFirstCollision )
+import           Timing
 
 import           Render
 
@@ -55,3 +59,17 @@ showShotNumbers nums =
                                          in (i-1, s <> colored t (numberColor n))) (lastIndex, first) nums
 
   in middle <> last_
+
+
+destroyedNumbersAnimations :: KeyTime -> Event -> [Number] -> [BoundedAnimation]
+destroyedNumbersAnimations keyTime event =
+  let sp = case event of
+        (Action Laser dir) -> speed2vec $ coordsForDirection dir
+        _                  -> Vec2 0 0
+      animation pos = map (\f -> (f, Speed 2)) (explosion (scalarProd 2 sp) pos)
+  in \case
+        Number (PosSpeed pos _) n:_ ->
+          let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
+              create (f,speed) = mkAnimation f keyTime SkipZero speed $ Just $ intToDigit n
+          in  map (\a -> BoundedAnimation (create a) WorldFrame) animations
+        _ -> []

@@ -55,6 +55,7 @@ library
                      , Game.World.Laser
                      , Game.World.Laser.Types
                      , Game.World.Number
+                     , Game.World.Ship
                      , Game.World.Space.Types
                      , Game.World.Types
                      , Render

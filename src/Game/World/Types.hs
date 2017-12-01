@@ -10,7 +10,7 @@ module Game.World.Types
         , FrameAnimation(..)
         , EmbeddedWorld(..)
         , mkFrameAnimation
-        -- ^ reexports
+        -- | Reexports
         , module Game.World.Space.Types
         , Terminal.Window(..)
         ) where

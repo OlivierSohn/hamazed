@@ -9,9 +9,13 @@ module Game.World.Space
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
     , mkEmptySpace
+    , createRandomPosSpeed
     ) where
 
 import           Imajuscule.Prelude
+
+import           System.Random( getStdRandom
+                              , randomR )
 
 import           Data.Graph( Graph
                            , graphFromEdges
@@ -29,16 +33,52 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Color
 
+import           Collision
+
 import           Game.World.Size
 import           Game.World.Space.Types
 
 import           Geo.Types
-import           Geo.Discrete( translateInDir )
+import           Geo.Discrete hiding (extend, translate)
 
 import           Render
 
 import           Util( replicateElements
                      , randomRsIO )
+
+
+createRandomPosSpeed :: Space -> IO PosSpeed
+createRandomPosSpeed space = do
+  pos <- randomNonCollidingPos space
+  dx <- randomSpeed
+  dy <- randomSpeed
+  return $ fst $ mirrorIfNeeded (`location` space) $ PosSpeed pos (Coords (Row dx) (Col dy))
+
+
+randomSpeed :: IO Int
+randomSpeed = getStdRandom $ randomR (-1,1)
+
+randomNonCollidingPos :: Space -> IO Coords
+randomNonCollidingPos space@(Space _ worldSize _) = do
+  coords <- randomCoords worldSize
+  case getMaterial coords space of
+    Wall -> randomNonCollidingPos space
+    Air -> return coords
+
+randomInt :: Int -> IO Int
+randomInt sz = getStdRandom $ randomR (0,sz-1)
+
+randomCoords :: WorldSize -> IO Coords
+randomCoords (WorldSize (Coords rs cs)) = do
+  r <- randomRow rs
+  c <- randomCol cs
+  return $ Coords r c
+
+randomRow :: Row -> IO Row
+randomRow (Row sz) = Row <$> randomInt sz
+
+randomCol :: Col -> IO Col
+randomCol (Col sz) = Col <$> randomInt sz
 
 forEachRowPure :: Matrix CInt -> WorldSize -> (Row -> (Col -> Material) -> b) -> [b]
 forEachRowPure mat (WorldSize (Coords (Row rs) (Col cs))) f =

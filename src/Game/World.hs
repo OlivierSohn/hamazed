@@ -5,6 +5,7 @@ module Game.World
     , mkWorld
     , moveWorld
     , nextWorld
+    , withLaserAction
     , renderWorld
     , earliestAnimationDeadline
     -- | reexports
@@ -19,11 +20,7 @@ import           Data.Maybe( isNothing )
 import           Data.Time( addUTCTime
                           , getCurrentTime
                           , UTCTime )
-import           System.Random( getStdRandom
-                              , randomR )
 
-
-import           Animation.Types
 import           Animation.Util( earliestDeadline )
 
 import           Collision
@@ -34,7 +31,10 @@ import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 import           Game.World.Size
 
+import           Game.Event
+import           Game.World.Laser
 import           Game.World.Number
+import           Game.World.Ship
 import           Game.World.Space
 import           Game.World.Types
 
@@ -94,6 +94,38 @@ earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
+-- TODO use Number Live Number Dead
+withLaserAction :: Event ->  World -> ([Number], [Number], Maybe (LaserRay Actual), Int)
+withLaserAction
+  event
+  (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
+        space _ _)
+ =
+  let (maybeLaserRayTheoretical, newAmmo) =
+       if ammo > 0 then case event of
+         (Action Laser dir) ->
+           (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
+         _ ->
+           (Nothing, ammo)
+       else
+         (Nothing, ammo)
+
+      ((remainingBalls', destroyedBalls), maybeLaserRay) =
+         maybe
+           ((balls,[]), Nothing)
+           (survivingNumbers balls RayDestroysFirst)
+             maybeLaserRayTheoretical
+
+      remainingBalls = case event of
+         Timeout GameStep _ ->
+           if isNothing safeTime
+             then
+               filter (`notElem` collisions) remainingBalls'
+             else
+               remainingBalls'
+         _ -> remainingBalls'
+  in (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo)
+
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
@@ -109,48 +141,6 @@ mkWorld e s walltype nums = do
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createShipPos space balls
   return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
-
-createShipPos :: Space -> [Number] -> IO PosSpeed
-createShipPos space numbers = do
-  let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
-  candidate@(PosSpeed pos _) <- createRandomPosSpeed space
-  if pos `notElem` numPositions
-    then
-      return candidate
-    else
-      createShipPos space numbers
-
-randomInt :: Int -> IO Int
-randomInt sz = getStdRandom $ randomR (0,sz-1)
-
-randomCoords :: WorldSize -> IO Coords
-randomCoords (WorldSize (Coords rs cs)) = do
-  r <- randomRow rs
-  c <- randomCol cs
-  return $ Coords r c
-
-randomRow :: Row -> IO Row
-randomRow (Row sz) = Row <$> randomInt sz
-
-randomCol :: Col -> IO Col
-randomCol (Col sz) = Col <$> randomInt sz
-
-randomSpeed :: IO Int
-randomSpeed = getStdRandom $ randomR (-1,1)
-
-createRandomPosSpeed :: Space -> IO PosSpeed
-createRandomPosSpeed space = do
-  pos <- randomNonCollidingPos space
-  dx <- randomSpeed
-  dy <- randomSpeed
-  return $ fst $ mirrorIfNeeded (`location` space) $ PosSpeed pos (Coords (Row dx) (Col dy))
-
-randomNonCollidingPos :: Space -> IO Coords
-randomNonCollidingPos space@(Space _ worldSize _) = do
-  coords <- randomCoords worldSize
-  case getMaterial coords space of
-    Wall -> randomNonCollidingPos space
-    Air -> return coords
 
 createRandomNumber :: Space -> Int -> IO Number
 createRandomNumber space i = do

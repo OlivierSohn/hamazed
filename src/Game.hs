@@ -8,19 +8,18 @@ module Game(
 
 import           Imajuscule.Prelude
 
-import           Data.Char( intToDigit )
-import           Data.List( minimumBy, find, foldl', notElem )
+import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes, isNothing, fromMaybe )
 import           Data.String(String)
 import           Data.Text( pack, singleton )
 
 import           Animation
 import           Animation.Design.Chars
-import           Animation.Types
 
 import           Color
 
 import           Game.Deadline( Deadline(..) )
+import           Game.World.Ship
 import           Game.Event
 import           Game.Level
 import           Game.Parameters( GameParameters(..) )
@@ -55,110 +54,53 @@ data GameState = GameState {
   , _gameStateFrameAnimation :: !(Maybe FrameAnimation)
 }
 
--- TODO split (move code for animations creation out)
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b world@(World balls _ (BattleShip (PosSpeed shipCoords shipSpeed) ammo safeTime collisions)
-                                space@(Space _ sz _) animations _)
+  (GameState a b world@(World _ _ ship space animations _)
              g target (Level i finished) mayAnim)
   te@(TimedEvent event t) =
-    maybe
-      normal
-      (const $ error "not supposed to have an animation here")
-        mayAnim
-  where
-       (maybeLaserRayTheoretical, newAmmo) =
-         if ammo > 0 then case event of
-           (Action Laser dir) ->
-             (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
-           _ ->
-             (Nothing, ammo)
-         else
-           (Nothing, ammo)
-       ((remainingBalls', destroyedBalls), maybeLaserRay) =
-         maybe
-           ((balls,[]), Nothing)
-           (survivingNumbers balls RayDestroysFirst)
-             maybeLaserRayTheoretical
+  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = withLaserAction event world
 
-       remainingBalls = case event of
-         Timeout GameStep _ ->
-           if isNothing safeTime
-             then
-               filter (`notElem` collisions) remainingBalls'
-             else
-               remainingBalls'
-         _ -> remainingBalls'
+      keyTime = KeyTime t
 
-       keyTime = KeyTime t
-       eventAnims = case event of
-            Timeout GameStep k ->
-              if not (null collisions) && isNothing safeTime
-                then
-                  -- number and ship explode, but they exchange speeds
-                  let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
-                      (Number _ n) = head collisions
-                  in  map ((`BoundedAnimation` WorldFrame) .
-                            (\(char,f) -> mkAnimation f k SkipZero (Speed 1) (Just char))) $
-                          map ((,) '|')            (explosion (speed2vec collidingNumbersSpeed) shipCoords) ++
-                          map ((,) $ intToDigit n) (explosion (speed2vec shipSpeed) shipCoords)
-                else
-                  []
-            _ -> []
-
-       laserRayAnim =
-         maybe
-           []
-           (\ray -> [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame])
-             maybeLaserRay
-
-       outerWorldAnims =
-         if not $ null destroyedBalls
+      outerSpaceAnims_ =
+         if null destroyedBalls
            then
-              []
+             maybe [] (outerSpaceAnims keyTime space) maybeLaserRay
            else
-             maybe
-               []
-               (\ray@(LaserRay dir _) ->
-                  let ae = afterEnd ray
-                      fr = onFronteer ae sz
-                      borderExplosions = case fr of
-                        Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
-                                           explosions = explosionGravity speed $ translateInDir outDir ae
-                                       in map (((`BoundedAnimation` TerminalWindow) .
-                                                (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
-                                                  ((,) $ niceChar $ getSeconds t))
-                                                    explosions
-                        Nothing -> []
-                  in borderExplosions ++ [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
-               ) maybeLaserRay
+            []
 
-       newAnimations =
-         destroyNumbersAnimations destroyedBalls event keyTime
-         ++ eventAnims
-         ++ laserRayAnim
-         ++ outerWorldAnims
+      newAnimations =
+            destroyedNumbersAnimations keyTime event destroyedBalls
+         ++ shipAnims ship event
+         ++ maybe [] (laserAnims keyTime) maybeLaserRay
+         ++ outerSpaceAnims_
          ++ animations
 
-       newWorld = nextWorld world remainingBalls newAmmo newAnimations
-       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-       allShotNumbers = g ++ destroyedNumbers
-       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
-       newLevel = Level i newFinished
-       normal = GameState a b newWorld allShotNumbers target newLevel mayAnim
+      newWorld = nextWorld world remainingBalls newAmmo newAnimations
+      destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
+      allShotNumbers = g ++ destroyedNumbers
+      newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
+      newLevel = Level i newFinished
+  in assert (isNothing mayAnim) GameState a b newWorld allShotNumbers target newLevel mayAnim
 
-destroyNumbersAnimations :: [Number] -> Event -> KeyTime -> [BoundedAnimation]
-destroyNumbersAnimations nums event keyTime =
-  let sp = case event of
-        (Action Laser dir) -> speed2vec $ coordsForDirection dir
-        _                  -> Vec2 0 0
-      animation pos = map (\f -> (f, Speed 2)) (explosion (scalarProd 2 sp) pos)
-  in case nums of
-    Number (PosSpeed pos _) n:_ ->
-      let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
-          create (f,speed) = mkAnimation f keyTime SkipZero speed $ Just $ intToDigit n
-      in  map (\a -> BoundedAnimation (create a) WorldFrame) animations
-    _ -> []
+
+outerSpaceAnims :: KeyTime -> Space -> LaserRay Actual -> [BoundedAnimation]
+outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
+  let ae = afterEnd ray
+  in case onFronteer ae sz of
+        Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
+                           explosions = explosionGravity speed $ translateInDir outDir ae
+                       in map (((`BoundedAnimation` TerminalWindow) .
+                                (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
+                                  ((,) $ niceChar $ getSeconds t))
+                                    explosions
+        Nothing -> []
+
+
+laserAnims :: KeyTime -> LaserRay Actual -> [BoundedAnimation]
+laserAnims keyTime ray
+ = [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
 
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
 replaceAnimations anims (GameState a c (World wa wb wc wd _ ew) f g h i) =
@@ -289,7 +231,6 @@ updateGameUsingTimedEvent
   case event of
     Nonsense -> return state
     StartLevel nextLevel ->
-      -- TODO make an animation between current world size and next
       makeInitialState params nextLevel (Just world)
         >>= \case
               Left err -> error err

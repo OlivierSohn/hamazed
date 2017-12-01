@@ -1,10 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Animation
-    ( mkAnimation
-    , mkAnimationTree
-    -- | animations
-    , simpleExplosion
+    ( -- | animations
+      simpleExplosion
     , gravityExplosion
     , gravityExplosionThenSimpleExplosion
     , quantitativeExplosionThenSimpleExplosion
@@ -14,6 +12,8 @@ module Animation
     , explosion
     , explosion1
     , explosionGravity
+    -- | Reexports
+    , module Animation.Types
     ) where
 
 

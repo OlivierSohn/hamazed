@@ -44,7 +44,7 @@ instance DiscretelyInterpolable IText where
         $ zip (zip t r) (zip t' r')
 --}
 
-testText :: IO()
+testText :: IO ()
 testText = do
   let ta@(TextAnimation str from_ to_) = fromto "he"
       d = distance from_ to_
@@ -53,15 +53,12 @@ testText = do
     (\i -> do
       let t = getAnimatedTextRenderStates ta i
           v = map (translate (Row (2*i)) (Col 0)) t
-      renderAnimatedText str v
+      renderAnimatedText' str v
     ) [0..pred d]
   endFrame
-  return ()
 
 fromto :: Text -> TextAnimation
 fromto str =
   let r = RenderState $ Coords (Row 10) (Col 12)
       r' = RenderState $ Coords (Row 10) (Col 10)
-      from = SequentiallyInterpolatedList $ map (\i -> move i Down r)  [0..pred $ length str]
-      to   = SequentiallyInterpolatedList $ map (\i -> move i Down r') [0..pred $ length str]
-  in TextAnimation str from to
+  in mkTextTranslation str r r'

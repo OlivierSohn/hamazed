@@ -1,6 +1,8 @@
 
 # Backlog
 
+- upper and lower info moves should happen at the same time
+
 - when expanding, invert animation order between frame and infos
 
 - use a dedicated animation for world swap, and then one for game start

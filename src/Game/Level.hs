@@ -79,7 +79,7 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNum
     checkSum = case compare sumNumbers target of
       LT -> Nothing
       EQ -> Just Won
-      GT -> Just $ Lost $ pack $ "sum " ++ show sumNumbers ++ " is bigger than target " ++ show target
+      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target
     checkAmmo
       | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing

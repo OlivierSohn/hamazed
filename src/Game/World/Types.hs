@@ -8,8 +8,10 @@ module Game.World.Types
         , BoundedAnimation(..)
         , Boundaries(..)
         , FrameAnimation(..)
+        , FrameSpec(..)
+        , WorldAnimation(..)
         , EmbeddedWorld(..)
-        , mkFrameAnimation
+        , isFinished
         -- | Reexports
         , module Game.World.Space.Types
         , Terminal.Window
@@ -26,31 +28,37 @@ import           Animation.Types
 import           Geo.Discrete
 import           Game.World.Space.Types
 
+import           Interpolation
 import           Render
 import           Timing
 
-
-data FrameAnimation = FrameAnimation {
-    _frameAnimationNextWorld :: !World
-  , _frameAnimationStart :: !UTCTime
-  , _frameAnimationEase :: !(Float -> Float)
-  , _frameAnimationNSteps :: !Int -- in number of frames
-  , _frameAnimationProgress :: !Iteration
-  , _frameAnimationDeadline :: !(Maybe KeyTime)
+data WorldAnimation = WorldAnimation {
+    _worldAnimationFA :: !FrameAnimation
+  , _worldAnimationEvs :: [Evolution RenderState]
+  , _worldAnimationDeadline :: !(Maybe KeyTime)
+  , _worldAnimationProgress :: !Iteration
 }
 
-mkFrameAnimation :: World -- ^ next world
-                 -> UTCTime -- ^ time at which the animation starts
-                 -> (Float -> Float) -- inverse ease function
-                 -> Int -- ^ number of steps
-                 -> FrameAnimation
-mkFrameAnimation next t ease nsteps =
-  FrameAnimation next t ease nsteps (Iteration (Speed 1, startFrame)) (Just $ KeyTime t)
- where
-  startFrame = Frame (-1)
+isFinished :: WorldAnimation -> Bool
+isFinished (WorldAnimation _ _ Nothing _) = True
+isFinished _ = False
 
+-- TODO model frame animation as Evolution / DiscretelyInterpolable
+data FrameAnimation = FrameAnimation {
+    _frameAnimationNextWorld :: !World
+  , _frameAnimationStart :: !(Maybe UTCTime)
+  , _frameAnimationDuration :: !Float
+  , _frameAnimationInvEase :: !(Float
+                             -> Float) -- ^ takes a value, returns a time, both in ranges (0 1)
+  , _frameAnimationLastFrame :: !Frame
+}
 
-data World = World{
+data FrameSpec = FrameSpec {
+    _frameSpecSize :: !WorldSize
+  , _frameSpecUpperLeft :: !RenderState
+} deriving(Eq, Show)
+
+data World = World {
     _worldNumbers :: ![Number]
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip

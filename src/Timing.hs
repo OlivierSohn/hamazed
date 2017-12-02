@@ -26,8 +26,6 @@ import           Data.Time( addUTCTime
                           , NominalDiffTime
                           , UTCTime(..) )
 
-import           Geo.Discrete.Types
-
 
 -- I introduce this type to prevent equality test which make no sense, like
 -- between "current system time" and a time that was computed

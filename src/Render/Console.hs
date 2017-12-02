@@ -57,6 +57,8 @@ import           System.IO( hSetBuffering
 import           Geo.Discrete.Types
 import           Geo.Discrete
 
+import           Interpolation
+
 {--
 import qualified RenderBackends.Full as Backend( --}
 --{--
@@ -83,7 +85,13 @@ data ConsoleConfig = Gaming | Editing
 
 newtype RenderState = RenderState {
     _currentUpperLeftCorner :: Coords
-}
+} deriving(Eq, Ord, Show)
+
+instance DiscretelyInterpolable RenderState where
+  distance (RenderState from) (RenderState to) =
+    distance from to
+  interpolate (RenderState from) (RenderState to) progress =
+    RenderState $ interpolate from to progress
 
 --------------------------------------------------------------------------------
 -- IO

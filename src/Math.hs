@@ -2,6 +2,7 @@
 
 module Math
     ( invQuartEaseInOut
+    , clamp
     ) where
 
 import           Imajuscule.Prelude
@@ -42,3 +43,15 @@ invQuartEaseInOut y =
       (y / 8.0) ** (1.0/4.0)
     else
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
+
+clamp :: Int
+      -- ^ the value
+      -> Int
+      -- ^ the inclusive minimum bound
+      -> Int
+      -- ^ the inclusive maximum bound
+      -> Int
+clamp n min_ max_
+  | n < min_ = min_
+  | n > max_ = max_
+  | otherwise = n

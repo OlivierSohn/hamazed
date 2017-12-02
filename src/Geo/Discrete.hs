@@ -9,7 +9,6 @@ module Geo.Discrete
            , showSegment
            , changeSegmentLength
            , segmentContains
-           , sumCoords
            , diffCoords
            , translate
            , translateInDir
@@ -22,12 +21,8 @@ import           Imajuscule.Prelude
 
 import           Geo.Discrete.Types
 
-
 zeroCoords :: Coords
 zeroCoords = Coords (Row 0) (Col 0)
-
-sumCoords :: Coords -> Coords -> Coords
-sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
 -- | a - b
 diffCoords :: Coords

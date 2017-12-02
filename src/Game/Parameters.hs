@@ -22,11 +22,15 @@ import           Game.World.Embedded
 
 import           IO.Blocking
 
+import           Math
+
 import           Render.Console
 import           Render( move, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
                        , Coords(..), Row(..), Col(..), Direction(..))
 
+import           Iteration
+import           Timing
 
 data GameParameters = GameParameters {
     _gameParamsWorldShape :: !WorldShape
@@ -98,5 +102,8 @@ render (GameParameters shape wall) = do
 
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
           restoreColors prevColors
-          renderWorldFrame Nothing world
+          t <- getCurrentTime
+          let frameAnimation = mkFrameAnimation world 1.8 invQuartEaseInOut zeroFrame
+              worldAnimation = mkWorldAnimation world world t frameAnimation
+          renderWorldFrame worldAnimation world
       endFrame

@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Animation.Types
     (
@@ -15,25 +14,17 @@ module Animation.Types
     , OnWall(..)
     -- |
     , StepType(..)
-    -- | Iteration and constructors
-    , Iteration(..)
-    , zeroIteration
-    , nextIteration
-    , previousIteration
     -- | Speed
     , Speed(..)
     -- | Frame and constructors
-    , Frame(..)
-    , zeroFrame
     -- | Reexports
     , Coords
     , Location(..)
+    , module Iteration
     ) where
 
 
 import           Imajuscule.Prelude
-
-import           GHC.Generics( Generic )
 
 import           System.Console.ANSI(Color8Code)
 
@@ -45,6 +36,7 @@ import           Render( RenderState )
 
 import           Timing( KeyTime )
 
+import           Iteration
 
 -- | Animator contains functions to update and render an Animation.
 data Animator = Animator {
@@ -109,10 +101,6 @@ data StepType = Initialize -- update the tree       , iteration doesn't change
               | Update     -- update the tree       , iteration moves forward
               | Same       -- do not update the tree, iteration doesn't change
 
-newtype Iteration = Iteration (Speed, Frame) deriving(Generic, Eq, Show)
-newtype Speed = Speed Int deriving(Generic, Eq, Show, Num)
-newtype Frame = Frame Int deriving(Generic, Eq, Show, Num)
-
 --------------------------------------------------------------------------------
 -- Constructors
 --------------------------------------------------------------------------------
@@ -134,17 +122,3 @@ mkAnimation render t frameInit speed mayChar =
           SkipZero -> nextIteration)
           $ zeroIteration speed
   in Animation t firstIteration mayChar render
-
-
-zeroIteration :: Speed -> Iteration
-zeroIteration s = Iteration (s,zeroFrame)
-
-nextIteration :: Iteration -> Iteration
-nextIteration (Iteration(s@(Speed speed), Frame i)) = Iteration (s, Frame (i + speed))
-
-previousIteration :: Iteration -> Iteration
-previousIteration (Iteration(s@(Speed speed), Frame i)) = Iteration (s, Frame (i - speed))
-
-
-zeroFrame :: Frame
-zeroFrame = Frame 0

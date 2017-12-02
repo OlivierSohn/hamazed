@@ -14,8 +14,6 @@ import           Data.Either( partitionEithers )
 
 import           Animation.Types
 
-import           Game.World.Size
-
 import           Render
 import           Render.Console
 

@@ -10,6 +10,7 @@ module Imajuscule.Prelude (
                           , Show
                           , Num
                           , Enum
+                          , Integral
                           , Ord
                           , Monoid(..)
                           , Bool(..)

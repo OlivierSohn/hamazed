@@ -4,6 +4,12 @@
 module Game.World.Frame
     ( renderWorldFrame
     , maxNumberOfSteps
+    , computeRSForInfos
+    , mkFrameAnimation
+    , mkWorldAnimation
+    , createInterpolations
+    , -- Reexports
+    module Game.World.Types
     ) where
 
 import           Imajuscule.Prelude
@@ -17,8 +23,12 @@ import           Color
 import           Game.World.Types
 import           Game.World.Size
 
+import           Interpolation
+
 import           Render
 import           Render.Console
+
+import           Timing
 
 countWorldFrameChars :: WorldSize -> Int
 countWorldFrameChars s =
@@ -99,20 +109,34 @@ actualRange :: Int -> (Int, Int) -> (Int, Int)
 actualRange countMax (from, to) =
   (max 0 from, min to $ pred countMax)
 
-renderWorldFrame :: Maybe FrameAnimation -- ^ maybe contains next world
+renderWorldFrame :: WorldAnimation -- ^ contains next world
                  -> World -- ^ current world
                  -> IO ()
-renderWorldFrame mayAnim (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUpperLeft)) = do
+renderWorldFrame (WorldAnimation (FrameAnimation (World _ _ _ (Space _ szNext _) _ (EmbeddedWorld _ nextUpperLeft)) _ _ _ lastFAFrame)
+                                 _ _ (Iteration (_, frame@(Frame i))))
+                  (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUpperLeft)) = do
   fg <- setRawForeground worldFrameColor
-  maybe
-    (renderPartialWorldFrame szCur (curUpperLeft, 0, countWorldFrameChars szCur - 1))
-    (\(FrameAnimation (World _ _ _ (Space _ szNext _) _ (EmbeddedWorld _ nextUpperLeft))
-                      _ _ _ (Iteration (_, Frame i)) _) -> do
-      let (RenderState (Coords _ (Col dc))) = diffRS curUpperLeft nextUpperLeft
-          n = maxNumberOfSteps szCur szNext
+  let from = FrameSpec szCur curUpperLeft
+      to = FrameSpec szNext  nextUpperLeft
+  if frame < lastFAFrame
+    then
+      renderTransition from to i
+    else
+      renderWhole to
+  restoreForeground fg
+
+renderWhole :: FrameSpec -> IO ()
+renderWhole (FrameSpec sz upperLeft) =
+  renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1)
+
+renderTransition :: FrameSpec -> FrameSpec -> Int -> IO ()
+renderTransition from@(FrameSpec fromSz fromUpperLeft) to@(FrameSpec toSz toUpperLeft) i = do
+      let
+          (RenderState (Coords _ (Col dc))) = diffRS fromUpperLeft toUpperLeft
+          n = maxNumberOfSteps fromSz toSz
           render diBefore di = do
-            renderFrom Extremities (n-(i+diBefore)) szCur    curUpperLeft
-            renderFrom Middle      (n-(i+di))       szNext  nextUpperLeft
+            renderFrom Extremities (n-(i+diBefore)) from
+            renderFrom Middle      (n-(i+di))       to
       if dc >= 0
         then
           -- expanding animation
@@ -120,8 +144,6 @@ renderWorldFrame mayAnim (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUp
         else
           -- shrinking animation
           render 0 (negate dc)
-    ) mayAnim
-  restoreForeground fg
 
 -- | Includes start and end steps, ie if animation consists of no change, it returns 1.
 --   If animation consists of a single change, it returns 2.
@@ -150,8 +172,8 @@ ranges progress sz =
         Middle      -> res
         Extremities -> complement 0 (total-1) res
 
-renderFrom :: BuildFrom -> Int -> WorldSize -> RenderState -> IO ()
-renderFrom rangeType progress sz r = do
+renderFrom :: BuildFrom -> Int -> FrameSpec -> IO ()
+renderFrom rangeType progress (FrameSpec sz r) = do
   let rs = ranges progress sz rangeType
   mapM_ (\(min_, max_) -> renderPartialWorldFrame sz (r, min_, max_)) rs
 
@@ -164,3 +186,63 @@ rangeByRemovingFromTotal remove total start =
   let min_ = remove
       max_ = total - 1 - remove
   in (start + min_, start + max_)
+
+
+computeRSForInfos :: FrameSpec -> (RenderState, RenderState, RenderState)
+computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
+  (centerUp, centerDown, leftMiddle)
+ where
+  addWallSize = (+ 2)
+  half = flip quot 2
+  mkSizes s = (addWallSize s, half s)
+  (rFull, rHalf) = mkSizes rs
+  (_    , cHalf) = mkSizes cs
+
+  centerUp   = translate (Row $ -1)        (Col $ cHalf + 1) upperLeft
+  centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
+  leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
+
+createInterpolations :: FrameSpec
+                     -> FrameSpec
+                     -> Float
+                     -> [Evolution RenderState]
+createInterpolations from to duration =
+    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = computeRSForInfos from
+        (centerUpTo, centerDownTo, leftMiddleTo) = computeRSForInfos to
+        evol f t = mkEvolution f t duration
+    in [evol centerUpFrom centerUpTo,
+        evol centerDownFrom centerDownTo,
+        evol leftMiddleFrom leftMiddleTo]
+
+
+mkWorldAnimation :: World
+                 -> World
+                 -> UTCTime
+                 -- ^ time at which the animation starts
+                 -> FrameAnimation
+                 -> WorldAnimation
+mkWorldAnimation
+  (World _ _ _ (Space _ fromSz _) _ (EmbeddedWorld _ fromUpperLeft))
+  (World _ _ _ (Space _ toSz _) _ (EmbeddedWorld _ toUpperLeft))
+  t fa =
+  WorldAnimation fa (createInterpolations from to 0.3) deadline (Iteration (Speed 1, startFrame))
+ where
+  startFrame = Frame (-1)
+  from = FrameSpec fromSz fromUpperLeft
+  to = FrameSpec toSz toUpperLeft
+  deadline =
+    if from == to
+      then Nothing
+      else Just $ KeyTime t
+
+mkFrameAnimation :: World
+                 -- ^ next world
+                 -> Float
+                 -- ^ duration
+                 -> (Float -> Float)
+                 -- ^ inverse ease function
+                 -> Frame
+                 -- ^ last frame
+                 -> FrameAnimation
+mkFrameAnimation next =
+  FrameAnimation next Nothing

@@ -18,12 +18,12 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
+  other-modules:       Imajuscule.Prelude
   exposed-modules:     Run
                      , Math
                      , Game.World.Size
                      , Game.World.Space
                      , Render.Console
-  other-modules:       Imajuscule.Prelude
                      , Animation
                      , Animation.Design.Animator
                      , Animation.Design.Apply
@@ -40,17 +40,6 @@ library
                      , Game.Parameters
                      , Geo
                      , Collision
-                     , Geo.Conversion
-                     , Geo.Continuous
-                     , Geo.Continuous.Types
-                     , Geo.Discrete
-                     , Geo.Discrete.Bresenham
-                     , Geo.Discrete.Resample
-                     , Geo.Discrete.Types
-                     , Geo.Types
-                     , IO.Blocking
-                     , IO.NonBlocking
-                     , IO.Types
                      , Game.Level
                      , Game.Level.Types
                      , Game.World
@@ -62,6 +51,19 @@ library
                      , Game.World.Ship
                      , Game.World.Space.Types
                      , Game.World.Types
+                     , Geo.Conversion
+                     , Geo.Continuous
+                     , Geo.Continuous.Types
+                     , Geo.Discrete
+                     , Geo.Discrete.Bresenham
+                     , Geo.Discrete.Resample
+                     , Geo.Discrete.Types
+                     , Geo.Types
+                     , Interpolation
+                     , IO.Blocking
+                     , IO.NonBlocking
+                     , IO.Types
+                     , Iteration
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta
@@ -97,6 +99,9 @@ executable hamazed-exe
 test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
+  other-modules:       Test.Ease
+                     , Test.Interpolation
+                     , Test.Rendering
   main-is:             Spec.hs
   build-depends:       base
                      , hamazed

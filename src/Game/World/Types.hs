@@ -10,6 +10,7 @@ module Game.World.Types
         , FrameAnimation(..)
         , FrameSpec(..)
         , WorldAnimation(..)
+        , WorldEvolutions(..)
         , EmbeddedWorld(..)
         , isFinished
         -- | Reexports
@@ -34,9 +35,14 @@ import           Timing
 
 data WorldAnimation = WorldAnimation {
     _worldAnimationFA :: !FrameAnimation
-  , _worldAnimationEvs :: [Evolution RenderState]
+  , _worldAnimationEvs :: !WorldEvolutions
   , _worldAnimationDeadline :: !(Maybe KeyTime)
   , _worldAnimationProgress :: !Iteration
+}
+
+data WorldEvolutions = WorldEvolutions {
+    _worldEvolutionsUpDown :: !(Evolution [RenderState])
+  , _worldEvolutionLeft    :: !(Evolution RenderState)
 }
 
 isFinished :: WorldAnimation -> Bool

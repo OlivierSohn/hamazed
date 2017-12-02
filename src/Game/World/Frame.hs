@@ -205,14 +205,14 @@ computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
 createInterpolations :: FrameSpec
                      -> FrameSpec
                      -> Float
-                     -> [Evolution RenderState]
+                     -> WorldEvolutions
 createInterpolations from to duration =
     let (centerUpFrom, centerDownFrom, leftMiddleFrom) = computeRSForInfos from
         (centerUpTo, centerDownTo, leftMiddleTo) = computeRSForInfos to
         evol f t = mkEvolution f t duration
-    in [evol centerUpFrom centerUpTo,
-        evol centerDownFrom centerDownTo,
-        evol leftMiddleFrom leftMiddleTo]
+    in WorldEvolutions (evol [centerUpFrom, centerDownFrom]
+                             [centerUpTo, centerDownTo])
+                        $ evol leftMiddleFrom leftMiddleTo
 
 
 mkWorldAnimation :: World

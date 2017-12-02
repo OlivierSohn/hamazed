@@ -8,7 +8,7 @@ module Game(
 
 import           Imajuscule.Prelude
 
-import           Data.List( minimumBy, find, mapAccumL )
+import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes, fromMaybe )
 import           Data.String(String)
 import           Data.Text( pack, singleton )
@@ -275,15 +275,6 @@ updateAnim
                     $ evolveAt remainingEvolutionSteps evolutions
      in GameState a newGameStep world j k l newAnim
 
-
--- in each evolution, the first position is skipped because it is the current one.
-evolveAt :: (DiscretelyInterpolable a) => Frame -> [Evolution a] -> Maybe Float
-{-# INLINABLE evolveAt #-} -- allow specialization
-evolveAt _ [] = Nothing
-evolveAt frame evolutions@(Evolution _ _ lastFrame _ _:_) =
-  snd (evolve (head evolutions) frame) <|> evolveAt (frame-lastFrame) (tail evolutions)
-
-
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
   case event of
@@ -327,16 +318,37 @@ renderInfos (GameState _ _ (World _ _ (BattleShip _ ammo _ _) _ _ _) shotNumbers
   _ <- renderAlignedTxt Centered ("Objective : " <> pack (show target)) centerUp
   return ()
 
+-- evolveAt and animatedRS share some logic:
+-- TODO make a function that does the traversal of Evolutions with substraction of the last frame.
+-- maybe we'll need some existential types magic?
+
+evolveAt :: Frame -> WorldEvolutions -> Maybe Float
+evolveAt frame (WorldEvolutions upDown@(Evolution _ _ lastFrameUD _ _) center) =
+  snd (evolve upDown frame) <|> snd (evolve center (frame-lastFrameUD))
+
 animatedRS :: WorldAnimation -> (RenderState, RenderState, RenderState)
-animatedRS (WorldAnimation (FrameAnimation _ _ _ _ lastFAFrame) evolutions _ (Iteration (_,frame))) =
+animatedRS (WorldAnimation (FrameAnimation _ _ _ _ lastFAFrame) (WorldEvolutions upDown@(Evolution _ _ lastFrameUD _ _) center) _ (Iteration (_,frame))) =
+  let relFrame = frame - lastFAFrame
+      (up,down) = case fst $ evolve upDown (max 0 relFrame) of
+        [x,y] -> (x,y)
+        _ -> error "unexpected"
+      c = fst $ evolve center (max 0 (relFrame-lastFrameUD))
+  in (up,down,c)
+
+{-- implementation of animatedRS for sequential lists, if needed :
   let relFrame = frame - lastFAFrame
   in tuplify3 $ snd $ mapAccumL (\f e@(Evolution _ _ lastFrame _ _)
                                  -> (f-lastFrame, fst $ evolve e (max 0 f))) relFrame evolutions
+--}
 
-
-tuplify3 :: [a] -> (a,a,a)
-tuplify3 [x,y,z] = (x,y,z)
-tuplify3 _ = error "not supposed to happen"
+-- in each evolution, the first position is skipped because it is the current one.
+{--
+deadlineForSequentialExecution :: (DiscretelyInterpolable a) => Frame -> [Evolution a] -> Maybe Float
+{-# INLINABLE deadlineForSequentialExecution #-} -- allow specialization
+deadlineForSequentialExecution _ [] = Nothing
+deadlineForSequentialExecution frame evolutions@(Evolution _ _ lastFrame _ _:_) =
+  snd (evolve (head evolutions) frame) <|> deadlineForSequentialExecution (frame-lastFrame) (tail evolutions)
+--}
 
 renderAnimations :: Maybe KeyTime
                  -> Space

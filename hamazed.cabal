@@ -18,12 +18,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  other-modules:       Imajuscule.Prelude
-  exposed-modules:     Run
-                     , Math
-                     , Game.World.Size
-                     , Game.World.Space
-                     , Render.Console
+  other-modules:
+  exposed-modules:     Imajuscule.Prelude
                      , Animation
                      , Animation.Design.Animator
                      , Animation.Design.Apply
@@ -33,13 +29,13 @@ library
                      , Animation.Design.Geo
                      , Animation.Types
                      , Animation.Util
+                     , Collision
                      , Color
                      , Game.Deadline
                      , Game.Event
                      , Game
                      , Game.Parameters
                      , Geo
-                     , Collision
                      , Game.Level
                      , Game.Level.Types
                      , Game.World
@@ -49,6 +45,8 @@ library
                      , Game.World.Laser.Types
                      , Game.World.Number
                      , Game.World.Ship
+                     , Game.World.Size
+                     , Game.World.Space
                      , Game.World.Space.Types
                      , Game.World.Types
                      , Geo.Conversion
@@ -64,10 +62,15 @@ library
                      , IO.NonBlocking
                      , IO.Types
                      , Iteration
+                     , Math
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta
                      , Render.Backends.Internal.Delta
+                     , Render.Console
+                     , Run
+                     , Text.Animated
+                     , Text.ColorString
                      , Threading
                      , Timing
                      , Util
@@ -100,6 +103,7 @@ test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       Test.Ease
+                     , Test.InterpolatedText
                      , Test.Interpolation
                      , Test.Rendering
   main-is:             Spec.hs

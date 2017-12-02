@@ -5,13 +5,15 @@ module Interpolation
          , evolve
          , mkEvolution
          , Evolution(..)
+         -- | types to use to select a particular instance of DiscretelyInterpolable
+         , SequentiallyInterpolatedList(..)
          -- | Reexports
          , module Iteration
          ) where
 
 import           Imajuscule.Prelude
 
-import           Data.List( length )
+import           Data.List( length, mapAccumL )
 
 import           Iteration
 import           Math
@@ -43,8 +45,7 @@ import           Math
 --
 -- > interpolate from to low  == interpolate from medVal low
 -- > interpolate from to high == interpolate medVal to $ high-med
-class (Eq v, Ord v)
-   => DiscretelyInterpolable v where
+class DiscretelyInterpolable v where
 
   distance :: v -- ^ first value
            -> v -- ^ last value
@@ -63,9 +64,12 @@ instance DiscretelyInterpolable Int where
     i + signum (i'-i) * clamp progress 0 (abs (i-i'))
 
 
--- | Prerequisite : lists have the same lengths.
--- Lists can be empty, in that case, the distance is 1.
-instance (Eq a, Ord a, DiscretelyInterpolable a)
+-- | Interpolation between 2 lists, occuring in parallel between same-index elements.
+--   Prerequisite : lists have the same lengths.
+--
+--  For an interpolation that occurs sequentially between same-index elements,
+--   use SequentiallyInterpolatedList.
+instance (DiscretelyInterpolable a)
       => DiscretelyInterpolable ([] a) where
   distance [] _ = 1
   distance _ [] = 1
@@ -74,6 +78,32 @@ instance (Eq a, Ord a, DiscretelyInterpolable a)
 
   interpolate l l' progress =
     zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
+
+
+newtype SequentiallyInterpolatedList a =
+  SequentiallyInterpolatedList [a]
+  deriving(Eq, Ord)
+
+-- | Interpolation between 2 SequentiallyInterpolatedList, occuring sequentially
+--   between same-index elements.
+--   Prerequisite : lists have the same lengths.
+--
+--  For an interpolation that occurs in parallel, use [].
+instance (DiscretelyInterpolable a)
+      => DiscretelyInterpolable (SequentiallyInterpolatedList a) where
+
+  distance (SequentiallyInterpolatedList l) (SequentiallyInterpolatedList l') =
+    succ $ sum $ zipWith (\x y -> pred $ distance x y) l (assert (length l' == length l) l')
+
+  interpolate (SequentiallyInterpolatedList l) (SequentiallyInterpolatedList l') progress =
+    SequentiallyInterpolatedList $ snd $
+      mapAccumL
+        (\acc (e,e') ->
+          let d = pred $ distance e e'
+              r = interpolate e e' $ clamp acc 0 d
+          in (acc-d, r))
+        progress
+        $ zip l (assert (length l' == length l) l')
 
 
 {-# INLINABLE mkEvolution #-} -- to allow specialization

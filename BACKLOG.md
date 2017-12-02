@@ -1,7 +1,12 @@
 
 # Backlog
 
-- upper and lower info moves should happen at the same time
+- letter by letter interpolation:
+data PlacedText = PlacedText !Text !RenderState !RenderState
+
+distance
+  text from to
+  text' from' to' = length text * distance r r'
 
 - when expanding, invert animation order between frame and infos
 

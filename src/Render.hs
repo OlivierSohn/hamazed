@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Render (
           renderAligned
@@ -31,27 +30,14 @@ import           Imajuscule.Prelude
 
 import           Control.Monad( foldM_ )
 
-import           Data.List( foldl' )
-import           Data.Text( Text, length )
+import           Data.Text( length )
 
 import           Geo.Discrete.Types
 import           Geo.Discrete( move, sumCoords, diffCoords, translateInDir )
 
 import           Render.Console
 
-
-
-newtype ColorString = ColorString [(Text, Color8Code)]
-
-colored :: Text -> Color8Code -> ColorString
-colored t c = ColorString [(t,c)]
-
-countChars :: ColorString -> Int
-countChars (ColorString cs) = foldl' (\c (txt, _) -> c + length txt) 0 cs
-
-instance Monoid ColorString where
-  mempty = ColorString [("", Color8Code 0)]
-  mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
+import           Text.ColorString
 
 --------------------------------------------------------------------------------
 -- Pure

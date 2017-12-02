@@ -1,5 +1,6 @@
 
 import Test.Interpolation
+import Test.InterpolatedText
 
 main :: IO ()
-main = putStrLn "" >> testInterpolation
+main = putStrLn "" >> testText

@@ -27,6 +27,7 @@ module Imajuscule.Prelude (
                           , notElem
                           , null
                           , minimum
+                          , maximum
                           , either
                           , maybe
                           , zipWith

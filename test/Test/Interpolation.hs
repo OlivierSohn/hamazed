@@ -1,6 +1,7 @@
 
-
 module Test.Interpolation(testInterpolation) where
+
+import GHC.Generics(Generic(..))
 
 import Geo.Discrete
 import Interpolation
@@ -9,7 +10,7 @@ import Render
 import Game.World.Frame
 
 testInterpolation :: IO ()
-testInterpolation = mapM_ print testCoords -- (map toEv testGlobal)
+testInterpolation = mapM_ print testListInts -- (map toEv testGlobal)
 
 data (DiscretelyInterpolable v) => Ev v = Ev {
     _evolutionFrom :: !v
@@ -39,6 +40,14 @@ testInts :: [(Int, Maybe Float)]
 testInts =
   let from = 0
       to = 1
+      d = distance from to
+      e = mkEvolution from to 1
+  in map (evolve e . Frame) [0..d]
+
+testListInts :: [([] Int, Maybe Float)]
+testListInts =
+  let from = [0,13]
+      to = [1,11]
       d = distance from to
       e = mkEvolution from to 1
   in map (evolve e . Frame) [0..d]

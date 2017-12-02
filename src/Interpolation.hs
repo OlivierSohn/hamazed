@@ -11,6 +11,8 @@ module Interpolation
 
 import           Imajuscule.Prelude
 
+import           Data.List( length )
+
 import           Iteration
 import           Math
 
@@ -59,6 +61,19 @@ instance DiscretelyInterpolable Int where
     1 + abs (i-i')
   interpolate i i' progress =
     i + signum (i'-i) * clamp progress 0 (abs (i-i'))
+
+
+-- | Prerequisite : lists have the same lengths.
+-- Lists can be empty, in that case, the distance is 1.
+instance (Eq a, Ord a, DiscretelyInterpolable a)
+      => DiscretelyInterpolable ([] a) where
+  distance [] _ = 1
+  distance _ [] = 1
+  distance l l' =
+    maximum $ zipWith distance l $ assert (length l == length l') l'
+
+  interpolate l l' progress =
+    zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
 
 
 {-# INLINABLE mkEvolution #-} -- to allow specialization

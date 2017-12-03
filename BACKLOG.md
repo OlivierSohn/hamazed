@@ -5,6 +5,8 @@
   - ammo / numbers resetting to their normal values
   - level number and target changing (red to white)
 
+- skip spaces animation in AnimatedText ?
+
 - when expanding, invert animation order between frame and infos
 
 - use a dedicated animation for world swap, and then one for game start

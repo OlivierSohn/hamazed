@@ -23,12 +23,12 @@ import Text.Animated
 testText :: IO ()
 testText = do
   let ta@(TextAnimation (ColorString str) (Evolution _ _ (Frame lastFrame) _ _)) =
-        mkTextTranslation (ColorString [("he",black)]) 1 (RenderState (Coords (Row 3) (Col 3))) (RenderState (Coords (Row 5) (Col 3)))
+        mkTextTranslation (ColorString [("hello",white)]) 1 (RenderState (Coords (Row 3) (Col 3))) (RenderState (Coords (Row 5) (Col 3)))
   beginFrame
   mapM_
     (\i@(Frame c) -> do
       let t = getAnimatedTextRenderStates ta i
-          v = map (translate (Row (2*c)) (Col 0)) t
+          v = map (translate (Row (3*c)) (Col 0)) t
       renderAnimatedText' str v
-    ) $ map Frame [0..pred lastFrame]
+    ) $ map Frame [0..lastFrame]
   endFrame

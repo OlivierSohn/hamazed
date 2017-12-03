@@ -32,11 +32,11 @@ import           Collision(Location(..))
 
 import           Geo.Discrete.Types( Coords )
 
-import           Render( RenderState )
-
 import           Timing( KeyTime )
 
 import           Iteration
+
+import           Render.Console( RenderState )
 
 -- | Animator contains functions to update and render an Animation.
 data Animator = Animator {

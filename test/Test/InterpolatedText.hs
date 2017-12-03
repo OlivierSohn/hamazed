@@ -10,6 +10,7 @@ import Imajuscule.Prelude
 
 import Control.Monad( zipWithM_ )
 
+import Color
 import Game.World.Space
 import Game.World.Size
 import Interpolation
@@ -18,47 +19,16 @@ import Render.Console
 import Render
 import Text.Animated
 
-{--
-translateIText :: IText -> Coords -> IText
-translateIText (IText str anchors) (Coords r c) = IText str $ map (translate r c) anchors
-
-mkIText :: [(Char, RenderState)] -> IText
-mkIText l =
-  let str = map fst l
-      anchors = map snd l
-  in IText str anchors
-
-instance DiscretelyInterpolable IText where
-
-  distance (IText t r) (IText t' r') =
-    succ $ sum $ zipWith (\x y -> pred $ distance x y) r r'
-
-  interpolate (IText t r) (IText t' r') progress =
-    mkIText $ snd $
-      mapAccumL
-        (\acc ((et,er),(et',er')) ->
-          let d = pred $ distance er er'
-              r = interpolate er er' $ clamp acc 0 d
-          in (acc-d, (assert (et == et') et, r)))
-        progress
-        $ zip (zip t r) (zip t' r')
---}
 
 testText :: IO ()
 testText = do
-  let ta@(TextAnimation str from_ to_) = fromto "he"
-      d = distance from_ to_
+  let ta@(TextAnimation (ColorString str) (Evolution _ _ (Frame lastFrame) _ _)) =
+        mkTextTranslation (ColorString [("he",black)]) 1 (RenderState (Coords (Row 3) (Col 3))) (RenderState (Coords (Row 5) (Col 3)))
   beginFrame
   mapM_
-    (\i -> do
+    (\i@(Frame c) -> do
       let t = getAnimatedTextRenderStates ta i
-          v = map (translate (Row (2*i)) (Col 0)) t
+          v = map (translate (Row (2*c)) (Col 0)) t
       renderAnimatedText' str v
-    ) [0..pred d]
+    ) $ map Frame [0..pred lastFrame]
   endFrame
-
-fromto :: Text -> TextAnimation
-fromto str =
-  let r = RenderState $ Coords (Row 10) (Col 12)
-      r' = RenderState $ Coords (Row 10) (Col 10)
-  in mkTextTranslation str r r'

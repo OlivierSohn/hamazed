@@ -7,6 +7,7 @@ module Game.World
     , nextWorld
     , withLaserAction
     , renderWorld
+    , renderWorldAnimation
     , earliestAnimationDeadline
     -- | reexports
     , Number(..)
@@ -31,6 +32,8 @@ import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 
 import           Game.Event
+import           Game.World.Evolution
+import           Game.World.Frame
 import           Game.World.Laser
 import           Game.World.Number
 import           Game.World.Ship
@@ -128,8 +131,8 @@ withLaserAction
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> IO World
-mkWorld e s walltype nums = do
+mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> Int -> IO World
+mkWorld e s walltype nums ammo = do
   (Space mat sz render) <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
@@ -138,7 +141,7 @@ mkWorld e s walltype nums = do
   let space = Space mat sz render
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- createShipPos space balls
-  return $ World balls ballMotion (BattleShip ship 10 (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
+  return $ World balls ballMotion (BattleShip ship ammo (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
 
 createRandomNumber :: Space -> Int -> IO Number
 createRandomNumber space i = do
@@ -161,3 +164,12 @@ renderNumber (Number (PosSpeed pos _) i) space r = do
   fg <- setRawForeground $ numberColor i
   renderIfNotColliding (intToDigit i) pos space r
   restoreForeground fg
+
+renderWorldAnimation :: WorldAnimation -- ^ contains next world
+                     -> World -- ^ current world
+                     -> IO ()
+renderWorldAnimation
+ (WorldAnimation (FrameAnimation w2 _ _ _ lastFAFrame) evolutions _ (Iteration (_, frame)))
+ w1 = do
+  renderWorldFrame w1 w2 frame lastFAFrame
+  renderEvolutions evolutions $ max 0 (frame - lastFAFrame)

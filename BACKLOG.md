@@ -1,12 +1,9 @@
 
 # Backlog
 
-- letter by letter interpolation:
-data PlacedText = PlacedText !Text !RenderState !RenderState
-
-distance
-  text from to
-  text' from' to' = length text * distance r r'
+- when a new level starts, animation should begin with :
+  - ammo / numbers resetting to their normal values
+  - level number and target changing (red to white)
 
 - when expanding, invert animation order between frame and infos
 

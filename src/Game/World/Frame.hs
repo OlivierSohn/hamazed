@@ -2,12 +2,11 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Game.World.Frame
-    ( renderWorldFrame
-    , maxNumberOfSteps
-    , computeRSForInfos
+    ( maxNumberOfSteps
     , mkFrameAnimation
     , mkWorldAnimation
-    , createInterpolations
+    , mkTextAnimLeft
+    , renderWorldFrame
     , -- Reexports
     module Game.World.Types
     ) where
@@ -16,17 +15,17 @@ import           Imajuscule.Prelude
 
 import           Animation.Types
 
-import           Data.List( mapAccumL, zip )
-
 import           Color
+
+import           Data.List( mapAccumL, zip )
 
 import           Game.World.Types
 import           Game.World.Size
 
-import           Interpolation
-
 import           Render
 import           Render.Console
+
+import           Text.ColorString
 
 import           Timing
 
@@ -54,67 +53,66 @@ renderRightWall :: WorldSize -> (RenderState, Int, Int) -> IO (RenderState, Int,
 renderRightWall sz (upperRight, from, to) = do
   let countMax = countWorlFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
-      countChars = 1 + actualTo - actualFrom
+      nChars = 1 + actualTo - actualFrom
       rightWallCoords = map (\n -> move n Down upperRight) [actualFrom..actualTo]
       nextR = move countMax Down upperRight
   mapM_ (renderChar_ '|') rightWallCoords
-  if countChars <= 0
+  if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      return (nextR, from + countChars - countMax, to - countMax)
+      return (nextR, from + nChars - countMax, to - countMax)
 
 renderLeftWall :: WorldSize -> (RenderState, Int, Int) -> IO (RenderState, Int, Int)
 renderLeftWall sz (lowerLeft, from, to) = do
   let countMax = countWorlFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
-      countChars = 1 + actualTo - actualFrom
+      nChars = 1 + actualTo - actualFrom
       leftWallCoords = map (\n -> move n Up lowerLeft) [actualFrom..actualTo]
       nextR = move countMax Up lowerLeft
   mapM_ (renderChar_ '|') leftWallCoords
-  if countChars <= 0
+  if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      return (nextR, from + countChars - countMax, to - countMax)
+      return (nextR, from + nChars - countMax, to - countMax)
 
 -- 0 is upper left
 renderUpperWall :: WorldSize -> (RenderState, Int, Int) -> IO (RenderState, Int, Int)
 renderUpperWall sz (upperLeft, from, to) = do
   let countMax = countWorlFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
-      countChars = 1 + actualTo - actualFrom
+      nChars = 1 + actualTo - actualFrom
       nextR = go Down $ move (countMax - 1) RIGHT upperLeft
-  if countChars <= 0
+  if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      renderChars countChars '_' (move actualFrom RIGHT upperLeft)
-       >> return (nextR, from + countChars - countMax, to - countMax)
+      renderChars nChars '_' (move actualFrom RIGHT upperLeft)
+       >> return (nextR, from + nChars - countMax, to - countMax)
 
 renderLowerWall :: WorldSize -> (RenderState, Int, Int) -> IO (RenderState, Int, Int)
 renderLowerWall sz (lowerRight, from, to) = do
   let countMax = countWorlFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
-      countChars = 1 + actualTo - actualFrom
+      nChars = 1 + actualTo - actualFrom
       nextR = go Up $ move (countMax - 1) LEFT lowerRight
-  if countChars <= 0
+  if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      renderChars countChars 'T' (move actualTo LEFT lowerRight)
-       >> return (nextR, from + countChars - countMax, to - countMax)
+      renderChars nChars 'T' (move actualTo LEFT lowerRight)
+       >> return (nextR, from + nChars - countMax, to - countMax)
 
 actualRange :: Int -> (Int, Int) -> (Int, Int)
 actualRange countMax (from, to) =
   (max 0 from, min to $ pred countMax)
 
-renderWorldFrame :: WorldAnimation -- ^ contains next world
-                 -> World -- ^ current world
-                 -> IO ()
-renderWorldFrame (WorldAnimation (FrameAnimation (World _ _ _ (Space _ szNext _) _ (EmbeddedWorld _ nextUpperLeft)) _ _ _ lastFAFrame)
-                                 _ _ (Iteration (_, frame@(Frame i))))
-                  (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUpperLeft)) = do
+renderWorldFrame :: World -> World -> Frame -> Frame -> IO ()
+renderWorldFrame
+ (World _ _ _ (Space _ szCur _) _ (EmbeddedWorld _ curUpperLeft))
+ (World _ _ _ (Space _ szNext _) _ (EmbeddedWorld _ nextUpperLeft))
+ frame@(Frame i) lastFAFrame = do
   fg <- setRawForeground worldFrameColor
   let from = FrameSpec szCur curUpperLeft
       to = FrameSpec szNext  nextUpperLeft
@@ -204,32 +202,82 @@ computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
 
 createInterpolations :: FrameSpec
                      -> FrameSpec
+                     -> ((ColorString, ColorString), (ColorString, ColorString))
+                     -- ^ Upper text, Lower text, Left text 1, Left text 2
                      -> Float
                      -> WorldEvolutions
-createInterpolations from to duration =
-    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = computeRSForInfos from
-        (centerUpTo, centerDownTo, leftMiddleTo) = computeRSForInfos to
-        evol f t = mkEvolution f t duration
-    in WorldEvolutions (evol [centerUpFrom, centerDownFrom]
-                             [centerUpTo, centerDownTo])
-                        $ evol leftMiddleFrom leftMiddleTo
+createInterpolations from to ((txtUpper, txtLower), (txtLeft1, txtLeft2)) duration =
+    let ta1 = mkTextAnimUpDown from to (txtUpper, txtLower) duration
+        ta2 = mkTextAnimLeft from to (txtLeft1, txtLeft2) duration
+    in WorldEvolutions ta1 ta2
 
+
+mkTextAnimLeft :: FrameSpec
+               -> FrameSpec
+               -> (ColorString, ColorString)
+               -> Float
+               -> TextAnimation
+mkTextAnimLeft from to (txtLeft1, txtLeft2) duration =
+    let (_, _, leftMiddleFrom) = computeRSForInfos from
+        (_, _, leftMiddleTo) = computeRSForInfos to
+
+        rightAlignLeft = alignTxt RightAligned
+
+        rightAlignLeft1 = rightAlignLeft txtLeft1
+        rightAlignLeft2 = move 2 Down . rightAlignLeft txtLeft2
+
+        leftMiddle1FromAligned = rightAlignLeft1 leftMiddleFrom
+        leftMiddle1ToAligned = rightAlignLeft1 leftMiddleTo
+
+        leftMiddle2FromAligned = rightAlignLeft2 leftMiddleFrom
+        leftMiddle2ToAligned = rightAlignLeft2 leftMiddleTo
+
+    in  mkSequentialTextTranslations
+          [(txtLeft1, leftMiddle1FromAligned, leftMiddle1ToAligned),
+           (txtLeft2, leftMiddle2FromAligned, leftMiddle2ToAligned)]
+          duration
+
+mkTextAnimUpDown :: FrameSpec
+                 -> FrameSpec
+                 -> (ColorString, ColorString)
+                 -> Float
+                 -> TextAnimation
+mkTextAnimUpDown from to (txtUpper, txtLower) duration =
+    let (centerUpFrom, centerDownFrom, _) = computeRSForInfos from
+        (centerUpTo, centerDownTo, _) = computeRSForInfos to
+
+        alignTxtCentered = alignTxt Centered
+
+        alignUpperTxtCentered = alignTxtCentered txtUpper
+        alignLowerTxtCentered = alignTxtCentered txtLower
+
+        centerUpFromAligned = alignUpperTxtCentered centerUpFrom
+        centerUpToAligned = alignUpperTxtCentered centerUpTo
+
+        centerDownFromAligned = alignLowerTxtCentered centerDownFrom
+        centerDownToAligned = alignLowerTxtCentered centerDownTo
+
+    in  mkSequentialTextTranslations
+          [(txtUpper, centerUpFromAligned, centerUpToAligned),
+           (txtLower, centerDownFromAligned, centerDownToAligned)]
+          duration
+
+alignTxt :: Alignment -> ColorString -> RenderState -> RenderState
+alignTxt al txt = uncurry move $ align al $ countChars txt
 
 mkWorldAnimation :: World
                  -> World
+                 -> ((ColorString, ColorString), (ColorString, ColorString))
                  -> UTCTime
                  -- ^ time at which the animation starts
                  -> FrameAnimation
                  -> WorldAnimation
-mkWorldAnimation
-  (World _ _ _ (Space _ fromSz _) _ (EmbeddedWorld _ fromUpperLeft))
-  (World _ _ _ (Space _ toSz _) _ (EmbeddedWorld _ toUpperLeft))
-  t fa =
-  WorldAnimation fa (createInterpolations from to 0.3) deadline (Iteration (Speed 1, startFrame))
+mkWorldAnimation wFrom wTo infos t fa =
+  WorldAnimation fa (createInterpolations from to infos 1) deadline (Iteration (Speed 1, startFrame))
  where
-  startFrame = Frame (-1)
-  from = FrameSpec fromSz fromUpperLeft
-  to = FrameSpec toSz toUpperLeft
+  startFrame = pred zeroFrame
+  from = mkFrameSpec wFrom
+  to   = mkFrameSpec wTo
   deadline =
     if from == to
       then Nothing

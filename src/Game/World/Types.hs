@@ -9,12 +9,15 @@ module Game.World.Types
         , Boundaries(..)
         , FrameAnimation(..)
         , FrameSpec(..)
+        , mkFrameSpec
         , WorldAnimation(..)
         , WorldEvolutions(..)
         , EmbeddedWorld(..)
         , isFinished
         -- | Reexports
         , module Game.World.Space.Types
+        , module Iteration
+        , module Text.Animated
         , Terminal.Window
         ) where
 
@@ -27,10 +30,15 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 import           Animation.Types
 
 import           Geo.Discrete
+
 import           Game.World.Space.Types
 
-import           Interpolation
+import           Iteration
+
 import           Render
+
+import           Text.Animated
+
 import           Timing
 
 data WorldAnimation = WorldAnimation {
@@ -41,8 +49,8 @@ data WorldAnimation = WorldAnimation {
 }
 
 data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionsUpDown :: !(Evolution [RenderState])
-  , _worldEvolutionLeft    :: !(Evolution RenderState)
+    _worldEvolutionsUpDown :: !TextAnimation
+  , _worldEvolutionLeft    :: !TextAnimation
 }
 
 isFinished :: WorldAnimation -> Bool
@@ -63,6 +71,10 @@ data FrameSpec = FrameSpec {
     _frameSpecSize :: !WorldSize
   , _frameSpecUpperLeft :: !RenderState
 } deriving(Eq, Show)
+
+mkFrameSpec :: World -> FrameSpec
+mkFrameSpec (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
+  FrameSpec sz upperLeft
 
 data World = World {
     _worldNumbers :: ![Number]

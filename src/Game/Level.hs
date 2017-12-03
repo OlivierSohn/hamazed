@@ -50,7 +50,7 @@ import           Timing( UTCTime
 import           Util( showListOrSingleton )
 
 eventFromChar :: Level -> Either Key Char -> Event
-eventFromChar (Level n finished) char =
+eventFromChar (Level n _ finished) char =
   case finished of
     Nothing -> Game.Event.eventFromChar char
     Just (LevelFinished stop _ ContinueMessage) ->
@@ -85,7 +85,7 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNum
       | otherwise = Nothing
 
 messageDeadline :: Level -> UTCTime -> Maybe Deadline
-messageDeadline (Level _ mayLevelFinished) t =
+messageDeadline (Level _ _ mayLevelFinished) t =
   maybe Nothing
   (\(LevelFinished _ timeFinished messageType) ->
     case messageType of
@@ -148,5 +148,5 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
 
 
 renderLevel :: Level -> RenderState -> IO ()
-renderLevel (Level level levelState) rightMiddle =
+renderLevel (Level level _ levelState) rightMiddle =
   mapM_ (renderLevelState rightMiddle level) levelState

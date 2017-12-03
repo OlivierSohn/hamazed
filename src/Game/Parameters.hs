@@ -29,7 +29,6 @@ import           Render( move, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
                        , Coords(..), Row(..), Col(..), Direction(..))
 
-import           Iteration
 import           Timing
 
 data GameParameters = GameParameters {
@@ -79,7 +78,7 @@ render (GameParameters shape wall) = do
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
       beginFrame
-      world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall []
+      world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=
         \worldCoords -> do
           renderWorld world
@@ -104,6 +103,6 @@ render (GameParameters shape wall) = do
           restoreColors prevColors
           t <- getCurrentTime
           let frameAnimation = mkFrameAnimation world 1.8 invQuartEaseInOut zeroFrame
-              worldAnimation = mkWorldAnimation world world t frameAnimation
-          renderWorldFrame worldAnimation world
+              worldAnimation = mkWorldAnimation world world (("",""),("","")) t frameAnimation
+          renderWorldAnimation worldAnimation world
       endFrame

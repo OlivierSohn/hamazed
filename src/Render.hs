@@ -1,7 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Render (
-          renderAligned
+          align
+        , renderAligned
         , renderColored
         , renderColoredPoints
         , renderColoredChars
@@ -87,7 +88,7 @@ data Alignment = Centered
 
 renderAlignedTxt_ :: Alignment -> Text -> RenderState -> IO ()
 renderAlignedTxt_ a txt ref = do
-  let leftCorner = align a (length txt) ref
+  let leftCorner = align' a (length txt) ref
   renderTxt_ txt leftCorner
 
 renderAlignedTxt :: Alignment -> Text -> RenderState -> IO RenderState
@@ -96,7 +97,7 @@ renderAlignedTxt a txt ref =
 
 renderAligned :: Alignment -> ColorString -> RenderState -> IO RenderState
 renderAligned a cs ref = do
-  let leftCorner = align a (countChars cs) ref
+  let leftCorner = align' a (countChars cs) ref
   _ <- renderColored cs leftCorner
   return (go Down ref)
 
@@ -110,9 +111,15 @@ renderColored (ColorString cs) ref = do
     return $ count + l) 0 cs
   return (go Down ref)
 
-align :: Alignment -> Int -> RenderState -> RenderState
-align a count ref =
-  let amount = case a of
-        Centered     -> 1 + quot count 2
-        RightAligned -> count
-  in Render.move amount LEFT ref
+align' :: Alignment -> Int -> RenderState -> RenderState
+align' a count ref =
+  let (amount, dir) = align a count
+  in Render.move amount dir ref
+
+align :: Alignment -> Int -> (Int, Direction)
+align a count =
+  let amount =
+        case a of
+          Centered     -> 1 + quot count 2
+          RightAligned -> count
+  in (amount, LEFT)

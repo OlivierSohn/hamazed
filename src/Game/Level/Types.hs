@@ -17,6 +17,7 @@ import           Timing
 
 data Level = Level {
     _levelNumber :: !Int
+  , _levelTarget :: !Int
   , _levelStatus :: !(Maybe LevelFinished)
 }
 

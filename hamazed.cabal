@@ -38,8 +38,11 @@ library
                      , Geo
                      , Game.Level
                      , Game.Level.Types
+                     , Game.Render
+                     , Game.Types
                      , Game.World
                      , Game.World.Embedded
+                     , Game.World.Evolution
                      , Game.World.Frame
                      , Game.World.Laser
                      , Game.World.Laser.Types

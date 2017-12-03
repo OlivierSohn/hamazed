@@ -108,7 +108,8 @@ executable hamazed-exe
 test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Ease
+  other-modules:       Test.Bresenham3
+                     , Test.Ease
                      , Test.InterpolatedColorString
                      , Test.InterpolatedText
                      , Test.Interpolation

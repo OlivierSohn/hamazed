@@ -26,6 +26,7 @@ import           Render
 import           Text.ColorString
 
 
+-- | To animate (in parallel) the locations of each individual character
 data TextAnimation = TextAnimation {
    _text :: !ColorString
  , _anchors :: !(Evolution (SequentiallyInterpolatedList RenderState))

@@ -11,6 +11,7 @@ import           Imajuscule.Prelude
 import           Data.List( zip3 )
 
 -- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
+-- (slightly modified to fix a bug when rise1 == rise2 and both are > run)
 bres :: Int -> Int -> Int -> [(Int, Int, Int)]
 bres run rise1 rise2
     | run < 0  =   [(-x,  y,  z) | (x, y, z) <- bres (-run) rise1 rise2]
@@ -20,10 +21,11 @@ bres run rise1 rise2
         [( x, y, z) | (y, x, z) <- bres rise1 run rise2]
     | rise2 > max run rise1 =
         [( x, y, z) | (z, x, y) <- bres rise2 run rise1]
+    | run < rise1 =
+        [( x, y, z) | (y, x, z) <- bres rise1 run (assert (rise1 == rise2) rise2)]
     | otherwise = zip3 [0..run]
                        (map fst $ iterate (step rise1) (0, run `div` 2))
                        (map fst $ iterate (step rise2) (0, run `div` 2))
-
     where
         step rise (y, err)
             | err' < 0 = (y + 1, err' + run)

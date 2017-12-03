@@ -6,7 +6,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/mpilgrem/ansi-terminal.git
-    commit: 42f1dc8e8607ab33a62b187b0b5212b14f50b5aa
+    commit: 902d63fca8bdf4255702d4d87bc1c42868c91e1b
 - location:
     git: https://gitlab.com/OlivierSohn/Ease.git
     commit: 1d1398100135fa6571f37ff00a9607e886773a6f

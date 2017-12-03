@@ -24,6 +24,9 @@ module Color (
     -- create colors
   , gray
   , rgb
+  -- utilities
+  , bresenhamRGBLength
+  , bresenhamRGB
 ) where
 
 import           Imajuscule.Prelude
@@ -31,10 +34,11 @@ import           Imajuscule.Prelude
 import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.Console.ANSI(Color8Code(..), Xterm256Color(..))
 
-import           Data.Colour.SRGB --(Colour, RGB (..), sRGB, toSRGB)
+import           Data.Colour.SRGB (RGB (..))
 
 import           Animation.Types
 import           Game.Level.Types
+import           Geo.Discrete.Bresenham3
 
 configColors :: (Color8Code, Color8Code)
 configColors = (gray 8, gray 0)
@@ -122,3 +126,16 @@ rgb :: Word8 -> Word8 -> Word8 -> Color8Code
 rgb r g b
   | r >= rgbRange || g >= rgbRange || b >= rgbRange = error "out of range rgb"
   | otherwise = Color8Code $ fromIntegral $ firstRGB + 36 * r + 6 * g + b
+
+{-# INLINABLE bresenhamRGBLength #-}
+bresenhamRGBLength :: RGB Word8 -> RGB Word8 -> Int
+bresenhamRGBLength (RGB r g b) (RGB r' g' b') =
+  bresenham3Length (fromIntegral r,fromIntegral g,fromIntegral b) (fromIntegral r',fromIntegral g',fromIntegral b')
+
+{-# INLINABLE bresenhamRGB #-}
+bresenhamRGB :: RGB Word8 -> RGB Word8 -> [RGB Word8]
+bresenhamRGB (RGB r g b) (RGB r' g' b') =
+  map
+    (\(x,y,z) -> RGB (fromIntegral x) (fromIntegral y) (fromIntegral z))
+    $ bresenham3 (fromIntegral r,fromIntegral g,fromIntegral b)
+                 (fromIntegral r',fromIntegral g',fromIntegral b')

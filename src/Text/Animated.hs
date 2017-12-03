@@ -7,6 +7,8 @@ module Text.Animated
          , getAnimatedTextRenderStates
          , mkTextTranslation
          , mkSequentialTextTranslations
+         -- | reexports
+         , module Evolution
          ) where
 
 import           Imajuscule.Prelude
@@ -16,7 +18,7 @@ import           Control.Monad( zipWithM_ )
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt)
 
-import           Interpolation
+import           Evolution
 
 import           Render.Console
 import           Render

@@ -18,6 +18,8 @@ import           Data.Text( Text, length, pack )
 
 newtype ColorString = ColorString [(Text, Color8Code)]
 
+--TODO instance DiscretelyInterpolable ColorString where
+
 instance IsString ColorString where
   fromString str = ColorString [(pack str, white)]
 

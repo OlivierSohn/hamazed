@@ -31,11 +31,12 @@ library
                      , Animation.Util
                      , Collision
                      , Color
+                     , Color.Interpolation
+                     , Evolution
                      , Game.Deadline
                      , Game.Event
                      , Game
                      , Game.Parameters
-                     , Geo
                      , Game.Level
                      , Game.Level.Types
                      , Game.Render
@@ -52,11 +53,13 @@ library
                      , Game.World.Space
                      , Game.World.Space.Types
                      , Game.World.Types
+                     , Geo
                      , Geo.Conversion
                      , Geo.Continuous
                      , Geo.Continuous.Types
                      , Geo.Discrete
                      , Geo.Discrete.Bresenham
+                     , Geo.Discrete.Bresenham3
                      , Geo.Discrete.Resample
                      , Geo.Discrete.Types
                      , Geo.Types
@@ -106,6 +109,7 @@ test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       Test.Ease
+                     , Test.InterpolatedColorString
                      , Test.InterpolatedText
                      , Test.Interpolation
                      , Test.Rendering

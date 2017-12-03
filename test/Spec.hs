@@ -1,6 +1,6 @@
 
 import Test.Interpolation
-import Test.InterpolatedText
+import Test.InterpolatedColorString
 
 main :: IO ()
-main = putStrLn "" >> testText
+main = putStrLn "" >> testICS

@@ -5,8 +5,8 @@ resolver: lts-9.12
 packages:
 - '.'
 - location:
-    git: https://github.com/mpilgrem/ansi-terminal.git
-    commit: 902d63fca8bdf4255702d4d87bc1c42868c91e1b
+    git: https://github.com/OlivierSohn/ansi-terminal.git
+    commit: cb5ecbb9a89ceb24d06efa491e3ca44cf3f705f4
 - location:
     git: https://gitlab.com/OlivierSohn/Ease.git
     commit: 1d1398100135fa6571f37ff00a9607e886773a6f

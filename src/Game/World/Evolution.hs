@@ -9,8 +9,6 @@ import           Imajuscule.Prelude
 
 import           Game.World.Types
 
-import           Interpolation
-
 -- evolveAt, renderEvolutions share some logic:
 -- TODO make a function that does the traversal of Evolutions with substraction of the last frame.
 

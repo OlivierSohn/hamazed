@@ -2,10 +2,7 @@
 
 module Interpolation
          ( DiscretelyInterpolable(..)
-         , evolve
-         , mkEvolution
-         , Evolution(..)
-         -- | types to use to select a particular instance of DiscretelyInterpolable
+         -- | types to select a particular instance of DiscretelyInterpolable
          , SequentiallyInterpolatedList(..)
          -- | Reexports
          , module Iteration
@@ -104,40 +101,3 @@ instance (DiscretelyInterpolable a)
           in (acc-d, r))
         progress
         $ zip l (assert (length l' == length l) l')
-
-
-{-# INLINABLE mkEvolution #-} -- to allow specialization
-mkEvolution :: DiscretelyInterpolable v
-            => v
-            -> v
-            -> Float
-            -- ^ duration in seconds
-            -> Evolution v
-mkEvolution from to duration =
-  let nSteps = distance from to
-  in Evolution from to (Frame (nSteps-1)) duration invQuartEaseInOut
-
-data (DiscretelyInterpolable v)
-   => Evolution v = Evolution {
-    _evolutionFrom :: !v
-  , _evolutionTo :: !v
-  , _evolutionLastFrame :: !Frame
-  , _evolutionDuration :: Float -- ^ Total duration in seconds
-  , _evolutionInverseEase :: Float -> Float
-}
-
-{-# INLINABLE evolve #-} -- allow specialization
-evolve :: DiscretelyInterpolable v
-       => Evolution v
-       -> Frame
-       -- ^ current frame
-       -> (v, Maybe Float)
-       -- ^ the value, and maybe the time interval between this step and the next
-evolve (Evolution from to lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
-  | frame >= lastFrame = (to, Nothing)
-  | otherwise          = (interpolate from to $ assert (step >= 0) step, Just dt)
-  where
-    nextStep = succ step
-    thisValue = fromIntegral step / fromIntegral lastStep
-    targetValue = fromIntegral nextStep / fromIntegral lastStep
-    dt = duration * (easeValToTime targetValue - easeValToTime thisValue)

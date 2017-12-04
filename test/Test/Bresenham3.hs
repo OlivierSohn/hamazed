@@ -20,11 +20,12 @@ test (from, to) = do
   --putStrLn $ show from ++ show to
   let d = bresenham3Length from to
       br = bresenham3 from to
-      !res
+      !res -- we use a bang here so that it is concomittent with previous putStrLn
        |length br /= d  = error "different lengths"
        |head br /= from = error "wrong head"
        |last br /= to   = error $ show from ++ show to ++ "wrong last " ++ show (last br)
        |verifyDistances br = error $ show from ++ show to ++ "wrong distances" ++ show br
+       -- now the bresenham line is valid
        |otherwise =  1
   return res
 

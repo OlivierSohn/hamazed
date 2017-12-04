@@ -13,8 +13,6 @@ module Color.Interpolation
 
 import           Imajuscule.Prelude
 
-import           Prelude((!!))
-
 import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.Console.ANSI(Color8Code(..), Xterm256Color(..))
 import           System.Console.ANSI.Color( color8CodeToXterm256 )
@@ -34,9 +32,13 @@ instance DiscretelyInterpolable IColor8Code where
   distance (IColor8Code c) (IColor8Code c') =
     bresenhamColor8Length c c'
 
-  interpolate (IColor8Code c) (IColor8Code c') i =
-    let l = fromIntegral $ bresenhamColor8Length c c'
-    in IColor8Code $ bresenhamColor8 c c' !! clamp i 0 (l-1)
+  interpolate (IColor8Code c) (IColor8Code c') i
+    | c == c' = IColor8Code c
+    | otherwise =
+        let l = fromIntegral $ bresenhamColor8Length c c'
+            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+            index = clamp i 0 (pred l)
+        in IColor8Code . head . drop (pred index) $ bresenhamColor8 c c'
 
 
 {-# INLINABLE bresenhamColor8Length #-}

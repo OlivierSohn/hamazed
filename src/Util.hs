@@ -8,10 +8,14 @@ module Util
     , takeWhileInclusive
     , randomRsIO
     , range
+    , commonPrefix
+    , commonSuffix
     ) where
 
 import           Imajuscule.Prelude
 
+import           Data.String(String)
+import           Data.List(reverse)
 import           Data.Text(Text, pack)
 import           Data.Time( UTCTime(..), toGregorian )
 
@@ -40,6 +44,7 @@ takeWhileInclusive p (x:xs) = x : if p x
                                     else
                                       []
 
+{-# INLINABLE range #-}
 range :: Enum a => Ord a
       => a
       -> a
@@ -56,3 +61,11 @@ getDayIndexInMonth (UTCTime day _) =
 
 getSeconds :: UTCTime -> Int
 getSeconds (UTCTime _ t) = floor t
+
+commonPrefix :: String -> String -> String
+commonPrefix (x:xs) (y:ys)
+    | x == y    = x : commonPrefix xs ys
+commonPrefix _ _ = []
+
+commonSuffix :: String -> String -> String
+commonSuffix s s' = reverse $ commonPrefix (reverse s) (reverse s')

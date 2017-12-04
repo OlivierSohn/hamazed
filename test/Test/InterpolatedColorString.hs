@@ -28,24 +28,23 @@ testICS :: IO ()
 testICS = do
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
-      fromC = IColor8Code $ rgb 0 1 0
-      toC = IColor8Code $ rgb 5 0 0
-      e@(Evolution _ _ (Frame lastFrame) _ _) = mkEvolution fromC toC 1
-      e'@(Evolution _ _ (Frame lastFrame') _ _) = mkEvolution from to 1
-      br = bresenhamColor8 (rgb 5 0 0) (rgb 5 5 5)
+      e@(Evolution _ _ (Frame lastFrame) _ _) = mkEvolution from to 1
+      from' = colored "travel" (rgb 5 0 0)
+      to'   = colored "trail" (rgb 5 5 5)
+      e'@(Evolution _ _ (Frame lastFrame') _ _) = mkEvolution from' to' 1
 
   beginFrame
 
   mapM_
     (\i@(Frame c) -> do
-      let (IColor8Code color) = fst $ evolve e i
-      renderColored (colored "hi" color) (RenderState (Coords (Row c + 4) (Col 20)))
+      let cs = fst $ evolve e i
+      renderColored cs (RenderState (Coords (Row c + 10) (Col 3)))
     ) $ map Frame [0..lastFrame]
 
   mapM_
     (\i@(Frame c) -> do
       let cs = fst $ evolve e' i
-      renderColored cs (RenderState (Coords (Row c + 4) (Col 3)))
+      renderColored cs (RenderState (Coords (Row c + 10) (Col 25)))
     ) $ map Frame [0..lastFrame']
 
   endFrame

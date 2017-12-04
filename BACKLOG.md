@@ -2,8 +2,11 @@
 # Backlog
 
 - when a new level starts, animation should begin with :
-  - ammo / numbers resetting to their normal values
-  - level number and target changing (red to white)
+  - left : ammo / numbers resetting to their normal values
+  - updown : level number and target changing
+    - once changed, the changed bits are animated with "red to white"
+
+- fix the "off by one" animation error
 
 - skip spaces animation in AnimatedText ?
 

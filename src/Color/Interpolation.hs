@@ -24,6 +24,7 @@ import           Geo.Discrete.Bresenham3
 import           Interpolation
 
 import           Math
+import           Util
 
 newtype IColor8Code = IColor8Code Color8Code deriving (Show)
 
@@ -40,21 +41,32 @@ instance DiscretelyInterpolable IColor8Code where
             index = clamp i 0 (pred l)
         in IColor8Code . head . drop (pred index) $ bresenhamColor8 c c'
 
+-- | Interpolations betwee 2 rgb or 2 grays are well-defined, whereas
+--   other interpolations fallback on raw Color8Code interpolation which
+--   has little visual meaning. To improve on this, we could define conversion
+--   functions between different representations in the future.
 
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8Code -> Color8Code -> Int
-bresenhamColor8Length c c' =
-  case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
-    (RGBColor rgb1, RGBColor rgb2) -> bresenhamRGBLength rgb1 rgb2
-    _ -> error "not supported"
+bresenhamColor8Length c@(Color8Code v) c'@(Color8Code v')
+  | c == c' = 1
+  | otherwise =
+      case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
+        (RGBColor rgb1, RGBColor rgb2) -> bresenhamRGBLength rgb1 rgb2
+        (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
+        _ -> 1 + abs ((fromIntegral v :: Int) - (fromIntegral v' :: Int))
 
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8Code -> Color8Code -> [Color8Code]
-bresenhamColor8 c c' =
-  case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
-    (RGBColor rgb1, RGBColor rgb2) ->
-      map (xterm256ColorToCode . RGBColor) $ bresenhamRGB rgb1 rgb2
-    _ -> error "not supported"
+bresenhamColor8 c@(Color8Code v) c'@(Color8Code v')
+  | c == c' = [c]
+  | otherwise =
+      case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
+        (RGBColor rgb1, RGBColor rgb2) ->
+          map (xterm256ColorToCode . RGBColor) $ bresenhamRGB rgb1 rgb2
+        (GrayColor g1, GrayColor g2) ->
+          map Color8Code $ range g1 g2
+        _ -> map Color8Code $ range v v'
 
 {-# INLINABLE bresenhamRGBLength #-}
 bresenhamRGBLength :: RGB Word8 -> RGB Word8 -> Int

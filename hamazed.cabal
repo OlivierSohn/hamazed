@@ -111,7 +111,6 @@ test-suite hamazed-test
   other-modules:       Test.Bresenham3
                      , Test.Ease
                      , Test.InterpolatedColorString
-                     , Test.InterpolatedText
                      , Test.Interpolation
                      , Test.Rendering
   main-is:             Spec.hs

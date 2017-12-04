@@ -103,6 +103,6 @@ render (GameParameters shape wall) = do
           restoreColors prevColors
           t <- getCurrentTime
           let frameAnimation = mkFrameAnimation world 1.8 invQuartEaseInOut zeroFrame
-              worldAnimation = mkWorldAnimation world world (("",""),("","")) t frameAnimation
+              worldAnimation = mkWorldAnimation (world, (("",""),("",""))) (world, (("",""),("",""))) t frameAnimation
           renderWorldAnimation worldAnimation world
       endFrame

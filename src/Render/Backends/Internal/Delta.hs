@@ -69,7 +69,8 @@ import           System.Console.ANSI( ColorIntensity(..)
                                     , setCursorPosition
                                     , setSGRCode
                                     , SGR(..)
-                                    , ConsoleLayer(..) )
+                                    , ConsoleLayer(..)
+                                    , colorToCode )
 import           System.IO.Unsafe( unsafePerformIO )
 
 -- constant data
@@ -125,18 +126,6 @@ color8Code :: ColorIntensity -> Color -> Color8Code
 color8Code intensity color =
   let code = colorToCode color
   in  Color8Code $ if intensity == Vivid then 8 + code else code
-
--- copied from System.Control.ANSI
-colorToCode :: Color -> Word8
-colorToCode color = case color of
-  Black   -> 0
-  Red     -> 1
-  Green   -> 2
-  Yellow  -> 3
-  Blue    -> 4
-  Magenta -> 5
-  Cyan    -> 6
-  White   -> 7
 
 {-# NOINLINE screenBuffer #-}
 screenBuffer :: IORef ConsoleBuffer

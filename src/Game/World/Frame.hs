@@ -200,84 +200,89 @@ computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
   centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
   leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
 
-createInterpolations :: FrameSpec
-                     -> FrameSpec
-                     -> ((ColorString, ColorString), (ColorString, ColorString))
+createInterpolations :: TextAnimSpec
+                     -> TextAnimSpec
                      -- ^ Upper text, Lower text, Left text 1, Left text 2
                      -> Float
                      -> WorldEvolutions
-createInterpolations from to ((txtUpper, txtLower), (txtLeft1, txtLeft2)) duration =
-    let ta1 = mkTextAnimUpDown from to (txtUpper, txtLower) duration
-        ta2 = mkTextAnimLeft from to (txtLeft1, txtLeft2) duration
+createInterpolations (TextAnimSpec [upFrom, downFrom, left1From, left2From] from)
+                     (TextAnimSpec [upTo, downTo, left1To, left2To] to)
+                     duration =
+    let ta1 = mkTextAnimUpDown from (upFrom, downFrom) to (upTo, downTo) duration
+        ta2 = mkTextAnimLeft from (left1From, left2From) to (left1To, left2To) duration
     in WorldEvolutions ta1 ta2
+createInterpolations _ _ _ = error "not supposed to happen"
 
 
 mkTextAnimLeft :: FrameSpec
+               -> (ColorString, ColorString)
                -> FrameSpec
                -> (ColorString, ColorString)
                -> Float
                -> TextAnimation
-mkTextAnimLeft from to (txtLeft1, txtLeft2) duration =
+mkTextAnimLeft from (txtLeft1From, txtLeft2From)
+               to (txtLeft1To, txtLeft2To)
+               duration =
     let (_, _, leftMiddleFrom) = computeRSForInfos from
         (_, _, leftMiddleTo) = computeRSForInfos to
 
         rightAlignLeft = alignTxt RightAligned
 
-        rightAlignLeft1 = rightAlignLeft txtLeft1
-        rightAlignLeft2 = move 2 Down . rightAlignLeft txtLeft2
+        rightAlignLeft2 x = move 2 Down . rightAlignLeft x
 
-        leftMiddle1FromAligned = rightAlignLeft1 leftMiddleFrom
-        leftMiddle1ToAligned = rightAlignLeft1 leftMiddleTo
+        leftMiddle1FromAligned = rightAlignLeft txtLeft1From leftMiddleFrom
+        leftMiddle1ToAligned = rightAlignLeft txtLeft1To leftMiddleTo
 
-        leftMiddle2FromAligned = rightAlignLeft2 leftMiddleFrom
-        leftMiddle2ToAligned = rightAlignLeft2 leftMiddleTo
+        leftMiddle2FromAligned = rightAlignLeft2 txtLeft2From leftMiddleFrom
+        leftMiddle2ToAligned = rightAlignLeft2 txtLeft2To leftMiddleTo
 
     in  mkSequentialTextTranslations
-          [(txtLeft1, leftMiddle1FromAligned, leftMiddle1ToAligned),
-           (txtLeft2, leftMiddle2FromAligned, leftMiddle2ToAligned)]
+          [(txtLeft1From, txtLeft1To, leftMiddle1FromAligned, leftMiddle1ToAligned),
+           (txtLeft2From, txtLeft2To, leftMiddle2FromAligned, leftMiddle2ToAligned)]
           duration
 
 mkTextAnimUpDown :: FrameSpec
+                 -> (ColorString, ColorString)
                  -> FrameSpec
                  -> (ColorString, ColorString)
                  -> Float
                  -> TextAnimation
-mkTextAnimUpDown from to (txtUpper, txtLower) duration =
+mkTextAnimUpDown from (txtUpperFrom, txtLowerFrom)
+                 to (txtUpperTo, txtLowerTo)
+                 duration =
     let (centerUpFrom, centerDownFrom, _) = computeRSForInfos from
         (centerUpTo, centerDownTo, _) = computeRSForInfos to
 
         alignTxtCentered = alignTxt Centered
 
-        alignUpperTxtCentered = alignTxtCentered txtUpper
-        alignLowerTxtCentered = alignTxtCentered txtLower
+        centerUpFromAligned = alignTxtCentered txtUpperFrom centerUpFrom
+        centerUpToAligned = alignTxtCentered txtUpperTo centerUpTo
 
-        centerUpFromAligned = alignUpperTxtCentered centerUpFrom
-        centerUpToAligned = alignUpperTxtCentered centerUpTo
-
-        centerDownFromAligned = alignLowerTxtCentered centerDownFrom
-        centerDownToAligned = alignLowerTxtCentered centerDownTo
+        centerDownFromAligned = alignTxtCentered txtLowerFrom centerDownFrom
+        centerDownToAligned = alignTxtCentered txtLowerTo centerDownTo
 
     in  mkSequentialTextTranslations
-          [(txtUpper, centerUpFromAligned, centerUpToAligned),
-           (txtLower, centerDownFromAligned, centerDownToAligned)]
+          [(txtUpperFrom, txtUpperTo, centerUpFromAligned, centerUpToAligned),
+           (txtLowerFrom, txtLowerTo, centerDownFromAligned, centerDownToAligned)]
           duration
 
 alignTxt :: Alignment -> ColorString -> RenderState -> RenderState
 alignTxt al txt = uncurry move $ align al $ countChars txt
 
-mkWorldAnimation :: World
-                 -> World
-                 -> ((ColorString, ColorString), (ColorString, ColorString))
+mkWorldAnimation :: (World, ((ColorString, ColorString), (ColorString, ColorString)))
+                 -> (World, ((ColorString, ColorString), (ColorString, ColorString)))
                  -> UTCTime
                  -- ^ time at which the animation starts
                  -> FrameAnimation
                  -> WorldAnimation
-mkWorldAnimation wFrom wTo infos t fa =
-  WorldAnimation fa (createInterpolations from to infos 1) deadline (Iteration (Speed 1, startFrame))
+mkWorldAnimation (wFrom, ((f1,f2),(f3,f4))) (wTo, ((t1,t2),(t3,t4))) t fa =
+  WorldAnimation fa (createInterpolations taFrom taTo 1) deadline (Iteration (Speed 1, startFrame))
  where
   startFrame = pred zeroFrame
   from = mkFrameSpec wFrom
   to   = mkFrameSpec wTo
+  taFrom = TextAnimSpec [f1,f2,f3,f4] from
+  taTo = TextAnimSpec [t1,t2,t3,t4] to
   deadline =
     if from == to
       then Nothing

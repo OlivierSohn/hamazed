@@ -14,8 +14,8 @@ module Util
 
 import           Imajuscule.Prelude
 
-import           Data.String(String)
 import           Data.List(reverse)
+import           Data.String(String)
 import           Data.Text(Text, pack)
 import           Data.Time( UTCTime(..), toGregorian )
 

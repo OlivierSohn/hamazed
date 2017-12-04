@@ -1,6 +1,8 @@
 
 # Backlog
 
+- for horizontal text translations, translate all at once
+
 - when a new level starts, animation should begin with :
   - left : ammo / numbers resetting to their normal values
   - updown : level number and target changing

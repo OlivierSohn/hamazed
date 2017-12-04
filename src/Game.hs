@@ -72,8 +72,9 @@ nextGameState
           then
             left
           else
-            let frameSpce = mkFrameSpec world
-            in mkTextAnimLeft frameSpce frameSpce (mkLeftInfo newAmmo allShotNumbers) 0 -- 0 duration, since animation is over anyway
+            let frameSpace = mkFrameSpec world
+                infos = mkLeftInfo newAmmo allShotNumbers
+            in mkTextAnimLeft frameSpace infos frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
       newAnim = WorldAnimation j (WorldEvolutions upDown newLeft) k l
@@ -169,6 +170,7 @@ makeInitialState
       newLevel = Level levelNumber target Nothing
       newSize = worldSizeFromLevel levelNumber shape
       newAmmo = 10
+      newShotNums = []
   eew <- mkEmbeddedWorld newSize
   case eew of
     Left err -> return $ Left err
@@ -181,9 +183,10 @@ makeInitialState
             (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) curShotNums curLevel _) ->
                 (w, curSz, curLevel, curAmmo, curShotNums))
               mayState
-          infos = mkInfos ammo shotNums level
+          curInfos = mkInfos ammo shotNums level
+          newInfos = mkInfos newAmmo newShotNums newLevel
           frameAnimation = mkFrameAnimation newWorld 1.8 invQuartEaseInOut (Frame $ maxNumberOfSteps curSize newSize)
-          worldAnimation = mkWorldAnimation curWorld newWorld infos t frameAnimation
+          worldAnimation = mkWorldAnimation (curWorld, curInfos) (newWorld, newInfos) t frameAnimation
           (kt, world) =
             if curSize == newSize
               then
@@ -191,7 +194,7 @@ makeInitialState
               else
                 (Nothing, curWorld)
 
-      return $ Right $ GameState (Timer t) kt world [] newLevel worldAnimation
+      return $ Right $ GameState (Timer t) kt world newShotNums newLevel worldAnimation
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =

@@ -9,6 +9,7 @@ module Game.World.Types
         , Boundaries(..)
         , FrameAnimation(..)
         , FrameSpec(..)
+        , TextAnimSpec(..)
         , mkFrameSpec
         , WorldAnimation(..)
         , WorldEvolutions(..)
@@ -65,6 +66,11 @@ data FrameAnimation = FrameAnimation {
   , _frameAnimationInvEase :: !(Float
                              -> Float) -- ^ takes a value, returns a time, both in ranges (0 1)
   , _frameAnimationLastFrame :: !Frame
+}
+
+data TextAnimSpec = TextAnimSpec {
+    _txtAnimSpecTexts :: ![ColorString]
+  , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
 data FrameSpec = FrameSpec {

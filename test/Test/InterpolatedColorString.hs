@@ -32,6 +32,9 @@ testICS = do
       from' = colored "travel" (rgb 5 0 0)
       to'   = colored "trail" (rgb 5 5 5)
       e'@(Evolution _ _ (Frame lastFrame') _ _) = mkEvolution from' to' 1
+      pFrom   = colored "[.]" (rgb 5 5 5)
+      pTo   = colored "[......]" (rgb 5 5 5)
+      e''@(Evolution _ _ (Frame lastFrame'') _ _) = mkEvolution pFrom pTo 1
 
   beginFrame
 
@@ -46,6 +49,12 @@ testICS = do
       let cs = fst $ evolve e' i
       renderColored cs (RenderState (Coords (Row c + 10) (Col 25)))
     ) $ map Frame [0..lastFrame']
+
+  mapM_
+    (\i@(Frame c) -> do
+      let cs = fst $ evolve e'' i
+      renderColored cs (RenderState (Coords (Row c + 20) (Col 25)))
+    ) $ map Frame [0..lastFrame'']
 
   endFrame
 

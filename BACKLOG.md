@@ -1,7 +1,7 @@
 
 # Backlog
 
-- for horizontal text translations, translate all at once
+- fix : when losing at 1st level, animations are not triggered
 
 - when a new level starts, animation should begin with :
   - left : ammo / numbers resetting to their normal values

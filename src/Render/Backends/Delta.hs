@@ -57,7 +57,7 @@ renderTxt :: Text -> IO ()
 renderTxt = bPutText
 
 setForeground :: ColorIntensity -> Color -> IO Color8Code
-setForeground a b = bSetForeground (a,b)
+setForeground = bSetForeground
 
 setRawForeground :: Color8Code -> IO Color8Code
 setRawForeground = bSetRawForeground

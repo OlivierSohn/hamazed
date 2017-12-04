@@ -50,8 +50,8 @@ data WorldAnimation = WorldAnimation {
 }
 
 data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionsUpDown :: !TextAnimation
-  , _worldEvolutionLeft    :: !TextAnimation
+    _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
+  , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
 }
 
 isFinished :: WorldAnimation -> Bool

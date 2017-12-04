@@ -219,7 +219,7 @@ mkTextAnimLeft :: FrameSpec
                -> FrameSpec
                -> (ColorString, ColorString)
                -> Float
-               -> TextAnimation
+               -> TextAnimation AnchorStrings
 mkTextAnimLeft from (txtLeft1From, txtLeft2From)
                to (txtLeft1To, txtLeft2To)
                duration =
@@ -236,7 +236,7 @@ mkTextAnimLeft from (txtLeft1From, txtLeft2From)
         leftMiddle2FromAligned = rightAlignLeft2 txtLeft2From leftMiddleFrom
         leftMiddle2ToAligned = rightAlignLeft2 txtLeft2To leftMiddleTo
 
-    in  mkSequentialTextTranslations
+    in  mkSequentialTextTranslationsStringAnchored
           [(txtLeft1From, txtLeft1To, leftMiddle1FromAligned, leftMiddle1ToAligned),
            (txtLeft2From, txtLeft2To, leftMiddle2FromAligned, leftMiddle2ToAligned)]
           duration
@@ -246,7 +246,7 @@ mkTextAnimUpDown :: FrameSpec
                  -> FrameSpec
                  -> (ColorString, ColorString)
                  -> Float
-                 -> TextAnimation
+                 -> TextAnimation AnchorChars
 mkTextAnimUpDown from (txtUpperFrom, txtLowerFrom)
                  to (txtUpperTo, txtLowerTo)
                  duration =
@@ -261,7 +261,7 @@ mkTextAnimUpDown from (txtUpperFrom, txtLowerFrom)
         centerDownFromAligned = alignTxtCentered txtLowerFrom centerDownFrom
         centerDownToAligned = alignTxtCentered txtLowerTo centerDownTo
 
-    in  mkSequentialTextTranslations
+    in  mkSequentialTextTranslationsCharAnchored
           [(txtUpperFrom, txtUpperTo, centerUpFromAligned, centerUpToAligned),
            (txtLowerFrom, txtLowerTo, centerDownFromAligned, centerDownToAligned)]
           duration

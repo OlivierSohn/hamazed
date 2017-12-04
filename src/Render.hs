@@ -101,15 +101,14 @@ renderAligned a cs ref = do
   _ <- renderColored cs leftCorner
   return (go Down ref)
 
-renderColored :: ColorString -> RenderState -> IO RenderState
-renderColored (ColorString cs) ref = do
+renderColored :: ColorString -> RenderState -> IO ()
+renderColored (ColorString cs) ref =
   foldM_ (\count (txt, color) -> do
     let l = length txt
     fg <- setRawForeground color
     renderTxt_ txt $ Render.move count RIGHT ref
     restoreForeground fg
     return $ count + l) 0 cs
-  return (go Down ref)
 
 align' :: Alignment -> Int -> RenderState -> RenderState
 align' a count ref =

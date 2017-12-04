@@ -87,7 +87,6 @@ bufferSize :: Int
 bufferSize = bufferWidth * bufferHeight
 
 -- type definitions and global instance
-type ColorPair = (ColorIntensity, Color)
 
 -- We could use a newtype but I'm worried that unboxing doesn't happen recursively enough
 -- to unbox everything here...
@@ -124,7 +123,7 @@ nocolorCell = ((noColor, noColor), ' ')
 
 color8Code :: ColorIntensity -> Color -> Color8Code
 color8Code intensity color =
-  let code = colorToCode color
+  let code = fromIntegral $ colorToCode color
   in  Color8Code $ if intensity == Vivid then 8 + code else code
 
 {-# NOINLINE screenBuffer #-}
@@ -159,8 +158,8 @@ xyFromPosition pos = (x, y)
     y = pos' `div` bufferWidth
 
 -- functions that query/modify the buffer
-bSetForeground :: ColorPair -> IO Color8Code
-bSetForeground p = bSetRawForeground (uncurry color8Code p)
+bSetForeground :: ColorIntensity -> Color -> IO Color8Code
+bSetForeground ci co = bSetRawForeground $ color8Code ci co
 
 bSetRawForeground :: Color8Code -> IO Color8Code
 bSetRawForeground fg = do
@@ -168,8 +167,8 @@ bSetRawForeground fg = do
   writeIORef screenBuffer screen{currFg = fg}
   return prev
 
-bSetBackground :: ColorPair -> IO ()
-bSetBackground p = bSetRawBackground (uncurry color8Code p)
+bSetBackground :: ColorIntensity -> Color -> IO ()
+bSetBackground ci co = bSetRawBackground $ color8Code ci co
 
 bSetRawBackground :: Color8Code -> IO ()
 bSetRawBackground bg = do
@@ -191,24 +190,14 @@ bGotoXY x y = do
 -- | Write a char and return the position of the written char in the buffer
 bPutCharRaw :: Char -> IO Int
 bPutCharRaw c = do
-  screen <- readIORef screenBuffer
-  let x = currX screen
-      y = currY screen
-      fg = currFg screen
-      bg = currBg screen
-      pos = positionFromXY x y
-      buff = backBuffer screen
+  (ConsoleBuffer x y fg bg _ buff) <- readIORef screenBuffer
+  let pos = positionFromXY x y
   writeArray buff pos ((fg, bg), c)
   return pos
 
 bPutCharsRaw :: Int -> Char -> IO ()
 bPutCharsRaw count c = do
-  screen <- readIORef screenBuffer
-  let x = currX screen
-      y = currY screen
-      fg = currFg screen
-      bg = currBg screen
-      buff = backBuffer screen
+  (ConsoleBuffer x y fg bg _ buff) <- readIORef screenBuffer
   mapM_ (\i -> let pos = positionFromXY (x+i) y
                in writeArray buff pos ((fg, bg), c)) [0..count-1]
 
@@ -263,11 +252,10 @@ applyBuffer from to position clearFrom mayCurrentConsoleColor
       when clearFrom $ writeArray from position initialCell
       cellTo <- readArray to position
       mayNewConsoleColor <- if needDrawing cellFrom cellTo
-                              then
-                                do
-                                  gotoCursorPosition position
-                                  res <- drawCell cellFrom mayCurrentConsoleColor
-                                  return $ Just res
+                              then do
+                                gotoCursorPosition position
+                                res <- drawCell cellFrom mayCurrentConsoleColor
+                                return $ Just res
                               else
                                 return Nothing
       writeArray to position cellFrom

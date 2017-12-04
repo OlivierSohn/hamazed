@@ -17,8 +17,8 @@ renderEvolutions
  (WorldEvolutions upDown@(TextAnimation _ (Evolution _ _ lastFrameUD _ _)) left)
  frame = do
   let relFrame = max 0 (frame - lastFrameUD)
-  renderAnimatedText upDown frame
-  renderAnimatedText left relFrame
+  renderAnimatedTextCharAnchored upDown frame
+  renderAnimatedTextStringAnchored left relFrame
 
 evolveAt :: Frame -> WorldEvolutions -> Maybe Float
 evolveAt frame (WorldEvolutions (TextAnimation _ upDown@(Evolution _ _ lastFrameUD _ _)) (TextAnimation _ center)) =

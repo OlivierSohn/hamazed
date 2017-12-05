@@ -44,6 +44,7 @@ invQuartEaseInOut y =
     else
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
 
+-- | Adapts the continuous function invQuartEaseInOut to the discrete case
 discreteInvQuartEaseInOut :: Int
                           -> Float
                           -> Float

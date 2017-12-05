@@ -4,6 +4,7 @@ module Interpolation
          ( DiscretelyInterpolable(..)
          -- | types to select a particular instance of DiscretelyInterpolable
          , SequentiallyInterpolatedList(..)
+         , Successive(..)
          -- | Reexports
          , module Iteration
          ) where
@@ -15,6 +16,8 @@ import           Data.List( length, mapAccumL )
 import           Iteration
 import           Math
 
+
+newtype Successive a = Successive [a]
 
 -- | The instances of this class should statisfy the following constraints:
 --
@@ -44,9 +47,18 @@ import           Math
 -- > interpolate from to high == interpolate medVal to $ high-med
 class DiscretelyInterpolable v where
 
+  -- | Special case where the interpolation is between 2 values
   distance :: v -- ^ first value
            -> v -- ^ last value
            -> Int -- ^ the number of steps (including first and last) to go from first to last
+
+  -- | General case where the interpolation goes through n values
+  distanceSuccessive :: Successive v
+                     -> Int
+  distanceSuccessive (Successive []) =
+    error "empty successive"
+  distanceSuccessive (Successive l@(_:_)) =
+    succ $ sum $ zipWith (\a b -> pred $ distance a b) l $ tail l
 
   interpolate :: v -- ^ first value
               -> v -- ^ last value
@@ -65,6 +77,40 @@ class DiscretelyInterpolable v where
                 -> Int -- ^ the current step
                 -> IO ()
   interpolateIO = error "interpolateIO is not defined"
+
+  interpolateSuccessive :: Successive v
+                        -> Int
+                        -> v
+  interpolateSuccessive (Successive []) _ = error "empty successive"
+  interpolateSuccessive (Successive [a]) _ = a
+  interpolateSuccessive (Successive l@(a:b:_)) i
+    | i <= 0      = a
+    | i >= lf = interpolateSuccessive (Successive $ tail l) $ i-lf
+    | otherwise = interpolate a b i
+    where lf = pred $ distance a b
+
+  interpolateSuccessive' :: Successive v
+                         -> Int
+                         -> w
+  interpolateSuccessive' (Successive []) _ = error "empty successive"
+  interpolateSuccessive' (Successive [a]) _ = interpolate' a a 0
+  interpolateSuccessive' (Successive l@(a:b:_)) i
+    | i <= 0      = interpolate' a a 0
+    | i >= lf = interpolateSuccessive' (Successive $ tail l) $ i-lf
+    | otherwise = interpolate' a b i
+    where lf = pred $ distance a b
+
+  interpolateSuccessiveIO :: Successive v
+                          -> Int
+                          -> IO ()
+  interpolateSuccessiveIO (Successive []) _ = error "empty successive"
+  interpolateSuccessiveIO (Successive [a]) _ = interpolateIO a a 0
+  interpolateSuccessiveIO (Successive l@(a:b:_)) i
+    | i <= 0      = interpolateIO a a 0
+    | i >= lf = interpolateSuccessiveIO (Successive $ tail l) $ i-lf
+    | otherwise = interpolateIO a b i
+    where lf = pred $ distance a b
+
 
 instance DiscretelyInterpolable Int where
   distance i i' =

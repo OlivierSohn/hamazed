@@ -66,8 +66,8 @@ renderAnimatedTextCharAnchored' :: [Evolution ColorString] -> [RenderState] -> F
 renderAnimatedTextCharAnchored' [] _ _ = return ()
 renderAnimatedTextCharAnchored' l@(_:_) rs i = do
   -- use length of from to know how many renderstates we should take
-  let e@(Evolution from to _ _ _) = head l
-      nRS = max (countChars from) (countChars to)
+  let e@(Evolution (Successive colorStrings) _ _ _) = head l
+      nRS = maximum $ map countChars colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       (ColorString colorStr) = evolve e i
   renderColorStringAt colorStr nowRS
@@ -106,12 +106,12 @@ mkSequentialTextTranslationsCharAnchored l duration =
             in (froms ++ build from sz, tos ++ build to sz)
           ) ([], [])
           l
-      fromTos = map (\(f,t,_,_) -> mkEvolution f t duration {-- note that using duration here
+      fromTos = map (\(f,t,_,_) -> mkEvolution2 f t duration {-- note that using duration here
       makes little sense as we will ignore the duration, the timing will be given by the other evolution.
       TODO maybe use sequential animations-}) l
   in TextAnimation fromTos $
-      mkEvolution (SequentiallyInterpolatedList from_)
-                  (SequentiallyInterpolatedList to_) duration
+      mkEvolution2 (SequentiallyInterpolatedList from_)
+                   (SequentiallyInterpolatedList to_) duration
 
 -- | order of animation is: move, change characters, change color
 mkSequentialTextTranslationsStringAnchored :: [(ColorString, ColorString, RenderState, RenderState)]
@@ -121,12 +121,12 @@ mkSequentialTextTranslationsStringAnchored :: [(ColorString, ColorString, Render
                                            -> TextAnimation AnchorStrings
 mkSequentialTextTranslationsStringAnchored l duration =
   let (from_,to_) = unzip $ map (\(_,_,f,t) -> (f,t)) l
-      fromTos = map (\(f,t,_,_) -> mkEvolution f t duration {-- note that using duration here
+      fromTos = map (\(f,t,_,_) -> mkEvolution2 f t duration {-- note that using duration here
       makes little sense as we will ignore the duration, the timing will be given by the other evolution.
       TODO maybe use sequential animations-}) l
   in TextAnimation fromTos $
-      mkEvolution (SequentiallyInterpolatedList from_)
-                  (SequentiallyInterpolatedList to_) duration
+      mkEvolution2 (SequentiallyInterpolatedList from_)
+                   (SequentiallyInterpolatedList to_) duration
 
 
 -- | In this animation, the beginning and end states are text written horizontally
@@ -140,6 +140,6 @@ mkTextTranslation :: ColorString
                   -> TextAnimation AnchorChars
 mkTextTranslation text duration from to =
   let sz = countChars text
-  in TextAnimation [mkEvolution text text duration] $
-       mkEvolution (SequentiallyInterpolatedList $ build from sz)
-                   (SequentiallyInterpolatedList $ build to sz) duration
+  in TextAnimation [mkEvolution1 text duration] $
+       mkEvolution2 (SequentiallyInterpolatedList $ build from sz)
+                    (SequentiallyInterpolatedList $ build to sz) duration

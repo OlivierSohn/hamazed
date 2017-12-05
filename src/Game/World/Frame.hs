@@ -121,7 +121,7 @@ mkWorldAnimation :: (FrameSpec, ((ColorString, ColorString), (ColorString, Color
 mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
   WorldAnimation (WorldEvolutions frameE ta1 ta2) deadline (Iteration (Speed 1, zeroFrame))
  where
-  frameE = mkEvolution (FrameAnimationParallel4 from) (FrameAnimationParallel4 to) 1
+  frameE = mkEvolution2 (FrameAnimationParallel4 from) (FrameAnimationParallel4 to) 1
   taFrom = TextAnimSpec [f1,f2,f3,f4] from
   taTo = TextAnimSpec [t1,t2,t3,t4] to
   (ta1,ta2) = createInterpolations taFrom taTo 1

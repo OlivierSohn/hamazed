@@ -6,6 +6,8 @@ module Evolution
          , evolveIO
          , evolveDeltaTime
          , mkEvolution
+         , mkEvolution1
+         , mkEvolution2
          , Evolution(..)
          -- reexports
          , module Interpolation
@@ -18,22 +20,42 @@ import           Interpolation
 import           Math
 
 
-{-# INLINABLE mkEvolution #-} -- to allow specialization
-mkEvolution :: DiscretelyInterpolable v
-            => v
-            -> v
+-- | for a more general version, see 'mkEvolution'
+mkEvolution1 :: DiscretelyInterpolable v
+            => v -- ^ from, to
             -> Float
             -- ^ duration in seconds
             -> Evolution v
-mkEvolution from to duration =
-  let nSteps = distance from to
-      lastFrame = Frame $ pred nSteps
-  in Evolution from to lastFrame duration (discreteInvQuartEaseInOut nSteps)
+mkEvolution1 fromto = mkEvolution (Successive [fromto])
 
-data (DiscretelyInterpolable v)
-   => Evolution v = Evolution {
-    _evolutionFrom :: !v
-  , _evolutionTo :: !v
+
+-- | for a more general version, see 'mkEvolution'
+mkEvolution2 :: DiscretelyInterpolable v
+            => v -- ^ from
+            -> v -- ^ to
+            -> Float
+            -- ^ duration in seconds
+            -> Evolution v
+mkEvolution2 from to = mkEvolution (Successive [from, to])
+
+
+{-# INLINABLE mkEvolution #-} -- to allow specialization
+mkEvolution :: DiscretelyInterpolable v
+            => Successive v
+            -> Float
+            -- ^ duration in seconds
+            -> Evolution v
+mkEvolution s duration =
+  let nSteps = distanceSuccessive s
+      lastFrame = Frame $ pred nSteps
+  in Evolution s lastFrame duration (discreteInvQuartEaseInOut nSteps)
+
+-- TODO we could optimize by precomputing the lastframes of each individual segment,
+-- and selecting the interval without having to recompute every distance.
+-- We could change the Successive type to store the cumulated distance,
+-- then do a binary search
+data (DiscretelyInterpolable v) => Evolution v = Evolution {
+    _evolutionSuccessive :: !(Successive v)
   , _evolutionLastFrame :: !Frame
   , _evolutionDuration :: Float -- ^ Total duration in seconds
   , _evolutionInverseEase :: Float -> Float
@@ -45,7 +67,7 @@ evolveDeltaTime :: DiscretelyInterpolable v
                 -- ^ current frame
                 -> Maybe Float
                 -- ^ the time interval between this step and the next
-evolveDeltaTime (Evolution _ _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
+evolveDeltaTime (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
   | frame < 0          = error "negative frame"
   | frame >= lastFrame = Nothing
   | otherwise          = Just dt
@@ -63,10 +85,11 @@ evolve :: DiscretelyInterpolable v
        -- ^ current frame
        -> v
        -- ^ the value
-evolve (Evolution from to lastFrame _ _) frame@(Frame step)
-  | frame <= 0         = from
-  | frame >= lastFrame = to
-  | otherwise          = interpolate from to step
+evolve (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
+  | frame <= 0         = head l
+  | frame >= lastFrame = last l
+  | otherwise          = interpolateSuccessive s step
+
 
 {-# INLINABLE evolve' #-} -- allow specialization
 evolve' :: DiscretelyInterpolable v
@@ -75,8 +98,8 @@ evolve' :: DiscretelyInterpolable v
         -- ^ current frame
         -> w
         -- ^ the value
-evolve' (Evolution from to _ _ _) (Frame step) =
-  interpolate' from to $ assert (step >= 0) step
+evolve' (Evolution s _ _ _) (Frame step) =
+  interpolateSuccessive' s $ assert (step >= 0) step
 
 
 {-# INLINABLE evolveIO #-} -- allow specialization
@@ -85,5 +108,5 @@ evolveIO :: (DiscretelyInterpolable v)
          -> Frame
          -- ^ current frame
          -> IO ()
-evolveIO (Evolution from to _ _ _) (Frame step) =
-  interpolateIO from to $ assert (step >= 0) step
+evolveIO (Evolution s _ _ _) (Frame step) =
+  interpolateSuccessiveIO s $ assert (step >= 0) step

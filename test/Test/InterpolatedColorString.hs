@@ -28,13 +28,13 @@ testICS :: IO ()
 testICS = do
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
-      e@(Evolution _ _ (Frame lastFrame) _ _) = mkEvolution from to 1
+      e@(Evolution _ (Frame lastFrame) _ _) = mkEvolution2 from to 1
       from' = colored "travel" (rgb 5 0 0)
       to'   = colored "trail" (rgb 5 5 5)
-      e'@(Evolution _ _ (Frame lastFrame') _ _) = mkEvolution from' to' 1
+      e'@(Evolution _ (Frame lastFrame') _ _) = mkEvolution2 from' to' 1
       pFrom   = colored "[.]" (rgb 5 5 5)
       pTo   = colored "[......]" (rgb 5 5 5)
-      e''@(Evolution _ _ (Frame lastFrame'') _ _) = mkEvolution pFrom pTo 1
+      e''@(Evolution _ (Frame lastFrame'') _ _) = mkEvolution2 pFrom pTo 1
 
   beginFrame
 

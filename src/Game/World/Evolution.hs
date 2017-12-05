@@ -16,7 +16,7 @@ import           Game.World.Frame
 
 renderEvolutions :: WorldEvolutions -> Frame -> IO ()
 renderEvolutions
- (WorldEvolutions frameE@(Evolution _ _ lastFrameFrameE _ _) upDown@(TextAnimation _ (Evolution _ _ lastFrameUD _ _)) left)
+ (WorldEvolutions frameE@(Evolution _ lastFrameFrameE _ _) upDown@(TextAnimation _ (Evolution _ lastFrameUD _ _)) left)
  frame = do
   let relFrameFrameE = max 0 frame
       relFrameUD = max 0 (relFrameFrameE - lastFrameFrameE)
@@ -26,7 +26,7 @@ renderEvolutions
   renderAnimatedTextStringAnchored left relFrameLeft
 
 evolveAt :: Frame -> WorldEvolutions -> Maybe Float
-evolveAt frame (WorldEvolutions frameE@(Evolution _ _ lastFrameFrameE _ _) (TextAnimation _ upDown@(Evolution _ _ lastFrameUD _ _)) (TextAnimation _ center)) =
+evolveAt frame (WorldEvolutions frameE@(Evolution _ lastFrameFrameE _ _) (TextAnimation _ upDown@(Evolution _ lastFrameUD _ _)) (TextAnimation _ center)) =
   let relFrameFrameE = max 0 frame
       relFrameUD = max 0 (relFrameFrameE - lastFrameFrameE)
       relFrameLeft = max 0 (relFrameUD - lastFrameUD)

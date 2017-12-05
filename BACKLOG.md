@@ -1,12 +1,9 @@
 
 # Backlog
 
-- animate frame color while transitionning (red -> white -> red)
+- once changed, the changed bits are animated with "red to white":
 
-- when a new level starts, animation should begin with :
-  - left : ammo / numbers resetting to their normal values
-  - updown : level number and target changing
-    - once changed, the changed bits are animated with "red to white"
+- animate frame color while transitionning (red -> white -> red)
 
 - when expanding, invert animation order between frame and infos
 

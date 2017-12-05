@@ -27,8 +27,9 @@ data FrameSpec = FrameSpec {
 newtype FrameAnimationParallel4 = FrameAnimationParallel4 FrameSpec
 
 instance DiscretelyInterpolable FrameAnimationParallel4 where
-  distance (FrameAnimationParallel4 (FrameSpec s _)) (FrameAnimationParallel4 (FrameSpec s' _ )) =
-    1 + quot (1 + max (maxDim s) (maxDim s')) 2
+  distance (FrameAnimationParallel4 (FrameSpec s _)) (FrameAnimationParallel4 (FrameSpec s' _ ))
+    | s == s'   = 1 -- no animation because sizes are equal
+    | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
   interpolateIO f@(FrameAnimationParallel4 from)
                 t@(FrameAnimationParallel4 to) frame

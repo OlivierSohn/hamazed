@@ -169,29 +169,22 @@ makeInitialState
       newSize = worldSizeFromLevel levelNumber shape
       newAmmo = 10
       newShotNums = []
+      make ew = do
+        newWorld <- mkWorld ew newSize wallType numbers newAmmo
+        t <- getCurrentTime
+        let (curWorld, _, level, ammo, shotNums) =
+              maybe
+              (newWorld, newSize, newLevel, newAmmo, []) -- TODO try 0
+              (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) _ curShotNums curLevel _) ->
+                  (w, curSz, curLevel, curAmmo, curShotNums))
+                mayState
+            curInfos = mkInfos ammo shotNums level
+            newInfos = mkInfos newAmmo newShotNums newLevel
+            worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
+        return $ Right $ GameState (Timer t) Nothing curWorld newWorld newShotNums newLevel worldAnimation
   eew <- mkEmbeddedWorld newSize
-  case eew of
-    Left err -> return $ Left err
-    Right ew -> do
-      newWorld <- mkWorld ew newSize wallType numbers newAmmo
-      t <- getCurrentTime
-      let (curWorld, curSize, level, ammo, shotNums) =
-            maybe
-            (newWorld, newSize, newLevel, newAmmo, []) -- TODO try 0
-            (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) _ curShotNums curLevel _) ->
-                (w, curSz, curLevel, curAmmo, curShotNums))
-              mayState
-          curInfos = mkInfos ammo shotNums level
-          newInfos = mkInfos newAmmo newShotNums newLevel
-          worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
-          (kt, world) =
-            if curSize == newSize
-              then
-                (Just $ KeyTime t, newWorld)
-              else
-                (Nothing, curWorld)
+  either (return . Left) make eew
 
-      return $ Right $ GameState (Timer t) kt world newWorld newShotNums newLevel worldAnimation
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =

@@ -126,7 +126,4 @@ mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
   taFrom = TextAnimSpec [f1,f2,f3,f4] from
   taTo = TextAnimSpec [t1,t2,t3,t4] to
   (ta1,ta2) = createInterpolations taFrom taTo 1
-  deadline =
-    if from == to
-      then Nothing
-      else Just $ KeyTime t
+  deadline = Just $ KeyTime t

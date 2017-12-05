@@ -1,8 +1,6 @@
 
 # Backlog
 
-- make the frame animation an Evolution FrameSpec
-
 - fix : when losing at 1st level, animations are not triggered
 
 - animate frame color while transitionning (red -> white -> red)

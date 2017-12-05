@@ -8,6 +8,7 @@ module Game.Render(
       , mkAmmoCS
       , mkObjectiveCS
       , mkShotNumbersCS
+      , InfoType(..)
       ) where
 
 import           Imajuscule.Prelude
@@ -20,23 +21,30 @@ import           Color
 import           Game.Types
 import           Text.ColorString
 
-mkLevelCS :: Int -> ColorString
-mkLevelCS level =
-  colored ("Level " <> pack (show level) <> " of " <> pack (show lastLevel)) white
+mkLevelCS :: InfoType -> Int -> [ColorString]
+mkLevelCS t level =
+  let txt c = colored "Level " white <> colored (pack (show level)) c <> colored (" of " <> pack (show lastLevel)) white
+  in case t of
+    Normal -> [txt white]
+    ColorAnimated -> [txt red, txt white]
 
-mkAmmoCS :: Int -> ColorString
-mkAmmoCS ammo =
-      colored (singleton '[') bracketsColor
-   <> colored (pack $ replicate ammo '.') ammoColor
-   <> colored (singleton ']') bracketsColor
+mkAmmoCS :: InfoType -> Int -> [ColorString]
+mkAmmoCS _ ammo =
+  let s = colored (singleton '[') bracketsColor
+       <> colored (pack $ replicate ammo '.') ammoColor
+       <> colored (singleton ']') bracketsColor
+   in [s]
 
-mkObjectiveCS :: Int -> ColorString
-mkObjectiveCS target =
-  colored ("Objective : " <> pack (show target)) white
+mkObjectiveCS :: InfoType -> Int -> [ColorString]
+mkObjectiveCS t target =
+  let txt c = colored "Objective : " white <> colored (pack (show target)) c
+  in case t of
+    Normal -> [txt white]
+    ColorAnimated -> [txt red, txt white]
 
 
-mkShotNumbersCS :: [Int] -> ColorString
-mkShotNumbersCS nums =
+mkShotNumbersCS :: InfoType -> [Int] -> [ColorString]
+mkShotNumbersCS _ nums =
   let lastIndex = length nums - 1
       first = colored (singleton '[') bracketsColor
       last_ = colored (singleton ']') bracketsColor
@@ -46,16 +54,18 @@ mkShotNumbersCS nums =
                                                   _ -> pack [num, ' ']
                                          in (i-1, s <> colored t (numberColor n))) (lastIndex, first) nums
 
-  in middle <> last_
+  in [middle <> last_]
 
-mkLeftInfo :: Int -> [Int] -> (ColorString, ColorString)
-mkLeftInfo ammo shotNums =
-  (mkAmmoCS ammo, mkShotNumbersCS shotNums)
+mkLeftInfo :: InfoType -> Int -> [Int] -> ([ColorString], [ColorString])
+mkLeftInfo t ammo shotNums =
+  (mkAmmoCS t ammo, mkShotNumbersCS t shotNums)
 
-mkUpDownInfo :: Level -> (ColorString, ColorString)
-mkUpDownInfo (Level level target _) =
-  (mkObjectiveCS target, mkLevelCS level)
+mkUpDownInfo :: InfoType -> Level -> ([ColorString], [ColorString])
+mkUpDownInfo t (Level level target _) =
+  (mkObjectiveCS t target, mkLevelCS t level)
 
-mkInfos :: Int -> [Int] -> Level -> ((ColorString, ColorString), (ColorString, ColorString))
-mkInfos ammo shotNums level =
-  (mkUpDownInfo level, mkLeftInfo ammo shotNums)
+data InfoType = Normal | ColorAnimated
+
+mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), ([ColorString], [ColorString]))
+mkInfos t ammo shotNums level =
+  (mkUpDownInfo t level, mkLeftInfo t ammo shotNums)

@@ -37,7 +37,7 @@ instance DiscretelyInterpolable ColorString where
         colorDistance =
           if null l
             then
-              0
+              1
             else
               maximum l
 
@@ -47,7 +47,7 @@ instance DiscretelyInterpolable ColorString where
         lPref = List.length $ commonPrefix str1 str2
         lSuff = List.length $ commonSuffix (drop lPref str1) (drop lPref str2)
         textDistance = max n1 n2 - (lPref + lSuff)
-    in succ (colorDistance + textDistance)
+    in colorDistance + textDistance
 
   interpolate c1 c2 i =
     let (c1', remaining) = interpolateChars c1 c2 i

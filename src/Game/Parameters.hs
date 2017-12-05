@@ -100,7 +100,7 @@ render (GameParameters shape wall) = do
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
           restoreColors prevColors
           t <- getCurrentTime
-          let infos = (mkFrameSpec world, (("",""),("","")))
+          let infos = (mkFrameSpec world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation
       endFrame

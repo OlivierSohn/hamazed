@@ -93,7 +93,7 @@ build :: RenderState -> Int -> [RenderState]
 build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
 -- | order of animation is: move, change characters, change color
-mkSequentialTextTranslationsCharAnchored :: [(ColorString, ColorString, RenderState, RenderState)]
+mkSequentialTextTranslationsCharAnchored :: [([ColorString], RenderState, RenderState)]
                                          -- ^ list of text + start anchor + end anchor
                                          -> Float
                                          -- ^ duration in seconds
@@ -101,30 +101,26 @@ mkSequentialTextTranslationsCharAnchored :: [(ColorString, ColorString, RenderSt
 mkSequentialTextTranslationsCharAnchored l duration =
   let (from_,to_) =
         foldl'
-          (\(froms, tos) (colorStrFrom, colorStrTo, from, to) ->
-            let sz = max (countChars colorStrFrom) (countChars colorStrTo)
-            in (froms ++ build from sz, tos ++ build to sz)
-          ) ([], [])
+          (\(froms, tos) (colorStrs, from, to) ->
+            let sz = maximum $ map countChars colorStrs
+            in (froms ++ build from sz, tos ++ build to sz))
+          ([], [])
           l
-      fromTos = map (\(f,t,_,_) -> mkEvolution2 f t duration {-- note that using duration here
-      makes little sense as we will ignore the duration, the timing will be given by the other evolution.
-      TODO maybe use sequential animations-}) l
-  in TextAnimation fromTos $
+      strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
+  in TextAnimation strsEv $
       mkEvolution2 (SequentiallyInterpolatedList from_)
                    (SequentiallyInterpolatedList to_) duration
 
 -- | order of animation is: move, change characters, change color
-mkSequentialTextTranslationsStringAnchored :: [(ColorString, ColorString, RenderState, RenderState)]
-                                           -- ^ list of from text, to text, start anchor, end anchor
+mkSequentialTextTranslationsStringAnchored :: [([ColorString], RenderState, RenderState)]
+                                           -- ^ list of texts, start anchor, end anchor
                                            -> Float
                                            -- ^ duration in seconds
                                            -> TextAnimation AnchorStrings
 mkSequentialTextTranslationsStringAnchored l duration =
-  let (from_,to_) = unzip $ map (\(_,_,f,t) -> (f,t)) l
-      fromTos = map (\(f,t,_,_) -> mkEvolution2 f t duration {-- note that using duration here
-      makes little sense as we will ignore the duration, the timing will be given by the other evolution.
-      TODO maybe use sequential animations-}) l
-  in TextAnimation fromTos $
+  let (from_,to_) = unzip $ map (\(_,f,t) -> (f,t)) l
+      strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
+  in TextAnimation strsEv $
       mkEvolution2 (SequentiallyInterpolatedList from_)
                    (SequentiallyInterpolatedList to_) duration
 

@@ -6,6 +6,6 @@ import Test.Bresenham3
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
-  testInterpolation
---  testICS
+--  testInterpolation
+  testICS
 --  testBres3 >>= print

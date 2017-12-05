@@ -1,7 +1,7 @@
 
 # Backlog
 
-- once changed, the changed bits are animated with "red to white":
+- when losing with 4 and 3, the red animation stops too soon
 
 - animate frame color while transitionning (red -> white -> red)
 

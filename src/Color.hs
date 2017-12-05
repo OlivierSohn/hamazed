@@ -3,7 +3,7 @@
 {--based on https://en.wikipedia.org/wiki/ANSI_escape_code#Colors--}
 
 module Color (
-  -- default colors
+  -- * default colors
     worldFrameColor
   , colorFromFrame
   , numberColor
@@ -18,10 +18,11 @@ module Color (
   , shipColor
   , messageColor
   , neutralMessageColor
-  -- 4-bit colors
+  -- * colors
   , white
   , black
-    -- create colors
+  , red
+  -- * create colors
   , gray
   , rgb
 ) where
@@ -96,10 +97,13 @@ worldFrameColor = rgb 2 1 1
 --------------------------------------------------------------------------------
 
 white :: Color8Code
-white = Color8Code 15
+white = rgb 5 5 5
 
 black :: Color8Code
-black = Color8Code 0
+black = rgb 0 0 0
+
+red :: Color8Code
+red = rgb 5 0 0
 
 firstGray :: Word8
 firstGray = 232

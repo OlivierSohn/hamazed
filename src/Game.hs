@@ -71,8 +71,8 @@ nextGameState
             left
           else
             let frameSpace = mkFrameSpec world
-                infos = mkLeftInfo newAmmo allShotNumbers
-            in mkTextAnimLeft frameSpace infos frameSpace infos 0 -- 0 duration, since animation is over anyway
+                infos = mkLeftInfo Normal newAmmo allShotNumbers
+            in mkTextAnimLeft frameSpace frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
       newAnim = WorldAnimation (WorldEvolutions j upDown newLeft) k l
@@ -178,8 +178,8 @@ makeInitialState
               (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) _ curShotNums curLevel _) ->
                   (w, curSz, curLevel, curAmmo, curShotNums))
                 mayState
-            curInfos = mkInfos ammo shotNums level
-            newInfos = mkInfos newAmmo newShotNums newLevel
+            curInfos = mkInfos Normal ammo shotNums level
+            newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
             worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
         return $ Right $ GameState (Timer t) Nothing curWorld newWorld newShotNums newLevel worldAnimation
   eew <- mkEmbeddedWorld newSize

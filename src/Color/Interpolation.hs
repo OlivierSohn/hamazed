@@ -36,10 +36,10 @@ instance DiscretelyInterpolable IColor8Code where
   interpolate (IColor8Code c) (IColor8Code c') i
     | c == c' = IColor8Code c
     | otherwise =
-        let l = fromIntegral $ bresenhamColor8Length c c'
+        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
             -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 (pred l)
-        in IColor8Code . head . drop (pred index) $ bresenhamColor8 c c'
+            index = clamp i 0 lastFrame
+        in IColor8Code . head . drop index $ bresenhamColor8 c c'
 
 -- | Interpolations betwee 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations fallback on raw Color8Code interpolation which

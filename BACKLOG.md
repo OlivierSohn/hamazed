@@ -1,18 +1,12 @@
 
 # Backlog
 
-- fix : when losing at 1st level, animations are not triggered
-
 - animate frame color while transitionning (red -> white -> red)
 
 - when a new level starts, animation should begin with :
   - left : ammo / numbers resetting to their normal values
   - updown : level number and target changing
     - once changed, the changed bits are animated with "red to white"
-
-- fix the "off by one" animation error
-
-- skip spaces animation in AnimatedText ?
 
 - when expanding, invert animation order between frame and infos
 

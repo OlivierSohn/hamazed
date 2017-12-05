@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Math
-    ( invQuartEaseInOut
+    ( discreteInvQuartEaseInOut
     , clamp
     ) where
 
@@ -34,7 +34,7 @@ y > 0.5 :
 --}
 
 -- | returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
--- given an nth order ease in-out function
+-- given a 4th order ease in-out function
 invQuartEaseInOut :: Float -- ^ value
                   -> Float -- ^ time
 invQuartEaseInOut y =
@@ -44,6 +44,18 @@ invQuartEaseInOut y =
     else
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
 
+discreteInvQuartEaseInOut :: Int
+                          -> Float
+                          -> Float
+discreteInvQuartEaseInOut n v =
+  let nIntervals = n
+      intervalSize = recip $ fromIntegral nIntervals
+      firstValue = intervalSize / 2
+      lastValue = 1 - firstValue
+      scaledValue = firstValue + v * (lastValue - firstValue)
+  in invQuartEaseInOut scaledValue
+
+{-# INLINE clamp #-}
 clamp :: Int
       -- ^ the value
       -> Int

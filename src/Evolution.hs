@@ -28,7 +28,7 @@ mkEvolution :: DiscretelyInterpolable v
 mkEvolution from to duration =
   let nSteps = distance from to
       lastFrame = Frame $ pred nSteps
-  in Evolution from to lastFrame duration invQuartEaseInOut
+  in Evolution from to lastFrame duration (discreteInvQuartEaseInOut nSteps)
 
 data (DiscretelyInterpolable v)
    => Evolution v = Evolution {

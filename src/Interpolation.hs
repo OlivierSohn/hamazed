@@ -52,7 +52,19 @@ class DiscretelyInterpolable v where
               -> v -- ^ last value
               -> Int -- ^ the current step
               -> v -- ^ the interpolated value
+  interpolate = error "interpolate is not defined"
 
+  interpolate' :: v -- ^ first value
+               -> v -- ^ last value
+               -> Int -- ^ the current step
+               -> w -- ^ the interpolated value
+  interpolate' = error "interpolate' is not defined"
+
+  interpolateIO :: v -- ^ first value
+                -> v -- ^ last value
+                -> Int -- ^ the current step
+                -> IO ()
+  interpolateIO = error "interpolateIO is not defined"
 
 instance DiscretelyInterpolable Int where
   distance i i' =

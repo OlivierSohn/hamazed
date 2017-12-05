@@ -165,11 +165,7 @@ renderNumber (Number (PosSpeed pos _) i) space r = do
   renderIfNotColliding (intToDigit i) pos space r
   restoreForeground fg
 
-renderWorldAnimation :: WorldAnimation -- ^ contains next world
-                     -> World -- ^ current world
+renderWorldAnimation :: WorldAnimation
                      -> IO ()
-renderWorldAnimation
- (WorldAnimation (FrameAnimation w2 _ _ _ lastFAFrame) evolutions _ (Iteration (_, frame)))
- w1 = do
-  renderWorldFrame w1 w2 frame lastFAFrame
-  renderEvolutions evolutions $ max 0 (frame - lastFAFrame)
+renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
+  renderEvolutions evolutions frame

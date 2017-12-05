@@ -21,6 +21,7 @@ data GameState = GameState {
     _gameStateStartTime :: !Timer
   , _gameStateNextMotionStep :: !(Maybe KeyTime)
   , _gameStateWorld :: !World
+  , _gameStateNextWorld :: !World
   , _gameStateShotNumbers :: ![Int]
   , _gameStateLevel :: !Level
   , _gameStateWorldAnimation :: !WorldAnimation

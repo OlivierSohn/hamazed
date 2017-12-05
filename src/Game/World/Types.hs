@@ -7,7 +7,6 @@ module Game.World.Types
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
-        , FrameAnimation(..)
         , FrameSpec(..)
         , TextAnimSpec(..)
         , mkFrameSpec
@@ -17,6 +16,7 @@ module Game.World.Types
         , isFinished
         -- | Reexports
         , module Game.World.Space.Types
+        , module Game.World.Frame.Types
         , module Iteration
         , module Text.Animated
         , Terminal.Window
@@ -33,6 +33,7 @@ import           Animation.Types
 import           Geo.Discrete
 
 import           Game.World.Space.Types
+import           Game.World.Frame.Types
 
 import           Iteration
 
@@ -43,40 +44,25 @@ import           Text.Animated
 import           Timing
 
 data WorldAnimation = WorldAnimation {
-    _worldAnimationFA :: !FrameAnimation
-  , _worldAnimationEvs :: !WorldEvolutions
+    _worldAnimationEvs :: !WorldEvolutions
   , _worldAnimationDeadline :: !(Maybe KeyTime)
   , _worldAnimationProgress :: !Iteration
 }
 
 data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
+    _worldEvolutionFrane :: !(Evolution FrameAnimationParallel4)
+  , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
   , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
 }
 
 isFinished :: WorldAnimation -> Bool
-isFinished (WorldAnimation _ _ Nothing _) = True
+isFinished (WorldAnimation _ Nothing _) = True
 isFinished _ = False
-
--- TODO model frame animation as Evolution / DiscretelyInterpolable
-data FrameAnimation = FrameAnimation {
-    _frameAnimationNextWorld :: !World
-  , _frameAnimationStart :: !(Maybe UTCTime)
-  , _frameAnimationDuration :: !Float
-  , _frameAnimationInvEase :: !(Float
-                             -> Float) -- ^ takes a value, returns a time, both in ranges (0 1)
-  , _frameAnimationLastFrame :: !Frame
-}
 
 data TextAnimSpec = TextAnimSpec {
     _txtAnimSpecTexts :: ![ColorString]
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
-
-data FrameSpec = FrameSpec {
-    _frameSpecSize :: !WorldSize
-  , _frameSpecUpperLeft :: !RenderState
-} deriving(Eq, Show)
 
 mkFrameSpec :: World -> FrameSpec
 mkFrameSpec (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =

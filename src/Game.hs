@@ -8,7 +8,7 @@ module Game(
 import           Imajuscule.Prelude
 
 import           Data.List( minimumBy, find )
-import           Data.Maybe( catMaybes, fromMaybe )
+import           Data.Maybe( catMaybes )
 import           Data.String(String)
 
 import           Animation
@@ -34,8 +34,6 @@ import           Geo.Conversion
 import           Geo.Continuous
 import           Geo.Discrete hiding(translate)
 
-import           Math
-
 import           Render.Console
 
 import           Util
@@ -43,8 +41,8 @@ import           Util
 
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _)
-             g (Level i target finished) (WorldAnimation j (WorldEvolutions upDown left) k l))
+  (GameState a b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _) futureWorld
+             g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
   te@(TimedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = withLaserAction event world
 
@@ -77,8 +75,8 @@ nextGameState
             in mkTextAnimLeft frameSpace infos frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
-      newAnim = WorldAnimation j (WorldEvolutions upDown newLeft) k l
-  in assert (isFinished newAnim) GameState a b newWorld allShotNumbers newLevel newAnim
+      newAnim = WorldAnimation (WorldEvolutions j upDown newLeft) k l
+  in assert (isFinished newAnim) $ GameState a b newWorld futureWorld allShotNumbers newLevel newAnim
 
 
 outerSpaceAnims :: KeyTime -> Space -> LaserRay Actual -> [BoundedAnimation]
@@ -99,8 +97,8 @@ laserAnims keyTime ray
  = [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
 
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
-replaceAnimations anims (GameState a c (World wa wb wc wd _ ew) f g h) =
-  GameState a c (World wa wb wc wd anims ew) f g h
+replaceAnimations anims (GameState a c (World wa wb wc wd _ ew) b f g h) =
+  GameState a c (World wa wb wc wd anims ew) b f g h
 
 nextDeadline :: GameState -> UTCTime -> Maybe Deadline
 nextDeadline s t =
@@ -116,14 +114,14 @@ overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : message > game forward > animation forward
 getDeadlinesByDecreasingPriority :: GameState -> UTCTime -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _) t =
   maybe
     (catMaybes [messageDeadline level t, gameDeadline s, animationDeadline s])
     (: [])
       (worldAnimationDeadline s)
 
 gameDeadline :: GameState -> Maybe Deadline
-gameDeadline (GameState _ nextGameStep _ _ (Level _ _ levelFinished) _) =
+gameDeadline (GameState _ nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
       Nothing
@@ -133,11 +131,11 @@ gameDeadline (GameState _ nextGameStep _ _ (Level _ _ levelFinished) _) =
       levelFinished
 
 animationDeadline :: GameState -> Maybe Deadline
-animationDeadline (GameState _ _ world _ _ _) =
+animationDeadline (GameState _ _ world _ _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
 
 worldAnimationDeadline :: GameState -> Maybe Deadline
-worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ _ mayDeadline _)) =
+worldAnimationDeadline (GameState _ _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
   maybe
     Nothing
     (\deadline -> Just $ Deadline deadline FrameAnimationStep)
@@ -145,10 +143,10 @@ worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ _ mayDeadline _)) 
 
 
 accelerateShip' :: Direction -> GameState -> GameState
-accelerateShip' dir (GameState a c (World wa wb ship wc wd we) f g h) =
+accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
   let newShip = accelerateShip dir ship
       world = World wa wb newShip wc wd we
-  in GameState a c world f g h
+  in GameState a c world b f g h
 
 
 --------------------------------------------------------------------------------
@@ -180,13 +178,12 @@ makeInitialState
       let (curWorld, curSize, level, ammo, shotNums) =
             maybe
             (newWorld, newSize, newLevel, newAmmo, []) -- TODO try 0
-            (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) curShotNums curLevel _) ->
+            (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) _ curShotNums curLevel _) ->
                 (w, curSz, curLevel, curAmmo, curShotNums))
               mayState
           curInfos = mkInfos ammo shotNums level
           newInfos = mkInfos newAmmo newShotNums newLevel
-          frameAnimation = mkFrameAnimation newWorld 1.8 invQuartEaseInOut (Frame $ maxNumberOfSteps curSize newSize)
-          worldAnimation = mkWorldAnimation (curWorld, curInfos) (newWorld, newInfos) t frameAnimation
+          worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
           (kt, world) =
             if curSize == newSize
               then
@@ -194,7 +191,7 @@ makeInitialState
               else
                 (Nothing, curWorld)
 
-      return $ Right $ GameState (Timer t) kt world newShotNums newLevel worldAnimation
+      return $ Right $ GameState (Timer t) kt world newWorld newShotNums newLevel worldAnimation
 
 loop :: GameParameters -> GameState -> IO ()
 loop params state =
@@ -217,7 +214,7 @@ getTimedEvent state =
     return $ TimedEvent evt t
 
 getEvent :: GameState -> IO Event
-getEvent state@(GameState _ _ _ _ level _) = do
+getEvent state@(GameState _ _ _ _ _ level _) = do
   t <- getCurrentTime
   let deadline = nextDeadline state t
   getEventForMaybeDeadline level deadline t
@@ -225,7 +222,7 @@ getEvent state@(GameState _ _ _ _ level _) = do
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
  params
- state@(GameState a b world f h@(Level level target mayLevelFinished) i)
+ state@(GameState a b world futWorld f h@(Level level target mayLevelFinished) i)
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
@@ -237,13 +234,13 @@ updateGameUsingTimedEvent
     _ -> do
           let newState = case event of
                 (Timeout FrameAnimationStep _) -> updateAnim t state
-                (Timeout GameStep gt) -> GameState a (Just $ addGameStepDuration gt) (moveWorld t world) f h i
+                (Timeout GameStep gt) -> GameState a (Just $ addGameStepDuration gt) (moveWorld t world) futWorld f h i
                 (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
                                          -- MessageStep is probably the wrong abstraction level
                   case mayLevelFinished of
                     Just (LevelFinished stop finishTime _) ->
                       let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
-                      in GameState a b world f newLevel i
+                      in GameState a b world futWorld f newLevel i
                     Nothing -> state
                 _ -> state
           updateGame2 te newState
@@ -252,35 +249,19 @@ updateGameUsingTimedEvent
 updateAnim :: UTCTime -> GameState -> GameState
 updateAnim
   t
-  (GameState a _ curWorld j k
-             (WorldAnimation fa@(FrameAnimation nextWorld_ mayStartTime animationDuration ease lastFAFrame) evolutions _ it)) =
+  (GameState a _ curWorld futWorld j k
+             (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration (_, nextFrame)) = nextIteration it
          (newGameStep, newAnim, world) =
-           -- FrameAnimation knows its start time, but Evolution doesn't.
-           -- TODO I think we should remove the start time from FrameAnimation
-           -- and when we ask for a deadline, compute it as an increment
-           -- vs previous step, like we do in Evolution.
-           if nextFrame < lastFAFrame
-             then do
-               let ratio = (0.5 + fromIntegral (assert(nextFrame <= lastFAFrame - 1) nextFrame)) / fromIntegral lastFAFrame
-                   time = floatSecondsToNominalDiffTime $ animationDuration * ease (assert (ratio <= 1.0 && ratio >= 0.0) ratio)
-                   startTime = fromMaybe t mayStartTime
-                   deadline = Just $ KeyTime $ addUTCTime time startTime
-                   newFa = FrameAnimation nextWorld_ (Just startTime) animationDuration ease lastFAFrame
-               (Nothing,
-                WorldAnimation newFa evolutions deadline nextIt, -- TODO replace newFA by fa once start time is not in FrameAnimation anymore
-                curWorld)
-             else
-               let remainingEvolutionSteps = nextFrame - lastFAFrame
-               in maybe
-                    (Just $ KeyTime t, WorldAnimation fa evolutions Nothing nextIt, nextWorld_) -- TODO adjust timing if needed so that the game starts earlier or later
-                    (\dt -> let deadline = Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t
-                            in (Nothing, WorldAnimation fa evolutions deadline nextIt, curWorld))
-                    $ evolveAt remainingEvolutionSteps evolutions
-     in GameState a newGameStep world j k newAnim
+            maybe
+              (Just $ KeyTime t, WorldAnimation evolutions Nothing nextIt, futWorld) -- TODO adjust timing if needed so that the game starts earlier or later
+              (\dt -> let deadline = Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t
+                      in (Nothing, WorldAnimation evolutions deadline nextIt, curWorld))
+              $ evolveAt nextFrame evolutions
+     in GameState a newGameStep world futWorld j k newAnim
 
 updateGame2 :: TimedEvent -> GameState -> IO GameState
-updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ anim) =
+updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
@@ -298,20 +279,17 @@ updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ anim) =
 -- | When a frame animation is in progress, we layout according to the largest size
 --   to make the animation more visible
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
-renderGame k state@(GameState _ _ (World _ _ _ space animations (EmbeddedWorld mayTermWindow curUpperLeft)) _ _ _) =
+renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+                                         animations (EmbeddedWorld mayTermWindow curUpperLeft)) _ _ level wa) =
   renderSpace space curUpperLeft >>=
     (\worldCorner -> do
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
-        renderWorldAndLevel state worldCorner
-        renderInfosAndWorldFrame state -- render it last so that when it animates
-                                       -- to reduce, it goes over numbers and ship
+        renderWorld world
+        renderLevelMessage level (translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner)
+        renderWorldAnimation wa -- render it last so that when it animates
+                                -- to reduce, it goes over numbers and ship
         return activeAnimations)
-
-renderInfosAndWorldFrame :: GameState -> IO()
-renderInfosAndWorldFrame (GameState _ _ world _ _ wa) =
-  renderWorldAnimation wa world
-
 
 renderAnimations :: Maybe KeyTime
                  -> Space
@@ -326,12 +304,3 @@ renderAnimations k space mayTermWindow worldCorner animations = do
   activeAnimations <- mapM renderAnimation animations
   let res = catMaybes activeAnimations
   return res
-
-renderWorldAndLevel :: GameState -> RenderState -> IO ()
-renderWorldAndLevel (GameState _ _
-                   world@(World _ _ _ (Space _ (WorldSize (Coords (Row rs) (Col cs))) _) _ _)
-                   _ level _) worldCorner = do
-  renderWorld world
-  let
-    rightMiddle = translate (Row (quot rs 2)) (Col $ cs + 2) worldCorner
-  renderLevel level rightMiddle

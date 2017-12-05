@@ -3,7 +3,6 @@
 module Game.World.Size
     ( worldSizeFromLevel
     , maxWorldSize
-    , maxDim
     , onFronteer
     , contains
     , showUpdateTick
@@ -50,9 +49,6 @@ onFronteer (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
 contains :: Coords -> WorldSize -> Bool
 contains (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
   = r >= -1 && c >= -1 && r <= rs && c <= cs
-
-maxDim :: WorldSize -> Int
-maxDim (WorldSize (Coords (Row rs) (Col cs))) = max rs cs
 
 
 showUpdateTick :: Int -> WorldSize -> Text

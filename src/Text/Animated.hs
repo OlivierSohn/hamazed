@@ -53,7 +53,7 @@ renderAnimatedTextStringAnchored' [] _ _ = return ()
 renderAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
       rsNow = head rs
-      colorStr = fst $ evolve e i
+      colorStr = evolve e i
   renderColored colorStr rsNow
   renderAnimatedTextStringAnchored' (tail l) (tail rs) i
 
@@ -69,7 +69,7 @@ renderAnimatedTextCharAnchored' l@(_:_) rs i = do
   let e@(Evolution from to _ _ _) = head l
       nRS = max (countChars from) (countChars to)
       (nowRS, laterRS) = splitAt nRS rs
-      (ColorString colorStr) = fst $ evolve e i
+      (ColorString colorStr) = evolve e i
   renderColorStringAt colorStr nowRS
   renderAnimatedTextCharAnchored' (tail l) laterRS i
 
@@ -86,7 +86,7 @@ renderColorStringAt l@(_:_) rs = do
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList RenderState) -> Frame -> [RenderState]
 getAnimatedTextRenderStates evolution i =
-  let (SequentiallyInterpolatedList l) = fst $ evolve evolution i
+  let (SequentiallyInterpolatedList l) = evolve evolution i
   in l
 
 build :: RenderState -> Int -> [RenderState]

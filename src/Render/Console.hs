@@ -152,7 +152,6 @@ renderChar_ :: Char -> RenderState -> IO ()
 renderChar_ char (RenderState c) = do
   Backend.moveTo c
   Backend.renderChar char
-  return ()
 
 
 renderChars :: Int -> Char -> RenderState -> IO ()

@@ -5,7 +5,7 @@
 module Game.Level
     ( Level(..)
     , LevelFinished(..)
-    , renderLevel
+    , renderLevelMessage
     , isLevelFinished
     , renderLevelState
     , MessageState(..)
@@ -138,7 +138,8 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
   when (messageState == ContinueMessage) $ do
     fg2 <- setRawForeground neutralMessageColor
     renderTxt_ (if level == lastLevel
-      then "You reached the end of the game! Hit Ctrl + C to quit."
+      then
+        "You reached the end of the game!"
       else
         let action = case stop of
                           (Lost _) -> "restart"
@@ -147,6 +148,6 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
     restoreForeground fg2
 
 
-renderLevel :: Level -> RenderState -> IO ()
-renderLevel (Level level _ levelState) rightMiddle =
+renderLevelMessage :: Level -> RenderState -> IO ()
+renderLevelMessage (Level level _ levelState) rightMiddle =
   mapM_ (renderLevelState rightMiddle level) levelState

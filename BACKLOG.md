@@ -1,7 +1,11 @@
 
 # Backlog
 
+- make the frame animation an Evolution FrameSpec
+
 - fix : when losing at 1st level, animations are not triggered
+
+- animate frame color while transitionning (red -> white -> red)
 
 - when a new level starts, animation should begin with :
   - left : ammo / numbers resetting to their normal values

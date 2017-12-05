@@ -10,6 +10,7 @@ module Game.World.Space.Types
     , RenderGroup(..)
     , WorldShape(..)
     , WorldSize(..)
+    , maxDim
     , Width(..)
     , Height(..)
     -- | reexports
@@ -55,6 +56,9 @@ data WorldShape = Square
                 | Rectangle2x1
 
 newtype WorldSize = WorldSize Coords deriving(Eq, Show)
+
+maxDim :: WorldSize -> Int
+maxDim (WorldSize (Coords (Row rs) (Col cs))) = max rs cs
 
 newtype Width = Width Int
 newtype Height = Height Int

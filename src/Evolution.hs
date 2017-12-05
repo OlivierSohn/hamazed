@@ -2,6 +2,9 @@
 
 module Evolution
          ( evolve
+         , evolve'
+         , evolveIO
+         , evolveDeltaTime
          , mkEvolution
          , Evolution(..)
          -- reexports
@@ -24,7 +27,8 @@ mkEvolution :: DiscretelyInterpolable v
             -> Evolution v
 mkEvolution from to duration =
   let nSteps = distance from to
-  in Evolution from to (Frame (nSteps-1)) duration invQuartEaseInOut
+      lastFrame = Frame $ pred nSteps
+  in Evolution from to lastFrame duration invQuartEaseInOut
 
 data (DiscretelyInterpolable v)
    => Evolution v = Evolution {
@@ -35,18 +39,51 @@ data (DiscretelyInterpolable v)
   , _evolutionInverseEase :: Float -> Float
 }
 
-{-# INLINABLE evolve #-} -- allow specialization
-evolve :: DiscretelyInterpolable v
-       => Evolution v
-       -> Frame
-       -- ^ current frame
-       -> (v, Maybe Float)
-       -- ^ the value, and maybe the time interval between this step and the next
-evolve (Evolution from to lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
-  | frame >= lastFrame = (to, Nothing)
-  | otherwise          = (interpolate from to $ assert (step >= 0) step, Just dt)
+evolveDeltaTime :: DiscretelyInterpolable v
+                => Evolution v
+                -> Frame
+                -- ^ current frame
+                -> Maybe Float
+                -- ^ the time interval between this step and the next
+evolveDeltaTime (Evolution _ _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
+  | frame < 0          = error "negative frame"
+  | frame >= lastFrame = Nothing
+  | otherwise          = Just dt
   where
     nextStep = succ step
     thisValue = fromIntegral step / fromIntegral lastStep
     targetValue = fromIntegral nextStep / fromIntegral lastStep
     dt = duration * (easeValToTime targetValue - easeValToTime thisValue)
+
+
+{-# INLINABLE evolve #-} -- allow specialization
+evolve :: DiscretelyInterpolable v
+       => Evolution v
+       -> Frame
+       -- ^ current frame
+       -> v
+       -- ^ the value
+evolve (Evolution from to lastFrame _ _) frame@(Frame step)
+  | frame <= 0         = from
+  | frame >= lastFrame = to
+  | otherwise          = interpolate from to step
+
+{-# INLINABLE evolve' #-} -- allow specialization
+evolve' :: DiscretelyInterpolable v
+        => Evolution v
+        -> Frame
+        -- ^ current frame
+        -> w
+        -- ^ the value
+evolve' (Evolution from to _ _ _) (Frame step) =
+  interpolate' from to $ assert (step >= 0) step
+
+
+{-# INLINABLE evolveIO #-} -- allow specialization
+evolveIO :: (DiscretelyInterpolable v)
+         => Evolution v
+         -> Frame
+         -- ^ current frame
+         -> IO ()
+evolveIO (Evolution from to _ _ _) (Frame step) =
+  interpolateIO from to $ assert (step >= 0) step

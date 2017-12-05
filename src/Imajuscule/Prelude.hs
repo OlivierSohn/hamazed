@@ -123,7 +123,7 @@ module Imajuscule.Prelude (
 import           Prelude
 
 import           Control.Applicative( (<|>) )
-import           Control.Monad( when, void, (<=<) )
+import           Control.Monad( when, void, (<=<), Monad )
 import           Control.Exception( assert )
 import           Data.Monoid ((<>))
 import           Data.Word( Word8 )

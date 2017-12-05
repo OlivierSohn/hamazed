@@ -40,19 +40,19 @@ testICS = do
 
   mapM_
     (\i@(Frame c) -> do
-      let cs = fst $ evolve e i
+      let cs = evolve e i
       renderColored cs (RenderState (Coords (Row c + 10) (Col 3)))
     ) $ map Frame [0..lastFrame]
 
   mapM_
     (\i@(Frame c) -> do
-      let cs = fst $ evolve e' i
+      let cs = evolve e' i
       renderColored cs (RenderState (Coords (Row c + 10) (Col 25)))
     ) $ map Frame [0..lastFrame']
 
   mapM_
     (\i@(Frame c) -> do
-      let cs = fst $ evolve e'' i
+      let cs = evolve e'' i
       renderColored cs (RenderState (Coords (Row c + 20) (Col 25)))
     ) $ map Frame [0..lastFrame'']
 

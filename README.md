@@ -22,7 +22,7 @@ And during the 5 first seconds of each level, the ship is immune to collisions w
 |---------|-------|
 |OS X     |Yes    |
 |Linux    |Yes    |
-|Windows  |No, due to https://ghc.haskell.org/trac/ghc/ticket/7353 |
+|Windows  |No (see [this](https://ghc.haskell.org/trac/ghc/ticket/7353)) |
 
 For best results, the terminal should support 8-bit colors and not redefine system colors.
 
@@ -42,7 +42,7 @@ For best results, the terminal should support 8-bit colors and not redefine syst
 
 # Build
 
-You can build and run using `stack`:
+You can build and run using [stack](https://docs.haskellstack.org):
 
 `stack build --pedantic && stack exec hamazed-exe`
 
@@ -50,8 +50,7 @@ You can build and run using `stack`:
 
 ## Delta rendering
 
-The delta rendering code is based on code written by Rafael Ibraim:
-https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
+The delta rendering code is based on [code written by Rafael Ibraim](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)
 
 It avoids to have to clear the console and redraw everything at each frame,
 instead only the parts of the console that have changed are rendered,

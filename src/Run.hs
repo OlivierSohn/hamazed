@@ -26,7 +26,7 @@ run :: IO ()
 run =
   if os == "mingw32"
     then
-      Prelude.putStrLn "Windows OS is not supported yet. Supported OSes are OSX and linux."
+      Prelude.putStrLn "Windows is not currently supported, due to this GHC bug: https://ghc.haskell.org/trac/ghc/ticket/7353."
     else
       void doRun
 

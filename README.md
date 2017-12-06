@@ -1,5 +1,7 @@
 # What is it?
 
+[![Here you can see the game using asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+
 A terminal ascii game where you fly a ship through numbers. The goal is to shoot
 the numbers, using the ship's laser, whose sum will be equal to the
 level's target. It's easy at the beginning, but higher levels have more and more numbers,
@@ -8,8 +10,6 @@ level is level 12. I never reached it, but I hope somebody will :).
 
 The game can be configured in "world shape" (square, rectangle) and "kind of walls"
 (none, deterministic, random).
-
-[![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
 
 ![Configuration snapshot](images/config.png?raw=true "Configuration")
 

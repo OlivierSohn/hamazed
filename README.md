@@ -24,8 +24,8 @@ And during the 5 first seconds of each level, the ship is immune to collisions w
 |Linux    |Yes    |
 |Windows  |No (see [this](https://ghc.haskell.org/trac/ghc/ticket/7353)) |
 
-If your terminal window is too small to display the game, the program fails with
-this error message:
+Your terminal window should have a dimension of at least {height = 42, width = 146}.
+If it is too small, the program will fail with the following error message:
 
 ```
 From game thread:

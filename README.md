@@ -9,8 +9,8 @@ level is level 12. I never reached it, but I hope somebody will :).
 The game can be configured in "world shape" (square, rectangle) and "kind of walls"
 (none, deterministic, random).
 
-You can define your own keyboard mapping by modifying the 'eventFromChar' function in src/Game/Event.hs,
-the default mapping is:
+You can define your own keyboard mapping by modifying the 'eventFromChar' function
+defined [here](src/Game/Event.hs), the default mapping being:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'
 

@@ -155,13 +155,13 @@ accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
 
 runGameWorker :: GameParameters -> IO ()
 runGameWorker params =
-  makeInitialState params firstLevel Nothing
+  mkInitialState params firstLevel Nothing
     >>= \case
             Left err -> error err
             Right ew -> loop params ew
 
-makeInitialState :: GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
-makeInitialState
+mkInitialState :: GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
+mkInitialState
  (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
@@ -220,7 +220,7 @@ updateGameUsingTimedEvent
   case event of
     Nonsense -> return state
     StartLevel nextLevel ->
-      makeInitialState params nextLevel (Just state)
+      mkInitialState params nextLevel (Just state)
         >>= \case
               Left err -> error err
               Right s -> return s
@@ -240,17 +240,14 @@ updateGameUsingTimedEvent
 
 
 updateAnim :: UTCTime -> GameState -> GameState
-updateAnim
-  t
-  (GameState a _ curWorld futWorld j k
-             (WorldAnimation evolutions _ it)) =
+updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration (_, nextFrame)) = nextIteration it
          (newGameStep, newAnim, world) =
             maybe
               (Just $ KeyTime t, WorldAnimation evolutions Nothing nextIt, futWorld) -- TODO adjust timing if needed so that the game starts earlier or later
               (\dt -> let deadline = Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t
                       in (Nothing, WorldAnimation evolutions deadline nextIt, curWorld))
-              $ evolveAt nextFrame evolutions
+              $ evolveAt evolutions nextFrame
      in GameState a newGameStep world futWorld j k newAnim
 
 updateGame2 :: TimedEvent -> GameState -> IO GameState

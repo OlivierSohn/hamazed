@@ -50,7 +50,7 @@ data WorldAnimation = WorldAnimation {
 }
 
 data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionFrane :: !(Evolution FrameAnimationParallel4)
+    _worldEvolutionFrame :: !(Evolution FrameAnimationParallel4)
   , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
   , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
 }

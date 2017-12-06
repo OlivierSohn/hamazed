@@ -1,7 +1,8 @@
 
 # Backlog
 
-- when losing with 4 and 3, the red animation stops too soon
+- when losing with 4 and 3, the red animation stops too soon:
+up down and left occur at the same time
 
 - animate frame color while transitionning (red -> white -> red)
 

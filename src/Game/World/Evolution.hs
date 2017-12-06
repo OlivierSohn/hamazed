@@ -11,25 +11,26 @@ import           Game.World.Types
 
 import           Game.World.Frame
 
--- evolveAt, renderEvolutions share some logic:
--- TODO make a function that does the traversal of Evolutions with substraction of the last frame.
-
 renderEvolutions :: WorldEvolutions -> Frame -> IO ()
 renderEvolutions
- (WorldEvolutions frameE@(Evolution _ lastFrameFrameE _ _) upDown@(TextAnimation _ (Evolution _ lastFrameUD _ _)) left)
+ we@(WorldEvolutions frameE upDown left)
  frame = do
-  let relFrameFrameE = max 0 frame
-      relFrameUD = max 0 (relFrameFrameE - lastFrameFrameE)
-      relFrameLeft = max 0 (relFrameUD - lastFrameUD)
+  let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
   renderWorldFrame frameE relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD
   renderAnimatedTextStringAnchored left relFrameLeft
 
-evolveAt :: Frame -> WorldEvolutions -> Maybe Float
-evolveAt frame (WorldEvolutions frameE@(Evolution _ lastFrameFrameE _ _) (TextAnimation _ upDown@(Evolution _ lastFrameUD _ _)) (TextAnimation _ center)) =
+evolveAt :: WorldEvolutions -> Frame -> Maybe Float
+evolveAt we@(WorldEvolutions frameE (TextAnimation _ upDown) (TextAnimation _ left)) frame =
+  let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
+  in evolveDeltaTime frameE relFrameFrameE
+    <|> evolveDeltaTime upDown relFrameUD
+    <|> evolveDeltaTime left relFrameLeft
+
+getFrames :: WorldEvolutions -> Frame -> (Frame, Frame, Frame)
+getFrames (WorldEvolutions (Evolution _ lastFrameFrameE _ _)
+                           (TextAnimation _ (Evolution _ lastFrameUD _ _)) _) frame =
   let relFrameFrameE = max 0 frame
       relFrameUD = max 0 (relFrameFrameE - lastFrameFrameE)
       relFrameLeft = max 0 (relFrameUD - lastFrameUD)
-  in evolveDeltaTime frameE relFrameFrameE
-      <|> evolveDeltaTime upDown relFrameUD
-      <|> evolveDeltaTime center relFrameLeft
+  in (relFrameFrameE, relFrameUD, relFrameLeft)

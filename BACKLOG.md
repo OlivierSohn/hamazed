@@ -1,7 +1,7 @@
 
 # Backlog
 
-- make animation time independent of compute / render time
+- make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
 
 - some evolutions don't use the timing aspect as another evolution times them.

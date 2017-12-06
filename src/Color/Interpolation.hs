@@ -48,7 +48,7 @@ instance DiscretelyInterpolable IColor8Code where
 
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8Code -> Color8Code -> Int
-bresenhamColor8Length c@(Color8Code v) c'@(Color8Code v')
+bresenhamColor8Length c c'
   | c == c' = 1
   | otherwise =
       case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
@@ -58,7 +58,7 @@ bresenhamColor8Length c@(Color8Code v) c'@(Color8Code v')
 
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8Code -> Color8Code -> [Color8Code]
-bresenhamColor8 c@(Color8Code v) c'@(Color8Code v')
+bresenhamColor8 c c'
   | c == c' = [c]
   | otherwise =
       case (color8CodeToXterm256 c, color8CodeToXterm256 c') of

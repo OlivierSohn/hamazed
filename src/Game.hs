@@ -115,12 +115,12 @@ overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 getDeadlinesByDecreasingPriority :: GameState -> UTCTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _) t =
   maybe
-    (catMaybes [messageDeadline level t, gameDeadline s, animationDeadline s])
+    (catMaybes [messageDeadline level t, getGameDeadline s, animationDeadline s])
     (: [])
       (worldAnimationDeadline s)
 
-gameDeadline :: GameState -> Maybe Deadline
-gameDeadline (GameState _ nextGameStep _ _ _ (Level _ _ levelFinished) _) =
+getGameDeadline :: GameState -> Maybe Deadline
+getGameDeadline (GameState _ nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
       Nothing

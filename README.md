@@ -1,21 +1,20 @@
 # What is it?
 
-A terminal ascii game I write - to practice writing Haskell. While writing it,
-several times it felt like the code I was writing could have been made simpler
-and more flexible using abstractions or functional notions which I didn't know of yet
-(especially for the part on Animations and how to chain them).
-So if you happen to read the code and find places where it would make sense to refactor
-don't hesitate to tell me, by opening an issue or submitting a merge request!
+A terminal ascii game I write - to practice writing Haskell. In this game, you
+fly a ship in a space full of flying numbers. You can shoot at the numbers using
+the ship's laser, and once the numbers you shot sum up to the level's objective number,
+you go to the next level. Higher levels have more numbers, and less space! The last
+level is level 12. I never won this game, but I hope somebody will (without changing the code :)).
 
-The game can be somewhat configured by the user (size and kind of the world) and
-has 12 levels of increasing difficulty. The aim is to reach a given sum by shooting
-at moving numbers. A "random walls" mode generates the walls at random.
+The game can be configured in "world shape" (square, rectangle) and "kind of walls"
+(none, deterministic, random).
 
-The keyboard controls are mapped this way:
+You can define your own keyboard mapping by modifying the 'eventFromChar' function in src/Game/Event.hs,
+the default mapping is:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'
 
-During the 5 first seconds of each level, the ship is immune to collisions with numbers.
+Oh, and during the 5 first seconds of each level, the ship is immune to collisions with numbers.
 
 # Supported Platforms / Terminals:
 
@@ -25,13 +24,19 @@ During the 5 first seconds of each level, the ship is immune to collisions with 
 |Linux    |Yes    |
 |Windows  |No, due to https://ghc.haskell.org/trac/ghc/ticket/7353 |
 
-For best results, the terminal should support 8-bit colors.
+For best results, the terminal should support 8-bit colors and not redefine system colors.
 
 # Version history
+- 2.1 :
+  - New animations :
+    - In colors (8-bit)
+    - Also between levels
+    - Using physics and gravity
+    - "Terminal size"-aware
 - 2.0 :
-  - make world configurable (square or rectangle, with or without random walls)
-  - add explosion animations
-  - optimize rendering using delta rendering
+  - World is configurable (square or rectangle, with or without random walls)
+  - Explosion animations
+  - Optimized rendering (delta rendering)
 - 1.0 :
   - The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
 

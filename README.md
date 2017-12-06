@@ -1,12 +1,15 @@
 # What is it?
 
-[![Click to see the game in action!](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
-
 It's a terminal ascii game where you fly a ship through numbers. The goal is to shoot
-the numbers, using the ship's laser, whose sum will be equal to the
-level's target. It's easy at the beginning, but higher levels have more and more numbers,
-and less and less space to navigate through them! The last
-level is level 12. I never reached it, but I hope somebody will :).
+the numbers whose sum will be equal to the level's target. It's easy at the beginning,
+but higher levels have more and more numbers, and less and less space to navigate through them!
+The last level is level 12: I never reached it, but I hope somebody will :).
+
+# Demo
+
+[![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+
+# Configurability
 
 The game can be configured in "world shape" (square, rectangle) and "kind of walls"
 (none, deterministic, random).
@@ -19,8 +22,6 @@ You can define your own keyboard mapping by modifying the 'eventFromChar' functi
 defined [here](src/Game/Event.hs), the default mapping being:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'
-
-And during the 5 first seconds of each level, the ship is immune to collisions with numbers.
 
 # Supported Platforms / Terminals:
 

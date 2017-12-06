@@ -5,13 +5,15 @@ the numbers whose sum will be equal to the level's target. It's easy at the begi
 but higher levels have more and more numbers, and less and less space to navigate through them!
 The last level is level 12: I never reached it, but I hope somebody will :).
 
-# Demo
+# Demos
 
-With random walls, and rectangular space:
-[![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+## No walls, square world
 
-Without walls, and square space:
 [![asciicast](https://asciinema.org/a/151434.png)](https://asciinema.org/a/151434)
+
+## Random walls, rectangular world
+
+[![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
 
 # Configurability
 
@@ -19,8 +21,6 @@ The game can be configured in "world shape" (square, rectangle) and "kind of wal
 (none, deterministic, random).
 
 ![Configuration snapshot](images/config.png?raw=true "Configuration")
-
-![Level1 snapshot](images/level1.png?raw=true "Level1")
 
 You can define your own keyboard mapping by modifying the 'eventFromChar' function
 defined [here](src/Game/Event.hs), the default mapping being:

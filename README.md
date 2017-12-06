@@ -27,12 +27,14 @@ And during the 5 first seconds of each level, the ship is immune to collisions w
 If your terminal window is too small to display the game, the program fails with
 this error message:
 
-> From game thread:
->
-> Minimum terminal size : Window {height = 42, width = 146}.
-> Current terminal size : Window {height = 22, width = 165}.
-> The current terminal size doesn't match the minimum size,
-> please adjust your terminal size and restart the executable.
+```
+From game thread:
+
+Minimum terminal size : Window {height = 42, width = 146}.
+Current terminal size : Window {height = 22, width = 165}.
+The current terminal size doesn't match the minimum size,
+please adjust your terminal size and restart the executable.
+```
 
 # Version history
 - 2.1 :

@@ -1,7 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Math
-    ( discreteInvQuartEaseInOut
+    ( invQuartEaseInOut
+    , discreteInvQuartEaseInOut
+    , discreteAdaptor
     , clamp
     ) where
 
@@ -33,7 +35,7 @@ y > 0.5 :
   1-((1-y)/(2^3))^(1/4) = time
 --}
 
--- | returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
+-- | Returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
 -- given a 4th order ease in-out function
 invQuartEaseInOut :: Float -- ^ value
                   -> Float -- ^ time
@@ -44,17 +46,23 @@ invQuartEaseInOut y =
     else
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
 
--- | Adapts the continuous function invQuartEaseInOut to the discrete case
-discreteInvQuartEaseInOut :: Int
-                          -> Float
-                          -> Float
-discreteInvQuartEaseInOut n v =
+-- | Adapts continuous inout ease functions to the discrete case
+discreteAdaptor :: (Float -> Float)
+                -- ^ Continuous ease in/out function
+                -- ^ number of discrete steps
+                -> (Int -> Float -> Float)
+discreteAdaptor f n v =
   let nIntervals = n
       intervalSize = recip $ fromIntegral nIntervals
       firstValue = intervalSize / 2
       lastValue = 1 - firstValue
       scaledValue = firstValue + v * (lastValue - firstValue)
-  in invQuartEaseInOut scaledValue
+  in f scaledValue
+
+discreteInvQuartEaseInOut :: Int
+                          -> Float
+                          -> Float
+discreteInvQuartEaseInOut = discreteAdaptor invQuartEaseInOut
 
 {-# INLINE clamp #-}
 clamp :: Int

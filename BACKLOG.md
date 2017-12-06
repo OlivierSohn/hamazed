@@ -1,8 +1,12 @@
 
 # Backlog
 
-- when losing with 4 and 3, the red animation stops too soon:
-up down and left occur at the same time
+- make animation time independent of compute / render time
+-> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
+
+- some evolutions don't use the timing aspect as another evolution times them.
+some evolutions don't use the interpolation aspect as they are only used to time.
+we should separate the 2 aspects by defining 2 distinct types.
 
 - animate frame color while transitionning (red -> white -> red)
 
@@ -39,7 +43,9 @@ when shooting upwards
 so geometric figures are stretched in height. We could compensate for that by using
 a stretching factor in poly function and circle function
 
-## Packaging
+## Delta rendering
+
+- resize buffer and do not draw on change of console size
 
 - make a package for Delta rendering:
   - review function names
@@ -93,7 +99,6 @@ or to interpret "OnWall Traverse" as "OnWall ReboundAnd" for animations that don
   for this animation we need to render the frame on top of the world
 
   it's more complicated than an animation because there are multiple chars
-- use bresenham 3d for smooth color gradients (code commented in Geo)
 - when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
 

@@ -7,7 +7,7 @@
 module Imajuscule.Prelude (
                             -- | Prelude reexports
                             Eq
-                          , Show
+                          , Show(..)
                           , Num
                           , Enum
                           , Integral
@@ -35,7 +35,6 @@ module Imajuscule.Prelude (
                           , concatMap
                           , filter
                           , replicate
-                          , show
                           , mapM
                           , mapM_
                           , take

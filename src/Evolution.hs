@@ -9,9 +9,13 @@ module Evolution
          , mkEvolution1
          , mkEvolution2
          , Evolution(..)
+         , mkEaseClock
+         , EaseClock(..)
          -- reexports
          , module Interpolation
          ) where
+
+import           GHC.Show(showString)
 
 import           Imajuscule.Prelude
 
@@ -50,6 +54,26 @@ mkEvolution s duration =
       lastFrame = Frame $ pred nSteps
   in Evolution s lastFrame duration (discreteInvQuartEaseInOut nSteps)
 
+-- | Relies on a "fake" evolution that should be used for synchronization only, i.e
+--   'evolveDeltaTime' can be used on it but not 'evolve'
+newtype EaseClock = EaseClock (Evolution NotDiscretelyInterpolable) deriving (Show)
+newtype NotDiscretelyInterpolable = NotDiscretelyInterpolable () deriving(Show)
+
+instance DiscretelyInterpolable NotDiscretelyInterpolable where
+  distance = error "don't use distance on NotDiscretelyInterpolable"
+  interpolate = error "don't use interpolate on NotDiscretelyInterpolable"
+
+mkEaseClock :: Float
+            -- ^ duration in seconds
+            -> Frame
+            -- ^ last frame
+            -> (Float -> Float)
+            -- ^ ease function
+            -> EaseClock
+mkEaseClock duration lastFrame ease =
+  let nSteps = fromIntegral $ succ lastFrame
+  in EaseClock $ Evolution (Successive []) lastFrame duration (discreteAdaptor ease nSteps)
+
 -- TODO we could optimize by precomputing the lastframes of each individual segment,
 -- and selecting the interval without having to recompute every distance.
 -- We could change the Successive type to store the cumulated distance,
@@ -60,6 +84,9 @@ data (DiscretelyInterpolable v) => Evolution v = Evolution {
   , _evolutionDuration :: Float -- ^ Total duration in seconds
   , _evolutionInverseEase :: Float -> Float
 }
+
+instance (DiscretelyInterpolable v, Show v) => Show (Evolution v) where
+        showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
 
 evolveDeltaTime :: DiscretelyInterpolable v
                 => Evolution v

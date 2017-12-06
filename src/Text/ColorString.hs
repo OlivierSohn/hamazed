@@ -22,7 +22,7 @@ import           Math
 
 import           Util
 
-newtype ColorString = ColorString [(Text, Color8Code)]
+newtype ColorString = ColorString [(Text, Color8Code)] deriving(Show)
 
 -- TODO maybe it would be faster to have a representation with Array (Char, Color8Code)
 --  (ie the result of simplify)
@@ -33,7 +33,11 @@ instance DiscretelyInterpolable ColorString where
         n2 = countChars c2
         s1 = simplify c1
         s2 = simplify c2
-        l = zipWith colorDist s1 s2
+
+        (c1', remaining) = interpolateChars c1 c2 countTextChanges
+        s1' = simplify $ assert (remaining == 0) c1'
+        l = zipWith colorDist s1' s2 -- since color interpolation happends AFTER char changes,
+                                     -- we compare colors with result of char interpolation
         colorDistance =
           if null l
             then
@@ -46,8 +50,8 @@ instance DiscretelyInterpolable ColorString where
         str2 = toString s2
         lPref = List.length $ commonPrefix str1 str2
         lSuff = List.length $ commonSuffix (drop lPref str1) (drop lPref str2)
-        textDistance = max n1 n2 - (lPref + lSuff)
-    in colorDistance + textDistance
+        countTextChanges = max n1 n2 - (lPref + lSuff)
+    in colorDistance + countTextChanges
 
   interpolate c1 c2 i =
     let (c1', remaining) = interpolateChars c1 c2 i

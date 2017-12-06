@@ -114,6 +114,7 @@ test-suite hamazed-test
                      , Test.InterpolatedColorString
                      , Test.Interpolation
                      , Test.Rendering
+                     , Test.WorldEvolutions
   main-is:             Spec.hs
   build-depends:       base
                      , hamazed

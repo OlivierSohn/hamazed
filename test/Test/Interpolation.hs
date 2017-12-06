@@ -12,7 +12,7 @@ import Render
 import Game.World.Frame
 
 testInterpolation :: IO ()
-testInterpolation = mapM_ print testSuccessiveInts
+testInterpolation = mapM_ print testClock
 
 zipAll :: (DiscretelyInterpolable a) => Evolution a -> Frame -> (a, Maybe Float)
 zipAll e x = (evolve e x, evolveDeltaTime e x)
@@ -65,3 +65,9 @@ testSuccessiveInts =
       e = mkEvolution s 1
       d = distanceSuccessive s
   in map (zipAll e . Frame) [0..pred d]
+
+testClock :: [(Frame, Maybe Float)]
+testClock =
+  let lastFrame = Frame 10
+      (EaseClock clock) = mkEaseClock 1 lastFrame invQuartEaseInOut
+  in map (\f -> (f, evolveDeltaTime clock f)) [0..lastFrame]

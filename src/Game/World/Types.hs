@@ -47,13 +47,13 @@ data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions
   , _worldAnimationDeadline :: !(Maybe KeyTime)
   , _worldAnimationProgress :: !Iteration
-}
+} deriving(Show)
 
 data WorldEvolutions = WorldEvolutions {
     _worldEvolutionFrame :: !(Evolution FrameAnimationParallel4)
   , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
   , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
-}
+} deriving(Show)
 
 isFinished :: WorldAnimation -> Bool
 isFinished (WorldAnimation _ Nothing _) = True
@@ -80,14 +80,15 @@ data World = World {
 data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
   , _embeddedWorldUpperLeft :: !RenderState
-}
+} deriving(Show)
 
 
-data BoundedAnimation = BoundedAnimation Animation Boundaries
+data BoundedAnimation = BoundedAnimation Animation Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow
                 | Both
+                deriving(Show)
 
 
 data BattleShip = BattleShip {
@@ -95,10 +96,10 @@ data BattleShip = BattleShip {
   , _shipAmmo :: !Int
   , _shipSafeUntil :: !(Maybe UTCTime)
   , _shipCollisions :: ![Number]
-}
+} deriving(Show)
 
 
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
   , _numberNum :: !Int
-} deriving(Generic, Eq)
+} deriving(Generic, Eq, Show)

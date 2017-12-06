@@ -26,6 +26,8 @@ module Animation.Types
 
 import           Imajuscule.Prelude
 
+import           GHC.Show(showString)
+
 import           System.Console.ANSI(Color8Code)
 
 import           Collision(Location(..))
@@ -93,6 +95,9 @@ data Animation = Animation {
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
     --   and may return an updated Animation
 }
+
+instance Show Animation where
+        showsPrec _ (Animation a b c _) = showString $ "Animation{" ++ show a ++ show b ++ show c ++ "}"
 
 data AnimationZero = WithZero
                    | SkipZero

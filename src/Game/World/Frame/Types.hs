@@ -25,6 +25,7 @@ data FrameSpec = FrameSpec {
 
 
 newtype FrameAnimationParallel4 = FrameAnimationParallel4 FrameSpec
+          deriving(Show)
 
 instance DiscretelyInterpolable FrameAnimationParallel4 where
   distance (FrameAnimationParallel4 (FrameSpec s _)) (FrameAnimationParallel4 (FrameSpec s' _ ))

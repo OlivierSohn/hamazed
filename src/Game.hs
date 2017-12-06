@@ -24,7 +24,6 @@ import           Game.Render
 import           Game.World
 import           Game.World.Embedded
 import           Game.World.Evolution
-import           Game.World.Frame
 import           Game.World.Laser
 import           Game.World.Number
 import           Game.World.Size
@@ -172,16 +171,22 @@ mkInitialState
       make ew = do
         newWorld <- mkWorld ew newSize wallType numbers newAmmo
         t <- getCurrentTime
-        let (curWorld, _, level, ammo, shotNums) =
+        let (curWorld, level, ammo, shotNums) =
               maybe
-              (newWorld, newSize, newLevel, newAmmo, []) -- TODO try 0
-              (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) (Space _ curSz _) _ _) _ curShotNums curLevel _) ->
-                  (w, curSz, curLevel, curAmmo, curShotNums))
+              (newWorld, newLevel, 0, [])
+              (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) _ _ _) _ curShotNums curLevel _) ->
+                  (w, curLevel, curAmmo, curShotNums))
                 mayState
             curInfos = mkInfos Normal ammo shotNums level
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
             worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
-        return $ Right $ GameState (Timer t) Nothing curWorld newWorld newShotNums newLevel worldAnimation
+            gameDeadline =
+              if isFinished worldAnimation
+                then
+                  Just $ KeyTime t
+                else
+                  Nothing
+        return $ Right $ GameState (Timer t) gameDeadline curWorld newWorld newShotNums newLevel worldAnimation
   eew <- mkEmbeddedWorld newSize
   either (return . Left) make eew
 
@@ -242,13 +247,13 @@ updateGameUsingTimedEvent
 updateAnim :: UTCTime -> GameState -> GameState
 updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration (_, nextFrame)) = nextIteration it
-         (newGameStep, newAnim, world) =
+         (world, gameDeadline, worldAnimDeadline) =
             maybe
-              (Just $ KeyTime t, WorldAnimation evolutions Nothing nextIt, futWorld) -- TODO adjust timing if needed so that the game starts earlier or later
-              (\dt -> let deadline = Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t
-                      in (Nothing, WorldAnimation evolutions deadline nextIt, curWorld))
-              $ evolveAt evolutions nextFrame
-     in GameState a newGameStep world futWorld j k newAnim
+              (futWorld , Just $ KeyTime t, Nothing)
+              (\dt ->
+               (curWorld, Nothing         , Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t))
+              $ getDeltaTime evolutions nextFrame
+     in GameState a gameDeadline world futWorld j k $ WorldAnimation evolutions worldAnimDeadline nextIt
 
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =

@@ -54,7 +54,7 @@ bresenhamColor8Length c@(Color8Code v) c'@(Color8Code v')
       case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
         (RGBColor rgb1, RGBColor rgb2) -> bresenhamRGBLength rgb1 rgb2
         (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
-        _ -> 1 + abs ((fromIntegral v :: Int) - (fromIntegral v' :: Int))
+        colors -> error $ "cannot get length between colors " ++ show colors
 
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8Code -> Color8Code -> [Color8Code]
@@ -66,7 +66,7 @@ bresenhamColor8 c@(Color8Code v) c'@(Color8Code v')
           map (xterm256ColorToCode . RGBColor) $ bresenhamRGB rgb1 rgb2
         (GrayColor g1, GrayColor g2) ->
           map Color8Code $ range g1 g2
-        _ -> map Color8Code $ range v v'
+        colors -> error $ "cannot interpolate between colors " ++ show colors
 
 {-# INLINABLE bresenhamRGBLength #-}
 bresenhamRGBLength :: RGB Word8 -> RGB Word8 -> Int

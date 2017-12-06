@@ -23,6 +23,8 @@ import           Data.List(foldl', splitAt, unzip)
 
 import           Evolution
 
+import           Math
+
 import           Render.Console
 import           Render
 
@@ -35,16 +37,17 @@ import           Text.ColorString
 --      - or each character (use a = 'AnchorChars')
 --    - chars replacements, inserts, deletes
 --    - chars color changes
-data TextAnimation a = TextAnimation {
-   _fromTos :: ![Evolution ColorString]
- , _anchorsFrom :: !(Evolution (SequentiallyInterpolatedList RenderState))
-}
+data (Show a) => TextAnimation a = TextAnimation {
+   _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
+ , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList RenderState))
+ , _textAnimationClock :: !EaseClock
+} deriving(Show)
 
-data AnchorStrings
-data AnchorChars
+data AnchorStrings = AnchorStrings deriving(Show)
+data AnchorChars = AnchorChars deriving(Show)
 
 renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings -> Frame -> IO ()
-renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution) i = do
+renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
   renderAnimatedTextStringAnchored' fromToStrs rss i
 
@@ -58,7 +61,7 @@ renderAnimatedTextStringAnchored' l@(_:_) rs i = do
   renderAnimatedTextStringAnchored' (tail l) (tail rs) i
 
 renderAnimatedTextCharAnchored :: TextAnimation AnchorChars -> Frame -> IO ()
-renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution) i = do
+renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
   renderAnimatedTextCharAnchored' fromToStrs rss i
 
@@ -107,11 +110,12 @@ mkSequentialTextTranslationsCharAnchored l duration =
           ([], [])
           l
       strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
-  in TextAnimation strsEv $
-      mkEvolution2 (SequentiallyInterpolatedList from_)
-                   (SequentiallyInterpolatedList to_) duration
+      fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
+      evAnchors@(Evolution _ anchorsLF _ _) =
+        mkEvolution2 (SequentiallyInterpolatedList from_)
+                     (SequentiallyInterpolatedList to_) duration
+  in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
--- | order of animation is: move, change characters, change color
 mkSequentialTextTranslationsStringAnchored :: [([ColorString], RenderState, RenderState)]
                                            -- ^ list of texts, start anchor, end anchor
                                            -> Float
@@ -120,9 +124,11 @@ mkSequentialTextTranslationsStringAnchored :: [([ColorString], RenderState, Rend
 mkSequentialTextTranslationsStringAnchored l duration =
   let (from_,to_) = unzip $ map (\(_,f,t) -> (f,t)) l
       strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
-  in TextAnimation strsEv $
-      mkEvolution2 (SequentiallyInterpolatedList from_)
-                   (SequentiallyInterpolatedList to_) duration
+      fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
+      evAnchors@(Evolution _ anchorsLF _ _) =
+        mkEvolution2 (SequentiallyInterpolatedList from_)
+                     (SequentiallyInterpolatedList to_) duration
+  in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
 
 -- | In this animation, the beginning and end states are text written horizontally
@@ -136,6 +142,12 @@ mkTextTranslation :: ColorString
                   -> TextAnimation AnchorChars
 mkTextTranslation text duration from to =
   let sz = countChars text
-  in TextAnimation [mkEvolution1 text duration] $
-       mkEvolution2 (SequentiallyInterpolatedList $ build from sz)
-                    (SequentiallyInterpolatedList $ build to sz) duration
+      strEv@(Evolution _ fromToLF _ _) = mkEvolution1 text duration
+      from_ = build from sz
+      to_ = build to sz
+      strsEv = [strEv]
+      fromTosLF = fromToLF
+      evAnchors@(Evolution _ anchorsLF _ _) =
+        mkEvolution2 (SequentiallyInterpolatedList from_)
+                     (SequentiallyInterpolatedList to_) duration
+  in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut

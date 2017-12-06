@@ -15,7 +15,7 @@ import           Imajuscule.Prelude
 import           Color
 
 import           Game.World
-import           Game.World.Frame
+import           Game.World.Evolution
 import           Game.World.Space
 import           Game.World.Size
 import           Game.World.Embedded

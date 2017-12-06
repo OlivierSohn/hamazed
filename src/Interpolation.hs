@@ -17,7 +17,7 @@ import           Iteration
 import           Math
 
 
-newtype Successive a = Successive [a]
+newtype Successive a = Successive [a] deriving(Show)
 
 -- | The instances of this class should statisfy the following constraints:
 --
@@ -45,7 +45,7 @@ newtype Successive a = Successive [a]
 --
 -- > interpolate from to low  == interpolate from medVal low
 -- > interpolate from to high == interpolate medVal to $ high-med
-class DiscretelyInterpolable v where
+class (Show v) => DiscretelyInterpolable v where
 
   -- | Special case where the interpolation is between 2 values
   distance :: v -- ^ first value
@@ -137,7 +137,7 @@ instance (DiscretelyInterpolable a)
 
 newtype SequentiallyInterpolatedList a =
   SequentiallyInterpolatedList [a]
-  deriving(Eq, Ord)
+  deriving(Eq, Ord, Show)
 
 -- | Interpolation between 2 SequentiallyInterpolatedList, occuring sequentially
 --   between same-index elements.

@@ -7,7 +7,11 @@ The last level is level 12: I never reached it, but I hope somebody will :).
 
 # Demo
 
+With random walls, and rectangular space:
 [![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+
+Without walls, and square space:
+[![asciicast](https://asciinema.org/a/151434.png)](https://asciinema.org/a/151434)
 
 # Configurability
 

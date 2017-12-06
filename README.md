@@ -1,8 +1,8 @@
 # What is it?
 
-[![Here you can see the game using asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+[![Click to see the game in action!](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
 
-A terminal ascii game where you fly a ship through numbers. The goal is to shoot
+It's a terminal ascii game where you fly a ship through numbers. The goal is to shoot
 the numbers, using the ship's laser, whose sum will be equal to the
 level's target. It's easy at the beginning, but higher levels have more and more numbers,
 and less and less space to navigate through them! The last

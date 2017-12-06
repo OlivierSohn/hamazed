@@ -61,10 +61,12 @@ import           Data.IORef( IORef
                            , writeIORef )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
+import           Data.Colour.SRGB(RGB(..))
 
 import           System.Console.ANSI( ColorIntensity(..)
                                     , Color(..)
                                     , Xterm256Color(..)
+                                    , xterm256ColorToCode
                                     , Color8Code(..)
                                     , setCursorPosition
                                     , setSGRCode
@@ -107,10 +109,10 @@ newBufferArray :: BufferCell -> IO BufferArray
 newBufferArray = newArray (0, bufferMaxIdx)
 
 initialForeground :: Color8Code
-initialForeground = color8Code Dull White
+initialForeground = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
 
 initialBackground :: Color8Code
-initialBackground = color8Code Dull Black
+initialBackground = xterm256ColorToCode $ RGBColor $ RGB 0 0 0
 
 noColor :: Color8Code
 noColor = Color8Code (-1)

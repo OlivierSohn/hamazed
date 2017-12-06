@@ -1,10 +1,10 @@
 # What is it?
 
-A terminal ascii game I write - to practice writing Haskell. In this game, you
-fly a ship in a space full of flying numbers. You can shoot at the numbers using
-the ship's laser, and once the numbers you shot sum up to the level's objective number,
-you go to the next level. Higher levels have more numbers, and less space! The last
-level is level 12. I never won this game, but I hope somebody will (without changing the code :)).
+A terminal ascii game where you fly a ship through numbers. The goal is to shoot
+the numbers, using the ship's laser, whose sum will be equal to the
+level's target. It's easy at the beginning, but higher levels have more and more numbers,
+and less and less space to navigate through them! The last
+level is level 12. I never reached it, but I hope somebody will :).
 
 The game can be configured in "world shape" (square, rectangle) and "kind of walls"
 (none, deterministic, random).
@@ -14,7 +14,7 @@ the default mapping is:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'
 
-Oh, and during the 5 first seconds of each level, the ship is immune to collisions with numbers.
+And during the 5 first seconds of each level, the ship is immune to collisions with numbers.
 
 # Supported Platforms / Terminals:
 
@@ -29,7 +29,7 @@ For best results, the terminal should support 8-bit colors and not redefine syst
 # Version history
 - 2.1 :
   - New animations :
-    - In colors (8-bit)
+    - With colors (8-bit)
     - Also between levels
     - Using physics and gravity
     - "Terminal size"-aware

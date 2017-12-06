@@ -9,6 +9,10 @@ level is level 12. I never reached it, but I hope somebody will :).
 The game can be configured in "world shape" (square, rectangle) and "kind of walls"
 (none, deterministic, random).
 
+![Configuration snapshot](images/config.png?raw=true "Configuration")
+
+![Level1 snapshot](images/level1.png?raw=true "Level1")
+
 You can define your own keyboard mapping by modifying the 'eventFromChar' function
 defined [here](src/Game/Event.hs), the default mapping being:
 - ship acceleration : 's' 'e' 'd' 'f'

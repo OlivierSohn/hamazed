@@ -32,7 +32,7 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
   case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
       let (WorldSize (Coords (Row rs) (Col cs))) = maxWorldSize
-          heightMargin = 2 * (1 {-outer walls-} + 2 {-2 lines above and below-})
+          heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
           widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
           minSize@(Terminal.Window minh minw) = Terminal.Window (rs + heightMargin) (cs + widthMargin)
       in if h < minh || w < minw

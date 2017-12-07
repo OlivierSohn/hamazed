@@ -51,7 +51,7 @@ import qualified Prelude ( putChar, putStr )
 
 import           Control.Monad( when )
 
-import           Data.Array.IO( IOArray
+import           Data.Array.IO( IOUArray
                               , newArray
                               , writeArray
                               , readArray )
@@ -96,7 +96,7 @@ type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
 -- TODO use an IOUArray that unboxes elements, and a representation with an Int:
 -- using bit shifts, we can store at least 2 Color8Code and a char in an Int.
-type BufferArray = IOArray Int BufferCell
+type BufferArray = IOUArray Int BufferCell
 
 data ConsoleBuffer = ConsoleBuffer { currX :: !Int
                                    , currY :: !Int

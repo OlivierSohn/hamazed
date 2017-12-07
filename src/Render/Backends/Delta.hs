@@ -48,7 +48,7 @@ renderChar :: Char -> IO ()
 renderChar c = void (bPutCharRaw c)
 
 renderChars :: Int -> Char -> IO ()
-renderChars = bPutCharsRaw
+renderChars = bPutChars
 
 renderStr :: String -> IO ()
 renderStr = bPutStr

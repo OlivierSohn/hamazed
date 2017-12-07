@@ -32,7 +32,7 @@ module Render.Backends.Internal.Delta
        , bGotoXY
        , bPutChar
        , bPutCharRaw
-       , bPutCharsRaw
+       , bPutChars
        , bPutStr
        , bPutText
        , bClear
@@ -197,8 +197,8 @@ bPutCharRaw c = do
   writeArray buff pos ((fg, bg), c)
   return pos
 
-bPutCharsRaw :: Int -> Char -> IO ()
-bPutCharsRaw count c = do
+bPutChars :: Int -> Char -> IO ()
+bPutChars count c = do
   (ConsoleBuffer x y fg bg _ buff) <- readIORef screenBuffer
   mapM_ (\i -> let pos = positionFromXY (x+i) y
                in writeArray buff pos ((fg, bg), c)) [0..count-1]

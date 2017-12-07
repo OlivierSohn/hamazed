@@ -39,7 +39,16 @@ a stretching factor in poly function and circle function
 
 ## Delta rendering
 
-- resize buffer and do not draw on change of console size
+- use this data structure:
+data RenderContext = RenderContext {
+    renderContextBuffer :: IOArray Int BufferCell
+  , renderContextCurrentPosition :: RenderState
+}
+
+mkRenderContext :: Width -> Height -> RenderContext
+
+- investigate what happends exactly on console size change.
+(resize buffer and do not draw on change of console size?)
 
 - make a package for Delta rendering:
   - review function names

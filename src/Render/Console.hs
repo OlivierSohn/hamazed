@@ -60,7 +60,7 @@ import           Geo.Discrete
 import           Interpolation
 
 {--
-import qualified RenderBackends.Full as Backend( --}
+import qualified Render.Backends.Full as Backend( --}
 --{--
 import qualified Render.Backends.Delta as Backend( --}
                                                   beginFrame

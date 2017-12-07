@@ -75,6 +75,8 @@ import           System.Console.ANSI( ColorIntensity(..)
                                     , colorToCode )
 import           System.IO.Unsafe( unsafePerformIO )
 
+import           Render.Backends.Internal.BufferCell
+
 -- constant data
 bufferWidth :: Int
 bufferWidth = 300
@@ -92,7 +94,6 @@ bufferSize = bufferWidth * bufferHeight
 
 type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
-type BufferCell = (Colors, Char)
 -- TODO use an IOUArray that unboxes elements, and a representation with an Int:
 -- using bit shifts, we can store at least 2 Color8Code and a char in an Int.
 type BufferArray = IOArray Int BufferCell
@@ -118,10 +119,10 @@ noColor :: Color8Code
 noColor = Color8Code (-1)
 
 initialCell :: BufferCell
-initialCell = ((initialForeground, initialBackground), ' ')
+initialCell = mkBufferCell initialForeground initialBackground ' '
 
 nocolorCell :: BufferCell
-nocolorCell = ((noColor, noColor), ' ')
+nocolorCell = mkBufferCell noColor noColor ' '
 
 color8Code :: ColorIntensity -> Color -> Color8Code
 color8Code intensity color =
@@ -134,10 +135,6 @@ screenBuffer = unsafePerformIO $ do cur  <- newBufferArray nocolorCell -- We ini
                                     back <- newBufferArray initialCell -- so that in first render the whole console
                                                                        -- is drawn to.
                                     newIORef (ConsoleBuffer 0 0 initialForeground initialBackground cur back)
-
--- aux. functions
-needDrawing :: BufferCell -> BufferCell -> Bool
-needDrawing a b = a /= b
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -194,14 +191,15 @@ bPutCharRaw :: Char -> IO Int
 bPutCharRaw c = do
   (ConsoleBuffer x y fg bg _ buff) <- readIORef screenBuffer
   let pos = positionFromXY x y
-  writeArray buff pos ((fg, bg), c)
+  writeArray buff pos $ mkBufferCell fg bg c
   return pos
 
 bPutChars :: Int -> Char -> IO ()
 bPutChars count c = do
   (ConsoleBuffer x y fg bg _ buff) <- readIORef screenBuffer
+  let cell = mkBufferCell fg bg c
   mapM_ (\i -> let pos = positionFromXY (x+i) y
-               in writeArray buff pos ((fg, bg), c)) [0..count-1]
+               in writeArray buff pos cell) [0..count-1]
 
 -- | Write a char and advance in the buffer
 bPutChar :: Char -> IO ()
@@ -253,20 +251,22 @@ applyBuffer from to position clearFrom mayCurrentConsoleColor
       cellFrom <- readArray from position
       when clearFrom $ writeArray from position initialCell
       cellTo <- readArray to position
-      mayNewConsoleColor <- if needDrawing cellFrom cellTo
-                              then do
+      mayNewConsoleColor <- if cellFrom == cellTo
+                              then
+                                -- no need to draw
+                                return Nothing
+                              else do
                                 gotoCursorPosition position
                                 res <- drawCell cellFrom mayCurrentConsoleColor
                                 return $ Just res
-                              else
-                                return Nothing
       writeArray to position cellFrom
       applyBuffer from to (pred position) clearFrom (mayNewConsoleColor <|> mayCurrentConsoleColor)
   | otherwise = return ()
 
 drawCell :: BufferCell -> Maybe Colors -> IO Colors
-drawCell (color@(fg, bg), char) maybeCurrentConsoleColor = do
-  let (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
+drawCell cell maybeCurrentConsoleColor = do
+  let (fg, bg, char) = expand cell
+      (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
       sgrs = [SetPaletteColor Foreground fg | fgChange] ++
              [SetPaletteColor Background bg | bgChange]
   if null sgrs
@@ -274,7 +274,7 @@ drawCell (color@(fg, bg), char) maybeCurrentConsoleColor = do
       Prelude.putChar char
     else
       Prelude.putStr $ setSGRCode sgrs ++ [char]
-  return color
+  return (fg, bg)
 
 gotoCursorPosition :: Int -> IO ()
 gotoCursorPosition pos = setCursorPosition y x

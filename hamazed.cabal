@@ -86,7 +86,6 @@ library
                      , array
                      , colour
                      , containers
-                     , ease
                      , matrix
                      , monad-loops
                      , monadlist

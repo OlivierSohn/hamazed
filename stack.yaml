@@ -7,9 +7,11 @@ packages:
 - location:
     git: https://github.com/OlivierSohn/ansi-terminal.git
     commit: cb5ecbb9a89ceb24d06efa491e3ca44cf3f705f4
+  extra-dep: true
 - location:
     git: https://gitlab.com/OlivierSohn/Ease.git
     commit: 1d1398100135fa6571f37ff00a9607e886773a6f
+  extra-dep: true
 
 extra-deps:
 - monadlist-0.0.2

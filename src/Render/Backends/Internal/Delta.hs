@@ -90,11 +90,11 @@ bufferSize = bufferWidth * bufferHeight
 
 -- type definitions and global instance
 
--- We could use a newtype but I'm worried that unboxing doesn't happen recursively enough
--- to unbox everything here...
 type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
 type BufferCell = (Colors, Char)
+-- TODO use an IOUArray that unboxes elements, and a representation with an Int:
+-- using bit shifts, we can store at least 2 Color8Code and a char in an Int.
 type BufferArray = IOArray Int BufferCell
 
 data ConsoleBuffer = ConsoleBuffer { currX :: !Int

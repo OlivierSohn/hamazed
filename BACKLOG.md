@@ -23,16 +23,10 @@ on animations. Maybe we should animate the world too.
 
 At least do a rendering mask.
 
-- text should disappear / appear progressively
-
-- start the animation when game is won
-
 - a mode with limited visibility (a circle around the ship)
 
 - animate colors of "You win / You lost"
 using colors of numbers for win / colors of explosions for lost
-
-- on new level, clear the screen to avoid artifacts if the terminal size has changed.
 
 - for terminal, allow the points to go a little further up so that gravity makes them come back
 when shooting upwards

@@ -49,10 +49,13 @@ import           Imajuscule.Prelude
 
 import qualified Prelude ( putChar, putStr )
 
-import           Data.Array.IO( IOUArray
+{--import           Data.Array.IO( IOUArray
                               , newArray
                               , writeArray
                               , readArray )
+--}
+import Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
+
 import           Data.IORef( IORef
                            , newIORef
                            , readIORef
@@ -92,7 +95,7 @@ bufferSize = bufferWidth * bufferHeight
 
 type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
-type InterleavedBackFrontBuffer = IOUArray Int BackFrontCells
+type InterleavedBackFrontBuffer = IOVector (Cell, Cell)
 
 data Pencil = Pencil {
     _pencilBufferIndex :: !Int
@@ -105,8 +108,9 @@ data RenderState = RenderState {
   , _renderStateBuffer :: !InterleavedBackFrontBuffer
 }
 
-newBufferArray :: BackFrontCells -> IO InterleavedBackFrontBuffer
-newBufferArray = newArray (0, bufferMaxIdx)
+-- TODO use phantom types
+newBufferArray :: (Cell, Cell) -> IO InterleavedBackFrontBuffer
+newBufferArray = Data.Vector.Unboxed.Mutable.replicate bufferSize
 
 initialForeground :: Color8Code
 initialForeground = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
@@ -133,7 +137,7 @@ screenBuffer :: IORef RenderState
 screenBuffer =
   unsafePerformIO $ do
     -- We initialize to different colors so that in first render the whole console is drawn to.
-    buf <- newBufferArray $ mkCellsWithBackFront initialCell nocolorCell
+    buf <- newBufferArray (initialCell, nocolorCell)
     newIORef (RenderState mkInitialState buf)
 
 mkInitialState :: Pencil
@@ -218,10 +222,8 @@ bPutText text =
   mapM_ bPutChar (unpack text)
 
 writeToBack :: InterleavedBackFrontBuffer -> Int -> Cell -> IO ()
-writeToBack buff pos backCell = do
-  cell <- readArray buff pos
-  let newCell = setBack cell backCell
-  writeArray buff pos newCell
+writeToBack buff =
+  write (fst $ unzip buff)
 
 bClear :: IO ()
 bClear = do
@@ -240,6 +242,7 @@ blitBuffer clearSource = do
   (RenderState _ buff) <- readIORef screenBuffer
   drawDelta buff bufferMaxIdx clearSource Nothing
 
+-- TODO simplify the logic by decoupling front and back buffer updates
 drawDelta :: InterleavedBackFrontBuffer
           -- ^ buffer containing new and old values
           -> Int
@@ -251,8 +254,7 @@ drawDelta :: InterleavedBackFrontBuffer
           -> IO ()
 drawDelta buffer position clearBack mayCurrentConsoleColor
   | position >= 0 = do
-      cells <- readArray buffer position
-      let (back, front) = splitBackFront cells
+      (back, front) <- read buffer position
       mayNewConsoleColor <-
         if back == front
           then
@@ -266,8 +268,7 @@ drawDelta buffer position clearBack mayCurrentConsoleColor
             if clearBack
               then initialCell
               else back
-          newCell = mkCellsWithBackFront newBack back
-      writeArray buffer position newCell
+      write buffer position (newBack, back)
       drawDelta buffer (pred position) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
   | otherwise = return ()
 

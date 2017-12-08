@@ -3,10 +3,7 @@
 module Render.Backends.Delta(
                             beginFrame
                           , endFrame
-                          , setForeground
-                          , setColors
                           , restoreColors
-                          , restoreForeground
                           , moveTo
                           , renderChar
                           , renderChars
@@ -14,7 +11,11 @@ module Render.Backends.Delta(
                           , renderTxt
                           , preferredBuffering
                           , setRenderSize
+                          -- reexports from Render.Backends.Internal.Delta
                           , Color8Code(..)
+                          , setColor
+                          , setColors
+                          , Colors(..)
                           ) where
 
 import           Imajuscule.Prelude
@@ -24,13 +25,12 @@ import           Control.Monad( void )
 import           Data.Text( Text )
 import           Data.String( String )
 
-import           System.IO( hFlush
-                          , stdout
-                          , BufferMode(..) )
+import           System.IO( BufferMode(..) )
 
 import           Geo.Discrete.Types
 
 import           Render.Backends.Internal.Delta
+import           Render.Backends.Internal.Types
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering Nothing
@@ -39,38 +39,26 @@ beginFrame :: IO ()
 beginFrame = return ()
 
 endFrame :: IO ()
-endFrame = blitBuffer True {- clear buffer -} >> hFlush stdout
+endFrame = swapAndFlush True {- clear buffer after rendering -}
 
 moveTo :: Coords -> IO ()
 moveTo (Coords (Row r) (Col c))
   | r < 0 || c < 0 = error "cannot render to negative locations"
-  | otherwise = bGotoXY (fromIntegral c) (fromIntegral r)
+  | otherwise = setDrawingPosition (fromIntegral c) (fromIntegral r)
 
 renderChar :: Char -> IO ()
-renderChar c = void (bPutCharRaw c)
+renderChar c = putCharRaw c
 
 renderChars :: Int -> Char -> IO ()
 renderChars n
   | n < 0 = error "cannot render a negative number of chars"
-  | otherwise = bPutChars (fromIntegral n)
+  | otherwise = putChars (fromIntegral n)
 
 renderStr :: String -> IO ()
-renderStr = bPutStr
+renderStr = putStr
 
 renderTxt :: Text -> IO ()
-renderTxt = bPutText
+renderTxt = putText
 
-setRenderSize :: Int -> Int -> IO ()
-setRenderSize w h = bSetRenderSize (fromIntegral w) (fromIntegral h)
-
-setForeground :: Color8Code -> IO Color8Code
-setForeground = bSetForeground
-
-restoreForeground :: Color8Code -> IO ()
-restoreForeground = void . setForeground
-
-setColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
-setColors = bSetColors
-
-restoreColors :: (Color8Code, Color8Code) -> IO ()
-restoreColors = void . bSetColors
+restoreColors :: Colors -> IO ()
+restoreColors = void . setColors

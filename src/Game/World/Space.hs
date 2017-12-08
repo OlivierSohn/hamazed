@@ -238,17 +238,15 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
           snd $ mapAccumL
                   (\col@(Col c) listMaterials@(material:_) ->
                      let count = length listMaterials
+                         materialColor = case material of
+                           Wall -> wallColors
+                           Air -> airColors
+                         materialChar = case material of
+                           Wall -> 'Z'
+                           Air -> ' '
                      in (Col (c+count),
-                         RenderGroup
-                           (row, col,
-                            case material of
-                              Wall -> wallColors
-                              Air -> airColors,
-                            case material of
-                              Wall -> 'Z'
-                              Air -> ' ',
-                            count)))
-                  (Col 0) $ group $ map (accessMaterial . Col) [0..cs-1]
+                         RenderGroup row col materialColor materialChar count))
+                  (Col 0) $ group $ map (accessMaterial . Col) [0..pred cs]
 
 getInnerMaterial :: Coords -> Space -> Material
 getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _) =
@@ -282,7 +280,7 @@ renderSpace (Space _ _ renderedWorld) upperLeft = do
   return worldCoords
 
 renderGroup :: RenderState -> RenderGroup -> IO ()
-renderGroup worldCoords (RenderGroup (r, c, colors, char, count)) =
+renderGroup worldCoords (RenderGroup r c colors char count) =
   renderColoredChars count char colors $ translate r c worldCoords
 
 

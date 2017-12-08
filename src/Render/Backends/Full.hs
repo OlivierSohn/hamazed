@@ -1,20 +1,20 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Render.Backends.Full(
-                            beginFrame
-                          , endFrame
-                          , setForeground
-                          , restoreForeground
-                          , moveTo
-                          , renderChar
-                          , renderChars
-                          , renderStr
-                          , renderTxt
-                          , setColors
-                          , restoreColors
-                          , preferredBuffering
-                          , setRenderSize
-                          ) where
+module Render.Backends.Full( beginFrame
+                           , endFrame
+                           , setColor
+                           , moveTo
+                           , renderChar
+                           , renderChars
+                           , renderStr
+                           , renderTxt
+                           , setColors
+                           , restoreColors
+                           , preferredBuffering
+                           , setRenderSize
+                           -- reexport from Render.Backends.Internal.Types
+                           , Colors(..)
+                           ) where
 
 import           Imajuscule.Prelude
 
@@ -36,6 +36,8 @@ import           System.IO( hFlush
                           , BufferMode(..) )
 
 import           Geo.Discrete.Types( Coords(..), Col(..), Row(..))
+
+import           Render.Backends.Internal.Types
 
 setRenderSize :: Int -> Int -> IO ()
 setRenderSize _ _ = return ()
@@ -71,21 +73,19 @@ whiteColor8Code, blackColor8Code :: Color8Code
 whiteColor8Code = Color8Code 231
 blackColor8Code = Color8Code 16
 
-restoreForeground :: Color8Code -> IO ()
-restoreForeground = void . setForeground
-
 -- | limited support : the returned value is hardcoded to white because there is no way
 --   of getting the current color using System.Console.ANSI. TODO use a state monad
-setForeground :: Color8Code -> IO Color8Code
-setForeground c =
-  setSGR [SetPaletteColor Foreground c] >>
-    return whiteColor8Code
+setColor :: ConsoleLayer -> Color8Code -> IO Colors
+setColor layer c =
+  setSGR [SetPaletteColor layer c] >>
+    return (Colors whiteColor8Code blackColor8Code)
 
 -- | limited support : the returned value is hardcoded to white forgroundm black background
 --  because there is no way of getting the current color using System.Console.ANSI. TODO use a state monad
-setColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
-setColors (fg, bg) = setSGR [SetPaletteColor Foreground fg, SetPaletteColor Background bg] >>
-  return (whiteColor8Code, blackColor8Code)
+setColors :: Colors -> IO Colors
+setColors (Colors fg bg) =
+  setSGR [SetPaletteColor Foreground fg, SetPaletteColor Background bg] >>
+    return (Colors whiteColor8Code blackColor8Code)
 
-restoreColors :: (Color8Code, Color8Code) -> IO ()
+restoreColors :: Colors -> IO ()
 restoreColors = void . setColors

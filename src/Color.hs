@@ -37,14 +37,16 @@ import           Data.Colour.SRGB (RGB (..))
 import           Animation.Types
 import           Game.Level.Types
 
-configColors :: (Color8Code, Color8Code)
-configColors = (gray 8, gray 0)
+import           Render.Console
 
-wallColors :: (Color8Code, Color8Code)
-wallColors = (gray 3, gray 0)
+configColors :: Colors
+configColors = Colors (gray 8) (gray 0)
 
-airColors :: (Color8Code, Color8Code)
-airColors = (white, black)
+wallColors :: Colors
+wallColors = Colors (gray 3) (gray 0)
+
+airColors :: Colors
+airColors = Colors white black
 
 neutralMessageColor :: Color8Code
 neutralMessageColor = gray 10
@@ -59,11 +61,11 @@ messageColor :: GameStops -> Color8Code
 messageColor Won      = rgb 4 3 1
 messageColor (Lost _) = gray 6
 
-shipColors :: (Color8Code, Color8Code)
-shipColors = (shipColor, shipBgColor)
+shipColors :: Colors
+shipColors = Colors shipColor shipBgColor
 
-shipColorsSafe :: (Color8Code, Color8Code)
-shipColorsSafe = (shipColorSafe, shipBgColorSafe)
+shipColorsSafe :: Colors
+shipColorsSafe = Colors shipColorSafe shipBgColorSafe
 
 shipColor :: Color8Code
 shipColor = rgb 5 4 4

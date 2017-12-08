@@ -19,8 +19,6 @@ module Game.World.Space.Types
 
 import           Imajuscule.Prelude
 
-import           System.Console.ANSI( Color8Code(..) )
-
 import           GHC.Generics( Generic )
 
 import           Data.Matrix( Matrix )
@@ -28,6 +26,8 @@ import           Data.Matrix( Matrix )
 import           Foreign.C.Types( CInt(..) )
 
 import           Geo.Discrete.Types
+
+import           Render.Console
 
 data WallType = None
               | Deterministic
@@ -40,7 +40,13 @@ data RandomParameters = RandomParameters {
   , _randomWallsStrategy :: !Strategy
 }
 
-newtype RenderGroup = RenderGroup (Row, Col, (Color8Code, Color8Code), Char, Int)
+data RenderGroup = RenderGroup {
+    _renderGroupRow :: !Row
+  , _renderGroupCol :: !Col
+  , _renderGroupColors :: !Colors
+  , _renderGroupChar :: !Char
+  , _renderGroupCount :: Int
+}
 
 data Space = Space {
     _space :: !(Matrix CInt)

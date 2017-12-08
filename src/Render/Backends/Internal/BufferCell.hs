@@ -11,6 +11,8 @@ import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           System.Console.ANSI( Color8Code(..) )
 
+import           Render.Backends.Internal.Types
+
 -- Word64 is optimal: there is no wasted space when unboxed,
 --   cf. https://wiki.haskell.org/GHC/Memory_Footprint
 type Cell = Word64
@@ -45,12 +47,16 @@ expand w = (getForegroundColor w
            ,getBackgroundColor w
            ,getCharacter w)
 
-{-# INLINE mkCell #-}
-mkCell :: Color8Code -> Color8Code -> Char -> Cell
-mkCell (Color8Code fg') (Color8Code bg') char' =
+{-# INLINE encodeColors #-}
+encodeColors :: Colors -> Word16
+encodeColors (Colors (Color8Code fg') (Color8Code bg')) =
   let fg = fromIntegral fg' :: Word16
       bg = fromIntegral bg' :: Word16
-      color' = bg .|. (fg `shiftL` 8)
-      color = fromIntegral color'
+  in bg .|. (fg `shiftL` 8)
+
+{-# INLINE mkCell #-}
+mkCell :: Colors -> Char -> Cell
+mkCell colors char' =
+  let color = fromIntegral $ encodeColors colors
       char = fromIntegral $ ord char'
   in color .|. (char `shiftL` 32)

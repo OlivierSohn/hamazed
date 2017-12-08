@@ -13,10 +13,8 @@ module Render.Console ( ConsoleConfig(..)
                , renderSegment
                , setRenderSize
                -- reexport System.Console.ANSI
-               , ColorIntensity(..)
-               , Color(..)
                , Color8Code(..)
-               , Xterm256Color(..)
+               , ConsoleLayer(..)
                -- reexport System.Console.ANSI.Codes
                , xterm256ColorToCode
                -- reexports from backends
@@ -24,8 +22,8 @@ module Render.Console ( ConsoleConfig(..)
                , Backend.endFrame
                , Backend.setColors
                , Backend.restoreColors
-               , Backend.setForeground
-               , Backend.restoreForeground
+               , Backend.setColor
+               , Backend.Colors(..)
                ) where
 
 import           Imajuscule.Prelude
@@ -37,15 +35,9 @@ import           Data.Text( Text )
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
 
-import           System.Console.ANSI( clearScreen
-                                    , hideCursor
-                                    , setSGR
-                                    , setCursorPosition
-                                    , showCursor
-                                    , ColorIntensity(..)
-                                    , Color(..)
-                                    , Color8Code(..)
-                                    , Xterm256Color(..) )
+import           System.Console.ANSI( clearScreen, hideCursor
+                                    , setSGR, setCursorPosition, showCursor
+                                    , Color8Code(..), ConsoleLayer(..) )
 import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.IO( hSetBuffering
                           , hGetBuffering

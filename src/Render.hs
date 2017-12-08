@@ -73,11 +73,11 @@ renderPoints state =
 
 renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
 renderColoredPoints points colorCode state = do
-  fg <- setForeground colorCode
+  c <- setColor Foreground colorCode
   renderPoints state points
-  restoreForeground fg
+  restoreColors c
 
-renderColoredChars :: Int -> Char -> (Color8Code, Color8Code) -> RenderState -> IO ()
+renderColoredChars :: Int -> Char -> Colors -> RenderState -> IO ()
 renderColoredChars count char colors state = do
   c <- setColors colors
   renderChars count char state
@@ -105,9 +105,9 @@ renderColored :: ColorString -> RenderState -> IO ()
 renderColored (ColorString cs) ref =
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    fg <- setForeground color
+    c <- setColor Foreground color
     renderTxt_ txt $ Render.move count RIGHT ref
-    restoreForeground fg
+    restoreColors c
     return $ count + l) 0 cs
 
 align' :: Alignment -> Int -> RenderState -> RenderState

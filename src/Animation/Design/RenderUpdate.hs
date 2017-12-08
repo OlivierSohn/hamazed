@@ -121,8 +121,8 @@ render parentFrame mayCharAnim (Tree _ childFrame (Just branches) onWall mayChar
             Stop      -> error "animation should have stopped"
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
-      fg <- setForeground color
+      prevCol <- setColor Foreground color
       mapM_ (\c -> renderChar char c r) renderedCoordinates
-      restoreForeground fg
+      restoreColors prevCol
       childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r) children
       return $ isAlive || or childrenAlive

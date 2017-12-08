@@ -1,37 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- Initial code from Rafael Ibraim : https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
---
--- With the following modifications:
---   - in blitBuffer I removed the code that moves the cursor, as I think it's another concern
---      that should be handled by the user of this module using System.Console.ASCII.hideCursor)
---   - introduce bPutCharRaw that doesn't change the position in the buffer (to optimize
---       when moving the position is not needed)
---   - add the function bClear that clears the buffer using the initial color
---   - add a Bool parameter to blitBuffer to say if we want to clear the source buffer:
---      it might be faster to clear while blitting, instead of calling bClear afterwards,
---      because the values will probably be in a closer cache.
---   - introduce modOptimized to optimize modulos, because most of the time,
---      the value is returned unchanged so a simple comparison is enough.
---   - Reworked logic of drawCell / applyBuffer to draw only when strictly required.
---     To that end, we keep track of the current color of the console while drawing.
---   - Add support for 8-bits ANSI colors
---   - Optimize memory layout
-
 module Render.Backends.Internal.Delta
-       ( bSetRenderSize
-       , bGetRenderSize
-       , bSetForeground
-       , bSetBackground
-       , bSetColors
-       , bGotoXY
-       , bPutChar
-       , bPutCharRaw
-       , bPutChars
-       , bPutStr
-       , bPutText
-       , bClear
-       , blitBuffer
+       ( setRenderSize
+       , setColor
+       , setColors
+       , setDrawingPosition
+       , putCharRaw
+       , putChars
+       , putStr
+       , putText
+       , clear
+       , swapAndFlush
        -- reexports from System.Console.ANSI
        , Color8Code(..)
        ) where
@@ -55,16 +34,12 @@ import           System.Console.ANSI( xterm256ColorToCode
                                     , setSGRCode
                                     , SGR(..)
                                     , ConsoleLayer(..) )
+import           System.IO( stdout, hFlush )
 import           System.IO.Unsafe( unsafePerformIO )
 
 import           Render.Backends.Internal.BufferCell
+import           Render.Backends.Internal.Types
 
--- type definitions and global instance
-
-data Colors = Colors {
-    _colorsForeground :: {-# UNPACK #-} !Color8Code
-  , _colorsBackground :: {-# UNPACK #-} !Color8Code
-}
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 
@@ -77,9 +52,8 @@ data Front
 -- that could fit in a Word64 (Color8Code = 2 Word8, index = Word32)
 -- with 16 bits extra room
 data Pencil = Pencil {
-    _pencilBufferIndex :: !Word32
-  , _pencilForeground :: !Color8Code
-  , _pencilBackground :: !Color8Code
+    _pencilBufferIndex :: {-# UNPACK #-} !Word32
+  , _pencilColors :: {-# UNPACK #-} !Colors
 }
 
 -- that could fit exactly in a Word64 (width and height = 2 Word16, size = Word32)
@@ -91,22 +65,17 @@ data Buffers = Buffers {
   , _buffersHeight :: !Word16
 }
 
-
-bGetRenderSize :: IO (Word16, Word16)
-bGetRenderSize = do
-  (RenderState _ (Buffers _ _ _ w h)) <- readIORef screenBuffer
-  return (w,h)
-
-bSetRenderSize :: Word16 -> Word16 -> IO ()
-bSetRenderSize width height = do
-  (RenderState (Pencil idx fg bg) (Buffers _ _ _ prevWidth prevHeight)) <- readIORef screenBuffer
+-- | reallocates buffers only if the width or height has changed
+setRenderSize :: Word16 -> Word16 -> IO ()
+setRenderSize width height = do
+  (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight)) <- readIORef screenBuffer
   if prevWidth == width && prevHeight == height
     then
       return ()
     else do
       buffers@(Buffers _ _ size _ _) <- mkBuffers width height
       let newPencilIdx = idx `fastMod` size
-      writeIORef screenBuffer $ RenderState (Pencil newPencilIdx fg bg) buffers
+      writeIORef screenBuffer $ RenderState (Pencil newPencilIdx colors) buffers
 
 -- | creates buffers for given width and height, replaces 0 width or height by 1.
 mkBuffers :: Word16 -> Word16 -> IO Buffers
@@ -142,10 +111,18 @@ noColor = Color8Code (-1)
 initialCell :: Cell
 initialCell =
   let res = 0x200000E710 -- optimization for 'drawDelta' (TODO check if the compiler would have found it)
-  in assert (mkCell initialForeground initialBackground ' ' == res) res
+  in assert (mkCell initialColors ' ' == res) res
+
+{-# INLINE initialColors #-}
+initialColors :: Colors
+initialColors = Colors initialForeground initialBackground
+
+{-# INLINE noColors #-}
+noColors :: Colors
+noColors = Colors noColor noColor
 
 nocolorCell :: Cell
-nocolorCell = mkCell noColor noColor ' '
+nocolorCell = mkCell noColors ' '
 
 {-# NOINLINE screenBuffer #-}
 screenBuffer :: IORef RenderState
@@ -155,7 +132,7 @@ screenBuffer =
     newIORef (RenderState mkInitialState buffers)
 
 mkInitialState :: Pencil
-mkInitialState = Pencil 0 initialForeground initialBackground
+mkInitialState = Pencil 0 initialColors
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -179,65 +156,58 @@ xyFromPosition (Buffers _ _ size width _) pos =
     x = pos' - fromIntegral y * fromIntegral width
     y = pos' `div` fromIntegral width
 
+setColor :: ConsoleLayer -> Color8Code -> IO Colors
+setColor layer color = do
+  (RenderState (Pencil idx prevColors@(Colors prevFg prevBg)) b ) <- readIORef screenBuffer
+  let newColors = case layer of
+        Foreground -> Colors color prevBg
+        Background -> Colors prevFg color
+  writeIORef screenBuffer $ RenderState (Pencil idx newColors) b
+  return prevColors
 
-bSetForeground :: Color8Code -> IO Color8Code
-bSetForeground fg = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx fg prevBg) b
-  return prevFg
-
-bSetBackground :: Color8Code -> IO Color8Code
-bSetBackground bg = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx prevFg bg) b
-  return prevBg
-
-bSetColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
-bSetColors (fg,bg) = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx fg bg) b
-  return (prevFg, prevBg)
+setColors :: Colors -> IO Colors
+setColors colors = do
+  (RenderState (Pencil idx prevColors) b ) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil idx colors) b
+  return prevColors
 
 
-bGotoXY :: Word16 -> Word16 -> IO ()
-bGotoXY x y = do
-  (RenderState (Pencil _ fg bg) b) <- readIORef screenBuffer
+setDrawingPosition :: Word16 -> Word16 -> IO ()
+setDrawingPosition x y = do
+  (RenderState (Pencil _ colors) b) <- readIORef screenBuffer
   let idx = positionFromXY b x y
-  writeIORef screenBuffer $ RenderState (Pencil idx fg bg) b
+  writeIORef screenBuffer $ RenderState (Pencil idx colors) b
 
--- | Write a char and return the position of the written char in the buffer
-bPutCharRaw :: Char -> IO ()
-bPutCharRaw c = do
-  (RenderState (Pencil idx fg bg) (Buffers back _ _ _ _)) <- readIORef screenBuffer
-  writeToBack back idx $ mkCell fg bg c
+putCharRaw :: Char -> IO ()
+putCharRaw c = do
+  (RenderState (Pencil idx colors) (Buffers back _ _ _ _)) <- readIORef screenBuffer
+  putCharRawAt back idx colors c
 
-bPutChars :: Word32 -> Char -> IO ()
-bPutChars count c = do
-  (RenderState (Pencil idx fg bg) (Buffers back _ size _ _)) <- readIORef screenBuffer
-  let cell = mkCell fg bg c
+putCharRawAt :: Buffer Back -> Word32 -> Colors -> Char -> IO ()
+putCharRawAt back idx colors c =
+  writeToBack back idx $ mkCell colors c
+
+putChars :: Word32 -> Char -> IO ()
+putChars count c = do
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
+  let cell = mkCell colors c
   mapM_ (\i -> let pos = (idx + i) `fastMod` size
                in writeToBack back pos cell) [0..pred count]
 
--- | Write a char and advance in the buffer
-bPutChar :: Char -> IO ()
-bPutChar c = do
-  bPutCharRaw c
-  (RenderState (Pencil idx fg bg) b@(Buffers _ _ size _ _)) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil (succ idx `fastMod` size) fg bg) b
+putStr :: String -> IO ()
+putStr str = do
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
+  mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
-bPutStr :: String -> IO ()
-bPutStr = mapM_ bPutChar
-
-bPutText :: Text -> IO ()
-bPutText text =
-  mapM_ bPutChar (unpack text)
+putText :: Text -> IO ()
+putText text = putStr $ unpack text
 
 {-# INLINE writeToBack #-}
 writeToBack :: Buffer Back -> Word32 -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
-bClear :: IO ()
-bClear = do
+clear :: IO ()
+clear = do
   (RenderState _ b) <- readIORef screenBuffer
   fillBackBuffer b initialCell
 
@@ -245,13 +215,15 @@ fillBackBuffer :: Buffers -> Cell -> IO ()
 fillBackBuffer (Buffers (Buffer b) _ size _ _) cell =
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
--- blit the backbuffer into the main buffer and change the screen
-blitBuffer :: Bool
-           -- ^ Clear the source buffer
-           -> IO ()
-blitBuffer clearSource = do
+-- | Copies the backbuffer to the front buffer and renders the differences to the
+--     console.
+swapAndFlush :: Bool
+             -- ^ Clear the back buffer
+             -> IO ()
+swapAndFlush clearBack = do
   (RenderState _ buffers) <- readIORef screenBuffer
-  drawDelta buffers 0 clearSource Nothing
+  drawDelta buffers 0 clearBack Nothing
+  hFlush stdout
 
 drawDelta :: Buffers
           -> Word32

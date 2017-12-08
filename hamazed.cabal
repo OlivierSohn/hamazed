@@ -73,8 +73,9 @@ library
                      , Render
                      , Render.Backends.Full
                      , Render.Backends.Delta
-                     , Render.Backends.Internal.Delta
                      , Render.Backends.Internal.BufferCell
+                     , Render.Backends.Internal.Delta
+                     , Render.Backends.Internal.Types
                      , Render.Console
                      , Render.Types
                      , Run

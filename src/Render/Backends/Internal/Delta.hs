@@ -3,10 +3,6 @@
 -- Initial code from Rafael Ibraim : https://gist.github.com/ibraimgm/40e307d70feeb4f117cd
 --
 -- With the following modifications:
---   - use strict fields in record to avoid lazy evaluation
---   - simplify code of bPutStr
---   - write applyBuffer using guards
---   - make imports explicit
 --   - in blitBuffer I removed the code that moves the cursor, as I think it's another concern
 --      that should be handled by the user of this module using System.Console.ASCII.hideCursor)
 --   - introduce bPutCharRaw that doesn't change the position in the buffer (to optimize
@@ -17,14 +13,13 @@
 --      because the values will probably be in a closer cache.
 --   - introduce modOptimized to optimize modulos, because most of the time,
 --      the value is returned unchanged so a simple comparison is enough.
---   - inline some functions
 --   - Reworked logic of drawCell / applyBuffer to draw only when strictly required.
 --     To that end, we keep track of the current color of the console while drawing.
 --   - Add support for 8-bits ANSI colors
+--   - Optimize memory layout
 
 module Render.Backends.Internal.Delta
-       (
-         bSetForeground
+       ( bSetForeground
        , bSetRawForeground
        , bSetBackground
        , bSetRawBackground
@@ -41,20 +36,14 @@ module Render.Backends.Internal.Delta
        , ColorIntensity(..)
        , Color(..)
        , Xterm256Color(..)
-       , Color8Code(..) -- Constructors is exported but the preferred way to describe colors is with
-                        -- (ColorIntensity, Color) or RGB8Color or Gray8Color
+       , Color8Code(..)
        ) where
 
-import           Imajuscule.Prelude
+import           Imajuscule.Prelude hiding (replicate)
 
 import qualified Prelude ( putChar, putStr )
 
-{--import           Data.Array.IO( IOUArray
-                              , newArray
-                              , writeArray
-                              , readArray )
---}
-import Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
+import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
 
 import           Data.IORef( IORef
                            , newIORef
@@ -95,7 +84,13 @@ bufferSize = bufferWidth * bufferHeight
 
 type Colors = (Color8Code, Color8Code) -- (foregroud color, background color)
 
-type InterleavedBackFrontBuffer = IOVector (Cell, Cell)
+type BackFrontBuffer = IOVector (Cell, Cell)
+
+newtype Buffer a = Buffer (IOVector Cell)
+
+-- | Buffer types
+data Back
+data Front
 
 data Pencil = Pencil {
     _pencilBufferIndex :: !Int
@@ -105,12 +100,13 @@ data Pencil = Pencil {
 
 data RenderState = RenderState {
     _renderStatePencil :: !Pencil
-  , _renderStateBuffer :: !InterleavedBackFrontBuffer
+  , _renderStateBackBuffer :: !(Buffer Back)
+  , _renderStateFrontBuffer :: !(Buffer Front)
 }
 
--- TODO use phantom types
-newBufferArray :: (Cell, Cell) -> IO InterleavedBackFrontBuffer
-newBufferArray = Data.Vector.Unboxed.Mutable.replicate bufferSize
+-- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
+newBufferArray :: (Cell, Cell) -> IO BackFrontBuffer
+newBufferArray = replicate bufferSize
 
 initialForeground :: Color8Code
 initialForeground = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
@@ -121,8 +117,11 @@ initialBackground = xterm256ColorToCode $ RGBColor $ RGB 0 0 0
 noColor :: Color8Code
 noColor = Color8Code (-1)
 
+{-# INLINE initialCell #-}
 initialCell :: Cell
-initialCell = mkCell initialForeground initialBackground ' '
+initialCell =
+  let res = 0x200000E710 -- optimization for 'drawDelta' (TODO check if the compiler would have found it)
+  in assert (mkCell initialForeground initialBackground ' ' == res) res
 
 nocolorCell :: Cell
 nocolorCell = mkCell noColor noColor ' '
@@ -138,7 +137,8 @@ screenBuffer =
   unsafePerformIO $ do
     -- We initialize to different colors so that in first render the whole console is drawn to.
     buf <- newBufferArray (initialCell, nocolorCell)
-    newIORef (RenderState mkInitialState buf)
+    let (back, front) = unzip buf
+    newIORef (RenderState mkInitialState (Buffer back) (Buffer front))
 
 mkInitialState :: Pencil
 mkInitialState = Pencil 0 initialForeground initialBackground
@@ -169,8 +169,8 @@ bSetForeground ci co = bSetRawForeground $ color8Code ci co
 
 bSetRawForeground :: Color8Code -> IO Color8Code
 bSetRawForeground fg = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx fg prevBg) b
+  (RenderState (Pencil idx prevFg prevBg) b f ) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil idx fg prevBg) b f
   return prevFg
 
 bSetBackground :: ColorIntensity -> Color -> IO Color8Code
@@ -178,41 +178,41 @@ bSetBackground ci co = bSetRawBackground $ color8Code ci co
 
 bSetRawBackground :: Color8Code -> IO Color8Code
 bSetRawBackground bg = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx prevFg bg) b
+  (RenderState (Pencil idx prevFg prevBg) b f ) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil idx prevFg bg) b f
   return prevBg
 
 bSetColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
 bSetColors (fg,bg) = do
-  (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx fg bg) b
+  (RenderState (Pencil idx prevFg prevBg) b f ) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil idx fg bg) b f
   return (prevFg, prevBg)
 
 
 bGotoXY :: Int -> Int -> IO ()
 bGotoXY x y = do
-  (RenderState (Pencil _ fg bg) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil (positionFromXY x y) fg bg) b
+  (RenderState (Pencil _ fg bg) b f) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil (positionFromXY x y) fg bg) b f
 
 -- | Write a char and return the position of the written char in the buffer
 bPutCharRaw :: Char -> IO ()
 bPutCharRaw c = do
-  (RenderState (Pencil idx fg bg) buff) <- readIORef screenBuffer
-  writeToBack buff idx $ mkCell fg bg c
+  (RenderState (Pencil idx fg bg) back _) <- readIORef screenBuffer
+  writeToBack back idx $ mkCell fg bg c
 
 bPutChars :: Int -> Char -> IO ()
 bPutChars count c = do
-  (RenderState (Pencil idx fg bg) buff) <- readIORef screenBuffer
+  (RenderState (Pencil idx fg bg) b _) <- readIORef screenBuffer
   let cell = mkCell fg bg c
   mapM_ (\i -> let pos = (idx + i) `fastMod` bufferSize
-               in writeToBack buff pos cell) [0..pred count]
+               in writeToBack b pos cell) [0..pred count]
 
 -- | Write a char and advance in the buffer
 bPutChar :: Char -> IO ()
 bPutChar c = do
   bPutCharRaw c
-  (RenderState (Pencil idx fg bg) buff) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil (succ idx) fg bg) buff
+  (RenderState (Pencil idx fg bg) b f) <- readIORef screenBuffer
+  writeIORef screenBuffer $ RenderState (Pencil (succ idx) fg bg) b f
 
 bPutStr :: String -> IO ()
 bPutStr = mapM_ bPutChar
@@ -221,30 +221,29 @@ bPutText :: Text -> IO ()
 bPutText text =
   mapM_ bPutChar (unpack text)
 
-writeToBack :: InterleavedBackFrontBuffer -> Int -> Cell -> IO ()
-writeToBack buff =
-  write (fst $ unzip buff)
+{-# INLINE writeToBack #-}
+writeToBack :: Buffer Back -> Int -> Cell -> IO ()
+writeToBack (Buffer b) = write b
 
 bClear :: IO ()
 bClear = do
-  (RenderState _ buff) <- readIORef screenBuffer
-  fillBackBuffer initialCell buff
+  (RenderState _ back _) <- readIORef screenBuffer
+  fillBackBuffer back initialCell
 
-fillBackBuffer :: Cell -> InterleavedBackFrontBuffer -> IO ()
-fillBackBuffer cell buffer =
-  mapM_ (\pos -> writeToBack buffer pos cell) [0..bufferMaxIdx]
+fillBackBuffer :: Buffer Back -> Cell -> IO ()
+fillBackBuffer (Buffer b) cell =
+  mapM_ (\pos -> write b pos cell) [0..bufferMaxIdx]
 
 -- blit the backbuffer into the main buffer and change the screen
 blitBuffer :: Bool
            -- ^ Clear the source buffer
            -> IO ()
 blitBuffer clearSource = do
-  (RenderState _ buff) <- readIORef screenBuffer
-  drawDelta buff bufferMaxIdx clearSource Nothing
+  (RenderState _ back front) <- readIORef screenBuffer
+  drawDelta back front bufferMaxIdx clearSource Nothing
 
--- TODO simplify the logic by decoupling front and back buffer updates
-drawDelta :: InterleavedBackFrontBuffer
-          -- ^ buffer containing new and old values
+drawDelta :: Buffer Back
+          -> Buffer Front
           -> Int
           -- ^ the position in the buffer
           -> Bool
@@ -252,32 +251,32 @@ drawDelta :: InterleavedBackFrontBuffer
           -> Maybe Colors
           -- ^ The current console color, if it is known
           -> IO ()
-drawDelta buffer position clearBack mayCurrentConsoleColor
-  | position >= 0 = do
-      (back, front) <- read buffer position
+drawDelta (Buffer backBuf) (Buffer frontBuf) idx clearBack mayCurrentConsoleColor
+  | idx >= 0 = do
+      valueToDisplay <- read backBuf idx
+      valueCurrentlyDisplayed <- read frontBuf idx
       mayNewConsoleColor <-
-        if back == front
+        if valueToDisplay == valueCurrentlyDisplayed
           then
-            -- no need to draw
             return Nothing
           else do
-            gotoCursorPosition position
-            res <- drawCell back mayCurrentConsoleColor
+            -- draw on screen
+            res <- drawCell idx valueToDisplay mayCurrentConsoleColor
+            -- update front buffer with drawn value
+            write frontBuf idx valueToDisplay
             return $ Just res
-      let newBack =
-            if clearBack
-              then initialCell
-              else back
-      write buffer position (newBack, back)
-      drawDelta buffer (pred position) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
+      when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf idx initialCell
+      drawDelta (Buffer backBuf) (Buffer frontBuf) (pred idx) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
   | otherwise = return ()
 
-drawCell :: Cell -> Maybe Colors -> IO Colors
-drawCell cell maybeCurrentConsoleColor = do
+drawCell :: Int -> Cell -> Maybe Colors -> IO Colors
+drawCell idx cell maybeCurrentConsoleColor = do
   let (fg, bg, char) = expand cell
       (fgChange, bgChange) = maybe (True, True) (\(fg',bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
       sgrs = [SetPaletteColor Foreground fg | fgChange] ++
              [SetPaletteColor Background bg | bgChange]
+  -- move to drawing position
+  setCursorPositionFromBufferIdx idx
   if fgChange || bgChange
     then
       Prelude.putStr $ setSGRCode sgrs ++ [char]
@@ -285,7 +284,8 @@ drawCell cell maybeCurrentConsoleColor = do
       Prelude.putChar char
   return (fg, bg)
 
-gotoCursorPosition :: Int -> IO ()
-gotoCursorPosition pos = setCursorPosition y x
-  where
-    (x, y) = xyFromPosition pos
+{-# INLINE setCursorPositionFromBufferIdx #-}
+setCursorPositionFromBufferIdx :: Int -> IO ()
+setCursorPositionFromBufferIdx pos = do
+  let (x, y) = xyFromPosition pos
+  setCursorPosition y x

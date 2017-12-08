@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 
 module Test.WorldEvolutions(testWE) where
 
@@ -17,8 +16,5 @@ testWE = do
   print curInfos
   print newInfos
   let
-      wa@(WorldAnimation (WorldEvolutions _ _ _) _ _ ) = mkWorldAnimation (f1, curInfos) (f1, newInfos) t
-
-      --wa = mkWorldAnimation (f1, ((["."],["."]),(["."],["."]))) (f1, (([""],[""]),([""],[""]))) t
-      --wa = mkWorldAnimation (f1, (([""],[""]),([""],[""]))) (f1, (([""],[""]),([""],[""]))) t
+      wa = mkWorldAnimation (f1, curInfos) (f1, newInfos) t
   print wa

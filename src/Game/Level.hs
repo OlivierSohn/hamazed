@@ -130,13 +130,13 @@ renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do
   let color = messageColor stop
       topLeft = go RIGHT coords
-  fg <- setRawForeground color
+  fg <- setForeground color
   renderTxt_ (case stop of
     (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
   restoreForeground fg
   when (messageState == ContinueMessage) $ do
-    fg2 <- setRawForeground neutralMessageColor
+    fg2 <- setForeground neutralMessageColor
     renderTxt_ (if level == lastLevel
       then
         "You reached the end of the game!"

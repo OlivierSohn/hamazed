@@ -1,7 +1,17 @@
 
 # Backlog
 
-- when terminal is resized, re-center world accordingly
+## Delta rendering
+
+- make a package for Delta rendering:
+  - review function names
+  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
+  - CI: https://github.com/hvr/multi-ghc-travis
+
+- animate lose/win messages
+
+- when terminal is resized, re-center world accordingly.
+- if terminal size is too small, pause the game and display a message
 
 - make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
@@ -38,24 +48,6 @@ when shooting upwards
 - take into account the fact that character width and height are not equal,
 so geometric figures are stretched in height. We could compensate for that by using
 a stretching factor in poly function and circle function
-
-## Delta rendering
-
-- use this data structure:
-data RenderContext = RenderContext {
-    renderContextBuffer :: IOArray Int BufferCell
-  , renderContextCurrentPosition :: RenderState
-}
-
-mkRenderContext :: Width -> Height -> RenderContext
-
-- investigate what happends exactly on console size change.
-(resize buffer and do not draw on change of console size?)
-
-- make a package for Delta rendering:
-  - review function names
-  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
-  - CI: https://github.com/hvr/multi-ghc-travis
 
 ## Configurability
 

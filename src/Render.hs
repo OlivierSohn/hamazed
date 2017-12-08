@@ -73,7 +73,7 @@ renderPoints state =
 
 renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
 renderColoredPoints points colorCode state = do
-  fg <- setRawForeground colorCode
+  fg <- setForeground colorCode
   renderPoints state points
   restoreForeground fg
 
@@ -105,7 +105,7 @@ renderColored :: ColorString -> RenderState -> IO ()
 renderColored (ColorString cs) ref =
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    fg <- setRawForeground color
+    fg <- setForeground color
     renderTxt_ txt $ Render.move count RIGHT ref
     restoreForeground fg
     return $ count + l) 0 cs

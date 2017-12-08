@@ -26,7 +26,6 @@ module Render.Console ( ConsoleConfig(..)
                , Backend.setColors
                , Backend.restoreColors
                , Backend.setForeground
-               , Backend.setRawForeground
                , Backend.restoreForeground
                ) where
 

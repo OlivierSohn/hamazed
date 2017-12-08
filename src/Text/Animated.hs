@@ -82,7 +82,7 @@ renderColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  fg <- setRawForeground color
+  fg <- setForeground color
   zipWithM_ renderChar_ (unpack txt) headRs
   restoreForeground fg
   renderColorStringAt (tail l) tailRs

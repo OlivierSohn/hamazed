@@ -22,9 +22,7 @@ module Render.Backends.Internal.Delta
        ( bSetRenderSize
        , bGetRenderSize
        , bSetForeground
-       , bSetRawForeground
        , bSetBackground
-       , bSetRawBackground
        , bSetColors
        , bGotoXY
        , bPutChar
@@ -35,9 +33,6 @@ module Render.Backends.Internal.Delta
        , bClear
        , blitBuffer
        -- reexports from System.Console.ANSI
-       , ColorIntensity(..)
-       , Color(..)
-       , Xterm256Color(..)
        , Color8Code(..)
        ) where
 
@@ -47,32 +42,29 @@ import qualified Prelude ( putChar, putStr )
 
 import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
 
-import           Data.Colour.SRGB(RGB(..))
-import           Data.IORef( IORef
-                           , newIORef
-                           , readIORef
-                           , writeIORef )
+import           Data.Colour.SRGB( RGB(..) )
+import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Word( Word32, Word16 )
 
-import           System.Console.ANSI( ColorIntensity(..)
-                                    , Color(..)
-                                    , Xterm256Color(..)
-                                    , xterm256ColorToCode
+import           System.Console.ANSI( xterm256ColorToCode
                                     , Color8Code(..)
+                                    , Xterm256Color(..)
                                     , setCursorPosition
                                     , setSGRCode
                                     , SGR(..)
-                                    , ConsoleLayer(..)
-                                    , colorToCode )
+                                    , ConsoleLayer(..) )
 import           System.IO.Unsafe( unsafePerformIO )
 
 import           Render.Backends.Internal.BufferCell
 
 -- type definitions and global instance
 
-data Colors = Colors {-# UNPACK #-} !(Color8Code, Color8Code) -- (foregroud color, background color)
+data Colors = Colors {
+    _colorsForeground :: {-# UNPACK #-} !Color8Code
+  , _colorsBackground :: {-# UNPACK #-} !Color8Code
+}
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 
@@ -136,6 +128,7 @@ data RenderState = RenderState {
 newBufferArray :: Word32 -> (Cell, Cell) -> IO BackFrontBuffer
 newBufferArray size = replicate (fromIntegral size)
 
+-- TODO caller should be able to set this
 initialForeground :: Color8Code
 initialForeground = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
 
@@ -153,11 +146,6 @@ initialCell =
 
 nocolorCell :: Cell
 nocolorCell = mkCell noColor noColor ' '
-
-color8Code :: ColorIntensity -> Color -> Color8Code
-color8Code intensity color =
-  let code = fromIntegral $ colorToCode color
-  in  Color8Code $ if intensity == Vivid then 8 + code else code
 
 {-# NOINLINE screenBuffer #-}
 screenBuffer :: IORef RenderState
@@ -191,21 +179,15 @@ xyFromPosition (Buffers _ _ size width _) pos =
     x = pos' - fromIntegral y * fromIntegral width
     y = pos' `div` fromIntegral width
 
--- functions that query/modify the buffer
-bSetForeground :: ColorIntensity -> Color -> IO Color8Code
-bSetForeground ci co = bSetRawForeground $ color8Code ci co
 
-bSetRawForeground :: Color8Code -> IO Color8Code
-bSetRawForeground fg = do
+bSetForeground :: Color8Code -> IO Color8Code
+bSetForeground fg = do
   (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
   writeIORef screenBuffer $ RenderState (Pencil idx fg prevBg) b
   return prevFg
 
-bSetBackground :: ColorIntensity -> Color -> IO Color8Code
-bSetBackground ci co = bSetRawBackground $ color8Code ci co
-
-bSetRawBackground :: Color8Code -> IO Color8Code
-bSetRawBackground bg = do
+bSetBackground :: Color8Code -> IO Color8Code
+bSetBackground bg = do
   (RenderState (Pencil idx prevFg prevBg) b ) <- readIORef screenBuffer
   writeIORef screenBuffer $ RenderState (Pencil idx prevFg bg) b
   return prevBg
@@ -301,7 +283,7 @@ drawDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _) idx clearBack 
 drawCell :: Buffers -> Word32 -> Cell -> Maybe Colors -> IO Colors
 drawCell b idx cell maybeCurrentConsoleColor = do
   let (fg, bg, char) = expand cell
-      (fgChange, bgChange) = maybe (True, True) (\(Colors (fg',bg')) -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
+      (fgChange, bgChange) = maybe (True, True) (\(Colors fg' bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
       sgrs = [SetPaletteColor Foreground fg | fgChange] ++
              [SetPaletteColor Background bg | bgChange]
   -- move to drawing position
@@ -311,7 +293,7 @@ drawCell b idx cell maybeCurrentConsoleColor = do
       Prelude.putStr $ setSGRCode sgrs ++ [char]
     else
       Prelude.putChar char
-  return $ Colors (fg, bg)
+  return $ Colors fg bg
 
 {-# INLINE setCursorPositionFromBufferIdx #-}
 setCursorPositionFromBufferIdx :: Buffers -> Word32 -> IO ()

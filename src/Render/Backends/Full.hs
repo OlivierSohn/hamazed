@@ -4,7 +4,6 @@ module Render.Backends.Full(
                             beginFrame
                           , endFrame
                           , setForeground
-                          , setRawForeground
                           , restoreForeground
                           , moveTo
                           , renderChar
@@ -26,9 +25,7 @@ import           Control.Monad( replicateM_ )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 
-import           System.Console.ANSI( Color(..)
-                                    , ColorIntensity(..)
-                                    , Color8Code(..)
+import           System.Console.ANSI( Color8Code(..)
                                     , clearScreen
                                     , setCursorPosition
                                     , setSGR
@@ -74,20 +71,13 @@ whiteColor8Code, blackColor8Code :: Color8Code
 whiteColor8Code = Color8Code 231
 blackColor8Code = Color8Code 16
 
--- | limited support : the returned value is hardcoded because there is no way
---   of getting the current color using System.Console.ANSI. TODO use a state monad
-setForeground :: ColorIntensity -> Color -> IO Color8Code
-setForeground ci c =
-  setSGR [SetColor Foreground ci c] >>
-    return whiteColor8Code
-
 restoreForeground :: Color8Code -> IO ()
-restoreForeground = void . setRawForeground
+restoreForeground = void . setForeground
 
 -- | limited support : the returned value is hardcoded to white because there is no way
 --   of getting the current color using System.Console.ANSI. TODO use a state monad
-setRawForeground :: Color8Code -> IO Color8Code
-setRawForeground c =
+setForeground :: Color8Code -> IO Color8Code
+setForeground c =
   setSGR [SetPaletteColor Foreground c] >>
     return whiteColor8Code
 

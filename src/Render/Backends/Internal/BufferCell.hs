@@ -11,8 +11,9 @@ import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           System.Console.ANSI( Color8Code(..) )
 
--- Word64 is optimal: there is no wasted space when unboxed, cf. https://wiki.haskell.org/GHC/Memory_Footprint
-type Cell           = Word64
+-- Word64 is optimal: there is no wasted space when unboxed,
+--   cf. https://wiki.haskell.org/GHC/Memory_Footprint
+type Cell = Word64
 
 {-# INLINE firstWord32 #-}
 firstWord32 :: Word64 -> Word32
@@ -38,6 +39,7 @@ getBackgroundColor w = Color8Code $ eigthWord8 w
 getCharacter :: Cell -> Char
 getCharacter w = chr $ fromIntegral $ firstWord32 w
 
+{-# INLINE expand #-}
 expand :: Cell -> (Color8Code, Color8Code, Char)
 expand w = (getForegroundColor w
            ,getBackgroundColor w
@@ -45,18 +47,10 @@ expand w = (getForegroundColor w
 
 {-# INLINE mkCell #-}
 mkCell :: Color8Code -> Color8Code -> Char -> Cell
-mkCell (Color8Code fg') (Color8Code bg') char =
+mkCell (Color8Code fg') (Color8Code bg') char' =
   let fg = fromIntegral fg' :: Word16
       bg = fromIntegral bg' :: Word16
       color' = bg .|. (fg `shiftL` 8)
       color = fromIntegral color'
-
-      c' = ord char
-      c = fromIntegral $
-        if c' <= fromIntegral (maxBound :: Word32)
-          then
-            c'
-          else
-            ord '?' -- valid range for Unicode is 0x0 to 0x10FFFF (https://en.wikipedia.org/wiki/Unicode)
-
-  in color .|. (c `shiftL` 32)
+      char = fromIntegral $ ord char'
+  in color .|. (char `shiftL` 32)

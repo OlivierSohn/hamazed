@@ -161,7 +161,7 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
 
 renderNumber :: Number -> Space -> RenderState -> IO ()
 renderNumber (Number (PosSpeed pos _) i) space r = do
-  fg <- setRawForeground $ numberColor i
+  fg <- setForeground $ numberColor i
   renderIfNotColliding (intToDigit i) pos space r
   restoreForeground fg
 

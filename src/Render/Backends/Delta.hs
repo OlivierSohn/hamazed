@@ -6,7 +6,6 @@ module Render.Backends.Delta(
                           , setForeground
                           , setColors
                           , restoreColors
-                          , setRawForeground
                           , restoreForeground
                           , moveTo
                           , renderChar
@@ -62,9 +61,6 @@ renderStr = bPutStr
 renderTxt :: Text -> IO ()
 renderTxt = bPutText
 
-setForeground :: ColorIntensity -> Color -> IO Color8Code
-setForeground = bSetForeground
-
 getRenderSize :: IO (Int, Int)
 getRenderSize = do
   (w,h) <- bGetRenderSize
@@ -73,11 +69,11 @@ getRenderSize = do
 setRenderSize :: Int -> Int -> IO ()
 setRenderSize w h = bSetRenderSize (fromIntegral w) (fromIntegral h)
 
-setRawForeground :: Color8Code -> IO Color8Code
-setRawForeground = bSetRawForeground
+setForeground :: Color8Code -> IO Color8Code
+setForeground = bSetForeground
 
 restoreForeground :: Color8Code -> IO ()
-restoreForeground = void . setRawForeground
+restoreForeground = void . setForeground
 
 setColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
 setColors = bSetColors

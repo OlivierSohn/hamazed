@@ -14,6 +14,8 @@ module Render.Backends.Delta(
                           , renderStr
                           , renderTxt
                           , preferredBuffering
+                          , setRenderSize
+                          , getRenderSize
                           , Color8Code(..)
                           ) where
 
@@ -42,13 +44,17 @@ endFrame :: IO ()
 endFrame = blitBuffer True {- clear buffer -} >> hFlush stdout
 
 moveTo :: Coords -> IO ()
-moveTo (Coords (Row r) (Col c)) = bGotoXY c r
+moveTo (Coords (Row r) (Col c))
+  | r < 0 || c < 0 = error "cannot render to negative locations"
+  | otherwise = bGotoXY (fromIntegral c) (fromIntegral r)
 
 renderChar :: Char -> IO ()
 renderChar c = void (bPutCharRaw c)
 
 renderChars :: Int -> Char -> IO ()
-renderChars = bPutChars
+renderChars n
+  | n < 0 = error "cannot render a negative number of chars"
+  | otherwise = bPutChars (fromIntegral n)
 
 renderStr :: String -> IO ()
 renderStr = bPutStr
@@ -58,6 +64,14 @@ renderTxt = bPutText
 
 setForeground :: ColorIntensity -> Color -> IO Color8Code
 setForeground = bSetForeground
+
+getRenderSize :: IO (Int, Int)
+getRenderSize = do
+  (w,h) <- bGetRenderSize
+  return (fromIntegral w, fromIntegral h)
+
+setRenderSize :: Int -> Int -> IO ()
+setRenderSize w h = bSetRenderSize (fromIntegral w) (fromIntegral h)
 
 setRawForeground :: Color8Code -> IO Color8Code
 setRawForeground = bSetRawForeground

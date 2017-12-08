@@ -26,6 +26,7 @@ import           Render.Console
 import           Render( move, renderAlignedTxt_
                        , Alignment(..), go, renderAlignedTxt
                        , Coords(..), Row(..), Col(..), Direction(..))
+import           Render.Types
 
 import           Timing
 
@@ -75,6 +76,7 @@ render (GameParameters shape wall) = do
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
+      setRenderSize TerminalSize
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=

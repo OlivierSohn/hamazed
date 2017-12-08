@@ -34,6 +34,7 @@ import           Geo.Continuous
 import           Geo.Discrete hiding(translate)
 
 import           Render.Console
+import           Render.Types
 
 import           Util
 
@@ -260,6 +261,7 @@ updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
+      setRenderSize TerminalSize
       beginFrame
       let s2 =
             if isFinished anim

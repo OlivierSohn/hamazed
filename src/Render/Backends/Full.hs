@@ -14,6 +14,7 @@ module Render.Backends.Full(
                           , setColors
                           , restoreColors
                           , preferredBuffering
+                          , setRenderSize
                           ) where
 
 import           Imajuscule.Prelude
@@ -39,6 +40,8 @@ import           System.IO( hFlush
 
 import           Geo.Discrete.Types( Coords(..), Col(..), Row(..))
 
+setRenderSize :: Int -> Int -> IO ()
+setRenderSize _ _ = return ()
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering Nothing

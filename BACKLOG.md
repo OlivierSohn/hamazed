@@ -1,6 +1,8 @@
 
 # Backlog
 
+- when terminal is resized, re-center world accordingly
+
 - make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
 

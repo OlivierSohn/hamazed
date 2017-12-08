@@ -76,6 +76,7 @@ library
                      , Render.Backends.Internal.Delta
                      , Render.Backends.Internal.BufferCell
                      , Render.Console
+                     , Render.Types
                      , Run
                      , Text.Animated
                      , Text.ColorString

@@ -3,13 +3,6 @@
 module Render.Console ( ConsoleConfig(..)
                , configureConsoleFor
                -- rendering functions
-               , beginFrame
-               , endFrame
-               , setColors
-               , restoreColors
-               , setForeground
-               , setRawForeground
-               , Backend.restoreForeground
                , renderChar_
                , renderChars
                , renderStr
@@ -18,6 +11,7 @@ module Render.Console ( ConsoleConfig(..)
                , renderTxt_
                , RenderState(..)
                , renderSegment
+               , setRenderSize
                -- reexport System.Console.ANSI
                , ColorIntensity(..)
                , Color(..)
@@ -25,6 +19,15 @@ module Render.Console ( ConsoleConfig(..)
                , Xterm256Color(..)
                -- reexport System.Console.ANSI.Codes
                , xterm256ColorToCode
+               -- reexports from backends
+               , Backend.beginFrame
+               , Backend.endFrame
+               , Backend.getRenderSize
+               , Backend.setColors
+               , Backend.restoreColors
+               , Backend.setForeground
+               , Backend.setRawForeground
+               , Backend.restoreForeground
                ) where
 
 import           Imajuscule.Prelude
@@ -60,22 +63,11 @@ import           Geo.Discrete
 import           Interpolation
 
 {--
-import qualified Render.Backends.Full as Backend( --}
+import qualified Render.Backends.Full as Backend --}
 --{--
-import qualified Render.Backends.Delta as Backend( --}
-                                                  beginFrame
-                                                , endFrame
-                                                , moveTo
-                                                , renderChar
-                                                , renderChars
-                                                , renderStr
-                                                , renderTxt
-                                                , setForeground
-                                                , setRawForeground
-                                                , restoreForeground
-                                                , setColors
-                                                , restoreColors
-                                                , preferredBuffering )
+import qualified Render.Backends.Delta as Backend --}
+
+import           Render.Types
 
 --------------------------------------------------------------------------------
 -- Pure
@@ -92,6 +84,20 @@ instance DiscretelyInterpolable RenderState where
     distance from to
   interpolate (RenderState from) (RenderState to) progress =
     RenderState $ interpolate from to progress
+
+setRenderSize :: RenderSize -> IO ()
+setRenderSize (UserDefined w h)
+  | w <= 0 = error "negative or zero render width not allowed"
+  | h <= 0 = error "negative or zero render height not allowed"
+  | otherwise = Backend.setRenderSize (fromIntegral w) (fromIntegral h)
+setRenderSize TerminalSize = do
+  mayTermSize <- Terminal.size
+  let (width, height) =
+        maybe
+          (300, 70) -- sensible default if terminal size is not available
+          (\(Terminal.Window h w) -> (w, h))
+            mayTermSize
+  Backend.setRenderSize width height
 
 --------------------------------------------------------------------------------
 -- IO
@@ -130,24 +136,6 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-beginFrame :: IO ()
-beginFrame = Backend.beginFrame
-
-endFrame :: IO ()
-endFrame = Backend.endFrame
-
-setForeground :: ColorIntensity -> Color -> IO Color8Code
-setForeground = Backend.setForeground
-
-setRawForeground :: Color8Code -> IO Color8Code
-setRawForeground = Backend.setRawForeground
-
-setColors :: (Color8Code, Color8Code) -> IO (Color8Code, Color8Code)
-setColors = Backend.setColors
-
-restoreColors :: (Color8Code, Color8Code) -> IO ()
-restoreColors = Backend.restoreColors
-
 renderChar_ :: Char -> RenderState -> IO ()
 renderChar_ char (RenderState c) = do
   Backend.moveTo c
@@ -158,7 +146,6 @@ renderChars :: Int -> Char -> RenderState -> IO ()
 renderChars count char (RenderState c) = do
   Backend.moveTo c
   Backend.renderChars count char
-
 
 renderStr :: String -> RenderState -> IO RenderState
 renderStr str r@(RenderState c) =

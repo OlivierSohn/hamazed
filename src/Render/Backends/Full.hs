@@ -2,14 +2,14 @@
 
 module Render.Backends.Full( beginFrame
                            , endFrame
-                           , setColor
+                           , setDrawColor
                            , moveTo
-                           , renderChar
-                           , renderChars
-                           , renderStr
-                           , renderTxt
-                           , setColors
-                           , restoreColors
+                           , drawChar
+                           , drawChars
+                           , drawStr
+                           , drawTxt
+                           , setDrawColors
+                           , restoreDrawColors
                            , preferredBuffering
                            , setRenderSize
                            -- reexport from Render.Backends.Internal.Types
@@ -55,17 +55,17 @@ moveTo :: Coords -> IO ()
 moveTo (Coords (Row r) (Col c)) =
   setCursorPosition r c
 
-renderChar :: Char -> IO ()
-renderChar = Prelude.putChar
+drawChar :: Char -> IO ()
+drawChar = Prelude.putChar
 
-renderChars :: Int -> Char -> IO ()
-renderChars n c = replicateM_ n $ Prelude.putChar c
+drawChars :: Int -> Char -> IO ()
+drawChars n c = replicateM_ n $ Prelude.putChar c
 
-renderStr :: String -> IO ()
-renderStr = Prelude.putStr
+drawStr :: String -> IO ()
+drawStr = Prelude.putStr
 
-renderTxt :: Text -> IO ()
-renderTxt = Prelude.putStr . unpack
+drawTxt :: Text -> IO ()
+drawTxt = Prelude.putStr . unpack
 
 -- | These values are used to return hardcoded values when we can't know
 --   the current foreground or background color
@@ -75,17 +75,17 @@ blackColor8Code = Color8Code 16
 
 -- | limited support : the returned value is hardcoded to white because there is no way
 --   of getting the current color using System.Console.ANSI. TODO use a state monad
-setColor :: ConsoleLayer -> Color8Code -> IO Colors
-setColor layer c =
+setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
+setDrawColor layer c =
   setSGR [SetPaletteColor layer c] >>
     return (Colors whiteColor8Code blackColor8Code)
 
 -- | limited support : the returned value is hardcoded to white forgroundm black background
 --  because there is no way of getting the current color using System.Console.ANSI. TODO use a state monad
-setColors :: Colors -> IO Colors
-setColors (Colors fg bg) =
+setDrawColors :: Colors -> IO Colors
+setDrawColors (Colors fg bg) =
   setSGR [SetPaletteColor Foreground fg, SetPaletteColor Background bg] >>
     return (Colors whiteColor8Code blackColor8Code)
 
-restoreColors :: Colors -> IO ()
-restoreColors = void . setColors
+restoreDrawColors :: Colors -> IO ()
+restoreDrawColors = void . setDrawColors

@@ -6,7 +6,7 @@ module Render (
         , renderColored
         , renderColoredPoints
         , renderColoredChars
-        , renderChar
+        , drawChar
         , renderPoints
         , Alignment(..)
         , renderAlignedTxt
@@ -63,25 +63,25 @@ diffRS (RenderState c1) (RenderState c2) = RenderState $ diffCoords c1 c2
 -- IO
 --------------------------------------------------------------------------------
 
-renderChar :: Char -> Coords -> RenderState -> IO ()
-renderChar char pos (RenderState upperLeftCoords) =
+drawChar :: Char -> Coords -> RenderState -> IO ()
+drawChar char pos (RenderState upperLeftCoords) =
   renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
 
 renderPoints :: RenderState -> [(Coords, Char)] -> IO ()
 renderPoints state =
-  mapM_ (\(c,char) -> renderChar char c state)
+  mapM_ (\(c,char) -> drawChar char c state)
 
 renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
 renderColoredPoints points colorCode state = do
-  c <- setColor Foreground colorCode
+  c <- setDrawColor Foreground colorCode
   renderPoints state points
-  restoreColors c
+  restoreDrawColors c
 
 renderColoredChars :: Int -> Char -> Colors -> RenderState -> IO ()
 renderColoredChars count char colors state = do
-  c <- setColors colors
-  renderChars count char state
-  restoreColors c
+  c <- setDrawColors colors
+  drawChars count char state
+  restoreDrawColors c
 
 data Alignment = Centered
                | RightAligned
@@ -105,9 +105,9 @@ renderColored :: ColorString -> RenderState -> IO ()
 renderColored (ColorString cs) ref =
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    c <- setColor Foreground color
+    c <- setDrawColor Foreground color
     renderTxt_ txt $ Render.move count RIGHT ref
-    restoreColors c
+    restoreDrawColors c
     return $ count + l) 0 cs
 
 align' :: Alignment -> Int -> RenderState -> RenderState

@@ -130,13 +130,13 @@ renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
 renderLevelState coords level (LevelFinished stop _ messageState) = do
   let color = messageColor stop
       topLeft = go RIGHT coords
-  c <- setColor Foreground color
+  c <- setDrawColor Foreground color
   renderTxt_ (case stop of
     (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
-  restoreColors c
+  restoreDrawColors c
   when (messageState == ContinueMessage) $ do
-    c2 <- setColor Foreground neutralMessageColor
+    c2 <- setDrawColor Foreground neutralMessageColor
     renderTxt_ (if level == lastLevel
       then
         "You reached the end of the game!"
@@ -145,7 +145,7 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
                           (Lost _) -> "restart"
                           Won      -> "continue"
         in "Hit a key to " <> action <> " ...") (move 2 Down topLeft)
-    restoreColors c2
+    restoreDrawColors c2
 
 
 renderLevelMessage :: Level -> RenderState -> IO ()

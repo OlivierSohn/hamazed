@@ -39,6 +39,7 @@ testICS = do
       p2   = colored "[.]" (rgb 5 0 0)
       e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolution (Successive [p1,p2,p1]) 1
 
+  setDrawingSize TerminalSize
   beginFrame
 
   mapM_
@@ -64,7 +65,7 @@ testICS = do
       let cs@(ColorString l) = evolve e''' i
           (_,color) = head l
       renderColored cs (RenderState (Coords (Row c + 30) (Col 25)))
-      renderStr (show color) (RenderState (Coords (Row c + 30) (Col 35)))
+      drawStr (show color) (RenderState (Coords (Row c + 30) (Col 35)))
     ) $ map Frame [0..lastFrame''']
 
   endFrame

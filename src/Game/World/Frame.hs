@@ -17,6 +17,6 @@ import           Render.Console
 
 renderWorldFrame :: Evolution FrameAnimationParallel4 -> Frame -> IO ()
 renderWorldFrame e frame = do
-  c <- setColor Foreground worldFrameColor
+  c <- setDrawColor Foreground worldFrameColor
   evolveIO e frame
-  restoreColors c
+  restoreDrawColors c

@@ -1,5 +1,6 @@
 module Render.Backends.Internal.Types
           ( Colors(..)
+          , Color8Code(..)
           ) where
 
 

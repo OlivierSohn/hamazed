@@ -155,15 +155,15 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
   mapM_ (\b -> renderNumber b space worldCorner) balls
   when (null collisions) (do
     let colors = if isNothing safeTime then shipColors else shipColorsSafe
-    c <- setColors colors
+    c <- setDrawColors colors
     renderIfNotColliding '+' shipCoords space worldCorner -- TODO render if safetime or not colliding
-    restoreColors c)
+    restoreDrawColors c)
 
 renderNumber :: Number -> Space -> RenderState -> IO ()
 renderNumber (Number (PosSpeed pos _) i) space r = do
-  c <- setColor Foreground $ numberColor i
+  c <- setDrawColor Foreground $ numberColor i
   renderIfNotColliding (intToDigit i) pos space r
-  restoreColors c
+  restoreDrawColors c
 
 renderWorldAnimation :: WorldAnimation
                      -> IO ()

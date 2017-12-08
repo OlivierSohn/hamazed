@@ -82,9 +82,9 @@ renderColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  c <- setColor Foreground color
+  c <- setDrawColor Foreground color
   zipWithM_ renderChar_ (unpack txt) headRs
-  restoreColors c
+  restoreDrawColors c
   renderColorStringAt (tail l) tailRs
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList RenderState) -> Frame -> [RenderState]

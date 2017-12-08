@@ -1,17 +1,18 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Render.Console ( ConsoleConfig(..)
+module Render.Console
+               ( ConsoleConfig(..)
                , configureConsoleFor
                -- rendering functions
                , renderChar_
-               , renderChars
-               , renderStr
+               , drawChars
+               , drawStr
                , renderStr_
-               , renderTxt
+               , drawTxt
                , renderTxt_
                , RenderState(..)
                , renderSegment
-               , setRenderSize
+               , setDrawingSize
                -- reexport System.Console.ANSI
                , Color8Code(..)
                , ConsoleLayer(..)
@@ -20,10 +21,12 @@ module Render.Console ( ConsoleConfig(..)
                -- reexports from backends
                , Backend.beginFrame
                , Backend.endFrame
-               , Backend.setColors
-               , Backend.restoreColors
-               , Backend.setColor
+               , Backend.setDrawColors
+               , Backend.restoreDrawColors
+               , Backend.setDrawColor
                , Backend.Colors(..)
+               -- reexports
+               , module Render.Types
                ) where
 
 import           Imajuscule.Prelude
@@ -75,19 +78,19 @@ instance DiscretelyInterpolable RenderState where
   interpolate (RenderState from) (RenderState to) progress =
     RenderState $ interpolate from to progress
 
-setRenderSize :: RenderSize -> IO ()
-setRenderSize (UserDefined w h)
+setDrawingSize :: RenderSize -> IO ()
+setDrawingSize (UserDefined w h)
   | w <= 0 = error "negative or zero render width not allowed"
   | h <= 0 = error "negative or zero render height not allowed"
-  | otherwise = Backend.setRenderSize (fromIntegral w) (fromIntegral h)
-setRenderSize TerminalSize = do
+  | otherwise = Backend.setDrawingSize (fromIntegral w) (fromIntegral h)
+setDrawingSize TerminalSize = do
   mayTermSize <- Terminal.size
   let (width, height) =
         maybe
           (300, 70) -- sensible default if terminal size is not available
           (\(Terminal.Window h w) -> (w, h))
             mayTermSize
-  Backend.setRenderSize width height
+  Backend.setDrawingSize width height
 
 --------------------------------------------------------------------------------
 -- IO
@@ -129,31 +132,31 @@ configureConsoleFor config = do
 renderChar_ :: Char -> RenderState -> IO ()
 renderChar_ char (RenderState c) = do
   Backend.moveTo c
-  Backend.renderChar char
+  Backend.drawChar char
 
 
-renderChars :: Int -> Char -> RenderState -> IO ()
-renderChars count char (RenderState c) = do
+drawChars :: Int -> Char -> RenderState -> IO ()
+drawChars count char (RenderState c) = do
   Backend.moveTo c
-  Backend.renderChars count char
+  Backend.drawChars count char
 
-renderStr :: String -> RenderState -> IO RenderState
-renderStr str r@(RenderState c) =
+drawStr :: String -> RenderState -> IO RenderState
+drawStr str r@(RenderState c) =
   renderStr_ str r >> return (RenderState $ translateInDir Down c)
 
 renderStr_ :: String -> RenderState -> IO ()
 renderStr_ str (RenderState c) = do
   Backend.moveTo c
-  Backend.renderStr str
+  Backend.drawStr str
 
-renderTxt :: Text -> RenderState -> IO RenderState
-renderTxt txt r@(RenderState c) =
+drawTxt :: Text -> RenderState -> IO RenderState
+drawTxt txt r@(RenderState c) =
   renderTxt_ txt r >> return (RenderState $ translateInDir Down c)
 
 renderTxt_ :: Text -> RenderState -> IO ()
 renderTxt_ txt (RenderState c) = do
   Backend.moveTo c
-  Backend.renderTxt txt
+  Backend.drawTxt txt
 
 renderSegment :: Segment -> Char -> RenderState -> IO ()
 renderSegment l = case l of

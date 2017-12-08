@@ -1,18 +1,31 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Render.Backends.Internal.Delta
-       ( setRenderSize
-       , setColor
-       , setColors
-       , setDrawingPosition
-       , putCharRaw
-       , putChars
-       , putStr
-       , putText
-       , clear
-       , swapAndFlush
-       -- reexports from System.Console.ANSI
-       , Color8Code(..)
+       (
+       -- * Set the drawing area
+         setDrawingSize
+       -- * Uniformly fill the buffer
+       , fill
+       -- * Draw on the buffer at a specific location
+       -- ** Set the location for subsequent 'draw***' calls
+       , setDrawLocation
+       -- ** Set the colors for subsequent 'draw***' calls
+       , setDrawColor
+       , setDrawColors
+       , restoreDrawColors
+       -- ** Draw one char
+       , drawChar
+       -- ** Draw one char multiple times
+       , drawChars
+       -- ** Draw a 'String'
+       , drawStr
+       -- ** Draw a 'Text'
+       , drawTxt
+       -- * Render the differences between current buffer and previous buffer
+       --  to the console
+       , submitDrawing
+       -- * Reexports
+       , module Render.Backends.Internal.Types
        ) where
 
 import           Imajuscule.Prelude hiding (replicate)
@@ -23,6 +36,7 @@ import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, 
 
 import           Data.Colour.SRGB( RGB(..) )
 import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
+import           Data.Maybe( fromMaybe )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Word( Word32, Word16 )
@@ -66,8 +80,8 @@ data Buffers = Buffers {
 }
 
 -- | reallocates buffers only if the width or height has changed
-setRenderSize :: Word16 -> Word16 -> IO ()
-setRenderSize width height = do
+setDrawingSize :: Word16 -> Word16 -> IO ()
+setDrawingSize width height = do
   (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight)) <- readIORef screenBuffer
   if prevWidth == width && prevHeight == height
     then
@@ -156,8 +170,8 @@ xyFromPosition (Buffers _ _ size width _) pos =
     x = pos' - fromIntegral y * fromIntegral width
     y = pos' `div` fromIntegral width
 
-setColor :: ConsoleLayer -> Color8Code -> IO Colors
-setColor layer color = do
+setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
+setDrawColor layer color = do
   (RenderState (Pencil idx prevColors@(Colors prevFg prevBg)) b ) <- readIORef screenBuffer
   let newColors = case layer of
         Foreground -> Colors color prevBg
@@ -165,21 +179,28 @@ setColor layer color = do
   writeIORef screenBuffer $ RenderState (Pencil idx newColors) b
   return prevColors
 
-setColors :: Colors -> IO Colors
-setColors colors = do
+setDrawColors :: Colors -> IO Colors
+setDrawColors colors = do
   (RenderState (Pencil idx prevColors) b ) <- readIORef screenBuffer
   writeIORef screenBuffer $ RenderState (Pencil idx colors) b
   return prevColors
 
+restoreDrawColors :: Colors -> IO ()
+restoreDrawColors = void . setDrawColors
 
-setDrawingPosition :: Word16 -> Word16 -> IO ()
-setDrawingPosition x y = do
+setDrawLocation :: Int -> Int -> IO ()
+setDrawLocation x y
+  | x < 0 || y < 0 = error $ "cannot draw to negative location " ++ show (x,y)
+  | otherwise      = setDrawLocation' (fromIntegral x) (fromIntegral y)
+
+setDrawLocation' :: Word16 -> Word16 -> IO ()
+setDrawLocation' x y = do
   (RenderState (Pencil _ colors) b) <- readIORef screenBuffer
   let idx = positionFromXY b x y
   writeIORef screenBuffer $ RenderState (Pencil idx colors) b
 
-putCharRaw :: Char -> IO ()
-putCharRaw c = do
+drawChar :: Char -> IO ()
+drawChar c = do
   (RenderState (Pencil idx colors) (Buffers back _ _ _ _)) <- readIORef screenBuffer
   putCharRawAt back idx colors c
 
@@ -187,53 +208,61 @@ putCharRawAt :: Buffer Back -> Word32 -> Colors -> Char -> IO ()
 putCharRawAt back idx colors c =
   writeToBack back idx $ mkCell colors c
 
-putChars :: Word32 -> Char -> IO ()
-putChars count c = do
+drawChars :: Int -> Char -> IO ()
+drawChars count c = do
   (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
   let cell = mkCell colors c
-  mapM_ (\i -> let pos = (idx + i) `fastMod` size
+  mapM_ (\i -> let pos = (idx + fromIntegral i) `fastMod` size
                in writeToBack back pos cell) [0..pred count]
 
-putStr :: String -> IO ()
-putStr str = do
+drawStr :: String -> IO ()
+drawStr str = do
   (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
   mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
-putText :: Text -> IO ()
-putText text = putStr $ unpack text
+drawTxt :: Text -> IO ()
+drawTxt text = drawStr $ unpack text
 
 {-# INLINE writeToBack #-}
 writeToBack :: Buffer Back -> Word32 -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
-clear :: IO ()
-clear = do
+fill :: Maybe Colors -> Maybe Char -> IO ()
+fill mayColors mayChar = do
+  let colors = fromMaybe initialColors mayColors
+      char = fromMaybe ' ' mayChar
+  _ <- setDrawColors colors
   (RenderState _ b) <- readIORef screenBuffer
-  fillBackBuffer b initialCell
+  fillBackBuffer b colors char
 
-fillBackBuffer :: Buffers -> Cell -> IO ()
-fillBackBuffer (Buffers (Buffer b) _ size _ _) cell =
+fillBackBuffer :: Buffers -> Colors -> Char -> IO ()
+fillBackBuffer (Buffers (Buffer b) _ size _ _) colors char = do
+  let cell = mkCell colors char
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
--- | Copies the backbuffer to the front buffer and renders the differences to the
---     console.
-swapAndFlush :: Bool
-             -- ^ Clear the back buffer
-             -> IO ()
-swapAndFlush clearBack = do
+-- | Render the difference between the current buffer and the previous buffer
+--     to the console.
+submitDrawing :: Bool
+              -- ^ Clear the buffer using the initial color
+              -> IO ()
+submitDrawing clearBack = do
   (RenderState _ buffers) <- readIORef screenBuffer
-  drawDelta buffers 0 clearBack Nothing
+  renderDelta buffers 0 clearBack Nothing
   hFlush stdout
 
-drawDelta :: Buffers
-          -> Word32
-          -- ^ the position in the buffer
-          -> Bool
-          -- ^ should we clear the buffer containing the new values?
-          -> Maybe Colors
-          -- ^ The current console color, if it is known
-          -> IO ()
-drawDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _) idx clearBack mayCurrentConsoleColor
+renderDelta :: Buffers
+            -> Word32
+            -- ^ the position in the buffer
+            -> Bool
+            -- ^ should we clear the buffer containing the new values?
+            -> Maybe Colors
+            -- ^ The current console color, if it is known
+            -> IO ()
+renderDelta
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _)
+ idx
+ clearBack
+ mayCurrentConsoleColor
   | idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
@@ -250,7 +279,7 @@ drawDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _) idx clearBack 
             write frontBuf i valueToDisplay
             return $ Just res
       when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf i initialCell
-      drawDelta b (succ idx) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
+      renderDelta b (succ idx) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
 
 drawCell :: Buffers -> Word32 -> Cell -> Maybe Colors -> IO Colors
 drawCell b idx cell maybeCurrentConsoleColor = do

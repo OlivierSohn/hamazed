@@ -287,7 +287,7 @@ renderGroup worldCoords (RenderGroup r c colors char count) =
 renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
 renderIfNotColliding char worldCoords space r =
   case getMaterial worldCoords space of
-    Air  -> renderChar char worldCoords r
+    Air  -> drawChar char worldCoords r
     Wall -> return ()
 
 locationFunction :: Boundaries

@@ -34,10 +34,11 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
 
   interpolateIO f@(FrameAnimationParallel4 from)
                 t@(FrameAnimationParallel4 to) frame
-    | frame <= 0 = renderWhole from
+    | frame <= 0         = renderWhole from
     | frame >= lastFrame = renderWhole to
-    | otherwise  = renderTransition from to lastFrame frame
-      where lastFrame = pred $ distance f t
+    | otherwise          = renderTransition from to lastFrame frame
+    where
+      lastFrame = pred $ distance f t
 
 
 renderWhole :: FrameSpec -> IO ()
@@ -156,7 +157,7 @@ renderUpperWall sz (upperLeft, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      renderChars nChars '_' (move actualFrom RIGHT upperLeft)
+      drawChars nChars '_' (move actualFrom RIGHT upperLeft)
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 renderLowerWall :: WorldSize -> (RenderState, Int, Int) -> IO (RenderState, Int, Int)
@@ -169,7 +170,7 @@ renderLowerWall sz (lowerRight, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      renderChars nChars 'T' (move actualTo LEFT lowerRight)
+      drawChars nChars 'T' (move actualTo LEFT lowerRight)
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 

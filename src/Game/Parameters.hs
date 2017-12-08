@@ -76,7 +76,7 @@ render (GameParameters shape wall) = do
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
-      setRenderSize TerminalSize
+      setDrawingSize TerminalSize
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=
@@ -87,20 +87,20 @@ render (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          prevColors <- setColors configColors
+          prevColors <- setDrawColors configColors
           renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
             renderAlignedTxt_ Centered "------------------"
 
-          go Down <$> renderTxt "- World shape" (move 5 Up left) >>=
-              renderTxt "'1' -> width = height" >>=
+          go Down <$> drawTxt "- World shape" (move 5 Up left) >>=
+              drawTxt "'1' -> width = height" >>=
                 renderTxt_ "'2' -> width = 2 x height"
-          go Down <$> renderTxt "- World walls" left >>=
-              renderTxt "'e' -> no walls" >>=
-                renderTxt "'r' -> deterministic walls" >>=
+          go Down <$> drawTxt "- World walls" left >>=
+              drawTxt "'e' -> no walls" >>=
+                drawTxt "'r' -> deterministic walls" >>=
                   renderTxt_ "'t' -> random walls"
 
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
-          restoreColors prevColors
+          restoreDrawColors prevColors
           t <- getCurrentTime
           let infos = (mkFrameSpec world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t

@@ -22,7 +22,6 @@ module Render.Console ( ConsoleConfig(..)
                -- reexports from backends
                , Backend.beginFrame
                , Backend.endFrame
-               , Backend.getRenderSize
                , Backend.setColors
                , Backend.restoreColors
                , Backend.setForeground

@@ -14,7 +14,6 @@ module Render.Backends.Delta(
                           , renderTxt
                           , preferredBuffering
                           , setRenderSize
-                          , getRenderSize
                           , Color8Code(..)
                           ) where
 
@@ -60,11 +59,6 @@ renderStr = bPutStr
 
 renderTxt :: Text -> IO ()
 renderTxt = bPutText
-
-getRenderSize :: IO (Int, Int)
-getRenderSize = do
-  (w,h) <- bGetRenderSize
-  return (fromIntegral w, fromIntegral h)
 
 setRenderSize :: Int -> Int -> IO ()
 setRenderSize w h = bSetRenderSize (fromIntegral w) (fromIntegral h)

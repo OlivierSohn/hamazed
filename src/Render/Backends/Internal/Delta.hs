@@ -179,7 +179,7 @@ initialCell =
 
 {-# INLINE initialColors #-}
 initialColors :: Colors
-initialColors = Colors initialForeground initialBackground
+initialColors = Colors initialBackground initialForeground
 
 
 {-# INLINE noColors #-}
@@ -230,10 +230,10 @@ xyFromIndex (Buffers _ _ size width _) pos =
 
 setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
 setDrawColor layer color = do
-  (RenderState (Pencil idx prevColors@(Colors prevFg prevBg)) b ) <- readIORef screenBuffer
+  (RenderState (Pencil idx prevColors@(Colors prevBg prevFg)) b ) <- readIORef screenBuffer
   let newColors = case layer of
-        Foreground -> Colors color prevBg
-        Background -> Colors prevFg color
+        Foreground -> Colors prevBg color
+        Background -> Colors color prevFg
   writeIORef screenBuffer $ RenderState (Pencil idx newColors) b
   return prevColors
 
@@ -407,13 +407,14 @@ setCursorPositionIfNeeded b idx predPosRendered = do
 
 drawCell :: Cell -> Maybe Colors -> IO Colors
 drawCell cell maybeCurrentConsoleColor = do
-  let (fg, bg, char) = expand cell
-      (fgChange, bgChange) = maybe (True, True) (\(Colors fg' bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
-      sgrs = [SetPaletteColor Foreground fg | fgChange] ++
-             [SetPaletteColor Background bg | bgChange]
-  if fgChange || bgChange
+  let (bg, fg, char) = expand cell
+      (bgChange, fgChange) = maybe (True, True) (\(Colors bg' fg') -> (bg'/=bg, fg'/=fg)) maybeCurrentConsoleColor
+      sgrs = [SetPaletteColor Background bg | bgChange] ++
+             [SetPaletteColor Foreground fg | fgChange]
+
+  if bgChange || fgChange
     then
       Prelude.putStr $ setSGRCode sgrs ++ [char]
     else
       Prelude.putChar char
-  return $ Colors fg bg
+  return $ Colors bg fg

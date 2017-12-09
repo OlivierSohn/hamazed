@@ -78,14 +78,14 @@ blackColor8Code = Color8Code 16
 setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
 setDrawColor layer c =
   setSGR [SetPaletteColor layer c] >>
-    return (Colors whiteColor8Code blackColor8Code)
+    return (Colors blackColor8Code whiteColor8Code)
 
 -- | limited support : the returned value is hardcoded to white forgroundm black background
 --  because there is no way of getting the current color using System.Console.ANSI. TODO use a state monad
 setDrawColors :: Colors -> IO Colors
 setDrawColors (Colors fg bg) =
   setSGR [SetPaletteColor Foreground fg, SetPaletteColor Background bg] >>
-    return (Colors whiteColor8Code blackColor8Code)
+    return (Colors blackColor8Code whiteColor8Code)
 
 restoreDrawColors :: Colors -> IO ()
 restoreDrawColors = void . setDrawColors

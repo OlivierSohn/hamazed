@@ -18,9 +18,11 @@ We could group the changes by color :
   - or use an unstable sort like Data.Vector.Algorithms.Intro on a vector of colors_and_location_and_char_as_word64 (restricting to buffer of size < 2^16)
 
 then we traverse the vector and send color change commands on color change
+ - assuming high bits are background color, we can optimize color changes by not sending redundant
+ background changes. we should also
+verify if we need to set the cursor position or not.
 
 then either we copy the front buffer to the back buffer or we reset the back buffer
-
 
 ... first step would be to use an auxiliary preallocated vector + introsort
 

@@ -40,13 +40,13 @@ import           Game.Level.Types
 import           Render.Console
 
 configColors :: Colors
-configColors = Colors (gray 8) (gray 0)
+configColors = Colors (gray 0) (gray 8)
 
 wallColors :: Colors
-wallColors = Colors (gray 3) (gray 0)
+wallColors = Colors (gray 0) (gray 3)
 
 airColors :: Colors
-airColors = Colors white black
+airColors = Colors black white
 
 neutralMessageColor :: Color8Code
 neutralMessageColor = gray 10
@@ -62,10 +62,10 @@ messageColor Won      = rgb 4 3 1
 messageColor (Lost _) = gray 6
 
 shipColors :: Colors
-shipColors = Colors shipColor shipBgColor
+shipColors = Colors shipBgColor shipColor
 
 shipColorsSafe :: Colors
-shipColorsSafe = Colors shipColorSafe shipBgColorSafe
+shipColorsSafe = Colors shipBgColorSafe shipColorSafe
 
 shipColor :: Color8Code
 shipColor = rgb 5 4 4

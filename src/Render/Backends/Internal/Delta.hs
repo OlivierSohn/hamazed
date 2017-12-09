@@ -173,7 +173,7 @@ noColor = Color8Code (-1)
 {-# INLINE initialCell #-}
 initialCell :: Cell
 initialCell =
-  let res = 0x200000E710 -- optimization for 'drawDelta' (TODO check if the compiler would have found it)
+  let res = 0x10E7000000000020 -- optimization for 'drawDelta' (TODO check if the compiler would have found it)
   in assert (mkCell initialColors ' ' == res) res
 
 
@@ -371,7 +371,6 @@ renderDelta
             return Nothing
           else do
             setCursorPositionIfNeeded b idx predPosRendered
-
             -- draw on screen
             res <- drawCell valueToDisplay mayCurrentConsoleColor
             -- update front buffer with drawn value
@@ -409,8 +408,8 @@ drawCell :: Cell -> Maybe Colors -> IO Colors
 drawCell cell maybeCurrentConsoleColor = do
   let (bg, fg, char) = expand cell
       (bgChange, fgChange) = maybe (True, True) (\(Colors bg' fg') -> (bg'/=bg, fg'/=fg)) maybeCurrentConsoleColor
-      sgrs = [SetPaletteColor Background bg | bgChange] ++
-             [SetPaletteColor Foreground fg | fgChange]
+      sgrs = [SetPaletteColor Foreground fg | fgChange] ++
+             [SetPaletteColor Background bg | bgChange]
 
   if bgChange || fgChange
     then

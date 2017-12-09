@@ -29,7 +29,7 @@ module Color (
 
 import           Imajuscule.Prelude
 
-import           System.Console.ANSI.Codes( xterm256ColorToCode )
+import           System.Console.ANSI.Color( xterm256ColorToCode )
 import           System.Console.ANSI( Color8Code(..), Xterm256Color(..) )
 
 import           Data.Colour.SRGB (RGB (..))

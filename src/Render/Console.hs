@@ -41,7 +41,8 @@ import qualified System.Console.Terminal.Size as Terminal( size
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor
                                     , Color8Code(..), ConsoleLayer(..) )
-import           System.Console.ANSI.Codes( xterm256ColorToCode )
+
+import           System.Console.ANSI.Color( xterm256ColorToCode )
 import           System.IO( hSetBuffering
                           , hGetBuffering
                           , hSetEcho

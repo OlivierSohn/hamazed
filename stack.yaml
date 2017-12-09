@@ -6,7 +6,7 @@ packages:
 - '.'
 - location:
     git: https://github.com/OlivierSohn/ansi-terminal.git
-    commit: cb5ecbb9a89ceb24d06efa491e3ca44cf3f705f4
+    commit: 778e87308f9001c786eed946b5923fca55050fdf
   extra-dep: true
 
 extra-deps:

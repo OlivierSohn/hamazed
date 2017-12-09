@@ -1,33 +1,58 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module can be used by games that need to render in the console
--- without tearing or flickering effects.
---
--- Using a double-buffering technique, at each frame we compute the delta
--- between the previous and the current frame. We just render the delta, ie
--- the parts of the screen that changed.
---
--- This technique allows to have simple rendering code in the game (the game
--- developper will not have to worry about drawing something or not, s/he can
--- draw always everything at each frame), and results in flickering/tearing-free
--- renderihg, because since we send very few rendering instructions to the console,
--- we control precisely when the stdout flush occurs (else, with naive rendering,
--- intermediate flushes will occur when the buffer limits are reached, resulting
--- in tearing effect).
---
--- This way, we always see one full frame rendered in the console.
---
--- The functions of this module are mainly in the IO monad because a top level
--- IORef is used to store states : current colors, current draw position and
--- internal front and back buffers.
+{-| This module is designed to render games / animations in the console
+efficiently, without [screen tearing effect](https://en.wikipedia.org/wiki/Screen_tearing).
 
+The [screen tearing effect](https://en.wikipedia.org/wiki/Screen_tearing)
+can occur with naïve rendering techniques where we
+would render to the console "as we draw", thereby sending "a lot of data"
+(TODO quantify) to the stdout buffer.
+The stdout buffer having a limited buffer size, it will do intermediate flushes
+while rendering a single frame, so we will see partial frames rendered in the
+console.
+
+TODO explain that we can configure stdout buffering mode to block buffering and experiment
+to see to what extent this fixes the problem in the naive case (is there an upper bound
+to the stdout buffer capacity?)
+
+TODO should this module handle cursor hiding?
+TODO should this module expose more draw functions, to render ColorString for
+example?
+
+Here we use a double-buffering technique:
+
+* A /front/ buffer contains the content of the console.
+* A /back/ buffer contains the frame to be rendered.
+
+The difference between front and back buffers tells us which parts of the
+screen have changed in the frame to be rendered, so we don't need to send rendering
+commands for the entire frame, we just send commands for the parts of the console
+that actually changed. The amount of data sent to stdout buffer is drastically
+reduced, thereby reducing the probability of intermediate flushes.
+
+Typically for each frame, clients of this module will:
+
+1. Call "draw" functions to modify the content of the back buffer.
+
+    * It is very fast compared to rendering in the console directly, so it is
+    perfectly okay to draw several times at the same location.
+
+2. Call 'renderFrame'.
+
+    * Only the differences between the back and front buffers will be rendered.
+
+
+The functions of this module are mainly in the IO monad because a top level
+IORef is used to store states : current colors, current draw position and
+internal front and back buffers.
+-}
 module Render.Backends.Internal.Delta
        (
        -- * Setup
          setCanvasDimensions
-       -- * Draw globally
+       -- * Fill the back buffer
        , fill
-       -- * Draw locally
+       -- * Draw to the back buffer
        -- ** Set states for subsequent 'draw***' calls
        -- *** Location
        , setDrawLocation
@@ -41,7 +66,7 @@ module Render.Backends.Internal.Delta
        , drawStr
        , drawTxt
        -- * Render to the console
-       , submitDrawing
+       , renderFrame
        -- * Reexports
        , module Render.Backends.Internal.Types
        ) where
@@ -55,7 +80,7 @@ import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, 
 
 import           Data.Colour.SRGB( RGB(..) )
 import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
-import           Data.Maybe( fromMaybe )
+import           Data.Maybe( fromMaybe, isJust )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Word( Word32, Word16 )
@@ -187,15 +212,15 @@ fastMod a b
   | otherwise       = a `mod` b  -- slow path
 
 
-{-# INLINE positionFromXY #-}
-positionFromXY :: Buffers -> Word16 -> Word16 -> Word32
-positionFromXY (Buffers _ _ size width _) x y =
+{-# INLINE indexFromXY #-}
+indexFromXY :: Buffers -> Word16 -> Word16 -> Word32
+indexFromXY (Buffers _ _ size width _) x y =
   (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
 
 
-{-# INLINE xyFromPosition #-}
-xyFromPosition :: Buffers -> Word32 -> (Word16, Word16)
-xyFromPosition (Buffers _ _ size width _) pos =
+{-# INLINE xyFromIndex #-}
+xyFromIndex :: Buffers -> Word32 -> (Word16, Word16)
+xyFromIndex (Buffers _ _ size width _) pos =
   (fromIntegral x, fromIntegral y)
   where
     pos' = pos `fastMod` size
@@ -233,7 +258,7 @@ setDrawLocation x y
 setDrawLocation' :: Word16 -> Word16 -> IO ()
 setDrawLocation' x y = do
   (RenderState (Pencil _ colors) b) <- readIORef screenBuffer
-  let idx = positionFromXY b x y
+  let idx = indexFromXY b x y
   writeIORef screenBuffer $ RenderState (Pencil idx colors) b
 
 
@@ -302,32 +327,39 @@ fillBackBuffer (Buffers (Buffer b) _ size _ _) colors char = do
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
 
--- | Renders to the console the difference between the current drawing
---  and the last submitted drawing.
-submitDrawing :: Bool
+{- |
+* Send rendering commands to the stdout buffer (just for the selected locations where
+      back and front buffers differ), then flush stdout.
+* Copy the back buffer to the front buffer
+* Reset (clear) the content of the back buffer
+-}
+renderFrame :: Bool
               -- ^ If True, after submission the drawing is reset to the initial color.
               -- This can also be achieved by calling "fill Nothing Nothing" after this call,
               -- at the cost of one more traversal of the back buffer.
               -> IO ()
-submitDrawing clearBack = do
+renderFrame clearBack = do
   (RenderState _ buffers) <- readIORef screenBuffer
-  renderDelta buffers 0 clearBack Nothing
+  renderDelta buffers 0 clearBack Nothing False
   hFlush stdout
 
 
 renderDelta :: Buffers
             -> Word32
-            -- ^ the position in the buffer
+            -- ^ the buffer index
             -> Bool
             -- ^ should we clear the buffer containing the new values?
             -> Maybe Colors
             -- ^ The current console color, if it is known
+            -> Bool
+            -- ^ True if a char was rendered at the previous buffer index
             -> IO ()
 renderDelta
  b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _)
  idx
  clearBack
  mayCurrentConsoleColor
+ predPosRendered
   | idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
@@ -338,33 +370,50 @@ renderDelta
           then
             return Nothing
           else do
+            setCursorPositionIfNeeded b idx predPosRendered
+
             -- draw on screen
-            res <- drawCell b idx valueToDisplay mayCurrentConsoleColor
+            res <- drawCell valueToDisplay mayCurrentConsoleColor
             -- update front buffer with drawn value
             write frontBuf i valueToDisplay
             return $ Just res
+      let hasRendered = isJust mayNewConsoleColor
+          curConsoleColor = mayNewConsoleColor <|> mayCurrentConsoleColor
       when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf i initialCell
-      renderDelta b (succ idx) clearBack (mayNewConsoleColor <|> mayCurrentConsoleColor)
+      renderDelta b (succ idx) clearBack curConsoleColor hasRendered
 
+-- | The command to set the cursor position to 23,45 is "\ESC[23;45H",
+-- its size is 9 bytes : one order of magnitude more than the size
+-- of a char, so we avoid sending this command when not strictly needed.
+{-# INLINE setCursorPositionIfNeeded #-}
+setCursorPositionIfNeeded :: Buffers
+                          -> Word32
+                          -- ^ the buffer index
+                          -> Bool
+                          -- ^ True if a char was rendered at the previous buffer index
+                          -> IO ()
+setCursorPositionIfNeeded b idx predPosRendered = do
+  let (colIdx, rowIdx) = xyFromIndex b idx
+      shouldSetCursorPosition =
+      -- We assume that the buffer width is not equal to terminal width,
+      -- so even if the previous position was rendered,
+      -- the cursor may not be located at the beginning of the line.
+        colIdx == 0
+      -- If the previous buffer position was rendered, the cursor position has
+      -- automatically advanced to the next column (or to the beginning of
+      -- the next line if it was the last terminal column).
+        || not predPosRendered
+  when shouldSetCursorPosition $ setCursorPosition (fromIntegral rowIdx) (fromIntegral colIdx)
 
-drawCell :: Buffers -> Word32 -> Cell -> Maybe Colors -> IO Colors
-drawCell b idx cell maybeCurrentConsoleColor = do
+drawCell :: Cell -> Maybe Colors -> IO Colors
+drawCell cell maybeCurrentConsoleColor = do
   let (fg, bg, char) = expand cell
       (fgChange, bgChange) = maybe (True, True) (\(Colors fg' bg') -> (fg'/=fg, bg'/=bg)) maybeCurrentConsoleColor
       sgrs = [SetPaletteColor Foreground fg | fgChange] ++
              [SetPaletteColor Background bg | bgChange]
-  -- move to drawing position
-  setCursorPositionFromBufferIdx b idx
   if fgChange || bgChange
     then
       Prelude.putStr $ setSGRCode sgrs ++ [char]
     else
       Prelude.putChar char
   return $ Colors fg bg
-
-
-{-# INLINE setCursorPositionFromBufferIdx #-}
-setCursorPositionFromBufferIdx :: Buffers -> Word32 -> IO ()
-setCursorPositionFromBufferIdx b pos = do
-  let (x, y) = xyFromPosition b pos
-  setCursorPosition (fromIntegral y) (fromIntegral x)

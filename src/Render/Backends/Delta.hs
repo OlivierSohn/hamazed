@@ -24,7 +24,7 @@ beginFrame :: IO ()
 beginFrame = return ()
 
 endFrame :: IO ()
-endFrame = submitDrawing True {- clear buffer after rendering -}
+endFrame = renderFrame True {- clear buffer after rendering -}
 
 moveTo :: Coords -> IO ()
 moveTo (Coords (Row r) (Col c)) =

@@ -13,9 +13,8 @@ module Color.Interpolation
 
 import           Imajuscule.Prelude
 
-import           System.Console.ANSI.Codes( xterm256ColorToCode )
 import           System.Console.ANSI(Color8Code(..), Xterm256Color(..))
-import           System.Console.ANSI.Color( color8CodeToXterm256 )
+import           System.Console.ANSI.Color( color8CodeToXterm256, xterm256ColorToCode )
 
 import           Data.Colour.SRGB (RGB (..))
 

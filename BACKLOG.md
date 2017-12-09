@@ -8,6 +8,10 @@
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
+## Misc.
+
+- 3..2..1..GO! countdown at the beginning of a level
+
 - animate lose/win messages
 
 - when terminal is resized, re-center world accordingly.

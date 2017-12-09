@@ -83,7 +83,7 @@ setDrawColor layer c =
 -- | limited support : the returned value is hardcoded to white forgroundm black background
 --  because there is no way of getting the current color using System.Console.ANSI. TODO use a state monad
 setDrawColors :: Colors -> IO Colors
-setDrawColors (Colors fg bg) =
+setDrawColors (Colors bg fg) =
   setSGR [SetPaletteColor Foreground fg, SetPaletteColor Background bg] >>
     return (Colors blackColor8Code whiteColor8Code)
 

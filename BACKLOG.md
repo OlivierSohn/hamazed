@@ -4,9 +4,13 @@
 ## Delta rendering
 
 - make a package for Delta rendering:
-  - review function names
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
+
+- We could also optimize the type of "position change" command we send: today
+we use exclusively the 2 coordinates version (9 bytes on average), but it would
+be more efficient to switch to the "go forward (optionally n times)" version
+(3 to 5 bytes) when we are on the same row.
 
 ## Misc.
 

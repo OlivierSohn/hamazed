@@ -18,7 +18,7 @@ import           Geo.Discrete.Types
 import           Render.Backends.Internal.Delta
 
 preferredBuffering :: BufferMode
-preferredBuffering = BlockBuffering Nothing
+preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 
 beginFrame :: IO ()
 beginFrame = return ()

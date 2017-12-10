@@ -3,36 +3,79 @@
 {-|
 = Purpose
 
-This module allows to render colored frames in the console
-with no [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing). It was initially developped for
-<https://github.com/OlivierSohn/hamazed this game>.
+Use this module to render animated colored frames in the console
+with no [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing).
+It was initially developped for <https://github.com/OlivierSohn/hamazed hamazed>.
 
 == What is screen tearing, and how we can avoid it.
 
-The <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:stdout stdout buffer>
-has a limited capacity. When this capacity is exceeded while
-rendering a frame, the buffer is flushed, thereby triggering a render of a
-/partial/ frame in the console which overlaps with the previous frame and
-distracts the player.
+When we render a frame, we fill stdout buffer with
 
-So what we want is to guarantee that all rendering commands issued for a single
-frame will fit within the capacity of the stdout buffer, so that the flush
-manually issued at the end of the frame rendering function will be the only flush
-for this frame.
+* Char and String, using
+<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putChar putChar>
+and
+<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putStr putStr>
+:
 
-To achieve this we can augment the size of the stdout buffer,
- using <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
+    * visible (\'A\', "Hello world", ...)
+    * invisible (\' \', \'\t\', ...)
+
+* Escape sequences using
+<https://hackage.haskell.org/package/ansi-terminal-0.7.1.1/docs/System-Console-ANSI.html#v:setSGR setSGR>
+or
+<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putStr putStr>
+:
+
+    * color change : "\ESC[48;5;167;38;5;255m"
+    * position change : "\ESC[150;42H"
+    * <https://en.wikipedia.org/wiki/ANSI_escape_code etc...>
+
+Once the buffer is full, it is flushed, thereby triggering a console render.
+If it happens in the middle of a frame, screen tearing occurs because
+a /partial/ frame is rendered.
+
+There are two ways we can fix this:
+
+=== Maximize stdout buffer size
+
+TODO do that by default in initialization?
+
+Using <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
 with
-<https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering> parameter,
-and reduce the amount of data we send to the stdout buffer at each frame:
+<https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
+parameter:
 
-    1. We filter the rendered locations, to render only the locations where "something
-    has changed" between the previous frame and the current one.
-    2. We group the rendered locations by color, and then by location, to
-    minimize the number of <https://en.wikipedia.org/wiki/ANSI_escape_code escape codes>
-    that we need to send to render all locations.
+> hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
 
-For more details on the techniques used, look at the implementation of 'renderFrame'.
+Note that using @BlockBuffering Nothing@ would not necessarily result in the
+largest capacity being used : on my system, a size of 2048 is used for
+@BlockBuffering Nothing@ whereas the maximum stdout size is 8096 (This size is
+not documented but can be found visually using a binary search
+on sizes with test 'testStdoutSizes').
+
+=== Minimize rendering data
+
+We use a double buffering technique to compute the /delta/ frame, which is
+the difference between the current frame and the previous frame.
+
+We render only the locations that are in the /delta/ frame (to avoir rendering
+at locations where nothing changed), and we group them by colors to minimize
+the amount of <https://en.wikipedia.org/wiki/ANSI_escape_code escape codes>
+sent to stdout buffer.
+
+We also take advantage of the fact that when rendering a
+character using 'putChar', the cursor position automatically moves to the right,
+this reduces the number of required "position change" escape sequences.
+
+=== Future optimizations
+
+We could also optimize the type of "position change" command we send: today
+we use exclusively the 2 coordinates version (9 bytes on average), but it would
+be more efficient to switch to the "go forward (optionally n times)" version
+(3 to 5 bytes) when we are on the same row.
+
+
+TODO stats on hamazed to see stdout buffer usage
 
 = Usage
 
@@ -379,9 +422,9 @@ renderFrame clearBack = do
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
 
-  -- On average, foreground and background color change command is 21 bytes :
+  -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
-  -- On average, position change command is 10 bytes :
+  -- On average, position change command is 9 bytes :
   --   "\ESC[150;42H"
   -- So we want to minimize the number of color changes first, and then mimnimize
   -- the number of position changes.
@@ -448,7 +491,7 @@ computeDelta
       -- recurse
       computeDelta b (succ idx) clearBack
 
--- | The command to set the cursor position to 23,45 is "\ESC[23;45H",
+-- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
 -- of a char, so we avoid sending this command when not strictly needed.
 {-# INLINE setCursorPositionIfNeeded #-}

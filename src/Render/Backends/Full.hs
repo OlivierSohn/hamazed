@@ -43,7 +43,7 @@ setRenderSize :: Int -> Int -> IO ()
 setRenderSize _ _ = return ()
 
 preferredBuffering :: BufferMode
-preferredBuffering = BlockBuffering Nothing
+preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 
 beginFrame :: IO ()
 beginFrame = clearScreen

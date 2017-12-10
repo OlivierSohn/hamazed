@@ -8,24 +8,6 @@
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
-- one fg + bg color change command is 21 bytes : "\ESC[48;5;167;38;5;255m"
-in renderDelta function, we could fill the backbuffer vector containing colors, char and location
-We could group the changes by color :
-  - use a stable sort like Data.Vector.Algorithms.Merge on a vector of (colors_as_word16,char_location_as_word64)
-   (stable because we want the locations to keep the back buffer traversal order to be able to optimize on
-    setCursorPosition commands)
-   but TODO :: allow to give the additional vector to not reallocate it every time
-  - or use an unstable sort like Data.Vector.Algorithms.Intro on a vector of colors_and_location_and_char_as_word64 (restricting to buffer of size < 2^16)
-
-then we traverse the vector and send color change commands on color change
- - assuming high bits are background color, we can optimize color changes by not sending redundant
- background changes. we should also
-verify if we need to set the cursor position or not.
-
-then either we copy the front buffer to the back buffer or we reset the back buffer
-
-... first step would be to use an auxiliary preallocated vector + introsort
-
 ## Misc.
 
 - 3..2..1..GO! countdown at the beginning of a level

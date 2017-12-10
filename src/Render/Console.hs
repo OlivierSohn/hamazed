@@ -12,7 +12,7 @@ module Render.Console
                , renderTxt_
                , RenderState(..)
                , renderSegment
-               , setCanvasDimensions
+               , setFrameDimensions
                -- reexport System.Console.ANSI
                , Color8Code(..)
                , ConsoleLayer(..)
@@ -78,19 +78,19 @@ instance DiscretelyInterpolable RenderState where
   interpolate (RenderState from) (RenderState to) progress =
     RenderState $ interpolate from to progress
 
-setCanvasDimensions :: RenderSize -> IO ()
-setCanvasDimensions (UserDefined w h)
+setFrameDimensions :: RenderSize -> IO ()
+setFrameDimensions (UserDefined w h)
   | w <= 0 = error "negative or zero render width not allowed"
   | h <= 0 = error "negative or zero render height not allowed"
-  | otherwise = Backend.setCanvasDimensions (fromIntegral w) (fromIntegral h)
-setCanvasDimensions TerminalSize = do
+  | otherwise = Backend.setFrameDimensions (fromIntegral w) (fromIntegral h)
+setFrameDimensions TerminalSize = do
   mayTermSize <- Terminal.size
   let (width, height) =
         maybe
           (300, 70) -- sensible default if terminal size is not available
           (\(Terminal.Window h w) -> (w, h))
             mayTermSize
-  Backend.setCanvasDimensions width height
+  Backend.setFrameDimensions width height
 
 --------------------------------------------------------------------------------
 -- IO

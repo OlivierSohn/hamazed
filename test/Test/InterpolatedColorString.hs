@@ -39,7 +39,7 @@ testICS = do
       p2   = colored "[.]" (rgb 5 0 0)
       e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolution (Successive [p1,p2,p1]) 1
 
-  setCanvasDimensions TerminalSize
+  setFrameDimensions TerminalSize
   beginFrame
 
   mapM_

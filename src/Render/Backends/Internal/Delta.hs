@@ -414,6 +414,7 @@ renderDelta size index prevColors prevIndex
     renderDelta size (succ index) (Just usedColor) (Just idx) b
 
 
+-- TODO:
 computeDelta :: Buffers
              -> Word16
              -- ^ the buffer index
@@ -427,13 +428,18 @@ computeDelta
   | idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
+      -- read from back buffer
       valueToDisplay <- read backBuf i
-      valueCurrentlyDisplayed <- read frontBuf i
-      when (valueToDisplay /= valueCurrentlyDisplayed) $ do
-          -- update front buffer with drawn value
-          write frontBuf i valueToDisplay
-          Dyn.pushBack delta $ mkIndexedCell valueToDisplay $ fromIntegral idx
+      -- clear back buffer
       when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf i initialCell
+      -- read from front buffer
+      valueCurrentlyDisplayed <- read frontBuf i
+      -- if differences are found, update front buffer and push the difference
+      -- in delta vector
+      when (valueToDisplay /= valueCurrentlyDisplayed) $ do
+          write frontBuf i valueToDisplay
+          Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx
+      -- recurse
       computeDelta b (succ idx) clearBack
 
 -- | The command to set the cursor position to 23,45 is "\ESC[23;45H",

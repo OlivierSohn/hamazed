@@ -5,82 +5,68 @@
 
 Use this module to render animated colored frames in the console
 with no [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing).
-It was initially developped for <https://github.com/OlivierSohn/hamazed hamazed>.
 
-== What is screen tearing, and how we can avoid it.
+== A bit of history
 
-When we render a frame, we fill stdout buffer with
+In the beginnings of
+<https://github.com/OlivierSohn/hamazed my first ascii based game>,
+to render a frame I would:
 
-* Char and String, using
-<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putChar putChar>
-and
-<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putStr putStr>
-:
+* clear the console
+* draw
+* flush stdout
 
-    * visible (\'A\', "Hello world", ...)
-    * invisible (\' \', \'\t\', ...)
+It worked well in the beginning because I was rendering to few locations (~100).
+When I introduced color animations, flickering / tearing effects started to
+occur on frames where more locations were rendered to. I was sending too much
+data to stdout, which was flushed before the end of the frame.
 
-* Escape sequences using
-<https://hackage.haskell.org/package/ansi-terminal-0.7.1.1/docs/System-Console-ANSI.html#v:setSGR setSGR>
-or
-<http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#v:putStr putStr>
-:
-
-    * color change : "\ESC[48;5;167;38;5;255m"
-    * position change : "\ESC[150;42H"
-    * <https://en.wikipedia.org/wiki/ANSI_escape_code etc...>
-
-Once the buffer is full, it is flushed, thereby triggering a console render.
-If it happens in the middle of a frame, screen tearing occurs because
-a /partial/ frame is rendered.
-
-There are two ways we can fix this:
-
-=== Maximize stdout buffer size
-
-TODO do that by default in initialization?
-
-Using <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
-with
+So I used
+<https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
+on stdout with
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
-parameter:
+parameter to augment the size of stdout:
 
 > hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
 
-Note that using @BlockBuffering Nothing@ would not necessarily result in the
-largest capacity being used : on my system, a size of 2048 is used for
-@BlockBuffering Nothing@ whereas the maximum stdout size is 8096 (This size is
-not documented but can be found visually using a binary search
-on sizes with test 'testStdoutSizes').
+This way, the stdout size went from 2048 to 8092 (on my system,
+cf 'testStdoutSizes' for how I measured this) and that solved the problem.
+Temporarily, until I added some more animations and colors to the game!
 
-=== Minimize rendering data
+Fortunaltely, I was not the only one encountering
+<https://github.com/feuerbach/ansi-terminal/issues/5 this issue>,
+Rafael Ibraim had
+<https://gist.github.com/ibraimgm/40e307d70feeb4f117cd shared an interesting approach>
+which I used to a great benefit.
 
-We use a double buffering technique to compute the /delta/ frame, which is
-the difference between the current frame and the previous frame.
+The idea is to use two frame buffers, one for the content of what is displayed in
+the console, and one for what we want to draw next. Then, when rendering a frame
+we compute the /delta/ frame : the difference between the current frame and the
+previous frame, and render only the locations were this /delta/ frame contains
+changes.
 
-We render only the locations that are in the /delta/ frame (to avoir rendering
-at locations where nothing changed), and we group them by colors to minimize
-the amount of <https://en.wikipedia.org/wiki/ANSI_escape_code escape codes>
-sent to stdout buffer.
+I further optimized the amount of data sent to stdout by grouping the
+rendered locations by color, to issue one color change command for the
+whole group instead of one per element (color change commands are quite
+expensive: 20 bytes on average).
 
-We also take advantage of the fact that when rendering a
-character using 'putChar', the cursor position automatically moves to the right,
-this reduces the number of required "position change" escape sequences.
+Also, taking advantage of the fact that 'putChar' makes the cursor position
+automatically move to the right, in some cases I could avoid superfluous
+"position change" escape sequences.
 
-=== Future optimizations
-
-We could also optimize the type of "position change" command we send: today
-we use exclusively the 2 coordinates version (9 bytes on average), but it would
-be more efficient to switch to the "go forward (optionally n times)" version
-(3 to 5 bytes) when we are on the same row.
-
-
-TODO stats on hamazed to see stdout buffer usage
+I also changed the memory layout of back and front buffers to use contiguous
+memory, and reduced the memory footprint by encoding foreground color,
+background color, character and position informations in a single Word64.
 
 = Usage
 
+TODO stats on hamazed to see stdout buffer usage
+
 -- TODO hide the render size API, replace it by an optional Initialize function
 which will allocate the buffers
+
+-- TODO provide a context which we can create using TerminalSize or CustomSize,
+it contains the IORef, the buffers.
 
 Setup the frame size. You can use
 <https://hackage.haskell.org/package/terminal-size#readme terminal-size package>

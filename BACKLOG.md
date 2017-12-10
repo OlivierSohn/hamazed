@@ -7,10 +7,14 @@
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
-- We could also optimize the type of "position change" command we send: today
-we use exclusively the 2 coordinates version (9 bytes on average), but it would
+- provide a context which we can create using TerminalSize or CustomSize,
+it contains the IORef, the buffers.
+
+- Another optimization is to chose the type of "position change"
+command we send based on the relative location of successive elements: today
+we use exclusively the 2 dimensional version (9 bytes on average), but it would
 be more efficient to switch to the "go forward (optionally n times)" version
-(3 to 5 bytes) when we are on the same row.
+(3 to 5 bytes) when the previously rendered element was on the same row.
 
 ## Misc.
 

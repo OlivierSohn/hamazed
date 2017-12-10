@@ -260,7 +260,7 @@ updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      setCanvasDimensions TerminalSize
+      setFrameDimensions TerminalSize
       beginFrame
       let s2 =
             if isFinished anim

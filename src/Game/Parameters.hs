@@ -75,7 +75,7 @@ render (GameParameters shape wall) = do
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
-      setCanvasDimensions TerminalSize
+      setFrameDimensions TerminalSize
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=

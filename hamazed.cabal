@@ -76,6 +76,7 @@ library
                      , Render.Backends.Internal.BufferCell
                      , Render.Backends.Internal.Delta
                      , Render.Backends.Internal.Types
+                     , Render.Backends.Internal.UnboxedDynamic
                      , Render.Console
                      , Render.Types
                      , Run
@@ -92,11 +93,13 @@ library
                      , matrix
                      , monad-loops
                      , monadlist
+                     , primitive
                      , random
                      , terminal-size
                      , text
                      , time
                      , vector
+                     , vector-algorithms
   default-language:    Haskell2010
 
 executable hamazed-exe

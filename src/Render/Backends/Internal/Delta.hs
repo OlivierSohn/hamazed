@@ -27,7 +27,12 @@ Here we use a double-buffering technique:
 The difference between front and back buffers tells us which parts of the
 screen have changed in the frame to be rendered, so we don't need to send rendering
 commands for the entire frame, we just send commands for the parts of the console
-that actually changed. The amount of data sent to stdout buffer is drastically
+that actually changed. We also compute
+the optimal order in which to render the changed locations so as to minimize the
+number of data to send (grouping by colors for example to minimize the number of
+color change commands sent).
+
+Hence, the amount of data sent to stdout buffer is drastically
 reduced, thereby reducing the probability of intermediate flushes.
 
 Typically for each frame, clients of this module will:
@@ -39,12 +44,9 @@ Typically for each frame, clients of this module will:
 
 2. Call 'renderFrame'.
 
-    * Only the differences between the back and front buffers will be rendered.
-
-
-The functions of this module are mainly in the IO monad because a top level
-IORef is used to store states : current colors, current draw position and
-internal front and back buffers.
+The functions of this module are in the IO monad because a top level
+IORef is used to store states : current colors, current draw position,
+front and back buffers, and internal buffers.
 -}
 module Render.Backends.Internal.Delta
        (
@@ -76,11 +78,13 @@ import           Imajuscule.Prelude hiding (replicate)
 
 import qualified Prelude ( putChar, putStr )
 
+import           Data.Vector.Algorithms.Intro
 import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
-
+import qualified Render.Backends.Internal.UnboxedDynamic as Dyn ( IOVector
+                                                                , accessUnderlying, length, new, read, clear, pushBack )
 import           Data.Colour.SRGB( RGB(..) )
 import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
-import           Data.Maybe( fromMaybe, isJust )
+import           Data.Maybe( fromMaybe )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Word( Word32, Word16 )
@@ -98,24 +102,25 @@ type BackFrontBuffer = IOVector (Cell, Cell)
 
 newtype Buffer a = Buffer (IOVector Cell)
 
+newtype Delta = Delta (Dyn.IOVector Cell)
+
 -- | Buffer types
 data Back
 data Front
 
--- that could fit in a Word64 (Color8Code = 2 Word8, index = Word32)
--- with 16 bits extra room
 data Pencil = Pencil {
-    _pencilBufferIndex :: {-# UNPACK #-} !Word32
+    _pencilBufferIndex :: {-# UNPACK #-} !Word16
   , _pencilColors :: {-# UNPACK #-} !Colors
 }
 
--- that could fit exactly in a Word64 (width and height = 2 Word16, size = Word32)
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersSize :: !Word32
+  , _buffersSize :: !Word16
   , _buffersWidth :: !Word16
   , _buffersHeight :: !Word16
+  , _buffersDelta :: !Delta
+  -- ^ buffer used in renderFrame
 }
 
 
@@ -127,12 +132,12 @@ setCanvasDimensions :: Word16
                     -- ^ Height
                     -> IO ()
 setCanvasDimensions width height = do
-  (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight)) <- readIORef screenBuffer
+  (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight _)) <- readIORef screenBuffer
   if prevWidth == width && prevHeight == height
     then
       return ()
     else do
-      buffers@(Buffers _ _ size _ _) <- mkBuffers width height
+      buffers@(Buffers _ _ size _ _ _) <- mkBuffers width height
       let newPencilIdx = idx `fastMod` size
       writeIORef screenBuffer $ RenderState (Pencil newPencilIdx colors) buffers
 
@@ -140,13 +145,19 @@ setCanvasDimensions width height = do
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
 mkBuffers :: Word16 -> Word16 -> IO Buffers
 mkBuffers width' height' = do
-  let width = max 1 width'
+  let width  = max 1 width'
       height = max 1 height'
-      sz = fromIntegral width * fromIntegral height
+      sz = fromIntegral width * fromIntegral height :: Word32
+      sz' = fromIntegral sz
+  -- indexed cells use a Word16 index so size cannot be too big
+  when (sz > fromIntegral (maxBound :: Word16)) $
+    error $ "buffer size cannot be bigger than " ++ show (maxBound :: Word16) ++
+            " : " ++ show (sz, width, height)
   -- We initialize to different colors so that in first render the whole console is drawn to.
-  buf <- newBufferArray sz (initialCell, nocolorCell)
+  buf <- newBufferArray sz' (initialCell, nocolorCell)
+  delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
-  return $ Buffers (Buffer back) (Buffer front) sz width height
+  return $ Buffers (Buffer back) (Buffer front) sz' width height (Delta delta)
 
 data RenderState = RenderState {
     _renderStatePencil :: !Pencil
@@ -155,7 +166,7 @@ data RenderState = RenderState {
 
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
-newBufferArray :: Word32 -> (Cell, Cell) -> IO BackFrontBuffer
+newBufferArray :: Word16 -> (Cell, Cell) -> IO BackFrontBuffer
 newBufferArray size = replicate (fromIntegral size)
 
 
@@ -173,7 +184,7 @@ noColor = Color8Code (-1)
 {-# INLINE initialCell #-}
 initialCell :: Cell
 initialCell =
-  let res = 0x10E7000000000020 -- optimization for 'drawDelta' (TODO check if the compiler would have found it)
+  let res = 0x10E7000000000020 -- optimization for 'renderFrame' (TODO check if the compiler would have found it)
   in assert (mkCell initialColors ' ' == res) res
 
 
@@ -206,26 +217,26 @@ mkInitialState = Pencil 0 initialColors
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
 {-# INLINE fastMod #-}
-fastMod :: Word32 -> Word32 -> Word32
+fastMod :: Word16 -> Word16 -> Word16
 fastMod a b
   | 0 <= a && a < b = a          -- fast path
   | otherwise       = a `mod` b  -- slow path
 
 
 {-# INLINE indexFromXY #-}
-indexFromXY :: Buffers -> Word16 -> Word16 -> Word32
-indexFromXY (Buffers _ _ size width _) x y =
-  (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
+indexFromXY :: Buffers -> Word16 -> Word16 -> Word16
+indexFromXY (Buffers _ _ size width _ _) x y =
+  (y * width + x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}
-xyFromIndex :: Buffers -> Word32 -> (Word16, Word16)
-xyFromIndex (Buffers _ _ size width _) pos =
-  (fromIntegral x, fromIntegral y)
+xyFromIndex :: Buffers -> Word16 -> (Word16, Word16)
+xyFromIndex (Buffers _ _ size width _ _) idx =
+    (x, y)
   where
-    pos' = pos `fastMod` size
-    x = pos' - fromIntegral y * fromIntegral width
-    y = pos' `div` fromIntegral width
+    pos' = idx `fastMod` size
+    x = pos' - y * width
+    y = pos' `div` width
 
 
 setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
@@ -266,11 +277,11 @@ setDrawLocation' x y = do
 drawChar :: Char
          -> IO ()
 drawChar c = do
-  (RenderState (Pencil idx colors) (Buffers back _ _ _ _)) <- readIORef screenBuffer
+  (RenderState (Pencil idx colors) (Buffers back _ _ _ _ _)) <- readIORef screenBuffer
   putCharRawAt back idx colors c
 
 
-putCharRawAt :: Buffer Back -> Word32 -> Colors -> Char -> IO ()
+putCharRawAt :: Buffer Back -> Word16 -> Colors -> Char -> IO ()
 putCharRawAt back idx colors c =
   writeToBack back idx $ mkCell colors c
 
@@ -282,7 +293,7 @@ drawChars :: Int
           -> Char
           -> IO ()
 drawChars count c = do
-  (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
   let cell = mkCell colors c
   mapM_ (\i -> let pos = (idx + fromIntegral i) `fastMod` size
                in writeToBack back pos cell) [0..pred count]
@@ -292,7 +303,7 @@ drawChars count c = do
 --   using current draw colors.
 drawStr :: String -> IO ()
 drawStr str = do
-  (RenderState (Pencil idx colors) (Buffers back _ size _ _)) <- readIORef screenBuffer
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
   mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
 
@@ -303,7 +314,7 @@ drawTxt text = drawStr $ unpack text
 
 
 {-# INLINE writeToBack #-}
-writeToBack :: Buffer Back -> Word32 -> Cell -> IO ()
+writeToBack :: Buffer Back -> Word16 -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
 
@@ -322,7 +333,7 @@ fill mayColors mayChar = do
 
 
 fillBackBuffer :: Buffers -> Colors -> Char -> IO ()
-fillBackBuffer (Buffers (Buffer b) _ size _ _) colors char = do
+fillBackBuffer (Buffers (Buffer b) _ size _ _ _) colors char = do
   let cell = mkCell colors char
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
@@ -339,54 +350,64 @@ renderFrame :: Bool
               -- at the cost of one more traversal of the back buffer.
               -> IO ()
 renderFrame clearBack = do
-  (RenderState _ buffers) <- readIORef screenBuffer
-  renderDelta buffers 0 clearBack Nothing False
+  (RenderState _ buffers@(Buffers _ _ _ _ _ (Delta delta))) <- readIORef screenBuffer
+  computeDelta buffers 0 clearBack
+  szDelta <- Dyn.length delta
+  underlying <- Dyn.accessUnderlying delta
+  sort underlying -- this will group by colors first (background then foreground), then position
+  -- We ignore this color value. We could store it and use it to initiate the recursion
+  -- at next render but if the client renders with another library inbetweeen, this value
+  -- would be wrong, so we can ignore it here for more robustness.
+  _ <- renderDelta szDelta 0 Nothing Nothing buffers
+  Dyn.clear delta
   hFlush stdout
 
-
-renderDelta :: Buffers
-            -> Word32
-            -- ^ the buffer index
-            -> Bool
-            -- ^ should we clear the buffer containing the new values?
+renderDelta :: Int
+            -> Int
             -> Maybe Colors
-            -- ^ The current console color, if it is known
-            -> Bool
-            -- ^ True if a char was rendered at the previous buffer index
-            -> IO ()
-renderDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _)
+            -> Maybe Word16
+            -> Buffers
+            -> IO Colors
+renderDelta size index prevColors prevIndex
+  b@(Buffers _ _ _ _ _ (Delta delta))
+ | index == size = return $ Colors (Color8Code 0) (Color8Code 0)
+ | otherwise = do
+    c <- Dyn.read delta index
+    let (bg, fg, idx, char) = expandIndexed c
+        prevRendered = maybe False (== pred idx) prevIndex
+    setCursorPositionIfNeeded b idx prevRendered
+    usedColor <- drawCell bg fg char prevColors
+    renderDelta size (succ index) (Just usedColor) (Just idx) b
+
+
+computeDelta :: Buffers
+             -> Word16
+             -- ^ the buffer index
+             -> Bool
+             -- ^ should we clear the buffer containing the new values?
+             -> IO ()
+computeDelta
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _ (Delta delta))
  idx
  clearBack
- mayCurrentConsoleColor
- predPosRendered
   | idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
       valueToDisplay <- read backBuf i
       valueCurrentlyDisplayed <- read frontBuf i
-      mayNewConsoleColor <-
-        if valueToDisplay == valueCurrentlyDisplayed
-          then
-            return Nothing
-          else do
-            setCursorPositionIfNeeded b idx predPosRendered
-            -- draw on screen
-            res <- drawCell valueToDisplay mayCurrentConsoleColor
-            -- update front buffer with drawn value
-            write frontBuf i valueToDisplay
-            return $ Just res
-      let hasRendered = isJust mayNewConsoleColor
-          curConsoleColor = mayNewConsoleColor <|> mayCurrentConsoleColor
+      when (valueToDisplay /= valueCurrentlyDisplayed) $ do
+          -- update front buffer with drawn value
+          write frontBuf i valueToDisplay
+          Dyn.pushBack delta $ mkIndexedCell valueToDisplay $ fromIntegral idx
       when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf i initialCell
-      renderDelta b (succ idx) clearBack curConsoleColor hasRendered
+      computeDelta b (succ idx) clearBack
 
 -- | The command to set the cursor position to 23,45 is "\ESC[23;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
 -- of a char, so we avoid sending this command when not strictly needed.
 {-# INLINE setCursorPositionIfNeeded #-}
 setCursorPositionIfNeeded :: Buffers
-                          -> Word32
+                          -> Word16
                           -- ^ the buffer index
                           -> Bool
                           -- ^ True if a char was rendered at the previous buffer index
@@ -404,10 +425,22 @@ setCursorPositionIfNeeded b idx predPosRendered = do
         || not predPosRendered
   when shouldSetCursorPosition $ setCursorPosition (fromIntegral rowIdx) (fromIntegral colIdx)
 
-drawCell :: Cell -> Maybe Colors -> IO Colors
-drawCell cell maybeCurrentConsoleColor = do
-  let (bg, fg, char) = expand cell
-      (bgChange, fgChange) = maybe (True, True) (\(Colors bg' fg') -> (bg'/=bg, fg'/=fg)) maybeCurrentConsoleColor
+{-# INLINE drawCell #-}
+drawCell :: Color8Code -> Color8Code -> Char -> Maybe Colors -> IO Colors
+drawCell bg fg char maybeCurrentConsoleColor = do
+  let (bgChange, fgChange, usedFg) =
+        maybe
+          (True, True, fg)
+          (\(Colors bg' fg') ->
+              -- use foreground color if we don't draw a space
+              let useFg = char /= ' ' -- I don't use Data.Char.isSpace, it could be slower
+                  usedFg' = if useFg
+                             then
+                               fg
+                             else
+                               fg'
+              in (bg'/=bg, fg'/=usedFg', usedFg'))
+            maybeCurrentConsoleColor
       sgrs = [SetPaletteColor Foreground fg | fgChange] ++
              [SetPaletteColor Background bg | bgChange]
 
@@ -416,4 +449,4 @@ drawCell cell maybeCurrentConsoleColor = do
       Prelude.putStr $ setSGRCode sgrs ++ [char]
     else
       Prelude.putChar char
-  return $ Colors bg fg
+  return $ Colors bg usedFg

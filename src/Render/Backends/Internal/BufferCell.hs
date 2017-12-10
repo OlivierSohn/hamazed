@@ -79,12 +79,11 @@ encodeColors (Colors (Color8Code bg') (Color8Code fg')) =
   in (bg `shiftL` 8) .|. fg
 
 {-# INLINE mkIndexedCell #-}
-mkIndexedCell :: Colors -> Word16 -> Char -> Cell
-mkIndexedCell colors idx' char' =
-  let color = fromIntegral $ encodeColors colors
-      char = fromIntegral $ ord char'
-      idx = fromIntegral idx'
-  in (color `shiftL` 48) .|. (idx `shiftL` 32) .|. char
+mkIndexedCell :: Cell -> Word16 -> Cell
+mkIndexedCell cell idx' =
+  cell .|. (idx `shiftL` 32)
+ where
+  idx = fromIntegral idx'
 
 {-# INLINE mkCell #-}
 mkCell :: Colors -> Char -> Cell

@@ -379,10 +379,14 @@ renderFrame clearBack = do
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
 
-  -- One foreground and background color change command is 21 bytes : "\ESC[48;5;167;38;5;255m"
-  -- whereas a position change is 9 bytes, so we want to minimize color changes in priority,
-  -- this is why we sort here by color first, and by position second (color is in the high
-  -- bits of Cell, position in the lower bits)
+  -- On average, foreground and background color change command is 21 bytes :
+  --   "\ESC[48;5;167;38;5;255m"
+  -- On average, position change command is 10 bytes :
+  --   "\ESC[150;42H"
+  -- So we want to minimize the number of color changes first, and then mimnimize
+  -- the number of position changes.
+  -- In 'Cell', color is encoded in higher bits than position, so this sort
+  -- sorts by color first, then by position, which is what we want.
   sort underlying
 
   -- We ignore this color value. We could store it and use it to initiate the recursion

@@ -36,7 +36,9 @@ For more details on the techniques used, look at the implementation of 'renderFr
 
 = Usage
 
--- TODO hide the render size API
+-- TODO hide the render size API, replace it by an optional Initialize function
+which will allocate the buffers
+
 Setup the frame size. You can use
 <https://hackage.haskell.org/package/terminal-size#readme terminal-size package>
 to retrieve the current size of the terminal.

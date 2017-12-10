@@ -414,7 +414,13 @@ renderDelta size index prevColors prevIndex
     renderDelta size (succ index) (Just usedColor) (Just idx) b
 
 
--- TODO:
+-- [before doing this micro optimization, verify that there is no side effect,
+-- it could take longer to render]
+-- TODO: optimize position changes which are 9 bytes on average :
+-- if the distance between 2 consecutive differences (of the same row) is < 9,
+-- and on the path there is no needed color change, we can avoid a position
+-- change command and add all items of the path to the delta vector instead.
+-- This requires that we mimic the logic of drawCell
 computeDelta :: Buffers
              -> Word16
              -- ^ the buffer index

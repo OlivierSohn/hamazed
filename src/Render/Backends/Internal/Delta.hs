@@ -3,60 +3,82 @@
 {-|
 = Purpose
 
-Use this module to render animated colored frames in the console
-with no [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing).
+Render games or animations in the console, with 8-bit colors and Unicode support.
 
-== A bit of history
+= Design goals
+
+* Avoid <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+* Minimize memory footprint and run-time overhead.
+
+== How it started
 
 In the beginnings of
 <https://github.com/OlivierSohn/hamazed my first ascii based game>,
-to render a frame I would:
+the render loop was as naïve as can be:
 
-* clear the console
-* draw
-* flush stdout
+* Clear the console
+* Render the game elements to the console directly
+* Flush stdout
 
-It worked well in the beginning because I was rendering to few locations (~100).
-When I introduced color animations, flickering / tearing effects started to
-occur on frames where more locations were rendered to. I was sending too much
-data to stdout, which was flushed before the end of the frame.
+It worked well whilst a frame was ~100 different locations in a single color.
 
-So I used
+As color animations were introduced, flickering / tearing
+effects started to occur on "rich" frames, because stdout was saturated by
+rendering commands and would flush before all commands corresponding to this frame were issued.
+
+To fix this I maxed the size of stdout buffer, by using
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
-on stdout with
+with
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
-parameter to augment the size of stdout:
+parameter:
 
 > hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
 
-This way, the stdout size went from 2048 to 8092 (on my system,
-cf 'testStdoutSizes' for how I measured this) and that solved the problem.
-Temporarily, until I added some more animations and colors to the game!
+[The stdout size almost quadrupled, from 2048 to 8092, cf 'testStdoutSizes' for a way to
+measure it]
 
-Fortunaltely, I was not the only one encountering
-<https://github.com/feuerbach/ansi-terminal/issues/5 this issue>,
-Rafael Ibraim had
-<https://gist.github.com/ibraimgm/40e307d70feeb4f117cd shared an interesting approach>
-which I used to a great benefit.
+This solved the problem, only until more animations and more color changes were introduced.
 
-The idea is to use two frame buffers, one for the content of what is displayed in
-the console, and one for what we want to draw next. Then, when rendering a frame
-we compute the /delta/ frame : the difference between the current frame and the
-previous frame, and render only the locations were this /delta/ frame contains
-changes.
+To fix <https://github.com/feuerbach/ansi-terminal/issues/5 this issue>,
+<https://github.com/ibraimgm Rafael Ibraim> shared
+<https://gist.github.com/ibraimgm/40e307d70feeb4f117cd a solution using double buffering>
+where the render loop is:
 
-I further optimized the amount of data sent to stdout by grouping the
-rendered locations by color, to issue one color change command for the
-whole group instead of one per element (color change commands are quite
-expensive: 20 bytes on average).
+* Clear the back buffer
+* Draw the game elements to the back buffer
+* Render the difference between the front and the back buffer to the console
+* Flush stdout
+* Copy the back buffer to the front buffer
 
-Also, taking advantage of the fact that 'putChar' makes the cursor position
-automatically move to the right, in some cases I could avoid superfluous
-"position change" escape sequences.
+This approach which fixed the rendering of my game, but I wanted to continue
+improving it, to cover more use-cases. So I added the following optimizations
+which should ensure that a wide variety of game graphics will be well supported
+(Note that if you happen to have a game with a kind of graphic animations that
+don't play well with this module, I would be interested to know, to see if I
+can improve things):
 
-I also changed the memory layout of back and front buffers to use contiguous
-memory, and reduced the memory footprint by encoding foreground color,
-background color, character and position informations in a single Word64.
+* On average, one @color change@ command "costs" 20 bytes ("\ESC[48;5;167;38;5;255m").
+Grouping the rendered locations by color allows to issue one command for the group
+instead of one per element, thus saving (at most) 20 bytes per rendered location.
+
+* On average, one @position change@ command "costs" 9 bytes ("\ESC[150;42H").
+Sorting the "color group" by positions increases the likelyhood that
+two consecutive elements are next to one another. In that case we can omit this
+command, because after a 'putChar' the cursor location goes one step to the
+right. (More to come on this subject, cf. the BACKLOG)
+
+* And finally,
+<https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/
+I found usefull answers on reddit> which helped in the process of optimizing
+the memory layout. Contiguous memory blocks are mow used to store information
+on rendered locations, and we use an Unboxed 'Word64', which is the most efficient Haskell type in terms of
+"information qty / memory usage" ratio, to encode (from
+higher bits to lower bits):
+
+    * background color  (Word8)
+    * foreground color  (Word8)
+    * buffer position   (Word16)
+    * unicode character (Word32)
 
 = Usage
 

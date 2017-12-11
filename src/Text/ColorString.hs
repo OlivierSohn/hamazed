@@ -4,6 +4,7 @@
 module Text.ColorString
             ( ColorString(..)
             , colored
+            , colored'
             , countChars
             ) where
 
@@ -12,7 +13,8 @@ import           Imajuscule.Prelude
 import           System.Console.ANSI(Color8Code(..))
 
 import           Color
-import           Color.Interpolation
+import           Color.Types
+import           Color.IColors
 
 import qualified Data.List as List(length, splitAt)
 import           Data.String(IsString(..))
@@ -22,13 +24,14 @@ import           Math
 
 import           Util
 
-newtype ColorString = ColorString [(Text, Color8Code)] deriving(Show)
+newtype ColorString = ColorString [(Text, Colors)] deriving(Show)
 
 -- TODO maybe it would be faster to have a representation with Array (Char, Color8Code)
 --  (ie the result of simplify)
 instance DiscretelyInterpolable ColorString where
   distance c1 c2 =
-    let colorDist (_, color) (_, color') = bresenhamColor8Length color color'
+    let colorDist (_, color) (_, color') =
+          distance (mkIColors color) (mkIColors color')
         n1 = countChars c1
         n2 = countChars c2
         s1 = simplify c1
@@ -69,9 +72,9 @@ interpolateColors :: ColorString
                   -- ^ progress
                   -> ColorString
 interpolateColors c1 c2 i =
-  let itp (_, color) (char, color') =
-        (pack [char],
-        let (IColor8Code res) = interpolate (IColor8Code color) (IColor8Code color') i in res)
+  let itp (_, color)
+          (char, color') =
+        (pack [char], mkColors $ interpolate (mkIColors color) (mkIColors color') i)
   in ColorString $ zipWith itp (simplify c1) (simplify c2)
 
 interpolateChars :: ColorString
@@ -134,22 +137,25 @@ interpolateChars c1 c2 i =
       , assert (remaining == max n1 n2 - (lPref + lSuff) - i) remaining)
 
 instance IsString ColorString where
-  fromString str = ColorString [(pack str, white)]
+  fromString str = ColorString [(pack str, onBlack white)]
 
 
-simplify :: ColorString -> [(Char, Color8Code)]
+simplify :: ColorString -> [(Char, Colors)]
 simplify (ColorString []) = []
 simplify (ColorString l@(_:_)) =
   let (txt, color) = head l
   in map (\c -> (c,color)) (unpack txt) ++ simplify (ColorString $ tail l)
 
 
+colored' :: Text -> Colors -> ColorString
+colored' t c = ColorString [(t, c)]
+
 colored :: Text -> Color8Code -> ColorString
-colored t c = ColorString [(t,c)]
+colored t c = colored' t $ onBlack c
 
 countChars :: ColorString -> Int
 countChars (ColorString cs) = sum $ map (length . fst) cs
 
 instance Monoid ColorString where
-  mempty = ColorString [("", Color8Code 0)]
+  mempty = ColorString [("", onBlack white)]
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y

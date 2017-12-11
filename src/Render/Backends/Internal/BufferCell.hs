@@ -11,9 +11,7 @@ import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.Char( chr, ord )
 import           Data.Word( Word64, Word32, Word16, Word8 )
 
-import           System.Console.ANSI( Color8Code(..) )
-
-import           Render.Backends.Internal.Types
+import           Color.Types
 
 -- Word64 is optimal: there is no wasted space when unboxed,
 --   cf. https://wiki.haskell.org/GHC/Memory_Footprint

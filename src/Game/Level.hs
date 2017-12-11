@@ -31,13 +31,13 @@ import           Game.World( BattleShip(..)
                       , World(..) )
 
 import           Geo( Direction(..) )
+import           Geo.Discrete
 
 import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
 import           Render.Console
-import           Render
 
 import           Timing( UTCTime
                        , KeyTime(..)
@@ -124,13 +124,13 @@ getCharWithinDurationMicros durationMicros step =
     else
       timeout durationMicros getCharThenFlush
 
-renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
-renderLevelState s level (LevelFinished stop _ messageState) = do
-  let topLeft = go RIGHT s
+renderLevelState :: Coords -> Int -> LevelFinished -> IORef Buffers -> IO ()
+renderLevelState s level (LevelFinished stop _ messageState) b = do
+  let topLeft = translateInDir RIGHT s
       stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  renderTxt_ stopMsg $ setColor Foreground (messageColor stop) topLeft
+  renderTxt_ stopMsg (messageColor stop) topLeft b
   when (messageState == ContinueMessage) $
     renderTxt_
       (if level == lastLevel
@@ -141,9 +141,10 @@ renderLevelState s level (LevelFinished stop _ messageState) = do
                             (Lost _) -> "restart"
                             Won      -> "continue"
           in "Hit a key to " <> action <> " ...")
-      (move 2 Down $ setColor Foreground neutralMessageColor topLeft)
+      neutralMessageColor
+      (move 2 Down topLeft) b
 
 
-renderLevelMessage :: Level -> RenderState -> IO ()
-renderLevelMessage (Level level _ levelState) rightMiddle =
-  mapM_ (renderLevelState rightMiddle level) levelState
+renderLevelMessage :: Level -> Coords -> IORef Buffers -> IO ()
+renderLevelMessage (Level level _ levelState) rightMiddle b =
+  mapM_ (\s -> renderLevelState rightMiddle level s b) levelState

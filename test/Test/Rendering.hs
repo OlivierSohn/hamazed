@@ -12,5 +12,5 @@ testSpace = do
   newContext >>= \ctxt -> do
     setFrameDimensions TerminalSize ctxt
     beginFrame
-    renderSpace s $ RenderState (Coords (Row 0) (Col 0)) ctxt
+    renderSpace s (Coords (Row 0) (Col 0)) ctxt
     endFrame ctxt

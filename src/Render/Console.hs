@@ -20,11 +20,10 @@ module Render.Console
                -- reexports from backends
                , Backend.beginFrame
                , Backend.endFrame
-               , Backend.setDrawColors
-               , Backend.setDrawColor
                , Backend.Colors(..)
-               , Backend.RenderState(..)
                , Backend.newContext
+               , Backend.IORef
+               , Backend.Buffers
                -- reexports
                , module Render.Types
                ) where
@@ -65,7 +64,7 @@ import           Render.Types
 
 data ConsoleConfig = Gaming | Editing
 
-setFrameDimensions :: RenderSize -> Backend.RenderState -> IO ()
+setFrameDimensions :: RenderSize -> Backend.IORef Backend.Buffers -> IO ()
 setFrameDimensions (UserDefined w h) ctxt
   | w <= 0 = error "negative or zero render width not allowed"
   | h <= 0 = error "negative or zero render height not allowed"
@@ -118,45 +117,45 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-renderChar_ :: Char -> Backend.RenderState -> IO ()
+renderChar_ :: Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
 renderChar_ =
   Backend.drawChar
 
 
-drawChars :: Int -> Char -> Backend.RenderState -> IO ()
-drawChars =
+drawChars :: Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
+drawChars=
   Backend.drawChars
 
-drawStr :: String -> Backend.RenderState -> IO Backend.RenderState
-drawStr str r@(Backend.RenderState ctxt color pos) =
-  renderStr_ str r >> return (Backend.RenderState ctxt color (translateInDir Down pos))
+drawStr :: String -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO Coords
+drawStr str color pos b =
+  renderStr_ str color pos b >> return (translateInDir Down pos)
 
-renderStr_ :: String -> Backend.RenderState -> IO ()
+renderStr_ :: String -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
 renderStr_ =
   Backend.drawStr
 
-drawTxt :: Text -> Backend.RenderState -> IO Backend.RenderState
-drawTxt txt r@(Backend.RenderState ctxt color pos) =
-  renderTxt_ txt r >> return (Backend.RenderState ctxt color (translateInDir Down pos))
+drawTxt :: Text -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO Coords
+drawTxt txt color pos b =
+  renderTxt_ txt color pos b >> return (translateInDir Down pos)
 
-renderTxt_ :: Text -> Backend.RenderState -> IO ()
+renderTxt_ :: Text -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
 renderTxt_ =
   Backend.drawTxt
 
-renderSegment :: Segment -> Char -> Backend.RenderState -> IO ()
+renderSegment :: Segment -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
 renderSegment l char rs = case l of
   Horizontal row c1 c2 -> renderHorizontalLine row c1 c2 char rs
   Vertical col r1 r2   -> renderVerticalLine   col r1 r2 char rs
   Oblique _ _ -> error "oblique segment rendering is not supported"
 
 
-renderVerticalLine :: Col -> Int -> Int -> Char -> Backend.RenderState -> IO ()
-renderVerticalLine col r1 r2 char (Backend.RenderState ctxt color upperLeft) = do
+renderVerticalLine :: Col -> Int -> Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
+renderVerticalLine col r1 r2 char color pos b = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  mapM_ (\r -> let rs = Backend.RenderState ctxt color (sumCoords upperLeft $ Coords (Row r) col)
-               in renderChar_ char rs) rows
+  mapM_ (\r -> let pos' = sumCoords pos $ Coords (Row r) col
+               in renderChar_ char color pos' b) rows
 
-renderHorizontalLine :: Row -> Int -> Int -> Char -> Backend.RenderState -> IO ()
-renderHorizontalLine row c1 c2 char (Backend.RenderState ctxt color upperLeft) = do
-  let rs = Backend.RenderState ctxt color (sumCoords upperLeft $ Coords row (Col (min c1 c2)))
-  renderStr_ (replicate (1 + abs (c2-c1)) char) rs
+renderHorizontalLine :: Row -> Int -> Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
+renderHorizontalLine row c1 c2 char color pos = do
+  let pos' = sumCoords pos $ Coords row (Col (min c1 c2))
+  renderStr_ (replicate (1 + abs (c2-c1)) char) color pos'

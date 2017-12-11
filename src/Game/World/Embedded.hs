@@ -22,14 +22,14 @@ minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 
-mkEmbeddedWorld :: RenderState -> WorldSize -> IO (Either String EmbeddedWorld)
-mkEmbeddedWorld rs@(RenderState ctxt color _) s = do
+mkEmbeddedWorld :: IORef Buffers -> WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld ctxt s = do
   mayTermSize <- Terminal.size
   maybe
     (return ())
-    (\(Terminal.Window h w) -> setFrameDimensions (UserDefined w h) rs)
+    (\(Terminal.Window h w) -> setFrameDimensions (UserDefined w h) ctxt)
       mayTermSize
-  return $ (EmbeddedWorld mayTermSize . RenderState ctxt color) <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ (\coords -> EmbeddedWorld mayTermSize coords ctxt) <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
 worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords

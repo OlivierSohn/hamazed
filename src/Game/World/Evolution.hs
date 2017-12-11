@@ -11,20 +11,22 @@ import           Imajuscule.Prelude
 
 import           Game.World.Types
 
+import           Geo.Discrete
+
 import           Render
 
 import           Text.ColorString
 
 import           Timing
 
-renderEvolutions :: WorldEvolutions -> Frame -> IO ()
+renderEvolutions :: WorldEvolutions -> Frame -> IORef Buffers -> IO ()
 renderEvolutions
  we@(WorldEvolutions frameE upDown left)
- frame = do
+ frame b = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
   evolveIO frameE relFrameFrameE
-  renderAnimatedTextCharAnchored upDown relFrameUD
-  renderAnimatedTextStringAnchored left relFrameLeft
+  renderAnimatedTextCharAnchored upDown relFrameUD b
+  renderAnimatedTextStringAnchored left relFrameLeft b
 
 getDeltaTime :: WorldEvolutions -> Frame -> Maybe Float
 getDeltaTime we@(WorldEvolutions frameE (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
@@ -119,12 +121,12 @@ mkTextAnimUpDown from to (txtUppers, txtLowers)
            (txtLowers, centerDownFromAligned, centerDownToAligned)]
           duration
 
-alignTxt :: Alignment -> ColorString -> RenderState -> RenderState
+alignTxt :: Alignment -> ColorString -> Coords -> Coords
 alignTxt al txt = uncurry move $ align al $ countChars txt
 
 
-computeRSForInfos :: FrameSpec -> (RenderState, RenderState, RenderState)
-computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
+computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)
+computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft _ _) =
   (centerUp, centerDown, leftMiddle)
  where
   addWallSize = (+ 2)
@@ -133,6 +135,6 @@ computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft) =
   (rFull, rHalf) = mkSizes rs
   (_    , cHalf) = mkSizes cs
 
-  centerUp   = translate (Row $ -1)        (Col $ cHalf + 1) upperLeft
-  centerDown = translate (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
-  leftMiddle = translate (Row $ rHalf + 1) (Col $ -1)  upperLeft
+  centerUp   = translate' (Row $ -1)        (Col $ cHalf + 1) upperLeft
+  centerDown = translate' (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
+  leftMiddle = translate' (Row $ rHalf + 1) (Col $ -1)  upperLeft

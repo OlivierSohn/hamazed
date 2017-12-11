@@ -3,15 +3,28 @@
 
 ## Delta rendering
 
+implement :
+
+newContext Nothing -- the default is FollowTerminalSize
+newContext $ Just $ CustomSize x y
+
+setFrameSize FollowTerminalSize
+setFrameSize CustomSize
+
+- rename setDrawColor setColor, setDrawLocation setPosition
+
+- make tests to see the effect of buffer size on screen tearing :
+  - alternate '|' with '-'
+  - same with random colors
+  - same with worst case : background and foreground change all the time,
+        same-background colors are far away (to avoid positional optimization)
+
 - make a package for Delta rendering:
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
 - dependencies would be like this if we use Coords:
   delta rendering -> discrete coords -> DiscretelyInterpolable
-
-- provide a context which we can create using TerminalSize or CustomSize or a function to get the size, at every frame end
-it contains the IORef, the buffers.
 
 - Another optimization is to chose the type of "position change"
 command we send based on the relative location of successive elements: today
@@ -20,8 +33,6 @@ be more efficient to switch to the "go forward (optionally n times)" version
 (3 to 5 bytes) when the previously rendered element was on the same row.
 
 - measure if it's faster to buffer the string sent to putStr on our side
-
-- make tests to see the effect of buffer size on screen tearing (alternate ' ' with '.')
 
 ## Misc.
 

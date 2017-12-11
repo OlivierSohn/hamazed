@@ -17,8 +17,6 @@ import           Animation.Types
 
 import           Color
 
-import           Render( RenderState )
-
 import           Timing
 
 
@@ -28,11 +26,12 @@ mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
                -> Maybe KeyTime
                -> Animation
                -> (Coords -> Location)
-               -> RenderState
+               -> Coords
+               -> IORef Buffers
                -> IO (Maybe Animation))
            -> t
            -> Animator
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
-renderAndUpdate' :: Animator -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+renderAndUpdate' :: Animator -> Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation)
 renderAndUpdate' (Animator pure_ io_ colorFunc) = renderAndUpdate pure_ io_ colorFunc

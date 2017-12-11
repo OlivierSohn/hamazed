@@ -41,8 +41,7 @@ data RandomParameters = RandomParameters {
 }
 
 data RenderGroup = RenderGroup {
-    _renderGroupRow :: !Row
-  , _renderGroupCol :: !Col
+    _renderGroupCoords :: !Coords
   , _renderGroupColors :: !Colors
   , _renderGroupChar :: !Char
   , _renderGroupCount :: Int

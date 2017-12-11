@@ -11,6 +11,7 @@ module Geo.Discrete
            , segmentContains
            , diffCoords
            , translate
+           , translate'
            , translateInDir
            , zeroCoords
            -- | reexports
@@ -80,6 +81,9 @@ rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i -
 
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
+
+translate' :: Row -> Col -> Coords -> Coords
+translate' r c = sumCoords (Coords r c)
 
 move :: Int -> Direction -> Coords -> Coords
 move t dir c = sumCoords c $ multiply t $ coordsForDirection dir

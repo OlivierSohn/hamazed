@@ -52,7 +52,7 @@ mkShotNumbersCS _ nums =
                                              t = case i of
                                                   0 -> singleton num
                                                   _ -> pack [num, ' ']
-                                         in (i-1, s <> colored t (numberColor n))) (lastIndex, first) nums
+                                         in (i-1, s <> colored' t (numberColor n))) (lastIndex, first) nums
 
   in [middle <> last_]
 

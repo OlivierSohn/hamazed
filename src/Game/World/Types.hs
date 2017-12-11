@@ -25,6 +25,7 @@ module Game.World.Types
 import           Imajuscule.Prelude
 
 import           GHC.Generics( Generic )
+import           GHC.Show(showString)
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
@@ -64,9 +65,9 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: Colors -> World -> FrameSpec
-mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
-  FrameSpec sz $ setColors colors upperLeft
+mkFrameSpec :: Colors -> World -> IORef Buffers -> FrameSpec
+mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft _)) =
+  FrameSpec sz upperLeft colors
 
 data World = World {
     _worldNumbers :: ![Number]
@@ -79,8 +80,12 @@ data World = World {
 
 data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
-  , _embeddedWorldUpperLeft :: !RenderState
-} deriving(Show)
+  , _embeddedWorldUpperLeft :: !Coords
+  , _embeddedWorldRenderBuffers :: IORef Buffers
+}
+
+instance Show EmbeddedWorld where
+  showsPrec _ (EmbeddedWorld a b _) = showString $ show (a,b,"IORef")
 
 
 data BoundedAnimation = BoundedAnimation Animation Boundaries deriving(Show)

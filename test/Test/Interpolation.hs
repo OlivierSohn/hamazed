@@ -3,7 +3,6 @@ module Test.Interpolation
            ( testInterpolation
            , testCoords
            , testListCoords
-           , testListRenderStates
            , testInts
            , testListInts
            , testSuccessiveInts
@@ -36,15 +35,6 @@ testListCoords :: [([Coords], Maybe Float)]
 testListCoords =
   let from = [Coords (Row 0) (Col 0),Coords (Row 10) (Col 10)]
       to = [Coords (Row 1) (Col 0), Coords (Row 11) (Col 10)]
-      d = distance from to
-      e = mkEvolution2 from to 1
-  in map (zipAll e . Frame) [0..pred d]
-
-testListRenderStates :: RenderState -> [([RenderState], Maybe Float)]
-testListRenderStates (RenderState ctxt _ _) =
-  let col = Colors black white
-      from = [RenderState ctxt col (Coords (Row 0) (Col 0)), RenderState ctxt col (Coords (Row 10) (Col 10))]
-      to   = [RenderState ctxt col (Coords (Row 1) (Col 0)), RenderState ctxt col (Coords (Row 11) (Col 10))]
       d = distance from to
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]

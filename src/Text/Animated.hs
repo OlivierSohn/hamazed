@@ -23,6 +23,8 @@ import           Data.List(foldl', splitAt, unzip)
 
 import           Evolution
 
+import           Geo.Discrete
+
 import           Math
 
 import           Render.Console
@@ -39,63 +41,64 @@ import           Text.ColorString
 --    - chars color changes
 data (Show a) => TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
- , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList RenderState))
+ , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList Coords))
  , _textAnimationClock :: !EaseClock
 } deriving(Show)
 
 data AnchorStrings = AnchorStrings deriving(Show)
 data AnchorChars = AnchorChars deriving(Show)
 
-renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings -> Frame -> IO ()
-renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
+renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i b = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextStringAnchored' fromToStrs rss i
+  renderAnimatedTextStringAnchored' fromToStrs rss i b
 
-renderAnimatedTextStringAnchored' :: [Evolution ColorString] -> [RenderState] -> Frame -> IO ()
-renderAnimatedTextStringAnchored' [] _ _ = return ()
-renderAnimatedTextStringAnchored' l@(_:_) rs i = do
+renderAnimatedTextStringAnchored' :: [Evolution ColorString] -> [Coords] -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextStringAnchored' [] _ _ _ = return ()
+renderAnimatedTextStringAnchored' l@(_:_) rs i b = do
   let e = head l
       rsNow = head rs
       colorStr = evolve e i
-  renderColored colorStr rsNow
-  renderAnimatedTextStringAnchored' (tail l) (tail rs) i
+  renderColored colorStr rsNow b
+  renderAnimatedTextStringAnchored' (tail l) (tail rs) i b
 
-renderAnimatedTextCharAnchored :: TextAnimation AnchorChars -> Frame -> IO ()
-renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
+renderAnimatedTextCharAnchored :: TextAnimation AnchorChars -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i b = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextCharAnchored' fromToStrs rss i
+  renderAnimatedTextCharAnchored' fromToStrs rss i b
 
-renderAnimatedTextCharAnchored' :: [Evolution ColorString] -> [RenderState] -> Frame -> IO ()
-renderAnimatedTextCharAnchored' [] _ _ = return ()
-renderAnimatedTextCharAnchored' l@(_:_) rs i = do
+renderAnimatedTextCharAnchored' :: [Evolution ColorString] -> [Coords] -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextCharAnchored' [] _ _ _ = return ()
+renderAnimatedTextCharAnchored' l@(_:_) rs i b = do
   -- use length of from to know how many renderstates we should take
   let e@(Evolution (Successive colorStrings) _ _ _) = head l
       nRS = maximum $ map countChars colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       (ColorString colorStr) = evolve e i
-  renderColorStringAt colorStr nowRS
-  renderAnimatedTextCharAnchored' (tail l) laterRS i
+  renderColorStringAt colorStr nowRS b
+  renderAnimatedTextCharAnchored' (tail l) laterRS i b
 
--- TODO change design of ColorString (replace Colors in ColorString by RenderState) to avoid superfluous info here (Colors of RenderState are ignored)
-renderColorStringAt :: [(Text, Color8Code)] -> [RenderState] -> IO ()
-renderColorStringAt [] _ = return ()
-renderColorStringAt l@(_:_) rs = do
+renderColorStringAt :: [(Text, Colors)] -> [Coords] -> IORef Buffers -> IO ()
+renderColorStringAt [] _ _ = return ()
+renderColorStringAt l@(_:_) rs b = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ renderChar_ (unpack txt) $ map (setColor Foreground color) headRs
-  renderColorStringAt (tail l) tailRs
+  zipWithM_ (\char coord -> renderChar_ char color coord b) (unpack txt) headRs
+  renderColorStringAt (tail l) tailRs b
 
-getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList RenderState) -> Frame -> [RenderState]
+getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList Coords)
+                            -> Frame
+                            -> [Coords]
 getAnimatedTextRenderStates evolution i =
   let (SequentiallyInterpolatedList l) = evolve evolution i
   in l
 
-build :: RenderState -> Int -> [RenderState]
+build :: Coords -> Int -> [Coords]
 build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
 -- | order of animation is: move, change characters, change color
-mkSequentialTextTranslationsCharAnchored :: [([ColorString], RenderState, RenderState)]
+mkSequentialTextTranslationsCharAnchored :: [([ColorString], Coords, Coords)]
                                          -- ^ list of text + start anchor + end anchor
                                          -> Float
                                          -- ^ duration in seconds
@@ -115,7 +118,7 @@ mkSequentialTextTranslationsCharAnchored l duration =
                      (SequentiallyInterpolatedList to_) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
-mkSequentialTextTranslationsStringAnchored :: [([ColorString], RenderState, RenderState)]
+mkSequentialTextTranslationsStringAnchored :: [([ColorString], Coords, Coords)]
                                            -- ^ list of texts, start anchor, end anchor
                                            -> Float
                                            -- ^ duration in seconds
@@ -134,9 +137,9 @@ mkSequentialTextTranslationsStringAnchored l duration =
 mkTextTranslation :: ColorString
                   -> Float
                   -- ^ duration in seconds
-                  -> RenderState
+                  -> Coords
                   -- ^ left anchor at the beginning
-                  -> RenderState
+                  -> Coords
                   -- ^ left anchor at the end
                   -> TextAnimation AnchorChars
 mkTextTranslation text duration from to =

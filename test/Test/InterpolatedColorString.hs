@@ -7,8 +7,9 @@ import Imajuscule.Prelude
 
 import Prelude(String)
 
+import Geo.Discrete
 import Color
-import Color.Interpolation
+import Color.IColor8Code
 import Game.World.Space
 import Render.Console
 
@@ -35,37 +36,37 @@ testICS = do
   mapM_
     (\i@(Frame c) -> do
       let cs = evolve e i
-      renderColored' cs (Coords (Row c + 10) (Col 3)) ctxt
+      renderColored' cs (Coords (Row c + 10) (Col 3)) zeroCoords ctxt
     ) $ map Frame [0..lastFrame]
 
   mapM_
     (\i@(Frame c) -> do
       let cs = evolve e' i
-      renderColored' cs (Coords (Row c + 10) (Col 25)) ctxt
+      renderColored' cs (Coords (Row c + 10) (Col 25)) zeroCoords ctxt
     ) $ map Frame [0..lastFrame']
 
   mapM_
     (\i@(Frame c) -> do
       let cs = evolve e'' i
-      renderColored' cs (Coords (Row c + 20) (Col 25)) ctxt
+      renderColored' cs (Coords (Row c + 20) (Col 25)) zeroCoords ctxt
     ) $ map Frame [0..lastFrame'']
 
   mapM_
     (\i@(Frame c) -> do
       let cs@(ColorString l) = evolve e''' i
           (_,color) = head l
-      renderColored' cs (Coords (Row c + 30) (Col 25)) ctxt
-      drawStr' (show color) (Coords (Row c + 30) (Col 35)) ctxt
+      renderColored' cs (Coords (Row c + 30) (Col 25)) zeroCoords ctxt
+      drawStr' (show color) (Coords (Row c + 30) (Col 35)) zeroCoords ctxt
     ) $ map Frame [0..lastFrame''']
 
   endFrame ctxt
 
   return ()
 
-renderColored' :: ColorString -> Coords -> RenderState -> IO ()
+renderColored' :: ColorString -> Coords -> Coords -> IORef Buffers -> IO ()
 renderColored' cs pos rs =
-  renderColored cs $ translate' pos rs
+  renderColored cs (translate pos rs)
 
-drawStr' :: String -> Coords -> RenderState -> IO RenderState
+drawStr' :: String -> Coords -> Coords -> IORef Buffers -> IO Coords
 drawStr' cs pos rs =
-  drawStr cs $ translate' pos rs
+  drawStr cs (Colors black white) (translate pos rs)

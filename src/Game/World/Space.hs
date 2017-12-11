@@ -44,7 +44,7 @@ import           Collision
 import           Game.World.Types
 import           Game.World.Size
 
-import           Geo.Discrete hiding (extend, translate, move)
+import           Geo.Discrete hiding (extend)
 
 import           Render
 
@@ -245,7 +245,7 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
                            Wall -> 'Z'
                            Air -> ' '
                      in (Col (c+count),
-                         RenderGroup row col materialColor materialChar count))
+                         RenderGroup (Coords row col) materialColor materialChar count))
                   (Col 0) $ group $ map (accessMaterial . Col) [0..pred cs]
 
 getInnerMaterial :: Coords -> Space -> Material
@@ -273,29 +273,29 @@ strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
-renderSpace :: Space -> RenderState -> IO RenderState
-renderSpace (Space _ _ renderedWorld) upperLeft = do
+renderSpace :: Space -> Coords -> IORef Buffers -> IO Coords
+renderSpace (Space _ _ renderedWorld) upperLeft b = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
-  mapM_ (renderGroup worldCoords) renderedWorld
+  mapM_ (\w -> renderGroup worldCoords w b) renderedWorld
   return worldCoords
 
-renderGroup :: RenderState -> RenderGroup -> IO ()
-renderGroup worldCoords (RenderGroup r c colors char count) =
-  renderColoredChars count char colors $ translate r c worldCoords
+renderGroup :: Coords -> RenderGroup -> IORef Buffers -> IO ()
+renderGroup worldCoords (RenderGroup pos colors char count) =
+  renderColoredChars count char colors $ sumCoords pos worldCoords
 
 
-renderIfNotColliding :: Char -> Coords -> Space -> RenderState -> IO ()
-renderIfNotColliding char worldCoords space r =
+renderIfNotColliding :: Char -> Coords -> Space -> Colors -> Coords -> IORef Buffers -> IO ()
+renderIfNotColliding char worldCoords space colors r b =
   case getMaterial worldCoords space of
-    Air  -> drawChar char worldCoords r
+    Air  -> drawChar char (sumCoords worldCoords r) colors b
     Wall -> return ()
 
 locationFunction :: Boundaries
                  -> Space
                  -> Maybe (Window Int)
-                 -> RenderState
+                 -> Coords
                  -> (Coords -> Location)
-locationFunction f space@(Space _ sz _) mayTermWindow (RenderState _ _ wcc) =
+locationFunction f space@(Space _ sz _) mayTermWindow wcc =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =

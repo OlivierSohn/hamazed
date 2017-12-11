@@ -32,7 +32,9 @@ library
                      , Animation.Util
                      , Collision
                      , Color
-                     , Color.Interpolation
+                     , Color.IColor8Code
+                     , Color.IColors
+                     , Color.Types
                      , Evolution
                      , Game.Deadline
                      , Game.Event
@@ -75,7 +77,6 @@ library
                      , Render.Backends.Delta
                      , Render.Backends.Internal.BufferCell
                      , Render.Backends.Internal.Delta
-                     , Render.Backends.Internal.Types
                      , Render.Backends.Internal.UnboxedDynamic
                      , Render.Console
                      , Render.Types

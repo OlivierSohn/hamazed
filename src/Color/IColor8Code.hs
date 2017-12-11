@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Color.Interpolation
+module Color.IColor8Code
         ( IColor8Code(..)
         -- utilities
         , bresenhamRGBLength
@@ -25,6 +25,7 @@ import           Interpolation
 import           Math
 import           Util
 
+
 newtype IColor8Code = IColor8Code Color8Code deriving (Show)
 
 -- on IColor8Code instead of Color8Code to avoid orphan instance
@@ -40,7 +41,7 @@ instance DiscretelyInterpolable IColor8Code where
             index = clamp i 0 lastFrame
         in IColor8Code . head . drop index $ bresenhamColor8 c c'
 
--- | Interpolations betwee 2 rgb or 2 grays are well-defined, whereas
+-- | Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations fallback on raw Color8Code interpolation which
 --   has little visual meaning. To improve on this, we could define conversion
 --   functions between different representations in the future.

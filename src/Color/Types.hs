@@ -1,11 +1,9 @@
--- | Types used for Delta rendering.
 
-module Render.Backends.Internal.Types
+module Color.Types
           ( Colors(..)
           -- * Reexports from System.Console.ANSI
           , Color8Code(..)
           ) where
-
 
 import           System.Console.ANSI( Color8Code(..) )
 

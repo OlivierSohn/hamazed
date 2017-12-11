@@ -20,12 +20,11 @@ import           Game.World.Space
 import           Game.World.Size
 import           Game.World.Embedded
 
+import           Geo.Discrete
+
 import           IO.Blocking
 
 import           Render.Console
-import           Render( move, renderAlignedTxt_
-                       , Alignment(..), go, renderAlignedTxt
-                       , Coords(..), Row(..), Col(..), Direction(..))
 
 import           Timing
 
@@ -41,10 +40,10 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: RenderState -> IO GameParameters
+getGameParameters :: IORef Buffers -> IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> RenderState -> IO GameParameters
+update :: GameParameters -> IORef Buffers -> IO GameParameters
 update params ctxt =
   render params ctxt >>
     getCharThenFlush >>= either
@@ -66,38 +65,43 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-render :: GameParameters -> RenderState -> IO ()
+render :: GameParameters -> IORef Buffers -> IO ()
 render (GameParameters shape wall) ctxt' = do
   let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
   ew <- mkEmbeddedWorld ctxt' worldSize
   case ew of
     Left err -> error err
-    Right rew@(EmbeddedWorld _ ctxt) -> do
+    Right rew@(EmbeddedWorld _ ul ctxt) -> do
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
-      _ <- renderSpace space ctxt >>=
-        \worldCoords' -> do
+      _ <- renderSpace space ul ctxt >>=
+        \worldCoords -> do
           renderWorld world
-          let worldCoords = setColors configColors worldCoords'
-              middle = move (quot cs 2) RIGHT worldCoords
+          let middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
-            renderAlignedTxt_ Centered "------------------"
+          renderAlignedTxt Centered "Game configuration" configColors (translateInDir Down middle) ctxt
+            >>= \ pos ->
+              renderAlignedTxt_ Centered "------------------" configColors pos ctxt
 
-          go Down <$> drawTxt "- World shape" (move 5 Up left) >>=
-              drawTxt "'1' -> width = height" >>=
-                renderTxt_ "'2' -> width = 2 x height"
-          go Down <$> drawTxt "- World walls" left >>=
-              drawTxt "'e' -> no walls" >>=
-                drawTxt "'r' -> deterministic walls" >>=
-                  renderTxt_ "'t' -> random walls"
+          translateInDir Down <$> drawTxt "- World shape" configColors (move 5 Up left) ctxt
+            >>= \ pos ->
+              drawTxt "'1' -> width = height" configColors pos ctxt
+                >>= \pos2 ->
+                  renderTxt_ "'2' -> width = 2 x height" configColors pos2 ctxt
+          translateInDir Down <$> drawTxt "- World walls" configColors left ctxt
+            >>= \pos ->
+              drawTxt "'e' -> no walls" configColors pos ctxt >>=
+                \pos2 ->
+                  drawTxt "'r' -> deterministic walls" configColors pos2 ctxt
+                    >>= \pos3 ->
+                      renderTxt_ "'t' -> random walls" configColors pos3 ctxt
 
-          renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
+          renderAlignedTxt_ Centered "Hit 'Space' to start game" configColors (translateInDir Up middleLow) ctxt
           t <- getCurrentTime
-          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
+          let infos = (mkFrameSpec worldFrameColors world ctxt, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
-          renderWorldAnimation worldAnimation
+          renderWorldAnimation worldAnimation ctxt
       endFrame ctxt

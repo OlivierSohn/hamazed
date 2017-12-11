@@ -3,10 +3,10 @@
 module Render.Backends.Delta
                           ( beginFrame
                           , endFrame
-                          , moveTo
                           , preferredBuffering
                           -- reexports
                           , module Render.Backends.Internal.Delta
+                          , BufferMode(..)
                           ) where
 
 import           Imajuscule.Prelude
@@ -23,9 +23,6 @@ preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 beginFrame :: IO ()
 beginFrame = return ()
 
-endFrame :: RenderState -> IO ()
-endFrame = renderFrame True {- clear buffer after rendering -}
-
-moveTo :: Coords -> RenderState -> RenderState
-moveTo =
-  setDrawLocation
+endFrame :: IORef Buffers -> IO ()
+endFrame =
+  renderFrame True {- clear buffer after rendering -}

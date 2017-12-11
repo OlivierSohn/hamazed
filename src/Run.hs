@@ -36,5 +36,5 @@ doRun =
   `finally`
    configureConsoleFor Editing
 
-gameWorker :: RenderState -> IO ()
+gameWorker :: IORef Buffers -> IO ()
 gameWorker rs = getGameParameters rs >>= runGameWorker rs

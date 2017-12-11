@@ -146,10 +146,10 @@ createRandomNumber space i = do
   return $ Number ps i
 
 renderWorld :: World -> IO ()
-renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _ (EmbeddedWorld _ upperLeft))  = do
+renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _ (EmbeddedWorld _ upperLeft buf))  = do
   -- render numbers, including the ones that will be destroyed, if any
-  let s = go Down $ go RIGHT upperLeft
-  mapM_ (\b -> renderNumber b space s) balls
+  let s = translateInDir Down $ translateInDir RIGHT upperLeft
+  mapM_ (\b -> renderNumber b space s buf) balls
   when (null collisions) (do
     let colors =
           if isNothing safeTime
@@ -157,15 +157,16 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
               shipColors
             else
               shipColorsSafe
-        s' = setColors colors s
-    renderIfNotColliding '+' shipCoords space s' -- TODO render if safetime or not colliding
+    renderIfNotColliding '+' shipCoords space colors s buf -- TODO render if safetime or not colliding
       )
 
-renderNumber :: Number -> Space -> RenderState -> IO ()
-renderNumber (Number (PosSpeed pos _) i) space r =
-  renderIfNotColliding (intToDigit i) pos space $ setColor Foreground (numberColor i) r
+renderNumber :: Number -> Space -> Coords -> IORef Buffers -> IO ()
+renderNumber (Number (PosSpeed pos _) i) space r b = do
+  let color = numberColor i
+  renderIfNotColliding (intToDigit i) pos space color r b
 
 renderWorldAnimation :: WorldAnimation
+                     -> IORef Buffers
                      -> IO ()
 renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
   renderEvolutions evolutions frame

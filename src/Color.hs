@@ -25,6 +25,8 @@ module Color (
   -- * create colors
   , gray
   , rgb
+  , onBlack
+  , Color8Code(..)
 ) where
 
 import           Imajuscule.Prelude
@@ -39,6 +41,9 @@ import           Game.Level.Types
 
 import           Render.Console
 
+onBlack :: Color8Code -> Colors
+onBlack = Colors (rgb 0 0 0)
+
 configColors :: Colors
 configColors = Colors (gray 0) (gray 8)
 
@@ -48,8 +53,8 @@ wallColors = Colors (gray 0) (gray 3)
 airColors :: Colors
 airColors = Colors black white
 
-neutralMessageColor :: Color8Code
-neutralMessageColor = gray 10
+neutralMessageColor :: Colors
+neutralMessageColor = onBlack $ gray 10
 
 ammoColor :: Color8Code
 ammoColor = gray 14
@@ -57,9 +62,9 @@ ammoColor = gray 14
 bracketsColor :: Color8Code
 bracketsColor = worldFrameFgColor
 
-messageColor :: GameStops -> Color8Code
-messageColor Won      = rgb 4 3 1
-messageColor (Lost _) = gray 6
+messageColor :: GameStops -> Colors
+messageColor Won      = onBlack $ rgb 4 3 1
+messageColor (Lost _) = onBlack $ gray 6
 
 shipColors :: Colors
 shipColors = Colors shipBgColor shipColor
@@ -79,15 +84,15 @@ shipBgColor = black
 shipBgColorSafe :: Color8Code
 shipBgColorSafe = rgb 1 0 0
 
-numberColor :: Int -> Color8Code
-numberColor i = xterm256ColorToCode $ RGBColor (RGB r g b)
+numberColor :: Int -> Colors
+numberColor i = onBlack $ xterm256ColorToCode $ RGBColor (RGB r g b)
   where
     r = 5
     g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
     b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
 
-colorFromFrame :: Frame -> Color8Code
-colorFromFrame (Frame f) = xterm256ColorToCode $ RGBColor (RGB r g b)
+colorFromFrame :: Frame -> Colors
+colorFromFrame (Frame f) = onBlack $ xterm256ColorToCode $ RGBColor (RGB r g b)
   where
     r = assert (f >= 0) 4
     g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes

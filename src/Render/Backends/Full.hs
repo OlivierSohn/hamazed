@@ -37,7 +37,7 @@ import           System.IO( hFlush
 
 import           Geo.Discrete.Types( Coords(..), Col(..), Row(..))
 
-import           Render.Backends.Internal.Types
+import           Color.Types
 
 setRenderSize :: Int -> Int -> IO ()
 setRenderSize _ _ = return ()

@@ -21,6 +21,8 @@ module Animation.Types
     , Coords
     , Location(..)
     , module Iteration
+    , IORef
+    , Buffers
     ) where
 
 
@@ -28,26 +30,26 @@ import           Imajuscule.Prelude
 
 import           GHC.Show(showString)
 
-import           System.Console.ANSI(Color8Code)
-
 import           Collision(Location(..))
 
+import           Color.Types
+
 import           Geo.Discrete.Types( Coords )
+
+import           Render.Console
 
 import           Timing( KeyTime )
 
 import           Iteration
 
-import           Render.Console( RenderState )
-
 -- | Animator contains functions to update and render an Animation.
 data Animator = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
     -- ^ a function that updates Tree
-  , _animatorIO :: Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation)
+  , _animatorIO :: Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation)
     -- ^ a function that consumes Tree to render the animation.
     -- It is a non-strict field to avoid infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
-  , _animatorColorFromFrame :: !(Frame -> Color8Code)
+  , _animatorColorFromFrame :: !(Frame -> Colors)
     -- ^ a function that assigns a color to an animation frame
 }
 
@@ -91,7 +93,7 @@ data Animation = Animation {
     -- ^ The iteration
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points
-  , _animationRender :: !(Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+  , _animationRender :: !(Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
     --   and may return an updated Animation
 }
@@ -114,7 +116,7 @@ mkAnimationTree :: Coords -> OnWall -> Tree
 mkAnimationTree c ow = Tree c 0 Nothing ow Nothing
 
 
-mkAnimation :: (Maybe KeyTime -> Animation -> (Coords -> Location) -> RenderState -> IO (Maybe Animation))
+mkAnimation :: (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
             -> KeyTime
             -> AnimationZero
             -> Speed

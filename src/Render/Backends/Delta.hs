@@ -23,9 +23,9 @@ preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 beginFrame :: IO ()
 beginFrame = return ()
 
-endFrame :: IO ()
+endFrame :: Context -> IO ()
 endFrame = renderFrame True {- clear buffer after rendering -}
 
-moveTo :: Coords -> IO ()
+moveTo :: Coords -> Context -> IO ()
 moveTo (Coords (Row r) (Col c)) =
   setDrawLocation c r

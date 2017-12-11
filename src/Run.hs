@@ -14,13 +14,9 @@ import           Control.Exception( finally )
 
 import           Game( runGameWorker )
 import           Game.Parameters( getGameParameters )
-import           Render.Console( configureConsoleFor, ConsoleConfig(..) )
+import           Render.Console
 import           Threading( runAndWaitForTermination, Termination(..) )
 
-
---------------------------------------------------------------------------------
--- IO
---------------------------------------------------------------------------------
 
 run :: IO ()
 run =
@@ -32,11 +28,14 @@ run =
 
 doRun :: IO Termination
 doRun =
-  (configureConsoleFor Gaming >> runAndWaitForTermination gameWorker)
+  (configureConsoleFor Gaming
+    >> newContext
+      >>= \ctxt ->
+        runAndWaitForTermination $ gameWorker ctxt)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally`
    configureConsoleFor Editing
 
-gameWorker :: IO ()
-gameWorker = getGameParameters >>= runGameWorker
+gameWorker :: Context -> IO ()
+gameWorker ctxt = getGameParameters ctxt >>= runGameWorker ctxt

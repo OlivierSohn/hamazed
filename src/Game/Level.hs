@@ -127,16 +127,16 @@ getCharWithinDurationMicros durationMicros step =
       timeout durationMicros getCharThenFlush
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
-renderLevelState coords level (LevelFinished stop _ messageState) = do
+renderLevelState coords@(RenderState _ ctxt) level (LevelFinished stop _ messageState) = do
   let color = messageColor stop
       topLeft = go RIGHT coords
-  c <- setDrawColor Foreground color
+  c <- setDrawColor Foreground color ctxt
   renderTxt_ (case stop of
     (Lost reason) -> "You Lose (" <> reason <> ")"
     Won           -> "You Win!") topLeft
-  restoreDrawColors c
+  restoreDrawColors c ctxt
   when (messageState == ContinueMessage) $ do
-    c2 <- setDrawColor Foreground neutralMessageColor
+    c2 <- setDrawColor Foreground neutralMessageColor ctxt
     renderTxt_ (if level == lastLevel
       then
         "You reached the end of the game!"
@@ -145,7 +145,7 @@ renderLevelState coords level (LevelFinished stop _ messageState) = do
                           (Lost _) -> "restart"
                           Won      -> "continue"
         in "Hit a key to " <> action <> " ...") (move 2 Down topLeft)
-    restoreDrawColors c2
+    restoreDrawColors c2 ctxt
 
 
 renderLevelMessage :: Level -> RenderState -> IO ()

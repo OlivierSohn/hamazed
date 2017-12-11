@@ -6,7 +6,7 @@ Render games or animations in the console, without
 <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 
 = Design goals
-* Design generic techniques to avoid
+* Use generic techniques to avoid
 <https://en.wikipedia.org/wiki/Screen_tearing screen tearing> for all kinds of
 game graphics.
 * Minimize memory footprint and run-time overhead.
@@ -127,7 +127,9 @@ TODO should this module handle cursor hiding?
 module Render.Backends.Internal.Delta
        (
        -- * Setup
-         setFrameDimensions
+         newContext
+       , Context
+       , setFrameDimensions
        -- * Fill the back buffer
        , fill
        -- * Draw to the back buffer
@@ -152,6 +154,8 @@ module Render.Backends.Internal.Delta
 
 import           Imajuscule.Prelude hiding (replicate)
 
+import           GHC.Show(showString)
+
 import qualified Prelude ( putChar, putStr )
 
 import           Data.Colour.SRGB( RGB(..) )
@@ -166,7 +170,6 @@ import           Data.Word( Word32, Word16 )
 import           System.Console.ANSI( xterm256ColorToCode, Color8Code(..), Xterm256Color(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
 import           System.IO( stdout, hFlush )
-import           System.IO.Unsafe( unsafePerformIO )
 
 import           Render.Backends.Internal.BufferCell
 import           Render.Backends.Internal.Types
@@ -207,16 +210,17 @@ setFrameDimensions :: Word16
                     -- ^ Width
                     -> Word16
                     -- ^ Height
+                    -> Context
                     -> IO ()
-setFrameDimensions width height = do
-  (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight _)) <- readIORef screenBuffer
+setFrameDimensions width height (Context ref) = do
+  (RenderState (Pencil idx colors) (Buffers _ _ _ prevWidth prevHeight _)) <- readIORef ref
   if prevWidth == width && prevHeight == height
     then
       return ()
     else do
       buffers@(Buffers _ _ size _ _ _) <- mkBuffers width height
       let newPencilIdx = idx `fastMod` size
-      writeIORef screenBuffer $ RenderState (Pencil newPencilIdx colors) buffers
+      writeIORef ref $ RenderState (Pencil newPencilIdx colors) buffers
 
 
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
@@ -278,14 +282,20 @@ noColors = Colors noColor noColor
 nocolorCell :: Cell
 nocolorCell = mkCell noColors ' '
 
+newtype Context = Context {
+  _contextState :: IORef RenderState
+} deriving(Eq)
 
-{-# NOINLINE screenBuffer #-}
-screenBuffer :: IORef RenderState
-screenBuffer =
-  unsafePerformIO $ do
-    buffers <- mkBuffers 300 80 -- TODO should we use terminal-size?
-    newIORef (RenderState mkInitialState buffers)
+instance Show Context where
+  showsPrec _ _ = showString "IORef"
 
+{-# NOINLINE newContext #-}
+newContext :: IO Context
+newContext =
+  mkBuffers 300 80 -- TODO should we use terminal-size?
+    >>= \buffers ->
+      newIORef (RenderState mkInitialState buffers)
+        >>= return . Context
 
 mkInitialState :: Pencil
 mkInitialState = Pencil 0 initialColors
@@ -316,8 +326,11 @@ xyFromIndex (Buffers _ _ size width _ _) idx =
     y = pos' `div` width
 
 
-setDrawColor :: ConsoleLayer -> Color8Code -> IO Colors
-setDrawColor layer color = do
+setDrawColor :: ConsoleLayer
+             -> Color8Code
+             -> Context
+             -> IO Colors
+setDrawColor layer color (Context screenBuffer) = do
   (RenderState (Pencil idx prevColors@(Colors prevBg prevFg)) b ) <- readIORef screenBuffer
   let newColors = case layer of
         Foreground -> Colors prevBg color
@@ -326,25 +339,35 @@ setDrawColor layer color = do
   return prevColors
 
 
-setDrawColors :: Colors -> IO Colors
-setDrawColors colors = do
+setDrawColors :: Colors
+              -> Context
+              -> IO Colors
+setDrawColors colors (Context screenBuffer) = do
   (RenderState (Pencil idx prevColors) b ) <- readIORef screenBuffer
   writeIORef screenBuffer $ RenderState (Pencil idx colors) b
   return prevColors
 
 
-restoreDrawColors :: Colors -> IO ()
-restoreDrawColors = void . setDrawColors
+restoreDrawColors :: Colors
+                  -> Context
+                  -> IO ()
+restoreDrawColors colors c = void $ setDrawColors colors c
 
 
-setDrawLocation :: Int -> Int -> IO ()
-setDrawLocation x y
+setDrawLocation :: Int
+                -> Int
+                -> Context
+                -> IO ()
+setDrawLocation x y ctxt
   | x < 0 || y < 0 = error $ "cannot draw to negative location " ++ show (x,y)
-  | otherwise      = setDrawLocation' (fromIntegral x) (fromIntegral y)
+  | otherwise      = setDrawLocation' (fromIntegral x) (fromIntegral y) ctxt
 
 
-setDrawLocation' :: Word16 -> Word16 -> IO ()
-setDrawLocation' x y = do
+setDrawLocation' :: Word16
+                 -> Word16
+                 -> Context
+                 -> IO ()
+setDrawLocation' x y (Context screenBuffer) = do
   (RenderState (Pencil _ colors) b) <- readIORef screenBuffer
   let idx = indexFromXY b x y
   writeIORef screenBuffer $ RenderState (Pencil idx colors) b
@@ -352,15 +375,20 @@ setDrawLocation' x y = do
 
 -- | Draws a 'Char' at the current draw location, with the current draw colors.
 drawChar :: Char
+         -> Context
          -> IO ()
-drawChar c = do
+drawChar c (Context screenBuffer) = do
   (RenderState (Pencil idx colors) (Buffers back _ _ _ _ _)) <- readIORef screenBuffer
   putCharRawAt back idx colors c
 
 
-putCharRawAt :: Buffer Back -> Word16 -> Colors -> Char -> IO ()
+putCharRawAt :: Buffer Back
+             -> Word16
+             -> Colors
+             -> Char
+             -> IO ()
 putCharRawAt back idx colors c =
-  writeToBack back idx $ mkCell colors c
+  writeToBack back idx (mkCell colors c)
 
 
 -- | Draws multiple times the same 'Char' starting from the current draw location,
@@ -368,8 +396,9 @@ putCharRawAt back idx colors c =
 drawChars :: Int
           -- ^ Number of repetitions.
           -> Char
+          -> Context
           -> IO ()
-drawChars count c = do
+drawChars count c (Context screenBuffer) = do
   (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
   let cell = mkCell colors c
   mapM_ (\i -> let pos = (idx + fromIntegral i) `fastMod` size
@@ -378,15 +407,19 @@ drawChars count c = do
 
 -- | Draws a 'String' starting from the current draw location,
 --   using current draw colors.
-drawStr :: String -> IO ()
-drawStr str = do
+drawStr :: String
+        -> Context
+        -> IO ()
+drawStr str (Context screenBuffer) = do
   (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
   mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
 
 -- | Draws a 'Text' starting from the current draw location,
 --   using current draw colors.
-drawTxt :: Text -> IO ()
+drawTxt :: Text
+        -> Context
+        -> IO ()
 drawTxt text = drawStr $ unpack text
 
 
@@ -400,16 +433,20 @@ fill :: Maybe Colors
      -- ^ When Nothing, the initial colors are used.
      -> Maybe Char
      -- ^ When Nothing, a space character is used.
+     -> Context
      -> IO ()
-fill mayColors mayChar = do
+fill mayColors mayChar ctxt@(Context screenBuffer) = do
   let colors = fromMaybe initialColors mayColors
       char = fromMaybe ' ' mayChar
-  _ <- setDrawColors colors
+  _ <- setDrawColors colors ctxt
   (RenderState _ b) <- readIORef screenBuffer
   fillBackBuffer b colors char
 
 
-fillBackBuffer :: Buffers -> Colors -> Char -> IO ()
+fillBackBuffer :: Buffers
+               -> Colors
+               -> Char
+               -> IO ()
 fillBackBuffer (Buffers (Buffer b) _ size _ _ _) colors char = do
   let cell = mkCell colors char
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
@@ -429,8 +466,9 @@ renderFrame :: Bool
               -- ^ If True, after submission the drawing is reset to the initial color.
               -- This can also be achieved by calling "fill Nothing Nothing" after this call,
               -- at the cost of one more traversal of the back buffer.
+              -> Context
               -> IO ()
-renderFrame clearBack = do
+renderFrame clearBack (Context screenBuffer) = do
   (RenderState _ buffers@(Buffers _ _ _ _ _ (Delta delta))) <- readIORef screenBuffer
   computeDelta buffers 0 clearBack
   szDelta <- Dyn.length delta

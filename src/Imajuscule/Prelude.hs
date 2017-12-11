@@ -106,6 +106,8 @@ module Imajuscule.Prelude (
                           -- | Control.Monad reexports
                           , when
                           , void
+                          -- | Control.Monad.IO.Class reexports
+                          , liftIO
                           -- | Data.Monoid reexports
                           , (<>)
                           , undefined
@@ -123,6 +125,7 @@ import           Prelude
 
 import           Control.Applicative( (<|>) )
 import           Control.Monad( when, void, (<=<), Monad )
+import           Control.Monad.IO.Class( liftIO )
 import           Control.Exception( assert )
 import           Data.Monoid ((<>))
 import           Data.Word( Word8 )

@@ -152,16 +152,15 @@ accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
 -- IO
 --------------------------------------------------------------------------------
 
-runGameWorker :: GameParameters -> IO ()
-runGameWorker params =
-  mkInitialState params firstLevel Nothing
+runGameWorker :: Context -> GameParameters -> IO ()
+runGameWorker ctxt params =
+  mkInitialState ctxt params firstLevel Nothing
     >>= \case
-            Left err -> error err
-            Right ew -> loop params ew
+      Left err -> error err
+      Right ew -> loop params ew
 
-mkInitialState :: GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
-mkInitialState
- (GameParameters shape wallType) levelNumber mayState = do
+mkInitialState :: Context -> GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
+mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
       newLevel = Level levelNumber target Nothing
@@ -187,7 +186,7 @@ mkInitialState
                 else
                   Nothing
         return $ Right $ GameState (Timer t) gameDeadline curWorld newWorld newShotNums newLevel worldAnimation
-  eew <- mkEmbeddedWorld newSize
+  eew <- mkEmbeddedWorld ctxt newSize
   either (return . Left) make eew
 
 
@@ -220,12 +219,13 @@ getEvent state@(GameState _ _ _ _ _ level _) = do
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
  params
- state@(GameState a b world futWorld f h@(Level level target mayLevelFinished) i)
+ state@(GameState a b world@(World _ _ _ _ _ (EmbeddedWorld _ (RenderState _ ctxt)))
+                  futWorld f h@(Level level target mayLevelFinished) i)
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
     StartLevel nextLevel ->
-      mkInitialState params nextLevel (Just state)
+      mkInitialState ctxt params nextLevel (Just state)
         >>= \case
               Left err -> error err
               Right s -> return s
@@ -234,7 +234,7 @@ updateGameUsingTimedEvent
                 (Timeout FrameAnimationStep _) -> updateAnim t state
                 (Timeout GameStep gt) -> GameState a (Just $ addGameStepDuration gt) (moveWorld t world) futWorld f h i
                 (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
-                                         -- MessageStep is probably the wrong abstraction level
+                                           -- MessageStep is probably the wrong abstraction level
                   case mayLevelFinished of
                     Just (LevelFinished stop finishTime _) ->
                       let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
@@ -256,11 +256,13 @@ updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ i
      in GameState a gameDeadline world futWorld j k $ WorldAnimation evolutions worldAnimDeadline nextIt
 
 updateGame2 :: TimedEvent -> GameState -> IO GameState
-updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
+updateGame2
+ te@(TimedEvent event _)
+ s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ (RenderState _ ctxt))) _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      setFrameDimensions TerminalSize
+      setFrameDimensions TerminalSize ctxt
       beginFrame
       let s2 =
             if isFinished anim
@@ -269,11 +271,9 @@ updateGame2 te@(TimedEvent event _) s@(GameState _ _ _ _ _ _ anim) =
               else
                 s
       animations <- renderGame (getKeyTime event) s2
-      endFrame
+      endFrame ctxt
       return $ replaceAnimations animations s2
 
--- | When a frame animation is in progress, we layout according to the largest size
---   to make the animation more visible
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
 renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft)) _ _ level wa) =

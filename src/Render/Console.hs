@@ -25,13 +25,14 @@ module Render.Console
                , Backend.restoreDrawColors
                , Backend.setDrawColor
                , Backend.Colors(..)
+               , Backend.Context
+               , Backend.newContext
                -- reexports
                , module Render.Types
                ) where
 
 import           Imajuscule.Prelude
 
-import           Data.Maybe( fromMaybe )
 import           Data.String( String )
 import           Data.Text( Text )
 
@@ -68,29 +69,30 @@ import           Render.Types
 
 data ConsoleConfig = Gaming | Editing
 
-newtype RenderState = RenderState {
-    _currentUpperLeftCorner :: Coords
-} deriving(Eq, Ord, Show)
+data RenderState = RenderState {
+    _currentUpperLeftCorner :: !Coords
+  , _currentContext :: !Backend.Context
+} deriving(Eq, Show)
 
 instance DiscretelyInterpolable RenderState where
-  distance (RenderState from) (RenderState to) =
+  distance (RenderState from _) (RenderState to _) =
     distance from to
-  interpolate (RenderState from) (RenderState to) progress =
-    RenderState $ interpolate from to progress
+  interpolate (RenderState from ctxt) (RenderState to _) progress =
+    RenderState (interpolate from to progress) ctxt
 
-setFrameDimensions :: RenderSize -> IO ()
-setFrameDimensions (UserDefined w h)
+setFrameDimensions :: RenderSize -> Backend.Context -> IO ()
+setFrameDimensions (UserDefined w h) ctxt
   | w <= 0 = error "negative or zero render width not allowed"
   | h <= 0 = error "negative or zero render height not allowed"
-  | otherwise = Backend.setFrameDimensions (fromIntegral w) (fromIntegral h)
-setFrameDimensions TerminalSize = do
+  | otherwise = Backend.setFrameDimensions (fromIntegral w) (fromIntegral h) ctxt
+setFrameDimensions TerminalSize ctxt = do
   mayTermSize <- Terminal.size
   let (width, height) =
         maybe
           (300, 70) -- sensible default if terminal size is not available
           (\(Terminal.Window h w) -> (w, h))
             mayTermSize
-  Backend.setFrameDimensions width height
+  Backend.setFrameDimensions width height ctxt
 
 --------------------------------------------------------------------------------
 -- IO
@@ -110,8 +112,10 @@ configureConsoleFor config = do
       -- do not clearScreen, to retain a potential printed exception
       setSGR []
       maySz <- Terminal.size
-      let (Terminal.Window x _) = fromMaybe (Terminal.Window 0 0) maySz
-      setCursorPosition x 0
+      maybe
+        (return ())
+        (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
+          maySz
   let requiredOutputBuffering = case config of
         Gaming  -> Backend.preferredBuffering
         Editing -> LineBuffering
@@ -130,46 +134,48 @@ configureConsoleFor config = do
             ++ show ib
 
 renderChar_ :: Char -> RenderState -> IO ()
-renderChar_ char (RenderState c) = do
-  Backend.moveTo c
-  Backend.drawChar char
+renderChar_ char (RenderState c ctxt) = do
+  Backend.moveTo c ctxt
+  Backend.drawChar char ctxt
 
 
 drawChars :: Int -> Char -> RenderState -> IO ()
-drawChars count char (RenderState c) = do
-  Backend.moveTo c
-  Backend.drawChars count char
+drawChars count char (RenderState c ctxt) = do
+  Backend.moveTo c ctxt
+  Backend.drawChars count char ctxt
 
 drawStr :: String -> RenderState -> IO RenderState
-drawStr str r@(RenderState c) =
-  renderStr_ str r >> return (RenderState $ translateInDir Down c)
+drawStr str r@(RenderState c ctxt) =
+  renderStr_ str r >> return (RenderState (translateInDir Down c) ctxt)
 
 renderStr_ :: String -> RenderState -> IO ()
-renderStr_ str (RenderState c) = do
-  Backend.moveTo c
-  Backend.drawStr str
+renderStr_ str (RenderState c ctxt) = do
+  Backend.moveTo c ctxt
+  Backend.drawStr str ctxt
 
 drawTxt :: Text -> RenderState -> IO RenderState
-drawTxt txt r@(RenderState c) =
-  renderTxt_ txt r >> return (RenderState $ translateInDir Down c)
+drawTxt txt r@(RenderState c ctxt) =
+  renderTxt_ txt r >> return (RenderState (translateInDir Down c) ctxt)
 
 renderTxt_ :: Text -> RenderState -> IO ()
-renderTxt_ txt (RenderState c) = do
-  Backend.moveTo c
-  Backend.drawTxt txt
+renderTxt_ txt (RenderState c ctxt) = do
+  Backend.moveTo c ctxt
+  Backend.drawTxt txt ctxt
 
 renderSegment :: Segment -> Char -> RenderState -> IO ()
-renderSegment l = case l of
-  Horizontal row c1 c2 -> renderHorizontalLine row c1 c2
-  Vertical col r1 r2   -> renderVerticalLine   col r1 r2
+renderSegment l char rs = case l of
+  Horizontal row c1 c2 -> renderHorizontalLine row c1 c2 char rs
+  Vertical col r1 r2   -> renderVerticalLine   col r1 r2 char rs
   Oblique _ _ -> error "oblique segment rendering is not supported"
 
 
 renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO ()
-renderVerticalLine col r1 r2 char (RenderState upperLeft) = do
+renderVerticalLine col r1 r2 char (RenderState upperLeft ctxt) = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  mapM_ (renderChar_ char . (\r -> RenderState $ sumCoords upperLeft $ Coords (Row r) col)) rows
+  mapM_ (\r -> let rs = RenderState (sumCoords upperLeft $ Coords (Row r) col) ctxt
+               in renderChar_ char rs) rows
 
 renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO ()
-renderHorizontalLine row c1 c2 char (RenderState upperLeft) =
-  renderStr_ (replicate (1 + abs (c2-c1)) char) $ RenderState $ sumCoords upperLeft $ Coords row (Col (min c1 c2))
+renderHorizontalLine row c1 c2 char (RenderState upperLeft ctxt) = do
+  let rs = RenderState (sumCoords upperLeft $ Coords row (Col (min c1 c2))) ctxt
+  renderStr_ (replicate (1 + abs (c2-c1)) char) rs

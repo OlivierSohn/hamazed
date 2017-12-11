@@ -151,19 +151,24 @@ createRandomNumber space i = do
 renderWorld :: World -> IO ()
 renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
-  let worldCorner = go Down $ go RIGHT upperLeft
+  let worldCorner@(RenderState _ ctxt) = go Down $ go RIGHT upperLeft
   mapM_ (\b -> renderNumber b space worldCorner) balls
   when (null collisions) (do
-    let colors = if isNothing safeTime then shipColors else shipColorsSafe
-    c <- setDrawColors colors
+    let colors =
+          if isNothing safeTime
+            then
+              shipColors
+            else
+              shipColorsSafe
+    c <- setDrawColors colors ctxt
     renderIfNotColliding '+' shipCoords space worldCorner -- TODO render if safetime or not colliding
-    restoreDrawColors c)
+    restoreDrawColors c ctxt)
 
 renderNumber :: Number -> Space -> RenderState -> IO ()
-renderNumber (Number (PosSpeed pos _) i) space r = do
-  c <- setDrawColor Foreground $ numberColor i
+renderNumber (Number (PosSpeed pos _) i) space r@(RenderState _ ctxt) = do
+  c <- setDrawColor Foreground (numberColor i) ctxt
   renderIfNotColliding (intToDigit i) pos space r
-  restoreDrawColors c
+  restoreDrawColors c ctxt
 
 renderWorldAnimation :: WorldAnimation
                      -> IO ()

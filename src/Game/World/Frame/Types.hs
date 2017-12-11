@@ -48,7 +48,7 @@ renderWhole (FrameSpec sz upperLeft) =
 renderTransition :: FrameSpec -> FrameSpec -> Int -> Int -> IO ()
 renderTransition from@(FrameSpec _ fromUpperLeft) to@(FrameSpec _ toUpperLeft) n i = do
       let
-          (RenderState (Coords _ (Col dc))) = diffRS fromUpperLeft toUpperLeft
+          (RenderState (Coords _ (Col dc)) _) = diffRS fromUpperLeft toUpperLeft
           render diBefore di = do
             renderFrom Extremities (n-(i+diBefore)) from
             renderFrom Middle      (n-(i+di))       to

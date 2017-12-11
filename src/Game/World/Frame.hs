@@ -16,7 +16,10 @@ import           Render.Console
 
 
 renderWorldFrame :: Evolution FrameAnimationParallel4 -> Frame -> IO ()
-renderWorldFrame e frame = do
-  c <- setDrawColor Foreground worldFrameColor
-  evolveIO e frame
-  restoreDrawColors c
+renderWorldFrame e@(Evolution (Successive successive) _ _ _) frame =
+  case successive of
+    [] -> error "not supposed to happen"
+    FrameAnimationParallel4 (FrameSpec _ (RenderState _ ctxt)):_ -> do
+      c <- setDrawColor Foreground worldFrameColor ctxt
+      evolveIO e frame
+      restoreDrawColors c ctxt

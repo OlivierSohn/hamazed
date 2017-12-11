@@ -45,43 +45,43 @@ import           Text.ColorString
 --------------------------------------------------------------------------------
 
 go :: Direction -> RenderState -> RenderState
-go dir (RenderState r) = RenderState $ translateInDir dir r
+go dir (RenderState r ctxt) = RenderState (translateInDir dir r) ctxt
 
 move :: Int -> Direction -> RenderState -> RenderState
-move n dir (RenderState c) = RenderState $ Geo.Discrete.move n dir c
+move n dir (RenderState c ctxt) = RenderState (Geo.Discrete.move n dir c) ctxt
 
 translate :: Row -> Col -> RenderState -> RenderState
-translate r c (RenderState coords) = RenderState $ sumCoords coords $ Coords r c
+translate r c (RenderState coords ctxt) = RenderState (sumCoords coords $ Coords r c) ctxt
 
 sumRS :: RenderState -> RenderState -> RenderState
-sumRS (RenderState c1) (RenderState c2) = RenderState $ sumCoords c1 c2
+sumRS (RenderState c1 ctxt) (RenderState c2 _) = RenderState (sumCoords c1 c2) ctxt
 
 diffRS :: RenderState -> RenderState -> RenderState
-diffRS (RenderState c1) (RenderState c2) = RenderState $ diffCoords c1 c2
+diffRS (RenderState c1 ctxt) (RenderState c2 _) = RenderState (diffCoords c1 c2) ctxt
 
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
 
 drawChar :: Char -> Coords -> RenderState -> IO ()
-drawChar char pos (RenderState upperLeftCoords) =
-  renderChar_ char $ RenderState $ sumCoords pos upperLeftCoords
+drawChar char pos (RenderState upperLeftCoords ctxt) =
+  renderChar_ char $ RenderState (sumCoords pos upperLeftCoords) ctxt
 
 renderPoints :: RenderState -> [(Coords, Char)] -> IO ()
 renderPoints state =
   mapM_ (\(c,char) -> drawChar char c state)
 
 renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
-renderColoredPoints points colorCode state = do
-  c <- setDrawColor Foreground colorCode
+renderColoredPoints points colorCode state@(RenderState _ ctxt) = do
+  c <- setDrawColor Foreground colorCode ctxt
   renderPoints state points
-  restoreDrawColors c
+  restoreDrawColors c ctxt
 
 renderColoredChars :: Int -> Char -> Colors -> RenderState -> IO ()
-renderColoredChars count char colors state = do
-  c <- setDrawColors colors
+renderColoredChars count char colors state@(RenderState _ ctxt) = do
+  c <- setDrawColors colors ctxt
   drawChars count char state
-  restoreDrawColors c
+  restoreDrawColors c ctxt
 
 data Alignment = Centered
                | RightAligned
@@ -102,12 +102,12 @@ renderAligned a cs ref = do
   return (go Down ref)
 
 renderColored :: ColorString -> RenderState -> IO ()
-renderColored (ColorString cs) ref =
+renderColored (ColorString cs) ref@(RenderState _ ctxt) =
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    c <- setDrawColor Foreground color
-    renderTxt_ txt $ Render.move count RIGHT ref
-    restoreDrawColors c
+    c <- setDrawColor Foreground color ctxt
+    renderTxt_ txt (Render.move count RIGHT ref)
+    restoreDrawColors c ctxt
     return $ count + l) 0 cs
 
 align' :: Alignment -> Int -> RenderState -> RenderState

@@ -14,6 +14,7 @@ import           Game.World.Size
 import           Game.World.Types
 
 import           Render
+import           Render.Console
 
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
@@ -21,10 +22,10 @@ minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 
-mkEmbeddedWorld :: WorldSize -> IO (Either String EmbeddedWorld)
-mkEmbeddedWorld s = do
+mkEmbeddedWorld :: Context -> WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld ctxt s = do
   mayTermSize <- Terminal.size
-  return $ (EmbeddedWorld mayTermSize . RenderState) <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ (EmbeddedWorld mayTermSize . flip RenderState ctxt) <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
 worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords

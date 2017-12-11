@@ -41,12 +41,12 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: IO GameParameters
+getGameParameters :: Context -> IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> IO GameParameters
-update params = do
-  render params
+update :: GameParameters -> Context -> IO GameParameters
+update params ctxt = do
+  render params ctxt
   ec <- getCharThenFlush
   either
     (\_ -> return params)
@@ -54,7 +54,7 @@ update params = do
             then
               return params
             else
-              update $ updateFromChar c params)
+              update (updateFromChar c params) ctxt)
     ec
 
 
@@ -68,14 +68,14 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-render :: GameParameters -> IO ()
-render (GameParameters shape wall) = do
+render :: GameParameters -> Context -> IO ()
+render (GameParameters shape wall) ctxt = do
   let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
-  ew <- mkEmbeddedWorld worldSize
+  ew <- mkEmbeddedWorld ctxt worldSize
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
-      setFrameDimensions TerminalSize
+      setFrameDimensions TerminalSize ctxt
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=
@@ -86,7 +86,7 @@ render (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          prevColors <- setDrawColors configColors
+          prevColors <- setDrawColors configColors ctxt
           renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
             renderAlignedTxt_ Centered "------------------"
 
@@ -99,9 +99,9 @@ render (GameParameters shape wall) = do
                   renderTxt_ "'t' -> random walls"
 
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
-          restoreDrawColors prevColors
+          restoreDrawColors prevColors ctxt
           t <- getCurrentTime
           let infos = (mkFrameSpec world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation
-      endFrame
+      endFrame ctxt

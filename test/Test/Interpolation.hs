@@ -1,14 +1,19 @@
 
-module Test.Interpolation(testInterpolation) where
-
-import GHC.Generics(Generic(..))
-
-import Text.Show.Functions
+module Test.Interpolation
+           ( testInterpolation
+           , testCoords
+           , testListCoords
+           , testListRenderStates
+           , testInts
+           , testListInts
+           , testSuccessiveInts
+           , testClock ) where
 
 import Geo.Discrete
 import Interpolation
 import Math
 import Render
+import Render.Console
 import Game.World.Frame
 
 testInterpolation :: IO ()
@@ -35,10 +40,10 @@ testListCoords =
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]
 
-testListRenderStates :: [([RenderState], Maybe Float)]
-testListRenderStates =
-  let from = [RenderState $ Coords (Row 0) (Col 0),RenderState $ Coords (Row 10) (Col 10)]
-      to = [RenderState $ Coords (Row 1) (Col 0),RenderState $ Coords (Row 11) (Col 10)]
+testListRenderStates :: Context -> [([RenderState], Maybe Float)]
+testListRenderStates ctxt =
+  let from = [RenderState (Coords (Row 0) (Col 0)) ctxt, RenderState (Coords (Row 10) (Col 10)) ctxt]
+      to   = [RenderState (Coords (Row 1) (Col 0)) ctxt, RenderState (Coords (Row 11) (Col 10)) ctxt]
       d = distance from to
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]

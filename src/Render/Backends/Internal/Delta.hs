@@ -206,7 +206,6 @@ data Buffers = Buffers {
   , _renderStateFrontBuffer :: !(Buffer Front)
   , _buffersSize :: !Word16
   , _buffersWidth :: !Word16
-  , _buffersHeight :: !Word16 -- TODO remove as it is never used directly and can be computed from width + size
   , _buffersDelta :: !Delta
   -- ^ buffer used in renderFrame
 }
@@ -222,7 +221,8 @@ setFrameDimensions :: Word16
                     -> IO ()
 setFrameDimensions width height (Context ref _ _) =
   readIORef ref
-    >>= \(RenderState (Buffers _ _ _ prevWidth prevHeight _)) ->
+    >>= \(RenderState (Buffers _ _ prevSize prevWidth _)) -> do
+      let prevHeight = quot prevSize prevWidth
       when (prevWidth /= width || prevHeight /= height) $
         mkBuffers width height
           >>= writeIORef ref . RenderState
@@ -242,7 +242,7 @@ mkBuffers width' height' = do
   buf <- newBufferArray sz' (initialCell, nocolorCell)
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
-  return $ Buffers (Buffer back) (Buffer front) sz' width height (Delta delta)
+  return $ Buffers (Buffer back) (Buffer front) sz' width (Delta delta)
 
 newtype RenderState = RenderState {
     _renderStateBuffers :: Buffers
@@ -305,13 +305,13 @@ fastMod a b'
 
 {-# INLINE indexFromPos #-}
 indexFromPos :: Buffers -> Position -> Word16
-indexFromPos (Buffers _ _ size width _ _) (Position x y) =
+indexFromPos (Buffers _ _ size width _) (Position x y) =
   (y * fromIntegral width + x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}
 xyFromIndex :: Buffers -> Word16 -> (Word16, Word16)
-xyFromIndex (Buffers _ _ _ width _ _) idx =
+xyFromIndex (Buffers _ _ _ width _) idx =
     (x, y)
   where
     -- no need to do (idx `mod` size) here, we know we passed an index in the right range.
@@ -352,7 +352,7 @@ drawChar :: Char
          -> IO ()
 drawChar c (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ _ _ _ _)) -> do
+    >>= \(RenderState b@(Buffers back _ _ _ _)) -> do
       let idx = indexFromPos b pos
       putCharRawAt back idx colors c
 
@@ -375,7 +375,7 @@ drawChars :: Int
           -> IO ()
 drawChars count c (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ size _ _ _)) -> do
+    >>= \(RenderState b@(Buffers back _ size _ _)) -> do
       let cell = mkCell colors c
           idx = indexFromPos b pos
       mapM_
@@ -391,7 +391,7 @@ drawStr :: String
         -> IO ()
 drawStr str (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ size _ _ _)) -> do
+    >>= \(RenderState b@(Buffers back _ size _ _)) -> do
       let idx = indexFromPos b pos
       mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
@@ -423,7 +423,7 @@ fill mayChar (Context ioRefCtxt colors _) =
 fillBackBuffer :: Buffers
                -> Cell
                -> IO ()
-fillBackBuffer (Buffers (Buffer b) _ size _ _ _) cell =
+fillBackBuffer (Buffers (Buffer b) _ size _ _) cell =
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
 
@@ -437,7 +437,7 @@ fillBackBuffer (Buffers (Buffer b) _ size _ _ _) cell =
 defined by the sorted auxiliary buffer.
 * Flush stdout.
 -}
--- TODO clearBack parameter could be part of the context ?
+-- TODO clearBack parameter could be part of the context ? (initial colors also)
 renderFrame :: Bool
               -- ^ If True, after submission the drawing is reset to the initial color.
               -- This can also be achieved by calling "fill Nothing Nothing" after this call,
@@ -451,7 +451,7 @@ renderFrame clearBack (Context ioRefCtxt _ _) =
 
 
 render :: Bool -> Buffers -> IO ()
-render clearBack buffers@(Buffers _ _ _ _ _ (Delta delta)) = do
+render clearBack buffers@(Buffers _ _ _ _ (Delta delta)) = do
   computeDelta buffers 0 clearBack
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
@@ -479,7 +479,7 @@ renderDelta :: Int
             -> Buffers
             -> IO Colors
 renderDelta size index prevColors prevIndex
-  b@(Buffers _ _ _ _ _ (Delta delta))
+  b@(Buffers _ _ _ _ (Delta delta))
  | index == size = return $ Colors (Color8Code 0) (Color8Code 0)
  | otherwise = do
     c <- Dyn.read delta index
@@ -504,7 +504,7 @@ computeDelta :: Buffers
              -- ^ should we clear the buffer containing the new values?
              -> IO ()
 computeDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ _ (Delta delta))
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ (Delta delta))
  idx
  clearBack
   | idx == size = return ()

@@ -14,6 +14,8 @@ import           Data.String(String)
 import           Animation
 import           Animation.Design.Chars
 
+import           Color
+
 import           Game.Types
 import           Game.Deadline( Deadline(..) )
 import           Game.World.Ship
@@ -69,7 +71,7 @@ nextGameState
           then
             left
           else
-            let frameSpace = mkFrameSpec world
+            let frameSpace = mkFrameSpec worldFrameColors world
                 infos = mkLeftInfo Normal newAmmo allShotNumbers
             in mkTextAnimLeft frameSpace frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
@@ -173,12 +175,17 @@ mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
         let (curWorld, level, ammo, shotNums) =
               maybe
               (newWorld, newLevel, 0, [])
-              (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) _ _ _) _ curShotNums curLevel _) ->
+              (\(GameState _ _ w@(World _ _ (BattleShip _ curAmmo _ _) _ _ _)
+                           _ curShotNums curLevel _) ->
                   (w, curLevel, curAmmo, curShotNums))
                 mayState
             curInfos = mkInfos Normal ammo shotNums level
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
-            worldAnimation = mkWorldAnimation (mkFrameSpec curWorld, curInfos) (mkFrameSpec newWorld, newInfos) t
+            worldAnimation =
+              mkWorldAnimation
+                (mkFrameSpec worldFrameColors curWorld, curInfos)
+                (mkFrameSpec worldFrameColors newWorld, newInfos)
+                t
             gameDeadline =
               if isFinished worldAnimation
                 then

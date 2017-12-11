@@ -4,7 +4,7 @@
 
 module Color (
   -- * default colors
-    worldFrameColor
+    worldFrameColors
   , colorFromFrame
   , numberColor
   , bracketsColor
@@ -55,7 +55,7 @@ ammoColor :: Color8Code
 ammoColor = gray 14
 
 bracketsColor :: Color8Code
-bracketsColor = worldFrameColor
+bracketsColor = worldFrameFgColor
 
 messageColor :: GameStops -> Color8Code
 messageColor Won      = rgb 4 3 1
@@ -93,8 +93,11 @@ colorFromFrame (Frame f) = xterm256ColorToCode $ RGBColor (RGB r g b)
     g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes
     b = fromIntegral $ (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster changes
 
-worldFrameColor :: Color8Code
-worldFrameColor = rgb 2 1 1
+worldFrameFgColor :: Color8Code
+worldFrameFgColor = rgb 2 1 1
+
+worldFrameColors :: Colors
+worldFrameColors = Colors black worldFrameFgColor
 
 --------------------------------------------------------------------------------
 

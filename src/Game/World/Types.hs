@@ -64,9 +64,9 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: World -> FrameSpec
-mkFrameSpec (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
-  FrameSpec sz upperLeft
+mkFrameSpec :: Colors -> World -> FrameSpec
+mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
+  FrameSpec sz $ setColors colors upperLeft
 
 data World = World {
     _worldNumbers :: ![Number]

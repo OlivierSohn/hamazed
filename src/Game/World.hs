@@ -33,14 +33,11 @@ import           Geo.Discrete
 
 import           Game.Event
 import           Game.World.Evolution
-import           Game.World.Frame
 import           Game.World.Laser
 import           Game.World.Number
 import           Game.World.Ship
 import           Game.World.Space
 import           Game.World.Types
-
-import           Render.Console
 
 import           Timing
 
@@ -151,8 +148,8 @@ createRandomNumber space i = do
 renderWorld :: World -> IO ()
 renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions) space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
-  let worldCorner@(RenderState _ ctxt) = go Down $ go RIGHT upperLeft
-  mapM_ (\b -> renderNumber b space worldCorner) balls
+  let s = go Down $ go RIGHT upperLeft
+  mapM_ (\b -> renderNumber b space s) balls
   when (null collisions) (do
     let colors =
           if isNothing safeTime
@@ -160,15 +157,13 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
               shipColors
             else
               shipColorsSafe
-    c <- setDrawColors colors ctxt
-    renderIfNotColliding '+' shipCoords space worldCorner -- TODO render if safetime or not colliding
-    restoreDrawColors c ctxt)
+        s' = setColors colors s
+    renderIfNotColliding '+' shipCoords space s' -- TODO render if safetime or not colliding
+      )
 
 renderNumber :: Number -> Space -> RenderState -> IO ()
-renderNumber (Number (PosSpeed pos _) i) space r@(RenderState _ ctxt) = do
-  c <- setDrawColor Foreground (numberColor i) ctxt
-  renderIfNotColliding (intToDigit i) pos space r
-  restoreDrawColors c ctxt
+renderNumber (Number (PosSpeed pos _) i) space r =
+  renderIfNotColliding (intToDigit i) pos space $ setColor Foreground (numberColor i) r
 
 renderWorldAnimation :: WorldAnimation
                      -> IO ()

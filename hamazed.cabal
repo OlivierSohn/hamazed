@@ -45,7 +45,6 @@ library
                      , Game.World
                      , Game.World.Embedded
                      , Game.World.Evolution
-                     , Game.World.Frame
                      , Game.World.Frame.Types
                      , Game.World.Laser
                      , Game.World.Laser.Types

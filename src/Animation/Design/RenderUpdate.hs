@@ -15,7 +15,6 @@ import           Data.Either( partitionEithers )
 import           Animation.Types
 
 import           Render
-import           Render.Console
 
 import           Timing
 
@@ -109,12 +108,8 @@ render :: Frame
 render _ _ (Tree _ _ Nothing _ _) _ _ _ = return False
 render _ _ (Tree _ _ (Just []) _ _) _ _ _ = return False
 render
- parentFrame
- mayCharAnim
- (Tree _ childFrame (Just branches) onWall mayCharTree)
- getLocation
- colorFunc
- r@(RenderState _ ctxt) = do
+ parentFrame mayCharAnim (Tree _ childFrame (Just branches) onWall mayCharTree)
+ getLocation colorFunc r = do
   let mayChar = mayCharTree <|> mayCharAnim
   case mayChar of
     Nothing -> error "either the pure anim function ar the animation should specify a Just"
@@ -127,8 +122,7 @@ render
             Stop      -> error "animation should have stopped"
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
-      prevCol <- setDrawColor Foreground color ctxt
-      mapM_ (\c -> drawChar char c r) renderedCoordinates
-      restoreDrawColors prevCol ctxt
+          r' = setColor Foreground color r
+      mapM_ (\c -> drawChar char c r') renderedCoordinates
       childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r) children
       return $ isAlive || or childrenAlive

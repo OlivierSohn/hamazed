@@ -18,6 +18,8 @@ module Render (
         , diffRS
         , ColorString(..)
         , colored
+        , setColor
+        , setColors
         -- | reexports
         , Coords(..)
         , Row(..)
@@ -25,6 +27,8 @@ module Render (
         , Direction(..)
         , RenderState(..)
         , Color8Code(..)
+        , ConsoleLayer(..)
+        , Colors(..)
         ) where
 
 import           Imajuscule.Prelude
@@ -72,16 +76,20 @@ renderPoints state =
   mapM_ (\(c,char) -> drawChar char c state)
 
 renderColoredPoints :: [(Coords, Char)] -> Color8Code -> RenderState -> IO ()
-renderColoredPoints points colorCode state@(RenderState _ ctxt) = do
-  c <- setDrawColor Foreground colorCode ctxt
-  renderPoints state points
-  restoreDrawColors c ctxt
+renderColoredPoints points code s =
+  renderPoints (setColor Foreground code s) points
+
+setColor :: ConsoleLayer -> Color8Code -> RenderState -> RenderState
+setColor layer code (RenderState ul ctxt) =
+  RenderState ul $ setDrawColor layer code ctxt
+
+setColors :: Colors -> RenderState -> RenderState
+setColors colors (RenderState ul ctxt) =
+  RenderState ul $ setDrawColors colors ctxt
 
 renderColoredChars :: Int -> Char -> Colors -> RenderState -> IO ()
-renderColoredChars count char colors state@(RenderState _ ctxt) = do
-  c <- setDrawColors colors ctxt
-  drawChars count char state
-  restoreDrawColors c ctxt
+renderColoredChars count char colors s =
+  drawChars count char $ setColors colors s
 
 data Alignment = Centered
                | RightAligned
@@ -102,12 +110,10 @@ renderAligned a cs ref = do
   return (go Down ref)
 
 renderColored :: ColorString -> RenderState -> IO ()
-renderColored (ColorString cs) ref@(RenderState _ ctxt) =
+renderColored (ColorString cs) s =
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    c <- setDrawColor Foreground color ctxt
-    renderTxt_ txt (Render.move count RIGHT ref)
-    restoreDrawColors c ctxt
+    renderTxt_ txt (Render.move count RIGHT $ setColor Foreground color s)
     return $ count + l) 0 cs
 
 align' :: Alignment -> Int -> RenderState -> RenderState

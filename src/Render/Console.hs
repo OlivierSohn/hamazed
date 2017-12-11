@@ -22,7 +22,6 @@ module Render.Console
                , Backend.beginFrame
                , Backend.endFrame
                , Backend.setDrawColors
-               , Backend.restoreDrawColors
                , Backend.setDrawColor
                , Backend.Colors(..)
                , Backend.Context

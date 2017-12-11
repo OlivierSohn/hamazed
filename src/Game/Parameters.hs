@@ -79,14 +79,14 @@ render (GameParameters shape wall) ctxt = do
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=
-        \worldCoords -> do
+        \worldCoords' -> do
           renderWorld world
-          let middle = move (quot cs 2) RIGHT worldCoords
+          let worldCoords = setColors configColors worldCoords'
+              middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          prevColors <- setDrawColors configColors ctxt
           renderAlignedTxt Centered "Game configuration" (go Down middle) >>=
             renderAlignedTxt_ Centered "------------------"
 
@@ -99,9 +99,8 @@ render (GameParameters shape wall) ctxt = do
                   renderTxt_ "'t' -> random walls"
 
           renderAlignedTxt_ Centered "Hit 'Space' to start game" $ go Up middleLow
-          restoreDrawColors prevColors ctxt
           t <- getCurrentTime
-          let infos = (mkFrameSpec world, (([""],[""]),([""],[""])))
+          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation
       endFrame ctxt

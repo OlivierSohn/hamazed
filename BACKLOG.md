@@ -7,7 +7,7 @@
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
-- provide a context which we can create using TerminalSize or CustomSize,
+- provide a context which we can create using TerminalSize or CustomSize or a function to get the size, at every frame end
 it contains the IORef, the buffers.
 
 - Another optimization is to chose the type of "position change"
@@ -15,6 +15,10 @@ command we send based on the relative location of successive elements: today
 we use exclusively the 2 dimensional version (9 bytes on average), but it would
 be more efficient to switch to the "go forward (optionally n times)" version
 (3 to 5 bytes) when the previously rendered element was on the same row.
+
+- measure if it's faster to buffer the string sent to putStr on our side
+
+- make tests to see the effect of buffer size on screen tearing (alternate ' ' with '.')
 
 ## Misc.
 

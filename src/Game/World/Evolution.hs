@@ -11,8 +11,6 @@ import           Imajuscule.Prelude
 
 import           Game.World.Types
 
-import           Game.World.Frame
-
 import           Render
 
 import           Text.ColorString
@@ -24,7 +22,7 @@ renderEvolutions
  we@(WorldEvolutions frameE upDown left)
  frame = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  renderWorldFrame frameE relFrameFrameE
+  evolveIO frameE relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD
   renderAnimatedTextStringAnchored left relFrameLeft
 

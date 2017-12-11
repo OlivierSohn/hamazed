@@ -76,19 +76,15 @@ renderAnimatedTextCharAnchored' l@(_:_) rs i = do
   renderColorStringAt colorStr nowRS
   renderAnimatedTextCharAnchored' (tail l) laterRS i
 
+-- TODO change design of ColorString (replace Colors in ColorString by RenderState) to avoid superfluous info here (Colors of RenderState are ignored)
 renderColorStringAt :: [(Text, Color8Code)] -> [RenderState] -> IO ()
 renderColorStringAt [] _ = return ()
 renderColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  case headRs of
-    [] -> return ()
-    RenderState _ ctxt:_ -> do
-      c <- setDrawColor Foreground color ctxt
-      zipWithM_ renderChar_ (unpack txt) headRs
-      restoreDrawColors c ctxt
-      renderColorStringAt (tail l) tailRs
+  zipWithM_ renderChar_ (unpack txt) $ map (setColor Foreground color) headRs
+  renderColorStringAt (tail l) tailRs
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList RenderState) -> Frame -> [RenderState]
 getAnimatedTextRenderStates evolution i =

@@ -37,9 +37,7 @@ import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
 import           Render.Console
-import           Render( RenderState(..)
-                       , move
-                       , go )
+import           Render
 
 import           Timing( UTCTime
                        , KeyTime(..)
@@ -127,25 +125,23 @@ getCharWithinDurationMicros durationMicros step =
       timeout durationMicros getCharThenFlush
 
 renderLevelState :: RenderState -> Int -> LevelFinished -> IO ()
-renderLevelState coords@(RenderState _ ctxt) level (LevelFinished stop _ messageState) = do
-  let color = messageColor stop
-      topLeft = go RIGHT coords
-  c <- setDrawColor Foreground color ctxt
-  renderTxt_ (case stop of
-    (Lost reason) -> "You Lose (" <> reason <> ")"
-    Won           -> "You Win!") topLeft
-  restoreDrawColors c ctxt
-  when (messageState == ContinueMessage) $ do
-    c2 <- setDrawColor Foreground neutralMessageColor ctxt
-    renderTxt_ (if level == lastLevel
-      then
-        "You reached the end of the game!"
-      else
-        let action = case stop of
-                          (Lost _) -> "restart"
-                          Won      -> "continue"
-        in "Hit a key to " <> action <> " ...") (move 2 Down topLeft)
-    restoreDrawColors c2 ctxt
+renderLevelState s level (LevelFinished stop _ messageState) = do
+  let topLeft = go RIGHT s
+      stopMsg = case stop of
+        (Lost reason) -> "You Lose (" <> reason <> ")"
+        Won           -> "You Win!"
+  renderTxt_ stopMsg $ setColor Foreground (messageColor stop) topLeft
+  when (messageState == ContinueMessage) $
+    renderTxt_
+      (if level == lastLevel
+        then
+          "You reached the end of the game!"
+        else
+          let action = case stop of
+                            (Lost _) -> "restart"
+                            Won      -> "continue"
+          in "Hit a key to " <> action <> " ...")
+      (move 2 Down $ setColor Foreground neutralMessageColor topLeft)
 
 
 renderLevelMessage :: Level -> RenderState -> IO ()

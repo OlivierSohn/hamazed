@@ -9,8 +9,8 @@ import Test.WorldEvolutions
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
-  --testInterpolation
-  --testICS
-  --testBres3 >>= print
+  testInterpolation
+  testICS
+  testBres3 >>= print
   -- testWE
-  testStdout
+  --testStdout

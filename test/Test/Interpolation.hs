@@ -14,7 +14,7 @@ import Interpolation
 import Math
 import Render
 import Render.Console
-import Game.World.Frame
+import Game.World.Types
 
 testInterpolation :: IO ()
 testInterpolation = mapM_ print testClock

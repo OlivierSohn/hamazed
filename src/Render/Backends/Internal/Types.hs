@@ -14,4 +14,4 @@ data Colors = Colors {
     -- ^ Background color
   , _colorsForeground :: {-# UNPACK #-} !Color8Code
     -- ^ Foreground color
-}
+} deriving(Eq, Show)

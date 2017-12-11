@@ -2,19 +2,24 @@
 
 {-|
 = Purpose
-
-Render games or animations in the console, with 8-bit colors and Unicode support.
+Render games or animations in the console, without
+<https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 
 = Design goals
-
-* Avoid <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+* Design generic techniques to avoid
+<https://en.wikipedia.org/wiki/Screen_tearing screen tearing> for all kinds of
+game graphics.
 * Minimize memory footprint and run-time overhead.
 
-== How it started
+= Features
+* <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit colors> support
+* <http://www.unicode.org/ Unicode> support
+
+= How it started
 
 In the beginnings of
 <https://github.com/OlivierSohn/hamazed my first ascii based game>,
-the render loop was as naïve as can be:
+the render loop was as naïve as:
 
 * Clear the console.
 * Render the game elements to the console directly.
@@ -23,19 +28,18 @@ the render loop was as naïve as can be:
 It worked well whilst a frame was ~100 different locations in a single color.
 
 As color animations were introduced, flickering / tearing
-effects started to occur on "rich" frames, because stdout was saturated by
+effects started to occur on frames with more rendering locations, because stdout was saturated by
 rendering commands and would flush before all commands corresponding to this frame were issued.
 
-To fix this I maxed the size of stdout buffer, by using
+To fix this I maximized the size of stdout buffer by using
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
 with
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
-parameter:
+parameter.
+
+(Note that to measure the actual stdout size you can use 'testStdoutSizes'),
 
 > hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
-
-[The stdout size almost quadrupled, from 2048 to 8092, cf 'testStdoutSizes' for a way to
-measure it]
 
 This solved the problem, only until more animations and more color changes were introduced.
 
@@ -80,7 +84,7 @@ higher bits to lower bits):
 
 Finally, if this module doesn't play well with your game graphics, let me know!
 Maybe we'll need more optimizations options in the future, to adapt more closely
-to the vraious kind of graphics that can be used in games.
+to the various kind of graphics that can be used in games.
 
 = Usage
 

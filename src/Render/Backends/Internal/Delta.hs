@@ -16,9 +16,9 @@ In the beginnings of
 <https://github.com/OlivierSohn/hamazed my first ascii based game>,
 the render loop was as naïve as can be:
 
-* Clear the console
-* Render the game elements to the console directly
-* Flush stdout
+* Clear the console.
+* Render the game elements to the console directly.
+* Flush stdout.
 
 It worked well whilst a frame was ~100 different locations in a single color.
 
@@ -44,18 +44,16 @@ To fix <https://github.com/feuerbach/ansi-terminal/issues/5 this issue>,
 <https://gist.github.com/ibraimgm/40e307d70feeb4f117cd a solution using double buffering>
 where the render loop is:
 
-* Clear the back buffer
-* Draw the game elements to the back buffer
-* Render the difference between the front and the back buffer to the console
-* Flush stdout
-* Copy the back buffer to the front buffer
+* Clear the back buffer.
+* Draw the game elements to the back buffer.
+* Render the difference between the front and the back buffer to the console.
+* Flush stdout.
+* Copy the back buffer to the front buffer.
 
-This approach which fixed the rendering of my game, but I wanted to continue
-improving it, to cover more use-cases. So I added the following optimizations
-which should ensure that a wide variety of game graphics will be well supported
-(Note that if you happen to have a game with a kind of graphic animations that
-don't play well with this module, I would be interested to know, to see if I
-can improve things):
+This approach fixed the rendering of my game.
+
+Still, I wanted to continue improving it, to cover more use-cases.
+So I added the following optimizations:
 
 * On average, one @color change@ command "costs" 20 bytes ("\ESC[48;5;167;38;5;255m").
 Grouping the rendered locations by color allows to issue one command for the group
@@ -67,7 +65,7 @@ two consecutive elements are next to one another. In that case we can omit this
 command, because after a 'putChar' the cursor location goes one step to the
 right. (More to come on this subject, cf. the BACKLOG)
 
-* And finally,
+* And
 <https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/
 I found usefull answers on reddit> which helped in the process of optimizing
 the memory layout. Contiguous memory blocks are mow used to store information
@@ -79,6 +77,10 @@ higher bits to lower bits):
     * foreground color  (Word8)
     * buffer position   (Word16)
     * unicode character (Word32)
+
+Finally, if this module doesn't play well with your game graphics, let me know!
+Maybe we'll need more optimizations options in the future, to adapt more closely
+to the vraious kind of graphics that can be used in games.
 
 = Usage
 

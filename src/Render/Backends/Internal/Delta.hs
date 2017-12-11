@@ -330,21 +330,21 @@ setDrawColor :: ConsoleLayer
              -> Color8Code
              -> Context
              -> IO Colors
-setDrawColor layer color (Context screenBuffer) = do
-  (RenderState (Pencil idx prevColors@(Colors prevBg prevFg)) b ) <- readIORef screenBuffer
+setDrawColor layer color (Context ioRefCtxt) = do
+  (RenderState (Pencil idx prevColors@(Colors prevBg prevFg)) b ) <- readIORef ioRefCtxt
   let newColors = case layer of
         Foreground -> Colors prevBg color
         Background -> Colors color prevFg
-  writeIORef screenBuffer $ RenderState (Pencil idx newColors) b
+  writeIORef ioRefCtxt $ RenderState (Pencil idx newColors) b
   return prevColors
 
 
 setDrawColors :: Colors
               -> Context
               -> IO Colors
-setDrawColors colors (Context screenBuffer) = do
-  (RenderState (Pencil idx prevColors) b ) <- readIORef screenBuffer
-  writeIORef screenBuffer $ RenderState (Pencil idx colors) b
+setDrawColors colors (Context ioRefCtxt) = do
+  (RenderState (Pencil idx prevColors) b ) <- readIORef ioRefCtxt
+  writeIORef ioRefCtxt $ RenderState (Pencil idx colors) b
   return prevColors
 
 
@@ -367,18 +367,18 @@ setDrawLocation' :: Word16
                  -> Word16
                  -> Context
                  -> IO ()
-setDrawLocation' x y (Context screenBuffer) = do
-  (RenderState (Pencil _ colors) b) <- readIORef screenBuffer
+setDrawLocation' x y (Context ioRefCtxt) = do
+  (RenderState (Pencil _ colors) b) <- readIORef ioRefCtxt
   let idx = indexFromXY b x y
-  writeIORef screenBuffer $ RenderState (Pencil idx colors) b
+  writeIORef ioRefCtxt $ RenderState (Pencil idx colors) b
 
 
 -- | Draws a 'Char' at the current draw location, with the current draw colors.
 drawChar :: Char
          -> Context
          -> IO ()
-drawChar c (Context screenBuffer) = do
-  (RenderState (Pencil idx colors) (Buffers back _ _ _ _ _)) <- readIORef screenBuffer
+drawChar c (Context ioRefCtxt) = do
+  (RenderState (Pencil idx colors) (Buffers back _ _ _ _ _)) <- readIORef ioRefCtxt
   putCharRawAt back idx colors c
 
 
@@ -398,8 +398,8 @@ drawChars :: Int
           -> Char
           -> Context
           -> IO ()
-drawChars count c (Context screenBuffer) = do
-  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
+drawChars count c (Context ioRefCtxt) = do
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef ioRefCtxt
   let cell = mkCell colors c
   mapM_ (\i -> let pos = (idx + fromIntegral i) `fastMod` size
                in writeToBack back pos cell) [0..pred count]
@@ -410,8 +410,8 @@ drawChars count c (Context screenBuffer) = do
 drawStr :: String
         -> Context
         -> IO ()
-drawStr str (Context screenBuffer) = do
-  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef screenBuffer
+drawStr str (Context ioRefCtxt) = do
+  (RenderState (Pencil idx colors) (Buffers back _ size _ _ _)) <- readIORef ioRefCtxt
   mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
 
@@ -435,11 +435,11 @@ fill :: Maybe Colors
      -- ^ When Nothing, a space character is used.
      -> Context
      -> IO ()
-fill mayColors mayChar ctxt@(Context screenBuffer) = do
+fill mayColors mayChar ctxt@(Context ioRefCtxt) = do
   let colors = fromMaybe initialColors mayColors
       char = fromMaybe ' ' mayChar
   _ <- setDrawColors colors ctxt
-  (RenderState _ b) <- readIORef screenBuffer
+  (RenderState _ b) <- readIORef ioRefCtxt
   fillBackBuffer b colors char
 
 
@@ -468,8 +468,8 @@ renderFrame :: Bool
               -- at the cost of one more traversal of the back buffer.
               -> Context
               -> IO ()
-renderFrame clearBack (Context screenBuffer) = do
-  (RenderState _ buffers@(Buffers _ _ _ _ _ (Delta delta))) <- readIORef screenBuffer
+renderFrame clearBack (Context ioRefCtxt) = do
+  (RenderState _ buffers@(Buffers _ _ _ _ _ (Delta delta))) <- readIORef ioRefCtxt
   computeDelta buffers 0 clearBack
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta

@@ -129,7 +129,6 @@ module Render.Backends.Internal.Delta
        -- * Setup
          newContext
        , Context
-       , Position(..)
        , setFrameDimensions
        -- * Fill the back buffer
        , fill
@@ -149,6 +148,7 @@ module Render.Backends.Internal.Delta
        , renderFrame
        -- * Reexports
        , module Render.Backends.Internal.Types
+       , Coords(..)
        ) where
 
 
@@ -167,6 +167,8 @@ import           Data.Vector.Algorithms.Intro -- unstable sort
 import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
 import           Data.Word( Word32, Word16 )
 
+import           Geo.Discrete.Types
+
 import           System.Console.ANSI( xterm256ColorToCode, Color8Code(..), Xterm256Color(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
 import           System.IO( stdout, hFlush )
@@ -177,15 +179,10 @@ import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
                                 ( IOVector, accessUnderlying, length
                                 , new, read, clear, pushBack )
 
-data Position = Position { -- TODO replace by Coords (note that fields are swapped)
-    _positionX :: !Int
-  , _positionY :: !Int
-} deriving(Eq, Show)
-
 data Context = Context {
     _contextState :: !(IORef Buffers)
   , _contextColors :: !Colors
-  , _contextPosition :: !Position -- store position instead of buffer index because buffer width could change
+  , _contextPosition :: !Coords -- store position instead of buffer index because buffer width could change
 } deriving(Eq)
 
 instance Show Context where
@@ -286,7 +283,7 @@ newContext =
   mkBuffers 300 80 -- TODO should we use terminal-size?
     >>=
       newIORef
-        >>= \ioRefBuffers -> return $ Context ioRefBuffers initialColors (Position 0 0)
+        >>= \ioRefBuffers -> return $ Context ioRefBuffers initialColors (Coords 0 0)
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -299,8 +296,8 @@ fastMod a b'
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Buffers -> Position -> Word16
-indexFromPos (Buffers _ _ size width _) (Position x y) =
+indexFromPos :: Buffers -> Coords -> Word16
+indexFromPos (Buffers _ _ size width _) (Coords (Row y) (Col x)) =
   (y * fromIntegral width + x) `fastMod` size
 
 
@@ -333,7 +330,7 @@ setDrawColors colors (Context ioRefBuffers _ idx) =
 
 
 
-setDrawLocation :: Position
+setDrawLocation :: Coords
                  -> Context
                  -> Context
 setDrawLocation pos (Context ioRefBuffers colors _) =

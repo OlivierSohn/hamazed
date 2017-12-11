@@ -183,7 +183,7 @@ data Position = Position { -- TODO replace by Coords (note that fields are swapp
 } deriving(Eq, Show)
 
 data Context = Context {
-    _contextState :: !(IORef RenderState)
+    _contextState :: !(IORef Buffers)
   , _contextColors :: !Colors
   , _contextPosition :: !Position -- store position instead of buffer index because buffer width could change
 } deriving(Eq)
@@ -221,11 +221,11 @@ setFrameDimensions :: Word16
                     -> IO ()
 setFrameDimensions width height (Context ref _ _) =
   readIORef ref
-    >>= \(RenderState (Buffers _ _ prevSize prevWidth _)) -> do
+    >>= \(Buffers _ _ prevSize prevWidth _) -> do
       let prevHeight = quot prevSize prevWidth
       when (prevWidth /= width || prevHeight /= height) $
         mkBuffers width height
-          >>= writeIORef ref . RenderState
+          >>= writeIORef ref
 
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
 mkBuffers :: Word16 -> Word16 -> IO Buffers
@@ -243,11 +243,6 @@ mkBuffers width' height' = do
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
   return $ Buffers (Buffer back) (Buffer front) sz' width (Delta delta)
-
-newtype RenderState = RenderState {
-    _renderStateBuffers :: Buffers
-}
-
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
 newBufferArray :: Word16 -> (Cell, Cell) -> IO BackFrontBuffer
@@ -289,9 +284,9 @@ nocolorCell = mkCell noColors ' '
 newContext :: IO Context
 newContext =
   mkBuffers 300 80 -- TODO should we use terminal-size?
-    >>= \buffers ->
-      newIORef (RenderState buffers)
-        >>= \ioRefCtxt -> return $ Context ioRefCtxt initialColors (Position 0 0)
+    >>=
+      newIORef
+        >>= \ioRefBuffers -> return $ Context ioRefBuffers initialColors (Position 0 0)
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -323,26 +318,26 @@ setDrawColor :: ConsoleLayer
              -> Color8Code
              -> Context
              -> Context
-setDrawColor layer color (Context ioRefCtxt (Colors prevBg prevFg) idx) =
+setDrawColor layer color (Context ioRefBuffers (Colors prevBg prevFg) idx) =
   let newColors = case layer of
         Foreground -> Colors prevBg color
         Background -> Colors color prevFg
-  in Context ioRefCtxt newColors idx
+  in Context ioRefBuffers newColors idx
 
 {-# INLINE setDrawColors #-}
 setDrawColors :: Colors
               -> Context
               -> Context
-setDrawColors colors (Context ioRefCtxt _ idx) =
-  Context ioRefCtxt colors idx
+setDrawColors colors (Context ioRefBuffers _ idx) =
+  Context ioRefBuffers colors idx
 
 
 
 setDrawLocation :: Position
                  -> Context
                  -> Context
-setDrawLocation pos (Context ioRefCtxt colors _) =
-  Context ioRefCtxt colors pos
+setDrawLocation pos (Context ioRefBuffers colors _) =
+  Context ioRefBuffers colors pos
 
 
 
@@ -350,9 +345,9 @@ setDrawLocation pos (Context ioRefCtxt colors _) =
 drawChar :: Char
          -> Context
          -> IO ()
-drawChar c (Context ioRefCtxt colors pos) =
-  readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ _ _ _)) -> do
+drawChar c (Context ioRefBuffers colors pos) =
+  readIORef ioRefBuffers
+    >>= \b@(Buffers back _ _ _ _) -> do
       let idx = indexFromPos b pos
       putCharRawAt back idx colors c
 
@@ -373,9 +368,9 @@ drawChars :: Int
           -> Char
           -> Context
           -> IO ()
-drawChars count c (Context ioRefCtxt colors pos) =
-  readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ size _ _)) -> do
+drawChars count c (Context ioRefBuffers colors pos) =
+  readIORef ioRefBuffers
+    >>= \b@(Buffers back _ size _ _) -> do
       let cell = mkCell colors c
           idx = indexFromPos b pos
       mapM_
@@ -389,9 +384,9 @@ drawChars count c (Context ioRefCtxt colors pos) =
 drawStr :: String
         -> Context
         -> IO ()
-drawStr str (Context ioRefCtxt colors pos) =
-  readIORef ioRefCtxt
-    >>= \(RenderState b@(Buffers back _ size _ _)) -> do
+drawStr str (Context ioRefBuffers colors pos) =
+  readIORef ioRefBuffers
+    >>= \b@(Buffers back _ size _ _) -> do
       let idx = indexFromPos b pos
       mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
@@ -414,10 +409,9 @@ fill :: Maybe Char
      -- ^ When Nothing, a space character is used.
      -> Context
      -> IO ()
-fill mayChar (Context ioRefCtxt colors _) =
-  readIORef ioRefCtxt
-    >>= \(RenderState b) ->
-      fillBackBuffer b $ mkCell colors $ fromMaybe ' ' mayChar
+fill mayChar (Context ioRefBuffers colors _) =
+  readIORef ioRefBuffers
+    >>= flip fillBackBuffer (mkCell colors $ fromMaybe ' ' mayChar)
 
 
 fillBackBuffer :: Buffers
@@ -444,10 +438,12 @@ renderFrame :: Bool
               -- at the cost of one more traversal of the back buffer.
               -> Context
               -> IO ()
-renderFrame clearBack (Context ioRefCtxt _ _) =
-  readIORef ioRefCtxt
-    >>= \(RenderState buffers) ->
-      render clearBack buffers >> hFlush stdout -- TODO is flush blocking? slow? could it be async?
+renderFrame clearBack (Context ioRefBuffers _ _) =
+  readIORef ioRefBuffers
+    >>=
+      render clearBack
+        >>
+          hFlush stdout -- TODO is flush blocking? slow? could it be async?
 
 
 render :: Bool -> Buffers -> IO ()

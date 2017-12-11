@@ -120,7 +120,6 @@ test-suite hamazed-test
                      , Test.Interpolation
                      , Test.Rendering
                      , Test.Stdout
-                     , Test.WorldEvolutions
   main-is:             Spec.hs
   build-depends:       base
                      , hamazed

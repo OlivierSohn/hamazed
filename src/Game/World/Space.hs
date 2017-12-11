@@ -295,7 +295,7 @@ locationFunction :: Boundaries
                  -> Maybe (Window Int)
                  -> RenderState
                  -> (Coords -> Location)
-locationFunction f space@(Space _ sz _) mayTermWindow (RenderState wcc _) =
+locationFunction f space@(Space _ sz _) mayTermWindow (RenderState _ _ wcc) =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =

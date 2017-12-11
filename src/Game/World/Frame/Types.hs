@@ -15,6 +15,8 @@ import           Interpolation
 
 import           Game.World.Space.Types
 
+import           Geo.Discrete hiding (move)
+
 import           Render
 import           Render.Console
 
@@ -46,9 +48,10 @@ renderWhole (FrameSpec sz upperLeft) =
   renderPartialWorldFrame sz (upperLeft, 0, countWorldFrameChars sz - 1)
 
 renderTransition :: FrameSpec -> FrameSpec -> Int -> Int -> IO ()
-renderTransition from@(FrameSpec _ fromUpperLeft) to@(FrameSpec _ toUpperLeft) n i = do
+renderTransition from@(FrameSpec _ (RenderState _ _ fromUpperLeft))
+                   to@(FrameSpec _ (RenderState _ _ toUpperLeft)) n i = do
       let
-          (RenderState (Coords _ (Col dc)) _) = diffRS fromUpperLeft toUpperLeft
+          (Coords _ (Col dc)) = diffCoords fromUpperLeft toUpperLeft
           render diBefore di = do
             renderFrom Extremities (n-(i+diBefore)) from
             renderFrom Middle      (n-(i+di))       to

@@ -14,8 +14,7 @@ module Render (
         , go
         , Render.move
         , translate
-        , sumRS
-        , diffRS
+        , translate'
         , ColorString(..)
         , colored
         , setColor
@@ -38,7 +37,7 @@ import           Control.Monad( foldM_ )
 import           Data.Text( length )
 
 import           Geo.Discrete.Types
-import           Geo.Discrete( move, sumCoords, diffCoords, translateInDir )
+import           Geo.Discrete( move, sumCoords, translateInDir )
 
 import           Render.Console
 
@@ -49,27 +48,24 @@ import           Text.ColorString
 --------------------------------------------------------------------------------
 
 go :: Direction -> RenderState -> RenderState
-go dir (RenderState r ctxt) = RenderState (translateInDir dir r) ctxt
+go dir (RenderState ctxt color pos) = RenderState ctxt color (translateInDir dir pos)
 
 move :: Int -> Direction -> RenderState -> RenderState
-move n dir (RenderState c ctxt) = RenderState (Geo.Discrete.move n dir c) ctxt
+move n dir (RenderState ctxt color pos) = RenderState ctxt color (Geo.Discrete.move n dir pos)
 
 translate :: Row -> Col -> RenderState -> RenderState
-translate r c (RenderState coords ctxt) = RenderState (sumCoords coords $ Coords r c) ctxt
+translate r c = translate' (Coords r c)
 
-sumRS :: RenderState -> RenderState -> RenderState
-sumRS (RenderState c1 ctxt) (RenderState c2 _) = RenderState (sumCoords c1 c2) ctxt
-
-diffRS :: RenderState -> RenderState -> RenderState
-diffRS (RenderState c1 ctxt) (RenderState c2 _) = RenderState (diffCoords c1 c2) ctxt
+translate' :: Coords -> RenderState -> RenderState
+translate' pos' (RenderState ctxt color pos) = RenderState ctxt color (sumCoords pos pos')
 
 --------------------------------------------------------------------------------
 -- IO
 --------------------------------------------------------------------------------
 
 drawChar :: Char -> Coords -> RenderState -> IO ()
-drawChar char pos (RenderState upperLeftCoords ctxt) =
-  renderChar_ char $ RenderState (sumCoords pos upperLeftCoords) ctxt
+drawChar char pos (RenderState ctxt colors upperLeftCoords) =
+  renderChar_ char $ RenderState ctxt colors (sumCoords pos upperLeftCoords)
 
 renderPoints :: RenderState -> [(Coords, Char)] -> IO ()
 renderPoints state =
@@ -80,12 +76,10 @@ renderColoredPoints points code s =
   renderPoints (setColor Foreground code s) points
 
 setColor :: ConsoleLayer -> Color8Code -> RenderState -> RenderState
-setColor layer code (RenderState ul ctxt) =
-  RenderState ul $ setDrawColor layer code ctxt
+setColor = setDrawColor
 
 setColors :: Colors -> RenderState -> RenderState
-setColors colors (RenderState ul ctxt) =
-  RenderState ul $ setDrawColors colors ctxt
+setColors = setDrawColors
 
 renderColoredChars :: Int -> Char -> Colors -> RenderState -> IO ()
 renderColoredChars count char colors s =

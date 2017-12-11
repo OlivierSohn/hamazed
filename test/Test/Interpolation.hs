@@ -9,11 +9,11 @@ module Test.Interpolation
            , testSuccessiveInts
            , testClock ) where
 
+import Color
 import Geo.Discrete
 import Interpolation
 import Math
 import Render
-import Render.Console
 import Game.World.Types
 
 testInterpolation :: IO ()
@@ -40,10 +40,11 @@ testListCoords =
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]
 
-testListRenderStates :: Context -> [([RenderState], Maybe Float)]
-testListRenderStates ctxt =
-  let from = [RenderState (Coords (Row 0) (Col 0)) ctxt, RenderState (Coords (Row 10) (Col 10)) ctxt]
-      to   = [RenderState (Coords (Row 1) (Col 0)) ctxt, RenderState (Coords (Row 11) (Col 10)) ctxt]
+testListRenderStates :: RenderState -> [([RenderState], Maybe Float)]
+testListRenderStates (RenderState ctxt _ _) =
+  let col = Colors black white
+      from = [RenderState ctxt col (Coords (Row 0) (Col 0)), RenderState ctxt col (Coords (Row 10) (Col 10))]
+      to   = [RenderState ctxt col (Coords (Row 1) (Col 0)), RenderState ctxt col (Coords (Row 11) (Col 10))]
       d = distance from to
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]

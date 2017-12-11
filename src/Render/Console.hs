@@ -10,7 +10,6 @@ module Render.Console
                , renderStr_
                , drawTxt
                , renderTxt_
-               , RenderState(..)
                , renderSegment
                , setFrameDimensions
                -- reexport System.Console.ANSI
@@ -24,7 +23,7 @@ module Render.Console
                , Backend.setDrawColors
                , Backend.setDrawColor
                , Backend.Colors(..)
-               , Backend.Context
+               , Backend.RenderState(..)
                , Backend.newContext
                -- reexports
                , module Render.Types
@@ -53,8 +52,6 @@ import           System.IO( hSetBuffering
 import           Geo.Discrete.Types
 import           Geo.Discrete
 
-import           Interpolation
-
 {--
 import qualified Render.Backends.Full as Backend --}
 --{--
@@ -68,18 +65,7 @@ import           Render.Types
 
 data ConsoleConfig = Gaming | Editing
 
-data RenderState = RenderState {
-    _currentUpperLeftCorner :: !Coords
-  , _currentContext :: !Backend.Context
-} deriving(Eq, Show)
-
-instance DiscretelyInterpolable RenderState where
-  distance (RenderState from _) (RenderState to _) =
-    distance from to
-  interpolate (RenderState from ctxt) (RenderState to _) progress =
-    RenderState (interpolate from to progress) ctxt
-
-setFrameDimensions :: RenderSize -> Backend.Context -> IO ()
+setFrameDimensions :: RenderSize -> Backend.RenderState -> IO ()
 setFrameDimensions (UserDefined w h) ctxt
   | w <= 0 = error "negative or zero render width not allowed"
   | h <= 0 = error "negative or zero render height not allowed"
@@ -132,45 +118,45 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-renderChar_ :: Char -> RenderState -> IO ()
-renderChar_ char (RenderState c ctxt) =
-  Backend.drawChar char $ Backend.moveTo c ctxt
+renderChar_ :: Char -> Backend.RenderState -> IO ()
+renderChar_ =
+  Backend.drawChar
 
 
-drawChars :: Int -> Char -> RenderState -> IO ()
-drawChars count char (RenderState c ctxt) =
-  Backend.drawChars count char $ Backend.moveTo c ctxt
+drawChars :: Int -> Char -> Backend.RenderState -> IO ()
+drawChars =
+  Backend.drawChars
 
-drawStr :: String -> RenderState -> IO RenderState
-drawStr str r@(RenderState c ctxt) =
-  renderStr_ str r >> return (RenderState (translateInDir Down c) ctxt)
+drawStr :: String -> Backend.RenderState -> IO Backend.RenderState
+drawStr str r@(Backend.RenderState ctxt color pos) =
+  renderStr_ str r >> return (Backend.RenderState ctxt color (translateInDir Down pos))
 
-renderStr_ :: String -> RenderState -> IO ()
-renderStr_ str (RenderState c ctxt) =
-  Backend.drawStr str $ Backend.moveTo c ctxt
+renderStr_ :: String -> Backend.RenderState -> IO ()
+renderStr_ =
+  Backend.drawStr
 
-drawTxt :: Text -> RenderState -> IO RenderState
-drawTxt txt r@(RenderState c ctxt) =
-  renderTxt_ txt r >> return (RenderState (translateInDir Down c) ctxt)
+drawTxt :: Text -> Backend.RenderState -> IO Backend.RenderState
+drawTxt txt r@(Backend.RenderState ctxt color pos) =
+  renderTxt_ txt r >> return (Backend.RenderState ctxt color (translateInDir Down pos))
 
-renderTxt_ :: Text -> RenderState -> IO ()
-renderTxt_ txt (RenderState c ctxt) =
-  Backend.drawTxt txt $ Backend.moveTo c ctxt
+renderTxt_ :: Text -> Backend.RenderState -> IO ()
+renderTxt_ =
+  Backend.drawTxt
 
-renderSegment :: Segment -> Char -> RenderState -> IO ()
+renderSegment :: Segment -> Char -> Backend.RenderState -> IO ()
 renderSegment l char rs = case l of
   Horizontal row c1 c2 -> renderHorizontalLine row c1 c2 char rs
   Vertical col r1 r2   -> renderVerticalLine   col r1 r2 char rs
   Oblique _ _ -> error "oblique segment rendering is not supported"
 
 
-renderVerticalLine :: Col -> Int -> Int -> Char -> RenderState -> IO ()
-renderVerticalLine col r1 r2 char (RenderState upperLeft ctxt) = do
+renderVerticalLine :: Col -> Int -> Int -> Char -> Backend.RenderState -> IO ()
+renderVerticalLine col r1 r2 char (Backend.RenderState ctxt color upperLeft) = do
   let rows = [(min r1 r2)..(max r1 r2)]
-  mapM_ (\r -> let rs = RenderState (sumCoords upperLeft $ Coords (Row r) col) ctxt
+  mapM_ (\r -> let rs = Backend.RenderState ctxt color (sumCoords upperLeft $ Coords (Row r) col)
                in renderChar_ char rs) rows
 
-renderHorizontalLine :: Row -> Int -> Int -> Char -> RenderState -> IO ()
-renderHorizontalLine row c1 c2 char (RenderState upperLeft ctxt) = do
-  let rs = RenderState (sumCoords upperLeft $ Coords row (Col (min c1 c2))) ctxt
+renderHorizontalLine :: Row -> Int -> Int -> Char -> Backend.RenderState -> IO ()
+renderHorizontalLine row c1 c2 char (Backend.RenderState ctxt color upperLeft) = do
+  let rs = Backend.RenderState ctxt color (sumCoords upperLeft $ Coords row (Col (min c1 c2)))
   renderStr_ (replicate (1 + abs (c2-c1)) char) rs

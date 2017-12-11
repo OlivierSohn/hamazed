@@ -154,14 +154,14 @@ accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
 -- IO
 --------------------------------------------------------------------------------
 
-runGameWorker :: Context -> GameParameters -> IO ()
+runGameWorker :: RenderState -> GameParameters -> IO ()
 runGameWorker ctxt params =
   mkInitialState ctxt params firstLevel Nothing
     >>= \case
       Left err -> error err
       Right ew -> loop params ew
 
-mkInitialState :: Context -> GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
+mkInitialState :: RenderState -> GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
 mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
@@ -226,13 +226,13 @@ getEvent state@(GameState _ _ _ _ _ level _) = do
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
  params
- state@(GameState a b world@(World _ _ _ _ _ (EmbeddedWorld _ (RenderState _ ctxt)))
+ state@(GameState a b world@(World _ _ _ _ _ (EmbeddedWorld _ rs))
                   futWorld f h@(Level level target mayLevelFinished) i)
  te@(TimedEvent event t) =
   case event of
     Nonsense -> return state
     StartLevel nextLevel ->
-      mkInitialState ctxt params nextLevel (Just state)
+      mkInitialState rs params nextLevel (Just state)
         >>= \case
               Left err -> error err
               Right s -> return s
@@ -265,11 +265,11 @@ updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ i
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2
  te@(TimedEvent event _)
- s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ (RenderState _ ctxt))) _ _ _ anim) =
+ s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ rs)) _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      setFrameDimensions TerminalSize ctxt
+      setFrameDimensions TerminalSize rs
       beginFrame
       let s2 =
             if isFinished anim
@@ -278,7 +278,7 @@ updateGame2
               else
                 s
       animations <- renderGame (getKeyTime event) s2
-      endFrame ctxt
+      endFrame rs
       return $ replaceAnimations animations s2
 
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]

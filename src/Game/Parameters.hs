@@ -41,10 +41,10 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: Context -> IO GameParameters
+getGameParameters :: RenderState -> IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> Context -> IO GameParameters
+update :: GameParameters -> RenderState -> IO GameParameters
 update params ctxt =
   render params ctxt >>
     getCharThenFlush >>= either
@@ -66,16 +66,16 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-render :: GameParameters -> Context -> IO ()
-render (GameParameters shape wall) ctxt = do
+render :: GameParameters -> RenderState -> IO ()
+render (GameParameters shape wall) ctxt' = do
   let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
-  ew <- mkEmbeddedWorld ctxt worldSize
+  ew <- mkEmbeddedWorld ctxt' worldSize
   case ew of
     Left err -> error err
-    Right rew@(EmbeddedWorld _ upperLeft) -> do
+    Right rew@(EmbeddedWorld _ ctxt) -> do
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
-      _ <- renderSpace space upperLeft >>=
+      _ <- renderSpace space ctxt >>=
         \worldCoords' -> do
           renderWorld world
           let worldCoords = setColors configColors worldCoords'

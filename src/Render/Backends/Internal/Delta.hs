@@ -128,7 +128,7 @@ module Render.Backends.Internal.Delta
        (
        -- * Setup
          newContext
-       , Context
+       , RenderState(..)
        , setFrameDimensions
        -- * Fill the back buffer
        , fill
@@ -169,6 +169,8 @@ import           Data.Word( Word32, Word16 )
 
 import           Geo.Discrete.Types
 
+import           Interpolation
+
 import           System.Console.ANSI( xterm256ColorToCode, Color8Code(..), Xterm256Color(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
 import           System.IO( stdout, hFlush )
@@ -179,14 +181,20 @@ import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
                                 ( IOVector, accessUnderlying, length
                                 , new, read, clear, pushBack )
 
-data Context = Context {
+data RenderState = RenderState {
     _contextState :: !(IORef Buffers)
   , _contextColors :: !Colors
   , _contextPosition :: !Coords -- store position instead of buffer index because buffer width could change
 } deriving(Eq)
 
-instance Show Context where
-  showsPrec _ (Context _ color pos) = showString $ show ("IORef", color, pos)
+instance Show RenderState where
+  showsPrec _ (RenderState _ color pos) = showString $ show ("IORef", color, pos)
+
+instance DiscretelyInterpolable RenderState where -- TODO interpolate color also
+  distance (RenderState _ _ from) (RenderState _ _ to) =
+    distance from to
+  interpolate (RenderState ctxt color from) (RenderState _ _ to) progress =
+    RenderState ctxt color (interpolate from to progress)
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 
@@ -214,9 +222,9 @@ setFrameDimensions :: Word16
                     -- ^ Width
                     -> Word16
                     -- ^ Height
-                    -> Context
+                    -> RenderState
                     -> IO ()
-setFrameDimensions width height (Context ref _ _) =
+setFrameDimensions width height (RenderState ref _ _) =
   readIORef ref
     >>= \(Buffers _ _ prevSize prevWidth _) -> do
       let prevHeight = quot prevSize prevWidth
@@ -278,12 +286,12 @@ nocolorCell :: Cell
 nocolorCell = mkCell noColors ' '
 
 {-# NOINLINE newContext #-}
-newContext :: IO Context
+newContext :: IO RenderState
 newContext =
   mkBuffers 300 80 -- TODO should we use terminal-size?
     >>=
       newIORef
-        >>= \ioRefBuffers -> return $ Context ioRefBuffers initialColors (Coords 0 0)
+        >>= \ioRefBuffers -> return $ RenderState ioRefBuffers initialColors (Coords 0 0)
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -313,36 +321,36 @@ xyFromIndex (Buffers _ _ _ width _) idx =
 {-# INLINE setDrawColor #-}
 setDrawColor :: ConsoleLayer
              -> Color8Code
-             -> Context
-             -> Context
-setDrawColor layer color (Context ioRefBuffers (Colors prevBg prevFg) idx) =
+             -> RenderState
+             -> RenderState
+setDrawColor layer color (RenderState ioRefBuffers (Colors prevBg prevFg) idx) =
   let newColors = case layer of
         Foreground -> Colors prevBg color
         Background -> Colors color prevFg
-  in Context ioRefBuffers newColors idx
+  in RenderState ioRefBuffers newColors idx
 
 {-# INLINE setDrawColors #-}
 setDrawColors :: Colors
-              -> Context
-              -> Context
-setDrawColors colors (Context ioRefBuffers _ idx) =
-  Context ioRefBuffers colors idx
+              -> RenderState
+              -> RenderState
+setDrawColors colors (RenderState ioRefBuffers _ idx) =
+  RenderState ioRefBuffers colors idx
 
 
 
 setDrawLocation :: Coords
-                 -> Context
-                 -> Context
-setDrawLocation pos (Context ioRefBuffers colors _) =
-  Context ioRefBuffers colors pos
+                 -> RenderState
+                 -> RenderState
+setDrawLocation pos (RenderState ioRefBuffers colors _) =
+  RenderState ioRefBuffers colors pos
 
 
 
 -- | Draws a 'Char' at the current draw location, with the current draw colors.
 drawChar :: Char
-         -> Context
+         -> RenderState
          -> IO ()
-drawChar c (Context ioRefBuffers colors pos) =
+drawChar c (RenderState ioRefBuffers colors pos) =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ _ _ _) -> do
       let idx = indexFromPos b pos
@@ -363,9 +371,9 @@ putCharRawAt back idx colors c =
 drawChars :: Int
           -- ^ Number of repetitions.
           -> Char
-          -> Context
+          -> RenderState
           -> IO ()
-drawChars count c (Context ioRefBuffers colors pos) =
+drawChars count c (RenderState ioRefBuffers colors pos) =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _) -> do
       let cell = mkCell colors c
@@ -379,9 +387,9 @@ drawChars count c (Context ioRefBuffers colors pos) =
 -- | Draws a 'String' starting from the current draw location,
 --   using current draw colors.
 drawStr :: String
-        -> Context
+        -> RenderState
         -> IO ()
-drawStr str (Context ioRefBuffers colors pos) =
+drawStr str (RenderState ioRefBuffers colors pos) =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _) -> do
       let idx = indexFromPos b pos
@@ -391,7 +399,7 @@ drawStr str (Context ioRefBuffers colors pos) =
 -- | Draws a 'Text' starting from the current draw location,
 --   using current draw colors.
 drawTxt :: Text
-        -> Context
+        -> RenderState
         -> IO ()
 drawTxt text = drawStr $ unpack text
 
@@ -404,9 +412,9 @@ writeToBack (Buffer b) pos = write b (fromIntegral pos)
 -- | Fills the entire canvas with a char.
 fill :: Maybe Char
      -- ^ When Nothing, a space character is used.
-     -> Context
+     -> RenderState
      -> IO ()
-fill mayChar (Context ioRefBuffers colors _) =
+fill mayChar (RenderState ioRefBuffers colors _) =
   readIORef ioRefBuffers
     >>= flip fillBackBuffer (mkCell colors $ fromMaybe ' ' mayChar)
 
@@ -433,9 +441,9 @@ renderFrame :: Bool
               -- ^ If True, after submission the drawing is reset to the initial color.
               -- This can also be achieved by calling "fill Nothing Nothing" after this call,
               -- at the cost of one more traversal of the back buffer.
-              -> Context
+              -> RenderState
               -> IO ()
-renderFrame clearBack (Context ioRefBuffers _ _) =
+renderFrame clearBack (RenderState ioRefBuffers _ _) =
   readIORef ioRefBuffers
     >>=
       render clearBack

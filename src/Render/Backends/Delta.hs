@@ -23,9 +23,9 @@ preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 beginFrame :: IO ()
 beginFrame = return ()
 
-endFrame :: Context -> IO ()
+endFrame :: RenderState -> IO ()
 endFrame = renderFrame True {- clear buffer after rendering -}
 
-moveTo :: Coords -> Context -> Context
+moveTo :: Coords -> RenderState -> RenderState
 moveTo =
   setDrawLocation

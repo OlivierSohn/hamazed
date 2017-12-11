@@ -25,6 +25,10 @@ minimalWorldMargin = 4
 mkEmbeddedWorld :: Context -> WorldSize -> IO (Either String EmbeddedWorld)
 mkEmbeddedWorld ctxt s = do
   mayTermSize <- Terminal.size
+  maybe
+    (return ())
+    (\(Terminal.Window h w) -> setFrameDimensions (UserDefined w h) ctxt)
+      mayTermSize
   return $ (EmbeddedWorld mayTermSize . flip RenderState ctxt) <$> worldUpperLeftToCenterIt' s mayTermSize
 
 

@@ -26,6 +26,6 @@ beginFrame = return ()
 endFrame :: Context -> IO ()
 endFrame = renderFrame True {- clear buffer after rendering -}
 
-moveTo :: Coords -> Context -> IO ()
+moveTo :: Coords -> Context -> Context
 moveTo (Coords (Row r) (Col c)) =
-  setDrawLocation c r
+  setDrawLocation (Position c r)

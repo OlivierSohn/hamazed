@@ -7,6 +7,9 @@
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
+- dependencies would be like this if we use Coords:
+  delta rendering -> discrete coords -> DiscretelyInterpolable
+
 - provide a context which we can create using TerminalSize or CustomSize or a function to get the size, at every frame end
 it contains the IORef, the buffers.
 

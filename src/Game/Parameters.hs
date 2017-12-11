@@ -45,17 +45,15 @@ getGameParameters :: Context -> IO GameParameters
 getGameParameters = update initialParameters
 
 update :: GameParameters -> Context -> IO GameParameters
-update params ctxt = do
-  render params ctxt
-  ec <- getCharThenFlush
-  either
-    (\_ -> return params)
-    (\c -> if c == ' '
-            then
-              return params
-            else
-              update (updateFromChar c params) ctxt)
-    ec
+update params ctxt =
+  render params ctxt >>
+    getCharThenFlush >>= either
+      (\_ -> return params)
+      (\c -> if c == ' '
+              then
+                return params
+              else
+                update (updateFromChar c params) ctxt)
 
 
 updateFromChar :: Char -> GameParameters -> GameParameters
@@ -75,7 +73,6 @@ render (GameParameters shape wall) ctxt = do
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ upperLeft) -> do
-      setFrameDimensions TerminalSize ctxt
       beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space upperLeft >>=

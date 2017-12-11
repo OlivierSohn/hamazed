@@ -14,6 +14,9 @@ import Render.Console
 testICS :: IO ()
 testICS = do
   ctxt <- newContext
+  setFrameDimensions TerminalSize ctxt
+  beginFrame
+
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
       e@(Evolution _ (Frame lastFrame) _ _) = mkEvolution2 from to 1
@@ -26,9 +29,6 @@ testICS = do
       p1   = colored "[.]" (rgb 5 5 5)
       p2   = colored "[.]" (rgb 5 0 0)
       e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolution (Successive [p1,p2,p1]) 1
-
-  setFrameDimensions TerminalSize ctxt
-  beginFrame
 
   mapM_
     (\i@(Frame c) -> do

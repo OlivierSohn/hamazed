@@ -129,6 +129,7 @@ module Render.Backends.Internal.Delta
        -- * Setup
          newContext
        , Context
+       , Position(..)
        , setFrameDimensions
        -- * Fill the back buffer
        , fill
@@ -176,15 +177,19 @@ import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
                                 ( IOVector, accessUnderlying, length
                                 , new, read, clear, pushBack )
 
-
+data Position = Position { -- TODO replace by Coords (note that fields are swapped)
+    _positionX :: !Int
+  , _positionY :: !Int
+} deriving(Eq, Show)
 
 data Context = Context {
     _contextState :: !(IORef RenderState)
   , _contextColors :: !Colors
+  , _contextPosition :: !Position -- store position instead of buffer index because buffer width could change
 } deriving(Eq)
 
 instance Show Context where
-  showsPrec _ (Context _ color) = showString $ "{IORef," ++ show color ++ "}"
+  showsPrec _ (Context _ color pos) = showString $ show ("IORef", color, pos)
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 
@@ -196,16 +201,12 @@ newtype Delta = Delta (Dyn.IOVector Cell)
 data Back
 data Front
 
-newtype Pencil = Pencil {
-    _pencilBufferIndex :: Word16
-}
-
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
   , _buffersSize :: !Word16
   , _buffersWidth :: !Word16
-  , _buffersHeight :: !Word16
+  , _buffersHeight :: !Word16 -- TODO remove as it is never used directly and can be computed from width + size
   , _buffersDelta :: !Delta
   -- ^ buffer used in renderFrame
 }
@@ -219,16 +220,12 @@ setFrameDimensions :: Word16
                     -- ^ Height
                     -> Context
                     -> IO ()
-setFrameDimensions width height (Context ref _) = do
-  (RenderState (Pencil idx) (Buffers _ _ _ prevWidth prevHeight _)) <- readIORef ref
-  if prevWidth == width && prevHeight == height
-    then
-      return ()
-    else do
-      buffers@(Buffers _ _ size _ _ _) <- mkBuffers width height
-      let newPencilIdx = idx `fastMod` size
-      writeIORef ref $ RenderState (Pencil newPencilIdx) buffers
-
+setFrameDimensions width height (Context ref _ _) =
+  readIORef ref
+    >>= \(RenderState (Buffers _ _ _ prevWidth prevHeight _)) ->
+      when (prevWidth /= width || prevHeight /= height) $
+        mkBuffers width height
+          >>= writeIORef ref . RenderState
 
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
 mkBuffers :: Word16 -> Word16 -> IO Buffers
@@ -247,9 +244,8 @@ mkBuffers width' height' = do
   let (back, front) = unzip buf
   return $ Buffers (Buffer back) (Buffer front) sz' width height (Delta delta)
 
-data RenderState = RenderState {
-    _renderStatePencil :: !Pencil
-  , _renderStateBuffers :: !Buffers
+newtype RenderState = RenderState {
+    _renderStateBuffers :: Buffers
 }
 
 
@@ -294,84 +290,70 @@ newContext :: IO Context
 newContext =
   mkBuffers 300 80 -- TODO should we use terminal-size?
     >>= \buffers ->
-      newIORef (RenderState mkInitialState buffers)
-        >>= \ioRefCtxt -> return $ Context ioRefCtxt initialColors
-
-mkInitialState :: Pencil
-mkInitialState = Pencil 0
-
+      newIORef (RenderState buffers)
+        >>= \ioRefCtxt -> return $ Context ioRefCtxt initialColors (Position 0 0)
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
 {-# INLINE fastMod #-}
-fastMod :: Word16 -> Word16 -> Word16
-fastMod a b
-  | 0 <= a && a < b = a          -- fast path
-  | otherwise       = a `mod` b  -- slow path
+fastMod :: Int -> Word16 -> Word16
+fastMod a b'
+  | 0 <= a && a < b = fromIntegral a          -- fast path
+  | otherwise       = fromIntegral $ a `mod` b  -- slow path
+  where b = fromIntegral b'
 
 
-{-# INLINE indexFromXY #-}
-indexFromXY :: Buffers -> Word16 -> Word16 -> Word16
-indexFromXY (Buffers _ _ size width _ _) x y =
-  (y * width + x) `fastMod` size
+{-# INLINE indexFromPos #-}
+indexFromPos :: Buffers -> Position -> Word16
+indexFromPos (Buffers _ _ size width _ _) (Position x y) =
+  (y * fromIntegral width + x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}
 xyFromIndex :: Buffers -> Word16 -> (Word16, Word16)
-xyFromIndex (Buffers _ _ size width _ _) idx =
+xyFromIndex (Buffers _ _ _ width _ _) idx =
     (x, y)
   where
-    pos' = idx `fastMod` size
-    x = pos' - y * width
-    y = pos' `div` width
-
+    -- no need to do (idx `mod` size) here, we know we passed an index in the right range.
+    y = idx `div` width
+    x = idx - y * width
 
 {-# INLINE setDrawColor #-}
 setDrawColor :: ConsoleLayer
              -> Color8Code
              -> Context
              -> Context
-setDrawColor layer color (Context ioRefCtxt (Colors prevBg prevFg)) =
+setDrawColor layer color (Context ioRefCtxt (Colors prevBg prevFg) idx) =
   let newColors = case layer of
         Foreground -> Colors prevBg color
         Background -> Colors color prevFg
-  in Context ioRefCtxt newColors
+  in Context ioRefCtxt newColors idx
 
 {-# INLINE setDrawColors #-}
 setDrawColors :: Colors
               -> Context
               -> Context
-setDrawColors colors (Context ioRefCtxt _) =
-  Context ioRefCtxt colors
+setDrawColors colors (Context ioRefCtxt _ idx) =
+  Context ioRefCtxt colors idx
 
 
-setDrawLocation :: Int
-                -> Int
-                -> Context
-                -> IO ()
-setDrawLocation x y ctxt
-  | x < 0 || y < 0 = error $ "cannot draw to negative location " ++ show (x,y)
-  | otherwise      = setDrawLocation' (fromIntegral x) (fromIntegral y) ctxt
 
-
-setDrawLocation' :: Word16
-                 -> Word16
+setDrawLocation :: Position
                  -> Context
-                 -> IO ()
-setDrawLocation' x y (Context ioRefCtxt _) =
-  readIORef ioRefCtxt
-    >>= \(RenderState _ b) -> do
-      let idx = indexFromXY b x y
-      writeIORef ioRefCtxt $ RenderState (Pencil idx) b
+                 -> Context
+setDrawLocation pos (Context ioRefCtxt colors _) =
+  Context ioRefCtxt colors pos
+
 
 
 -- | Draws a 'Char' at the current draw location, with the current draw colors.
 drawChar :: Char
          -> Context
          -> IO ()
-drawChar c (Context ioRefCtxt colors) =
+drawChar c (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState (Pencil idx) (Buffers back _ _ _ _ _)) ->
+    >>= \(RenderState b@(Buffers back _ _ _ _ _)) -> do
+      let idx = indexFromPos b pos
       putCharRawAt back idx colors c
 
 
@@ -391,12 +373,15 @@ drawChars :: Int
           -> Char
           -> Context
           -> IO ()
-drawChars count c (Context ioRefCtxt colors) =
+drawChars count c (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState (Pencil idx) (Buffers back _ size _ _ _)) -> do
+    >>= \(RenderState b@(Buffers back _ size _ _ _)) -> do
       let cell = mkCell colors c
-      mapM_ (\i -> let pos = (idx + fromIntegral i) `fastMod` size
-                   in writeToBack back pos cell) [0..pred count]
+          idx = indexFromPos b pos
+      mapM_
+        (\i -> let idx' = (fromIntegral idx + i) `fastMod` size
+               in writeToBack back idx' cell)
+        [0..pred count]
 
 
 -- | Draws a 'String' starting from the current draw location,
@@ -404,9 +389,10 @@ drawChars count c (Context ioRefCtxt colors) =
 drawStr :: String
         -> Context
         -> IO ()
-drawStr str (Context ioRefCtxt colors) =
+drawStr str (Context ioRefCtxt colors pos) =
   readIORef ioRefCtxt
-    >>= \(RenderState (Pencil idx) (Buffers back _ size _ _ _)) ->
+    >>= \(RenderState b@(Buffers back _ size _ _ _)) -> do
+      let idx = indexFromPos b pos
       mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
 
@@ -428,9 +414,9 @@ fill :: Maybe Char
      -- ^ When Nothing, a space character is used.
      -> Context
      -> IO ()
-fill mayChar (Context ioRefCtxt colors) =
+fill mayChar (Context ioRefCtxt colors _) =
   readIORef ioRefCtxt
-    >>= \(RenderState _ b) ->
+    >>= \(RenderState b) ->
       fillBackBuffer b $ mkCell colors $ fromMaybe ' ' mayChar
 
 
@@ -458,9 +444,9 @@ renderFrame :: Bool
               -- at the cost of one more traversal of the back buffer.
               -> Context
               -> IO ()
-renderFrame clearBack (Context ioRefCtxt _) =
+renderFrame clearBack (Context ioRefCtxt _ _) =
   readIORef ioRefCtxt
-    >>= \(RenderState _ buffers) ->
+    >>= \(RenderState buffers) ->
       render clearBack buffers >> hFlush stdout -- TODO is flush blocking? slow? could it be async?
 
 

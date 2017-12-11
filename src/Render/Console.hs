@@ -133,33 +133,29 @@ configureConsoleFor config = do
             ++ show ib
 
 renderChar_ :: Char -> RenderState -> IO ()
-renderChar_ char (RenderState c ctxt) = do
-  Backend.moveTo c ctxt
-  Backend.drawChar char ctxt
+renderChar_ char (RenderState c ctxt) =
+  Backend.drawChar char $ Backend.moveTo c ctxt
 
 
 drawChars :: Int -> Char -> RenderState -> IO ()
-drawChars count char (RenderState c ctxt) = do
-  Backend.moveTo c ctxt
-  Backend.drawChars count char ctxt
+drawChars count char (RenderState c ctxt) =
+  Backend.drawChars count char $ Backend.moveTo c ctxt
 
 drawStr :: String -> RenderState -> IO RenderState
 drawStr str r@(RenderState c ctxt) =
   renderStr_ str r >> return (RenderState (translateInDir Down c) ctxt)
 
 renderStr_ :: String -> RenderState -> IO ()
-renderStr_ str (RenderState c ctxt) = do
-  Backend.moveTo c ctxt
-  Backend.drawStr str ctxt
+renderStr_ str (RenderState c ctxt) =
+  Backend.drawStr str $ Backend.moveTo c ctxt
 
 drawTxt :: Text -> RenderState -> IO RenderState
 drawTxt txt r@(RenderState c ctxt) =
   renderTxt_ txt r >> return (RenderState (translateInDir Down c) ctxt)
 
 renderTxt_ :: Text -> RenderState -> IO ()
-renderTxt_ txt (RenderState c ctxt) = do
-  Backend.moveTo c ctxt
-  Backend.drawTxt txt ctxt
+renderTxt_ txt (RenderState c ctxt) =
+  Backend.drawTxt txt $ Backend.moveTo c ctxt
 
 renderSegment :: Segment -> Char -> RenderState -> IO ()
 renderSegment l char rs = case l of

@@ -12,28 +12,30 @@ The number of over-represented samples is m' = m - n*floor(m/n).
 
 There are several ways to place over-represented samples:
 
-- "Even" spread : the input interval [0.0 length] is partitionned in m' equal length intervals
+* "Even" spread : the input interval [0.0 length] is partitionned in m' equal length intervals
 whose centers, floored to the previous integer, are the overrepresented samples.
-  - With an input of length 5, and 2 overrepresented samples:
+
+    * With an input of length 5, and 2 overrepresented samples:
 
              input samples:   -----
 
   over-represented samples:    - -
 
-  - over-represented samples indexes are:
+    * over-represented samples indexes are:
 
   for every s in [0,m'-1] : f(s) = a + floor( 0.5 + (n - 1 - a) * s / (m-1))   where a = (n/m')/2
 
-- "Even with extremities" spread: the first and last overrepresented samples match
+* "Even with extremities" spread: the first and last overrepresented samples match
 with an input extremity. The rest of the overrepresented samples are positionned
 "regularly" in-between the first and last.
-  - Example with an input of length 5, and 2 overrepresented samples:
+
+    * Example with an input of length 5, and 2 overrepresented samples:
 
              input samples:   -----
 
   over-represented samples:   -   -
 
-  - over-represented samples indexes are:
+    * over-represented samples indexes are:
 
   when m' > 1, for every s in [0,m'-1] : f(s) = floor( 0.5 + (n - 1) * s / (m'-1))
 
@@ -88,6 +90,7 @@ resampleRec :: Int
 resampleRec _ _ _ _ [] _ = []
 resampleRec m' n curIdx (overRepIdx, s) l@(_:_) nCopiesMin =
   let (nCopies, nextState)
+  -- This commented guard was used to debug cases where the assert on the line after would fail
 --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
         | assert (overRepIdx >= curIdx) overRepIdx == curIdx
                 = let nextS = succ s

@@ -28,12 +28,12 @@ newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
 newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
 
 data Coords = Coords {
-    _x :: !Row
-  , _y :: !Col
+    _coordsY :: !Row
+  , _coordsX :: !Col
 } deriving (Generic, Eq, Show, Ord)
 
 
--- | Move horizontaly then vertically
+-- | Move horizontaly then vertically (an arbitrary choice that can be discussed)
 instance DiscretelyInterpolable Coords where
   distance (Coords (Row r) (Col c)) (Coords (Row r') (Col c')) =
     1 + abs (r-r') + abs (c-c')

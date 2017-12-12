@@ -14,14 +14,17 @@ import           Util( takeWhileInclusive
                      , range )
 
 bresenhamLength :: Coords -> Coords -> Int
-bresenhamLength (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2))
-  = 1 + max (abs (r1-r2)) (abs (c1-c2))
+bresenhamLength (Coords r1 c1) (Coords r2 c2)
+  = 1 + max (fromIntegral (abs (r1-r2))) (fromIntegral (abs (c1-c2)))
 
 bresenham :: Segment -> [Coords]
-bresenham (Horizontal r c1 c2) = map (Coords r . Col) $ range c1 c2
-bresenham (Vertical c r1 r2)   = map (flip Coords c . Row) $ range r1 r2
-bresenham (Oblique (Coords (Row y0) (Col x0)) c2@(Coords (Row y1) (Col x1))) =
-  takeWhileInclusive (/= c2) $ map (\(x,y) -> Coords (Row y) (Col x) ) $ bla (x0,y0) (x1,y1)
+bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2
+bresenham (Vertical c r1 r2)   = map (flip Coords c) $ range r1 r2
+bresenham (Oblique (Coords y0 x0) c2@(Coords y1 x1)) =
+  takeWhileInclusive (/= c2)
+  $ map (\(x,y) -> Coords (Coord y) (Coord x) )
+  $ bla (fromIntegral x0,fromIntegral y0)
+        (fromIntegral x1,fromIntegral y1)
 
 -- adapted from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Haskell
 balancedWord :: Int -> Int -> Int -> [Int]

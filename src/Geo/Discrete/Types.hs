@@ -4,9 +4,10 @@
 
 
 module Geo.Discrete.Types
-    ( Col(..)
-    , Row(..)
+    ( Col
+    , Row
     , Coords(..)
+    , Coord(..)
     , PosSpeed(..)
     , Segment(..)
     , sumCoords
@@ -17,21 +18,24 @@ import           Imajuscule.Prelude
 
 import           Geo.Types
 
-newtype Row = Row { _rowIndex :: Int } deriving (Eq, Show, Ord, Num, Integral, Enum, Real)
-newtype Col = Col { _colIndex :: Int } deriving (Eq, Show, Ord, Num, Integral, Enum, Real)
+newtype Coord a = Coord Int
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
+
+data Row
+data Col
 
 data Coords = Coords {
-    _coordsY :: !Row
-  , _coordsX :: !Col
+    _coordsY :: {-# UNPACK #-} !(Coord Row)
+  , _coordsX :: {-# UNPACK #-} !(Coord Col)
 } deriving (Eq, Show, Ord)
 
 sumCoords :: Coords -> Coords -> Coords
-sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) =
-  Coords (Row $ r1 + r2) (Col $ c1 + c2)
+sumCoords (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 + r2) (c1 + c2)
 
-data Segment = Horizontal Row Int Int
-             | Vertical   Col Int Int
-             | Oblique    Coords Coords
+data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
+             | Vertical   !(Coord Col) !(Coord Row) !(Coord Row)
+             | Oblique    !Coords !Coords
 
 
 data PosSpeed = PosSpeed {

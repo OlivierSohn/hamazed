@@ -58,7 +58,8 @@ renderTransition :: FrameSpec -> FrameSpec -> Int -> Int -> IO ()
 renderTransition from@(FrameSpec _ fromUpperLeft _ _)
                    to@(FrameSpec _ toUpperLeft _ _) n i = do
       let
-          (Coords _ (Col dc)) = diffCoords fromUpperLeft toUpperLeft
+          (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
+          dc = fromIntegral dc'
           render diBefore di = do
             renderFrom Extremities (n-(i+diBefore)) from
             renderFrom Middle      (n-(i+di))       to
@@ -113,12 +114,12 @@ countWorldFrameChars s =
   2 * countWorldFrameHorizontal s + 2 * countWorldFrameVertical s
 
 countWorldFrameHorizontal :: WorldSize -> Int
-countWorldFrameHorizontal (WorldSize (Coords _ (Col cs))) =
-  cs + 2
+countWorldFrameHorizontal (WorldSize (Coords _ cs)) =
+  fromIntegral cs + 2
 
 countWorldFrameVertical :: WorldSize -> Int
-countWorldFrameVertical (WorldSize (Coords (Row rs) _)) =
-  rs
+countWorldFrameVertical (WorldSize (Coords rs _)) =
+  fromIntegral rs
 
 renderPartialWorldFrame :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO ()
 renderPartialWorldFrame sz colors b r =

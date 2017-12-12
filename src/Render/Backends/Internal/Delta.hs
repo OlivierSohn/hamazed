@@ -166,7 +166,7 @@ import           System.IO( stdout, hFlush )
 import           Color
 import           Color.Types
 
-import           Geo.Discrete.Types(Coords(..), Row(..), Col(..))
+import           Geo.Discrete.Types(Coords(..))
 
 import           Render.Backends.Internal.BufferCell
 import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
@@ -290,8 +290,8 @@ fastMod a b'
 
 {-# INLINE indexFromPos #-}
 indexFromPos :: Buffers -> Coords -> Dim Index
-indexFromPos (Buffers _ _ size width _ _) (Coords (Row y) (Col x)) =
-  (y * fromIntegral width + x) `fastMod` size
+indexFromPos (Buffers _ _ size width _ _) (Coords y x) =
+  (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}

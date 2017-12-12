@@ -32,10 +32,12 @@ worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either 
 worldUpperLeftToCenterIt' worldSize mayTermSize =
   case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
-      let (WorldSize (Coords (Row rs) (Col cs))) = maxWorldSize
+      let (WorldSize (Coords rs cs)) = maxWorldSize
           heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
           widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
-          minSize@(Terminal.Window minh minw) = Terminal.Window (rs + heightMargin) (cs + widthMargin)
+          minSize@(Terminal.Window minh minw) =
+            Terminal.Window (fromIntegral rs + heightMargin)
+                            (fromIntegral cs + widthMargin)
       in if h < minh || w < minw
             then
               Left $  "\nMinimum terminal size : " ++ show minSize
@@ -45,9 +47,10 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
                   ++ ".\n"
             else
               Right $ worldUpperLeftFromTermSize termSize worldSize
-    Nothing -> Right $ Coords (Row minimalWorldMargin) (Col minimalWorldMargin)
+    Nothing -> Right $ Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
 
 worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
-worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords (Row rs) (Col cs))) =
+worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords rs cs)) =
   let walls = 2 :: Int
-  in Coords (Row $ quot (h-(rs+walls)) 2) (Col $ quot (w-(cs+walls)) 2)
+  in Coords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)
+            (quot (fromIntegral w-(cs+ fromIntegral walls)) 2)

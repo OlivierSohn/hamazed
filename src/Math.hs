@@ -64,6 +64,7 @@ discreteInvQuartEaseInOut :: Int
                           -> Float
 discreteInvQuartEaseInOut = discreteAdaptor invQuartEaseInOut
 
+-- | Expects the bounds to be in the right order
 {-# INLINE clamp #-}
 clamp :: Int
       -- ^ the value

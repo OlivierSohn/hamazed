@@ -56,7 +56,9 @@ createRandomPosSpeed space = do
   pos <- randomNonCollidingPos space
   dx <- randomSpeed
   dy <- randomSpeed
-  return $ fst $ mirrorIfNeeded (`location` space) $ PosSpeed pos (Coords (Row dx) (Col dy))
+  return $ fst
+    $ mirrorIfNeeded (`location` space)
+    $ PosSpeed pos (Coords (Coord dx) (Coord dy))
 
 
 randomSpeed :: IO Int
@@ -74,18 +76,15 @@ randomInt sz = getStdRandom $ randomR (0,sz-1)
 
 randomCoords :: WorldSize -> IO Coords
 randomCoords (WorldSize (Coords rs cs)) = do
-  r <- randomRow rs
-  c <- randomCol cs
+  r <- randomCoord rs
+  c <- randomCoord cs
   return $ Coords r c
 
-randomRow :: Row -> IO Row
-randomRow (Row sz) = Row <$> randomInt sz
+randomCoord :: Coord a -> IO (Coord a)
+randomCoord (Coord sz) = Coord <$> randomInt sz
 
-randomCol :: Col -> IO Col
-randomCol (Col sz) = Col <$> randomInt sz
-
-forEachRowPure :: Matrix CInt -> WorldSize -> (Row -> (Col -> Material) -> b) -> [b]
-forEachRowPure mat (WorldSize (Coords (Row nRows) (Col nColumns))) f =
+forEachRowPure :: Matrix CInt -> WorldSize -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
+forEachRowPure mat (WorldSize (Coords nRows nColumns)) f =
   let rowIndexes = [0..nRows-1]          -- index of inner row
       internalRowLength = nInternalColumns
       rowLength = internalRowLength - 2
@@ -93,10 +92,10 @@ forEachRowPure mat (WorldSize (Coords (Row nRows) (Col nColumns))) f =
       matAsOneVector = flatten mat -- this is O(1)
   in map (\rowIdx -> do
     let internalRowIdx = succ rowIdx
-        startInternalIdx = internalRowIdx * nInternalColumns
+        startInternalIdx = fromIntegral internalRowIdx * fromIntegral nInternalColumns :: Int
         startIdx = succ startInternalIdx
-        row = slice startIdx rowLength matAsOneVector
-    f (Row rowIdx) (\(Col c) -> mapInt $ row ! c)) rowIndexes
+        row = slice startIdx (fromIntegral rowLength) matAsOneVector
+    f rowIdx (\c -> mapInt $ row ! fromIntegral c)) rowIndexes
 
 -- unfortunately I didn't find a Matrix implementation that supports arbitrary types
 -- so I need to map my type on a CInt
@@ -115,14 +114,16 @@ mkEmptySpace s =
   in mkSpaceFromInnerMat s [[air]]
 
 mkDeterministicallyFilledSpace :: WorldSize -> Space
-mkDeterministicallyFilledSpace s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) =
+mkDeterministicallyFilledSpace s@(WorldSize (Coords heightEmptySpace widthEmptySpace)) =
   let wall = mapMaterial Wall
       air  = mapMaterial Air
 
-      middleRow = replicate widthEmptySpace air
-      collisionRow = replicate 2 air ++ replicate (widthEmptySpace-4) wall ++ replicate 2 air
-      ncolls = 8
-      nEmpty = heightEmptySpace - ncolls
+      w = fromIntegral widthEmptySpace
+      h = fromIntegral heightEmptySpace
+      middleRow = replicate w air
+      collisionRow = replicate 2 air ++ replicate (w-4) wall ++ replicate 2 air
+      ncolls = 8 :: Int
+      nEmpty = h - ncolls
       n1 = quot nEmpty 2
       n2 = nEmpty - n1
       l = replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow
@@ -155,10 +156,10 @@ mkSmallWorld :: WorldSize
              -> Strategy
              -> IO [[CInt]]
              -- ^ the "small world"
-mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace))) multFactor strategy = do
-  let nCols = quot widthEmptySpace multFactor
-      nRows = quot heightEmptySpace multFactor
-      mkRandomRow _ = take nCols <$> rands -- TODO use a Matrix directly
+mkSmallWorld s@(WorldSize (Coords heightEmptySpace widthEmptySpace)) multFactor strategy = do
+  let nCols = quot widthEmptySpace $ fromIntegral multFactor
+      nRows = quot heightEmptySpace $ fromIntegral multFactor
+      mkRandomRow _ = take (fromIntegral nCols) <$> rands -- TODO use a Matrix directly
   smallMat <- mapM mkRandomRow [0..nRows-1]
 
   let mat = fromLists smallMat
@@ -171,7 +172,7 @@ mkSmallWorld s@(WorldSize (Coords (Row heightEmptySpace) (Col widthEmptySpace)))
 graphOfIndex :: CInt -> Matrix CInt -> Graph
 graphOfIndex matchIdx mat =
   let sz@(nRows,nCols) = size mat
-      coords = [Coords (Row r) (Col c) | c <-[0..nCols-1], r <- [0..nRows-1], mat `at` (r, c) == matchIdx]
+      coords = [Coords (Coord r) (Coord c) | c <-[0..nCols-1], r <- [0..nRows-1], mat `at` (r, c) == matchIdx]
       edges = map (\c -> (c, c, connectedNeighbours matchIdx c mat sz)) coords
       (graph, _, _) = graphFromEdges edges
   in graph
@@ -189,7 +190,7 @@ at mat (i, j) = getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matr
 connectedNeighbours :: CInt -> Coords -> Matrix CInt -> (Int, Int) -> [Coords]
 connectedNeighbours matchIdx coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
-  in mapMaybe (\other@(Coords (Row r) (Col c)) ->
+  in mapMaybe (\other@(Coords (Coord r) (Coord c)) ->
         if r < 0 || c < 0 || r >= nRows || c >= nCols || mat `at` (r, c) /= matchIdx
           then
             Nothing
@@ -203,8 +204,8 @@ mkSpaceFromInnerMat s innerMatMaybeSmaller =
   in Space mat s $ render mat s
 
 extend :: WorldSize -> [[a]] -> [[a]]
-extend (WorldSize (Coords (Row rs) (Col cs))) mat =
-  extend' rs $ map (extend' cs) mat
+extend (WorldSize (Coords rs cs)) mat =
+  extend' (fromIntegral rs) $ map (extend' $ fromIntegral cs) mat
 
 extend' :: Int -> [a] -> [a]
 extend' _ [] = error "extend empty list not supported"
@@ -219,8 +220,8 @@ rands :: IO [CInt]
 rands = randomRsIO (0,1)
 
 addBorder :: WorldSize -> [[CInt]] -> [[CInt]]
-addBorder (WorldSize (Coords _ (Col widthEmptySpace))) l =
-  let nCols = widthEmptySpace + 2 * borderSize
+addBorder (WorldSize (Coords _ widthEmptySpace)) l =
+  let nCols = fromIntegral widthEmptySpace + 2 * borderSize
       wall = mapMaterial Wall
       wallRow = replicate nCols wall
       encloseIn b e = b ++ e ++ b
@@ -230,12 +231,12 @@ borderSize :: Int
 borderSize = 1
 
 render :: Matrix CInt -> WorldSize -> [RenderGroup]
-render mat s@(WorldSize (Coords _ (Col cs))) =
+render mat s@(WorldSize (Coords _ cs)) =
   concat $
     forEachRowPure mat s $
       \row accessMaterial ->
           snd $ mapAccumL
-                  (\col@(Col c) listMaterials@(material:_) ->
+                  (\col listMaterials@(material:_) ->
                      let count = length listMaterials
                          materialColor = case material of
                            Wall -> wallColors
@@ -243,18 +244,18 @@ render mat s@(WorldSize (Coords _ (Col cs))) =
                          materialChar = case material of
                            Wall -> 'Z'
                            Air -> ' '
-                     in (Col (c+count),
+                     in (col + fromIntegral count,
                          RenderGroup (Coords row col) materialColor materialChar count))
-                  (Col 0) $ group $ map (accessMaterial . Col) [0..pred cs]
+                  (Coord 0) $ group $ map accessMaterial [0..pred cs]
 
 getInnerMaterial :: Coords -> Space -> Material
-getInnerMaterial (Coords (Row r) (Col c)) (Space mat _ _) =
+getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
 -- | 0,0 Coord corresponds to 1,1 matrix
 getMaterial :: Coords -> Space -> Material
-getMaterial coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+getMaterial coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
   | r < 0 || c < 0       = Wall
   | r > rs-1 || c > cs-1 = Wall
   | otherwise = getInnerMaterial coords space
@@ -268,7 +269,7 @@ location :: Coords -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
 strictLocation :: Coords -> Space -> Location
-strictLocation coords@(Coords (Row r) (Col c)) space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
@@ -298,7 +299,7 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =
-        let (Coords (Row r) (Col c)) = sumCoords coordsInWorld wcc
+        let (Coords (Coord r) (Coord c)) = sumCoords coordsInWorld wcc
         in if r >= 0 && r < h && c >= 0 && c < w
              then
                InsideWorld
@@ -322,7 +323,7 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
 {--
 
 reboundMaxRecurse :: Space -> Int -> Coords -> Maybe Coords
-reboundMaxRecurse sz maxRecurse (Coords (Row r) (Col c)) =
+reboundMaxRecurse sz maxRecurse (Coords r c) =
   let mayR = reboundIntMaxRecurse sz maxRecurse r
       mayC = reboundIntMaxRecurse sz maxRecurse c
   in  case mayR of
@@ -340,7 +341,7 @@ reboundIntMaxRecurse s@(WorldSize sz) maxRecurse i
   where rec = pred maxRecurse
 
 rebound :: Space -> Coords -> Coords
-rebound sz (Coords (Row r) (Col c)) = Coords (Row $ reboundInt sz r) (Col $ reboundInt sz c)
+rebound sz (Coords r c) = Coords (reboundInt sz r) (reboundInt sz c)
 
 reboundInt :: Space -> Int -> Int
 reboundInt s@(WorldSize sz) i

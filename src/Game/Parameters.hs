@@ -66,7 +66,7 @@ updateFromChar c p@(GameParameters shape wallType) =
 
 render :: GameParameters -> IORef Buffers -> IO ()
 render (GameParameters shape wall) ctxt' = do
-  let worldSize@(WorldSize (Coords (Row rs) (Col cs))) = worldSizeFromLevel 1 shape
+  let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
   ew <- mkEmbeddedWorld ctxt' worldSize
   case ew of
     Left err -> error err

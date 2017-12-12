@@ -13,8 +13,8 @@ module Render (
         , colored
         -- | reexports
         , Coords(..)
-        , Row(..)
-        , Col(..)
+        , Row
+        , Col
         , Direction(..)
         , Color8Code(..)
         , ConsoleLayer(..)

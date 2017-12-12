@@ -12,20 +12,18 @@ import           Geo.Discrete.Types
 
 import           Interpolation
 
-import           Math
-
 newtype ICoords = ICoords Coords deriving(Eq, Show)
 -- | Move horizontaly then vertically (an arbitrary choice that can be discussed)
 instance DiscretelyInterpolable ICoords where
-  distance (ICoords (Coords (Row r) (Col c))) (ICoords (Coords (Row r') (Col c'))) =
-    1 + abs (r-r') + abs (c-c')
-  interpolate (ICoords from@(Coords (Row r) (Col c))) (ICoords( Coords (Row r') (Col c'))) progress =
+  distance (ICoords (Coords r c)) (ICoords (Coords r' c')) =
+    1 + fromIntegral (abs (r-r')) + fromIntegral (abs (c-c'))
+  interpolate (ICoords from@(Coords r c)) (ICoords (Coords r' c')) progress =
     let v = signum (r'-r)
         h = signum (c'-c)
         maxCountV = abs (r'-r)
         maxCountH = abs (c'-c)
-        countH = clamp progress 0 maxCountH
-        tmp = max 0 (progress - countH)
-        countV = min maxCountV (assert (tmp <= maxCountV) tmp)
-        dc = Coords (Row (v * countV)) (Col (h * countH))
+        countH = min (assert (progress >= 0) $ fromIntegral progress) maxCountH
+        tmp = fromIntegral $ max 0 (fromIntegral progress - countH)
+        countV = min maxCountV (assert (tmp <= fromIntegral maxCountV) tmp)
+        dc = Coords (v * countV) (h * countH)
     in ICoords $ sumCoords from dc

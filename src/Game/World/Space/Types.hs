@@ -60,7 +60,7 @@ data WorldShape = Square
 newtype WorldSize = WorldSize Coords deriving(Eq, Show)
 
 maxDim :: WorldSize -> Int
-maxDim (WorldSize (Coords (Row rs) (Col cs))) = max rs cs
+maxDim (WorldSize (Coords rs cs)) = max (fromIntegral rs) (fromIntegral cs)
 
 newtype Width = Width Int
 newtype Height = Height Int

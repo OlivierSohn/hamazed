@@ -126,15 +126,15 @@ alignTxt al txt = uncurry move $ align al $ countChars txt
 
 
 computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)
-computeRSForInfos (FrameSpec (WorldSize (Coords (Row rs) (Col cs))) upperLeft _ _) =
+computeRSForInfos (FrameSpec (WorldSize (Coords rs cs)) upperLeft _ _) =
   (centerUp, centerDown, leftMiddle)
  where
   addWallSize = (+ 2)
   half = flip quot 2
   mkSizes s = (addWallSize s, half s)
   (rFull, rHalf) = mkSizes rs
-  (_    , cHalf) = mkSizes cs
+  cHalf = quot cs 2
 
-  centerUp   = translate' (Row $ -1)        (Col $ cHalf + 1) upperLeft
-  centerDown = translate' (Row $ rFull + 1) (Col $ cHalf + 1) upperLeft
-  leftMiddle = translate' (Row $ rHalf + 1) (Col $ -1)  upperLeft
+  centerUp   = translate' (-1)        (cHalf + 1) upperLeft
+  centerDown = translate' (rFull + 1) (cHalf + 1) upperLeft
+  leftMiddle = translate' (rHalf + 1) (-1)  upperLeft

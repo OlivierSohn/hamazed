@@ -44,11 +44,11 @@ firstCollision getLocation (p1:theRest@(p2:_)) =
 firstCollision _ _ = Nothing
 
 mirrorCoords :: Coords -> Mirror -> Coords
-mirrorCoords (Coords (Row dr) (Col dc)) m =
+mirrorCoords (Coords dr dc) m =
   case m of
-    MirrorRow -> Coords (Row $ negate dr) (Col dc)
-    MirrorCol -> Coords (Row dr)          (Col $ negate dc)
-    MirrorAll -> Coords (Row $ negate dr) (Col $ negate dc)
+    MirrorRow -> Coords (negate dr) dc
+    MirrorCol -> Coords dr          (negate dc)
+    MirrorAll -> Coords (negate dr) (negate dc)
 
 data Mirror = MirrorRow | MirrorCol | MirrorAll
 
@@ -56,16 +56,16 @@ data Mirror = MirrorRow | MirrorCol | MirrorAll
 -- (or go through a wall for diagonal case),
 -- we change the speed according to the normal of the closest wall before collision
 mirrorIfNeededAtomic :: (Coords -> Location) -> PosSpeed -> Maybe (Mirror, Coords)
-mirrorIfNeededAtomic getLocation (PosSpeed pos@(Coords (Row r) (Col c)) (Coords (Row dr) (Col dc))) =
-  let future = Coords (Row $ r+dr) (Col $ c+dc)
+mirrorIfNeededAtomic getLocation (PosSpeed pos@(Coords r c) (Coords dr dc)) =
+  let future = Coords (r+dr) (c+dc)
       isWall coord = getLocation coord == OutsideWorld
       mirror = case getLocation future of
         OutsideWorld
           | dr == 0   -> Just MirrorCol
           | dc == 0   -> Just MirrorRow
           | otherwise -> -- diagonal case
-                case (isWall (Coords (Row $ r+dr) (Col c)),
-                      isWall (Coords (Row r) (Col $ c+dc))) of
+                case (isWall (Coords (r+dr) c),
+                      isWall (Coords r (c+dc))) of
                         (True, True)   -> Just MirrorAll
                         (False, False) -> Just MirrorAll
                         (True, False)  -> Just MirrorRow
@@ -74,8 +74,8 @@ mirrorIfNeededAtomic getLocation (PosSpeed pos@(Coords (Row r) (Col c)) (Coords 
           | dr == 0   -> Nothing
           | dc == 0   -> Nothing
           | otherwise -> -- diagonal case
-                case (isWall (Coords (Row $ r+dr) (Col c)),
-                      isWall (Coords (Row r) (Col $ c+dc))) of
+                case (isWall (Coords (r+dr) c),
+                      isWall (Coords r (c+dc))) of
                         (True, True)   -> Just MirrorAll
                         (False, False) -> Nothing
                         (True, False)  -> Just MirrorRow

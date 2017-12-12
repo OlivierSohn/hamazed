@@ -279,14 +279,14 @@ updateGame2
       return $ replaceAnimations animations s2
 
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
-renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords (Row rs) (Col cs))) _)
+renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft b)) _ _ level wa) =
   renderSpace space curUpperLeft b >>=
     (\worldCorner -> do
         activeAnimations <- renderAnimations k space mayTermWindow worldCorner b animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
-        renderLevelMessage level (translate' (Row (quot rs 2)) (Col $ cs + 2) worldCorner) b
+        renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner) b
         renderWorldAnimation wa b -- render it last so that when it animates
                                   -- to reduce, it goes over numbers and ship
         return activeAnimations)

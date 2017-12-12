@@ -5,12 +5,9 @@ module Game.World.Size
     , maxWorldSize
     , onFronteer
     , contains
-    , showUpdateTick
     ) where
 
 import           Imajuscule.Prelude
-
-import           Data.Text( Text, pack )
 
 import           Geo.Discrete.Types
 
@@ -18,7 +15,7 @@ import           Game.Level.Types
 import           Game.World.Types
 
 mkWorldSize :: Height -> Width -> WorldSize
-mkWorldSize (Height r) (Width c) = WorldSize $ Coords (Row r) (Col c)
+mkWorldSize (Height r) (Width c) = WorldSize $ Coords (Coord r) (Coord c)
 
 maxLevelHeight :: Int
 maxLevelHeight = 36
@@ -39,7 +36,7 @@ worldSizeFromLevel level shape =
   in mkWorldSize (Height s) (Width width)
 
 onFronteer :: Coords -> WorldSize -> Maybe Direction
-onFronteer (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
+onFronteer (Coords r c) (WorldSize (Coords rs cs))
   | r == -1 = Just Up
   | c == -1 = Just LEFT
   | r == rs = Just Down
@@ -47,21 +44,5 @@ onFronteer (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
   | otherwise = Nothing
 
 contains :: Coords -> WorldSize -> Bool
-contains (Coords (Row r) (Col c)) (WorldSize (Coords (Row rs) (Col cs)))
+contains (Coords r c) (WorldSize (Coords rs cs))
   = r >= -1 && c >= -1 && r <= rs && c <= cs
-
-
-showUpdateTick :: Int -> WorldSize -> Text
-showUpdateTick t (WorldSize (Coords _ c@(Col cs))) =
-  let l = tickRepresentationLength c
-      nDotsBefore = max 0 (t + l - cs)
-      nLeftBlanks = t - nDotsBefore
-      nDotsAfter = l - nDotsBefore
-      nRightBlanks = cs - t - l
-  in pack $ replicate nDotsBefore  '.'
-  ++ replicate nLeftBlanks  ' '
-  ++ replicate nDotsAfter   '.'
-  ++ replicate nRightBlanks ' '
-
-tickRepresentationLength :: Col -> Int
-tickRepresentationLength (Col c) = quot c 2

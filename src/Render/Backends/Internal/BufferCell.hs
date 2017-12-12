@@ -12,16 +12,9 @@ import           Data.Char( chr, ord )
 import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           Color.Types
+import           Render.Backends.Internal.Types
+import           Render.Types
 
--- Word64 is optimal: there is no wasted space when unboxed,
---   cf. https://wiki.haskell.org/GHC/Memory_Footprint
-type Cell = Word64
--- The memory layout is such that when sorted with 'compare', the order of
--- importance of fields is (by decreasing importance) :
---     backgroundColor (8 bits)
---     foregroundColor (8 bits)
---     index in buffer (16 bits)
---     character       (32 bits)
 
 {-# INLINE firstWord8 #-}
 firstWord8 :: Word64 -> Word8
@@ -52,7 +45,7 @@ getCharacter :: Cell -> Char
 getCharacter w = chr $ fromIntegral $ secondWord32 w
 
 {-# INLINE getIndex #-}
-getIndex :: Cell -> Word16
+getIndex :: Cell -> Dim Index
 getIndex w = fromIntegral $ secondWord16 w
 
 {-# INLINE expand #-}
@@ -62,7 +55,7 @@ expand w = (getBackgroundColor w
            ,getCharacter w)
 
 {-# INLINE expandIndexed #-}
-expandIndexed :: Cell -> (Color8Code, Color8Code, Word16, Char)
+expandIndexed :: Cell -> (Color8Code, Color8Code, Dim Index, Char)
 expandIndexed w =
   (getBackgroundColor w
   ,getForegroundColor w
@@ -77,7 +70,7 @@ encodeColors (Colors (Color8Code bg') (Color8Code fg')) =
   in (bg `shiftL` 8) .|. fg
 
 {-# INLINE mkIndexedCell #-}
-mkIndexedCell :: Cell -> Word16 -> Cell
+mkIndexedCell :: Cell -> Dim Index -> Cell
 mkIndexedCell cell idx' =
   cell .|. (idx `shiftL` 32)
  where

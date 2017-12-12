@@ -60,7 +60,8 @@ renderAnimatedTextStringAnchored' l@(_:_) rs i b = do
       rsNow = head rs
       colorStr = evolve e i
   renderColored colorStr rsNow b
-  renderAnimatedTextStringAnchored' (tail l) (tail rs) i b
+  >>=
+    renderAnimatedTextStringAnchored' (tail l) (tail rs) i
 
 renderAnimatedTextCharAnchored :: TextAnimation AnchorChars -> Frame -> IORef Buffers -> IO ()
 renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i b = do
@@ -84,7 +85,7 @@ renderColorStringAt l@(_:_) rs b = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char coord -> renderChar_ char color coord b) (unpack txt) headRs
+  zipWithM_ (\char coord -> drawChar char coord color b) (unpack txt) headRs
   renderColorStringAt (tail l) tailRs b
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList Coords)

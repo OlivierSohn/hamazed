@@ -5,7 +5,6 @@ module Render (
         , renderAligned
         , renderColored
         , renderColoredChars
-        , drawChar
         , renderPoints
         , Alignment(..)
         , renderAlignedTxt
@@ -22,6 +21,7 @@ module Render (
         , Colors(..)
         , IORef
         , Buffers
+        , drawChar
         ) where
 
 import           Imajuscule.Prelude
@@ -38,29 +38,25 @@ import           Render.Console
 import           Text.ColorString
 
 
-drawChar :: Char -> Coords -> Colors -> IORef Buffers -> IO ()
-drawChar char pos colors =
-  renderChar_ char colors pos
-
 renderPoints :: Colors -> Coords -> IORef Buffers -> [(Coords, Char)] -> IO ()
 renderPoints colors pos b =
   mapM_ (\(c,char) -> drawChar char (sumCoords pos c) colors b)
 
-renderColoredChars :: Int -> Char -> Colors -> Coords -> IORef Buffers -> IO ()
+renderColoredChars :: Int -> Char -> Coords -> Colors -> IORef Buffers -> IO (IORef Buffers)
 renderColoredChars =
   drawChars
 
 data Alignment = Centered
                | RightAligned
 
-renderAlignedTxt_ :: Alignment -> Text -> Colors -> Coords -> IORef Buffers -> IO ()
-renderAlignedTxt_ a txt colors pos = do
+renderAlignedTxt_ :: Alignment -> Text -> Coords -> Colors -> IORef Buffers -> IO ()
+renderAlignedTxt_ a txt pos colors = do
   let leftCorner = align' a (length txt) pos
-  renderTxt_ txt colors leftCorner
+  drawTxt_ txt leftCorner colors
 
-renderAlignedTxt :: Alignment -> Text -> Colors -> Coords -> IORef Buffers -> IO Coords
-renderAlignedTxt a txt colors pos b =
-  renderAlignedTxt_ a txt colors pos b >> return (translateInDir Down pos)
+renderAlignedTxt :: Alignment -> Text -> Coords -> Colors -> IORef Buffers -> IO Coords
+renderAlignedTxt a txt pos colors b =
+  renderAlignedTxt_ a txt pos colors b >> return (translateInDir Down pos)
 
 renderAligned :: Alignment -> ColorString -> Coords -> IORef Buffers -> IO Coords
 renderAligned a cs pos b = do
@@ -71,12 +67,13 @@ renderAligned a cs pos b = do
 renderColored :: ColorString
               -> Coords
               -> IORef Buffers
-              -> IO ()
-renderColored (ColorString cs) pos b =
+              -> IO (IORef Buffers)
+renderColored (ColorString cs) pos b = do
   foldM_ (\count (txt, color) -> do
     let l = length txt
-    renderTxt_ txt color (move count RIGHT pos) b
+    _ <- drawTxt_ txt (move count RIGHT pos) color b
     return $ count + l) 0 cs
+  return b
 
 align' :: Alignment -> Int -> Coords -> Coords
 align' a count ref =

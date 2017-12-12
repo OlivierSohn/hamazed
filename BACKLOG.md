@@ -3,15 +3,11 @@
 
 ## Delta rendering
 
-implement :
+- create an app to test engine.
+- include in this module functions to create colors to be able to write
+> rgb 3 4 5
 
-newContext Nothing -- the default is FollowTerminalSize
-newContext $ Just $ CustomSize x y
-
-setFrameSize FollowTerminalSize
-setFrameSize CustomSize
-
-- rename setDrawColor setColor, setDrawLocation setPosition
+- make a package for geometric stuff (or use a newtype for Coords)
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'
@@ -33,6 +29,8 @@ be more efficient to switch to the "go forward (optionally n times)" version
 (3 to 5 bytes) when the previously rendered element was on the same row.
 
 - measure if it's faster to buffer the string sent to putStr on our side
+
+- stats to see stdout buffer usage
 
 ## Misc.
 

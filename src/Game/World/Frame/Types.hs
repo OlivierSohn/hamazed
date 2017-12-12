@@ -135,7 +135,7 @@ renderRightWall sz colors b (upperRight, from, to) = do
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n Down upperRight) [actualFrom..actualTo]
       nextR = move countMax Down upperRight
-  mapM_ (\pos -> renderChar_ '|' colors pos b) wallCoords
+  mapM_ (\pos -> drawChar '|' pos colors b) wallCoords
   if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
@@ -149,7 +149,7 @@ renderLeftWall sz colors b (lowerLeft, from, to) = do
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n Up lowerLeft) [actualFrom..actualTo]
       nextR = move countMax Up lowerLeft
-  mapM_ (\pos -> renderChar_ '|' colors pos b) wallCoords
+  mapM_ (\pos -> drawChar '|' pos colors b) wallCoords
   if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
@@ -167,7 +167,7 @@ renderUpperWall sz colors b (upperLeft, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars nChars '_' colors (move actualFrom RIGHT upperLeft) b
+      drawChars nChars '_' (move actualFrom RIGHT upperLeft) colors b
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 renderLowerWall :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
@@ -180,7 +180,7 @@ renderLowerWall sz colors b (lowerRight, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars nChars 'T' colors (move actualTo LEFT lowerRight) b
+      drawChars nChars 'T' (move actualTo LEFT lowerRight) colors b
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 

@@ -72,7 +72,6 @@ render (GameParameters shape wall) ctxt' = do
   case ew of
     Left err -> error err
     Right rew@(EmbeddedWorld _ ul ctxt) -> do
-      beginFrame
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space ul ctxt >>=
         \worldCoords -> do
@@ -82,26 +81,26 @@ render (GameParameters shape wall) ctxt' = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          renderAlignedTxt Centered "Game configuration" configColors (translateInDir Down middle) ctxt
+          renderAlignedTxt Centered "Game configuration" (translateInDir Down middle) configColors ctxt
             >>= \ pos ->
-              renderAlignedTxt_ Centered "------------------" configColors pos ctxt
+              renderAlignedTxt_ Centered "------------------" pos configColors ctxt
 
-          translateInDir Down <$> drawTxt "- World shape" configColors (move 5 Up left) ctxt
+          translateInDir Down <$> drawTxt "- World shape" (move 5 Up left) configColors ctxt
             >>= \ pos ->
-              drawTxt "'1' -> width = height" configColors pos ctxt
+              drawTxt "'1' -> width = height" pos configColors ctxt
                 >>= \pos2 ->
-                  renderTxt_ "'2' -> width = 2 x height" configColors pos2 ctxt
-          translateInDir Down <$> drawTxt "- World walls" configColors left ctxt
+                  drawTxt_ "'2' -> width = 2 x height" pos2 configColors ctxt
+          translateInDir Down <$> drawTxt "- World walls" left configColors ctxt
             >>= \pos ->
-              drawTxt "'e' -> no walls" configColors pos ctxt >>=
+              drawTxt "'e' -> no walls" pos configColors ctxt >>=
                 \pos2 ->
-                  drawTxt "'r' -> deterministic walls" configColors pos2 ctxt
+                  drawTxt "'r' -> deterministic walls" pos2 configColors ctxt
                     >>= \pos3 ->
-                      renderTxt_ "'t' -> random walls" configColors pos3 ctxt
+                      drawTxt_ "'t' -> random walls" pos3 configColors ctxt
 
-          renderAlignedTxt_ Centered "Hit 'Space' to start game" configColors (translateInDir Up middleLow) ctxt
+          renderAlignedTxt_ Centered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors ctxt
           t <- getCurrentTime
           let infos = (mkFrameSpec worldFrameColors world ctxt, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation ctxt
-      endFrame ctxt
+      flush ctxt

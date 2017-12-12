@@ -17,7 +17,6 @@ import           Game.Parameters( getGameParameters )
 import           Render.Console
 import           Threading( runAndWaitForTermination, Termination(..) )
 
-
 run :: IO ()
 run =
   if os == "mingw32"
@@ -30,7 +29,7 @@ run =
 doRun :: IO Termination
 doRun =
   (configureConsoleFor Gaming
-    >> newContext (Just FollowsTerminalSize)
+    >> newDefaultContext
       >>= runAndWaitForTermination . gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.

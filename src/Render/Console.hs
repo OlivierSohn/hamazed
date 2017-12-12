@@ -4,26 +4,26 @@ module Render.Console
                ( ConsoleConfig(..)
                , configureConsoleFor
                -- rendering functions
-               , renderChar_
                , drawStr
-               , renderStr_
+               , drawStr_
                , drawTxt
-               , renderTxt_
-               , renderSegment
+               , drawTxt_
                -- reexport System.Console.ANSI
                , Color8Code(..)
                , ConsoleLayer(..)
                -- reexport System.Console.ANSI.Codes
                , xterm256ColorToCode
                -- reexports from backends
-               , Backend.beginFrame
-               , Backend.endFrame
-               , Backend.drawChars
-               , Backend.Colors(..)
-               , Backend.newContext
-               , Backend.setFrameDimensions
                , Backend.IORef
                , Backend.Buffers
+               , Backend.Colors(..)
+               , Backend.newDefaultContext
+               , Backend.newContext
+               , Backend.setResizePolicy
+               , Backend.setClearPolicy
+               , Backend.drawChars
+               , Backend.drawChar
+               , Backend.flush
                -- reexports
                , module Render.Types
                ) where
@@ -92,40 +92,18 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-renderChar_ :: Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderChar_ =
-  Backend.drawChar
+drawStr :: String -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO Coords
+drawStr str pos color b =
+  Backend.drawStr str pos color b >> return (translateInDir Down pos)
 
+drawStr_ :: String -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO ()
+drawStr_ s c co b =
+  void (Backend.drawStr s c co b)
 
-drawStr :: String -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO Coords
-drawStr str color pos b =
-  renderStr_ str color pos b >> return (translateInDir Down pos)
+drawTxt :: Text -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO Coords
+drawTxt txt pos color b =
+  Backend.drawTxt txt pos color b >> return (translateInDir Down pos)
 
-renderStr_ :: String -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderStr_ =
-  Backend.drawStr
-
-drawTxt :: Text -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO Coords
-drawTxt txt color pos b =
-  renderTxt_ txt color pos b >> return (translateInDir Down pos)
-
-renderTxt_ :: Text -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderTxt_ =
-  Backend.drawTxt
-
-renderSegment :: Segment -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderSegment l char rs = case l of
-  Horizontal row c1 c2 -> renderHorizontalLine row c1 c2 char rs
-  Vertical col r1 r2   -> renderVerticalLine   col r1 r2 char rs
-  Oblique _ _ -> error "oblique segment rendering is not supported"
-
-renderVerticalLine :: Col -> Int -> Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderVerticalLine col r1 r2 char color pos b = do
-  let rows = [(min r1 r2)..(max r1 r2)]
-  mapM_ (\r -> let pos' = sumCoords pos $ Coords (Row r) col
-               in renderChar_ char color pos' b) rows
-
-renderHorizontalLine :: Row -> Int -> Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-renderHorizontalLine row c1 c2 char color pos = do
-  let pos' = sumCoords pos $ Coords row (Col (min c1 c2))
-  renderStr_ (replicate (1 + abs (c2-c1)) char) color pos'
+drawTxt_ :: Text -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO ()
+drawTxt_ t c b bu =
+  void (Backend.drawTxt t c b bu)

@@ -2,74 +2,113 @@
 
 {-|
 = Purpose
-Render games or animations in the console, without
+
+Render games or animations in the console, with a strong focus on avoiding
 <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 
 = Design goals
-* Use generic techniques to avoid
-<https://en.wikipedia.org/wiki/Screen_tearing screen tearing> for all kinds of
-game graphics.
+
+* Minimize the amount of data sent to stdout buffer to render a frame.
+* Design rendering algorithms that work well for all kinds of game graphics.
 * Minimize memory footprint and run-time overhead.
 
 = Features
+
 * <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit colors> support
 * <http://www.unicode.org/ Unicode> support
 
-= How it started
+= Games using it
+
+* <https://github.com/OlivierSohn/hamazed Hamazed>
+
+= A simple example
+
+>
+> -- initialization
+> ctxt <- createDefaultContext
+>
+> -- first frame
+>
+> let black = rgb 0 0 0
+>     white = rgb 5 5 5
+>     red   = rgb 5 0 0
+>
+> drawStr "Hello world!" (Coords (Row 10) (Col 20)) (Colors black white) ctxt
+> drawStr "How are you?" (Coords (Row 11) (Col 20)) (Colors black white) ctxt
+>
+> flush ctxt
+>
+> -- second frame
+>
+> drawChars '_' 10 (Coords (Row 11) (Col 20)) (Colors black red) ctxt
+>
+> flush ctxt
+>
+
+= History
+
+I'll explain a bit of the context in which I developped this package.
 
 In the beginnings of
 <https://github.com/OlivierSohn/hamazed my first ascii based game>,
-the render loop was as naïve as:
+I implemented a naïve render loop which was:
 
-* Clear the console.
-* Render the game elements to the console directly.
-* Flush stdout.
+* At the beginning of the frame, clear the console.
+* Render the game elements to stdout.
+* At the end of the frame, flush stdout.
 
-It worked well whilst a frame was ~100 different locations in a single color.
+The resulting graphics were fluid whilst a frame was ~100 different locations
+in a single color. Yet, as color animations were introduced, flickering / tearing
+effects started to occur on frames with more rendering locations.
 
-As color animations were introduced, flickering / tearing
-effects started to occur on frames with more rendering locations, because stdout was saturated by
-rendering commands and would flush before all commands corresponding to this frame were issued.
+This happened because stdout was saturated by rendering commands and would flush
+before all commands corresponding to this frame were issued.
 
-To fix this I maximized the size of stdout buffer by using
+My first move to fix this was to maximize the size of stdout buffer with
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
-with
+and
 <https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
-parameter.
-
-(Note that to measure the actual stdout size you can use 'testStdoutSizes'),
+parameter:
 
 > hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
 
-This solved the problem, only until more animations and more color changes were introduced.
+Using 'testStdoutSizes' I measured that my stdout buffer was now 8096 bytes long,
+instead of the default 2048 bytes.
 
-To fix <https://github.com/feuerbach/ansi-terminal/issues/5 this issue>,
-<https://github.com/ibraimgm Rafael Ibraim> shared
-<https://gist.github.com/ibraimgm/40e307d70feeb4f117cd a solution using double buffering>
-where the render loop is:
+This solved the problem, but only until I introduced more animations and more color changes
+in the game.
 
-* Clear the back buffer.
+I started thinking that I needed to keep the previous rendered frame and just draw
+the difference between the previous and the current frame.
+
+This is exactly what
+<https://github.com/ibraimgm Rafael Ibraim> did to solve
+<https://github.com/feuerbach/ansi-terminal/issues/5 this issue>.
+
+With <https://gist.github.com/ibraimgm/40e307d70feeb4f117cd his code>,
+the render loop becomes:
+
+* Clear the /back/ /buffer/, but not the console!.
 * Draw the game elements to the back buffer.
 * Render the difference between the front and the back buffer to the console.
 * Flush stdout.
 * Copy the back buffer to the front buffer.
 
-This approach fixed the rendering of my game.
+This approach fixed the rendering of my game, still, I wanted to continue
+improving it to cover more use-cases:
 
-Still, I wanted to continue improving it, to cover more use-cases.
-So I added the following optimizations:
+* The most obvious optimization I could do was to group the rendered locations
+by color before rendering them. On average, one @color change@ command "costs"
+20 bytes ("\ESC[48;5;167;38;5;255m"), so grouping them saves a lot of bytes.
 
-* On average, one @color change@ command "costs" 20 bytes ("\ESC[48;5;167;38;5;255m").
-Grouping the rendered locations by color allows to issue one command for the group
-instead of one per element, thus saving (at most) 20 bytes per rendered location.
-
-* On average, one @position change@ command "costs" 9 bytes ("\ESC[150;42H").
+* Then, since one @position change@ command "costs" 9 bytes ("\ESC[150;42H") it's
+also interesting to optimize for them.
 Sorting the "color group" by positions increases the likelyhood that
-two consecutive elements are next to one another. In that case we can omit this
-command, because after a 'putChar' the cursor location goes one step to the
-right. (More to come on this subject, cf. the BACKLOG)
+two consecutive elements are next to one another, and in that case we can omit this
+command entirely, because after a 'putChar' the cursor location goes one step to the
+right. This also saved some bytes.
 
-* And
+* Also
 <https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/
 I found usefull answers on reddit> which helped in the process of optimizing
 the memory layout. Contiguous memory blocks are mow used to store information
@@ -82,52 +121,17 @@ higher bits to lower bits):
     * buffer position   (Word16)
     * unicode character (Word32)
 
-Finally, if this module doesn't play well with your game graphics, let me know!
-Maybe we'll need more optimizations options in the future, to adapt more closely
-to the various kind of graphics that can be used in games.
-
-= Usage
-
-TODO stats on hamazed to see stdout buffer usage
-
--- TODO hide the render size API, replace it by an optional Initialize function
-which will allocate the buffers
-
--- TODO provide a context which we can create using TerminalSize or CustomSize,
-it contains the IORef, the buffers.
-
-Setup the frame size. You can use
-<https://hackage.haskell.org/package/terminal-size#readme terminal-size package>
-to retrieve the current size of the terminal.
-
-> setFrameDimensions 300 90
-
-Draw
-
-> drawStr "Hello world!"
-
-Render to the console
-
-> renderFrame True {-reset the back buffer to the initial colors-}
-
-= Global states
-
-The functions of this module are in the IO monad because a top level
-IORef is used to store states : current colors, current draw position,
-front and back buffers, and internal buffers.
-
-TODO should this module handle cursor hiding?
-
--- TODO include in this module functions to create colors to be able to write
-
-> rgb 3 4 5
+There will be more optimizations, and I'll try to keep them general enough so
+that they benefit every use case.
 -}
 module Render.Backends.Internal.Delta
        (
        -- * Setup
          newContext
+       , newDefaultContext
        , Buffers(..)
-       , setFrameDimensions
+       , setResizePolicy
+       , setClearPolicy
        -- * Fill the back buffer
        , fill
        -- * Draw to the back buffer
@@ -136,7 +140,7 @@ module Render.Backends.Internal.Delta
        , drawStr
        , drawTxt
        -- * Render to the console
-       , renderFrame
+       , flush
        -- * Reexports
        , module Color.Types
        , Coords(..)
@@ -157,9 +161,8 @@ import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Vector.Algorithms.Intro -- unstable sort
 import           Data.Vector.Unboxed.Mutable( replicate, read, write, unzip )
-import           Data.Word( Word16 )
 
-import           Geo.Discrete.Types
+import           Geo.Discrete.Types(Coords(..), Row(..), Col(..))
 
 import           System.Console.ANSI( xterm256ColorToCode, Color8Code(..), Xterm256Color(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
@@ -173,87 +176,112 @@ import           Render.Types
 import           Render.Backends.Internal.Types
 import           Render.Backends.Internal.Dimensions
 
+
+-- | Creates a context using default policies.
+newDefaultContext :: IO (IORef Buffers)
+newDefaultContext = newContext Nothing Nothing Nothing
+
+-- | Creates a context using optional policies.
+newContext :: Maybe ResizePolicy -> Maybe ClearPolicy -> Maybe ClearColor -> IO (IORef Buffers)
+newContext mayResizePolicy mayClearPolicy mayClearColor = do
+  let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
+      clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
+      clearColor = fromMaybe defaultClearColor mayClearColor
+  newContext' $ Policies resizePolicy clearPolicy clearColor
+
+newContext' :: Policies -> IO (IORef Buffers)
+newContext' policies@(Policies resizePolicy _ _) =
+  getDimensions resizePolicy
+    >>=
+      uncurry (createBuffers policies)
+        >>=
+          newIORef
+
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
-mkBuffers :: Word16 -> Word16 -> Maybe RenderSize -> IO Buffers
-mkBuffers width' height' r = do
+mkBuffers :: Dim Width
+          -> Dim Height
+          -> Cell
+          -> IO (Buffer Back, Buffer Front, Delta, Dim Size, Dim Width)
+mkBuffers width' height' backBufferCell = do
   let (sz, width) = bufferSizeFromWH width' height'
-  -- We initialize to different colors to force a first render to the whole console.
-  buf <- newBufferArray sz (initialCell, nocolorCell)
+      (Color8Code bg, Color8Code fg, char) = expand backBufferCell
+      -- We initialize to different colors to force a first render to the whole console.
+      frontBufferCell = mkCell (Colors (Color8Code (succ bg)) (Color8Code (succ fg))) (succ char)
+  buf <- newBufferArray sz (backBufferCell, frontBufferCell)
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
-  return $ Buffers (Buffer back) (Buffer front) sz width (Delta delta) r
+  return (Buffer back, Buffer front, Delta delta, sz, width)
 
+defaultResizePolicy :: ResizePolicy
+defaultResizePolicy = MatchTerminalSize
 
-setFrameDimensions :: Maybe RenderSize
-                   -> IORef Buffers
-                   -> IO ()
-setFrameDimensions r ref =
+defaultClearColor :: Color8Code
+defaultClearColor = xterm256ColorToCode $ RGBColor $ RGB 0 0 0
+
+defaultClearPolicy :: ClearPolicy
+defaultClearPolicy = ClearAtEveryFrame
+
+setResizePolicy :: IORef Buffers -> Maybe ResizePolicy -> IO ()
+setResizePolicy ref mayResizePolicy =
   readIORef ref
-    >>= \(Buffers a b prevSize prevWidth c _) -> do
-      (width, height) <- getDimensions r
-      let prevHeight = quot prevSize prevWidth
-      (if prevWidth /= width || prevHeight /= height
-        then
-          mkBuffers width height r
-        else
-          return $ Buffers a b prevSize prevWidth c r
-       ) >>= writeIORef ref
+    >>= \(Buffers a b c d e (Policies _ f g)) -> do
+      let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
+          buf = Buffers a b c d e (Policies resizePolicy f g)
+      adjustSizeIfNeeded buf
+        >>= writeIORef ref
 
-updateBufferSize :: IORef Buffers -> IO ()
-updateBufferSize ref =
+adjustSizeIfNeeded :: Buffers -> IO Buffers
+adjustSizeIfNeeded buffers@(Buffers _ _ prevSize prevWidth _ policies@(Policies resizePolicy _ _)) = do
+  (width, height) <- getDimensions resizePolicy
+  let prevHeight = getHeight prevWidth prevSize
+  if prevWidth /= width || prevHeight /= height
+    then
+      createBuffers policies width height
+    else
+      return buffers
+
+createBuffers :: Policies -> Dim Width -> Dim Height -> IO Buffers
+createBuffers pol@(Policies _ _ clearColor) w h = do
+  (newBack, newFront, newDelta, newSize, newWidth) <- mkBuffers w h (clearCell clearColor)
+  -- no need to clear : we initialized with the right value
+  return $ Buffers newBack newFront newSize newWidth newDelta pol
+
+updateSize :: IORef Buffers -> IO ()
+updateSize ref =
+  readIORef ref >>= adjustSizeIfNeeded >>= writeIORef ref
+
+setClearPolicy :: IORef Buffers -> Maybe ClearPolicy -> Maybe ClearColor -> IO ()
+setClearPolicy ref mayClearPolicy mayClearColor =
   readIORef ref
-    >>= \(Buffers _ _ _ _ _ s) ->
-      setFrameDimensions s ref
+    >>= \(Buffers a b c d e (Policies f _ _)) -> do
+      let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
+          clearColor = fromMaybe defaultClearColor mayClearColor
+      return (Buffers a b c d e (Policies f clearPolicy clearColor))
+        >>= writeIORef ref
 
+clearIfNeeded :: ClearContext -> Buffers -> IO ()
+clearIfNeeded ctxt b@(Buffers _ _ _ _ _ (Policies _ clearPolicy clearColor)) = do
+  let clear = fillBackBuffer b (clearCell clearColor)
+  case clearPolicy of
+    ClearAtEveryFrame -> clear
+    ClearOnAllocationOnly ->
+      case ctxt of
+        OnAllocation -> clear
+        OnFrame -> return ()
+
+clearCell :: ClearColor -> Cell
+clearCell clearColor =
+  let white = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
+  in mkCell (Colors clearColor white) ' '
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
-newBufferArray :: Word16 -> (Cell, Cell) -> IO BackFrontBuffer
+newBufferArray :: Dim Size -> (Cell, Cell) -> IO BackFrontBuffer
 newBufferArray size = replicate (fromIntegral size)
-
-
--- TODO caller should be able to set this
-initialForeground :: Color8Code
-initialForeground = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
-
-initialBackground :: Color8Code
-initialBackground = xterm256ColorToCode $ RGBColor $ RGB 0 0 0
-
-noColor :: Color8Code
-noColor = Color8Code (-1)
-
-
-{-# INLINE initialCell #-}
-initialCell :: Cell
-initialCell =
-  let res = 0x10E7000000000020 -- optimization for 'renderFrame' (TODO check if the compiler would have found it)
-  in assert (mkCell initialColors ' ' == res) res
-
-
-{-# INLINE initialColors #-}
-initialColors :: Colors
-initialColors = Colors initialBackground initialForeground
-
-
-{-# INLINE noColors #-}
-noColors :: Colors
-noColors = Colors noColor noColor
-
-
-nocolorCell :: Cell
-nocolorCell = mkCell noColors ' '
-
-{-# NOINLINE newContext #-}
-newContext :: Maybe RenderSize -> IO (IORef Buffers)
-newContext r =
-  getDimensions r
-    >>= \(w,h) ->
-      mkBuffers w h r
-        >>= newIORef
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
 {-# INLINE fastMod #-}
-fastMod :: Int -> Word16 -> Word16
+fastMod :: Int -> Dim Size -> Dim Index
 fastMod a b'
   | 0 <= a && a < b = fromIntegral a          -- fast path
   | otherwise       = fromIntegral $ a `mod` b  -- slow path
@@ -261,55 +289,39 @@ fastMod a b'
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Buffers -> Coords -> Word16
+indexFromPos :: Buffers -> Coords -> Dim Index
 indexFromPos (Buffers _ _ size width _ _) (Coords (Row y) (Col x)) =
   (y * fromIntegral width + x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}
-xyFromIndex :: Buffers -> Word16 -> (Word16, Word16)
+xyFromIndex :: Buffers -> Dim Index -> (Dim ColIndex, Dim RowIndex)
 xyFromIndex (Buffers _ _ _ width _ _) idx =
-    (x, y)
-  where
-    -- no need to do (idx `mod` size) here, we know we passed an index in the right range.
-    y = idx `div` width
-    x = idx - y * width
+  getRowCol idx width
 
 
-
-
--- | Draws a 'Char' at the current draw location, with the current draw colors.
 drawChar :: Char
-         -> Colors
          -> Coords
+         -> Colors
          -> IORef Buffers
-         -> IO ()
-drawChar c colors pos ioRefBuffers =
+         -> IO (IORef Buffers)
+drawChar c pos colors ioRefBuffers =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ _ _ _ _) -> do
       let idx = indexFromPos b pos
-      putCharRawAt back idx colors c
+      writeToBack back idx (mkCell colors c)
+      return ioRefBuffers
 
 
-putCharRawAt :: Buffer Back
-             -> Word16
-             -> Colors
-             -> Char
-             -> IO ()
-putCharRawAt back idx colors c =
-  writeToBack back idx (mkCell colors c)
-
-
--- | Draws multiple times the same 'Char' starting from the current draw location,
---   using current draw colors.
+-- | Draws multiple times the same 'Char'
 drawChars :: Int
           -- ^ Number of repetitions.
           -> Char
-          -> Colors
           -> Coords
+          -> Colors
           -> IORef Buffers
-          -> IO ()
-drawChars count c colors pos ioRefBuffers =
+          -> IO (IORef Buffers)
+drawChars count c pos colors ioRefBuffers =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _ _) -> do
       let cell = mkCell colors c
@@ -318,46 +330,46 @@ drawChars count c colors pos ioRefBuffers =
         (\i -> let idx' = (fromIntegral idx + i) `fastMod` size
                in writeToBack back idx' cell)
         [0..pred count]
+      return ioRefBuffers
 
 
--- | Draws a 'String' starting from the current draw location,
---   using current draw colors.
 drawStr :: String
-        -> Colors
         -> Coords
+        -> Colors
         -> IORef Buffers
-        -> IO ()
-drawStr str colors pos ioRefBuffers =
+        -> IO (IORef Buffers)
+drawStr str pos colors ioRefBuffers =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _ _) -> do
       let idx = indexFromPos b pos
-      mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
+      mapM_
+        (\(c, i) ->
+            writeToBack back (idx+i `fastMod` size) (mkCell colors c))
+        $ zip str [0..]
+      return ioRefBuffers
 
 
--- | Draws a 'Text' starting from the current draw location,
---   using current draw colors.
 drawTxt :: Text
-        -> Colors
         -> Coords
+        -> Colors
         -> IORef Buffers
-        -> IO ()
+        -> IO (IORef Buffers)
 drawTxt text = drawStr $ unpack text
 
 
 {-# INLINE writeToBack #-}
-writeToBack :: Buffer Back -> Word16 -> Cell -> IO ()
+writeToBack :: Buffer Back -> Dim Index -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
 
 -- | Fills the entire canvas with a char.
-fill :: Maybe Char
-     -- ^ When Nothing, a space character is used.
+fill :: Char
      -> Colors
      -> IORef Buffers
      -> IO ()
-fill mayChar colors ioRefBuffers =
+fill char colors ioRefBuffers =
   readIORef ioRefBuffers
-    >>= flip fillBackBuffer (mkCell colors $ fromMaybe ' ' mayChar)
+    >>= flip fillBackBuffer (mkCell colors char)
 
 
 fillBackBuffer :: Buffers
@@ -367,36 +379,24 @@ fillBackBuffer (Buffers (Buffer b) _ size _ _ _) cell =
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
 
-{- | This function does the following:
-
-* Store the difference between front and back buffer in an auxiliary buffer.
-* Copy the back buffer to the front buffer
-* Reset (clear) the content of the back buffer
-* Sort the auxiliary buffer by color first, then by positions.
-* Sends rendering commands to the stdout buffer, based on the drawing sequence
-defined by the sorted auxiliary buffer.
-* Flush stdout.
--}
--- TODO clearBack parameter could be part of the context ? (initial colors also)
-renderFrame :: Bool
-              -- ^ If True, after submission the drawing is reset to the initial color.
-              -- This can also be achieved by calling "fill Nothing Nothing" after this call,
-              -- at the cost of one more traversal of the back buffer.
-              -> IORef Buffers
-              -> IO ()
-renderFrame clearBack ioRefBuffers =
+flush :: IORef Buffers -> IO ()
+flush ioRefBuffers =
   readIORef ioRefBuffers
     >>=
-      render clearBack
+      render
         >> do
+          updateSize ioRefBuffers
+          -- TODO if buffers resized because the terminal resized, send a clearScreen command or re-render with new size
           hFlush stdout -- TODO is flush blocking? slow? could it be async?
-          updateBufferSize ioRefBuffers
 
 
 
-render :: Bool -> Buffers -> IO ()
-render clearBack buffers@(Buffers _ _ _ _ (Delta delta) _) = do
-  computeDelta buffers 0 clearBack
+render :: Buffers -> IO ()
+render buffers@(Buffers _ _ _ _ (Delta delta) _) = do
+  computeDelta buffers 0
+
+  clearIfNeeded OnFrame buffers
+
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
 
@@ -413,20 +413,20 @@ render clearBack buffers@(Buffers _ _ _ _ (Delta delta) _) = do
   -- We ignore this color value. We could store it and use it to initiate the recursion
   -- at next render but if the client renders with another library in-betweeen, this value
   -- would be wrong, so we can ignore it here for more robustness.
-  _ <- renderDelta szDelta 0 Nothing Nothing buffers
+  _ <- renderDelta (fromIntegral szDelta) 0 Nothing Nothing buffers
   Dyn.clear delta
 
-renderDelta :: Int
-            -> Int
+renderDelta :: Dim Size
+            -> Dim Index
             -> Maybe Colors
-            -> Maybe Word16
+            -> Maybe (Dim Index)
             -> Buffers
             -> IO Colors
 renderDelta size index prevColors prevIndex
   b@(Buffers _ _ _ _ (Delta delta) _)
- | index == size = return $ Colors (Color8Code 0) (Color8Code 0)
+ | fromIntegral size == index = return $ Colors (Color8Code 0) (Color8Code 0)
  | otherwise = do
-    c <- Dyn.read delta index
+    c <- Dyn.read delta $ fromIntegral index
     let (bg, fg, idx, char) = expandIndexed c
         prevRendered = maybe False (== pred idx) prevIndex
     setCursorPositionIfNeeded b idx prevRendered
@@ -435,22 +435,17 @@ renderDelta size index prevColors prevIndex
 
 
 computeDelta :: Buffers
-             -> Word16
+             -> Dim Index
              -- ^ the buffer index
-             -> Bool
-             -- ^ should we clear the buffer containing the new values?
              -> IO ()
 computeDelta
  b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ (Delta delta) _)
  idx
- clearBack
-  | idx == size = return ()
+  | fromIntegral idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
       -- read from back buffer
       valueToDisplay <- read backBuf i
-      -- clear back buffer
-      when (clearBack && (initialCell /= valueToDisplay)) $ write backBuf i initialCell
       -- read from front buffer
       valueCurrentlyDisplayed <- read frontBuf i
       -- if differences are found, update front buffer and push the difference
@@ -459,14 +454,14 @@ computeDelta
           write frontBuf i valueToDisplay
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx
       -- recurse
-      computeDelta b (succ idx) clearBack
+      computeDelta b (succ idx)
 
 -- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
 -- of a char, so we avoid sending this command when not strictly needed.
 {-# INLINE setCursorPositionIfNeeded #-}
 setCursorPositionIfNeeded :: Buffers
-                          -> Word16
+                          -> Dim Index
                           -- ^ the buffer index
                           -> Bool
                           -- ^ True if a char was rendered at the previous buffer index

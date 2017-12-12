@@ -16,8 +16,7 @@ import Render.Console
 
 testICS :: IO ()
 testICS = do
-  ctxt <- newContext Nothing
-  beginFrame
+  ctxt <- newDefaultContext
 
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
@@ -58,14 +57,12 @@ testICS = do
       drawStr' (show color) (Coords (Row c + 30) (Col 35)) zeroCoords ctxt
     ) $ map Frame [0..lastFrame''']
 
-  endFrame ctxt
-
-  return ()
+  flush ctxt
 
 renderColored' :: ColorString -> Coords -> Coords -> IORef Buffers -> IO ()
-renderColored' cs pos rs =
-  renderColored cs (translate pos rs)
+renderColored' cs pos rs b =
+  void (renderColored cs (translate pos rs) b)
 
 drawStr' :: String -> Coords -> Coords -> IORef Buffers -> IO Coords
 drawStr' cs pos rs =
-  drawStr cs (Colors black white) (translate pos rs)
+  drawStr cs (translate pos rs) (Colors black white)

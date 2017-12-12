@@ -265,11 +265,10 @@ updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ i
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2
  te@(TimedEvent event _)
- s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ _ rs)) _ _ _ anim) =
+ s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ _ renderBuffers)) _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      beginFrame
       let s2 =
             if isFinished anim
               then
@@ -277,7 +276,7 @@ updateGame2
               else
                 s
       animations <- renderGame (getKeyTime event) s2
-      endFrame rs
+      flush renderBuffers
       return $ replaceAnimations animations s2
 
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]

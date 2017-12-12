@@ -25,9 +25,9 @@ import           Data.Matrix( Matrix )
 
 import           Foreign.C.Types( CInt(..) )
 
-import           Geo.Discrete.Types
+import           Color.Types
 
-import           Render.Console
+import           Geo.Discrete.Types
 
 data WallType = None
               | Deterministic

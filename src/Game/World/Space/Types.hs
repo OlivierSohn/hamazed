@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Game.World.Space.Types
     ( Space(..)
@@ -18,8 +17,6 @@ module Game.World.Space.Types
     ) where
 
 import           Imajuscule.Prelude
-
-import           GHC.Generics( Generic )
 
 import           Data.Matrix( Matrix )
 
@@ -55,7 +52,7 @@ data Space = Space {
 
 data Material = Air
               | Wall
-              deriving(Generic, Eq, Show)
+              deriving(Eq, Show)
 
 data WorldShape = Square
                 | Rectangle2x1

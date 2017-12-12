@@ -13,6 +13,7 @@ module Imajuscule.Prelude (
                           , Integral
                           , Ord
                           , Monoid(..)
+                          , Real
                           , Bool(..)
                           , Char
                           , Float

@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Geo.Types
     ( Direction(..)
@@ -7,6 +6,4 @@ module Geo.Types
 
 import           Imajuscule.Prelude
 
-import           GHC.Generics( Generic )
-
-data Direction = Up | Down | LEFT | RIGHT deriving (Generic, Eq, Show)
+data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)

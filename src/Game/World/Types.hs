@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Game.World.Types
         ( BattleShip(..)
@@ -24,7 +23,6 @@ module Game.World.Types
 
 import           Imajuscule.Prelude
 
-import           GHC.Generics( Generic )
 import           GHC.Show(showString)
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
@@ -107,4 +105,4 @@ data BattleShip = BattleShip {
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
   , _numberNum :: !Int
-} deriving(Generic, Eq, Show)
+} deriving(Eq, Show)

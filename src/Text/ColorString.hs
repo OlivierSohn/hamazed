@@ -26,7 +26,7 @@ import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 
--- TODO maybe it would be faster to have a representation with Array (Char, Color8Code)
+-- TODO maybe it would be faster to have a representation with Array (Char, LayeredColor)
 --  (ie the result of simplify)
 instance DiscretelyInterpolable ColorString where
   distance c1 c2 =

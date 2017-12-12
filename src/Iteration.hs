@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, NoImplicitPrelude #-}
 
 module Iteration
            ( Iteration(..)
@@ -10,11 +10,11 @@ module Iteration
            , previousIteration
            ) where
 
-import           GHC.Generics( Generic )
+import Imajuscule.Prelude
 
-newtype Iteration = Iteration (Speed, Frame) deriving(Generic, Show)
-newtype Speed = Speed Int deriving(Generic, Eq, Show, Num, Integral, Real, Enum, Ord)
-newtype Frame = Frame Int deriving(Generic, Eq, Show, Num, Integral, Real, Enum, Ord)
+newtype Iteration = Iteration (Speed, Frame) deriving(Show)
+newtype Speed = Speed Int deriving(Eq, Show, Num, Integral, Real, Enum, Ord)
+newtype Frame = Frame Int deriving(Eq, Show, Num, Integral, Real, Enum, Ord)
 
 
 zeroIteration :: Speed -> Iteration

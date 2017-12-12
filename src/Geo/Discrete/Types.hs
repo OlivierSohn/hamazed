@@ -1,6 +1,5 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 
@@ -16,21 +15,19 @@ module Geo.Discrete.Types
 
 import           Imajuscule.Prelude
 
-import           GHC.Generics( Generic )
-
 import           Geo.Types
 
 import           Interpolation
 
 import           Math
 
-newtype Row = Row { _rowIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
-newtype Col = Col { _colIndex :: Int } deriving (Generic, Eq, Show, Ord, Num)
+newtype Row = Row { _rowIndex :: Int } deriving (Eq, Show, Ord, Num, Integral, Enum, Real)
+newtype Col = Col { _colIndex :: Int } deriving (Eq, Show, Ord, Num, Integral, Enum, Real)
 
 data Coords = Coords {
     _coordsY :: !Row
   , _coordsX :: !Col
-} deriving (Generic, Eq, Show, Ord)
+} deriving (Eq, Show, Ord)
 
 
 -- | Move horizontaly then vertically (an arbitrary choice that can be discussed)
@@ -49,7 +46,8 @@ instance DiscretelyInterpolable Coords where
     in  sumCoords from dc
 
 sumCoords :: Coords -> Coords -> Coords
-sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) = Coords (Row $ r1 + r2) (Col $ c1 + c2)
+sumCoords (Coords (Row r1) (Col c1)) (Coords (Row r2) (Col c2)) =
+  Coords (Row $ r1 + r2) (Col $ c1 + c2)
 
 data Segment = Horizontal Row Int Int
              | Vertical   Col Int Int
@@ -59,4 +57,4 @@ data Segment = Horizontal Row Int Int
 data PosSpeed = PosSpeed {
     _pos :: !Coords
   , _speed :: !Coords
-} deriving (Generic, Eq, Show, Ord)
+} deriving (Eq, Show)

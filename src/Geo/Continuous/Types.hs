@@ -1,6 +1,5 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Geo.Continuous.Types
     ( Vec2(..)
@@ -8,6 +7,4 @@ module Geo.Continuous.Types
 
 import           Imajuscule.Prelude
 
-import           GHC.Generics( Generic )
-
-data Vec2 = Vec2 Float Float deriving(Generic, Eq, Show)
+data Vec2 = Vec2 Float Float deriving(Eq, Show)

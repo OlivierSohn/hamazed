@@ -86,6 +86,7 @@ library
                      , Run
                      , Text.Animated
                      , Text.ColorString
+                     , Text.ICoords
                      , Threading
                      , Timing
                      , Util

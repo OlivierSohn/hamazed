@@ -88,11 +88,11 @@ mkTextAnimLeft from to (txtLeft1s, txtLeft2s)
 
         rightAlignLeft2 x = move 2 Down . rightAlignLeft x
 
-        leftMiddle1FromAligned = rightAlignLeft (head txtLeft1s) leftMiddleFrom
-        leftMiddle1ToAligned = rightAlignLeft (last txtLeft1s) leftMiddleTo
+        leftMiddle1FromAligned = ICoords $ rightAlignLeft (head txtLeft1s) leftMiddleFrom
+        leftMiddle1ToAligned   = ICoords $ rightAlignLeft (last txtLeft1s) leftMiddleTo
 
-        leftMiddle2FromAligned = rightAlignLeft2 (head txtLeft2s) leftMiddleFrom
-        leftMiddle2ToAligned = rightAlignLeft2 (last txtLeft2s) leftMiddleTo
+        leftMiddle2FromAligned = ICoords $ rightAlignLeft2 (head txtLeft2s) leftMiddleFrom
+        leftMiddle2ToAligned   = ICoords $ rightAlignLeft2 (last txtLeft2s) leftMiddleTo
 
     in  mkSequentialTextTranslationsStringAnchored
           [(txtLeft1s, leftMiddle1FromAligned, leftMiddle1ToAligned),
@@ -111,11 +111,11 @@ mkTextAnimUpDown from to (txtUppers, txtLowers)
 
         alignTxtCentered = alignTxt Centered
 
-        centerUpFromAligned = alignTxtCentered (head txtUppers) centerUpFrom
-        centerUpToAligned = alignTxtCentered (last txtUppers) centerUpTo
+        centerUpFromAligned = ICoords $ alignTxtCentered (head txtUppers) centerUpFrom
+        centerUpToAligned   = ICoords $ alignTxtCentered (last txtUppers) centerUpTo
 
-        centerDownFromAligned = alignTxtCentered (head txtLowers) centerDownFrom
-        centerDownToAligned = alignTxtCentered (last txtLowers) centerDownTo
+        centerDownFromAligned = ICoords $ alignTxtCentered (head txtLowers) centerDownFrom
+        centerDownToAligned   = ICoords $ alignTxtCentered (last txtLowers) centerDownTo
     in  mkSequentialTextTranslationsCharAnchored
           [(txtUppers, centerUpFromAligned, centerUpToAligned),
            (txtLowers, centerDownFromAligned, centerDownToAligned)]

@@ -104,8 +104,6 @@ to retrieve the current size of the terminal.
 
 Draw
 
-> setDrawColor Foreground $ xterm256ColorToCode $ RGBColor $ RGB 0 2 3
-> setDrawLocation 10 20
 > drawStr "Hello world!"
 
 Render to the console
@@ -158,8 +156,8 @@ import           Data.Maybe( fromMaybe )
 import           Data.String( String )
 import           Data.Text( Text, unpack )
 import           Data.Vector.Algorithms.Intro -- unstable sort
-import           Data.Vector.Unboxed.Mutable( IOVector, replicate, read, write, unzip )
-import           Data.Word( Word32, Word16 )
+import           Data.Vector.Unboxed.Mutable( replicate, read, write, unzip )
+import           Data.Word( Word16 )
 
 import           Geo.Discrete.Types
 
@@ -169,60 +167,44 @@ import           System.IO( stdout, hFlush )
 
 import           Render.Backends.Internal.BufferCell
 import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
-                                ( IOVector, accessUnderlying, length
+                                ( accessUnderlying, length
                                 , new, read, clear, pushBack )
-
-type BackFrontBuffer = IOVector (Cell, Cell)
-
-newtype Buffer a = Buffer (IOVector Cell)
-
-newtype Delta = Delta (Dyn.IOVector Cell)
-
--- | Buffer types
-data Back
-data Front
-
-data Buffers = Buffers {
-    _renderStateBackBuffer :: !(Buffer Back)
-  , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersSize :: !Word16
-  , _buffersWidth :: !Word16
-  , _buffersDelta :: !Delta
-  -- ^ buffer used in renderFrame
-}
-
--- | Resizes the canvas, if needed
---  (no-op the second time when called with the same arguments twice).
-setFrameDimensions :: Word16
-                    -- ^ Width
-                    -> Word16
-                    -- ^ Height
-                    -> IORef Buffers
-                    -> IO ()
-setFrameDimensions width height ref =
-  readIORef ref
-    >>= \(Buffers _ _ prevSize prevWidth _) -> do
-      let prevHeight = quot prevSize prevWidth
-      when (prevWidth /= width || prevHeight /= height) $
-        mkBuffers width height
-          >>= writeIORef ref
+import           Render.Types
+import           Render.Backends.Internal.Types
+import           Render.Backends.Internal.Dimensions
 
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
-mkBuffers :: Word16 -> Word16 -> IO Buffers
-mkBuffers width' height' = do
-  let width  = max 1 width'
-      height = max 1 height'
-      sz = fromIntegral width * fromIntegral height :: Word32
-      sz' = fromIntegral sz
-  -- indexed cells use a Word16 index
-  when (sz > fromIntegral (maxBound :: Word16)) $
-    error $ "buffer size cannot be bigger than " ++ show (maxBound :: Word16) ++
-            " : " ++ show (sz, width, height)
+mkBuffers :: Word16 -> Word16 -> Maybe RenderSize -> IO Buffers
+mkBuffers width' height' r = do
+  let (sz, width) = bufferSizeFromWH width' height'
   -- We initialize to different colors to force a first render to the whole console.
-  buf <- newBufferArray sz' (initialCell, nocolorCell)
+  buf <- newBufferArray sz (initialCell, nocolorCell)
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
-  return $ Buffers (Buffer back) (Buffer front) sz' width (Delta delta)
+  return $ Buffers (Buffer back) (Buffer front) sz width (Delta delta) r
+
+
+setFrameDimensions :: Maybe RenderSize
+                   -> IORef Buffers
+                   -> IO ()
+setFrameDimensions r ref =
+  readIORef ref
+    >>= \(Buffers a b prevSize prevWidth c _) -> do
+      (width, height) <- getDimensions r
+      let prevHeight = quot prevSize prevWidth
+      (if prevWidth /= width || prevHeight /= height
+        then
+          mkBuffers width height r
+        else
+          return $ Buffers a b prevSize prevWidth c r
+       ) >>= writeIORef ref
+
+updateBufferSize :: IORef Buffers -> IO ()
+updateBufferSize ref =
+  readIORef ref
+    >>= \(Buffers _ _ _ _ _ s) ->
+      setFrameDimensions s ref
+
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
 newBufferArray :: Word16 -> (Cell, Cell) -> IO BackFrontBuffer
@@ -261,10 +243,12 @@ nocolorCell :: Cell
 nocolorCell = mkCell noColors ' '
 
 {-# NOINLINE newContext #-}
-newContext :: IO (IORef Buffers)
-newContext =
-  mkBuffers 300 80
-    >>= newIORef
+newContext :: Maybe RenderSize -> IO (IORef Buffers)
+newContext r =
+  getDimensions r
+    >>= \(w,h) ->
+      mkBuffers w h r
+        >>= newIORef
 
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
@@ -278,13 +262,13 @@ fastMod a b'
 
 {-# INLINE indexFromPos #-}
 indexFromPos :: Buffers -> Coords -> Word16
-indexFromPos (Buffers _ _ size width _) (Coords (Row y) (Col x)) =
+indexFromPos (Buffers _ _ size width _ _) (Coords (Row y) (Col x)) =
   (y * fromIntegral width + x) `fastMod` size
 
 
 {-# INLINE xyFromIndex #-}
 xyFromIndex :: Buffers -> Word16 -> (Word16, Word16)
-xyFromIndex (Buffers _ _ _ width _) idx =
+xyFromIndex (Buffers _ _ _ width _ _) idx =
     (x, y)
   where
     -- no need to do (idx `mod` size) here, we know we passed an index in the right range.
@@ -302,7 +286,7 @@ drawChar :: Char
          -> IO ()
 drawChar c colors pos ioRefBuffers =
   readIORef ioRefBuffers
-    >>= \b@(Buffers back _ _ _ _) -> do
+    >>= \b@(Buffers back _ _ _ _ _) -> do
       let idx = indexFromPos b pos
       putCharRawAt back idx colors c
 
@@ -327,7 +311,7 @@ drawChars :: Int
           -> IO ()
 drawChars count c colors pos ioRefBuffers =
   readIORef ioRefBuffers
-    >>= \b@(Buffers back _ size _ _) -> do
+    >>= \b@(Buffers back _ size _ _ _) -> do
       let cell = mkCell colors c
           idx = indexFromPos b pos
       mapM_
@@ -345,7 +329,7 @@ drawStr :: String
         -> IO ()
 drawStr str colors pos ioRefBuffers =
   readIORef ioRefBuffers
-    >>= \b@(Buffers back _ size _ _) -> do
+    >>= \b@(Buffers back _ size _ _ _) -> do
       let idx = indexFromPos b pos
       mapM_ (\(c, i) -> putCharRawAt back (idx+i `fastMod` size) colors c) $ zip str [0..]
 
@@ -379,7 +363,7 @@ fill mayChar colors ioRefBuffers =
 fillBackBuffer :: Buffers
                -> Cell
                -> IO ()
-fillBackBuffer (Buffers (Buffer b) _ size _ _) cell =
+fillBackBuffer (Buffers (Buffer b) _ size _ _ _) cell =
   mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
 
 
@@ -404,12 +388,14 @@ renderFrame clearBack ioRefBuffers =
   readIORef ioRefBuffers
     >>=
       render clearBack
-        >>
+        >> do
           hFlush stdout -- TODO is flush blocking? slow? could it be async?
+          updateBufferSize ioRefBuffers
+
 
 
 render :: Bool -> Buffers -> IO ()
-render clearBack buffers@(Buffers _ _ _ _ (Delta delta)) = do
+render clearBack buffers@(Buffers _ _ _ _ (Delta delta) _) = do
   computeDelta buffers 0 clearBack
   szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
@@ -437,7 +423,7 @@ renderDelta :: Int
             -> Buffers
             -> IO Colors
 renderDelta size index prevColors prevIndex
-  b@(Buffers _ _ _ _ (Delta delta))
+  b@(Buffers _ _ _ _ (Delta delta) _)
  | index == size = return $ Colors (Color8Code 0) (Color8Code 0)
  | otherwise = do
     c <- Dyn.read delta index
@@ -448,13 +434,6 @@ renderDelta size index prevColors prevIndex
     renderDelta size (succ index) (Just usedColor) (Just idx) b
 
 
--- [before doing this micro optimization, verify that there is no side effect,
--- it could take longer to render]
--- TODO: optimize position changes which are 9 bytes on average :
--- if the distance between 2 consecutive differences (of the same row) is < 9,
--- and on the path there is no needed color change, we can avoid a position
--- change command and add all items of the path to the delta vector instead.
--- This requires that we mimic the logic of drawCell
 computeDelta :: Buffers
              -> Word16
              -- ^ the buffer index
@@ -462,7 +441,7 @@ computeDelta :: Buffers
              -- ^ should we clear the buffer containing the new values?
              -> IO ()
 computeDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ (Delta delta))
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ (Delta delta) _)
  idx
  clearBack
   | idx == size = return ()

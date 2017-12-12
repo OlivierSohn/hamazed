@@ -5,13 +5,11 @@ module Render.Console
                , configureConsoleFor
                -- rendering functions
                , renderChar_
-               , drawChars
                , drawStr
                , renderStr_
                , drawTxt
                , renderTxt_
                , renderSegment
-               , setFrameDimensions
                -- reexport System.Console.ANSI
                , Color8Code(..)
                , ConsoleLayer(..)
@@ -20,8 +18,10 @@ module Render.Console
                -- reexports from backends
                , Backend.beginFrame
                , Backend.endFrame
+               , Backend.drawChars
                , Backend.Colors(..)
                , Backend.newContext
+               , Backend.setFrameDimensions
                , Backend.IORef
                , Backend.Buffers
                -- reexports
@@ -51,36 +51,11 @@ import           System.IO( hSetBuffering
 import           Geo.Discrete.Types
 import           Geo.Discrete
 
-{--
-import qualified Render.Backends.Full as Backend --}
---{--
-import qualified Render.Backends.Delta as Backend --}
+import qualified Render.Backends.Delta as Backend
 
 import           Render.Types
 
---------------------------------------------------------------------------------
--- Pure
---------------------------------------------------------------------------------
-
 data ConsoleConfig = Gaming | Editing
-
-setFrameDimensions :: RenderSize -> Backend.IORef Backend.Buffers -> IO ()
-setFrameDimensions (UserDefined w h) ctxt
-  | w <= 0 = error "negative or zero render width not allowed"
-  | h <= 0 = error "negative or zero render height not allowed"
-  | otherwise = Backend.setFrameDimensions (fromIntegral w) (fromIntegral h) ctxt
-setFrameDimensions TerminalSize ctxt = do
-  mayTermSize <- Terminal.size
-  let (width, height) =
-        maybe
-          (300, 70) -- sensible default if terminal size is not available
-          (\(Terminal.Window h w) -> (w, h))
-            mayTermSize
-  Backend.setFrameDimensions width height ctxt
-
---------------------------------------------------------------------------------
--- IO
---------------------------------------------------------------------------------
 
 configureConsoleFor :: ConsoleConfig -> IO ()
 configureConsoleFor config = do
@@ -122,10 +97,6 @@ renderChar_ =
   Backend.drawChar
 
 
-drawChars :: Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
-drawChars=
-  Backend.drawChars
-
 drawStr :: String -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO Coords
 drawStr str color pos b =
   renderStr_ str color pos b >> return (translateInDir Down pos)
@@ -147,7 +118,6 @@ renderSegment l char rs = case l of
   Horizontal row c1 c2 -> renderHorizontalLine row c1 c2 char rs
   Vertical col r1 r2   -> renderVerticalLine   col r1 r2 char rs
   Oblique _ _ -> error "oblique segment rendering is not supported"
-
 
 renderVerticalLine :: Col -> Int -> Int -> Char -> Backend.Colors -> Coords -> Backend.IORef Backend.Buffers -> IO ()
 renderVerticalLine col r1 r2 char color pos b = do

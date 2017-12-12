@@ -30,7 +30,8 @@ run =
 doRun :: IO Termination
 doRun =
   (configureConsoleFor Gaming
-    >> newContext >>= runAndWaitForTermination . gameWorker)
+    >> newContext (Just FollowsTerminalSize)
+      >>= runAndWaitForTermination . gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally`

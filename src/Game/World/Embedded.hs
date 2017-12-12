@@ -14,7 +14,6 @@ import           Game.World.Size
 import           Game.World.Types
 
 import           Render
-import           Render.Console
 
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
@@ -25,11 +24,8 @@ minimalWorldMargin = 4
 mkEmbeddedWorld :: IORef Buffers -> WorldSize -> IO (Either String EmbeddedWorld)
 mkEmbeddedWorld ctxt s = do
   mayTermSize <- Terminal.size
-  maybe
-    (return ())
-    (\(Terminal.Window h w) -> setFrameDimensions (UserDefined w h) ctxt)
-      mayTermSize
-  return $ (\coords -> EmbeddedWorld mayTermSize coords ctxt) <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ (\coords -> EmbeddedWorld mayTermSize coords ctxt)
+    <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
 worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords

@@ -8,11 +8,9 @@ module Test.Interpolation
            , testSuccessiveInts
            , testClock ) where
 
-import Color
 import Geo.Discrete
 import Interpolation
 import Math
-import Render
 import Game.World.Types
 
 testInterpolation :: IO ()

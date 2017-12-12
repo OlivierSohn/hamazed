@@ -1,6 +1,11 @@
 module Render.Types
             ( RenderSize(..)
+            -- | Reexports
+            , Col(..)
+            , Row(..)
             ) where
 
-data RenderSize = TerminalSize
-                | UserDefined !Int !Int
+import           Geo.Discrete.Types(Col(..), Row(..))
+
+data RenderSize = FollowsTerminalSize
+                | Fixed !Col !Row

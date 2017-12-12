@@ -73,10 +73,11 @@ library
                      , Iteration
                      , Math
                      , Render
-                     , Render.Backends.Full
                      , Render.Backends.Delta
                      , Render.Backends.Internal.BufferCell
                      , Render.Backends.Internal.Delta
+                     , Render.Backends.Internal.Dimensions
+                     , Render.Backends.Internal.Types
                      , Render.Backends.Internal.UnboxedDynamic
                      , Render.Console
                      , Render.Types

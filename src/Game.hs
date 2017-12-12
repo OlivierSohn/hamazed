@@ -269,7 +269,6 @@ updateGame2
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
-      setFrameDimensions TerminalSize rs
       beginFrame
       let s2 =
             if isFinished anim

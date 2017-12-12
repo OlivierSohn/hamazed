@@ -16,8 +16,7 @@ import Render.Console
 
 testICS :: IO ()
 testICS = do
-  ctxt <- newContext
-  setFrameDimensions TerminalSize ctxt
+  ctxt <- newContext Nothing
   beginFrame
 
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)

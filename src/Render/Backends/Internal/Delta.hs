@@ -33,14 +33,14 @@ Render games or animations in the console, with a strong focus on avoiding
 >     white = rgb 5 5 5
 >     red   = rgb 5 0 0
 >
-> drawStr "Hello world!" (Coords (Row 10) (Col 20)) (Colors black white) ctxt
-> drawStr "How are you?" (Coords (Row 11) (Col 20)) (Colors black white) ctxt
+> drawStr "Hello world!" (Coords (Row 10) (Col 20)) (LayeredColor black white) ctxt
+> drawStr "How are you?" (Coords (Row 11) (Col 20)) (LayeredColor black white) ctxt
 >
 > flush ctxt
 >
 > -- second frame
 >
-> drawChars '_' 10 (Coords (Row 11) (Col 20)) (Colors black red) ctxt
+> drawChars '_' 10 (Coords (Row 11) (Col 20)) (LayeredColor black red) ctxt
 >
 > flush ctxt
 >
@@ -152,9 +152,6 @@ import           Imajuscule.Prelude hiding (replicate)
 
 import qualified Prelude ( putChar, putStr )
 
-import           Color.Types
-
-import           Data.Colour.SRGB( RGB(..) )
 import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
 import           Data.Maybe( fromMaybe )
 import           Data.String( String )
@@ -162,11 +159,14 @@ import           Data.Text( Text, unpack )
 import           Data.Vector.Algorithms.Intro -- unstable sort
 import           Data.Vector.Unboxed.Mutable( replicate, read, write, unzip )
 
-import           Geo.Discrete.Types(Coords(..), Row(..), Col(..))
-
-import           System.Console.ANSI( xterm256ColorToCode, Color8Code(..), Xterm256Color(..)
+import           System.Console.ANSI( Color8Code(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
 import           System.IO( stdout, hFlush )
+
+import           Color
+import           Color.Types
+
+import           Geo.Discrete.Types(Coords(..), Row(..), Col(..))
 
 import           Render.Backends.Internal.BufferCell
 import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
@@ -206,7 +206,7 @@ mkBuffers width' height' backBufferCell = do
   let (sz, width) = bufferSizeFromWH width' height'
       (Color8Code bg, Color8Code fg, char) = expand backBufferCell
       -- We initialize to different colors to force a first render to the whole console.
-      frontBufferCell = mkCell (Colors (Color8Code (succ bg)) (Color8Code (succ fg))) (succ char)
+      frontBufferCell = mkCell (LayeredColor (Color8Code (succ bg)) (Color8Code (succ fg))) (succ char)
   buf <- newBufferArray sz (backBufferCell, frontBufferCell)
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf
@@ -216,7 +216,7 @@ defaultResizePolicy :: ResizePolicy
 defaultResizePolicy = MatchTerminalSize
 
 defaultClearColor :: Color8Code
-defaultClearColor = xterm256ColorToCode $ RGBColor $ RGB 0 0 0
+defaultClearColor = black
 
 defaultClearPolicy :: ClearPolicy
 defaultClearPolicy = ClearAtEveryFrame
@@ -271,8 +271,8 @@ clearIfNeeded ctxt b@(Buffers _ _ _ _ _ (Policies _ clearPolicy clearColor)) = d
 
 clearCell :: ClearColor -> Cell
 clearCell clearColor =
-  let white = xterm256ColorToCode $ RGBColor $ RGB 5 5 5
-  in mkCell (Colors clearColor white) ' '
+  -- Any foreground color would be ok
+  mkCell (LayeredColor clearColor white) ' '
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
 newBufferArray :: Dim Size -> (Cell, Cell) -> IO BackFrontBuffer
@@ -302,7 +302,7 @@ xyFromIndex (Buffers _ _ _ width _ _) idx =
 
 drawChar :: Char
          -> Coords
-         -> Colors
+         -> LayeredColor
          -> IORef Buffers
          -> IO (IORef Buffers)
 drawChar c pos colors ioRefBuffers =
@@ -318,7 +318,7 @@ drawChars :: Int
           -- ^ Number of repetitions.
           -> Char
           -> Coords
-          -> Colors
+          -> LayeredColor
           -> IORef Buffers
           -> IO (IORef Buffers)
 drawChars count c pos colors ioRefBuffers =
@@ -335,7 +335,7 @@ drawChars count c pos colors ioRefBuffers =
 
 drawStr :: String
         -> Coords
-        -> Colors
+        -> LayeredColor
         -> IORef Buffers
         -> IO (IORef Buffers)
 drawStr str pos colors ioRefBuffers =
@@ -351,7 +351,7 @@ drawStr str pos colors ioRefBuffers =
 
 drawTxt :: Text
         -> Coords
-        -> Colors
+        -> LayeredColor
         -> IORef Buffers
         -> IO (IORef Buffers)
 drawTxt text = drawStr $ unpack text
@@ -364,7 +364,7 @@ writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
 -- | Fills the entire canvas with a char.
 fill :: Char
-     -> Colors
+     -> LayeredColor
      -> IORef Buffers
      -> IO ()
 fill char colors ioRefBuffers =
@@ -418,13 +418,13 @@ render buffers@(Buffers _ _ _ _ (Delta delta) _) = do
 
 renderDelta :: Dim Size
             -> Dim Index
-            -> Maybe Colors
+            -> Maybe LayeredColor
             -> Maybe (Dim Index)
             -> Buffers
-            -> IO Colors
+            -> IO LayeredColor
 renderDelta size index prevColors prevIndex
   b@(Buffers _ _ _ _ (Delta delta) _)
- | fromIntegral size == index = return $ Colors (Color8Code 0) (Color8Code 0)
+ | fromIntegral size == index = return $ LayeredColor (Color8Code 0) (Color8Code 0)
  | otherwise = do
     c <- Dyn.read delta $ fromIntegral index
     let (bg, fg, idx, char) = expandIndexed c
@@ -480,12 +480,12 @@ setCursorPositionIfNeeded b idx predPosRendered = do
   when shouldSetCursorPosition $ setCursorPosition (fromIntegral rowIdx) (fromIntegral colIdx)
 
 {-# INLINE drawCell #-}
-drawCell :: Color8Code -> Color8Code -> Char -> Maybe Colors -> IO Colors
+drawCell :: Color8Code -> Color8Code -> Char -> Maybe LayeredColor -> IO LayeredColor
 drawCell bg fg char maybeCurrentConsoleColor = do
   let (bgChange, fgChange, usedFg) =
         maybe
           (True, True, fg)
-          (\(Colors bg' fg') ->
+          (\(LayeredColor bg' fg') ->
               -- use foreground color if we don't draw a space
               let useFg = char /= ' ' -- I don't use Data.Char.isSpace, it could be slower
                   usedFg' = if useFg
@@ -503,4 +503,4 @@ drawCell bg fg char maybeCurrentConsoleColor = do
       Prelude.putStr $ setSGRCode sgrs ++ [char]
     else
       Prelude.putChar char
-  return $ Colors bg usedFg
+  return $ LayeredColor bg usedFg

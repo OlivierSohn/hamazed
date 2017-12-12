@@ -1,110 +1,52 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{--based on https://en.wikipedia.org/wiki/ANSI_escape_code#Colors--}
+{- |
+
+This module exports functions to simplify the creation of
+<https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor 8-bit ANSI colors>.
+
+-}
 
 module Color (
-  -- * default colors
-    worldFrameColors
-  , colorFromFrame
-  , numberColor
-  , bracketsColor
-  , ammoColor
-  , configColors
-  , wallColors
-  , airColors
-  , shipColors
-  , shipColorsSafe
-  , shipColorSafe
-  , shipColor
-  , messageColor
-  , neutralMessageColor
-  -- * colors
+  -- * create colors
+    gray
+  , rgb
+  -- * create layered colors
+  , onBlack
+  -- * frequently used colors
   , white
   , black
   , red
-  -- * create colors
-  , gray
-  , rgb
-  , onBlack
+  , green
+  , blue
+  -- * frequently used layered colors
+  , whiteOnBlack
+  -- * reexports
   , Color8Code(..)
 ) where
 
 import           Imajuscule.Prelude
 
-import           System.Console.ANSI.Color( xterm256ColorToCode )
-import           System.Console.ANSI( Color8Code(..), Xterm256Color(..) )
+import           System.Console.ANSI( Color8Code(..) )
 
-import           Data.Colour.SRGB (RGB (..))
+import           Color.Types
 
-import           Animation.Types
-import           Game.Level.Types
+{-# INLINE onBlack #-}
+onBlack :: Color8Code -> LayeredColor
+onBlack = LayeredColor (rgb 0 0 0)
 
-import           Render.Console
+{-# INLINE whiteOnBlack #-}
+whiteOnBlack :: LayeredColor
+whiteOnBlack = onBlack white
 
-onBlack :: Color8Code -> Colors
-onBlack = Colors (rgb 0 0 0)
+red :: Color8Code
+red = rgb 5 0 0
 
-configColors :: Colors
-configColors = Colors (gray 0) (gray 8)
+green :: Color8Code
+green = rgb 0 5 0
 
-wallColors :: Colors
-wallColors = Colors (gray 0) (gray 3)
-
-airColors :: Colors
-airColors = Colors black white
-
-neutralMessageColor :: Colors
-neutralMessageColor = onBlack $ gray 10
-
-ammoColor :: Color8Code
-ammoColor = gray 14
-
-bracketsColor :: Color8Code
-bracketsColor = worldFrameFgColor
-
-messageColor :: GameStops -> Colors
-messageColor Won      = onBlack $ rgb 4 3 1
-messageColor (Lost _) = onBlack $ gray 6
-
-shipColors :: Colors
-shipColors = Colors shipBgColor shipColor
-
-shipColorsSafe :: Colors
-shipColorsSafe = Colors shipBgColorSafe shipColorSafe
-
-shipColor :: Color8Code
-shipColor = rgb 5 4 4
-
-shipColorSafe :: Color8Code
-shipColorSafe = rgb 5 0 0
-
-shipBgColor :: Color8Code
-shipBgColor = black
-
-shipBgColorSafe :: Color8Code
-shipBgColorSafe = rgb 1 0 0
-
-numberColor :: Int -> Colors
-numberColor i = onBlack $ xterm256ColorToCode $ RGBColor (RGB r g b)
-  where
-    r = 5
-    g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
-    b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
-
-colorFromFrame :: Frame -> Colors
-colorFromFrame (Frame f) = onBlack $ xterm256ColorToCode $ RGBColor (RGB r g b)
-  where
-    r = assert (f >= 0) 4
-    g = fromIntegral $ (0 + quot f 6) `mod` 2 -- [0..1] , slow changes
-    b = fromIntegral $ (0 + quot f 3) `mod` 3 -- [0..2] , 2x faster changes
-
-worldFrameFgColor :: Color8Code
-worldFrameFgColor = rgb 2 1 1
-
-worldFrameColors :: Colors
-worldFrameColors = Colors black worldFrameFgColor
-
---------------------------------------------------------------------------------
+blue :: Color8Code
+blue = rgb 0 0 5
 
 white :: Color8Code
 white = rgb 5 5 5
@@ -112,27 +54,29 @@ white = rgb 5 5 5
 black :: Color8Code
 black = rgb 0 0 0
 
-red :: Color8Code
-red = rgb 5 0 0
-
-firstGray :: Word8
-firstGray = 232
-
-grayRange :: Word8
-grayRange = 24
-
-firstRGB :: Word8
-firstRGB = 16
-
-rgbRange :: Word8
-rgbRange = 6
-
-gray :: Word8 -> Color8Code
+-- | Creates a gray color as defined in
+-- <https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor ANSI 8-bit colors>
+--
+-- Input is expected to be in the range [0..23] (from darkest to lightest)
+gray :: Word8
+     -- ^ in [0..23]
+     -> Color8Code
 gray i
-  | i >= grayRange = error "out of range gray"
-  | otherwise      = Color8Code $ fromIntegral (i + firstGray)
+  | i >= 24 = error "out of range gray"
+  | otherwise      = Color8Code $ fromIntegral (i + 232)
 
-rgb :: Word8 -> Word8 -> Word8 -> Color8Code
+
+-- | Creates a rgb color as defined in
+-- <https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor ANSI 8-bit colors>
+--
+-- Input components are expected to be in range [0..5]
+rgb :: Word8
+    -- ^ red component in [0..5]
+    -> Word8
+    -- ^ green component in [0..5]
+    -> Word8
+    -- ^ blue component in [0..5]
+    -> Color8Code
 rgb r g b
-  | r >= rgbRange || g >= rgbRange || b >= rgbRange = error "out of range rgb"
-  | otherwise = Color8Code $ fromIntegral $ firstRGB + 36 * r + 6 * g + b
+  | r >= 6 || g >= 6 || b >= 6 = error "out of range"
+  | otherwise = Color8Code $ fromIntegral $ 16 + 36 * r + 6 * g + b

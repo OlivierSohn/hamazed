@@ -15,7 +15,7 @@ import           Animation.Design.Apply
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 
-import           Color
+import           Animation.Color
 
 import           Timing
 

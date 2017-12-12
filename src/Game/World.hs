@@ -26,11 +26,10 @@ import           Animation.Util( earliestDeadline )
 
 import           Collision
 
-import           Color
-
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 
+import           Game.Color
 import           Game.Event
 import           Game.World.Evolution
 import           Game.World.Laser

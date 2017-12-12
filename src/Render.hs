@@ -18,7 +18,7 @@ module Render (
         , Direction(..)
         , Color8Code(..)
         , ConsoleLayer(..)
-        , Colors(..)
+        , LayeredColor(..)
         , IORef
         , Buffers
         , drawChar
@@ -38,23 +38,23 @@ import           Render.Console
 import           Text.ColorString
 
 
-renderPoints :: Colors -> Coords -> IORef Buffers -> [(Coords, Char)] -> IO ()
+renderPoints :: LayeredColor -> Coords -> IORef Buffers -> [(Coords, Char)] -> IO ()
 renderPoints colors pos b =
   mapM_ (\(c,char) -> drawChar char (sumCoords pos c) colors b)
 
-renderColoredChars :: Int -> Char -> Coords -> Colors -> IORef Buffers -> IO (IORef Buffers)
+renderColoredChars :: Int -> Char -> Coords -> LayeredColor -> IORef Buffers -> IO (IORef Buffers)
 renderColoredChars =
   drawChars
 
 data Alignment = Centered
                | RightAligned
 
-renderAlignedTxt_ :: Alignment -> Text -> Coords -> Colors -> IORef Buffers -> IO ()
+renderAlignedTxt_ :: Alignment -> Text -> Coords -> LayeredColor -> IORef Buffers -> IO ()
 renderAlignedTxt_ a txt pos colors = do
   let leftCorner = align' a (length txt) pos
   drawTxt_ txt leftCorner colors
 
-renderAlignedTxt :: Alignment -> Text -> Coords -> Colors -> IORef Buffers -> IO Coords
+renderAlignedTxt :: Alignment -> Text -> Coords -> LayeredColor -> IORef Buffers -> IO Coords
 renderAlignedTxt a txt pos colors b =
   renderAlignedTxt_ a txt pos colors b >> return (translateInDir Down pos)
 

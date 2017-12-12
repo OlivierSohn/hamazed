@@ -14,7 +14,7 @@ import           System.Console.ANSI(Color8Code(..))
 
 import           Color
 import           Color.Types
-import           Color.IColors
+import           Color.ILayeredColor
 
 import qualified Data.List as List(length, splitAt)
 import           Data.String(IsString(..))
@@ -24,7 +24,7 @@ import           Math
 
 import           Util
 
-newtype ColorString = ColorString [(Text, Colors)] deriving(Show)
+newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 
 -- TODO maybe it would be faster to have a representation with Array (Char, Color8Code)
 --  (ie the result of simplify)
@@ -140,14 +140,14 @@ instance IsString ColorString where
   fromString str = ColorString [(pack str, onBlack white)]
 
 
-simplify :: ColorString -> [(Char, Colors)]
+simplify :: ColorString -> [(Char, LayeredColor)]
 simplify (ColorString []) = []
 simplify (ColorString l@(_:_)) =
   let (txt, color) = head l
   in map (\c -> (c,color)) (unpack txt) ++ simplify (ColorString $ tail l)
 
 
-colored' :: Text -> Colors -> ColorString
+colored' :: Text -> LayeredColor -> ColorString
 colored' t c = ColorString [(t, c)]
 
 colored :: Text -> Color8Code -> ColorString

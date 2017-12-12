@@ -1,13 +1,13 @@
 
 module Color.Types
-          ( Colors(..)
+          ( LayeredColor(..)
           -- * Reexports from System.Console.ANSI
           , Color8Code(..)
           ) where
 
 import           System.Console.ANSI( Color8Code(..) )
 
-data Colors = Colors {
+data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !Color8Code
     -- ^ Background color
   , _colorsForeground :: {-# UNPACK #-} !Color8Code

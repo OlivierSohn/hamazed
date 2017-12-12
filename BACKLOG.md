@@ -3,7 +3,16 @@
 
 ## Delta rendering
 
+- dependencies:
+Color / Color.Types
+Geo.Discrete.Types(Coords Row Col)
+
+
+ would be like this if we use Coords:
+  delta rendering -> discrete coords -> DiscretelyInterpolable
+
 - create an app to test engine.
+
 - include in this module functions to create colors to be able to write
 > rgb 3 4 5
 
@@ -18,9 +27,6 @@
 - make a package for Delta rendering:
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
-
-- dependencies would be like this if we use Coords:
-  delta rendering -> discrete coords -> DiscretelyInterpolable
 
 - Another optimization is to chose the type of "position change"
 command we send based on the relative location of successive elements: today

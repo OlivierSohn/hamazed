@@ -14,11 +14,9 @@ import           Data.String(String)
 import           Animation
 import           Animation.Design.Chars
 
-import           Color
-
-import           Game.Types
+import           Game.Color
 import           Game.Deadline( Deadline(..) )
-import           Game.World.Ship
+import           Game.Types
 import           Game.Event
 import           Game.Level
 import           Game.Parameters( GameParameters(..) )
@@ -28,6 +26,7 @@ import           Game.World.Embedded
 import           Game.World.Evolution
 import           Game.World.Laser
 import           Game.World.Number
+import           Game.World.Ship
 import           Game.World.Size
 import           Game.World.Space
 

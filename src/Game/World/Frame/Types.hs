@@ -25,7 +25,7 @@ import           Render.Console
 data FrameSpec = FrameSpec {
     _frameSpecSize :: !WorldSize
   , _frameSpecUpperLeft :: !Coords
-  , _frameSpecColors :: !Colors
+  , _frameSpecColors :: !LayeredColor
   , _frameSpecBuffers :: !(IORef Buffers)
 } deriving(Eq)
 
@@ -120,7 +120,7 @@ countWorldFrameVertical :: WorldSize -> Int
 countWorldFrameVertical (WorldSize (Coords (Row rs) _)) =
   rs
 
-renderPartialWorldFrame :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO ()
+renderPartialWorldFrame :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO ()
 renderPartialWorldFrame sz colors b r =
   renderUpperWall sz colors b r
     >>= renderRightWall sz colors b
@@ -128,7 +128,7 @@ renderPartialWorldFrame sz colors b r =
     >>= renderLeftWall sz colors b
     >> return ()
 
-renderRightWall :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderRightWall :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
 renderRightWall sz colors b (upperRight, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -142,7 +142,7 @@ renderRightWall sz colors b (upperRight, from, to) = do
     else
       return (nextR, from + nChars - countMax, to - countMax)
 
-renderLeftWall :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderLeftWall :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
 renderLeftWall sz colors b (lowerLeft, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -157,7 +157,7 @@ renderLeftWall sz colors b (lowerLeft, from, to) = do
       return (nextR, from + nChars - countMax, to - countMax)
 
 -- 0 is upper left
-renderUpperWall :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderUpperWall :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
 renderUpperWall sz colors b (upperLeft, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -170,7 +170,7 @@ renderUpperWall sz colors b (upperLeft, from, to) = do
       drawChars nChars '_' (move actualFrom RIGHT upperLeft) colors b
        >> return (nextR, from + nChars - countMax, to - countMax)
 
-renderLowerWall :: WorldSize -> Colors -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderLowerWall :: WorldSize -> LayeredColor -> IORef Buffers -> (Coords, Int, Int) -> IO (Coords, Int, Int)
 renderLowerWall sz colors b (lowerRight, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)

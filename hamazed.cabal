@@ -22,6 +22,7 @@ library
   other-modules:
   exposed-modules:     Imajuscule.Prelude
                      , Animation
+                     , Animation.Color
                      , Animation.Design.Animator
                      , Animation.Design.Apply
                      , Animation.Design.Chain
@@ -33,15 +34,16 @@ library
                      , Collision
                      , Color
                      , Color.IColor8Code
-                     , Color.IColors
+                     , Color.ILayeredColor
                      , Color.Types
                      , Evolution
                      , Game.Deadline
                      , Game.Event
                      , Game
-                     , Game.Parameters
+                     , Game.Color
                      , Game.Level
                      , Game.Level.Types
+                     , Game.Parameters
                      , Game.Render
                      , Game.Types
                      , Game.World

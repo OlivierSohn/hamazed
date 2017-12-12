@@ -65,4 +65,4 @@ renderColored' cs pos rs b =
 
 drawStr' :: String -> Coords -> Coords -> IORef Buffers -> IO Coords
 drawStr' cs pos rs =
-  drawStr cs (translate pos rs) (Colors black white)
+  drawStr cs (translate pos rs) (LayeredColor black white)

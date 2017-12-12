@@ -65,7 +65,7 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: Colors -> World -> IORef Buffers -> FrameSpec
+mkFrameSpec :: LayeredColor -> World -> IORef Buffers -> FrameSpec
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft _)) =
   FrameSpec sz upperLeft colors
 

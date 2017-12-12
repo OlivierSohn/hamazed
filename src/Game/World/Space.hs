@@ -37,10 +37,9 @@ import           Data.Vector(Vector, slice, (!))
 
 import           Foreign.C.Types( CInt(..) )
 
-import           Color
-
 import           Collision
 
+import           Game.Color
 import           Game.World.Types
 import           Game.World.Size
 
@@ -284,7 +283,7 @@ renderGroup worldCoords (RenderGroup pos colors char count) =
   renderColoredChars count char (sumCoords pos worldCoords) colors
 
 
-renderIfNotColliding :: Char -> Coords -> Space -> Colors -> Coords -> IORef Buffers -> IO (IORef Buffers)
+renderIfNotColliding :: Char -> Coords -> Space -> LayeredColor -> Coords -> IORef Buffers -> IO (IORef Buffers)
 renderIfNotColliding char worldCoords space colors r b =
   case getMaterial worldCoords space of
     Air  -> drawChar char (sumCoords worldCoords r) colors b

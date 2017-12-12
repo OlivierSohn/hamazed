@@ -16,7 +16,7 @@ module Render.Console
                -- reexports from backends
                , Backend.IORef
                , Backend.Buffers
-               , Backend.Colors(..)
+               , Backend.LayeredColor(..)
                , Backend.newDefaultContext
                , Backend.newContext
                , Backend.setResizePolicy
@@ -92,18 +92,18 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-drawStr :: String -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO Coords
+drawStr :: String -> Coords -> Backend.LayeredColor -> Backend.IORef Backend.Buffers -> IO Coords
 drawStr str pos color b =
   Backend.drawStr str pos color b >> return (translateInDir Down pos)
 
-drawStr_ :: String -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO ()
+drawStr_ :: String -> Coords -> Backend.LayeredColor -> Backend.IORef Backend.Buffers -> IO ()
 drawStr_ s c co b =
   void (Backend.drawStr s c co b)
 
-drawTxt :: Text -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO Coords
+drawTxt :: Text -> Coords -> Backend.LayeredColor -> Backend.IORef Backend.Buffers -> IO Coords
 drawTxt txt pos color b =
   Backend.drawTxt txt pos color b >> return (translateInDir Down pos)
 
-drawTxt_ :: Text -> Coords -> Backend.Colors -> Backend.IORef Backend.Buffers -> IO ()
+drawTxt_ :: Text -> Coords -> Backend.LayeredColor -> Backend.IORef Backend.Buffers -> IO ()
 drawTxt_ t c b bu =
   void (Backend.drawTxt t c b bu)

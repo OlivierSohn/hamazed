@@ -79,7 +79,7 @@ renderAnimatedTextCharAnchored' l@(_:_) rs i b = do
   renderColorStringAt colorStr nowRS b
   renderAnimatedTextCharAnchored' (tail l) laterRS i b
 
-renderColorStringAt :: [(Text, Colors)] -> [Coords] -> IORef Buffers -> IO ()
+renderColorStringAt :: [(Text, LayeredColor)] -> [Coords] -> IORef Buffers -> IO ()
 renderColorStringAt [] _ _ = return ()
 renderColorStringAt l@(_:_) rs b = do
   let (txt, color) = head l

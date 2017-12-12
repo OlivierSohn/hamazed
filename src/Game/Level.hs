@@ -21,8 +21,7 @@ import           Imajuscule.Prelude
 import           Data.Text( pack )
 import           System.Timeout( timeout )
 
-import           Color
-
+import           Game.Color
 import           Game.Deadline( Deadline(..) )
 import           Game.Event
 import           Game.Level.Types

@@ -17,7 +17,7 @@ import           Data.Char( intToDigit )
 import           Data.List( length, foldl' )
 import           Data.Text(pack, singleton)
 
-import           Color
+import           Game.Color
 import           Game.Types
 import           Text.ColorString
 

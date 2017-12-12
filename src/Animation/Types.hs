@@ -49,7 +49,7 @@ data Animator = Animator {
   , _animatorIO :: Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation)
     -- ^ a function that consumes Tree to render the animation.
     -- It is a non-strict field to avoid infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
-  , _animatorColorFromFrame :: !(Frame -> Colors)
+  , _animatorColorFromFrame :: !(Frame -> LayeredColor)
     -- ^ a function that assigns a color to an animation frame
 }
 

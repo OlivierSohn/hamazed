@@ -26,7 +26,7 @@ renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the pure animation function
                 -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
                 -- ^ the IO animation function
-                -> (Frame -> Colors)
+                -> (Frame -> LayeredColor)
                 ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation)
 renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r b = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
@@ -101,7 +101,7 @@ render :: Frame
        -- ^ default char to use when there is no char specified in the state
        -> Tree
        -> (Coords -> Location)
-       -> (Frame -> Colors)
+       -> (Frame -> LayeredColor)
        -> Coords
        -> IORef Buffers
        -> IO Bool

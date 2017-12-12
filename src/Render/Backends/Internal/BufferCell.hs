@@ -63,8 +63,8 @@ expandIndexed w =
   ,getCharacter w)
 
 {-# INLINE encodeColors #-}
-encodeColors :: Colors -> Word16
-encodeColors (Colors (Color8Code bg') (Color8Code fg')) =
+encodeColors :: LayeredColor -> Word16
+encodeColors (LayeredColor (Color8Code bg') (Color8Code fg')) =
   let fg = fromIntegral fg' :: Word16
       bg = fromIntegral bg' :: Word16
   in (bg `shiftL` 8) .|. fg
@@ -77,7 +77,7 @@ mkIndexedCell cell idx' =
   idx = fromIntegral idx'
 
 {-# INLINE mkCell #-}
-mkCell :: Colors -> Char -> Cell
+mkCell :: LayeredColor -> Char -> Cell
 mkCell colors char' =
   let color = fromIntegral $ encodeColors colors
       char = fromIntegral $ ord char'

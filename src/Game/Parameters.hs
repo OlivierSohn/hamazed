@@ -12,8 +12,7 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
-import           Color
-
+import           Game.Color
 import           Game.World
 import           Game.World.Evolution
 import           Game.World.Space

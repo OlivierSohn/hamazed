@@ -76,9 +76,13 @@ library
                      , Math
                      , Render
                      , Render.Backends.Delta
-                     , Render.Backends.Internal.BufferCell
-                     , Render.Backends.Internal.Delta
-                     , Render.Backends.Internal.Dimensions
+                     , Render.Backends.Internal.Buffers
+                     , Render.Backends.Internal.Buffers.Dimensions
+                     , Render.Backends.Internal.Cell
+                     , Render.Backends.Internal.Cells
+                     , Render.Backends.Internal.Clear
+                     , Render.Backends.Internal.Draw
+                     , Render.Backends.Internal.Flush
                      , Render.Backends.Internal.Types
                      , Render.Backends.Internal.UnboxedDynamic
                      , Render.Console

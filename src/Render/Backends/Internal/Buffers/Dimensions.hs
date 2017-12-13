@@ -1,5 +1,5 @@
 
-module Render.Backends.Internal.Dimensions
+module Render.Backends.Internal.Buffers.Dimensions
         ( getDimensions
         , bufferSizeFromWH
         ) where

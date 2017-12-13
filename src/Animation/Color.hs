@@ -9,8 +9,6 @@ import           Imajuscule.Prelude
 import           Animation.Types
 import           Color
 
-import           Render.Console
-
 colorFromFrame :: Frame -> LayeredColor
 colorFromFrame (Frame f) = onBlack $ rgb r g b
   where

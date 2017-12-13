@@ -1,5 +1,5 @@
 
-module Render.Backends.Internal.BufferCell
+module Render.Backends.Internal.Cell
           ( Cell
           , mkCell
           , mkIndexedCell

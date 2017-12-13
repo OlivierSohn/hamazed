@@ -32,29 +32,33 @@ testICS = do
       e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolution (Successive [p1,p2,p1]) 1
 
   mapM_
-    (\i@(Frame c) -> do
+    (\i@(Frame c') -> do
       let cs = evolve e i
-      renderColored' cs (Coords (Row c + 10) (Col 3)) zeroCoords ctxt
+          c = Coord c'
+      renderColored' cs (Coords (c + 10) 3) zeroCoords ctxt
     ) $ map Frame [0..lastFrame]
 
   mapM_
-    (\i@(Frame c) -> do
+    (\i@(Frame c') -> do
       let cs = evolve e' i
-      renderColored' cs (Coords (Row c + 10) (Col 25)) zeroCoords ctxt
+          c = Coord c'
+      renderColored' cs (Coords (c + 10) 25) zeroCoords ctxt
     ) $ map Frame [0..lastFrame']
 
   mapM_
-    (\i@(Frame c) -> do
+    (\i@(Frame c') -> do
       let cs = evolve e'' i
-      renderColored' cs (Coords (Row c + 20) (Col 25)) zeroCoords ctxt
+          c = Coord c'
+      renderColored' cs (Coords (c + 20) 25) zeroCoords ctxt
     ) $ map Frame [0..lastFrame'']
 
   mapM_
-    (\i@(Frame c) -> do
+    (\i@(Frame c') -> do
       let cs@(ColorString l) = evolve e''' i
           (_,color) = head l
-      renderColored' cs (Coords (Row c + 30) (Col 25)) zeroCoords ctxt
-      drawStr' (show color) (Coords (Row c + 30) (Col 35)) zeroCoords ctxt
+          c = Coord c'
+      renderColored' cs (Coords (c + 30) 25) zeroCoords ctxt
+      drawStr' (show color) (Coords (c + 30) 35) zeroCoords ctxt
     ) $ map Frame [0..lastFrame''']
 
   flush ctxt

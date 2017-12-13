@@ -13,7 +13,6 @@ import           Imajuscule.Prelude
 import           System.Console.ANSI(Color8Code(..))
 
 import           Color
-import           Color.Types
 import           Color.ILayeredColor
 
 import qualified Data.List as List(length, splitAt)

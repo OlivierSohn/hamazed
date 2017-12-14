@@ -13,9 +13,6 @@ Geo.Discrete.Types(Coords Row Col)
 
 - create an app to test engine.
 
-- include in this module functions to create colors to be able to write
-> rgb 3 4 5
-
 - make a package for geometric stuff (or use a newtype for Coords)
 
 - make tests to see the effect of buffer size on screen tearing :
@@ -31,12 +28,16 @@ Geo.Discrete.Types(Coords Row Col)
 - Another optimization is to chose the type of "position change"
 command we send based on the relative location of successive elements: today
 we use exclusively the 2 dimensional version (9 bytes on average), but it would
-be more efficient to switch to the "go forward (optionally n times)" version
-(3 to 5 bytes) when the previously rendered element was on the same row.
+be more efficient to switch to
+  - the "go forward (optionally n times)" version (3 to 5 bytes) when the
+  previously rendered element was on the same row.
+  - the "printStrLn "
 
 - measure if it's faster to buffer the string sent to putStr on our side
 
 - stats to see stdout buffer usage
+
+- test Unicode support (document, provide an example)
 
 ## Misc.
 

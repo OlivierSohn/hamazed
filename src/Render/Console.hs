@@ -67,7 +67,7 @@ configureConsoleFor config = do
       clearScreen
     Editing -> do
       showCursor
-      -- do not clearScreen, to retain a potential printed exception
+      -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
       setSGR []
       maySz <- Terminal.size
       maybe

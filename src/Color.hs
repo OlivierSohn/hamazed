@@ -1,9 +1,10 @@
+{-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {- |
 
 Functions to create
-<https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor 8-bit ANSI colors>.
+<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit ANSI colors>.
 
 -}
 
@@ -41,7 +42,7 @@ whiteOnBlack :: LayeredColor
 whiteOnBlack = onBlack white
 
 -- | Creates a rgb color as defined in
--- <https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor ANSI 8-bit colors>
+-- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
 -- Input components are expected to be in range [0..5]
 rgb :: Word8
@@ -57,7 +58,7 @@ rgb r g b
 
 
 -- | Creates a gray color as defined in
--- <https://en.wikipedia.org/wiki/ANSI_escape_code#LayeredColor ANSI 8-bit colors>
+-- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
 -- Input is expected to be in the range [0..23] (from darkest to lightest)
 gray :: Word8

@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 module Render.Backends.Internal.Types
        ( Buffers(..)
@@ -54,9 +55,3 @@ data ClearContext = OnAllocation
 -- Word64 is optimal: there is no wasted space when unboxed,
 --   cf. https://wiki.haskell.org/GHC/Memory_Footprint
 type Cell = Word64
--- The memory layout is such that when sorted with 'compare', the order of
--- importance of fields is (by decreasing importance) :
---     backgroundColor (8 bits)
---     foregroundColor (8 bits)
---     index in buffer (16 bits)
---     character       (32 bits)

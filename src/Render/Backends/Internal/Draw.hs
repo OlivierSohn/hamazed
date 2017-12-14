@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 module Render.Backends.Internal.Draw
             ( drawChar
@@ -7,10 +8,7 @@ module Render.Backends.Internal.Draw
             , fill
             -- utilities
             , fillBackBuffer
-            -- reexport
-            , Text
             ) where
-
 
 import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
@@ -22,9 +20,13 @@ import           Render.Backends.Internal.Types
 import           Render.Backends.Internal.Cell
 import           Render.Types
 
+
+-- | Draw a 'Char'
 drawChar :: Char
          -> Coords
+         -- ^ Location
          -> LayeredColor
+         -- ^ Background and foreground colors
          -> IORef Buffers
          -> IO (IORef Buffers)
 drawChar c pos colors ioRefBuffers =
@@ -35,12 +37,14 @@ drawChar c pos colors ioRefBuffers =
       return ioRefBuffers
 
 
--- | Draws multiple times the same 'Char'
+-- | Repeat a 'Char' multiple times (to the right)
 drawChars :: Int
-          -- ^ Number of repetitions.
+          -- ^ Number of chars to draw
           -> Char
           -> Coords
+          -- ^ Location of left-most 'Char'
           -> LayeredColor
+          -- ^ Background and foreground colors
           -> IORef Buffers
           -> IO (IORef Buffers)
 drawChars count c pos colors ioRefBuffers =
@@ -55,9 +59,12 @@ drawChars count c pos colors ioRefBuffers =
       return ioRefBuffers
 
 
+-- | Draw a 'String'
 drawStr :: String
         -> Coords
+        -- ^ Location of first 'Char'
         -> LayeredColor
+        -- ^ Background and foreground colors
         -> IORef Buffers
         -> IO (IORef Buffers)
 drawStr str pos colors ioRefBuffers =
@@ -71,9 +78,12 @@ drawStr str pos colors ioRefBuffers =
       return ioRefBuffers
 
 
+-- | Draw a 'String'
 drawTxt :: Text
         -> Coords
+        -- ^ Location of first 'Char'
         -> LayeredColor
+        -- ^ Background and foreground colors
         -> IORef Buffers
         -> IO (IORef Buffers)
 drawTxt text = drawStr $ unpack text

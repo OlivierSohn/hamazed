@@ -1,9 +1,10 @@
 -- This is copied from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/src/Data-Vector-Mutable-Dynamic.html
 -- with following modifications:
 --    - slightly adapted to use unboxed vectors
---    - fixed pedantic warnings
 --    - add accessUnderlying function
+--    - fixed pedantic warnings
 
+{-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 -- | A wrapper around MVector that enables pushing, popping and extending.

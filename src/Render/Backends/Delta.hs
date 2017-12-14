@@ -1,137 +1,129 @@
+{-# OPTIONS_HADDOCK prune #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
-
 {-|
-= Purpose
+= Introduction
 
-Render games or animations in the console, with a strong focus on avoiding
-<https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+<https://en.wikipedia.org/wiki/Screen_tearing Screen tearing> occurs in the console
+when, for a given frame, rendering commands exceed the capacity of stdout buffer.
+To avoid overflow, the system flushes stdout, thereby triggering a /partial/ frame render.
 
-= Design goals
+During a game, occasional partial frames distract the player. Hence, it is crucially
+important to address this issue! If you encounter screen tearing issues in you game,
+give this package a try.
 
-* Minimize the amount of data sent to stdout buffer to render a frame.
-* Design rendering algorithms that work well for all kinds of game graphics.
-* Minimize memory footprint and run-time overhead.
+= Usage
 
-= Features
-
-* <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit colors> support
-* <http://www.unicode.org/ Unicode> support
-
-= Games using it
-
-* <https://github.com/OlivierSohn/hamazed Hamazed>
-
-= A simple example
-
+> -- Example : Hello World
 >
-> -- initialization
-> ctxt <- createDefaultContext
+> import Render.Delta
 >
-> -- first frame
->
-> let black = rgb 0 0 0
->     white = rgb 5 5 5
->     red   = rgb 5 0 0
->
-> drawStr "Hello world!" (Coords (Row 10) (Col 20)) (LayeredColor black white) ctxt
-> drawStr "How are you?" (Coords (Row 11) (Col 20)) (LayeredColor black white) ctxt
->
-> flush ctxt
->
-> -- second frame
->
-> drawChars '_' 10 (Coords (Row 11) (Col 20)) (LayeredColor black red) ctxt
->
-> flush ctxt
->
+> main = createDefaultContext  -- call this once per program, then reuse the context
+>          >>= drawStr "Hello World" (Coords 11 20) (LayeredColor black white)
+>            >>= flush  -- call this once per frame, to render it to the console
 
-= History
+= Technical highlights
 
-I'll explain a bit of the context in which I developped this package.
+The functions exported by this module allow to render complex animated graphics and mitigate
+<https://en.wikipedia.org/wiki/Screen_tearing screen tearing> by
 
-In the beginnings of
-<https://github.com/OlivierSohn/hamazed my first ascii based game>,
-I implemented a naïve render loop which was:
+* Using double buffering techniques
+* Rendering in each frame /only/ the locations that have changed, in a smart order
+that allows to omit many byte-expensive commands,
+* Chosing the smallest (in bytes) rendering command when there are equivalent alternatives.
 
-* At the beginning of the frame, clear the console.
-* Render the game elements to stdout.
-* At the end of the frame, flush stdout.
+<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit colors>
+are supported (216 RGB and 24 Grays), as well as <http://www.unicode.org/ Unicode>
+characters.
 
-The resulting graphics were fluid whilst a frame was ~100 different locations
-in a single color. Yet, as color animations were introduced, flickering / tearing
-effects started to occur on frames with more rendering locations.
+A particular attention is given to using algorithms and datastructures that
+achieve a low run-time overhead and a reduced memory footprint (see below).
 
-This happened because stdout was saturated by rendering commands and would flush
-before all commands corresponding to this frame were issued.
+= Motivations
 
-My first move to fix this was to maximize the size of stdout buffer with
-<https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:hSetBuffering hSetBuffering>
-and
-<https://hackage.haskell.org/package/base-4.10.1.0/docs/System-IO.html#v:BlockBuffering BlockBuffering>
-parameter:
+At the beginning of the development of
+<https://github.com/OlivierSohn/hamazed hamazed, my first console game>, at every frame
+I was clearing the screen and filling stdout with rendering commands for every game element and animation.
+
+Screen tearing started to occur as I increased the complexity number of animations.
+So I maximized the size of stdout buffer:
 
 > hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
 
-Using 'testStdoutSizes' I measured that my stdout buffer was now 8096 bytes long,
-instead of the default 2048 bytes.
+Using 'testStdoutSizes' I measured that it went from 2048 bytes to 8096 bytes long.
+It solved the problem only until I introduced more animations in the game!
 
-This solved the problem, but only until I introduced more animations and more color changes
-in the game.
+stdout was already at its maximum size so I had to reduce the amount of data that I was throwing at it.
 
-I started thinking that I needed to keep the previous rendered frame and just draw
-the difference between the previous and the current frame.
+== Delta rendering
 
-This is exactly what
-<https://github.com/ibraimgm Rafael Ibraim> did to solve
-<https://github.com/feuerbach/ansi-terminal/issues/5 this issue>.
+The idea was to introduce two in-memory buffers:
 
-With <https://gist.github.com/ibraimgm/40e307d70feeb4f117cd his code>,
-the render loop becomes:
+* a /front/ buffer containing what is currently displayed on the console
+* a /back/ buffer containing what we want to draw in the next frame.
 
-* Clear the /back/ /buffer/, but not the console!.
-* Draw the game elements to the back buffer.
-* Render the difference between the front and the back buffer to the console.
-* Flush stdout.
-* Copy the back buffer to the front buffer.
+At every frame, I would draw all game elements and animations,
+this time /not/ to the console directly, but to the back buffer.
 
-This approach fixed the rendering of my game, still, I wanted to continue
-improving it to cover more use-cases:
+Then, at the end of the frame, the difference between front and back buffer would
+be rendered to the console.
 
-* The most obvious optimization I could do was to group the rendered locations
-by color before rendering them. On average, one @color change@ command "costs"
-20 bytes ("\ESC[48;5;167;38;5;255m"), so grouping them saves a lot of bytes.
+This is the approach
+<https://github.com/ibraimgm Rafael Ibraim> took when
+<https://gist.github.com/ibraimgm/40e307d70feeb4f117cd writing this code> for his own game.
+I used his code and it fixed screen tearing for my game.
 
-* Then, since one @position change@ command "costs" 9 bytes ("\ESC[150;42H") it's
-also interesting to optimize for them.
-Sorting the "color group" by positions increases the likelyhood that
-two consecutive elements are next to one another, and in that case we can omit this
-command entirely, because after a 'putChar' the cursor location goes one step to the
-right. This also saved some bytes.
+== Further optimizations
 
-* Also
-<https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/
-I found usefull answers on reddit> which helped in the process of optimizing
-the memory layout. Contiguous memory blocks are mow used to store information
-on rendered locations, and we use an Unboxed 'Word64', which is the most efficient Haskell type in terms of
-"information qty / memory usage" ratio, to encode (from
-higher bits to lower bits):
+=== Minimizing total size of rendering connamds
 
-    * background color  (Word8)
-    * foreground color  (Word8)
-    * buffer position   (Word16)
-    * unicode character (Word32)
+I further improved the code to support richer frame changes:
 
-There will be more optimizations, and I'll try to keep them general enough so
-that they benefit every use case.
+* We group locations by color before rendering them, to issue one @color change@
+per group instead of one per element (an 8-bit @color change@ command is 20 bytes:
+"\ESC[48;5;167;38;5;255m").
+
+* We render the "color group" elements by increasing screen positions, and when two
+consecutive elements are found, we omit the @position change@ command,
+because 'putChar' already moved the cursor position to the right (a 2-D
+@position change@ command is 9 bytes: "\ESC[150;42H").
+
+We can still improve on this by using a one-dimensional
+@relative position change@ commands (3 to 6 bytes : "\ESC[C", "\ESC[183C")
+when the next location is either on the same column or on the same line.
+
+=== Minimizing run-time overhead and memory footprint
+
+<https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/ These answers on reddit>
+helped in the process: location informations are now stored in a continuous block of memory,
+using an unpacked 'Word64' (<https://wiki.haskell.org/GHC/Memory_Footprint the most efficient Haskell type in terms of "information quantity / memory usage" ratio>)
+to encode location information (from higher bits to lower bits):
+
+    * background color  (8 bits)
+    * foreground color  (8 bits)
+    * buffer position   (16 bits)
+    * unicode character (32 bits)
+
+A third in-memory vector, the "Delta" vector, contains just the differences to render, and
+using ther previously described encoding, when <http://hackage.haskell.org/package/vector-algorithms-0.7.0.1/docs/Data-Vector-Algorithms-Intro.html sorting>
+it, same-color locations are grouped in the same slice of the vector, and sorted by increasing position,
+which is convenient to implement the optimizations I mentionned earlier.
+
+= Performance documentation
+
+Here I'll report on the amount of bytes sent to stdout with concrete examples.
+
 -}
 module Render.Backends.Delta
-                          ( -- * Create context, set policies
-                            module Render.Backends.Internal.Buffers
-                            -- * Draw
+                          ( module Render.Backends.Internal.Buffers
+                            -- * Frame
+                            -- ** Draw
                           , module Render.Backends.Internal.Draw
-                            -- * Render to the console
+                            -- ** Render
                           , module Render.Backends.Internal.Flush
+                          -- * Types
+                          , module Render.Types
                           , BufferMode(..)
                           , preferredBuffering
                           ) where
@@ -143,6 +135,7 @@ import           System.IO( BufferMode(..) )
 import           Render.Backends.Internal.Buffers
 import           Render.Backends.Internal.Draw
 import           Render.Backends.Internal.Flush
+import           Render.Types
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering $ Just (maxBound :: Int)

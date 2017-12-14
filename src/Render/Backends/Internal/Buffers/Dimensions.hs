@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 module Render.Backends.Internal.Buffers.Dimensions
         ( getDimensions

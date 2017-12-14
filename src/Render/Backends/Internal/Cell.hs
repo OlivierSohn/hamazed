@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 module Render.Backends.Internal.Cell
           ( Cell
@@ -69,6 +70,12 @@ encodeColors (LayeredColor (Color8Code bg') (Color8Code fg')) =
       bg = fromIntegral bg' :: Word16
   in (bg `shiftL` 8) .|. fg
 
+-- The memory layout is such that when sorted with 'compare', the order of
+-- importance of fields is (by decreasing importance) :
+--     backgroundColor (8 bits)
+--     foregroundColor (8 bits)
+--     index in buffer (16 bits)
+--     character       (32 bits)
 {-# INLINE mkIndexedCell #-}
 mkIndexedCell :: Cell -> Dim Index -> Cell
 mkIndexedCell cell idx' =

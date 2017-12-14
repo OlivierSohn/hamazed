@@ -1,5 +1,8 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 module Render.Backends.Internal.Flush
     ( flush
+    , render -- just so that I can hide it in Delta.hs on the import to generate the doc
     ) where
 
 import           Prelude hiding(read)
@@ -22,6 +25,10 @@ import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
                                 , read, clear, pushBack )
 import           Render.Types
 
+
+-- | Flushes the frame, i.e renders it to the console.
+--   Then, resizes the context if needed (see 'ResizePolicy')
+--   and clears the back buffer (see 'ClearPolicy').
 flush :: IORef Buffers -> IO ()
 flush ioRefBuffers =
   readIORef ioRefBuffers
@@ -31,7 +38,6 @@ flush ioRefBuffers =
           updateSize ioRefBuffers
           -- TODO if buffers resized because the terminal resized, send a clearScreen command or re-render with new size
           hFlush stdout -- TODO is flush blocking? slow? could it be async?
-
 
 
 render :: Buffers -> IO ()
@@ -153,3 +159,56 @@ renderCell bg fg char maybeCurrentConsoleColor = do
 xyFromIndex :: Buffers -> Dim Index -> (Dim ColIndex, Dim RowIndex)
 xyFromIndex (Buffers _ _ _ width _ _) idx =
   getRowCol idx width
+
+
+-- TODO use this formalism
+{-
+type Value = (Background Color, Foreground Color, Char)
+type Location = (Row, Column)
+
+screenLocations = { (row, column) | row <- [0..screenHeight], column <- [0..screenWidth] }
+
+type Step = Int  -- represents a temporal game / animation step
+
+frame :: Step -> Location -> Value  -- defines the desired content of animations
+
+identicalLocations n = {loc | loc <- screenLocations && frame n loc == frame (pred n) loc}
+deltaLocations     n = screenLocations \\ (identicalLocations n)
+
+newtype RenderCmd   = SetPosition | SetColor | Char | !String
+newtype SetPosition = Move2d Int Int | Move Direction Int
+newtype SetColor    = SetColorForeground | SetColorBackground | SetColorBoth
+newtype Direction   = Up | Left | Down | Right
+
+cheapestChangePosition' :: (Row,Col) -> SetPosition
+cheapestChangePosition :: (Row,Col) -> (Row,Col) -> Maybe SetPosition
+
+cheapestChangeColor' :: (Background Color, Foreground Color) -> SetColor
+cheapestChangeColor :: (Background Color, Foreground Color) -> (Background Color, Foreground Color) -> Maybe SetColor
+
+cost :: RenderCmd -> Int -- the cost is in bytes
+
+render :: [(Location,Value)] -> IO ()
+render l = do
+  let cmds = cheapestCmds l
+      str = concatMap asString cmds
+  printStr str
+  hFlush stdout
+
+cheapestCmds :: [(Location,Value)] -> [RenderCmd]
+cheapestCmds [] = []
+cheapestCmds l =
+  let l' = sortDelta l
+  in renderFirst (head l') ++ cheapestCmds' l'
+
+cheapestCmds' :: [(Location,Value)] -> [RenderCmd]
+cheapestCmds' [] = error ""
+cheapestCmds' [a] = []
+cheapestCmds' l@(a:b:_) = renderNext a b ++ cheapestCmds' (tail l)
+
+sortDelta :: [(Location,Value)] -> [(Location,Value)]
+sortDelta = sortByColorThenIncreasingLocation
+
+renderFirst :: (Location, Value) -> RenderCmd
+renderNext :: (Location,Value) -> (Location,Value) -> RenderCmd -- Choses the best command (the cheapest one) when there are multiple possibilities.
+-}

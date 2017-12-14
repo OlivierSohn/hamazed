@@ -1,7 +1,12 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 module Render.Backends.Internal.Buffers
           ( Buffers
+          -- * Context
+          -- ** Creation
           , newDefaultContext
           , newContext
+          -- ** Policies
           , setResizePolicy
           , setClearPolicy
           -- utilities
@@ -24,7 +29,7 @@ import           Render.Types
 import           Render.Backends.Internal.Types
 
 
--- | Creates a context using default policies.
+-- | Equivalent to @newContext Nothing Nothing Nothing@
 newDefaultContext :: IO (IORef Buffers)
 newDefaultContext = newContext Nothing Nothing Nothing
 
@@ -68,14 +73,14 @@ defaultClearColor = black
 defaultClearPolicy :: ClearPolicy
 defaultClearPolicy = ClearAtEveryFrame
 
+-- | Sets an optional 'ResizePolicy' or uses the default one when Nothing is passed.
+--   If needed, the context will be resized at the end of the next 'flush' call.
 setResizePolicy :: IORef Buffers -> Maybe ResizePolicy -> IO ()
 setResizePolicy ref mayResizePolicy =
   readIORef ref
     >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
-          buf = Buffers a b c d e (Policies resizePolicy f g)
-      adjustSizeIfNeeded buf
-        >>= writeIORef ref
+      writeIORef ref $ Buffers a b c d e (Policies resizePolicy f g)
 
 adjustSizeIfNeeded :: Buffers -> IO Buffers
 adjustSizeIfNeeded buffers@(Buffers _ _ prevSize prevWidth _ policies@(Policies resizePolicy _ _)) = do
@@ -97,6 +102,7 @@ updateSize :: IORef Buffers -> IO ()
 updateSize ref =
   readIORef ref >>= adjustSizeIfNeeded >>= writeIORef ref
 
+-- | Sets 'ClearPolicy' and 'ClearColor' to use for a context. Default policy or Colors are used when Nothing is passed.
 setClearPolicy :: IORef Buffers -> Maybe ClearPolicy -> Maybe ClearColor -> IO ()
 setClearPolicy ref mayClearPolicy mayClearColor =
   readIORef ref

@@ -1,7 +1,9 @@
+{-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Render.Types
-            ( ResizePolicy(..)
+            ( -- ** Policies
+              ResizePolicy(..)
             , ClearPolicy(..)
             , ClearColor
             , Dim(..)
@@ -13,9 +15,10 @@ module Render.Types
             , ColIndex
             , getRowCol
             , getHeight
-            -- | Reexports
-            , Word16
+            -- ** Color types
             , module Color.Types
+            -- ** Reexported types
+            , Word16
             , IORef
             ) where
 
@@ -28,14 +31,17 @@ import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
 
+-- | Specifies when to resize the context
 data ResizePolicy = MatchTerminalSize
-                  -- ^ Buffers are sized according to terminal size, and are resized
-                  --   when terminal is resized. If in doubt about which
-                  --   constructor to use, use this one, it covers most use cases.
+                  -- ^ Context will be resized, when needed, to match current terminal
+                  --   size.
                   | FixedSize !(Dim Width) !(Dim Height)
-                  -- ^ Buffers have a fixed size.
+                  -- ^ Context has a fixed size. If the user of the program resizes
+                  --   the console to a size smaller than the context, rendering
+                  --   artefacts will be visible. Consider using 'MatchTerminalSize'
+                  --   if this is a concern.
 
--- | Specifies when to reset the back-buffer content, and with which color
+-- | Specifies when to reset the back-buffer content.
 data ClearPolicy = ClearAtEveryFrame
                  -- ^ When buffers are initially allocated or resized,
                  --   and after each frame render. If in doubt about which

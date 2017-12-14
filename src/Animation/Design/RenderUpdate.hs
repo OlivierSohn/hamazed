@@ -14,7 +14,7 @@ import           Animation.Types
 
 import           Geo.Discrete
 
-import           Render
+import           Color.Types
 
 import           Timing
 
@@ -24,10 +24,10 @@ import           Timing
 --   in which the render function is preapplied the updated state.
 renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the pure animation function
-                -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
+                -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation))
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
-                ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation)
+                ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation)
 renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r b = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
   isAlive <- render frame mayChar newState getLocation colorFunc r b
@@ -41,7 +41,7 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Itera
 updateStateAndAnimation :: Maybe KeyTime
                         -> (Iteration -> (Coords -> Location) -> Tree -> Tree)
                         -> (Coords -> Location)
-                        -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
+                        -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation))
                         -> Animation
                         -> Tree
                         -> (Animation, Tree)
@@ -55,7 +55,7 @@ updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i 
     nextAnimation = updateAnimation step (statelessIOAnim newState) a
 
 updateAnimation :: StepType
-                -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> IORef Buffers -> IO (Maybe Animation))
+                -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation))
                 -> Animation
                 -> Animation
 updateAnimation Same _ a = a
@@ -103,14 +103,14 @@ render :: Frame
        -> (Coords -> Location)
        -> (Frame -> LayeredColor)
        -> Coords
-       -> IORef Buffers
+       -> (Char -> Coords -> LayeredColor -> IO ())
        -> IO Bool
        -- ^ True if at least one animation point is "alive"
 render _ _ (Tree _ _ Nothing _ _) _ _ _ _ = return False
 render _ _ (Tree _ _ (Just []) _ _) _ _ _ _ = return False
 render
  parentFrame mayCharAnim (Tree _ childFrame (Just branches) onWall mayCharTree)
- getLocation colorFunc r b = do
+ getLocation colorFunc r drawChar = do
   let mayChar = mayCharTree <|> mayCharAnim
   case mayChar of
     Nothing -> error "either the pure anim function ar the animation should specify a Just"
@@ -123,6 +123,6 @@ render
             Stop      -> error "animation should have stopped"
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
-      mapM_ (\c -> drawChar b char (sumCoords c r) color) renderedCoordinates
-      childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r b) children
+      mapM_ (\c -> drawChar char (sumCoords c r) color) renderedCoordinates
+      childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r drawChar) children
       return $ isAlive || or childrenAlive

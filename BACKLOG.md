@@ -2,6 +2,7 @@
 # Backlog
 
 - coord interpolation should use bresenham
+
 ## Delta rendering
 
 - dependencies:
@@ -9,9 +10,9 @@
 make a package with
   - geometric figures / colored text
    -> /Geo
-   use IO dependency injection with preaplied buffers to render in /Text/Animated
   - interpolable
   - animated colors, animated text
+  - everything should be renderable using dependency injection
 
 
 Color / Color.Types

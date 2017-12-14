@@ -24,6 +24,7 @@ import           Render.Backends.Internal.Cell
 import           Render.Types
 
 
+{-# INLINE drawChar #-}
 -- | Draw a 'Char'
 drawChar :: IORef Buffers
          -> Char
@@ -38,6 +39,7 @@ drawChar ref c pos colors =
       writeToBack back (indexFromPos b pos) (mkCell colors c)
 
 
+{-# INLINE drawChars #-}
 -- | Draws a 'Char' multiple times, starting at the given coordinates and then moving to the right.
 --
 -- @drawChar n c@ should be faster than @drawStr (repeat n c)@,
@@ -62,6 +64,7 @@ drawChars ref count c pos colors =
         [0..pred count]
 
 
+{-# INLINE drawStr #-}
 -- | Draw a 'String'
 drawStr :: IORef Buffers
         -> String
@@ -80,7 +83,8 @@ drawStr ref str pos colors =
         $ zip str [0..]
 
 
--- | Draw a 'String'
+{-# INLINE drawTxt #-}
+-- | Draw a 'Text'
 drawTxt :: IORef Buffers
         -> Text
         -> Coords

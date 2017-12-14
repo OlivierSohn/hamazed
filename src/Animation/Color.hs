@@ -2,6 +2,7 @@
 
 module Animation.Color
         ( colorFromFrame
+        , module Color
         ) where
 
 import           Imajuscule.Prelude

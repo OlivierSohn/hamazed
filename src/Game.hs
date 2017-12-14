@@ -283,7 +283,7 @@ renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft b)) _ _ level wa) =
   renderSpace space curUpperLeft b >>=
     (\worldCorner -> do
-        activeAnimations <- renderAnimations k space mayTermWindow worldCorner b animations
+        activeAnimations <- renderAnimations k space mayTermWindow worldCorner (drawChar b) animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
         renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner) b
@@ -295,7 +295,7 @@ renderAnimations :: Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords
-                 -> IORef Buffers
+                 -> (Char -> Coords -> LayeredColor -> IO ())
                  -> [BoundedAnimation]
                  -> IO [BoundedAnimation]
 renderAnimations k space mayTermWindow worldCorner b animations = do

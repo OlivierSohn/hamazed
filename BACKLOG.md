@@ -4,8 +4,17 @@
 ## Delta rendering
 
 - dependencies:
+
+make a package with
+  - geometric figures / colored text
+   -> /Geo
+   use IO dependency injection with preaplied buffers to render in /Text/Animated
+  - interpolable
+  - animated colors, animated text
+
+
 Color / Color.Types
--> make a package for color, that depends on geometric stuff (for interpolations)
+-> make a package for color
 
 Geo.Discrete.Types(Coords Row Col Coord)
 -> make a package for Geo

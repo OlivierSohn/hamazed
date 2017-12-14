@@ -36,12 +36,15 @@ import           Render
 import           Text.ColorString
 
 
--- | To animate (in parallel) :
---    - the locations of either :
---      - each ColorString (use a = 'AnchorStrings')
---      - or each character (use a = 'AnchorChars')
---    - chars replacements, inserts, deletes
---    - chars color changes
+{- | Animates in parallel
+
+* The locations of either
+
+    * each ColorString (use a = 'AnchorStrings')
+    * or each character (use a = 'AnchorChars')
+* characters replacements, inserts, deletes
+* characters color changes
+-}
 data (Show a) => TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
  , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList ICoords))

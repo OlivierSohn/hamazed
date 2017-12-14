@@ -1,4 +1,3 @@
-{-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {- |
@@ -9,22 +8,22 @@ Functions to create
 -}
 
 module Color (
-  -- * create colors
-    gray
+  -- * Single
+    Color8Code(..)
   , rgb
-  -- * create layered colors
+  , gray
+  -- * Layered
+  , module Color.Types
   , onBlack
-  -- * frequently used colors
+  , whiteOnBlack
+  -- * Predefined colors
   , white
   , black
   , red
   , green
+  , magenta
+  , yellow
   , blue
-  -- * frequently used layered colors
-  , whiteOnBlack
-  -- * reexports
-  , Color8Code(..)
-  , module Color.Types
 ) where
 
 import           Imajuscule.Prelude
@@ -34,14 +33,16 @@ import           System.Console.ANSI( Color8Code(..) )
 import           Color.Types
 
 {-# INLINE onBlack #-}
+-- | Creates a 'LayeredColor' with a black background color.
 onBlack :: Color8Code -> LayeredColor
 onBlack = LayeredColor (rgb 0 0 0)
 
 {-# INLINE whiteOnBlack #-}
+-- | Creates a 'LayeredColor' with white foreground and black background color.
 whiteOnBlack :: LayeredColor
 whiteOnBlack = onBlack white
 
--- | Creates a rgb color as defined in
+-- | Creates a rgb 'Color8Code' as defined in
 -- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
 -- Input components are expected to be in range [0..5]
@@ -57,21 +58,24 @@ rgb r g b
   | otherwise = Color8Code $ fromIntegral $ 16 + 36 * r + 6 * g + b
 
 
--- | Creates a gray color as defined in
+-- | Creates a gray 'Color8Code' as defined in
 -- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
 -- Input is expected to be in the range [0..23] (from darkest to lightest)
 gray :: Word8
-     -- ^ in [0..23]
+     -- ^ gray value in [0..23]
      -> Color8Code
 gray i
   | i >= 24 = error "out of range gray"
   | otherwise      = Color8Code $ fromIntegral (i + 232)
 
 
-red, green, blue, white, black :: Color8Code
+red, green, blue, yellow, magenta, cyan, white, black :: Color8Code
 red   = rgb 5 0 0
 green = rgb 0 5 0
 blue  = rgb 0 0 5
+yellow = rgb 5 5 0
+magenta = rgb 5 0 5
+cyan = rgb 0 5 5
 white = rgb 5 5 5
 black = rgb 0 0 0

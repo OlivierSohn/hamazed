@@ -159,7 +159,7 @@ renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collis
     _ <- renderIfNotColliding '+' shipCoords space colors s buf -- TODO render if safetime or not colliding
     return ())
 
-renderNumber :: Number -> Space -> Coords -> IORef Buffers -> IO (IORef Buffers)
+renderNumber :: Number -> Space -> Coords -> IORef Buffers -> IO ()
 renderNumber (Number (PosSpeed pos _) i) space r b = do
   let color = numberColor i
   renderIfNotColliding (intToDigit i) pos space color r b

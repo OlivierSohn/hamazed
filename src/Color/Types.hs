@@ -8,6 +8,7 @@ module Color.Types
 
 import           System.Console.ANSI( Color8Code(..) )
 
+-- | A background and a foreground <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit color>.
 data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !Color8Code
     -- ^ Background color

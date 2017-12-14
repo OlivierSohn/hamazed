@@ -42,7 +42,7 @@ renderPoints :: LayeredColor -> Coords -> IORef Buffers -> [(Coords, Char)] -> I
 renderPoints colors pos b =
   mapM_ (\(c,char) -> drawChar char (sumCoords pos c) colors b)
 
-renderColoredChars :: Int -> Char -> Coords -> LayeredColor -> IORef Buffers -> IO (IORef Buffers)
+renderColoredChars :: Int -> Char -> Coords -> LayeredColor -> IORef Buffers -> IO ()
 renderColoredChars =
   drawChars
 

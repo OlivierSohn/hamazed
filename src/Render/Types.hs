@@ -15,8 +15,6 @@ module Render.Types
             , ColIndex
             , getRowCol
             , getHeight
-            -- ** Color types
-            , module Color.Types
             -- ** Reexported types
             , Word16
             , IORef
@@ -31,23 +29,27 @@ import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
 
--- | Specifies when to resize the context
+-- | Specifies /when/ to resize the context, and how to compute the new size.
 data ResizePolicy = MatchTerminalSize
-                  -- ^ Context will be resized, when needed, to match current terminal
+                  -- ^ The context is resized, if needed, after each call to 'flush'
+                  --   and on context creation. The target size is the current terminal
                   --   size.
                   | FixedSize !(Dim Width) !(Dim Height)
-                  -- ^ Context has a fixed size. If the user of the program resizes
-                  --   the console to a size smaller than the context, rendering
+                  -- ^ The context has a fixed size. Note that if the user of the program resizes
+                  --   the console to a size smaller than the context size, rendering
                   --   artefacts will be visible. Consider using 'MatchTerminalSize'
-                  --   if this is a concern.
+                  --   if this is a concern to your application.
 
--- | Specifies when to reset the back-buffer content.
+-- | Specifies /when/ to clear the back-buffer.
 data ClearPolicy = ClearAtEveryFrame
-                 -- ^ When buffers are initially allocated or resized,
-                 --   and after each frame render. If in doubt about which
-                 --   constructor to use, use this one, it covers most use cases.
+                 -- ^ Clears the back-buffer after allocation
+                 --   and after each frame render.
                  | ClearOnAllocationOnly
-                 -- ^ When buffers are initially allocated or resized.
+                 -- ^ Clears the back-buffer after allocation only.
+                 --   Typically, you will use it if at every frame you draw at every screen location.
+                 --   If you don't redraw every screen location at every frame, it is safer
+                 --   to use 'ClearAtEveryFrame', else you will see previous frame elements
+                 --   in the rendered frame (unless you intend to have this behaviour).
 
 type ClearColor = Color8Code
 

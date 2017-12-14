@@ -24,6 +24,7 @@ module Render.Console
                , Backend.flush
                -- reexports
                , module Render.Types
+               , module Backend
                ) where
 
 import           Imajuscule.Prelude

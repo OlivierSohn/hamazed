@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK prune, hide #-} -- hide to avoid link in the doc to a module with no doc
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Geo.Types

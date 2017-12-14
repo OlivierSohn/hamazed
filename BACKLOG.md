@@ -14,6 +14,7 @@ Geo.Discrete.Types(Coords Row Col)
 - create an app to test engine.
 
 - make a package for geometric stuff (or use a newtype for Coords)
+- make a package for colorstring, aligned text rendering, aligned colorstring rendering
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'

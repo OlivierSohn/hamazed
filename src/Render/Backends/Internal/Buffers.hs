@@ -7,6 +7,9 @@ module Render.Backends.Internal.Buffers
           , newDefaultContext
           , newContext
           -- ** Policies
+          , ResizePolicy(..)
+          , ClearPolicy(..)
+          , ClearColor(..)
           , setResizePolicy
           , setClearPolicy
           -- utilities
@@ -75,8 +78,8 @@ defaultClearPolicy = ClearAtEveryFrame
 
 -- | Sets an optional 'ResizePolicy' or uses the default one when Nothing is passed.
 --   If needed, the context will be resized at the end of the next 'flush' call.
-setResizePolicy :: IORef Buffers -> Maybe ResizePolicy -> IO ()
-setResizePolicy ref mayResizePolicy =
+setResizePolicy :: Maybe ResizePolicy -> IORef Buffers -> IO ()
+setResizePolicy mayResizePolicy ref =
   readIORef ref
     >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
@@ -102,9 +105,10 @@ updateSize :: IORef Buffers -> IO ()
 updateSize ref =
   readIORef ref >>= adjustSizeIfNeeded >>= writeIORef ref
 
--- | Sets 'ClearPolicy' and 'ClearColor' to use for a context. Default policy or Colors are used when Nothing is passed.
-setClearPolicy :: IORef Buffers -> Maybe ClearPolicy -> Maybe ClearColor -> IO ()
-setClearPolicy ref mayClearPolicy mayClearColor =
+-- | Sets 'ClearPolicy' and 'ClearColor' to use for a context.
+--   Default policy or Colors are used when Nothing is passed.
+setClearPolicy :: Maybe ClearPolicy -> Maybe ClearColor -> IORef Buffers -> IO ()
+setClearPolicy mayClearPolicy mayClearColor ref =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f _ _)) -> do
       let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy

@@ -279,16 +279,16 @@ renderSpace (Space _ _ renderedWorld) upperLeft b = do
   mapM_ (\w -> renderGroup worldCoords w b) renderedWorld
   return worldCoords
 
-renderGroup :: Coords -> RenderGroup -> IORef Buffers -> IO (IORef Buffers)
+renderGroup :: Coords -> RenderGroup -> IORef Buffers -> IO ()
 renderGroup worldCoords (RenderGroup pos colors char count) =
   renderColoredChars count char (sumCoords pos worldCoords) colors
 
 
-renderIfNotColliding :: Char -> Coords -> Space -> LayeredColor -> Coords -> IORef Buffers -> IO (IORef Buffers)
+renderIfNotColliding :: Char -> Coords -> Space -> LayeredColor -> Coords -> IORef Buffers -> IO ()
 renderIfNotColliding char worldCoords space colors r b =
   case getMaterial worldCoords space of
     Air  -> drawChar char (sumCoords worldCoords r) colors b
-    Wall -> return b
+    Wall -> return ()
 
 locationFunction :: Boundaries
                  -> Space

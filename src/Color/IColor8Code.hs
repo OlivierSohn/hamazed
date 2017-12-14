@@ -26,9 +26,9 @@ import           Math
 import           Util
 
 
+-- | wrapper type on 'Color8Code' to define the 'DiscretelyInterpolable' instance
 newtype IColor8Code = IColor8Code Color8Code deriving (Show)
 
--- on IColor8Code instead of Color8Code to avoid orphan instance
 instance DiscretelyInterpolable IColor8Code where
   distance (IColor8Code c) (IColor8Code c') =
     bresenhamColor8Length c c'
@@ -42,10 +42,8 @@ instance DiscretelyInterpolable IColor8Code where
         in IColor8Code . head . drop index $ bresenhamColor8 c c'
 
 -- | Interpolations between 2 rgb or 2 grays are well-defined, whereas
---   other interpolations fallback on raw Color8Code interpolation which
---   has little visual meaning. To improve on this, we could define conversion
+--   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
-
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8Code -> Color8Code -> Int
 bresenhamColor8Length c c'

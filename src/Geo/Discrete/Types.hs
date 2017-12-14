@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK prune #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -18,12 +19,14 @@ import           Imajuscule.Prelude
 
 import           Geo.Types
 
+-- | Discrete coordinates.
 newtype Coord a = Coord Int
   deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
 
 data Row
 data Col
 
+-- | Two-dimensional discrete coordinates.
 data Coords = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)

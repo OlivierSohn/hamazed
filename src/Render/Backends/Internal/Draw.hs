@@ -1,12 +1,15 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Render.Backends.Internal.Draw
-            ( drawChar
+            ( fill
+            , drawChar
             , drawChars
             , drawStr
             , drawTxt
-            , fill
-            -- utilities
+            , module Color
+            , module Geo.Discrete.Types
+            , String
+              -- utilities
             , fillBackBuffer
             ) where
 
@@ -28,16 +31,17 @@ drawChar :: Char
          -> LayeredColor
          -- ^ Background and foreground colors
          -> IORef Buffers
-         -> IO (IORef Buffers)
+         -> IO ()
 drawChar c pos colors ioRefBuffers =
   readIORef ioRefBuffers
-    >>= \b@(Buffers back _ _ _ _ _) -> do
-      let idx = indexFromPos b pos
-      writeToBack back idx (mkCell colors c)
-      return ioRefBuffers
+    >>= \b@(Buffers back _ _ _ _ _) ->
+      writeToBack back (indexFromPos b pos) (mkCell colors c)
 
 
--- | Repeat a 'Char' multiple times (to the right)
+-- | Draws a 'Char' multiple times, starting at the given coordinates and then moving to the right.
+--
+-- @drawChar n c@ should be faster than @drawStr (repeat n c)@,
+-- as the encoding of information in a 'Cell' happens once only. (TODO verify in GHC core with optimizations)
 drawChars :: Int
           -- ^ Number of chars to draw
           -> Char
@@ -46,7 +50,7 @@ drawChars :: Int
           -> LayeredColor
           -- ^ Background and foreground colors
           -> IORef Buffers
-          -> IO (IORef Buffers)
+          -> IO ()
 drawChars count c pos colors ioRefBuffers =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _ _) -> do
@@ -56,7 +60,6 @@ drawChars count c pos colors ioRefBuffers =
         (\i -> let idx' = (fromIntegral idx + i) `fastMod` size
                in writeToBack back idx' cell)
         [0..pred count]
-      return ioRefBuffers
 
 
 -- | Draw a 'String'
@@ -66,7 +69,7 @@ drawStr :: String
         -> LayeredColor
         -- ^ Background and foreground colors
         -> IORef Buffers
-        -> IO (IORef Buffers)
+        -> IO ()
 drawStr str pos colors ioRefBuffers =
   readIORef ioRefBuffers
     >>= \b@(Buffers back _ size _ _ _) -> do
@@ -75,7 +78,6 @@ drawStr str pos colors ioRefBuffers =
         (\(c, i) ->
             writeToBack back (idx+i `fastMod` size) (mkCell colors c))
         $ zip str [0..]
-      return ioRefBuffers
 
 
 -- | Draw a 'String'
@@ -85,7 +87,7 @@ drawTxt :: Text
         -> LayeredColor
         -- ^ Background and foreground colors
         -> IORef Buffers
-        -> IO (IORef Buffers)
+        -> IO ()
 drawTxt text = drawStr $ unpack text
 
 
@@ -94,7 +96,7 @@ writeToBack :: Buffer Back -> Dim Index -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
 
--- | Fills the entire canvas with a char.
+-- | Fills the entire area with a colored char.
 fill :: Char
      -> LayeredColor
      -> IORef Buffers

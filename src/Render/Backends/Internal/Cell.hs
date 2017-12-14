@@ -3,9 +3,11 @@
 module Render.Backends.Internal.Cell
           ( Cell
           , mkCell
+          -- ** Indexed cells
           , mkIndexedCell
-          , expand
           , expandIndexed
+          , getIndex
+          , expand
           ) where
 
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
@@ -45,6 +47,8 @@ getBackgroundColor w = Color8Code $ firstWord8 w
 getCharacter :: Cell -> Char
 getCharacter w = chr $ fromIntegral $ secondWord32 w
 
+-- Works only if the 'Cell' was created using mkIndexedCell,
+-- else 0 is returned.
 {-# INLINE getIndex #-}
 getIndex :: Cell -> Dim Index
 getIndex w = fromIntegral $ secondWord16 w

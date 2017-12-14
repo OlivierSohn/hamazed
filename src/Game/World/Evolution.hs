@@ -13,21 +13,23 @@ import           Game.World.Types
 
 import           Geo.Discrete
 
-import           Render.Backends.Delta
 import           Render
 
 import           Text.ColorString
 
 import           Timing
 
-renderEvolutions :: WorldEvolutions -> Frame -> IORef Buffers -> IO ()
+renderEvolutions :: WorldEvolutions
+                 -> Frame
+                 -> RenderFunctions
+                 -> IO ()
 renderEvolutions
  we@(WorldEvolutions frameE upDown left)
- frame b = do
+ frame renderFuncs@(RenderFunctions renderChar _ renderTxt _) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  evolveIO frameE relFrameFrameE
-  renderAnimatedTextCharAnchored upDown relFrameUD (drawChar b)
-  renderAnimatedTextStringAnchored left relFrameLeft (drawTxt b)
+  evolveIO frameE renderFuncs relFrameFrameE
+  renderAnimatedTextCharAnchored upDown relFrameUD renderChar
+  renderAnimatedTextStringAnchored left relFrameLeft renderTxt
 
 getDeltaTime :: WorldEvolutions -> Frame -> Maybe Float
 getDeltaTime we@(WorldEvolutions frameE (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
@@ -127,7 +129,7 @@ alignTxt al txt = uncurry move $ align al $ countChars txt
 
 
 computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)
-computeRSForInfos (FrameSpec (WorldSize (Coords rs cs)) upperLeft _ _) =
+computeRSForInfos (FrameSpec (WorldSize (Coords rs cs)) upperLeft _) =
   (centerUp, centerDown, leftMiddle)
  where
   addWallSize = (+ 2)

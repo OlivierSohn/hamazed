@@ -12,7 +12,7 @@ import Color
 import Color.IColor8Code
 import Game.World.Space
 import Render.Console
-
+import Text.ColorString
 
 testICS :: IO ()
 testICS = do
@@ -65,8 +65,13 @@ testICS = do
 
 renderColored' :: ColorString -> Coords -> Coords -> IORef Buffers -> IO ()
 renderColored' cs pos rs b =
-  void (renderColored cs (translate pos rs) b)
+  void (renderColored cs (translate pos rs) (drawTxt b))
 
 drawStr' :: String -> Coords -> Coords -> IORef Buffers -> IO Coords
-drawStr' cs pos rs =
-  drawStr cs (translate pos rs) (LayeredColor black white)
+drawStr' cs pos rs b =
+  drawStr'' b cs (translate pos rs) (LayeredColor black white)
+
+
+drawStr'' :: IORef Buffers -> String -> Coords -> LayeredColor -> IO Coords
+drawStr'' ref str pos color =
+  drawStr ref str pos color >> return (translateInDir Down pos)

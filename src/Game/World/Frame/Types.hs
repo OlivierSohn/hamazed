@@ -9,8 +9,6 @@ module Game.World.Frame.Types
 
 import           Imajuscule.Prelude
 
-import           GHC.Show(showString)
-
 import           Data.List( mapAccumL, zip )
 
 import           Interpolation
@@ -20,49 +18,45 @@ import           Game.World.Space.Types
 import           Geo.Discrete
 
 import           Render
-import           Render.Console
+
 
 data FrameSpec = FrameSpec {
     _frameSpecSize :: !WorldSize
   , _frameSpecUpperLeft :: !Coords
   , _frameSpecColors :: !LayeredColor
-  , _frameSpecBuffers :: !(IORef Buffers)
-} deriving(Eq)
-
-instance Show FrameSpec where
-  showsPrec _ (FrameSpec a b c _) = showString $ show (a,b,c,"IORef")
+} deriving(Eq, Show)
 
 
 newtype FrameAnimationParallel4 = FrameAnimationParallel4 FrameSpec
           deriving(Show)
 
 instance DiscretelyInterpolable FrameAnimationParallel4 where
-  distance (FrameAnimationParallel4 (FrameSpec s _ _ _)) (FrameAnimationParallel4 (FrameSpec s' _ _ _)) -- TODO animate colors too
+  distance (FrameAnimationParallel4 (FrameSpec s _ _ )) (FrameAnimationParallel4 (FrameSpec s' _ _ )) -- TODO animate colors too
     | s == s'   = 1 -- no animation because sizes are equal
     | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
   interpolateIO f@(FrameAnimationParallel4 from)
-                t@(FrameAnimationParallel4 to) frame
-    | frame <= 0         = renderWhole from
-    | frame >= lastFrame = renderWhole to
-    | otherwise          = renderTransition from to lastFrame frame
+                t@(FrameAnimationParallel4 to) renderFuncs frame
+    | frame <= 0         = renderWhole renderFuncs from
+    | frame >= lastFrame = renderWhole renderFuncs to
+    | otherwise          = renderTransition renderFuncs from to lastFrame frame
     where
       lastFrame = pred $ distance f t
 
 
-renderWhole :: FrameSpec -> IO ()
-renderWhole (FrameSpec sz upperLeft color ref) =
-  renderPartialWorldFrame ref sz color (upperLeft, 0, countWorldFrameChars sz - 1)
+renderWhole :: RenderFunctions -> FrameSpec -> IO ()
+renderWhole f (FrameSpec sz upperLeft color) =
+  renderPartialWorldFrame f sz color (upperLeft, 0, countWorldFrameChars sz - 1)
 
-renderTransition :: FrameSpec -> FrameSpec -> Int -> Int -> IO ()
-renderTransition from@(FrameSpec _ fromUpperLeft _ _)
-                   to@(FrameSpec _ toUpperLeft _ _) n i = do
+renderTransition :: RenderFunctions -> FrameSpec -> FrameSpec -> Int -> Int -> IO ()
+renderTransition f from@(FrameSpec _ fromUpperLeft _)
+                   to@(FrameSpec _ toUpperLeft _) n i = do
       let
           (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
           dc = fromIntegral dc'
           render diBefore di = do
-            renderFrom Extremities (n-(i+diBefore)) from
-            renderFrom Middle      (n-(i+di))       to
+            renderFrom f Extremities (n-(i+diBefore)) from
+            renderFrom f Middle      (n-(i+di))       to
       if dc >= 0
         then
           -- expanding animation
@@ -93,8 +87,8 @@ ranges progress sz =
         Middle      -> res
         Extremities -> complement 0 (total-1) res
 
-renderFrom :: BuildFrom -> Int -> FrameSpec -> IO ()
-renderFrom rangeType progress (FrameSpec sz r color ref) = do
+renderFrom :: RenderFunctions -> BuildFrom -> Int -> FrameSpec -> IO ()
+renderFrom ref rangeType progress (FrameSpec sz r color) = do
   let rs = ranges progress sz rangeType
   mapM_ (\(min_, max_) -> renderPartialWorldFrame ref sz color (r, min_, max_)) rs
 
@@ -121,7 +115,7 @@ countWorldFrameVertical :: WorldSize -> Int
 countWorldFrameVertical (WorldSize (Coords rs _)) =
   fromIntegral rs
 
-renderPartialWorldFrame :: IORef Buffers -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO ()
+renderPartialWorldFrame :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO ()
 renderPartialWorldFrame ref sz colors r =
   renderUpperWall ref sz colors r
     >>= renderRightWall ref sz colors
@@ -129,28 +123,28 @@ renderPartialWorldFrame ref sz colors r =
     >>= renderLeftWall ref sz colors
     >> return ()
 
-renderRightWall :: IORef Buffers -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderRightWall ref sz colors (upperRight, from, to) = do
+renderRightWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderRightWall (RenderFunctions drawChar _ _ _) sz colors (upperRight, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n Down upperRight) [actualFrom..actualTo]
       nextR = move countMax Down upperRight
-  mapM_ (\pos -> drawChar ref '|' pos colors) wallCoords
+  mapM_ (\pos -> drawChar '|' pos colors) wallCoords
   if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
       return (nextR, from + nChars - countMax, to - countMax)
 
-renderLeftWall :: IORef Buffers -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderLeftWall ref sz colors (lowerLeft, from, to) = do
+renderLeftWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderLeftWall (RenderFunctions drawChar _ _ _) sz colors (lowerLeft, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n Up lowerLeft) [actualFrom..actualTo]
       nextR = move countMax Up lowerLeft
-  mapM_ (\pos -> drawChar ref '|' pos colors) wallCoords
+  mapM_ (\pos -> drawChar '|' pos colors) wallCoords
   if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
@@ -158,8 +152,8 @@ renderLeftWall ref sz colors (lowerLeft, from, to) = do
       return (nextR, from + nChars - countMax, to - countMax)
 
 -- 0 is upper left
-renderUpperWall :: IORef Buffers -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderUpperWall ref sz colors (upperLeft, from, to) = do
+renderUpperWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderUpperWall (RenderFunctions _ drawChars _ _) sz colors (upperLeft, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -168,11 +162,11 @@ renderUpperWall ref sz colors (upperLeft, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars ref nChars '_' (move actualFrom RIGHT upperLeft) colors
+      drawChars nChars '_' (move actualFrom RIGHT upperLeft) colors
        >> return (nextR, from + nChars - countMax, to - countMax)
 
-renderLowerWall :: IORef Buffers -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderLowerWall ref sz colors (lowerRight, from, to) = do
+renderLowerWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
+renderLowerWall (RenderFunctions _ drawChars _ _) sz colors (lowerRight, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -181,7 +175,7 @@ renderLowerWall ref sz colors (lowerRight, from, to) = do
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars ref nChars 'T' (move actualTo LEFT lowerRight) colors
+      drawChars nChars 'T' (move actualTo LEFT lowerRight) colors
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 

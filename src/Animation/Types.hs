@@ -21,8 +21,6 @@ module Animation.Types
     , Coords
     , Location(..)
     , module Iteration
-    , IORef
-    , Buffers
     ) where
 
 
@@ -36,13 +34,9 @@ import           Color.Types
 
 import           Geo.Discrete.Types( Coords )
 
-import           Render.Console
-
 import           Timing( KeyTime )
 
 import           Iteration
-
--- TODO abstract from rendering functions : _animatorIO should be passed a function to render
 
 -- | Animator contains functions to update and render an Animation.
 data Animator = Animator {
@@ -73,12 +67,12 @@ data Tree = Tree {
   , _treeRenderedWith :: !(Maybe Char)
 }
 
-data OnWall = Traverse -- Collisions are ignored.
+data OnWall = Traverse -- ^ Collisions are ignored.
                        -- You must ensure that the corresponding pure animation function
                        -- will return a list of 0 coordinates for each frame after a given frame,
                        -- else the animation will never terminate.
-            | ReboundAnd OnWall -- On collision, the next sequence of the animation starts.
-            | Stop     -- Termination
+            | ReboundAnd OnWall -- ^ On collision, the next sequence of the animation starts.
+            | Stop     -- ^ Termination
 
 -- TODO use this generalize animation chaining ?
 {--
@@ -101,7 +95,7 @@ data Animation = Animation {
 }
 
 instance Show Animation where
-        showsPrec _ (Animation a b c _) = showString $ "Animation{" ++ show a ++ show b ++ show c ++ "}"
+        showsPrec _ (Animation a b c _) = showString $ "Animation{" ++ show (a,b,c) ++ "}"
 
 data AnimationZero = WithZero
                    | SkipZero
@@ -110,9 +104,6 @@ data StepType = Initialize -- update the tree       , iteration doesn't change
               | Update     -- update the tree       , iteration moves forward
               | Same       -- do not update the tree, iteration doesn't change
 
---------------------------------------------------------------------------------
--- Constructors
---------------------------------------------------------------------------------
 
 mkAnimationTree :: Coords -> OnWall -> Tree
 mkAnimationTree c ow = Tree c 0 Nothing ow Nothing

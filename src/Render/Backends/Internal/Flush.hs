@@ -2,7 +2,6 @@
 
 module Render.Backends.Internal.Flush
     ( flush
-    , render -- just so that I can hide it in Delta.hs on the import to generate the doc
     ) where
 
 import           Prelude hiding(read)

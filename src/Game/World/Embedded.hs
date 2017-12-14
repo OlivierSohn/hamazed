@@ -13,15 +13,13 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 import           Game.World.Size
 import           Game.World.Types
 
-import           Render
-
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
 minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 
-mkEmbeddedWorld :: IORef Buffers -> WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld :: RenderFunctions -> WorldSize -> IO (Either String EmbeddedWorld)
 mkEmbeddedWorld ctxt s = do
   mayTermSize <- Terminal.size
   return $ (\coords -> EmbeddedWorld mayTermSize coords ctxt)

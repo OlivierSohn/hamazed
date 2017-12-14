@@ -16,7 +16,7 @@ import           Geo.Discrete
 
 import           Color.Types
 
-import           Timing
+import           Animation.Timing
 
 
 -- | Updates the state (Tree), computes the points to render from state and

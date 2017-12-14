@@ -6,7 +6,7 @@ module Game.Types
     -- | reexports
     , module Game.World.Types
     , module Game.Level.Types
-    , module Timing
+    , module Game.Timing
     ) where
 
 import           Imajuscule.Prelude
@@ -14,7 +14,7 @@ import           Imajuscule.Prelude
 import           Game.World.Types
 import           Game.Level.Types
 
-import           Timing
+import           Game.Timing
 
 
 data GameState = GameState {

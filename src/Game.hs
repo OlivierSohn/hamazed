@@ -34,14 +34,12 @@ import           Geo.Conversion
 import           Geo.Continuous
 import           Geo.Discrete
 
-import           Render.Console
-
 import           Util
 
 
 nextGameState :: GameState -> TimedEvent -> GameState
 nextGameState
-  (GameState a b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations (EmbeddedWorld _ _ buf)) futureWorld
+  (GameState a b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _) futureWorld
              g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
   te@(TimedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = withLaserAction event world
@@ -70,7 +68,7 @@ nextGameState
           then
             left
           else
-            let frameSpace = mkFrameSpec worldFrameColors world buf
+            let frameSpace = mkFrameSpec worldFrameColors world
                 infos = mkLeftInfo Normal newAmmo allShotNumbers
             in mkTextAnimLeft frameSpace frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
@@ -153,15 +151,15 @@ accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
 -- IO
 --------------------------------------------------------------------------------
 
-runGameWorker :: IORef Buffers -> GameParameters -> IO ()
-runGameWorker ctxt params =
-  mkInitialState ctxt params firstLevel Nothing
+runGameWorker :: RenderFunctions -> GameParameters -> IO ()
+runGameWorker renderFunctions params =
+  mkInitialState renderFunctions params firstLevel Nothing
     >>= \case
       Left err -> error err
       Right ew -> loop params ew
 
-mkInitialState :: IORef Buffers -> GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
-mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
+mkInitialState :: RenderFunctions -> GameParameters -> Int -> Maybe GameState -> IO (Either String GameState)
+mkInitialState renderFunctions (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
       newLevel = Level levelNumber target Nothing
@@ -182,8 +180,8 @@ mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
             worldAnimation =
               mkWorldAnimation
-                (mkFrameSpec worldFrameColors curWorld ctxt, curInfos)
-                (mkFrameSpec worldFrameColors newWorld ctxt, newInfos)
+                (mkFrameSpec worldFrameColors curWorld, curInfos)
+                (mkFrameSpec worldFrameColors newWorld, newInfos)
                 t
             gameDeadline =
               if isFinished worldAnimation
@@ -192,7 +190,7 @@ mkInitialState ctxt (GameParameters shape wallType) levelNumber mayState = do
                 else
                   Nothing
         return $ Right $ GameState (Timer t) gameDeadline curWorld newWorld newShotNums newLevel worldAnimation
-  eew <- mkEmbeddedWorld ctxt newSize
+  eew <- mkEmbeddedWorld renderFunctions newSize
   either (return . Left) make eew
 
 
@@ -221,6 +219,7 @@ getEvent state@(GameState _ _ _ _ _ level _) = do
   t <- getCurrentTime
   let deadline = nextDeadline state t
   getEventForMaybeDeadline level deadline t
+
 
 updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> IO GameState
 updateGameUsingTimedEvent
@@ -264,7 +263,7 @@ updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ i
 updateGame2 :: TimedEvent -> GameState -> IO GameState
 updateGame2
  te@(TimedEvent event _)
- s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ _ renderBuffers)) _ _ _ anim) =
+ s@(GameState _ _ (World _ _ _ _ _ (EmbeddedWorld _ _ (RenderFunctions _ _ _ flush))) _ _ _ anim) =
   case event of
     Action Ship dir -> return $ accelerateShip' dir s
     _ -> do
@@ -275,19 +274,19 @@ updateGame2
               else
                 s
       animations <- renderGame (getKeyTime event) s2
-      flush renderBuffers
+      flush
       return $ replaceAnimations animations s2
 
 renderGame :: Maybe KeyTime -> GameState -> IO [BoundedAnimation]
 renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
-                                         animations (EmbeddedWorld mayTermWindow curUpperLeft b)) _ _ level wa) =
-  renderSpace space curUpperLeft b >>=
+                                         animations (EmbeddedWorld mayTermWindow curUpperLeft f@(RenderFunctions renderChar renderChars _ _))) _ _ level wa) =
+  renderSpace space curUpperLeft renderChars >>=
     (\worldCorner -> do
-        activeAnimations <- renderAnimations k space mayTermWindow worldCorner (drawChar b) animations
+        activeAnimations <- renderAnimations k space mayTermWindow worldCorner renderChar animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
-        renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner) b
-        renderWorldAnimation wa b -- render it last so that when it animates
+        renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner) f
+        renderWorldAnimation wa f -- render it last so that when it animates
                                   -- to reduce, it goes over numbers and ship
         return activeAnimations)
 

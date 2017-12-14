@@ -82,7 +82,6 @@ drawStr ref str pos colors =
             writeToBack back (idx+i `fastMod` size) (mkCell colors c))
         $ zip str [0..]
 
-
 {-# INLINE drawTxt #-}
 -- | Draw a 'Text'
 drawTxt :: IORef Buffers

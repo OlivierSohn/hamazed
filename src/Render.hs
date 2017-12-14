@@ -2,69 +2,55 @@
 
 module Render (
           align
-        , renderAligned
-        , renderColored
-        , renderColoredChars
-        , renderPoints
+        , align'
         , Alignment(..)
         , renderAlignedTxt
         , renderAlignedTxt_
-        , ColorString(..)
-        , colored
+        , RenderFunctions(..)
         -- | reexports
         , Coords(..)
         , Row
         , Col
         , Direction(..)
-        , Color8Code(..)
-        , ConsoleLayer(..)
         , LayeredColor(..)
-        , IORef
-        , Buffers
-        , drawChar
         ) where
 
 import           Imajuscule.Prelude
 
 import           Data.Text( length )
 
-import           Geo.Discrete.Types
-import           Geo.Discrete( move, sumCoords, translateInDir )
-
-import           Render.Console
-
-import           Text.ColorString
+import           Color.Types
+import           Geo.Discrete
 
 
-renderPoints :: IORef Buffers -> LayeredColor -> Coords -> [(Coords, Char)] -> IO ()
-renderPoints ref colors pos =
-  mapM_ (\(c,char) -> drawChar ref char (sumCoords pos c) colors)
-
-renderColoredChars :: IORef Buffers -> Int -> Char -> Coords -> LayeredColor -> IO ()
-renderColoredChars =
-  drawChars
+data RenderFunctions = RenderFunctions {
+    _renderChar :: !(Char -> Coords -> LayeredColor -> IO ())
+  , _renderChars :: !(Int -> Char -> Coords -> LayeredColor -> IO ())
+  , _renderTxt :: !(Text -> Coords -> LayeredColor -> IO ())
+  , _flush :: !(IO())
+}
 
 data Alignment = Centered
                | RightAligned
 
-renderAlignedTxt_ :: IORef Buffers -> Alignment -> Text -> Coords -> LayeredColor -> IO ()
-renderAlignedTxt_ ref a txt pos colors = do
+renderAlignedTxt_ :: (Text -> Coords -> LayeredColor -> IO ())
+                  -> Alignment
+                  -> Text
+                  -> Coords
+                  -> LayeredColor
+                  -> IO ()
+renderAlignedTxt_ render a txt pos colors = do
   let leftCorner = align' a (length txt) pos
-  drawTxt_ ref txt leftCorner colors
+  render txt leftCorner colors
 
-renderAlignedTxt :: IORef Buffers -> Alignment -> Text -> Coords -> LayeredColor -> IO Coords
-renderAlignedTxt ref a txt pos colors =
-  renderAlignedTxt_ ref a txt pos colors >> return (translateInDir Down pos)
-
-renderAligned :: Alignment
-              -> ColorString
-              -> Coords
-              -> (Text -> Coords -> LayeredColor -> IO ())
-              -> IO Coords
-renderAligned a cs pos r = do
-  let leftCorner = align' a (countChars cs) pos
-  _ <- renderColored cs leftCorner r
-  return (translateInDir Down pos)
+renderAlignedTxt :: (Text -> Coords -> LayeredColor -> IO ())
+                 -> Alignment
+                 -> Text
+                 -> Coords
+                 -> LayeredColor
+                 -> IO Coords
+renderAlignedTxt render a txt pos colors =
+  renderAlignedTxt_ render a txt pos colors >> return (translateInDir Down pos)
 
 align' :: Alignment -> Int -> Coords -> Coords
 align' a count ref =

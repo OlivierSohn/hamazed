@@ -2,6 +2,7 @@
 
 module Render.Backends.Internal.Buffers
           ( Buffers
+          , IORef
           -- * Context
           -- ** Creation
           , newDefaultContext

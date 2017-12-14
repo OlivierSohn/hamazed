@@ -12,6 +12,7 @@ module Game.World.Types
         , WorldAnimation(..)
         , WorldEvolutions(..)
         , EmbeddedWorld(..)
+        , RenderFunctions(..)
         , isFinished
         -- | Reexports
         , module Game.World.Space.Types
@@ -36,9 +37,11 @@ import           Game.World.Frame.Types
 
 import           Iteration
 
+import           Render.Backends.Delta
 import           Render
 
 import           Text.Animated
+import           Text.ColorString
 
 import           Timing
 
@@ -63,7 +66,7 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: LayeredColor -> World -> IORef Buffers -> FrameSpec
+mkFrameSpec :: LayeredColor -> World -> FrameSpec
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft _)) =
   FrameSpec sz upperLeft colors
 
@@ -79,7 +82,7 @@ data World = World {
 data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
   , _embeddedWorldUpperLeft :: !Coords
-  , _embeddedWorldRenderBuffers :: IORef Buffers
+  , _embeddedWorldRenderBuffers :: !RenderFunctions
 }
 
 instance Show EmbeddedWorld where

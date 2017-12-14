@@ -23,6 +23,7 @@ import           Interpolation
 
 import           Math
 
+import           Render
 
 -- | for a more general version, see 'mkEvolution'
 mkEvolution1 :: DiscretelyInterpolable v
@@ -132,8 +133,9 @@ evolve' (Evolution s _ _ _) (Frame step) =
 {-# INLINABLE evolveIO #-} -- allow specialization
 evolveIO :: (DiscretelyInterpolable v)
          => Evolution v
+         -> RenderFunctions
          -> Frame
          -- ^ current frame
          -> IO ()
-evolveIO (Evolution s _ _ _) (Frame step) =
-  interpolateSuccessiveIO s $ assert (step >= 0) step
+evolveIO (Evolution s _ _ _) f (Frame step) =
+  interpolateSuccessiveIO s f $ assert (step >= 0) step

@@ -3,34 +3,19 @@
 module Render.Console
                ( ConsoleConfig(..)
                , configureConsoleFor
-               -- rendering functions
-               , drawStr
-               , drawStr_
-               , drawTxt
-               , drawTxt_
                -- reexport System.Console.ANSI
                , Color8Code(..)
                , ConsoleLayer(..)
                -- reexport System.Console.ANSI.Codes
                , xterm256ColorToCode
-               -- reexports from backends
-               , Backend.Buffers
-               , Backend.newDefaultContext
-               , Backend.newContext
-               , Backend.setResizePolicy
-               , Backend.setClearPolicy
-               , Backend.drawChars
-               , Backend.drawChar
-               , Backend.flush
                -- reexports
                , module Render.Types
-               , module Backend
+               , module Render.Backends.Delta
                ) where
 
 import           Imajuscule.Prelude
 
 import           Data.String( String )
-import           Data.Text( Text )
 
 import qualified System.Console.Terminal.Size as Terminal( size
                                                          , Window(..))
@@ -49,9 +34,8 @@ import           System.IO( hSetBuffering
 
 import           Color.Types
 import           Geo.Discrete.Types
-import           Geo.Discrete
 
-import qualified Render.Backends.Delta as Backend
+import           Render.Backends.Delta
 
 import           Render.Types
 
@@ -76,7 +60,7 @@ configureConsoleFor config = do
         (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
           maySz
   let requiredOutputBuffering = case config of
-        Gaming  -> Backend.preferredBuffering
+        Gaming  -> preferredBuffering
         Editing -> LineBuffering
   hSetBuffering stdout requiredOutputBuffering
 
@@ -91,19 +75,3 @@ configureConsoleFor config = do
             ++ show requiredInputBuffering
             ++ " instead it is now "
             ++ show ib
-
-drawStr :: IORef Backend.Buffers -> String -> Coords -> LayeredColor -> IO Coords
-drawStr ref str pos color =
-  Backend.drawStr ref str pos color >> return (translateInDir Down pos)
-
-drawStr_ :: IORef Backend.Buffers -> String -> Coords -> LayeredColor -> IO ()
-drawStr_ ref s c co =
-  void (Backend.drawStr ref s c co)
-
-drawTxt :: IORef Backend.Buffers -> Text -> Coords -> LayeredColor -> IO Coords
-drawTxt ref txt pos color =
-  Backend.drawTxt ref txt pos color >> return (translateInDir Down pos)
-
-drawTxt_ :: IORef Backend.Buffers -> Text -> Coords -> LayeredColor -> IO ()
-drawTxt_ ref t c b =
-  void (Backend.drawTxt ref t c b)

@@ -8,6 +8,7 @@ module Text.ColorString
             , countChars
             , LayeredColor(..)
             , renderColored
+            , renderAligned
             ) where
 
 import           Imajuscule.Prelude
@@ -25,7 +26,7 @@ import           Data.Text( Text, length, pack, unpack )
 
 import           Geo.Discrete
 import           Math
-
+import           Render
 import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
@@ -175,3 +176,14 @@ renderColored (ColorString cs) pos renderTxt =
       renderTxt txt (move count RIGHT pos) color
       return $ count + l
     ) 0 cs
+
+
+renderAligned :: Alignment
+              -> ColorString
+              -> Coords
+              -> (Text -> Coords -> LayeredColor -> IO ())
+              -> IO Coords
+renderAligned a cs pos r = do
+  let leftCorner = align' a (countChars cs) pos
+  _ <- renderColored cs leftCorner r
+  return (translateInDir Down pos)

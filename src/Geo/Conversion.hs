@@ -1,5 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | By convention, discrete positions are converted to continuous positions by
+-- placing them at the "pixel center", ie by applying an offset of (0.5, 0.5) in
+-- 'pos2vec'.
+--
+-- Then during the inverse transformation, in 'vec2coords', coordinates are just
+-- floored.
+
 module Geo.Conversion
            ( vec2coords
            , pos2vec
@@ -10,7 +17,6 @@ import           Imajuscule.Prelude
 
 import           Geo.Continuous.Types
 import           Geo.Discrete.Types
-
 
 pos2vec :: Coords -> Vec2
 pos2vec (Coords r c) = Vec2 (0.5 + fromIntegral c) (0.5 + fromIntegral r)

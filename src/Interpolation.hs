@@ -15,6 +15,7 @@ import           Data.List( length, mapAccumL )
 
 import           Iteration
 import           Math
+import           Render
 
 
 newtype Successive a = Successive [a] deriving(Show)
@@ -74,6 +75,7 @@ class (Show v) => DiscretelyInterpolable v where
 
   interpolateIO :: v -- ^ first value
                 -> v -- ^ last value
+                -> RenderFunctions
                 -> Int -- ^ the current step
                 -> IO ()
   interpolateIO = error "interpolateIO is not defined"
@@ -101,14 +103,15 @@ class (Show v) => DiscretelyInterpolable v where
     where lf = pred $ distance a b
 
   interpolateSuccessiveIO :: Successive v
+                          -> RenderFunctions
                           -> Int
                           -> IO ()
-  interpolateSuccessiveIO (Successive []) _ = error "empty successive"
-  interpolateSuccessiveIO (Successive [a]) _ = interpolateIO a a 0
-  interpolateSuccessiveIO (Successive l@(a:b:_)) i
-    | i <= 0      = interpolateIO a a 0
-    | i >= lf = interpolateSuccessiveIO (Successive $ tail l) $ i-lf
-    | otherwise = interpolateIO a b i
+  interpolateSuccessiveIO (Successive []) _ _ = error "empty successive"
+  interpolateSuccessiveIO (Successive [a]) f _ = interpolateIO a a f 0
+  interpolateSuccessiveIO (Successive l@(a:b:_)) f i
+    | i <= 0      = interpolateIO a a f 0
+    | i >= lf = interpolateSuccessiveIO (Successive $ tail l) f $ i-lf
+    | otherwise = interpolateIO a b f i
     where lf = pred $ distance a b
 
 

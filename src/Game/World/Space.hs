@@ -201,7 +201,7 @@ mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =
   let innerMat = extend s innerMatMaybeSmaller
       mat = fromLists $ addBorder s innerMat
-  in Space mat s $ render mat s
+  in Space mat s $ matToRenderGroups mat s
 
 extend :: WorldSize -> [[a]] -> [[a]]
 extend (WorldSize (Coords rs cs)) mat =
@@ -230,8 +230,8 @@ addBorder (WorldSize (Coords _ widthEmptySpace)) l =
 borderSize :: Int
 borderSize = 1
 
-render :: Matrix CInt -> WorldSize -> [RenderGroup]
-render mat s@(WorldSize (Coords _ cs)) =
+matToRenderGroups :: Matrix CInt -> WorldSize -> [RenderGroup]
+matToRenderGroups mat s@(WorldSize (Coords _ cs)) =
   concat $
     forEachRowPure mat s $
       \row accessMaterial ->
@@ -273,21 +273,33 @@ strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
-renderSpace :: Space -> Coords -> IORef Buffers -> IO Coords
-renderSpace (Space _ _ renderedWorld) upperLeft b = do
+renderSpace :: Space
+            -> Coords
+            -> (Int -> Char -> Coords -> LayeredColor -> IO())
+            -> IO Coords
+renderSpace (Space _ _ renderedWorld) upperLeft render = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
-  mapM_ (\w -> renderGroup worldCoords w b) renderedWorld
+  mapM_ (\w -> renderGroup worldCoords w render) renderedWorld
   return worldCoords
 
-renderGroup :: Coords -> RenderGroup -> IORef Buffers -> IO ()
-renderGroup worldCoords (RenderGroup pos colors char count) b =
-  renderColoredChars b count char (sumCoords pos worldCoords) colors
+renderGroup :: Coords
+            -> RenderGroup
+            -> (Int -> Char -> Coords -> LayeredColor -> IO())
+            -> IO ()
+renderGroup worldCoords (RenderGroup pos colors char count) render =
+  render count char (sumCoords pos worldCoords) colors
 
 
-renderIfNotColliding :: Char -> Coords -> Space -> LayeredColor -> Coords -> IORef Buffers -> IO ()
-renderIfNotColliding char worldCoords space colors r b =
+renderIfNotColliding :: Char
+                     -> Coords
+                     -> Space
+                     -> LayeredColor
+                     -> Coords
+                     -> (Char -> Coords -> LayeredColor -> IO())
+                     -> IO ()
+renderIfNotColliding char worldCoords space colors r render =
   case getMaterial worldCoords space of
-    Air  -> drawChar b char (sumCoords worldCoords r) colors
+    Air  -> render char (sumCoords worldCoords r) colors
     Wall -> return ()
 
 locationFunction :: Boundaries

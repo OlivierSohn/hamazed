@@ -29,6 +29,7 @@ library
                      , Animation.Design.Chars
                      , Animation.Design.RenderUpdate
                      , Animation.Design.Geo
+                     , Animation.Timing
                      , Animation.Types
                      , Animation.Util
                      , Collision
@@ -45,6 +46,7 @@ library
                      , Game.Level.Types
                      , Game.Parameters
                      , Game.Render
+                     , Game.Timing
                      , Game.Types
                      , Game.World
                      , Game.World.Embedded

@@ -14,6 +14,7 @@ import           Control.Exception( finally )
 
 import           Game( runGameWorker )
 import           Game.Parameters( getGameParameters )
+import           Render
 import           Render.Console
 import           Threading( runAndWaitForTermination, Termination(..) )
 
@@ -29,12 +30,12 @@ run =
 doRun :: IO Termination
 doRun =
   (configureConsoleFor Gaming
-    >> newDefaultContext
+    >> mkRenderFunctions <$> newDefaultContext
       >>= runAndWaitForTermination . gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally`
    configureConsoleFor Editing
 
-gameWorker :: IORef Buffers -> IO ()
+gameWorker :: RenderFunctions -> IO ()
 gameWorker rs = getGameParameters rs >>= runGameWorker rs

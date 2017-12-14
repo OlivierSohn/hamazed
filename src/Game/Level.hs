@@ -36,7 +36,7 @@ import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
-import           Render.Console
+import           Render
 
 import           Timing( UTCTime
                        , KeyTime(..)
@@ -123,15 +123,15 @@ getCharWithinDurationMicros durationMicros step =
     else
       timeout durationMicros getCharThenFlush
 
-renderLevelState :: Coords -> Int -> LevelFinished -> IORef Buffers -> IO ()
-renderLevelState s level (LevelFinished stop _ messageState) b = do
+renderLevelState :: RenderFunctions -> Coords -> Int -> LevelFinished -> IO ()
+renderLevelState (RenderFunctions _ _ renderTxt _) s level (LevelFinished stop _ messageState) = do
   let topLeft = translateInDir RIGHT s
       stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  drawTxt_ b stopMsg topLeft (messageColor stop)
+  renderTxt stopMsg topLeft (messageColor stop)
   when (messageState == ContinueMessage) $
-    drawTxt_ b
+    renderTxt
       (if level == lastLevel
         then
           "You reached the end of the game!"
@@ -143,6 +143,6 @@ renderLevelState s level (LevelFinished stop _ messageState) b = do
       (move 2 Down topLeft) neutralMessageColor
 
 
-renderLevelMessage :: Level -> Coords -> IORef Buffers -> IO ()
-renderLevelMessage (Level level _ levelState) rightMiddle b =
-  mapM_ (\s -> renderLevelState rightMiddle level s b) levelState
+renderLevelMessage :: Level -> Coords -> RenderFunctions -> IO ()
+renderLevelMessage (Level level _ levelState) rightMiddle f =
+  mapM_ (renderLevelState f rightMiddle level) levelState

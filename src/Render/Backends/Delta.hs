@@ -140,6 +140,7 @@ Here I'll report on the amount of bytes sent to stdout with concrete examples.
 -}
 module Render.Backends.Delta
                           ( module Render.Backends.Internal.Buffers
+                          , mkRenderFunctions
                             -- * Frame
                             -- ** Draw
                           , module Render.Backends.Internal.Draw
@@ -157,6 +158,10 @@ import           System.IO( BufferMode(..) )
 import           Render.Backends.Internal.Buffers
 import           Render.Backends.Internal.Draw
 import           Render.Backends.Internal.Flush
+import           Render
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
+
+mkRenderFunctions :: IORef Buffers -> RenderFunctions
+mkRenderFunctions b = RenderFunctions (drawChar b) (drawChars b) (drawTxt b) (flush b)

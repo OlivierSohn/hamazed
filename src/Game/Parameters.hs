@@ -23,8 +23,6 @@ import           Geo.Discrete
 
 import           IO.Blocking
 
-import           Render.Console
-
 import           Timing
 
 data GameParameters = GameParameters {
@@ -39,10 +37,10 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: IORef Buffers -> IO GameParameters
+getGameParameters :: RenderFunctions -> IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> IORef Buffers -> IO GameParameters
+update :: GameParameters -> RenderFunctions -> IO GameParameters
 update params ctxt =
   render params ctxt >>
     getCharThenFlush >>= either
@@ -64,15 +62,19 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-render :: GameParameters -> IORef Buffers -> IO ()
-render (GameParameters shape wall) ctxt' = do
+drawTxt :: (Text -> Coords -> LayeredColor -> IO ()) -> Text -> Coords -> LayeredColor -> IO Coords
+drawTxt ref txt pos color =
+  ref txt pos color >> return (translateInDir Down pos)
+
+render :: GameParameters -> RenderFunctions -> IO ()
+render (GameParameters shape wall) renderFuncs = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
-  ew <- mkEmbeddedWorld ctxt' worldSize
+  ew <- mkEmbeddedWorld renderFuncs worldSize
   case ew of
     Left err -> error err
-    Right rew@(EmbeddedWorld _ ul ctxt) -> do
+    Right rew@(EmbeddedWorld _ ul (RenderFunctions _ renderChars renderTxt flush)) -> do
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
-      _ <- renderSpace space ul ctxt >>=
+      _ <- renderSpace space ul renderChars >>=
         \worldCoords -> do
           renderWorld world
           let middle = move (quot cs 2) RIGHT worldCoords
@@ -80,13 +82,13 @@ render (GameParameters shape wall) ctxt' = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-              renderAlignedCentered = renderAlignedTxt ctxt Centered
-              dText = drawTxt ctxt
+              renderAlignedCentered = renderAlignedTxt renderTxt Centered
+              dText = drawTxt renderTxt
           renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
             >>= \ pos ->
                   void (renderAlignedCentered "------------------" pos configColors)
 
-          translateInDir Down <$> drawTxt ctxt "- World shape" (move 5 Up left) configColors
+          translateInDir Down <$> dText "- World shape" (move 5 Up left) configColors
             >>= \ pos ->
               dText "'1' -> width = height" pos configColors
                 >>= \pos2 ->
@@ -101,7 +103,7 @@ render (GameParameters shape wall) ctxt' = do
 
           void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
           t <- getCurrentTime
-          let infos = (mkFrameSpec worldFrameColors world ctxt, (([""],[""]),([""],[""])))
+          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
-          renderWorldAnimation worldAnimation ctxt
-      flush ctxt
+          renderWorldAnimation worldAnimation renderFuncs
+      flush

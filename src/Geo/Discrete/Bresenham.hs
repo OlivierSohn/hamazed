@@ -10,8 +10,7 @@ import           Imajuscule.Prelude
 
 import           Geo.Discrete.Types
 
-import           Util( takeWhileInclusive
-                     , range )
+import           Util( range )
 
 bresenhamLength :: Coords -> Coords -> Int
 bresenhamLength (Coords r1 c1) (Coords r2 c2)
@@ -43,3 +42,12 @@ bla (x0, y0) (x1, y1) =
                    | otherwise       = (abs dx, abs dy, yxStep)
       walk w xy = xy : walk (tail w) (step (head w) xy)
   in  walk (balancedWord p q 0) (x0, y0)
+
+
+takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
+takeWhileInclusive _ [] = []
+takeWhileInclusive p (x:xs) = x : if p x
+                                    then
+                                      takeWhileInclusive p xs
+                                    else
+                                      []

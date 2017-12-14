@@ -10,35 +10,26 @@
 make a package with
   - geometric figures / colored text
    -> /Geo
+  - color
   - interpolable
-  - animated colors, animated text
-  - everything should be renderable using dependency injection
+  - interpolated colors, interpolated text
+  - animations
+  - Collision.hs
+  - Timing
+  - Iteration
+  - Math
+  - aligned rendering
 
-
-Color / Color.Types
--> make a package for color
-
-Geo.Discrete.Types(Coords Row Col Coord)
--> make a package for Geo
-
--> make a package for interpolations
-
- would be like this if we use Coords:
-  delta rendering -> discrete coords -> DiscretelyInterpolable
-
-- create an app to test engine.
-
-- make a package for colorstring, aligned text rendering, aligned colorstring rendering
+- make a package for Delta rendering:
+  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
+  - CI: https://github.com/hvr/multi-ghc-travis
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'
   - same with random colors
   - same with worst case : background and foreground change all the time,
         same-background colors are far away (to avoid positional optimization)
-
-- make a package for Delta rendering:
-  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
-  - CI: https://github.com/hvr/multi-ghc-travis
+- create an app to test engine.
 
 - Another optimization is to chose the type of "position change"
 command we send based on the relative location of successive elements: today

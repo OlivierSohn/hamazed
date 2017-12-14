@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{-- | Functions to resample a list.
+{-- | Functions to resample a list, using the analogy where a list
+      is seen as a uniform sampling of a geometrical segment.
 
 (The variable names used in this documentation match the ones in the code.)
 

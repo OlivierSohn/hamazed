@@ -11,7 +11,7 @@ import           Imajuscule.Prelude
 import           Data.List( zip3 )
 
 -- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
--- (slightly modified to fix a bug when rise1 == rise2 and both are > run)
+-- slightly modified to fix a bug when rise1 == rise2, rise1 > run and rise2 > run
 bres :: Int -> Int -> Int -> [(Int, Int, Int)]
 bres run rise1 rise2
     | run < 0  =   [(-x,  y,  z) | (x, y, z) <- bres (-run) rise1 rise2]
@@ -42,4 +42,4 @@ bresenham3 (x1, y1, z1) (x2, y2, z2) =
 -- avoid using unsigned types, as it complicates the calculations
 bresenham3Length :: (Int, Int, Int) -> (Int, Int, Int) -> Int
 bresenham3Length (x1, y1, z1) (x2, y2, z2)
-  = 1 + max (abs (x1-x2)) (max (abs (y1-y2)) (abs (z1-z2)))
+  = succ $ max (abs (x1-x2)) $ max (abs (y1-y2)) (abs (z1-z2))

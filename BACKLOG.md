@@ -5,15 +5,18 @@
 
 - dependencies:
 Color / Color.Types
-Geo.Discrete.Types(Coords Row Col)
+-> make a package for color, that depends on geometric stuff (for interpolations)
 
+Geo.Discrete.Types(Coords Row Col Coord)
+-> make a package for Geo
+
+-> make a package for interpolations
 
  would be like this if we use Coords:
   delta rendering -> discrete coords -> DiscretelyInterpolable
 
 - create an app to test engine.
 
-- make a package for geometric stuff (or use a newtype for Coords)
 - make a package for colorstring, aligned text rendering, aligned colorstring rendering
 
 - make tests to see the effect of buffer size on screen tearing :

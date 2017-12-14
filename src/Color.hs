@@ -22,6 +22,7 @@ module Color (
   , red
   , green
   , magenta
+  , cyan
   , yellow
   , blue
 ) where

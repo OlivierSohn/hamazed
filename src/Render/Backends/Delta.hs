@@ -157,7 +157,6 @@ import           System.IO( BufferMode(..) )
 import           Render.Backends.Internal.Buffers
 import           Render.Backends.Internal.Draw
 import           Render.Backends.Internal.Flush
-import           Render.Types
 
 preferredBuffering :: BufferMode
 preferredBuffering = BlockBuffering $ Just (maxBound :: Int)

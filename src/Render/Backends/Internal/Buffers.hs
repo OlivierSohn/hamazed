@@ -9,7 +9,7 @@ module Render.Backends.Internal.Buffers
           -- ** Policies
           , ResizePolicy(..)
           , ClearPolicy(..)
-          , ClearColor(..)
+          , ClearColor
           , setResizePolicy
           , setClearPolicy
           -- utilities

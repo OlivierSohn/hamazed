@@ -24,7 +24,6 @@ import           Control.Exception(assert)
 
 import           System.Console.ANSI( Color8Code(..) )
 
-import           Color.Types
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
 

@@ -15,7 +15,7 @@ import           Util( takeWhileInclusive
 
 bresenhamLength :: Coords -> Coords -> Int
 bresenhamLength (Coords r1 c1) (Coords r2 c2)
-  = 1 + max (fromIntegral (abs (r1-r2))) (fromIntegral (abs (c1-c2)))
+  = succ $ max (fromIntegral (abs (r1-r2))) $ fromIntegral (abs (c1-c2))
 
 bresenham :: Segment -> [Coords]
 bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2

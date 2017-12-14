@@ -7,4 +7,4 @@ module Geo.Continuous.Types
 
 import           Imajuscule.Prelude
 
-data Vec2 = Vec2 Float Float deriving(Eq, Show)
+data Vec2 = Vec2 !Float !Float deriving(Eq, Show, Ord)

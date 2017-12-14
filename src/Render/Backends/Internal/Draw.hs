@@ -25,15 +25,15 @@ import           Render.Types
 
 
 -- | Draw a 'Char'
-drawChar :: Char
+drawChar :: IORef Buffers
+         -> Char
          -> Coords
          -- ^ Location
          -> LayeredColor
          -- ^ Background and foreground colors
-         -> IORef Buffers
          -> IO ()
-drawChar c pos colors ioRefBuffers =
-  readIORef ioRefBuffers
+drawChar ref c pos colors =
+  readIORef ref
     >>= \b@(Buffers back _ _ _ _ _) ->
       writeToBack back (indexFromPos b pos) (mkCell colors c)
 
@@ -42,17 +42,17 @@ drawChar c pos colors ioRefBuffers =
 --
 -- @drawChar n c@ should be faster than @drawStr (repeat n c)@,
 -- as the encoding of information in a 'Cell' happens once only. (TODO verify in GHC core with optimizations)
-drawChars :: Int
+drawChars :: IORef Buffers
+          -> Int
           -- ^ Number of chars to draw
           -> Char
           -> Coords
           -- ^ Location of left-most 'Char'
           -> LayeredColor
           -- ^ Background and foreground colors
-          -> IORef Buffers
           -> IO ()
-drawChars count c pos colors ioRefBuffers =
-  readIORef ioRefBuffers
+drawChars ref count c pos colors =
+  readIORef ref
     >>= \b@(Buffers back _ size _ _ _) -> do
       let cell = mkCell colors c
           idx = indexFromPos b pos
@@ -63,15 +63,15 @@ drawChars count c pos colors ioRefBuffers =
 
 
 -- | Draw a 'String'
-drawStr :: String
+drawStr :: IORef Buffers
+        -> String
         -> Coords
         -- ^ Location of first 'Char'
         -> LayeredColor
         -- ^ Background and foreground colors
-        -> IORef Buffers
         -> IO ()
-drawStr str pos colors ioRefBuffers =
-  readIORef ioRefBuffers
+drawStr ref str pos colors =
+  readIORef ref
     >>= \b@(Buffers back _ size _ _ _) -> do
       let idx = indexFromPos b pos
       mapM_
@@ -81,14 +81,14 @@ drawStr str pos colors ioRefBuffers =
 
 
 -- | Draw a 'String'
-drawTxt :: Text
+drawTxt :: IORef Buffers
+        -> Text
         -> Coords
         -- ^ Location of first 'Char'
         -> LayeredColor
         -- ^ Background and foreground colors
-        -> IORef Buffers
         -> IO ()
-drawTxt text = drawStr $ unpack text
+drawTxt ref text = drawStr ref $ unpack text
 
 
 {-# INLINE writeToBack #-}

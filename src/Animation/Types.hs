@@ -42,6 +42,8 @@ import           Timing( KeyTime )
 
 import           Iteration
 
+-- TODO abstract from rendering functions : _animatorIO should be passed a function to render
+
 -- | Animator contains functions to update and render an Animation.
 data Animator = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)

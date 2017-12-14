@@ -26,15 +26,10 @@ import           Evolution
 
 import           Geo.Discrete
 
-import           Text.ICoords
-
 import           Math
 
-import           Render.Console
-import           Render
-
+import           Text.ICoords
 import           Text.ColorString
-
 
 {- | Animates in parallel
 
@@ -54,45 +49,61 @@ data (Show a) => TextAnimation a = TextAnimation {
 data AnchorStrings = AnchorStrings deriving(Show)
 data AnchorChars = AnchorChars deriving(Show)
 
-renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings -> Frame -> IORef Buffers -> IO ()
-renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i b = do
+renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings
+                                 -> Frame
+                                 -> (Text -> Coords -> LayeredColor -> IO ())
+                                 -> IO ()
+renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i r = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextStringAnchored' fromToStrs rss i b
+  renderAnimatedTextStringAnchored' fromToStrs rss i r
 
-renderAnimatedTextStringAnchored' :: [Evolution ColorString] -> [ICoords] -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextStringAnchored' :: [Evolution ColorString]
+                                  -> [ICoords]
+                                  -> Frame
+                                  -> (Text -> Coords -> LayeredColor -> IO ())
+                                  -> IO ()
 renderAnimatedTextStringAnchored' [] _ _ _ = return ()
-renderAnimatedTextStringAnchored' l@(_:_) rs i b = do
+renderAnimatedTextStringAnchored' l@(_:_) rs i r = do
   let e = head l
       (ICoords rsNow) = head rs
       colorStr = evolve e i
-  renderColored colorStr rsNow b
-  >>=
-    renderAnimatedTextStringAnchored' (tail l) (tail rs) i
+  renderColored colorStr rsNow r
+  renderAnimatedTextStringAnchored' (tail l) (tail rs) i r
 
-renderAnimatedTextCharAnchored :: TextAnimation AnchorChars -> Frame -> IORef Buffers -> IO ()
-renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i b = do
+renderAnimatedTextCharAnchored :: TextAnimation AnchorChars
+                               -> Frame
+                               -> (Char -> Coords -> LayeredColor -> IO ())
+                               -> IO ()
+renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i renderChar = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextCharAnchored' fromToStrs rss i b
+  renderAnimatedTextCharAnchored' fromToStrs rss i renderChar
 
-renderAnimatedTextCharAnchored' :: [Evolution ColorString] -> [ICoords] -> Frame -> IORef Buffers -> IO ()
+renderAnimatedTextCharAnchored' :: [Evolution ColorString]
+                                -> [ICoords]
+                                -> Frame
+                                -> (Char -> Coords -> LayeredColor -> IO ())
+                                -> IO ()
 renderAnimatedTextCharAnchored' [] _ _ _ = return ()
-renderAnimatedTextCharAnchored' l@(_:_) rs i b = do
+renderAnimatedTextCharAnchored' l@(_:_) rs i renderChar = do
   -- use length of from to know how many renderstates we should take
   let e@(Evolution (Successive colorStrings) _ _ _) = head l
       nRS = maximum $ map countChars colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       (ColorString colorStr) = evolve e i
-  renderColorStringAt colorStr nowRS b
-  renderAnimatedTextCharAnchored' (tail l) laterRS i b
+  renderColorStringAt colorStr nowRS renderChar
+  renderAnimatedTextCharAnchored' (tail l) laterRS i renderChar
 
-renderColorStringAt :: [(Text, LayeredColor)] -> [ICoords] -> IORef Buffers -> IO ()
+renderColorStringAt :: [(Text, LayeredColor)]
+                    -> [ICoords]
+                    -> (Char -> Coords -> LayeredColor -> IO ())
+                    -> IO ()
 renderColorStringAt [] _ _ = return ()
-renderColorStringAt l@(_:_) rs b = do
+renderColorStringAt l@(_:_) rs renderChar = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char (ICoords coord) -> drawChar char coord color b) (unpack txt) headRs
-  renderColorStringAt (tail l) tailRs b
+  zipWithM_ (\char (ICoords coord) -> renderChar char coord color) (unpack txt) headRs
+  renderColorStringAt (tail l) tailRs renderChar
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList ICoords)
                             -> Frame

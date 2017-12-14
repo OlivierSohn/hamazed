@@ -80,24 +80,26 @@ render (GameParameters shape wall) ctxt' = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          renderAlignedTxt Centered "Game configuration" (translateInDir Down middle) configColors ctxt
+              renderAlignedCentered = renderAlignedTxt ctxt Centered
+              dText = drawTxt ctxt
+          renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
             >>= \ pos ->
-              renderAlignedTxt_ Centered "------------------" pos configColors ctxt
+                  void (renderAlignedCentered "------------------" pos configColors)
 
-          translateInDir Down <$> drawTxt "- World shape" (move 5 Up left) configColors ctxt
+          translateInDir Down <$> drawTxt ctxt "- World shape" (move 5 Up left) configColors
             >>= \ pos ->
-              drawTxt "'1' -> width = height" pos configColors ctxt
+              dText "'1' -> width = height" pos configColors
                 >>= \pos2 ->
-                  drawTxt_ "'2' -> width = 2 x height" pos2 configColors ctxt
-          translateInDir Down <$> drawTxt "- World walls" left configColors ctxt
+                  void (dText "'2' -> width = 2 x height" pos2 configColors)
+          translateInDir Down <$> dText "- World walls" left configColors
             >>= \pos ->
-              drawTxt "'e' -> no walls" pos configColors ctxt >>=
+              dText "'e' -> no walls" pos configColors >>=
                 \pos2 ->
-                  drawTxt "'r' -> deterministic walls" pos2 configColors ctxt
+                  dText "'r' -> deterministic walls" pos2 configColors
                     >>= \pos3 ->
-                      drawTxt_ "'t' -> random walls" pos3 configColors ctxt
+                      void (dText "'t' -> random walls" pos3 configColors)
 
-          renderAlignedTxt_ Centered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors ctxt
+          void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
           t <- getCurrentTime
           let infos = (mkFrameSpec worldFrameColors world ctxt, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t

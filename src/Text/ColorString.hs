@@ -6,11 +6,15 @@ module Text.ColorString
             , colored
             , colored'
             , countChars
+            , LayeredColor(..)
+            , renderColored
             ) where
 
 import           Imajuscule.Prelude
 
 import           System.Console.ANSI(Color8Code(..))
+
+import           Control.Monad( foldM_ )
 
 import           Color
 import           Color.ILayeredColor
@@ -19,6 +23,7 @@ import qualified Data.List as List(length, splitAt)
 import           Data.String(IsString(..))
 import           Data.Text( Text, length, pack, unpack )
 
+import           Geo.Discrete
 import           Math
 
 import           Util
@@ -158,3 +163,15 @@ countChars (ColorString cs) = sum $ map (length . fst) cs
 instance Monoid ColorString where
   mempty = ColorString [("", onBlack white)]
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
+
+renderColored :: ColorString
+              -> Coords
+              -> (Text -> Coords -> LayeredColor -> IO ())
+              -> IO ()
+renderColored (ColorString cs) pos renderTxt =
+  foldM_
+    (\count (txt, color) -> do
+      let l = length txt
+      renderTxt txt (move count RIGHT pos) color
+      return $ count + l
+    ) 0 cs

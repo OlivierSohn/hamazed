@@ -13,6 +13,7 @@ import           Game.World.Types
 
 import           Geo.Discrete
 
+import           Render.Backends.Delta
 import           Render
 
 import           Text.ColorString
@@ -25,8 +26,8 @@ renderEvolutions
  frame b = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
   evolveIO frameE relFrameFrameE
-  renderAnimatedTextCharAnchored upDown relFrameUD b
-  renderAnimatedTextStringAnchored left relFrameLeft b
+  renderAnimatedTextCharAnchored upDown relFrameUD (drawChar b)
+  renderAnimatedTextStringAnchored left relFrameLeft (drawTxt b)
 
 getDeltaTime :: WorldEvolutions -> Frame -> Maybe Float
 getDeltaTime we@(WorldEvolutions frameE (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =

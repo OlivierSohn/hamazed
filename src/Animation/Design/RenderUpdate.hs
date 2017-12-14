@@ -123,6 +123,6 @@ render
             Stop      -> error "animation should have stopped"
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
-      mapM_ (\c -> drawChar char (sumCoords c r) color b) renderedCoordinates
+      mapM_ (\c -> drawChar b char (sumCoords c r) color) renderedCoordinates
       childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r b) children
       return $ isAlive || or childrenAlive

@@ -92,18 +92,18 @@ configureConsoleFor config = do
             ++ " instead it is now "
             ++ show ib
 
-drawStr :: String -> Coords -> LayeredColor -> IORef Backend.Buffers -> IO Coords
-drawStr str pos color b =
-  Backend.drawStr str pos color b >> return (translateInDir Down pos)
+drawStr :: IORef Backend.Buffers -> String -> Coords -> LayeredColor -> IO Coords
+drawStr ref str pos color =
+  Backend.drawStr ref str pos color >> return (translateInDir Down pos)
 
-drawStr_ :: String -> Coords -> LayeredColor -> IORef Backend.Buffers -> IO ()
-drawStr_ s c co b =
-  void (Backend.drawStr s c co b)
+drawStr_ :: IORef Backend.Buffers -> String -> Coords -> LayeredColor -> IO ()
+drawStr_ ref s c co =
+  void (Backend.drawStr ref s c co)
 
-drawTxt :: Text -> Coords -> LayeredColor -> IORef Backend.Buffers -> IO Coords
-drawTxt txt pos color b =
-  Backend.drawTxt txt pos color b >> return (translateInDir Down pos)
+drawTxt :: IORef Backend.Buffers -> Text -> Coords -> LayeredColor -> IO Coords
+drawTxt ref txt pos color =
+  Backend.drawTxt ref txt pos color >> return (translateInDir Down pos)
 
-drawTxt_ :: Text -> Coords -> LayeredColor -> IORef Backend.Buffers -> IO ()
-drawTxt_ t c b bu =
-  void (Backend.drawTxt t c b bu)
+drawTxt_ :: IORef Backend.Buffers -> Text -> Coords -> LayeredColor -> IO ()
+drawTxt_ ref t c b =
+  void (Backend.drawTxt ref t c b)

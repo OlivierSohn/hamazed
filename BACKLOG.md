@@ -1,6 +1,7 @@
 
 # Backlog
 
+- coord interpolation should use bresenham
 ## Delta rendering
 
 - dependencies:

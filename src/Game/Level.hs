@@ -129,9 +129,9 @@ renderLevelState s level (LevelFinished stop _ messageState) b = do
       stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  drawTxt_ stopMsg topLeft (messageColor stop) b
+  drawTxt_ b stopMsg topLeft (messageColor stop)
   when (messageState == ContinueMessage) $
-    drawTxt_
+    drawTxt_ b
       (if level == lastLevel
         then
           "You reached the end of the game!"
@@ -140,7 +140,7 @@ renderLevelState s level (LevelFinished stop _ messageState) b = do
                             (Lost _) -> "restart"
                             Won      -> "continue"
           in "Hit a key to " <> action <> " ...")
-      (move 2 Down topLeft) neutralMessageColor b
+      (move 2 Down topLeft) neutralMessageColor
 
 
 renderLevelMessage :: Level -> Coords -> IORef Buffers -> IO ()

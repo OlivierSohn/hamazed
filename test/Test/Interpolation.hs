@@ -21,18 +21,18 @@ zipAll e x = (evolve e x, evolveDeltaTime e x)
 
 
 
-testCoords :: [(ICoords, Maybe Float)]
+testCoords :: [(Coords, Maybe Float)]
 testCoords =
-  let from = ICoords $ Coords 0 0
-      to = ICoords $ Coords 1 0
+  let from = Coords 0 0
+      to = Coords 1 0
       d = distance from to
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]
 
-testListCoords :: [([ICoords], Maybe Float)]
+testListCoords :: [([Coords], Maybe Float)]
 testListCoords =
-  let from = [ICoords $ Coords 0 0, ICoords $ Coords 10 10]
-      to   = [ICoords $ Coords 1 0, ICoords $ Coords 11 10]
+  let from = [Coords 0 0, Coords 10 10]
+      to   = [Coords 1 0, Coords 11 10]
       d = distance from to
       e = mkEvolution2 from to 1
   in map (zipAll e . Frame) [0..pred d]

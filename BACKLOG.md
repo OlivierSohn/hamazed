@@ -1,7 +1,7 @@
 
 # Backlog
 
-- coord interpolation should use bresenham
+- generic use of bresenham for interpolations of 2 and 3 dimensions
 
 ## Delta rendering
 

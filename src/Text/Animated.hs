@@ -12,7 +12,6 @@ module Text.Animated
          , mkSequentialTextTranslationsStringAnchored
          -- | reexports
          , module Evolution
-         , module Text.ICoords
          ) where
 
 import           Imajuscule.Prelude
@@ -28,7 +27,6 @@ import           Geo.Discrete
 
 import           Math
 
-import           Text.ICoords
 import           Text.ColorString
 
 {- | Animates in parallel
@@ -42,7 +40,7 @@ import           Text.ColorString
 -}
 data (Show a) => TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
- , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList ICoords))
+ , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList Coords))
  , _textAnimationClock :: !EaseClock
 } deriving(Show)
 
@@ -58,14 +56,14 @@ renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution
   renderAnimatedTextStringAnchored' fromToStrs rss i r
 
 renderAnimatedTextStringAnchored' :: [Evolution ColorString]
-                                  -> [ICoords]
+                                  -> [Coords]
                                   -> Frame
                                   -> (Text -> Coords -> LayeredColor -> IO ())
                                   -> IO ()
 renderAnimatedTextStringAnchored' [] _ _ _ = return ()
 renderAnimatedTextStringAnchored' l@(_:_) rs i r = do
   let e = head l
-      (ICoords rsNow) = head rs
+      rsNow = head rs
       colorStr = evolve e i
   renderColored colorStr rsNow r
   renderAnimatedTextStringAnchored' (tail l) (tail rs) i r
@@ -79,7 +77,7 @@ renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _
   renderAnimatedTextCharAnchored' fromToStrs rss i renderChar
 
 renderAnimatedTextCharAnchored' :: [Evolution ColorString]
-                                -> [ICoords]
+                                -> [Coords]
                                 -> Frame
                                 -> (Char -> Coords -> LayeredColor -> IO ())
                                 -> IO ()
@@ -94,7 +92,7 @@ renderAnimatedTextCharAnchored' l@(_:_) rs i renderChar = do
   renderAnimatedTextCharAnchored' (tail l) laterRS i renderChar
 
 renderColorStringAt :: [(Text, LayeredColor)]
-                    -> [ICoords]
+                    -> [Coords]
                     -> (Char -> Coords -> LayeredColor -> IO ())
                     -> IO ()
 renderColorStringAt [] _ _ = return ()
@@ -102,21 +100,21 @@ renderColorStringAt l@(_:_) rs renderChar = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char (ICoords coord) -> renderChar char coord color) (unpack txt) headRs
+  zipWithM_ (\char coord -> renderChar char coord color) (unpack txt) headRs
   renderColorStringAt (tail l) tailRs renderChar
 
-getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList ICoords)
+getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList Coords)
                             -> Frame
-                            -> [ICoords]
+                            -> [Coords]
 getAnimatedTextRenderStates evolution i =
   let (SequentiallyInterpolatedList l) = evolve evolution i
   in l
 
-build :: ICoords -> Int -> [ICoords]
-build (ICoords x) sz = map (\i -> ICoords $ move i RIGHT x)  [0..pred sz]
+build :: Coords -> Int -> [Coords]
+build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
 -- | order of animation is: move, change characters, change color
-mkSequentialTextTranslationsCharAnchored :: [([ColorString], ICoords, ICoords)]
+mkSequentialTextTranslationsCharAnchored :: [([ColorString], Coords, Coords)]
                                          -- ^ list of text + start anchor + end anchor
                                          -> Float
                                          -- ^ duration in seconds
@@ -136,7 +134,7 @@ mkSequentialTextTranslationsCharAnchored l duration =
                      (SequentiallyInterpolatedList to_) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
-mkSequentialTextTranslationsStringAnchored :: [([ColorString], ICoords, ICoords)]
+mkSequentialTextTranslationsStringAnchored :: [([ColorString], Coords, Coords)]
                                            -- ^ list of texts, start anchor, end anchor
                                            -> Float
                                            -- ^ duration in seconds
@@ -155,9 +153,9 @@ mkSequentialTextTranslationsStringAnchored l duration =
 mkTextTranslation :: ColorString
                   -> Float
                   -- ^ duration in seconds
-                  -> ICoords
+                  -> Coords
                   -- ^ left anchor at the beginning
-                  -> ICoords
+                  -> Coords
                   -- ^ left anchor at the end
                   -> TextAnimation AnchorChars
 mkTextTranslation text duration from to =

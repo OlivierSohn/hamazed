@@ -13,6 +13,8 @@ import           Imajuscule.Prelude
 
 import           Data.List( length, mapAccumL )
 
+import           Geo.Discrete
+import           Geo.Discrete.Bresenham
 import           Iteration
 import           Math
 import           Render
@@ -162,3 +164,16 @@ instance (DiscretelyInterpolable a)
           in (acc-d, r))
         progress
         $ zip l (assert (length l' == length l) l')
+
+
+-- TODO make generic to use bresenham for 2d, bresenham3 for 3d (color)
+instance DiscretelyInterpolable Coords where
+  distance = bresenhamLength
+
+  interpolate c c' i
+    | c == c' = c
+    | otherwise =
+        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
+            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+            index = clamp i 0 lastFrame
+        in head . drop index $ bresenham $ mkSegment c c'

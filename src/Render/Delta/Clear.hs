@@ -11,7 +11,7 @@ import Render.Delta.Cells
 import Render.Delta.Draw
 
 clearIfNeeded :: ClearContext -> Buffers -> IO ()
-clearIfNeeded ctxt b@(Buffers _ _ _ _ _ (Policies _ clearPolicy clearColor)) = do
+clearIfNeeded ctxt b@(Buffers _ _ _ _ (Policies _ clearPolicy clearColor)) = do
   let clear = fillBackBuffer b (clearCell clearColor)
   case clearPolicy of
     ClearAtEveryFrame -> clear

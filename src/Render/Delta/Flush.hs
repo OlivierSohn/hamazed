@@ -4,12 +4,12 @@ module Render.Delta.Flush
     ( flush
     ) where
 
-import           Prelude hiding(read)
+import           Prelude hiding(read, length)
 
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef )
 import           Data.Vector.Algorithms.Intro -- unstable sort
-import           Data.Vector.Unboxed.Mutable( read, write )
+import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 import           System.Console.ANSI( Color8Code(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
@@ -20,8 +20,7 @@ import           Render.Delta.Cell
 import           Render.Delta.Clear
 import           Render.Delta.Types
 import qualified Render.Delta.UnboxedDynamic as Dyn
-                                ( accessUnderlying, length
-                                , read, clear, pushBack )
+                                ( accessUnderlying, length, clear, pushBack )
 import           Render.Types
 
 
@@ -40,12 +39,11 @@ flush ioRefBuffers =
 
 
 render :: Buffers -> IO ()
-render buffers@(Buffers _ _ _ _ (Delta delta) _) = do
+render buffers@(Buffers _ _ width (Delta delta) _) = do
   computeDelta buffers 0
 
   clearIfNeeded OnFrame buffers
 
-  szDelta <- Dyn.length delta
   underlying <- Dyn.accessUnderlying delta
 
   -- On average, foreground and background color change command is 20 bytes :
@@ -58,28 +56,30 @@ render buffers@(Buffers _ _ _ _ (Delta delta) _) = do
   -- sorts by color first, then by position, which is what we want.
   sort underlying
 
+  szDelta <- Dyn.length delta
   -- We ignore this color value. We could store it and use it to initiate the recursion
   -- at next render but if the client renders with another library in-betweeen, this value
   -- would be wrong, so we can ignore it here for more robustness.
-  _ <- renderDelta (fromIntegral szDelta) 0 Nothing Nothing buffers
+  _ <- renderDelta underlying (fromIntegral szDelta) width 0 Nothing Nothing
   Dyn.clear delta
 
-renderDelta :: Dim Size
+-- We pass the underlying vector, and the size instead of the dynamicVector
+renderDelta :: IOVector Cell
+            -> Dim Size
+            -> Dim Width
             -> Dim Index
             -> Maybe LayeredColor
             -> Maybe (Dim Index)
-            -> Buffers
             -> IO LayeredColor
-renderDelta size index prevColors prevIndex
-  b@(Buffers _ _ _ _ (Delta delta) _)
+renderDelta delta size width index prevColors prevIndex
  | fromIntegral size == index = return $ LayeredColor (Color8Code 0) (Color8Code 0)
  | otherwise = do
-    c <- Dyn.read delta $ fromIntegral index
+    c <- read delta $ fromIntegral index
     let (bg, fg, idx, char) = expandIndexed c
         prevRendered = (== Just (pred idx)) prevIndex
-    setCursorPositionIfNeeded b idx prevRendered
+    setCursorPositionIfNeeded width idx prevRendered
     usedColor <- renderCell bg fg char prevColors
-    renderDelta size (succ index) (Just usedColor) (Just idx) b
+    renderDelta delta size width (succ index) (Just usedColor) (Just idx)
 
 
 computeDelta :: Buffers
@@ -87,7 +87,7 @@ computeDelta :: Buffers
              -- ^ the buffer index
              -> IO ()
 computeDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) size _ (Delta delta) _)
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ (Delta delta) _)
  idx
   | fromIntegral idx == size = return ()
   | otherwise = do
@@ -103,19 +103,21 @@ computeDelta
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx
       -- recurse
       computeDelta b (succ idx)
+  where
+    size = length backBuf
 
 -- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
 -- of a char, so we avoid sending this command when not strictly needed.
 {-# INLINE setCursorPositionIfNeeded #-}
-setCursorPositionIfNeeded :: Buffers
+setCursorPositionIfNeeded :: Dim Width
                           -> Dim Index
                           -- ^ the buffer index
                           -> Bool
                           -- ^ True if a char was rendered at the previous buffer index
                           -> IO ()
-setCursorPositionIfNeeded b idx predPosRendered = do
-  let (colIdx, rowIdx) = xyFromIndex b idx
+setCursorPositionIfNeeded width idx predPosRendered = do
+  let (colIdx, rowIdx) = xyFromIndex width idx
       shouldSetCursorPosition =
       -- We assume that the buffer width is not equal to terminal width,
       -- so even if the previous position was rendered,
@@ -155,8 +157,8 @@ renderCell bg fg char maybeCurrentConsoleColor = do
 
 
 {-# INLINE xyFromIndex #-}
-xyFromIndex :: Buffers -> Dim Index -> (Dim ColIndex, Dim RowIndex)
-xyFromIndex (Buffers _ _ _ width _ _) idx =
+xyFromIndex :: Dim Width -> Dim Index -> (Dim ColIndex, Dim RowIndex)
+xyFromIndex width idx =
   getRowCol idx width
 
 

@@ -26,7 +26,6 @@ import           Render.Types
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersSize :: !(Dim Size)
   , _buffersWidth :: !(Dim Width)
   , _buffersDelta :: !Delta
   -- ^ buffer used in renderFrame

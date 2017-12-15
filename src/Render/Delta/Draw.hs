@@ -13,9 +13,11 @@ module Render.Delta.Draw
             , fillBackBuffer
             ) where
 
+import           Prelude hiding (length)
+
 import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
-import           Data.Vector.Unboxed.Mutable( write )
+import           Data.Vector.Unboxed.Mutable( write, set, length )
 
 import           Color
 import           Geo.Discrete.Types
@@ -35,8 +37,9 @@ drawChar :: IORef Buffers
          -> IO ()
 drawChar ref c pos colors =
   readIORef ref
-    >>= \b@(Buffers back _ _ _ _ _) ->
-      writeToBack back (indexFromPos b pos) (mkCell colors c)
+    >>= \(Buffers back@(Buffer b) _ width _ _) -> do
+      let size = fromIntegral $ length b
+      writeToBack back (indexFromPos size width pos) (mkCell colors c)
 
 
 {-# INLINE drawChars #-}
@@ -55,9 +58,10 @@ drawChars :: IORef Buffers
           -> IO ()
 drawChars ref count c pos colors =
   readIORef ref
-    >>= \b@(Buffers back _ size _ _ _) -> do
+    >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let cell = mkCell colors c
-          idx = indexFromPos b pos
+          size = fromIntegral $ length b
+          idx = indexFromPos size width pos
       mapM_
         (\i -> let idx' = (fromIntegral idx + i) `fastMod` size
                in writeToBack back idx' cell)
@@ -75,8 +79,9 @@ drawStr :: IORef Buffers
         -> IO ()
 drawStr ref str pos colors =
   readIORef ref
-    >>= \b@(Buffers back _ size _ _ _) -> do
-      let idx = indexFromPos b pos
+    >>= \(Buffers back@(Buffer b) _ width _ _) -> do
+      let size = fromIntegral $ length b
+          idx = indexFromPos size width pos
       mapM_
         (\(c, i) ->
             writeToBack back (idx+i `fastMod` size) (mkCell colors c))
@@ -112,14 +117,13 @@ fill char colors ioRefBuffers =
 fillBackBuffer :: Buffers
                -> Cell
                -> IO ()
-fillBackBuffer (Buffers (Buffer b) _ size _ _ _) cell =
-  mapM_ (\pos -> write b pos cell) [0..fromIntegral $ pred size]
-
+fillBackBuffer (Buffers (Buffer b) _ _ _ _) =
+  set b
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Buffers -> Coords -> Dim Index
-indexFromPos (Buffers _ _ size width _ _) (Coords y x) =
+indexFromPos :: Dim Size -> Dim Width -> Coords -> Dim Index
+indexFromPos size width (Coords y x) =
   (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
 
 

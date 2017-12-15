@@ -26,7 +26,7 @@ import           Render.Types
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersWidth :: !(Dim Width)
+  , _buffersDrawWidth :: !(Dim Width) -- the size is stored in back and front buffers
   , _buffersDelta :: !Delta
   -- ^ buffer used in renderFrame
   , _buffersPolicies :: !Policies

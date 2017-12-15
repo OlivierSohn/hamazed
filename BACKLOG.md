@@ -48,6 +48,8 @@ be more efficient to switch to
 
 ## Misc.
 
+- provide "nice" default colors (notion of palette?)
+
 - 3..2..1..GO! countdown at the beginning of a level
 
 - animate lose/win messages

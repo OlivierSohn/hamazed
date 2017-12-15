@@ -22,8 +22,6 @@ import           Imajuscule.Prelude
 
 import           Game.Level.Types
 
-import           Render.Console
-
 import           Color
 
 

@@ -11,7 +11,7 @@ import Geo.Discrete
 import Color
 import Color.IColor8Code
 import Game.World.Space
-import Render.Console
+import Render.Delta
 import Text.ColorString
 
 testICS :: IO ()

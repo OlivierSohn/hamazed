@@ -12,9 +12,8 @@ To avoid overflowing stdout, the system flushes it, thereby triggering a /partia
 During a game, occasional partial frames distract the player, hence, it is crucially
 important to address this issue. And this is exactly what this package is about!
 
-If you encounter screen tearing issues in you game, please try this package.
-And if it doesn't solve the screen tearing, please open an issue, I'll see if I can do
-some more optimizations :-)
+If you encounter screen tearing issues in you game, and if this package doesn't
+the issue entirely, please tell me, I'll investigate :-)
 
 = API semantics
 
@@ -64,7 +63,7 @@ for every game element and animation.
 As the complexity of animations grew, screen tearing occured, and to fix it I first
 maximized the size of stdout buffer:
 
-> hSetBuffering stdout $ BlockBuffering $ Just (maxBound :: Int)
+> hSetBuffering stdout $ BlockBuffering $ Just maxBound
 
 Using 'testStdoutSizes' I measured that it went from 2048 bytes to 8096 bytes long.
 But it solved the problem only very temporarily. As I introduced more animations in the game,
@@ -146,22 +145,12 @@ module Render.Delta
                           , module Render.Delta.Draw
                             -- ** Render
                           , module Render.Delta.Flush
-                          -- * Types
-                          , BufferMode(..)
-                          , preferredBuffering
                           ) where
-
-import           Imajuscule.Prelude
-
-import           System.IO( BufferMode(..) )
 
 import           Render.Delta.Buffers
 import           Render.Delta.Draw
 import           Render.Delta.Flush
 import           Render
-
-preferredBuffering :: BufferMode
-preferredBuffering = BlockBuffering $ Just (maxBound :: Int)
 
 mkRenderFunctions :: IORef Buffers -> RenderFunctions
 mkRenderFunctions b = RenderFunctions (drawChar b) (drawChars b) (drawTxt b) (flush b)

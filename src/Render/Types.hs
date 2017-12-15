@@ -50,6 +50,7 @@ data ClearPolicy = ClearAtEveryFrame
                  --   to use 'ClearAtEveryFrame', else you will see previous frame elements
                  --   in the rendered frame (unless you intend to have this behaviour).
 
+-- | The background color to clear the buffer with.
 type ClearColor = Color8Code
 
 newtype Dim a = Dim Word16 deriving(Num, Eq, Ord, Show, Real, Enum, Integral)

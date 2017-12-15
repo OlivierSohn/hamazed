@@ -10,6 +10,7 @@ import           Imajuscule.Prelude
 
 import           Data.List( zip3 )
 
+
 -- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
 -- slightly modified to fix a bug when rise1 == rise2, rise1 > run and rise2 > run
 bres :: Int -> Int -> Int -> [(Int, Int, Int)]

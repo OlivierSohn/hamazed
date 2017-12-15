@@ -1,8 +1,6 @@
 
 # Backlog
 
-- generic use of bresenham for interpolations of 2 and 3 dimensions
-
 ## Delta rendering
 
 - dependencies:
@@ -23,6 +21,9 @@ make a package with
 - make a package for Delta rendering:
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
+
+- try ideas of https://stackoverflow.com/a/3641854 to put IO Buffers or RenderingFunctions
+in a Monad.
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'
@@ -61,7 +62,7 @@ be more efficient to switch to
 some evolutions don't use the interpolation aspect as they are only used to time.
 we should separate the 2 aspects by defining 2 distinct types.
 
-- animate frame color while transitionning (red -> white -> red)
+- animate frame color while transitioning (red -> white -> red)
 
 - when expanding, invert animation order between frame and infos
 

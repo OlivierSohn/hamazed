@@ -166,7 +166,6 @@ instance (DiscretelyInterpolable a)
         $ zip l (assert (length l' == length l) l')
 
 
--- TODO make generic to use bresenham for 2d, bresenham3 for 3d (color)
 instance DiscretelyInterpolable Coords where
   distance = bresenhamLength
 

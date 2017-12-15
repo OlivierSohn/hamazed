@@ -67,16 +67,16 @@ drawTxt ref txt pos color =
   ref txt pos color >> return (translateInDir Down pos)
 
 render :: GameParameters -> RenderFunctions -> IO ()
-render (GameParameters shape wall) renderFuncs = do
+render (GameParameters shape wall) rf@(RenderFunctions _ renderChars renderTxt flush) = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
-  ew <- mkEmbeddedWorld renderFuncs worldSize
+  ew <- mkEmbeddedWorld worldSize
   case ew of
     Left err -> error err
-    Right rew@(EmbeddedWorld _ ul (RenderFunctions _ renderChars renderTxt flush)) -> do
+    Right rew@(EmbeddedWorld _ ul) -> do
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space ul renderChars >>=
         \worldCoords -> do
-          renderWorld world
+          renderWorld rf world
           let middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle
@@ -105,5 +105,5 @@ render (GameParameters shape wall) renderFuncs = do
           t <- getCurrentTime
           let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
-          renderWorldAnimation worldAnimation renderFuncs
+          renderWorldAnimation rf worldAnimation
       flush

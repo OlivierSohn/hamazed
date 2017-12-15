@@ -19,13 +19,13 @@ import           Text.ColorString
 
 import           Timing
 
-renderEvolutions :: WorldEvolutions
+renderEvolutions :: RenderFunctions
+                 -> WorldEvolutions
                  -> Frame
-                 -> RenderFunctions
                  -> IO ()
-renderEvolutions
+renderEvolutions renderFuncs@(RenderFunctions renderChar _ renderTxt _)
  we@(WorldEvolutions frameE upDown left)
- frame renderFuncs@(RenderFunctions renderChar _ renderTxt _) = do
+ frame  = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
   evolveIO frameE renderFuncs relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD renderChar

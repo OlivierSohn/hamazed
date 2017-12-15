@@ -144,9 +144,11 @@ createRandomNumber space i = do
   ps <- createRandomPosSpeed space
   return $ Number ps i
 
-renderWorld :: World -> IO ()
-renderWorld (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-                   space _ (EmbeddedWorld _ upperLeft (RenderFunctions renderChar _ _ _)))  = do
+renderWorld :: RenderFunctions -> World -> IO ()
+renderWorld
+  (RenderFunctions renderChar _ _ _)
+  (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
+         space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
   let s = translateInDir Down $ translateInDir RIGHT upperLeft
   mapM_ (\b -> renderNumber b space s renderChar) balls
@@ -169,8 +171,8 @@ renderNumber (Number (PosSpeed pos _) i) space r b = do
   let color = numberColor i
   renderIfNotColliding (intToDigit i) pos space color r b
 
-renderWorldAnimation :: WorldAnimation
-                     -> RenderFunctions
+renderWorldAnimation :: RenderFunctions
+                     -> WorldAnimation
                      -> IO ()
-renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
-  renderEvolutions evolutions frame
+renderWorldAnimation rf (WorldAnimation evolutions _ (Iteration (_, frame))) =
+  renderEvolutions rf evolutions frame

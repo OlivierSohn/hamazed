@@ -143,6 +143,6 @@ renderLevelState (RenderFunctions _ _ renderTxt _) s level (LevelFinished stop _
       (move 2 Down topLeft) neutralMessageColor
 
 
-renderLevelMessage :: Level -> Coords -> RenderFunctions -> IO ()
-renderLevelMessage (Level level _ levelState) rightMiddle f =
-  mapM_ (renderLevelState f rightMiddle level) levelState
+renderLevelMessage :: RenderFunctions -> Level -> Coords -> IO ()
+renderLevelMessage rf (Level level _ levelState) rightMiddle =
+  mapM_ (renderLevelState rf rightMiddle level) levelState

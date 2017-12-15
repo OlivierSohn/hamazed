@@ -25,4 +25,5 @@ data GameState = GameState {
   , _gameStateShotNumbers :: ![Int]
   , _gameStateLevel :: !Level
   , _gameStateWorldAnimation :: !WorldAnimation
+  , _gameStateRenderFunctions :: !RenderFunctions
 }

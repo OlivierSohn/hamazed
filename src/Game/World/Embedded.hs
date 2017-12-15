@@ -19,11 +19,10 @@ minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 
-mkEmbeddedWorld :: RenderFunctions -> WorldSize -> IO (Either String EmbeddedWorld)
-mkEmbeddedWorld ctxt s = do
+mkEmbeddedWorld :: WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld s = do
   mayTermSize <- Terminal.size
-  return $ (\coords -> EmbeddedWorld mayTermSize coords ctxt)
-    <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ EmbeddedWorld mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
 worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords

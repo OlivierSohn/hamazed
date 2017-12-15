@@ -35,11 +35,10 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
     | s == s'   = 1 -- no animation because sizes are equal
     | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
-  interpolateIO f@(FrameAnimationParallel4 from)
-                t@(FrameAnimationParallel4 to) renderFuncs frame
-    | frame <= 0         = renderWhole renderFuncs from
-    | frame >= lastFrame = renderWhole renderFuncs to
-    | otherwise          = renderTransition renderFuncs from to lastFrame frame
+  interpolateIO rf f@(FrameAnimationParallel4 from) t@(FrameAnimationParallel4 to) frame
+    | frame <= 0         = renderWhole rf from
+    | frame >= lastFrame = renderWhole rf to
+    | otherwise          = renderTransition rf from to lastFrame frame
     where
       lastFrame = pred $ distance f t
 

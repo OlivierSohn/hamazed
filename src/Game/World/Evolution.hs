@@ -23,11 +23,11 @@ renderEvolutions :: RenderFunctions
                  -> WorldEvolutions
                  -> Frame
                  -> IO ()
-renderEvolutions renderFuncs@(RenderFunctions renderChar _ renderTxt _)
+renderEvolutions rf@(RenderFunctions renderChar _ renderTxt _)
  we@(WorldEvolutions frameE upDown left)
  frame  = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  evolveIO frameE renderFuncs relFrameFrameE
+  evolveIO rf frameE relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD renderChar
   renderAnimatedTextStringAnchored left relFrameLeft renderTxt
 

@@ -132,10 +132,10 @@ evolve' (Evolution s _ _ _) (Frame step) =
 
 {-# INLINABLE evolveIO #-} -- allow specialization
 evolveIO :: (DiscretelyInterpolable v)
-         => Evolution v
-         -> RenderFunctions
+         => RenderFunctions
+         -> Evolution v
          -> Frame
          -- ^ current frame
          -> IO ()
-evolveIO (Evolution s _ _ _) f (Frame step) =
-  interpolateSuccessiveIO s f $ assert (step >= 0) step
+evolveIO rf (Evolution s _ _ _) (Frame step) =
+  interpolateSuccessiveIO rf s $ assert (step >= 0) step

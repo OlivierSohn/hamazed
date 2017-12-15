@@ -75,9 +75,9 @@ class (Show v) => DiscretelyInterpolable v where
                -> w -- ^ the interpolated value
   interpolate' = error "interpolate' is not defined"
 
-  interpolateIO :: v -- ^ first value
+  interpolateIO :: RenderFunctions
+                -> v -- ^ first value
                 -> v -- ^ last value
-                -> RenderFunctions
                 -> Int -- ^ the current step
                 -> IO ()
   interpolateIO = error "interpolateIO is not defined"
@@ -104,16 +104,16 @@ class (Show v) => DiscretelyInterpolable v where
     | otherwise = interpolate' a b i
     where lf = pred $ distance a b
 
-  interpolateSuccessiveIO :: Successive v
-                          -> RenderFunctions
+  interpolateSuccessiveIO :: RenderFunctions
+                          -> Successive v
                           -> Int
                           -> IO ()
-  interpolateSuccessiveIO (Successive []) _ _ = error "empty successive"
-  interpolateSuccessiveIO (Successive [a]) f _ = interpolateIO a a f 0
-  interpolateSuccessiveIO (Successive l@(a:b:_)) f i
-    | i <= 0      = interpolateIO a a f 0
-    | i >= lf = interpolateSuccessiveIO (Successive $ tail l) f $ i-lf
-    | otherwise = interpolateIO a b f i
+  interpolateSuccessiveIO _ (Successive []) _ = error "empty successive"
+  interpolateSuccessiveIO rf (Successive [a]) _ = interpolateIO rf a a 0
+  interpolateSuccessiveIO rf (Successive l@(a:b:_)) i
+    | i <= 0      = interpolateIO rf a a 0
+    | i >= lf = interpolateSuccessiveIO rf (Successive $ tail l) $ i-lf
+    | otherwise = interpolateIO rf a b i
     where lf = pred $ distance a b
 
 

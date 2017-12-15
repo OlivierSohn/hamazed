@@ -10,7 +10,7 @@ module Render.Console
                , xterm256ColorToCode
                -- reexports
                , module Render.Types
-               , module Render.Backends.Delta
+               , module Render.Delta
                ) where
 
 import           Imajuscule.Prelude
@@ -35,7 +35,7 @@ import           System.IO( hSetBuffering
 import           Color.Types
 import           Geo.Discrete.Types
 
-import           Render.Backends.Delta
+import           Render.Delta
 
 import           Render.Types
 

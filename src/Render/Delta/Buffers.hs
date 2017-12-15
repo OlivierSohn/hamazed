@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Buffers
+module Render.Delta.Buffers
           ( Buffers
           , IORef
           -- * Context
@@ -25,12 +25,12 @@ import           Data.Vector.Unboxed.Mutable( replicate, unzip )
 
 import           Color
 
-import           Render.Backends.Internal.Buffers.Dimensions
-import           Render.Backends.Internal.Cell
-import           Render.Backends.Internal.Cells
-import qualified Render.Backends.Internal.UnboxedDynamic as Dyn (new)
+import           Render.Delta.Buffers.Dimensions
+import           Render.Delta.Cell
+import           Render.Delta.Cells
+import qualified Render.Delta.UnboxedDynamic as Dyn (new)
 import           Render.Types
-import           Render.Backends.Internal.Types
+import           Render.Delta.Types
 
 
 -- | Equivalent to @newContext Nothing Nothing Nothing@

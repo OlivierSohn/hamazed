@@ -1,14 +1,14 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Clear
+module Render.Delta.Clear
           ( clearIfNeeded
           ) where
 
 
 import Render.Types
-import Render.Backends.Internal.Types
-import Render.Backends.Internal.Cells
-import Render.Backends.Internal.Draw
+import Render.Delta.Types
+import Render.Delta.Cells
+import Render.Delta.Draw
 
 clearIfNeeded :: ClearContext -> Buffers -> IO ()
 clearIfNeeded ctxt b@(Buffers _ _ _ _ _ (Policies _ clearPolicy clearColor)) = do

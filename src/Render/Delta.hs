@@ -138,14 +138,14 @@ and are sorted by increasing position, which is exactly what we want to implemen
 Here I'll report on the amount of bytes sent to stdout with concrete examples.
 
 -}
-module Render.Backends.Delta
-                          ( module Render.Backends.Internal.Buffers
+module Render.Delta
+                          ( module Render.Delta.Buffers
                           , mkRenderFunctions
                             -- * Frame
                             -- ** Draw
-                          , module Render.Backends.Internal.Draw
+                          , module Render.Delta.Draw
                             -- ** Render
-                          , module Render.Backends.Internal.Flush
+                          , module Render.Delta.Flush
                           -- * Types
                           , BufferMode(..)
                           , preferredBuffering
@@ -155,9 +155,9 @@ import           Imajuscule.Prelude
 
 import           System.IO( BufferMode(..) )
 
-import           Render.Backends.Internal.Buffers
-import           Render.Backends.Internal.Draw
-import           Render.Backends.Internal.Flush
+import           Render.Delta.Buffers
+import           Render.Delta.Draw
+import           Render.Delta.Flush
 import           Render
 
 preferredBuffering :: BufferMode

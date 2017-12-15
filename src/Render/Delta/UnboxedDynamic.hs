@@ -9,7 +9,7 @@
 
 -- | A wrapper around MVector that enables pushing, popping and extending.
 
-module Render.Backends.Internal.UnboxedDynamic(
+module Render.Delta.UnboxedDynamic(
       STVector, IOVector,
       -- * Initialization
       new, replicate, unsafeNew, unsafeReplicate,

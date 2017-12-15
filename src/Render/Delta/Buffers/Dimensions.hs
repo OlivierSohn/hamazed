@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Buffers.Dimensions
+module Render.Delta.Buffers.Dimensions
         ( getDimensions
         , bufferSizeFromWH
         ) where

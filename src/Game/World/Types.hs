@@ -35,7 +35,7 @@ import           Game.World.Frame.Types
 
 import           Iteration
 
-import           Render.Backends.Delta
+import           Render.Delta
 import           Render
 
 import           Text.Animated

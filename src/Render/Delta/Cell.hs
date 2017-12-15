@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Cell
+module Render.Delta.Cell
           ( Cell
           , mkCell
           -- ** Indexed cells
@@ -15,7 +15,7 @@ import           Data.Char( chr, ord )
 import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           Color.Types
-import           Render.Backends.Internal.Types
+import           Render.Delta.Types
 import           Render.Types
 
 

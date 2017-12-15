@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Flush
+module Render.Delta.Flush
     ( flush
     ) where
 
@@ -15,11 +15,11 @@ import           System.Console.ANSI( Color8Code(..)
                                     , setCursorPosition, setSGRCode, SGR(..), ConsoleLayer(..) )
 
 import           Color
-import           Render.Backends.Internal.Buffers
-import           Render.Backends.Internal.Cell
-import           Render.Backends.Internal.Clear
-import           Render.Backends.Internal.Types
-import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
+import           Render.Delta.Buffers
+import           Render.Delta.Cell
+import           Render.Delta.Clear
+import           Render.Delta.Types
+import qualified Render.Delta.UnboxedDynamic as Dyn
                                 ( accessUnderlying, length
                                 , read, clear, pushBack )
 import           Render.Types

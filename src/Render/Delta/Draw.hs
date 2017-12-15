@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Draw
+module Render.Delta.Draw
             ( fill
             , drawChar
             , drawChars
@@ -19,8 +19,8 @@ import           Data.Vector.Unboxed.Mutable( write )
 
 import           Color
 import           Geo.Discrete.Types
-import           Render.Backends.Internal.Types
-import           Render.Backends.Internal.Cell
+import           Render.Delta.Types
+import           Render.Delta.Cell
 import           Render.Types
 
 

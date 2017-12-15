@@ -3,7 +3,7 @@ module Test.Rendering(testSpace) where
 import Control.Monad( void )
 
 import Game.World.Space
-import Render.Backends.Delta hiding(flush)
+import Render.Delta hiding(flush)
 
 testSpace :: IO()
 testSpace = do

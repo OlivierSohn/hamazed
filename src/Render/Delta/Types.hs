@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Types
+module Render.Delta.Types
        ( Buffers(..)
        , Policies(..)
        , BackFrontBuffer
@@ -19,7 +19,7 @@ import           Data.IORef( IORef )
 import           Data.Word( Word64 )
 import           Data.Vector.Unboxed.Mutable( IOVector )
 
-import qualified Render.Backends.Internal.UnboxedDynamic as Dyn
+import qualified Render.Delta.UnboxedDynamic as Dyn
                                 ( IOVector )
 import           Render.Types
 

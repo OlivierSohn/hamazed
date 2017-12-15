@@ -59,15 +59,17 @@ data Tree = Tree {
   , _treeStart :: !Frame
     -- ^ when the animation begins (relatively to the parent animation if any)
   , _treeBranches :: !(Maybe [Either Tree Coords])
-    -- ^ There is one element in the list per animation point.
-    -- 'Right Coords' elements are still alive (typically they didn't collide yet with the world).
-    -- 'Left Tree' elements are dead for this animation and maybe gave birth to another animation.
+    -- ^ There is one element in the "Just" list per animation point. Elements are:
+    --
+    -- * 'Right Coords' when they are still alive (typically they didn't collide yet with the world).
+    -- * 'Left Tree' when they are dead for this animation and maybe gave birth to another animation.
   , _treeOnWall :: !OnWall
     -- ^ What the animation points do when they meet a wall
   , _treeRenderedWith :: !(Maybe Char)
 }
 
 data OnWall = Traverse -- ^ Collisions are ignored.
+                       --
                        -- You must ensure that the corresponding pure animation function
                        -- will return a list of 0 coordinates for each frame after a given frame,
                        -- else the animation will never terminate.

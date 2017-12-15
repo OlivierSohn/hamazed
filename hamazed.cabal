@@ -77,16 +77,16 @@ library
                      , Iteration
                      , Math
                      , Render
-                     , Render.Backends.Delta
-                     , Render.Backends.Internal.Buffers
-                     , Render.Backends.Internal.Buffers.Dimensions
-                     , Render.Backends.Internal.Cell
-                     , Render.Backends.Internal.Cells
-                     , Render.Backends.Internal.Clear
-                     , Render.Backends.Internal.Draw
-                     , Render.Backends.Internal.Flush
-                     , Render.Backends.Internal.Types
-                     , Render.Backends.Internal.UnboxedDynamic
+                     , Render.Delta
+                     , Render.Delta.Buffers
+                     , Render.Delta.Buffers.Dimensions
+                     , Render.Delta.Cell
+                     , Render.Delta.Cells
+                     , Render.Delta.Clear
+                     , Render.Delta.Draw
+                     , Render.Delta.Flush
+                     , Render.Delta.Types
+                     , Render.Delta.UnboxedDynamic
                      , Render.Console
                      , Render.Types
                      , Run

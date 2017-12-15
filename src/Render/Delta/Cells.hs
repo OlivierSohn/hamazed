@@ -1,13 +1,13 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Render.Backends.Internal.Cells
+module Render.Delta.Cells
           (clearCell
           ) where
 
 import Color
 import Render.Types
-import Render.Backends.Internal.Types
-import Render.Backends.Internal.Cell
+import Render.Delta.Types
+import Render.Delta.Cell
 
 clearCell :: ClearColor -> Cell
 clearCell clearColor =

@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Game.Parameters(
         GameParameters(..)
@@ -12,6 +13,7 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
+import           Env
 import           Game.Color
 import           Game.World
 import           Game.World.Evolution
@@ -37,20 +39,21 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: RenderFunctions -> IO GameParameters
+getGameParameters :: ReaderT Env IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> RenderFunctions -> IO GameParameters
-update params ctxt =
-  render params ctxt >>
-    getCharThenFlush >>= either
+update :: GameParameters -> ReaderT Env IO GameParameters
+update params =
+  render params >> do
+    char <- liftIO getCharThenFlush
+    either
       (\_ -> return params)
       (\c -> if c == ' '
               then
                 return params
               else
-                update (updateFromChar c params) ctxt)
-
+                update $ updateFromChar c params)
+        char
 
 updateFromChar :: Char -> GameParameters -> GameParameters
 updateFromChar c p@(GameParameters shape wallType) =
@@ -62,31 +65,32 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-drawTxt :: (Text -> Coords -> LayeredColor -> IO ()) -> Text -> Coords -> LayeredColor -> IO Coords
-drawTxt ref txt pos color =
-  ref txt pos color >> return (translateInDir Down pos)
+dText :: Text -> Coords -> LayeredColor -> ReaderT Env IO Coords
+dText txt pos color =
+  drawTxt txt pos color >> return (translateInDir Down pos)
 
-render :: GameParameters -> RenderFunctions -> IO ()
-render (GameParameters shape wall) rf@(RenderFunctions _ renderChars renderTxt flush) = do
+render :: GameParameters -> ReaderT Env IO ()
+render (GameParameters shape wall) = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
-  ew <- mkEmbeddedWorld worldSize
-  case ew of
+  (Env (RenderFunctions _ _ renderTxt _)) <- ask
+  mkEmbeddedWorld worldSize >>= \case
     Left err -> error err
     Right rew@(EmbeddedWorld _ ul) -> do
       world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
-      _ <- renderSpace space ul renderChars >>=
+      _ <- renderSpace space ul >>=
         \worldCoords -> do
-          renderWorld rf world
+          renderWorld world
           let middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
               renderAlignedCentered = renderAlignedTxt renderTxt Centered
-              dText = drawTxt renderTxt
-          renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
-            >>= \ pos ->
-                  void (renderAlignedCentered "------------------" pos configColors)
+          liftIO $ do
+            renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
+              >>= \ pos ->
+                    void (renderAlignedCentered "------------------" pos configColors)
+            void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
 
           translateInDir Down <$> dText "- World shape" (move 5 Up left) configColors
             >>= \ pos ->
@@ -101,9 +105,8 @@ render (GameParameters shape wall) rf@(RenderFunctions _ renderChars renderTxt f
                     >>= \pos3 ->
                       void (dText "'t' -> random walls" pos3 configColors)
 
-          void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
-          t <- getCurrentTime
+          t <- liftIO getCurrentTime
           let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
-          renderWorldAnimation rf worldAnimation
+          renderWorldAnimation worldAnimation
       flush

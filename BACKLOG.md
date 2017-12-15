@@ -23,7 +23,7 @@ make a package with
   - CI: https://github.com/hvr/multi-ghc-travis
 
 - try ideas of https://www.fpcomplete.com/blog/2017/06/readert-design-pattern to put IO Buffers
-in a Monad.
+in ReaderT Env
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'

@@ -37,6 +37,7 @@ library
                      , Color.IColor8Code
                      , Color.ILayeredColor
                      , Color.Types
+                     , Env
                      , Evolution
                      , Game.Deadline
                      , Game.Event
@@ -101,6 +102,7 @@ library
                      , colour
                      , containers
                      , matrix
+                     , mtl
                      , monad-loops
                      , monadlist
                      , primitive

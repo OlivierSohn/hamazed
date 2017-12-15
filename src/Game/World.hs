@@ -16,6 +16,8 @@ module Game.World
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.Reader(when)
+
 import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing )
 import           Data.Time( addUTCTime
@@ -25,6 +27,8 @@ import           Data.Time( addUTCTime
 import           Animation.Util( earliestDeadline )
 
 import           Collision
+
+import           Env
 
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
@@ -127,31 +131,30 @@ withLaserAction
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> Int -> IO World
+mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> Int -> ReaderT Env IO World
 mkWorld e s walltype nums ammo = do
   (Space mat sz render) <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
-    Random rParams    -> mkRandomlyFilledSpace rParams s
-  t <- getCurrentTime
+    Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
+  t <- liftIO getCurrentTime
   let space = Space mat sz render
   balls <- mapM (createRandomNumber space) nums
-  ship@(PosSpeed pos _) <- createShipPos space balls
+  ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
   return $ World balls ballMotion (BattleShip ship ammo (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
 
-createRandomNumber :: Space -> Int -> IO Number
+createRandomNumber :: Space -> Int -> ReaderT Env IO Number
 createRandomNumber space i = do
-  ps <- createRandomPosSpeed space
+  ps <- liftIO $ createRandomPosSpeed space
   return $ Number ps i
 
-renderWorld :: RenderFunctions -> World -> IO ()
+renderWorld :: World -> ReaderT Env IO ()
 renderWorld
-  (RenderFunctions renderChar _ _ _)
   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
          space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
   let s = translateInDir Down $ translateInDir RIGHT upperLeft
-  mapM_ (\b -> renderNumber b space s renderChar) balls
+  mapM_ (\b -> renderNumber b space s) balls
   when (null collisions) (do
     let colors =
           if isNothing safeTime
@@ -159,20 +162,18 @@ renderWorld
               shipColors
             else
               shipColorsSafe
-    _ <- renderIfNotColliding '+' shipCoords space colors s renderChar -- TODO render if safetime or not colliding
+    _ <- renderIfNotColliding '+' shipCoords space colors s -- TODO render if safetime or not colliding
     return ())
 
 renderNumber :: Number
              -> Space
              -> Coords
-             -> (Char -> Coords -> LayeredColor -> IO ())
-             -> IO ()
-renderNumber (Number (PosSpeed pos _) i) space r b = do
+             -> ReaderT Env IO ()
+renderNumber (Number (PosSpeed pos _) i) space b = do
   let color = numberColor i
-  renderIfNotColliding (intToDigit i) pos space color r b
+  renderIfNotColliding (intToDigit i) pos space color b
 
-renderWorldAnimation :: RenderFunctions
-                     -> WorldAnimation
-                     -> IO ()
-renderWorldAnimation rf (WorldAnimation evolutions _ (Iteration (_, frame))) =
-  renderEvolutions rf evolutions frame
+renderWorldAnimation :: WorldAnimation
+                     -> ReaderT Env IO ()
+renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
+  renderEvolutions evolutions frame

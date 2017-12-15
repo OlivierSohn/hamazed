@@ -1,12 +1,12 @@
-module Test.Reader where
+module Test.Reader(testReader) where
 
 import Control.Monad.Reader(ReaderT, runReaderT, ask, liftIO)
 
 import Render
 import Render.Delta
 
-data Env = Env {
-    _renderFuncs :: !RenderFunctions
+newtype Env = Env {
+    _renderFuncs :: RenderFunctions
 }
 
 

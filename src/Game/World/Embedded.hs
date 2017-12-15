@@ -6,6 +6,8 @@ module Game.World.Embedded
 
 import           Imajuscule.Prelude
 
+import           Env
+
 import           Data.String
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
@@ -19,9 +21,9 @@ minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 
-mkEmbeddedWorld :: WorldSize -> IO (Either String EmbeddedWorld)
+mkEmbeddedWorld :: WorldSize -> ReaderT Env IO (Either String EmbeddedWorld)
 mkEmbeddedWorld s = do
-  mayTermSize <- Terminal.size
+  mayTermSize <- liftIO Terminal.size
   return $ EmbeddedWorld mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
 
 

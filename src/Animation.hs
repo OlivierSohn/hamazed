@@ -28,6 +28,7 @@ import           Animation.Types
 
 import           Animation.Color
 
+import           Env
 import           Geo.Continuous
 
 import           Game.World.Laser.Types
@@ -40,8 +41,7 @@ simpleLaser :: LaserRay Actual
             -> Animation
             -> (Coords -> Location)
             -> Coords
-            -> (Char -> Coords -> LayeredColor -> IO ())
-            -> IO (Maybe Animation)
+            -> ReaderT Env IO (Maybe Animation)
 simpleLaser seg =
   renderAndUpdate' (mkAnimator simpleLaserPure simpleLaser seg)
 
@@ -51,8 +51,7 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -> Animation
                                          -> (Coords -> Location)
                                          -> Coords
-                                         -> (Char -> Coords -> LayeredColor -> IO ())
-                                         -> IO (Maybe Animation)
+                                         -> ReaderT Env IO (Maybe Animation)
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
@@ -64,8 +63,7 @@ gravityExplosionThenSimpleExplosion :: Vec2
                                     -> Animation
                                     -> (Coords -> Location)
                                     -> Coords
-                                    -> (Char -> Coords -> LayeredColor -> IO ())
-                                    -> IO (Maybe Animation)
+                                    -> ReaderT Env IO (Maybe Animation)
 gravityExplosionThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (gravityExplosionPure initialSpeed) (simpleExplosionPure 8)
@@ -77,8 +75,7 @@ gravityExplosion :: Vec2
                  -> Animation
                  -> (Coords -> Location)
                  -> Coords
-                 -> (Char -> Coords -> LayeredColor -> IO ())
-                 -> IO (Maybe Animation)
+                 -> ReaderT Env IO (Maybe Animation)
 gravityExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
@@ -90,8 +87,7 @@ animatedNumber :: Int
                -> Animation
                -> (Coords -> Location)
                -> Coords
-               -> (Char -> Coords -> LayeredColor -> IO ())
-               -> IO (Maybe Animation)
+               -> ReaderT Env IO (Maybe Animation)
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
 
@@ -101,8 +97,7 @@ simpleExplosion :: Int
                 -> Animation
                 -> (Coords -> Location)
                 -> Coords
-                -> (Char -> Coords -> LayeredColor -> IO ())
-                -> IO (Maybe Animation)
+                -> ReaderT Env IO (Maybe Animation)
 simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
@@ -110,19 +105,19 @@ simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
 
 explosionGravity :: Vec2
                  -> Coords
-                 -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation)]
+                 -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)]
 explosionGravity speed pos =
   map (`explosionGravity1` pos) $ variations speed
 
 explosionGravity1 :: Vec2
                   -> Coords
-                  -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation))
+                  -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
 explosionGravity1 speed pos =
   gravityExplosion speed (mkAnimationTree pos (ReboundAnd Stop))
 
 explosion :: Vec2
           -> Coords
-          -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation)]
+          -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)]
 explosion speed pos =
   map (`explosion1` pos) $ variations speed
 
@@ -135,6 +130,6 @@ variations sp =
 
 explosion1 :: Vec2
            -> Coords
-           -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> (Char -> Coords -> LayeredColor -> IO ()) -> IO (Maybe Animation))
+           -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
 explosion1 speed pos =
   gravityExplosionThenSimpleExplosion speed (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))

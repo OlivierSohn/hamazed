@@ -11,12 +11,12 @@ module Animation.Design.Animator
 
 import           Imajuscule.Prelude
 
+import           Animation.Color
 import           Animation.Design.Apply
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 
-import           Animation.Color
-
+import           Env
 import           Timing
 
 
@@ -27,8 +27,7 @@ mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
                -> Animation
                -> (Coords -> Location)
                -> Coords
-               -> (Char -> Coords -> LayeredColor -> IO ())
-               -> IO (Maybe Animation))
+               -> ReaderT Env IO (Maybe Animation))
            -> t
            -> Animator
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
@@ -39,6 +38,5 @@ renderAndUpdate' :: Animator
                  -> Animation
                  -> (Coords -> Location)
                  -> Coords
-                 -> (Char -> Coords -> LayeredColor -> IO ())
-                 -> IO (Maybe Animation)
+                 -> ReaderT Env IO (Maybe Animation)
 renderAndUpdate' (Animator pure_ io_ colorFunc) = renderAndUpdate pure_ io_ colorFunc

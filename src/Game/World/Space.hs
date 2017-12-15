@@ -39,6 +39,8 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Collision
 
+import           Env
+
 import           Game.Color
 import           Game.World.Types
 import           Game.World.Size
@@ -275,31 +277,27 @@ strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
 
 renderSpace :: Space
             -> Coords
-            -> (Int -> Char -> Coords -> LayeredColor -> IO())
-            -> IO Coords
-renderSpace (Space _ _ renderedWorld) upperLeft render = do
+            -> ReaderT Env IO Coords
+renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
-  mapM_ (\w -> renderGroup worldCoords w render) renderedWorld
+  mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
 
 renderGroup :: Coords
             -> RenderGroup
-            -> (Int -> Char -> Coords -> LayeredColor -> IO())
-            -> IO ()
-renderGroup worldCoords (RenderGroup pos colors char count) render =
-  render count char (sumCoords pos worldCoords) colors
-
+            -> ReaderT Env IO ()
+renderGroup worldCoords (RenderGroup pos colors char count) =
+  drawChars count char (sumCoords pos worldCoords) colors
 
 renderIfNotColliding :: Char
                      -> Coords
                      -> Space
                      -> LayeredColor
                      -> Coords
-                     -> (Char -> Coords -> LayeredColor -> IO())
-                     -> IO ()
-renderIfNotColliding char worldCoords space colors r render =
+                     -> ReaderT Env IO ()
+renderIfNotColliding char worldCoords space colors r =
   case getMaterial worldCoords space of
-    Air  -> render char (sumCoords worldCoords r) colors
+    Air  -> drawChar char (sumCoords worldCoords r) colors
     Wall -> return ()
 
 locationFunction :: Boundaries

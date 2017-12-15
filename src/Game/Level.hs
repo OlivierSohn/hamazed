@@ -21,6 +21,8 @@ import           Imajuscule.Prelude
 import           Data.Text( pack )
 import           System.Timeout( timeout )
 
+import           Env
+
 import           Game.Color
 import           Game.Deadline( Deadline(..) )
 import           Game.Event
@@ -35,8 +37,6 @@ import           Geo.Discrete
 import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
-
-import           Render
 
 import           Timing( UTCTime
                        , KeyTime(..)
@@ -123,15 +123,15 @@ getCharWithinDurationMicros durationMicros step =
     else
       timeout durationMicros getCharThenFlush
 
-renderLevelState :: RenderFunctions -> Coords -> Int -> LevelFinished -> IO ()
-renderLevelState (RenderFunctions _ _ renderTxt _) s level (LevelFinished stop _ messageState) = do
+renderLevelState :: Coords -> Int -> LevelFinished -> ReaderT Env IO ()
+renderLevelState s level (LevelFinished stop _ messageState) = do
   let topLeft = translateInDir RIGHT s
       stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  renderTxt stopMsg topLeft (messageColor stop)
+  drawTxt stopMsg topLeft (messageColor stop)
   when (messageState == ContinueMessage) $
-    renderTxt
+    drawTxt
       (if level == lastLevel
         then
           "You reached the end of the game!"
@@ -143,6 +143,6 @@ renderLevelState (RenderFunctions _ _ renderTxt _) s level (LevelFinished stop _
       (move 2 Down topLeft) neutralMessageColor
 
 
-renderLevelMessage :: RenderFunctions -> Level -> Coords -> IO ()
-renderLevelMessage rf (Level level _ levelState) rightMiddle =
-  mapM_ (renderLevelState rf rightMiddle level) levelState
+renderLevelMessage :: Level -> Coords -> ReaderT Env IO ()
+renderLevelMessage (Level level _ levelState) rightMiddle =
+  mapM_ (renderLevelState rightMiddle level) levelState

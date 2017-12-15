@@ -10,11 +10,11 @@ import qualified Prelude (putStrLn)
 import           System.Info(os)
 
 import           Control.Exception( finally )
+import           Control.Monad.Reader(runReaderT)
 
-
+import           Env
 import           Game( runGameWorker )
 import           Game.Parameters( getGameParameters )
-import           Render
 import           Render.Delta
 import           Threading( runAndWaitForTermination, Termination(..) )
 
@@ -27,14 +27,15 @@ run =
     else
       void doRun
 
+
 doRun :: IO Termination
 doRun =
-  (mkRenderFunctions <$> newDefaultContext
-    >>= runAndWaitForTermination . gameWorker)
+  Env . mkRenderFunctions <$> newDefaultContext
+    >>= \env -> runAndWaitForTermination (runReaderT gameWorker env)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally`
    restoreConsole
 
-gameWorker :: RenderFunctions -> IO ()
-gameWorker rs = getGameParameters rs >>= runGameWorker rs
+gameWorker :: ReaderT Env IO ()
+gameWorker = getGameParameters >>= runGameWorker

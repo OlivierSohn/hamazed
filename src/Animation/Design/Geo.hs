@@ -1,7 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | Helper functions for pure animation functions
+
 module Animation.Design.Geo
-    ( gravityExplosionPure
+    ( gravityFall
     , simpleExplosionPure
     , quantitativeExplosionPure
     , animateNumberPure
@@ -24,7 +26,7 @@ import           Geo.Discrete.Bresenham
 import           Geo.Discrete.Resample
 
 
--- | doesn't use the Coords parameter
+-- | Note that the Coords parameter is unused.
 simpleLaserPure :: LaserRay Actual -> Coords -> Frame -> ([Coords], Maybe Char)
 simpleLaserPure (LaserRay dir (Ray seg)) _ (Frame i) =
   let (originalChar, replacementChar) =
@@ -41,18 +43,36 @@ simpleLaserPure (LaserRay dir (Ray seg)) _ (Frame i) =
                    showSegment seg
   in (points, Just char)
 
-gravityExplosionPure :: Vec2 -> Coords -> Frame -> ([Coords], Maybe Char)
-gravityExplosionPure initialSpeed origin (Frame iteration) =
+-- | Gravity free-fall
+gravityFall :: Vec2
+            -- ^ Initial speed
+            -> Coords
+            -- ^ Initial position
+            -> Frame
+            -> ([Coords], Maybe Char)
+gravityFall initialSpeed origin (Frame iteration) =
   let o = pos2vec origin
   in  ([vec2coords $ parabola o initialSpeed iteration], Nothing)
 
-simpleExplosionPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
+-- | Circular explosion by copying quarter arcs.
+simpleExplosionPure :: Int
+                    -- ^ Number of points per quarter arc.
+                    -> Coords
+                    -- ^ Center
+                    -> Frame
+                    -> ([Coords], Maybe Char)
 simpleExplosionPure resolution center (Frame iteration) =
   let radius = fromIntegral iteration :: Float
       c = pos2vec center
   in (map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution, Nothing)
 
-quantitativeExplosionPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
+-- | Circular explosion
+quantitativeExplosionPure :: Int
+                          -- ^ The number of points on the circle
+                          -> Coords
+                          -- ^ Center
+                          -> Frame
+                          -> ([Coords], Maybe Char)
 quantitativeExplosionPure number center (Frame iteration) =
   let numRand = 10 :: Int
       rnd = 2 :: Int -- TODO store the random number in the state of the animation
@@ -62,7 +82,13 @@ quantitativeExplosionPure number center (Frame iteration) =
       c = pos2vec center
   in (map vec2coords $ translatedFullCircle c radius firstAngle number, Nothing)
 
-animateNumberPure :: Int -> Coords -> Frame -> ([Coords], Maybe Char)
+-- | Expanding then shrinking geometric figure.
+animateNumberPure :: Int
+                  -- ^ number of extremities of the polygon (if 1, draw a circle instead)
+                  -> Coords
+                  -- ^ Center
+                  -> Frame
+                  -> ([Coords], Maybe Char)
 animateNumberPure n center (Frame i) =
   let r = animateRadius (quot i 2) n
       points = if r < 0
@@ -74,11 +100,15 @@ animateNumberPure n center (Frame i) =
             _ -> polygon n r center
   in (points, Just $ intToDigit n)
 
+-- | A polygon using resampled bresenham to augment the number of points :
+-- the number of points needs to be constant across the entire animation
+-- so we need to resample according to the biggest possible figure.
 polygon :: Int -> Int -> Coords -> [Coords]
 polygon nSides radius center =
   let startAngle = if odd nSides then pi else pi/4.0
   in connect $ map vec2coords $ polyExtremities nSides (pos2vec center) radius startAngle
 
+-- | Animate the radius by first expanding then shrinking.
 animateRadius :: Int -> Int -> Int
 animateRadius i nSides =
   let limit
@@ -101,6 +131,7 @@ connect2 start end =
   let numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
   in sampledBresenham numpoints start end
 
+-- | Applies bresenham transformation and resamples it
 sampledBresenham :: Int -> Coords -> Coords -> [Coords]
 sampledBresenham nSamples start end =
   let l = bresenhamLength start end

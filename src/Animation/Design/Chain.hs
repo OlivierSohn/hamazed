@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | This module is about chaining animations.
+
 module Animation.Design.Chain
     (
       chainOnCollision
@@ -12,21 +14,24 @@ import           Animation.Types
 import           Animation.Design.Apply
 
 
+-- | Chains two animations on collision. Note that both animations can be active
+-- at the same time because the chaining is local, per individual animation point.
 chainOnCollision :: (Coords -> Frame -> ([Coords], Maybe Char))
-                 -- ^ animation 1
+                 -- ^ Animation 1
                  -> (Coords -> Frame -> ([Coords], Maybe Char))
-                 -- ^ animation 2
+                 -- ^ Animation 2
                  -> Iteration
+                 -- ^ Current iteration
                  -> (Coords -> Location)
-                 -- ^ collision function
-                 -> Tree
-                 -> Tree
+                 -- ^ Collision function
+                 -> AnimatedPoints
+                 -> AnimatedPoints
 chainOnCollision anim1 anim2 iteration getLocation tree  =
-  let (Tree a b branches onWall mayChar) = applyAnimation anim1 iteration getLocation tree
+  let (AnimatedPoints a b branches onWall mayChar) = applyAnimation anim1 iteration getLocation tree
       newBranches = Just $ case branches of
         Nothing -> error "applyAnimation was supposed to create a Just ?"
         Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
-  in Tree a b newBranches onWall mayChar
+  in AnimatedPoints a b newBranches onWall mayChar
 
 -- TODO generic chaining of animations
 {--
@@ -35,7 +40,7 @@ chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
                            -> Iteration
                            -> (Coords -> Location)
                            -- ^ collision function
-                           -> Tree
-                           -> Tree
+                           -> AnimatedPoints
+                           -> AnimatedPoints
 chainAnimationsOnCollision animations iteration getLocation tree = undefined
 --}

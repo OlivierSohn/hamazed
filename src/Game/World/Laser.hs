@@ -10,7 +10,7 @@ module Game.World.Laser
     , Actual
     , stopRayAtFirstCollision
     , shootLaserFromShip
-    , mkLaserAnimation
+    , mkLaserAnimationUpdate
     ) where
 
 import           Imajuscule.Prelude
@@ -19,9 +19,9 @@ import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
 import           Animation.Types
-import           Animation( mkAnimation
+import           Animation( mkAnimationUpdate
                           , simpleLaser)
-
+import           Draw
 import           Geo.Discrete
 
 import           Game.World.Laser.Types
@@ -56,11 +56,11 @@ stopRayAtFirstCollision coords (Ray s) =
   in limitAtFirstCollision collisions s
 
 
--- no need to iline as we don't use e
-mkLaserAnimation :: (Draw e) => KeyTime -> LaserRay Actual -> Animation e
-mkLaserAnimation keyTime ray@(LaserRay _ (Ray seg)) =
+-- no need to inline as we don't use e
+mkLaserAnimationUpdate :: (Draw e) => KeyTime -> LaserRay Actual -> AnimationUpdate e
+mkLaserAnimationUpdate keyTime ray@(LaserRay _ (Ray seg)) =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-  in mkAnimation (simpleLaser ray (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
+  in mkAnimationUpdate (simpleLaser ray (mkAnimatedPoints collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
 
 
 afterEnd :: LaserRay Actual -> Coords

@@ -1,26 +1,38 @@
+{-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+
+{- |
+= Preamble
+
+This module defines the types related to animations.
+
+Animations are recipes to generate animation points, and animations can be chained
+to produce complex effects. When two animations are chained, one animation point
+of the first animation gives birth to animation points for the second animation when it
+collides with its environment.
+
+-}
 
 module Animation.Types
     (
-    -- Animator
-      Animator(..)
-    -- | Animation and constructor
-    , Animation(..)
+    -- * Animated points
+      AnimatedPoints(..)
+    -- ** How they react to collisions
+    , CollisionReaction(..)
+    -- ** Constructor
+    , mkAnimatedPoints
+    -- * Updating the animation
+    , AnimationUpdate(..)
+    -- ** Handling the first frame
     , AnimationZero(..)
-    , mkAnimation
-    -- |
-    , Tree(..)
-    , mkAnimationTree
-    , OnWall(..)
-    -- |
+    -- ** Constructor
+    , mkAnimationUpdate
+    , Animator(..)
     , StepType(..)
-    -- | Speed
-    , Speed(..)
-    -- | Frame and constructors
-    -- | Reexports
-    , Location(..)
+    -- Reexports
     , module Iteration
-    , module Draw.Class
+    , Location(..)
+    , Coords
     ) where
 
 
@@ -34,93 +46,124 @@ import           Color.Types
 
 import           Geo.Discrete.Types( Coords )
 
-import           Draw.Class
 import           Timing( KeyTime )
 
 import           Iteration
 
--- | Animator contains functions to update and render an Animation.
-data Animator e = Animator {
-    _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
-    -- ^ a function that updates Tree
-  , _animatorIO :: Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))
-    -- ^ a function that consumes Tree to render the animation.
-    -- It is a non-strict field to avoid infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
-  , _animatorColorFromFrame :: !(Frame -> LayeredColor)
-    -- ^ a function that assigns a color to an animation frame
-}
 
--- | Tracks each animation point state in a recursive fashion, allowing
---   every single animation point (an animation typically generates multiple points
---   at the same time) to be the starting point of a new animation (when it touches
---   a wall for example).
-data Tree = Tree {
+{- |  Tracks the location and state of each animation point in a recursive fashion, allowing
+every single animation point to be the starting point of a new animation.
+-}
+data AnimatedPoints = AnimatedPoints {
     _treeRoot :: !Coords
-    -- ^ where the animation begins
+    -- ^ Where the animation begins
   , _treeStart :: !Frame
-    -- ^ when the animation begins (relatively to the parent animation if any)
-  , _treeBranches :: !(Maybe [Either Tree Coords])
-    -- ^ There is one element in the "Just" list per animation point. Elements are:
+    -- ^ When the animation begins (relatively to the parent animation if any)
+  , _treeBranches :: !(Maybe [Either AnimatedPoints Coords])
+    -- ^ There is one element in the "Just" list per animation point
+    --   for the animation corresponding to this recursion level. Elements are:
     --
     -- * 'Right Coords' when they are still alive (typically they didn't collide yet with the world).
-    -- * 'Left Tree' when they are dead for this animation and maybe gave birth to another animation.
-  , _treeOnWall :: !OnWall
+    -- * 'Left AnimatedPoints' when they are dead for this animation and maybe
+    --   gave birth to animation points in the next chained animation.
+  , _treeOnWall :: !CollisionReaction
     -- ^ What the animation points do when they meet a wall
   , _treeRenderedWith :: !(Maybe Char)
 }
 
-data OnWall = Traverse -- ^ Collisions are ignored.
-                       --
-                       -- You must ensure that the corresponding pure animation function
-                       -- will return a list of 0 coordinates for each frame after a given frame,
-                       -- else the animation will never terminate.
-            | ReboundAnd OnWall -- ^ On collision, the next sequence of the animation starts.
-            | Stop     -- ^ Termination
+-- | A recursive type encoding how animation points react to collisions.
+--
+-- The n-th recursion level corresponds to the behaviour for the n-th chained animation.
+data CollisionReaction =
+        Traverse
+        -- ^ Collisions are ignored for this animation.
+        -- Hence, the animation terminates only if its pure animation function
+        -- returns an empty list for each frame after a given frame.
+        | ReboundAnd CollisionReaction
+        -- ^ When an animation point collides with its environment, it "evolves"
+        -- and gives birth to a new set of animation points using the next animation.
+        | Stop
+        -- ^ Data structure termination.
+
+
+-- | Initializes 'AnimatedPoints' with a location defining the start of the first animation.
+mkAnimatedPoints :: Coords
+                 -- ^ Where the first animation should start.
+                 -> CollisionReaction
+                 -- ^ How should animated points behave on collisions.
+                 -> AnimatedPoints
+mkAnimatedPoints c ow =
+  AnimatedPoints c 0 Nothing ow Nothing
+
 
 -- TODO use this generalize animation chaining ?
 {--
 data Continuation = Continuation {
     _continuationFunction :: !(),
-    _continuationOnWall :: !OnWall
+    _continuationOnWall :: !CollisionReaction
 }
 --}
 
-data Animation e = Animation {
+{- | Contains what is required to do /one/ update of 'AnimatedPoints',
+and to generate the next 'AnimationUpdate', or 'Nothing' if the animation is over.
+-}
+data AnimationUpdate e = AnimationUpdate {
     _animationNextTime :: !KeyTime
     -- ^ The time at which this animation becomes obsolete
   , _animationIteration :: !Iteration
     -- ^ The iteration
   , _animationChar :: !(Maybe Char)
-    -- ^ The char used to render the animation points
-  , _animationRender :: !(Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
-    -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
-    --   and may return an updated Animation
+    -- ^ The char used to render the animation points, if the pure animation function doesn't specify one.
+  , _animationRender :: !(Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+    -- ^ This function renders 'AnimatedPoints' (input parameters and 'AnimatedPoints' are pre-applied)
+    --   and may return the next 'AnimationUpdate'.
 }
 
-instance (Draw e) => Show (Animation e) where
-        showsPrec _ (Animation a b c _) = showString $ "Animation{" ++ show (a,b,c) ++ "}"
+instance Show (AnimationUpdate e) where
+  showsPrec _ (AnimationUpdate a b c _) = showString $ "AnimationUpdate{" ++ show (a,b,c) ++ "}"
 
+
+-- | Specifies if the zero frame should be skipped or not.
 data AnimationZero = WithZero
                    | SkipZero
 
-data StepType = Initialize -- update the tree       , iteration doesn't change
-              | Update     -- update the tree       , iteration moves forward
-              | Same       -- do not update the tree, iteration doesn't change
+
+-- Specifies what should be updated.
+data StepType = Initialize
+              -- ^ Update 'AnimatedPoints'
+              | Update
+              -- ^ Update 'AnimatedPoints' and 'Iteration'
+              | Same
+              -- ^ Update 'Iteration'
 
 
-mkAnimationTree :: Coords -> OnWall -> Tree
-mkAnimationTree c ow = Tree c 0 Nothing ow Nothing
+-- | Constructs an 'AnimationUpdate'
+mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+                  -- ^ The update function.
+                  -> KeyTime
+                  -- ^ The 'KeyTime' of the event that triggered this animation.
+                  -> AnimationZero
+                  -- ^ Should we keep or skip the 0 frame.
+                  -> Speed
+                  -- ^ The 'Speed' of the animation (the 'Frame' will be incremented at this rate)
+                  -> Maybe Char
+                  -- ^ The default 'Char' to use when the pure animation function doesn't specify one.
+                  -> AnimationUpdate e
+mkAnimationUpdate render t frameInit speed mayChar =
+  let mayNext = case frameInit of
+                  WithZero -> id
+                  SkipZero -> nextIteration
+  in AnimationUpdate t (mayNext $ zeroIteration speed) mayChar render
 
-mkAnimation :: (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
-            -> KeyTime
-            -> AnimationZero
-            -> Speed
-            -> Maybe Char
-            -> Animation e
-mkAnimation render t frameInit speed mayChar =
-  let firstIteration =
-        (case frameInit of
-          WithZero -> id
-          SkipZero -> nextIteration)
-          $ zeroIteration speed
-  in Animation t firstIteration mayChar render
+
+-- Intermediate helper structure to construct an 'AnimationUpdate'
+data Animator e = Animator {
+    _animatorPure :: !(Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
+    -- ^ A pure animation function that updates AnimatedPoints
+  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))
+    -- ^ An IO function that consumes an updated AnimatedPoints to render the animation.
+    --
+    -- Non-strict to avoid an infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
+  , _animatorColorFromFrame :: !(Frame -> LayeredColor)
+    -- ^ A color function
+}

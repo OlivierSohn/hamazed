@@ -15,14 +15,13 @@ import           Data.Char( intToDigit )
 import           Data.List( partition )
 import           Data.Maybe( isNothing )
 
+import           Draw
 import           Game.World.Types
 import           Game.World.Laser
 import           Game.Event
-
 import           Geo.Conversion
 import           Geo.Continuous
 import           Geo.Discrete
-
 import           Timing
 
 getColliding :: Coords -> [Number] -> [Number]
@@ -42,7 +41,7 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
 
 
 {-# INLINABLE destroyedNumbersAnimations #-}
-destroyedNumbersAnimations :: (Draw e) => KeyTime -> Event -> [Number] -> [BoundedAnimation e]
+destroyedNumbersAnimations :: (Draw e) => KeyTime -> Event -> [Number] -> [BoundedAnimationUpdate e]
 destroyedNumbersAnimations keyTime event =
   let sp = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir
@@ -50,7 +49,7 @@ destroyedNumbersAnimations keyTime event =
       animation pos = map (\f -> (f, Speed 2)) (explosion (scalarProd 2 sp) pos)
   in \case
         Number (PosSpeed pos _) n:_ ->
-          let animations = animation pos ++ [(animatedNumber n (mkAnimationTree pos Traverse), Speed 1)]
-              create (f,speed) = mkAnimation f keyTime SkipZero speed $ Just $ intToDigit n
-          in  map (\a -> BoundedAnimation (create a) WorldFrame) animations
+          let animations = animation pos ++ [(animatedNumber n (mkAnimatedPoints pos Traverse), Speed 1)]
+              create (f,speed) = mkAnimationUpdate f keyTime SkipZero speed $ Just $ intToDigit n
+          in  map (\a -> BoundedAnimationUpdate (create a) WorldFrame) animations
         _ -> []

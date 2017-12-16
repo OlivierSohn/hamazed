@@ -44,7 +44,6 @@ nextGameState
              g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
   te@(TimedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = withLaserAction event world
-
       keyTime = KeyTime t
 
       outerSpaceAnims_ =
@@ -79,25 +78,25 @@ nextGameState
 
 
 {-# INLINABLE outerSpaceAnims #-}
-outerSpaceAnims :: (Draw e) => KeyTime -> Space -> LaserRay Actual -> [BoundedAnimation e]
+outerSpaceAnims :: (Draw e) => KeyTime -> Space -> LaserRay Actual -> [BoundedAnimationUpdate e]
 outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
   let ae = afterEnd ray
   in case onFronteer ae sz of
         Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
                            explosions = explosionGravity speed $ translateInDir outDir ae
-                       in map (((`BoundedAnimation` TerminalWindow) .
-                                (\ (char, f) -> mkAnimation f keyTime WithZero (Speed 1) (Just char))) .
+                       in map (((`BoundedAnimationUpdate` TerminalWindow) .
+                                (\ (char, f) -> mkAnimationUpdate f keyTime WithZero (Speed 1) (Just char))) .
                                   ((,) $ niceChar $ getSeconds t))
                                     explosions
         Nothing -> []
 
 
 {-# INLINABLE laserAnims #-}
-laserAnims :: (Draw e) => KeyTime -> LaserRay Actual -> [BoundedAnimation e]
+laserAnims :: (Draw e) => KeyTime -> LaserRay Actual -> [BoundedAnimationUpdate e]
 laserAnims keyTime ray
- = [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
+ = [BoundedAnimationUpdate (mkLaserAnimationUpdate keyTime ray) WorldFrame]
 
-replaceAnimations :: [BoundedAnimation e] -> GameState e -> GameState e
+replaceAnimations :: [BoundedAnimationUpdate e] -> GameState e -> GameState e
 replaceAnimations anims (GameState a c (World wa wb wc wd _ ew) b f g h) =
   GameState a c (World wa wb wc wd anims ew) b f g h
 
@@ -289,7 +288,7 @@ updateGame2
 
 
 {-# INLINABLE renderGame #-}
-renderGame :: (Draw e) => Maybe KeyTime -> GameState e -> ReaderT e IO [BoundedAnimation e]
+renderGame :: (Draw e) => Maybe KeyTime -> GameState e -> ReaderT e IO [BoundedAnimationUpdate e]
 renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
@@ -307,12 +306,12 @@ renderAnimations :: Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords
-                 -> [BoundedAnimation e]
-                 -> ReaderT e IO [BoundedAnimation e]
+                 -> [BoundedAnimationUpdate e]
+                 -> ReaderT e IO [BoundedAnimationUpdate e]
 renderAnimations k space mayTermWindow worldCorner animations = do
-  let renderAnimation (BoundedAnimation a@(Animation _ _ _ render) f) = do
+  let renderAnimation (BoundedAnimationUpdate a@(AnimationUpdate _ _ _ render) f) = do
         let fLocation = locationFunction f space mayTermWindow worldCorner
-        fmap (`BoundedAnimation` f) <$> render k a fLocation worldCorner
+        fmap (`BoundedAnimationUpdate` f) <$> render k a fLocation worldCorner
   activeAnimations <- mapM renderAnimation animations
   let res = catMaybes activeAnimations
   return res

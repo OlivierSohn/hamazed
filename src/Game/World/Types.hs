@@ -4,7 +4,7 @@ module Game.World.Types
         ( BattleShip(..)
         , World(..)
         , Number(..)
-        , BoundedAnimation(..)
+        , BoundedAnimationUpdate(..)
         , Boundaries(..)
         , FrameSpec(..)
         , TextAnimSpec(..)
@@ -13,7 +13,7 @@ module Game.World.Types
         , WorldEvolutions(..)
         , EmbeddedWorld(..)
         , isFinished
-        -- | Reexports
+        -- * Reexports
         , module Game.World.Space.Types
         , module Game.World.Frame.Types
         , module Iteration
@@ -67,7 +67,7 @@ data World e = World {
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimation e]
+  , _worldAnimations :: ![BoundedAnimationUpdate e]
   , _worldEmbedded :: !EmbeddedWorld
 }
 
@@ -76,7 +76,7 @@ data EmbeddedWorld = EmbeddedWorld {
   , _embeddedWorldUpperLeft :: !Coords
 } deriving (Show)
 
-data BoundedAnimation e = BoundedAnimation !(Animation e) !Boundaries deriving(Show)
+data BoundedAnimationUpdate e = BoundedAnimationUpdate !(AnimationUpdate e) !Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow

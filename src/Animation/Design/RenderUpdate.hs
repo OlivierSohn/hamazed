@@ -15,18 +15,22 @@ import           Animation.Types
 
 import           Draw
 
--- | Updates the state (Tree), computes the points to render from state and
---   pure animation function, renders them and returns an updated animation
---   in which the render function is preapplied the updated state.
+{- |
+Updates and renders 'AnimatedPoints', returns:
+
+* 'Just' the next 'AnimationUpdate' in which the updated 'AnimatedPoints'
+  is preapplied to the render function.
+* or 'Nothing' if the animation is over
+-}
 {-# INLINABLE renderAndUpdate #-}
 renderAndUpdate :: (Draw e)
-                => (Iteration -> (Coords -> Location) -> Tree -> Tree)
+                => (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
                 -- ^ the pure animation function
-                -> (Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
+                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
-                ->  Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))
-renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r = do
+                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))
+renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration(_, frame)) mayChar _) getLocation r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
   isAlive <- render frame mayChar newState getLocation colorFunc r
   return $
@@ -39,13 +43,13 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Itera
 {-# INLINABLE updateStateAndAnimation #-}
 updateStateAndAnimation :: (Draw e)
                         => Maybe KeyTime
-                        -> (Iteration -> (Coords -> Location) -> Tree -> Tree)
+                        -> (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
                         -> (Coords -> Location)
-                        -> (Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
-                        -> Animation e
-                        -> Tree
-                        -> (Animation e, Tree)
-updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i _ _) state =
+                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+                        -> AnimationUpdate e
+                        -> AnimatedPoints
+                        -> (AnimationUpdate e, AnimatedPoints)
+updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(AnimationUpdate _ i _ _) state =
     (nextAnimation, newState)
   where
     step = computeStep k a state
@@ -57,17 +61,17 @@ updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i 
 {-# INLINABLE updateAnimation #-}
 updateAnimation :: (Draw e)
                 => StepType
-                -> (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
-                -> Animation e
-                -> Animation e
+                -> (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+                -> AnimationUpdate e
+                -> AnimationUpdate e
 updateAnimation Same _ a = a
-updateAnimation step r (Animation t i c _) =
-  update step $ Animation t i c r
+updateAnimation step r (AnimationUpdate t i c _) =
+  update step $ AnimationUpdate t i c r
 
 
 {-# INLINABLE computeStep #-}
-computeStep :: (Draw e) => Maybe KeyTime -> Animation e -> Tree -> StepType
-computeStep mayKey (Animation (KeyTime k') _ _ _) (Tree _ _ branches _ _) =
+computeStep :: (Draw e) => Maybe KeyTime -> AnimationUpdate e -> AnimatedPoints -> StepType
+computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ branches _ _) =
   let noUpdate =
         maybe
           -- if branches is Nothing, it is the first time the animation is rendered / updated
@@ -90,17 +94,17 @@ computeStep mayKey (Animation (KeyTime k') _ _ _) (Tree _ _ branches _ _) =
 {-# INLINABLE update #-}
 update :: (Draw e)
        => StepType
-       -> Animation e
-       -> Animation e
+       -> AnimationUpdate e
+       -> AnimationUpdate e
 update = \case
             Update -> stepAnimation
             _      -> id
 
 {-# INLINABLE stepAnimation #-}
 stepAnimation :: (Draw e)
-              => Animation e
-              -> Animation e
-stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
+              => AnimationUpdate e
+              -> AnimationUpdate e
+stepAnimation (AnimationUpdate t i c f) = AnimationUpdate (addAnimationStepDuration t) (nextIteration i) c f
 
 
 {-# INLINABLE render #-}
@@ -108,16 +112,16 @@ render :: (Draw e)
        => Frame
        -> Maybe Char
        -- ^ default char to use when there is no char specified in the state
-       -> Tree
+       -> AnimatedPoints
        -> (Coords -> Location)
        -> (Frame -> LayeredColor)
        -> Coords
        -> ReaderT e IO Bool
        -- ^ True if at least one animation point is "alive"
-render _ _ (Tree _ _ Nothing _ _) _ _ _ = return False
-render _ _ (Tree _ _ (Just []) _ _) _ _ _ = return False
+render _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
+render _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False
 render
- parentFrame mayCharAnim (Tree _ childFrame (Just branches) onWall mayCharTree)
+ parentFrame mayCharAnim (AnimatedPoints _ childFrame (Just branches) onWall mayCharTree)
  getLocation colorFunc r = do
   let mayChar = mayCharTree <|> mayCharAnim
   case mayChar of

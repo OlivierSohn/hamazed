@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | This module is about characters we can use for explosive animations
+
 module Animation.Design.Chars
     ( niceChar
     ) where
@@ -10,6 +12,7 @@ import           Data.Array.Unboxed( Array, listArray, bounds, (!) )
 import           Data.List(length)
 
 
+-- | Returns one of the "nice chars" for animations
 niceChar :: Int -> Char
 niceChar i =
   let l = 1 + snd (bounds niceChars)

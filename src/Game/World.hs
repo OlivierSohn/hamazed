@@ -47,7 +47,7 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = sumCoords speed $ coordsForDirection dir
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-nextWorld :: World e -> [Number] -> Int -> [BoundedAnimation e] -> World e
+nextWorld :: World e -> [Number] -> Int -> [BoundedAnimationUpdate e] -> World e
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
@@ -90,7 +90,7 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
 
 earliestAnimationDeadline :: World e -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
-  earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
+  earliestDeadline $ map (\(BoundedAnimationUpdate a _) -> a) animations
 
 -- TODO use Number Live Number Dead
 withLaserAction :: Event ->  World e -> ([Number], [Number], Maybe (LaserRay Actual), Int)

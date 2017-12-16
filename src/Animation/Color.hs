@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | This module handles colors for animations
+
 module Animation.Color
         ( colorFromFrame
         , module Color
@@ -10,6 +12,7 @@ import           Imajuscule.Prelude
 import           Animation.Types
 import           Color
 
+-- | Returns the color associated to an animation frame.
 colorFromFrame :: Frame -> LayeredColor
 colorFromFrame (Frame f) = onBlack $ rgb r g b
   where

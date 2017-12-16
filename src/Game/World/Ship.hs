@@ -26,7 +26,7 @@ import           Geo.Conversion
 --   The ship animation will have the initial speed of the number and vice-versa,
 --     to mimic the rebound due to the collision.
 {-# INLINABLE shipAnims #-}
-shipAnims :: (Draw e) => BattleShip  -> Event -> [BoundedAnimation e]
+shipAnims :: (Draw e) => BattleShip  -> Event -> [BoundedAnimationUpdate e]
 shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
   \case
     Timeout GameStep k ->
@@ -35,8 +35,8 @@ shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
           -- number and ship explode, they exchange speeds
           let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
               (Number _ n) = head collisions
-          in  map ((`BoundedAnimation` WorldFrame) .
-                    (\(char,f) -> mkAnimation f k SkipZero (Speed 1) (Just char))) $
+          in  map ((`BoundedAnimationUpdate` WorldFrame) .
+                    (\(char,f) -> mkAnimationUpdate f k SkipZero (Speed 1) (Just char))) $
                   map ((,) '|')            (explosion (speed2vec collidingNumbersSpeed) shipCoords) ++
                   map ((,) $ intToDigit n) (explosion (speed2vec shipSpeed) shipCoords)
         else

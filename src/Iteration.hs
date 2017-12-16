@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE GeneralizedNewtypeDeriving, NoImplicitPrelude #-}
 
 module Iteration

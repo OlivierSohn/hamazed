@@ -21,6 +21,7 @@ module Animation.Types
     , Coords
     , Location(..)
     , module Iteration
+    , module Render.Draw
     ) where
 
 
@@ -32,18 +33,18 @@ import           Collision(Location(..))
 
 import           Color.Types
 
-import           Env
 import           Geo.Discrete.Types( Coords )
 
+import           Render.Draw
 import           Timing( KeyTime )
 
 import           Iteration
 
 -- | Animator contains functions to update and render an Animation.
-data Animator = Animator {
+data Animator e = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> Tree -> Tree)
     -- ^ a function that updates Tree
-  , _animatorIO :: Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)
+  , _animatorIO :: Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))
     -- ^ a function that consumes Tree to render the animation.
     -- It is a non-strict field to avoid infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)
   , _animatorColorFromFrame :: !(Frame -> LayeredColor)
@@ -85,19 +86,19 @@ data Continuation = Continuation {
 }
 --}
 
-data Animation = Animation {
+data Animation e = Animation {
     _animationNextTime :: !KeyTime
     -- ^ The time at which this animation becomes obsolete
   , _animationIteration :: !Iteration
     -- ^ The iteration
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points
-  , _animationRender :: !(Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
+  , _animationRender :: !(Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
     -- ^ This function renders the animation (input parameters and state (Tree) are pre-applied)
     --   and may return an updated Animation
 }
 
-instance Show Animation where
+instance (Draw e) => Show (Animation e) where
         showsPrec _ (Animation a b c _) = showString $ "Animation{" ++ show (a,b,c) ++ "}"
 
 data AnimationZero = WithZero
@@ -111,13 +112,12 @@ data StepType = Initialize -- update the tree       , iteration doesn't change
 mkAnimationTree :: Coords -> OnWall -> Tree
 mkAnimationTree c ow = Tree c 0 Nothing ow Nothing
 
-
-mkAnimation :: (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
+mkAnimation :: (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
             -> KeyTime
             -> AnimationZero
             -> Speed
             -> Maybe Char
-            -> Animation
+            -> Animation e
 mkAnimation render t frameInit speed mayChar =
   let firstIteration =
         (case frameInit of

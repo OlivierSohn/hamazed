@@ -17,16 +17,17 @@ import           System.Console.ANSI(Color8Code(..))
 
 import           Control.Monad( foldM_ )
 
-import           Color
-import           Color.ILayeredColor
-
 import qualified Data.List as List(length, splitAt)
 import           Data.String(IsString(..))
 import           Data.Text( Text, length, pack, unpack )
 
+import           Color
+import           Color.ILayeredColor
+
 import           Geo.Discrete
 import           Math
 import           Render
+import           Render.Draw
 import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
@@ -165,25 +166,28 @@ instance Monoid ColorString where
   mempty = ColorString [("", onBlack white)]
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 
-renderColored :: ColorString
+
+{-# INLINABLE renderColored #-}
+renderColored :: (Draw e)
+              => ColorString
               -> Coords
-              -> (Text -> Coords -> LayeredColor -> IO ())
-              -> IO ()
-renderColored (ColorString cs) pos renderTxt =
+              -> ReaderT e IO ()
+renderColored (ColorString cs) pos =
   foldM_
     (\count (txt, color) -> do
       let l = length txt
-      renderTxt txt (move count RIGHT pos) color
+      drawTxt txt (move count RIGHT pos) color
       return $ count + l
     ) 0 cs
 
 
-renderAligned :: Alignment
+{-# INLINABLE renderAligned #-}
+renderAligned :: (Draw e)
+              => Alignment
               -> ColorString
               -> Coords
-              -> (Text -> Coords -> LayeredColor -> IO ())
-              -> IO Coords
-renderAligned a cs pos r = do
+              -> ReaderT e IO Coords
+renderAligned a cs pos = do
   let leftCorner = align' a (countChars cs) pos
-  _ <- renderColored cs leftCorner r
+  _ <- renderColored cs leftCorner
   return (translateInDir Down pos)

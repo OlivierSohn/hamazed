@@ -13,7 +13,6 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
-import           Env
 import           Game.Color
 import           Game.World
 import           Game.World.Evolution
@@ -24,7 +23,6 @@ import           Game.World.Embedded
 import           Geo.Discrete
 
 import           IO.Blocking
-
 import           Timing
 
 data GameParameters = GameParameters {
@@ -39,10 +37,12 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
-getGameParameters :: ReaderT Env IO GameParameters
+{-# INLINABLE getGameParameters #-}
+getGameParameters :: (Draw e) => ReaderT e IO GameParameters
 getGameParameters = update initialParameters
 
-update :: GameParameters -> ReaderT Env IO GameParameters
+{-# INLINABLE update #-}
+update :: (Draw e) => GameParameters -> ReaderT e IO GameParameters
 update params =
   render params >> do
     char <- liftIO getCharThenFlush
@@ -65,14 +65,16 @@ updateFromChar c p@(GameParameters shape wallType) =
     't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent)
     _ -> p
 
-dText :: Text -> Coords -> LayeredColor -> ReaderT Env IO Coords
+
+{-# INLINABLE dText #-}
+dText :: (Draw e) => Text -> Coords -> LayeredColor -> ReaderT e IO Coords
 dText txt pos color =
   drawTxt txt pos color >> return (translateInDir Down pos)
 
-render :: GameParameters -> ReaderT Env IO ()
+{-# INLINABLE render #-}
+render :: (Draw e) => GameParameters -> ReaderT e IO ()
 render (GameParameters shape wall) = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
-  (Env (RenderFunctions _ _ renderTxt _)) <- ask
   mkEmbeddedWorld worldSize >>= \case
     Left err -> error err
     Right rew@(EmbeddedWorld _ ul) -> do
@@ -85,12 +87,11 @@ render (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-              renderAlignedCentered = renderAlignedTxt renderTxt Centered
-          liftIO $ do
-            renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
-              >>= \ pos ->
-                    void (renderAlignedCentered "------------------" pos configColors)
-            void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
+              renderAlignedCentered = renderAlignedTxt Centered
+          renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
+            >>= \ pos ->
+                  void (renderAlignedCentered "------------------" pos configColors)
+          void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
 
           translateInDir Down <$> dText "- World shape" (move 5 Up left) configColors
             >>= \ pos ->

@@ -19,7 +19,7 @@ import           Imajuscule.Prelude
 import           Control.Monad.Reader(when)
 
 import           Data.Char( intToDigit )
-import           Data.Maybe( isNothing )
+import           Data.Maybe( isNothing, isJust )
 import           Data.Time( addUTCTime
                           , getCurrentTime
                           , UTCTime )
@@ -27,8 +27,6 @@ import           Data.Time( addUTCTime
 import           Animation.Util( earliestDeadline )
 
 import           Collision
-
-import           Env
 
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
@@ -44,18 +42,17 @@ import           Game.World.Types
 
 import           Timing
 
-
 accelerateShip :: Direction -> BattleShip -> BattleShip
 accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = sumCoords speed $ coordsForDirection dir
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
+nextWorld :: World e -> [Number] -> Int -> [BoundedAnimation e] -> World e
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
-moveWorld :: UTCTime -> World -> World
+moveWorld :: UTCTime -> World e -> World e
 moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
@@ -91,12 +88,12 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
 
-earliestAnimationDeadline :: World -> Maybe KeyTime
+earliestAnimationDeadline :: World e -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 -- TODO use Number Live Number Dead
-withLaserAction :: Event ->  World -> ([Number], [Number], Maybe (LaserRay Actual), Int)
+withLaserAction :: Event ->  World e -> ([Number], [Number], Maybe (LaserRay Actual), Int)
 withLaserAction
   event
   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
@@ -131,7 +128,7 @@ withLaserAction
 -- IO
 --------------------------------------------------------------------------------
 
-mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> Int -> ReaderT Env IO World
+mkWorld :: EmbeddedWorld -> WorldSize -> WallType -> [Int] -> Int -> ReaderT e IO (World e)
 mkWorld e s walltype nums ammo = do
   (Space mat sz render) <- case walltype of
     None          -> return $ mkEmptySpace s
@@ -143,37 +140,46 @@ mkWorld e s walltype nums ammo = do
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
   return $ World balls ballMotion (BattleShip ship ammo (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
 
-createRandomNumber :: Space -> Int -> ReaderT Env IO Number
+createRandomNumber :: Space -> Int -> ReaderT e IO Number
 createRandomNumber space i = do
   ps <- liftIO $ createRandomPosSpeed space
   return $ Number ps i
 
-renderWorld :: World -> ReaderT Env IO ()
+
+{-# INLINABLE renderWorld #-}
+renderWorld :: (Draw e) => World e -> ReaderT e IO ()
 renderWorld
   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
          space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
   let s = translateInDir Down $ translateInDir RIGHT upperLeft
   mapM_ (\b -> renderNumber b space s) balls
-  when (null collisions) (do
+  when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
     let colors =
           if isNothing safeTime
             then
               shipColors
             else
               shipColorsSafe
-    _ <- renderIfNotColliding '+' shipCoords space colors s -- TODO render if safetime or not colliding
-    return ())
+    drawChar '+' (sumCoords shipCoords s) colors
+    return ()
 
-renderNumber :: Number
+
+{-# INLINABLE renderNumber #-}
+renderNumber :: (Draw e)
+             => Number
              -> Space
              -> Coords
-             -> ReaderT Env IO ()
+             -> ReaderT e IO ()
 renderNumber (Number (PosSpeed pos _) i) space b = do
   let color = numberColor i
-  renderIfNotColliding (intToDigit i) pos space color b
+  case location pos space of
+    InsideWorld -> drawChar (intToDigit i) (sumCoords pos b) color
+    OutsideWorld -> return ()
 
-renderWorldAnimation :: WorldAnimation
-                     -> ReaderT Env IO ()
+{-# INLINABLE renderWorldAnimation #-}
+renderWorldAnimation :: (Draw e)
+                     => WorldAnimation
+                     -> ReaderT e IO ()
 renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
   renderEvolutions evolutions frame

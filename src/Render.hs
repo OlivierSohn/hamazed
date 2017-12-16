@@ -21,7 +21,7 @@ import           Data.Text( length )
 
 import           Color.Types
 import           Geo.Discrete
-
+import           Render.Draw
 
 data RenderFunctions = RenderFunctions {
     _renderChar :: !(Char -> Coords -> LayeredColor -> IO ())
@@ -33,24 +33,27 @@ data RenderFunctions = RenderFunctions {
 data Alignment = Centered
                | RightAligned
 
-renderAlignedTxt_ :: (Text -> Coords -> LayeredColor -> IO ())
-                  -> Alignment
+
+{-# INLINABLE renderAlignedTxt_ #-}
+renderAlignedTxt_ :: (Draw e)
+                  => Alignment
                   -> Text
                   -> Coords
                   -> LayeredColor
-                  -> IO ()
-renderAlignedTxt_ render a txt pos colors = do
+                  -> ReaderT e IO ()
+renderAlignedTxt_ a txt pos colors = do
   let leftCorner = align' a (length txt) pos
-  render txt leftCorner colors
+  drawTxt txt leftCorner colors
 
-renderAlignedTxt :: (Text -> Coords -> LayeredColor -> IO ())
-                 -> Alignment
+{-# INLINABLE renderAlignedTxt #-}
+renderAlignedTxt :: (Draw e)
+                 => Alignment
                  -> Text
                  -> Coords
                  -> LayeredColor
-                 -> IO Coords
-renderAlignedTxt render a txt pos colors =
-  renderAlignedTxt_ render a txt pos colors >> return (translateInDir Down pos)
+                 -> ReaderT e IO Coords
+renderAlignedTxt a txt pos colors =
+  renderAlignedTxt_ a txt pos colors >> return (translateInDir Down pos)
 
 align' :: Alignment -> Int -> Coords -> Coords
 align' a count ref =

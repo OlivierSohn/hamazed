@@ -78,6 +78,7 @@ library
                      , Iteration
                      , Math
                      , Render
+                     , Render.Console
                      , Render.Delta
                      , Render.Delta.Buffers
                      , Render.Delta.Buffers.Dimensions
@@ -88,7 +89,7 @@ library
                      , Render.Delta.Flush
                      , Render.Delta.Types
                      , Render.Delta.UnboxedDynamic
-                     , Render.Console
+                     , Render.Draw
                      , Render.Types
                      , Run
                      , Text.Animated

@@ -28,96 +28,114 @@ import           Animation.Types
 
 import           Animation.Color
 
-import           Env
 import           Geo.Continuous
 
 import           Game.World.Laser.Types
 
 import           Timing
 
-simpleLaser :: LaserRay Actual
+{-# INLINABLE simpleLaser #-}
+simpleLaser :: (Draw e)
+            => LaserRay Actual
             -> Tree
             -> Maybe KeyTime
-            -> Animation
+            -> Animation e
             -> (Coords -> Location)
             -> Coords
-            -> ReaderT Env IO (Maybe Animation)
+            -> ReaderT e IO (Maybe (Animation e))
 simpleLaser seg =
   renderAndUpdate' (mkAnimator simpleLaserPure simpleLaser seg)
 
-quantitativeExplosionThenSimpleExplosion :: Int
+{-# INLINABLE quantitativeExplosionThenSimpleExplosion #-}
+quantitativeExplosionThenSimpleExplosion :: (Draw e)
+                                         => Int
                                          -> Tree
                                          -> Maybe KeyTime
-                                         -> Animation
+                                         -> Animation e
                                          -> (Coords -> Location)
                                          -> Coords
-                                         -> ReaderT Env IO (Maybe Animation)
+                                         -> ReaderT e IO (Maybe (Animation e))
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
     f = quantitativeExplosionThenSimpleExplosion number
 
-gravityExplosionThenSimpleExplosion :: Vec2
+
+{-# INLINABLE gravityExplosionThenSimpleExplosion #-}
+gravityExplosionThenSimpleExplosion :: (Draw e)
+                                    => Vec2
                                     -> Tree
                                     -> Maybe KeyTime
-                                    -> Animation
+                                    -> Animation e
                                     -> (Coords -> Location)
                                     -> Coords
-                                    -> ReaderT Env IO (Maybe Animation)
+                                    -> ReaderT e IO (Maybe (Animation e))
 gravityExplosionThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (gravityExplosionPure initialSpeed) (simpleExplosionPure 8)
     f = gravityExplosionThenSimpleExplosion initialSpeed
 
-gravityExplosion :: Vec2
+{-# INLINABLE gravityExplosion #-}
+gravityExplosion :: (Draw e)
+                 => Vec2
                  -> Tree
                  -> Maybe KeyTime
-                 -> Animation
+                 -> Animation e
                  -> (Coords -> Location)
                  -> Coords
-                 -> ReaderT Env IO (Maybe Animation)
+                 -> ReaderT e IO (Maybe (Animation e))
 gravityExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (gravityExplosionPure initialSpeed)
     f = gravityExplosion initialSpeed
 
-animatedNumber :: Int
+{-# INLINABLE animatedNumber #-}
+animatedNumber :: (Draw e)
+               => Int
                -> Tree
                -> Maybe KeyTime
-               -> Animation
+               -> Animation e
                -> (Coords -> Location)
                -> Coords
-               -> ReaderT Env IO (Maybe Animation)
+               -> ReaderT e IO (Maybe (Animation e))
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
 
-simpleExplosion :: Int
+{-# INLINABLE simpleExplosion #-}
+simpleExplosion :: (Draw e)
+                => Int
                 -> Tree
                 -> Maybe KeyTime
-                -> Animation
+                -> Animation e
                 -> (Coords -> Location)
                 -> Coords
-                -> ReaderT Env IO (Maybe Animation)
+                -> ReaderT e IO (Maybe (Animation e))
 simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
     f = simpleExplosion resolution
 
-explosionGravity :: Vec2
+{-# INLINABLE explosionGravity #-}
+explosionGravity :: (Draw e)
+                 => Vec2
                  -> Coords
-                 -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)]
+                 -> [Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))]
 explosionGravity speed pos =
   map (`explosionGravity1` pos) $ variations speed
 
-explosionGravity1 :: Vec2
+{-# INLINABLE explosionGravity1 #-}
+explosionGravity1 :: (Draw e)
+                  => Vec2
                   -> Coords
-                  -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
+                  -> (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
 explosionGravity1 speed pos =
   gravityExplosion speed (mkAnimationTree pos (ReboundAnd Stop))
 
-explosion :: Vec2
+{-# INLINABLE explosion #-}
+explosion :: (Draw e)
+          => Vec2
           -> Coords
-          -> [Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)]
+          -> [Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))]
 explosion speed pos =
   map (`explosion1` pos) $ variations speed
 
@@ -128,8 +146,10 @@ variations sp =
                     , Vec2 (-0.1)  0.9
                     , Vec2 1.2     0.2]
 
-explosion1 :: Vec2
+{-# INLINABLE explosion1 #-}
+explosion1 :: (Draw e)
+           => Vec2
            -> Coords
-           -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
+           -> (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
 explosion1 speed pos =
   gravityExplosionThenSimpleExplosion speed (mkAnimationTree pos (ReboundAnd $ ReboundAnd Stop))

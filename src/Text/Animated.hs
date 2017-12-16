@@ -26,7 +26,7 @@ import           Evolution
 import           Geo.Discrete
 
 import           Math
-
+import           Render.Draw
 import           Text.ColorString
 
 {- | Animates in parallel
@@ -47,61 +47,71 @@ data (Show a) => TextAnimation a = TextAnimation {
 data AnchorStrings = AnchorStrings deriving(Show)
 data AnchorChars = AnchorChars deriving(Show)
 
-renderAnimatedTextStringAnchored :: TextAnimation AnchorStrings
-                                 -> Frame
-                                 -> (Text -> Coords -> LayeredColor -> IO ())
-                                 -> IO ()
-renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i r = do
-  let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextStringAnchored' fromToStrs rss i r
 
-renderAnimatedTextStringAnchored' :: [Evolution ColorString]
+{-# INLINABLE renderAnimatedTextStringAnchored #-}
+renderAnimatedTextStringAnchored :: (Draw e)
+                                 => TextAnimation AnchorStrings
+                                 -> Frame
+                                 -> ReaderT e IO ()
+renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
+  let rss = getAnimatedTextRenderStates renderStatesEvolution i
+  renderAnimatedTextStringAnchored' fromToStrs rss i
+
+
+{-# INLINABLE renderAnimatedTextStringAnchored' #-}
+renderAnimatedTextStringAnchored' :: (Draw e)
+                                  => [Evolution ColorString]
                                   -> [Coords]
                                   -> Frame
-                                  -> (Text -> Coords -> LayeredColor -> IO ())
-                                  -> IO ()
-renderAnimatedTextStringAnchored' [] _ _ _ = return ()
-renderAnimatedTextStringAnchored' l@(_:_) rs i r = do
+                                  -> ReaderT e IO ()
+renderAnimatedTextStringAnchored' [] _ _ = return ()
+renderAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
       rsNow = head rs
       colorStr = evolve e i
-  renderColored colorStr rsNow r
-  renderAnimatedTextStringAnchored' (tail l) (tail rs) i r
+  renderColored colorStr rsNow
+  renderAnimatedTextStringAnchored' (tail l) (tail rs) i
 
-renderAnimatedTextCharAnchored :: TextAnimation AnchorChars
+
+{-# INLINABLE renderAnimatedTextCharAnchored #-}
+renderAnimatedTextCharAnchored :: (Draw e)
+                               => TextAnimation AnchorChars
                                -> Frame
-                               -> (Char -> Coords -> LayeredColor -> IO ())
-                               -> IO ()
-renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i renderChar = do
+                               -> ReaderT e IO ()
+renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextCharAnchored' fromToStrs rss i renderChar
+  renderAnimatedTextCharAnchored' fromToStrs rss i
 
-renderAnimatedTextCharAnchored' :: [Evolution ColorString]
+
+{-# INLINABLE renderAnimatedTextCharAnchored' #-}
+renderAnimatedTextCharAnchored' :: (Draw e)
+                                => [Evolution ColorString]
                                 -> [Coords]
                                 -> Frame
-                                -> (Char -> Coords -> LayeredColor -> IO ())
-                                -> IO ()
-renderAnimatedTextCharAnchored' [] _ _ _ = return ()
-renderAnimatedTextCharAnchored' l@(_:_) rs i renderChar = do
+                                -> ReaderT e IO ()
+renderAnimatedTextCharAnchored' [] _ _ = return ()
+renderAnimatedTextCharAnchored' l@(_:_) rs i = do
   -- use length of from to know how many renderstates we should take
   let e@(Evolution (Successive colorStrings) _ _ _) = head l
       nRS = maximum $ map countChars colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       (ColorString colorStr) = evolve e i
-  renderColorStringAt colorStr nowRS renderChar
-  renderAnimatedTextCharAnchored' (tail l) laterRS i renderChar
+  renderColorStringAt colorStr nowRS
+  renderAnimatedTextCharAnchored' (tail l) laterRS i
 
-renderColorStringAt :: [(Text, LayeredColor)]
+
+{-# INLINABLE renderColorStringAt #-}
+renderColorStringAt :: (Draw e)
+                    => [(Text, LayeredColor)]
                     -> [Coords]
-                    -> (Char -> Coords -> LayeredColor -> IO ())
-                    -> IO ()
-renderColorStringAt [] _ _ = return ()
-renderColorStringAt l@(_:_) rs renderChar = do
+                    -> ReaderT e IO ()
+renderColorStringAt [] _ = return ()
+renderColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char coord -> renderChar char coord color) (unpack txt) headRs
-  renderColorStringAt (tail l) tailRs renderChar
+  zipWithM_ (\char coord -> drawChar char coord color) (unpack txt) headRs
+  renderColorStringAt (tail l) tailRs
 
 getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList Coords)
                             -> Frame

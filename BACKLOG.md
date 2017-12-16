@@ -22,9 +22,6 @@ make a package with
   - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
   - CI: https://github.com/hvr/multi-ghc-travis
 
-- try ideas of https://www.fpcomplete.com/blog/2017/06/readert-design-pattern to put IO Buffers
-in ReaderT Env
-
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'
   - same with random colors

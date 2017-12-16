@@ -4,19 +4,19 @@
 module Test.InterpolatedColorString(testICS) where
 
 import Imajuscule.Prelude
+import Data.Text(pack)
 
 import Prelude(String)
 
 import Geo.Discrete
 import Color
 import Color.IColor8Code
+import Env
 import Game.World.Space
-import Render.Delta
 import Text.ColorString
 
-testICS :: IO ()
+testICS :: (Draw e) => ReaderT e IO ()
 testICS = do
-  ctxt <- newDefaultContext
 
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
@@ -35,21 +35,21 @@ testICS = do
     (\i@(Frame c') -> do
       let cs = evolve e i
           c = Coord c'
-      renderColored' cs (Coords (c + 10) 3) zeroCoords ctxt
+      renderColored' cs (Coords (c + 10) 3) zeroCoords
     ) $ map Frame [0..lastFrame]
 
   mapM_
     (\i@(Frame c') -> do
       let cs = evolve e' i
           c = Coord c'
-      renderColored' cs (Coords (c + 10) 25) zeroCoords ctxt
+      renderColored' cs (Coords (c + 10) 25) zeroCoords
     ) $ map Frame [0..lastFrame']
 
   mapM_
     (\i@(Frame c') -> do
       let cs = evolve e'' i
           c = Coord c'
-      renderColored' cs (Coords (c + 20) 25) zeroCoords ctxt
+      renderColored' cs (Coords (c + 20) 25) zeroCoords
     ) $ map Frame [0..lastFrame'']
 
   mapM_
@@ -57,21 +57,19 @@ testICS = do
       let cs@(ColorString l) = evolve e''' i
           (_,color) = head l
           c = Coord c'
-      renderColored' cs (Coords (c + 30) 25) zeroCoords ctxt
-      drawStr' (show color) (Coords (c + 30) 35) zeroCoords ctxt
+      renderColored' cs (Coords (c + 30) 25) zeroCoords
+      drawStr' (show color) (Coords (c + 30) 35) zeroCoords
     ) $ map Frame [0..lastFrame''']
 
-  flush ctxt
+renderColored' :: (Draw e) => ColorString -> Coords -> Coords -> ReaderT e IO ()
+renderColored' cs pos rs =
+  void (renderColored cs (translate pos rs))
 
-renderColored' :: ColorString -> Coords -> Coords -> IORef Buffers -> IO ()
-renderColored' cs pos rs b =
-  void (renderColored cs (translate pos rs) (drawTxt b))
-
-drawStr' :: String -> Coords -> Coords -> IORef Buffers -> IO Coords
-drawStr' cs pos rs b =
-  drawStr'' b cs (translate pos rs) (LayeredColor black white)
+drawStr' :: (Draw e) => String -> Coords -> Coords -> ReaderT e IO Coords
+drawStr' cs pos rs =
+  drawStr'' cs (translate pos rs) (LayeredColor black white)
 
 
-drawStr'' :: IORef Buffers -> String -> Coords -> LayeredColor -> IO Coords
-drawStr'' ref str pos color =
-  drawStr ref str pos color >> return (translateInDir Down pos)
+drawStr'' :: (Draw e) => String -> Coords -> LayeredColor -> ReaderT e IO Coords
+drawStr'' str pos color =
+  drawTxt (pack str) pos color >> return (translateInDir Down pos)

@@ -20,6 +20,7 @@ module Game.World.Types
         , module Iteration
         , module Text.Animated
         , Terminal.Window
+        , module Render.Draw
         ) where
 
 import           Imajuscule.Prelude
@@ -35,7 +36,7 @@ import           Game.World.Frame.Types
 
 import           Iteration
 
-import           Render.Delta
+import           Render.Draw
 import           Render
 
 import           Text.Animated
@@ -64,16 +65,16 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: LayeredColor -> World -> FrameSpec
+mkFrameSpec :: LayeredColor -> World e -> FrameSpec
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
   FrameSpec sz upperLeft colors
 
-data World = World {
+data World e = World {
     _worldNumbers :: ![Number]
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimation]
+  , _worldAnimations :: ![BoundedAnimation e]
   , _worldEmbedded :: !EmbeddedWorld
 }
 
@@ -82,7 +83,7 @@ data EmbeddedWorld = EmbeddedWorld {
   , _embeddedWorldUpperLeft :: !Coords
 } deriving (Show)
 
-data BoundedAnimation = BoundedAnimation Animation Boundaries deriving(Show)
+data BoundedAnimation e = BoundedAnimation !(Animation e) !Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow

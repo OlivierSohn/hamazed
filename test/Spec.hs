@@ -2,7 +2,8 @@ import Control.Monad.Reader(runReaderT)
 
 import Env
 
-import Render.Delta
+import Render.Delta(restoreConsole)
+import Render.Draw
 
 import Test.Interpolation(testInterpolation)
 import Test.InterpolatedColorString
@@ -15,9 +16,14 @@ main :: IO ()
 main = do
   putStrLn "" -- for readablilty
   testInterpolation
-  testICS
   testBres3 >>= print
   testReader
-  ctxt <- newDefaultContext
-  runReaderT testSpace $ Env $ mkRenderFunctions ctxt
+
+  env <- createEnv
+  runReaderT (testSpace >>
+              testICS >>
+              flush
+              ) env
+  restoreConsole
+
   --testStdout

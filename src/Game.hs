@@ -14,8 +14,6 @@ import           Data.String(String)
 import           Animation
 import           Animation.Design.Chars
 
-import           Env
-
 import           Game.Color
 import           Game.Deadline( Deadline(..) )
 import           Game.Types
@@ -39,7 +37,8 @@ import           Geo.Discrete
 import           Util
 
 
-nextGameState :: GameState -> TimedEvent -> GameState
+{-# INLINABLE nextGameState #-}
+nextGameState :: (Draw e) => GameState e -> TimedEvent -> GameState e
 nextGameState
   (GameState a b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _) futureWorld
              g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
@@ -79,7 +78,8 @@ nextGameState
   in assert (isFinished newAnim) $ GameState a b newWorld futureWorld allShotNumbers newLevel newAnim
 
 
-outerSpaceAnims :: KeyTime -> Space -> LaserRay Actual -> [BoundedAnimation]
+{-# INLINABLE outerSpaceAnims #-}
+outerSpaceAnims :: (Draw e) => KeyTime -> Space -> LaserRay Actual -> [BoundedAnimation e]
 outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
   let ae = afterEnd ray
   in case onFronteer ae sz of
@@ -92,15 +92,16 @@ outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
         Nothing -> []
 
 
-laserAnims :: KeyTime -> LaserRay Actual -> [BoundedAnimation]
+{-# INLINABLE laserAnims #-}
+laserAnims :: (Draw e) => KeyTime -> LaserRay Actual -> [BoundedAnimation e]
 laserAnims keyTime ray
  = [BoundedAnimation (mkLaserAnimation keyTime ray) WorldFrame]
 
-replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
+replaceAnimations :: [BoundedAnimation e] -> GameState e -> GameState e
 replaceAnimations anims (GameState a c (World wa wb wc wd _ ew) b f g h) =
   GameState a c (World wa wb wc wd anims ew) b f g h
 
-nextDeadline :: GameState -> UTCTime -> Maybe Deadline
+nextDeadline :: GameState e -> UTCTime -> Maybe Deadline
 nextDeadline s t =
   let l = getDeadlinesByDecreasingPriority s t
   in  overdueDeadline t l <|> earliestDeadline l
@@ -113,14 +114,14 @@ overdueDeadline :: UTCTime -> [Deadline] -> Maybe Deadline
 overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : message > game forward > animation forward
-getDeadlinesByDecreasingPriority :: GameState -> UTCTime -> [Deadline]
+getDeadlinesByDecreasingPriority :: GameState e -> UTCTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _) t =
   maybe
     (catMaybes [messageDeadline level t, getGameDeadline s, animationDeadline s])
     (: [])
       (worldAnimationDeadline s)
 
-getGameDeadline :: GameState -> Maybe Deadline
+getGameDeadline :: GameState e -> Maybe Deadline
 getGameDeadline (GameState _ nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
@@ -130,11 +131,11 @@ getGameDeadline (GameState _ nextGameStep _ _ _ (Level _ _ levelFinished) _) =
     (const Nothing)
       levelFinished
 
-animationDeadline :: GameState -> Maybe Deadline
+animationDeadline :: GameState e -> Maybe Deadline
 animationDeadline (GameState _ _ world _ _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
 
-worldAnimationDeadline :: GameState -> Maybe Deadline
+worldAnimationDeadline :: GameState e -> Maybe Deadline
 worldAnimationDeadline (GameState _ _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
   maybe
     Nothing
@@ -142,7 +143,7 @@ worldAnimationDeadline (GameState _ _ _ _ _ _ (WorldAnimation _ mayDeadline _)) 
       mayDeadline
 
 
-accelerateShip' :: Direction -> GameState -> GameState
+accelerateShip' :: Direction -> GameState e -> GameState e
 accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
   let newShip = accelerateShip dir ship
       world = World wa wb newShip wc wd we
@@ -153,14 +154,16 @@ accelerateShip' dir (GameState a c (World wa wb ship wc wd we) b f g h) =
 -- IO
 --------------------------------------------------------------------------------
 
-runGameWorker :: GameParameters -> ReaderT Env IO ()
+
+{-# INLINABLE runGameWorker #-}
+runGameWorker :: (Draw e) => GameParameters -> ReaderT e IO ()
 runGameWorker params =
   mkInitialState params firstLevel Nothing
     >>= \case
       Left err -> error err
       Right ew -> loop params ew
 
-mkInitialState :: GameParameters -> Int -> Maybe GameState -> ReaderT Env IO (Either String GameState)
+mkInitialState :: GameParameters -> Int -> Maybe (GameState e) -> ReaderT e IO (Either String (GameState e))
 mkInitialState (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
@@ -195,12 +198,15 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
   mkEmbeddedWorld newSize >>= either (return . Left) make
 
 
-loop :: GameParameters -> GameState -> ReaderT Env IO ()
+{-# INLINABLE loop #-}
+loop :: (Draw e) => GameParameters -> GameState e -> ReaderT e IO ()
 loop params state =
   updateGame params state >>= (\(st, mayMeta) ->
     maybe (loop params st) (const $ return ()) mayMeta)
 
-updateGame :: GameParameters -> GameState -> ReaderT Env IO (GameState, Maybe Meta)
+
+{-# INLINABLE updateGame #-}
+updateGame :: (Draw e) => GameParameters -> GameState e -> ReaderT e IO (GameState e, Maybe Meta)
 updateGame params state = do
   evt <- liftIO $ getTimedEvent state
   case evt of
@@ -209,20 +215,21 @@ updateGame params state = do
       st <- updateGameUsingTimedEvent params state evt
       return (st, Nothing)
 
-getTimedEvent :: GameState -> IO TimedEvent
+getTimedEvent :: GameState e -> IO TimedEvent
 getTimedEvent state =
   getEvent state >>= \evt -> do
     t <- getCurrentTime
     return $ TimedEvent evt t
 
-getEvent :: GameState -> IO Event
+getEvent :: GameState e -> IO Event
 getEvent state@(GameState _ _ _ _ _ level _) = do
   t <- getCurrentTime
   let deadline = nextDeadline state t
   getEventForMaybeDeadline level deadline t
 
 
-updateGameUsingTimedEvent :: GameParameters -> GameState -> TimedEvent -> ReaderT Env IO GameState
+{-# INLINABLE updateGameUsingTimedEvent #-}
+updateGameUsingTimedEvent :: (Draw e) => GameParameters -> GameState e -> TimedEvent -> ReaderT e IO (GameState e)
 updateGameUsingTimedEvent
  params
  state@(GameState a b world futWorld f h@(Level level target mayLevelFinished) i)
@@ -249,7 +256,7 @@ updateGameUsingTimedEvent
           updateGame2 te newState
 
 
-updateAnim :: UTCTime -> GameState -> GameState
+updateAnim :: UTCTime -> GameState e -> GameState e
 updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration (_, nextFrame)) = nextIteration it
          (world, gameDeadline, worldAnimDeadline) =
@@ -261,7 +268,9 @@ updateAnim t (GameState a _ curWorld futWorld j k (WorldAnimation evolutions _ i
          wa = WorldAnimation evolutions worldAnimDeadline nextIt
      in GameState a gameDeadline world futWorld j k wa
 
-updateGame2 :: TimedEvent -> GameState -> ReaderT Env IO GameState
+
+{-# INLINABLE updateGame2 #-}
+updateGame2 :: (Draw e) => TimedEvent -> GameState e -> ReaderT e IO (GameState e)
 updateGame2
  te@(TimedEvent event _)
  s@(GameState _ _ _ _ _ _ anim) =
@@ -278,7 +287,9 @@ updateGame2
       flush
       return $ replaceAnimations animations s2
 
-renderGame :: Maybe KeyTime -> GameState -> ReaderT Env IO [BoundedAnimation]
+
+{-# INLINABLE renderGame #-}
+renderGame :: (Draw e) => Maybe KeyTime -> GameState e -> ReaderT e IO [BoundedAnimation e]
 renderGame k (GameState _ _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
@@ -296,8 +307,8 @@ renderAnimations :: Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords
-                 -> [BoundedAnimation]
-                 -> ReaderT Env IO [BoundedAnimation]
+                 -> [BoundedAnimation e]
+                 -> ReaderT e IO [BoundedAnimation e]
 renderAnimations k space mayTermWindow worldCorner animations = do
   let renderAnimation (BoundedAnimation a@(Animation _ _ _ render) f) = do
         let fLocation = locationFunction f space mayTermWindow worldCorner

@@ -19,11 +19,10 @@ import           GHC.Show(showString)
 
 import           Imajuscule.Prelude
 
+import           Render.Draw
 import           Interpolation
 
 import           Math
-
-import           Render
 
 -- | for a more general version, see 'mkEvolution'
 mkEvolution1 :: DiscretelyInterpolable v
@@ -119,7 +118,7 @@ evolve (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
   | otherwise          = interpolateSuccessive s step
 
 
-{-# INLINABLE evolve' #-} -- allow specialization
+{-# INLINABLE evolve' #-}
 evolve' :: DiscretelyInterpolable v
         => Evolution v
         -> Frame
@@ -130,12 +129,11 @@ evolve' (Evolution s _ _ _) (Frame step) =
   interpolateSuccessive' s $ assert (step >= 0) step
 
 
-{-# INLINABLE evolveIO #-} -- allow specialization
-evolveIO :: (DiscretelyInterpolable v)
-         => RenderFunctions
-         -> Evolution v
+{-# INLINABLE evolveIO #-}
+evolveIO :: (DiscretelyInterpolable v, Draw e)
+         => Evolution v
          -> Frame
          -- ^ current frame
-         -> IO ()
-evolveIO rf (Evolution s _ _ _) (Frame step) =
-  interpolateSuccessiveIO rf s $ assert (step >= 0) step
+         -> ReaderT e IO ()
+evolveIO (Evolution s _ _ _) (Frame step) =
+  interpolateSuccessiveIO s $ assert (step >= 0) step

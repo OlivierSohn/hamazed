@@ -12,7 +12,7 @@ import           Animation.Types
 import           Timing( KeyTime )
 
 
-earliestDeadline :: [Animation] -> Maybe KeyTime
+earliestDeadline :: [Animation e] -> Maybe KeyTime
 earliestDeadline animations =
   if null animations
     then

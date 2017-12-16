@@ -18,6 +18,7 @@ import           Game.World.Space.Types
 import           Geo.Discrete
 
 import           Render
+import           Render.Draw
 
 
 data FrameSpec = FrameSpec {
@@ -35,27 +36,28 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
     | s == s'   = 1 -- no animation because sizes are equal
     | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
-  interpolateIO rf f@(FrameAnimationParallel4 from) t@(FrameAnimationParallel4 to) frame
-    | frame <= 0         = renderWhole rf from
-    | frame >= lastFrame = renderWhole rf to
-    | otherwise          = renderTransition rf from to lastFrame frame
+  {-# INLINABLE interpolateIO #-}
+  interpolateIO f@(FrameAnimationParallel4 from) t@(FrameAnimationParallel4 to) frame
+    | frame <= 0         = renderWhole from
+    | frame >= lastFrame = renderWhole to
+    | otherwise          = renderTransition from to lastFrame frame
     where
       lastFrame = pred $ distance f t
 
+{-# INLINABLE renderWhole #-}
+renderWhole :: (Draw e) => FrameSpec -> ReaderT e IO ()
+renderWhole (FrameSpec sz upperLeft color) =
+  renderPartialWorldFrame sz color (upperLeft, 0, countWorldFrameChars sz - 1)
 
-renderWhole :: RenderFunctions -> FrameSpec -> IO ()
-renderWhole f (FrameSpec sz upperLeft color) =
-  renderPartialWorldFrame f sz color (upperLeft, 0, countWorldFrameChars sz - 1)
-
-renderTransition :: RenderFunctions -> FrameSpec -> FrameSpec -> Int -> Int -> IO ()
-renderTransition f from@(FrameSpec _ fromUpperLeft _)
-                   to@(FrameSpec _ toUpperLeft _) n i = do
-      let
-          (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
+{-# INLINABLE renderTransition #-}
+renderTransition :: (Draw e) => FrameSpec -> FrameSpec -> Int -> Int -> ReaderT e IO ()
+renderTransition from@(FrameSpec _ fromUpperLeft _)
+                 to@(FrameSpec _ toUpperLeft _) n i = do
+      let (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
           dc = fromIntegral dc'
           render diBefore di = do
-            renderFrom f Extremities (n-(i+diBefore)) from
-            renderFrom f Middle      (n-(i+di))       to
+            renderFrom Extremities (n-(i+diBefore)) from
+            renderFrom Middle      (n-(i+di))       to
       if dc >= 0
         then
           -- expanding animation
@@ -86,10 +88,11 @@ ranges progress sz =
         Middle      -> res
         Extremities -> complement 0 (total-1) res
 
-renderFrom :: RenderFunctions -> BuildFrom -> Int -> FrameSpec -> IO ()
-renderFrom ref rangeType progress (FrameSpec sz r color) = do
+{-# INLINABLE renderFrom #-}
+renderFrom :: (Draw e) => BuildFrom -> Int -> FrameSpec -> ReaderT e IO ()
+renderFrom rangeType progress (FrameSpec sz r color) = do
   let rs = ranges progress sz rangeType
-  mapM_ (\(min_, max_) -> renderPartialWorldFrame ref sz color (r, min_, max_)) rs
+  mapM_ (\(min_, max_) -> renderPartialWorldFrame sz color (r, min_, max_)) rs
 
 complement :: Int -> Int -> [(Int, Int)] -> [(Int, Int)]
 complement a max_ []          = [(a, max_)]
@@ -114,16 +117,18 @@ countWorldFrameVertical :: WorldSize -> Int
 countWorldFrameVertical (WorldSize (Coords rs _)) =
   fromIntegral rs
 
-renderPartialWorldFrame :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO ()
-renderPartialWorldFrame ref sz colors r =
-  renderUpperWall ref sz colors r
-    >>= renderRightWall ref sz colors
-    >>= renderLowerWall ref sz colors
-    >>= renderLeftWall ref sz colors
+{-# INLINABLE renderPartialWorldFrame #-}
+renderPartialWorldFrame :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO ()
+renderPartialWorldFrame sz colors r =
+  renderUpperWall sz colors r
+    >>= renderRightWall sz colors
+    >>= renderLowerWall sz colors
+    >>= renderLeftWall sz colors
     >> return ()
 
-renderRightWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderRightWall (RenderFunctions drawChar _ _ _) sz colors (upperRight, from, to) = do
+{-# INLINABLE renderRightWall #-}
+renderRightWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderRightWall sz colors (upperRight, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -136,8 +141,9 @@ renderRightWall (RenderFunctions drawChar _ _ _) sz colors (upperRight, from, to
     else
       return (nextR, from + nChars - countMax, to - countMax)
 
-renderLeftWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderLeftWall (RenderFunctions drawChar _ _ _) sz colors (lowerLeft, from, to) = do
+{-# INLINABLE renderLeftWall #-}
+renderLeftWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderLeftWall sz colors (lowerLeft, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -151,8 +157,9 @@ renderLeftWall (RenderFunctions drawChar _ _ _) sz colors (lowerLeft, from, to) 
       return (nextR, from + nChars - countMax, to - countMax)
 
 -- 0 is upper left
-renderUpperWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderUpperWall (RenderFunctions _ drawChars _ _) sz colors (upperLeft, from, to) = do
+{-# INLINABLE renderUpperWall #-}
+renderUpperWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderUpperWall sz colors (upperLeft, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -164,8 +171,9 @@ renderUpperWall (RenderFunctions _ drawChars _ _) sz colors (upperLeft, from, to
       drawChars nChars '_' (move actualFrom RIGHT upperLeft) colors
        >> return (nextR, from + nChars - countMax, to - countMax)
 
-renderLowerWall :: RenderFunctions -> WorldSize -> LayeredColor -> (Coords, Int, Int) -> IO (Coords, Int, Int)
-renderLowerWall (RenderFunctions _ drawChars _ _) sz colors (lowerRight, from, to) = do
+{-# INLINABLE renderLowerWall #-}
+renderLowerWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderLowerWall sz colors (lowerRight, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom

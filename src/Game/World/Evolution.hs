@@ -9,7 +9,6 @@ module Game.World.Evolution
 
 import           Imajuscule.Prelude
 
-import           Env
 import           Game.World.Types
 
 import           Geo.Discrete
@@ -20,16 +19,16 @@ import           Text.ColorString
 
 import           Timing
 
-renderEvolutions :: WorldEvolutions
+{-# INLINABLE renderEvolutions #-}
+renderEvolutions :: (Draw e)
+                 => WorldEvolutions
                  -> Frame
-                 -> ReaderT Env IO ()
+                 -> ReaderT e IO ()
 renderEvolutions we@(WorldEvolutions frameE upDown left) frame  = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  (Env rf@(RenderFunctions c _ t _)) <- ask
-  liftIO $ do
-    evolveIO rf frameE relFrameFrameE
-    renderAnimatedTextCharAnchored upDown relFrameUD c
-    renderAnimatedTextStringAnchored left relFrameLeft t
+  evolveIO frameE relFrameFrameE
+  renderAnimatedTextCharAnchored upDown relFrameUD
+  renderAnimatedTextStringAnchored left relFrameLeft
 
 getDeltaTime :: WorldEvolutions -> Frame -> Maybe Float
 getDeltaTime we@(WorldEvolutions frameE (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =

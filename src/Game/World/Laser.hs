@@ -55,10 +55,13 @@ stopRayAtFirstCollision coords (Ray s) =
            minElt = minimumBy (\(_, i) (_, j) -> compare (abs i) (abs j)) l
   in limitAtFirstCollision collisions s
 
-mkLaserAnimation :: KeyTime -> LaserRay Actual -> Animation
+
+-- no need to iline as we don't use e
+mkLaserAnimation :: (Draw e) => KeyTime -> LaserRay Actual -> Animation e
 mkLaserAnimation keyTime ray@(LaserRay _ (Ray seg)) =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
   in mkAnimation (simpleLaser ray (mkAnimationTree collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
+
 
 afterEnd :: LaserRay Actual -> Coords
 afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg

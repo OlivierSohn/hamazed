@@ -2,7 +2,6 @@
 
 module Game.World.Space
     ( renderSpace
-    , renderIfNotColliding
     , getMaterial
     , location
     , strictLocation
@@ -38,8 +37,6 @@ import           Data.Vector(Vector, slice, (!))
 import           Foreign.C.Types( CInt(..) )
 
 import           Collision
-
-import           Env
 
 import           Game.Color
 import           Game.World.Types
@@ -275,30 +272,24 @@ strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
     | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
-renderSpace :: Space
+
+{-# INLINABLE renderSpace #-}
+renderSpace :: (Draw e)
+            => Space
             -> Coords
-            -> ReaderT Env IO Coords
+            -> ReaderT e IO Coords
 renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
   mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
 
-renderGroup :: Coords
+{-# INLINABLE renderGroup #-}
+renderGroup :: (Draw e)
+            => Coords
             -> RenderGroup
-            -> ReaderT Env IO ()
+            -> ReaderT e IO ()
 renderGroup worldCoords (RenderGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
-
-renderIfNotColliding :: Char
-                     -> Coords
-                     -> Space
-                     -> LayeredColor
-                     -> Coords
-                     -> ReaderT Env IO ()
-renderIfNotColliding char worldCoords space colors r =
-  case getMaterial worldCoords space of
-    Air  -> drawChar char (sumCoords worldCoords r) colors
-    Wall -> return ()
 
 locationFunction :: Boundaries
                  -> Space

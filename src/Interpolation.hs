@@ -17,7 +17,7 @@ import           Geo.Discrete
 import           Geo.Discrete.Bresenham
 import           Iteration
 import           Math
-import           Render
+import           Render.Draw
 
 
 newtype Successive a = Successive [a] deriving(Show)
@@ -75,11 +75,11 @@ class (Show v) => DiscretelyInterpolable v where
                -> w -- ^ the interpolated value
   interpolate' = error "interpolate' is not defined"
 
-  interpolateIO :: RenderFunctions
-                -> v -- ^ first value
+  interpolateIO :: (Draw e)
+                => v -- ^ first value
                 -> v -- ^ last value
                 -> Int -- ^ the current step
-                -> IO ()
+                -> ReaderT e IO ()
   interpolateIO = error "interpolateIO is not defined"
 
   interpolateSuccessive :: Successive v
@@ -104,16 +104,17 @@ class (Show v) => DiscretelyInterpolable v where
     | otherwise = interpolate' a b i
     where lf = pred $ distance a b
 
-  interpolateSuccessiveIO :: RenderFunctions
-                          -> Successive v
+  {-# INLINABLE interpolateSuccessiveIO #-}
+  interpolateSuccessiveIO :: (Draw e)
+                          => Successive v
                           -> Int
-                          -> IO ()
-  interpolateSuccessiveIO _ (Successive []) _ = error "empty successive"
-  interpolateSuccessiveIO rf (Successive [a]) _ = interpolateIO rf a a 0
-  interpolateSuccessiveIO rf (Successive l@(a:b:_)) i
-    | i <= 0      = interpolateIO rf a a 0
-    | i >= lf = interpolateSuccessiveIO rf (Successive $ tail l) $ i-lf
-    | otherwise = interpolateIO rf a b i
+                          -> ReaderT e IO ()
+  interpolateSuccessiveIO (Successive []) _ = error "empty successive"
+  interpolateSuccessiveIO (Successive [a]) _ = interpolateIO a a 0
+  interpolateSuccessiveIO (Successive l@(a:b:_)) i
+    | i <= 0      = interpolateIO a a 0
+    | i >= lf = interpolateSuccessiveIO (Successive $ tail l) $ i-lf
+    | otherwise = interpolateIO a b i
     where lf = pred $ distance a b
 
 

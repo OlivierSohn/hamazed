@@ -21,8 +21,6 @@ import           Imajuscule.Prelude
 import           Data.Text( pack )
 import           System.Timeout( timeout )
 
-import           Env
-
 import           Game.Color
 import           Game.Deadline( Deadline(..) )
 import           Game.Event
@@ -38,6 +36,7 @@ import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
+import           Render.Draw
 import           Timing( UTCTime
                        , KeyTime(..)
                        , diffTimeSecToMicros
@@ -57,7 +56,7 @@ eventFromChar (Level n _ finished) char =
     _ -> Nonsense -- between level end and proposal to continue
 
 
-isLevelFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
+isLevelFinished :: World e -> Int -> Int -> TimedEvent -> Maybe LevelFinished
 isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimedEvent lastEvent t) =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
@@ -123,7 +122,8 @@ getCharWithinDurationMicros durationMicros step =
     else
       timeout durationMicros getCharThenFlush
 
-renderLevelState :: Coords -> Int -> LevelFinished -> ReaderT Env IO ()
+{-# INLINABLE renderLevelState #-}
+renderLevelState :: (Draw e) => Coords -> Int -> LevelFinished -> ReaderT e IO ()
 renderLevelState s level (LevelFinished stop _ messageState) = do
   let topLeft = translateInDir RIGHT s
       stopMsg = case stop of
@@ -143,6 +143,7 @@ renderLevelState s level (LevelFinished stop _ messageState) = do
       (move 2 Down topLeft) neutralMessageColor
 
 
-renderLevelMessage :: Level -> Coords -> ReaderT Env IO ()
+{-# INLINABLE renderLevelMessage #-}
+renderLevelMessage :: (Draw e) => Level -> Coords -> ReaderT e IO ()
 renderLevelMessage (Level level _ levelState) rightMiddle =
   mapM_ (renderLevelState rightMiddle level) levelState

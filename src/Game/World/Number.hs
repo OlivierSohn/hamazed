@@ -41,7 +41,8 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 
-destroyedNumbersAnimations :: KeyTime -> Event -> [Number] -> [BoundedAnimation]
+{-# INLINABLE destroyedNumbersAnimations #-}
+destroyedNumbersAnimations :: (Draw e) => KeyTime -> Event -> [Number] -> [BoundedAnimation e]
 destroyedNumbersAnimations keyTime event =
   let sp = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir

@@ -16,7 +16,6 @@ import           Animation.Design.Apply
 import           Animation.Design.RenderUpdate
 import           Animation.Types
 
-import           Env
 import           Timing
 
 
@@ -24,19 +23,22 @@ mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> (t
                -> Tree
                -> Maybe KeyTime
-               -> Animation
+               -> Animation e
                -> (Coords -> Location)
                -> Coords
-               -> ReaderT Env IO (Maybe Animation))
+               -> ReaderT e IO (Maybe (Animation e)))
            -> t
-           -> Animator
+           -> Animator e
 mkAnimator pure_ io_ params = Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
-renderAndUpdate' :: Animator
+
+{-# INLINABLE renderAndUpdate' #-}
+renderAndUpdate' :: (Draw e)
+                 => Animator e
                  -> Tree
                  -> Maybe KeyTime
-                 -> Animation
+                 -> Animation e
                  -> (Coords -> Location)
                  -> Coords
-                 -> ReaderT Env IO (Maybe Animation)
+                 -> ReaderT e IO (Maybe (Animation e))
 renderAndUpdate' (Animator pure_ io_ colorFunc) = renderAndUpdate pure_ io_ colorFunc

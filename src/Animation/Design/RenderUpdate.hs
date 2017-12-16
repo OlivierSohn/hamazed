@@ -12,24 +12,23 @@ import           Data.Either( partitionEithers )
 
 import           Animation.Types
 
-import Env
-
 import           Geo.Discrete
 
 import           Color.Types
 
 import           Animation.Timing
 
-
 -- | Updates the state (Tree), computes the points to render from state and
 --   pure animation function, renders them and returns an updated animation
 --   in which the render function is preapplied the updated state.
-renderAndUpdate :: (Iteration -> (Coords -> Location) -> Tree -> Tree)
+{-# INLINABLE renderAndUpdate #-}
+renderAndUpdate :: (Draw e)
+                => (Iteration -> (Coords -> Location) -> Tree -> Tree)
                 -- ^ the pure animation function
-                -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
+                -> (Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
-                ->  Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation)
+                ->  Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e))
 renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Iteration(_, frame)) mayChar _) getLocation r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
   isAlive <- render frame mayChar newState getLocation colorFunc r
@@ -40,13 +39,15 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(Animation _ (Itera
       else
         Nothing
 
-updateStateAndAnimation :: Maybe KeyTime
+{-# INLINABLE updateStateAndAnimation #-}
+updateStateAndAnimation :: (Draw e)
+                        => Maybe KeyTime
                         -> (Iteration -> (Coords -> Location) -> Tree -> Tree)
                         -> (Coords -> Location)
-                        -> (Tree -> Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
-                        -> Animation
+                        -> (Tree -> Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
+                        -> Animation e
                         -> Tree
-                        -> (Animation, Tree)
+                        -> (Animation e, Tree)
 updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i _ _) state =
     (nextAnimation, newState)
   where
@@ -56,16 +57,19 @@ updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(Animation _ i 
       _    -> pureAnim i getLocation state
     nextAnimation = updateAnimation step (statelessIOAnim newState) a
 
-updateAnimation :: StepType
-                -> (Maybe KeyTime -> Animation -> (Coords -> Location) -> Coords -> ReaderT Env IO (Maybe Animation))
-                -> Animation
-                -> Animation
+{-# INLINABLE updateAnimation #-}
+updateAnimation :: (Draw e)
+                => StepType
+                -> (Maybe KeyTime -> Animation e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (Animation e)))
+                -> Animation e
+                -> Animation e
 updateAnimation Same _ a = a
 updateAnimation step r (Animation t i c _) =
   update step $ Animation t i c r
 
 
-computeStep :: Maybe KeyTime -> Animation -> Tree -> StepType
+{-# INLINABLE computeStep #-}
+computeStep :: (Draw e) => Maybe KeyTime -> Animation e -> Tree -> StepType
 computeStep mayKey (Animation (KeyTime k') _ _ _) (Tree _ _ branches _ _) =
   let noUpdate =
         maybe
@@ -86,26 +90,32 @@ computeStep mayKey (Animation (KeyTime k') _ _ _) (Tree _ _ branches _ _) =
             else
               noUpdate
 
-
-update :: StepType
-       -> Animation
-       -> Animation
+{-# INLINABLE update #-}
+update :: (Draw e)
+       => StepType
+       -> Animation e
+       -> Animation e
 update = \case
             Update -> stepAnimation
             _      -> id
 
-stepAnimation :: Animation
-              -> Animation
+{-# INLINABLE stepAnimation #-}
+stepAnimation :: (Draw e)
+              => Animation e
+              -> Animation e
 stepAnimation (Animation t i c f) = Animation (addAnimationStepDuration t) (nextIteration i) c f
 
-render :: Frame
+
+{-# INLINABLE render #-}
+render :: (Draw e)
+       => Frame
        -> Maybe Char
        -- ^ default char to use when there is no char specified in the state
        -> Tree
        -> (Coords -> Location)
        -> (Frame -> LayeredColor)
        -> Coords
-       -> ReaderT Env IO Bool
+       -> ReaderT e IO Bool
        -- ^ True if at least one animation point is "alive"
 render _ _ (Tree _ _ Nothing _ _) _ _ _ = return False
 render _ _ (Tree _ _ (Just []) _ _) _ _ _ = return False

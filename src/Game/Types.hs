@@ -17,11 +17,11 @@ import           Game.Level.Types
 import           Game.Timing
 
 
-data GameState = GameState {
+data GameState e = GameState {
     _gameStateStartTime :: !Timer
   , _gameStateNextMotionStep :: !(Maybe KeyTime)
-  , _gameStateWorld :: !World
-  , _gameStateNextWorld :: !World
+  , _gameStateWorld :: !(World e)
+  , _gameStateNextWorld :: !(World e)
   , _gameStateShotNumbers :: ![Int]
   , _gameStateLevel :: !Level
   , _gameStateWorldAnimation :: !WorldAnimation

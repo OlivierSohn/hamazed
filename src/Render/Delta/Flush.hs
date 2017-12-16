@@ -8,7 +8,6 @@ import           Prelude hiding(read, length)
 
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef )
-import           Data.Vector.Algorithms.Intro -- unstable sort
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 import           System.Console.ANSI( Color8Code(..)
@@ -20,7 +19,8 @@ import           Render.Delta.Cell
 import           Render.Delta.Clear
 import           Render.Delta.Types
 import qualified Render.Delta.UnboxedDynamic as Dyn
-                                ( accessUnderlying, length, clear, pushBack )
+                                (unstableSort, accessUnderlying, length,
+                                 clear, pushBack )
 import           Render.Types
 
 
@@ -44,8 +44,6 @@ render buffers@(Buffers _ _ width (Delta delta) _) = do
 
   clearIfNeeded OnFrame buffers
 
-  underlying <- Dyn.accessUnderlying delta
-
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -54,13 +52,14 @@ render buffers@(Buffers _ _ width (Delta delta) _) = do
   -- the number of position changes.
   -- In 'Cell', color is encoded in higher bits than position, so this sort
   -- sorts by color first, then by position, which is what we want.
-  sort underlying
+  Dyn.unstableSort delta
 
   szDelta <- Dyn.length delta
+  under <- Dyn.accessUnderlying delta
   -- We ignore this color value. We could store it and use it to initiate the recursion
   -- at next render but if the client renders with another library in-betweeen, this value
   -- would be wrong, so we can ignore it here for more robustness.
-  _ <- renderDelta underlying (fromIntegral szDelta) width 0 Nothing Nothing
+  _ <- renderDelta under (fromIntegral szDelta) width 0 Nothing Nothing
   Dyn.clear delta
 
 -- We pass the underlying vector, and the size instead of the dynamicVector

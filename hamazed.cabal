@@ -134,6 +134,7 @@ test-suite hamazed-test
                      , Test.Reader
                      , Test.Rendering
                      , Test.Stdout
+                     , Test.Vector
   main-is:             Spec.hs
   build-depends:       base
                      , hamazed

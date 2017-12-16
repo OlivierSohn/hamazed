@@ -4,8 +4,10 @@ clearing, pushing (in C++ STL vector fashion).
 Modified from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/src/Data-Vector-Mutable-Dynamic.html :
 
 * Adapted to use unboxed vectors
+* Added a sort function.
 * Added 'accessUnderlying' to be able to use sort algorithms efficiently, without copying.
 * Changed behaviour of clear, to avoid reallocation.
+* fixed new / unsafeNew (the size was equal to the capacity instead of zero)
 * Removed functions that I don't use and won't have time to support
 
 -}
@@ -19,35 +21,38 @@ module Render.Delta.UnboxedDynamic(
       -- * Creation
       , new
 
-      -- * Accessing elements
+      -- * Access
       , read
       , unsafeRead
+      , length
+      , capacity
 
-      -- * Modification
-      , write
-      , unsafeWrite
+      -- * Modify
       , clear
       , pushBack
-
-      -- * Accessing underlying buffer
+      , unstableSort
       , accessUnderlying
-
-      -- * Length
-      , length
 
       ) where
 
 
-import Prelude hiding (read, length)
-import Data.Data (Typeable)
+import           Prelude hiding (read, length)
 
-import Control.Monad.ST
+import           Data.Data
+                    (Typeable)
+import           Data.Vector.Algorithms.Intro
+                    (sort) -- unstable sort
 
-import Control.Monad.Primitive
-import Data.Primitive.MutVar
+import           Control.Monad.Primitive
+                    (RealWorld, PrimMonad, PrimState)
+import           Data.Primitive.MutVar
+                    (MutVar, readMutVar, newMutVar, writeMutVar)
 
 import qualified Data.Vector.Unboxed.Mutable as MV
+                    (MVector, take, length, new, unsafeRead,
+                     unsafeGrow, unsafeWrite)
 import qualified Data.Vector.Unboxed as V
+                    (Unbox)
 
 
 -- | Mutable vector with dynamic behaviour living in the ST or IO monad.
@@ -62,11 +67,23 @@ data MVectorData s a = MVectorData {
     deriving (Typeable)
 
 -- | O(1) access to the underlying vector
-accessUnderlying :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m (MV.MVector (PrimState m) a)
-accessUnderlying (MVector v') = do
-  MVectorData sz v <- readMutVar v'
-  return $ MV.take sz v
 {-# INLINABLE accessUnderlying #-}
+accessUnderlying :: (PrimMonad m, V.Unbox a)
+                 => MVector (PrimState m) a
+                 -> m (MV.MVector (PrimState m) a)
+accessUnderlying (MVector v') =
+  readMutVar v'
+    >>=
+      \(MVectorData sz v) -> return $ MV.take sz v
+
+
+-- | O(N*log(N)) unstable sort.
+unstableSort :: (PrimMonad m, V.Unbox a, Ord a)
+             => MVector (PrimState m) a
+             -> m ()
+unstableSort v =
+  accessUnderlying v >>= sort
+{-# INLINABLE unstableSort #-}
 
 -- | Number of elements in the vector.
 length :: PrimMonad m => MVector (PrimState m) a -> m Int
@@ -75,13 +92,20 @@ length (MVector v) =
     >>= \(MVectorData sz _) -> return sz
 {-# INLINABLE length #-}
 
+-- | Number of elements that the vector currently has reserved space for.
+capacity :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m Int
+capacity (MVector v) =
+  readMutVar v
+    >>= \(MVectorData _ d) -> return $ MV.length d
+{-# INLINABLE capacity #-}
+
 -- | Create a vector of a given capacity.
 new :: (PrimMonad m, V.Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
 new i = do
     v  <- MV.new i
-    MVector <$> newMutVar (MVectorData i v)
+    MVector <$> newMutVar (MVectorData 0 v)
 {-# INLINABLE new #-}
 
 -- | Read a value by index. Performs bounds checking.
@@ -101,23 +125,6 @@ unsafeRead (MVector v) i =
     >>=
       \(MVectorData _ d) -> d `MV.unsafeRead` i
 {-# INLINABLE unsafeRead #-}
-
--- | Write a value to a location. Performs bounds checking.
-write :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> a -> m ()
-write (MVector v') i a = do
-    MVectorData s v <- readMutVar v'
-    if i >= s || i < 0 then
-        error "Data.Vector.Mutable.Dynamic: write: index out of bounds"
-    else
-        MV.unsafeWrite v i a
-{-# INLINABLE write #-}
-
--- | Write without bounds checking.
-unsafeWrite :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> a -> m ()
-unsafeWrite (MVector v') i a = do
-    (MVectorData _ d) <- readMutVar v'
-    MV.unsafeWrite d i a
-{-# INLINABLE unsafeWrite #-}
 
 -- | Clear the vector of its contents, setting its length to 0. Does not reallocate.
 clear :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m ()

@@ -1,5 +1,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module IO.Blocking
     ( getCharThenFlush
@@ -7,6 +8,7 @@ module IO.Blocking
 
 
 import           Imajuscule.Prelude
+-- import           Prelude(putStrLn)
 
 import           System.IO( getChar, hReady, stdin )
 
@@ -23,12 +25,12 @@ getCharThenFlush = do
   chars <- getAllChars
   let res = fromString chars
   -- uncomment to see escape codes
-  --if (ord (head chars)) == 27 then putStrLn $ tail chars else return ()
+  -- when (ord (head chars) == 27) $ putStrLn $ tail chars
   return res
 
 fromString :: String -> Either Key Char
-fromString chars =
-  case chars of
+fromString =
+  \case
     [] -> error "should not be empty"
     [c] -> case ord c of
              27 {-ESC-} -> Left Escape

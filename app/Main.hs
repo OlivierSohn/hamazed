@@ -1,11 +1,8 @@
 module Main where
 
-import           Prelude( IO
-                        , return )
-
+import           Control.Monad(void)
 import           Run( run )
 
 main :: IO ()
-main = do
-  _ <- run
-  return ()
+main =
+  void run

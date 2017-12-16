@@ -30,13 +30,12 @@ run =
 
 doRun :: IO Termination
 doRun =
-  createEnv
-    >>= \env -> runAndWaitForTermination (runReaderT gameWorker env)
+  (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
-  `finally`
-   restoreConsole
+  `finally` restoreConsole
 
 {-# INLINABLE gameWorker #-}
 gameWorker :: (Draw e) => ReaderT e IO ()
-gameWorker = getGameParameters >>= runGameWorker
+gameWorker =
+  getGameParameters >>= runGameWorker

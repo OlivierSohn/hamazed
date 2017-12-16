@@ -40,7 +40,8 @@ data Policies = Policies {
     _policiesResizePolicy :: !ResizePolicy
   , _policiesClearPolicy :: !ClearPolicy
   , _policiesClearColor :: !ClearColor
-}
+} deriving(Show)
+
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 
@@ -50,6 +51,7 @@ newtype Delta = Delta (Dyn.IOVector Cell)
 
 data ClearContext = OnAllocation
                   | OnFrame
+                  deriving(Eq, Show)
 
 -- Word64 is optimal: there is no wasted space when unboxed,
 --   cf. https://wiki.haskell.org/GHC/Memory_Footprint

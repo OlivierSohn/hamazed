@@ -4,18 +4,13 @@ module Render.Delta.Clear
           ( clearIfNeeded
           ) where
 
-
-import Render.Types
-import Render.Delta.Types
-import Render.Delta.Cells
-import Render.Delta.Draw
+import           Control.Monad(when)
+import           Render.Delta.Types
+import           Render.Delta.Cells
+import           Render.Delta.Draw
+import           Render.Types
 
 clearIfNeeded :: ClearContext -> Buffers -> IO ()
-clearIfNeeded ctxt b@(Buffers _ _ _ _ (Policies _ clearPolicy clearColor)) = do
-  let clear = fillBackBuffer b (clearCell clearColor)
-  case clearPolicy of
-    ClearAtEveryFrame -> clear
-    ClearOnAllocationOnly ->
-      case ctxt of
-        OnAllocation -> clear
-        OnFrame -> return ()
+clearIfNeeded context b@(Buffers _ _ _ _ (Policies _ clearPolicy clearColor)) =
+  when (clearPolicy == ClearAtEveryFrame || context == OnAllocation) $
+    fillBackBuffer b (clearCell clearColor)

@@ -38,6 +38,7 @@ data ResizePolicy = MatchTerminalSize
                   --   the console to a size smaller than the context size, rendering
                   --   artefacts will be visible. Consider using 'MatchTerminalSize'
                   --   if this is a concern to your application.
+                  deriving(Show, Eq)
 
 -- | Specifies /when/ to clear the back-buffer.
 data ClearPolicy = ClearAtEveryFrame
@@ -49,6 +50,7 @@ data ClearPolicy = ClearAtEveryFrame
                  --   If you don't redraw every screen location at every frame, it is safer
                  --   to use 'ClearAtEveryFrame', else you will see previous frame elements
                  --   in the rendered frame (unless you intend to have this behaviour).
+                 deriving(Show, Eq)
 
 -- | The background color to clear the buffer with.
 type ClearColor = Color8Code

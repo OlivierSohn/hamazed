@@ -45,9 +45,5 @@ configureConsoleFor config stdoutMode =
       showCursor
       -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
       setSGR []
-      maySz <- size
-      maybe
-        (return ())
-        (\(Window x _) -> setCursorPosition (pred x) 0)
-          maySz
+      size >>= maybe (return ()) (\(Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering

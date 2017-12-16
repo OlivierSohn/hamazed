@@ -162,7 +162,6 @@ renderWorld
             else
               shipColorsSafe
     drawChar '+' (sumCoords shipCoords s) colors
-    return ()
 
 
 {-# INLINABLE renderNumber #-}
@@ -171,11 +170,10 @@ renderNumber :: (Draw e)
              -> Space
              -> Coords
              -> ReaderT e IO ()
-renderNumber (Number (PosSpeed pos _) i) space b = do
-  let color = numberColor i
-  case location pos space of
-    InsideWorld -> drawChar (intToDigit i) (sumCoords pos b) color
-    OutsideWorld -> return ()
+renderNumber (Number (PosSpeed pos _) i) space b =
+  when (location pos space == InsideWorld) $
+    drawChar (intToDigit i) (sumCoords pos b) (numberColor i)
+
 
 {-# INLINABLE renderWorldAnimation #-}
 renderWorldAnimation :: (Draw e)

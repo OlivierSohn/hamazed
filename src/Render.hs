@@ -1,69 +1,38 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{- | These modules provide a way to abstract a global renderer, in a style adhering to
+<https://www.fpcomplete.com/blog/2017/06/readert-design-pattern these recommendations>
+regarding global state in a program.
 
-module Render (
-          align
-        , align'
-        , Alignment(..)
-        , renderAlignedTxt
-        , renderAlignedTxt_
-        , RenderFunctions(..)
-        -- | reexports
-        , Coords(..)
-        , Row
-        , Col
-        , Direction(..)
-        , LayeredColor(..)
-        ) where
+The idea is the following: you embed the drawing functions in your "environment" 'Env'
+by writing a 'Draw' instance for 'Env'.
 
-import           Imajuscule.Prelude
+Then, using a 'ReaderT' 'Env'
+monad transformer, and the helper functions defined in "Render.Helpers" or "Render.Aligned" you can write:
 
-import           Data.Text( length )
+@
+helloWorld :: (Draw e) => ReaderT e IO ()
+helloWorld = do
+  drawTxt \"Hello\" (Coords 10 10) red
+  drawTxt \"World\" (Coords 20 20) green
+  flush
 
-import           Color.Types
-import           Geo.Discrete
-import           Render.Draw
+main = do
+  env <- createEnv
+  runReaderT helloWorld env
+@
 
-data RenderFunctions = RenderFunctions {
-    _renderChar :: !(Char -> Coords -> LayeredColor -> IO ())
-  , _renderChars :: !(Int -> Char -> Coords -> LayeredColor -> IO ())
-  , _renderTxt :: !(Text -> Coords -> LayeredColor -> IO ())
-  , _flush :: !(IO())
-}
+In its file 'src/Env.hs',
+<https://github.com/OlivierSohn/hamazed this game>
+shows an example implementation
+of 'Env', 'createEnv', and the 'Draw' instance of 'Env',
+-}
 
-data Alignment = Centered
-               | RightAligned
+module Render
+        ( module Render.Draw
+        , module Render.Helpers
+        , module Render.Aligned
+        )
+        where
 
-
-{-# INLINABLE renderAlignedTxt_ #-}
-renderAlignedTxt_ :: (Draw e)
-                  => Alignment
-                  -> Text
-                  -> Coords
-                  -> LayeredColor
-                  -> ReaderT e IO ()
-renderAlignedTxt_ a txt pos colors = do
-  let leftCorner = align' a (length txt) pos
-  drawTxt txt leftCorner colors
-
-{-# INLINABLE renderAlignedTxt #-}
-renderAlignedTxt :: (Draw e)
-                 => Alignment
-                 -> Text
-                 -> Coords
-                 -> LayeredColor
-                 -> ReaderT e IO Coords
-renderAlignedTxt a txt pos colors =
-  renderAlignedTxt_ a txt pos colors >> return (translateInDir Down pos)
-
-align' :: Alignment -> Int -> Coords -> Coords
-align' a count ref =
-  let (amount, dir) = align a count
-  in move amount dir ref
-
-align :: Alignment -> Int -> (Int, Direction)
-align a count =
-  let amount =
-        case a of
-          Centered     -> 1 + quot count 2
-          RightAligned -> count
-  in (amount, LEFT)
+import Render.Draw
+import Render.Helpers
+import Render.Aligned

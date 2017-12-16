@@ -1,46 +1,21 @@
-{- | This modules provides a way to abstract a global renderer, in a style adhering to
-<https://www.fpcomplete.com/blog/2017/06/readert-design-pattern these recommendations>
-regarding global state in a program.
-
-The idea is the following: you embed the drawing functions in your "environment" 'Env'
-by writing an instance of 'Draw' for 'Env'.
-
-Then, using a 'ReaderT' 'Env'
-monad transformer, and the helper functions defined in this module you can write:
-
-@
-helloWorld :: (Draw e) => ReaderT e IO ()
-helloWorld = do
-  drawTxt "Hello" (Coords 10 10) red
-  drawTxt "World" (Coords 20 20) green
-  flush
-
-main = do
-  env <- createEnv
-  runReaderT helloWorld env
-@
-
-In its file 'src/Env.hs',
-<https://github.com/OlivierSohn/hamazed this game>
-shows an example implementation
-of 'Env', 'createEnv', and the 'Draw' instance of 'Env',
--}
 
 
 module Render.Draw(
+       -- * The Draw class
          Draw(..)
-       -- * Helper functions
-       , drawTxt
-       , drawChars
-       , drawChar
-       , flush
-       -- * reexports
        , ReaderT
+       -- * Types
+       -- ** Colors
+       , module Color -- this is hidden because it's big
+       , module Color.Types
+       -- ** Coordinates
+       , module Geo.Discrete.Types
        ) where
 
-import           Control.Monad.Reader(ReaderT, asks, join)
+import           Control.Monad.Reader(ReaderT)
 import           Data.Text(Text)
 
+import           Color
 import           Color.Types
 import           Geo.Discrete.Types
 
@@ -58,34 +33,3 @@ class Draw e where
 
   flush_ :: e -> ReaderT e IO ()
   flush_ = undefined
-
---------------------------------------------------------------------------------
--- Helper functions to make the code cleaner at the call site.
---------------------------------------------------------------------------------
-
--- | Draw text
-{-# INLINABLE drawTxt #-}
-drawTxt :: (Draw e) => Text -> Coords -> LayeredColor -> ReaderT e IO ()
-drawTxt txt co la = do
-  d <- asks drawTxt_
-  d txt co la
-
--- | Draw chars
-{-# INLINABLE drawChars #-}
-drawChars :: (Draw e) => Int -> Char -> Coords -> LayeredColor -> ReaderT e IO ()
-drawChars i c co la = do
-  d <- asks drawChars_
-  d i c co la
-
--- | Draw a 'Char'
-{-# INLINABLE drawChar #-}
-drawChar :: (Draw e) => Char -> Coords -> LayeredColor -> ReaderT e IO ()
-drawChar c co la = do
-  d <- asks drawChar_
-  d c co la
-
--- | Flush
-{-# INLINABLE flush #-}
-flush :: (Draw e) => ReaderT e IO ()
-flush =
-  join (asks flush_)

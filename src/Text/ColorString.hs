@@ -27,7 +27,6 @@ import           Color.ILayeredColor
 import           Geo.Discrete
 import           Math
 import           Render
-import           Render.Draw
 import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)

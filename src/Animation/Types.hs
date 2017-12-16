@@ -18,7 +18,6 @@ module Animation.Types
     , Speed(..)
     -- | Frame and constructors
     -- | Reexports
-    , Coords
     , Location(..)
     , module Iteration
     , module Render.Draw

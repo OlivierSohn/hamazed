@@ -87,7 +87,7 @@ render (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-              renderAlignedCentered = renderAlignedTxt Centered
+              renderAlignedCentered = drawAlignedTxt Centered
           renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
             >>= \ pos ->
                   void (renderAlignedCentered "------------------" pos configColors)

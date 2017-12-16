@@ -10,13 +10,10 @@ import           Imajuscule.Prelude
 
 import           Data.Either( partitionEithers )
 
+import           Animation.Timing
 import           Animation.Types
 
-import           Geo.Discrete
-
-import           Color.Types
-
-import           Animation.Timing
+import           Render
 
 -- | Updates the state (Tree), computes the points to render from state and
 --   pure animation function, renders them and returns an updated animation

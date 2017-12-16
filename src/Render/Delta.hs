@@ -60,8 +60,10 @@ At the beginning of the development of
 I was clearing the screen at every frame and filling stdout with rendering commands
 for every game element and animation.
 
-As the complexity of animations grew, screen tearing occured, and to fix it I first
-maximized the size of stdout buffer:
+As the complexity of animations grew, screen tearing occured, so I looked for ways to fix it.
+This package is the result of this research.
+
+My first idea to mitigate screen tearing was to maximize the size of stdout buffer:
 
 > hSetBuffering stdout $ BlockBuffering $ Just maxBound
 
@@ -69,7 +71,8 @@ Using 'testStdoutSizes' I measured that it went from 2048 bytes to 8096 bytes lo
 But it solved the problem only very temporarily. As I introduced more animations in the game,
 screen tearing was back!
 
-I needed to reduce the amount of data that I was sending to stdout.
+I needed to not only maximize stdout size but also reduce the amount of data that
+I was writing in it.
 
 == Delta rendering
 
@@ -139,7 +142,7 @@ Here I'll report on the amount of bytes sent to stdout with concrete examples.
 -}
 module Render.Delta
                           ( module Render.Delta.Buffers
-                          , mkRenderFunctions
+                          , module Render.Delta.Functions
                             -- * Frame
                             -- ** Draw
                           , module Render.Delta.Draw
@@ -150,7 +153,4 @@ module Render.Delta
 import           Render.Delta.Buffers
 import           Render.Delta.Draw
 import           Render.Delta.Flush
-import           Render
-
-mkRenderFunctions :: IORef Buffers -> RenderFunctions
-mkRenderFunctions b = RenderFunctions (drawChar b) (drawChars b) (drawTxt b) (flush b)
+import           Render.Delta.Functions

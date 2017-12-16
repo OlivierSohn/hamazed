@@ -78,6 +78,7 @@ library
                      , Iteration
                      , Math
                      , Render
+                     , Render.Aligned
                      , Render.Console
                      , Render.Delta
                      , Render.Delta.Buffers
@@ -88,8 +89,10 @@ library
                      , Render.Delta.DynUnboxedVec
                      , Render.Delta.Draw
                      , Render.Delta.Flush
+                     , Render.Delta.Functions
                      , Render.Delta.Types
                      , Render.Draw
+                     , Render.Helpers
                      , Render.Types
                      , Run
                      , Text.Animated

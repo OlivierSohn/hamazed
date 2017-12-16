@@ -12,7 +12,6 @@ module Game.World.Types
         , WorldAnimation(..)
         , WorldEvolutions(..)
         , EmbeddedWorld(..)
-        , RenderFunctions(..)
         , isFinished
         -- | Reexports
         , module Game.World.Space.Types
@@ -20,7 +19,6 @@ module Game.World.Types
         , module Iteration
         , module Text.Animated
         , Terminal.Window
-        , module Render.Draw
         ) where
 
 import           Imajuscule.Prelude
@@ -29,15 +27,10 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
 import           Animation.Types
 
-import           Geo.Discrete
-
 import           Game.World.Space.Types
 import           Game.World.Frame.Types
 
 import           Iteration
-
-import           Render.Draw
-import           Render
 
 import           Text.Animated
 import           Text.ColorString

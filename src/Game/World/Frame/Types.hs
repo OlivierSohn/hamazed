@@ -18,7 +18,6 @@ import           Game.World.Space.Types
 import           Geo.Discrete
 
 import           Render
-import           Render.Draw
 
 
 data FrameSpec = FrameSpec {
@@ -125,6 +124,8 @@ renderPartialWorldFrame sz colors r =
     >>= renderLowerWall sz colors
     >>= renderLeftWall sz colors
     >> return ()
+
+-- TODO factorize Right with LEft, Upper with Lower
 
 {-# INLINABLE renderRightWall #-}
 renderRightWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)

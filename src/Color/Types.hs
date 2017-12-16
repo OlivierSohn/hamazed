@@ -2,7 +2,7 @@
 
 module Color.Types
           ( LayeredColor(..)
-          -- * Reexports from System.Console.ANSI
+          -- Reexports from System.Console.ANSI
           , Color8Code(..)
           ) where
 

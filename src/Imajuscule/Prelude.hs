@@ -120,13 +120,17 @@ module Imajuscule.Prelude (
                           , Text
                           -- | Data.Ratio reexports
                           , (%)
+                          , module Control.Monad.Reader
                           ) where
 
+-- TODO put what's exported in here
 import           Prelude
 
+-- TODO export modules
 import           Control.Applicative( (<|>) )
 import           Control.Monad( when, void, (<=<), Monad )
 import           Control.Monad.IO.Class( liftIO )
+import           Control.Monad.Reader( ReaderT )
 import           Control.Exception( assert )
 import           Data.Monoid ((<>))
 import           Data.Word( Word8 )

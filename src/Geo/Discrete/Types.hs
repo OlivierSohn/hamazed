@@ -1,4 +1,4 @@
-{-# OPTIONS_HADDOCK prune #-}
+{-# OPTIONS_HADDOCK prune, hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -23,7 +23,9 @@ import           Geo.Types
 newtype Coord a = Coord Int
   deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
 
+-- | Represents a row index (y)
 data Row
+-- | Represents a column index (x)
 data Col
 
 -- | Two-dimensional discrete coordinates.

@@ -9,7 +9,6 @@ module Env(
 import           Control.Monad.Reader(liftIO)
 import           Render.Draw
 import           Render.Delta
-import           Render(RenderFunctions(..))
 
 newtype Env = Env {
     _envRenderFuncs :: RenderFunctions

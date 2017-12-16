@@ -85,10 +85,10 @@ library
                      , Render.Delta.Cell
                      , Render.Delta.Cells
                      , Render.Delta.Clear
+                     , Render.Delta.DynUnboxedVec
                      , Render.Delta.Draw
                      , Render.Delta.Flush
                      , Render.Delta.Types
-                     , Render.Delta.UnboxedDynamic
                      , Render.Draw
                      , Render.Types
                      , Run

@@ -15,7 +15,7 @@ Modified from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/s
 {-# OPTIONS_HADDOCK hide #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Render.Delta.UnboxedDynamic(
+module Render.Delta.DynUnboxedVec(
         STVector
       , IOVector
       -- * Creation

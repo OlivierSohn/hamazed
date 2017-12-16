@@ -18,7 +18,7 @@ import           Render.Delta.Buffers
 import           Render.Delta.Cell
 import           Render.Delta.Clear
 import           Render.Delta.Types
-import qualified Render.Delta.UnboxedDynamic as Dyn
+import qualified Render.Delta.DynUnboxedVec as Dyn
                                 (unstableSort, accessUnderlying, length,
                                  clear, pushBack )
 import           Render.Types

@@ -19,7 +19,7 @@ import           Data.IORef( IORef )
 import           Data.Word( Word64 )
 import           Data.Vector.Unboxed.Mutable( IOVector )
 
-import qualified Render.Delta.UnboxedDynamic as Dyn
+import qualified Render.Delta.DynUnboxedVec as Dyn
                                 ( IOVector )
 import           Render.Types
 

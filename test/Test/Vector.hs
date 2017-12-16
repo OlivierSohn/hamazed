@@ -5,7 +5,7 @@ module Test.Vector
 import Control.Monad(when)
 import Prelude hiding (length, read)
 
-import Render.Delta.UnboxedDynamic
+import Render.Delta.DynUnboxedVec
 
 -- | returns 1 on success, else errors
 testVector :: IO ()

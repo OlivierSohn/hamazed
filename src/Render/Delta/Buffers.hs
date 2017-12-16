@@ -39,7 +39,7 @@ import           Render.Console
 import           Render.Delta.Buffers.Dimensions
 import           Render.Delta.Cell
 import           Render.Delta.Cells
-import qualified Render.Delta.UnboxedDynamic as Dyn (new)
+import qualified Render.Delta.DynUnboxedVec as Dyn (new)
 import           Render.Types
 import           Render.Delta.Types
 

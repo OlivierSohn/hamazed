@@ -21,9 +21,9 @@ import           Data.Vector.Unboxed.Mutable( write, set, length )
 
 import           Color
 import           Geo.Discrete.Types
-import           Render.Delta.Types
+import           Render.Delta.Internal.Types
 import           Render.Delta.Cell
-import           Render.Types
+import           Render.Delta.Types
 
 
 {-# INLINE drawChar #-}

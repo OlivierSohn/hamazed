@@ -17,7 +17,7 @@ import           Game.World.Space.Types
 
 import           Geo.Discrete
 
-import           Render
+import           Draw
 
 
 data FrameSpec = FrameSpec {

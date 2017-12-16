@@ -35,6 +35,9 @@ at screen location 'Coords', in color 'LayeredColor'
 >          drawStr "Hello World" (Coords 11 20) (LayeredColor black white) ctxt
 >          flush ctxt
 
+Also, please read "Draw" to see how to abstract away the 'IORef' 'Buffers' using
+'ReaderT' transformer.
+
 = Features
 
 The functions exported by this module allow to render complex animated graphics.
@@ -140,15 +143,16 @@ and are sorted by increasing position, which is exactly what we want to implemen
 Here I'll report on the amount of bytes sent to stdout with concrete examples.
 
 -}
+
 module Render.Delta
-                          ( module Render.Delta.Buffers
-                          , module Render.Delta.Functions
-                            -- * Frame
-                            -- ** Draw
-                          , module Render.Delta.Draw
-                            -- ** Render
-                          , module Render.Delta.Flush
-                          ) where
+          ( module Render.Delta.Buffers
+            -- * Frame
+            -- ** Draw
+          , module Render.Delta.Draw
+            -- ** Render
+          , module Render.Delta.Flush
+          , module Render.Delta.Functions
+          ) where
 
 import           Render.Delta.Buffers
 import           Render.Delta.Draw

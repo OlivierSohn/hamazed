@@ -26,7 +26,7 @@ import           Evolution
 import           Geo.Discrete
 
 import           Math
-import           Render
+import           Draw
 import           Text.ColorString
 
 {- | Animates in parallel

@@ -17,7 +17,7 @@ import           Geo.Discrete
 import           Geo.Discrete.Bresenham
 import           Iteration
 import           Math
-import           Render.Draw
+import           Draw.Class
 
 
 newtype Successive a = Successive [a] deriving(Show)

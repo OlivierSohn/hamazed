@@ -36,7 +36,7 @@ import           IO.NonBlocking
 import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
-import           Render
+import           Draw
 import           Timing( UTCTime
                        , KeyTime(..)
                        , diffTimeSecToMicros

@@ -20,7 +20,7 @@ module Animation.Types
     -- | Reexports
     , Location(..)
     , module Iteration
-    , module Render.Draw
+    , module Draw.Class
     ) where
 
 
@@ -34,7 +34,7 @@ import           Color.Types
 
 import           Geo.Discrete.Types( Coords )
 
-import           Render.Draw
+import           Draw.Class
 import           Timing( KeyTime )
 
 import           Iteration

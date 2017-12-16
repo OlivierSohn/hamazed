@@ -1,6 +1,6 @@
--- | This module handles aligned text.
+-- | This module handles drawing 'Text' with a given 'Alignment'.
 
-module Render.Aligned
+module Draw.Aligned
             ( Alignment(..)
             , drawAlignedTxt
             , drawAlignedTxt_
@@ -13,8 +13,8 @@ import           Prelude hiding (length)
 import           Data.Text(Text, length)
 
 import           Geo.Discrete
-import           Render.Draw
-import           Render.Helpers
+import           Draw.Class
+import           Draw.Helpers
 
 -- | Specifies where the 'Text' should be drawn w.r.t the reference coordinates.
 data Alignment = Centered

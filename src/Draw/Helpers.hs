@@ -1,7 +1,8 @@
--- | Helper functions to make the code cleaner at the call site.
+-- | Helper functions to make the code cleaner at the call site,
+--   abstracting away the use of 'ReaderT' function 'asks' to retrieve
+--   the 'Draw' functions.
 
-
-module Render.Helpers(
+module Draw.Helpers(
        -- * Helper functions
          drawTxt
        , drawChars
@@ -14,7 +15,7 @@ import           Data.Text(Text)
 
 import           Color
 import           Geo.Discrete.Types
-import           Render.Draw
+import           Draw.Class
 
 -- | Draw 'Text'
 {-# INLINABLE drawTxt #-}

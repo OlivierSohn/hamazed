@@ -24,9 +24,9 @@ import           Data.Text( Text, length, pack, unpack )
 import           Color
 import           Color.ILayeredColor
 
+import           Draw
 import           Geo.Discrete
 import           Math
-import           Render
 import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
@@ -149,7 +149,10 @@ simplify :: ColorString -> [(Char, LayeredColor)]
 simplify (ColorString []) = []
 simplify (ColorString l@(_:_)) =
   let (txt, color) = head l
-  in map (\c -> (c,color)) (unpack txt) ++ simplify (ColorString $ tail l)
+  in map
+       (\c -> (c,color))
+       (unpack txt)
+     ++ simplify (ColorString $ tail l)
 
 
 colored' :: Text -> LayeredColor -> ColorString

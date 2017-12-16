@@ -12,7 +12,7 @@ module Game.World.Space
     , locationFunction
     -- | reexports
     , module Game.World.Types
-    , module Render
+    , module Draw
     ) where
 
 import           Imajuscule.Prelude
@@ -44,7 +44,7 @@ import           Game.World.Size
 
 import           Geo.Discrete hiding (extend)
 
-import           Render
+import           Draw
 
 import           Util( replicateElements
                      , randomRsIO )

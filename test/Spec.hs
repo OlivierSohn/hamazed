@@ -3,7 +3,7 @@ import Control.Monad.Reader(runReaderT)
 import Env
 
 import Render.Delta(restoreConsole)
-import Render.Draw
+import Draw
 
 import Test.Interpolation(testInterpolation)
 import Test.InterpolatedColorString

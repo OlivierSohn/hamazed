@@ -8,7 +8,7 @@ module Render.Delta.Buffers.Dimensions
 
 import           System.Console.Terminal.Size as Term (size, Window(..))
 
-import           Render.Types
+import           Render.Delta.Types
 
 import           Data.Word( Word16, Word32 )
 

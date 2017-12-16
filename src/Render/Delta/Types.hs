@@ -1,58 +1,79 @@
 {-# OPTIONS_HADDOCK hide #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Render.Delta.Types
-       ( Buffers(..)
-       , Policies(..)
-       , BackFrontBuffer
-       , Buffer(..)
-       , Back
-       , Front
-       , Delta(..)
-       , Cell
-       , ClearContext(..)
-       -- reexports
-       , IORef
-       ) where
+            ( -- ** Policies
+              ResizePolicy(..)
+            , ClearPolicy(..)
+            , ClearColor
+            , Dim(..)
+            , Size
+            , Width
+            , Height
+            , Index
+            , RowIndex
+            , ColIndex
+            , getRowCol
+            , getHeight
+            -- ** Reexported types
+            , Word16
+            , IORef
+            ) where
 
-import           Data.IORef( IORef )
+import           Control.Exception(assert)
 
-import           Data.Word( Word64 )
-import           Data.Vector.Unboxed.Mutable( IOVector )
+import           System.Console.ANSI( Color8Code(..) )
 
-import qualified Render.Delta.DynUnboxedVec as Dyn
-                                ( IOVector )
-import           Render.Types
-
-data Buffers = Buffers {
-    _renderStateBackBuffer :: !(Buffer Back)
-  , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- the size is stored in back and front buffers
-  , _buffersDelta :: !Delta
-  -- ^ buffer used in renderFrame
-  , _buffersPolicies :: !Policies
-}
-
--- | Buffer types
-data Back
-data Front
-
-data Policies = Policies {
-    _policiesResizePolicy :: !ResizePolicy
-  , _policiesClearPolicy :: !ClearPolicy
-  , _policiesClearColor :: !ClearColor
-} deriving(Show)
+import           Data.IORef(IORef)
+import           Data.Word(Word16)
 
 
-type BackFrontBuffer = IOVector (Cell, Cell)
+-- | Specifies /when/ to resize the context, and how to compute the new size.
+data ResizePolicy = MatchTerminalSize
+                  -- ^ The context is resized, if needed, after each call to 'flush'
+                  --   and on context creation. The target size is the current terminal
+                  --   size.
+                  | FixedSize !(Dim Width) !(Dim Height)
+                  -- ^ The context has a fixed size. Note that if the user of the program resizes
+                  --   the console to a size smaller than the context size, rendering
+                  --   artefacts will be visible. Consider using 'MatchTerminalSize'
+                  --   if this is a concern to your application.
+                  deriving(Show, Eq)
 
-newtype Buffer a = Buffer (IOVector Cell)
+-- | Specifies /when/ to clear the back-buffer.
+data ClearPolicy = ClearAtEveryFrame
+                 -- ^ Clears the back-buffer after allocation
+                 --   and after each frame render.
+                 | ClearOnAllocationOnly
+                 -- ^ Clears the back-buffer after allocation only.
+                 --   Typically, you will use it if at every frame you draw at every screen location.
+                 --   If you don't redraw every screen location at every frame, it is safer
+                 --   to use 'ClearAtEveryFrame', else you will see previous frame elements
+                 --   in the rendered frame (unless you intend to have this behaviour).
+                 deriving(Show, Eq)
 
-newtype Delta = Delta (Dyn.IOVector Cell)
+-- | The background color to clear the buffer with.
+type ClearColor = Color8Code
 
-data ClearContext = OnAllocation
-                  | OnFrame
-                  deriving(Eq, Show)
+newtype Dim a = Dim Word16 deriving(Num, Eq, Ord, Show, Real, Enum, Integral)
 
--- Word64 is optimal: there is no wasted space when unboxed,
---   cf. https://wiki.haskell.org/GHC/Memory_Footprint
-type Cell = Word64
+data Width  -- buffer width
+data Height -- buffer height
+data Size   -- buffer size (width * height)
+data Index  -- buffer element index
+data RowIndex -- index of a row
+data ColIndex -- index of a column
+
+{-# INLINE getHeight #-}
+getHeight :: Dim Width -> Dim Size -> Dim Height
+getHeight (Dim w) (Dim sz) =
+  let h = quot sz w
+  in Dim $ assert (h * w == sz) h
+
+{-# INLINE getRowCol #-}
+getRowCol :: Dim Index -> Dim Width -> (Dim ColIndex, Dim RowIndex)
+getRowCol (Dim idx) (Dim w) =
+      (Dim x, Dim y)
+    where
+      y = idx `div` w
+      x = idx - y * w

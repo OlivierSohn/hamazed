@@ -2,7 +2,7 @@ module Test.Reader(testReader) where
 
 import Control.Monad.Reader(ReaderT, runReaderT, ask, liftIO)
 
-import Render
+import Draw
 import Render.Delta
 
 newtype Env = Env {

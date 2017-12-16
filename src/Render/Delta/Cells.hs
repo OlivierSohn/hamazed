@@ -5,8 +5,8 @@ module Render.Delta.Cells
           ) where
 
 import Color
-import Render.Types
 import Render.Delta.Types
+import Render.Delta.Internal.Types
 import Render.Delta.Cell
 
 clearCell :: ClearColor -> Cell

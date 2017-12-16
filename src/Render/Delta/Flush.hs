@@ -17,11 +17,11 @@ import           Color
 import           Render.Delta.Buffers
 import           Render.Delta.Cell
 import           Render.Delta.Clear
-import           Render.Delta.Types
+import           Render.Delta.Internal.Types
 import qualified Render.Delta.DynUnboxedVec as Dyn
                                 (unstableSort, accessUnderlying, length,
                                  clear, pushBack )
-import           Render.Types
+import           Render.Delta.Types
 
 
 -- | Flushes the frame, i.e renders it to the console.

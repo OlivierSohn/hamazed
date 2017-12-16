@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Render.Console
+module Render.Delta.Console
                ( ConsoleConfig(..)
                , configureConsoleFor
                ) where

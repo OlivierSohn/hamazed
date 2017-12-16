@@ -19,7 +19,7 @@ import           GHC.Show(showString)
 
 import           Imajuscule.Prelude
 
-import           Render.Draw
+import           Draw.Class
 import           Interpolation
 
 import           Math

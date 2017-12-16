@@ -35,13 +35,13 @@ import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
 import           System.IO(BufferMode(..), hSetBuffering, stdout)
 import           Color
 
-import           Render.Console
 import           Render.Delta.Buffers.Dimensions
 import           Render.Delta.Cell
 import           Render.Delta.Cells
+import           Render.Delta.Console
 import qualified Render.Delta.DynUnboxedVec as Dyn (new)
-import           Render.Types
 import           Render.Delta.Types
+import           Render.Delta.Internal.Types
 
 
 -- we use IORef Buffers instead of Buffers because we want to update the size of the buffers

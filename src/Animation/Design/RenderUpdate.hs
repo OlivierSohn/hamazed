@@ -13,7 +13,7 @@ import           Data.Either( partitionEithers )
 import           Animation.Timing
 import           Animation.Types
 
-import           Render
+import           Draw
 
 -- | Updates the state (Tree), computes the points to render from state and
 --   pure animation function, renders them and returns an updated animation

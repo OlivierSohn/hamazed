@@ -15,8 +15,8 @@ import           Data.Char( chr, ord )
 import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           Color.Types
+import           Render.Delta.Internal.Types
 import           Render.Delta.Types
-import           Render.Types
 
 
 {-# INLINE firstWord8 #-}

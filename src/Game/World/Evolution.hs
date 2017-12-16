@@ -13,7 +13,7 @@ import           Game.World.Types
 
 import           Geo.Discrete
 
-import           Render
+import           Draw
 
 import           Text.ColorString
 

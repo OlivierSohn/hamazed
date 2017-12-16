@@ -1,6 +1,6 @@
 
 
-module Render.Draw(
+module Draw.Class(
        -- * The Draw class
          Draw(..)
        , ReaderT
@@ -19,17 +19,23 @@ import           Color
 import           Color.Types
 import           Geo.Discrete.Types
 
--- | Instances of this class can render colored text in the console,
--- and will be argument of a ReaderT.
+-- TODO how to make this generic and to allow any other monad transformer?
+-- | Class of rendererers that will be used through ReaderT.
+--
+-- They can draw colored text on a backbuffer, and they render it on 'flush_'.
 class Draw e where
+  -- | Draw a char on the backbuffer
   drawChar_ :: e -> (Char -> Coords -> LayeredColor -> ReaderT e IO ())
   drawChar_ = undefined
 
+  -- | Draw repeated chars on the backbuffer
   drawChars_ :: e -> (Int -> Char -> Coords -> LayeredColor -> ReaderT e IO ())
   drawChars_ = undefined
 
+  -- | Draw 'Text' on the backbuffer
   drawTxt_ :: e -> (Text -> Coords -> LayeredColor -> ReaderT e IO ())
   drawTxt_ = undefined
 
+  -- | Render the backbuffer
   flush_ :: e -> ReaderT e IO ()
   flush_ = undefined

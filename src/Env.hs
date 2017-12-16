@@ -7,7 +7,7 @@ module Env(
        ) where
 
 import           Control.Monad.Reader(liftIO)
-import           Render.Draw
+import           Draw.Class
 import           Render.Delta
 
 newtype Env = Env {

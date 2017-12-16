@@ -82,7 +82,8 @@ unstableSort :: (PrimMonad m, V.Unbox a, Ord a)
              => MVector (PrimState m) a
              -> m ()
 unstableSort v =
-  accessUnderlying v >>= sort
+  accessUnderlying v
+    >>= sort
 {-# INLINABLE unstableSort #-}
 
 -- | Number of elements in the vector.
@@ -99,26 +100,30 @@ capacity (MVector v) =
     >>= \(MVectorData _ d) -> return $ MV.length d
 {-# INLINABLE capacity #-}
 
--- | Create a vector of a given capacity.
+-- | Create a vector with a given capacity.
 new :: (PrimMonad m, V.Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
-new i = do
-    v  <- MV.new i
-    MVector <$> newMutVar (MVectorData 0 v)
+new i =
+    MV.new i
+      >>=
+        \v -> MVector <$> newMutVar (MVectorData 0 v)
 {-# INLINABLE new #-}
 
--- | Read a value by index. Performs bounds checking.
+-- | Read by index. Performs bounds checking.
 read :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> m a
-read (MVector v') i = do
-    MVectorData s v <- readMutVar v'
-    if i >= s || i < 0 then
-        error "Data.Vector.Mutable.Dynamic: read: index out of bounds"
-    else
-        MV.unsafeRead v i
+read (MVector v') i =
+  readMutVar v'
+    >>=
+      \(MVectorData s v) ->
+          if i >= s || i < 0
+            then
+              error "Data.Vector.Mutable.Dynamic: read: index out of bounds"
+            else
+              MV.unsafeRead v i
 {-# INLINABLE read #-}
 
--- | Read without bounds checking.
+-- | Read by index without bounds checking.
 unsafeRead :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> m a
 unsafeRead (MVector v) i =
   readMutVar v
@@ -126,24 +131,29 @@ unsafeRead (MVector v) i =
       \(MVectorData _ d) -> d `MV.unsafeRead` i
 {-# INLINABLE unsafeRead #-}
 
--- | Clear the vector of its contents, setting its length to 0. Does not reallocate.
+-- | Clear the vector, set length to 0.
+--
+-- Does not reallocate, capacity is unchanged.
 clear :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m ()
-clear (MVector var) = do
-    (MVectorData _ d) <- readMutVar var
-    writeMutVar var (MVectorData 0 d)
+clear (MVector v) =
+  readMutVar v
+    >>=
+      \(MVectorData _ d) -> writeMutVar v (MVectorData 0 d)
 {-# INLINABLE clear #-}
 
 -- | Increment the size of the vector and write a value to the back.
--- Pushing to a slice will potentially overwrite the original vector's elements.
 pushBack :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> a -> m ()
-pushBack (MVector v) a = do
-    MVectorData s v' <- readMutVar v
-    if s == MV.length v' then do
-        -- nearly double size each time.
-        v'' <- MV.unsafeGrow v' (s + 1)
-        MV.unsafeWrite v'' s a
-        writeMutVar v (MVectorData (s + 1) v'')
-    else do
-        MV.unsafeWrite v' s a
-        writeMutVar v (MVectorData (s + 1) v')
+pushBack (MVector v) a =
+  readMutVar v
+    >>=
+      \(MVectorData s v') ->
+          if s == MV.length v'
+            then do
+              -- nearly double size each time.
+              v'' <- MV.unsafeGrow v' (s + 1)
+              MV.unsafeWrite v'' s a
+              writeMutVar v (MVectorData (s + 1) v'')
+            else do
+              MV.unsafeWrite v' s a
+              writeMutVar v (MVectorData (s + 1) v')
 {-# INLINABLE pushBack #-}

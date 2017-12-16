@@ -15,7 +15,7 @@ testVector = do
 
 testSort :: Int -> IO Bool
 testSort n = do
-  print $ "sort " ++ show n
+  --print $ "sort " ++ show n
   v <- new n
   let _m = v :: IOVector Int -- TODO is this the only way I can force the type?
 
@@ -44,7 +44,7 @@ testSort n = do
 
 testWithCapacity :: Int -> IO Bool
 testWithCapacity desiredCap = do
-  print $ "capacity " ++ show desiredCap
+  --print $ "capacity " ++ show desiredCap
   v <- new desiredCap
   let _m = v :: IOVector Int -- TODO is this the only way I can force the type?
   l <- length v

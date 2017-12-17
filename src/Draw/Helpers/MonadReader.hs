@@ -1,15 +1,23 @@
--- | Helper functions to make the code cleaner at the call site.
+-- | The functions of this module contain the boilerplate code to call the
+-- 'Draw' functions from a 'MonadReader' monad.
 
-module Draw.ReaderHelpers(
-       -- * Helper functions
-         drawTxt
+module Draw.Helpers.MonadReader
+       (
+       -- * Draw char(s)
+         drawChar
+       , drawChars
+       -- * Draw text
+       , drawTxt
+       -- * Draw aligned text
        , drawAlignedTxt_
        , drawAlignedTxt
-       , drawChars
-       , drawChar
+       -- * Render to the physical device
        , renderDrawing
        -- * Reexports
        , module Color
+       , module Geo.Discrete.Types
+       , module Draw.Class
+       , MonadReader -- to have the link to it in Haddock
        ) where
 
 import           Control.Monad(join)
@@ -20,9 +28,7 @@ import           Color
 import           Geo.Discrete.Types
 import           Draw.Class
 
-
-
--- | Draws text aligned w.r.t alignment and reference coodinates.
+-- | Draws text with 'Alignment'.
 {-# INLINABLE drawAlignedTxt_ #-}
 drawAlignedTxt_ :: (Draw e, MonadReader e m, MonadIO m)
                 => Text
@@ -30,12 +36,12 @@ drawAlignedTxt_ :: (Draw e, MonadReader e m, MonadIO m)
                 -> Alignment
                 -> m ()
 drawAlignedTxt_ txt colors a = do
-  d <- asks drawAlignedTxt''
+  d <- asks drawAlignedTxt_'
   d txt colors a
 
--- | Draws text aligned w.r.t alignment and reference coodinates.
+-- | Draws text with 'Alignment'.
 --
--- Returns the alignment projected on the next line.
+-- Returns the 'Alignment' projected on the next line.
 {-# INLINABLE drawAlignedTxt #-}
 drawAlignedTxt :: (Draw e, MonadReader e m, MonadIO m)
                => Text
@@ -47,7 +53,6 @@ drawAlignedTxt txt colors a = do
   d txt colors a
 
 
--- | Draw 'Text'
 {-# INLINABLE drawTxt #-}
 drawTxt :: (Draw e, MonadReader e m, MonadIO m)
         => Text
@@ -55,10 +60,11 @@ drawTxt :: (Draw e, MonadReader e m, MonadIO m)
         -> LayeredColor
         -> m ()
 drawTxt txt co la = do
-  d <- asks drawTxt_
+  d <- asks drawTxt'
   d txt co la
 
--- | Draw a repeated char
+-- | Draws a 'Char' multiple times, starting at the given coordinates and then
+-- moving to the right.
 {-# INLINABLE drawChars #-}
 drawChars :: (Draw e, MonadReader e m, MonadIO m)
           => Int
@@ -67,10 +73,9 @@ drawChars :: (Draw e, MonadReader e m, MonadIO m)
           -> LayeredColor
           -> m ()
 drawChars i c co la = do
-  d <- asks drawChars_
+  d <- asks drawChars'
   d i c co la
 
--- | Draw a 'Char'
 {-# INLINABLE drawChar #-}
 drawChar :: (Draw e, MonadReader e m, MonadIO m)
          => Char
@@ -78,12 +83,12 @@ drawChar :: (Draw e, MonadReader e m, MonadIO m)
          -> LayeredColor
          -> m ()
 drawChar c co la = do
-  d <- asks drawChar_
+  d <- asks drawChar'
   d c co la
 
--- | Render what was drawn
+-- | Render the drawing to the physical device (the screen, the console etc...).
 {-# INLINABLE renderDrawing #-}
 renderDrawing :: (Draw e, MonadReader e m, MonadIO m)
               => m ()
 renderDrawing =
-  join (asks renderDrawing_)
+  join (asks renderDrawing')

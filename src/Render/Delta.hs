@@ -15,28 +15,67 @@ important to address this issue. And this is exactly what this package is about!
 If you encounter screen tearing issues in you game, and if this package doesn't
 the issue entirely, please tell me, I'll investigate :-)
 
-= API semantics
+= API usage
 
-First, create an @IORef Buffers@ that you will use throughout the program.
-You /can/ specify policies ('ClearPolicy', 'ResizePolicy') but default policies cover
-most use cases.
+Due to the nature of the rendering algorithms, we need /back/ and /front/
+buffers to be persisted inside a 'DeltaEnv' environment.
 
-For each frame:
+This environment is created once ('newDefaultEnv', 'newEnv') and reused
+throughout the program.
 
-* draw colored elements ('Char', 'String', 'Text') on the @IORef Buffers@,
-at screen location 'Coords', in color 'LayeredColor'
-* render the frame by 'flush'-ing the @IORef Buffers@
+With it, you will draw colored elements and render to the console:
 
-> -- "Hello World"
->
-> import Render.Delta
->
-> main = createDefaultContext >>= \\ctxt
->          drawStr "Hello World" (Coords 11 20) (LayeredColor black white) ctxt
->          flush ctxt
+* From a 'MonadIO' monad :
 
-Note that you can access the API in a more elegant way using 'DeltaEnv' and 'Draw.Class'.
-<https://github.com/OlivierSohn/hamazed/blob/master/src/Env.hs Like here for example>.
+    @
+    import Draw.Class(drawStr', renderDrawing')
+
+    main = newDefaultEnv >>= helloWorld
+
+    helloWorld :: (MonadIO m) => m ()
+    helloWorld env = do
+      drawStr' env \"Hello\" (Coords 10 10) red
+      drawStr' env \"World\" (Coords 20 20) green
+      renderDrawing' env
+    @
+
+* From a 'MonadReader' monad,
+
+    * on a 'DeltaEnv' :
+
+    @
+    import Draw.Helpers.MonadReader(drawStr, renderDrawing)
+
+    main = newDefaultEnv >>= runReaderT helloWorld
+
+    helloWorld :: (Draw e, MonadReader e m, MonadIO m) => m ()
+    helloWorld = do
+      drawStr \"Hello\" (Coords 10 10) red
+      drawStr \"World\" (Coords 20 20) green
+      renderDrawing
+    @
+
+    * or on your own environment:
+
+        * You will need to add a field to your environment to store the 'DeltaEnv',
+        and implement a 'Draw' instance for your environment, which will use
+        the 'Draw' instance of 'DeltaEnv'.
+        * You can refer to
+        <https://github.com/OlivierSohn/hamazed/blob/master/src/Env.hs this example>
+        to see an implementation following this pattern.
+
+    @
+    import Draw.Helpers.MonadReader(drawStr, renderDrawing)
+    import MyApp(createMyEnv)
+
+    main = newDefaultEnv >>= createMyEnv >>= runReaderT helloWorld
+
+    helloWorld :: (Draw e, MonadReader e m, MonadIO m) => m ()
+    helloWorld = do
+      drawStr \"Hello\" (Coords 10 10) red
+      drawStr \"World\" (Coords 20 20) green
+      renderDrawing
+    @
 
 = Features
 
@@ -96,7 +135,7 @@ be rendered to the terminal.
 
 == Further optimizations
 
-=== Minimizing total size of rendering connamds
+=== Minimizing the total size of rendering connamds
 
 The initial implementation was fixing the screen tearing for my game, yet I wanted
 to optimize things to be able to support even richer frame changes in the future.
@@ -115,7 +154,7 @@ We can still improve on this by using a one-dimensional
 @relative position change@ commands (3 to 6 bytes : "\ESC[C", "\ESC[183C")
 when the next location is either on the same column or on the same line.
 
-=== Minimizing run-time overhead and memory footprint
+=== Minimizing the run-time overhead and memory footprint
 
 I wanted not only to avoid screen tearing, but also to be fast, to allow for higher
 framerates. So I refactored the datastructures to use continuous blocks of memory,
@@ -145,16 +184,15 @@ Here I'll report on the amount of bytes sent to stdout with concrete examples.
 -}
 
 module Render.Delta
-          ( module Render.Delta.Buffers
-          , module Render.Delta.Env
-            -- * Frame
-            -- ** Draw
-          , module Render.Delta.Draw
-            -- ** Render
-          , module Render.Delta.Flush
+          ( -- * Environment creation / config
+            module Render.Delta.Env
+            -- * Draw and render:
+            -- ** - From a MonadReader monad
+          , module Draw.Helpers.MonadReader
+            -- ** - From a MonadIO monad
+          , module Draw.Class
           ) where
 
-import           Render.Delta.Buffers
+import           Draw.Class
+import           Draw.Helpers.MonadReader
 import           Render.Delta.Env
-import           Render.Delta.Draw
-import           Render.Delta.Flush

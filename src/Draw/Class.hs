@@ -1,6 +1,4 @@
 
--- | This can be used to wrap Render.Delta functions in a 'MonadReader'
-
 module Draw.Class(
        -- * The Draw class
          Draw(..)
@@ -26,41 +24,45 @@ import           Text.Alignment
 
 -- | Describes the ability to draw colored text on a drawing,
 --  and to render the resulting drawing.
+--
+-- Functions are postfixed with @'@: non-postfixed names are reserved
+-- to helper functions in "Draw.Helpers.MonadReader", because using the API through the
+-- 'MonadReader' monad is the recommended way.
 class Draw e where
   -- | Draw a 'Char'.
-  drawChar_ :: (MonadIO m)
+  drawChar' :: (MonadIO m)
             => e
             -> (Char -> Coords -> LayeredColor -> m ())
-  drawChar_ = undefined
+  drawChar' = undefined
 
   -- | Draw repeated chars.
-  drawChars_ :: (MonadIO m)
+  drawChars' :: (MonadIO m)
              => e
              -> (Int -> Char -> Coords -> LayeredColor -> m ())
-  drawChars_ = undefined
+  drawChars' = undefined
 
   -- | Draw 'Text'.
-  drawTxt_ :: (MonadIO m)
+  drawTxt' :: (MonadIO m)
            => e
            -> (Text -> Coords -> LayeredColor -> m ())
-  drawTxt_ = undefined
+  drawTxt' = undefined
 
   -- | Render the drawing to the physical destination.
-  renderDrawing_ :: (MonadIO m) => e -> m ()
-  renderDrawing_ = undefined
+  renderDrawing' :: (MonadIO m) => e -> m ()
+  renderDrawing' = undefined
 
 
   -- | Draws text aligned w.r.t alignment and reference coodinates.
-  {-# INLINABLE drawAlignedTxt'' #-}
-  drawAlignedTxt'' :: (MonadIO m)
+  {-# INLINABLE drawAlignedTxt_' #-}
+  drawAlignedTxt_' :: (MonadIO m)
                    => e
                    -> Text
                    -> LayeredColor
                    -> Alignment
                    -> m ()
-  drawAlignedTxt'' env txt colors a = do
+  drawAlignedTxt_' env txt colors a = do
     let leftCorner = align' a (length txt)
-    drawTxt_ env txt leftCorner colors
+    drawTxt' env txt leftCorner colors
 
   -- | Draws text aligned w.r.t alignment and reference coodinates.
   --
@@ -73,5 +75,5 @@ class Draw e where
                   -> Alignment
                   -> m Alignment
   drawAlignedTxt' env txt colors a =
-    drawAlignedTxt'' env txt colors a
+    drawAlignedTxt_' env txt colors a
       >> return (toNextLine a)

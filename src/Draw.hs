@@ -20,13 +20,13 @@ import Control.Monad.Reader.Class(MonadReader)
 import Control.Monad.Reader(runReaderT)
 
 import Draw.Class
-import Draw.ReaderHelpers(drawTxt, renderDrawing)
+import Draw.Helpers.MonadReader(drawTxt, renderDrawing)
 
 helloWorld :: (Draw e, MonadReader e m, MonadIO m)
            => m ()
 helloWorld = do
-  drawTxt \"Hello\" (Coords 10 10) red
-  drawTxt \"World\" (Coords 20 20) green
+  drawStr \"Hello\" (Coords 10 10) red
+  drawStr \"World\" (Coords 20 20) green
   renderDrawing
 
 main = do
@@ -38,9 +38,8 @@ main = do
 
 module Draw
         ( module Draw.Class
-        , module Draw.ReaderHelpers
-        )
-        where
+        , module Draw.Helpers.MonadReader
+        ) where
 
 import Draw.Class
-import Draw.ReaderHelpers
+import Draw.Helpers.MonadReader

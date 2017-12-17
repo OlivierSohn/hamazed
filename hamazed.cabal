@@ -39,7 +39,7 @@ library
                      , Color.Types
                      , Draw
                      , Draw.Class
-                     , Draw.ReaderHelpers
+                     , Draw.Helpers.MonadReader
                      , Env
                      , Evolution
                      , Game.Deadline
@@ -91,6 +91,7 @@ library
                      , Render.Delta.Draw
                      , Render.Delta.Env
                      , Render.Delta.Flush
+                     , Render.Delta.Internal.DefaultPolicies
                      , Render.Delta.Internal.Types
                      , Render.Delta.Types
                      , Run

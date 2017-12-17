@@ -2,10 +2,10 @@
 
 module Render.Delta.Draw
             ( fill
-            , drawChar
-            , drawChars
-            , drawStr
-            , drawTxt
+            , deltaDrawChar
+            , deltaDrawChars
+            , deltaDrawStr
+            , deltaDrawTxt
             , module Color
             , module Geo.Discrete.Types
             , String
@@ -26,37 +26,37 @@ import           Render.Delta.Cell
 import           Render.Delta.Types
 
 
-{-# INLINE drawChar #-}
+{-# INLINABLE deltaDrawChar #-}
 -- | Draw a 'Char'
-drawChar :: IORef Buffers
-         -> Char
-         -> Coords
-         -- ^ Location
-         -> LayeredColor
-         -- ^ Background and foreground colors
-         -> IO ()
-drawChar ref c pos colors =
+deltaDrawChar :: IORef Buffers
+              -> Char
+              -> Coords
+              -- ^ Location
+              -> LayeredColor
+              -- ^ Background and foreground colors
+              -> IO ()
+deltaDrawChar ref c pos colors =
   readIORef ref
     >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let size = fromIntegral $ length b
       writeToBack back (indexFromPos size width pos) (mkCell colors c)
 
 
-{-# INLINE drawChars #-}
+{-# INLINABLE deltaDrawChars #-}
 -- | Draws a 'Char' multiple times, starting at the given coordinates and then moving to the right.
 --
--- @drawChar n c@ should be faster than @drawStr (repeat n c)@,
+-- @deltaDrawChars n c@ should be faster than @deltaDrawStr (repeat n c)@,
 -- as the encoding of information in a 'Cell' happens once only. (TODO verify in GHC core with optimizations)
-drawChars :: IORef Buffers
-          -> Int
-          -- ^ Number of chars to draw
-          -> Char
-          -> Coords
-          -- ^ Location of left-most 'Char'
-          -> LayeredColor
-          -- ^ Background and foreground colors
-          -> IO ()
-drawChars ref count c pos colors =
+deltaDrawChars :: IORef Buffers
+               -> Int
+               -- ^ Number of chars to draw
+               -> Char
+               -> Coords
+               -- ^ Location of left-most 'Char'
+               -> LayeredColor
+               -- ^ Background and foreground colors
+               -> IO ()
+deltaDrawChars ref count c pos colors =
   readIORef ref
     >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let cell = mkCell colors c
@@ -68,16 +68,16 @@ drawChars ref count c pos colors =
         [0..pred count]
 
 
-{-# INLINE drawStr #-}
+{-# INLINABLE deltaDrawStr #-}
 -- | Draw a 'String'
-drawStr :: IORef Buffers
-        -> String
-        -> Coords
-        -- ^ Location of first 'Char'
-        -> LayeredColor
-        -- ^ Background and foreground colors
-        -> IO ()
-drawStr ref str pos colors =
+deltaDrawStr :: IORef Buffers
+             -> String
+             -> Coords
+             -- ^ Location of first 'Char'
+             -> LayeredColor
+             -- ^ Background and foreground colors
+             -> IO ()
+deltaDrawStr ref str pos colors =
   readIORef ref
     >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let size = fromIntegral $ length b
@@ -87,16 +87,16 @@ drawStr ref str pos colors =
             writeToBack back (idx+i `fastMod` size) (mkCell colors c))
         $ zip str [0..]
 
-{-# INLINE drawTxt #-}
+{-# INLINABLE deltaDrawTxt #-}
 -- | Draw a 'Text'
-drawTxt :: IORef Buffers
-        -> Text
-        -> Coords
-        -- ^ Location of first 'Char'
-        -> LayeredColor
-        -- ^ Background and foreground colors
-        -> IO ()
-drawTxt ref text = drawStr ref $ unpack text
+deltaDrawTxt :: IORef Buffers
+             -> Text
+             -> Coords
+             -- ^ Location of first 'Char'
+             -> LayeredColor
+             -- ^ Background and foreground colors
+             -> IO ()
+deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 
 
 {-# INLINE writeToBack #-}

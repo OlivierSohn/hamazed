@@ -1,7 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Render.Delta.Flush
-    ( flush
+    ( deltaFlush
     ) where
 
 import           Prelude hiding(read, length)
@@ -27,8 +27,8 @@ import           Render.Delta.Types
 -- | Flushes the frame, i.e renders it to the console.
 --   Then, resizes the context if needed (see 'ResizePolicy')
 --   and clears the back buffer (see 'ClearPolicy').
-flush :: IORef Buffers -> IO ()
-flush ioRefBuffers =
+deltaFlush :: IORef Buffers -> IO ()
+deltaFlush ioRefBuffers =
   readIORef ioRefBuffers
     >>=
       render

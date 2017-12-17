@@ -2,7 +2,7 @@ import Control.Monad.Reader(runReaderT)
 
 import Env
 
-import Render.Delta(restoreConsole)
+import Render.Delta(restoreConsoleSettings)
 import Draw
 
 import Test.Interpolation(testInterpolation)
@@ -24,6 +24,6 @@ main = do
               testICS >>
               renderDrawing
               ) env
-  restoreConsole
+  restoreConsoleSettings
 
   --testStdout

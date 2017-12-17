@@ -33,16 +33,15 @@ import           Data.Word(Word16)
 
 import           Render.Delta.Internal.Types
 
--- | Specifies /when/ to resize the context, and how to compute the new size.
+-- | Specifies /when/ to resize front and back buffers, and how to compute the new size.
 data ResizePolicy = MatchTerminalSize
-                  -- ^ The context is resized, if needed, after each call to 'flush'
-                  --   and on context creation. The target size is the current terminal
-                  --   size.
+                  -- ^ After each render, if the current size is different
+                  -- from the current terminal size, buffers are resized.
                   | FixedSize !(Dim Width) !(Dim Height)
-                  -- ^ The context has a fixed size. Note that if the user of the program resizes
-                  --   the console to a size smaller than the context size, rendering
-                  --   artefacts will be visible. Consider using 'MatchTerminalSize'
-                  --   if this is a concern to your application.
+                  -- ^ Buffers have a fixed size. Note that if the
+                  -- console is resized to a size smaller than this size, rendering
+                  -- artefacts will be visible. Therefore, use this constructor with caution,
+                  -- and use 'MatchTerminaSlze' instead if you want a safer approach.
                   deriving(Show, Eq)
 
 -- | Specifies /when/ to clear the back-buffer.
@@ -57,17 +56,23 @@ data ClearPolicy = ClearAtEveryFrame
                  --   in the rendered frame (unless you intend to have this behaviour).
                  deriving(Show, Eq)
 
--- | The background color to clear the buffer with.
+-- | The background color to clear the back-buffer with.
 type ClearColor = Color8Code
 
 newtype Dim a = Dim Word16 deriving(Num, Eq, Ord, Show, Real, Enum, Integral)
 
-data Width  -- buffer width
-data Height -- buffer height
-data Size   -- buffer size (width * height)
-data Index  -- buffer element index
-data RowIndex -- index of a row
-data ColIndex -- index of a column
+-- | Buffer width
+data Width
+-- | Buffer height
+data Height
+-- | Buffer size (width * height)
+data Size
+-- | Buffer element index
+data Index
+-- | Index of a row
+data RowIndex
+-- | Index of a column
+data ColIndex
 
 {-# INLINE getHeight #-}
 getHeight :: Dim Width -> Dim Size -> Dim Height
@@ -88,9 +93,9 @@ getRowCol (Dim idx) (Dim w) =
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- the size is stored in back and front buffers
+  , _buffersDrawWidth :: !(Dim Width) -- The size is stored in back and front buffers
   , _buffersDelta :: !Delta
-  -- ^ buffer used in renderFrame
+  -- ^ The delta-buffer is used in renderFrame
   , _buffersPolicies :: !Policies
 }
 

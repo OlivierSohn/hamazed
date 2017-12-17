@@ -1,9 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Render.Delta.Internal.Types
-       ( Buffers(..)
-       , Policies(..)
-       , BackFrontBuffer
+       ( BackFrontBuffer
        , Buffer(..)
        , Back
        , Front
@@ -21,27 +19,10 @@ import           Data.Vector.Unboxed.Mutable( IOVector )
 
 import qualified Render.Delta.DynUnboxedVec as Dyn
                                 ( IOVector )
-import           Render.Delta.Types
-
-data Buffers = Buffers {
-    _renderStateBackBuffer :: !(Buffer Back)
-  , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- the size is stored in back and front buffers
-  , _buffersDelta :: !Delta
-  -- ^ buffer used in renderFrame
-  , _buffersPolicies :: !Policies
-}
 
 -- | Buffer types
 data Back
 data Front
-
-data Policies = Policies {
-    _policiesResizePolicy :: !ResizePolicy
-  , _policiesClearPolicy :: !ClearPolicy
-  , _policiesClearColor :: !ClearColor
-} deriving(Show)
-
 
 type BackFrontBuffer = IOVector (Cell, Cell)
 

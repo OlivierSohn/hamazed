@@ -3,6 +3,8 @@
 
 ## Delta rendering
 
+- user of API should see DeltaEnv only
+
 - should I use a monorepo? is it ok if the 3 projects live in the same github repo?
 - make a package with
   - geometric figures / colored text

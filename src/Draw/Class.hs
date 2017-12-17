@@ -23,13 +23,6 @@ import           Geo.Discrete
 import           Geo.Discrete.Types
 import           Text.Alignment
 
-{- TODO consider:
-
-class HasIORefBuffers e where
-  get :: e -> IORef Buffers
-
-and put int on 'Env', and let Delta provide an adaptor for Draw (the current code of Draw for Env)
--}
 
 -- | Describes the ability to draw colored text on a drawing,
 --  and to render the resulting drawing.

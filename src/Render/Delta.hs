@@ -35,8 +35,8 @@ at screen location 'Coords', in color 'LayeredColor'
 >          drawStr "Hello World" (Coords 11 20) (LayeredColor black white) ctxt
 >          flush ctxt
 
-Also, please read "Draw" to see how to abstract away the 'IORef' 'Buffers' using
-'ReaderT' transformer.
+Note that you can access the API in a more elegant way using 'DeltaEnv' and 'Draw.Class'.
+<https://github.com/OlivierSohn/hamazed/blob/master/src/Env.hs Like here for example>.
 
 = Features
 
@@ -146,6 +146,7 @@ Here I'll report on the amount of bytes sent to stdout with concrete examples.
 
 module Render.Delta
           ( module Render.Delta.Buffers
+          , module Render.Delta.Env
             -- * Frame
             -- ** Draw
           , module Render.Delta.Draw
@@ -154,5 +155,6 @@ module Render.Delta
           ) where
 
 import           Render.Delta.Buffers
+import           Render.Delta.Env
 import           Render.Delta.Draw
 import           Render.Delta.Flush

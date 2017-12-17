@@ -2,8 +2,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Render.Delta.Types
-            ( -- ** Policies
-              ResizePolicy(..)
+            (
+             -- * Buffers
+              Buffers(..)
+             -- ** Policies
+            , Policies(..)
+            , ResizePolicy(..)
             , ClearPolicy(..)
             , ClearColor
             , Dim(..)
@@ -27,6 +31,7 @@ import           System.Console.ANSI( Color8Code(..) )
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
+import           Render.Delta.Internal.Types
 
 -- | Specifies /when/ to resize the context, and how to compute the new size.
 data ResizePolicy = MatchTerminalSize
@@ -77,3 +82,20 @@ getRowCol (Dim idx) (Dim w) =
     where
       y = idx `div` w
       x = idx - y * w
+
+
+
+data Buffers = Buffers {
+    _renderStateBackBuffer :: !(Buffer Back)
+  , _renderStateFrontBuffer :: !(Buffer Front)
+  , _buffersDrawWidth :: !(Dim Width) -- the size is stored in back and front buffers
+  , _buffersDelta :: !Delta
+  -- ^ buffer used in renderFrame
+  , _buffersPolicies :: !Policies
+}
+
+data Policies = Policies {
+    _policiesResizePolicy :: !ResizePolicy
+  , _policiesClearPolicy :: !ClearPolicy
+  , _policiesClearColor :: !ClearColor
+} deriving(Show)

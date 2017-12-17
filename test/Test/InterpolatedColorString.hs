@@ -11,7 +11,6 @@ import Prelude(String)
 import Geo.Discrete
 import Color
 import Color.IColor8Code
-import Env
 import Game.World.Space
 import Text.ColorString
 

@@ -26,7 +26,7 @@ testCoords =
   let from = Coords 0 0
       to = Coords 1 0
       d = distance from to
-      e = mkEvolution2 from to 1
+      e = mkEvolution (Successive [from, to]) 1
   in map (zipAll e . Frame) [0..pred d]
 
 testListCoords :: [([Coords], Maybe Float)]
@@ -34,7 +34,7 @@ testListCoords =
   let from = [Coords 0 0, Coords 10 10]
       to   = [Coords 1 0, Coords 11 10]
       d = distance from to
-      e = mkEvolution2 from to 1
+      e = mkEvolution (Successive [from, to]) 1
   in map (zipAll e . Frame) [0..pred d]
 
 testInts :: [(Int, Maybe Float)]
@@ -42,7 +42,7 @@ testInts =
   let from = 0
       to = 20
       d = distance from to
-      e = mkEvolution2 from to 1
+      e = mkEvolution (Successive [from, to]) 1
   in map (zipAll e . Frame) [0..pred d]
 
 testListInts :: [([] Int, Maybe Float)]
@@ -50,7 +50,7 @@ testListInts =
   let from = [0,13]
       to = [1,11]
       d = distance from to
-      e = mkEvolution2 from to 1
+      e = mkEvolution (Successive [from, to]) 1
   in map (zipAll e . Frame) [0..pred d]
 
 testSuccessiveInts :: [(Int, Maybe Float)]

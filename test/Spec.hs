@@ -24,7 +24,7 @@ main = do
   env <- createEnv
   runReaderT (testSpace >>
               testICS >>
-              flush
+              renderDrawing
               ) env
   restoreConsole
 

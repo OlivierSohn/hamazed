@@ -1,7 +1,7 @@
 module Test.Rendering(testSpace) where
 
 import Control.Monad( void )
-import Control.Monad.Reader(liftIO)
+import Control.Monad.Reader(liftIO, ReaderT)
 
 import Env
 import Game.World.Space

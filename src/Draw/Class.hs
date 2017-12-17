@@ -1,41 +1,84 @@
 
+-- | This can be used to wrap Render.Delta functions in a 'MonadReader'
 
 module Draw.Class(
        -- * The Draw class
          Draw(..)
        -- * Reexports
-       , ReaderT
+       , Alignment(..)
+       , MonadIO
        -- ** Colors
-       , module Color
+       , module Color.Types
        -- ** Coordinates
        , module Geo.Discrete.Types
        ) where
 
-import           Control.Monad.Reader(ReaderT)
-import           Data.Text(Text)
+import           Prelude hiding(length)
 
-import           Color
+import           Control.Monad.IO.Class(MonadIO)
+import           Data.Text(Text, length)
+
 import           Color.Types
+import           Geo.Discrete
 import           Geo.Discrete.Types
+import           Text.Alignment
 
--- TODO how to make this generic and to allow any other monad transformer?
--- | Class of rendererers that will be used in a program through 'ReaderT'.
---
--- The renderers have the ability to draw colored text.
--- They should render to the physical destination in 'renderDrawing_'.
+{- TODO consider:
+
+class HasIORefBuffers e where
+  get :: e -> IORef Buffers
+
+and put int on 'Env', and let Delta provide an adaptor for Draw (the current code of Draw for Env)
+-}
+
+-- | Describes the ability to draw colored text on a drawing,
+--  and to render the resulting drawing.
 class Draw e where
-  -- | Draw a char
-  drawChar_ :: e -> (Char -> Coords -> LayeredColor -> ReaderT e IO ())
+  -- | Draw a 'Char'.
+  drawChar_ :: (MonadIO m)
+            => e
+            -> (Char -> Coords -> LayeredColor -> m ())
   drawChar_ = undefined
 
-  -- | Draw repeated chars
-  drawChars_ :: e -> (Int -> Char -> Coords -> LayeredColor -> ReaderT e IO ())
+  -- | Draw repeated chars.
+  drawChars_ :: (MonadIO m)
+             => e
+             -> (Int -> Char -> Coords -> LayeredColor -> m ())
   drawChars_ = undefined
 
-  -- | Draw 'Text'
-  drawTxt_ :: e -> (Text -> Coords -> LayeredColor -> ReaderT e IO ())
+  -- | Draw 'Text'.
+  drawTxt_ :: (MonadIO m)
+           => e
+           -> (Text -> Coords -> LayeredColor -> m ())
   drawTxt_ = undefined
 
-  -- | Render what was drawn
-  renderDrawing_ :: e -> ReaderT e IO ()
+  -- | Render the drawing to the physical destination.
+  renderDrawing_ :: (MonadIO m) => e -> m ()
   renderDrawing_ = undefined
+
+
+  -- | Draws text aligned w.r.t alignment and reference coodinates.
+  {-# INLINABLE drawAlignedTxt'' #-}
+  drawAlignedTxt'' :: (MonadIO m)
+                   => e
+                   -> Text
+                   -> LayeredColor
+                   -> Alignment
+                   -> m ()
+  drawAlignedTxt'' env txt colors a = do
+    let leftCorner = align' a (length txt)
+    drawTxt_ env txt leftCorner colors
+
+  -- | Draws text aligned w.r.t alignment and reference coodinates.
+  --
+  -- Returns an 'Alignment' where the reference coordinate of the input 'Alignment' was projected on the next line.
+  {-# INLINABLE drawAlignedTxt' #-}
+  drawAlignedTxt' :: (MonadIO m)
+                  => e
+                  -> Text
+                  -> LayeredColor
+                  -> Alignment
+                  -> m Alignment
+  drawAlignedTxt' env txt colors a =
+    drawAlignedTxt'' env txt colors a
+      >> return (toNextLine a)

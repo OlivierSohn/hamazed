@@ -8,6 +8,9 @@ module Animation.Design.RenderUpdate
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Data.Either( partitionEithers )
 
 import           Animation.Timing
@@ -21,13 +24,13 @@ are still alive, returns the next 'AnimationUpdate' in which the updated 'Animat
   is preapplied to the render function.
 -}
 {-# INLINABLE renderAndUpdate #-}
-renderAndUpdate :: (Draw e)
+renderAndUpdate :: (Draw e, MonadReader e m, MonadIO m)
                 => (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
                 -- ^ the pure animation function
-                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
-                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))
+                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))
 renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration _ frame) mayChar _) getLocation r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
   isAlive <- render' frame mayChar newState getLocation colorFunc r
@@ -38,15 +41,13 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ 
       else
         Nothing
 
-{-# INLINABLE updateStateAndAnimation #-}
-updateStateAndAnimation :: (Draw e)
-                        => Maybe KeyTime
+updateStateAndAnimation :: Maybe KeyTime
                         -> (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
                         -> (Coords -> Location)
-                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
-                        -> AnimationUpdate e
+                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                        -> AnimationUpdate m
                         -> AnimatedPoints
-                        -> (AnimationUpdate e, AnimatedPoints)
+                        -> (AnimationUpdate m, AnimatedPoints)
 updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(AnimationUpdate _ i _ _) state =
     (nextAnimation, newState)
   where
@@ -56,19 +57,19 @@ updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(AnimationUpdat
       _    -> pureAnim i getLocation state
     nextAnimation = updateAnimation step (statelessIOAnim newState) a
 
-{-# INLINABLE updateAnimation #-}
-updateAnimation :: (Draw e)
-                => StepType
-                -> (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
-                -> AnimationUpdate e
-                -> AnimationUpdate e
+updateAnimation :: StepType
+                -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                -> AnimationUpdate m
+                -> AnimationUpdate m
 updateAnimation Same _ a = a
 updateAnimation step r (AnimationUpdate t i c _) =
   update step $ AnimationUpdate t i c r
 
 
-{-# INLINABLE computeStep #-}
-computeStep :: (Draw e) => Maybe KeyTime -> AnimationUpdate e -> AnimatedPoints -> StepType
+computeStep :: Maybe KeyTime
+            -> AnimationUpdate m
+            -> AnimatedPoints
+            -> StepType
 computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ branches _ _) =
   let noUpdate =
         maybe
@@ -89,24 +90,20 @@ computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ bran
             else
               noUpdate
 
-{-# INLINABLE update #-}
-update :: (Draw e)
-       => StepType
-       -> AnimationUpdate e
-       -> AnimationUpdate e
+update :: StepType
+       -> AnimationUpdate m
+       -> AnimationUpdate m
 update = \case
             Update -> stepAnimation
             _      -> id
 
-{-# INLINABLE stepAnimation #-}
-stepAnimation :: (Draw e)
-              => AnimationUpdate e
-              -> AnimationUpdate e
+stepAnimation :: AnimationUpdate m
+              -> AnimationUpdate m
 stepAnimation (AnimationUpdate t i c f) = AnimationUpdate (addAnimationStepDuration t) (nextIteration i) c f
 
 
 {-# INLINABLE render' #-}
-render' :: (Draw e)
+render' :: (Draw e, MonadReader e m, MonadIO m)
         => Frame
         -> Maybe Char
         -- ^ default char to use when there is no char specified in the state
@@ -114,7 +111,7 @@ render' :: (Draw e)
         -> (Coords -> Location)
         -> (Frame -> LayeredColor)
         -> Coords
-        -> ReaderT e IO Bool
+        -> m Bool
         -- ^ True if at least one animation point is "alive"
 render' _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
 render' _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False

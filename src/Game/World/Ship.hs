@@ -25,8 +25,10 @@ import           Geo.Conversion
 --
 --   The ship animation will have the initial speed of the number and vice-versa,
 --     to mimic the rebound due to the collision.
-{-# INLINABLE shipAnims #-}
-shipAnims :: (Draw e) => BattleShip  -> Event -> [BoundedAnimationUpdate e]
+shipAnims :: (Draw e, MonadReader e m, MonadIO m)
+          => BattleShip
+          -> Event
+          -> [BoundedAnimationUpdate m]
 shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
   \case
     Timeout GameStep k ->

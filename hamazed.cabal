@@ -38,9 +38,8 @@ library
                      , Color.ILayeredColor
                      , Color.Types
                      , Draw
-                     , Draw.Aligned
                      , Draw.Class
-                     , Draw.Helpers
+                     , Draw.ReaderHelpers
                      , Env
                      , Evolution
                      , Game.Deadline
@@ -91,11 +90,11 @@ library
                      , Render.Delta.DynUnboxedVec
                      , Render.Delta.Draw
                      , Render.Delta.Flush
-                     , Render.Delta.Functions
                      , Render.Delta.Internal.Types
                      , Render.Delta.Types
                      , Run
-                     , Text.Animated
+                     , Text.Alignment
+                     , Text.Animation
                      , Text.ColorString
                      , Threading
                      , Timing
@@ -134,7 +133,6 @@ test-suite hamazed-test
                      , Test.Ease
                      , Test.InterpolatedColorString
                      , Test.Interpolation
-                     , Test.Reader
                      , Test.Rendering
                      , Test.Stdout
                      , Test.Vector

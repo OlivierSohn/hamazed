@@ -6,6 +6,8 @@ module Game.World.Embedded
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+
 import           Data.String
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
@@ -19,7 +21,9 @@ minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
 {-# INLINABLE mkEmbeddedWorld #-}
-mkEmbeddedWorld :: WorldSize -> ReaderT e IO (Either String EmbeddedWorld)
+mkEmbeddedWorld :: (MonadIO m)
+                => WorldSize
+                -> m (Either String EmbeddedWorld)
 mkEmbeddedWorld s = do
   mayTermSize <- liftIO Terminal.size
   return $ EmbeddedWorld mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize

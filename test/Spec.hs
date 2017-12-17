@@ -9,7 +9,6 @@ import Test.Interpolation(testInterpolation)
 import Test.InterpolatedColorString
 import Test.Bresenham3
 import Test.Stdout
-import Test.Reader
 import Test.Rendering
 import Test.Vector
 
@@ -19,7 +18,6 @@ main = do
   testInterpolation
   testVector >>= print
   testBres3 >>= print
-  testReader
 
   env <- createEnv
   runReaderT (testSpace >>

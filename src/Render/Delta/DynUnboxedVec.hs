@@ -87,14 +87,18 @@ unstableSort v =
 {-# INLINABLE unstableSort #-}
 
 -- | Number of elements in the vector.
-length :: PrimMonad m => MVector (PrimState m) a -> m Int
+length :: PrimMonad m
+       => MVector (PrimState m) a
+       -> m Int
 length (MVector v) =
   readMutVar v
     >>= \(MVectorData sz _) -> return sz
 {-# INLINABLE length #-}
 
 -- | Number of elements that the vector currently has reserved space for.
-capacity :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m Int
+capacity :: (PrimMonad m, V.Unbox a)
+         => MVector (PrimState m) a
+         -> m Int
 capacity (MVector v) =
   readMutVar v
     >>= \(MVectorData _ d) -> return $ MV.length d
@@ -111,7 +115,10 @@ new i =
 {-# INLINABLE new #-}
 
 -- | Read by index. Performs bounds checking.
-read :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> m a
+read :: (PrimMonad m, V.Unbox a)
+     => MVector (PrimState m) a
+     -> Int
+     -> m a
 read (MVector v') i =
   readMutVar v'
     >>=
@@ -124,7 +131,10 @@ read (MVector v') i =
 {-# INLINABLE read #-}
 
 -- | Read by index without bounds checking.
-unsafeRead :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> Int -> m a
+unsafeRead :: (PrimMonad m, V.Unbox a)
+           => MVector (PrimState m) a
+           -> Int
+           -> m a
 unsafeRead (MVector v) i =
   readMutVar v
     >>=
@@ -134,7 +144,9 @@ unsafeRead (MVector v) i =
 -- | Clear the vector, set length to 0.
 --
 -- Does not reallocate, capacity is unchanged.
-clear :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> m ()
+clear :: PrimMonad m
+      => MVector (PrimState m) a
+      -> m ()
 clear (MVector v) =
   readMutVar v
     >>=
@@ -142,7 +154,10 @@ clear (MVector v) =
 {-# INLINABLE clear #-}
 
 -- | Increment the size of the vector and write a value to the back.
-pushBack :: (PrimMonad m, V.Unbox a) => MVector (PrimState m) a -> a -> m ()
+pushBack :: (PrimMonad m, V.Unbox a)
+         => MVector (PrimState m) a
+         -> a
+         -> m ()
 pushBack (MVector v) a =
   readMutVar v
     >>=

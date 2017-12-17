@@ -32,7 +32,11 @@ import           Geo.Discrete.Resample
 
 
 -- | Note that the Coords parameter is unused.
-simpleLaserPure :: LaserRay Actual -> Coords -> Frame -> ([Coords], Maybe Char)
+simpleLaserPure :: LaserRay Actual
+                -> Coords
+                -- ^ Unused, because the 'LaserRay' encodes the origin already
+                -> Frame
+                -> ([Coords], Maybe Char)
 simpleLaserPure (LaserRay dir (Ray seg)) _ (Frame i) =
   let (originalChar, replacementChar) =
         if dir == LEFT || dir == RIGHT

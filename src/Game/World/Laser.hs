@@ -19,8 +19,7 @@ import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
 import           Animation.Types
-import           Animation( mkAnimationUpdate
-                          , simpleLaser)
+import           Animation
 import           Draw
 import           Geo.Discrete
 
@@ -57,7 +56,10 @@ stopRayAtFirstCollision coords (Ray s) =
 
 
 -- no need to inline as we don't use e
-mkLaserAnimationUpdate :: (Draw e) => KeyTime -> LaserRay Actual -> AnimationUpdate e
+mkLaserAnimationUpdate :: (Draw e, MonadReader e m, MonadIO m)
+                       => KeyTime
+                       -> LaserRay Actual
+                       -> AnimationUpdate m
 mkLaserAnimationUpdate keyTime ray@(LaserRay _ (Ray seg)) =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
   in mkAnimationUpdate (simpleLaser ray (mkAnimatedPoints collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing

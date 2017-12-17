@@ -22,10 +22,15 @@ module Animation
     , quantitativeExplosionThenSimpleExplosion
     -- * Reexports
     , module Animation.Types
+    , MonadIO
+    , MonadReader
     ) where
 
 
 import           Imajuscule.Prelude
+
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
 
 import           Animation.Design.Animator
 import           Animation.Design.Apply
@@ -44,29 +49,29 @@ import           Timing
 
 -- | A laser ray animation
 {-# INLINABLE simpleLaser #-}
-simpleLaser :: (Draw e)
+simpleLaser :: (Draw e, MonadReader e m, MonadIO m)
             => LaserRay Actual
             -> AnimatedPoints
             -> Maybe KeyTime
-            -> AnimationUpdate e
+            -> AnimationUpdate m
             -> (Coords -> Location)
             -> Coords
-            -> ReaderT e IO (Maybe (AnimationUpdate e))
+            -> m (Maybe (AnimationUpdate m))
 simpleLaser seg =
   renderAndUpdate' (mkAnimator simpleLaserPure simpleLaser seg)
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second is fixed to 4*8.
 {-# INLINABLE quantitativeExplosionThenSimpleExplosion #-}
-quantitativeExplosionThenSimpleExplosion :: (Draw e)
+quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                          => Int
                                          -- ^ Number of points of the first circular explosion.
                                          -> AnimatedPoints
                                          -> Maybe KeyTime
-                                         -> AnimationUpdate e
+                                         -> AnimationUpdate m
                                          -> (Coords -> Location)
                                          -> Coords
-                                         -> ReaderT e IO (Maybe (AnimationUpdate e))
+                                         -> m (Maybe (AnimationUpdate m))
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
@@ -76,15 +81,15 @@ quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorF
 -- | An animation chaining a gravity-based free-fall, with an initial velocity passed
 -- as argument, and a circular explosion of 4*8 points.
 {-# INLINABLE gravityAnimationThenSimpleExplosion #-}
-gravityAnimationThenSimpleExplosion :: (Draw e)
+gravityAnimationThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                     => Vec2
                                     -- ^ Initial speed
                                     -> AnimatedPoints
                                     -> Maybe KeyTime
-                                    -> AnimationUpdate e
+                                    -> AnimationUpdate m
                                     -> (Coords -> Location)
                                     -> Coords
-                                    -> ReaderT e IO (Maybe (AnimationUpdate e))
+                                    -> m (Maybe (AnimationUpdate m))
 gravityAnimationThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = chainOnCollision (gravityFall initialSpeed) (simpleExplosionPure 8)
@@ -92,14 +97,14 @@ gravityAnimationThenSimpleExplosion initialSpeed = renderAndUpdate fPure f color
 
 -- | A gravity-based free-falling animation.
 {-# INLINABLE gravityAnimation #-}
-gravityAnimation :: (Draw e)
+gravityAnimation :: (Draw e, MonadReader e m, MonadIO m)
                  => Vec2
                  -> AnimatedPoints
                  -> Maybe KeyTime
-                 -> AnimationUpdate e
+                 -> AnimationUpdate m
                  -> (Coords -> Location)
                  -> Coords
-                 -> ReaderT e IO (Maybe (AnimationUpdate e))
+                 -> m (Maybe (AnimationUpdate m))
 gravityAnimation initialSpeed = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (gravityFall initialSpeed)
@@ -107,29 +112,29 @@ gravityAnimation initialSpeed = renderAndUpdate fPure f colorFromFrame
 
 -- | An animation where a geometric figure expands and then shrinks
 {-# INLINABLE animatedNumber #-}
-animatedNumber :: (Draw e)
+animatedNumber :: (Draw e, MonadReader e m, MonadIO m)
                => Int
                -- ^ If 1, the geometric figure is a circle, else if >1, a polygon
                -> AnimatedPoints
                -> Maybe KeyTime
-               -> AnimationUpdate e
+               -> AnimationUpdate m
                -> (Coords -> Location)
                -> Coords
-               -> ReaderT e IO (Maybe (AnimationUpdate e))
+               -> m (Maybe (AnimationUpdate m))
 animatedNumber n =
   renderAndUpdate' (mkAnimator animateNumberPure animatedNumber n)
 
 -- | A circular explosion configurable in number of points
 {-# INLINABLE simpleExplosion #-}
-simpleExplosion :: (Draw e)
+simpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                 => Int
                 -- ^ Number of points
                 -> AnimatedPoints
                 -> Maybe KeyTime
-                -> AnimationUpdate e
+                -> AnimationUpdate m
                 -> (Coords -> Location)
                 -> Coords
-                -> ReaderT e IO (Maybe (AnimationUpdate e))
+                -> m (Maybe (AnimationUpdate m))
 simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
   where
     fPure = applyAnimation (simpleExplosionPure resolution)
@@ -138,28 +143,28 @@ simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts, and the parts explode when they hit a wall.
 {-# INLINABLE explosionGravity #-}
-explosionGravity :: (Draw e)
+explosionGravity :: (Draw e, MonadReader e m, MonadIO m)
                  => Vec2
                  -> Coords
-                 -> [Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))]
+                 -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))]
 explosionGravity speed pos =
   map (`explosionGravity1` pos) $ variations speed
 
 {-# INLINABLE explosionGravity1 #-}
-explosionGravity1 :: (Draw e)
+explosionGravity1 :: (Draw e, MonadReader e m, MonadIO m)
                   => Vec2
                   -> Coords
-                  -> (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+                  -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
 explosionGravity1 speed pos =
   gravityAnimation speed (mkAnimatedPoints pos (ReboundAnd Stop))
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
 {-# INLINABLE explosion #-}
-explosion :: (Draw e)
+explosion :: (Draw e, MonadReader e m, MonadIO m)
           => Vec2
           -> Coords
-          -> [Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))]
+          -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))]
 explosion speed pos =
   map (`explosion1` pos) $ variations speed
 
@@ -172,9 +177,9 @@ variations sp =
                     , Vec2 1.2     0.2]
 
 {-# INLINABLE explosion1 #-}
-explosion1 :: (Draw e)
+explosion1 :: (Draw e, MonadReader e m, MonadIO m)
            => Vec2
            -> Coords
-           -> (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+           -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
 explosion1 speed pos =
   gravityAnimationThenSimpleExplosion speed (mkAnimatedPoints pos (ReboundAnd $ ReboundAnd Stop))

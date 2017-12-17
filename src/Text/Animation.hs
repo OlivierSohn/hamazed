@@ -1,7 +1,7 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Text.Animated
+module Text.Animation
          (
          -- * Types
          -- ** Anchors
@@ -25,6 +25,9 @@ import           Imajuscule.Prelude
 import qualified Prelude(length)
 
 import           Control.Monad( zipWithM_ )
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip)
 
@@ -63,21 +66,21 @@ data TextAnimation a = TextAnimation {
 
 -- | Render a string-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE renderAnimatedTextStringAnchored #-}
-renderAnimatedTextStringAnchored :: (Draw e)
+renderAnimatedTextStringAnchored :: (Draw e, MonadReader e m, MonadIO m)
                                  => TextAnimation AnchorStrings
                                  -> Frame
-                                 -> ReaderT e IO ()
+                                 -> m ()
 renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
   renderAnimatedTextStringAnchored' fromToStrs rss i
 
 
 {-# INLINABLE renderAnimatedTextStringAnchored' #-}
-renderAnimatedTextStringAnchored' :: (Draw e)
+renderAnimatedTextStringAnchored' :: (Draw e, MonadReader e m, MonadIO m)
                                   => [Evolution ColorString]
                                   -> [Coords]
                                   -> Frame
-                                  -> ReaderT e IO ()
+                                  -> m ()
 renderAnimatedTextStringAnchored' [] _ _ = return ()
 renderAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
@@ -88,21 +91,21 @@ renderAnimatedTextStringAnchored' l@(_:_) rs i = do
 
 -- | Render a char-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE renderAnimatedTextCharAnchored #-}
-renderAnimatedTextCharAnchored :: (Draw e)
+renderAnimatedTextCharAnchored :: (Draw e, MonadReader e m, MonadIO m)
                                => TextAnimation AnchorChars
                                -> Frame
-                               -> ReaderT e IO ()
+                               -> m ()
 renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
   let rss = getAnimatedTextRenderStates renderStatesEvolution i
   renderAnimatedTextCharAnchored' fromToStrs rss i
 
 
 {-# INLINABLE renderAnimatedTextCharAnchored' #-}
-renderAnimatedTextCharAnchored' :: (Draw e)
+renderAnimatedTextCharAnchored' :: (Draw e, MonadReader e m, MonadIO m)
                                 => [Evolution ColorString]
                                 -> [Coords]
                                 -> Frame
-                                -> ReaderT e IO ()
+                                -> m ()
 renderAnimatedTextCharAnchored' [] _ _ = return ()
 renderAnimatedTextCharAnchored' l@(_:_) rs i = do
   -- use length of from to know how many renderstates we should take
@@ -115,10 +118,10 @@ renderAnimatedTextCharAnchored' l@(_:_) rs i = do
 
 
 {-# INLINABLE renderColorStringAt #-}
-renderColorStringAt :: (Draw e)
+renderColorStringAt :: (Draw e, MonadReader e m, MonadIO m)
                     => [(Text, LayeredColor)]
                     -> [Coords]
-                    -> ReaderT e IO ()
+                    -> m ()
 renderColorStringAt [] _ = return ()
 renderColorStringAt l@(_:_) rs = do
   let (txt, color) = head l

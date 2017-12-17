@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Game(
-        runGameWorker
+        gameWorker
       ) where
 
 import           Imajuscule.Prelude
@@ -19,7 +19,7 @@ import           Game.Deadline( Deadline(..) )
 import           Game.Types
 import           Game.Event
 import           Game.Level
-import           Game.Parameters( GameParameters(..) )
+import           Game.Parameters
 import           Game.Render
 import           Game.World
 import           Game.World.Embedded
@@ -37,8 +37,18 @@ import           Geo.Discrete
 import           Util
 
 
+{-# INLINABLE gameWorker #-}
+gameWorker :: (Draw e, MonadReader e m, MonadIO m)
+           => m ()
+gameWorker =
+  getGameParameters >>= runGameWorker
+
+
 {-# INLINABLE nextGameState #-}
-nextGameState :: (Draw e) => GameState e -> TimedEvent -> GameState e
+nextGameState :: (Draw e, MonadReader e m, MonadIO m)
+              => GameState m
+              -> TimedEvent
+              -> GameState m
 nextGameState
   (GameState b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _) futureWorld
              g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
@@ -78,7 +88,11 @@ nextGameState
 
 
 {-# INLINABLE outerSpaceAnims #-}
-outerSpaceAnims :: (Draw e) => KeyTime -> Space -> LaserRay Actual -> [BoundedAnimationUpdate e]
+outerSpaceAnims :: (Draw e, MonadReader e m, MonadIO m)
+                => KeyTime
+                -> Space
+                -> LaserRay Actual
+                -> [BoundedAnimationUpdate m]
 outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
   let ae = afterEnd ray
   in case onFronteer ae sz of
@@ -92,15 +106,18 @@ outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
 
 
 {-# INLINABLE laserAnims #-}
-laserAnims :: (Draw e) => KeyTime -> LaserRay Actual -> [BoundedAnimationUpdate e]
+laserAnims :: (Draw e, MonadReader e m, MonadIO m)
+           => KeyTime
+           -> LaserRay Actual
+           -> [BoundedAnimationUpdate m]
 laserAnims keyTime ray
  = [BoundedAnimationUpdate (mkLaserAnimationUpdate keyTime ray) WorldFrame]
 
-replaceAnimations :: [BoundedAnimationUpdate e] -> GameState e -> GameState e
+replaceAnimations :: [BoundedAnimationUpdate m] -> GameState m -> GameState m
 replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =
   GameState c (World wa wb wc wd anims ew) b f g h
 
-nextDeadline :: GameState e -> UTCTime -> Maybe Deadline
+nextDeadline :: GameState m -> UTCTime -> Maybe Deadline
 nextDeadline s t =
   let l = getDeadlinesByDecreasingPriority s t
   in  overdueDeadline t l <|> earliestDeadline l
@@ -113,14 +130,14 @@ overdueDeadline :: UTCTime -> [Deadline] -> Maybe Deadline
 overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : message > game forward > animation forward
-getDeadlinesByDecreasingPriority :: GameState e -> UTCTime -> [Deadline]
+getDeadlinesByDecreasingPriority :: GameState m -> UTCTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
   maybe
     (catMaybes [messageDeadline level t, getGameDeadline s, animationDeadline s])
     (: [])
       (worldAnimationDeadline s)
 
-getGameDeadline :: GameState e -> Maybe Deadline
+getGameDeadline :: GameState m -> Maybe Deadline
 getGameDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
@@ -130,11 +147,11 @@ getGameDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
     (const Nothing)
       levelFinished
 
-animationDeadline :: GameState e -> Maybe Deadline
+animationDeadline :: GameState m -> Maybe Deadline
 animationDeadline (GameState _ world _ _ _ _) =
   maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
 
-worldAnimationDeadline :: GameState e -> Maybe Deadline
+worldAnimationDeadline :: GameState m -> Maybe Deadline
 worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
   maybe
     Nothing
@@ -142,7 +159,7 @@ worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
       mayDeadline
 
 
-accelerateShip' :: Direction -> GameState e -> GameState e
+accelerateShip' :: Direction -> GameState m -> GameState m
 accelerateShip' dir (GameState c (World wa wb ship wc wd we) b f g h) =
   let newShip = accelerateShip dir ship
       world = World wa wb newShip wc wd we
@@ -155,14 +172,20 @@ accelerateShip' dir (GameState c (World wa wb ship wc wd we) b f g h) =
 
 
 {-# INLINABLE runGameWorker #-}
-runGameWorker :: (Draw e) => GameParameters -> ReaderT e IO ()
+runGameWorker :: (Draw e, MonadReader e m, MonadIO m)
+              => GameParameters
+              -> m ()
 runGameWorker params =
   mkInitialState params firstLevel Nothing
     >>= \case
       Left err -> error err
       Right ew -> loop params ew
 
-mkInitialState :: GameParameters -> Int -> Maybe (GameState e) -> ReaderT e IO (Either String (GameState e))
+mkInitialState :: (MonadIO m)
+               => GameParameters
+               -> Int
+               -> Maybe (GameState m)
+               -> m (Either String (GameState m))
 mkInitialState (GameParameters shape wallType) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
@@ -198,14 +221,20 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
 
 
 {-# INLINABLE loop #-}
-loop :: (Draw e) => GameParameters -> GameState e -> ReaderT e IO ()
+loop :: (Draw e, MonadReader e m, MonadIO m)
+     => GameParameters
+     -> GameState m
+     -> m ()
 loop params state =
   updateGame params state >>= (\(st, mayMeta) ->
     maybe (loop params st) (const $ return ()) mayMeta)
 
 
 {-# INLINABLE updateGame #-}
-updateGame :: (Draw e) => GameParameters -> GameState e -> ReaderT e IO (GameState e, Maybe Meta)
+updateGame :: (Draw e, MonadReader e m, MonadIO m)
+           => GameParameters
+           -> GameState m
+           -> m (GameState m, Maybe Meta)
 updateGame params state = do
   evt <- liftIO $ getTimedEvent state
   case evt of
@@ -214,13 +243,13 @@ updateGame params state = do
       st <- updateGameUsingTimedEvent params state evt
       return (st, Nothing)
 
-getTimedEvent :: GameState e -> IO TimedEvent
+getTimedEvent :: GameState m -> IO TimedEvent
 getTimedEvent state =
   getEvent state >>= \evt -> do
     t <- getCurrentTime
     return $ TimedEvent evt t
 
-getEvent :: GameState e -> IO Event
+getEvent :: GameState m -> IO Event
 getEvent state@(GameState _ _ _ _ level _) = do
   t <- getCurrentTime
   let deadline = nextDeadline state t
@@ -228,7 +257,11 @@ getEvent state@(GameState _ _ _ _ level _) = do
 
 
 {-# INLINABLE updateGameUsingTimedEvent #-}
-updateGameUsingTimedEvent :: (Draw e) => GameParameters -> GameState e -> TimedEvent -> ReaderT e IO (GameState e)
+updateGameUsingTimedEvent :: (Draw e, MonadReader e m, MonadIO m)
+                          => GameParameters
+                          -> GameState m
+                          -> TimedEvent
+                          -> m (GameState m)
 updateGameUsingTimedEvent
  params
  state@(GameState b world futWorld f h@(Level level target mayLevelFinished) i)
@@ -255,7 +288,7 @@ updateGameUsingTimedEvent
           updateGame2 te newState
 
 
-updateAnim :: UTCTime -> GameState e -> GameState e
+updateAnim :: UTCTime -> GameState m -> GameState m
 updateAnim t (GameState _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration _ nextFrame) = nextIteration it
          (world, gameDeadline, worldAnimDeadline) =
@@ -269,7 +302,10 @@ updateAnim t (GameState _ curWorld futWorld j k (WorldAnimation evolutions _ it)
 
 
 {-# INLINABLE updateGame2 #-}
-updateGame2 :: (Draw e) => TimedEvent -> GameState e -> ReaderT e IO (GameState e)
+updateGame2 :: (Draw e, MonadReader e m, MonadIO m)
+            => TimedEvent
+            -> GameState m
+            -> m (GameState m)
 updateGame2
  te@(TimedEvent event _)
  s@(GameState _ _ _ _ _ anim) =
@@ -288,7 +324,10 @@ updateGame2
 
 
 {-# INLINABLE renderGame #-}
-renderGame :: (Draw e) => Maybe KeyTime -> GameState e -> ReaderT e IO [BoundedAnimationUpdate e]
+renderGame :: (Draw e, MonadReader e m, MonadIO m)
+           => Maybe KeyTime
+           -> GameState m
+           -> m [BoundedAnimationUpdate m]
 renderGame k (GameState _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
@@ -302,12 +341,14 @@ renderGame k (GameState _ world@(World _ _ _ space@(Space _ (WorldSize (Coords r
                                   -- to reduce, it goes over numbers and ship
         return activeAnimations)
 
-renderAnimations :: Maybe KeyTime
+{-# INLINABLE renderAnimations #-}
+renderAnimations :: (Monad m)
+                 => Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords
-                 -> [BoundedAnimationUpdate e]
-                 -> ReaderT e IO [BoundedAnimationUpdate e]
+                 -> [BoundedAnimationUpdate m]
+                 -> m [BoundedAnimationUpdate m]
 renderAnimations k space mayTermWindow worldCorner animations = do
   let renderAnimation (BoundedAnimationUpdate a@(AnimationUpdate _ _ _ render) f) = do
         let fLocation = locationFunction f space mayTermWindow worldCorner

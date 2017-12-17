@@ -10,12 +10,10 @@ import qualified Prelude (putStrLn)
 import           System.Info(os)
 
 import           Control.Exception( finally )
-import           Control.Monad.Reader(runReaderT, ReaderT)
+import           Control.Monad.Reader(runReaderT)
 
-import           Draw
 import           Env
-import           Game( runGameWorker )
-import           Game.Parameters( getGameParameters )
+import           Game( gameWorker )
 import           Render.Delta
 import           Threading( runAndWaitForTermination, Termination(..) )
 
@@ -35,8 +33,3 @@ doRun =
   -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
   -- I use 'finally' to reset the console settings.
   `finally` restoreConsole
-
-{-# INLINABLE gameWorker #-}
-gameWorker :: (Draw e) => ReaderT e IO ()
-gameWorker =
-  getGameParameters >>= runGameWorker

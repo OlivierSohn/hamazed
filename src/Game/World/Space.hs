@@ -17,6 +17,9 @@ module Game.World.Space
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           System.Random( getStdRandom
                               , randomR )
 
@@ -275,20 +278,20 @@ strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
 
 
 {-# INLINABLE renderSpace #-}
-renderSpace :: (Draw e)
+renderSpace :: (Draw e, MonadReader e m, MonadIO m)
             => Space
             -> Coords
-            -> ReaderT e IO Coords
+            -> m Coords
 renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
   mapM_ (renderGroup worldCoords) renderedWorld
   return worldCoords
 
 {-# INLINABLE renderGroup #-}
-renderGroup :: (Draw e)
+renderGroup :: (Draw e, MonadReader e m, MonadIO m)
             => Coords
             -> RenderGroup
-            -> ReaderT e IO ()
+            -> m ()
 renderGroup worldCoords (RenderGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
 

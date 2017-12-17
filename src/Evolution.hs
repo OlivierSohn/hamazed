@@ -20,6 +20,9 @@ import           GHC.Show(showString)
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Draw.Class
 import           Interpolation
 
@@ -109,9 +112,9 @@ getValueAt (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
 
 {-# INLINABLE drawValueAt #-}
 -- | Draws an 'Evolution' for a given 'Frame'.
-drawValueAt :: (DiscretelyInterpolable v, Draw e)
+drawValueAt :: (DiscretelyInterpolable v, Draw e, MonadReader e m, MonadIO m)
             => Evolution v
             -> Frame
-            -> ReaderT e IO ()
+            -> m ()
 drawValueAt (Evolution s _ _ _) (Frame step) =
   interpolateSuccessiveIO s $ assert (step >= 0) step

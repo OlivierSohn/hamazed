@@ -13,6 +13,9 @@ module Game.Parameters(
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Game.Color
 import           Game.World
 import           Game.World.Evolution
@@ -24,6 +27,7 @@ import           Geo.Discrete
 
 import           IO.Blocking
 import           Timing
+import           Text.Alignment
 
 data GameParameters = GameParameters {
     _gameParamsWorldShape :: !WorldShape
@@ -38,11 +42,14 @@ initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
 {-# INLINABLE getGameParameters #-}
-getGameParameters :: (Draw e) => ReaderT e IO GameParameters
+getGameParameters :: (Draw e, MonadReader e m, MonadIO m)
+                  => m GameParameters
 getGameParameters = update initialParameters
 
 {-# INLINABLE update #-}
-update :: (Draw e) => GameParameters -> ReaderT e IO GameParameters
+update :: (Draw e, MonadReader e m, MonadIO m)
+       => GameParameters
+       -> m GameParameters
 update params =
   render' params >> do
     char <- liftIO getCharThenFlush
@@ -67,12 +74,27 @@ updateFromChar c p@(GameParameters shape wallType) =
 
 
 {-# INLINABLE dText #-}
-dText :: (Draw e) => Text -> Coords -> LayeredColor -> ReaderT e IO Coords
-dText txt pos color =
+dText :: (Draw e, MonadReader e m, MonadIO m)
+      => Text
+      -> LayeredColor
+      -> Coords
+      -> m Coords
+dText txt color pos =
   drawTxt txt pos color >> return (translateInDir Down pos)
 
+{-# INLINABLE dText_ #-}
+dText_ :: (Draw e, MonadReader e m, MonadIO m)
+       => Text
+       -> LayeredColor
+       -> Coords
+       -> m ()
+dText_ txt color pos =
+  void (dText txt color pos)
+
 {-# INLINABLE render' #-}
-render' :: (Draw e) => GameParameters -> ReaderT e IO ()
+render' :: (Draw e, MonadReader e m, MonadIO m)
+        => GameParameters
+        -> m ()
 render' (GameParameters shape wall) = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
   mkEmbeddedWorld worldSize >>= \case
@@ -87,24 +109,17 @@ render' (GameParameters shape wall) = do
               middleLow    = move (rs-1)           Down middle
               leftMargin = 3
               left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-              renderAlignedCentered = drawAlignedTxt Centered
-          renderAlignedCentered "Game configuration" (translateInDir Down middle) configColors
-            >>= \ pos ->
-                  void (renderAlignedCentered "------------------" pos configColors)
-          void (renderAlignedCentered "Hit 'Space' to start game" (translateInDir Up middleLow) configColors)
+          drawAlignedTxt "Game configuration" configColors (mkCentered $ translateInDir Down middle)
+            >>= drawAlignedTxt_ "------------------" configColors
+          drawAlignedTxt_ "Hit 'Space' to start game" configColors (mkCentered $ translateInDir Up middleLow)
 
-          translateInDir Down <$> dText "- World shape" (move 5 Up left) configColors
-            >>= \ pos ->
-              dText "'1' -> width = height" pos configColors
-                >>= \pos2 ->
-                  void (dText "'2' -> width = 2 x height" pos2 configColors)
-          translateInDir Down <$> dText "- World walls" left configColors
-            >>= \pos ->
-              dText "'e' -> no walls" pos configColors >>=
-                \pos2 ->
-                  dText "'r' -> deterministic walls" pos2 configColors
-                    >>= \pos3 ->
-                      void (dText "'t' -> random walls" pos3 configColors)
+          translateInDir Down <$> dText "- World shape" configColors (move 5 Up left)
+            >>= dText "'1' -> width = height" configColors
+              >>= dText_ "'2' -> width = 2 x height" configColors
+          translateInDir Down <$> dText "- World walls" configColors left
+            >>= dText "'e' -> no walls" configColors
+              >>= dText "'r' -> deterministic walls" configColors
+                >>= dText_ "'t' -> random walls" configColors
 
           t <- liftIO getCurrentTime
           let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))

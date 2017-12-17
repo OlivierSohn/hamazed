@@ -9,6 +9,9 @@ module Game.World.Frame.Types
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Data.List( mapAccumL, zip )
 
 import           Interpolation
@@ -44,12 +47,19 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
       lastFrame = pred $ distance f t
 
 {-# INLINABLE renderWhole #-}
-renderWhole :: (Draw e) => FrameSpec -> ReaderT e IO ()
+renderWhole :: (Draw e, MonadReader e m, MonadIO m)
+            => FrameSpec
+            -> m ()
 renderWhole (FrameSpec sz upperLeft color) =
   renderPartialWorldFrame sz color (upperLeft, 0, countWorldFrameChars sz - 1)
 
 {-# INLINABLE renderTransition #-}
-renderTransition :: (Draw e) => FrameSpec -> FrameSpec -> Int -> Int -> ReaderT e IO ()
+renderTransition :: (Draw e, MonadReader e m, MonadIO m)
+                 => FrameSpec
+                 -> FrameSpec
+                 -> Int
+                 -> Int
+                 -> m ()
 renderTransition from@(FrameSpec _ fromUpperLeft _)
                  to@(FrameSpec _ toUpperLeft _) n i = do
       let (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
@@ -88,7 +98,11 @@ ranges progress sz =
         Extremities -> complement 0 (total-1) res
 
 {-# INLINABLE renderFrom #-}
-renderFrom :: (Draw e) => BuildFrom -> Int -> FrameSpec -> ReaderT e IO ()
+renderFrom :: (Draw e, MonadReader e m, MonadIO m)
+           => BuildFrom
+           -> Int
+           -> FrameSpec
+           -> m ()
 renderFrom rangeType progress (FrameSpec sz r color) = do
   let rs = ranges progress sz rangeType
   mapM_ (\(min_, max_) -> renderPartialWorldFrame sz color (r, min_, max_)) rs
@@ -117,7 +131,11 @@ countWorldFrameVertical (WorldSize (Coords rs _)) =
   fromIntegral rs
 
 {-# INLINABLE renderPartialWorldFrame #-}
-renderPartialWorldFrame :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO ()
+renderPartialWorldFrame :: (Draw e, MonadReader e m, MonadIO m)
+                        => WorldSize
+                        -> LayeredColor
+                        -> (Coords, Int, Int)
+                        -> m ()
 renderPartialWorldFrame sz colors r =
   renderUpperWall sz colors r
     >>= renderRightWall sz colors
@@ -128,7 +146,11 @@ renderPartialWorldFrame sz colors r =
 -- TODO factorize Right with LEft, Upper with Lower
 
 {-# INLINABLE renderRightWall #-}
-renderRightWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderRightWall :: (Draw e, MonadReader e m, MonadIO m)
+                => WorldSize
+                -> LayeredColor
+                -> (Coords, Int, Int)
+                -> m (Coords, Int, Int)
 renderRightWall sz colors (upperRight, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -143,7 +165,11 @@ renderRightWall sz colors (upperRight, from, to) = do
       return (nextR, from + nChars - countMax, to - countMax)
 
 {-# INLINABLE renderLeftWall #-}
-renderLeftWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderLeftWall :: (Draw e, MonadReader e m, MonadIO m)
+               => WorldSize
+               -> LayeredColor
+               -> (Coords, Int, Int)
+               -> m (Coords, Int, Int)
 renderLeftWall sz colors (lowerLeft, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -159,7 +185,11 @@ renderLeftWall sz colors (lowerLeft, from, to) = do
 
 -- 0 is upper left
 {-# INLINABLE renderUpperWall #-}
-renderUpperWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderUpperWall :: (Draw e, MonadReader e m, MonadIO m)
+                => WorldSize
+                -> LayeredColor
+                -> (Coords, Int, Int)
+                -> m (Coords, Int, Int)
 renderUpperWall sz colors (upperLeft, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
@@ -173,7 +203,11 @@ renderUpperWall sz colors (upperLeft, from, to) = do
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 {-# INLINABLE renderLowerWall #-}
-renderLowerWall :: (Draw e) => WorldSize -> LayeredColor -> (Coords, Int, Int) -> ReaderT e IO (Coords, Int, Int)
+renderLowerWall :: (Draw e, MonadReader e m, MonadIO m)
+                => WorldSize
+                -> LayeredColor
+                -> (Coords, Int, Int)
+                -> m (Coords, Int, Int)
 renderLowerWall sz colors (lowerRight, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)

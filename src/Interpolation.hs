@@ -13,6 +13,9 @@ module Interpolation
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Data.List( length, mapAccumL )
 
 import           Geo.Discrete
@@ -70,11 +73,11 @@ class (Show v) => DiscretelyInterpolable v where
               -> v -- ^ the interpolated value
   interpolate = error "interpolate is not defined"
 
-  interpolateIO :: (Draw e)
+  interpolateIO :: (Draw e, MonadReader e m, MonadIO m)
                 => v -- ^ first value
                 -> v -- ^ last value
                 -> Int -- ^ the current step
-                -> ReaderT e IO ()
+                -> m ()
   interpolateIO = error "interpolateIO is not defined"
 
   interpolateSuccessive :: Successive v
@@ -89,10 +92,10 @@ class (Show v) => DiscretelyInterpolable v where
     where lf = pred $ distance a b
 
   {-# INLINABLE interpolateSuccessiveIO #-}
-  interpolateSuccessiveIO :: (Draw e)
+  interpolateSuccessiveIO :: (Draw e, MonadReader e m, MonadIO m)
                           => Successive v
                           -> Int
-                          -> ReaderT e IO ()
+                          -> m ()
   interpolateSuccessiveIO (Successive []) _ = error "empty successive"
   interpolateSuccessiveIO (Successive [a]) _ = interpolateIO a a 0
   interpolateSuccessiveIO (Successive l@(a:b:_)) i

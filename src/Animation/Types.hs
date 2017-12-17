@@ -107,7 +107,7 @@ data Continuation = Continuation {
 {- | Contains what is required to do /one/ update of 'AnimatedPoints',
 and to generate the next 'AnimationUpdate', or 'Nothing' if the animation is over.
 -}
-data AnimationUpdate e = AnimationUpdate {
+data AnimationUpdate m = AnimationUpdate {
     _animationNextTime :: !KeyTime
     -- ^ The time at which this animation becomes obsolete
   , _animationIteration :: !Iteration
@@ -115,16 +115,16 @@ data AnimationUpdate e = AnimationUpdate {
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points, if the pure animation function doesn't specify one.
   , _animationRender :: !(Maybe KeyTime
-                       -> AnimationUpdate e
+                       -> AnimationUpdate m
                        -> (Coords -> Location)
                        -> Coords
-                       -> ReaderT e IO (Maybe (AnimationUpdate e))
+                       -> m (Maybe (AnimationUpdate m))
                        )
     -- ^ Renders 'AnimatedPoints' which are pre-applied, as well as input parameters.
     -- may return the next 'AnimationUpdate'
 }
 
-instance Show (AnimationUpdate e) where
+instance Show (AnimationUpdate m) where
   showsPrec _ (AnimationUpdate a b c _) = showString $ "AnimationUpdate{" ++ show (a,b,c) ++ "}"
 
 
@@ -143,7 +143,7 @@ data StepType = Initialize
 
 
 -- | Constructs an 'AnimationUpdate'
-mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
+mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
                   -- ^ The update function.
                   -> KeyTime
                   -- ^ The 'KeyTime' of the event that triggered this animation.
@@ -153,7 +153,7 @@ mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location
                   -- ^ The 'Speed' of the animation (the 'Frame' will be incremented at this rate)
                   -> Maybe Char
                   -- ^ The default 'Char' to use when the pure animation function doesn't specify one.
-                  -> AnimationUpdate e
+                  -> AnimationUpdate m
 mkAnimationUpdate render t frameInit speed mayChar =
   let mayNext = case frameInit of
                   WithZero -> id
@@ -162,10 +162,10 @@ mkAnimationUpdate render t frameInit speed mayChar =
 
 
 -- Intermediate helper structure to construct an 'AnimationUpdate'
-data Animator e = Animator {
+data Animator m = Animator {
     _animatorPure :: !(Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
     -- ^ A pure animation function that updates AnimatedPoints
-  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))
+  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))
     -- ^ An IO function that consumes an updated AnimatedPoints to render the animation.
     --
     -- Non-strict to avoid an infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)

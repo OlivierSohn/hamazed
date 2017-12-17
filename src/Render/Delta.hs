@@ -151,10 +151,8 @@ module Render.Delta
           , module Render.Delta.Draw
             -- ** Render
           , module Render.Delta.Flush
-          , module Render.Delta.Functions
           ) where
 
 import           Render.Delta.Buffers
 import           Render.Delta.Draw
 import           Render.Delta.Flush
-import           Render.Delta.Functions

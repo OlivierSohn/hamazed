@@ -9,21 +9,25 @@ module Game.World.Evolution
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Game.World.Types
 
 import           Geo.Discrete
 
 import           Draw
 
+import           Text.Alignment
 import           Text.ColorString
 
 import           Timing
 
 {-# INLINABLE renderEvolutions #-}
-renderEvolutions :: (Draw e)
+renderEvolutions :: (Draw e, MonadReader e m, MonadIO m)
                  => WorldEvolutions
                  -> Frame
-                 -> ReaderT e IO ()
+                 -> m ()
 renderEvolutions we@(WorldEvolutions frameE upDown left) frame  = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
   drawValueAt frameE relFrameFrameE
@@ -86,15 +90,15 @@ mkTextAnimLeft from to (txtLeft1s, txtLeft2s)
     let (_, _, leftMiddleFrom) = computeRSForInfos from
         (_, _, leftMiddleTo) = computeRSForInfos to
 
-        rightAlignLeft = alignTxt RightAligned
+        rightAlignLeft pos = alignTxt $ mkRightAlign pos
 
         rightAlignLeft2 x = move 2 Down . rightAlignLeft x
 
-        leftMiddle1FromAligned = rightAlignLeft (head txtLeft1s) leftMiddleFrom
-        leftMiddle1ToAligned   = rightAlignLeft (last txtLeft1s) leftMiddleTo
+        leftMiddle1FromAligned = rightAlignLeft leftMiddleFrom (head txtLeft1s)
+        leftMiddle1ToAligned   = rightAlignLeft leftMiddleTo (last txtLeft1s)
 
-        leftMiddle2FromAligned = rightAlignLeft2 (head txtLeft2s) leftMiddleFrom
-        leftMiddle2ToAligned   = rightAlignLeft2 (last txtLeft2s) leftMiddleTo
+        leftMiddle2FromAligned = rightAlignLeft2 leftMiddleFrom (head txtLeft2s)
+        leftMiddle2ToAligned   = rightAlignLeft2 leftMiddleTo (last txtLeft2s)
 
     in  mkSequentialTextTranslationsStringAnchored
           [(txtLeft1s, leftMiddle1FromAligned, leftMiddle1ToAligned),
@@ -111,20 +115,21 @@ mkTextAnimUpDown from to (txtUppers, txtLowers)
     let (centerUpFrom, centerDownFrom, _) = computeRSForInfos from
         (centerUpTo, centerDownTo, _) = computeRSForInfos to
 
-        alignTxtCentered = alignTxt Centered
+        alignTxtCentered pos = alignTxt $ mkCentered pos
 
-        centerUpFromAligned = alignTxtCentered (head txtUppers) centerUpFrom
-        centerUpToAligned   = alignTxtCentered (last txtUppers) centerUpTo
+        centerUpFromAligned = alignTxtCentered centerUpFrom (head txtUppers)
+        centerUpToAligned   = alignTxtCentered centerUpTo (last txtUppers)
 
-        centerDownFromAligned = alignTxtCentered (head txtLowers) centerDownFrom
-        centerDownToAligned   = alignTxtCentered (last txtLowers) centerDownTo
+        centerDownFromAligned = alignTxtCentered centerDownFrom (head txtLowers)
+        centerDownToAligned   = alignTxtCentered centerDownTo (last txtLowers)
     in  mkSequentialTextTranslationsCharAnchored
           [(txtUppers, centerUpFromAligned, centerUpToAligned),
            (txtLowers, centerDownFromAligned, centerDownToAligned)]
           duration
 
-alignTxt :: Alignment -> ColorString -> Coords -> Coords
-alignTxt al txt = uncurry move $ align al $ countChars txt
+alignTxt :: Alignment -> ColorString  -> Coords
+alignTxt (Alignment al pos) txt =
+  uncurry move (align al $ countChars txt) pos
 
 
 computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)

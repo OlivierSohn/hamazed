@@ -4,9 +4,13 @@
 module Test.InterpolatedColorString(testICS) where
 
 import Imajuscule.Prelude
-import Data.Text(pack)
 
 import Prelude(String)
+
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
+import Data.Text(pack)
 
 import Geo.Discrete
 import Color
@@ -14,7 +18,8 @@ import Color.IColor8Code
 import Game.World.Space
 import Text.ColorString
 
-testICS :: (Draw e) => ReaderT e IO ()
+testICS :: (Draw e, MonadReader e m, MonadIO m)
+        => m ()
 testICS = do
 
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
@@ -60,15 +65,27 @@ testICS = do
       drawStr' (show color) (Coords (c + 30) 35) zeroCoords
     ) $ map Frame [0..lastFrame''']
 
-drawColored' :: (Draw e) => ColorString -> Coords -> Coords -> ReaderT e IO ()
+drawColored' :: (Draw e, MonadReader e m, MonadIO m)
+             => ColorString
+             -> Coords
+             -> Coords
+             -> m ()
 drawColored' cs pos rs =
   void (drawColored cs (translate pos rs))
 
-drawStr' :: (Draw e) => String -> Coords -> Coords -> ReaderT e IO Coords
+drawStr' :: (Draw e, MonadReader e m, MonadIO m)
+         => String
+         -> Coords
+         -> Coords
+         -> m Coords
 drawStr' cs pos rs =
   drawStr'' cs (translate pos rs) (LayeredColor black white)
 
 
-drawStr'' :: (Draw e) => String -> Coords -> LayeredColor -> ReaderT e IO Coords
+drawStr'' :: (Draw e, MonadReader e m, MonadIO m)
+          => String
+          -> Coords
+          -> LayeredColor
+          -> m Coords
 drawStr'' str pos color =
   drawTxt (pack str) pos color >> return (translateInDir Down pos)

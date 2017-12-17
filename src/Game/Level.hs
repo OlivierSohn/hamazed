@@ -18,6 +18,9 @@ module Game.Level
 
 import           Imajuscule.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
+
 import           Data.Text( pack )
 import           System.Timeout( timeout )
 
@@ -56,7 +59,7 @@ eventFromChar (Level n _ finished) char =
     _ -> Nonsense -- between level end and proposal to continue
 
 
-isLevelFinished :: World e -> Int -> Int -> TimedEvent -> Maybe LevelFinished
+isLevelFinished :: World m -> Int -> Int -> TimedEvent -> Maybe LevelFinished
 isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimedEvent lastEvent t) =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
@@ -123,7 +126,11 @@ getCharWithinDurationMicros durationMicros step =
       timeout durationMicros getCharThenFlush
 
 {-# INLINABLE renderLevelState #-}
-renderLevelState :: (Draw e) => Coords -> Int -> LevelFinished -> ReaderT e IO ()
+renderLevelState :: (Draw e, MonadReader e m, MonadIO m)
+                 => Coords
+                 -> Int
+                 -> LevelFinished
+                 -> m ()
 renderLevelState s level (LevelFinished stop _ messageState) = do
   let topLeft = translateInDir RIGHT s
       stopMsg = case stop of
@@ -144,6 +151,9 @@ renderLevelState s level (LevelFinished stop _ messageState) = do
 
 
 {-# INLINABLE renderLevelMessage #-}
-renderLevelMessage :: (Draw e) => Level -> Coords -> ReaderT e IO ()
+renderLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
+                   => Level
+                   -> Coords
+                   -> m ()
 renderLevelMessage (Level level _ levelState) rightMiddle =
   mapM_ (renderLevelState rightMiddle level) levelState

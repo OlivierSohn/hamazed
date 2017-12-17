@@ -41,7 +41,11 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
 
 
 {-# INLINABLE destroyedNumbersAnimations #-}
-destroyedNumbersAnimations :: (Draw e) => KeyTime -> Event -> [Number] -> [BoundedAnimationUpdate e]
+destroyedNumbersAnimations :: (Draw e, MonadReader e m, MonadIO m)
+                           => KeyTime
+                           -> Event
+                           -> [Number]
+                           -> [BoundedAnimationUpdate m]
 destroyedNumbersAnimations keyTime event =
   let sp = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir

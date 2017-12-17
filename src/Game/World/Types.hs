@@ -17,7 +17,7 @@ module Game.World.Types
         , module Game.World.Space.Types
         , module Game.World.Frame.Types
         , module Iteration
-        , module Text.Animated
+        , module Text.Animation
         , Terminal.Window
         ) where
 
@@ -32,7 +32,7 @@ import           Game.World.Frame.Types
 
 import           Iteration
 
-import           Text.Animated
+import           Text.Animation
 import           Text.ColorString
 
 import           Timing
@@ -58,16 +58,16 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !FrameSpec
 }
 
-mkFrameSpec :: LayeredColor -> World e -> FrameSpec
+mkFrameSpec :: LayeredColor -> World m -> FrameSpec
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
   FrameSpec sz upperLeft colors
 
-data World e = World {
+data World m = World {
     _worldNumbers :: ![Number]
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimationUpdate e]
+  , _worldAnimations :: ![BoundedAnimationUpdate m]
   , _worldEmbedded :: !EmbeddedWorld
 }
 
@@ -76,7 +76,7 @@ data EmbeddedWorld = EmbeddedWorld {
   , _embeddedWorldUpperLeft :: !Coords
 } deriving (Show)
 
-data BoundedAnimationUpdate e = BoundedAnimationUpdate !(AnimationUpdate e) !Boundaries deriving(Show)
+data BoundedAnimationUpdate m = BoundedAnimationUpdate !(AnimationUpdate m) !Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow

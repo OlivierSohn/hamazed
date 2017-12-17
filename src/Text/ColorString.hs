@@ -22,6 +22,8 @@ import           Imajuscule.Prelude
 import           System.Console.ANSI(Color8Code(..))
 
 import           Control.Monad( foldM_ )
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader)
 
 import qualified Data.List as List(length, splitAt)
 import           Data.String(IsString(..))
@@ -33,6 +35,7 @@ import           Color.ILayeredColor
 import           Draw
 import           Geo.Discrete
 import           Math
+import           Text.Alignment
 import           Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
@@ -177,10 +180,10 @@ instance Monoid ColorString where
 
 -- \ Draw a 'ColorString'.
 {-# INLINABLE drawColored #-}
-drawColored :: (Draw e)
+drawColored :: (Draw e, MonadReader e m, MonadIO m)
             => ColorString
             -> Coords
-            -> ReaderT e IO ()
+            -> m ()
 drawColored (ColorString cs) pos =
   foldM_
     (\count (txt, color) -> do
@@ -191,12 +194,11 @@ drawColored (ColorString cs) pos =
 
 -- \ Draw a 'ColorString' with an 'Alignment' constraint.
 {-# INLINABLE drawAligned #-}
-drawAligned :: (Draw e)
+drawAligned :: (Draw e, MonadReader e m, MonadIO m)
             => Alignment
             -> ColorString
-            -> Coords
-            -> ReaderT e IO Coords
-drawAligned a cs pos = do
-  let leftCorner = align' a (countChars cs) pos
+            -> m Alignment
+drawAligned a cs = do
+  let leftCorner = align' a (countChars cs)
   _ <- drawColored cs leftCorner
-  return (translateInDir Down pos)
+  return $ toNextLine a

@@ -4,14 +4,14 @@ module Geo.Continuous
            ( rotateByQuarters
            , sumVec2d
            , scalarProd
-           -- circles
+           -- * Circles
            , translatedFullCircle
            , translatedFullCircleFromQuarterArc
-           -- curves
+           -- * Curves
            , parabola
-           -- poly extremities
+           -- * Poly extremities
            , polyExtremities
-           -- | reexports
+           -- * Reexports
            , module Geo.Continuous.Types
            ) where
 

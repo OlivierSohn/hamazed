@@ -3,10 +3,15 @@
 -- | Helper functions for pure animation functions
 
 module Animation.Design.Geo
-    ( gravityFall
+    (
+    -- * Gravity
+      gravityFall
+    -- * Explosion
     , simpleExplosionPure
     , quantitativeExplosionPure
+    -- * Geometric figures
     , animateNumberPure
+    -- * Laser
     , simpleLaserPure
     ) where
 

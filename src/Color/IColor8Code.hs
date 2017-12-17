@@ -1,13 +1,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | 'IColor8Code' wraps 'Color8Code' to define the 'DiscretelyInterpolable'
+-- instance
+
 module Color.IColor8Code
         ( IColor8Code(..)
-        -- utilities
+        -- * Bresenham-related functions
         , bresenhamRGBLength
         , bresenhamRGB
         , bresenhamColor8Length
         , bresenhamColor8
-        -- | reexports
+        -- * Reexports
         , module Interpolation
         ) where
 
@@ -26,13 +29,14 @@ import           Math
 import           Util
 
 
--- | wrapper type on 'Color8Code' to define the 'DiscretelyInterpolable' instance
 newtype IColor8Code = IColor8Code Color8Code deriving (Show)
 
 instance DiscretelyInterpolable IColor8Code where
+  -- | The two input 'IColor8Code' are supposed to be both 'rgb' or both 'gray'.
   distance (IColor8Code c) (IColor8Code c') =
     bresenhamColor8Length c c'
 
+  -- | The two input 'IColor8Code' are supposed to be both 'rgb' or both 'gray'.
   interpolate (IColor8Code c) (IColor8Code c') i
     | c == c' = IColor8Code c
     | otherwise =
@@ -41,9 +45,10 @@ instance DiscretelyInterpolable IColor8Code where
             index = clamp i 0 lastFrame
         in IColor8Code . head . drop index $ bresenhamColor8 c c'
 
--- | Interpolations between 2 rgb or 2 grays are well-defined, whereas
+-- Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
+-- | The two input 'IColor8Code' are supposed to be both 'rgb' or both 'gray'.
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8Code -> Color8Code -> Int
 bresenhamColor8Length c c'
@@ -54,6 +59,7 @@ bresenhamColor8Length c c'
         (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
         colors -> error $ "cannot get length between colors " ++ show colors
 
+-- | The two input 'IColor8Code' are supposed to be both 'rgb' or both 'gray'.
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8Code -> Color8Code -> [Color8Code]
 bresenhamColor8 c c'

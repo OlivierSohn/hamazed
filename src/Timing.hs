@@ -1,15 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This modules handle time constants of animations and game.
+-- | This modules exports types and functions related to timing.
 
 module Timing
-    ( addDuration
-    , computeTime
+    ( -- * Types
+      KeyTime(..)
+    -- * Utilities
+    , addDuration
     , diffTimeSecToMicros
-    , Timer(..)
-    , KeyTime(..)
     , floatSecondsToNominalDiffTime
-    -- | reexports
+    -- * Reexports
     , UTCTime(..)
     , NominalDiffTime
     , addUTCTime
@@ -27,29 +27,24 @@ import           Data.Time( addUTCTime
                           , UTCTime(..) )
 
 
--- I introduce this type to prevent equality test which make no sense, like
--- between "current system time" and a time that was computed
+-- | Represents deadlines and event times.
 newtype KeyTime = KeyTime UTCTime deriving(Eq, Ord, Show)
 
+-- | Convert a 'NominalDiffTime' to a number of microseconds.
 diffTimeSecToMicros :: NominalDiffTime -> Int
 diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
 
 microSecondsPerSecond :: Prelude.Integer
 microSecondsPerSecond = 1000000
 
+-- | Converts a duration expressed in seconds using a 'Float' to a 'NominalDiffTime'
+--  which has picosecond resolution.
 floatSecondsToNominalDiffTime :: Float -> NominalDiffTime
 floatSecondsToNominalDiffTime f = microsecondsToNominalDiffTime $ floor (f*fromIntegral microSecondsPerSecond)
 
 microsecondsToNominalDiffTime :: Prelude.Integer -> NominalDiffTime
 microsecondsToNominalDiffTime x = fromRational (x % fromIntegral microSecondsPerSecond)
 
-
-newtype Timer = Timer { _initialTime :: UTCTime }
-
-computeTime :: Timer -> UTCTime -> Int
-computeTime (Timer t1) t2 =
-  let t = diffUTCTime t2 t1
-  in floor t
-
+-- | Adds a 'NominalDiffTime' to a 'KeyTime'.
 addDuration :: NominalDiffTime -> KeyTime -> KeyTime
 addDuration durationSeconds (KeyTime t) = KeyTime $ addUTCTime durationSeconds t

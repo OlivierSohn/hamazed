@@ -44,7 +44,7 @@ getGameParameters = update initialParameters
 {-# INLINABLE update #-}
 update :: (Draw e) => GameParameters -> ReaderT e IO GameParameters
 update params =
-  render params >> do
+  render' params >> do
     char <- liftIO getCharThenFlush
     either
       (\_ -> return params)
@@ -71,9 +71,9 @@ dText :: (Draw e) => Text -> Coords -> LayeredColor -> ReaderT e IO Coords
 dText txt pos color =
   drawTxt txt pos color >> return (translateInDir Down pos)
 
-{-# INLINABLE render #-}
-render :: (Draw e) => GameParameters -> ReaderT e IO ()
-render (GameParameters shape wall) = do
+{-# INLINABLE render' #-}
+render' :: (Draw e) => GameParameters -> ReaderT e IO ()
+render' (GameParameters shape wall) = do
   let worldSize@(WorldSize (Coords (Coord rs) (Coord cs))) = worldSizeFromLevel 1 shape
   mkEmbeddedWorld worldSize >>= \case
     Left err -> error err
@@ -110,4 +110,4 @@ render (GameParameters shape wall) = do
           let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation
-      flush
+      renderDrawing

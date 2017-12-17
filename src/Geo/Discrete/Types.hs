@@ -1,8 +1,9 @@
-{-# OPTIONS_HADDOCK prune, hide #-}
+{-# OPTIONS_HADDOCK prune #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+-- | Types for discrete geometry.
 
 module Geo.Discrete.Types
     ( Col

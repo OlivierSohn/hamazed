@@ -60,11 +60,11 @@ data AnimatedPoints = AnimatedPoints {
   , _treeStart :: !Frame
     -- ^ When the animation begins (relatively to the parent animation if any)
   , _treeBranches :: !(Maybe [Either AnimatedPoints Coords])
-    -- ^ There is one element in the "Just" list per animation point
-    --   for the animation corresponding to this recursion level. Elements are:
+    -- ^ The 'Just' list contains one element per animation point of the animation
+    --  corresponding to this recursion depth. Elements are 'Either':
     --
-    -- * 'Right Coords' when they are still alive (typically they didn't collide yet with the world).
-    -- * 'Left AnimatedPoints' when they are dead for this animation and maybe
+    -- * 'Coords' when they are still alive.
+    -- * 'AnimatedPoints' when they are dead for this animation and maybe
     --   gave birth to animation points in the next chained animation.
   , _treeOnWall :: !CollisionReaction
     -- ^ What the animation points do when they meet a wall
@@ -114,9 +114,14 @@ data AnimationUpdate e = AnimationUpdate {
     -- ^ The iteration
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points, if the pure animation function doesn't specify one.
-  , _animationRender :: !(Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e)))
-    -- ^ This function renders 'AnimatedPoints' (input parameters and 'AnimatedPoints' are pre-applied)
-    --   and may return the next 'AnimationUpdate'.
+  , _animationRender :: !(Maybe KeyTime
+                       -> AnimationUpdate e
+                       -> (Coords -> Location)
+                       -> Coords
+                       -> ReaderT e IO (Maybe (AnimationUpdate e))
+                       )
+    -- ^ Renders 'AnimatedPoints' which are pre-applied, as well as input parameters.
+    -- may return the next 'AnimationUpdate'
 }
 
 instance Show (AnimationUpdate e) where

@@ -8,4 +8,5 @@ module Geo.Types
 
 import           Imajuscule.Prelude
 
+-- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)

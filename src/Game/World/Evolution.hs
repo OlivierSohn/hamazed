@@ -26,16 +26,16 @@ renderEvolutions :: (Draw e)
                  -> ReaderT e IO ()
 renderEvolutions we@(WorldEvolutions frameE upDown left) frame  = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  evolveIO frameE relFrameFrameE
+  drawValueAt frameE relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD
   renderAnimatedTextStringAnchored left relFrameLeft
 
 getDeltaTime :: WorldEvolutions -> Frame -> Maybe Float
 getDeltaTime we@(WorldEvolutions frameE (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getFrames we frame
-  in evolveDeltaTime frameE relFrameFrameE
-    <|> evolveDeltaTime upDown relFrameUD -- todo in TextAnimation we should have a fake evolution just for timing
-    <|> evolveDeltaTime left relFrameLeft
+  in getDeltaTimeToNextFrame frameE relFrameFrameE
+    <|> getDeltaTimeToNextFrame upDown relFrameUD -- todo in TextAnimation we should have a fake evolution just for timing
+    <|> getDeltaTimeToNextFrame left relFrameLeft
 
 getFrames :: WorldEvolutions -> Frame -> (Frame, Frame, Frame)
 getFrames (WorldEvolutions (Evolution _ lastFrameFrameE _ _)
@@ -49,12 +49,12 @@ getFrames (WorldEvolutions (Evolution _ lastFrameFrameE _ _)
 mkWorldAnimation :: (FrameSpec, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
                  -> (FrameSpec, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
                  -> UTCTime
-                 -- ^ time at which the animation starts
+                 -- ^ Time at which the animation starts
                  -> WorldAnimation
 mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
-  WorldAnimation evolutions deadline (Iteration (Speed 1, zeroFrame))
+  WorldAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolution2 (FrameAnimationParallel4 from) (FrameAnimationParallel4 to) 1
+  frameE = mkEvolution (Successive [FrameAnimationParallel4 from, FrameAnimationParallel4 to]) 1
   (ta1,ta2) = createInterpolations from to (f1++t1, f2++t2, f3++t3, f4++t4) 1
   evolutions = WorldEvolutions frameE ta1 ta2
   deadline =

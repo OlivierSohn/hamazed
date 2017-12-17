@@ -27,11 +27,13 @@ import           Geo.Discrete( mkSegment )
 -- In particular, decides if a given animation point should continue to be "alive"
 -- or if, due to a collision, it should now trigger an "evolution" at that point.
 applyAnimation :: (Coords -> Frame -> ([Coords], Maybe Char))
+               -- ^ Pure animation function
                -> Iteration
                -> (Coords -> Location)
+               -- ^ Collision function
                -> AnimatedPoints
                -> AnimatedPoints
-applyAnimation animation iteration@(Iteration (_,globalFrame)) getLocation (AnimatedPoints root startFrame branches onWall _) =
+applyAnimation animation iteration@(Iteration _ globalFrame) getLocation (AnimatedPoints root startFrame branches onWall _) =
   let frame = globalFrame - startFrame
       (points, char) = animation root frame
       previousState = fromMaybe (replicate (length points) $ Right $ assert (getLocation root == InsideWorld) root) branches
@@ -58,7 +60,7 @@ combinePoints :: (Coords -> Location)
               -> Coords
               -> Either AnimatedPoints Coords
               -> Either AnimatedPoints Coords
-combinePoints getLocation (Iteration(_,frame)) onWall point =
+combinePoints getLocation (Iteration _ frame) onWall point =
   either
     Left
     (\prevPoint ->

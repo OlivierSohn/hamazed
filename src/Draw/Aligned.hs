@@ -1,9 +1,10 @@
 -- | This module handles drawing 'Text' with a given 'Alignment'.
 
 module Draw.Aligned
-            ( Alignment(..)
+            ( drawAlignedTxt_
             , drawAlignedTxt
-            , drawAlignedTxt_
+            , Alignment(..)
+            -- * Utilities
             , align
             , align'
             ) where

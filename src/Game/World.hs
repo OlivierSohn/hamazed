@@ -9,7 +9,7 @@ module Game.World
     , renderWorld
     , renderWorldAnimation
     , earliestAnimationDeadline
-    -- | reexports
+    -- * reexports
     , Number(..)
     , module Game.World.Types
     ) where
@@ -179,5 +179,5 @@ renderNumber (Number (PosSpeed pos _) i) space b =
 renderWorldAnimation :: (Draw e)
                      => WorldAnimation
                      -> ReaderT e IO ()
-renderWorldAnimation (WorldAnimation evolutions _ (Iteration (_, frame))) =
+renderWorldAnimation (WorldAnimation evolutions _ (Iteration _ frame)) =
   renderEvolutions evolutions frame

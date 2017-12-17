@@ -10,7 +10,7 @@ module Game.World.Space
     , mkEmptySpace
     , createRandomPosSpeed
     , locationFunction
-    -- | reexports
+    -- * Reexports
     , module Game.World.Types
     , module Draw
     ) where
@@ -252,7 +252,8 @@ getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
--- | 0,0 Coord corresponds to 1,1 matrix
+-- | @Coord 0 0@ corresponds to indexes 1 1 in matrix :
+-- <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem indices start at 1>.
 getMaterial :: Coords -> Space -> Material
 getMaterial coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
   | r < 0 || c < 0       = Wall

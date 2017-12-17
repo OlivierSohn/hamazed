@@ -16,11 +16,9 @@ import           Animation.Types
 import           Draw
 
 {- |
-Updates and renders 'AnimatedPoints', returns:
-
-* 'Just' the next 'AnimationUpdate' in which the updated 'AnimatedPoints'
+Updates and renders 'AnimatedPoints'. If the animation has animation points that
+are still alive, returns the next 'AnimationUpdate' in which the updated 'AnimatedPoints'
   is preapplied to the render function.
-* or 'Nothing' if the animation is over
 -}
 {-# INLINABLE renderAndUpdate #-}
 renderAndUpdate :: (Draw e)
@@ -30,9 +28,9 @@ renderAndUpdate :: (Draw e)
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
                 ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate e -> (Coords -> Location) -> Coords -> ReaderT e IO (Maybe (AnimationUpdate e))
-renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration(_, frame)) mayChar _) getLocation r = do
+renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration _ frame) mayChar _) getLocation r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
-  isAlive <- render frame mayChar newState getLocation colorFunc r
+  isAlive <- render' frame mayChar newState getLocation colorFunc r
   return $
     if isAlive
       then
@@ -107,20 +105,20 @@ stepAnimation :: (Draw e)
 stepAnimation (AnimationUpdate t i c f) = AnimationUpdate (addAnimationStepDuration t) (nextIteration i) c f
 
 
-{-# INLINABLE render #-}
-render :: (Draw e)
-       => Frame
-       -> Maybe Char
-       -- ^ default char to use when there is no char specified in the state
-       -> AnimatedPoints
-       -> (Coords -> Location)
-       -> (Frame -> LayeredColor)
-       -> Coords
-       -> ReaderT e IO Bool
-       -- ^ True if at least one animation point is "alive"
-render _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
-render _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False
-render
+{-# INLINABLE render' #-}
+render' :: (Draw e)
+        => Frame
+        -> Maybe Char
+        -- ^ default char to use when there is no char specified in the state
+        -> AnimatedPoints
+        -> (Coords -> Location)
+        -> (Frame -> LayeredColor)
+        -> Coords
+        -> ReaderT e IO Bool
+        -- ^ True if at least one animation point is "alive"
+render' _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
+render' _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False
+render'
  parentFrame mayCharAnim (AnimatedPoints _ childFrame (Just branches) onWall mayCharTree)
  getLocation colorFunc r = do
   let mayChar = mayCharTree <|> mayCharAnim
@@ -136,5 +134,5 @@ render
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
       mapM_ (\c -> drawChar char (sumCoords c r) color) renderedCoordinates
-      childrenAlive <- mapM (\child -> render relFrame mayCharAnim child getLocation colorFunc r) children
+      childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child getLocation colorFunc r) children
       return $ isAlive || or childrenAlive

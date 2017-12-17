@@ -1,10 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+-- | Handles functions related to collision.
+
 module Collision
-    ( CollisionStatus(..)
-    , Location(..)
-    , firstCollision
+    ( firstCollision
     , mirrorIfNeeded
+    , CollisionStatus(..)
+    , Location(..)
     ) where
 
 import           Imajuscule.Prelude
@@ -15,30 +17,43 @@ import           Geo.Discrete.Types
 
 
 data Location = InsideWorld
+              -- ^ No collision.
               | OutsideWorld
+              -- ^ A collision exists.
               deriving(Eq, Show)
 
--- | this datatype is awkward, TODO refactor
-data CollisionStatus = NoCollision -- no collision on the trajectory, position is unchanged
-                     | PreCollision -- a collision exists on the trajectory,
-                                    -- position was changed to be just before the collision
-                                    -- and speed was mirrored
--- Either:
---  - (collision found) mirrors speed and moves to the pre-collision position
---  - (no collision found) doesn't change anything
-mirrorIfNeeded :: (Coords -> Location) -> PosSpeed -> (PosSpeed, CollisionStatus)
-mirrorIfNeeded getLocation posspeed@(PosSpeed pos speed) =
-  let trajectory = bresenham $ mkSegment pos $ sumCoords pos speed
-      adjustPosSpeed (mirror, newPos) = (PosSpeed newPos $ mirrorCoords speed mirror, PreCollision)
-  in maybe (posspeed, NoCollision) adjustPosSpeed $ firstCollision getLocation trajectory
+data CollisionStatus = NoCollision
+                     -- ^ no collision on the trajectory, position is unchanged
+                     | PreCollision
+                     -- ^ a collision exists on the trajectory,
+                     -- position was changed to be just before the collision
+                     -- and speed was mirrored
 
--- | assumes the first position has no collision
+-- | On collision, mirrors speed and moves to the pre-collision position.
+mirrorIfNeeded :: (Coords -> Location)
+               -- ^ Collision function.
+               -> PosSpeed
+               -- ^ Input position and speed.
+               -> (PosSpeed, CollisionStatus)
+               -- ^ The speed was potentially mirrored
+mirrorIfNeeded getLocation posspeed@(PosSpeed pos speed) =
+  maybe
+    (posspeed, NoCollision)
+    adjustPosSpeed
+    $ firstCollision getLocation trajectory
+ where
+  trajectory = bresenham $ mkSegment pos $ sumCoords pos speed
+  adjustPosSpeed (mirror, newPos) = (PosSpeed newPos $ mirrorCoords speed mirror, PreCollision)
+
+-- | Handles the first collision on a trajectory, assuming that the first position
+-- has no collision.
 firstCollision :: (Coords -> Location)
+               -- ^ The collision function.
                -> [Coords]
-               -- ^ the successive positions
+               -- ^ The trajectory (the first position is expected to be collision-free).
                -> Maybe (Mirror, Coords)
-               -- ^ Nothing if there is no collision, else the kind of speed mirroring
-               --   that should be applied and the position just before the collision
+               -- ^ On collision, the kind of speed mirroring
+               --   that should be applied and the position just before the collision.
 firstCollision getLocation (p1:theRest@(p2:_)) =
   mirrorIfNeededAtomic getLocation (PosSpeed p1 (diffCoords p2 p1)) <|> firstCollision getLocation theRest
 firstCollision _ _ = Nothing

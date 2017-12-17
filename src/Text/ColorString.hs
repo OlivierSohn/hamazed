@@ -2,13 +2,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Text.ColorString
-            ( ColorString(..)
+            (
+            -- * Type
+              ColorString(..)
+            -- * Constructors
             , colored
             , colored'
+            -- * Utilities
             , countChars
+            -- * Drawing
+            , drawColored
+            , drawAligned
+            -- * Reexports
             , LayeredColor(..)
-            , renderColored
-            , renderAligned
             ) where
 
 import           Imajuscule.Prelude
@@ -169,12 +175,13 @@ instance Monoid ColorString where
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 
 
-{-# INLINABLE renderColored #-}
-renderColored :: (Draw e)
-              => ColorString
-              -> Coords
-              -> ReaderT e IO ()
-renderColored (ColorString cs) pos =
+-- \ Draw a 'ColorString'.
+{-# INLINABLE drawColored #-}
+drawColored :: (Draw e)
+            => ColorString
+            -> Coords
+            -> ReaderT e IO ()
+drawColored (ColorString cs) pos =
   foldM_
     (\count (txt, color) -> do
       let l = length txt
@@ -182,14 +189,14 @@ renderColored (ColorString cs) pos =
       return $ count + l
     ) 0 cs
 
-
-{-# INLINABLE renderAligned #-}
-renderAligned :: (Draw e)
-              => Alignment
-              -> ColorString
-              -> Coords
-              -> ReaderT e IO Coords
-renderAligned a cs pos = do
+-- \ Draw a 'ColorString' with an 'Alignment' constraint.
+{-# INLINABLE drawAligned #-}
+drawAligned :: (Draw e)
+            => Alignment
+            -> ColorString
+            -> Coords
+            -> ReaderT e IO Coords
+drawAligned a cs pos = do
   let leftCorner = align' a (countChars cs) pos
-  _ <- renderColored cs leftCorner
+  _ <- drawColored cs leftCorner
   return (translateInDir Down pos)

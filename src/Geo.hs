@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Geo ( rotateCcw
-           -- | reexports
+           -- * Reexports
            , module Geo.Types
            ) where
 

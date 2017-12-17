@@ -7,7 +7,7 @@ module Draw.Helpers(
          drawTxt
        , drawChars
        , drawChar
-       , flush
+       , renderDrawing
        ) where
 
 import           Control.Monad.Reader(ReaderT, asks, join)
@@ -38,8 +38,8 @@ drawChar c co la = do
   d <- asks drawChar_
   d c co la
 
--- | Flush
-{-# INLINABLE flush #-}
-flush :: (Draw e) => ReaderT e IO ()
-flush =
-  join (asks flush_)
+-- | Render what was drawn
+{-# INLINABLE renderDrawing #-}
+renderDrawing :: (Draw e) => ReaderT e IO ()
+renderDrawing =
+  join (asks renderDrawing_)

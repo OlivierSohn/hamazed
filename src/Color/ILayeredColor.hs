@@ -1,11 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Exposes a wrapper type on LayeredColor that has a DiscretelyInterpolable
+-- | 'ILayeredColor' wraps 'LayeredColor' to define a DiscretelyInterpolable
 --  instance.
 module Color.ILayeredColor
               ( ILayeredColor(..)
+              -- * Conversions
               , mkIColors
               , mkColors
+              -- * Reexports
               , module Interpolation
               ) where
 
@@ -29,9 +31,13 @@ mkColors (ILayeredColor (IColor8Code b) (IColor8Code f)) =
 
 data ILayeredColor = ILayeredColor {
     _icolorBg :: !IColor8Code
+    -- ^ Background color
   , _icolorFg :: !IColor8Code
+    -- ^ Foreground color
 } deriving(Show)
 
+-- TODO use bresenham 6 instead:
+-- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
 -- | First interpolate background color, then foreground color
 instance DiscretelyInterpolable ILayeredColor where
   distance (ILayeredColor bg fg) (ILayeredColor bg' fg') =

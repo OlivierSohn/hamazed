@@ -1,17 +1,18 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Evolution
-         ( evolve
-         , evolve'
-         , evolveIO
-         , evolveDeltaTime
+         (
+         -- * Creation
+           Evolution(..)
          , mkEvolution
-         , mkEvolution1
-         , mkEvolution2
-         , Evolution(..)
-         , mkEaseClock
+         -- * Usage
+         , getDeltaTimeToNextFrame
+         , getValueAt
+         , drawValueAt
+         -- * EaseClock
          , EaseClock(..)
-         -- reexports
+         , mkEaseClock
+         -- * Reexports
          , module Interpolation
          ) where
 
@@ -24,77 +25,65 @@ import           Interpolation
 
 import           Math
 
--- | for a more general version, see 'mkEvolution'
-mkEvolution1 :: DiscretelyInterpolable v
-            => v -- ^ from, to
-            -> Float
-            -- ^ duration in seconds
-            -> Evolution v
-mkEvolution1 fromto = mkEvolution (Successive [fromto])
-
-
--- | for a more general version, see 'mkEvolution'
-mkEvolution2 :: DiscretelyInterpolable v
-            => v -- ^ from
-            -> v -- ^ to
-            -> Float
-            -- ^ duration in seconds
-            -> Evolution v
-mkEvolution2 from to = mkEvolution (Successive [from, to])
-
-
-{-# INLINABLE mkEvolution #-} -- to allow specialization
+{-# INLINABLE mkEvolution #-}
+-- | An evolution between n values.
 mkEvolution :: DiscretelyInterpolable v
             => Successive v
+            -- ^ Values through which the evolution will pass.
             -> Float
-            -- ^ duration in seconds
+            -- ^ Duration in seconds
             -> Evolution v
 mkEvolution s duration =
   let nSteps = distanceSuccessive s
       lastFrame = Frame $ pred nSteps
   in Evolution s lastFrame duration (discreteInvQuartEaseInOut nSteps)
 
--- | Relies on a "fake" evolution that should be used for synchronization only, i.e
---   'evolveDeltaTime' can be used on it but not 'evolve'
+-- | Used only for synchronization purposes.
 newtype EaseClock = EaseClock (Evolution NotDiscretelyInterpolable) deriving (Show)
 newtype NotDiscretelyInterpolable = NotDiscretelyInterpolable () deriving(Show)
 
+-- | To make sure that we never use the values of an 'EaseClock'.
 instance DiscretelyInterpolable NotDiscretelyInterpolable where
   distance = error "don't use distance on NotDiscretelyInterpolable"
   interpolate = error "don't use interpolate on NotDiscretelyInterpolable"
 
+-- | Constructor of 'EaseClock'
 mkEaseClock :: Float
-            -- ^ duration in seconds
+            -- ^ Duration in seconds
             -> Frame
-            -- ^ last frame
+            -- ^ Last frame
             -> (Float -> Float)
-            -- ^ ease function
+            -- ^ Inverse ease function (value -> time, both between 0 and 1)
             -> EaseClock
 mkEaseClock duration lastFrame ease =
   let nSteps = fromIntegral $ succ lastFrame
   in EaseClock $ Evolution (Successive []) lastFrame duration (discreteAdaptor ease nSteps)
 
 -- TODO we could optimize by precomputing the lastframes of each individual segment,
--- and selecting the interval without having to recompute every distance.
+-- and select the interval without having to recompute every distance.
 -- We could change the Successive type to store the cumulated distance,
 -- then do a binary search
-data (DiscretelyInterpolable v) => Evolution v = Evolution {
+data Evolution v = Evolution {
     _evolutionSuccessive :: !(Successive v)
+  -- ^ Successive values.
   , _evolutionLastFrame :: !Frame
-  , _evolutionDuration :: Float -- ^ Total duration in seconds
+  -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value
+  , _evolutionDuration :: Float
+  -- ^ Total duration in seconds
   , _evolutionInverseEase :: Float -> Float
+  -- ^ Inverse ease function (value -> time, both between 0 and 1)
 }
 
-instance (DiscretelyInterpolable v, Show v) => Show (Evolution v) where
+instance (Show v) => Show (Evolution v) where
         showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
 
-evolveDeltaTime :: DiscretelyInterpolable v
-                => Evolution v
-                -> Frame
-                -- ^ current frame
-                -> Maybe Float
-                -- ^ the time interval between this step and the next
-evolveDeltaTime (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
+-- | Computes the time increment between the input 'Frame' and the next.
+getDeltaTimeToNextFrame :: Evolution v
+                        -> Frame
+                        -> Maybe Float
+                        -- ^ If evolution is still ongoing, returns the time interval
+                        --      between the input 'Frame' and the next.
+getDeltaTimeToNextFrame (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
   | frame < 0          = error "negative frame"
   | frame >= lastFrame = Nothing
   | otherwise          = Just dt
@@ -105,35 +94,24 @@ evolveDeltaTime (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) 
     dt = duration * (easeValToTime targetValue - easeValToTime thisValue)
 
 
-{-# INLINABLE evolve #-} -- allow specialization
-evolve :: DiscretelyInterpolable v
-       => Evolution v
-       -> Frame
-       -- ^ current frame
-       -> v
-       -- ^ the value
-evolve (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
+{-# INLINABLE getValueAt #-}
+-- | Gets the value of an 'Evolution' at a given 'Frame'.
+getValueAt :: DiscretelyInterpolable v
+           => Evolution v
+           -> Frame
+           -> v
+           -- ^ The evolution value.
+getValueAt (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
   | frame <= 0         = head l
   | frame >= lastFrame = last l
   | otherwise          = interpolateSuccessive s step
 
 
-{-# INLINABLE evolve' #-}
-evolve' :: DiscretelyInterpolable v
-        => Evolution v
-        -> Frame
-        -- ^ current frame
-        -> w
-        -- ^ the value
-evolve' (Evolution s _ _ _) (Frame step) =
-  interpolateSuccessive' s $ assert (step >= 0) step
-
-
-{-# INLINABLE evolveIO #-}
-evolveIO :: (DiscretelyInterpolable v, Draw e)
-         => Evolution v
-         -> Frame
-         -- ^ current frame
-         -> ReaderT e IO ()
-evolveIO (Evolution s _ _ _) (Frame step) =
+{-# INLINABLE drawValueAt #-}
+-- | Draws an 'Evolution' for a given 'Frame'.
+drawValueAt :: (DiscretelyInterpolable v, Draw e)
+            => Evolution v
+            -> Frame
+            -> ReaderT e IO ()
+drawValueAt (Evolution s _ _ _) (Frame step) =
   interpolateSuccessiveIO s $ assert (step >= 0) step

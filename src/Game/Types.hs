@@ -3,7 +3,7 @@
 
 module Game.Types
     ( GameState(..)
-    -- | reexports
+    -- * Reexports
     , module Game.World.Types
     , module Game.Level.Types
     , module Game.Timing
@@ -18,8 +18,7 @@ import           Game.Timing
 
 
 data GameState e = GameState {
-    _gameStateStartTime :: !Timer
-  , _gameStateNextMotionStep :: !(Maybe KeyTime)
+    _gameStateNextMotionStep :: !(Maybe KeyTime)
   , _gameStateWorld :: !(World e)
   , _gameStateNextWorld :: !(World e)
   , _gameStateShotNumbers :: ![Int]

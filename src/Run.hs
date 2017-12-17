@@ -12,6 +12,7 @@ import           System.Info(os)
 import           Control.Exception( finally )
 import           Control.Monad.Reader(runReaderT, ReaderT)
 
+import           Draw
 import           Env
 import           Game( runGameWorker )
 import           Game.Parameters( getGameParameters )

@@ -17,7 +17,7 @@ testInterpolation :: IO ()
 testInterpolation = mapM_ print testClock
 
 zipAll :: (DiscretelyInterpolable a) => Evolution a -> Frame -> (a, Maybe Float)
-zipAll e x = (evolve e x, evolveDeltaTime e x)
+zipAll e x = (getValueAt e x, getDeltaTimeToNextFrame e x)
 
 
 
@@ -64,4 +64,4 @@ testClock :: [(Frame, Maybe Float)]
 testClock =
   let lastFrame = Frame 10
       (EaseClock clock) = mkEaseClock 1 lastFrame invQuartEaseInOut
-  in map (\f -> (f, evolveDeltaTime clock f)) [0..lastFrame]
+  in map (\f -> (f, getDeltaTimeToNextFrame clock f)) [0..lastFrame]

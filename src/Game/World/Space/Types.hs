@@ -12,7 +12,7 @@ module Game.World.Space.Types
     , maxDim
     , Width(..)
     , Height(..)
-    -- | reexports
+    -- * reexports
     , module Geo.Discrete.Types
     ) where
 
@@ -28,7 +28,7 @@ import           Geo.Discrete.Types
 
 data WallType = None
               | Deterministic
-              | Random RandomParameters
+              | Random !RandomParameters
 
 data Strategy = StrictlyOneComponent
 
@@ -41,12 +41,13 @@ data RenderGroup = RenderGroup {
     _renderGroupCoords :: !Coords
   , _renderGroupColors :: !LayeredColor
   , _renderGroupChar :: !Char
-  , _renderGroupCount :: Int
+  , _renderGroupCount :: !Int
 }
 
 data Space = Space {
     _space :: !(Matrix CInt)
-  , _spaceSize :: !WorldSize -- ^ represents the aabb of the space without the border
+  , _spaceSize :: !WorldSize
+  -- ^ Represents the AABB of the space without the border
   , _spaceRender :: ![RenderGroup]
 }
 

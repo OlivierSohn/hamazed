@@ -43,7 +43,7 @@ with an input extremity. The rest of the overrepresented samples are positionned
   when m' == 1, for every s in [0,m'-1] : f(s) = floor( (n - 1) / 2 )
 --}
 module Geo.Discrete.Resample
-    ( -- | Resample "evenly with extremities".
+    ( -- * Resample "evenly with extremities".
       resample
     ) where
 
@@ -55,12 +55,12 @@ import           Util( replicateElements )
 
 
 resample :: [a]
-         -- ^ input list
+         -- ^ Input list
          -> Int
-         -- ^ length of the input (we could deduce it from the input list but in some cases
+         -- ^ Length of the input (we could deduce it from the input list but in some cases
          --   we know the length of the list before it is evaluated, so it's more optimal)
          -> Int
-         -- ^ length of the result
+         -- ^ Length of the result
          -> [a]
 resample input n m
    | assert (m >= 0) m == n = input

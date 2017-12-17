@@ -14,7 +14,7 @@ module Geo.Discrete
            , translate'
            , translateInDir
            , zeroCoords
-           -- | reexports
+           -- * reexports
            , module Geo.Discrete.Types
            ) where
 

@@ -13,7 +13,9 @@ import           Data.List(length)
 
 
 -- | Returns one of the "nice chars" for animations
-niceChar :: Int -> Char
+niceChar :: Int
+         -- ^ We take the modulo of that value and use it as index into 'niceChars'
+         -> Char
 niceChar i =
   let l = 1 + snd (bounds niceChars)
       index = abs $ i `mod` l

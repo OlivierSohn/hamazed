@@ -8,16 +8,15 @@ Functions to create
 -}
 
 module Color (
-  -- * Colors
-  -- ** Single
-    Color8Code(..)
-  , rgb
+  -- * Single colors
+    rgb
   , gray
-  -- ** Layered
-  , module Color.Types
+  , Color8Code(..)
+  -- * Layered colors
   , onBlack
   , whiteOnBlack
-  -- ** Predefined
+  , LayeredColor(..)
+  -- * Predefined colors
   , white
   , black
   , red

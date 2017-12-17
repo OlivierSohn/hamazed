@@ -20,8 +20,8 @@ import           Game.Event
 import           Geo.Discrete
 import           Geo.Conversion
 
--- | If ship is colliding and not in "safe time", and the event is a gamestep,
---     creates an animation where the ship and the colliding number explode.
+-- | If the ship is colliding and not in "safe time", and the event is a gamestep,
+--     this function creates an animation where the ship and the colliding number explode.
 --
 --   The ship animation will have the initial speed of the number and vice-versa,
 --     to mimic the rebound due to the collision.

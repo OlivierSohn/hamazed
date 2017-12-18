@@ -4,12 +4,20 @@ resolver: lts-9.12
 
 packages:
 - '.'
-- '../hs.game-engine'
-- '../hs.render.delta'
 - location:
     git: https://github.com/OlivierSohn/ansi-terminal.git
     commit: 23d29feaf22633d0a058b946901d9d8d4f422239
   extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/delta-render.git
+    commit: master # not very clean, see https://github.com/commercialhaskell/stack/issues/3535
+  extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/game-engine.git
+    commit: master # not very clean, see https://github.com/commercialhaskell/stack/issues/3535
+  extra-dep: true
+#- '../hs.render.delta'
+#- '../hs.game-engine'
 
 extra-deps:
 - monadlist-0.0.2

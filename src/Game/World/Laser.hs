@@ -23,7 +23,7 @@ import           Animation
 import           Draw
 import           Geo.Discrete
 
-import           Game.World.Laser.Types
+import           Laser.Types
 
 import           Timing( KeyTime )
 

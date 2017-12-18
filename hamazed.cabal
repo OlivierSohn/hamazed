@@ -21,27 +21,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imajuscule.Prelude
-                     , Animation
-                     , Animation.Color
-                     , Animation.Design.Animator
-                     , Animation.Design.Apply
-                     , Animation.Design.Chain
-                     , Animation.Design.Chars
-                     , Animation.Design.RenderUpdate
-                     , Animation.Design.Geo
-                     , Animation.Timing
-                     , Animation.Types
-                     , Animation.Util
-                     , Collision
-                     , Color
-                     , Color.IColor8Code
-                     , Color.ILayeredColor
-                     , Color.Types
-                     , Draw
-                     , Draw.Class
-                     , Draw.Helpers.MonadReader
                      , Env
-                     , Evolution
                      , Game.Deadline
                      , Game.Event
                      , Game
@@ -57,55 +37,24 @@ library
                      , Game.World.Evolution
                      , Game.World.Frame.Types
                      , Game.World.Laser
-                     , Game.World.Laser.Types
                      , Game.World.Number
                      , Game.World.Ship
                      , Game.World.Size
                      , Game.World.Space
                      , Game.World.Space.Types
                      , Game.World.Types
-                     , Geo
-                     , Geo.Conversion
-                     , Geo.Continuous
-                     , Geo.Continuous.Types
-                     , Geo.Discrete
-                     , Geo.Discrete.Bresenham
-                     , Geo.Discrete.Bresenham3
-                     , Geo.Discrete.Resample
-                     , Geo.Discrete.Types
-                     , Geo.Types
-                     , Interpolation
                      , IO.Blocking
                      , IO.NonBlocking
                      , IO.Types
-                     , Iteration
-                     , Math
-                     , Render.Delta
-                     , Render.Delta.Buffers
-                     , Render.Delta.Buffers.Dimensions
-                     , Render.Delta.Cell
-                     , Render.Delta.Cells
-                     , Render.Delta.Clear
-                     , Render.Delta.Console
-                     , Render.Delta.DynUnboxedVec
-                     , Render.Delta.Draw
-                     , Render.Delta.Env
-                     , Render.Delta.Flush
-                     , Render.Delta.Internal.DefaultPolicies
-                     , Render.Delta.Internal.Types
-                     , Render.Delta.Types
                      , Run
-                     , Text.Alignment
-                     , Text.Animation
-                     , Text.ColorString
                      , Threading
-                     , Timing
-                     , Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal
                      , array
                      , colour
                      , containers
+                     , delta-render
+                     , game-engine
                      , matrix
                      , mtl
                      , monad-loops
@@ -117,7 +66,6 @@ library
                      , time
                      , transformers
                      , vector
-                     , vector-algorithms
   default-language:    Haskell2010
 
 executable hamazed-exe
@@ -131,15 +79,11 @@ executable hamazed-exe
 test-suite hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Bresenham3
-                     , Test.Ease
-                     , Test.InterpolatedColorString
-                     , Test.Interpolation
-                     , Test.Rendering
-                     , Test.Stdout
-                     , Test.Vector
+  other-modules:       Test.Rendering
   main-is:             Spec.hs
   build-depends:       base
+                     , delta-render
+                     , game-engine
                      , hamazed
                      , mtl
                      , text

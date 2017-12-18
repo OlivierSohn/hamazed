@@ -71,8 +71,4 @@ You can build and run using [stack](https://docs.haskellstack.org):
 
 ## Delta rendering
 
-The delta rendering code is based on [code written by Rafael Ibraim](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)
-
-It avoids to have to clear the console and redraw everything at each frame,
-instead only the parts of the console that have changed are rendered,
-removing unwanted flickering side effects.
+The initial idea for delta rendering is based on [code written by Rafael Ibraim](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)

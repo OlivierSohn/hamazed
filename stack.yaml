@@ -4,6 +4,8 @@ resolver: lts-9.12
 
 packages:
 - '.'
+- '../hs.game-engine'
+- '../hs.render.delta'
 - location:
     git: https://github.com/OlivierSohn/ansi-terminal.git
     commit: 23d29feaf22633d0a058b946901d9d8d4f422239

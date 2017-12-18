@@ -5,25 +5,14 @@ import Env
 import Render.Delta(restoreConsoleSettings)
 import Draw
 
-import Test.Interpolation(testInterpolation)
-import Test.InterpolatedColorString
-import Test.Bresenham3
-import Test.Stdout
 import Test.Rendering
-import Test.Vector
 
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
-  testInterpolation
-  testVector >>= print
-  testBres3 >>= print
 
   env <- createEnv
-  runReaderT (testSpace >>
-              testICS >>
+  runReaderT (testSpace >> -- TODO why is it visible in the logs, not in the console?
               renderDrawing
-              ) env
+             ) env
   restoreConsoleSettings
-
-  --testStdout

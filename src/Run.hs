@@ -9,7 +9,6 @@ import qualified Prelude (putStrLn)
 
 import           System.Info(os)
 
-import           Control.Exception( finally )
 import           Control.Monad.Reader(runReaderT)
 
 import           Env
@@ -26,10 +25,7 @@ run =
     else
       void doRun
 
-
 doRun :: IO Termination
 doRun =
-  (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)
-  -- When Ctrl+C is hit, an exception is thrown on the main thread, hence
-  -- I use 'finally' to reset the console settings.
-  `finally` restoreConsoleSettings
+  runThenRestoreConsoleSettings
+    (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)

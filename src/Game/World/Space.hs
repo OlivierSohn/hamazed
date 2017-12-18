@@ -219,7 +219,7 @@ extend' sz l@(_:_) =
   in replicate addsLeft (head l) ++ l ++ replicate addsRight (last l)
 
 rands :: IO [CInt]
-rands = randomRsIO (0,1)
+rands = randomRsIO 0 1
 
 addBorder :: WorldSize -> [[CInt]] -> [[CInt]]
 addBorder (WorldSize (Coords _ widthEmptySpace)) l =

@@ -5,10 +5,6 @@ resolver: lts-9.12
 packages:
 - '.'
 - location:
-    git: https://github.com/OlivierSohn/ansi-terminal.git
-    commit: 23d29feaf22633d0a058b946901d9d8d4f422239
-  extra-dep: true
-- location:
     git: https://github.com/OlivierSohn/delta-render.git
     commit: master # not very clean, see https://github.com/commercialhaskell/stack/issues/3535
   extra-dep: true

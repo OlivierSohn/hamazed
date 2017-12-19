@@ -1,9 +1,10 @@
-name:                imj-base
+name:                imj-draw
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Common data types for a 2d game engine.
-Description:         Basic color and position types.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-base#readme
+Synopsis:            Interface of a generic 2d terminal renderer.
+Description:         The Draw class, defining the interface of a generic 2d terminal renderer
+                     ans some helper functions when drawing from MonadReader monads.
+homepage:            https://github.com/OlivierSohn/hamazed/imj-draw#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -19,26 +20,28 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Color.Types
-                     , Geo.Discrete
-                     , Geo.Discrete.Types
-                     , Geo.Types
-                     , Text.Alignment
+  exposed-modules:     Draw
+                     , Draw.Aligned
+                     , Draw.Class
+                     , Draw.Helpers.MonadReader
   build-depends:       base >= 4.8 && < 4.11
+                     , mtl
+                     , random
+                     , text
+                     , time
+                     , imj-base
                      , imj-prelude
   default-language:    Haskell2010
 
-test-suite imj-base-test
+test-suite imj-engine-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:
   main-is:             Spec.hs
   build-depends:       base
-                     , imj-base
-                     , imj-prelude
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-base
+  location: https://github.com/OlivierSohn/hamazed/imj-draw

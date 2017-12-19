@@ -55,6 +55,7 @@ library
                      , text
                      , vector
                      , imj-base
+                     , imj-draw
                      , imj-engine
                      , imj-prelude
                      , imj-render-delta-term
@@ -75,6 +76,7 @@ test-suite imj-game-hamazed-test
   other-modules:       Test.Rendering
   main-is:             Spec.hs
   build-depends:       base
+                     , imj-draw
                      , imj-engine
                      , imj-game-hamazed
                      , imj-render-delta-term

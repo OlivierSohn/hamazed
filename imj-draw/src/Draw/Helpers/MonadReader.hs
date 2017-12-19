@@ -23,8 +23,9 @@ import           Control.Monad(join)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
-import           Geo.Discrete.Types
+import           Draw.Aligned
 import           Draw.Class
+import           Geo.Discrete.Types
 
 -- | Draws text with 'Alignment'.
 {-# INLINABLE drawAlignedTxt_ #-}

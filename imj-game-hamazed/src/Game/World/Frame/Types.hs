@@ -14,13 +14,10 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.List( mapAccumL, zip )
 
-import           Interpolation
-
-import           Game.World.Space.Types
-
-import           Geo.Discrete
-
 import           Draw
+import           Game.World.Space.Types
+import           Geo.Discrete
+import           Interpolation
 
 
 data FrameSpec = FrameSpec {

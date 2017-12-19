@@ -37,10 +37,10 @@ airColors = LayeredColor black white
 neutralMessageColor :: LayeredColor
 neutralMessageColor = onBlack $ gray 10
 
-ammoColor :: Color8Code Foreground
+ammoColor :: Color8 Foreground
 ammoColor = gray 14
 
-bracketsColor :: Color8Code Foreground
+bracketsColor :: Color8 Foreground
 bracketsColor = worldFrameFgColor
 
 messageColor :: GameStops -> LayeredColor
@@ -53,16 +53,16 @@ shipColors = LayeredColor shipBgColor shipColor
 shipColorsSafe :: LayeredColor
 shipColorsSafe = LayeredColor shipBgColorSafe shipColorSafe
 
-shipColor :: Color8Code Foreground
+shipColor :: Color8 Foreground
 shipColor = rgb 5 4 4
 
-shipColorSafe :: Color8Code Foreground
+shipColorSafe :: Color8 Foreground
 shipColorSafe = rgb 5 0 0
 
-shipBgColor :: Color8Code Background
+shipBgColor :: Color8 Background
 shipBgColor = black
 
-shipBgColorSafe :: Color8Code Background
+shipBgColorSafe :: Color8 Background
 shipBgColorSafe = rgb 1 0 0
 
 numberColor :: Int -> LayeredColor
@@ -72,7 +72,7 @@ numberColor i = onBlack $ rgb r g b
     g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
     b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
 
-worldFrameFgColor :: Color8Code Foreground
+worldFrameFgColor :: Color8 Foreground
 worldFrameFgColor = rgb 2 1 1
 
 worldFrameColors :: LayeredColor

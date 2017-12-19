@@ -1,9 +1,8 @@
 import Control.Monad.Reader(runReaderT)
 
-import Env
-
-import Render.Delta(runThenRestoreConsoleSettings)
 import Draw
+import Env
+import Render.Delta(runThenRestoreConsoleSettings)
 
 import Test.Rendering
 

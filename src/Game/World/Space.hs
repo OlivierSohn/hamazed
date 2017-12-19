@@ -20,9 +20,6 @@ import           Imajuscule.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           System.Random( getStdRandom
-                              , randomR )
-
 import           System.Console.Terminal.Size( Window(..) )
 
 import           Data.Graph( Graph
@@ -62,9 +59,13 @@ createRandomPosSpeed space = do
     $ mirrorIfNeeded (`location` space)
     $ PosSpeed pos (Coords (Coord dx) (Coord dy))
 
+oneRandom :: Int -> Int -> IO Int
+oneRandom a b = do
+  r <- randomRsIO a b
+  return $ head $ take 1 $ r
 
 randomSpeed :: IO Int
-randomSpeed = getStdRandom $ randomR (-1,1)
+randomSpeed = oneRandom (-1) 1
 
 randomNonCollidingPos :: Space -> IO Coords
 randomNonCollidingPos space@(Space _ worldSize _) = do
@@ -74,7 +75,8 @@ randomNonCollidingPos space@(Space _ worldSize _) = do
     Air -> return coords
 
 randomInt :: Int -> IO Int
-randomInt sz = getStdRandom $ randomR (0,sz-1)
+randomInt sz =
+  oneRandom 0 (sz-1)
 
 randomCoords :: WorldSize -> IO Coords
 randomCoords (WorldSize (Coords rs cs)) = do

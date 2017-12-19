@@ -22,9 +22,6 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
-import           Data.Time( addUTCTime
-                          , getCurrentTime
-                          , UTCTime )
 
 import           Animation.Util( earliestDeadline )
 

@@ -1,12 +1,11 @@
 module Test.Rendering(testSpace) where
 
 import Control.Monad( void )
-import Control.Monad.Reader(liftIO, ReaderT)
+import Control.Monad.Reader(liftIO)
 
-import Env
 import Game.World.Space
 
-testSpace :: ReaderT Env IO ()
+testSpace :: (MonadReader e m, Draw e, MonadIO m) => m ()
 testSpace = do
   let blocksSize = 6
   s <- liftIO $ mkRandomlyFilledSpace (RandomParameters blocksSize StrictlyOneComponent) (WorldSize $ Coords 36 72)

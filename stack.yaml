@@ -3,6 +3,8 @@
 resolver: lts-9.12
 
 packages:
+- './imj-prelude'
+- './imj-base'
 - './imj-engine'
 - './imj-render-delta-term'
 - './imj-game-hamazed'

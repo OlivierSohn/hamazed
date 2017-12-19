@@ -1,0 +1,30 @@
+name:                imj-prelude
+version:             0.1.0.0
+Category:            Game Engine
+Synopsis:            Prelude.
+Description:         Basic color and position types.
+homepage:            https://github.com/OlivierSohn/hamazed/imj-prelude#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 Olivier Sohn
+category:            GameEngine
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2
+
+library
+  hs-source-dirs:      src
+  other-modules:
+  exposed-modules:     Imajuscule.Prelude
+  build-depends:       base >= 4.8 && < 4.11
+                     , mtl
+                     , text
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/imj-prelude

@@ -4,7 +4,8 @@ resolver: lts-9.12
 
 packages:
 - '.'
-- '../imj-engine'
+- '../imj-base'
+- '../imj-engine' # TODO remove
 
 extra-deps:
 - monadlist-0.0.2

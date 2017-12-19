@@ -4,7 +4,6 @@ resolver: lts-9.12
 
 packages:
 - '.'
-- '../imj-base'
 
 extra-deps: []
 

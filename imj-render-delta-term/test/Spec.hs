@@ -1,4 +1,4 @@
-import Test.Stdout
+--import Test.Stdout
 import Test.Vector
 
 main :: IO ()

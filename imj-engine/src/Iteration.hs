@@ -12,7 +12,7 @@ module Iteration
            , previousIteration
            ) where
 
-import Imajuscule.Prelude
+import           Imajuscule.Prelude
 
 -- | An 'Iteration' has a 'Speed' and an iterator: 'Frame'
 data Iteration = Iteration !Speed !Frame deriving(Show)

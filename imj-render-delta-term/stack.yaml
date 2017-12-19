@@ -1,0 +1,22 @@
+# http://docs.haskellstack.org/en/stable/yaml_configuration/
+
+resolver: lts-9.12
+
+packages:
+- '.'
+- '../imj-engine'
+
+extra-deps:
+- monadlist-0.0.2
+
+flags: {}
+
+extra-package-dbs: []
+
+# for GC stats:
+#   -with-rtsopts=-sstderr
+#
+# I added -fpedantic-bottoms to catch errors that are masked by the compiler
+#   as explained in  https://ghc.haskell.org/trac/ghc/ticket/14521
+ghc-options:
+  "$locals": -threaded -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-maxN4 -O2 -fexcess-precision -optc-ffast-math

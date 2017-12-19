@@ -1,0 +1,96 @@
+name:                imj-engine
+version:             0.1.0.0
+Category:            Game Engine
+Synopsis:            A 2d game engine for games in the terminal.
+Description:         Features explosive and gravity-based animations which can be
+                     chained on collision with the environment. Also features
+                     animations of colored text (animation happens both for
+                     character colors and anchors locations). The renderer is
+                     abstracted through the Draw class. The package delta-render
+                     contains an efficient, screentearing-free renderer that implements
+                     Draw. You can also write one yourself, to target a different
+                     rendering space than the terminal for example.
+homepage:            https://github.com/OlivierSohn/hamazed-mono/game-engine#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 Olivier Sohn
+category:            GameEngine
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 7.10.3, GHC == 8.0.2, GHC == 8.2.1, GHC == 8.2.2
+
+library
+  hs-source-dirs:      src
+  other-modules:       Imajuscule.Prelude
+  exposed-modules:
+                       Animation
+                     , Animation.Color
+                     , Animation.Design.Animator
+                     , Animation.Design.Apply
+                     , Animation.Design.Chain
+                     , Animation.Design.Chars
+                     , Animation.Design.RenderUpdate
+                     , Animation.Design.Geo
+                     , Animation.Timing
+                     , Animation.Types
+                     , Animation.Util
+                     , Color
+                     , Color.IColor8
+                     , Color.ILayeredColor
+                     , Color.Types
+                     , Draw
+                     , Draw.Class
+                     , Draw.Helpers.MonadReader
+                     , Evolution
+                     , Geo
+                     , Geo.Conversion
+                     , Geo.Continuous
+                     , Geo.Continuous.Types
+                     , Geo.Discrete
+                     , Geo.Discrete.Bresenham
+                     , Geo.Discrete.Bresenham3
+                     , Geo.Discrete.Resample
+                     , Geo.Discrete.Types
+                     , Geo.Types
+                     , Interpolation
+                     , Iteration
+                     , Laser.Types
+                     , Math
+                     , Physics.Discrete.Collision
+                     , Physics.Discrete.Types
+                     , Text.Alignment
+                     , Text.Animation
+                     , Text.ColorString
+                     , Timing
+                     , Util
+  build-depends:       base >= 4.8 && < 4.11
+                     , mtl
+                     , random
+                     , text
+                     , time
+  default-language:    Haskell2010
+
+test-suite imj-engine-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:       Test.Bresenham3
+                     , Test.Ease
+                     , Test.InterpolatedColorString
+                     , Test.Interpolation
+                     , Test.MockDraw
+  main-is:             Spec.hs
+  build-depends:       base
+                     , ansi-terminal
+                     , imj-engine
+                     , mtl
+                     , text
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed-mono/game-engine

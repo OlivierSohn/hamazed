@@ -18,6 +18,7 @@ module Game.World.Types
         , module Game.World.Frame.Types
         , module Iteration
         , module Text.Animation
+        , module Physics.Discrete.Types
         , Terminal.Window
         ) where
 
@@ -31,6 +32,8 @@ import           Game.World.Space.Types
 import           Game.World.Frame.Types
 
 import           Iteration
+
+import           Physics.Discrete.Types
 
 import           Text.Animation
 import           Text.ColorString

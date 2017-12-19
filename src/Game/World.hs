@@ -25,8 +25,6 @@ import           Data.Maybe( isNothing, isJust )
 
 import           Animation.Util( earliestDeadline )
 
-import           Collision
-
 import           Geo.Discrete.Bresenham
 import           Geo.Discrete
 
@@ -38,6 +36,8 @@ import           Game.World.Number
 import           Game.World.Ship
 import           Game.World.Space
 import           Game.World.Types
+
+import           Physics.Discrete.Collision
 
 import           Timing
 

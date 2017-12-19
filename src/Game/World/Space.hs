@@ -36,7 +36,7 @@ import           Data.Vector(Vector, slice, (!))
 
 import           Foreign.C.Types( CInt(..) )
 
-import           Collision
+import           Draw
 
 import           Game.Color
 import           Game.World.Types
@@ -44,7 +44,7 @@ import           Game.World.Size
 
 import           Geo.Discrete hiding (extend)
 
-import           Draw
+import           Physics.Discrete.Collision
 
 import           Util( replicateElements
                      , randomRsIO )

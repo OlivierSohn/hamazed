@@ -4,7 +4,12 @@ resolver: lts-9.12
 
 packages:
 - '.'
+- '../imj-prelude'
+- '../imj-base'
+- '../imj-draw'
 - '../imj-engine'
+- '../imj-animation-base'
+- '../imj-animation'
 - '../imj-render-delta-term'
 
 extra-deps: []

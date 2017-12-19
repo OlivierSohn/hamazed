@@ -26,19 +26,7 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:
-                       Animation
-                     , Animation.Color
-                     , Animation.Design.Animator
-                     , Animation.Design.Apply
-                     , Animation.Design.Chain
-                     , Animation.Design.Chars
-                     , Animation.Design.RenderUpdate
-                     , Animation.Design.Geo
-                     , Animation.Timing
-                     , Animation.Types
-                     , Animation.Util
-                     , Color
+  exposed-modules:     Color
                      , Color.IColor8
                      , Color.ILayeredColor
                      , Evolution

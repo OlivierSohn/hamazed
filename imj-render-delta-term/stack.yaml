@@ -5,10 +5,10 @@ resolver: lts-9.12
 packages:
 - '.'
 - '../imj-base'
-- '../imj-engine' # TODO remove
+- '../imj-draw'
+- '../imj-prelude'
 
-extra-deps:
-- monadlist-0.0.2
+extra-deps: []
 
 flags: {}
 

@@ -54,6 +54,8 @@ library
                      , terminal-size
                      , text
                      , vector
+                     , imj-animation-base
+                     , imj-animation
                      , imj-base
                      , imj-draw
                      , imj-engine

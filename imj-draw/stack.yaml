@@ -3,8 +3,9 @@
 resolver: lts-9.12
 
 packages:
-- '.'
+- '../imj-prelude'
 - '../imj-base'
+- '.'
 
 extra-deps: []
 

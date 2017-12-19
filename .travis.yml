@@ -47,7 +47,7 @@ matrix:
 
   # The Stack builds. We can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
-  - env: BUILD=stack ARGS="--resolver lts-8"
+  - env: BUILD=stack ARGS="--resolver lts-9.12"
     compiler: ": #stack 8.0.2"
     addons: {apt: {packages: [libgmp-dev]}}
 
@@ -115,8 +115,7 @@ script:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal $ARGS test --bench --no-run-benchmarks --haddock --no-haddock-deps
-      stack --no-terminal --skip-ghc-check test
+      stack --no-terminal $ARGS test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps
       ;;
     cabal)
       cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES

@@ -13,3 +13,7 @@ You can test using
 `stack test`
 
 Note that tests should all pass!
+
+# Libraries : who does what?
+
+TODO, with an image of dependencies

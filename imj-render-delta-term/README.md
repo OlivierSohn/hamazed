@@ -5,7 +5,7 @@ game graphics, by minimizing the amount of data sent to stdout.
 
 # Projects using it
 
-- [Hamazed, a game with flying numbers](https://github.com/OlivierSohn/hamazed)
+- [Hamazed, a game with flying numbers](https://github.com/OlivierSohn/hamazed/tree/master/imj-game-hamazed)
 
 # Supported Platforms / Terminals:
 
@@ -27,7 +27,6 @@ You can build using [stack](https://docs.haskellstack.org):
 
 # Credits
 
-- The initial idea for delta rendering is based on [code written by Rafael Ibraim](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)
+- Rafael Ibraim : [Base implementation for delta rendering](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)
 
-- The C++/STL style vector in Render.Delta.DynUnboxedVec is modified from
-<https://github.com/AndrasKovacs/dynamic-mvector dynamic-mvector by Andras Kovacs>.
+- Andras Kovacs : [Base implementation for the C++/STL style vector in Render.Delta.DynUnboxedVec](https://github.com/AndrasKovacs/dynamic-mvector).

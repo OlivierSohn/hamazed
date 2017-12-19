@@ -5,8 +5,6 @@
 
 - use hspec for testing
 
-- provide "nice" default colors (notion of palette?)
-
 - 3..2..1..GO! countdown at the beginning of a level
 
 - animate lose/win messages
@@ -16,10 +14,6 @@
 
 - make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
-
-- some evolutions don't use the timing aspect as another evolution times them.
-some evolutions don't use the interpolation aspect as they are only used to time.
-we should separate the 2 aspects by defining 2 distinct types.
 
 - animate frame color while transitioning (red -> white -> red)
 
@@ -43,12 +37,6 @@ using colors of numbers for win / colors of explosions for lost
 
 - for terminal, allow the points to go a little further up so that gravity makes them come back
 when shooting upwards
-
-## Geometry
-
-- take into account the fact that character width and height are not equal,
-so geometric figures are stretched in height. We could compensate for that by using
-a stretching factor in poly function and circle function
 
 ## Configurability
 
@@ -84,28 +72,16 @@ hitting a key (the key should be present also in the other room)
 
 ## Animation Design
 
-- Today the contract of pure animation functions is that they should return
-a constant number of animation points that are correlated across frames.
-We could also make them say "After frame x, since my animation is done
-I will return an empty list" : it could allow to stop animations that have
-"CollisionReaction Traverse" and will continue indefinitely
-or to interpret "CollisionReaction Traverse" as "CollisionReaction ReboundAnd" for animations that don't guarantee they will end
 
-- generalize chained sequences on collisions
-  - try passing a list of functions to the tree's 'treeOnWall' Rebound
 - make an animation between levels to make the world reduce progressively
   for this animation we need to render the frame on top of the world
 
   it's more complicated than an animation because there are multiple chars
-- when an animation point touches the world frame, make it change color
 - use a different animation when the target is met?
 
 ## Playability
 - do not count duplicate laser shots in same motion step.
 - write a help
-- it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
-there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
-It would be nice to synchronize animation exactly with console fps to have a better fluidity
 
 ## Difficulty
 - choosing different prime numbers for width and height would increase the complexity
@@ -117,10 +93,3 @@ and a hard mode where there is a timeout on each level.
 An easier mode would be to have the ship be totally immune to collisions.
 
 - Change the motion period for various difficulty levels
-
-## Future games
-- make a brick-breaking game
-- make a tower based defense game
-- make a pong
-
-- Play multiple games at once

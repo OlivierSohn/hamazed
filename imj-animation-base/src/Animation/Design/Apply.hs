@@ -81,7 +81,7 @@ combinePoints interaction (Iteration _ frame) onWall point =
 getCoordsBeforeMutation :: [Coords] -> (Coords -> InteractionResult) -> Maybe Coords
 getCoordsBeforeMutation [] _ = error "not supposed to happen"
 getCoordsBeforeMutation [_] _ = Nothing
-getCoordsBeforeMutation (a:as@(b:l)) interaction =
+getCoordsBeforeMutation (a:as@(b:_)) interaction =
   case interaction b of
     Stable -> getCoordsBeforeMutation as interaction
     Mutation -> Just a

@@ -1,6 +1,7 @@
 # What is it?
 
-Interpolation library, defines the "DiscretelyInterpolable" class.
+Interpolation library defining the "DiscretelyInterpolable" class
+and instances for types of "imj-base"
 
 # Build
 

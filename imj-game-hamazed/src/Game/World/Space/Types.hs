@@ -9,9 +9,6 @@ module Game.World.Space.Types
     , RenderGroup(..)
     , WorldShape(..)
     , WorldSize(..)
-    , maxDim
-    , Width(..)
-    , Height(..)
     -- * reexports
     , module Geo.Discrete.Types
     ) where
@@ -46,7 +43,7 @@ data RenderGroup = RenderGroup {
 
 data Space = Space {
     _space :: !(Matrix CInt)
-  , _spaceSize :: !WorldSize
+  , _spaceSize :: !Size
   -- ^ Represents the AABB of the space without the border
   , _spaceRender :: ![RenderGroup]
 }
@@ -58,10 +55,4 @@ data Material = Air
 data WorldShape = Square
                 | Rectangle2x1
 
-newtype WorldSize = WorldSize Coords deriving(Eq, Show)
-
-maxDim :: WorldSize -> Int
-maxDim (WorldSize (Coords rs cs)) = max (fromIntegral rs) (fromIntegral cs)
-
-newtype Width = Width Int
-newtype Height = Height Int
+newtype WorldSize = WorldSize Size deriving(Eq, Show)

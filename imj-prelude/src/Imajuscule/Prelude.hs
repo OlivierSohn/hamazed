@@ -11,6 +11,7 @@ module Imajuscule.Prelude ( module Prelude
                           , module Control.Monad
                           , module Control.Monad.IO.Class
                           , module Control.Monad.Reader
+                          , module Data.List
                           , module Data.Maybe
                           , module Data.Monoid
                           , module Data.Ratio
@@ -21,7 +22,7 @@ module Imajuscule.Prelude ( module Prelude
 import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(..), Monad(..)
                         , Bool(..), Char, Float, IO, Int, Maybe(..), Either(..), Ordering(..)
                         , either, maybe
-                        , sum, map, concatMap, filter, mapM, mapM_
+                        , sum, map, concatMap, concat, filter, mapM, mapM_
                         , all, any, notElem, null, minimum, maximum
                         , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate, unwords
                         , zip, zipWith, fst, snd
@@ -41,6 +42,7 @@ import           Control.Monad(when, void, (<=<), Monad)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Control.Exception(assert)
+import           Data.List(intercalate)
 import           Data.Maybe(listToMaybe)
 import           Data.Monoid((<>))
 import           Data.Word(Word8)

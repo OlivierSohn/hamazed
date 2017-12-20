@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 module Render.Delta.Draw
@@ -13,9 +14,10 @@ module Render.Delta.Draw
             , fillBackBuffer
             ) where
 
-import           Prelude hiding (length)
+import           Imajuscule.Prelude
 
 import           Data.IORef( IORef , readIORef )
+import           Data.String(String)
 import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( write, set, length )
 
@@ -100,7 +102,7 @@ deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 
 
 {-# INLINE writeToBack #-}
-writeToBack :: Buffer Back -> Dim Index -> Cell -> IO ()
+writeToBack :: Buffer Back -> Dim BufferIndex -> Cell -> IO ()
 writeToBack (Buffer b) pos = write b (fromIntegral pos)
 
 
@@ -122,7 +124,7 @@ fillBackBuffer (Buffers (Buffer b) _ _ _ _) =
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Dim Size -> Dim Width -> Coords -> Dim Index
+indexFromPos :: Dim Size -> Dim Width -> Coords -> Dim BufferIndex
 indexFromPos size width (Coords y x) =
   (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
 
@@ -130,7 +132,7 @@ indexFromPos size width (Coords y x) =
 -- | Modulo optimized for cases where most of the time,
 --    a < b (for a mod b)
 {-# INLINE fastMod #-}
-fastMod :: Int -> Dim Size -> Dim Index
+fastMod :: Int -> Dim Size -> Dim BufferIndex
 fastMod a b'
   | 0 <= a && a < b = fromIntegral a          -- fast path
   | otherwise       = fromIntegral $ a `mod` b  -- slow path

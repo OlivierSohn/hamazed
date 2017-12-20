@@ -1,45 +1,20 @@
--- | 'IColor8' wraps 'Color8' to define the 'DiscretelyInterpolable' instance
+-- | Functions to interpolate colors.
 
-module Color.IColor8
-        ( IColor8(..)
-        -- * Bresenham-related functions
-        , bresenhamRGBLength
-        , bresenhamRGB
-        , bresenhamColor8Length
+module Color.Interpolate
+        ( bresenhamColor8Length
         , bresenhamColor8
-        -- * Reexports
-        , module Interpolation
         ) where
 
 import           Color.Types
 
 import           Geo.Discrete.Bresenham3
 
-import           Interpolation
-
 import           Util
-
-
-newtype IColor8 a = IColor8 (Color8 a) deriving (Show)
-
-instance DiscretelyInterpolable (IColor8 a) where
-  -- | The two input 'IColor8' are supposed to be both 'rgb' or both 'gray'.
-  distance (IColor8 c) (IColor8 c') =
-    bresenhamColor8Length c c'
-
-  -- | The two input 'IColor8' are supposed to be both 'rgb' or both 'gray'.
-  interpolate (IColor8 c) (IColor8 c') i
-    | c == c' = IColor8 c
-    | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
-            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 lastFrame
-        in IColor8 . head . drop index $ bresenhamColor8 c c'
 
 -- Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
--- | The two input 'IColor8' are supposed to be both 'rgb' or both 'gray'.
+-- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8 a -> Color8 a -> Int
 bresenhamColor8Length c c'
@@ -50,7 +25,7 @@ bresenhamColor8Length c c'
         (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
         colors -> error $ "cannot get length between colors " ++ show colors
 
--- | The two input 'IColor8' are supposed to be both 'rgb' or both 'gray'.
+-- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]
 bresenhamColor8 c c'

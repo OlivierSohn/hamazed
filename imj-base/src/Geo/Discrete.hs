@@ -90,8 +90,9 @@ rangeContains r1 r2 i = if abs (r2-i) + abs (i-r1) == abs (r2-r1) then Just (i -
 translate :: Coords -> Coords -> Coords
 translate = sumCoords
 
-translate' :: Coord Row -> Coord Col -> Coords -> Coords
-translate' r c = sumCoords (Coords r c)
+translate' :: Length Height -> Length Width -> Coords -> Coords
+translate' h w c =
+  sumCoords c $ toCoords h w
 
 move :: Int -> Direction -> Coords -> Coords
 move t dir c = sumCoords c $ multiply t $ coordsForDirection dir

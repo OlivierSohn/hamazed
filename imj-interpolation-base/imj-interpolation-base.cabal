@@ -1,8 +1,9 @@
 name:                imj-interpolation-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            A library exposing the DicretelyInterpolable class.
-Description:         Allows to define interpolations, pure or IO-based.
+Synopsis:            A library defining the DicretelyInterpolable class and some instances.
+Description:         Allows to define interpolations, pure or IO-based, and provides
+                     instances for types of package "imj-base".
 homepage:            https://github.com/OlivierSohn/hamazed/imj-interpolation-base#readme
 license:             BSD3
 license-file:        LICENSE
@@ -19,9 +20,10 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Evolution
-                     , Interpolation
+  exposed-modules:     Color.Interpolate
                      , Ease
+                     , Evolution
+                     , Interpolation
   build-depends:       base >= 4.8 && < 4.11
                      , mtl
                      , text

@@ -1,3 +1,8 @@
+{-# OPTIONS_HADDOCK hide #-}
+
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
 {- | A wrapper around 'Data.Vector.Unboxed.Mutable' that enables reserving,
 clearing, pushing (in C++ STL vector fashion).
 
@@ -12,8 +17,6 @@ Modified from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/s
 
 -}
 
-{-# OPTIONS_HADDOCK hide #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 
 module Render.Delta.DynUnboxedVec(
         STVector
@@ -36,7 +39,7 @@ module Render.Delta.DynUnboxedVec(
       ) where
 
 
-import           Prelude hiding (read, length)
+import           Imajuscule.Prelude
 
 import           Data.Data
                     (Typeable)

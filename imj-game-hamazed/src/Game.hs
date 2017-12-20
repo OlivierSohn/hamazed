@@ -329,7 +329,7 @@ renderGame :: (Draw e, MonadReader e m, MonadIO m)
            => Maybe KeyTime
            -> GameState m
            -> m [BoundedAnimationUpdate m]
-renderGame k (GameState _ world@(World _ _ _ space@(Space _ (WorldSize (Coords rs cs)) _)
+renderGame k (GameState _ world@(World _ _ _ space@(Space _ (Size rs cs) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
   renderSpace space curUpperLeft >>=

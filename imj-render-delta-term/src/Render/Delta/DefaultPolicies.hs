@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -- | This module defines the default policies.
@@ -5,11 +6,12 @@
 module Render.Delta.DefaultPolicies
            where
 
+import           Imajuscule.Prelude
 
-import System.IO(BufferMode(..))
+import           System.IO(BufferMode(..))
 
-import Render.Delta.Types
-import Color
+import           Color
+import           Render.Delta.Types
 
 
 -- | @=@ 'MatchTerminalSize'

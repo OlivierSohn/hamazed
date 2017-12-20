@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 module Render.Delta.Buffers.Dimensions
@@ -5,12 +6,13 @@ module Render.Delta.Buffers.Dimensions
         , bufferSizeFromWH
         ) where
 
+import           Imajuscule.Prelude
+
+import           Data.Word( Word16, Word32 )
 
 import           System.Console.Terminal.Size as Term (size, Window(..))
 
 import           Render.Delta.Types
-
-import           Data.Word( Word16, Word32 )
 
 
 getDimensions :: ResizePolicy -> IO (Dim Width, Dim Height)
@@ -24,7 +26,7 @@ getDimensions MatchTerminalSize =
 
 
 
-bufferSizeFromWH :: Dim Width -> Dim Height -> (Dim Size, Dim Width)
+bufferSizeFromWH :: Dim Width -> Dim Height -> (Dim BufferSize, Dim Width)
 bufferSizeFromWH (Dim w') (Dim h') =
   let w = max 1 w'
       h = max 1 h'

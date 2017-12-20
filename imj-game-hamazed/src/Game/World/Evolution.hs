@@ -133,7 +133,7 @@ alignTxt (Alignment al pos) txt =
 
 
 computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)
-computeRSForInfos (FrameSpec (WorldSize (Coords rs cs)) upperLeft _) =
+computeRSForInfos (FrameSpec (Size rs cs) upperLeft _) =
   (centerUp, centerDown, leftMiddle)
  where
   addWallSize = (+ 2)

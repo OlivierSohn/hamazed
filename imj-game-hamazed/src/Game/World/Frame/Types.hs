@@ -15,13 +15,12 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List( mapAccumL, zip )
 
 import           Draw
-import           Game.World.Space.Types
 import           Geo.Discrete
 import           Interpolation
 
 
 data FrameSpec = FrameSpec {
-    _frameSpecSize :: !WorldSize
+    _frameSpecSize :: !Size
   , _frameSpecUpperLeft :: !Coords
   , _frameSpecColors :: !LayeredColor
 } deriving(Eq, Show)
@@ -75,7 +74,7 @@ renderTransition from@(FrameSpec _ fromUpperLeft _)
 data BuildFrom = Middle
                | Extremities -- generates the complement
 
-ranges :: Int -> WorldSize -> BuildFrom -> [(Int, Int)]
+ranges :: Int -> Size -> BuildFrom -> [(Int, Int)]
 ranges progress sz =
   let h = countWorldFrameVertical sz
       w = countWorldFrameHorizontal sz
@@ -115,21 +114,21 @@ rangeByRemovingFromTotal remove total start =
   in (start + min_, start + max_)
 
 
-countWorldFrameChars :: WorldSize -> Int
+countWorldFrameChars :: Size -> Int
 countWorldFrameChars s =
   2 * countWorldFrameHorizontal s + 2 * countWorldFrameVertical s
 
-countWorldFrameHorizontal :: WorldSize -> Int
-countWorldFrameHorizontal (WorldSize (Coords _ cs)) =
+countWorldFrameHorizontal :: Size -> Int
+countWorldFrameHorizontal (Size _ cs) =
   fromIntegral cs + 2
 
-countWorldFrameVertical :: WorldSize -> Int
-countWorldFrameVertical (WorldSize (Coords rs _)) =
+countWorldFrameVertical :: Size -> Int
+countWorldFrameVertical (Size rs _) =
   fromIntegral rs
 
 {-# INLINABLE renderPartialWorldFrame #-}
 renderPartialWorldFrame :: (Draw e, MonadReader e m, MonadIO m)
-                        => WorldSize
+                        => Size
                         -> LayeredColor
                         -> (Coords, Int, Int)
                         -> m ()
@@ -144,7 +143,7 @@ renderPartialWorldFrame sz colors r =
 
 {-# INLINABLE renderRightWall #-}
 renderRightWall :: (Draw e, MonadReader e m, MonadIO m)
-                => WorldSize
+                => Size
                 -> LayeredColor
                 -> (Coords, Int, Int)
                 -> m (Coords, Int, Int)
@@ -163,7 +162,7 @@ renderRightWall sz colors (upperRight, from, to) = do
 
 {-# INLINABLE renderLeftWall #-}
 renderLeftWall :: (Draw e, MonadReader e m, MonadIO m)
-               => WorldSize
+               => Size
                -> LayeredColor
                -> (Coords, Int, Int)
                -> m (Coords, Int, Int)
@@ -183,7 +182,7 @@ renderLeftWall sz colors (lowerLeft, from, to) = do
 -- 0 is upper left
 {-# INLINABLE renderUpperWall #-}
 renderUpperWall :: (Draw e, MonadReader e m, MonadIO m)
-                => WorldSize
+                => Size
                 -> LayeredColor
                 -> (Coords, Int, Int)
                 -> m (Coords, Int, Int)
@@ -201,7 +200,7 @@ renderUpperWall sz colors (upperLeft, from, to) = do
 
 {-# INLINABLE renderLowerWall #-}
 renderLowerWall :: (Draw e, MonadReader e m, MonadIO m)
-                => WorldSize
+                => Size
                 -> LayeredColor
                 -> (Coords, Int, Int)
                 -> m (Coords, Int, Int)

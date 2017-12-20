@@ -33,7 +33,7 @@ worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either 
 worldUpperLeftToCenterIt' worldSize mayTermSize =
   case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
-      let (WorldSize (Coords rs cs)) = maxWorldSize
+      let (WorldSize (Size rs cs)) = maxWorldSize
           heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
           widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
           minSize@(Terminal.Window minh minw) =
@@ -51,7 +51,7 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
     Nothing -> Right $ Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
 
 worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
-worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Coords rs cs)) =
+worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Size rs cs)) =
   let walls = 2 :: Int
-  in Coords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)
-            (quot (fromIntegral w-(cs+ fromIntegral walls)) 2)
+  in toCoords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)
+              (quot (fromIntegral w-(cs+ fromIntegral walls)) 2)

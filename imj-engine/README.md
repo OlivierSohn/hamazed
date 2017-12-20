@@ -1,9 +1,9 @@
 # What is it?
 
 A 2d-terminal game engine with:
-- Discrete geometry
-- Color animations (interpolated colors)
-- Text animations (location and color)
+- Collisions
+- Lasers
+- Geometry
 
 # Projects using it
 

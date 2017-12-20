@@ -1,6 +1,5 @@
-{-# OPTIONS_HADDOCK hide #-}
-
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
 module Render.Delta.Console
                ( ConsoleConfig(..)

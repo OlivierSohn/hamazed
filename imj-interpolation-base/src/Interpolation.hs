@@ -18,6 +18,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.List( length, mapAccumL )
 
+import           Color.Interpolate
 import           Draw.Class
 import           Geo.Discrete
 import           Geo.Discrete.Bresenham
@@ -164,3 +165,31 @@ instance DiscretelyInterpolable Coords where
             -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
             index = clamp i 0 lastFrame
         in head . drop index $ bresenham $ mkSegment c c'
+
+instance DiscretelyInterpolable (Color8 a) where
+  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+  distance c c' =
+    bresenhamColor8Length c c'
+
+  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+  interpolate c c' i
+    | c == c' = c
+    | otherwise =
+        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
+            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+            index = clamp i 0 lastFrame
+        in head . drop index $ bresenhamColor8 c c'
+
+
+-- TODO bresenham 6 to interpolate foreground and background at the same time:
+-- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
+-- | First interpolate background color, then foreground color
+instance DiscretelyInterpolable LayeredColor where
+  distance (LayeredColor bg fg) (LayeredColor bg' fg') =
+    succ $ pred (distance bg bg') + pred (distance fg fg')
+
+  interpolate (LayeredColor bg fg) (LayeredColor bg' fg') i
+    | i < lastBgFrame = LayeredColor (interpolate bg bg' i) fg
+    | otherwise       = LayeredColor bg' $ interpolate fg fg' $ i - lastBgFrame
+    where
+      lastBgFrame = pred $ distance bg bg'

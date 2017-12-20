@@ -1,4 +1,5 @@
 {-# OPTIONS_HADDOCK hide #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Render.Delta.Cell
           ( Cell
@@ -9,6 +10,8 @@ module Render.Delta.Cell
           , getIndex
           , expand
           ) where
+
+import           Imajuscule.Prelude
 
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.Char( chr, ord )
@@ -50,7 +53,7 @@ getCharacter w = chr $ fromIntegral $ secondWord32 w
 -- Works only if the 'Cell' was created using mkIndexedCell,
 -- else 0 is returned.
 {-# INLINE getIndex #-}
-getIndex :: Cell -> Dim Index
+getIndex :: Cell -> Dim BufferIndex
 getIndex w = fromIntegral $ secondWord16 w
 
 {-# INLINE expand #-}
@@ -62,7 +65,7 @@ expand w = (getBackgroundColor w
 
 {-# INLINE expandIndexed #-}
 expandIndexed :: Cell
-              -> (Color8 Background, Color8 Foreground, Dim Index, Char)
+              -> (Color8 Background, Color8 Foreground, Dim BufferIndex, Char)
 expandIndexed w =
   (getBackgroundColor w
   ,getForegroundColor w
@@ -83,7 +86,7 @@ encodeColors (LayeredColor (Color8 bg') (Color8 fg')) =
 --     index in buffer (16 bits)
 --     character       (32 bits)
 {-# INLINE mkIndexedCell #-}
-mkIndexedCell :: Cell -> Dim Index -> Cell
+mkIndexedCell :: Cell -> Dim BufferIndex -> Cell
 mkIndexedCell cell idx' =
   cell .|. (idx `shiftL` 32)
  where

@@ -2,7 +2,7 @@ name:                imj-engine
 version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            A 2d game engine for games in the terminal.
-Description:         TODO
+Description:         Collisions, lasers, geometry
 homepage:            https://github.com/OlivierSohn/hamazed/imj-engine#readme
 license:             BSD3
 license-file:        LICENSE
@@ -19,9 +19,7 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Color.IColor8
-                     , Color.ILayeredColor
-                     , Geo
+  exposed-modules:     Geo
                      , Geo.Conversion
                      , Geo.Continuous
                      , Geo.Continuous.Types

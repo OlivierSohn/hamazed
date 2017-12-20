@@ -1,4 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
+
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Render.Delta.Types
@@ -10,26 +12,29 @@ module Render.Delta.Types
             , ResizePolicy(..)
             , ClearPolicy(..)
             , Dim(..)
-            , Size
-            , Width
-            , Height
-            , Index
-            , RowIndex
-            , ColIndex
+            , BufferSize
+            , BufferIndex
             , getRowCol
             , getHeight
             -- ** Reexported types
             , Word16
+            , Height
+            , Width
+            , Row
+            , Col
             , IORef
             , Color8(..)
             ) where
 
-import           Control.Exception(assert)
+import           Imajuscule.Prelude
 
-import           Color.Types
+import           Control.Exception(assert)
 
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
+
+import           Color.Types
+import           Geo.Discrete.Types(Width, Height, Row, Col)
 
 import           Render.Delta.Internal.Types
 
@@ -63,27 +68,19 @@ data ClearPolicy = ClearAtEveryFrame
 
 newtype Dim a = Dim Word16 deriving(Num, Eq, Ord, Show, Real, Enum, Integral)
 
--- | Buffer width
-data Width
--- | Buffer height
-data Height
 -- | Buffer size (width * height)
-data Size
+data BufferSize
 -- | Buffer element index
-data Index
--- | Index of a row
-data RowIndex
--- | Index of a column
-data ColIndex
+data BufferIndex
 
 {-# INLINE getHeight #-}
-getHeight :: Dim Width -> Dim Size -> Dim Height
+getHeight :: Dim Width -> Dim BufferSize -> Dim Height
 getHeight (Dim w) (Dim sz) =
   let h = quot sz w
   in Dim $ assert (h * w == sz) h
 
 {-# INLINE getRowCol #-}
-getRowCol :: Dim Index -> Dim Width -> (Dim ColIndex, Dim RowIndex)
+getRowCol :: Dim BufferIndex -> Dim Width -> (Dim Col, Dim Row)
 getRowCol (Dim idx) (Dim w) =
       (Dim x, Dim y)
     where

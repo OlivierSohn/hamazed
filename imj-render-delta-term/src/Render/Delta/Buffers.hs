@@ -1,4 +1,5 @@
 {-# OPTIONS_HADDOCK hide #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Render.Delta.Buffers
           ( Buffers
@@ -82,5 +83,5 @@ updateSize ref =
   readIORef ref >>= adjustSizeIfNeeded >>= writeIORef ref
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
-newBufferArray :: Dim Size -> (Cell, Cell) -> IO BackFrontBuffer
+newBufferArray :: Dim BufferSize -> (Cell, Cell) -> IO BackFrontBuffer
 newBufferArray size = replicate (fromIntegral size)

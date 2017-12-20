@@ -1,14 +1,18 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Render.Delta.Flush
     ( deltaFlush
     ) where
 
-import           Prelude hiding(read, length)
+import           Imajuscule.Prelude
+
+import qualified Prelude(putStr, putChar)
 
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef )
-import           Data.List(intersperse)
+import           Data.String(String)
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 
@@ -63,11 +67,11 @@ render buffers@(Buffers _ _ width (Delta delta) _) = do
 
 -- We pass the underlying vector, and the size instead of the dynamicVector
 renderDelta :: IOVector Cell
-            -> Dim Size
+            -> Dim BufferSize
             -> Dim Width
-            -> Dim Index
+            -> Dim BufferIndex
             -> Maybe LayeredColor
-            -> Maybe (Dim Index)
+            -> Maybe (Dim BufferIndex)
             -> IO LayeredColor
 renderDelta delta size width index prevColors prevIndex
  | fromIntegral size == index = return $ LayeredColor (Color8 0) (Color8 0)
@@ -81,7 +85,7 @@ renderDelta delta size width index prevColors prevIndex
 
 
 computeDelta :: Buffers
-             -> Dim Index
+             -> Dim BufferIndex
              -- ^ the buffer index
              -> IO ()
 computeDelta
@@ -110,7 +114,7 @@ computeDelta
 -- of a char, so we avoid sending this command when not strictly needed.
 {-# INLINE setCursorPositionIfNeeded #-}
 setCursorPositionIfNeeded :: Dim Width
-                          -> Dim Index
+                          -> Dim BufferIndex
                           -- ^ the buffer index
                           -> Bool
                           -- ^ True if a char was rendered at the previous buffer index
@@ -126,7 +130,7 @@ setCursorPositionIfNeeded width idx predPosRendered = do
       -- automatically advanced to the next column (or to the beginning of
       -- the next line if it was the last terminal column).
         || not predPosRendered
-  when shouldSetCursorPosition $ putStr $ setCursorPositionCode (fromIntegral rowIdx) (fromIntegral colIdx)
+  when shouldSetCursorPosition $ Prelude.putStr $ setCursorPositionCode (fromIntegral rowIdx) (fromIntegral colIdx)
 
 setCursorPositionCode :: Int -- ^ 0-based row to move to
                       -> Int -- ^ 0-based column to move to
@@ -167,11 +171,11 @@ renderCell bg fg char maybeCurrentConsoleColor = do
 csi :: [Int]
     -> String
     -> String
-csi args code = "\ESC[" ++ concat (intersperse ";" (map show args)) ++ code
+csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
 
 
 {-# INLINE xyFromIndex #-}
-xyFromIndex :: Dim Width -> Dim Index -> (Dim ColIndex, Dim RowIndex)
+xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
 xyFromIndex width idx =
   getRowCol idx width
 

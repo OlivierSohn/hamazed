@@ -1,8 +1,6 @@
 
 # Backlog
 
-- color interpolations (Color8, LayeredColor) should be defined here
-
 - rename to imj-interpolation if there is no other module than base
 
 - some evolutions don't use the timing aspect as another evolution times them.

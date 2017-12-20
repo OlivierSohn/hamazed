@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- | This module exports functions to create and configure a 'DeltaEnv'.
 
 module Render.Delta.Env
@@ -32,6 +34,8 @@ module Render.Delta.Env
           -- * Reexports
           , BufferMode(..)
           ) where
+
+import           Imajuscule.Prelude
 
 import           System.IO(BufferMode(..), hSetBuffering, stdout)
 

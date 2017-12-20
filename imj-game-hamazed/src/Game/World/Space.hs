@@ -40,7 +40,6 @@ import           Draw
 
 import           Game.Color
 import           Game.World.Types
-import           Game.World.Size
 
 import           Geo.Discrete hiding (extend)
 
@@ -62,7 +61,7 @@ createRandomPosSpeed space = do
 oneRandom :: Int -> Int -> IO Int
 oneRandom a b = do
   r <- randomRsIO a b
-  return $ head $ take 1 $ r
+  return $ head $ take 1 r
 
 randomSpeed :: IO Int
 randomSpeed = oneRandom (-1) 1
@@ -78,18 +77,18 @@ randomInt :: Int -> IO Int
 randomInt sz =
   oneRandom 0 (sz-1)
 
-randomCoords :: WorldSize -> IO Coords
-randomCoords (WorldSize (Coords rs cs)) = do
-  r <- randomCoord rs
-  c <- randomCoord cs
+randomCoords :: Size -> IO Coords
+randomCoords (Size rs cs) = do
+  r <- randomCoord $ fromIntegral rs
+  c <- randomCoord $ fromIntegral cs
   return $ Coords r c
 
 randomCoord :: Coord a -> IO (Coord a)
 randomCoord (Coord sz) = Coord <$> randomInt sz
 
-forEachRowPure :: Matrix CInt -> WorldSize -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
-forEachRowPure mat (WorldSize (Coords nRows nColumns)) f =
-  let rowIndexes = [0..nRows-1]          -- index of inner row
+forEachRowPure :: Matrix CInt -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
+forEachRowPure mat (Size nRows nColumns) f =
+  let rowIndexes = [0..fromIntegral $ nRows-1] -- index of inner row
       internalRowLength = nInternalColumns
       rowLength = internalRowLength - 2
       nInternalColumns = nColumns + 2  -- size of a column in the matrix
@@ -112,13 +111,13 @@ mapInt 0 = Air
 mapInt 1 = Wall
 mapInt _ = error "mapInt arg out of bounds"
 
-mkEmptySpace :: WorldSize -> Space
+mkEmptySpace :: Size -> Space
 mkEmptySpace s =
   let air  = mapMaterial Air
   in mkSpaceFromInnerMat s [[air]]
 
-mkDeterministicallyFilledSpace :: WorldSize -> Space
-mkDeterministicallyFilledSpace s@(WorldSize (Coords heightEmptySpace widthEmptySpace)) =
+mkDeterministicallyFilledSpace :: Size -> Space
+mkDeterministicallyFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
   let wall = mapMaterial Wall
       air  = mapMaterial Air
 
@@ -135,7 +134,7 @@ mkDeterministicallyFilledSpace s@(WorldSize (Coords heightEmptySpace widthEmptyS
 
 -- | creates a rectangle of size specified in parameters, with a one-element border.
 --  it uses IO for random numbers
-mkRandomlyFilledSpace :: RandomParameters -> WorldSize -> IO Space
+mkRandomlyFilledSpace :: RandomParameters -> Size -> IO Space
 mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   smallWorldMat <- mkSmallWorld s blockSize strategy
 
@@ -153,14 +152,14 @@ mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
 --  that meets the requirement for usual values of:
 --  - probability of having air vs. a wall at any cell
 --  - size of the small world
-mkSmallWorld :: WorldSize
+mkSmallWorld :: Size
              -- ^ Size of the big world
              -> Int
              -- ^ Pixel width (if 1, the small world will have the same size as the big one)
              -> Strategy
              -> IO [[CInt]]
              -- ^ the "small world"
-mkSmallWorld s@(WorldSize (Coords heightEmptySpace widthEmptySpace)) multFactor strategy = do
+mkSmallWorld s@(Size heightEmptySpace widthEmptySpace) multFactor strategy = do
   let nCols = quot widthEmptySpace $ fromIntegral multFactor
       nRows = quot heightEmptySpace $ fromIntegral multFactor
       mkRandomRow _ = take (fromIntegral nCols) <$> rands -- TODO use a Matrix directly
@@ -201,14 +200,14 @@ connectedNeighbours matchIdx coords mat (nRows,nCols) =
           else
             Just other) neighbours
 
-mkSpaceFromInnerMat :: WorldSize -> [[CInt]] -> Space
+mkSpaceFromInnerMat :: Size -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =
   let innerMat = extend s innerMatMaybeSmaller
       mat = fromLists $ addBorder s innerMat
   in Space mat s $ matToRenderGroups mat s
 
-extend :: WorldSize -> [[a]] -> [[a]]
-extend (WorldSize (Coords rs cs)) mat =
+extend :: Size -> [[a]] -> [[a]]
+extend (Size rs cs) mat =
   extend' (fromIntegral rs) $ map (extend' $ fromIntegral cs) mat
 
 extend' :: Int -> [a] -> [a]
@@ -223,8 +222,8 @@ extend' sz l@(_:_) =
 rands :: IO [CInt]
 rands = randomRsIO 0 1
 
-addBorder :: WorldSize -> [[CInt]] -> [[CInt]]
-addBorder (WorldSize (Coords _ widthEmptySpace)) l =
+addBorder :: Size -> [[CInt]] -> [[CInt]]
+addBorder (Size _ widthEmptySpace) l =
   let nCols = fromIntegral widthEmptySpace + 2 * borderSize
       wall = mapMaterial Wall
       wallRow = replicate nCols wall
@@ -234,8 +233,8 @@ addBorder (WorldSize (Coords _ widthEmptySpace)) l =
 borderSize :: Int
 borderSize = 1
 
-matToRenderGroups :: Matrix CInt -> WorldSize -> [RenderGroup]
-matToRenderGroups mat s@(WorldSize (Coords _ cs)) =
+matToRenderGroups :: Matrix CInt -> Size -> [RenderGroup]
+matToRenderGroups mat s@(Size _ cs) =
   concat $
     forEachRowPure mat s $
       \row accessMaterial ->
@@ -250,7 +249,7 @@ matToRenderGroups mat s@(WorldSize (Coords _ cs)) =
                            Air -> ' '
                      in (col + fromIntegral count,
                          RenderGroup (Coords row col) materialColor materialChar count))
-                  (Coord 0) $ group $ map accessMaterial [0..pred cs]
+                  (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
 getInnerMaterial :: Coords -> Space -> Material
 getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
@@ -260,9 +259,9 @@ getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
 -- | @Coord 0 0@ corresponds to indexes 1 1 in matrix :
 -- <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem indices start at 1>.
 getMaterial :: Coords -> Space -> Material
-getMaterial coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
+getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
   | r < 0 || c < 0       = Wall
-  | r > rs-1 || c > cs-1 = Wall
+  | r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = Wall
   | otherwise = getInnerMaterial coords space
 
 materialToLocation :: Material -> Location
@@ -274,8 +273,8 @@ location :: Coords -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
 strictLocation :: Coords -> Space -> Location
-strictLocation coords@(Coords r c) space@(Space _ (WorldSize (Coords rs cs)) _)
-    | r < 0 || c < 0 || r > rs-1 || c > cs-1 = InsideWorld
+strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
+    | r < 0 || c < 0 || r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
 
 

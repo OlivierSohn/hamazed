@@ -28,10 +28,9 @@ import           Data.String(IsString(..))
 import           Data.Text( Text, length, pack, unpack )
 
 import           Color
-import           Color.ILayeredColor
-
 import           Draw
 import           Geo.Discrete
+import           Interpolation
 import           Text.Alignment
 import           Util
 
@@ -42,7 +41,7 @@ newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 instance DiscretelyInterpolable ColorString where
   distance c1 c2 =
     let colorDist (_, color) (_, color') =
-          distance (mkIColors color) (mkIColors color')
+          distance color color'
         n1 = countChars c1
         n2 = countChars c2
         s1 = simplify c1
@@ -85,7 +84,7 @@ interpolateColors :: ColorString
 interpolateColors c1 c2 i =
   let itp (_, color)
           (char, color') =
-        (pack [char], mkColors $ interpolate (mkIColors color) (mkIColors color') i)
+        (pack [char], interpolate color color' i)
   in ColorString $ zipWith itp (simplify c1) (simplify c2)
 
 interpolateChars :: ColorString

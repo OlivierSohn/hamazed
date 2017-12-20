@@ -8,5 +8,5 @@ import Game.World.Space
 testSpace :: (MonadReader e m, Draw e, MonadIO m) => m ()
 testSpace = do
   let blocksSize = 6
-  s <- liftIO $ mkRandomlyFilledSpace (RandomParameters blocksSize StrictlyOneComponent) (WorldSize $ Coords 36 72)
+  s <- liftIO $ mkRandomlyFilledSpace (RandomParameters blocksSize StrictlyOneComponent) (Size 36 72)
   void (renderSpace s (Coords 0 0))

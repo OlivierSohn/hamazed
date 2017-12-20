@@ -134,13 +134,12 @@ mkWorld :: (MonadIO m)
         -> [Int]
         -> Int
         -> m (World m)
-mkWorld e s walltype nums ammo = do
-  (Space mat sz render) <- case walltype of
+mkWorld e (WorldSize s) walltype nums ammo = do
+  space <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
   t <- liftIO getCurrentTime
-  let space = Space mat sz render
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
   return $ World balls ballMotion (BattleShip ship ammo (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e

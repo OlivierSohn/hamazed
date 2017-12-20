@@ -6,6 +6,7 @@ packages:
 - './imj-prelude'
 - './imj-base'
 - './imj-draw'
+- './imj-interpolation-base'
 - './imj-engine'
 - './imj-animation-base'
 - './imj-animation'

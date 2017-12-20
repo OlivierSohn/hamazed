@@ -18,11 +18,11 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.List( length, mapAccumL )
 
+import           Draw.Class
 import           Geo.Discrete
 import           Geo.Discrete.Bresenham
 import           Iteration
-import           Math
-import           Draw.Class
+import           Util(clamp)
 
 
 newtype Successive a = Successive [a] deriving(Show)

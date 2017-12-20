@@ -2,14 +2,8 @@
 
 A 2d-terminal game engine with:
 - Discrete geometry
-- Animations, chained (or composed) animations
-  - Gravity-based
-  - Explosive
-  - Lasers
 - Color animations (interpolated colors)
 - Text animations (location and color)
-- Rendering class : Draw, implemented in package "delta-render" to draw efficiently
-  in the console without screentearing.
 
 # Projects using it
 

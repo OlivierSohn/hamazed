@@ -26,7 +26,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Draw.Class
 import           Interpolation
 
-import           Math
+import           Ease
 
 {-# INLINABLE mkEvolution #-}
 -- | An evolution between n values.

@@ -3,6 +3,8 @@
 A terminal render engine that mitigates screen tearing when rendering complex
 game graphics, by minimizing the amount of data sent to stdout.
 
+It has an instance of Draw.Class.Draw (from imj-draw)
+
 # Projects using it
 
 - [Hamazed, a game with flying numbers](https://github.com/OlivierSohn/hamazed/tree/master/imj-game-hamazed)

@@ -13,6 +13,8 @@ module Util
     , commonSuffix
       -- * Random numbers
     , randomRsIO
+      -- * Math
+    , clamp
     ) where
 
 import           Imajuscule.Prelude
@@ -85,3 +87,19 @@ commonPrefix _ _ = []
 
 commonSuffix :: String -> String -> String
 commonSuffix s s' = reverse $ commonPrefix (reverse s) (reverse s')
+
+
+-- | Expects the bounds to be in the right order.
+{-# INLINABLE clamp #-}
+clamp :: Ord a
+      => a
+      -- ^ The value
+      -> a
+      -- ^ The inclusive minimum bound
+      -> a
+      -- ^ The inclusive maximum bound
+      -> a
+clamp n min_ max_
+  | n < min_ = min_
+  | n > max_ = max_
+  | otherwise = n

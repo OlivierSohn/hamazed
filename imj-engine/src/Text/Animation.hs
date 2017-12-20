@@ -31,11 +31,11 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip)
 
+import           Ease
 import           Evolution
 
 import           Geo.Discrete
 
-import           Math
 import           Draw
 import           Text.ColorString
 

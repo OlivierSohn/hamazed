@@ -7,10 +7,6 @@
 
 - provide "nice" default colors (notion of palette?)
 
-- some evolutions don't use the timing aspect as another evolution times them.
-some evolutions don't use the interpolation aspect as they are only used to time.
-we should separate the 2 aspects by defining 2 distinct types.
-
 ## Geometry
 
 - take into account the fact that character width and height are not equal,

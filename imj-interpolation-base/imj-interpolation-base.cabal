@@ -1,9 +1,9 @@
-name:                imj-engine
+name:                imj-interpolation-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            A 2d game engine for games in the terminal.
-Description:         TODO
-homepage:            https://github.com/OlivierSohn/hamazed/imj-engine#readme
+Synopsis:            A library exposing the DicretelyInterpolable class.
+Description:         Allows to define interpolations, pure or IO-based.
+homepage:            https://github.com/OlivierSohn/hamazed/imj-interpolation-base#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -19,23 +19,14 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Color.IColor8
-                     , Color.ILayeredColor
-                     , Geo
-                     , Geo.Conversion
-                     , Geo.Continuous
-                     , Geo.Continuous.Types
-                     , Laser.Types
-                     , Text.Animation
-                     , Text.ColorString
-                     , Physics.Discrete.Collision
-                     , Physics.Discrete.Types
+  exposed-modules:     Evolution
+                     , Interpolation
+                     , Ease
   build-depends:       base >= 4.8 && < 4.11
                      , mtl
                      , text
                      , imj-base
                      , imj-draw
-                     , imj-interpolation-base
                      , imj-prelude
   default-language:    Haskell2010
 
@@ -43,7 +34,6 @@ test-suite imj-engine-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       Test.Ease
-                     , Test.InterpolatedColorString
                      , Test.Interpolation
   main-is:             Spec.hs
   build-depends:       base
@@ -54,11 +44,10 @@ test-suite imj-engine-test
                      , imj-draw
                      , imj-interpolation-base
                      , imj-render-naive-term
-                     , imj-engine
                      , imj-prelude
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-engine
+  location: https://github.com/OlivierSohn/hamazed/imj-interpolation-base

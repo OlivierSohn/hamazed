@@ -32,7 +32,6 @@ import           Color.ILayeredColor
 
 import           Draw
 import           Geo.Discrete
-import           Math
 import           Text.Alignment
 import           Util
 

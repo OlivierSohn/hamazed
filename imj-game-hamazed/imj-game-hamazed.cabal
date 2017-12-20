@@ -59,6 +59,7 @@ library
                      , imj-base
                      , imj-draw
                      , imj-engine
+                     , imj-interpolation-base
                      , imj-prelude
                      , imj-render-delta-term
   default-language:    Haskell2010

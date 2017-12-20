@@ -1,14 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Math
+module Ease
     (
     -- * (Inverse) Easing
       invQuartEaseInOut
     -- ** Adapt to discrete values
     , discreteAdaptor
     , discreteInvQuartEaseInOut
-    -- * Utilities
-    , clamp
     ) where
 
 import           Imajuscule.Prelude
@@ -77,18 +75,3 @@ discreteInvQuartEaseInOut :: Int
                           -> Float
                           -> Float
 discreteInvQuartEaseInOut = discreteAdaptor invQuartEaseInOut
-
--- | Expects the bounds to be in the right order.
-{-# INLINABLE clamp #-}
-clamp :: Ord a
-      => a
-      -- ^ The value
-      -> a
-      -- ^ The inclusive minimum bound
-      -> a
-      -- ^ The inclusive maximum bound
-      -> a
-clamp n min_ max_
-  | n < min_ = min_
-  | n > max_ = max_
-  | otherwise = n

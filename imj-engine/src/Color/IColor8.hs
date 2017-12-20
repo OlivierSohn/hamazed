@@ -17,7 +17,6 @@ import           Geo.Discrete.Bresenham3
 
 import           Interpolation
 
-import           Math
 import           Util
 
 

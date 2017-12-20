@@ -25,15 +25,15 @@ are still alive, returns the next 'AnimationUpdate' in which the updated 'Animat
 -}
 {-# INLINABLE renderAndUpdate #-}
 renderAndUpdate :: (Draw e, MonadReader e m, MonadIO m)
-                => (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
+                => (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
                 -- ^ the pure animation function
-                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
                 -- ^ the IO animation function
                 -> (Frame -> LayeredColor)
-                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))
-renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration _ frame) mayChar _) getLocation r = do
-  let (nextAnimation, newState) = updateStateAndAnimation k pureAnim getLocation statelessIOAnim a state
-  isAlive <- render' frame mayChar newState getLocation colorFunc r
+                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))
+renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration _ frame) mayChar _) interaction r = do
+  let (nextAnimation, newState) = updateStateAndAnimation k pureAnim interaction statelessIOAnim a state
+  isAlive <- render' frame mayChar newState interaction colorFunc r
   return $
     if isAlive
       then
@@ -42,23 +42,23 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ 
         Nothing
 
 updateStateAndAnimation :: Maybe KeyTime
-                        -> (Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
-                        -> (Coords -> Location)
-                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                        -> (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
+                        -> (Coords -> InteractionResult)
+                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
                         -> AnimationUpdate m
                         -> AnimatedPoints
                         -> (AnimationUpdate m, AnimatedPoints)
-updateStateAndAnimation k pureAnim getLocation statelessIOAnim a@(AnimationUpdate _ i _ _) state =
+updateStateAndAnimation k pureAnim interaction statelessIOAnim a@(AnimationUpdate _ i _ _) state =
     (nextAnimation, newState)
   where
     step = computeStep k a state
     newState = case step of
       Same -> state
-      _    -> pureAnim i getLocation state
+      _    -> pureAnim i interaction state
     nextAnimation = updateAnimation step (statelessIOAnim newState) a
 
 updateAnimation :: StepType
-                -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
                 -> AnimationUpdate m
                 -> AnimationUpdate m
 updateAnimation Same _ a = a
@@ -108,7 +108,7 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         -> Maybe Char
         -- ^ default char to use when there is no char specified in the state
         -> AnimatedPoints
-        -> (Coords -> Location)
+        -> (Coords -> InteractionResult)
         -> (Frame -> LayeredColor)
         -> Coords
         -> m Bool
@@ -117,7 +117,7 @@ render' _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
 render' _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False
 render'
  parentFrame mayCharAnim (AnimatedPoints _ childFrame (Just branches) onWall mayCharTree)
- getLocation colorFunc r = do
+ interaction colorFunc r = do
   let mayChar = mayCharTree <|> mayCharAnim
   case mayChar of
     Nothing -> error "either the pure anim function ar the animation should specify a Just"
@@ -125,11 +125,11 @@ render'
       let (children, aliveCoordinates) = partitionEithers branches
           isAlive = (not . null) aliveCoordinates
           renderedCoordinates = case onWall of
-            ReboundAnd _ -> aliveCoordinates -- every alive point is guaranteed to be collision-free
-            Traverse  -> filter (( == InsideWorld ) . getLocation) aliveCoordinates -- some alive points may collide
+            Interact _ -> aliveCoordinates -- every alive point is guaranteed to be collision-free
+            DontInteract  -> filter (( == Stable ) . interaction) aliveCoordinates -- some alive points may collide
             Stop      -> error "animation should have stopped"
           relFrame = parentFrame - childFrame
           color = colorFunc relFrame
       mapM_ (\c -> drawChar char (sumCoords c r) color) renderedCoordinates
-      childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child getLocation colorFunc r) children
+      childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child interaction colorFunc r) children
       return $ isAlive || or childrenAlive

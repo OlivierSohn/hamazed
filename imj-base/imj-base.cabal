@@ -1,7 +1,7 @@
 name:                imj-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Common data types for a 2d game engine.
+Synopsis:            Data types, algorithms, utilities for a 2d game engine.
 Description:         Basic color and position types.
 homepage:            https://github.com/OlivierSohn/hamazed/imj-base#readme
 license:             BSD3
@@ -20,18 +20,28 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Color.Types
+                     , Color
                      , Geo.Discrete
+                     , Geo.Discrete.Bresenham
+                     , Geo.Discrete.Bresenham3
+                     , Geo.Discrete.Resample
                      , Geo.Discrete.Types
                      , Geo.Types
+                     , Iteration
                      , Text.Alignment
+                     , Timing
+                     , Util
   build-depends:       base >= 4.8 && < 4.11
                      , imj-prelude
+                     , random
+                     , text
+                     , time
   default-language:    Haskell2010
 
 test-suite imj-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:
+  other-modules:       Test.Bresenham3
   main-is:             Spec.hs
   build-depends:       base
                      , imj-base

@@ -2,14 +2,7 @@ name:                imj-engine
 version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            A 2d game engine for games in the terminal.
-Description:         Features explosive and gravity-based animations which can be
-                     chained on collision with the environment. Also features
-                     animations of colored text (animation happens both for
-                     character colors and anchors locations). The renderer is
-                     abstracted through the Draw class. The package delta-render
-                     contains an efficient, screentearing-free renderer that implements
-                     Draw. You can also write one yourself, to target a different
-                     rendering space than the terminal for example.
+Description:         TODO
 homepage:            https://github.com/OlivierSohn/hamazed/imj-engine#readme
 license:             BSD3
 license-file:        LICENSE
@@ -26,32 +19,23 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Color
-                     , Color.IColor8
+  exposed-modules:     Color.IColor8
                      , Color.ILayeredColor
                      , Evolution
                      , Geo
                      , Geo.Conversion
                      , Geo.Continuous
                      , Geo.Continuous.Types
-                     , Geo.Discrete.Bresenham
-                     , Geo.Discrete.Bresenham3
-                     , Geo.Discrete.Resample
                      , Interpolation
-                     , Iteration
                      , Laser.Types
                      , Math
-                     , Physics.Discrete.Collision
-                     , Physics.Discrete.Types
                      , Text.Animation
                      , Text.ColorString
-                     , Timing
-                     , Util
+                     , Physics.Discrete.Collision
+                     , Physics.Discrete.Types
   build-depends:       base >= 4.8 && < 4.11
                      , mtl
-                     , random
                      , text
-                     , time
                      , imj-base
                      , imj-draw
                      , imj-prelude
@@ -60,8 +44,7 @@ library
 test-suite imj-engine-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Bresenham3
-                     , Test.Ease
+  other-modules:       Test.Ease
                      , Test.InterpolatedColorString
                      , Test.Interpolation
                      , Test.MockDraw

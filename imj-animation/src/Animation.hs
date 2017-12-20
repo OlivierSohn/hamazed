@@ -54,7 +54,7 @@ simpleLaser :: (Draw e, MonadReader e m, MonadIO m)
             -> AnimatedPoints
             -> Maybe KeyTime
             -> AnimationUpdate m
-            -> (Coords -> Location)
+            -> (Coords -> InteractionResult)
             -> Coords
             -> m (Maybe (AnimationUpdate m))
 simpleLaser seg =
@@ -69,7 +69,7 @@ quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                          -> AnimatedPoints
                                          -> Maybe KeyTime
                                          -> AnimationUpdate m
-                                         -> (Coords -> Location)
+                                         -> (Coords -> InteractionResult)
                                          -> Coords
                                          -> m (Maybe (AnimationUpdate m))
 quantitativeExplosionThenSimpleExplosion number = renderAndUpdate fPure f colorFromFrame
@@ -87,7 +87,7 @@ gravityAnimationThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                     -> AnimatedPoints
                                     -> Maybe KeyTime
                                     -> AnimationUpdate m
-                                    -> (Coords -> Location)
+                                    -> (Coords -> InteractionResult)
                                     -> Coords
                                     -> m (Maybe (AnimationUpdate m))
 gravityAnimationThenSimpleExplosion initialSpeed = renderAndUpdate fPure f colorFromFrame
@@ -102,7 +102,7 @@ gravityAnimation :: (Draw e, MonadReader e m, MonadIO m)
                  -> AnimatedPoints
                  -> Maybe KeyTime
                  -> AnimationUpdate m
-                 -> (Coords -> Location)
+                 -> (Coords -> InteractionResult)
                  -> Coords
                  -> m (Maybe (AnimationUpdate m))
 gravityAnimation initialSpeed = renderAndUpdate fPure f colorFromFrame
@@ -118,7 +118,7 @@ animatedNumber :: (Draw e, MonadReader e m, MonadIO m)
                -> AnimatedPoints
                -> Maybe KeyTime
                -> AnimationUpdate m
-               -> (Coords -> Location)
+               -> (Coords -> InteractionResult)
                -> Coords
                -> m (Maybe (AnimationUpdate m))
 animatedNumber n =
@@ -132,7 +132,7 @@ simpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                 -> AnimatedPoints
                 -> Maybe KeyTime
                 -> AnimationUpdate m
-                -> (Coords -> Location)
+                -> (Coords -> InteractionResult)
                 -> Coords
                 -> m (Maybe (AnimationUpdate m))
 simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
@@ -146,7 +146,7 @@ simpleExplosion resolution = renderAndUpdate fPure f colorFromFrame
 explosionGravity :: (Draw e, MonadReader e m, MonadIO m)
                  => Vec2
                  -> Coords
-                 -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))]
+                 -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))]
 explosionGravity speed pos =
   map (`explosionGravity1` pos) $ variations speed
 
@@ -154,9 +154,9 @@ explosionGravity speed pos =
 explosionGravity1 :: (Draw e, MonadReader e m, MonadIO m)
                   => Vec2
                   -> Coords
-                  -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+                  -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
 explosionGravity1 speed pos =
-  gravityAnimation speed (mkAnimatedPoints pos (ReboundAnd Stop))
+  gravityAnimation speed (mkAnimatedPoints pos (Interact Stop))
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -164,7 +164,7 @@ explosionGravity1 speed pos =
 explosion :: (Draw e, MonadReader e m, MonadIO m)
           => Vec2
           -> Coords
-          -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))]
+          -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))]
 explosion speed pos =
   map (`explosion1` pos) $ variations speed
 
@@ -180,6 +180,6 @@ variations sp =
 explosion1 :: (Draw e, MonadReader e m, MonadIO m)
            => Vec2
            -> Coords
-           -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+           -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
 explosion1 speed pos =
-  gravityAnimationThenSimpleExplosion speed (mkAnimatedPoints pos (ReboundAnd $ ReboundAnd Stop))
+  gravityAnimationThenSimpleExplosion speed (mkAnimatedPoints pos (Interact $ Interact Stop))

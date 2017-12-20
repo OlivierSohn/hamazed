@@ -32,7 +32,7 @@ data CollisionStatus = NoCollision
 
 -- | On collision, mirrors speed and moves to the pre-collision position.
 mirrorIfNeeded :: (Coords -> Location)
-               -- ^ Collision function.
+               -- ^ Interaction function.
                -> PosSpeed
                -- ^ Input position and speed.
                -> (PosSpeed, CollisionStatus)

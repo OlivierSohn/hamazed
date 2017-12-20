@@ -44,7 +44,6 @@ library
                      , vector-algorithms
                      , imj-base
                      , imj-draw
-                     , imj-engine
                      , imj-prelude
   default-language:    Haskell2010
 

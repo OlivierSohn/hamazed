@@ -34,6 +34,7 @@ import           Geo.Conversion
 import           Geo.Continuous
 import           Geo.Discrete
 
+import           Physics.Discrete.Collision
 import           Util
 
 
@@ -351,8 +352,11 @@ renderAnimations :: (Monad m)
                  -> m [BoundedAnimationUpdate m]
 renderAnimations k space mayTermWindow worldCorner animations = do
   let renderAnimation (BoundedAnimationUpdate a@(AnimationUpdate _ _ _ render) f) = do
-        let fLocation = locationFunction f space mayTermWindow worldCorner
-        fmap (`BoundedAnimationUpdate` f) <$> render k a fLocation worldCorner
+        let interaction = locationFunction f space mayTermWindow worldCorner
+                           >>> \case
+                                InsideWorld  -> Stable
+                                OutsideWorld -> Mutation
+        fmap (`BoundedAnimationUpdate` f) <$> render k a interaction worldCorner
   activeAnimations <- mapM renderAnimation animations
   let res = catMaybes activeAnimations
   return res

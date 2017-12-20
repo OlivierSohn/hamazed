@@ -28,7 +28,7 @@ mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
                -> AnimatedPoints
                -> Maybe KeyTime
                -> AnimationUpdate m
-               -> (Coords -> Location)
+               -> (Coords -> InteractionResult)
                -> Coords
                -> m (Maybe (AnimationUpdate m)))
            -> t
@@ -43,7 +43,7 @@ renderAndUpdate' :: (Draw e, MonadReader e m, MonadIO m)
                  -> AnimatedPoints
                  -> Maybe KeyTime
                  -> AnimationUpdate m
-                 -> (Coords -> Location)
+                 -> (Coords -> InteractionResult)
                  -> Coords
                  -> m (Maybe (AnimationUpdate m))
 renderAndUpdate' (Animator pure_ io_ colorFunc) =

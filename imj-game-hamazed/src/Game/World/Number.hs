@@ -53,7 +53,7 @@ destroyedNumbersAnimations keyTime event =
       animation pos = map (\f -> (f, Speed 2)) (explosion (scalarProd 2 sp) pos)
   in \case
         Number (PosSpeed pos _) n:_ ->
-          let animations = animation pos ++ [(animatedNumber n (mkAnimatedPoints pos Traverse), Speed 1)]
+          let animations = animation pos ++ [(animatedNumber n (mkAnimatedPoints pos DontInteract), Speed 1)]
               create (f,speed) = mkAnimationUpdate f keyTime SkipZero speed $ Just $ intToDigit n
           in  map (\a -> BoundedAnimationUpdate (create a) WorldFrame) animations
         _ -> []

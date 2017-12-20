@@ -22,8 +22,7 @@ import           Data.String(String)
 import           Data.Text(Text, pack)
 import           Data.Time( UTCTime(..), toGregorian )
 
-import           Control.Arrow( (>>>)
-                              , first )
+import           Control.Arrow( first )
 
 import           System.Random( Random(..)
                               , getStdRandom

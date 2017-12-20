@@ -10,7 +10,7 @@ Animations are recipes to generate animation points, and two animations can be
 chained (composed) to produce complex effects. In that case, when an animation point of the
 first animation first collides with its environment, it stops being active for
 the first animation and gives birth to animation points for the second animation
-at that location.
+at that position.
 
 -}
 
@@ -18,8 +18,9 @@ module Animation.Types
     (
     -- * Animated points
       AnimatedPoints(..)
-    -- ** How they react to collisions
-    , CollisionReaction(..)
+    -- ** How they interact with their environment
+    , CanInteract(..)
+    , InteractionResult(..)
     -- ** Constructor
     , mkAnimatedPoints
     -- * Updating the animation
@@ -32,7 +33,6 @@ module Animation.Types
     , StepType(..)
     -- Reexports
     , module Iteration
-    , Location(..)
     , Coords
     ) where
 
@@ -44,52 +44,54 @@ import           GHC.Show(showString)
 import           Color.Types
 
 import           Geo.Discrete.Types(Coords)
-import           Physics.Discrete.Collision(Location(..))
 
 import           Timing(KeyTime)
 
 import           Iteration
 
 
-{- |  Tracks the location and state of each animation point in a recursive fashion, allowing
+{- |  Tracks the position and state of each animation point in a recursive fashion, allowing
 every single animation point to be the starting point of a new animation.
 -}
 data AnimatedPoints = AnimatedPoints {
-    _treeRoot :: !Coords
+    _animatedPointsTreeRoot :: !Coords
     -- ^ Where the animation begins
-  , _treeStart :: !Frame
+  , _animatedPointsTreeStart :: !Frame
     -- ^ When the animation begins (relatively to the parent animation if any)
-  , _treeBranches :: !(Maybe [Either AnimatedPoints Coords])
+  , _animatedPointsTreeBranches :: !(Maybe [Either AnimatedPoints Coords])
     -- ^ The 'Just' list contains one element per animation point of the animation
     --  corresponding to this recursion depth. Elements are 'Either':
     --
-    -- * 'Coords' when they are still alive.
-    -- * 'AnimatedPoints' when they are dead for this animation and maybe
+    -- * 'Coords' when they are still stable.
+    -- * 'AnimatedPoints' when they mutated and maybe
     --   gave birth to animation points in the next chained animation.
-  , _treeOnWall :: !CollisionReaction
-    -- ^ What the animation points do when they meet a wall
-  , _treeRenderedWith :: !(Maybe Char)
+  , _animatedPointsMayInteract :: !CanInteract
+    -- ^ Can the animation points interact with their environment?
+  , _animatedPointsRenderedWith :: !(Maybe Char)
 }
 
--- | A recursive type encoding how animation points react to collisions.
+-- | Can animation points interact with the environment?
 --
--- The n-th recursion level corresponds to the behaviour for the n-th chained animation.
-data CollisionReaction =
-        Traverse
-        -- ^ Collisions are ignored for this animation.
+-- The n-th recursion level defines the behaviour for the n-th animation.
+data CanInteract =
+          DontInteract
+        -- ^ Interaction results are ignored for this animation.
         -- Hence, the animation terminates only if its pure animation function
         -- returns an empty list for each frame after a given frame.
-        | ReboundAnd CollisionReaction
-        -- ^ When an animation point collides with its environment, it "evolves"
-        -- and gives birth to a new set of animation points using the next animation.
+        | Interact CanInteract
+        -- ^ Animation points can be mutated after an interaction with the environment,
+        -- thus giving birth to a new set of animation points in the next animation.
         | Stop
         -- ^ Data structure termination.
 
+data InteractionResult = Mutation
+                       | Stable
+                       deriving(Eq,Show)
 
--- | Initializes 'AnimatedPoints' with a location defining the start of the first animation.
+-- | Initializes 'AnimatedPoints' with a InteractionResult defining the start of the first animation.
 mkAnimatedPoints :: Coords
                  -- ^ Where the first animation should start.
-                 -> CollisionReaction
+                 -> CanInteract
                  -- ^ How should animated points behave on collisions.
                  -> AnimatedPoints
 mkAnimatedPoints c ow =
@@ -100,7 +102,7 @@ mkAnimatedPoints c ow =
 {--
 data Continuation = Continuation {
     _continuationFunction :: !(),
-    _continuationOnWall :: !CollisionReaction
+    _continuationOnWall :: !CanInteract
 }
 --}
 
@@ -116,7 +118,7 @@ data AnimationUpdate m = AnimationUpdate {
     -- ^ The char used to render the animation points, if the pure animation function doesn't specify one.
   , _animationRender :: !(Maybe KeyTime
                        -> AnimationUpdate m
-                       -> (Coords -> Location)
+                       -> (Coords -> InteractionResult)
                        -> Coords
                        -> m (Maybe (AnimationUpdate m))
                        )
@@ -143,7 +145,7 @@ data StepType = Initialize
 
 
 -- | Constructs an 'AnimationUpdate'
-mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m)))
+mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
                   -- ^ The update function.
                   -> KeyTime
                   -- ^ The 'KeyTime' of the event that triggered this animation.
@@ -163,9 +165,9 @@ mkAnimationUpdate render t frameInit speed mayChar =
 
 -- Intermediate helper structure to construct an 'AnimationUpdate'
 data Animator m = Animator {
-    _animatorPure :: !(Iteration -> (Coords -> Location) -> AnimatedPoints -> AnimatedPoints)
+    _animatorPure :: !(Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
     -- ^ A pure animation function that updates AnimatedPoints
-  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> Location) -> Coords -> m (Maybe (AnimationUpdate m))
+  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))
     -- ^ An IO function that consumes an updated AnimatedPoints to render the animation.
     --
     -- Non-strict to avoid an infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)

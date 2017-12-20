@@ -2,7 +2,7 @@ name:                imj-draw
 version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            Interface of a generic 2d terminal renderer.
-Description:         The Draw class, defining the interface of a generic 2d terminal renderer
+Description:         Exports the Draw class, defining the interface of a generic 2d terminal renderer
                      ans some helper functions when drawing from MonadReader monads.
 homepage:            https://github.com/OlivierSohn/hamazed/imj-draw#readme
 license:             BSD3

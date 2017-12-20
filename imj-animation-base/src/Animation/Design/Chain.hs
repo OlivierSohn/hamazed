@@ -22,15 +22,15 @@ chainOnCollision :: (Coords -> Frame -> ([Coords], Maybe Char))
                  -- ^ Animation 2
                  -> Iteration
                  -- ^ Current iteration
-                 -> (Coords -> Location)
-                 -- ^ Collision function
+                 -> (Coords -> InteractionResult)
+                 -- ^ Interaction function
                  -> AnimatedPoints
                  -> AnimatedPoints
-chainOnCollision anim1 anim2 iteration getLocation tree  =
-  let (AnimatedPoints a b branches onWall mayChar) = applyAnimation anim1 iteration getLocation tree
+chainOnCollision anim1 anim2 iteration interaction tree  =
+  let (AnimatedPoints a b branches onWall mayChar) = applyAnimation anim1 iteration interaction tree
       newBranches = Just $ case branches of
-        Nothing -> error "applyAnimation was supposed to create a Just ?"
-        Just l ->  map (either (Left . applyAnimation anim2 iteration getLocation) Right) l
+        Nothing -> error "applyAnimation should create a Just"
+        Just l ->  map (either (Left . applyAnimation anim2 iteration interaction) Right) l
   in AnimatedPoints a b newBranches onWall mayChar
 
 -- TODO generic chaining of animations
@@ -38,9 +38,9 @@ chainOnCollision anim1 anim2 iteration getLocation tree  =
 chainAnimationsOnCollision :: [Coords -> Iteration -> [Coords]]
                            -- ^ each animation function should return a constant number of Coords across iterations
                            -> Iteration
-                           -> (Coords -> Location)
+                           -> (Coords -> InteractionResult)
                            -- ^ collision function
                            -> AnimatedPoints
                            -> AnimatedPoints
-chainAnimationsOnCollision animations iteration getLocation tree = undefined
+chainAnimationsOnCollision animations iteration interaction tree = undefined
 --}

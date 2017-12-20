@@ -4,135 +4,45 @@
 -- since I provide equivalent functions that should be used instead to
 -- render the game
 
-module Imajuscule.Prelude (
-                            -- | Prelude reexports
-                            Eq
-                          , Show(..)
-                          , Num
-                          , Enum
-                          , Integral
-                          , Ord
-                          , Monoid(..)
-                          , Real
-                          , Bool(..)
-                          , Char
-                          , Float
-                          , IO
-                          , Int
-                          , Maybe(..)
-                          , Either(..)
-                          , Ordering(..)
-                          , fmap
-                          , all
-                          , any
-                          , notElem
-                          , null
-                          , minimum
-                          , maximum
-                          , either
-                          , maybe
-                          , zipWith
-                          , map
-                          , concatMap
-                          , filter
-                          , replicate
-                          , mapM
-                          , mapM_
-                          , take
-                          , tail
-                          , last
-                          , head
-                          , drop
-                          , iterate
-                          , unwords
-                          , flip
-                          , const
-                          , sum
-                          , zip
-                          , fst
-                          , snd
-                          , compare
-                          , not
-                          , or
-                          , (.)
-                          , (++)
-                          , (=<<)
-                          , (<=<)
-                          , (<$>)
-                          , (==)
-                          , (/=)
-                          , (>)
-                          , (<)
-                          , (>=)
-                          , (<=)
-                          , (||)
-                          , (&&)
-                          , ($)
-                          , (*)
-                          , (**)
-                          , (+)
-                          , (-)
-                          , (/)
-                          , (^)
-                          , pred
-                          , succ
-                          , realToFrac
-                          , fromIntegral
-                          , fromRational
-                          , recip
-                          , signum
-                          , sin
-                          , cos
-                          , mod
-                          , min
-                          , max
-                          , abs
-                          , negate
-                          , div
-                          , quot
-                          , even
-                          , odd
-                          , error
-                          , pi
-                          , floor
-                          , ceiling
-                          , otherwise
-                          , id
-                          , curry
-                          , uncurry
-                          , maxBound
-                          , Monad(..)
-                          -- | Control.Applicative reexports
-                          , (<|>)
-                          -- | Control.Monad reexports
-                          , when
-                          , void
-                          -- | Control.Monad.IO.Class reexports
-                          , liftIO
-                          -- | Data.Monoid reexports
-                          , (<>)
-                          , undefined
-                          -- | Control.Exception reexports
-                          , assert
-                          -- | Data.Word reexports
-                          , Word8
-                          -- | Data.Text reexports
-                          , Text
-                          -- | Data.Ratio reexports
-                          , (%)
+module Imajuscule.Prelude ( module Prelude
+                          , module Control.Applicative
+                          , module Control.Arrow
+                          , module Control.Exception
+                          , module Control.Monad
+                          , module Control.Monad.IO.Class
                           , module Control.Monad.Reader
+                          , module Data.Maybe
+                          , module Data.Monoid
+                          , module Data.Ratio
+                          , module Data.Text
+                          , module Data.Word
                           ) where
 
--- TODO put what's exported in here
-import           Prelude
+import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(..), Monad(..)
+                        , Bool(..), Char, Float, IO, Int, Maybe(..), Either(..), Ordering(..)
+                        , either, maybe
+                        , sum, map, concatMap, filter, mapM, mapM_
+                        , all, any, notElem, null, minimum, maximum
+                        , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate, unwords
+                        , zip, zipWith, fst, snd
+                        , fmap, (.), (=<<), ($), (<$>), const, id, flip, curry, uncurry
+                        , compare, not, or, (||), (&&), otherwise
+                        , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)
+                        , realToFrac, fromIntegral, fromRational, recip, signum, pred, succ
+                        , sin, cos, pi
+                        , mod, min, max, abs, floor, ceiling, maxBound
+                        , negate, div, quot, even, odd
+                        , error
+                        )
 
--- TODO export modules
-import           Control.Applicative( (<|>) )
-import           Control.Monad( when, void, (<=<), Monad )
-import           Control.Monad.IO.Class( liftIO )
-import           Control.Monad.Reader( ReaderT )
-import           Control.Exception( assert )
-import           Data.Monoid ((<>))
-import           Data.Word( Word8 )
-import           Data.Text( Text )
+import           Control.Applicative((<|>))
+import           Control.Arrow((>>>))
+import           Control.Monad(when, void, (<=<), Monad)
+import           Control.Monad.IO.Class(liftIO)
+import           Control.Monad.Reader(ReaderT)
+import           Control.Exception(assert)
+import           Data.Maybe(listToMaybe)
+import           Data.Monoid((<>))
+import           Data.Word(Word8)
+import           Data.Text(Text)
 import           Data.Ratio((%))

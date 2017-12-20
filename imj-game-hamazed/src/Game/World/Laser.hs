@@ -22,16 +22,23 @@ import           Animation.Types
 import           Animation
 import           Draw
 import           Geo.Discrete
-
 import           Laser.Types
-
+import           Physics.Discrete.Collision
 import           Timing( KeyTime )
 
 
-shootLaserFromShip :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)
+shootLaserFromShip :: Coords
+                   -> Direction
+                   -> LaserType
+                   -> (Coords -> Location)
+                   -> Maybe (Ray Theoretical)
 shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
 
-shootLaser :: Coords -> Direction -> LaserType -> (Coords -> Location) -> Maybe (Ray Theoretical)
+shootLaser :: Coords
+           -> Direction
+           -> LaserType
+           -> (Coords -> Location)
+           -> Maybe (Ray Theoretical)
 shootLaser laserStart dir laserType getLocation =
   case getLocation laserStart of
     OutsideWorld -> Nothing
@@ -62,7 +69,7 @@ mkLaserAnimationUpdate :: (Draw e, MonadReader e m, MonadIO m)
                        -> AnimationUpdate m
 mkLaserAnimationUpdate keyTime ray@(LaserRay _ (Ray seg)) =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-  in mkAnimationUpdate (simpleLaser ray (mkAnimatedPoints collisionFree Traverse)) keyTime WithZero (Speed 1) Nothing
+  in mkAnimationUpdate (simpleLaser ray (mkAnimatedPoints collisionFree DontInteract)) keyTime WithZero (Speed 1) Nothing
 
 
 afterEnd :: LaserRay Actual -> Coords

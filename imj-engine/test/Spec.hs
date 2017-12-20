@@ -6,14 +6,14 @@ import Draw
 
 import Test.InterpolatedColorString
 import Test.Interpolation(testInterpolation)
-import Test.MockDraw
+import Render.Naive
 
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
   testInterpolation
 
-  clearScreen
+  clearScreen -- to not overwrite current terminal content.
   runReaderT (testICS >>
               renderDrawing
-              ) (MockDraw 2)
+              ) (NaiveDraw 2)

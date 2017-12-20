@@ -47,7 +47,6 @@ test-suite imj-engine-test
   other-modules:       Test.Ease
                      , Test.InterpolatedColorString
                      , Test.Interpolation
-                     , Test.MockDraw
   main-is:             Spec.hs
   build-depends:       base
                      , ansi-terminal
@@ -55,6 +54,7 @@ test-suite imj-engine-test
                      , text
                      , imj-base
                      , imj-draw
+                     , imj-render-naive-term
                      , imj-engine
                      , imj-prelude
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N

@@ -35,7 +35,7 @@ data ILayeredColor = ILayeredColor {
     -- ^ Foreground color
 } deriving(Show)
 
--- TODO use bresenham 6 instead:
+-- TODO bresenham 6 to interpolate foreground and background at the same time:
 -- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
 -- | First interpolate background color, then foreground color
 instance DiscretelyInterpolable ILayeredColor where

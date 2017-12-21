@@ -33,6 +33,9 @@ library
                      , imj-draw ==0.1.*
                      , imj-interpolation-base ==0.1.*
                      , imj-prelude ==0.1.*
+  ghc-options:       -Wall -Werror -fpedantic-bottoms -Wredundant-constraints
+                     -threaded -rtsopts -with-rtsopts=-maxN4
+                     -O2 -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 test-suite imj-engine-test
@@ -50,7 +53,9 @@ test-suite imj-engine-test
                      , imj-render-naive-term ==0.1.*
                      , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*
-  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:       -Wall -Werror -fpedantic-bottoms -Wredundant-constraints
+                     -threaded -rtsopts -with-rtsopts=-maxN4
+                     -O2 -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 source-repository head

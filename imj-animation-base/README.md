@@ -1,6 +1,6 @@
 # What is it?
 
-An animation library that allows to compose two animations.
+An framework to create event-based, physics-based, composed, generative animations.
 
 # Build
 

@@ -2,8 +2,7 @@
 
 module Util
     ( -- * Time
-      getDayIndexInMonth
-    , getSeconds
+      getSeconds
       -- * List
     , showListOrSingleton
     , replicateElements
@@ -15,13 +14,16 @@ module Util
     , randomRsIO
       -- * Math
     , clamp
+      -- * Reexports
+    , Int64
     ) where
 
 import           Imajuscule.Prelude
 
+import           Data.Int(Int64)
 import           Data.List(reverse)
 import           Data.Text(Text, pack)
-import           Data.Time( UTCTime(..), toGregorian )
+import           Data.Time.Clock.System( SystemTime(..) )
 
 import           Control.Arrow( first )
 
@@ -71,13 +73,8 @@ randomRsIO :: Random a
 randomRsIO from to =
   getStdRandom $ split >>> first (randomRs (from, to))
 
-getDayIndexInMonth :: UTCTime -> Int
-getDayIndexInMonth (UTCTime day _) =
-  let (_, _, dayOfMonth) = toGregorian day
-  in pred dayOfMonth -- index start at 0
-
-getSeconds :: UTCTime -> Int
-getSeconds (UTCTime _ t) = floor t
+getSeconds :: SystemTime -> Int64
+getSeconds (MkSystemTime s _) = s
 
 commonPrefix :: String -> String -> String
 commonPrefix (x:xs) (y:ys)

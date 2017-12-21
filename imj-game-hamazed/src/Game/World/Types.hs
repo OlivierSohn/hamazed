@@ -90,7 +90,7 @@ data Boundaries = WorldFrame
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
   , _shipAmmo :: !Int
-  , _shipSafeUntil :: !(Maybe UTCTime)
+  , _shipSafeUntil :: !(Maybe SystemTime)
   , _shipCollisions :: ![Number]
 } deriving(Show)
 

@@ -84,7 +84,7 @@ computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ bran
         Just (KeyTime k) ->
           -- group animations whose keytimes are close
           -- to reduce the amount of renderings needed
-          if diffUTCTime k' k < animationUpdateMargin
+          if diffSystemTime k' k < animationUpdateMargin
             then
               Update
             else

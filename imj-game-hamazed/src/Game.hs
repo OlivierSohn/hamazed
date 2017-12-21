@@ -100,7 +100,7 @@ outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
                            explosions = explosionGravity speed $ translateInDir outDir ae
                        in map (((`BoundedAnimationUpdate` TerminalWindow) .
                                 (\ (char, f) -> mkAnimationUpdate f keyTime WithZero (Speed 1) (Just char))) .
-                                  ((,) $ niceChar $ getSeconds t))
+                                  ((,) $ niceChar $ fromIntegral $ getSeconds t))
                                     explosions
         Nothing -> []
 
@@ -117,7 +117,7 @@ replaceAnimations :: [BoundedAnimationUpdate m] -> GameState m -> GameState m
 replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =
   GameState c (World wa wb wc wd anims ew) b f g h
 
-nextDeadline :: GameState m -> UTCTime -> Maybe Deadline
+nextDeadline :: GameState m -> SystemTime -> Maybe Deadline
 nextDeadline s t =
   let l = getDeadlinesByDecreasingPriority s t
   in  overdueDeadline t l <|> earliestDeadline l
@@ -126,11 +126,11 @@ earliestDeadline :: [Deadline] -> Maybe Deadline
 earliestDeadline [] = Nothing
 earliestDeadline l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
 
-overdueDeadline :: UTCTime -> [Deadline] -> Maybe Deadline
+overdueDeadline :: SystemTime -> [Deadline] -> Maybe Deadline
 overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : message > game forward > animation forward
-getDeadlinesByDecreasingPriority :: GameState m -> UTCTime -> [Deadline]
+getDeadlinesByDecreasingPriority :: GameState m -> SystemTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
   maybe
     (catMaybes [messageDeadline level t, getGameDeadline s, animationDeadline s])
@@ -195,7 +195,7 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
       newShotNums = []
       make ew = do
         newWorld <- mkWorld ew newSize wallType numbers newAmmo
-        t <- liftIO getCurrentTime
+        t <- liftIO getSystemTime
         let (curWorld, level, ammo, shotNums) =
               maybe
               (newWorld, newLevel, 0, [])
@@ -246,12 +246,12 @@ updateGame params state = do
 getTimedEvent :: GameState m -> IO TimedEvent
 getTimedEvent state =
   getEvent state >>= \evt -> do
-    t <- getCurrentTime
+    t <- getSystemTime
     return $ TimedEvent evt t
 
 getEvent :: GameState m -> IO Event
 getEvent state@(GameState _ _ _ _ level _) = do
-  t <- getCurrentTime
+  t <- getSystemTime
   let deadline = nextDeadline state t
   getEventForMaybeDeadline level deadline t
 
@@ -288,14 +288,14 @@ updateGameUsingTimedEvent
           updateGame2 te newState
 
 
-updateAnim :: UTCTime -> GameState m -> GameState m
+updateAnim :: SystemTime -> GameState m -> GameState m
 updateAnim t (GameState _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
      let nextIt@(Iteration _ nextFrame) = nextIteration it
          (world, gameDeadline, worldAnimDeadline) =
             maybe
               (futWorld , Just $ KeyTime t, Nothing)
               (\dt ->
-               (curWorld, Nothing         , Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t))
+               (curWorld, Nothing         , Just $ KeyTime $ addSystemTime (floatSecondsToDiffTime dt) t))
               $ getDeltaTime evolutions nextFrame
          wa = WorldAnimation evolutions worldAnimDeadline nextIt
      in GameState gameDeadline world futWorld j k wa

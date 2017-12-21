@@ -4,13 +4,16 @@
 
 module Animation.Design.Chars
     ( niceChar
+    -- * Reexports
+    , Word8
     ) where
 
 import           Imajuscule.Prelude
 
+import Data.Word(Word8)
 
 -- | Returns one of the "nice chars" for animations
-niceChar :: Int
+niceChar :: Word8
          -- ^ We take the modulo of that value
          -> Char
 niceChar i'

@@ -40,11 +40,11 @@ import           IO.Blocking( getCharThenFlush )
 import           IO.Types
 
 import           Draw
-import           Timing( UTCTime
+import           Timing( SystemTime
                        , KeyTime(..)
                        , diffTimeSecToMicros
-                       , diffUTCTime
-                       , addUTCTime )
+                       , diffSystemTime
+                       , addSystemTime )
 
 import           Util( showListOrSingleton )
 
@@ -83,25 +83,25 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNum
       | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing
 
-messageDeadline :: Level -> UTCTime -> Maybe Deadline
+messageDeadline :: Level -> SystemTime -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) t =
   maybe Nothing
   (\(LevelFinished _ timeFinished messageType) ->
     case messageType of
       InfoMessage ->
-        let finishedSinceSeconds = diffUTCTime t timeFinished
+        let finishedSinceSeconds = diffSystemTime t timeFinished
             delay = 2
-            nextMessageStep = addUTCTime (delay - finishedSinceSeconds) t
+            nextMessageStep = addSystemTime (delay - finishedSinceSeconds) t
         in  Just $ Deadline (KeyTime nextMessageStep) MessageStep
       ContinueMessage -> Nothing)
   mayLevelFinished
 
-getEventForMaybeDeadline :: Level -> Maybe Deadline -> UTCTime -> IO Event
+getEventForMaybeDeadline :: Level -> Maybe Deadline -> SystemTime -> IO Event
 getEventForMaybeDeadline level mayDeadline curTime =
   case mayDeadline of
     (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
       let
-        timeToDeadlineMicros = diffTimeSecToMicros $ diffUTCTime deadline curTime
+        timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadline curTime
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
     Nothing -> Game.Level.eventFromChar level <$> getCharThenFlush
 

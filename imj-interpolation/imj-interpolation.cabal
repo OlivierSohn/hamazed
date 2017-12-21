@@ -21,11 +21,11 @@ library
   other-modules:
   exposed-modules:     UI.FrameAnimationParallel4
   build-depends:       base >= 4.8 && < 4.11
-                     , mtl
+                     , mtl >= 2.2.1 && < 2.3
                      , imj-base
                      , imj-draw
                      , imj-interpolation-base
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
   default-language:    Haskell2010
 
 test-suite imj-interpolation-test

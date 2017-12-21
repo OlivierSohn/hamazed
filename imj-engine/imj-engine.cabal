@@ -27,12 +27,12 @@ library
                      , Physics.Discrete.Collision
                      , Physics.Discrete.Types
   build-depends:       base >= 4.8 && < 4.11
-                     , mtl
-                     , text
+                     , mtl >= 2.2.1 && < 2.3
+                     , text >= 1.2.2 && < 1.3
                      , imj-base
                      , imj-draw
                      , imj-interpolation-base
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
   default-language:    Haskell2010
 
 test-suite imj-engine-test
@@ -42,14 +42,14 @@ test-suite imj-engine-test
   main-is:             Spec.hs
   build-depends:       base
                      , ansi-terminal
-                     , mtl
-                     , text
+                     , mtl >= 2.2.1 && < 2.3
+                     , text >= 1.2.2 && < 1.3
                      , imj-base
                      , imj-draw
                      , imj-interpolation-base
                      , imj-render-naive-term
                      , imj-engine
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 

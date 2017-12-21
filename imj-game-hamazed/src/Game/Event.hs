@@ -28,9 +28,9 @@ import           Geo.Discrete( coordsForDirection
 import           IO.Types
 
 import           Timing( KeyTime
-                       , UTCTime )
+                       , SystemTime )
 
-data TimedEvent = TimedEvent Event UTCTime
+data TimedEvent = TimedEvent Event SystemTime
 
 data Event =  Action ActionTarget Direction
             | Timeout Step KeyTime

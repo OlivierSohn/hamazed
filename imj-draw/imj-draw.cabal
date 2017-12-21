@@ -26,12 +26,11 @@ library
                      , Draw.ColorString
                      , Draw.Helpers.MonadReader
   build-depends:       base >= 4.8 && < 4.11
-                     , mtl
-                     , random
-                     , text
-                     , time
+                     , mtl >= 2.2.1 && < 2.3
+                     , random ==1.1.*
+                     , text >= 1.2.2 && < 1.3
                      , imj-base
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
   default-language:    Haskell2010
 
 test-suite imj-draw-test

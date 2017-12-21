@@ -52,7 +52,7 @@ getFrames (WorldEvolutions (Evolution _ lastFrameFrameE _ _)
 
 mkWorldAnimation :: (RectFrame, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
                  -> (RectFrame, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
-                 -> UTCTime
+                 -> SystemTime
                  -- ^ Time at which the animation starts
                  -> WorldAnimation
 mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
@@ -64,7 +64,7 @@ mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
   deadline =
     maybe
       Nothing
-      (\dt -> Just $ KeyTime $ addUTCTime (floatSecondsToNominalDiffTime dt) t)
+      (\dt -> Just $ KeyTime $ addSystemTime (floatSecondsToDiffTime dt) t)
       $ getDeltaTime evolutions zeroFrame
 
 

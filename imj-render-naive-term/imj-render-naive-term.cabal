@@ -22,11 +22,11 @@ library
   exposed-modules:     Render.Naive
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal
-                     , mtl
-                     , text
+                     , mtl >= 2.2.1 && < 2.3
+                     , text >= 1.2.2 && < 1.3
                      , imj-base
                      , imj-draw
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
   default-language:    Haskell2010
 
 test-suite imj-render-naive-term-test
@@ -35,7 +35,7 @@ test-suite imj-render-naive-term-test
   other-modules:
   main-is:             Spec.hs
   build-depends:       base
-                     , imj-prelude
+                     , imj-prelude ==0.1.*
                      , imj-render-delta-term
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010

@@ -8,7 +8,7 @@ module Game.Timing
 
 import           Timing
 
-gamePeriod :: NominalDiffTime
+gamePeriod :: DiffTime
 gamePeriod = fromIntegral gamePeriodMicros / 1000000
 
 -- using the "incremental" render backend, there is no flicker

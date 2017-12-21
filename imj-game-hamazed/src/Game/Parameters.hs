@@ -121,7 +121,7 @@ render' (GameParameters shape wall) = do
               >>= dText "'r' -> deterministic walls" configColors
                 >>= dText_ "'t' -> random walls" configColors
 
-          t <- liftIO getCurrentTime
+          t <- liftIO getSystemTime
           let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
               worldAnimation = mkWorldAnimation infos infos t
           renderWorldAnimation worldAnimation

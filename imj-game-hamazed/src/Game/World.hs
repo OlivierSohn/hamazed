@@ -51,7 +51,7 @@ nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ 
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
-moveWorld :: UTCTime -> World m -> World m
+moveWorld :: SystemTime -> World m -> World m
 moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
@@ -139,10 +139,10 @@ mkWorld e s walltype nums ammo = do
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
-  t <- liftIO getCurrentTime
+  t <- liftIO getSystemTime
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls ballMotion (BattleShip ship ammo (Just $ addUTCTime 5 t) (getColliding pos balls)) space [] e
+  return $ World balls ballMotion (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
 
 createRandomNumber :: (MonadIO m)
                    => Space

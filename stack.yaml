@@ -1,6 +1,6 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-9.12
+resolver: lts-10.0
 
 packages:
 - './imj-prelude'

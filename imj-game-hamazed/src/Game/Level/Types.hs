@@ -23,7 +23,7 @@ data Level = Level {
 
 data LevelFinished = LevelFinished {
     _levelFinishedResult :: !GameStops
-  , _levelFinishedWhen :: !UTCTime
+  , _levelFinishedWhen :: !SystemTime
   , _levelFinishedCurrentMessage :: !MessageState
 }
 

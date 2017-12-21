@@ -7,7 +7,7 @@ Description:         Allows to define interpolations, pure or IO-based, and prov
                      well defined. If the type could lead to several different interpolations,
                      these will be in "imj-inteprolation" along with the definitions of their respective
                      wrapper types.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-interpolation-base#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-interpolation-base/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -55,4 +55,4 @@ test-suite imj-interpolation-base-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-interpolation-base
+  location: https://github.com/OlivierSohn/hamazed/

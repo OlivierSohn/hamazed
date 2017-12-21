@@ -3,7 +3,7 @@ version:             0.1.0.0
 Category:            Game-Renderer
 Synopsis:            A mock renderer, for tests only. Use imj-render-delta-term for production.
 Description:         For tests only. Please use imj-render-delta-term for optimized rendering.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-render-naive-term#README
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-render-naive-term/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -42,4 +42,4 @@ test-suite imj-render-naive-term-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-render-naive-term
+  location: https://github.com/OlivierSohn/hamazed/

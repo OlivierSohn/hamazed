@@ -3,7 +3,7 @@
 {- |
 = Foreword
 
-<https://github.com/OlivierSohn/hamazed/blob/master/imj0-game-hamazed/src/Env.hs This concrete example>
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Env.hs This concrete example>
 shows how I use 'Draw' in a game to use the renderer via a 'ReaderT' monad.
 
 = Description

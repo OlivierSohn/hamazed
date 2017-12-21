@@ -4,7 +4,7 @@ Category:            Game Engine
 Synopsis:            Animations
 Description:         Explosive and gravity-based animations which can be
                      chained on collision with the environment.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-animation#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -48,4 +48,4 @@ test-suite imj-animation-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-animation
+  location: https://github.com/OlivierSohn/hamazed/

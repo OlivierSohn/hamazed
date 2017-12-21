@@ -3,7 +3,7 @@ version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            Data types, algorithms, utilities for a 2d game engine.
 Description:         Basic color and position types.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-base#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -54,4 +54,4 @@ test-suite imj-base-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-base
+  location: https://github.com/OlivierSohn/hamazed/

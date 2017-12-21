@@ -3,7 +3,7 @@ version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            A 2d game engine for games in the terminal.
 Description:         Collisions, lasers, geometry
-homepage:            https://github.com/OlivierSohn/hamazed/imj-engine#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-engine/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -55,4 +55,4 @@ test-suite imj-engine-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-engine
+  location: https://github.com/OlivierSohn/hamazed/

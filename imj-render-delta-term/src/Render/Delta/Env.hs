@@ -65,6 +65,7 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawChar' #-}
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
+  {-# INLINABLE drawStr' #-}
   {-# INLINABLE renderDrawing' #-}
 
 

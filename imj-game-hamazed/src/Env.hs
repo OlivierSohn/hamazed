@@ -18,10 +18,12 @@ instance Draw Env where
   drawChar'      (Env a) = drawChar'      a
   drawChars'     (Env a) = drawChars'     a
   drawTxt'       (Env a) = drawTxt'       a
+  drawStr'       (Env a) = drawStr'       a
   renderDrawing' (Env a) = renderDrawing' a
   {-# INLINE drawChar' #-}
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
+  {-# INLINE drawStr' #-}
   {-# INLINE renderDrawing' #-}
 
 -- | Contructor of 'Env'

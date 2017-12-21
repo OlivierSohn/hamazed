@@ -4,7 +4,7 @@ Category:            Game
 Synopsis:            A game with flying numbers and 8-bit color animations.
 Description:         You fly a ship through numbers, the goal is to shoot
                      the numbers whose sum will be equal to the level's target.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-game-hamazed/#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed//README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -90,4 +90,4 @@ test-suite imj-game-hamazed-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-game-hamazed
+  location: https://github.com/OlivierSohn/hamazed/

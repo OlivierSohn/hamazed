@@ -4,7 +4,7 @@ Category:            Game Engine
 Synopsis:            Interface of a generic 2d terminal renderer.
 Description:         Exports the Draw class, defining the interface of a generic 2d terminal renderer
                      ans some helper functions when drawing from MonadReader monads.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-draw#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-draw/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -45,4 +45,4 @@ test-suite imj-draw-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-draw
+  location: https://github.com/OlivierSohn/hamazed/

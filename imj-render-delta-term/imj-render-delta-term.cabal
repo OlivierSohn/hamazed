@@ -5,7 +5,7 @@ Synopsis:            Delta rendering for the terminal.
 Description:         A terminal render engine that mitigates screen tearing when
                      rendering complex game graphics, by minimizing the amount
                      of data sent to stdout.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-render-delta-term#README
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-render-delta-term/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -61,4 +61,4 @@ test-suite imj-render-delta-term-test
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-render-delta-term
+  location: https://github.com/OlivierSohn/hamazed/

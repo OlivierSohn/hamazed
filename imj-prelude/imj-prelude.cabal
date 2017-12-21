@@ -3,7 +3,7 @@ version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            Prelude.
 Description:         Basic color and position types.
-homepage:            https://github.com/OlivierSohn/hamazed/imj-prelude#readme
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-prelude/README.md
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
@@ -27,4 +27,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/OlivierSohn/hamazed/imj-prelude
+  location: https://github.com/OlivierSohn/hamazed/

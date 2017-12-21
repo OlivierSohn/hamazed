@@ -4,12 +4,13 @@ module Draw.Class(
        -- * The Draw class
          Draw(..)
        -- * Reexports
-       , MonadIO
-       , Text
        -- ** Colors
        , module Color.Types
        -- ** Coordinates
        , module Geo.Discrete.Types
+       -- ** Other
+       , MonadIO
+       , Text
        ) where
 
 import           Imajuscule.Prelude
@@ -40,25 +41,20 @@ class Draw e where
             -> Coords
             -> LayeredColor
             -> m ()
-  drawChar' = undefined
 
   -- | Draw repeated chars.
   drawChars' :: (MonadIO m)
              => e
              -> Int -> Char -> Coords -> LayeredColor -> m ()
-  drawChars' = undefined
 
   -- | Draw 'Text'.
   drawTxt' :: (MonadIO m)
            => e
            -> Text -> Coords -> LayeredColor -> m ()
-  drawTxt' = undefined
 
   drawStr' :: (MonadIO m)
            => e
            -> String -> Coords -> LayeredColor -> m ()
-  drawStr' = undefined
 
   -- | Render the drawing to the physical destination.
   renderDrawing' :: (MonadIO m) => e -> m ()
-  renderDrawing' = undefined

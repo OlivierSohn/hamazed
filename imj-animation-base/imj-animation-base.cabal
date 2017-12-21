@@ -4,14 +4,14 @@ Category:            Game Engine
 Synopsis:            Animation Framework
 Description:         Library of classes and functions related to animation.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation-base/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            GameEngine
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -50,3 +50,4 @@ test-suite imj-animation-base-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-animation-base

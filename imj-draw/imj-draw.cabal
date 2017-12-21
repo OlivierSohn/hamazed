@@ -1,18 +1,18 @@
 name:                imj-draw
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Interface of a generic 2d terminal renderer.
-Description:         Exports the Draw class, defining the interface of a generic 2d terminal renderer
-                     ans some helper functions when drawing from MonadReader monads.
+Synopsis:            Library defining the class of a generic renderer.
+Description:         Exports the Draw class, defining the interface of a generic renderer
+                     and some helper functions when drawing from MonadReader monads.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-draw/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            GameEngine
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -45,3 +45,4 @@ test-suite imj-draw-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-draw

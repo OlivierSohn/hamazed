@@ -5,14 +5,14 @@ Synopsis:            A game with flying numbers and 8-bit color animations.
 Description:         You fly a ship through numbers, the goal is to shoot
                      the numbers whose sum will be equal to the level's target.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            Web
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -91,3 +91,4 @@ test-suite imj-game-hamazed-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-game-hamazed

@@ -1,17 +1,17 @@
 name:                imj-interpolation
 version:             0.1.0.0
 Category:            GameEngine
-Synopsis:            Interpolations for UI elements.
-Description:         Interpolations to smoothly transform UI elements.
+Synopsis:            Library of interpolations for UI elements.
+Description:         Library of interpolations that smoothly transform UI elements.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-interpolation//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            Web
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -40,3 +40,4 @@ test-suite imj-interpolation-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-interpolation

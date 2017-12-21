@@ -1,21 +1,24 @@
 name:                imj-interpolation-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            A library defining the DicretelyInterpolable class and some instances.
-Description:         Allows to define interpolations, pure or IO-based, and provides
-                     instances for types of package "imj-base" when the notion if interpolation is
-                     well defined. If the type could lead to several different interpolations,
-                     these will be in "imj-inteprolation" along with the definitions of their respective
-                     wrapper types.
+Synopsis:            Library defining the DicretelyInterpolable class and some instances.
+Description:         DicretelyInterpolable allows to define interpolations.
+                     .
+                     
+                     DicretelyInterpolable instances are implemented for types of
+                     package "imj-base", only when the concept of interpolation is
+                     well defined for the type. On the contrary, when the type could
+                     lead to several different interpolations, wrapper types are
+                     defined in "imj-inteprolation" along with the instance implementation.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-interpolation-base/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            GameEngine
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -56,3 +59,4 @@ test-suite imj-interpolation-base-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-interpolation-base

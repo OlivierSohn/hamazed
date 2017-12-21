@@ -3,3 +3,6 @@
 
 # stack
 .stack-work
+
+# cabal sdist
+dist

@@ -2,17 +2,17 @@ name:                imj-animation
 version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            Animations
-Description:         Explosive and gravity-based animations which can be
+Description:         Library of explosive and gravity-based animations which can be
                      chained on collision with the environment.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            GameEngine
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -49,3 +49,4 @@ test-suite imj-animation-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-animation

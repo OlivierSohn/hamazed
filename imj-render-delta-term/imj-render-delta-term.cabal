@@ -6,14 +6,14 @@ Description:         A terminal render engine that mitigates screen tearing when
                      rendering complex game graphics, by minimizing the amount
                      of data sent to stdout.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-render-delta-term/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
 copyright:           2017 Olivier Sohn
-category:            Web
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2
@@ -62,3 +62,4 @@ test-suite imj-render-delta-term-test
 source-repository head
   type:     git
   location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-render-delta-term

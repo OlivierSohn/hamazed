@@ -47,8 +47,8 @@ matrix:
 
   # The Stack builds. We can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
-  - env: BUILD=stack ARGS="--resolver lts-9.12"
-    compiler: ": #stack 8.0.2"
+  - env: BUILD=stack ARGS="--resolver lts-10.0"
+    compiler: ": #stack LTS 10.0 (GHC 8.2.2)"
     addons: {apt: {packages: [libgmp-dev]}}
 
   # Nightly builds are allowed to fail

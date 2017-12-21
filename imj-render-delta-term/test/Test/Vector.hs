@@ -8,21 +8,21 @@ import Prelude hiding (length, read)
 import Render.Delta.DynUnboxedVec
 
 -- | returns 1 on success, else errors
-testVector :: IO ()
+testVector :: IO Bool
 testVector = do
   mapM_ testWithCapacity [0..28]
   mapM_ testSort [0..300]
+  return True
 
 testSort :: Int -> IO Bool
 testSort n = do
   --print $ "sort " ++ show n
   v <- new n
-  let _m = v :: IOVector Int -- TODO is this the only way I can force the type?
 
   mapM_
     (\val ->
       pushBack v (-val)
-    ) [0..pred n]
+    ) [(0 :: Int)..pred n]
 
   -- verify values
   mapM_

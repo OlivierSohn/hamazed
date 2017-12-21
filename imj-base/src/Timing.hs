@@ -24,8 +24,7 @@ import           Data.Int(Int64)
 import           Data.Time(DiffTime, diffTimeToPicoseconds,
                            secondsToDiffTime, picosecondsToDiffTime)
 import           Data.Time.Clock.System
-                          (getSystemTime
-                          , SystemTime(..) )
+                          (getSystemTime, SystemTime(..) )
 
 addSystemTime :: DiffTime -> SystemTime -> SystemTime
 addSystemTime diff t =

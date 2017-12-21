@@ -1,7 +1,9 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 {- |
 = Foreword
 
-<https://github.com/OlivierSohn/hamazed/blob/master/src/Env.hs This concrete example>
+<https://github.com/OlivierSohn/hamazed/blob/master/imj0-game-hamazed/src/Env.hs This concrete example>
 shows how I use 'Draw' in a game to use the renderer via a 'ReaderT' monad.
 
 = Description
@@ -39,7 +41,11 @@ main = do
 module Draw
         ( module Draw.Class
         , module Draw.Helpers.MonadReader
+        , module Draw.Aligned
+        , module Draw.ColorString
         ) where
 
+import Draw.Aligned
 import Draw.Class
+import Draw.ColorString
 import Draw.Helpers.MonadReader

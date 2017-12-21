@@ -325,34 +325,3 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
                     worldLocation
                     (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
                     mayTermWindow
-
-{--
-
-reboundMaxRecurse :: Space -> Int -> Coords -> Maybe Coords
-reboundMaxRecurse sz maxRecurse (Coords r c) =
-  let mayR = reboundIntMaxRecurse sz maxRecurse r
-      mayC = reboundIntMaxRecurse sz maxRecurse c
-  in  case mayR of
-        Nothing -> Nothing
-        (Just newR) -> case mayC of
-            Nothing -> Nothing
-            (Just newC) -> Just $ Coords (Row newR) (Col newC)
-
-reboundIntMaxRecurse :: Space -> Int -> Int -> Maybe Int
-reboundIntMaxRecurse s@(WorldSize sz) maxRecurse i
-  | maxRecurse == 0 = Nothing
-  | i < 0     = reboundIntMaxRecurse s rec $ -i
-  | i > sz-1  = reboundIntMaxRecurse s rec $ 2*(sz-1)-i
-  | otherwise = Just i
-  where rec = pred maxRecurse
-
-rebound :: Space -> Coords -> Coords
-rebound sz (Coords r c) = Coords (reboundInt sz r) (reboundInt sz c)
-
-reboundInt :: Space -> Int -> Int
-reboundInt s@(WorldSize sz) i
-  | i < 0     = reboundInt s $ -i
-  | i > sz-1  = reboundInt s $ 2*(sz-1)-i
-  | otherwise = i
-
---}

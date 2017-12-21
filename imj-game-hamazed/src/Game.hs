@@ -9,7 +9,6 @@ import           Imajuscule.Prelude
 
 import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
-import           Data.String(String)
 
 import           Animation
 import           Animation.Design.Chars

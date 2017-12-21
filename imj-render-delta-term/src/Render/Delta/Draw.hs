@@ -17,7 +17,6 @@ module Render.Delta.Draw
 import           Imajuscule.Prelude
 
 import           Data.IORef( IORef , readIORef )
-import           Data.String(String)
 import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( write, set, length )
 

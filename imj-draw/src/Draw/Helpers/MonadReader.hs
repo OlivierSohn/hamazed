@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- | The functions of this module contain the boilerplate code to call the
 -- 'Draw' functions from a 'MonadReader' monad.
 
@@ -8,6 +10,7 @@ module Draw.Helpers.MonadReader
        , drawChars
        -- * Draw text
        , drawTxt
+       , drawStr
        -- * Draw aligned text
        , drawAlignedTxt_
        , drawAlignedTxt
@@ -18,6 +21,8 @@ module Draw.Helpers.MonadReader
        , module Draw.Class
        , MonadReader -- to have the link to it in Haddock
        ) where
+
+import           Imajuscule.Prelude
 
 import           Control.Monad(join)
 import           Control.Monad.Reader.Class(MonadReader, asks)
@@ -61,6 +66,17 @@ drawTxt :: (Draw e, MonadReader e m, MonadIO m)
 drawTxt txt co la = do
   d <- asks drawTxt'
   d txt co la
+
+
+{-# INLINABLE drawStr #-}
+drawStr :: (Draw e, MonadReader e m, MonadIO m)
+        => String
+        -> Coords
+        -> LayeredColor
+        -> m ()
+drawStr str co la = do
+  d <- asks drawStr'
+  d str co la
 
 -- | Draws a 'Char' multiple times, starting at the given coordinates and then
 -- moving to the right.

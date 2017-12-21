@@ -12,23 +12,20 @@ import           Geo.Discrete.Types
 import           Game.Level.Types
 import           Game.World.Types
 
-mkWorldSize :: Length Height -> Length Width -> WorldSize
-mkWorldSize h w = WorldSize $ Size h w
-
-maxLevelHeight :: Int
+maxLevelHeight :: Length Height
 maxLevelHeight = 36
 
-maxLevelWidth :: Int
-maxLevelWidth = 2 * maxLevelHeight
+maxLevelWidth :: Length Width
+maxLevelWidth = 2 * fromIntegral maxLevelHeight
 
-maxWorldSize :: WorldSize
-maxWorldSize = mkWorldSize (Length maxLevelHeight) (Length maxLevelWidth)
+maxWorldSize :: Size
+maxWorldSize = Size maxLevelHeight maxLevelWidth
 
-worldSizeFromLevel :: Int -> WorldShape -> WorldSize
+worldSizeFromLevel :: Int -> WorldShape -> Size
 worldSizeFromLevel level shape =
-  let s = maxLevelHeight + 2 * (firstLevel-level) -- less and less space as level increases
+  let height = maxLevelHeight + fromIntegral (2 * (firstLevel-level)) -- less and less space as level increases
       -- we need even world dimensions to ease level construction
-      width = assert (even s) s * case shape of
+      width = fromIntegral $ assert (even height) height * case shape of
         Square       -> 1
         Rectangle2x1 -> 2
-  in mkWorldSize (Length s) (Length width)
+  in Size height width

@@ -129,12 +129,12 @@ withLaserAction
 
 mkWorld :: (MonadIO m)
         => EmbeddedWorld
-        -> WorldSize
+        -> Size
         -> WallType
         -> [Int]
         -> Int
         -> m (World m)
-mkWorld e (WorldSize s) walltype nums ammo = do
+mkWorld e s walltype nums ammo = do
   space <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s

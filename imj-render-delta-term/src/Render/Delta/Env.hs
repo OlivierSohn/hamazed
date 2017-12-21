@@ -60,6 +60,7 @@ instance Draw DeltaEnv where
   drawChar'      (DeltaEnv a) b c d   = liftIO $ deltaDrawChar  a b c d
   drawChars'     (DeltaEnv a) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a) b c d   = liftIO $ deltaDrawTxt   a b c d
+  drawStr'       (DeltaEnv a) b c d   = liftIO $ deltaDrawStr   a b c d
   renderDrawing' (DeltaEnv a)         = liftIO $ deltaFlush     a
   {-# INLINABLE drawChar' #-}
   {-# INLINABLE drawChars' #-}

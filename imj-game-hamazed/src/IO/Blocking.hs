@@ -8,13 +8,11 @@ module IO.Blocking
 
 
 import           Imajuscule.Prelude
--- import           Prelude(putStrLn)
 
 import           System.IO( getChar, hReady, stdin )
 
 import           Data.Char( ord )
 import           Data.List( reverse )
-import           Data.String( String )
 
 import           Geo.Types( Direction(..) )
 import           IO.Types

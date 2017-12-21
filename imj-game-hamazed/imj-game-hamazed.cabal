@@ -34,7 +34,6 @@ library
                      , Game.World
                      , Game.World.Embedded
                      , Game.World.Evolution
-                     , Game.World.Frame.Types
                      , Game.World.Laser
                      , Game.World.Number
                      , Game.World.Ship
@@ -60,6 +59,7 @@ library
                      , imj-draw
                      , imj-engine
                      , imj-interpolation-base
+                     , imj-interpolation
                      , imj-prelude
                      , imj-render-delta-term
   default-language:    Haskell2010

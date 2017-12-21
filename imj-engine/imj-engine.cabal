@@ -19,13 +19,11 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Geo
-                     , Geo.Conversion
+  exposed-modules:     Geo.Conversion
                      , Geo.Continuous
                      , Geo.Continuous.Types
                      , Laser.Types
                      , Text.Animation
-                     , Text.ColorString
                      , Physics.Discrete.Collision
                      , Physics.Discrete.Types
   build-depends:       base >= 4.8 && < 4.11

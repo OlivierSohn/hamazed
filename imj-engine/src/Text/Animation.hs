@@ -57,6 +57,7 @@ Animates in parallel:
 * characters replacements, inserts, deletes
 * characters color changes
 -}
+-- TODO find a generic implementation: 2 aspects (location and content) are interpolated at the same time.
 data TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
  , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList Coords))

@@ -7,7 +7,6 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import Control.Monad(void)
 
-import Data.Text(pack)
 import Data.Monoid((<>))
 
 import Color
@@ -60,7 +59,7 @@ testICS = do
           (_,color) = head l
           c = Coord c'
       drawColored' cs (Coords (c + 30) 25) zeroCoords
-      drawStr' (show color) (Coords (c + 30) 35) zeroCoords
+      drawStr''' (show color) (Coords (c + 30) 35) zeroCoords
     ) $ map Frame [0..lastFrame''']
 
 drawColored' :: (Draw e, MonadReader e m, MonadIO m)
@@ -71,12 +70,12 @@ drawColored' :: (Draw e, MonadReader e m, MonadIO m)
 drawColored' cs pos rs =
   void (drawColored cs (translate pos rs))
 
-drawStr' :: (Draw e, MonadReader e m, MonadIO m)
+drawStr''' :: (Draw e, MonadReader e m, MonadIO m)
          => String
          -> Coords
          -> Coords
          -> m Coords
-drawStr' cs pos rs =
+drawStr''' cs pos rs =
   drawStr'' cs (translate pos rs) (LayeredColor black white)
 
 
@@ -86,4 +85,4 @@ drawStr'' :: (Draw e, MonadReader e m, MonadIO m)
           -> LayeredColor
           -> m Coords
 drawStr'' str pos color =
-  drawTxt (pack str) pos color >> return (translateInDir Down pos)
+  drawStr str pos color >> return (translateInDir Down pos)

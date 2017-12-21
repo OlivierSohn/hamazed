@@ -6,7 +6,7 @@ module Game.World.Types
         , Number(..)
         , BoundedAnimationUpdate(..)
         , Boundaries(..)
-        , FrameSpec(..)
+        , RectFrame(..)
         , TextAnimSpec(..)
         , mkFrameSpec
         , WorldAnimation(..)
@@ -15,11 +15,11 @@ module Game.World.Types
         , isFinished
         -- * Reexports
         , module Game.World.Space.Types
-        , module Game.World.Frame.Types
         , module Iteration
         , module Text.Animation
         , module Physics.Discrete.Types
         , Terminal.Window
+        , FrameAnimationParallel4(..)
         ) where
 
 import           Imajuscule.Prelude
@@ -29,7 +29,6 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 import           Animation.Types
 
 import           Game.World.Space.Types
-import           Game.World.Frame.Types
 
 import           Iteration
 
@@ -39,6 +38,7 @@ import           Text.Animation
 import           Text.ColorString
 
 import           Timing
+import           UI.FrameAnimationParallel4
 
 data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions
@@ -58,12 +58,12 @@ isFinished _ = False
 
 data TextAnimSpec = TextAnimSpec {
     _txtAnimSpecTexts :: ![ColorString]
-  , _txtAnimSpecFrameSpec :: !FrameSpec
+  , _txtAnimSpecFrameSpec :: !RectFrame
 }
 
-mkFrameSpec :: LayeredColor -> World m -> FrameSpec
+mkFrameSpec :: LayeredColor -> World m -> RectFrame
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
-  FrameSpec sz upperLeft colors
+  RectFrame sz upperLeft colors
 
 data World m = World {
     _worldNumbers :: ![Number]

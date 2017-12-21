@@ -3,17 +3,11 @@
 resolver: lts-9.12
 
 packages:
-- './imj-prelude'
-- './imj-base'
-- './imj-draw'
-- './imj-interpolation-base'
-- './imj-interpolation'
-- './imj-engine'
-- './imj-animation-base'
-- './imj-animation'
-- './imj-render-naive-term'
-- './imj-render-delta-term'
-- './imj-game-hamazed'
+- '.'
+- '../imj-prelude'
+- '../imj-base'
+- '../imj-draw'
+- '../imj-interpolation-base'
 
 extra-deps: []
 

@@ -1,28 +1,10 @@
 # What is it?
 
-A 2d-terminal game engine with:
-- Discrete geometry
-- Animations, chained (or composed) animations
-  - Gravity-based
-  - Explosive
-  - Lasers
-- Color animations (interpolated colors)
-- Text animations (location and color)
-- Rendering class : Draw, implemented in package "delta-render" to draw efficiently
-  in the console without screentearing.
-
-# Projects using it
-
-- [Hamazed, a game with flying numbers](https://github.com/OlivierSohn/hamazed)
-
-# Supported Platforms / Terminals:
-
-|OS       |Support|
-|---------|-------|
-|OS X     |Yes    |
-|Linux    |Yes    |
-|Windows  |Yes    |
-
+A draw library with
+- Draw.Class.Draw, a class describing a renderer that supports drawing characters
+with foreground and background locations. See package "imj-render-delta-term"
+for an implementation.
+- Helpers to render aligned text.
 
 # Version history
 

@@ -15,6 +15,7 @@ module Imajuscule.Prelude ( module Prelude
                           , module Data.Maybe
                           , module Data.Monoid
                           , module Data.Ratio
+                          , module Data.String
                           , module Data.Text
                           , module Data.Word
                           ) where
@@ -33,7 +34,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(.
                         , sin, cos, pi
                         , mod, min, max, abs, floor, ceiling, maxBound
                         , negate, div, quot, even, odd
-                        , error
+                        , error, undefined
                         )
 
 import           Control.Applicative((<|>))
@@ -45,6 +46,7 @@ import           Control.Exception(assert)
 import           Data.List(intercalate)
 import           Data.Maybe(listToMaybe)
 import           Data.Monoid((<>))
-import           Data.Word(Word8)
-import           Data.Text(Text)
 import           Data.Ratio((%))
+import           Data.String(String)
+import           Data.Text(Text)
+import           Data.Word(Word8)

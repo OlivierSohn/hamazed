@@ -12,7 +12,6 @@ import qualified Prelude(putStr, putChar)
 
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef )
-import           Data.String(String)
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 

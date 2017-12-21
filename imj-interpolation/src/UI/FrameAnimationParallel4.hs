@@ -1,9 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Game.World.Frame.Types
+module UI.FrameAnimationParallel4
            ( FrameAnimationParallel4(..)
-           , FrameSpec(..)
+           , RectFrame(..)
            ) where
 
 
@@ -17,20 +17,14 @@ import           Data.List( mapAccumL, zip )
 import           Draw
 import           Geo.Discrete
 import           Interpolation
+import           UI.RectFrame
 
-
-data FrameSpec = FrameSpec {
-    _frameSpecSize :: !Size
-  , _frameSpecUpperLeft :: !Coords
-  , _frameSpecColors :: !LayeredColor
-} deriving(Eq, Show)
-
-
-newtype FrameAnimationParallel4 = FrameAnimationParallel4 FrameSpec
+newtype FrameAnimationParallel4 = FrameAnimationParallel4 RectFrame
           deriving(Show)
 
 instance DiscretelyInterpolable FrameAnimationParallel4 where
-  distance (FrameAnimationParallel4 (FrameSpec s _ _ )) (FrameAnimationParallel4 (FrameSpec s' _ _ )) -- TODO animate colors too
+  distance (FrameAnimationParallel4 (RectFrame s  _ _ ))
+           (FrameAnimationParallel4 (RectFrame s' _ _ )) -- TODO animate colors too
     | s == s'   = 1 -- no animation because sizes are equal
     | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
 
@@ -38,38 +32,39 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
   interpolateIO f@(FrameAnimationParallel4 from) t@(FrameAnimationParallel4 to) frame
     | frame <= 0         = renderWhole from
     | frame >= lastFrame = renderWhole to
-    | otherwise          = renderTransition from to lastFrame frame
+    | otherwise          = renderRectFrameInterpolation from to lastFrame frame
     where
       lastFrame = pred $ distance f t
 
 {-# INLINABLE renderWhole #-}
 renderWhole :: (Draw e, MonadReader e m, MonadIO m)
-            => FrameSpec
+            => RectFrame
             -> m ()
-renderWhole (FrameSpec sz upperLeft color) =
-  renderPartialWorldFrame sz color (upperLeft, 0, countWorldFrameChars sz - 1)
+renderWhole (RectFrame sz upperLeft color) =
+  renderPartialRectFrame sz color (upperLeft, 0, countWorldFrameChars sz - 1)
 
-{-# INLINABLE renderTransition #-}
-renderTransition :: (Draw e, MonadReader e m, MonadIO m)
-                 => FrameSpec
-                 -> FrameSpec
-                 -> Int
-                 -> Int
-                 -> m ()
-renderTransition from@(FrameSpec _ fromUpperLeft _)
-                 to@(FrameSpec _ toUpperLeft _) n i = do
-      let (Coords _ dc') = diffCoords fromUpperLeft toUpperLeft
-          dc = fromIntegral dc'
-          render diBefore di = do
-            renderFrom Extremities (n-(i+diBefore)) from
-            renderFrom Middle      (n-(i+di))       to
-      if dc >= 0
-        then
-          -- expanding animation
-          render dc 0
-        else
-          -- shrinking animation
-          render 0 (negate dc)
+{-# INLINABLE renderRectFrameInterpolation #-}
+renderRectFrameInterpolation :: (Draw e, MonadReader e m, MonadIO m)
+                             => RectFrame
+                             -> RectFrame
+                             -> Int
+                             -> Int
+                             -> m ()
+renderRectFrameInterpolation rf1@(RectFrame sz1 upperLeft1 _)
+                 rf2@(RectFrame sz2 upperLeft2 _) lastFrame frame = do
+  let (Coords _ (Coord dc)) = diffCoords upperLeft1 upperLeft2
+      render di1 di2 = do
+        let fromRanges = ranges (lastFrame-(frame+di1)) sz1 Extremities
+            toRanges   = ranges (lastFrame-(frame+di2)) sz2 Middle
+        mapM_ (renderRectFrameRange rf1) fromRanges
+        mapM_ (renderRectFrameRange rf2) toRanges
+  if dc >= 0
+    then
+      -- expanding animation
+      render dc 0
+    else
+      -- shrinking animation
+      render 0 (negate dc)
 
 data BuildFrom = Middle
                | Extremities -- generates the complement
@@ -93,15 +88,13 @@ ranges progress sz =
         Middle      -> res
         Extremities -> complement 0 (total-1) res
 
-{-# INLINABLE renderFrom #-}
-renderFrom :: (Draw e, MonadReader e m, MonadIO m)
-           => BuildFrom
-           -> Int
-           -> FrameSpec
-           -> m ()
-renderFrom rangeType progress (FrameSpec sz r color) = do
-  let rs = ranges progress sz rangeType
-  mapM_ (\(min_, max_) -> renderPartialWorldFrame sz color (r, min_, max_)) rs
+{-# INLINABLE renderRectFrameRange #-}
+renderRectFrameRange :: (Draw e, MonadReader e m, MonadIO m)
+                     => RectFrame
+                     -> (Int, Int)
+                     -> m ()
+renderRectFrameRange (RectFrame sz r color) (min_, max_) =
+  renderPartialRectFrame sz color (r, min_, max_)
 
 complement :: Int -> Int -> [(Int, Int)] -> [(Int, Int)]
 complement a max_ []          = [(a, max_)]
@@ -126,39 +119,18 @@ countWorldFrameVertical :: Size -> Int
 countWorldFrameVertical (Size rs _) =
   fromIntegral rs
 
-{-# INLINABLE renderPartialWorldFrame #-}
-renderPartialWorldFrame :: (Draw e, MonadReader e m, MonadIO m)
-                        => Size
-                        -> LayeredColor
-                        -> (Coords, Int, Int)
-                        -> m ()
-renderPartialWorldFrame sz colors r =
+{-# INLINABLE renderPartialRectFrame #-}
+renderPartialRectFrame :: (Draw e, MonadReader e m, MonadIO m)
+                       => Size
+                       -> LayeredColor
+                       -> (Coords, Int, Int)
+                       -> m ()
+renderPartialRectFrame sz colors r =
   renderUpperWall sz colors r
     >>= renderRightWall sz colors
     >>= renderLowerWall sz colors
     >>= renderLeftWall sz colors
     >> return ()
-
--- TODO factorize Right with LEft, Upper with Lower
-
-{-# INLINABLE renderRightWall #-}
-renderRightWall :: (Draw e, MonadReader e m, MonadIO m)
-                => Size
-                -> LayeredColor
-                -> (Coords, Int, Int)
-                -> m (Coords, Int, Int)
-renderRightWall sz colors (upperRight, from, to) = do
-  let countMax = countWorldFrameVertical sz
-      (actualFrom, actualTo) = actualRange countMax (from, to)
-      nChars = 1 + actualTo - actualFrom
-      wallCoords = map (\n -> move n Down upperRight) [actualFrom..actualTo]
-      nextR = move countMax Down upperRight
-  mapM_ (\pos -> drawChar '|' pos colors) wallCoords
-  if nChars <= 0
-    then
-      return (nextR, from - countMax, to - countMax)
-    else
-      return (nextR, from + nChars - countMax, to - countMax)
 
 {-# INLINABLE renderLeftWall #-}
 renderLeftWall :: (Draw e, MonadReader e m, MonadIO m)
@@ -166,37 +138,44 @@ renderLeftWall :: (Draw e, MonadReader e m, MonadIO m)
                -> LayeredColor
                -> (Coords, Int, Int)
                -> m (Coords, Int, Int)
-renderLeftWall sz colors (lowerLeft, from, to) = do
+renderLeftWall = renderSideWall Up
+
+{-# INLINABLE renderRightWall #-}
+renderRightWall :: (Draw e, MonadReader e m, MonadIO m)
+               => Size
+               -> LayeredColor
+               -> (Coords, Int, Int)
+               -> m (Coords, Int, Int)
+renderRightWall = renderSideWall Down
+
+{-# INLINABLE renderSideWall #-}
+renderSideWall :: (Draw e, MonadReader e m, MonadIO m)
+               => Direction
+               -> Size
+               -> LayeredColor
+               -> (Coords, Int, Int)
+               -> m (Coords, Int, Int)
+renderSideWall dir sz colors (ref, from, to) = do
   let countMax = countWorldFrameVertical sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
-      wallCoords = map (\n -> move n Up lowerLeft) [actualFrom..actualTo]
-      nextR = move countMax Up lowerLeft
+      wallCoords = map (\n -> move n dir ref) [actualFrom..actualTo]
+      nextRef = move countMax dir ref
   mapM_ (\pos -> drawChar '|' pos colors) wallCoords
   if nChars <= 0
     then
-      return (nextR, from - countMax, to - countMax)
+      return (nextRef, from - countMax, to - countMax)
     else
-      return (nextR, from + nChars - countMax, to - countMax)
+      return (nextRef, from + nChars - countMax, to - countMax)
 
--- 0 is upper left
 {-# INLINABLE renderUpperWall #-}
 renderUpperWall :: (Draw e, MonadReader e m, MonadIO m)
                 => Size
                 -> LayeredColor
                 -> (Coords, Int, Int)
                 -> m (Coords, Int, Int)
-renderUpperWall sz colors (upperLeft, from, to) = do
-  let countMax = countWorldFrameHorizontal sz
-      (actualFrom, actualTo) = actualRange countMax (from, to)
-      nChars = 1 + actualTo - actualFrom
-      nextR = translateInDir Down $ move (countMax - 1) RIGHT upperLeft
-  if nChars <= 0
-    then
-      return (nextR, from - countMax, to - countMax)
-    else
-      drawChars nChars '_' (move actualFrom RIGHT upperLeft) colors
-       >> return (nextR, from + nChars - countMax, to - countMax)
+renderUpperWall =
+  renderHorizontalWall Down RIGHT '_'
 
 {-# INLINABLE renderLowerWall #-}
 renderLowerWall :: (Draw e, MonadReader e m, MonadIO m)
@@ -204,16 +183,32 @@ renderLowerWall :: (Draw e, MonadReader e m, MonadIO m)
                 -> LayeredColor
                 -> (Coords, Int, Int)
                 -> m (Coords, Int, Int)
-renderLowerWall sz colors (lowerRight, from, to) = do
+renderLowerWall =
+  renderHorizontalWall Up LEFT 'T'
+
+{-# INLINABLE renderHorizontalWall #-}
+renderHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
+                     => Direction
+                     -> Direction
+                     -> Char
+                     -> Size
+                     -> LayeredColor
+                     -> (Coords, Int, Int)
+                     -> m (Coords, Int, Int)
+renderHorizontalWall dirV dirH char sz colors (upperLeft, from, to) = do
   let countMax = countWorldFrameHorizontal sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
-      nextR = translateInDir Up $ move (countMax - 1) LEFT lowerRight
+      nextR = translateInDir dirV $ move (countMax - 1) dirH upperLeft
+      startDraw = case dirH of
+            RIGHT -> move actualFrom RIGHT upperLeft
+            LEFT  -> move actualTo LEFT upperLeft
+            _ -> error "not allowed"
   if nChars <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars nChars 'T' (move actualTo LEFT lowerRight) colors
+      drawChars nChars char startDraw colors
        >> return (nextR, from + nChars - countMax, to - countMax)
 
 

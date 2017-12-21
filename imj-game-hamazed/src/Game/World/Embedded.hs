@@ -8,8 +8,6 @@ import           Imajuscule.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Data.String
-
 import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 
 import           Game.World.Size
@@ -22,18 +20,18 @@ minimalWorldMargin = 4
 
 {-# INLINABLE mkEmbeddedWorld #-}
 mkEmbeddedWorld :: (MonadIO m)
-                => WorldSize
+                => Size
                 -> m (Either String EmbeddedWorld)
 mkEmbeddedWorld s = do
   mayTermSize <- liftIO Terminal.size
   return $ EmbeddedWorld mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
-worldUpperLeftToCenterIt' :: WorldSize -> Maybe (Terminal.Window Int) -> Either String Coords
+worldUpperLeftToCenterIt' :: Size -> Maybe (Terminal.Window Int) -> Either String Coords
 worldUpperLeftToCenterIt' worldSize mayTermSize =
   case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
-      let (WorldSize (Size rs cs)) = maxWorldSize
+      let (Size rs cs) = maxWorldSize
           heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
           widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
           minSize@(Terminal.Window minh minw) =
@@ -50,8 +48,8 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
               Right $ worldUpperLeftFromTermSize termSize worldSize
     Nothing -> Right $ Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
 
-worldUpperLeftFromTermSize :: Terminal.Window Int -> WorldSize -> Coords
-worldUpperLeftFromTermSize (Terminal.Window h w) (WorldSize (Size rs cs)) =
+worldUpperLeftFromTermSize :: Terminal.Window Int -> Size -> Coords
+worldUpperLeftFromTermSize (Terminal.Window h w) (Size rs cs) =
   let walls = 2 :: Int
   in toCoords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)
               (quot (fromIntegral w-(cs+ fromIntegral walls)) 2)

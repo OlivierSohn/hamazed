@@ -8,7 +8,6 @@ module Game.World.Space.Types
     , Material(..)
     , RenderGroup(..)
     , WorldShape(..)
-    , WorldSize(..)
     -- * reexports
     , module Geo.Discrete.Types
     ) where
@@ -54,5 +53,3 @@ data Material = Air
 
 data WorldShape = Square
                 | Rectangle2x1
-
-newtype WorldSize = WorldSize Size deriving(Eq, Show)

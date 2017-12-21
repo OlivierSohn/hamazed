@@ -15,15 +15,11 @@
 - make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
 
-- animate frame color while transitioning (red -> white -> red)
-
 - when expanding, invert animation order between frame and infos
 
 - use a dedicated animation for world swap, and then one for game start
 
 - verify timing for ship safety when transitioning, currently it starts from beginning of animation!
-
-- reduction from 2 edges
 
 - for world with rectangular shape, the walls become visible at the other side of the fronteer
 on animations. Maybe we should animate the world too.

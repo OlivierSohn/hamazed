@@ -50,8 +50,8 @@ getFrames (WorldEvolutions (Evolution _ lastFrameFrameE _ _)
   in (relFrameFrameE, relFrameUD, relFrameLeft)
 
 
-mkWorldAnimation :: (FrameSpec, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
-                 -> (FrameSpec, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
+mkWorldAnimation :: (RectFrame, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
+                 -> (RectFrame, (([ColorString], [ColorString]), ([ColorString], [ColorString])))
                  -> UTCTime
                  -- ^ Time at which the animation starts
                  -> WorldAnimation
@@ -68,8 +68,8 @@ mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
       $ getDeltaTime evolutions zeroFrame
 
 
-createInterpolations :: FrameSpec
-                     -> FrameSpec
+createInterpolations :: RectFrame
+                     -> RectFrame
                      -> ([ColorString],[ColorString],[ColorString],[ColorString])
                      -- ^ Upper text, Lower text, Left text 1, Left text 2
                      -> Float
@@ -80,8 +80,8 @@ createInterpolations from to (ups, downs, left1s, left2s) duration =
     in (ta1, ta2)
 
 
-mkTextAnimLeft :: FrameSpec
-               -> FrameSpec
+mkTextAnimLeft :: RectFrame
+               -> RectFrame
                -> ([ColorString], [ColorString])
                -> Float
                -> TextAnimation AnchorStrings
@@ -105,8 +105,8 @@ mkTextAnimLeft from to (txtLeft1s, txtLeft2s)
            (txtLeft2s, leftMiddle2FromAligned, leftMiddle2ToAligned)]
           duration
 
-mkTextAnimUpDown :: FrameSpec
-                 -> FrameSpec
+mkTextAnimUpDown :: RectFrame
+                 -> RectFrame
                  -> ([ColorString], [ColorString])
                  -> Float
                  -> TextAnimation AnchorChars
@@ -132,8 +132,8 @@ alignTxt (Alignment al pos) txt =
   uncurry move (align al $ countChars txt) pos
 
 
-computeRSForInfos :: FrameSpec -> (Coords, Coords, Coords)
-computeRSForInfos (FrameSpec (Size rs cs) upperLeft _) =
+computeRSForInfos :: RectFrame -> (Coords, Coords, Coords)
+computeRSForInfos (RectFrame (Size rs cs) upperLeft _) =
   (centerUp, centerDown, leftMiddle)
  where
   addWallSize = (+ 2)

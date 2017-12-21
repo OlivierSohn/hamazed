@@ -1,3 +1,5 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- | Functions to draw aligned text. Function names are postfixed with @'@: non-postfixed names are reserved
 -- to helper functions in "Draw.Helpers.MonadReader", because using the API through the
 -- 'MonadReader' monad is the recommended way.
@@ -10,7 +12,7 @@ module Draw.Aligned(
        , Alignment(..)
        ) where
 
-import           Prelude hiding(length)
+import           Imajuscule.Prelude
 
 import           Data.Text(length)
 

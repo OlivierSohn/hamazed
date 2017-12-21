@@ -21,6 +21,7 @@ library
   other-modules:
   exposed-modules:     Color.Types
                      , Color
+                     , Geo
                      , Geo.Discrete
                      , Geo.Discrete.Bresenham
                      , Geo.Discrete.Bresenham3
@@ -29,8 +30,10 @@ library
                      , Geo.Types
                      , Iteration
                      , Text.Alignment
+                     , Text.ColorString
                      , Timing
                      , Util
+                     , UI.RectFrame
   build-depends:       base >= 4.8 && < 4.11
                      , imj-prelude
                      , random

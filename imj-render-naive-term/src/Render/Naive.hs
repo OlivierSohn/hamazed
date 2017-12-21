@@ -36,8 +36,10 @@ instance Draw NaiveDraw where
     drawChar'      _ b c d   = liftIO $ move c >> color d >> putChar b
     drawChars'     _ b c d e = liftIO $ move d >> color e >> putStr (replicate b c)
     drawTxt'       _ b c d   = liftIO $ move c >> color d >> putStr (unpack b)
+    drawStr'       _ b c d   = liftIO $ move c >> color d >> putStr b
     renderDrawing' _         = liftIO $ hFlush stdout
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}
     {-# INLINABLE drawTxt' #-}
+    {-# INLINABLE drawStr' #-}
     {-# INLINABLE renderDrawing' #-}

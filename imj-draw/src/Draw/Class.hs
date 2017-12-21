@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Draw.Class(
        -- * The Draw class
@@ -10,6 +11,8 @@ module Draw.Class(
        -- ** Coordinates
        , module Geo.Discrete.Types
        ) where
+
+import           Imajuscule.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text)
@@ -50,6 +53,11 @@ class Draw e where
            => e
            -> Text -> Coords -> LayeredColor -> m ()
   drawTxt' = undefined
+
+  drawStr' :: (MonadIO m)
+           => e
+           -> String -> Coords -> LayeredColor -> m ()
+  drawStr' = undefined
 
   -- | Render the drawing to the physical destination.
   renderDrawing' :: (MonadIO m) => e -> m ()

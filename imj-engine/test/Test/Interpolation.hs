@@ -10,7 +10,7 @@ module Test.Interpolation
 
 import Evolution
 import Geo.Discrete
-import Math
+import Ease
 
 testInterpolation :: IO ()
 testInterpolation = mapM_ print testClock

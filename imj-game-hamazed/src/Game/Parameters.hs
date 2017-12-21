@@ -96,7 +96,7 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         => GameParameters
         -> m ()
 render' (GameParameters shape wall) = do
-  let worldSize@(WorldSize (Size (Length rs) (Length cs))) = worldSizeFromLevel 1 shape
+  let worldSize@(Size (Length rs) (Length cs)) = worldSizeFromLevel 1 shape
   mkEmbeddedWorld worldSize >>= \case
     Left err -> error err
     Right rew@(EmbeddedWorld _ ul) -> do

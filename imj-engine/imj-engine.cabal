@@ -38,9 +38,7 @@ library
 test-suite imj-engine-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Ease
-                     , Test.InterpolatedColorString
-                     , Test.Interpolation
+  other-modules:       Test.InterpolatedColorString
   main-is:             Spec.hs
   build-depends:       base
                      , ansi-terminal

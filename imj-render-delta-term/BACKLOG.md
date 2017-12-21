@@ -29,9 +29,6 @@ can be drawn with the same colors as the previous difference, see what is more e
    - m = distanceInTabs(myTabStop, targetTabStop)
    - total = if myTabStop <= targetTabStop then n + m + b?1:0 else doitwithspaces
    - compare with usage of position commands and take smallest.
-- make a package for Delta rendering:
-  - create repo, test locally using https://stackoverflow.com/questions/32849269/how-to-install-use-a-local-version-of-package-using-stack
-  - CI: https://github.com/hvr/multi-ghc-travis
 
 - make tests to see the effect of buffer size on screen tearing :
   - alternate '|' with '-'

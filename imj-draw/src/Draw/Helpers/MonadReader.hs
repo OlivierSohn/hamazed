@@ -101,7 +101,7 @@ drawChar c co la = do
   d <- asks drawChar'
   d c co la
 
--- | Render the drawing to the physical device (the screen, the console etc...).
+-- | Render the drawing to {the screen, the console, etc...}.
 {-# INLINABLE renderDrawing #-}
 renderDrawing :: (Draw e, MonadReader e m, MonadIO m)
               => m ()

@@ -31,8 +31,7 @@ library
                      , imj-draw ==0.1.*
                      , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*
-  ghc-options:       -Wall -Werror -fpedantic-bottoms -Wredundant-constraints
-                     -threaded -rtsopts -with-rtsopts=-maxN4
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -O2 -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
@@ -42,12 +41,7 @@ test-suite imj-animation-test
   other-modules:
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
-                     , imj-engine ==0.1.*
-                     , imj-prelude ==0.1.*
-  ghc-options:       -Wall -Werror -fpedantic-bottoms -Wredundant-constraints
-                     -threaded -rtsopts -with-rtsopts=-maxN4
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -O2 -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 

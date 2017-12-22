@@ -34,13 +34,13 @@ shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
     Timeout GameStep k ->
       if not (null collisions) && isNothing safeTime
         then
-          -- number and ship explode, they exchange speeds
+          -- when number and ship explode, they exchange speeds
           let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
               (Number _ n) = head collisions
-          in  map ((`BoundedAnimationUpdate` WorldFrame) .
-                    (\(char,f) -> mkAnimationUpdate f k SkipZero (Speed 1) (Just char))) $
-                  map ((,) '|')            (explosion (speed2vec collidingNumbersSpeed) shipCoords) ++
-                  map ((,) $ intToDigit n) (explosion (speed2vec shipSpeed) shipCoords)
+          in  map (`BoundedAnimationUpdate` WorldFrame) $
+                  fragmentsFreeFallThenExplode (speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
+                  ++
+                  fragmentsFreeFallThenExplode (speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)
         else
           []
     _ -> []

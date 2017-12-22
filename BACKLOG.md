@@ -2,7 +2,13 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - Chose a namespace
+  - refactor 'outerSpaceAnims', 'shipAnims', 'destroyedNumbersAnimations'
+  , 'mkLaserAnimationUpdate'
+
+  - Measure if O2 is necessary, especially for:
+    - chained animations with a lot of points
+    - delta renderer
+  compilation times are slower by 4% with -O2.
 
   - Categories are determined by whatever you put in the Category field.
   You should try to pick existing categories when possible. You can have more than one category, separated by commas.

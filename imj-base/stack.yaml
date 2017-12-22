@@ -18,4 +18,4 @@ extra-package-dbs: []
 # I added -fpedantic-bottoms to catch errors that are masked by the compiler
 #   as explained in  https://ghc.haskell.org/trac/ghc/ticket/14521
 ghc-options:
-  "$locals": -threaded -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-maxN4 -O2 -fexcess-precision -optc-ffast-math
+  "$locals": -threaded -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-maxN4 -fexcess-precision -optc-ffast-math

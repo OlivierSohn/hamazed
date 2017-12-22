@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.World.Number(
     getColliding
@@ -47,13 +46,19 @@ destroyedNumbersAnimations :: (Draw e, MonadReader e m, MonadIO m)
                            -> [Number]
                            -> [BoundedAnimationUpdate m]
 destroyedNumbersAnimations keyTime event =
-  let sp = case event of
+  let laserSpeed = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir
         _                  -> Vec2 0 0
-      animation pos = map (\f -> (f, Speed 2)) (explosion (scalarProd 2 sp) pos)
-  in \case
-        Number (PosSpeed pos _) n:_ ->
-          let animations = animation pos ++ [(animatedNumber n (mkAnimatedPoints pos DontInteract), Speed 1)]
-              create (f,speed) = mkAnimationUpdate f keyTime SkipZero speed $ Just $ intToDigit n
-          in  map (\a -> BoundedAnimationUpdate (create a) WorldFrame) animations
-        _ -> []
+  in concatMap (destroyedNumberAnimations keyTime laserSpeed)
+
+{-# INLINABLE destroyedNumberAnimations #-}
+destroyedNumberAnimations :: (Draw e, MonadReader e m, MonadIO m)
+                          => KeyTime
+                          -> Vec2
+                          -> Number
+                          -> [BoundedAnimationUpdate m]
+destroyedNumberAnimations keyTime laserSpeed (Number (PosSpeed pos _) n) =
+  let char = intToDigit n
+  in map (`BoundedAnimationUpdate` WorldFrame)
+        $ animatedPolygon n pos keyTime (Speed 1) char
+        : fragmentsFreeFallThenExplode (scalarProd 2 laserSpeed) pos keyTime (Speed 2) char

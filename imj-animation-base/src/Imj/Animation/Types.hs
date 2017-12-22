@@ -6,11 +6,10 @@
 
 This module defines the types related to animations.
 
-Animations are recipes to generate animation points, and two animations can be
-chained (composed) to produce complex effects. In that case, when an animation point of the
-first animation first collides with its environment, it stops being active for
-the first animation and gives birth to animation points for the second animation
-at that position.
+Animations are recipes to generate animation points. Two animations can be
+composed : when an animation point of the first animation collides with its
+environment, it stops being active for the first animation and gives birth to
+animation points for the second animation at that position.
 
 -}
 
@@ -88,7 +87,7 @@ data InteractionResult = Mutation
                        | Stable
                        deriving(Eq,Show)
 
--- | Initializes 'AnimatedPoints' with a InteractionResult defining the start of the first animation.
+-- | Constructs an 'AnimatedPoints'.
 mkAnimatedPoints :: Coords
                  -- ^ Where the first animation should start.
                  -> CanInteract

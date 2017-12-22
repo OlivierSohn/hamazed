@@ -66,7 +66,7 @@ nextGameState
       newAnimations =
             destroyedNumbersAnimations keyTime event destroyedBalls
          ++ shipAnims ship event
-         ++ maybe [] (laserAnims keyTime) maybeLaserRay
+         ++ maybe [] (`laserAnims` keyTime) maybeLaserRay
          ++ outerSpaceAnims_
          ++ animations
 
@@ -93,25 +93,33 @@ outerSpaceAnims :: (Draw e, MonadReader e m, MonadIO m)
                 -> Space
                 -> LaserRay Actual
                 -> [BoundedAnimationUpdate m]
-outerSpaceAnims keyTime@(KeyTime t) (Space _ sz _) ray@(LaserRay dir _) =
-  let ae = afterEnd ray
-  in case onFronteer ae sz of
-        Just outDir -> let speed = assert (dir == outDir) (scalarProd 2 $ speed2vec $ coordsForDirection outDir)
-                           explosions = explosionGravity speed $ translateInDir outDir ae
-                       in map (((`BoundedAnimationUpdate` TerminalWindow) .
-                                (\ (char, f) -> mkAnimationUpdate f keyTime WithZero (Speed 1) (Just char))) .
-                                  ((,) $ niceChar $ fromIntegral $ getSeconds t))
-                                    explosions
-        Nothing -> []
+outerSpaceAnims k (Space _ sz _) ray@(LaserRay dir _) =
+  let laserTarget = afterEnd ray
+  in case onFronteer laserTarget sz of
+       Just outDir -> outerSpaceAnims' k laserTarget $ assert (dir == outDir) dir
+       Nothing -> []
+
+{-# INLINABLE outerSpaceAnims' #-}
+outerSpaceAnims' :: (Draw e, MonadReader e m, MonadIO m)
+                 => KeyTime
+                 -> Coords
+                 -> Direction
+                 -> [BoundedAnimationUpdate m]
+outerSpaceAnims' keyTime@(KeyTime t) fronteerPoint dir =
+  let char = niceChar $ fromIntegral $ getSeconds t -- every second, cycle character
+      speed = scalarProd 2 $ speed2vec $ coordsForDirection dir
+      outerSpacePoint = translateInDir dir fronteerPoint
+      anims = fragmentsFreeFall speed outerSpacePoint keyTime (Speed 1) char
+  in map (`BoundedAnimationUpdate` TerminalWindow) anims
 
 
 {-# INLINABLE laserAnims #-}
 laserAnims :: (Draw e, MonadReader e m, MonadIO m)
-           => KeyTime
-           -> LaserRay Actual
+           => LaserRay Actual
+           -> KeyTime
            -> [BoundedAnimationUpdate m]
 laserAnims keyTime ray
- = [BoundedAnimationUpdate (mkLaserAnimationUpdate keyTime ray) WorldFrame]
+ = [BoundedAnimationUpdate (laserAnimation keyTime ray) WorldFrame]
 
 replaceAnimations :: [BoundedAnimationUpdate m] -> GameState m -> GameState m
 replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =

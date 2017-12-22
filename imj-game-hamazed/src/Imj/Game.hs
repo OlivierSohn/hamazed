@@ -35,7 +35,6 @@ import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 
 import           Imj.Physics.Discrete.Collision
-import           Imj.Util
 
 
 {-# INLINABLE gameWorker #-}

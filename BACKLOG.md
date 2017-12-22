@@ -16,6 +16,10 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
     the goal is to disambiguate wether interpolate or interpolateIO is implemented.
     interpolate in DiscretelyInterpolable -> the intermediate values can be represented using the type
     interpolateIO in DiscretelyTransformable m -> the intermediate values cannot be represented using the type
+      - The doc doesn't see the instance when the type is not in the same module as the
+      class... maybe it would make sense to collapse some of the modules (but ):
+
+
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points
     - delta renderer

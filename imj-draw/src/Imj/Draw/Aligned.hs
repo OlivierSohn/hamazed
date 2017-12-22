@@ -1,8 +1,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Functions to draw aligned text. Function names are postfixed with @'@: non-postfixed names are reserved
--- to helper functions in "Draw.Helpers.MonadReader", because using the API through the
--- 'MonadReader' monad is the recommended way.
+{- | Functions to draw aligned text.
+
+Function names are postfixed with @'@. Non-postfixed names are reserved to helper
+functions in "Draw.Helpers.MonadReader" (using the API through a 'MonadReader'
+monad is the recommended way).
+-}
 
 module Imj.Draw.Aligned(
          drawAlignedTxt'

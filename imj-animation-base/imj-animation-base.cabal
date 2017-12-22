@@ -20,9 +20,10 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Animation.Color
+                     , Imj.Animation.Design
                      , Imj.Animation.Design.Animator
                      , Imj.Animation.Design.Apply
-                     , Imj.Animation.Design.Chain
+                     , Imj.Animation.Design.Compose
                      , Imj.Animation.Design.RenderUpdate
                      , Imj.Animation.Timing
                      , Imj.Animation.Types

@@ -2,15 +2,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {- |
-= Preamble
+Animations are recipes to generate animation points.
+
+Two animations can be composed : when the interaction between an animation point of the first animation
+and its environment results in a mutation, the animation point stops being active
+for the first animation and gives birth to animation points for the second animation
+at that position.
 
 This module defines the types related to animations.
-
-Animations are recipes to generate animation points. Two animations can be
-composed : when an animation point of the first animation collides with its
-environment, it stops being active for the first animation and gives birth to
-animation points for the second animation at that position.
-
 -}
 
 module Imj.Animation.Types
@@ -75,23 +74,27 @@ data AnimatedPoints = AnimatedPoints {
 data CanInteract =
           DontInteract
         -- ^ Interaction results are ignored for this animation.
+        --
         -- Hence, the animation terminates only if its pure animation function
         -- returns an empty list for each frame after a given frame.
         | Interact CanInteract
-        -- ^ Animation points can be mutated after an interaction with the environment,
-        -- thus giving birth to a new set of animation points in the next animation.
+        -- ^ Animation points can be mutated after an interaction with the environment.
         | Stop
         -- ^ Data structure termination.
 
+-- | The result of an interaction between an animation point and the environment.
 data InteractionResult = Mutation
+                       -- ^ The animation point will mutate, if it is allowed
+                       -- to interact with the environment.
                        | Stable
+                       -- ^ The animation point will not mutate.
                        deriving(Eq,Show)
 
 -- | Constructs an 'AnimatedPoints'.
 mkAnimatedPoints :: Coords
                  -- ^ Where the first animation should start.
                  -> CanInteract
-                 -- ^ How should animated points behave on collisions.
+                 -- ^ Are animated points allowed to interact with the environment?
                  -> AnimatedPoints
 mkAnimatedPoints c ow =
   AnimatedPoints c 0 Nothing ow Nothing
@@ -162,7 +165,7 @@ mkAnimationUpdate render t frameInit speed mayChar =
   in AnimationUpdate t (mayNext $ zeroIteration speed) mayChar render
 
 
--- Intermediate helper structure to construct an 'AnimationUpdate'
+-- | Intermediate helper structure to construct an 'AnimationUpdate'
 data Animator m = Animator {
     _animatorPure :: !(Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
     -- ^ A pure animation function that updates AnimatedPoints

@@ -11,6 +11,7 @@ import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
 
 import           Imj.Animation
+import           Imj.Animation.Types
 import           Imj.Animation.Design.Chars
 
 import           Imj.Game.Color
@@ -105,8 +106,8 @@ outerSpaceAnims' :: (Draw e, MonadReader e m, MonadIO m)
                  -> Coords
                  -> Direction
                  -> [BoundedAnimationUpdate m]
-outerSpaceAnims' keyTime@(KeyTime t) fronteerPoint dir =
-  let char = niceChar $ fromIntegral $ getSeconds t -- every second, cycle character
+outerSpaceAnims' keyTime@(KeyTime (MkSystemTime _ nanos)) fronteerPoint dir =
+  let char = niceChar $ fromIntegral nanos -- cycle character every nano second
       speed = scalarProd 2 $ speed2vec $ coordsForDirection dir
       outerSpacePoint = translateInDir dir fronteerPoint
       anims = fragmentsFreeFall speed outerSpacePoint keyTime (Speed 1) char

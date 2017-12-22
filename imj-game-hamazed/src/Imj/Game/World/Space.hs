@@ -319,7 +319,11 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
     WorldFrame -> worldLocation
     TerminalWindow -> maybe
                         worldLocation
-                        (\wd coo-> if contains coo sz then OutsideWorld else terminalLocation wd coo)
+                        (\wd coo-> if contains coo sz
+                                    then
+                                      OutsideWorld
+                                    else
+                                      terminalLocation wd coo)
                         mayTermWindow
     Both       -> maybe
                     worldLocation

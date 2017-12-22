@@ -1,8 +1,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+
+{- | Functions to draw 'ColorString'.
+-}
+
 module Imj.Draw.ColorString
           ( drawColored
-          , drawAligned
+          , drawColoredAligned
           ) where
 
 import           Imj.Prelude
@@ -17,7 +21,7 @@ import           Imj.Geo.Discrete
 import           Imj.Text.Alignment
 import           Imj.Text.ColorString
 
--- \ Draw a 'ColorString'.
+-- | Draw a 'ColorString'.
 {-# INLINABLE drawColored #-}
 drawColored :: (Draw e, MonadReader e m, MonadIO m)
             => ColorString
@@ -31,13 +35,13 @@ drawColored (ColorString cs) pos =
       return $ count + l
     ) 0 cs
 
--- \ Draw a 'ColorString' with an 'Alignment' constraint.
-{-# INLINABLE drawAligned #-}
-drawAligned :: (Draw e, MonadReader e m, MonadIO m)
+-- | Draw a 'ColorString' with an 'Alignment' constraint.
+{-# INLINABLE drawColoredAligned #-}
+drawColoredAligned :: (Draw e, MonadReader e m, MonadIO m)
             => Alignment
             -> ColorString
             -> m Alignment
-drawAligned a cs = do
+drawColoredAligned a cs = do
   let leftCorner = align' a (countChars cs)
   _ <- drawColored cs leftCorner
   return $ toNextLine a

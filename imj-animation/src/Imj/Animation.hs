@@ -15,28 +15,35 @@ about how to handle the initial frame.
 
 module Imj.Animation
     (
-    -- * Explosion
+    -- * Explosive
+    -- | From simple 'simpleExplosion' to composed 'quantitativeExplosionThenSimpleExplosion'
+    -- explosions.
       simpleExplosion
-    -- * Composed explosions
     , quantitativeExplosionThenSimpleExplosion
     -- * Free fall
+    {- | 'freeFall' simulates the effect of gravity on an object that has an initial speed.
+
+    'freeFallThenExplode' adds an explosion when the falling object hits the environment
+     (ie when the 'InteractionResult' of an interaction between the object and
+     the environment is 'Mutation').
+    -}
     , freeFall
-    -- ** Followed by an explosion
     , freeFallThenExplode
-    -- * Free falling fragments
+    -- * Fragments
+    {- | 'fragmentsFreeFall' gives the visual impression that the object disintegrated in multiple
+    pieces before falling.
+
+    'fragmentsFreeFallThenExplode' adds an explosion when the falling object hits the environment
+    (ie when the 'InteractionResult' of an interaction between the object and
+    the environment is 'Mutation').
+    -}
     , fragmentsFreeFall
-    -- ** Followed by an explosion
     , fragmentsFreeFallThenExplode
-    -- * A polygon (or circle) explodes then implodes
+    -- * Geometric
     , animatedPolygon
-    -- * Laser ray
     , laserAnimation
     -- * Reexports
-    -- ** Animation types
-    , module Imj.Animation.Types
-    -- ** Other
-    , MonadIO
-    , MonadReader
+    , AnimationUpdate(..)
     ) where
 
 
@@ -48,7 +55,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Imj.Animation.Color
 import           Imj.Animation.Design.Animator
 import           Imj.Animation.Design.Apply
-import           Imj.Animation.Design.Chain
+import           Imj.Animation.Design.Compose
 import           Imj.Animation.Design.Geo
 import           Imj.Animation.Design.RenderUpdate
 import           Imj.Animation.Types
@@ -58,7 +65,7 @@ import           Imj.Geo.Discrete
 import           Imj.Laser.Types
 import           Imj.Timing
 
--- | A laser ray animation
+-- | A laser ray animation, with a fade-out effect.
 {-# INLINABLE laserAnimation #-}
 laserAnimation :: (Draw e, MonadReader e m, MonadIO m)
                => LaserRay Actual
@@ -97,7 +104,7 @@ laserAnimation'' :: (Draw e, MonadReader e m, MonadIO m)
                  -> Coords
                  -> m (Maybe (AnimationUpdate m))
 laserAnimation'' seg =
-  renderAndUpdate' (mkAnimator simpleLaserPure laserAnimation'' seg)
+  renderAndUpdate' (mkAnimator laserAnimationPure laserAnimation'' seg)
 
 {-# INLINABLE quantitativeExplosionThenSimpleExplosion #-}
 quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
@@ -148,9 +155,11 @@ quantitativeExplosionThenSimpleExplosion'' :: (Draw e, MonadReader e m, MonadIO 
 quantitativeExplosionThenSimpleExplosion'' number =
   renderAndUpdate fPure f colorFromFrame
  where
-  fPure = chainOnCollision (quantitativeExplosionPure number) (simpleExplosionPure 8)
+  fPure = composePureAnimations (quantitativeExplosionPure number) (simpleExplosionPure 8)
   f = quantitativeExplosionThenSimpleExplosion'' number
 
+-- | An animation where a geometric figure (polygon or circle) expands then shrinks,
+-- and doesn't interact with the environment.
 animatedPolygon :: (Draw e, MonadReader e m, MonadIO m)
                 => Int
                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
@@ -195,7 +204,7 @@ animatedPolygon'' :: (Draw e, MonadReader e m, MonadIO m)
                   -> Coords
                   -> m (Maybe (AnimationUpdate m))
 animatedPolygon'' n =
-  renderAndUpdate' (mkAnimator animateNumberPure animatedPolygon'' n)
+  renderAndUpdate' (mkAnimator animatePolygonPure animatedPolygon'' n)
 
 
 -- | A circular explosion configurable in number of points
@@ -397,5 +406,5 @@ freeFallThenExplode'' :: (Draw e, MonadReader e m, MonadIO m)
 freeFallThenExplode'' initialSpeed =
   renderAndUpdate fPure f colorFromFrame
  where
-  fPure = chainOnCollision (gravityFall initialSpeed) (simpleExplosionPure 8)
+  fPure = composePureAnimations (gravityFall initialSpeed) (simpleExplosionPure 8)
   f = freeFallThenExplode'' initialSpeed

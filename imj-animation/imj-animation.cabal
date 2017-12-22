@@ -3,7 +3,7 @@ version:             0.1.0.0
 Category:            Game Engine
 Synopsis:            Animations
 Description:         Library of explosive and gravity-based animations which can be
-                     chained on collision with the environment.
+                     chained on collision (aka mutative interaction) with the environment.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3

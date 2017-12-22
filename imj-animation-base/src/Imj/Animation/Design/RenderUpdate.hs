@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
@@ -19,9 +21,11 @@ import           Imj.Animation.Types
 import           Imj.Draw
 
 {- |
-Updates and renders 'AnimatedPoints'. If the animation has animation points that
-are still alive, returns the next 'AnimationUpdate' in which the updated 'AnimatedPoints'
-  is preapplied to the render function.
+Updates and renders 'AnimatedPoints'.
+
+If the animation has animation points that are still alive, returns the next
+'AnimationUpdate' in which the updated 'AnimatedPoints' is preapplied to the
+render function.
 -}
 {-# INLINABLE renderAndUpdate #-}
 renderAndUpdate :: (Draw e, MonadReader e m, MonadIO m)

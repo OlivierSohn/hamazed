@@ -12,15 +12,15 @@ import System.Console.ANSI.Codes(csi)
 
 import Imj.Draw.Class
 
--- | This would make a good candidate for (very) naive rendering benchmark.
---
--- It is very naïve in the sense that it doesn't have any state, so
--- at every call, it sets the color and the position, even if it's not needed.
---
--- It is also naïve in the sense that there is no double buffering involved.
---
--- We could do a smarter version with IORef state to benchmark.
-newtype NaiveDraw = NaiveDraw Int -- Int is needed, () doesn't compile
+{- | Naive rendering for the terminal. Just for tests. It is very naïve in the sense that
+
+* It doesn't have any state, so at every call it sets the color and the position,
+even if it's not needed.
+* There is no double buffering involved.
+
+For an optimized version, see 'Delta' of module imj-render-delta-term.
+-}
+newtype NaiveDraw = NaiveDraw Int -- ^ Int is not used, I had to add it else () doesn't compile
 
 move :: Coords -> IO ()
 move (Coords (Coord y) (Coord x)) =

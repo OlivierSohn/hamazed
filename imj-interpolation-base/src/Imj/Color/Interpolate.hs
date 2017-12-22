@@ -1,4 +1,4 @@
--- | Functions to interpolate colors.
+-- | Functions to interpolate colors in RGB space.
 
 module Imj.Color.Interpolate
         ( bresenhamColor8Length
@@ -14,7 +14,8 @@ import           Imj.Util
 -- Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
--- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+-- | The two input 'Color8' are expected to have been both created with the same
+-- constructor ('rgb' or 'gray').
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8 a -> Color8 a -> Int
 bresenhamColor8Length c c'
@@ -25,7 +26,8 @@ bresenhamColor8Length c c'
         (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
         colors -> error $ "cannot get length between colors " ++ show colors
 
--- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+-- | The two input 'Color8' are expected to have been both created with the same
+-- constructor ('rgb' or 'gray').
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]
 bresenhamColor8 c c'

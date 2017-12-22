@@ -2,9 +2,23 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - refactor 'outerSpaceAnims', 'shipAnims', 'destroyedNumbersAnimations'
-  , 'mkLaserAnimationUpdate'
+  - Env should be in Game ? Run also?
+  - make better doc for
+    - Game*
+    - Geo*
+    - Laser.Types
+    - Physics.Discrete.Collision
+    - Text.*
+    - Threading
+    - UI.*
+    - Util
+  - regroup docs of IO
+  - use Latex formulas (\[ \]) in Interpolation
 
+  - refactor DiscretelyInterpolable :
+    the goal is to disambiguate wether interpolate or interpolateIO is implemented.
+    interpolate in DiscretelyInterpolable -> the intermediate values can be represented using the type
+    interpolateIO in DiscretelyTransformable m -> the intermediate values cannot be represented using the type
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points
     - delta renderer
@@ -12,6 +26,9 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
   - Categories are determined by whatever you put in the Category field.
   You should try to pick existing categories when possible. You can have more than one category, separated by commas.
+
+    - Animation, Game, Graphics
+    - Education (sum numbers)
 
   - try stack sdist / stack upload on prelude
 

@@ -127,7 +127,7 @@ module Imj.Render.Delta
             -- created and configured using functions of this module:
             module Imj.Render.Delta.Env
             -- ** Draw and render
-            -- | Depending on the type of monad your code runs in (see Usage section), you will draw
+            -- | Depending on the type of monad your code runs in, you will draw
             -- and render using one of these two modules:
           , module Imj.Draw.Class
           , module Imj.Draw.Helpers.MonadReader

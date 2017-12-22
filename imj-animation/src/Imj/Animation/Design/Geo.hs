@@ -10,9 +10,9 @@ module Imj.Animation.Design.Geo
     , simpleExplosionPure
     , quantitativeExplosionPure
     -- * Geometric figures
-    , animateNumberPure
+    , animatePolygonPure
     -- * Laser
-    , simpleLaserPure
+    , laserAnimationPure
     ) where
 
 import           Imj.Prelude
@@ -32,12 +32,12 @@ import           Imj.Geo.Discrete.Resample
 
 
 -- | Note that the Coords parameter is unused.
-simpleLaserPure :: LaserRay Actual
-                -> Coords
-                -- ^ Unused, because the 'LaserRay' encodes the origin already
-                -> Frame
-                -> ([Coords], Maybe Char)
-simpleLaserPure (LaserRay dir (Ray seg)) _ (Frame i) =
+laserAnimationPure :: LaserRay Actual
+                   -> Coords
+                   -- ^ Unused, because the 'LaserRay' encodes the origin already
+                   -> Frame
+                   -> ([Coords], Maybe Char)
+laserAnimationPure (LaserRay dir (Ray seg)) _ (Frame i) =
   let (originalChar, replacementChar) =
         if dir == LEFT || dir == RIGHT
           then
@@ -92,13 +92,14 @@ quantitativeExplosionPure number center (Frame iteration) =
   in (map vec2coords $ translatedFullCircle c radius firstAngle number, Nothing)
 
 -- | Expanding then shrinking geometric figure.
-animateNumberPure :: Int
-                  -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                  -> Coords
-                  -- ^ Center
-                  -> Frame
-                  -> ([Coords], Maybe Char)
-animateNumberPure n center (Frame i) =
+animatePolygonPure :: Int
+                   -- ^ number of extremities of the polygon (if 1, draw a circle instead)
+                   -> Coords
+                   -- ^ Center
+                   -> Frame
+                   -- ^ Used to compute the radius.
+                   -> ([Coords], Maybe Char)
+animatePolygonPure n center (Frame i) =
   let r = animateRadius (quot i 2) n
       points = if r < 0
        then

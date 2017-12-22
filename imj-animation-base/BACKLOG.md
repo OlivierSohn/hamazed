@@ -8,5 +8,5 @@ I will return an empty list" : it could allow to stop animations that have
 "CanInteract DontInteract" and will continue indefinitely
 or to interpret "CanInteract DontInteract" as "CanInteract Interact" for animations that don't guarantee they will end
 
-- generalize chained sequences on collisions
+- generalize chained sequences on mutations
   - try passing a list of functions to the tree's 'treeOnWall' Rebound

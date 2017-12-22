@@ -1,7 +1,6 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
--- | This module is about updating 'AnimatedPoints' using the pure animation function and
--- the collision function.
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Apply
     (

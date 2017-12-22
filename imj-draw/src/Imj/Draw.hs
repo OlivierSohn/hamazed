@@ -1,20 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {- |
-= Foreword
-
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj.Env.hs This concrete example>
-shows how I use 'Draw' in a game to use the renderer via a 'ReaderT' monad.
-
-= Description
 
 These modules provide a way to abstract a global renderer, in a style adhering to
 <https://www.fpcomplete.com/blog/2017/06/readert-design-pattern these recommendations>
 regarding global state in a program.
 
-* As a user of these modules, you will run your program in a 'MonadReader' 'YourEnv' monad,
-where 'YourEnv' is your environment and it has a 'Draw' instance.
-* Then, you can simply write:
+As a user of these modules, you will run your program in a 'MonadReader' 'YourEnv' monad,
+where 'YourEnv' is your environment equiped with a 'Draw' instance.
+
+Then, you can simply write:
 
 @
 import Control.Monad.IO.Class(MonadIO)
@@ -35,6 +30,9 @@ main = do
   env <- createEnv
   runReaderT helloWorld env
 @
+
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/imj-game-hamazed/src/Imj.Env.hs This example>
+follows this pattern.
 
 -}
 

@@ -1,10 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Util
-    ( -- * Time
-      getSeconds
-      -- * List
-    , showListOrSingleton
+    ( -- * List
+      showListOrSingleton
     , replicateElements
     , range
       -- * String
@@ -72,9 +70,6 @@ randomRsIO :: Random a
            -> IO [a]
 randomRsIO from to =
   getStdRandom $ split >>> first (randomRs (from, to))
-
-getSeconds :: SystemTime -> Int64
-getSeconds (MkSystemTime s _) = s
 
 commonPrefix :: String -> String -> String
 commonPrefix (x:xs) (y:ys)

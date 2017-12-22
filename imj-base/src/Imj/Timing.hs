@@ -3,17 +3,18 @@
 -- | This modules exports types and functions related to timing.
 
 module Imj.Timing
-    ( -- * Types
+    ( -- * KeyTime
+    {- | A wrapper type on 'SystemTime' -}
       KeyTime(..)
-    -- * Utilities
     , addDuration
+    -- * SystemTime / DiffTime utilities
+    , addSystemTime
+    , diffSystemTime
     , diffTimeSecToMicros
     , floatSecondsToDiffTime
     -- * Reexports
     , SystemTime(..)
     , DiffTime
-    , addSystemTime
-    , diffSystemTime
     , getSystemTime
     ) where
 

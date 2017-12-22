@@ -9,9 +9,6 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
     - Laser.Types
     - Physics.Discrete.Collision
     - Text.*
-    - Threading
-    - UI.*
-    - Util
   - regroup docs of IO
   - use Latex formulas (\[ \]) in Interpolation
 

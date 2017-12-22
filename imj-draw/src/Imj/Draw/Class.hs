@@ -29,7 +29,7 @@ Functions are postfixed with @'@. Non-postfixed names are reserved
 to helper functions in "Draw.Helpers.MonadReader" (using the API through a
 'MonadReader' monad is the recommended way).
 
-'drawChars', 'drawTxt' and 'drawStr' could have been default-implemented in terms
+'drawChars'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
 of 'drawChar', but the implementation would have been suboptimal in most cases.
 -}
 class Draw e where

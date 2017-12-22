@@ -24,6 +24,9 @@ data RGB = RGB {
 
 -- | A background and a foreground
 --  <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit color>.
+--
+-- Note that it has a 'DiscretelyInterpolable' instance which is not shown in the
+--  documentation because it is defined in module "imj-animation-base".
 data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !(Color8 Background)
   , _colorsForeground :: {-# UNPACK #-} !(Color8 Foreground)
@@ -32,7 +35,10 @@ data LayeredColor = LayeredColor {
 
 data Foreground
 data Background
--- | ANSI allows for a palette of up to 256 8-bit colors
+-- | ANSI allows for a palette of up to 256 8-bit colors.
+--
+-- Note that it has a 'DiscretelyInterpolable' instance which is not shown in the
+--  documentation because it is defined in module "imj-animation-base".
 newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read)
 
 

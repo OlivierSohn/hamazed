@@ -4,8 +4,15 @@
 module Imj.Text.ColorString
             (
             -- * Type
+            {- | A 'ColorString' is a 'Text' with multiple colors (up-to one per character).
+
+            Note that it has a 'DiscretelyInterpolable' instance which is not shown in the
+            documentation because it is defined in module "imj-animation-base". -}
               ColorString(..)
             -- * Constructors
+            {- | 'colored' creates a 'ColorString' using the specified foreground color on
+            /black/ background, wherease 'colored'' allows you to chose both the
+            background and the foreground colors. -}
             , colored
             , colored'
             -- * Utilities
@@ -27,7 +34,8 @@ newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 instance IsString ColorString where
   fromString str = ColorString [(pack str, onBlack white)]
 
-
+-- | Maps a 'ColorString' to a list of 'Char' and 'LayeredColor'.
+-- It is used to simplify the implementation of some interpolation algorithms
 simplify :: ColorString -> [(Char, LayeredColor)]
 simplify (ColorString []) = []
 simplify (ColorString l@(_:_)) =
@@ -44,6 +52,7 @@ colored' t c = ColorString [(t, c)]
 colored :: Text -> Color8 Foreground -> ColorString
 colored t c = colored' t $ onBlack c
 
+-- | Counts the chars in the 'ColorString'
 countChars :: ColorString -> Int
 countChars (ColorString cs) = sum $ map (length . fst) cs
 

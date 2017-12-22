@@ -1,16 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Util
-    ( -- * List
+    ( -- * List utilities
       showListOrSingleton
     , replicateElements
     , range
-      -- * String
+      -- * String utilities
     , commonPrefix
     , commonSuffix
-      -- * Random numbers
+      -- * Math utilities
     , randomRsIO
-      -- * Math
     , clamp
       -- * Reexports
     , Int64
@@ -21,7 +20,6 @@ import           Imj.Prelude
 import           Data.Int(Int64)
 import           Data.List(reverse)
 import           Data.Text(Text, pack)
-import           Data.Time.Clock.System( SystemTime(..) )
 
 import           Control.Arrow( first )
 

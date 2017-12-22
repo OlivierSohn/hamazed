@@ -2,7 +2,16 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.UI.FrameAnimationParallel4
-           ( FrameAnimationParallel4(..)
+           (
+           -- * FrameAnimationParallel4
+           {- | Wraps a 'RectFrame' to make it interpolable through the 'DiscretelyInterpolable'
+            instance.
+
+            The transformation happens on all sides simultaneously, from the
+            middle to extremities.
+           -}
+             FrameAnimationParallel4(..)
+           -- * Reexports
            , RectFrame(..)
            ) where
 
@@ -19,8 +28,10 @@ import           Imj.Geo.Discrete
 import           Imj.Interpolation
 import           Imj.UI.RectFrame
 
+
+-- | Wrapper type on 'RectFrame' to make it interpolable.
 newtype FrameAnimationParallel4 = FrameAnimationParallel4 RectFrame
-          deriving(Show)
+  deriving(Show)
 
 instance DiscretelyInterpolable FrameAnimationParallel4 where
   distance (FrameAnimationParallel4 (RectFrame s  _ _ ))

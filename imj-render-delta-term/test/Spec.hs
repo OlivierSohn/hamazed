@@ -1,5 +1,5 @@
---import Test.Stdout
-import Test.Vector
+--import Test.Imj.Stdout
+import Test.Imj.Vector
 
 main :: IO ()
 main = do

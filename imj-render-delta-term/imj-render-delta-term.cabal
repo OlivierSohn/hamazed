@@ -21,20 +21,20 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Render.Delta
-                     , Render.Delta.Buffers
-                     , Render.Delta.Buffers.Dimensions
-                     , Render.Delta.Cell
-                     , Render.Delta.Cells
-                     , Render.Delta.Clear
-                     , Render.Delta.Console
-                     , Render.Delta.DefaultPolicies
-                     , Render.Delta.DynUnboxedVec
-                     , Render.Delta.Draw
-                     , Render.Delta.Env
-                     , Render.Delta.Flush
-                     , Render.Delta.Internal.Types
-                     , Render.Delta.Types
+  exposed-modules:     Imj.Render.Delta
+                     , Imj.Render.Delta.Buffers
+                     , Imj.Render.Delta.Buffers.Dimensions
+                     , Imj.Render.Delta.Cell
+                     , Imj.Render.Delta.Cells
+                     , Imj.Render.Delta.Clear
+                     , Imj.Render.Delta.Console
+                     , Imj.Render.Delta.DefaultPolicies
+                     , Imj.Render.Delta.DynUnboxedVec
+                     , Imj.Render.Delta.Draw
+                     , Imj.Render.Delta.Env
+                     , Imj.Render.Delta.Flush
+                     , Imj.Render.Delta.Internal.Types
+                     , Imj.Render.Delta.Types
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , primitive ==0.6.*
@@ -52,8 +52,8 @@ library
 test-suite imj-render-delta-term-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Stdout
-                     , Test.Vector
+  other-modules:       Test.Imj.Stdout
+                     , Test.Imj.Vector
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-prelude ==0.1.*

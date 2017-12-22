@@ -1,11 +1,11 @@
-import System.Console.ANSI(clearScreen)
+import           System.Console.ANSI(clearScreen)
 
-import Control.Monad.Reader(runReaderT)
+import           Control.Monad.Reader(runReaderT)
 
-import Draw
+import           Imj.Draw
+import           Imj.Render.Naive
 
-import Test.InterpolatedColorString
-import Render.Naive
+import           Test.Imj.InterpolatedColorString
 
 main :: IO ()
 main = do

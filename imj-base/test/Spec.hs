@@ -1,5 +1,5 @@
-import Test.Bresenham3
-import Test.Timing
+import Test.Imj.Bresenham3
+import Test.Imj.Timing
 
 main :: IO ()
 main = do

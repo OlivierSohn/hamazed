@@ -1,5 +1,5 @@
 
-import Test.Interpolation(testInterpolation)
+import Test.Imj.Interpolation(testInterpolation)
 
 main :: IO ()
 main = do

@@ -19,7 +19,7 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imajuscule.Prelude
+  exposed-modules:     Imj.Prelude
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*

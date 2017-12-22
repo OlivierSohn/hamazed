@@ -20,10 +20,9 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:
-                       Animation
-                     , Animation.Design.Chars
-                     , Animation.Design.Geo
+  exposed-modules:     Imj.Animation
+                     , Imj.Animation.Design.Chars
+                     , Imj.Animation.Design.Geo
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-animation-base ==0.1.*

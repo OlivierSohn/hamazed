@@ -1,7 +1,7 @@
 # What is it?
 
 A draw library with
-- Draw.Class.Draw, a class describing a renderer that supports drawing characters
+- Imj.Draw.Class.Draw, a class describing a renderer that supports drawing characters
 with foreground and background locations. See package "imj-render-delta-term"
 for an implementation.
 - Helpers to render aligned text.

@@ -1,10 +1,10 @@
 import Control.Monad.Reader(runReaderT)
 
-import Draw
-import Env
-import Render.Delta(runThenRestoreConsoleSettings)
+import           Imj.Draw
+import           Imj.Env
+import           Imj.Render.Delta(runThenRestoreConsoleSettings)
 
-import Test.Rendering
+import           Test.Imj.Rendering
 
 main :: IO ()
 main = do

@@ -20,32 +20,32 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Env
-                     , Game.Deadline
-                     , Game.Event
-                     , Game
-                     , Game.Color
-                     , Game.Level
-                     , Game.Level.Types
-                     , Game.Parameters
-                     , Game.Render
-                     , Game.Timing
-                     , Game.Types
-                     , Game.World
-                     , Game.World.Embedded
-                     , Game.World.Evolution
-                     , Game.World.Laser
-                     , Game.World.Number
-                     , Game.World.Ship
-                     , Game.World.Size
-                     , Game.World.Space
-                     , Game.World.Space.Types
-                     , Game.World.Types
-                     , IO.Blocking
-                     , IO.NonBlocking
-                     , IO.Types
-                     , Run
-                     , Threading
+  exposed-modules:     Imj.Env
+                     , Imj.Game.Deadline
+                     , Imj.Game.Event
+                     , Imj.Game
+                     , Imj.Game.Color
+                     , Imj.Game.Level
+                     , Imj.Game.Level.Types
+                     , Imj.Game.Parameters
+                     , Imj.Game.Render
+                     , Imj.Game.Timing
+                     , Imj.Game.Types
+                     , Imj.Game.World
+                     , Imj.Game.World.Embedded
+                     , Imj.Game.World.Evolution
+                     , Imj.Game.World.Laser
+                     , Imj.Game.World.Number
+                     , Imj.Game.World.Ship
+                     , Imj.Game.World.Size
+                     , Imj.Game.World.Space
+                     , Imj.Game.World.Space.Types
+                     , Imj.Game.World.Types
+                     , Imj.IO.Blocking
+                     , Imj.IO.NonBlocking
+                     , Imj.IO.Types
+                     , Imj.Run
+                     , Imj.Threading
   build-depends:       base >= 4.8 && < 4.11
                      , containers >= 0.5.9.2
                      , matrix >= 0.3.5.0
@@ -80,7 +80,7 @@ executable imj-game-hamazed-exe
 test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Rendering
+  other-modules:       Test.Imj.Rendering
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-draw ==0.1.*

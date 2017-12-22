@@ -21,7 +21,7 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Render.Naive
+  exposed-modules:     Imj.Render.Naive
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , mtl >= 2.2.1 && < 2.3

@@ -20,11 +20,11 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Draw
-                     , Draw.Aligned
-                     , Draw.Class
-                     , Draw.ColorString
-                     , Draw.Helpers.MonadReader
+  exposed-modules:     Imj.Draw
+                     , Imj.Draw.Aligned
+                     , Imj.Draw.Class
+                     , Imj.Draw.ColorString
+                     , Imj.Draw.Helpers.MonadReader
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , random ==1.1.*

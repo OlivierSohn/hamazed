@@ -3,7 +3,7 @@
 A terminal render engine that mitigates screen tearing when rendering complex
 game graphics, by minimizing the amount of data sent to stdout.
 
-It has an instance of Draw.Class.Draw (from imj-draw)
+It has an instance of Imj.Draw.Class.Draw (from imj-draw)
 
 # Projects using it
 
@@ -31,4 +31,4 @@ You can build using [stack](https://docs.haskellstack.org):
 
 - Rafael Ibraim : [Base implementation for delta rendering](https://gist.github.com/ibraimgm/40e307d70feeb4f117cd)
 
-- Andras Kovacs : [Base implementation for the C++/STL style vector in Render.Delta.DynUnboxedVec](https://github.com/AndrasKovacs/dynamic-mvector).
+- Andras Kovacs : [Base implementation for the C++/STL style vector in Imj.Render.Delta.DynUnboxedVec](https://github.com/AndrasKovacs/dynamic-mvector).

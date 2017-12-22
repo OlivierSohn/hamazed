@@ -19,14 +19,14 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Animation.Color
-                     , Animation.Design.Animator
-                     , Animation.Design.Apply
-                     , Animation.Design.Chain
-                     , Animation.Design.RenderUpdate
-                     , Animation.Timing
-                     , Animation.Types
-                     , Animation.Util
+  exposed-modules:     Imj.Animation.Color
+                     , Imj.Animation.Design.Animator
+                     , Imj.Animation.Design.Apply
+                     , Imj.Animation.Design.Chain
+                     , Imj.Animation.Design.RenderUpdate
+                     , Imj.Animation.Timing
+                     , Imj.Animation.Types
+                     , Imj.Animation.Util
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*

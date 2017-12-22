@@ -26,10 +26,10 @@ Tested-With: GHC == 8.0.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Color.Interpolate
-                     , Ease
-                     , Evolution
-                     , Interpolation
+  exposed-modules:     Imj.Color.Interpolate
+                     , Imj.Ease
+                     , Imj.Evolution
+                     , Imj.Interpolation
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
@@ -43,8 +43,8 @@ library
 test-suite imj-interpolation-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Ease
-                     , Test.Interpolation
+  other-modules:       Test.Imj.Ease
+                     , Test.Imj.Interpolation
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1

@@ -39,7 +39,7 @@ We can chose over-represented samples in at least two different ways:
 
     * More precisely, over-represented samples indexes are:
 
-        \[ \biggl\{ a + \Bigl\lfloor {1 \over 2} + { n-1-a \over m-1 } * s \Bigl\rfloor \;\bigl|\; s \in [\,0\,..\,m'-1] \;,\; a = {1 \over 2} * {n \over m'} \biggl\} \]
+        \[ \biggl\{ a + \Bigl\lfloor {1 \over 2} + { n-1-a \over m-1 } * s \Bigl\rfloor \mid s \in [\,0\,..\,m'-1] \;,\; a = {1 \over 2} * {n \over m'} \biggl\} \]
 
     * Example : for a length 5 input, and 2 over-represented samples:
 
@@ -60,7 +60,7 @@ We can chose over-represented samples in at least two different ways:
 
         \[ if \; m' == 1 : \biggl\{ \Bigl\lfloor {n-1 \over 2} \Bigl\rfloor \biggl\} \]
 
-        \[ otherwise : \biggl\{  \Bigl\lfloor {1 \over 2} + {n-1 \over m'-1}*s \Bigl\rfloor \;\bigl|\; s \in [\,0,m'-1]\, \biggl\} \]
+        \[ otherwise : \biggl\{  \Bigl\lfloor {1 \over 2} + {n-1 \over m'-1}*s \Bigl\rfloor \mid s \in [\,0,m'-1]\, \biggl\} \]
 
     * Example : for a length 5 input, and 2 over-represented samples:
 

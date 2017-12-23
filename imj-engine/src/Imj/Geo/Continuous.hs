@@ -47,7 +47,7 @@ gravity = Vec2 0 0.2 -- this number was adjusted so that the timing in Hamazed
 {-| Using
 <https://en.wikipedia.org/wiki/Equations_of_motion equation [2] in "Constant linear acceleration in any direction">:
 
-\[ \vec r = \vec r_0 + \vec v_0*t + 1/2* \vec a*t^2 \]
+\[ \vec r = \vec r_0 + \vec v_0*t + {1 \over 2}* \vec a*t^2 \]
 
 \[ where \]
 

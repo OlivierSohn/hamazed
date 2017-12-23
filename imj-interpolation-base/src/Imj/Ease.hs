@@ -25,46 +25,63 @@ module Imj.Ease
 
 import           Imj.Prelude
 
+-- cf. this for formatting : https://math.meta.stackexchange.com/questions/5020/mathjax-basic-tutorial-and-quick-reference
+
 {- |
-Returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
-given a 4th order ease in-out function.
+Returns the time \( t \in [\,0,1]\, \)  at which a value \( y \in [\,0,1]\,\) is reached
+given a <http://gizma.com/easing/ 4th order ease in-out function> \( quartEaseInOut \):
 
- The function inverted by 'invQuartEaseInOut' <http://gizma.com/easing/ is>:
+\[ y = quartEaseInOut(t) =
+\begin{cases}
+{1 \over 2} *  (2*t)^4,                          & \;\;\;\; \text{if $t < {1 \over 2}$} \\[2ex]
+-{1 \over 2} * \left( [ 2*(t-1) ]^4 - 2 \right), & \;\;\;\; \text{if $t > {1 \over 2}$}
+\end{cases}
+\]
 
-* \(\forall time < 0.5 \) :
+To find the formulas of 'invQuartEaseInOut', we need to invert \( quartEaseInOut \),
+i.e. we need to express \(t\) in terms of \(y\):
 
-\[  y = 1/2 *  2^4 * time^4 \]
+\[ \text{$quartEaseInOut$ is strictly increasing} \implies
+\begin{cases}
+t<{1 \over 2} \iff y<{1 \over 2} \\
+t>{1 \over 2} \iff y>{1 \over 2}
+\end{cases}
+\]
 
-* \(\forall time > 0.5 \) :
+* if \(y < {1 \over 2} \) :
 
-\[  y = -1/2 * (2^4 * (time-1)^4 - 2) \]
+\[  y = {1 \over 2} * (2*t)^4 \]
 
-These are the successive transformations that lead to 'invQuartEaseInOut' implementation
-(note that there are multiple solutions, we chose the one that produces results in [0,1] range):
+\[ \implies {y \over 2^3} = t^4  \]
 
-* \(\forall y < 0.5 \) :
+\[ \implies t = \left({y \over 2^3}\right)^{1/4}  \]
 
-\[  y = 1/2 *  2^4 * time^4 \]
+* if \(y > {1 \over 2} \) :
 
-\[ \Longrightarrow y / (2^3) = time^4  \]
+\[  y = - {1 \over 2} * \left( [2*(t-1)]^4 - 2 \right)  \]
 
-\[ \Longrightarrow time = (y / (2^3))^.25  \]
+\[ \implies 2-2*y = [2*(t-1)]^4  \]
 
-* \(\forall y > 0.5 \) :
+\[ \implies {1-y \over 2^3} = (t-1)^4  \]
 
-\[  y = - 1 / 2 *(2^4 * (time-1)^4 - 2)  \]
+\[ \implies t = 1-\left[{1-y \over 2^3}\right]^{1/4}  \]
 
-\[ \Longrightarrow 2-2*y = 2^4 * (time-1)^4  \]
+/Note that there are multiple solutions, we chose the ones that produce results in the \( [\,0,1]\, \) range./
 
-\[ \Longrightarrow (1-y) / (2^3) = (time-1)^4  \]
+Hence, the formulas for 'invQuartEaseInOut' are :
 
-\[ \Longrightarrow time = 1-((1-y) / (2^3))^.25  \]
+\[ t = invQuartEaseInOut(y) =
+\begin{cases}
+\left({y \over 2^3}\right)^{1/4},     & \text{if $y < {1 \over 2}$} \\[2ex]
+1-\left[{1-y \over 2^3}\right]^{1/4}, & \text{if $y > {1 \over 2}$}
+\end{cases}
+\]
 
  -}
 invQuartEaseInOut :: Float
-                  -- ^ Value
+                  -- ^ Value : \( y \)
                   -> Float
-                  -- ^ Time
+                  -- ^ Time : \( t \)
 invQuartEaseInOut y =
   if y < 0.5
     then

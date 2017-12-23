@@ -6,6 +6,10 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
   - make better doc for
     - Game*
     - Geo*
+  - Aggregate doc when appropriate.
+
+  - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
+  I don't think there is a need yet to convert a speed to discrete?
 
   - refactor DiscretelyInterpolable :
     the goal is to disambiguate wether interpolate or interpolateIO is implemented.

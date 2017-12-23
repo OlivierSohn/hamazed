@@ -18,7 +18,7 @@ import           Imj.Game.World.Space
 import           Imj.Game.Event
 
 import           Imj.Geo.Discrete
-import           Imj.Geo.Conversion
+import           Imj.Geo.Continuous
 
 -- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 --     this function creates an animation where the ship and the colliding number explode.

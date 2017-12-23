@@ -30,7 +30,6 @@ import           Imj.Game.World.Ship
 import           Imj.Game.World.Size
 import           Imj.Game.World.Space
 
-import           Imj.Geo.Conversion
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 
@@ -95,7 +94,7 @@ outerSpaceAnims :: (Draw e, MonadReader e m, MonadIO m)
                 -> [BoundedAnimationUpdate m]
 outerSpaceAnims k (Space _ sz _) ray@(LaserRay dir _) =
   let laserTarget = afterEnd ray
-  in case onFronteer laserTarget sz of
+  in case onOuterBorder laserTarget sz of
        Just outDir -> outerSpaceAnims' k laserTarget $ assert (dir == outDir) dir
        Nothing -> []
 

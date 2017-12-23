@@ -1,50 +1,10 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{-- | Functions to resample a list, using the analogy where a list
-      is seen as a uniform sampling of a geometrical segment.
 
-(The variable names used in this documentation match the ones in the code.)
-
-If we have an input list of length n, and a desired output length of m,
-each input sample will be repeated floor(m/n) times in the output, except for the
-"over-represented samples" which will be repeated 1 + floor(m/n) times.
-
-The number of over-represented samples is m' = m - n*floor(m/n).
-
-There are several ways to place over-represented samples:
-
-* "Even" spread : the input interval [0.0 length] is partitionned in m' equal length intervals
-whose centers, floored to the previous integer, are the overrepresented samples.
-
-    * With an input of length 5, and 2 overrepresented samples:
-
-             input samples:   -----
-
-  over-represented samples:    - -
-
-    * over-represented samples indexes are:
-
-  for every s in [0,m'-1] : f(s) = a + floor( 0.5 + (n - 1 - a) * s / (m-1))   where a = (n/m')/2
-
-* "Even with extremities" spread: the first and last overrepresented samples match
-with an input extremity. The rest of the overrepresented samples are positionned
-"regularly" in-between the first and last.
-
-    * Example with an input of length 5, and 2 overrepresented samples:
-
-             input samples:   -----
-
-  over-represented samples:   -   -
-
-    * over-represented samples indexes are:
-
-  when m' > 1, for every s in [0,m'-1] : f(s) = floor( 0.5 + (n - 1) * s / (m'-1))
-
-  when m' == 1, for every s in [0,m'-1] : f(s) = floor( (n - 1) / 2 )
---}
 module Imj.Geo.Discrete.Resample
-    ( -- * Resample "evenly with extremities".
-      resample
+    ( resample
     ) where
 
 import           Imj.Prelude
@@ -54,6 +14,55 @@ import           Data.List( length )
 import           Imj.Util( replicateElements )
 
 
+{- | Resamples a list, using the analogy where a list
+is seen as a uniform sampling of a geometrical segment.
+
+/This function uses the "even with extremities" spread. Explanations follow:/
+
+If we have an input list of length \( n \), and a desired output length of \( m \),
+each input sample will be repeated \( floor(m/n) \) times in the output, except for the
+"over-represented samples" which will be repeated \( 1 + floor(m/n) \) times.
+
+The number of over-represented samples is: \[ m' = m - n*floor(m/n) \]
+
+There are several ways to place over-represented samples:
+
+* __Even spread__ : the input interval \( [\,0.0, length]\, \) is partitionned in \( m' \)
+equal length intervals whose centers, floored to the previous integer,
+ are the over-represented samples.
+
+    * With an input of length 5, and 2 over-represented samples:
+
+    @
+                 input samples:   -----
+
+      over-represented samples:    - -
+    @
+
+    * over-represented samples indexes are:
+
+  \[ \forall s \in [\,0,m'-1]\, : f(s) = a + floor( 0.5 + (n - 1 - a) * s/(m-1)) \;\;  where\;\;a = (n/m')/2 \]
+
+* __"Even with extremities" spread__: the first and last over-represented samples match
+with an input extremity. The rest of the over-represented samples are positionned
+"regularly" in-between the first and last.
+
+    * Example with an input of length 5, and 2 over-represented samples:
+
+    @
+                 input samples:   -----
+
+      over-represented samples:   -   -
+    @
+
+    * over-represented samples indexes are:
+
+  \[ \forall m' > 1, \forall s \in [\,0,m'-1]\, : f(s) = floor( 0.5 + (n - 1) * s/(m'-1))  \]
+
+  \[ when \; m' == 1, \forall s \in [\,0,m'-1]\, : f(s) = floor( (n - 1) / 2 ) \]
+
+/For clarity, the variable names used in the code match the ones in the documentation./
+-}
 resample :: [a]
          -- ^ Input list
          -> Int
@@ -81,7 +90,7 @@ resampleRec :: Int
             -> Int
             -- ^ current index
             -> (Int, Int)
-            -- ^ (next overrepresentation index, count of overrepresented samples sofar)
+            -- ^ (next overrepresentation index, count of over-represented samples sofar)
             -> [a]
             -- ^ the list to be resampled
             -> Int

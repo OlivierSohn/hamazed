@@ -16,7 +16,7 @@ import           System.IO( getChar, hReady, stdin )
 import           Data.Char( ord )
 import           Data.List( reverse )
 
-import           Imj.Geo.Types( Direction(..) )
+import           Imj.Geo.Discrete.Types( Direction(..) )
 import           Imj.IO.Types
 
 -- | Blocks until a key is read from stdin. Then, flushes stdin.

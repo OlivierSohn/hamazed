@@ -29,7 +29,8 @@ shootLaserFromShip :: Coords
                    -> LaserType
                    -> (Coords -> Location)
                    -> Maybe (Ray Theoretical)
-shootLaserFromShip shipCoords dir = shootLaser (translateInDir dir shipCoords) dir
+shootLaserFromShip shipCoords dir =
+  shootLaser (translateInDir dir shipCoords) dir
 
 shootLaser :: Coords
            -> Direction
@@ -43,13 +44,17 @@ shootLaser laserStart dir laserType getLocation =
       case laserType of
         Infinite ->
           let continueExtension c = getLocation c == InsideWorld
-              laserEnd = extend laserStart dir continueExtension
-          in Just $ Ray $ mkSegment laserStart laserEnd
+              seg = mkSegmentByExtendingWhile laserStart dir continueExtension
+          in Just $ Ray seg
 
 
 stopRayAtFirstCollision :: [Coords] -> Ray Theoretical -> (Ray Actual, Maybe Coords)
 stopRayAtFirstCollision coords (Ray s) =
-  let collisions = map (\(c, Just i) -> (c,i)) $ filter (\(_, i) -> isJust i) $ zip coords $ map (`segmentContains` s) coords
+  let collisions =
+        map (\(c, Just i) -> (c,i))
+        $ filter (\(_, i) -> isJust i)
+        $ zip coords
+        $ map (`segmentContains` s) coords
       limitAtFirstCollision :: [(Coords, Int)] -> Segment -> (Ray Actual, Maybe Coords)
       limitAtFirstCollision collis seg = case collis of
         [] -> (Ray seg, Nothing)
@@ -60,4 +65,5 @@ stopRayAtFirstCollision coords (Ray s) =
 
 
 afterEnd :: LaserRay Actual -> Coords
-afterEnd (LaserRay dir (Ray seg)) = translateInDir dir $ snd $ extremities seg
+afterEnd (LaserRay dir (Ray seg)) =
+  translateInDir dir $ snd $ extremities seg

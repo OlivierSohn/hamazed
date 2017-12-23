@@ -37,7 +37,7 @@ instance DiscretelyInterpolable FrameAnimationParallel4 where
   distance (FrameAnimationParallel4 (RectFrame s  _ _ ))
            (FrameAnimationParallel4 (RectFrame s' _ _ )) -- TODO animate colors too
     | s == s'   = 1 -- no animation because sizes are equal
-    | otherwise = 1 + quot (1 + max (maxDim s) (maxDim s')) 2
+    | otherwise = 1 + quot (1 + max (maxLength s) (maxLength s')) 2
 
   {-# INLINABLE interpolateIO #-}
   interpolateIO f@(FrameAnimationParallel4 from) t@(FrameAnimationParallel4 to) frame

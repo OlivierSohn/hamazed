@@ -17,7 +17,7 @@ import           Data.Either( partitionEithers )
 
 import           Imj.Animation.Timing
 import           Imj.Animation.Types
-
+import           Imj.Geo.Discrete
 import           Imj.Draw
 
 {- |

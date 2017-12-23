@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -13,10 +14,12 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Util( range )
 
 
+-- | Returns the bresenham 2d distance between two coordinates.
 bresenhamLength :: Coords -> Coords -> Int
 bresenhamLength (Coords r1 c1) (Coords r2 c2)
   = succ $ max (fromIntegral (abs (r1-r2))) $ fromIntegral (abs (c1-c2))
 
+-- | Bresenham 2d algorithm, slightly optimized for horizontal and vertical lines.
 bresenham :: Segment -> [Coords]
 bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2
 bresenham (Vertical c r1 r2)   = map (flip Coords c) $ range r1 r2

@@ -24,6 +24,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Text( pack )
 import           System.Timeout( timeout )
 
+import           Imj.Draw
 import           Imj.Game.Color
 import           Imj.Game.Deadline( Deadline(..) )
 import           Imj.Game.Event
@@ -31,21 +32,11 @@ import           Imj.Game.Level.Types
 import           Imj.Game.World( BattleShip(..)
                       , Number(..)
                       , World(..) )
-
-import           Imj.Geo( Direction(..) )
 import           Imj.Geo.Discrete
-
 import           Imj.IO.NonBlocking
 import           Imj.IO.Blocking( getCharThenFlush )
 import           Imj.IO.Types
-
-import           Imj.Draw
-import           Imj.Timing( SystemTime
-                       , KeyTime(..)
-                       , diffTimeSecToMicros
-                       , diffSystemTime
-                       , addSystemTime )
-
+import           Imj.Timing
 import           Imj.Util( showListOrSingleton )
 
 eventFromKey' :: Level -> Key -> Event

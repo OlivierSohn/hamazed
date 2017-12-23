@@ -7,7 +7,7 @@ module Imj.IO.Types
     ) where
 
 import           Imj.Prelude
-import           Imj.Geo.Types( Direction(..) )
+import           Imj.Geo.Discrete.Types( Direction(..) )
 
 -- | A key-press read from stdin.
 data Key = AlphaNum Char

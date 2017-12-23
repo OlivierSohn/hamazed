@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -11,7 +12,8 @@ import           Imj.Prelude
 import           Data.List( zip3 )
 
 
--- source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
+-- | Source: https://www.reddit.com/r/haskell/comments/14h4az/3d_functional_bresenham_algorithm/
+--
 -- slightly modified to fix a bug when rise1 == rise2, rise1 > run and rise2 > run
 bres :: Int -> Int -> Int -> [(Int, Int, Int)]
 bres run rise1 rise2
@@ -33,12 +35,14 @@ bres run rise1 rise2
             | otherwise  = (y, err')
             where err' = err - rise
 
+-- | 3D version of the bresenham algorithm.
 {-# INLINABLE bresenham3 #-}
 bresenham3 :: (Int, Int, Int) -> (Int, Int, Int) -> [(Int, Int, Int)]
 bresenham3 (x1, y1, z1) (x2, y2, z2) =
     [(x1+x, y1+y, z1+z) | (x, y, z) <- bres (x2-x1) (y2-y1) (z2-z1)]
 
 
+-- | Returns the 3D bresenham length between two 3D coordinates.
 {-# INLINABLE bresenham3Length #-}
 -- avoid using unsigned types, as it complicates the calculations
 bresenham3Length :: (Int, Int, Int) -> (Int, Int, Int) -> Int

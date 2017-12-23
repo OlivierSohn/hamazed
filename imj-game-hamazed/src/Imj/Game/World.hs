@@ -43,7 +43,7 @@ import           Imj.Timing
 
 accelerateShip :: Direction -> BattleShip -> BattleShip
 accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
-  let newSpeed = sumCoords speed $ coordsForDirection dir
+  let newSpeed = translateInDir dir speed
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
 nextWorld :: World m -> [Number] -> Int -> [BoundedAnimationUpdate m] -> World m

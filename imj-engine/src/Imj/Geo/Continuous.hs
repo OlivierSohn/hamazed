@@ -1,26 +1,29 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Geo.Continuous
-           ( rotateByQuarters
-           , sumVec2d
-           , scalarProd
-           -- * Circles
+           (-- * Continuous coordinates
+             module Imj.Geo.Continuous.Types
+           , module Imj.Geo.Continuous.Conversion
+           -- * Sampled continuous geometry
+           -- ** Circle
            , translatedFullCircle
            , translatedFullCircleFromQuarterArc
-           -- * Curves
+           -- ** Parabola
            , parabola
-           -- * Poly extremities
+           -- * Polygon extremities
            , polyExtremities
-           -- * Reexports
-           , module Imj.Geo.Continuous.Types
+           -- * Vec2 utilities
+           , sumVec2d
+           , scalarProd
+           , rotateByQuarters
            ) where
 
 import           Imj.Prelude
 
-
+import           Imj.Geo.Continuous.Conversion
 import           Imj.Geo.Continuous.Types
 
-
+-- | Creates a list of 4 'Vec2' from a single one by rotating it successively by pi/2.
 rotateByQuarters :: Vec2 -> [Vec2]
 rotateByQuarters v@(Vec2 x y) =
   [v,
@@ -28,9 +31,11 @@ rotateByQuarters v@(Vec2 x y) =
   Vec2 (-x) $ -y,
   Vec2 (-x) y]
 
+-- | Sums two 'Vec2'.
 sumVec2d :: Vec2 -> Vec2 -> Vec2
 sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
 
+-- | Multiplies a 'Vec2' by a scalar.
 scalarProd :: Float -> Vec2 -> Vec2
 scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
 
@@ -39,14 +44,24 @@ gravity = Vec2 0 0.2 -- this number was adjusted so that the timing in Hamazed
                      -- game looks good. Instead, we could have adjusted the scale
                      -- of the world.
 
--- using https://en.wikipedia.org/wiki/Equations_of_motion :
--- equation [2] in "Constant linear acceleration in any direction"
---   r = r0 + v0t + .5*at^2
--- where
---   a = gravity force
---   t = time
---   r0 = initial position
---   v0 = initial velocity
+{-| Using
+<https://en.wikipedia.org/wiki/Equations_of_motion equation [2] in "Constant linear acceleration in any direction">:
+
+\[ \vec r = \vec r_0 + \vec v_0*t + 1/2* \vec a*t^2 \]
+
+\[ where \]
+
+\[ \vec r = current\;position \]
+
+\[ \vec r_0 = initial\;position \]
+
+\[ \vec v_0 = initial\;velocity \]
+
+\[ \vec a = gravity\;force \]
+
+\[ t = time \]
+
+-}
 parabola :: Vec2 -> Vec2 -> Int -> Vec2
 parabola r0 v0 time =
   let t = 0.4 * fromIntegral time
@@ -76,16 +91,45 @@ fullCircle radius firstAngle resolution =
   let totalAngle = 2*pi
   in  discretizeArcOfCircle radius totalAngle firstAngle resolution
 
-translatedFullCircleFromQuarterArc :: Vec2 -> Float -> Float -> Int -> [Vec2]
+-- | Samples a circle in an optimized way, to reduce the number of 'sin' and 'cos'
+-- calls.
+--
+-- The total number of points will always be a multiple of 4.
+translatedFullCircleFromQuarterArc :: Vec2
+                                   -- ^ Center
+                                   -> Float
+                                   -- ^ Radius
+                                   -> Float
+                                   -- ^ The angle corresponding to the first sampled point
+                                   -> Int
+                                   -- ^ The total number of sampled points __per quarter arc__.
+                                   -> [Vec2]
 translatedFullCircleFromQuarterArc center radius firstAngle resolution =
   let circle = fullCircleFromQuarterArc radius firstAngle resolution
   in map (sumVec2d center) circle
 
-translatedFullCircle :: Vec2 -> Float -> Float -> Int -> [Vec2]
+-- | Samples a circle.
+translatedFullCircle :: Vec2
+                     -- ^ Center
+                     -> Float
+                     -- ^ Radius
+                     -> Float
+                     -- ^ The angle corresponding to the first sampled point
+                     -> Int
+                     -- ^ The total number of sampled points
+                     -> [Vec2]
 translatedFullCircle center radius firstAngle resolution =
   let circle = fullCircle radius firstAngle resolution
   in map (sumVec2d center) circle
 
-polyExtremities :: Int -> Vec2 -> Int -> Float -> [Vec2]
-polyExtremities nSides center radius startAngle =
-  map (sumVec2d center) $ discretizeArcOfCircle (fromIntegral radius) (2.0*pi) startAngle nSides
+-- | Returns the extremities of a polygon. Note that it is equal to 'translatedFullCircle'
+polyExtremities :: Vec2
+                -- ^ Center
+                -> Float
+                -- ^ Radius
+                -> Float
+                -- ^ Rotation angle
+                -> Int
+                -- ^ Number of sides of the polygon.
+                -> [Vec2]
+polyExtremities = translatedFullCircle

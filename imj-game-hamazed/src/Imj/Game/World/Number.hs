@@ -18,7 +18,6 @@ import           Imj.Draw
 import           Imj.Game.World.Types
 import           Imj.Game.World.Laser
 import           Imj.Game.Event
-import           Imj.Geo.Conversion
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Timing

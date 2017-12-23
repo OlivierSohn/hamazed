@@ -20,8 +20,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Geo.Conversion
-                     , Imj.Geo.Continuous
+  exposed-modules:     Imj.Geo.Continuous
+                     , Imj.Geo.Continuous.Conversion
                      , Imj.Geo.Continuous.Types
                      , Imj.Laser.Types
                      , Imj.Text.Animation

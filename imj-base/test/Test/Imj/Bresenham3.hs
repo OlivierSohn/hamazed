@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE BangPatterns #-}
 
 module Test.Imj.Bresenham3(testBres3) where

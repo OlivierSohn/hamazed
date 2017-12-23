@@ -25,10 +25,7 @@ import           Imj.Animation.Types
 import           Imj.Laser.Types
 
 import           Imj.Geo.Continuous
-import           Imj.Geo.Conversion
 import           Imj.Geo.Discrete
-import           Imj.Geo.Discrete.Bresenham
-import           Imj.Geo.Discrete.Resample
 
 
 -- | Note that the Coords parameter is unused.
@@ -49,7 +46,7 @@ laserAnimationPure (LaserRay dir (Ray seg)) _ (Frame i) =
                  then
                    []
                  else
-                   showSegment seg
+                   bresenham seg
   in (points, Just char)
 
 -- | Gravity free-fall
@@ -116,7 +113,8 @@ animatePolygonPure n center (Frame i) =
 polygon :: Int -> Int -> Coords -> [Coords]
 polygon nSides radius center =
   let startAngle = if odd nSides then pi else pi/4.0
-  in connect $ map vec2coords $ polyExtremities nSides (pos2vec center) radius startAngle
+      extrs = polyExtremities (pos2vec center) (fromIntegral radius) startAngle nSides
+  in connect $ map vec2coords extrs
 
 -- | Animate the radius by first expanding then shrinking.
 animateRadius :: Int -> Int -> Int

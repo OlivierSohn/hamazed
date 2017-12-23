@@ -20,15 +20,9 @@ import           Imj.Prelude
 import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
 
-import           Imj.Geo.Discrete.Types( Coords(..), Direction(..))
-import           Imj.Geo.Discrete( coordsForDirection
-                             , sumCoords
-                             , zeroCoords)
-
+import           Imj.Geo.Discrete
 import           Imj.IO.Types
-
-import           Imj.Timing( KeyTime
-                       , SystemTime )
+import           Imj.Timing
 
 data TimedEvent = TimedEvent Event SystemTime
 
@@ -90,10 +84,12 @@ getKeyTime (Timeout _ k) = Just k
 getKeyTime _             = Nothing
 
 coordsForActionTargets :: ActionTarget -> [Event] -> Coords
-coordsForActionTargets target actions = foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
+coordsForActionTargets target actions =
+  foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
 
 filterActions :: ActionTarget -> [Event] -> [Direction]
-filterActions target = mapMaybe (maybeDirectionFor target)
+filterActions target =
+  mapMaybe (maybeDirectionFor target)
 
 maybeDirectionFor :: ActionTarget -> Event -> Maybe Direction
 maybeDirectionFor targetFilter (Action actionTarget dir)

@@ -22,7 +22,6 @@ import           Data.Text(pack)
 import           Imj.Color.Interpolate
 import           Imj.Draw.Class
 import           Imj.Geo.Discrete
-import           Imj.Geo.Discrete.Bresenham
 import           Imj.Iteration
 import           Imj.Text.ColorString
 import           Imj.Util

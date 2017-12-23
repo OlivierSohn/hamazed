@@ -8,10 +8,6 @@ module Imj.Physics.Discrete.Collision
     /before/ a collision is not touching a wall, then the position /after/ the
     collision will be forced to touch a wall. Note that forcing the position
     only happens if the absolute speed of one coordinate is >= 2.
-
-    'mirrorSpeedAndMoveToPrecollisionIfNeeded' adapts 'PosSpeed' of an object according to collisions
-    with its environment. Its implementation uses 'firstCollision'.
-
     -}
       mirrorSpeedAndMoveToPrecollisionIfNeeded
     , CollisionStatus(..)

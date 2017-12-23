@@ -41,7 +41,7 @@ import           Imj.Draw
 import           Imj.Game.Color
 import           Imj.Game.World.Types
 
-import           Imj.Geo.Discrete hiding (extend)
+import           Imj.Geo.Discrete
 
 import           Imj.Physics.Discrete.Collision
 
@@ -319,7 +319,7 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
     WorldFrame -> worldLocation
     TerminalWindow -> maybe
                         worldLocation
-                        (\wd coo-> if contains coo sz
+                        (\wd coo-> if containsWithOuterBorder coo sz
                                     then
                                       OutsideWorld
                                     else

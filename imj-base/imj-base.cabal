@@ -24,13 +24,11 @@ library
   other-modules:
   exposed-modules:     Imj.Color.Types
                      , Imj.Color
-                     , Imj.Geo
                      , Imj.Geo.Discrete
                      , Imj.Geo.Discrete.Bresenham
                      , Imj.Geo.Discrete.Bresenham3
                      , Imj.Geo.Discrete.Resample
                      , Imj.Geo.Discrete.Types
-                     , Imj.Geo.Types
                      , Imj.Iteration
                      , Imj.Text.Alignment
                      , Imj.Text.ColorString

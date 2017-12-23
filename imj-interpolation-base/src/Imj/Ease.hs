@@ -29,33 +29,37 @@ import           Imj.Prelude
 Returns the time (in range [0 1]) at which a value (in range [0 1]) is reached
 given a 4th order ease in-out function.
 
- The function inverted by 'invQuartEaseInOut' is:
+ The function inverted by 'invQuartEaseInOut' <http://gizma.com/easing/ is>:
 
- @
- quartInOut :: Float -> Float
- quartInOut time =
-     if time < 0.5
-     then        1 / 2 *  2^4 * time  * time  * time  * time
-     else negate 1 / 2 * (2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
- @
+* \(\forall time < 0.5 \) :
+
+\[  y = 1/2 *  2^4 * time^4 \]
+
+* \(\forall time > 0.5 \) :
+
+\[  y = -1/2 * (2^4 * (time-1)^4 - 2) \]
 
 These are the successive transformations that lead to 'invQuartEaseInOut' implementation
 (note that there are multiple solutions, we chose the one that produces results in [0,1] range):
 
-@
-y < 0.5 :
-  y = 2^3 * time  * time  * time  * time
-  y / (2^3) = time^4
-  (y \/ (2^3))^(1 / 4) = time
-y > 0.5 :
-  y = - 1 / 2 *(2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
-  -2*y = (2^4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)
-  2-2*y = 2^4 * (time-1)^4
-  1-y = 2^3 * (time-1)^4
-  (1-y) / (2^3) = (time-1)^4
-  ((1-y) \/ (2^3))^(1 / 4) = (1-time)
-  1-((1-y) \/ (2^3))^(1 / 4) = time
-@
+* \(\forall y < 0.5 \) :
+
+\[  y = 1/2 *  2^4 * time^4 \]
+
+\[ \Longrightarrow y / (2^3) = time^4  \]
+
+\[ \Longrightarrow time = (y / (2^3))^.25  \]
+
+* \(\forall y > 0.5 \) :
+
+\[  y = - 1 / 2 *(2^4 * (time-1)^4 - 2)  \]
+
+\[ \Longrightarrow 2-2*y = 2^4 * (time-1)^4  \]
+
+\[ \Longrightarrow (1-y) / (2^3) = (time-1)^4  \]
+
+\[ \Longrightarrow time = 1-((1-y) / (2^3))^.25  \]
+
  -}
 invQuartEaseInOut :: Float
                   -- ^ Value

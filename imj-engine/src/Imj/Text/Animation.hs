@@ -3,12 +3,18 @@
 
 module Imj.Text.Animation
          (
-         -- * Types
-         -- ** Anchors
-           AnchorChars
+         -- * TextAnimation
+{- |
+Animates in parallel:
+
+* characters replacements, inserts, deletes
+* characters color changes
+* if a = 'AnchorStrings' : the locations of ColorStings
+* if a = 'AnchorChars' : the locations of each individual character
+-}
+           TextAnimation(..)
+         , AnchorChars
          , AnchorStrings
-         -- ** TextAnimation
-         , TextAnimation(..)
          -- * Constructors
          , mkTextTranslation
          , mkSequentialTextTranslationsCharAnchored
@@ -46,18 +52,9 @@ data AnchorStrings
 data AnchorChars
 
 
-{- |
-Animates in parallel:
-
-* The locations of either
-
-    * each ColorString (when a = 'AnchorStrings')
-    * or each character (when a = 'AnchorChars')
-
-* characters replacements, inserts, deletes
-* characters color changes
--}
--- TODO find a generic implementation: 2 aspects (location and content) are interpolated at the same time.
+-- TODO find a generic implementation: 2 aspects (location and content) are
+-- interpolated at the same time.
+-- | Animates a 'ColorString' content and anchors.
 data TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
  , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList Coords))
@@ -178,7 +175,7 @@ mkSequentialTextTranslationsStringAnchored l duration =
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
 
--- | In this animation, the beginning and end states are text written horizontally.
+-- | Translates a 'ColorString' between two anchors.
 mkTextTranslation :: ColorString
                   -> Float
                   -- ^ Duration in seconds

@@ -1,9 +1,11 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.IO.Blocking
-    ( getCharThenFlush
+    ( -- * Blocking Input
+      getCharThenFlush
     ) where
 
 
@@ -17,8 +19,8 @@ import           Data.List( reverse )
 import           Imj.Geo.Types( Direction(..) )
 import           Imj.IO.Types
 
-
-getCharThenFlush :: IO (Either Key Char)
+-- | Blocks until a key is read from stdin. Then, flushes stdin.
+getCharThenFlush :: IO Key
 getCharThenFlush = do
   chars <- getAllChars
   let res = fromString chars
@@ -26,30 +28,35 @@ getCharThenFlush = do
   -- when (ord (head chars) == 27) $ putStrLn $ tail chars
   return res
 
-fromString :: String -> Either Key Char
+fromString :: String -> Key
 fromString =
   \case
     [] -> error "should not be empty"
     [c] -> case ord c of
-             27 {-ESC-} -> Left Escape
-             _          -> Right c
+             27 {-ESC-} -> Escape
+             _          -> AlphaNum c
     c:l -> case ord c of
              27 {-ESC-} -> case l of
                          a:b:_ -> case a of
                                     '[' -> case b of
-                                             'A' -> Left $ Arrow Up
-                                             'B' -> Left $ Arrow Down
-                                             'C' -> Left $ Arrow RIGHT
-                                             'D' -> Left $ Arrow LEFT
-                                             _ -> Left Unknown
-                                    _ -> Left Unknown
-                         _ -> Left Unknown
-             _ -> Right c
+                                             'A' -> Arrow Up
+                                             'B' -> Arrow Down
+                                             'C' -> Arrow RIGHT
+                                             'D' -> Arrow LEFT
+                                             _ -> Unknown
+                                    _ -> Unknown
+                         _ -> Unknown
+             _ -> AlphaNum c
 
 -- | returns when stdin is empty
 getAllChars :: IO String
-getAllChars = reverse <$> getKey' ""
-  where getKey' chars = do
-          char <- getChar
-          more <- hReady stdin
-          (if more then getKey' else return) (char:chars)
+getAllChars =
+  reverse <$> getKey' ""
+ where getKey' chars = do
+         char <- getChar
+         more <- hReady stdin
+         (if more
+            then
+              getKey'
+            else
+              return) (char:chars)

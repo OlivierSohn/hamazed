@@ -25,6 +25,7 @@ library
                      , Imj.Geo.Continuous.Types
                      , Imj.Laser.Types
                      , Imj.Text.Animation
+                     , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
   build-depends:       base >= 4.8 && < 4.11

@@ -6,11 +6,6 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
   - make better doc for
     - Game*
     - Geo*
-    - Laser.Types
-    - Physics.Discrete.Collision
-    - Text.*
-  - regroup docs of IO
-  - use Latex formulas (\[ \]) in Interpolation
 
   - refactor DiscretelyInterpolable :
     the goal is to disambiguate wether interpolate or interpolateIO is implemented.

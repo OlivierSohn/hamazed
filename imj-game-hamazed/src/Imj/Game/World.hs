@@ -64,7 +64,8 @@ moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime 
 
 ballMotion :: Space -> PosSpeed -> PosSpeed
 ballMotion space ps@(PosSpeed pos _) =
-  let (newPs@(PosSpeed newPos _), collision) = mirrorIfNeeded (`location` space) ps
+  let (newPs@(PosSpeed newPos _), collision) =
+        mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space) ps
   in  case collision of
         PreCollision ->
           if pos /= newPos

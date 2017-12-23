@@ -55,7 +55,7 @@ createRandomPosSpeed space = do
   dx <- randomSpeed
   dy <- randomSpeed
   return $ fst
-    $ mirrorIfNeeded (`location` space)
+    $ mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space)
     $ PosSpeed pos (Coords (Coord dx) (Coord dy))
 
 oneRandom :: Int -> Int -> IO Int

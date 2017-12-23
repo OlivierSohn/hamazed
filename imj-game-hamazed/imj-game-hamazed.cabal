@@ -41,6 +41,7 @@ library
                      , Imj.Game.World.Space
                      , Imj.Game.World.Space.Types
                      , Imj.Game.World.Types
+                     , Imj.IO
                      , Imj.IO.Blocking
                      , Imj.IO.NonBlocking
                      , Imj.IO.Types

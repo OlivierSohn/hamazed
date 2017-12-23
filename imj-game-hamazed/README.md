@@ -22,7 +22,7 @@ The game can be configured in "world shape" (square, rectangle) and "kind of wal
 
 ![Configuration snapshot](images/config.png?raw=true "Configuration")
 
-You can define your own keyboard mapping by modifying the 'eventFromChar' function
+You can define your own keyboard mapping by modifying the 'eventFromKey' function
 defined [here](src/Game/Event.hs), the default mapping being:
 - ship acceleration : 's' 'e' 'd' 'f'
 - laser shots       : 'j' 'i' 'k' 'l'

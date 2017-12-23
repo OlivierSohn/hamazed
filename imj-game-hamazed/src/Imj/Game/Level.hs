@@ -48,10 +48,10 @@ import           Imj.Timing( SystemTime
 
 import           Imj.Util( showListOrSingleton )
 
-eventFromChar' :: Level -> Either Key Char -> Event
-eventFromChar' (Level n _ finished) char =
+eventFromKey' :: Level -> Key -> Event
+eventFromKey' (Level n _ finished) key =
   case finished of
-    Nothing -> eventFromChar char
+    Nothing -> eventFromKey key
     Just (LevelFinished stop _ ContinueMessage) ->
       case stop of
         Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
@@ -103,16 +103,16 @@ getEventForMaybeDeadline level mayDeadline curTime =
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadline curTime
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> eventFromChar' level <$> getCharThenFlush
+    Nothing -> eventFromKey' level <$> getCharThenFlush
 
 eventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
 eventWithinDurationMicros level durationMicros k step =
   (\case
-    Nothing   -> Timeout step k
-    Just char -> eventFromChar' level char
+    Just key -> eventFromKey' level key
+    _ -> Timeout step k
     ) <$> getCharWithinDurationMicros durationMicros step
 
-getCharWithinDurationMicros :: Int -> Step -> IO (Maybe (Either Key Char))
+getCharWithinDurationMicros :: Int -> Step -> IO (Maybe Key)
 getCharWithinDurationMicros durationMicros step =
   if durationMicros < 0
     -- overdue

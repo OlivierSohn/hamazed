@@ -1,11 +1,21 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Handles functions related to collision.
-
 module Imj.Physics.Discrete.Collision
-    ( firstCollision
-    , mirrorIfNeeded
+    ( -- * Handling collisions
+    {- | To give a better realism in the game, if the location
+    /before/ a collision is not touching a wall, then the position /after/ the
+    collision will be forced to touch a wall. Note that forcing the position
+    only happens if the absolute speed of one coordinate is >= 2.
+
+    'mirrorSpeedAndMoveToPrecollisionIfNeeded' adapts 'PosSpeed' of an object according to collisions
+    with its environment. Its implementation uses 'firstCollision'.
+
+    -}
+      mirrorSpeedAndMoveToPrecollisionIfNeeded
     , CollisionStatus(..)
+    , firstCollision
     , Location(..)
     ) where
 
@@ -17,6 +27,7 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Physics.Discrete.Types
 
 
+-- | Describes if a collision exists.
 data Location = InsideWorld
               -- ^ No collision.
               | OutsideWorld
@@ -31,13 +42,13 @@ data CollisionStatus = NoCollision
                      -- and speed was mirrored
 
 -- | On collision, mirrors speed and moves to the pre-collision position.
-mirrorIfNeeded :: (Coords -> Location)
+mirrorSpeedAndMoveToPrecollisionIfNeeded :: (Coords -> Location)
                -- ^ Interaction function.
                -> PosSpeed
                -- ^ Input position and speed.
                -> (PosSpeed, CollisionStatus)
                -- ^ The speed was potentially mirrored
-mirrorIfNeeded getLocation posspeed@(PosSpeed pos speed) =
+mirrorSpeedAndMoveToPrecollisionIfNeeded getLocation posspeed@(PosSpeed pos speed) =
   maybe
     (posspeed, NoCollision)
     adjustPosSpeed
@@ -66,7 +77,13 @@ mirrorCoords (Coords dr dc) m =
     MirrorCol -> Coords dr          (negate dc)
     MirrorAll -> Coords (negate dr) (negate dc)
 
-data Mirror = MirrorRow | MirrorCol | MirrorAll
+-- | The kind of speed mirroring to apply in reaction to a collision.
+data Mirror = MirrorRow
+            -- ^ Mirror the y coordinate
+            | MirrorCol
+            -- ^ Mirror the x coordinate
+            | MirrorAll
+            -- ^ Mirror x and y coordinates
 
 -- | When continuing with current speed, if at next iteration we encounter a wall
 -- (or go through a wall for diagonal case),

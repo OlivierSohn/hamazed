@@ -1,10 +1,15 @@
 -- | This module is about text alignment.
 
 module Imj.Text.Alignment
-            ( AlignmentKind(..)
+            ( -- * Alignment
+            {- | Text can be right-aligned and center-aligned.
+
+            Note that standard text is left-aligned. -}
+              AlignmentKind(..)
             , Alignment(..)
             , mkRightAlign
             , mkCentered
+            -- * Helpers
             , toNextLine
             -- * Utilities
             , align
@@ -26,10 +31,14 @@ data Alignment = Alignment {
   , _alignmentRef :: !Coords -- ^ The reference coordinates.
 }
 
-mkRightAlign :: Coords -> Alignment
+mkRightAlign :: Coords
+             -- ^ The text will be written left of these coordinates.
+             -> Alignment
 mkRightAlign = Alignment RightAligned
 
-mkCentered :: Coords -> Alignment
+mkCentered :: Coords
+           -- ^ The text will be centered on these coordinates.
+           -> Alignment
 mkCentered = Alignment Centered
 
 -- | Computes starting coordinates where from we should draw a series of characters

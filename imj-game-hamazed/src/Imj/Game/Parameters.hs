@@ -26,6 +26,7 @@ import           Imj.Game.World.Embedded
 import           Imj.Geo.Discrete
 
 import           Imj.IO.Blocking
+import           Imj.IO.Types
 import           Imj.Timing
 import           Imj.Text.Alignment
 
@@ -50,17 +51,16 @@ getGameParameters = update initialParameters
 update :: (Draw e, MonadReader e m, MonadIO m)
        => GameParameters
        -> m GameParameters
-update params =
-  render' params >> do
-    char <- liftIO getCharThenFlush
-    either
-      (\_ -> return params)
-      (\c -> if c == ' '
-              then
-                return params
-              else
-                update $ updateFromChar c params)
-        char
+update params = do
+  render' params
+  liftIO getCharThenFlush >>= \case
+    AlphaNum c ->
+      if c == ' '
+        then
+          return params
+        else
+          update $ updateFromChar c params
+    _ -> return params
 
 updateFromChar :: Char -> GameParameters -> GameParameters
 updateFromChar c p@(GameParameters shape wallType) =

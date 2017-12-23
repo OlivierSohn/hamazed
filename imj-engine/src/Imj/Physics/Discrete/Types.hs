@@ -1,19 +1,20 @@
-{-# OPTIONS_HADDOCK prune #-}
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
--- | Types for discrete physics.
 
 module Imj.Physics.Discrete.Types
-    ( PosSpeed(..)
+    ( -- * Discrete position and speed
+    {- | In a terminal, it's only possible to represent objects at discrete
+    locations, hence for convenience movable objects have discrete speeds and
+    positions. -}
+      PosSpeed(..)
     ) where
 
 import           Imj.Prelude
 
 import           Imj.Geo.Discrete.Types
 
--- | Represents a discrete position and speed.
+-- | Represents a discrete position and a discrete speed.
 data PosSpeed = PosSpeed {
     _pos :: !Coords
   , _speed :: !Coords

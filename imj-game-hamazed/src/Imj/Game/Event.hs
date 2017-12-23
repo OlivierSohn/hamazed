@@ -5,7 +5,7 @@ module Imj.Game.Event
     ( Event(..)
     , userEventPriority
     , priority
-    , eventFromChar
+    , eventFromKey
     , TimedEvent(..)
     , ActionTarget(..)
     , getKeyTime
@@ -67,24 +67,22 @@ data ActionTarget = Ship
                   | Laser
                   deriving(Eq, Show)
 
-eventFromChar :: Either Key Char -> Event
-eventFromChar =
-  either
-    (\case
-      Escape -> Interrupt Quit
-      _      -> Nonsense)
-    (\case
-      'k' -> Action Laser Down
-      'i' -> Action Laser Up
-      'j' -> Action Laser LEFT
-      'l' -> Action Laser RIGHT
-      'd' -> Action Ship Down
-      'e' -> Action Ship Up
-      's' -> Action Ship LEFT
-      'f' -> Action Ship RIGHT
-      ' ' -> Explosion 2
-      'g' -> GravityExplosion
-      _   -> Nonsense)
+eventFromKey :: Key -> Event
+eventFromKey = \case
+  Escape -> Interrupt Quit
+  AlphaNum c -> case c of
+    'k' -> Action Laser Down
+    'i' -> Action Laser Up
+    'j' -> Action Laser LEFT
+    'l' -> Action Laser RIGHT
+    'd' -> Action Ship Down
+    'e' -> Action Ship Up
+    's' -> Action Ship LEFT
+    'f' -> Action Ship RIGHT
+    ' ' -> Explosion 2
+    'g' -> GravityExplosion
+    _   -> Nonsense
+  _      -> Nonsense
 
 
 getKeyTime :: Event -> Maybe KeyTime

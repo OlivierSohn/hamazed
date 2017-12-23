@@ -5,8 +5,7 @@
 module Imj.Animation.Color
         ( -- * Frame color
         {- | 'colorFromFrame' defines the color used to draw an animation,
-        based on the /relative/ frame number (relative to the parent animation,
-        if any).
+        based on the frame number (relative to the parent animation, if any).
         -}
           colorFromFrame
         , module Imj.Color

@@ -109,7 +109,7 @@ animatePolygonPure n center (Frame i) =
 
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation
--- so we need to resample according to the biggest possible figure.
+-- so we need to resampleWithExtremities according to the biggest possible figure.
 polygon :: Int -> Int -> Coords -> [Coords]
 polygon nSides radius center =
   let startAngle = if odd nSides then pi else pi/4.0
@@ -145,4 +145,4 @@ sampledBresenham nSamples start end =
   let l = bresenhamLength start end
       seg = mkSegment start end
       bres = bresenham seg
-  in resample bres (assert (l == length bres) l) nSamples
+  in resampleWithExtremities bres (assert (l == length bres) l) nSamples

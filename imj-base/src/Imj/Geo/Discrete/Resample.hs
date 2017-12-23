@@ -4,7 +4,7 @@
 
 
 module Imj.Geo.Discrete.Resample
-    ( resample
+    ( resampleWithExtremities
     ) where
 
 import           Imj.Prelude
@@ -17,21 +17,31 @@ import           Imj.Util( replicateElements )
 {- | Resamples a list, using the analogy where a list
 is seen as a uniform sampling of a geometrical segment.
 
-/This function uses the "even with extremities" spread. Explanations follow:/
+With a uniform sampling strategy, for an input of length \( n \), and a desired
+output of length \( m \):
 
-If we have an input list of length \( n \), and a desired output length of \( m \),
-each input sample will be repeated \( floor(m/n) \) times in the output, except for the
-"over-represented samples" which will be repeated \( 1 + floor(m/n) \) times.
+* /Regular/ samples are repeated \( r = \lfloor {m \over n} \rfloor \) times.
+* /Over-represented/ samples are repeated \( r + 1 \) times.
 
-The number of over-represented samples is: \[ m' = m - n*floor(m/n) \]
+If \( m' \) is the number of over-represented samples,
 
-There are several ways to place over-represented samples:
+\[ m = r*n + m' \]
 
-* __Even spread__ : the input interval \( [\,0.0, length]\, \) is partitionned in \( m' \)
-equal length intervals whose centers, floored to the previous integer,
- are the over-represented samples.
+\[ \Longrightarrow m' = m - r*n \]
 
-    * With an input of length 5, and 2 over-represented samples:
+We can chose over-represented samples in at least two different ways:
+
+* __Even spread__ :
+
+    * Given a partition of the input continuous interval \( [\,0, length]\, \)
+      in \( m' \) equal-length intervals, the over-represented samples are located at
+      the (floored) centers of these intervals.
+
+    * More precisely, over-represented samples indexes are:
+
+        \[ \biggl\{ a + \Bigl\lfloor {1 \over 2} + { n-1-a \over m-1 } * s \Bigl\rfloor \;\bigl|\; s \in [\,0\,..\,m'-1] \;,\; a = {1 \over 2} * {n \over m'} \biggl\} \]
+
+    * Example : for a length 5 input, and 2 over-represented samples:
 
     @
                  input samples:   -----
@@ -39,15 +49,20 @@ equal length intervals whose centers, floored to the previous integer,
       over-represented samples:    - -
     @
 
-    * over-represented samples indexes are:
+* __"Even with extremities" spread__:
 
-  \[ \forall s \in [\,0,m'-1]\, : f(s) = a + floor( 0.5 + (n - 1 - a) * s/(m-1)) \;\;  where\;\;a = (n/m')/2 \]
+    * The first and last over-represented samples match
+      with an input extremity. The rest of the over-represented samples are positionned
+      "regularly" in-between the first and last. An exception is made when there is only one
+      over-represented sample : in that case it is placed in the middle.
 
-* __"Even with extremities" spread__: the first and last over-represented samples match
-with an input extremity. The rest of the over-represented samples are positionned
-"regularly" in-between the first and last.
+    * More precisely, over-represented samples indexes are:
 
-    * Example with an input of length 5, and 2 over-represented samples:
+        \[ if \; m' == 1 : \biggl\{ \Bigl\lfloor {n-1 \over 2} \Bigl\rfloor \biggl\} \]
+
+        \[ otherwise : \biggl\{  \Bigl\lfloor {1 \over 2} + {n-1 \over m'-1}*s \Bigl\rfloor \;\bigl|\; s \in [\,0,m'-1]\, \biggl\} \]
+
+    * Example : for a length 5 input, and 2 over-represented samples:
 
     @
                  input samples:   -----
@@ -55,38 +70,37 @@ with an input extremity. The rest of the over-represented samples are positionne
       over-represented samples:   -   -
     @
 
-    * over-represented samples indexes are:
+        /As its name suggests, this function uses the "even with extremities" spread./
 
-  \[ \forall m' > 1, \forall s \in [\,0,m'-1]\, : f(s) = floor( 0.5 + (n - 1) * s/(m'-1))  \]
-
-  \[ when \; m' == 1, \forall s \in [\,0,m'-1]\, : f(s) = floor( (n - 1) / 2 ) \]
-
-/For clarity, the variable names used in the code match the ones in the documentation./
+        /For clarity, the variable names used in the code match the ones in the documentation./
 -}
-resample :: [a]
-         -- ^ Input list
-         -> Int
-         -- ^ Length of the input (we could deduce it from the input list but in some cases
-         --   we know the length of the list before it is evaluated, so it's more optimal)
-         -> Int
-         -- ^ Length of the result
-         -> [a]
-resample input n m
+resampleWithExtremities :: [a]
+                        -- ^ Input
+                        -> Int
+                        -- ^ \( n \) : input length. It is expected that \( 0 <= n <= \) @length input@
+                        -> Int
+                        -- ^ \( m \) : output length. It is expected that \( 0 <= m \).
+                        -> [a]
+                        -- ^ Output :
+                        --
+                        -- * when \( m < n \), it is a /downsampled/ version of the input,
+                        -- * when \( m > n \), it is an /upsampled/ version of the input.
+resampleWithExtremities input n m
    | assert (m >= 0) m == n = input
    | otherwise =
-       let nCopiesMin = quot m n
-           m' = m - (nCopiesMin * n)
+       let r = quot m n
+           m' = m - (r * n)
            res
-            | m' == 0   = replicateElements nCopiesMin input
+            | m' == 0   = replicateElements r input
             | otherwise = let overRepIdx = getOverRepIdx (assert (m' > 0) m') n 0
-                          in  resampleRec m' n 0 (overRepIdx, 0) input nCopiesMin
+                          in  resampleRec m' n 0 (overRepIdx, 0) input r
        in  assert (verifyResample input m res) res
 
 
 resampleRec :: Int
             -- ^ over-represented samples count
             -> Int
-            -- ^ input length
+            -- ^ \( n \) : input length.
             -> Int
             -- ^ current index
             -> (Int, Int)
@@ -94,20 +108,20 @@ resampleRec :: Int
             -> [a]
             -- ^ the list to be resampled
             -> Int
-            -- ^ the minimum count of replications : every sample will be replicated
-            --   either this amount, or this amount + 1 when distance to next overrepresentation == 0
+            -- ^  \( r = floor(m/n) \) : every sample will be replicated
+            --   \( r \) times, or \( r + 1 \) times if distance to next overrepresentation == 0
             -> [a]
 resampleRec _ _ _ _ [] _ = []
-resampleRec m' n curIdx (overRepIdx, s) l@(_:_) nCopiesMin =
+resampleRec m' n curIdx (overRepIdx, s) l@(_:_) r =
   let (nCopies, nextState)
   -- This commented guard was used to debug cases where the assert on the line after would fail
 --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
         | assert (overRepIdx >= curIdx) overRepIdx == curIdx
                 = let nextS = succ s
                       nextOverRepIdx = getOverRepIdx m' n nextS
-                  in  (nCopiesMin + 1, (nextOverRepIdx, nextS))
-        | otherwise = (nCopiesMin    , (overRepIdx    , s))
-  in replicate nCopies (head l) ++ resampleRec m' n (succ curIdx) nextState (tail l) nCopiesMin
+                  in  (succ r, (nextOverRepIdx, nextS))
+        | otherwise = (r     , (overRepIdx    , s))
+  in replicate nCopies (head l) ++ resampleRec m' n (succ curIdx) nextState (tail l) r
 
 
 -- | Returns maxBound when there is no over-representation

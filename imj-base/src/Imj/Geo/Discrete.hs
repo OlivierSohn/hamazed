@@ -19,14 +19,19 @@ module Imj.Geo.Discrete
            , translate
            , translate'
            , translateInDir
-           -- * Bresenham algorithms
-           {- | The 2d version, 'bresenham', allows to draw a line on a 2d grid.
+           -- * Discrete algorithms
+           -- ** Bresenham
+           {- | The 2d version, 'bresenham', allows to
+           <https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm draw a line on a 2d grid>.
 
            The 3d version, 'bresenham3', allows to interpolate discrete colors in RGB space.
            -}
            , module Imj.Geo.Discrete.Bresenham
            , module Imj.Geo.Discrete.Bresenham3
-           -- * Resampling
+           -- ** List resampling
+           {- | Typically, 'resampleWithExtremities' will be used on the result of 'bresenham'
+           to over-sample the produced line.
+           -}
            , module Imj.Geo.Discrete.Resample
           ) where
 

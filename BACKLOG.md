@@ -5,8 +5,9 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*
-    - Geo*
   - Aggregate doc when appropriate.
+
+  - unit-test resampleWithExtremities
 
   - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
   I don't think there is a need yet to convert a speed to discrete?
@@ -35,7 +36,7 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
   - about the hyperliked-source option
   https://www.reddit.com/r/haskell/comments/6o4rnb/psa_regarding_cabal_haddock/
 
-  - a script to build dock
+  - a script to build doc
   https://gist.github.com/stbuehler/7068764
 
   -  The hackage-server attempts to build documentation for library packages, but this can fail. Maintainers can generate their own documentation and upload it by using something along the lines of the shell script below (note that the last two commands are the key ones):

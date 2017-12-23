@@ -9,6 +9,10 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
   - unit-test resampleWithExtremities
 
+  - merge these modules so that the interpolable instances are visible in the doc:
+    base ++ interpolate base ++ draw ++ render.term ++ render.naive
+    - use internal libraries to keep the structure.
+
   - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
   I don't think there is a need yet to convert a speed to discrete?
 

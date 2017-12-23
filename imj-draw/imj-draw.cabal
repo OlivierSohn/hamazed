@@ -27,7 +27,6 @@ library
                      , Imj.Draw.Helpers.MonadReader
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
-                     , random ==1.1.*
                      , text ==1.2.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*

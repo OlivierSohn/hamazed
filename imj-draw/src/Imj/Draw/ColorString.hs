@@ -1,8 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-
-{- | Functions to draw 'ColorString'.
--}
+-- | Functions to draw 'ColorString'.
 
 module Imj.Draw.ColorString
           ( drawColored

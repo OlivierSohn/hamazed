@@ -22,7 +22,7 @@ import           Imj.Color.Types
 import           Imj.Geo.Discrete.Types
 
 
-{- | Describes the ability to draw colored text on a drawing,
+{- | Class describing the ability to draw colored text on a drawing,
  and to render the resulting drawing.
 
 Functions are postfixed with @'@. Non-postfixed names are reserved

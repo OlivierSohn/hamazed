@@ -186,7 +186,7 @@ instance DiscretelyInterpolable (Color8 a) where
         in head . drop index $ bresenhamColor8 c c'
 
 
--- TODO bresenham 6 to interpolate foreground and background at the same time:
+-- TODO use bresenham 6 to interpolate foreground and background at the same time:
 -- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
 -- | First interpolate background color, then foreground color
 instance DiscretelyInterpolable LayeredColor where

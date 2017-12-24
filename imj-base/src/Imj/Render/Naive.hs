@@ -11,6 +11,8 @@ import System.Console.ANSI(setCursorPosition)
 import System.Console.ANSI.Codes(csi)
 
 import Imj.Draw.Class
+import Imj.Geo.Discrete
+import Imj.Color
 
 {- | Naive rendering for the terminal. Just for tests. It is very naïve in the sense that
 
@@ -22,8 +24,8 @@ For an optimized version, see 'Delta' of module imj-render-delta-term.
 -}
 newtype NaiveDraw = NaiveDraw Int -- ^ Int is not used, I had to add it else () doesn't compile
 
-move :: Coords -> IO ()
-move (Coords (Coord y) (Coord x)) =
+move' :: Coords -> IO ()
+move' (Coords (Coord y) (Coord x)) =
   setCursorPosition y x
 
 color :: LayeredColor -> IO ()
@@ -32,11 +34,13 @@ color (LayeredColor bg fg) = do
       fgCodes = color8FgSGRToCode fg
   putStr $ csi (bgCodes ++ fgCodes) "m"
 
+-- | Don't use for production, this is for tests only
+-- and will lead to heavy screen tearing.
 instance Draw NaiveDraw where
-    drawChar'      _ b c d   = liftIO $ move c >> color d >> putChar b
-    drawChars'     _ b c d e = liftIO $ move d >> color e >> putStr (replicate b c)
-    drawTxt'       _ b c d   = liftIO $ move c >> color d >> putStr (unpack b)
-    drawStr'       _ b c d   = liftIO $ move c >> color d >> putStr b
+    drawChar'      _ b c d   = liftIO $ move' c >> color d >> putChar b
+    drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
+    drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
+    drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
     renderDrawing' _         = liftIO $ hFlush stdout
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}

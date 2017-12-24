@@ -2,7 +2,7 @@
 
 {- |
 
-These modules provide a way to abstract a global renderer, in a style adhering to
+The 'MonadReader' functions provide a way to abstract a global renderer, in a style adhering to
 <https://www.fpcomplete.com/blog/2017/06/readert-design-pattern these recommendations>
 regarding global state in a program.
 
@@ -37,13 +37,35 @@ follows this pattern.
 -}
 
 module Imj.Draw
-        ( module Imj.Draw.Class
-        , module Imj.Draw.Helpers.MonadReader
+        (
+        -- * From MonadIO
+          module Imj.Draw.Class
         , module Imj.Draw.Aligned
+        -- * From MonadReader
+        -- | These functions contain the boilerplate code to call the
+        -- 'Draw' functions from a 'MonadReader' monad.
+
+        , module Imj.Draw.Helpers.MonadReader
+        -- ** Draw a ColorString
         , module Imj.Draw.ColorString
+        -- * Reexports
+        , LayeredColor(..)
+        , Coords(..)
+        , Alignment(..)
+        , Text
+        , MonadIO
+        , MonadReader -- to have the link to it in Haddock
         ) where
+
+import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.IO.Class(MonadIO)
+import           Data.Text(Text)
 
 import Imj.Draw.Aligned
 import Imj.Draw.Class
 import Imj.Draw.ColorString
 import Imj.Draw.Helpers.MonadReader
+
+import Imj.Color(LayeredColor(..))
+import Imj.Geo.Discrete(Coords(..))
+import Imj.Text.Alignment(Alignment(..))

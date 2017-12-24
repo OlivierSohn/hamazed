@@ -1,4 +1,4 @@
--- | Functions to interpolate colors in RGB space.
+{-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Color.Interpolate
         ( bresenhamColor8Length
@@ -6,15 +6,15 @@ module Imj.Color.Interpolate
         ) where
 
 import           Imj.Color.Types
-
 import           Imj.Geo.Discrete.Bresenham3
-
 import           Imj.Util
 
 -- Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
--- | The two input 'Color8' are expected to have been both created with the same
+-- | Computes the bresenham length between two colors.
+--
+-- The two input 'Color8' are expected to have been both created with the same
 -- constructor ('rgb' or 'gray').
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8 a -> Color8 a -> Int
@@ -26,7 +26,9 @@ bresenhamColor8Length c c'
         (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
         colors -> error $ "cannot get length between colors " ++ show colors
 
--- | The two input 'Color8' are expected to have been both created with the same
+-- | Returns the bresenham path between two colors.
+--
+-- The two input 'Color8' are expected to have been both created with the same
 -- constructor ('rgb' or 'gray').
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]

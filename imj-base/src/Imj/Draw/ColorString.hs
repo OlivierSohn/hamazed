@@ -1,6 +1,6 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
--- | Functions to draw 'ColorString'.
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Draw.ColorString
           ( drawColored
@@ -10,6 +10,7 @@ module Imj.Draw.ColorString
 import           Imj.Prelude
 
 import           Control.Monad(foldM_)
+import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader(MonadReader)
 import           Data.Text(length)
 

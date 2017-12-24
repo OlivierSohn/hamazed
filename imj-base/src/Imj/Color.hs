@@ -9,15 +9,21 @@ Functions to create
 
 module Imj.Color (
   -- * Single colors
+  {- | 'rgb' creates a color in RGB color space, with 6x6x6 different possible colors.
+
+  'gray' creates a grayscale color in RGB space with 24 shades.
+  -}
     rgb
   , gray
-  , Color8(..)
-  , Foreground
-  , Background
+  -- * Interpolation between single colors
+  {- | Single colors can be interpolated in RGB space provided that they were both created either using
+  'rgb' or 'gray'.
+
+  These functions are used by the 'DiscretelyInterpolable' instance of 'Color8'.-}
+  , module Imj.Color.Interpolate
   -- * Layered colors
   , onBlack
   , whiteOnBlack
-  , LayeredColor(..)
   -- * Predefined colors
   , white
   , black
@@ -30,10 +36,13 @@ module Imj.Color (
   -- * Utilities
   , xtermMapGray8bitComponent
   , xtermMapRGB8bitComponent
+  -- * Reexports
+  , module Imj.Color.Types
 ) where
 
 import           Imj.Prelude
 
+import           Imj.Color.Interpolate
 import           Imj.Color.Types
 
 {-# INLINE onBlack #-}

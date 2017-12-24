@@ -1,16 +1,9 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Draw.Class(
-       -- * The Draw class
          Draw(..)
-       -- * Reexports
-       -- ** Colors
-       , module Imj.Color.Types
-       -- ** Coordinates
-       , module Imj.Geo.Discrete.Types
-       -- ** Reexports
-       , MonadIO
-       , Text
        ) where
 
 import           Imj.Prelude
@@ -24,14 +17,9 @@ import           Imj.Geo.Discrete.Types
 
 {- | Class describing the ability to draw colored text on a drawing,
  and to render the resulting drawing.
-
-Functions are postfixed with @'@. Non-postfixed names are reserved
-to helper functions in "Draw.Helpers.MonadReader" (using the API through a
-'MonadReader' monad is the recommended way).
-
-'drawChars'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
-of 'drawChar', but the implementation would have been suboptimal in most cases.
 -}
+--'drawChars'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
+--of 'drawChar', but the implementation would have been suboptimal in most cases.
 class Draw e where
   -- | Draw a 'Char'.
   drawChar' :: (MonadIO m)
@@ -51,9 +39,12 @@ class Draw e where
            => e
            -> Text -> Coords -> LayeredColor -> m ()
 
+  -- | Draw 'String'.
   drawStr' :: (MonadIO m)
            => e
            -> String -> Coords -> LayeredColor -> m ()
 
   -- | Render the drawing to the physical destination.
   renderDrawing' :: (MonadIO m) => e -> m ()
+
+  -- TODO put ColorString and Aligned rendering in this class

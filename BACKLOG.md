@@ -2,6 +2,8 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
+  - put ColorString and Aligned rendering in Draw class
+
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*

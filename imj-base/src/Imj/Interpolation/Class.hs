@@ -17,7 +17,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List( length, mapAccumL, splitAt )
 import           Data.Text(pack)
 
-import           Imj.Color.Interpolate
+import           Imj.Color
 import           Imj.Draw.Class
 import           Imj.Geo.Discrete
 import           Imj.Text.ColorString

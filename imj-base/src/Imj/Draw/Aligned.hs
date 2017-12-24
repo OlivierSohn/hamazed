@@ -1,24 +1,18 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
-
-{- | Functions to draw aligned text.
-
-Function names are postfixed with @'@. Non-postfixed names are reserved to helper
-functions in "Draw.Helpers.MonadReader" (using the API through a 'MonadReader'
-monad is the recommended way).
--}
 
 module Imj.Draw.Aligned(
          drawAlignedTxt'
        , drawAlignedTxt_'
-       -- * Reexports
-       , module Imj.Draw.Class
-       , Alignment(..)
        ) where
 
 import           Imj.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(length)
 
+import           Imj.Color(LayeredColor(..))
 import           Imj.Draw.Class
 import           Imj.Text.Alignment
 

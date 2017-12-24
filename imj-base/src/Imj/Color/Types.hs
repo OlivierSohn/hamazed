@@ -5,10 +5,10 @@ module Imj.Color.Types
           , Background
           , Foreground
           , LayeredColor(..)
-          -- * SGR codes
+          -- ** SGR codes
           , color8BgSGRToCode
           , color8FgSGRToCode
-          --- * Reexports
+          --- ** Reexports
           , RGB(..)
           , Word8
           ) where

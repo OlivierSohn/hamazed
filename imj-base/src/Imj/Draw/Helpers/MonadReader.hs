@@ -1,36 +1,34 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
--- | The functions of this module contain the boilerplate code to call the
--- 'Draw' functions from a 'MonadReader' monad.
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Draw.Helpers.MonadReader
        (
-       -- * Draw char(s)
+       -- ** Draw char(s)
          drawChar
        , drawChars
-       -- * Draw text
+       -- ** Draw text
        , drawTxt
        , drawStr
-       -- * Draw aligned text
+       -- ** Draw aligned text
        , drawAlignedTxt_
        , drawAlignedTxt
-       -- * Render to the physical device
+       -- ** Render to the physical device
        , renderDrawing
-       -- * Reexports
-       , module Imj.Geo.Discrete.Types
-       , module Imj.Draw.Class
-       , MonadReader -- to have the link to it in Haddock
        ) where
 
 import           Imj.Prelude
 
 import           Control.Monad(join)
+import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
+import           Imj.Color(LayeredColor(..))
 import           Imj.Draw.Aligned
 import           Imj.Draw.Class
 import           Imj.Geo.Discrete.Types
+import           Imj.Text.Alignment
 
 -- | Draws text with 'Alignment'.
 {-# INLINABLE drawAlignedTxt_ #-}

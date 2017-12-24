@@ -35,21 +35,21 @@ testICS = do
     (\i@(Frame c') -> do
       let cs = getValueAt e i
           c = Coord c'
-      drawColored' cs (Coords (c + 10) 3) zeroCoords
+      drawColorString' cs (Coords (c + 10) 3) zeroCoords
     ) $ map Frame [0..lastFrame]
 
   mapM_
     (\i@(Frame c') -> do
       let cs = getValueAt e' i
           c = Coord c'
-      drawColored' cs (Coords (c + 10) 25) zeroCoords
+      drawColorString' cs (Coords (c + 10) 25) zeroCoords
     ) $ map Frame [0..lastFrame']
 
   mapM_
     (\i@(Frame c') -> do
       let cs = getValueAt e'' i
           c = Coord c'
-      drawColored' cs (Coords (c + 20) 25) zeroCoords
+      drawColorString' cs (Coords (c + 20) 25) zeroCoords
     ) $ map Frame [0..lastFrame'']
 
   mapM_
@@ -57,17 +57,17 @@ testICS = do
       let cs@(ColorString l) = getValueAt e''' i
           (_,color) = head l
           c = Coord c'
-      drawColored' cs (Coords (c + 30) 25) zeroCoords
+      drawColorString' cs (Coords (c + 30) 25) zeroCoords
       drawStr''' (show color) (Coords (c + 30) 35) zeroCoords
     ) $ map Frame [0..lastFrame''']
 
-drawColored' :: (Draw e, MonadReader e m, MonadIO m)
+drawColorString' :: (Draw e, MonadReader e m, MonadIO m)
              => ColorString
              -> Coords
              -> Coords
              -> m ()
-drawColored' cs pos rs =
-  void (drawColored cs (translate pos rs))
+drawColorString' cs pos rs =
+  void (drawColorStr cs (translate pos rs))
 
 drawStr''' :: (Draw e, MonadReader e m, MonadIO m)
          => String

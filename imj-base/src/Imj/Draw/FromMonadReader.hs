@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Draw.Helpers.MonadReader
+module Imj.Draw.FromMonadReader
        (
        -- ** Draw char(s)
          drawChar
@@ -10,9 +10,11 @@ module Imj.Draw.Helpers.MonadReader
        -- ** Draw text
        , drawTxt
        , drawStr
+       , drawColorStr
        -- ** Draw aligned text
        , drawAlignedTxt_
        , drawAlignedTxt
+       , drawAlignedColorStr
        -- ** Render to the physical device
        , renderDrawing
        ) where
@@ -25,10 +27,27 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
 import           Imj.Color(LayeredColor(..))
-import           Imj.Draw.Aligned
 import           Imj.Draw.Class
 import           Imj.Geo.Discrete.Types
 import           Imj.Text.Alignment
+import           Imj.Text.ColorString
+
+
+-- | Draw a 'ColorString'.
+{-# INLINABLE drawColorStr #-}
+drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
+            => ColorString -> Coords -> m ()
+drawColorStr cs pos = do
+  d <- asks drawColorStr'
+  d cs pos
+
+-- | Draw a 'ColorString' with an 'Alignment' constraint.
+{-# INLINABLE drawAlignedColorStr #-}
+drawAlignedColorStr :: (Draw e, MonadReader e m, MonadIO m)
+                   => Alignment -> ColorString -> m Alignment
+drawAlignedColorStr a cs = do
+  d <- asks drawAlignedColorStr'
+  d a cs
 
 -- | Draws text with 'Alignment'.
 {-# INLINABLE drawAlignedTxt_ #-}

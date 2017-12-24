@@ -40,31 +40,25 @@ module Imj.Draw
         (
         -- * From MonadIO
           module Imj.Draw.Class
-        , module Imj.Draw.Aligned
         -- * From MonadReader
         -- | These functions contain the boilerplate code to call the
         -- 'Draw' functions from a 'MonadReader' monad.
-
-        , module Imj.Draw.Helpers.MonadReader
-        -- ** Draw a ColorString
-        , module Imj.Draw.ColorString
+        , module Imj.Draw.FromMonadReader
         -- * Reexports
         , LayeredColor(..)
         , Coords(..)
         , Alignment(..)
         , Text
         , MonadIO
-        , MonadReader -- to have the link to it in Haddock
+        , MonadReader
         ) where
 
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text)
 
-import Imj.Draw.Aligned
 import Imj.Draw.Class
-import Imj.Draw.ColorString
-import Imj.Draw.Helpers.MonadReader
+import Imj.Draw.FromMonadReader
 
 import Imj.Color(LayeredColor(..))
 import Imj.Geo.Discrete(Coords(..))

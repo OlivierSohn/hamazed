@@ -84,7 +84,7 @@ renderAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
       rsNow = head rs
       colorStr = getValueAt e i
-  drawColored colorStr rsNow
+  drawColorStr colorStr rsNow
   renderAnimatedTextStringAnchored' (tail l) (tail rs) i
 
 -- | Render a char-anchored 'TextAnimation' for a given 'Frame'

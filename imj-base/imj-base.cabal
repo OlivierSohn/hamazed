@@ -54,10 +54,8 @@ library
                      , Imj.UI.RectFrame
                        -- former package : imj-draw
                      , Imj.Draw
-                     , Imj.Draw.Aligned
                      , Imj.Draw.Class
-                     , Imj.Draw.ColorString
-                     , Imj.Draw.Helpers.MonadReader
+                     , Imj.Draw.FromMonadReader
                        -- former package : imj-render-delta-term
                      , Imj.Render.Delta
                      , Imj.Render.Delta.Buffers

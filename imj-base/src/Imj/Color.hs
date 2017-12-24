@@ -15,11 +15,9 @@ module Imj.Color (
   -}
     rgb
   , gray
-  -- * Interpolation between single colors
-  {- | Single colors can be interpolated in RGB space provided that they were both created either using
-  'rgb' or 'gray'.
-
-  These functions are used by the 'DiscretelyInterpolable' instance of 'Color8'.-}
+  -- * Interpolation
+  {- | We can interpolate between two single colors in RGB space, provided that
+  they were both created either using 'rgb' or both created using 'gray'.-}
   , module Imj.Color.Interpolate
   -- * Layered colors
   , onBlack
@@ -36,7 +34,6 @@ module Imj.Color (
   -- * Utilities
   , xtermMapGray8bitComponent
   , xtermMapRGB8bitComponent
-  -- * Reexports
   , module Imj.Color.Types
 ) where
 

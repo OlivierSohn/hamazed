@@ -1,14 +1,16 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Color.Types
-          ( Color8(..)
+          (
+          -- * Types
+            Color8(..)
           , Background
           , Foreground
           , LayeredColor(..)
-          -- ** SGR codes
+          -- * SGR codes
           , color8BgSGRToCode
           , color8FgSGRToCode
-          --- ** Reexports
+          -- * Reexports
           , RGB(..)
           , Word8
           ) where

@@ -1,8 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Color.Interpolate
-        ( bresenhamColor8Length
-        , bresenhamColor8
+        ( bresenhamColor8
+        , bresenhamColor8Length
         ) where
 
 import           Imj.Color.Types
@@ -12,6 +12,7 @@ import           Imj.Util
 -- Interpolations between 2 rgb or 2 grays are well-defined, whereas
 --   other interpolations will error. To improve on this, we could define conversion
 --   functions between different representations in the future.
+
 -- | Computes the bresenham length between two colors.
 --
 -- The two input 'Color8' are expected to have been both created with the same

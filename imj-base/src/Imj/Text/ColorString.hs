@@ -6,9 +6,6 @@ module Imj.Text.ColorString
             -- * Type
             {- | A 'ColorString' is a multicolored 'Text'.
 
-            Note that it has a 'DiscretelyInterpolable' instance which is not shown in the
-            documentation because it is defined in module "imj-animation-base".
-
             For even more complex interpolations, where the location of characters
             can be animated, see the 'TextAnimation' type. -}
               ColorString(..)

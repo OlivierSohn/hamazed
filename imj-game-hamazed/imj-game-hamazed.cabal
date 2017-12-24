@@ -57,12 +57,9 @@ library
                      , imj-animation-base ==0.1.*
                      , imj-animation ==0.1.*
                      , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
                      , imj-engine ==0.1.*
-                     , imj-interpolation-base ==0.1.*
-                     , imj-interpolation ==0.1.*
                      , imj-prelude ==0.1.*
-                     , imj-render-delta-term ==0.1.*
+
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
@@ -84,10 +81,9 @@ test-suite imj-game-hamazed-test
   other-modules:       Test.Imj.Rendering
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , imj-draw ==0.1.*
+                     , imj-base ==0.1.*
                      , imj-engine ==0.1.*
                      , imj-game-hamazed
-                     , imj-render-delta-term ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints

@@ -1,14 +1,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.UI.FrameAnimationParallel4
+module Imj.UI.RectFrame.InterpolationParallel4
            (
            -- * FrameAnimationParallel4
            {- | Wraps a 'RectFrame' to make it interpolable through the 'DiscretelyInterpolable'
             instance.
-
-            The transformation happens on all sides simultaneously, from the
-            middle to extremities.
            -}
              FrameAnimationParallel4(..)
            -- * Reexports
@@ -33,6 +30,8 @@ import           Imj.UI.RectFrame
 newtype FrameAnimationParallel4 = FrameAnimationParallel4 RectFrame
   deriving(Show)
 
+-- | Transforming the 4 sides of 'RectFrame' simultaneously, from their middle
+-- to their extremities.
 instance DiscretelyInterpolable FrameAnimationParallel4 where
   distance (FrameAnimationParallel4 (RectFrame s  _ _ ))
            (FrameAnimationParallel4 (RectFrame s' _ _ )) -- TODO animate colors too

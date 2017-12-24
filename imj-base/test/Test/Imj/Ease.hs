@@ -1,7 +1,7 @@
 
 module Test.Imj.Ease (testEase) where
 
-import Imj.Ease
+import Imj.Math.Ease
 
 
 testEase :: IO()
@@ -17,5 +17,5 @@ test ease = mapM_ (\v -> putStrLn $ show v) $ map ease $ map (\i -> fromIntegral
 quartInOut :: Float -> Float
 quartInOut time =
     if time < 0.5
-    then        1 / 2 *  2**4 * time  * time  * time  * time
+    then        1 / 2 *  2**4 * time * time  * time  * time
     else negate 1 / 2 * (2**4 * (time-1) * (time-1) * (time-1) * (time-1) - 2)

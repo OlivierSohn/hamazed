@@ -31,7 +31,6 @@ library
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
                      , imj-prelude ==0.1.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math

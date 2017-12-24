@@ -27,7 +27,6 @@ library
                      , mtl >= 2.2.1 && < 2.3
                      , imj-animation-base ==0.1.*
                      , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
                      , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints

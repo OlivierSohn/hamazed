@@ -32,8 +32,6 @@ library
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
                      , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
-                     , imj-interpolation-base ==0.1.*
                      , imj-prelude ==0.1.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
@@ -49,9 +47,6 @@ test-suite imj-engine-test
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
                      , imj-base ==0.1.*
-                     , imj-draw ==0.1.*
-                     , imj-interpolation-base ==0.1.*
-                     , imj-render-naive-term ==0.1.*
                      , imj-engine
                      , imj-prelude ==0.1.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints

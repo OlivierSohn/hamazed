@@ -10,8 +10,8 @@ import           Data.Monoid((<>))
 
 import           Imj.Color
 import           Imj.Draw
-import           Imj.Evolution
 import           Imj.Geo.Discrete
+import           Imj.Interpolation
 import           Imj.Text.ColorString
 
 testICS :: (Draw e, MonadReader e m, MonadIO m)

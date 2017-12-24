@@ -38,7 +38,7 @@ import           Imj.Text.Animation
 import           Imj.Text.ColorString
 
 import           Imj.Timing
-import           Imj.UI.FrameAnimationParallel4
+import           Imj.UI.RectFrame.InterpolationParallel4
 
 data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions

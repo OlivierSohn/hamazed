@@ -2,13 +2,11 @@
 
 -- | Defines the notion of interpolation between two values of the same type.
 
-module Imj.Interpolation
+module Imj.Interpolation.Class
          ( DiscretelyInterpolable(..)
          -- * Instances
          , SequentiallyInterpolatedList(..)
          , Successive(..)
-         -- * Reexports
-         , module Imj.Iteration
          ) where
 
 import           Imj.Prelude
@@ -22,7 +20,6 @@ import           Data.Text(pack)
 import           Imj.Color.Interpolate
 import           Imj.Draw.Class
 import           Imj.Geo.Discrete
-import           Imj.Iteration
 import           Imj.Text.ColorString
 import           Imj.Util
 
@@ -160,7 +157,7 @@ instance (DiscretelyInterpolable a)
         progress
         $ zip l (assert (length l' == length l) l')
 
-
+-- | Using bresenham 2d line algorithm.
 instance DiscretelyInterpolable Coords where
   distance = bresenhamLength
 
@@ -172,6 +169,7 @@ instance DiscretelyInterpolable Coords where
             index = clamp i 0 lastFrame
         in head . drop index $ bresenham $ mkSegment c c'
 
+-- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
 instance DiscretelyInterpolable (Color8 a) where
   -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
   distance = bresenhamColor8Length
@@ -201,6 +199,7 @@ instance DiscretelyInterpolable LayeredColor where
 
 -- TODO maybe it would be faster to have a representation with Array (Char, LayeredColor)
 --  (ie the result of simplify)
+-- | Interpolating first content (characters), then color.
 instance DiscretelyInterpolable ColorString where
   distance c1 c2 =
     let colorDist (_, color) (_, color') =

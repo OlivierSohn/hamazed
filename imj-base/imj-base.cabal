@@ -1,11 +1,15 @@
 name:                imj-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Library of common data types, algorithms, utilities for a 2d game engine.
-Description:         Library containing types for color, position, rectangular frame, colored text.
+Synopsis:            Library of common data types, rendererers, utilities for a 2d game engine.
+Description:         Library containing types for color, position, rectangular frame, colored text,
+                     animation execution (Iteration, Frame).
                      .
-                     It also contains timing utilities and types related to animation
-                     execution (Iteration, Frame).
+
+                     An optimized renderer avoids screen tearing in the terminal.
+                     .
+
+                     DiscretelyInterpolable instances to animate common types.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -22,7 +26,16 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Color.Types
+  exposed-modules:
+                    -- Initially, this package was split in multiple smaller packages.
+                    -- The problem was that documentation for instances was not cross-package
+                    -- so we couldn't know easily which types implemented what class.
+                    -- So I decided to put all instances in the imj-base module.
+                    --
+                    -- The comments intercalated in this list delimit the old libraries.
+                    --
+                    -- former package : imj-base
+                       Imj.Color.Types
                      , Imj.Color
                      , Imj.Geo.Discrete
                      , Imj.Geo.Discrete.Bresenham
@@ -35,11 +48,49 @@ library
                      , Imj.Timing
                      , Imj.Util
                      , Imj.UI.RectFrame
+                       -- former package : imj-draw
+                     , Imj.Draw
+                     , Imj.Draw.Aligned
+                     , Imj.Draw.Class
+                     , Imj.Draw.ColorString
+                     , Imj.Draw.Helpers.MonadReader
+                       -- former package : imj-render-delta-term
+                     , Imj.Render.Delta
+                     , Imj.Render.Delta.Buffers
+                     , Imj.Render.Delta.Buffers.Dimensions
+                     , Imj.Render.Delta.Cell
+                     , Imj.Render.Delta.Cells
+                     , Imj.Render.Delta.Clear
+                     , Imj.Render.Delta.Console
+                     , Imj.Render.Delta.DefaultPolicies
+                     , Imj.Render.Delta.DynUnboxedVec
+                     , Imj.Render.Delta.Draw
+                     , Imj.Render.Delta.Env
+                     , Imj.Render.Delta.Flush
+                     , Imj.Render.Delta.Internal.Types
+                     , Imj.Render.Delta.Types
+                       -- former package : imj-render-naive-term
+                     , Imj.Render.Naive
+                       -- former package : imj-interpolation-base
+                     , Imj.Math.Ease
+                     , Imj.Color.Interpolate
+                     , Imj.Interpolation
+                     , Imj.Interpolation.Class
+                     , Imj.Interpolation.Evolution
+                       -- former package : imj-interpolation
+                     , Imj.UI.RectFrame.InterpolationParallel4
   build-depends:       base >= 4.8 && < 4.11
+                     , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*
+                     , mtl >= 2.2.1 && < 2.3
+                     , primitive ==0.6.*
                      , random ==1.1.*
+                     , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , time ==1.8.*
+                     , text ==1.2.*
+                     , vector >= 0.12.0.1 && < 0.12.1
+                     , vector-algorithms >= 0.7.0.1 && < 0.8
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
@@ -48,7 +99,11 @@ test-suite imj-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       Test.Imj.Bresenham3
+                     , Test.Imj.Ease
+                     , Test.Imj.Interpolation
+                     , Test.Imj.Stdout
                      , Test.Imj.Timing
+                     , Test.Imj.Vector
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-base

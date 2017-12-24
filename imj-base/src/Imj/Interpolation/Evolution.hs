@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 
-module Imj.Evolution
+module Imj.Interpolation.Evolution
          (
          -- * Evolution
 {- | 'Evolution' is a helper type to interpolate between 'DiscretelyInterpolable's.
@@ -32,8 +32,6 @@ based on the current frame and the inverse ease function.
          -}
          , EaseClock(..)
          , mkEaseClock
-         -- * Reexports
-         , module Imj.Interpolation
          ) where
 
 import           GHC.Show(showString)
@@ -44,9 +42,9 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Draw.Class
-import           Imj.Interpolation
-
-import           Imj.Ease
+import           Imj.Interpolation.Class
+import           Imj.Iteration
+import           Imj.Math.Ease
 
 {-# INLINABLE mkEvolution #-}
 -- | An evolution between n values.

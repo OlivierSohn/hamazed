@@ -44,9 +44,6 @@ data Row
 data Col
 
 -- | Two-dimensional discrete coordinates.
---
--- Note that it has a 'DiscretelyInterpolable' instance which is not shown in the
---  documentation because it is defined in module "imj-animation-base".
 data Coords = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)

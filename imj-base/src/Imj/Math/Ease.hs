@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Ease
+module Imj.Math.Ease
     (
       -- * Inverse easing
       {- | I use the term /Inverse/ in the title because easing is traditionally a function

@@ -24,7 +24,7 @@ Animates in parallel:
          , renderAnimatedTextStringAnchored
          , getAnimatedTextRenderStates
          -- * reexports
-         , module Imj.Evolution
+         , module Imj.Interpolation
          ) where
 
 import           Imj.Prelude
@@ -37,8 +37,8 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip)
 
-import           Imj.Ease
-import           Imj.Evolution
+import           Imj.Math.Ease
+import           Imj.Interpolation
 
 import           Imj.Geo.Discrete
 

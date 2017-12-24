@@ -43,7 +43,7 @@ module Imj.Animation
     , animatedPolygon
     , laserAnimation
     -- * Reexports
-    , AnimationUpdate(..)
+    , AnimationStep(..)
     ) where
 
 
@@ -52,18 +52,12 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Animation.Color
-import           Imj.Animation.Design.Animator
-import           Imj.Animation.Design.Apply
-import           Imj.Animation.Design.Compose
-import           Imj.Animation.Design.Geo
-import           Imj.Animation.Design.RenderUpdate
-import           Imj.Animation.Types
+import           Imj.Animation.Design
+import           Imj.Animation.Geo
 import           Imj.Draw
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Laser.Types
-import           Imj.Timing
 
 -- | A laser ray animation, with a fade-out effect.
 {-# INLINABLE laserAnimation #-}
@@ -72,7 +66,7 @@ laserAnimation :: (Draw e, MonadReader e m, MonadIO m)
                -- ^ The laser ray
                -> KeyTime
                -- ^ 'KeyTime' of the game event that started this animation
-               -> AnimationUpdate m
+               -> AnimationStep m
 laserAnimation ray@(LaserRay _ (Ray seg)) k =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
       f = laserAnimation' ray collisionFree
@@ -86,10 +80,10 @@ laserAnimation' :: (Draw e, MonadReader e m, MonadIO m)
             -> Coords
             -- ^ A collision-free point (for example the first point of the laser ray)
             -> Maybe KeyTime
-            -> AnimationUpdate m
+            -> AnimationStep m
             -> (Coords -> InteractionResult)
             -> Coords
-            -> m (Maybe (AnimationUpdate m))
+            -> m (Maybe (AnimationStep m))
 laserAnimation' seg ref =
   laserAnimation'' seg (mkAnimatedPoints ref DontInteract)
 
@@ -99,12 +93,12 @@ laserAnimation'' :: (Draw e, MonadReader e m, MonadIO m)
                  -- ^ The laser ray
                  -> AnimatedPoints
                  -> Maybe KeyTime
-                 -> AnimationUpdate m
+                 -> AnimationStep m
                  -> (Coords -> InteractionResult)
                  -> Coords
-                 -> m (Maybe (AnimationUpdate m))
+                 -> m (Maybe (AnimationStep m))
 laserAnimation'' seg =
-  renderAndUpdate' (mkAnimator laserAnimationPure laserAnimation'' seg)
+  renderAndUpdateIfNeeded' (mkAnimator laserAnimationPure laserAnimation'' seg)
 
 {-# INLINABLE quantitativeExplosionThenSimpleExplosion #-}
 quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
@@ -118,7 +112,7 @@ quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                          -- ^ Animation speed
                                          -> Char
                                          -- ^ Character used when drawing the animation.
-                                         -> AnimationUpdate m
+                                         -> AnimationStep m
 quantitativeExplosionThenSimpleExplosion resolution ref keyTime animSpeed char =
   let f = quantitativeExplosionThenSimpleExplosion' resolution ref
   in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
@@ -132,10 +126,10 @@ quantitativeExplosionThenSimpleExplosion' :: (Draw e, MonadReader e m, MonadIO m
                                          -> Coords
                                          -- ^ Center of the first explosion
                                          -> Maybe KeyTime
-                                         -> AnimationUpdate m
+                                         -> AnimationStep m
                                          -> (Coords -> InteractionResult)
                                          -> Coords
-                                         -> m (Maybe (AnimationUpdate m))
+                                         -> m (Maybe (AnimationStep m))
 quantitativeExplosionThenSimpleExplosion' number center =
   let points = mkAnimatedPoints center (Interact $ Interact Stop)
   in quantitativeExplosionThenSimpleExplosion'' number points
@@ -148,12 +142,12 @@ quantitativeExplosionThenSimpleExplosion'' :: (Draw e, MonadReader e m, MonadIO 
                                           -- ^ Number of points of the first circular explosion.
                                           -> AnimatedPoints
                                           -> Maybe KeyTime
-                                          -> AnimationUpdate m
+                                          -> AnimationStep m
                                           -> (Coords -> InteractionResult)
                                           -> Coords
-                                          -> m (Maybe (AnimationUpdate m))
+                                          -> m (Maybe (AnimationStep m))
 quantitativeExplosionThenSimpleExplosion'' number =
-  renderAndUpdate fPure f colorFromFrame
+  renderAndUpdateIfNeeded fPure f colorFromFrame
  where
   fPure = composePureAnimations (quantitativeExplosionPure number) (simpleExplosionPure 8)
   f = quantitativeExplosionThenSimpleExplosion'' number
@@ -171,7 +165,7 @@ animatedPolygon :: (Draw e, MonadReader e m, MonadIO m)
                 -- ^ Animation speed
                 -> Char
                 -- ^ Character used when drawing the animation.
-                -> AnimationUpdate m
+                -> AnimationStep m
 animatedPolygon n pos keyTime animSpeed char =
   let f = animatedPolygon' n pos
   in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
@@ -184,10 +178,10 @@ animatedPolygon' :: (Draw e, MonadReader e m, MonadIO m)
                  -> Coords
                  -- ^ The center of the geometric figure
                  -> Maybe KeyTime
-                 -> AnimationUpdate m
+                 -> AnimationStep m
                  -> (Coords -> InteractionResult)
                  -> Coords
-                 -> m (Maybe (AnimationUpdate m))
+                 -> m (Maybe (AnimationStep m))
 animatedPolygon' n center =
   animatedPolygon'' n (mkAnimatedPoints center DontInteract)
 
@@ -199,12 +193,12 @@ animatedPolygon'' :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                   -> AnimatedPoints
                   -> Maybe KeyTime
-                  -> AnimationUpdate m
+                  -> AnimationStep m
                   -> (Coords -> InteractionResult)
                   -> Coords
-                  -> m (Maybe (AnimationUpdate m))
+                  -> m (Maybe (AnimationStep m))
 animatedPolygon'' n =
-  renderAndUpdate' (mkAnimator animatePolygonPure animatedPolygon'' n)
+  renderAndUpdateIfNeeded' (mkAnimator animatePolygonPure animatedPolygon'' n)
 
 
 -- | A circular explosion configurable in number of points
@@ -220,7 +214,7 @@ simpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ Animation speed
                   -> Char
                   -- ^ Character used when drawing the animation.
-                 -> AnimationUpdate m
+                 -> AnimationStep m
 simpleExplosion resolution ref keyTime animSpeed char =
   let f = simpleExplosion' resolution ref
   in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
@@ -233,10 +227,10 @@ simpleExplosion' :: (Draw e, MonadReader e m, MonadIO m)
                  -> Coords
                  -- ^ Center of the explosion
                  -> Maybe KeyTime
-                 -> AnimationUpdate m
+                 -> AnimationStep m
                  -> (Coords -> InteractionResult)
                  -> Coords
-                 -> m (Maybe (AnimationUpdate m))
+                 -> m (Maybe (AnimationStep m))
 simpleExplosion' resolution ref =
   simpleExplosion'' resolution (mkAnimatedPoints ref (Interact Stop))
 
@@ -248,12 +242,12 @@ simpleExplosion'' :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ Number of points in the explosion
                   -> AnimatedPoints
                   -> Maybe KeyTime
-                  -> AnimationUpdate m
+                  -> AnimationStep m
                   -> (Coords -> InteractionResult)
                   -> Coords
-                  -> m (Maybe (AnimationUpdate m))
+                  -> m (Maybe (AnimationStep m))
 simpleExplosion'' resolution =
-  renderAndUpdate fPure f colorFromFrame
+  renderAndUpdateIfNeeded fPure f colorFromFrame
  where
   fPure = applyAnimation (simpleExplosionPure resolution)
   f = simpleExplosion'' resolution
@@ -272,7 +266,7 @@ fragmentsFreeFall :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ Animation speed
                   -> Char
                   -- ^ Character used when drawing the animation.
-                  -> [AnimationUpdate m]
+                  -> [AnimationStep m]
 fragmentsFreeFall speed pos keyTime animSpeed char =
   let freeFalls = fragmentsFreeFall' speed pos
   in map (\f -> mkAnimationUpdate f keyTime WithZero animSpeed (Just char)) freeFalls
@@ -285,7 +279,7 @@ fragmentsFreeFall' :: (Draw e, MonadReader e m, MonadIO m)
                    -- ^ Initial speed
                    -> Coords
                    -- ^ Initial position
-                   -> [Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))]
+                   -> [Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m))]
 fragmentsFreeFall' speed pos =
   map (`freeFall'` pos) $ variations speed
 
@@ -302,7 +296,7 @@ freeFall :: (Draw e, MonadReader e m, MonadIO m)
          -- ^ Animation speed
          -> Char
          -- ^ Character used when drawing the animation.
-         -> AnimationUpdate m
+         -> AnimationStep m
 freeFall speed pos keyTime animSpeed char =
   let f = freeFall' speed pos
   in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
@@ -314,7 +308,7 @@ freeFall' :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ Initial speed
                   -> Coords
                  -- ^ Initial position
-                  -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
+                  -> (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
 freeFall' speed pos =
   let points = mkAnimatedPoints pos (Interact Stop)
   in freeFall'' speed points
@@ -326,12 +320,12 @@ freeFall'' :: (Draw e, MonadReader e m, MonadIO m)
                  -- ^ Initial speed
                  -> AnimatedPoints
                  -> Maybe KeyTime
-                 -> AnimationUpdate m
+                 -> AnimationStep m
                  -> (Coords -> InteractionResult)
                  -> Coords
-                 -> m (Maybe (AnimationUpdate m))
+                 -> m (Maybe (AnimationStep m))
 freeFall'' initialSpeed =
-  renderAndUpdate fPure f colorFromFrame
+  renderAndUpdateIfNeeded fPure f colorFromFrame
  where
   fPure = applyAnimation (gravityFall initialSpeed)
   f = freeFall'' initialSpeed
@@ -350,7 +344,7 @@ fragmentsFreeFallThenExplode :: (Draw e, MonadReader e m, MonadIO m)
           -- ^ Animation speed
           -> Char
           -- ^ Character used when drawing the animation.
-          -> [AnimationUpdate m]
+          -> [AnimationStep m]
 fragmentsFreeFallThenExplode speed pos k s c =
   map (\sp -> freeFallThenExplode sp pos k s c) $ variations speed
 
@@ -375,7 +369,7 @@ freeFallThenExplode :: (Draw e, MonadReader e m, MonadIO m)
                     -- ^ Animation speed
                     -> Char
                     -- ^ Character used when drawing the animation.
-                    -> AnimationUpdate m
+                    -> AnimationStep m
 freeFallThenExplode speed pos keyTime animSpeed char =
   let f = freeFallThenExplode' speed pos
   in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
@@ -387,7 +381,7 @@ freeFallThenExplode' :: (Draw e, MonadReader e m, MonadIO m)
                      -- ^ Initial speed
                      -> Coords
                      -- ^ Initial position
-                     -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
+                     -> (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
 freeFallThenExplode' speed pos =
   let points = mkAnimatedPoints pos (Interact $ Interact Stop)
   in freeFallThenExplode'' speed points
@@ -399,12 +393,12 @@ freeFallThenExplode'' :: (Draw e, MonadReader e m, MonadIO m)
                       -- ^ Initial speed
                       -> AnimatedPoints
                       -> Maybe KeyTime
-                      -> AnimationUpdate m
+                      -> AnimationStep m
                       -> (Coords -> InteractionResult)
                       -> Coords
-                      -> m (Maybe (AnimationUpdate m))
+                      -> m (Maybe (AnimationStep m))
 freeFallThenExplode'' initialSpeed =
-  renderAndUpdate fPure f colorFromFrame
+  renderAndUpdateIfNeeded fPure f colorFromFrame
  where
   fPure = composePureAnimations (gravityFall initialSpeed) (simpleExplosionPure 8)
   f = freeFallThenExplode'' initialSpeed

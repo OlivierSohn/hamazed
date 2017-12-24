@@ -2,7 +2,7 @@
 
 -- | Helper functions for pure animation functions
 
-module Imj.Animation.Design.Geo
+module Imj.Animation.Geo
     (
     -- * Gravity
       gravityFall
@@ -20,12 +20,10 @@ import           Imj.Prelude
 import           Data.Char( intToDigit )
 import           Data.List( length )
 
-import           Imj.Animation.Types
-
 import           Imj.Laser.Types
-
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Iteration
 
 
 -- | Note that the Coords parameter is unused.
@@ -74,7 +72,7 @@ simpleExplosionPure resolution center (Frame iteration) =
 
 -- | Circular explosion
 quantitativeExplosionPure :: Int
-                          -- ^ The number of points on the circle
+                          -- ^ The number of points of the circle
                           -> Coords
                           -- ^ Center
                           -> Frame

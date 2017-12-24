@@ -17,7 +17,6 @@ import           Imj.Prelude
 import           Data.List( minimumBy )
 import           Data.Maybe( isJust )
 
-import           Imj.Animation.Types
 import           Imj.Draw
 import           Imj.Geo.Discrete
 import           Imj.Laser.Types

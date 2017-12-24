@@ -33,9 +33,9 @@ import           Imj.Game.World( BattleShip(..)
                       , Number(..)
                       , World(..) )
 import           Imj.Geo.Discrete
-import           Imj.IO.NonBlocking
-import           Imj.IO.Blocking( getCharThenFlush )
-import           Imj.IO.Types
+import           Imj.Key.NonBlocking
+import           Imj.Key.Blocking( getKeyThenFlush )
+import           Imj.Key.Types
 import           Imj.Timing
 import           Imj.Util( showListOrSingleton )
 
@@ -57,7 +57,7 @@ isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNum
     allChecks = checkShipCollision <|> checkSum <|> checkAmmo
 
     checkShipCollision = case lastEvent of
-      (Timeout GameStep _) ->
+      (Timeout GameDeadline _) ->
         maybe
           (case map (\(Number _ n) -> n) collisions of
             [] -> Nothing
@@ -83,7 +83,7 @@ messageDeadline (Level _ _ mayLevelFinished) t =
         let finishedSinceSeconds = diffSystemTime t timeFinished
             delay = 2
             nextMessageStep = addSystemTime (delay - finishedSinceSeconds) t
-        in  Just $ Deadline (KeyTime nextMessageStep) MessageStep
+        in  Just $ Deadline (KeyTime nextMessageStep) MessageDeadline
       ContinueMessage -> Nothing)
   mayLevelFinished
 
@@ -94,27 +94,27 @@ getEventForMaybeDeadline level mayDeadline curTime =
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadline curTime
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> eventFromKey' level <$> getCharThenFlush
+    Nothing -> eventFromKey' level <$> getKeyThenFlush
 
-eventWithinDurationMicros :: Level -> Int -> KeyTime -> Step -> IO Event
+eventWithinDurationMicros :: Level -> Int -> KeyTime -> DeadlineType -> IO Event
 eventWithinDurationMicros level durationMicros k step =
   (\case
     Just key -> eventFromKey' level key
     _ -> Timeout step k
     ) <$> getCharWithinDurationMicros durationMicros step
 
-getCharWithinDurationMicros :: Int -> Step -> IO (Maybe Key)
+getCharWithinDurationMicros :: Int -> DeadlineType -> IO (Maybe Key)
 getCharWithinDurationMicros durationMicros step =
   if durationMicros < 0
     -- overdue
     then
       if priority step < userEventPriority
         then
-          tryGetCharThenFlush
+          tryGetKeyThenFlush
         else
           return Nothing
     else
-      timeout durationMicros getCharThenFlush
+      timeout durationMicros getKeyThenFlush
 
 {-# INLINABLE renderLevelState #-}
 renderLevelState :: (Draw e, MonadReader e m, MonadIO m)

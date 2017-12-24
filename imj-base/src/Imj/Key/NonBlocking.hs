@@ -3,9 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.IO.NonBlocking
+module Imj.Key.NonBlocking
     ( -- * Non-blocking Input
-      tryGetCharThenFlush
+      tryGetKeyThenFlush
     ) where
 
 import           Imj.Prelude
@@ -13,8 +13,8 @@ import           Imj.Prelude
 import           System.IO( hReady
                           , stdin)
 
-import           Imj.IO.Types
-import           Imj.IO.Blocking
+import           Imj.Key.Types
+import           Imj.Key.Blocking
 
 callIf :: IO a -> IO Bool -> IO (Maybe a)
 callIf call condition =
@@ -23,7 +23,7 @@ callIf call condition =
     False -> return Nothing
 
 -- | Tries to read a key from stdin. If it succeeds, it flushes stdin.
-tryGetCharThenFlush :: IO (Maybe Key)
-tryGetCharThenFlush = getCharThenFlush `callIf` someInputIsAvailable
+tryGetKeyThenFlush :: IO (Maybe Key)
+tryGetKeyThenFlush = getKeyThenFlush `callIf` someInputIsAvailable
   where
     someInputIsAvailable = hReady stdin

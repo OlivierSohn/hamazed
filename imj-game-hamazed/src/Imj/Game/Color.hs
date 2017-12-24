@@ -1,29 +1,34 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Color (
-  -- * default colors
-    worldFrameColors
-  , numberColor
-  , bracketsColor
-  , ammoColor
-  , configColors
-  , wallColors
-  , airColors
-  , shipColors
-  , shipColorsSafe
-  , shipColorSafe
-  , shipColor
+  -- * Text colors
+    configColors
   , messageColor
   , neutralMessageColor
+  -- * UI colors
+  , worldFrameColors
+  , ammoColor
+  , bracketsColor
+  -- * World colors
+  -- ** Materials
+  , wallColors
+  , airColors
+  -- ** Items
+  -- *** Numbers
+  , numberColor
+  -- *** Ship
+  , shipColor
+  , shipColors
+  , shipColorSafe
+  , shipColorsSafe
+  -- * Reexports
   , module Imj.Color
-) where
+  ) where
 
 import           Imj.Prelude
 
-import           Imj.Game.Level.Types
-
 import           Imj.Color
-
+import           Imj.Game.Level.Types
 
 configColors :: LayeredColor
 configColors = LayeredColor (gray 0) (gray 8)
@@ -65,6 +70,8 @@ shipBgColor = black
 shipBgColorSafe :: Color8 Background
 shipBgColorSafe = rgb 1 0 0
 
+-- | Cycles through the 6 colors of the cube delimited in RGB space by
+-- (5,4,1) and (5,5,3).
 numberColor :: Int -> LayeredColor
 numberColor i = onBlack $ rgb r g b
   where

@@ -23,7 +23,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
 
-import           Imj.Animation.Util( earliestDeadline )
+import           Imj.Animation.Design.Util( earliestDeadline )
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
@@ -46,7 +46,7 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = translateInDir dir speed
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-nextWorld :: World m -> [Number] -> Int -> [BoundedAnimationUpdate m] -> World m
+nextWorld :: World m -> [Number] -> Int -> [BoundedAnimationStep m] -> World m
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
@@ -90,7 +90,7 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
 
 earliestAnimationDeadline :: World m -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
-  earliestDeadline $ map (\(BoundedAnimationUpdate a _) -> a) animations
+  earliestDeadline $ map (\(BoundedAnimationStep a _) -> a) animations
 
 -- TODO use Number Live Number Dead
 withLaserAction :: Event ->  World m -> ([Number], [Number], Maybe (LaserRay Actual), Int)
@@ -115,7 +115,7 @@ withLaserAction
              maybeLaserRayTheoretical
 
       remainingBalls = case event of
-         Timeout GameStep _ ->
+         Timeout GameDeadline _ ->
            if isNothing safeTime
              then
                filter (`notElem` collisions) remainingBalls'

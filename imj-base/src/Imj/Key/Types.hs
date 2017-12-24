@@ -2,14 +2,14 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.IO.Types
+module Imj.Key.Types
     ( Key(..)
     ) where
 
 import           Imj.Prelude
 import           Imj.Geo.Discrete.Types( Direction(..) )
 
--- | A key-press read from stdin.
+-- | Represents a key-press, read from stdin.
 data Key = AlphaNum Char
          -- ^ An alphanumeric key
          | Arrow Direction

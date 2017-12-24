@@ -4,7 +4,7 @@ module Imj.Game.World.Types
         ( BattleShip(..)
         , World(..)
         , Number(..)
-        , BoundedAnimationUpdate(..)
+        , BoundedAnimationStep(..)
         , Boundaries(..)
         , RectFrame(..)
         , TextAnimSpec(..)
@@ -26,17 +26,12 @@ import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
-import           Imj.Animation.Types
-
+import           Imj.Animation.Design.Types
 import           Imj.Game.World.Space.Types
-
 import           Imj.Iteration
-
 import           Imj.Physics.Discrete.Types
-
 import           Imj.Text.Animation
 import           Imj.Text.ColorString
-
 import           Imj.Timing
 import           Imj.UI.RectFrame.InterpolationParallel4
 
@@ -70,7 +65,7 @@ data World m = World {
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimationUpdate m]
+  , _worldAnimations :: ![BoundedAnimationStep m]
   , _worldEmbedded :: !EmbeddedWorld
 }
 
@@ -79,7 +74,7 @@ data EmbeddedWorld = EmbeddedWorld {
   , _embeddedWorldUpperLeft :: !Coords
 } deriving (Show)
 
-data BoundedAnimationUpdate m = BoundedAnimationUpdate !(AnimationUpdate m) !Boundaries deriving(Show)
+data BoundedAnimationStep m = BoundedAnimationStep !(AnimationStep m) !Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow

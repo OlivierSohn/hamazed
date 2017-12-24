@@ -2,6 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game(
+        -- * Run the hamazed game
         gameWorker
       ) where
 
@@ -11,8 +12,8 @@ import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
 
 import           Imj.Animation
-import           Imj.Animation.Types
-import           Imj.Animation.Design.Chars
+import           Imj.Animation.Chars
+import           Imj.Animation.Design hiding (earliestDeadline)
 
 import           Imj.Game.Color
 import           Imj.Game.Deadline( Deadline(..) )
@@ -35,7 +36,7 @@ import           Imj.Geo.Discrete
 
 import           Imj.Physics.Discrete.Collision
 
-
+-- | Runs the Hamazed game.
 {-# INLINABLE gameWorker #-}
 gameWorker :: (Draw e, MonadReader e m, MonadIO m)
            => m ()
@@ -91,7 +92,7 @@ outerSpaceAnims :: (Draw e, MonadReader e m, MonadIO m)
                 => KeyTime
                 -> Space
                 -> LaserRay Actual
-                -> [BoundedAnimationUpdate m]
+                -> [BoundedAnimationStep m]
 outerSpaceAnims k (Space _ sz _) ray@(LaserRay dir _) =
   let laserTarget = afterEnd ray
   in case onOuterBorder laserTarget sz of
@@ -103,24 +104,24 @@ outerSpaceAnims' :: (Draw e, MonadReader e m, MonadIO m)
                  => KeyTime
                  -> Coords
                  -> Direction
-                 -> [BoundedAnimationUpdate m]
+                 -> [BoundedAnimationStep m]
 outerSpaceAnims' keyTime@(KeyTime (MkSystemTime _ nanos)) fronteerPoint dir =
   let char = niceChar $ fromIntegral nanos -- cycle character every nano second
       speed = scalarProd 2 $ speed2vec $ coordsForDirection dir
       outerSpacePoint = translateInDir dir fronteerPoint
       anims = fragmentsFreeFall speed outerSpacePoint keyTime (Speed 1) char
-  in map (`BoundedAnimationUpdate` TerminalWindow) anims
+  in map (`BoundedAnimationStep` TerminalWindow) anims
 
 
 {-# INLINABLE laserAnims #-}
 laserAnims :: (Draw e, MonadReader e m, MonadIO m)
            => LaserRay Actual
            -> KeyTime
-           -> [BoundedAnimationUpdate m]
+           -> [BoundedAnimationStep m]
 laserAnims keyTime ray
- = [BoundedAnimationUpdate (laserAnimation keyTime ray) WorldFrame]
+ = [BoundedAnimationStep (laserAnimation keyTime ray) WorldFrame]
 
-replaceAnimations :: [BoundedAnimationUpdate m] -> GameState m -> GameState m
+replaceAnimations :: [BoundedAnimationStep m] -> GameState m -> GameState m
 replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =
   GameState c (World wa wb wc wd anims ew) b f g h
 
@@ -149,20 +150,20 @@ getGameDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
       Nothing
-      (\s -> Just $ Deadline s GameStep)
+      (\s -> Just $ Deadline s GameDeadline)
         nextGameStep)
     (const Nothing)
       levelFinished
 
 animationDeadline :: GameState m -> Maybe Deadline
 animationDeadline (GameState _ world _ _ _ _) =
-  maybe Nothing (\ti -> Just $ Deadline ti AnimationStep) $ earliestAnimationDeadline world
+  maybe Nothing (\ti -> Just $ Deadline ti AnimationDeadline) $ earliestAnimationDeadline world
 
 worldAnimationDeadline :: GameState m -> Maybe Deadline
 worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
   maybe
     Nothing
-    (\deadline -> Just $ Deadline deadline FrameAnimationStep)
+    (\deadline -> Just $ Deadline deadline FrameAnimationDeadline)
       mayDeadline
 
 
@@ -282,10 +283,10 @@ updateGameUsingTimedEvent
               Right s -> return s
     _ -> do
           let newState = case event of
-                (Timeout FrameAnimationStep _) -> updateAnim t state
-                (Timeout GameStep gt) -> GameState (Just $ addGameStepDuration gt) (moveWorld t world) futWorld f h i
-                (Timeout MessageStep _) -> -- TODO this part is ugly, we should not have to deduce so much
-                                           -- MessageStep is probably the wrong abstraction level
+                (Timeout FrameAnimationDeadline _) -> updateAnim t state
+                (Timeout GameDeadline gt) -> GameState (Just $ addGameStepDuration gt) (moveWorld t world) futWorld f h i
+                (Timeout MessageDeadline _) -> -- TODO this part is ugly, we should not have to deduce so much
+                                           -- MessageDeadline is probably the wrong abstraction level
                   case mayLevelFinished of
                     Just (LevelFinished stop finishTime _) ->
                       let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
@@ -334,7 +335,7 @@ updateGame2
 renderGame :: (Draw e, MonadReader e m, MonadIO m)
            => Maybe KeyTime
            -> GameState m
-           -> m [BoundedAnimationUpdate m]
+           -> m [BoundedAnimationStep m]
 renderGame k (GameState _ world@(World _ _ _ space@(Space _ (Size rs cs) _)
                                          animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
@@ -354,15 +355,15 @@ renderAnimations :: (Monad m)
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords
-                 -> [BoundedAnimationUpdate m]
-                 -> m [BoundedAnimationUpdate m]
+                 -> [BoundedAnimationStep m]
+                 -> m [BoundedAnimationStep m]
 renderAnimations k space mayTermWindow worldCorner animations = do
-  let renderAnimation (BoundedAnimationUpdate a@(AnimationUpdate _ _ _ render) f) = do
+  let renderAnimation (BoundedAnimationStep a@(AnimationStep _ _ _ render) f) = do
         let interaction = locationFunction f space mayTermWindow worldCorner
                            >>> \case
                                 InsideWorld  -> Stable
                                 OutsideWorld -> Mutation
-        fmap (`BoundedAnimationUpdate` f) <$> render k a interaction worldCorner
+        fmap (`BoundedAnimationStep` f) <$> render k a interaction worldCorner
   activeAnimations <- mapM renderAnimation animations
   let res = catMaybes activeAnimations
   return res

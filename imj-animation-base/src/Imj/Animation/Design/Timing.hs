@@ -1,10 +1,12 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Animation.Timing
-    ( addAnimationStepDuration
+module Imj.Animation.Design.Timing
+    ( -- * Timing
+      addAnimationStepDuration
     , animationPeriod
     , animationUpdateMargin
-    , module Imj.Timing
     ) where
 
 import Imj.Timing

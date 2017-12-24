@@ -21,8 +21,8 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Animation
-                     , Imj.Animation.Design.Chars
-                     , Imj.Animation.Design.Geo
+                     , Imj.Animation.Chars
+                     , Imj.Animation.Geo
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-animation-base ==0.1.*

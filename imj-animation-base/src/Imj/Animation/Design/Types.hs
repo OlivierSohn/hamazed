@@ -1,37 +1,25 @@
-{-# OPTIONS_HADDOCK prune #-}
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{- |
-Animations are recipes to generate animation points.
-
-Two animations can be composed : when the interaction between an animation point of the first animation
-and its environment results in a mutation, the animation point stops being active
-for the first animation and gives birth to animation points for the second animation
-at that position.
-
-This module defines the types related to animations.
--}
-
-module Imj.Animation.Types
+module Imj.Animation.Design.Types
     (
-    -- * Animated points
+    -- * Types
+    -- ** Animated points
       AnimatedPoints(..)
-    -- ** How they interact with their environment
+    -- *** Environment interactions
     , CanInteract(..)
     , InteractionResult(..)
-    -- ** Constructor
+    -- *** Constructor
     , mkAnimatedPoints
-    -- * Updating the animation
-    , AnimationUpdate(..)
-    -- ** Handling the first frame
+    -- ** Updating the animation
+    , AnimationStep(..)
+    -- *** Handling the first frame
     , AnimationZero(..)
-    -- ** Constructor
+    -- *** Constructor
     , mkAnimationUpdate
     , Animator(..)
     , StepType(..)
-    -- Reexports
-    , module Imj.Iteration
-    , Coords
     ) where
 
 
@@ -40,12 +28,9 @@ import           Imj.Prelude
 import           GHC.Show(showString)
 
 import           Imj.Color.Types
-
 import           Imj.Geo.Discrete.Types(Coords)
-
-import           Imj.Timing(KeyTime)
-
 import           Imj.Iteration
+import           Imj.Timing(KeyTime)
 
 
 {- |  Tracks the position and state of each animation point in a recursive fashion, allowing
@@ -109,27 +94,30 @@ data Continuation = Continuation {
 --}
 
 {- | Contains what is required to do /one/ update of 'AnimatedPoints',
-and to generate the next 'AnimationUpdate', or 'Nothing' if the animation is over.
+and to generate the next 'AnimationStep', or 'Nothing' if the animation is over.
 -}
-data AnimationUpdate m = AnimationUpdate {
+data AnimationStep m = AnimationStep {
     _animationNextTime :: !KeyTime
-    -- ^ The time at which this animation becomes obsolete
+    -- ^ The time at which this step becomes obsolete and should be updated
   , _animationIteration :: !Iteration
-    -- ^ The iteration
+    -- ^ The iteration of this step
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to render the animation points, if the pure animation function doesn't specify one.
   , _animationRender :: !(Maybe KeyTime
-                       -> AnimationUpdate m
+                       -> AnimationStep m
                        -> (Coords -> InteractionResult)
                        -> Coords
-                       -> m (Maybe (AnimationUpdate m))
-                       )
-    -- ^ Renders 'AnimatedPoints' which are pre-applied, as well as input parameters.
-    -- may return the next 'AnimationUpdate'
+                       -> m (Maybe (AnimationStep m)))
+    -- ^ This is the function to call to render 'AnimatedPoints' for this step
+    -- (which are pre-applied, as well as input parameters). The function returns
+    -- the next 'AnimationStep' (updated or not, depending on 'KeyTime').
+    --
+    -- Note that the 'AnimationStep' passed to this function is the one that
+    -- contains it.
 }
 
-instance Show (AnimationUpdate m) where
-  showsPrec _ (AnimationUpdate a b c _) = showString $ "AnimationUpdate{" ++ show (a,b,c) ++ "}"
+instance Show (AnimationStep m) where
+  showsPrec _ (AnimationStep a b c _) = showString $ "AnimationStep{" ++ show (a,b,c) ++ "}"
 
 
 -- | Specifies if the zero frame should be skipped or not.
@@ -146,8 +134,8 @@ data StepType = Initialize
               -- ^ Update 'Iteration'
 
 
--- | Constructs an 'AnimationUpdate'
-mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
+-- | Constructs an 'AnimationStep'
+mkAnimationUpdate :: (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
                   -- ^ The update function.
                   -> KeyTime
                   -- ^ The 'KeyTime' of the event that triggered this animation.
@@ -157,19 +145,19 @@ mkAnimationUpdate :: (Maybe KeyTime -> AnimationUpdate m -> (Coords -> Interact
                   -- ^ The 'Speed' of the animation (the 'Frame' will be incremented at this rate)
                   -> Maybe Char
                   -- ^ The default 'Char' to use when the pure animation function doesn't specify one.
-                  -> AnimationUpdate m
+                  -> AnimationStep m
 mkAnimationUpdate render t frameInit speed mayChar =
   let mayNext = case frameInit of
                   WithZero -> id
                   SkipZero -> nextIteration
-  in AnimationUpdate t (mayNext $ zeroIteration speed) mayChar render
+  in AnimationStep t (mayNext $ zeroIteration speed) mayChar render
 
 
--- | Intermediate helper structure to construct an 'AnimationUpdate'
+-- | Intermediate helper structure to construct an 'AnimationStep'
 data Animator m = Animator {
     _animatorPure :: !(Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
     -- ^ A pure animation function that updates AnimatedPoints
-  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))
+  , _animatorIO :: AnimatedPoints -> Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m))
     -- ^ An IO function that consumes an updated AnimatedPoints to render the animation.
     --
     -- Non-strict to avoid an infinite loop (cf https://ghc.haskell.org/trac/ghc/ticket/14521)

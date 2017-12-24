@@ -2,12 +2,11 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module exposes Animator-related functions.
-
 module Imj.Animation.Design.Animator
     (
+      -- * Animator-related functions
        mkAnimator
-     , renderAndUpdate'
+     , renderAndUpdateIfNeeded'
     ) where
 
 
@@ -16,37 +15,37 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Animation.Color
 import           Imj.Animation.Design.Apply
+import           Imj.Animation.Design.Color
 import           Imj.Animation.Design.RenderUpdate
-import           Imj.Animation.Types
-
+import           Imj.Animation.Design.Types
 import           Imj.Draw
+import           Imj.Iteration
 import           Imj.Timing
 
-
+-- | Creates an 'Animator'
 mkAnimator :: (t -> Coords -> Frame -> ([Coords], Maybe Char))
            -> (t
                -> AnimatedPoints
                -> Maybe KeyTime
-               -> AnimationUpdate m
+               -> AnimationStep m
                -> (Coords -> InteractionResult)
                -> Coords
-               -> m (Maybe (AnimationUpdate m)))
+               -> m (Maybe (AnimationStep m)))
            -> t
            -> Animator m
 mkAnimator pure_ io_ params =
   Animator (applyAnimation (pure_ params)) (io_ params) colorFromFrame
 
-
-{-# INLINABLE renderAndUpdate' #-}
-renderAndUpdate' :: (Draw e, MonadReader e m, MonadIO m)
+-- | Creates an 'AnimationStep' from an 'Animator'
+{-# INLINABLE renderAndUpdateIfNeeded' #-}
+renderAndUpdateIfNeeded' :: (Draw e, MonadReader e m, MonadIO m)
                  => Animator m
                  -> AnimatedPoints
                  -> Maybe KeyTime
-                 -> AnimationUpdate m
+                 -> AnimationStep m
                  -> (Coords -> InteractionResult)
                  -> Coords
-                 -> m (Maybe (AnimationUpdate m))
-renderAndUpdate' (Animator pure_ io_ colorFunc) =
-  renderAndUpdate pure_ io_ colorFunc
+                 -> m (Maybe (AnimationStep m))
+renderAndUpdateIfNeeded' (Animator pure_ io_ colorFunc) =
+  renderAndUpdateIfNeeded pure_ io_ colorFunc

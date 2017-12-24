@@ -4,8 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Animation.Design.RenderUpdate
-    (
-      renderAndUpdate
+    ( renderAndUpdateIfNeeded
     ) where
 
 import           Imj.Prelude
@@ -15,27 +14,39 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Either( partitionEithers )
 
-import           Imj.Animation.Timing
-import           Imj.Animation.Types
+import           Imj.Animation.Design.Timing
+import           Imj.Animation.Design.Types
 import           Imj.Geo.Discrete
 import           Imj.Draw
+import           Imj.Iteration
+import           Imj.Timing
 
 {- |
-Updates and renders 'AnimatedPoints'.
+Updates (if needed) and renders 'AnimatedPoints'.
 
-If the animation has animation points that are still alive, returns the next
-'AnimationUpdate' in which the updated 'AnimatedPoints' is preapplied to the
-render function.
+If the animation has animation points that are still alive, returns a Just 'AnimationStep'.
 -}
-{-# INLINABLE renderAndUpdate #-}
-renderAndUpdate :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE renderAndUpdateIfNeeded #-}
+renderAndUpdateIfNeeded :: (Draw e, MonadReader e m, MonadIO m)
                 => (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
-                -- ^ the pure animation function
-                -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
-                -- ^ the IO animation function
+                -- ^ Pure update function
+                -> (AnimatedPoints -> Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
+                -- ^ This function, with updated 'AnimatedPoints' preapplied,
+                -- will be stored in the returned 'AnimationStep'
                 -> (Frame -> LayeredColor)
-                ->  AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m))
-renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ (Iteration _ frame) mayChar _) interaction r = do
+                -- ^ Color function
+                ->  AnimatedPoints
+                -- ^ Current /state/
+                -> Maybe KeyTime
+                -- ^ Current time
+                -> AnimationStep m
+                -- ^ Current 'AnimationStep'
+                -> (Coords -> InteractionResult)
+                -- ^ Interaction function
+                -> Coords
+                -- ^ Reference coordinates
+                -> m (Maybe (AnimationStep m))
+renderAndUpdateIfNeeded pureAnim statelessIOAnim colorFunc state k a@(AnimationStep _ (Iteration _ frame) mayChar _) interaction r = do
   let (nextAnimation, newState) = updateStateAndAnimation k pureAnim interaction statelessIOAnim a state
   isAlive <- render' frame mayChar newState interaction colorFunc r
   return $
@@ -48,11 +59,11 @@ renderAndUpdate pureAnim statelessIOAnim colorFunc state k a@(AnimationUpdate _ 
 updateStateAndAnimation :: Maybe KeyTime
                         -> (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
                         -> (Coords -> InteractionResult)
-                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
-                        -> AnimationUpdate m
+                        -> (AnimatedPoints -> Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
+                        -> AnimationStep m
                         -> AnimatedPoints
-                        -> (AnimationUpdate m, AnimatedPoints)
-updateStateAndAnimation k pureAnim interaction statelessIOAnim a@(AnimationUpdate _ i _ _) state =
+                        -> (AnimationStep m, AnimatedPoints)
+updateStateAndAnimation k pureAnim interaction statelessIOAnim a@(AnimationStep _ i _ _) state =
     (nextAnimation, newState)
   where
     step = computeStep k a state
@@ -62,19 +73,19 @@ updateStateAndAnimation k pureAnim interaction statelessIOAnim a@(AnimationUpdat
     nextAnimation = updateAnimation step (statelessIOAnim newState) a
 
 updateAnimation :: StepType
-                -> (Maybe KeyTime -> AnimationUpdate m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationUpdate m)))
-                -> AnimationUpdate m
-                -> AnimationUpdate m
+                -> (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
+                -> AnimationStep m
+                -> AnimationStep m
 updateAnimation Same _ a = a
-updateAnimation step r (AnimationUpdate t i c _) =
-  update step $ AnimationUpdate t i c r
+updateAnimation step r (AnimationStep t i c _) =
+  update step $ AnimationStep t i c r
 
 
 computeStep :: Maybe KeyTime
-            -> AnimationUpdate m
+            -> AnimationStep m
             -> AnimatedPoints
             -> StepType
-computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ branches _ _) =
+computeStep mayKey (AnimationStep (KeyTime k') _ _ _) (AnimatedPoints _ _ branches _ _) =
   let noUpdate =
         maybe
           -- if branches is Nothing, it is the first time the animation is rendered / updated
@@ -95,15 +106,15 @@ computeStep mayKey (AnimationUpdate (KeyTime k') _ _ _) (AnimatedPoints _ _ bran
               noUpdate
 
 update :: StepType
-       -> AnimationUpdate m
-       -> AnimationUpdate m
+       -> AnimationStep m
+       -> AnimationStep m
 update = \case
             Update -> stepAnimation
             _      -> id
 
-stepAnimation :: AnimationUpdate m
-              -> AnimationUpdate m
-stepAnimation (AnimationUpdate t i c f) = AnimationUpdate (addAnimationStepDuration t) (nextIteration i) c f
+stepAnimation :: AnimationStep m
+              -> AnimationStep m
+stepAnimation (AnimationStep t i c f) = AnimationStep (addAnimationStepDuration t) (nextIteration i) c f
 
 
 {-# INLINABLE render' #-}

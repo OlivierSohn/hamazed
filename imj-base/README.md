@@ -8,3 +8,5 @@ A library containing
   game graphics, by minimizing the amount of data sent to stdout.
 
 - The class DiscretelyInterpolable and its implementation on common data-types.
+
+- IO utilities to know which keys the user has pressed.

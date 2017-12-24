@@ -6,11 +6,11 @@ module Imj.Game.Deadline(
 
 import           Imj.Prelude
 
-import           Imj.Game.Event( Step(..) )
+import           Imj.Game.Event( DeadlineType(..) )
 
 import           Imj.Timing( KeyTime(..) )
 
 data Deadline = Deadline {
     _deadlineTime :: !KeyTime
-  , _deadlineType :: !Step
+  , _deadlineType :: !DeadlineType
 } deriving(Eq, Show)

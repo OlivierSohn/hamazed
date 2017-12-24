@@ -28,16 +28,16 @@ import           Imj.Geo.Continuous
 shipAnims :: (Draw e, MonadReader e m, MonadIO m)
           => BattleShip
           -> Event
-          -> [BoundedAnimationUpdate m]
+          -> [BoundedAnimationStep m]
 shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
   \case
-    Timeout GameStep k ->
+    Timeout GameDeadline k ->
       if not (null collisions) && isNothing safeTime
         then
           -- when number and ship explode, they exchange speeds
           let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
               (Number _ n) = head collisions
-          in  map (`BoundedAnimationUpdate` WorldFrame) $
+          in  map (`BoundedAnimationStep` WorldFrame) $
                   fragmentsFreeFallThenExplode (speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
                   ++
                   fragmentsFreeFallThenExplode (speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)

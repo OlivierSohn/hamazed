@@ -10,7 +10,7 @@ module Imj.Game.Event
     , ActionTarget(..)
     , getKeyTime
     , coordsForActionTargets
-    , Step(..)
+    , DeadlineType(..)
     , Meta(..)
     ) where
 
@@ -21,13 +21,13 @@ import           Data.List( foldl' )
 import           Data.Maybe( mapMaybe )
 
 import           Imj.Geo.Discrete
-import           Imj.IO.Types
+import           Imj.Key.Types
 import           Imj.Timing
 
 data TimedEvent = TimedEvent Event SystemTime
 
 data Event =  Action ActionTarget Direction
-            | Timeout Step KeyTime
+            | Timeout DeadlineType KeyTime
             | Explosion Int
             | GravityExplosion
             | StartLevel Int
@@ -41,18 +41,18 @@ data Meta = Configure
           | Help
           deriving(Eq, Show)
 
-data Step = GameStep
-          | AnimationStep
-          | MessageStep
-          | FrameAnimationStep
-          deriving(Eq, Show)
+data DeadlineType = GameDeadline
+                  | AnimationDeadline
+                  | MessageDeadline
+                  | FrameAnimationDeadline
+                  deriving(Eq, Show)
 
-priority :: Step -> Int
-priority FrameAnimationStep = -1
-priority MessageStep = 0
-priority GameStep    = 1
+priority :: DeadlineType -> Int
+priority FrameAnimationDeadline = -1
+priority MessageDeadline        = 0
+priority GameDeadline           = 1
 -- userEvent is here (in terms of priority)
-priority AnimationStep = 3
+priority AnimationDeadline      = 3
 
 userEventPriority :: Int
 userEventPriority = 2

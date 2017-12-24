@@ -3,15 +3,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Compose
-    (
-      composePureAnimations
+    ( composePureAnimations
     ) where
 
 
 import           Imj.Prelude
 
-import           Imj.Animation.Types
 import           Imj.Animation.Design.Apply
+import           Imj.Animation.Design.Types
+import           Imj.Geo.Discrete
+import           Imj.Iteration
 
 
 -- | Composes two pure animation function.

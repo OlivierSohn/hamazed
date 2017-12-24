@@ -43,7 +43,7 @@ destroyedNumbersAnimations :: (Draw e, MonadReader e m, MonadIO m)
                            => KeyTime
                            -> Event
                            -> [Number]
-                           -> [BoundedAnimationUpdate m]
+                           -> [BoundedAnimationStep m]
 destroyedNumbersAnimations keyTime event =
   let laserSpeed = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir
@@ -55,9 +55,9 @@ destroyedNumberAnimations :: (Draw e, MonadReader e m, MonadIO m)
                           => KeyTime
                           -> Vec2
                           -> Number
-                          -> [BoundedAnimationUpdate m]
+                          -> [BoundedAnimationStep m]
 destroyedNumberAnimations keyTime laserSpeed (Number (PosSpeed pos _) n) =
   let char = intToDigit n
-  in map (`BoundedAnimationUpdate` WorldFrame)
+  in map (`BoundedAnimationStep` WorldFrame)
         $ animatedPolygon n pos keyTime (Speed 1) char
         : fragmentsFreeFallThenExplode (scalarProd 2 laserSpeed) pos keyTime (Speed 2) char

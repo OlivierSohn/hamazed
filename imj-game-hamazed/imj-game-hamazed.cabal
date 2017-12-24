@@ -41,10 +41,6 @@ library
                      , Imj.Game.World.Space
                      , Imj.Game.World.Space.Types
                      , Imj.Game.World.Types
-                     , Imj.IO
-                     , Imj.IO.Blocking
-                     , Imj.IO.NonBlocking
-                     , Imj.IO.Types
                      , Imj.Run
                      , Imj.Threading
   build-depends:       base >= 4.8 && < 4.11

@@ -2,7 +2,7 @@
 
 -- | This module is about characters we can use for explosive animations
 
-module Imj.Animation.Design.Chars
+module Imj.Animation.Chars
     ( niceChar
     -- * Reexports
     , Word8

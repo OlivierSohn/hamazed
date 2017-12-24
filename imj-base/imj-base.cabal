@@ -43,6 +43,10 @@ library
                      , Imj.Geo.Discrete.Resample
                      , Imj.Geo.Discrete.Types
                      , Imj.Iteration
+                     , Imj.Key
+                     , Imj.Key.Blocking
+                     , Imj.Key.NonBlocking
+                     , Imj.Key.Types
                      , Imj.Text.Alignment
                      , Imj.Text.ColorString
                      , Imj.Timing

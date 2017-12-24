@@ -3,9 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.IO.Blocking
+module Imj.Key.Blocking
     ( -- * Blocking Input
-      getCharThenFlush
+      getKeyThenFlush
     ) where
 
 
@@ -17,11 +17,11 @@ import           Data.Char( ord )
 import           Data.List( reverse )
 
 import           Imj.Geo.Discrete.Types( Direction(..) )
-import           Imj.IO.Types
+import           Imj.Key.Types
 
 -- | Blocks until a key is read from stdin. Then, flushes stdin.
-getCharThenFlush :: IO Key
-getCharThenFlush = do
+getKeyThenFlush :: IO Key
+getKeyThenFlush = do
   chars <- getAllChars
   let res = fromString chars
   -- uncomment to see escape codes

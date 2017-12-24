@@ -3,8 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Apply
-    (
-      applyAnimation
+    ( applyAnimation
     ) where
 
 
@@ -13,10 +12,10 @@ import           Imj.Prelude
 import           Data.List( length )
 import           Data.Maybe( fromMaybe )
 
-import           Imj.Animation.Types
-
+import           Imj.Animation.Design.Types
 import           Imj.Geo.Discrete.Bresenham
-import           Imj.Geo.Discrete( mkSegment )
+import           Imj.Geo.Discrete
+import           Imj.Iteration
 
 
 -- | Updates 'AnimatedPoints' using an animation function.

@@ -25,8 +25,8 @@ import           Imj.Game.World.Embedded
 
 import           Imj.Geo.Discrete
 
-import           Imj.IO.Blocking
-import           Imj.IO.Types
+import           Imj.Key.Blocking
+import           Imj.Key.Types
 import           Imj.Timing
 import           Imj.Text.Alignment
 
@@ -53,7 +53,7 @@ update :: (Draw e, MonadReader e m, MonadIO m)
        -> m GameParameters
 update params = do
   render' params
-  liftIO getCharThenFlush >>= \case
+  liftIO getKeyThenFlush >>= \case
     AlphaNum c ->
       if c == ' '
         then

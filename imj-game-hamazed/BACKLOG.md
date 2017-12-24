@@ -68,7 +68,6 @@ hitting a key (the key should be present also in the other room)
 
 ## Animation Design
 
-
 - make an animation between levels to make the world reduce progressively
   for this animation we need to render the frame on top of the world
 

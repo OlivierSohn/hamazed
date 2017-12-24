@@ -1,20 +1,19 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module handles colors for animations
-
-module Imj.Animation.Color
+module Imj.Animation.Design.Color
         ( -- * Frame color
         {- | 'colorFromFrame' defines the color used to draw an animation,
         based on the frame number (relative to the parent animation, if any).
         -}
           colorFromFrame
-        , module Imj.Color
         ) where
 
 import           Imj.Prelude
 
-import           Imj.Animation.Types
 import           Imj.Color
+import           Imj.Iteration
 
 -- | Returns the color associated to an animation frame.
 colorFromFrame :: Frame -> LayeredColor

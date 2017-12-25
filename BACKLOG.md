@@ -2,14 +2,25 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - find a name / notion for geometric animation function.
+  - find a name / notion for geometric animation function
+    - seed / generator
+    - it should include notion of interact dontinteract, maybe at the point level.
+  - put the function in the tree? the function could put its continuation in the AnimatedPoint:
+
+  :: (Coords -> Frame -> [AnimatedPoint])
+  -- ^ the continuation
+  -> Coords
+  -> Frame
+  -> [AnimatedPoint]
+
+
   - explain notion of parent / child in animation.
     - An Animation supervises bot parent and child animation, that's confusing!
     so we should introduce a new concept.
     Maybe replace 'Animation' with 'Animator' or 'AnimationSupervisor'
 
   - remove FrameAnimationParallel4
-  
+
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*

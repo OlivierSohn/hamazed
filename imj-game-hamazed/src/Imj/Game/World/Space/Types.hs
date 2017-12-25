@@ -8,7 +8,7 @@ module Imj.Game.World.Space.Types
     , Material(..)
     , RenderGroup(..)
     , WorldShape(..)
-    -- * reexports
+    -- * Reexports
     , module Imj.Geo.Discrete.Types
     ) where
 

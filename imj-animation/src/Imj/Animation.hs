@@ -47,8 +47,8 @@ laserAnimation :: LaserRay Actual
                -> Animation
 laserAnimation ray@(LaserRay _ (Ray seg)) keyTime =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-      update = updateAnimatedPointsUpToDepth1 $ laserAnimationGeo ray
-  in mkAnimation update DontInteract keyTime SkipZero (Speed 1) collisionFree Nothing
+      update = updateAnimatedPointsUpToLevel1 $ laserAnimationGeo ray
+  in mkAnimation update keyTime SkipZero (Speed 1) collisionFree Nothing
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second has 4*8=32 points.
@@ -64,8 +64,11 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Character used when drawing the animation.
                                          -> Animation
 quantitativeExplosionThenSimpleExplosion num pos keyTime animSpeed char =
-  let update = updateAnimatedPointsUpToDepth2 (quantitativeExplosionGeo num) (simpleExplosionGeo 8)
-  in mkAnimation update (Interact $ Interact Stop) keyTime SkipZero animSpeed pos (Just char)
+  let update =
+        updateAnimatedPointsUpToLevel2
+          (quantitativeExplosionGeo num Interact)
+          (simpleExplosionGeo 8 Interact)
+  in mkAnimation update keyTime SkipZero animSpeed pos (Just char)
 
 -- | An animation where a geometric figure (polygon or circle) expands then shrinks,
 -- and doesn't interact with the environment.
@@ -81,8 +84,10 @@ animatedPolygon :: Int
                 -- ^ Character used when drawing the animation.
                 -> Animation
 animatedPolygon n pos keyTime animSpeed char =
-  let update = updateAnimatedPointsUpToDepth1 $ animatePolygonGeo n
-  in mkAnimation update DontInteract keyTime SkipZero animSpeed pos (Just char)
+  let update =
+        updateAnimatedPointsUpToLevel1
+        $ animatePolygonGeo n
+  in mkAnimation update keyTime SkipZero animSpeed pos (Just char)
 
 -- | A circular explosion configurable in number of points
 simpleExplosion :: Int
@@ -97,8 +102,10 @@ simpleExplosion :: Int
                 -- ^ Character used when drawing the animation.
                 -> Animation
 simpleExplosion resolution pos keyTime animSpeed char =
-  let update = updateAnimatedPointsUpToDepth1 $ simpleExplosionGeo resolution
-  in mkAnimation update (Interact Stop) keyTime SkipZero animSpeed pos (Just char)
+  let update =
+        updateAnimatedPointsUpToLevel1
+        $ simpleExplosionGeo resolution Interact
+  in mkAnimation update keyTime SkipZero animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -129,8 +136,10 @@ freeFall :: Vec2
          -- ^ Character used when drawing the animation.
          -> Animation
 freeFall speed pos keyTime animSpeed char =
-  let update = updateAnimatedPointsUpToDepth1 $ gravityFallGeo speed
-  in mkAnimation update (Interact Stop) keyTime SkipZero animSpeed pos (Just char)
+  let update =
+        updateAnimatedPointsUpToLevel1
+        $ gravityFallGeo speed Interact
+  in mkAnimation update keyTime SkipZero animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
@@ -169,5 +178,8 @@ freeFallThenExplode :: Vec2
                     -- ^ Character used when drawing the animation.
                     -> Animation
 freeFallThenExplode speed pos keyTime animSpeed char =
-  let update = updateAnimatedPointsUpToDepth2 (gravityFallGeo speed) (simpleExplosionGeo 8)
-  in mkAnimation update (Interact $ Interact Stop) keyTime SkipZero animSpeed pos (Just char)
+  let update =
+        updateAnimatedPointsUpToLevel2
+          (gravityFallGeo speed Interact)
+          (simpleExplosionGeo 8 Interact)
+  in mkAnimation update keyTime SkipZero animSpeed pos (Just char)

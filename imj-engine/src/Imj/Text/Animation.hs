@@ -23,7 +23,7 @@ Animates in parallel:
          , renderAnimatedTextCharAnchored
          , renderAnimatedTextStringAnchored
          , getAnimatedTextRenderStates
-         -- * reexports
+         -- * Reexports
          , module Imj.Interpolation
          ) where
 

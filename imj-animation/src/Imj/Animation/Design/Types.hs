@@ -12,54 +12,41 @@ module Imj.Animation.Design.Types
     , mkAnimation
     , AnimationZero(..)
       -- ** Update an Animation
-      {- | An 'Animation' update is triggered if the 'KeyTime' passed to 'updateAnimationIfNeeded'
-       is /close enough/ (cf. 'animationUpdateMargin') to the current deadline. Else,
+      {- | 'updateAnimationIfNeeded' updates the 'Animation' if the current time
+      is /close enough/ (cf. 'animationUpdateMargin') to the 'Animation' deadline. Else,
        the unmodified 'Animation' is returned. -}
     , updateAnimationIfNeeded
       -- ** Render an Animation
-      {- | 'renderAnim' renders the 'AnimatedPoints' of the 'Animation'.
-
-      If the 'Char'
-      to render the animated points is not specified in 'AnimatedPoints', one /must/
-      be specified in the 'Animation', else an error happens.
-       -}
+      -- | 'renderAnim' renders the 'AnimatedPoints' of the 'Animation'.
     , renderAnim
       -- * Animated points
-      {- | /Note:/ 'AnimatedPoints' is an /internal/ type, however, it is important
-      to understand how it works in order to understand animation.
-
-      An 'AnimatedPoints' is a tree that /grows/ during the animation. It contains
-      /animated points/ represented by 'Coords' :
-      -}
+      {- | Eventhough 'AnimatedPoints' and 'AnimatedPoint' are /internal/ types,
+      they are publicly documented here to help understand how animation works. -}
     , AnimatedPoints(..)
-      {-| Initially, an 'AnimatedPoints' is made of a /single/ leaf. Then, it
-      /grows/ as its animated points are mutated by the environment:  -}
+    , AnimatedPoint(..)
     , InteractionResult(..)
-      {-| An 'AnimatedPoints' has a 'CanInteract' that specifies, for each depth
-      of the 'AnimatedPoints' tree, if interactions are allowed between animated points
-      and the environment:        -}
     , CanInteract(..)
     -- ** AnimatedPoints update
       {-|
-      [@final depth@] The depth of the 'AnimatedPoints' tree that has
-      reached its maximal depth.
+      [@final height@] The height of the 'AnimatedPoints' tree that has
+      reached its maximal height.
 
-      An animated points at depth @n@
+      An animated points at level @n@
       can mutate to an 'AnimatedPoints' by interacting with the environment:
 
-      * if @n == final depth@, the new 'AnimatedPoints' will remain empty and the
+      * if @n == final height@, the new 'AnimatedPoints' will remain empty and the
       tree will stop growing in that direction
-      * if @n < final depth@, a new animation starts from that location, at depth @n+1@.
+      * if @n < final height@, a new animation starts from that location, at level @n+1@.
 
       Today we support 'AnimatedPoints' of final lengths 1 and 2:
 
-      * 'AnimatedPoints' whose final depth == 1 can be updated by 'updateAnimatedPointsUpToDepth1':
+      * 'AnimatedPoints' whose final height == 1 can be updated by 'updateAnimatedPointsUpToLevel1':
 
-          * The depth 1 leaves will be updated using a single geometric animation function.
+          * The level 1 leaves will be updated using a single geometric animation function.
 
-      * 'AnimatedPoints' whose final depth == 2 can be updated by 'updateAnimatedPointsUpToDepth2':
+      * 'AnimatedPoints' whose final height == 2 can be updated by 'updateAnimatedPointsUpToLevel2':
 
-          * Depth 1 and depth 2 leaves will be updated by different geometric animation functions. -}
+          * Level 1 and level 2 leaves will be updated by different geometric animation functions. -}
     , module Imj.Animation.Design.Apply
     , module Imj.Animation.Design.Compose
       -- * Utilities
@@ -88,11 +75,9 @@ import           Imj.Timing
 -- | Constructs an 'AnimatedPoints'.
 mkAnimatedPoints :: Coords
                  -- ^ Where the first animation should start.
-                 -> CanInteract
-                 -- ^ Are animated points allowed to interact with the environment?
                  -> AnimatedPoints
-mkAnimatedPoints c ow =
-  AnimatedPoints c 0 Nothing ow Nothing
+mkAnimatedPoints c =
+  AnimatedPoints 0 c Nothing
 
 
 -- | An 'Animation'
@@ -107,30 +92,13 @@ data Animation = Animation {
   , _animationNextUpdateSpec :: !UpdateSpec
     -- ^ The time and iteration of the next update
   , _animationChar :: !(Maybe Char)
-    -- ^ The char to use for drawing animated points when the 'AnimatedPoints'
-    -- don't specify one.
+    -- ^ The char used to draw animated points when the 'AnimatedPoints'
+    -- don't specify one. If 'Nothing', the '***Geo' functions /must/ specify one
+    -- when creating new 'AnimatedPoint's.
 }
 
-{- |
-In order for an 'AnimatedPoints' to ultimately grow to a tree of depth @n@,
-its 'CanInteract' must be of depth @n+1@ (the +1 is for the terminating type 'Stop').
-
-Hence, the possible values of the 'CanInteract' argument are:
-
-* If the update function was created by partial application on 'updateAnimatedPointsUpToDepth1':
-
-    * 'Interact' 'Stop'
-    * 'DontInteract'
-
-* If the update function was created by partial application on 'updateAnimatedPointsUpToDepth2':
-
-    * 'Interact' 'Interact' 'Stop'
-    * 'Interact' 'DontInteract'
--}
 mkAnimation :: (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
             -- ^ The function updating 'AnimatedPoints'.
-            -> CanInteract
-            -- ^ How animated points will interact with the environment.
             -> KeyTime
             -- ^ When this animation was created.
             -> AnimationZero
@@ -140,12 +108,12 @@ mkAnimation :: (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> 
             -> Coords
             -- ^ Where the animation starts.
             -> Maybe Char
-            -- ^ The default 'Char' to draw the animated points with, if the update function
-            -- of 'AnimatedPoints' doesn't specify one.
+            -- ^ The default 'Char' to draw an 'AnimatedPoint' with, if it doesn't
+            -- specify one.
             -> Animation
-mkAnimation update interaction t frameInit speed pos mayChar =
+mkAnimation update t frameInit speed pos mayChar =
   let u = firstUpdateSpec t frameInit speed
-      points = mkAnimatedPoints pos interaction
+      points = mkAnimatedPoints pos
   in Animation points update u mayChar
 
 
@@ -170,7 +138,6 @@ earliestDeadline animations =
       let getDeadline (Animation _ _ (UpdateSpec k _) _) = k
       in Just $ minimum $ map getDeadline animations
 
--- | Updates the 'AnimatedPoints' if it is the right time.
 updateAnimationIfNeeded :: Maybe KeyTime
                         -- ^ 'Just' the current 'KeyTime', or 'Nothing'
                         -> (Coords -> InteractionResult)
@@ -179,7 +146,7 @@ updateAnimationIfNeeded :: Maybe KeyTime
                         -- ^ The current animation
                         -> Animation
                         -- ^ The updated animation
-updateAnimationIfNeeded mayK interaction anim@(Animation points@(AnimatedPoints _ _ branches _ _) update u@(UpdateSpec k iteration) c) =
+updateAnimationIfNeeded mayK interaction anim@(Animation points@(AnimatedPoints _ _ branches) update u@(UpdateSpec k iteration) c) =
   let step = computeStep branches k mayK
       newPoints = update iteration interaction points
       newUpdateSpec = case step of
@@ -190,13 +157,13 @@ updateAnimationIfNeeded mayK interaction anim@(Animation points@(AnimatedPoints 
        Same -> anim
        _ -> newAnim
 
-defaultStep :: Maybe [Either AnimatedPoints Coords] -> StepType
+defaultStep :: Maybe [Either AnimatedPoints AnimatedPoint] -> StepType
 defaultStep =
   -- if branches is Nothing, it is the first time the animation is rendered / updated
   -- so we need to initialize the state
   maybe Initialize (const Same)
 
-computeStep :: Maybe [Either AnimatedPoints Coords]
+computeStep :: Maybe [Either AnimatedPoints AnimatedPoint]
             -- ^ The root branch.
             -> KeyTime
             -- ^ The animation 'KeyTime'
@@ -223,7 +190,9 @@ computeStep' (KeyTime k') =
       else
         Nothing)
 
--- | Render an animation.
+-- | If some 'AnimatedPoint' in the 'AnimatedPoints' of the 'Animation' don't
+-- have a 'Char' specified to render them, 'Animation' /must/ contain a default
+-- one, else this function errors.
 {-# INLINABLE renderAnim #-}
 renderAnim :: (Draw e, MonadReader e m, MonadIO m)
            => Animation
@@ -251,28 +220,29 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         -> Coords
         -> m Bool
         -- ^ True if at least one animated point is "alive"
-render' _ _ (AnimatedPoints _ _ Nothing _ _) _ _ _ = return False
-render' _ _ (AnimatedPoints _ _ (Just []) _ _) _ _ _ = return False
+render' _ _ (AnimatedPoints _ _ Nothing) _ _ _ = return False
+render' _ _ (AnimatedPoints _ _ (Just [])) _ _ _ = return False
 render'
- parentFrame mayCharAnim (AnimatedPoints _ childFrame (Just branches) onWall mayCharTree)
+ parentFrame mayCharAnim (AnimatedPoints childFrame _ (Just branches))
  interaction colorFunc r = do
-  let mayChar = mayCharTree <|> mayCharAnim
-  case mayChar of
-    Nothing -> error "either the pure anim function ar the animation should specify a Just"
-    Just char -> do
-      let (children, aliveCoordinates) = partitionEithers branches
-          isAlive = (not . null) aliveCoordinates
-          renderedCoordinates = case onWall of
-            -- We make the assumption that every alive point is guaranteed to be collision-free.
-            -- Note that when the environment will be dynamic, it will be wrong:
-            Interact _ -> aliveCoordinates
-            DontInteract  -> filter (( == Stable ) . interaction) aliveCoordinates -- some alive points may collide
-            Stop      -> error "animation should have stopped"
-          relFrame = parentFrame - childFrame
-          color = colorFunc relFrame
-      mapM_ (\c -> drawChar char (sumCoords c r) color) renderedCoordinates
-      childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child interaction colorFunc r) children
-      return $ isAlive || or childrenAlive
+  let (children, aliveCoordinates) = partitionEithers branches
+      isAlive = (not . null) aliveCoordinates
+      selectRenderedCoordinates =
+        filter (\(AnimatedPoint canInteract coords _) ->
+                    case canInteract of
+                      -- An alive animated point may collide:
+                      DontInteract -> interaction coords == Stable
+                      -- We make the assumption that every alive point is guaranteed to be collision-free.
+                      -- Note that when the environment will be dynamic, it will be wrong:
+                      Interact -> True)
+      relFrame = parentFrame - childFrame
+      color = colorFunc relFrame
+  mapM_ (\(AnimatedPoint _ c mayChar) -> do
+            let char = fromMaybe (error "no char was specified") $ mayChar <|> mayCharAnim
+            drawChar char (sumCoords c r) color)
+        $ selectRenderedCoordinates aliveCoordinates
+  childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child interaction colorFunc r) children
+  return $ isAlive || or childrenAlive
 
 -- | Specifies if the zero frame should be skipped or not.
 data AnimationZero = WithZero

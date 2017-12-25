@@ -1,4 +1,3 @@
-{-# OPTIONS_HADDOCK prune #-}
 
 {- | The animation framework. Also, the source code of "Imj.Animation" can be
 read to see the functions discussed here being used to create concrete animations. -}

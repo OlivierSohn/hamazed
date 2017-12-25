@@ -9,7 +9,7 @@ module Imj.Game.World
     , renderWorld
     , renderWorldAnimation
     , earliestAnimationDeadline
-    -- * reexports
+    -- * Reexports
     , Number(..)
     , module Imj.Game.World.Types
     ) where

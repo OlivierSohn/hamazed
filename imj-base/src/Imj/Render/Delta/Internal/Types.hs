@@ -8,7 +8,7 @@ module Imj.Render.Delta.Internal.Types
        , Delta(..)
        , Cell
        , ClearContext(..)
-       -- reexports
+       -- * Reexports
        , IORef
        ) where
 

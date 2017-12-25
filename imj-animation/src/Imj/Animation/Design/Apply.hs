@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Apply
-    ( updateAnimatedPointsUpToDepth1
+    ( updateAnimatedPointsUpToLevel1
     ) where
 
 
@@ -20,56 +20,54 @@ import           Imj.Iteration
 
 -- | Updates the /depth 1/ animated points of an 'AnimatedPoints', using a single
 -- geometric animation function.
-updateAnimatedPointsUpToDepth1 :: (Coords -> Frame -> ([Coords], Maybe Char))
+updateAnimatedPointsUpToLevel1 :: (Coords -> Frame -> [AnimatedPoint])
                                -- ^ Geometric animation for the level
                                -> Iteration
                                -> (Coords -> InteractionResult)
                                -- ^ Interaction function
                                -> AnimatedPoints
                                -> AnimatedPoints
-updateAnimatedPointsUpToDepth1 animation iteration@(Iteration _ globalFrame) interaction (AnimatedPoints root startFrame branches onWall _) =
+updateAnimatedPointsUpToLevel1 animation iteration@(Iteration _ globalFrame) interaction (AnimatedPoints startFrame root branches) =
   let frame = globalFrame - startFrame
-      (points, char) = animation root frame
-      previousState = fromMaybe (replicate (length points) $ Right $ assert (interaction root == Stable) root) branches
+      points = animation (assert (interaction root == Stable) root) frame
+      defaultState = map (\(AnimatedPoint canInteract _ _) -> Right $ AnimatedPoint canInteract root Nothing) points
+      previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
-      newBranches = combine points previousState iteration interaction onWall
-  in AnimatedPoints root startFrame (Just newBranches) onWall char
+      newBranches = combine points previousState iteration interaction
+  in AnimatedPoints startFrame root (Just newBranches)
 
-combine :: [Coords]
-        -> [Either AnimatedPoints Coords]
+combine :: [AnimatedPoint]
+        -> [Either AnimatedPoints AnimatedPoint]
         -> Iteration
         -> (Coords -> InteractionResult)
-        -> CanInteract
-        -> [Either AnimatedPoints Coords]
-combine points previousState iteration interaction onWall =
+        -> [Either AnimatedPoints AnimatedPoint]
+combine points previousState iteration interaction =
   zipWith
-    (combinePoints interaction iteration onWall)
+    (combinePoints interaction iteration)
     points
     (assert (length previousState == length points) previousState)
 
 combinePoints :: (Coords -> InteractionResult)
               -> Iteration
-              -> CanInteract
-              -> Coords
-              -> Either AnimatedPoints Coords
-              -> Either AnimatedPoints Coords
-combinePoints interaction (Iteration _ frame) onWall point =
+              -> AnimatedPoint
+              -> Either AnimatedPoints AnimatedPoint
+              -> Either AnimatedPoints AnimatedPoint
+combinePoints interaction (Iteration _ frame) point@(AnimatedPoint onWall coords _) =
   either
     Left
-    (\prevPoint' ->
-      case onWall of
-        Stop         -> error "animation should have stopped already"
+    (\(AnimatedPoint prevOnWall prevCoords' _) ->
+      case assert (prevOnWall == onWall) onWall of
         DontInteract -> Right point
-        Interact nextOnWall ->
+        Interact ->
           -- The assert verifies that we can drop the first point of the trajectory.
           -- This is because the environment is static.
-          let prevPoint = assert (interaction prevPoint' == Stable) prevPoint'
-              trajectory = bresenham $ mkSegment prevPoint point
+          let prevCoords = assert (interaction prevCoords == Stable) prevCoords'
+              trajectory = bresenham $ mkSegment prevCoords coords
           in maybe
-               (Right $ assert (interaction point == Stable) point)
+               (Right $ assert (interaction coords == Stable) point)
                (\preCollision ->
-                  Left $ AnimatedPoints preCollision frame Nothing nextOnWall Nothing)
+                  Left $ AnimatedPoints frame preCollision Nothing)
                $ getCoordsBeforeMutation trajectory interaction
     )
 

@@ -12,7 +12,7 @@ module Imj.Game.Level
     , GameStops(..)
     , messageDeadline
     , getEventForMaybeDeadline
-    -- | reexports
+    -- * Reexports
     , module Imj.Game.Level.Types
     ) where
 

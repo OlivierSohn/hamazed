@@ -1,5 +1,3 @@
-{-# OPTIONS_HADDOCK hide #-}
-
 module Imj.Animation.Design.Internal.Types
           ( AnimatedPoints(..)
           , AnimatedPoint(..)
@@ -20,7 +18,7 @@ import           Imj.Iteration
     * 'AnimatedPoints' with 'Nothing' branches
 
 * a <https://en.wikipedia.org/wiki/Branching_factor branching factor> @=@
-the number of 'AnimatedPoint' returned by a call to the /preapplied '***Geo' functions/
+the number of 'AnimatedPoint' returned by a call to the /animation functions/
 that generate the first-level 'AnimatedPoint's for this 'AnimatedPoints'.
 
 [Growth]
@@ -28,16 +26,8 @@ that generate the first-level 'AnimatedPoint's for this 'AnimatedPoints'.
 and the environment results in a 'Mutation' into a new 'AnimatedPoints' with 'Nothing' branches.
 
 [Center]
-The /center/ of an 'AnimatedPoints' is the location from which the
-/corresponding visual animation/ will start.
-Hence, the center will be passed to the /preapplied '***Geo' functions/ to allow
-them to place 'AnimatedPoint's accordingly.
-
-(TODO find a better name for /corresponding visual animation/ : it is the animation
-of first-level only 'AnimatedPoint's of this 'AnimatedPoints')
-
-(TODO find a better name for /preapplied '***Geo' functions/ : it is the functions
-that, given a 'Frame' and a center, create 'AnimatedPoint's. Proposal : /animating functions/)
+The /center/ of an 'AnimatedPoints' is the coordinates passed to the animation function
+to allow them to place 'AnimatedPoint's accordingly.
 -}
 data AnimatedPoints = AnimatedPoints {
     _animatedPointsFrame :: !Frame
@@ -45,6 +35,7 @@ data AnimatedPoints = AnimatedPoints {
   , _animatedPointsCenter :: !Coords
     -- ^ The center, w.r.t the animation reference frame.
   , _animatedPointsBranches :: !(Maybe [Either AnimatedPoints AnimatedPoint])
+    -- ^ The tree structure
 } deriving (Show)
 
 -- | Represents an animated point.
@@ -62,12 +53,12 @@ data CanInteract = DontInteract
                  -- ^ No interaction is allowed.
                  --
                  -- To ensure that the animation is finite in time,
-                 -- geometric animation functions returning 'AnimatedPoint's that
+                 -- animation functions returning 'AnimatedPoint's that
                  -- 'DontInteract' should return an empty list of 'AnimatedPoint's
                  -- for each 'Frame' after a given 'Frame'.
                  --
                  -- TODO document why that works, as it breaks the
-                 -- /geometric animation functions should return the same number of 'AnimatedPoint's at each iteration/ law.
+                 -- /animation functions should return the same number of 'AnimatedPoint's at each iteration/ law.
                  | Interact
                  -- ^ The 'AnimatedPoint' can be mutated after an interaction
                  -- with the environment.
@@ -76,7 +67,7 @@ data CanInteract = DontInteract
                  -- 'Interact' /must/ eventually be mutated by the environment.
                  --
                  -- Hence, assuming the environment has a finite size,
-                 -- geometric animation functions returning 'AnimatedPoint's that
+                 -- animation functions returning 'AnimatedPoint's that
                  -- 'Interact' can guarantee animation finitude by computing their
                  -- coordinates using functions diverging in the 'Frame' argument.
                  deriving (Show, Eq)

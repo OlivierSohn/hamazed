@@ -28,10 +28,10 @@ library
                      , Imj.Animation.Design
                      , Imj.Animation.Design.Apply
                      , Imj.Animation.Design.Color
-                     , Imj.Animation.Design.Compose
                      , Imj.Animation.Design.Internal.Types
                      , Imj.Animation.Design.Timing
                      , Imj.Animation.Design.Types
+                     , Imj.Animation.Design.Update
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*

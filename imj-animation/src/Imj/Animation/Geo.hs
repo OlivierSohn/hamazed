@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module exports geometric animation functions.
+-- | This module exports animation functions.
 
 module Imj.Animation.Geo
     (

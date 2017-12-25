@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Apply
-    ( updateAnimatedPointsUpToLevel1
+    ( updatePointsAndMutateIfNeeded
     ) where
 
 
@@ -18,42 +18,45 @@ import           Imj.Geo.Discrete
 import           Imj.Iteration
 
 
--- | Updates the /depth 1/ animated points of an 'AnimatedPoints', using a single
--- geometric animation function.
-updateAnimatedPointsUpToLevel1 :: (Coords -> Frame -> [AnimatedPoint])
-                               -- ^ Geometric animation for the level
-                               -> Iteration
-                               -> (Coords -> InteractionResult)
-                               -- ^ Interaction function
-                               -> AnimatedPoints
-                               -> AnimatedPoints
-updateAnimatedPointsUpToLevel1 animation iteration@(Iteration _ globalFrame) interaction (AnimatedPoints startFrame root branches) =
-  let frame = globalFrame - startFrame
-      points = animation (assert (interaction root == Stable) root) frame
+-- | Doesn't change the existing /level 1/ 'AnimatedPoints's, but can convert some
+-- 'AnimatedPoint's to 'AnimatedPoints's.
+updatePointsAndMutateIfNeeded :: (Coords -> Frame -> [AnimatedPoint])
+                              -- ^ Geometric animation function
+                              -> Coords
+                              -- ^ Center of the animation
+                              -> Frame
+                              -- ^ Relative frame
+                              -> (Coords -> InteractionResult)
+                              -- ^ Interaction function
+                              -> Maybe [Either AnimatedPoints AnimatedPoint]
+                              -- ^ Current branches
+                              -> [Either AnimatedPoints AnimatedPoint]
+                              -- ^ Updated branches
+updatePointsAndMutateIfNeeded animation root frame interaction branches =
+  let points = animation (assert (interaction root == Stable) root) frame
       defaultState = map (\(AnimatedPoint canInteract _ _) -> Right $ AnimatedPoint canInteract root Nothing) points
       previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
-      newBranches = combine points previousState iteration interaction
-  in AnimatedPoints startFrame root (Just newBranches)
+  in combine points previousState frame interaction
 
 combine :: [AnimatedPoint]
         -> [Either AnimatedPoints AnimatedPoint]
-        -> Iteration
+        -> Frame
         -> (Coords -> InteractionResult)
         -> [Either AnimatedPoints AnimatedPoint]
-combine points previousState iteration interaction =
+combine points previousState frame interaction =
   zipWith
-    (combinePoints interaction iteration)
+    (combinePoints interaction frame)
     points
     (assert (length previousState == length points) previousState)
 
 combinePoints :: (Coords -> InteractionResult)
-              -> Iteration
+              -> Frame
               -> AnimatedPoint
               -> Either AnimatedPoints AnimatedPoint
               -> Either AnimatedPoints AnimatedPoint
-combinePoints interaction (Iteration _ frame) point@(AnimatedPoint onWall coords _) =
+combinePoints interaction frame point@(AnimatedPoint onWall coords _) =
   either
     Left
     (\(AnimatedPoint prevOnWall prevCoords' _) ->

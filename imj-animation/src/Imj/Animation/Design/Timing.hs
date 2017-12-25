@@ -3,14 +3,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Timing
-    ( addAnimationStepDuration
-    , animationPeriod
+    ( animationPeriod
     , animationUpdateMargin
     ) where
 
 import Imj.Timing
 
--- | The console can refresh at approx. 21 fps, hence this value (1/25)
+-- | The console can refresh at approx. 21 fps, hence this value seems
+-- appropriate (1/25 second)
 animationPeriod :: DiffTime
 animationPeriod = 0.04
 
@@ -22,7 +22,3 @@ to group update deadlines.
 -}
 animationUpdateMargin :: DiffTime
 animationUpdateMargin = 0.01
-
--- | Adds the duration of one animation step.
-addAnimationStepDuration :: KeyTime -> KeyTime
-addAnimationStepDuration = addDuration animationPeriod

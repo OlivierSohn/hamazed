@@ -5,50 +5,39 @@
 module Imj.Animation.Design.Types
     (
       -- * Animation
-      -- | An 'Animation' contains 'AnimatedPoints', and the function to update them:
-      Animation(..)
+      {- | An 'Animation' is updated every 'animationPeriod' to generate 'AnimatedPoint's.
+
+      [Animation function]
+      The movements of 'AnimatedPoint's are computed using \(n\) /animation functions/.
+
+      [Level]
+      'AnimatedPoint's are organized in \(n\) levels and the motion / aspect of a level \(k\)
+      'AnimatedPoint' is defined by the \(k\)th animation function.
+
+      [Mutation]
+      An 'AnimatedPoint' can /mutate/, as a result of an interaction with its
+      environment. When that happens, it is removed from its level, not animated
+      anymore, and in turn, if its level is not the last level, it can give birth
+      to 'AnimatedPoint's in the next level.
+
+      Initially, an 'Animation' contains only some level \(1\) 'AnimatedPoint's.
+      Higher levels 'AnimatedPoint's are created by the mutation process.
+      -}
+      Animation
       -- ** Create an Animation
-      -- |'mkAnimation' is used to create an 'Animation':
     , mkAnimation
     , AnimationZero(..)
       -- ** Update an Animation
-      {- | 'updateAnimationIfNeeded' updates the 'Animation' if the current time
+      {- |
+      'updateAnimationIfNeeded' updates the 'Animation' if the current time
       is /close enough/ (cf. 'animationUpdateMargin') to the 'Animation' deadline. Else,
        the unmodified 'Animation' is returned. -}
     , updateAnimationIfNeeded
       -- ** Render an Animation
-      -- | 'renderAnim' renders the 'AnimatedPoints' of the 'Animation'.
     , renderAnim
-      -- * Animated points
-      {- | Eventhough 'AnimatedPoints' and 'AnimatedPoint' are /internal/ types,
-      they are publicly documented here to help understand how animation works. -}
-    , AnimatedPoints(..)
     , AnimatedPoint(..)
     , InteractionResult(..)
     , CanInteract(..)
-    -- ** AnimatedPoints update
-      {-|
-      [@final height@] The height of the 'AnimatedPoints' tree that has
-      reached its maximal height.
-
-      An animated points at level @n@
-      can mutate to an 'AnimatedPoints' by interacting with the environment:
-
-      * if @n == final height@, the new 'AnimatedPoints' will remain empty and the
-      tree will stop growing in that direction
-      * if @n < final height@, a new animation starts from that location, at level @n+1@.
-
-      Today we support 'AnimatedPoints' of final lengths 1 and 2:
-
-      * 'AnimatedPoints' whose final height == 1 can be updated by 'updateAnimatedPointsUpToLevel1':
-
-          * The level 1 leaves will be updated using a single geometric animation function.
-
-      * 'AnimatedPoints' whose final height == 2 can be updated by 'updateAnimatedPointsUpToLevel2':
-
-          * Level 1 and level 2 leaves will be updated by different geometric animation functions. -}
-    , module Imj.Animation.Design.Apply
-    , module Imj.Animation.Design.Compose
       -- * Utilities
     , earliestDeadline
     ) where
@@ -64,8 +53,7 @@ import           Data.Either(partitionEithers)
 
 import           Imj.Animation.Design.Internal.Types
 import           Imj.Animation.Design.Timing
-import           Imj.Animation.Design.Apply
-import           Imj.Animation.Design.Compose
+import           Imj.Animation.Design.Update
 import           Imj.Color.Types
 import           Imj.Draw
 import           Imj.Geo.Discrete
@@ -79,12 +67,10 @@ mkAnimatedPoints :: Coords
 mkAnimatedPoints c =
   AnimatedPoints 0 c Nothing
 
-
--- | An 'Animation'
 data Animation = Animation {
     _animationPoints :: !AnimatedPoints
     -- ^ The current points.
-  , _animationUpdate :: !(Iteration
+  , _animationUpdate :: !(Frame
                       -> (Coords -> InteractionResult)
                       -> AnimatedPoints
                       -> AnimatedPoints)
@@ -93,33 +79,41 @@ data Animation = Animation {
     -- ^ The time and iteration of the next update
   , _animationChar :: !(Maybe Char)
     -- ^ The char used to draw animated points when the 'AnimatedPoints'
-    -- don't specify one. If 'Nothing', the '***Geo' functions /must/ specify one
+    -- don't specify one. If 'Nothing', the animation function /must/ specify one
     -- when creating new 'AnimatedPoint's.
 }
 
-mkAnimation :: (Iteration -> (Coords -> InteractionResult) -> AnimatedPoints -> AnimatedPoints)
-            -- ^ The function updating 'AnimatedPoints'.
+instance Show Animation where
+  showsPrec _ (Animation a _ b c) =
+    showString $ "Animation{" ++ show (a,b,c) ++ "}"
+
+
+mkAnimation :: [Coords -> Frame -> [AnimatedPoint]]
+            {- ^ The /animation functions/, where the 'Coords' argument is called
+            the /center/.
+
+            During an 'Animation' update, level \(k\) 'AnimatedPoint's will be
+            updated using the \(k\)-th animation function in this list-}
             -> KeyTime
             -- ^ When this animation was created.
             -> AnimationZero
             -- ^ Keep or skip the zero frame.
             -> Speed
-            -- ^ Animation discrete speed.
+            -- ^ Animation discrete speed. Tells by how much the 'Frame', passed
+            -- to animation functions, is incremented during an update.
             -> Coords
-            -- ^ Where the animation starts.
+            -- ^ Will be passed as a /center/ argument to the first
+            -- animation function to generate level 1 'AnimatedPoint's.
             -> Maybe Char
             -- ^ The default 'Char' to draw an 'AnimatedPoint' with, if it doesn't
             -- specify one.
             -> Animation
-mkAnimation update t frameInit speed pos mayChar =
-  let u = firstUpdateSpec t frameInit speed
+mkAnimation updates t frameInit speed pos mayChar =
+  let update = updateAnimatedPoints updates
+      u = firstUpdateSpec t frameInit speed
       points = mkAnimatedPoints pos
   in Animation points update u mayChar
 
-
-instance Show Animation where
-  showsPrec _ (Animation a _ b c) =
-    showString $ "Animation{" ++ show (a,b,c) ++ "}"
 
 data UpdateSpec = UpdateSpec {
     _updateSpecTime :: !KeyTime
@@ -146,11 +140,14 @@ updateAnimationIfNeeded :: Maybe KeyTime
                         -- ^ The current animation
                         -> Animation
                         -- ^ The updated animation
-updateAnimationIfNeeded mayK interaction anim@(Animation points@(AnimatedPoints _ _ branches) update u@(UpdateSpec k iteration) c) =
+updateAnimationIfNeeded
+ mayK
+ interaction
+ anim@(Animation points@(AnimatedPoints _ _ branches) update u@(UpdateSpec k it@(Iteration _ frame)) c) =
   let step = computeStep branches k mayK
-      newPoints = update iteration interaction points
+      newPoints = update frame interaction points
       newUpdateSpec = case step of
-                        Update -> UpdateSpec (addAnimationStepDuration k) (nextIteration iteration)
+                        Update -> UpdateSpec (addDuration animationPeriod k) (nextIteration it)
                         _      -> u
       newAnim = Animation newPoints update newUpdateSpec c
   in case step of

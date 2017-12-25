@@ -7,7 +7,7 @@
 
 ## Design
 
-- Today the contract of geometric animation functions is that they should return
+- Today the contract of animation functions is that they should return
 a constant number of animated points that are correlated across frames.
 We could also make them say "After frame x, since my animation is done
 I will return an empty list" : it could allow to stop animations that have

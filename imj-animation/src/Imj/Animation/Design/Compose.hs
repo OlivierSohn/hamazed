@@ -3,35 +3,36 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Compose
-    ( composePureAnimations
+    ( updateAnimatedPointsUpToDepth2
     ) where
 
 
 import           Imj.Prelude
 
 import           Imj.Animation.Design.Apply
-import           Imj.Animation.Design.Types
+import           Imj.Animation.Design.Internal.Types
 import           Imj.Geo.Discrete
 import           Imj.Iteration
 
 
--- | Composes two pure animation function.
-composePureAnimations :: (Coords -> Frame -> ([Coords], Maybe Char))
-                      -- ^ Animation 1
+{- | Updates the /depth 1/ and /depth 2/ animated points of an 'AnimatedPoints'
+using one geometric animation function per depth. -}
+updateAnimatedPointsUpToDepth2 :: (Coords -> Frame -> ([Coords], Maybe Char))
+                      -- ^ Geometric animation for level 1
                       -> (Coords -> Frame -> ([Coords], Maybe Char))
-                      -- ^ Animation 2
+                      -- ^ Geometric animation for level 2
                       -> Iteration
                       -- ^ Current iteration
                       -> (Coords -> InteractionResult)
                       -- ^ Interaction function
                       -> AnimatedPoints
                       -> AnimatedPoints
-composePureAnimations anim1 anim2 iteration interaction tree  =
+updateAnimatedPointsUpToDepth2 anim1 anim2 iteration interaction tree  =
   let (AnimatedPoints a b branches onWall mayChar) =
-        applyAnimation anim1 iteration interaction tree
+        updateAnimatedPointsUpToDepth1 anim1 iteration interaction tree
       newBranches = Just $ case branches of
-        Nothing -> error "applyAnimation should create a Just"
-        Just l ->  map (either (Left . applyAnimation anim2 iteration interaction) Right) l
+        Nothing -> error "updateAnimatedPointsUpToDepth1 should create a Just"
+        Just l ->  map (either (Left . updateAnimatedPointsUpToDepth1 anim2 iteration interaction) Right) l
   in AnimatedPoints a b newBranches onWall mayChar
 
 -- TODO generic chaining of animations

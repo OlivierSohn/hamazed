@@ -18,7 +18,7 @@ Note that tests should all pass!
 
 TODO add an image of dependency graph (use graphmod).
 
-- imj-animation-base
+- imj-animation
   - Animation framework.
 - imj-animation
   - Concrete animations.
@@ -33,8 +33,8 @@ yet they are deeply different in nature w.r.t:
   - Animations don't have to satisfy any rule.
 - Number of elements
   - Interpolations are always applied to a single element, and cannot create "new elements".
-  - Animations create multiple animation points, each of them can in turn "give birth" to
-  other animation points, depending on interactions with the environment.
+  - Animations create multiple animated points, each of them can in turn "give birth" to
+  other animated points, depending on interactions with the environment.
 - Usage (in Hamazed game)
   - Interpolations are used to smoothly transform and move UI elements from one level to the next.
   - Animations are used to represent the destruction of world elements, and to animate laser shots.

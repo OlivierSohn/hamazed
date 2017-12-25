@@ -1,17 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{- | This module exports functions to create explosive, free-fall, fragments animations,
-and several compositions of these animations. A laser animation is also available.
-
-These functions contain boilerplate code to abstract away the use of:
-
-* 'mkAnimatedPoints', so that the user of
-the module doesn't have to know whether animations are composed and how they
-should interact with their environment.
-* 'mkAnimationUpdate', so that the user of the module doesn't have to think
-about how to handle the initial frame.
--}
--- TODO also abstract away the use of mkAnimationUpdate?
+-- | This module exports some /ready-to-use/ animations.
 
 module Imj.Animation
     (
@@ -42,67 +31,32 @@ module Imj.Animation
     -- * Geometric
     , animatedPolygon
     , laserAnimation
-    -- * Reexports
-    , AnimationStep(..)
+    -- * More about Animations
+    , module Imj.Animation.Design
     ) where
-
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.Reader.Class(MonadReader)
-
 import           Imj.Animation.Design
 import           Imj.Animation.Geo
-import           Imj.Draw
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Laser.Types
 
 -- | A laser ray animation, with a fade-out effect.
-{-# INLINABLE laserAnimation #-}
-laserAnimation :: (Draw e, MonadReader e m, MonadIO m)
-               => LaserRay Actual
+laserAnimation :: LaserRay Actual
                -- ^ The laser ray
                -> KeyTime
                -- ^ 'KeyTime' of the game event that started this animation
-               -> AnimationStep m
-laserAnimation ray@(LaserRay _ (Ray seg)) k =
+               -> Animation
+laserAnimation ray@(LaserRay _ (Ray seg)) keyTime =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-      f = laserAnimation' ray collisionFree
-  in mkAnimationUpdate f k WithZero (Speed 1) Nothing
+      update = updateAnimatedPointsUpToDepth1 $ laserAnimationGeo ray
+  in mkAnimation update DontInteract keyTime SkipZero (Speed 1) collisionFree Nothing
 
--- | A laser ray animation
-{-# INLINABLE laserAnimation' #-}
-laserAnimation' :: (Draw e, MonadReader e m, MonadIO m)
-            => LaserRay Actual
-            -- ^ The laser ray
-            -> Coords
-            -- ^ A collision-free point (for example the first point of the laser ray)
-            -> Maybe KeyTime
-            -> AnimationStep m
-            -> (Coords -> InteractionResult)
-            -> Coords
-            -> m (Maybe (AnimationStep m))
-laserAnimation' seg ref =
-  laserAnimation'' seg (mkAnimatedPoints ref DontInteract)
-
-{-# INLINABLE laserAnimation'' #-}
-laserAnimation'' :: (Draw e, MonadReader e m, MonadIO m)
-                 => LaserRay Actual
-                 -- ^ The laser ray
-                 -> AnimatedPoints
-                 -> Maybe KeyTime
-                 -> AnimationStep m
-                 -> (Coords -> InteractionResult)
-                 -> Coords
-                 -> m (Maybe (AnimationStep m))
-laserAnimation'' seg =
-  renderAndUpdateIfNeeded' (mkAnimator laserAnimationPure laserAnimation'' seg)
-
-{-# INLINABLE quantitativeExplosionThenSimpleExplosion #-}
-quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
-                                         => Int
+-- | An animation chaining two circular explosions, the first explosion
+-- can be configured in number of points, the second has 4*8=32 points.
+quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Number of points in the first explosion
                                          -> Coords
                                          -- ^ Center of the first explosion
@@ -112,50 +66,14 @@ quantitativeExplosionThenSimpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
                                          -- ^ Animation speed
                                          -> Char
                                          -- ^ Character used when drawing the animation.
-                                         -> AnimationStep m
-quantitativeExplosionThenSimpleExplosion resolution ref keyTime animSpeed char =
-  let f = quantitativeExplosionThenSimpleExplosion' resolution ref
-  in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
-
--- | An animation chaining two circular explosions, the first explosion
--- can be configured in number of points, the second has 4*8=32 points.
-{-# INLINABLE quantitativeExplosionThenSimpleExplosion' #-}
-quantitativeExplosionThenSimpleExplosion' :: (Draw e, MonadReader e m, MonadIO m)
-                                         => Int
-                                         -- ^ Number of points of the first circular explosion.
-                                         -> Coords
-                                         -- ^ Center of the first explosion
-                                         -> Maybe KeyTime
-                                         -> AnimationStep m
-                                         -> (Coords -> InteractionResult)
-                                         -> Coords
-                                         -> m (Maybe (AnimationStep m))
-quantitativeExplosionThenSimpleExplosion' number center =
-  let points = mkAnimatedPoints center (Interact $ Interact Stop)
-  in quantitativeExplosionThenSimpleExplosion'' number points
-
--- | An animation chaining two circular explosions, the first explosion
--- can be configured in number of points, the second has 4*8=32 points.
-{-# INLINABLE quantitativeExplosionThenSimpleExplosion'' #-}
-quantitativeExplosionThenSimpleExplosion'' :: (Draw e, MonadReader e m, MonadIO m)
-                                          => Int
-                                          -- ^ Number of points of the first circular explosion.
-                                          -> AnimatedPoints
-                                          -> Maybe KeyTime
-                                          -> AnimationStep m
-                                          -> (Coords -> InteractionResult)
-                                          -> Coords
-                                          -> m (Maybe (AnimationStep m))
-quantitativeExplosionThenSimpleExplosion'' number =
-  renderAndUpdateIfNeeded fPure f colorFromFrame
- where
-  fPure = composePureAnimations (quantitativeExplosionPure number) (simpleExplosionPure 8)
-  f = quantitativeExplosionThenSimpleExplosion'' number
+                                         -> Animation
+quantitativeExplosionThenSimpleExplosion num pos keyTime animSpeed char =
+  let update = updateAnimatedPointsUpToDepth2 (quantitativeExplosionGeo num) (simpleExplosionGeo 8)
+  in mkAnimation update (Interact $ Interact Stop) keyTime SkipZero animSpeed pos (Just char)
 
 -- | An animation where a geometric figure (polygon or circle) expands then shrinks,
 -- and doesn't interact with the environment.
-animatedPolygon :: (Draw e, MonadReader e m, MonadIO m)
-                => Int
+animatedPolygon :: Int
                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                 -> Coords
                 -- ^ Center of the polygon (or circle)
@@ -165,98 +83,30 @@ animatedPolygon :: (Draw e, MonadReader e m, MonadIO m)
                 -- ^ Animation speed
                 -> Char
                 -- ^ Character used when drawing the animation.
-                -> AnimationStep m
+                -> Animation
 animatedPolygon n pos keyTime animSpeed char =
-  let f = animatedPolygon' n pos
-  in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
-
--- | An animation where a geometric figure (polygon or circle) expands and then shrinks
-{-# INLINABLE animatedPolygon' #-}
-animatedPolygon' :: (Draw e, MonadReader e m, MonadIO m)
-                 => Int
-                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
-                 -> Coords
-                 -- ^ The center of the geometric figure
-                 -> Maybe KeyTime
-                 -> AnimationStep m
-                 -> (Coords -> InteractionResult)
-                 -> Coords
-                 -> m (Maybe (AnimationStep m))
-animatedPolygon' n center =
-  animatedPolygon'' n (mkAnimatedPoints center DontInteract)
-
-
--- | An animation where a geometric figure (polygon or circle) expands and then shrinks
-{-# INLINABLE animatedPolygon'' #-}
-animatedPolygon'' :: (Draw e, MonadReader e m, MonadIO m)
-                  => Int
-                  -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
-                  -> AnimatedPoints
-                  -> Maybe KeyTime
-                  -> AnimationStep m
-                  -> (Coords -> InteractionResult)
-                  -> Coords
-                  -> m (Maybe (AnimationStep m))
-animatedPolygon'' n =
-  renderAndUpdateIfNeeded' (mkAnimator animatePolygonPure animatedPolygon'' n)
-
+  let update = updateAnimatedPointsUpToDepth1 $ animatePolygonGeo n
+  in mkAnimation update DontInteract keyTime SkipZero animSpeed pos (Just char)
 
 -- | A circular explosion configurable in number of points
-{-# INLINABLE simpleExplosion #-}
-simpleExplosion :: (Draw e, MonadReader e m, MonadIO m)
-                 => Int
-                 -- ^ Number of points in the explosion
-                 -> Coords
-                 -- ^ Center of the explosion
-                  -> KeyTime
-                  -- ^ 'KeyTime' of the game event that started this animation
-                  -> Speed
-                  -- ^ Animation speed
-                  -> Char
-                  -- ^ Character used when drawing the animation.
-                 -> AnimationStep m
-simpleExplosion resolution ref keyTime animSpeed char =
-  let f = simpleExplosion' resolution ref
-  in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
-
--- | A circular explosion configurable in number of points
-{-# INLINABLE simpleExplosion' #-}
-simpleExplosion' :: (Draw e, MonadReader e m, MonadIO m)
-                 => Int
-                 -- ^ Number of points in the explosion
-                 -> Coords
-                 -- ^ Center of the explosion
-                 -> Maybe KeyTime
-                 -> AnimationStep m
-                 -> (Coords -> InteractionResult)
-                 -> Coords
-                 -> m (Maybe (AnimationStep m))
-simpleExplosion' resolution ref =
-  simpleExplosion'' resolution (mkAnimatedPoints ref (Interact Stop))
-
-
--- | A circular explosion configurable in number of points
-{-# INLINABLE simpleExplosion'' #-}
-simpleExplosion'' :: (Draw e, MonadReader e m, MonadIO m)
-                  => Int
-                  -- ^ Number of points in the explosion
-                  -> AnimatedPoints
-                  -> Maybe KeyTime
-                  -> AnimationStep m
-                  -> (Coords -> InteractionResult)
-                  -> Coords
-                  -> m (Maybe (AnimationStep m))
-simpleExplosion'' resolution =
-  renderAndUpdateIfNeeded fPure f colorFromFrame
- where
-  fPure = applyAnimation (simpleExplosionPure resolution)
-  f = simpleExplosion'' resolution
+simpleExplosion :: Int
+                -- ^ Number of points in the explosion
+                -> Coords
+                -- ^ Center of the explosion
+                -> KeyTime
+                -- ^ 'KeyTime' of the game event that started this animation
+                -> Speed
+                -- ^ Animation speed
+                -> Char
+                -- ^ Character used when drawing the animation.
+                -> Animation
+simpleExplosion resolution pos keyTime animSpeed char =
+  let update = updateAnimatedPointsUpToDepth1 $ simpleExplosionGeo resolution
+  in mkAnimation update (Interact Stop) keyTime SkipZero animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
--- 4 different parts, and the parts explode when they hit a wall.
-{-# INLINABLE fragmentsFreeFall #-}
-fragmentsFreeFall :: (Draw e, MonadReader e m, MonadIO m)
-                  => Vec2
+-- 4 different parts.
+fragmentsFreeFall :: Vec2
                   -- ^ Initial speed
                   -> Coords
                   -- ^ Initial position
@@ -266,27 +116,12 @@ fragmentsFreeFall :: (Draw e, MonadReader e m, MonadIO m)
                   -- ^ Animation speed
                   -> Char
                   -- ^ Character used when drawing the animation.
-                  -> [AnimationStep m]
+                  -> [Animation]
 fragmentsFreeFall speed pos keyTime animSpeed char =
-  let freeFalls = fragmentsFreeFall' speed pos
-  in map (\f -> mkAnimationUpdate f keyTime WithZero animSpeed (Just char)) freeFalls
-
--- | Animation representing an object with an initial velocity disintegrating in
--- 4 different parts, and the parts explode when they hit a wall.
-{-# INLINABLE fragmentsFreeFall' #-}
-fragmentsFreeFall' :: (Draw e, MonadReader e m, MonadIO m)
-                   => Vec2
-                   -- ^ Initial speed
-                   -> Coords
-                   -- ^ Initial position
-                   -> [Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m))]
-fragmentsFreeFall' speed pos =
-  map (`freeFall'` pos) $ variations speed
-
+  map (\sp -> freeFall sp pos keyTime animSpeed char) $ variations speed
 
 -- | A gravity-based free-falling animation.
-freeFall :: (Draw e, MonadReader e m, MonadIO m)
-         => Vec2
+freeFall :: Vec2
          -- ^ Initial speed
          -> Coords
          -- ^ Initial position
@@ -296,55 +131,24 @@ freeFall :: (Draw e, MonadReader e m, MonadIO m)
          -- ^ Animation speed
          -> Char
          -- ^ Character used when drawing the animation.
-         -> AnimationStep m
+         -> Animation
 freeFall speed pos keyTime animSpeed char =
-  let f = freeFall' speed pos
-  in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
-
--- | A gravity-based free-falling animation.
-{-# INLINABLE freeFall' #-}
-freeFall' :: (Draw e, MonadReader e m, MonadIO m)
-                  => Vec2
-                  -- ^ Initial speed
-                  -> Coords
-                 -- ^ Initial position
-                  -> (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
-freeFall' speed pos =
-  let points = mkAnimatedPoints pos (Interact Stop)
-  in freeFall'' speed points
-
--- | A gravity-based free-falling animation.
-{-# INLINABLE freeFall'' #-}
-freeFall'' :: (Draw e, MonadReader e m, MonadIO m)
-                 => Vec2
-                 -- ^ Initial speed
-                 -> AnimatedPoints
-                 -> Maybe KeyTime
-                 -> AnimationStep m
-                 -> (Coords -> InteractionResult)
-                 -> Coords
-                 -> m (Maybe (AnimationStep m))
-freeFall'' initialSpeed =
-  renderAndUpdateIfNeeded fPure f colorFromFrame
- where
-  fPure = applyAnimation (gravityFall initialSpeed)
-  f = freeFall'' initialSpeed
+  let update = updateAnimatedPointsUpToDepth1 $ gravityFallGeo speed
+  in mkAnimation update (Interact Stop) keyTime SkipZero animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
-{-# INLINABLE fragmentsFreeFallThenExplode #-}
-fragmentsFreeFallThenExplode :: (Draw e, MonadReader e m, MonadIO m)
-          => Vec2
-          -- ^ Initial speed
-          -> Coords
-          -- ^ Initial position
-          -> KeyTime
-          -- ^ 'KeyTime' of the game event that started this animation
-          -> Speed
-          -- ^ Animation speed
-          -> Char
-          -- ^ Character used when drawing the animation.
-          -> [AnimationStep m]
+fragmentsFreeFallThenExplode :: Vec2
+                             -- ^ Initial speed
+                             -> Coords
+                             -- ^ Initial position
+                             -> KeyTime
+                             -- ^ 'KeyTime' of the game event that started this animation
+                             -> Speed
+                             -- ^ Animation speed
+                             -> Char
+                             -- ^ Character used when drawing the animation.
+                             -> [Animation]
 fragmentsFreeFallThenExplode speed pos k s c =
   map (\sp -> freeFallThenExplode sp pos k s c) $ variations speed
 
@@ -357,9 +161,7 @@ variations sp =
                     , Vec2 1.2     0.2]
 
 -- | An animation chaining a gravity-based free-fall and a circular explosion of 4*8 points.
-{-# INLINABLE freeFallThenExplode #-}
-freeFallThenExplode :: (Draw e, MonadReader e m, MonadIO m)
-                    => Vec2
+freeFallThenExplode :: Vec2
                     -- ^ Initial speed
                     -> Coords
                     -- ^ Initial position
@@ -369,36 +171,7 @@ freeFallThenExplode :: (Draw e, MonadReader e m, MonadIO m)
                     -- ^ Animation speed
                     -> Char
                     -- ^ Character used when drawing the animation.
-                    -> AnimationStep m
+                    -> Animation
 freeFallThenExplode speed pos keyTime animSpeed char =
-  let f = freeFallThenExplode' speed pos
-  in mkAnimationUpdate f keyTime SkipZero animSpeed (Just char)
-
--- | An animation chaining a gravity-based free-fall and a circular explosion of 4*8 points.
-{-# INLINABLE freeFallThenExplode' #-}
-freeFallThenExplode' :: (Draw e, MonadReader e m, MonadIO m)
-                     => Vec2
-                     -- ^ Initial speed
-                     -> Coords
-                     -- ^ Initial position
-                     -> (Maybe KeyTime -> AnimationStep m -> (Coords -> InteractionResult) -> Coords -> m (Maybe (AnimationStep m)))
-freeFallThenExplode' speed pos =
-  let points = mkAnimatedPoints pos (Interact $ Interact Stop)
-  in freeFallThenExplode'' speed points
-
--- | An animation chaining a gravity-based free-fall and a circular explosion of 4*8 points.
-{-# INLINABLE freeFallThenExplode'' #-}
-freeFallThenExplode'' :: (Draw e, MonadReader e m, MonadIO m)
-                      => Vec2
-                      -- ^ Initial speed
-                      -> AnimatedPoints
-                      -> Maybe KeyTime
-                      -> AnimationStep m
-                      -> (Coords -> InteractionResult)
-                      -> Coords
-                      -> m (Maybe (AnimationStep m))
-freeFallThenExplode'' initialSpeed =
-  renderAndUpdateIfNeeded fPure f colorFromFrame
- where
-  fPure = composePureAnimations (gravityFall initialSpeed) (simpleExplosionPure 8)
-  f = freeFallThenExplode'' initialSpeed
+  let update = updateAnimatedPointsUpToDepth2 (gravityFallGeo speed) (simpleExplosionGeo 8)
+  in mkAnimation update (Interact $ Interact Stop) keyTime SkipZero animSpeed pos (Just char)

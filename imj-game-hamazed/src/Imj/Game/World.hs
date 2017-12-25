@@ -23,7 +23,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
 
-import           Imj.Animation.Design.Util( earliestDeadline )
+import           Imj.Animation.Design.Types
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
@@ -46,12 +46,12 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = translateInDir dir speed
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-nextWorld :: World m -> [Number] -> Int -> [BoundedAnimationStep m] -> World m
+nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
 nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
   World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
 
 -- move the world elements (numbers, ship), but do NOT advance the animations
-moveWorld :: SystemTime -> World m -> World m
+moveWorld :: SystemTime -> World -> World
 moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
@@ -88,12 +88,12 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
 
-earliestAnimationDeadline :: World m -> Maybe KeyTime
+earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
-  earliestDeadline $ map (\(BoundedAnimationStep a _) -> a) animations
+  earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 -- TODO use Number Live Number Dead
-withLaserAction :: Event ->  World m -> ([Number], [Number], Maybe (LaserRay Actual), Int)
+withLaserAction :: Event ->  World -> ([Number], [Number], Maybe (LaserRay Actual), Int)
 withLaserAction
   event
   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
@@ -134,7 +134,7 @@ mkWorld :: (MonadIO m)
         -> WallType
         -> [Int]
         -> Int
-        -> m (World m)
+        -> m World
 mkWorld e s walltype nums ammo = do
   space <- case walltype of
     None          -> return $ mkEmptySpace s
@@ -156,7 +156,7 @@ createRandomNumber space i = do
 
 {-# INLINABLE renderWorld #-}
 renderWorld :: (Draw e, MonadReader e m, MonadIO m)
-            => World m
+            => World
             -> m ()
 renderWorld
   (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)

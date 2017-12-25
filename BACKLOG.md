@@ -2,7 +2,10 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - refactor Animations to make it easier to understand.
+  - explain notion of parent / child in animation.
+    - An Animation supervises bot parent and child animation, that's confusing!
+    so we should introduce a new concept.
+    Maybe replace 'Animation' with 'Animator' or 'AnimationSupervisor'
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*

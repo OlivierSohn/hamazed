@@ -4,7 +4,7 @@ module Imj.Game.World.Types
         ( BattleShip(..)
         , World(..)
         , Number(..)
-        , BoundedAnimationStep(..)
+        , BoundedAnimation(..)
         , Boundaries(..)
         , RectFrame(..)
         , TextAnimSpec(..)
@@ -56,16 +56,16 @@ data TextAnimSpec = TextAnimSpec {
   , _txtAnimSpecFrameSpec :: !RectFrame
 }
 
-mkFrameSpec :: LayeredColor -> World m -> RectFrame
+mkFrameSpec :: LayeredColor -> World -> RectFrame
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
   RectFrame sz upperLeft colors
 
-data World m = World {
+data World = World {
     _worldNumbers :: ![Number]
   , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
-  , _worldAnimations :: ![BoundedAnimationStep m]
+  , _worldAnimations :: ![BoundedAnimation]
   , _worldEmbedded :: !EmbeddedWorld
 }
 
@@ -74,7 +74,7 @@ data EmbeddedWorld = EmbeddedWorld {
   , _embeddedWorldUpperLeft :: !Coords
 } deriving (Show)
 
-data BoundedAnimationStep m = BoundedAnimationStep !(AnimationStep m) !Boundaries deriving(Show)
+data BoundedAnimation = BoundedAnimation !Animation !Boundaries deriving(Show)
 
 data Boundaries = WorldFrame
                 | TerminalWindow

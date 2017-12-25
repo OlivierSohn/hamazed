@@ -1,18 +1,18 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | Helper functions for pure animation functions
+-- | This module exports geometric animation functions.
 
 module Imj.Animation.Geo
     (
     -- * Gravity
-      gravityFall
+      gravityFallGeo
     -- * Explosion
-    , simpleExplosionPure
-    , quantitativeExplosionPure
+    , simpleExplosionGeo
+    , quantitativeExplosionGeo
     -- * Geometric figures
-    , animatePolygonPure
+    , animatePolygonGeo
     -- * Laser
-    , laserAnimationPure
+    , laserAnimationGeo
     ) where
 
 import           Imj.Prelude
@@ -27,12 +27,12 @@ import           Imj.Iteration
 
 
 -- | Note that the Coords parameter is unused.
-laserAnimationPure :: LaserRay Actual
-                   -> Coords
-                   -- ^ Unused, because the 'LaserRay' encodes the origin already
-                   -> Frame
-                   -> ([Coords], Maybe Char)
-laserAnimationPure (LaserRay dir (Ray seg)) _ (Frame i) =
+laserAnimationGeo :: LaserRay Actual
+                  -> Coords
+                  -- ^ Unused, because the 'LaserRay' encodes the origin already
+                  -> Frame
+                  -> ([Coords], Maybe Char)
+laserAnimationGeo (LaserRay dir (Ray seg)) _ (Frame i) =
   let (originalChar, replacementChar) =
         if dir == LEFT || dir == RIGHT
           then
@@ -48,36 +48,36 @@ laserAnimationPure (LaserRay dir (Ray seg)) _ (Frame i) =
   in (points, Just char)
 
 -- | Gravity free-fall
-gravityFall :: Vec2
-            -- ^ Initial speed
-            -> Coords
-            -- ^ Initial position
-            -> Frame
-            -> ([Coords], Maybe Char)
-gravityFall initialSpeed origin (Frame iteration) =
+gravityFallGeo :: Vec2
+               -- ^ Initial speed
+               -> Coords
+               -- ^ Initial position
+               -> Frame
+               -> ([Coords], Maybe Char)
+gravityFallGeo initialSpeed origin (Frame iteration) =
   let o = pos2vec origin
   in  ([vec2coords $ parabola o initialSpeed iteration], Nothing)
 
 -- | Circular explosion by copying quarter arcs.
-simpleExplosionPure :: Int
-                    -- ^ Number of points per quarter arc.
-                    -> Coords
-                    -- ^ Center
-                    -> Frame
-                    -> ([Coords], Maybe Char)
-simpleExplosionPure resolution center (Frame iteration) =
+simpleExplosionGeo :: Int
+                   -- ^ Number of points per quarter arc.
+                   -> Coords
+                   -- ^ Center
+                   -> Frame
+                   -> ([Coords], Maybe Char)
+simpleExplosionGeo resolution center (Frame iteration) =
   let radius = fromIntegral iteration :: Float
       c = pos2vec center
   in (map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution, Nothing)
 
 -- | Circular explosion
-quantitativeExplosionPure :: Int
-                          -- ^ The number of points of the circle
-                          -> Coords
-                          -- ^ Center
-                          -> Frame
-                          -> ([Coords], Maybe Char)
-quantitativeExplosionPure number center (Frame iteration) =
+quantitativeExplosionGeo :: Int
+                         -- ^ The number of points of the circle
+                         -> Coords
+                         -- ^ Center
+                         -> Frame
+                         -> ([Coords], Maybe Char)
+quantitativeExplosionGeo number center (Frame iteration) =
   let numRand = 10 :: Int
       rnd = 2 :: Int -- TODO store the random number in the state of the animation
   -- rnd <- getStdRandom $ randomR (0,numRand-1)
@@ -87,21 +87,21 @@ quantitativeExplosionPure number center (Frame iteration) =
   in (map vec2coords $ translatedFullCircle c radius firstAngle number, Nothing)
 
 -- | Expanding then shrinking geometric figure.
-animatePolygonPure :: Int
-                   -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                   -> Coords
-                   -- ^ Center
-                   -> Frame
-                   -- ^ Used to compute the radius.
-                   -> ([Coords], Maybe Char)
-animatePolygonPure n center (Frame i) =
+animatePolygonGeo :: Int
+                  -- ^ number of extremities of the polygon (if 1, draw a circle instead)
+                  -> Coords
+                  -- ^ Center
+                  -> Frame
+                  -- ^ Used to compute the radius.
+                  -> ([Coords], Maybe Char)
+animatePolygonGeo n center (Frame i) =
   let r = animateRadius (quot i 2) n
       points = if r < 0
        then
          []
        else
          case n of
-            1 -> fst $ simpleExplosionPure 8 center $ Frame r
+            1 -> fst $ simpleExplosionGeo 8 center $ Frame r
             _ -> polygon n r center
   in (points, Just $ intToDigit n)
 

@@ -14,13 +14,11 @@ import           Data.Char( intToDigit )
 import           Data.List( partition )
 import           Data.Maybe( isNothing )
 
-import           Imj.Draw
 import           Imj.Game.World.Types
 import           Imj.Game.World.Laser
 import           Imj.Game.Event
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Timing
 
 getColliding :: Coords -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
@@ -38,26 +36,22 @@ survivingNumbers l policy (LaserRay dir theoreticalRay@(Ray seg)) = case policy 
    justFull = Just $ LaserRay dir $ Ray seg
 
 
-{-# INLINABLE destroyedNumbersAnimations #-}
-destroyedNumbersAnimations :: (Draw e, MonadReader e m, MonadIO m)
-                           => KeyTime
+destroyedNumbersAnimations :: KeyTime
                            -> Event
                            -> [Number]
-                           -> [BoundedAnimationStep m]
+                           -> [BoundedAnimation]
 destroyedNumbersAnimations keyTime event =
   let laserSpeed = case event of
         (Action Laser dir) -> speed2vec $ coordsForDirection dir
         _                  -> Vec2 0 0
   in concatMap (destroyedNumberAnimations keyTime laserSpeed)
 
-{-# INLINABLE destroyedNumberAnimations #-}
-destroyedNumberAnimations :: (Draw e, MonadReader e m, MonadIO m)
-                          => KeyTime
+destroyedNumberAnimations :: KeyTime
                           -> Vec2
                           -> Number
-                          -> [BoundedAnimationStep m]
+                          -> [BoundedAnimation]
 destroyedNumberAnimations keyTime laserSpeed (Number (PosSpeed pos _) n) =
   let char = intToDigit n
-  in map (`BoundedAnimationStep` WorldFrame)
+  in map (`BoundedAnimation` WorldFrame)
         $ animatedPolygon n pos keyTime (Speed 1) char
         : fragmentsFreeFallThenExplode (scalarProd 2 laserSpeed) pos keyTime (Speed 2) char

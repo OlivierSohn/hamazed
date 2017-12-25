@@ -3,8 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Timing
-    ( -- * Timing
-      addAnimationStepDuration
+    ( addAnimationStepDuration
     , animationPeriod
     , animationUpdateMargin
     ) where

@@ -1,9 +1,8 @@
 name:                imj-animation
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Animations
-Description:         Library of explosive and gravity-based animations which can be
-                     chained on collision (aka mutative interaction) with the environment.
+Synopsis:            Animation Framework
+Description:         Framework to create event-based, physics-based, composed, generative animations.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -20,12 +19,21 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Animation
+  exposed-modules:
+                      -- initially in a separate module for implementations
+                       Imj.Animation
                      , Imj.Animation.Chars
                      , Imj.Animation.Geo
+                      -- initially in a separate module for core
+                     , Imj.Animation.Design
+                     , Imj.Animation.Design.Apply
+                     , Imj.Animation.Design.Color
+                     , Imj.Animation.Design.Compose
+                     , Imj.Animation.Design.Internal.Types
+                     , Imj.Animation.Design.Timing
+                     , Imj.Animation.Design.Types
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
-                     , imj-animation-base ==0.1.*
                      , imj-base ==0.1.*
                      , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*

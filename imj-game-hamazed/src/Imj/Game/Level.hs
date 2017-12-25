@@ -50,7 +50,7 @@ eventFromKey' (Level n _ finished) key =
     _ -> Nonsense -- between level end and proposal to continue
 
 
-isLevelFinished :: World m -> Int -> Int -> TimedEvent -> Maybe LevelFinished
+isLevelFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
 isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimedEvent lastEvent t) =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where

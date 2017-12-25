@@ -50,7 +50,7 @@ library
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , vector >= 0.12.0.1 && < 0.12.1
-                     , imj-animation-base ==0.1.*
+                     , imj-animation ==0.1.*
                      , imj-animation ==0.1.*
                      , imj-base ==0.1.*
                      , imj-engine ==0.1.*

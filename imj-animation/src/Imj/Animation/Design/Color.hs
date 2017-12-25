@@ -3,11 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Color
-        ( -- * Frame color
-        {- | 'colorFromFrame' defines the color used to draw an animation,
-        based on the frame number (relative to the parent animation, if any).
-        -}
-          colorFromFrame
+        ( colorFromFrame
         ) where
 
 import           Imj.Prelude
@@ -15,7 +11,8 @@ import           Imj.Prelude
 import           Imj.Color
 import           Imj.Iteration
 
--- | Returns the color associated to an animation frame.
+-- | Returns the color used to draw an animation, based on the frame number
+-- (relative to the parent animation, if any).
 colorFromFrame :: Frame -> LayeredColor
 colorFromFrame (Frame f) = onBlack $ rgb r g b
   where

@@ -25,10 +25,9 @@ import           Imj.Geo.Continuous
 --
 --   The ship animation will have the initial speed of the number and vice-versa,
 --     to mimic the rebound due to the collision.
-shipAnims :: (Draw e, MonadReader e m, MonadIO m)
-          => BattleShip
+shipAnims :: BattleShip
           -> Event
-          -> [BoundedAnimationStep m]
+          -> [BoundedAnimation]
 shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
   \case
     Timeout GameDeadline k ->
@@ -37,7 +36,7 @@ shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
           -- when number and ship explode, they exchange speeds
           let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
               (Number _ n) = head collisions
-          in  map (`BoundedAnimationStep` WorldFrame) $
+          in  map (`BoundedAnimation` WorldFrame) $
                   fragmentsFreeFallThenExplode (speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
                   ++
                   fragmentsFreeFallThenExplode (speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)

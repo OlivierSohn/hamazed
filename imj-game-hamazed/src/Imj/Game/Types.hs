@@ -17,10 +17,10 @@ import           Imj.Game.Level.Types
 import           Imj.Game.Timing
 
 
-data GameState m = GameState {
+data GameState = GameState {
     _gameStateNextMotionStep :: !(Maybe KeyTime)
-  , _gameStateWorld :: !(World m)
-  , _gameStateNextWorld :: !(World m)
+  , _gameStateWorld :: !World
+  , _gameStateNextWorld :: !World
   , _gameStateShotNumbers :: ![Int]
   , _gameStateLevel :: !Level
   , _gameStateWorldAnimation :: !WorldAnimation

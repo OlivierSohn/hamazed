@@ -1,9 +1,8 @@
 # What is it?
 
-An animation library implementing concrete animations:
-  - Gravity-based
-  - Explosive
-  - Lasers
+An framework to create event-based, physics-based, composed, generative animations.
+
+Also contains ready-to-use animations.
 
 # Build
 

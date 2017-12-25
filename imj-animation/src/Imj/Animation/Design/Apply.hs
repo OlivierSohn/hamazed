@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Design.Apply
-    ( applyAnimation
+    ( updateAnimatedPointsUpToDepth1
     ) where
 
 
@@ -12,24 +12,22 @@ import           Imj.Prelude
 import           Data.List( length )
 import           Data.Maybe( fromMaybe )
 
-import           Imj.Animation.Design.Types
+import           Imj.Animation.Design.Internal.Types
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
 import           Imj.Iteration
 
 
--- | Updates 'AnimatedPoints' using an animation function.
---
--- In particular, decides if a given animation point should continue to be "alive"
--- or if, due to a collision, it should now trigger an "evolution" at that point.
-applyAnimation :: (Coords -> Frame -> ([Coords], Maybe Char))
-               -- ^ Pure animation function
-               -> Iteration
-               -> (Coords -> InteractionResult)
-               -- ^ Interaction function
-               -> AnimatedPoints
-               -> AnimatedPoints
-applyAnimation animation iteration@(Iteration _ globalFrame) interaction (AnimatedPoints root startFrame branches onWall _) =
+-- | Updates the /depth 1/ animated points of an 'AnimatedPoints', using a single
+-- geometric animation function.
+updateAnimatedPointsUpToDepth1 :: (Coords -> Frame -> ([Coords], Maybe Char))
+                               -- ^ Geometric animation for the level
+                               -> Iteration
+                               -> (Coords -> InteractionResult)
+                               -- ^ Interaction function
+                               -> AnimatedPoints
+                               -> AnimatedPoints
+updateAnimatedPointsUpToDepth1 animation iteration@(Iteration _ globalFrame) interaction (AnimatedPoints root startFrame branches onWall _) =
   let frame = globalFrame - startFrame
       (points, char) = animation root frame
       previousState = fromMaybe (replicate (length points) $ Right $ assert (interaction root == Stable) root) branches

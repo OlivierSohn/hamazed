@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Key.Blocking
-    ( -- * Blocking Input
+    ( -- * Blocking read
       getKeyThenFlush
     ) where
 

@@ -1,15 +1,19 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{- |
-
-The 'MonadReader' functions provide a way to abstract a global renderer, in a style adhering to
+module Imj.Draw
+        (
+        -- * From MonadIO
+          module Imj.Draw.Class
+        -- * From MonadReader
+{- | The 'MonadReader' functions provide a way to abstract a global renderer, in a style adhering to
 <https://www.fpcomplete.com/blog/2017/06/readert-design-pattern these recommendations>
 regarding global state in a program.
 
 As a user of these modules, you will run your program in a 'MonadReader' 'YourEnv' monad,
 where 'YourEnv' is your environment equiped with a 'Draw' instance.
 
-Then, you can simply write:
+The functions below contain the boiler-plate code to access the 'Draw' methods
+from the 'MonadReader' so you can simply write:
 
 @
 import Control.Monad.IO.Class(MonadIO)
@@ -31,18 +35,8 @@ main = do
   runReaderT helloWorld env
 @
 
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/imj-game-hamazed/src/Imj.Env.hs This example>
-follows this pattern.
-
--}
-
-module Imj.Draw
-        (
-        -- * From MonadIO
-          module Imj.Draw.Class
-        -- * From MonadReader
-        -- | These functions contain the boilerplate code to call the
-        -- 'Draw' functions from a 'MonadReader' monad.
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Env.hs This example>
+follows this pattern.    -}
         , module Imj.Draw.FromMonadReader
         -- * Reexports
         , LayeredColor(..)

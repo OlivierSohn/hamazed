@@ -1,4 +1,4 @@
-{-# OPTIONS_HADDOCK hide #-}
+-- | Color-related functions and types.
 
 module Imj.Color.Types
           (

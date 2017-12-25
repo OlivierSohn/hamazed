@@ -3,22 +3,21 @@
 {- |
 
 Functions to create
-<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit ANSI colors>.
+<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit ANSI colors> (single or layered).
 
 -}
 
 module Imj.Color (
+    Color8(..)
+  , LayeredColor(..)
   -- * Single colors
   {- | 'rgb' creates a color in RGB color space, with 6x6x6 different possible colors.
 
-  'gray' creates a grayscale color in RGB space with 24 shades.
+  'gray' creates a grayscale color in RGB space with 24 possible shades from
+  /very-close-to-black/ to /very-close-to-white/.
   -}
-    rgb
+  , rgb
   , gray
-  -- * Interpolation
-  {- | We can interpolate between two single colors in RGB space, provided that
-  they were both created either using 'rgb' or both created using 'gray'.-}
-  , module Imj.Color.Interpolate
   -- * Layered colors
   , onBlack
   , whiteOnBlack
@@ -31,9 +30,14 @@ module Imj.Color (
   , cyan
   , yellow
   , blue
+  -- * Interpolation
+  {- | We can interpolate between two single colors in RGB space, provided that
+  they were both created either using 'rgb' or both created using 'gray'.-}
+  , module Imj.Color.Interpolate
   -- * Utilities
   , xtermMapGray8bitComponent
   , xtermMapRGB8bitComponent
+  -- * Reexports
   , module Imj.Color.Types
 ) where
 

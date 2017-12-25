@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Key.NonBlocking
-    ( -- * Non-blocking Input
+    ( -- * Non-blocking read
       tryGetKeyThenFlush
     ) where
 

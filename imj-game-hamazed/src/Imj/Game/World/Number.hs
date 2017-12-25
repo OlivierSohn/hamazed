@@ -19,6 +19,7 @@ import           Imj.Game.World.Laser
 import           Imj.Game.Event
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Timing
 
 getColliding :: Coords -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')

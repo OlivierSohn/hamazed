@@ -7,13 +7,22 @@ module Imj.Animation.Design.Types
       -- * Animation
       -- | An 'Animation' contains 'AnimatedPoints', and the function to update them:
       Animation(..)
-      -- * Create an Animation
+      -- ** Create an Animation
       -- |'mkAnimation' is used to create an 'Animation':
     , mkAnimation
     , AnimationZero(..)
-      -- * Update an Animation
+      -- ** Update an Animation
+      {- | An 'Animation' update is triggered if the 'KeyTime' passed to 'updateAnimationIfNeeded'
+       is /close enough/ (cf. 'animationUpdateMargin') to the current deadline. Else,
+       the unmodified 'Animation' is returned. -}
     , updateAnimationIfNeeded
-      -- * Render an Animation
+      -- ** Render an Animation
+      {- | 'renderAnim' renders the 'AnimatedPoints' of the 'Animation'.
+
+      If the 'Char'
+      to render the animated points is not specified in 'AnimatedPoints', one /must/
+      be specified in the 'Animation', else an error happens.
+       -}
     , renderAnim
       -- * Animated points
       {- | /Note:/ 'AnimatedPoints' is an /internal/ type, however, it is important

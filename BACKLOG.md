@@ -2,20 +2,20 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
+  - find a name / notion for geometric animation function.
   - explain notion of parent / child in animation.
     - An Animation supervises bot parent and child animation, that's confusing!
     so we should introduce a new concept.
     Maybe replace 'Animation' with 'Animator' or 'AnimationSupervisor'
+
+  - remove FrameAnimationParallel4
+  
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*
   - Aggregate doc when appropriate.
 
   - unit-test resampleWithExtremities
-
-  - merge these modules so that the interpolable instances are visible in the doc:
-    base ++ interpolate base ++ draw ++ render.term ++ render.naive
-    - use internal libraries to keep the structure.
 
   - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
   I don't think there is a need yet to convert a speed to discrete?
@@ -27,21 +27,18 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
       - The doc doesn't see the instance when the type is not in the same module as the
       class... maybe it would make sense to collapse some of the modules (but ):
 
-
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points
     - delta renderer
   compilation times are slower by 4% with -O2.
 
-  - Categories are determined by whatever you put in the Category field.
-  You should try to pick existing categories when possible. You can have more than one category, separated by commas.
+  - Categories :You can have more than one category, separated by commas.
 
-    - Animation, Game, Graphics
-    - Education (sum numbers)
+    - Animation, Game, Graphics, Education (because it teaches how to sum numbers)
 
   - try stack sdist / stack upload on prelude
 
-  - about the hyperliked-source option
+  - about the hyperlinked-source option
   https://www.reddit.com/r/haskell/comments/6o4rnb/psa_regarding_cabal_haddock/
 
   - a script to build doc

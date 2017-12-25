@@ -73,7 +73,7 @@ be rendered to the terminal.
 
 == Further optimizations
 
-=== Minimizing the total size of rendering connamds
+=== Minimizing the total size of rendering commands
 
 The initial implementation was fixing the screen tearing for my game, yet I wanted
 to optimize things to be able to support even richer frame changes in the future.
@@ -81,15 +81,15 @@ I added the following optimizations:
 
 * We group locations by color before rendering them, to issue one @color change@
 per group instead of one per element (an 8-bit @color change@ command is 20 bytes:
-"\ESC[48;5;167;38;5;255m").
+@"\ESC[48;5;167;38;5;255m"@).
 
 * We render the "color group" elements by increasing screen positions, and when two
 consecutive elements are found, we omit the @position change@ command,
 because 'putChar' already moved the cursor position to the right (a 2-D
-@position change@ command is 9 bytes: "\ESC[150;42H").
+@position change@ command is 9 bytes: @"\ESC[150;42H"@).
 
 We can still improve on this by using a one-dimensional
-@relative position change@ commands (3 to 6 bytes : "\ESC[C", "\ESC[183C")
+@relative position change@ commands (3 to 6 bytes : @"\ESC[C"@, @"\ESC[183C"@)
 when the next location is either on the same column or on the same line.
 
 === Minimizing the run-time overhead and memory footprint
@@ -101,10 +101,11 @@ and to encode every important information in the smallest form possible, to impr
 <https://www.reddit.com/r/haskellquestions/comments/7i6hi5/optimizing_memory_usage_array_of_unboxed_values/ These answers on reddit>
 helped in the process.
 
-I ended up using Vectors of unpacked 'Word64' (<https://wiki.haskell.org/GHC/Memory_Footprint the most efficient Haskell type in terms of "information quantity / memory usage" ratio>)
-where 4 kinds of informations were encoded in a single Word64:
+I use Vectors of unpacked 'Word64' (<https://wiki.haskell.org/GHC/Memory_Footprint the most efficient Haskell type in terms of "information quantity / memory usage" ratio>)
+and an efficient encoding to stores 4 different informations in a Word64:
 
-    * [from higher bits to lower bits]
+/[from higher bits to lower bits]/
+
     * background color  (8 bits)
     * foreground color  (8 bits)
     * buffer position   (16 bits)
@@ -121,19 +122,10 @@ Here I'll report on the amount of bytes sent to stdout with concrete examples.
 -}
 
 module Imj.Render.Delta
-          ( -- * API
-            -- ** Environment
-            -- | /Back/ and /front/ buffers are persisted in a 'DeltaEnv' environment,
-            -- created and configured using functions of this module:
-            module Imj.Render.Delta.Env
-            -- ** Draw and render
-          , module Imj.Draw
-            -- ** Cleanup
-          , module Imj.Render.Delta.Console
+          (
           -- * Usage
 {- |
-
-* in 'MonadIO':
+* from a 'MonadIO' monad:
 
     @
     import Imj.Draw.Class(drawStr', renderDrawing')
@@ -148,9 +140,7 @@ module Imj.Render.Delta
       runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
     @
 
-* in 'MonadIO' 'MonadReader',
-
-    * with 'DeltaEnv' as environment:
+* from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad,
 
     @
     import Imj.Draw.Helpers.MonadReader(drawStr, renderDrawing)
@@ -165,10 +155,12 @@ module Imj.Render.Delta
       runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
     @
 
-    * with 'YourEnv' as environment, assuming 'YourEnv' owns a 'DeltaEnv'
+* from a 'MonadIO', 'MonadReader' 'YourEnv' monad,
+
+    * assuming 'YourEnv' owns a 'DeltaEnv'
     and implements a 'Draw' instance which forwards to the 'Draw' instance of
     the 'DeltaEnv' (like in
-    <https://github.com/OlivierSohn/hamazed/blob/master/src/Env.hs this game>):
+    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Env.hs this game>):
 
     @
     import YourApp(createYourEnv)
@@ -184,6 +176,16 @@ module Imj.Render.Delta
       runThenRestoreConsoleSettings $ newDefaultEnv >>= createYourEnv >>= runReaderT helloWorld
     @
 -}
+            -- * API
+            -- ** Environment
+            -- | /Back/ and /front/ buffers are persisted in a 'DeltaEnv' environment,
+            -- created and configured using functions of this module:
+            module Imj.Render.Delta.Env
+            -- ** Draw and render
+          , module Imj.Draw
+            -- ** Cleanup
+          , module Imj.Render.Delta.Console
+
           ) where
 
 import           Imj.Draw

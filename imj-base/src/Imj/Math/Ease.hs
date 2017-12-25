@@ -1,16 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Math.Ease
-    (
-      -- * Inverse easing
+      (
+      -- * 4th order inverse easing, continuous
       {- | I use the term /Inverse/ in the title because easing is traditionally a function
             from time to value, and here it is a function from value to time.
       -}
-      -- ** 4th order discrete
-        discreteInvQuartEaseInOut
-      -- ** 4th order continuous
-      , invQuartEaseInOut
-      -- * From continuous to discrete inverse easing
+        invQuartEaseInOut
+      -- * From continuous to discrete
       {- |
       Easing in a continuous world is /easy/ (no pun intended), but easing in a
       discrete world is harder : we have to make sure the discretization will
@@ -20,8 +17,11 @@ module Imj.Math.Ease
       function usable in a discrete context.
       -}
       , discreteAdaptor
-
-    ) where
+      -- * 4th order inverse easing, discrete
+      -- | Using 'discreteAdaptor' on 'invQuartEaseInOut' we can make
+      -- 'discreteInvQuartEaseInOut' :
+      , discreteInvQuartEaseInOut
+      ) where
 
 import           Imj.Prelude
 

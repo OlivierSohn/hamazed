@@ -26,6 +26,6 @@ instance Draw Env where
   {-# INLINE drawStr' #-}
   {-# INLINE renderDrawing' #-}
 
--- | Contructor of 'Env'
+-- | Constructor of 'Env'
 createEnv :: IO Env
 createEnv = Env <$> newDefaultEnv

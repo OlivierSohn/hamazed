@@ -1,12 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module exports some /ready-to-use/ animations.
+-- | This module exports some /ready-to-use/ 'Animation's.
 
 module Imj.Animation
     (
     -- * Explosive
-    -- | From simple 'simpleExplosion' to composed 'quantitativeExplosionThenSimpleExplosion'
-    -- explosions.
       simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
     -- * Free fall
@@ -31,8 +29,6 @@ module Imj.Animation
     -- * Geometric
     , animatedPolygon
     , laserAnimation
-    -- * More about Animations
-    , module Imj.Animation.Design
     ) where
 
 import           Imj.Prelude

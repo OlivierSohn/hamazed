@@ -1,53 +1,21 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.World.Space
-    ( -- * Space
-    {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
-    live.
-
-    It can be composed of 'Air', where 'BattleShip' and 'Number's are free to move, and of
-    'Wall'.
-    -}
-      Space
+    ( Space
     , Material(..)
-      -- ** Simple creation
     , mkEmptySpace
     , mkDeterministicallyFilledSpace
-      -- ** Randomized creation
-      {-| 'mkRandomlyFilledSpace' places 'Wall's at random and discards resulting
-      'Space's which have more than one 'Air' connected component.
-
-      This way, the 'BattleShip' is guaranteed to be able to reach any part of
-      the 'Space', and 'Number's.
-
-      Generating a big 'Space' with a very small block size can
-      be computationnaly expensive because the probability to have a single 'Air'
-      connected component drops very fast (probably at least exponentially)
-      towards zero with increasing sizes. -}
     , mkRandomlyFilledSpace
     , RandomParameters(..)
     , Strategy(..)
-      -- ** Collision detection
-      {- | 'location' is the standard collision detection function that considers
-      that being outside the world means being in collision.
-
-      'scopedLocation' prevides more options with the use of 'Boundaries' to
-      defines the collision detection scopes.
-       -}
     , location
     , scopedLocation
     , Boundaries(..)
-      -- ** Rendering
     , renderSpace
-      -- * Utilities
     , createRandomNonCollidingPosSpeed
-      -- ** Generate a level size
-      {-| Two 'WorldShape's are currently supported : square and rectangular where the
-      width is twice the height. -}
-    , worldSizeFromLevel
-    , WorldShape(..)
     -- * Reexports
     , module Imj.Draw
     ) where
@@ -75,23 +43,10 @@ import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Draw
 import           Imj.Game.Color
-import           Imj.Game.World.Size
 import           Imj.Game.World.Space.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete
 import           Imj.Util
-
-
-worldSizeFromLevel :: Int
-                   -- ^ 'Level' number
-                   -> WorldShape -> Size
-worldSizeFromLevel level shape =
-  let h = heightFromLevel level
-      -- we need even world dimensions to ease level construction
-      w = fromIntegral $ assert (even h) h * case shape of
-        Square       -> 1
-        Rectangle2x1 -> 2
-  in Size h w
 
 -- | Creates a 'PosSpeed' such that its position is not colliding,
 -- and moves to precollision and mirrors speed if a collision is detected for

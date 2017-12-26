@@ -7,7 +7,6 @@ module Imj.Game.World.Space.Types
     , Material(..)
     , RandomParameters(..)
     , Strategy(..)
-    , WorldShape(..)
     , RenderGroup(..)
     , Boundaries(..)
     , module Imj.Geo.Discrete.Types
@@ -62,12 +61,6 @@ data Material = Air
               | Wall
               -- ^ Ship and numbers rebound on 'Wall's.
               deriving(Eq, Show)
-
-data WorldShape = Square
-                -- ^ Width = Height
-                | Rectangle2x1
-                -- ^ Width = 2 * Height
-
 
 data Boundaries = WorldFrame
                 -- ^ Just the world.

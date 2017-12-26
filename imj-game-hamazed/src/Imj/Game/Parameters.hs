@@ -18,8 +18,6 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Imj.Game.Color
 import           Imj.Game.World
 import           Imj.Game.World.Evolution
-import           Imj.Game.World.Space
-import           Imj.Game.World.Embedded
 
 import           Imj.Geo.Discrete
 

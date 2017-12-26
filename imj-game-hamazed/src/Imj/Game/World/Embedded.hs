@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Embedded
@@ -12,12 +14,15 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 
 import           Imj.Game.World.Size
 import           Imj.Game.World.Types
+import           Imj.Geo.Discrete.Types
 
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
 minimalWorldMargin :: Int
 minimalWorldMargin = 4
 
+-- | Will compute the position of the 'World' so as to display it in the
+-- center of the terminal window.
 {-# INLINABLE mkEmbeddedWorld #-}
 mkEmbeddedWorld :: (MonadIO m)
                 => Size

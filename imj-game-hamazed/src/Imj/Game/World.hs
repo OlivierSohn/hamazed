@@ -1,17 +1,115 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World
-    ( accelerateShip
+    ( -- * Space
+    {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
+    live.
+
+    It can be composed of 'Air', where 'BattleShip' and 'Number's are free to move, and of
+    'Wall'.
+    -}
+      Space
+    , Material(..)
+      -- ** Simple creation
+    , mkEmptySpace
+    , mkDeterministicallyFilledSpace
+      -- ** Randomized creation
+      {-| 'mkRandomlyFilledSpace' places 'Wall's at random and discards resulting
+      'Space's which have more than one 'Air' connected component.
+
+      This way, the 'BattleShip' is guaranteed to be able to reach any part of
+      the 'Space', and 'Number's.
+
+      Generating a big 'Space' with a very small block size can
+      be computationnaly expensive because the probability to have a single 'Air'
+      connected component drops very fast (probably at least exponentially)
+      towards zero with increasing sizes. -}
+    , mkRandomlyFilledSpace
+    , RandomParameters(..)
+    , Strategy(..)
+      -- ** Collision detection
+      {- | 'location' is the standard collision detection function that considers
+      that being outside the world means being in collision.
+
+      'scopedLocation' prevides more options with the use of 'Boundaries' to
+      defines the collision detection scopes.
+       -}
+    , location
+    , scopedLocation
+    , Boundaries(..)
+      -- ** Rendering
+    , renderSpace
+      -- * Space Utilities
+    , createRandomNonCollidingPosSpeed
+    -- * EmbeddedWorld
+    -- | 'EmbeddedWorld' allows to place the game in the center of the terminal.
+    , mkEmbeddedWorld
+    , EmbeddedWorld(..)
+    -- * World
+    {- | 'World' brings together:
+
+    * game elements : 'Space', 'BattleShip' and 'Number's,
+    * rendering elements: 'BoundedAnimation's,
+    * terminal-awareness : 'EmbeddedWorld'
+    -}
+    , World(..)
+    -- ** World size for a given Level
+      {-| The higher the level, the smaller the 'World', and the more 'Number's are
+      flying around!
+
+      'worldSizeFromLevel' gives you the size of the world based on
+      the level number and the 'WorldShape'.
+
+      Two 'WorldShape's are currently supported : square and rectangular where the
+      width is twice the height. -}
+    , WorldShape(..)
+    , worldSizeFromLevel
+    -- ** Create the world
     , mkWorld
-    , moveWorld
-    , nextWorld
-    , withLaserAction
+    , WallDistribution(..)
+    -- ** Update World
+    , updateWorld
+    , eventAction
+    -- ** Render World
     , renderWorld
-    , renderWorldAnimation
-    , earliestAnimationDeadline
-    -- * Reexports
+    -- * BattleShip
+    , BattleShip(..)
+    -- ** Move BattleShip
+    -- | The 'BattleShip' is controlled in (discrete) acceleration by the player
+    -- using the keyboard.
+    , accelerateShip
+    -- * Number
+    -- | 'Number's can be shot by the 'BattleShip'. In that case, their numeric value
+    -- is added to the current sum, and if it matches the level's target number, the player has
+    -- finished the level.
+    --
+    -- Number can collide with the 'BattleShip', hence triggering colorfull
+    -- 'BoundedAnimation' explosions.
+    --
+    -- 'Number's never change speed, except when they rebound on 'Wall's, of course.
     , Number(..)
-    , module Imj.Game.World.Types
+    -- * UI / Animations
+    -- ** BoundedAnimation
+    -- | 'BoundedAnimation' allows to specify in which environment an 'Animation'
+    -- runs : in the world, in the terminal, in both (see 'Boundaries')
+    , BoundedAnimation(..)
+    , earliestAnimationDeadline
+    -- ** World Animated UI
+    {- | UI elements around the 'World' are:
+
+    * a 'RectFrame'
+    * Colored textual informations (aligned the 4 sides of the 'RectFrame')
+
+    'WorldEvolutions' makes these elements animate during level changes
+    to provide a smooth visual transformation.
+    -}
+    , mkFrameSpec
+    , WorldEvolutions(..)
+    , WorldAnimation(..)
+    , renderWorldAnimation
+    , isFinished
+    -- * Reexports
+    , module Imj.Draw
     ) where
 
 import           Imj.Prelude
@@ -24,31 +122,53 @@ import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
 
 import           Imj.Animation.Design.Types
+import           Imj.Draw
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
 import           Imj.Game.Color
 import           Imj.Game.Event
+import           Imj.Game.World.Embedded
 import           Imj.Game.World.Evolution
 import           Imj.Game.World.Laser
 import           Imj.Game.World.Number
 import           Imj.Game.World.Ship
+import           Imj.Game.World.Size
 import           Imj.Game.World.Space
 import           Imj.Game.World.Types
 import           Imj.Physics.Discrete.Collision
 import           Imj.Timing
 
+
+data WorldShape = Square
+                -- ^ Width = Height
+                | Rectangle2x1
+                -- ^ Width = 2 * Height
+
+worldSizeFromLevel :: Int
+                   -- ^ 'Level' number
+                   -> WorldShape -> Size
+worldSizeFromLevel level shape =
+  let h = heightFromLevel level
+      -- we need even world dimensions to ease level construction
+      w = fromIntegral $ assert (even h) h * case shape of
+        Square       -> 1
+        Rectangle2x1 -> 2
+  in Size h w
+
+-- | Note that the position of the 'BattleShip' remains unchanged.
 accelerateShip :: Direction -> BattleShip -> BattleShip
 accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
   let newSpeed = translateInDir dir speed
   in BattleShip (PosSpeed pos newSpeed) ba bb bc
 
-nextWorld :: World -> [Number] -> Int -> [BoundedAnimation] -> World
-nextWorld (World _ changePos (BattleShip posspeed _ safeTime collisions) size _ e) balls ammo b =
-  World balls changePos (BattleShip posspeed ammo safeTime collisions) size b e
-
--- move the world elements (numbers, ship), but do NOT advance the animations
-moveWorld :: SystemTime -> World -> World
-moveWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
+-- | Moves elements of game logic ('Number's, 'BattleShip').
+--
+-- Note that 'BoundedAnimation's are not updated.
+updateWorld :: SystemTime
+            -- ^ The current time
+            -> World
+            -> World
+updateWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
@@ -84,13 +204,19 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
 
+-- | Returns the earliest 'BoundedAnimation' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 -- TODO use Number Live Number Dead
-withLaserAction :: Event ->  World -> ([Number], [Number], Maybe (LaserRay Actual), Int)
-withLaserAction
+-- | Computes the effect of an 'Event' on the 'World'.
+eventAction :: Event
+            -- ^ The event whose action will be evaluated
+            -> World
+            -> ([Number], [Number], Maybe (LaserRay Actual), Int)
+            -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
+eventAction
   event
   (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
         space _ _)
@@ -126,10 +252,15 @@ withLaserAction
 
 mkWorld :: (MonadIO m)
         => EmbeddedWorld
+        -- ^ Tells where to draw the 'World' from
         -> Size
+        -- ^ The dimensions
         -> WallDistribution
+        -- ^ How the 'Wall's should be constructed
         -> [Int]
+        -- ^ The numbers for which we will create 'Number's.
         -> Int
+        -- ^ Ammunition : how many laser shots are available.
         -> m World
 mkWorld e s walltype nums ammo = do
   space <- case walltype of

@@ -22,12 +22,11 @@ import           Imj.Game.Level
 import           Imj.Game.Parameters
 import           Imj.Game.Render
 import           Imj.Game.World
-import           Imj.Game.World.Embedded
 import           Imj.Game.World.Evolution
 import           Imj.Game.World.Laser
 import           Imj.Game.World.Number
 import           Imj.Game.World.Ship
-import           Imj.Game.World.Space
+import           Imj.Game.World.Space.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
@@ -44,10 +43,10 @@ nextGameState :: GameState
               -> TimedEvent
               -> GameState
 nextGameState
-  (GameState b world@(World _ _ ship@(BattleShip _ ammo _ _) space animations _) futureWorld
+  (GameState b world@(World _ c ship@(BattleShip posspeed ammo safeTime collisions) space animations e) futureWorld
              g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
   te@(TimedEvent event t) =
-  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = withLaserAction event world
+  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = eventAction event world
       keyTime = KeyTime t
 
       outerSpaceAnims_ =
@@ -64,7 +63,7 @@ nextGameState
          ++ outerSpaceAnims_
          ++ animations
 
-      newWorld = nextWorld world remainingBalls newAmmo newAnimations
+      newWorld = World remainingBalls c (BattleShip posspeed newAmmo safeTime collisions) space newAnimations e
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newLeft =
@@ -272,7 +271,7 @@ updateGameUsingTimedEvent
     _ -> do
           let newState = case event of
                 (Timeout FrameAnimationDeadline _) -> updateAnim t state
-                (Timeout GameDeadline gt) -> GameState (Just $ addGameStepDuration gt) (moveWorld t world) futWorld f h i
+                (Timeout GameDeadline gt) -> GameState (Just $ addGameStepDuration gt) (updateWorld t world) futWorld f h i
                 (Timeout MessageDeadline _) -> -- TODO this part is ugly, we should not have to deduce so much
                                            -- MessageDeadline is probably the wrong abstraction level
                   case mayLevelFinished of

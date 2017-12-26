@@ -4,6 +4,7 @@ import Control.Monad( void )
 import Control.Monad.Reader(liftIO)
 
 import Imj.Game.World.Space
+import Imj.Geo.Discrete.Types
 
 testSpace :: (MonadReader e m, Draw e, MonadIO m) => m ()
 testSpace = do

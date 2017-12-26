@@ -1,20 +1,21 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Types
-        ( World(..)
+        (
+          World(..)
         , WallDistribution(..)
         , BattleShip(..)
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
-        , TextAnimSpec(..)
         , mkFrameSpec
         , WorldAnimation(..)
         , WorldEvolutions(..)
         , EmbeddedWorld(..)
         , isFinished
         -- * Reexports
-        , module Imj.Game.World.Space.Types
         , module Imj.Iteration
         , module Imj.Text.Animation
         , module Imj.Physics.Discrete.Types
@@ -44,27 +45,32 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
+-- | Manages the progress and deadline of the 'WorldEvolutions' animation.
 data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions
   , _worldAnimationDeadline :: !(Maybe KeyTime)
+  -- ^ Time at which the 'WorldEvolution' should be rendered and updated
   , _worldAnimationProgress :: !Iteration
+  -- ^ Current 'Iteration' of the animation.
 } deriving(Show)
 
+-- | Used when transitionning between two levels to smoothly transform the aspect
+-- of the 'RectFrame' around the world, as well as textual information around it.
 data WorldEvolutions = WorldEvolutions {
     _worldEvolutionFrame :: !(Evolution RectFrame)
+    -- ^ The transformation of the 'RectFrame' around the 'World'.
   , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
+    -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
   , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
+    -- ^ The transformation of colored text left and right of the 'RectFrame'.
 } deriving(Show)
 
+-- | Is the 'WorldAnimation' finished?
 isFinished :: WorldAnimation -> Bool
 isFinished (WorldAnimation _ Nothing _) = True
 isFinished _ = False
 
-data TextAnimSpec = TextAnimSpec {
-    _txtAnimSpecTexts :: ![ColorString]
-  , _txtAnimSpecFrameSpec :: !RectFrame
-}
-
+-- | Helper function to create a 'RectFrame' placed around the 'World' limits.
 mkFrameSpec :: LayeredColor -> World -> RectFrame
 mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
   RectFrame sz upperLeft colors
@@ -87,13 +93,20 @@ data BoundedAnimation = BoundedAnimation !Animation !Boundaries deriving(Show)
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
+  -- ^ Discrete position and speed.
   , _shipAmmo :: !Int
+  -- ^ How many laser shots are left.
   , _shipSafeUntil :: !(Maybe SystemTime)
+  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
+  -- for a given time. This field holds the time at which the immunity ends.
   , _shipCollisions :: ![Number]
+  -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
 } deriving(Show)
 
 
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
+  -- ^ Discrete position and speed.
   , _numberNum :: !Int
+  -- ^ Which number it represents.
 } deriving(Eq, Show)

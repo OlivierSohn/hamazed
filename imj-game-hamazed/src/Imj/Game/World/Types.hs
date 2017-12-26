@@ -6,7 +6,6 @@ module Imj.Game.World.Types
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
-        , RectFrame(..)
         , TextAnimSpec(..)
         , mkFrameSpec
         , WorldAnimation(..)
@@ -19,7 +18,7 @@ module Imj.Game.World.Types
         , module Imj.Text.Animation
         , module Imj.Physics.Discrete.Types
         , Terminal.Window
-        , FrameAnimationParallel4(..)
+        , RectFrame(..)
         ) where
 
 import           Imj.Prelude
@@ -33,7 +32,7 @@ import           Imj.Physics.Discrete.Types
 import           Imj.Text.Animation
 import           Imj.Text.ColorString
 import           Imj.Timing
-import           Imj.UI.RectFrame.InterpolationParallel4
+import           Imj.UI.RectFrame
 
 data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions
@@ -42,7 +41,7 @@ data WorldAnimation = WorldAnimation {
 } deriving(Show)
 
 data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionFrame :: !(Evolution FrameAnimationParallel4)
+    _worldEvolutionFrame :: !(Evolution RectFrame)
   , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
   , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
 } deriving(Show)

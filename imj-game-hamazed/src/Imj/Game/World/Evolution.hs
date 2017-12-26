@@ -58,7 +58,7 @@ mkWorldAnimation :: (RectFrame, (([ColorString], [ColorString]), ([ColorString],
 mkWorldAnimation (from, ((f1,f2),(f3,f4))) (to, ((t1,t2),(t3,t4))) t =
   WorldAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolution (Successive [FrameAnimationParallel4 from, FrameAnimationParallel4 to]) 1
+  frameE = mkEvolution (Successive [from, to]) 1
   (ta1,ta2) = createInterpolations from to (f1++t1, f2++t2, f3++t3, f4++t4) 1
   evolutions = WorldEvolutions frameE ta1 ta2
   deadline =

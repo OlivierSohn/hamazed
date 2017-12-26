@@ -24,8 +24,6 @@ then f1 f2 = withContinuation f2 f1
     so we should introduce a new concept.
     Maybe replace 'Animation' with 'Animator' or 'AnimationSupervisor'
 
-  - remove FrameAnimationParallel4
-
   - Env should be in Game ? Run also?
   - make better doc for
     - Game*

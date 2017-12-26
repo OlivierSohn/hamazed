@@ -80,7 +80,7 @@ library
                      , Imj.Interpolation.Class
                      , Imj.Interpolation.Evolution
                        -- former package : imj-interpolation
-                     , Imj.UI.RectFrame.InterpolationParallel4
+                     , Imj.UI.RectFrame.InterpolateParallel4
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*

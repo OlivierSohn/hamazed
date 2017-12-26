@@ -7,7 +7,7 @@ import Data.Text(unpack)
 import Control.Monad.Reader(liftIO)
 
 import System.IO(hFlush, stdout)
-import System.Console.ANSI(setCursorPosition)
+import System.Console.ANSI(setCursorPosition, clearFromCursorToScreenEnd)
 import System.Console.ANSI.Codes(csi)
 
 import Imj.Draw.Class
@@ -35,13 +35,15 @@ color (LayeredColor bg fg) = do
   putStr $ csi (bgCodes ++ fgCodes) "m"
 
 -- | Don't use for production, this is for tests only
--- and will lead to heavy screen tearing.
+-- and creates heavy screen tearing.
 instance Draw NaiveDraw where
     drawChar'      _ b c d   = liftIO $ move' c >> color d >> putChar b
     drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
     renderDrawing' _         = liftIO $ hFlush stdout
+                                        >> setCursorPosition 0 0
+                                        >> clearFromCursorToScreenEnd
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}
     {-# INLINABLE drawTxt' #-}

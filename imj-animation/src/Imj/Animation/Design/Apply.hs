@@ -65,7 +65,7 @@ combinePoints interaction frame point@(AnimatedPoint onWall coords _) =
         Interact ->
           -- The assert verifies that we can drop the first point of the trajectory.
           -- This is because the environment is static.
-          let prevCoords = assert (interaction prevCoords == Stable) prevCoords'
+          let prevCoords = assert (interaction prevCoords' == Stable) prevCoords'
               trajectory = bresenham $ mkSegment prevCoords coords
           in maybe
                (Right $ assert (interaction coords == Stable) point)

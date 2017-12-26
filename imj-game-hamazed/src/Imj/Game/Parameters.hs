@@ -5,8 +5,7 @@
 module Imj.Game.Parameters(
         GameParameters(..)
       , getGameParameters
-      , WorldShape(..)
-      , WallType(..)
+      , WallDistribution(..)
       , RandomParameters(..)
       , Strategy(..)
       ) where
@@ -20,7 +19,6 @@ import           Imj.Game.Color
 import           Imj.Game.World
 import           Imj.Game.World.Evolution
 import           Imj.Game.World.Space
-import           Imj.Game.World.Size
 import           Imj.Game.World.Embedded
 
 import           Imj.Geo.Discrete
@@ -30,9 +28,10 @@ import           Imj.Key.Types
 import           Imj.Timing
 import           Imj.Text.Alignment
 
+
 data GameParameters = GameParameters {
     _gameParamsWorldShape :: !WorldShape
-  , _gameParamsWallTypes :: !WallType
+  , _gameParamsWallDistrib :: !WallDistribution
 }
 
 minRandomBlockSize :: Int

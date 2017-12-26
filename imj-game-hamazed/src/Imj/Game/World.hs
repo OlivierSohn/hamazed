@@ -24,10 +24,8 @@ import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
 
 import           Imj.Animation.Design.Types
-
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
-
 import           Imj.Game.Color
 import           Imj.Game.Event
 import           Imj.Game.World.Evolution
@@ -36,9 +34,7 @@ import           Imj.Game.World.Number
 import           Imj.Game.World.Ship
 import           Imj.Game.World.Space
 import           Imj.Game.World.Types
-
 import           Imj.Physics.Discrete.Collision
-
 import           Imj.Timing
 
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -131,7 +127,7 @@ withLaserAction
 mkWorld :: (MonadIO m)
         => EmbeddedWorld
         -> Size
-        -> WallType
+        -> WallDistribution
         -> [Int]
         -> Int
         -> m World
@@ -150,7 +146,7 @@ createRandomNumber :: (MonadIO m)
                    -> Int
                    -> m Number
 createRandomNumber space i = do
-  ps <- liftIO $ createRandomPosSpeed space
+  ps <- liftIO $ createRandomNonCollidingPosSpeed space
   return $ Number ps i
 
 

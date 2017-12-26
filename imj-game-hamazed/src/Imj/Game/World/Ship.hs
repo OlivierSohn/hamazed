@@ -13,10 +13,9 @@ import           Data.List( foldl' )
 import           Data.Maybe( isNothing )
 
 import           Imj.Animation
-
 import           Imj.Game.World.Space
+import           Imj.Game.World.Types
 import           Imj.Game.Event
-
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 
@@ -48,7 +47,7 @@ shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
 createShipPos :: Space -> [Number] -> IO PosSpeed
 createShipPos space numbers = do
   let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
-  candidate@(PosSpeed pos _) <- createRandomPosSpeed space
+  candidate@(PosSpeed pos _) <- createRandomNonCollidingPosSpeed space
   if pos `notElem` numPositions
     then
       return candidate

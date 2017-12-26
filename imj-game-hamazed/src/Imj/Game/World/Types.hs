@@ -1,8 +1,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Types
-        ( BattleShip(..)
-        , World(..)
+        ( World(..)
+        , WallDistribution(..)
+        , BattleShip(..)
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
@@ -33,6 +34,15 @@ import           Imj.Text.Animation
 import           Imj.Text.ColorString
 import           Imj.Timing
 import           Imj.UI.RectFrame
+
+
+-- | How should walls be created?
+data WallDistribution = None
+              -- ^ No 'Wall's.
+              | Deterministic
+              -- ^ A Rectangular 'Wall' in the middle of the level.
+              | Random !RandomParameters
+              -- ^ 'Wall's are created with an algorithm involving random numbers.
 
 data WorldAnimation = WorldAnimation {
     _worldAnimationEvs :: !WorldEvolutions
@@ -74,12 +84,6 @@ data EmbeddedWorld = EmbeddedWorld {
 } deriving (Show)
 
 data BoundedAnimation = BoundedAnimation !Animation !Boundaries deriving(Show)
-
-data Boundaries = WorldFrame
-                | TerminalWindow
-                | Both
-                deriving(Show)
-
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed

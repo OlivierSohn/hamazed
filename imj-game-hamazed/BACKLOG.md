@@ -3,6 +3,10 @@
 
 ## Misc.
 
+- make bigger worlds (whole terminal) with more numbers (maybe duplicate some)
+  - precompute some one connected components worlds if it is slow.
+  - or change the air/wall ratio
+
 - use hspec for testing
 
 - 3..2..1..GO! countdown at the beginning of a level

@@ -1,14 +1,15 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Space.Types
     ( Space(..)
-    , WallType(..)
+    , Material(..)
     , RandomParameters(..)
     , Strategy(..)
-    , Material(..)
-    , RenderGroup(..)
     , WorldShape(..)
-    -- * Reexports
+    , RenderGroup(..)
+    , Boundaries(..)
     , module Imj.Geo.Discrete.Types
     ) where
 
@@ -22,15 +23,22 @@ import           Imj.Color.Types
 
 import           Imj.Geo.Discrete.Types
 
-data WallType = None
-              | Deterministic
-              | Random !RandomParameters
-
 data Strategy = StrictlyOneComponent
+              -- ^ There should be a single connected component of air.
+              --
+              -- This way, the ship can reach any allowed location without having to go
+              -- through 'Wall's.
 
+-- TODO support a world / air ratio (today it is 50 50)
+-- | Parameters for random walls creation.
 data RandomParameters = RandomParameters {
-    _randomWallsBlockSize :: !Int
+    _randomWallsBlockSize :: !Int -- TODO support 'Size' to have non-square blocks
+    -- ^ The size of a square wall block.
+    --
+    -- Note that the smaller the block size, the harder it will be for the algorithm to find
+    -- a random world with a single component of air.
   , _randomWallsStrategy :: !Strategy
+    -- ^ Space characteristics (only /one connected component/ is available for the moment)
 }
 
 data RenderGroup = RenderGroup {
@@ -42,14 +50,29 @@ data RenderGroup = RenderGroup {
 
 data Space = Space {
     _space :: !(Matrix CInt)
+    -- ^ The material matrix.
   , _spaceSize :: !Size
-  -- ^ Represents the AABB of the space without the border
+    -- ^ The AABB of the space, excluding the outer border.
   , _spaceRender :: ![RenderGroup]
+    -- ^ How to render the space.
 }
 
 data Material = Air
+              -- ^ In it, ship and numbers can move.
               | Wall
+              -- ^ Ship and numbers rebound on 'Wall's.
               deriving(Eq, Show)
 
 data WorldShape = Square
+                -- ^ Width = Height
                 | Rectangle2x1
+                -- ^ Width = 2 * Height
+
+
+data Boundaries = WorldFrame
+                -- ^ Just the world.
+                | TerminalWindow
+                -- ^ Outside the world, in the terminal.
+                | Both
+                -- ^ The whole terminal.
+                deriving(Show)

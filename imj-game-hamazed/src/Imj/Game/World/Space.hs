@@ -1,17 +1,54 @@
+
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.World.Space
-    ( renderSpace
-    , getMaterial
-    , location
-    , strictLocation
-    , mkDeterministicallyFilledSpace
-    , mkRandomlyFilledSpace
+    ( -- * Space
+    {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
+    live.
+
+    It can be composed of 'Air', where 'BattleShip' and 'Number's are free to move, and of
+    'Wall'.
+    -}
+      Space
+    , Material(..)
+      -- ** Simple creation
     , mkEmptySpace
-    , createRandomPosSpeed
-    , locationFunction
+    , mkDeterministicallyFilledSpace
+      -- ** Randomized creation
+      {-| 'mkRandomlyFilledSpace' places 'Wall's at random and discards resulting
+      'Space's which have more than one 'Air' connected component.
+
+      This way, the 'BattleShip' is guaranteed to be able to reach any part of
+      the 'Space', and 'Number's.
+
+      Generating a big 'Space' with a very small block size can
+      be computationnaly expensive because the probability to have a single 'Air'
+      connected component drops very fast (probably at least exponentially)
+      towards zero with increasing sizes. -}
+    , mkRandomlyFilledSpace
+    , RandomParameters(..)
+    , Strategy(..)
+      -- ** Collision detection
+      {- | 'location' is the standard collision detection function that considers
+      that being outside the world means being in collision.
+
+      'scopedLocation' prevides more options with the use of 'Boundaries' to
+      defines the collision detection scopes.
+       -}
+    , location
+    , scopedLocation
+    , Boundaries(..)
+      -- ** Rendering
+    , renderSpace
+      -- * Utilities
+    , createRandomNonCollidingPosSpeed
+      -- ** Generate a level size
+      {-| Two 'WorldShape's are currently supported : square and rectangular where the
+      width is twice the height. -}
+    , worldSizeFromLevel
+    , WorldShape(..)
     -- * Reexports
-    , module Imj.Game.World.Types
     , module Imj.Draw
     ) where
 
@@ -37,20 +74,30 @@ import           Data.Vector(Vector, slice, (!))
 import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Draw
-
 import           Imj.Game.Color
-import           Imj.Game.World.Types
-
+import           Imj.Game.World.Size
+import           Imj.Game.World.Space.Types
 import           Imj.Geo.Discrete
-
-import           Imj.Physics.Discrete.Collision
-
-import           Imj.Util( replicateElements
-                     , randomRsIO )
+import           Imj.Physics.Discrete
+import           Imj.Util
 
 
-createRandomPosSpeed :: Space -> IO PosSpeed
-createRandomPosSpeed space = do
+worldSizeFromLevel :: Int
+                   -- ^ 'Level' number
+                   -> WorldShape -> Size
+worldSizeFromLevel level shape =
+  let h = heightFromLevel level
+      -- we need even world dimensions to ease level construction
+      w = fromIntegral $ assert (even h) h * case shape of
+        Square       -> 1
+        Rectangle2x1 -> 2
+  in Size h w
+
+-- | Creates a 'PosSpeed' such that its position is not colliding,
+-- and moves to precollision and mirrors speed if a collision is detected for
+-- the next step (see 'mirrorSpeedAndMoveToPrecollisionIfNeeded').
+createRandomNonCollidingPosSpeed :: Space -> IO PosSpeed
+createRandomNonCollidingPosSpeed space = do
   pos <- randomNonCollidingPos space
   dx <- randomSpeed
   dy <- randomSpeed
@@ -111,11 +158,13 @@ mapInt 0 = Air
 mapInt 1 = Wall
 mapInt _ = error "mapInt arg out of bounds"
 
+-- | Creates a rectangular empty space of size specified in parameters.
 mkEmptySpace :: Size -> Space
 mkEmptySpace s =
   let air  = mapMaterial Air
   in mkSpaceFromInnerMat s [[air]]
 
+-- | Creates a rectangular deterministic space of size specified in parameters.
 mkDeterministicallyFilledSpace :: Size -> Space
 mkDeterministicallyFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
   let wall = mapMaterial Wall
@@ -132,8 +181,8 @@ mkDeterministicallyFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
       l = replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow
   in mkSpaceFromInnerMat s l
 
--- | creates a rectangle of size specified in parameters, with a one-element border.
---  it uses IO for random numbers
+-- | Creates a rectangular random space of size specified in parameters, with a
+-- one-element border. 'IO' is used for random numbers generation.
 mkRandomlyFilledSpace :: RandomParameters -> Size -> IO Space
 mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   smallWorldMat <- mkSmallWorld s blockSize strategy
@@ -141,7 +190,7 @@ mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   let innerMat = replicateElements blockSize $ map (replicateElements blockSize) smallWorldMat
   return $ mkSpaceFromInnerMat s innerMat
 
--- | This function generates a random world with the constraint that it should have
+-- | Generates a random world with the constraint that it should have
 --   a single "Air" connected component. The function recurses and builds a new random world
 --   until the constraint is met.
 --  It might take "a long time" especially if worldsize is big and multFactor is small.
@@ -256,8 +305,8 @@ getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
--- | @Coord 0 0@ corresponds to indexes 1 1 in matrix :
--- <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem indices start at 1>.
+-- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
+-- @Coord 0 0@ corresponds to indexes 1 1 in matrix
 getMaterial :: Coords -> Space -> Material
 getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
   | r < 0 || c < 0       = Wall
@@ -269,9 +318,11 @@ materialToLocation m = case m of
   Wall -> OutsideWorld
   Air  -> InsideWorld
 
+-- | Considers that outside 'Space', everything is 'OutsideWorld'
 location :: Coords -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
+-- | Considers that outside 'Space', everything is 'InsideWorld'
 strictLocation :: Coords -> Space -> Location
 strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
     | r < 0 || c < 0 || r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = InsideWorld
@@ -282,6 +333,7 @@ strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
 renderSpace :: (Draw e, MonadReader e m, MonadIO m)
             => Space
             -> Coords
+            -- ^ World upper left coordinates w.r.t terminal frame.
             -> m Coords
 renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
@@ -296,12 +348,17 @@ renderGroup :: (Draw e, MonadReader e m, MonadIO m)
 renderGroup worldCoords (RenderGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
 
-locationFunction :: Boundaries
-                 -> Space
+scopedLocation :: Space
                  -> Maybe (Window Int)
+                 -- ^ The terminal size
                  -> Coords
-                 -> (Coords -> Location)
-locationFunction f space@(Space _ sz _) mayTermWindow wcc =
+                 -- ^ The world upper left coordinates w.r.t terminal frame.
+                 -> Boundaries
+                 -- ^ The scope
+                 -> Coords
+                 -- ^ The coordinates to test
+                 -> Location
+scopedLocation space@(Space _ sz _) mayTermWindow wcc =
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
       terminalLocation (Window h w) coordsInWorld =
@@ -314,8 +371,7 @@ locationFunction f space@(Space _ sz _) mayTermWindow wcc =
       productLocations l l' = case l of
         InsideWorld -> l'
         OutsideWorld -> OutsideWorld
-
-  in case f of
+  in \case
     WorldFrame -> worldLocation
     TerminalWindow -> maybe
                         worldLocation

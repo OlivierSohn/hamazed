@@ -14,7 +14,6 @@ import           Data.Maybe( catMaybes )
 import           Imj.Animation
 import           Imj.Animation.Chars
 import           Imj.Animation.Design hiding (earliestDeadline)
-
 import           Imj.Game.Color
 import           Imj.Game.Deadline( Deadline(..) )
 import           Imj.Game.Types
@@ -28,12 +27,9 @@ import           Imj.Game.World.Evolution
 import           Imj.Game.World.Laser
 import           Imj.Game.World.Number
 import           Imj.Game.World.Ship
-import           Imj.Game.World.Size
 import           Imj.Game.World.Space
-
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-
 import           Imj.Physics.Discrete.Collision
 
 -- | Runs the Hamazed game.
@@ -350,14 +346,14 @@ renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
                  -> [BoundedAnimation]
                  -> m [BoundedAnimation]
 renderAnimations k space mayTermWindow worldCorner animations = do
-  let renderAnimation (BoundedAnimation a f) = do
-        let interaction = locationFunction f space mayTermWindow worldCorner
+  let renderAnimation (BoundedAnimation a scope) = do
+        let interaction = scopedLocation space mayTermWindow worldCorner scope
                            >>> \case
                                 InsideWorld  -> Stable
                                 OutsideWorld -> Mutation
             a' = updateAnimationIfNeeded k interaction a
         renderAnim a' interaction colorFromFrame worldCorner
           >>= \case
-            True -> return $ Just $ BoundedAnimation a' f
+            True -> return $ Just $ BoundedAnimation a' scope
             False -> return Nothing
   catMaybes <$> mapM renderAnimation animations

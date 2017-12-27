@@ -20,7 +20,7 @@ import           Imj.Physics.Discrete.Collision
 import           Imj.Timing
 
 mkWorld :: (MonadIO m)
-        => EmbeddedWorld
+        => InTerminal
         -- ^ Tells where to draw the 'World' from
         -> Size
         -- ^ The dimensions

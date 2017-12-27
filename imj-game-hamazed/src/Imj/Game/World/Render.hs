@@ -15,7 +15,7 @@ import           Data.Maybe( isNothing, isJust )
 import           Imj.Draw
 
 import           Imj.Game.Color
-import           Imj.Game.Level.Animation
+import           Imj.UI.Animation
 import           Imj.Game.World.Space.Types
 import           Imj.Game.World.Space
 import           Imj.Game.World.Types
@@ -29,7 +29,7 @@ renderWorld :: (Draw e, MonadReader e m, MonadIO m)
             -> m ()
 renderWorld
   (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-         space _ (EmbeddedWorld _ upperLeft))  = do
+         space _ (InTerminal _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
   let s = translateInDir Down $ translateInDir RIGHT upperLeft
   mapM_ (\b -> renderNumber b space s) balls

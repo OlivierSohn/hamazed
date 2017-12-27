@@ -27,7 +27,7 @@ module Imj.Game.World
 
     * game elements : 'Space', 'BattleShip' and 'Number's,
     * rendering elements: 'BoundedAnimation's,
-    * terminal-awareness : 'EmbeddedWorld'
+    * terminal-awareness : 'InTerminal'
     -}
     , World(..)
     -- ** Create the world
@@ -53,10 +53,10 @@ module Imj.Game.World
     -- | When a player 'Event' occurs (like a laser shot), 'eventAction' returns
     -- the effect that this 'Event' would have on the 'World'.
     , eventAction
-    -- * EmbeddedWorld
-    -- | 'EmbeddedWorld' allows to place the game in the center of the terminal.
-    , mkEmbeddedWorld
-    , EmbeddedWorld(..)
+    -- * InTerminal
+    -- | 'InTerminal' allows to place the game in the center of the terminal.
+    , mkInTerminal
+    , InTerminal(..)
     -- * Space
     {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
     live.
@@ -132,7 +132,7 @@ module Imj.Game.World
     -}
     , mkFrameSpec
     -- ** Inter-level animations
-    , module Imj.Game.Level.Animation
+    , module Imj.UI.Animation
     -- * Secondary types
     , WallDistribution(..)
     , WorldShape(..)
@@ -155,7 +155,7 @@ import           Imj.Animation.Design.Types
 import           Imj.Draw
 import           Imj.Game.Event
 import           Imj.Game.Level.Types
-import           Imj.Game.Level.Animation
+import           Imj.UI.Animation
 import           Imj.Game.Parameters
 import           Imj.Game.Timing
 import           Imj.Game.World.Create

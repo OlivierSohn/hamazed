@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Embedded
-    ( mkEmbeddedWorld
+    ( mkInTerminal
     ) where
 
 import           Imj.Prelude
@@ -23,13 +23,13 @@ minimalWorldMargin = 4
 
 -- | Will compute the position of the 'World' so as to display it in the
 -- center of the terminal window.
-{-# INLINABLE mkEmbeddedWorld #-}
-mkEmbeddedWorld :: (MonadIO m)
+{-# INLINABLE mkInTerminal #-}
+mkInTerminal :: (MonadIO m)
                 => Size
-                -> m (Either String EmbeddedWorld)
-mkEmbeddedWorld s = do
+                -> m (Either String InTerminal)
+mkInTerminal s = do
   mayTermSize <- liftIO Terminal.size
-  return $ EmbeddedWorld mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ InTerminal mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
 worldUpperLeftToCenterIt' :: Size -> Maybe (Terminal.Window Int) -> Either String Coords

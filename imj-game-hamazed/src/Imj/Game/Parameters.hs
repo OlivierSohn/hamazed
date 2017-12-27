@@ -16,7 +16,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Draw
 import           Imj.Game.Color
-import           Imj.Game.Level.Animation
+import           Imj.UI.Animation
 import           Imj.Game.World.Create
 import           Imj.Game.World.Embedded
 import           Imj.Game.World.Render
@@ -98,9 +98,9 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         -> m ()
 render' (GameParameters shape wall) = do
   let worldSize@(Size (Length rs) (Length cs)) = worldSizeFromLevel 1 shape
-  mkEmbeddedWorld worldSize >>= \case
+  mkInTerminal worldSize >>= \case
     Left err -> error err
-    Right rew@(EmbeddedWorld _ ul) -> do
+    Right rew@(InTerminal _ ul) -> do
       world@(World _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space ul >>=
         \worldCoords -> do

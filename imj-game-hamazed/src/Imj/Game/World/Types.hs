@@ -11,10 +11,7 @@ module Imj.Game.World.Types
         , BoundedAnimation(..)
         , Boundaries(..)
         , mkFrameSpec
-        , UIAnimation(..)
-        , UIEvolutions(..)
-        , EmbeddedWorld(..)
-        , isFinished
+        , InTerminal(..)
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Text.Animation
@@ -50,34 +47,9 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
--- | Manages the progress and deadline of 'UIEvolutions'.
-data UIAnimation = UIAnimation {
-    _uiAnimationEvs :: !UIEvolutions
-  , _uiAnimationDeadline :: !(Maybe KeyTime)
-  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
-  , _uiAnimationProgress :: !Iteration
-  -- ^ Current 'Iteration'.
-} deriving(Show)
-
--- | Used when transitionning between two levels to smoothly transform the aspect
--- of the 'RectFrame', as well as textual information around it.
-data UIEvolutions = UIEvolutions {
-    _uiEvolutionFrame :: !(Evolution RectFrame)
-    -- ^ The transformation of the 'RectFrame'.
-  , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
-    -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
-  , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
-    -- ^ The transformation of colored text left and right of the 'RectFrame'.
-} deriving(Show)
-
--- | Is the 'UIAnimation' finished?
-isFinished :: UIAnimation -> Bool
-isFinished (UIAnimation _ Nothing _) = True
-isFinished _ = False
-
 -- | Helper function to create a 'RectFrame' placed around the 'World' limits.
 mkFrameSpec :: LayeredColor -> World -> RectFrame
-mkFrameSpec colors (World _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
+mkFrameSpec colors (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
   RectFrame sz upperLeft colors
 
 data World = World {
@@ -90,18 +62,24 @@ data World = World {
   , _worldAnimations :: ![BoundedAnimation]
     -- ^ Visual animations. They don't have an influence on the game, they are just here
     -- for aesthetics.
-  , _worldEmbedded :: !EmbeddedWorld
+  , _worldEmbedded :: !InTerminal
     -- ^ To know where we should draw the 'World' from, w.r.t terminal frame.
 }
 
-data EmbeddedWorld = EmbeddedWorld {
-    _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
+data InTerminal = InTerminal {
+    _inTerminalSize :: !(Maybe (Terminal.Window Int))
     -- ^ The size of the terminal window
-  , _embeddedWorldUpperLeft :: !Coords
+  , _inTerminalUpperLeft :: !Coords
     -- ^ The corresponding 'World' upper left coordinates w.r.t terminal frame.
 } deriving (Show)
 
-data BoundedAnimation = BoundedAnimation !Animation !Boundaries deriving(Show)
+data BoundedAnimation = BoundedAnimation  {
+    _boundedAnimationAnimation :: !Animation
+    -- ^ The 'Animation'
+  , _boundedAnimationBoundaries :: !Boundaries
+    -- ^ The scope in which the interactions between 'AnimatedPoint's and the
+    -- environment should be computed.
+} deriving(Show)
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed

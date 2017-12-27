@@ -1,15 +1,15 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Level.Animation
+module Imj.UI.Animation
            (-- * Animated UI
-            -- | UI elements can be animated using 'UIEvolutions':
              UIEvolutions(..)
            , mkUIAnimation
            , UIAnimation(..)
            , getDeltaTime
            , renderUIAnimation
            , isFinished
-           , mkTextAnimLeft
+           , mkTextAnimRightAligned
+           , computeRSForInfos
            ) where
 
 import           Imj.Prelude
@@ -18,12 +18,41 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Draw
-import           Imj.Game.World.Types
 import           Imj.Geo.Discrete
+import           Imj.Iteration
 import           Imj.Text.Alignment
+import           Imj.Text.Animation
 import           Imj.Text.ColorString
 import           Imj.Timing
+import           Imj.UI.RectFrame
 
+
+-- | Manages the progress and deadline of 'UIEvolutions'.
+data UIAnimation = UIAnimation {
+    _uiAnimationEvs :: !UIEvolutions
+  , _uiAnimationDeadline :: !(Maybe KeyTime)
+  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
+  , _uiAnimationProgress :: !Iteration
+  -- ^ Current 'Iteration'.
+} deriving(Show)
+
+-- | Used when transitionning between two levels to smoothly transform the aspect
+-- of the 'RectFrame', as well as textual information around it.
+data UIEvolutions = UIEvolutions {
+    _uiEvolutionFrame :: !(Evolution RectFrame)
+    -- ^ The transformation of the 'RectFrame'.
+  , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
+    -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
+  , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
+    -- ^ The transformation of colored text left and right of the 'RectFrame'.
+} deriving(Show)
+
+
+
+-- | Is the 'UIAnimation' finished?
+isFinished :: UIAnimation -> Bool
+isFinished (UIAnimation _ Nothing _) = True
+isFinished _ = False
 
 {-# INLINABLE renderUIAnimation #-}
 renderUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
@@ -85,53 +114,47 @@ createUITextAnimations :: RectFrame
                        -> Float
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) duration =
-    let ta1 = mkTextAnimUpDown from to (ups, downs) duration
-        ta2 = mkTextAnimLeft from to lefts duration
+    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = computeRSForInfos from
+        (centerUpTo, centerDownTo, leftMiddleTo) = computeRSForInfos to
+        ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
+        ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts duration
     in (ta1, ta2)
 
 -- | Creates the 'TextAnimation' to animate the texts that appears left of the main
 -- 'RectFrame'
 
-mkTextAnimLeft :: RectFrame
-               -- ^ From 'RectFrame'
-               -> RectFrame
-               -- ^ To 'RectFrame'
-               -> [[ColorString]]
-                -- ^ Each inner list is expected to be of length 1 or more.
-                --
-                -- If length = 1, the 'ColorString' is not animated. Else, the inner list
-                -- contains 'ColorString' waypoints.
-               -> Float
-               -- ^ The duration of the animation
-               -> TextAnimation AnchorStrings
-mkTextAnimLeft from to listTxts
-               duration =
-    let (_, _, leftMiddleFrom) = computeRSForInfos from
-        (_, _, leftMiddleTo) = computeRSForInfos to
+mkTextAnimRightAligned :: Coords
+                       -- ^ Alignment ref /from/
+                       -> Coords
+                       -- ^ Alignment ref /to/
+                       -> [[ColorString]]
+                       -- ^ Each inner list is expected to be of length 1 or more.
+                       --
+                       -- If length = 1, the 'ColorString' is not animated. Else, the inner list
+                       -- contains 'ColorString' waypoints.
+                       -> Float
+                       -- ^ The duration of the animation
+                       -> TextAnimation AnchorStrings
+mkTextAnimRightAligned refFrom refTo listTxts duration =
+  let l = zipWith (\i txts ->
+                    let firstTxt = head txts
+                        lastTxt = last txts
+                        rightAlign pos = move (2*i) Down . alignTxt (mkRightAlign pos)
+                        fromAligned = rightAlign refFrom firstTxt
+                        toAligned   = rightAlign refTo lastTxt
+                    in (txts, fromAligned, toAligned))
+                  [0..] listTxts
+  in  mkSequentialTextTranslationsStringAnchored l duration
 
-        l = zipWith (\i txts ->
-                      let firstTxt = head txts
-                          lastTxt = last txts
-                          rightAlign pos = move (2*i) Down . alignTxt (mkRightAlign pos)
-                          fromAligned = rightAlign leftMiddleFrom firstTxt
-                          toAligned   = rightAlign leftMiddleTo lastTxt
-                      in (txts, fromAligned, toAligned))
-                    [0..] listTxts
-
-    in  mkSequentialTextTranslationsStringAnchored l duration
-
-mkTextAnimUpDown :: RectFrame
-                 -> RectFrame
-                 -> ([ColorString], [ColorString])
-                 -- ^ Each list is expected to be of size at least 1.
-                 -> Float
-                 -> TextAnimation AnchorChars
-mkTextAnimUpDown from to (txtUppers, txtLowers)
+mkTextAnimCenteredUpDown :: (Coords, Coords)
+                         -> (Coords, Coords)
+                         -> ([ColorString], [ColorString])
+                         -- ^ Each list is expected to be of size at least 1.
+                         -> Float
+                         -> TextAnimation AnchorChars
+mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (txtUppers, txtLowers)
                  duration =
-    let (centerUpFrom, centerDownFrom, _) = computeRSForInfos from
-        (centerUpTo, centerDownTo, _) = computeRSForInfos to
-
-        alignTxtCentered pos = alignTxt $ mkCentered pos
+    let alignTxtCentered pos = alignTxt $ mkCentered pos
 
         centerUpFromAligned = alignTxtCentered centerUpFrom (head txtUppers)
         centerUpToAligned   = alignTxtCentered centerUpTo (last txtUppers)
@@ -147,8 +170,13 @@ alignTxt :: Alignment -> ColorString  -> Coords
 alignTxt (Alignment al pos) txt =
   uncurry move (align al $ countChars txt) pos
 
-
-computeRSForInfos :: RectFrame -> (Coords, Coords, Coords)
+-- | Returns points that are close to a frame, and can be used to align text.
+--
+-- The points are at a distance of 2 from the frame, outwards from it.
+computeRSForInfos :: RectFrame
+                  -- ^ The frame
+                  -> (Coords, Coords, Coords)
+                  -- ^ (center Up, center Down, middle Left)
 computeRSForInfos (RectFrame (Size rs cs) upperLeft _) =
   (centerUp, centerDown, leftMiddle)
  where

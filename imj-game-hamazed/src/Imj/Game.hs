@@ -59,7 +59,7 @@ module Imj.Game
         -- * GameState
         {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
         we render the /old/ 'World' while using the /new/ 'World' 's
-        dimensions to animate the UI accordingly (see "Imj.Game.Level.Animation"). -} -- TODO this could be done differently
+        dimensions to animate the UI accordingly (see "Imj.UI.Animation"). -} -- TODO this could be done differently
       , GameState(..)
         -- * Utilities
       , eventFromKey
@@ -134,7 +134,8 @@ nextGameState
           else
             let frameSpace = mkFrameSpec worldFrameColors world
                 infos = mkLeftInfo Normal newAmmo allShotNumbers
-            in mkTextAnimLeft frameSpace frameSpace infos 0 -- 0 duration, since animation is over anyway
+                (_, _, leftMiddle) = computeRSForInfos frameSpace
+            in mkTextAnimRightAligned leftMiddle leftMiddle infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
       newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
@@ -312,7 +313,7 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
                 else
                   Nothing
         return $ Right $ GameState gameDeadline curWorld newWorld newShotNums newLevel uiAnimation
-  mkEmbeddedWorld newSize >>= either (return . Left) make
+  mkInTerminal newSize >>= either (return . Left) make
 
 
 {-# INLINABLE loop #-}
@@ -437,7 +438,7 @@ renderGame :: (Draw e, MonadReader e m, MonadIO m)
            -> GameState
            -> m [BoundedAnimation]
 renderGame k (GameState _ world@(World _ _ space@(Space _ (Size rs cs) _)
-                                       animations (EmbeddedWorld mayTermWindow curUpperLeft))
+                                       animations (InTerminal mayTermWindow curUpperLeft))
                         _ _ level wa) =
   renderSpace space curUpperLeft >>=
     (\worldCorner -> do

@@ -12,10 +12,10 @@ module Imj.Game.Types
 
 import           Imj.Prelude
 
-import           Imj.Game.World.Types
 import           Imj.Game.Level.Types
-
 import           Imj.Game.Timing
+import           Imj.Game.World.Types
+import           Imj.UI.Animation
 
 
 data GameState = GameState {

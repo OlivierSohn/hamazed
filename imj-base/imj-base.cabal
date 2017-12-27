@@ -48,9 +48,11 @@ library
                      , Imj.Key.NonBlocking
                      , Imj.Key.Types
                      , Imj.Text.Alignment
+                     , Imj.Text.Animation
                      , Imj.Text.ColorString
                      , Imj.Timing
                      , Imj.Util
+                     , Imj.UI.Animation
                      , Imj.UI.RectFrame
                        -- former package : imj-draw
                      , Imj.Draw

@@ -25,7 +25,6 @@ library
                      , Imj.Game
                      , Imj.Game.Color
                      , Imj.Game.Level
-                     , Imj.Game.Level.Animation
                      , Imj.Game.Level.Types
                      , Imj.Game.Parameters
                      , Imj.Game.Render

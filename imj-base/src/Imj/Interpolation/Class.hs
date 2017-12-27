@@ -24,6 +24,7 @@ import           Imj.Text.ColorString
 import           Imj.Util
 
 
+-- | Wrapper on a list, to represents successive waypoints.
 newtype Successive a = Successive [a] deriving(Show)
 
 {- |This class supports :

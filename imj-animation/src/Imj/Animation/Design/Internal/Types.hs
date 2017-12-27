@@ -48,7 +48,7 @@ data AnimatedPoint = AnimatedPoint {
     -- ^ The char used to render it. If 'Nothing', 'Animation' /must/ specify a 'Char'.
 } deriving (Show)
 
--- | A type indicating if an 'AnimatedPoint' can interact with the environment.
+-- | Indicates if an 'AnimatedPoint' can interact with the environment.
 data CanInteract = DontInteract
                  -- ^ No interaction is allowed.
                  --

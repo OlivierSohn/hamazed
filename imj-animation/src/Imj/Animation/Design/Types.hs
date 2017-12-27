@@ -36,8 +36,8 @@ module Imj.Animation.Design.Types
       -- ** Render an Animation
     , renderAnim
     , AnimatedPoint(..)
-    , InteractionResult(..)
     , CanInteract(..)
+    , InteractionResult(..)
       -- * Utilities
     , earliestDeadline
     ) where
@@ -187,9 +187,10 @@ computeStep' (KeyTime k') =
       else
         Nothing)
 
--- | If some 'AnimatedPoint' in the 'AnimatedPoints' of the 'Animation' don't
--- have a 'Char' specified to render them, 'Animation' /must/ contain a default
--- one, else this function errors.
+{- | If some /animation functions/ used to create the 'Animation' don't set the
+'Maybe' 'Char' of the 'AnimatedPoint's they create, then 'Animation' /must/
+contain a default char, else this function errors.
+-}
 {-# INLINABLE renderAnim #-}
 renderAnim :: (Draw e, MonadReader e m, MonadIO m)
            => Animation

@@ -1,12 +1,13 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Types
     ( GameState(..)
     -- * Reexports
-    , module Imj.Game.World.Types
-    , module Imj.Game.Level.Types
-    , module Imj.Game.Timing
+    , Level
+    , UIAnimation
+    , World
     ) where
 
 import           Imj.Prelude
@@ -19,9 +20,15 @@ import           Imj.Game.Timing
 
 data GameState = GameState {
     _gameStateNextMotionStep :: !(Maybe KeyTime)
-  , _gameStateWorld :: !World
-  , _gameStateNextWorld :: !World
+    -- ^ When the next 'World' motion update should happen,
+  , _gameStatePreviousWorld :: !World
+    -- ^ The previous 'World'
+  , _gameStateCurrentWorld :: !World
+    -- ^ The current 'World'
   , _gameStateShotNumbers :: ![Int]
+    -- ^ Which 'Number's were shot
   , _gameStateLevel :: !Level
-  , _gameStateWorldAnimation :: !WorldAnimation
+    -- ^ The current 'Level'
+  , _gameStateUIAnimation :: !UIAnimation
+    -- ^ Inter-level animation.
 }

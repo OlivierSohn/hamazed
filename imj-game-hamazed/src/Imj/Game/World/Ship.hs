@@ -21,17 +21,18 @@ import           Imj.Game.Event
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 
--- | If the ship is colliding and not in "safe time", and the event is a gamestep,
---     this function creates an animation where the ship and the colliding number explode.
---
---   The ship animation will have the initial speed of the number and vice-versa,
---     to mimic the rebound due to the collision.
+{- | If the ship is colliding and not in "safe time", and the event is a gamestep,
+this function creates an animation where the ship and the colliding number explode.
+
+The ship animation will have the initial speed of the number and vice-versa,
+to mimic the rebound due to the collision.
+-}
 shipAnims :: BattleShip
           -> Event
           -> [BoundedAnimation]
 shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
   \case
-    Timeout GameDeadline k ->
+    Timeout (Deadline k MoveFlyingItems) ->
       if not (null collisions) && isNothing safeTime
         then
           -- when number and ship explode, they exchange speeds

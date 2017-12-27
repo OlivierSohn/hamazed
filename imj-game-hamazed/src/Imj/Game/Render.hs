@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -19,6 +21,7 @@ import           Data.Text(pack, singleton)
 
 import           Imj.Game.Color
 import           Imj.Game.Types
+import           Imj.Game.Level.Types
 import           Imj.Text.ColorString
 
 mkLevelCS :: InfoType -> Int -> [ColorString]
@@ -56,9 +59,9 @@ mkShotNumbersCS _ nums =
 
   in [middle <> last_]
 
-mkLeftInfo :: InfoType -> Int -> [Int] -> ([ColorString], [ColorString])
+mkLeftInfo :: InfoType -> Int -> [Int] -> [[ColorString]]
 mkLeftInfo t ammo shotNums =
-  (mkAmmoCS t ammo, mkShotNumbersCS t shotNums)
+  [mkAmmoCS t ammo, mkShotNumbersCS t shotNums]
 
 mkUpDownInfo :: InfoType -> Level -> ([ColorString], [ColorString])
 mkUpDownInfo t (Level level target _) =
@@ -66,6 +69,6 @@ mkUpDownInfo t (Level level target _) =
 
 data InfoType = Normal | ColorAnimated
 
-mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), ([ColorString], [ColorString]))
+mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), [[ColorString]])
 mkInfos t ammo shotNums level =
   (mkUpDownInfo t level, mkLeftInfo t ammo shotNums)

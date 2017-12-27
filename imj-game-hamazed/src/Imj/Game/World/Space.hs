@@ -145,17 +145,18 @@ mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   let innerMat = replicateElements blockSize $ map (replicateElements blockSize) smallWorldMat
   return $ mkSpaceFromInnerMat s innerMat
 
--- | Generates a random world with the constraint that it should have
---   a single "Air" connected component. The function recurses and builds a new random world
---   until the constraint is met.
---  It might take "a long time" especially if worldsize is big and multFactor is small.
---  An interesting problem would be to compute the complexity of this function.
---  To do so we need to know the probability
---  to have a unique connected component in the random graph defined in the function.
 --  TODO We could measure, on average, how many tries it takes to generate a graph
 --  that meets the requirement for usual values of:
 --  - probability of having air vs. a wall at any cell
 --  - size of the small world
+{- | Generates a random world with the constraint that it should have
+a single "Air" connected component. The function recurses and builds a new random world
+until the constraint is met.
+It might take "a long time" especially if worldsize is big and multFactor is small.
+An interesting problem would be to compute the complexity of this function.
+To do so we need to know the probability to have a unique connected component in
+the random graph defined in the function.
+-}
 mkSmallWorld :: Size
              -- ^ Size of the big world
              -> Int

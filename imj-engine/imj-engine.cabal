@@ -24,6 +24,7 @@ library
                      , Imj.Geo.Continuous.Conversion
                      , Imj.Geo.Continuous.Types
                      , Imj.Laser.Types
+                     , Imj.Laser
                      , Imj.Text.Animation
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision

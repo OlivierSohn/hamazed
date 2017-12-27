@@ -1,14 +1,70 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World
-    ( -- * Space
+    (
+      -- * Parameters
+      {-| When the game starts, the player can chose :
+
+      * 'WorldShape' : square or rectangular 'World' where the width is twice the height
+      * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
+       -}
+        getGameParameters
+      , GameParameters(..)
+      -- * Level
+      {-| There are 12 levels in Hamazed, numbered from 1 to 12.
+      -}
+    , Level(..)
+      -- ** Level termination
+      {-| [Target number]
+      Each level has a different /target number/ which represents the sum of shot
+      'Number's that should be reached to finish the 'Level'.
+
+       A 'Level' is finished once the sum of shot 'Number's amounts to the /target number/. -}
+    , isLevelFinished
+    -- * World
+    {- | A 'World' brings together:
+
+    * game elements : 'Space', 'BattleShip' and 'Number's,
+    * rendering elements: 'BoundedAnimation's,
+    * terminal-awareness : 'EmbeddedWorld'
+    -}
+    , World(..)
+    -- ** Create the world
+      {-|
+      The 'World' size decreases with increasing 'Level' numbers.
+
+      'worldSizeFromLevel' gives the 'Size' of the 'World' based on
+      the 'Level' number and the 'WorldShape':
+      -}
+    , worldSizeFromLevel
+      {-|
+      Once we have the 'Size' of the 'World', we can create it using 'mkWorld':
+      -}
+    , mkWorld
+    -- ** Update World
+    -- | Every 'gameMotionPeriod' seconds, the positions of 'BattleShip' and 'Numbers'
+    -- are updated according to their speeds:
+    , gameMotionPeriod
+    , updateWorld
+    -- ** Render World
+    , renderWorld
+    -- ** World utilities
+    -- | When a player 'Event' occurs (like a laser shot), 'eventAction' returns
+    -- the effect that this 'Event' would have on the 'World'.
+    , eventAction
+    -- * EmbeddedWorld
+    -- | 'EmbeddedWorld' allows to place the game in the center of the terminal.
+    , mkEmbeddedWorld
+    , EmbeddedWorld(..)
+    -- * Space
     {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
     live.
 
     It can be composed of 'Air', where 'BattleShip' and 'Number's are free to move, and of
     'Wall'.
     -}
-      Space
+    , Space
     , Material(..)
       -- ** Simple creation
     , mkEmptySpace
@@ -37,123 +93,78 @@ module Imj.Game.World
     , location
     , scopedLocation
     , Boundaries(..)
+      -- ** Collision detection utilities
+    , createRandomNonCollidingPosSpeed
       -- ** Rendering
     , renderSpace
-      -- * Space Utilities
-    , createRandomNonCollidingPosSpeed
-    -- * EmbeddedWorld
-    -- | 'EmbeddedWorld' allows to place the game in the center of the terminal.
-    , mkEmbeddedWorld
-    , EmbeddedWorld(..)
-    -- * World
-    {- | 'World' brings together:
-
-    * game elements : 'Space', 'BattleShip' and 'Number's,
-    * rendering elements: 'BoundedAnimation's,
-    * terminal-awareness : 'EmbeddedWorld'
-    -}
-    , World(..)
-    -- ** World size for a given Level
-      {-| The higher the level, the smaller the 'World', and the more 'Number's are
-      flying around!
-
-      'worldSizeFromLevel' gives you the size of the world based on
-      the level number and the 'WorldShape'.
-
-      Two 'WorldShape's are currently supported : square and rectangular where the
-      width is twice the height. -}
-    , WorldShape(..)
-    , worldSizeFromLevel
-    -- ** Create the world
-    , mkWorld
-    , WallDistribution(..)
-    -- ** Update World
-    , updateWorld
-    , eventAction
-    -- ** Render World
-    , renderWorld
-    -- * BattleShip
+      -- * BattleShip
     , BattleShip(..)
     -- ** Move BattleShip
     -- | The 'BattleShip' is controlled in (discrete) acceleration by the player
     -- using the keyboard.
     , accelerateShip
     -- * Number
-    -- | 'Number's can be shot by the 'BattleShip'. In that case, their numeric value
-    -- is added to the current sum, and if it matches the level's target number, the player has
-    -- finished the level.
+    -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
     --
     -- Number can collide with the 'BattleShip', hence triggering colorfull
     -- 'BoundedAnimation' explosions.
     --
     -- 'Number's never change speed, except when they rebound on 'Wall's, of course.
     , Number(..)
-    -- * UI / Animations
-    -- ** BoundedAnimation
+    -- * BoundedAnimation
     -- | 'BoundedAnimation' allows to specify in which environment an 'Animation'
     -- runs : in the world, in the terminal, in both (see 'Boundaries')
     , BoundedAnimation(..)
     , earliestAnimationDeadline
-    -- ** World Animated UI
+    -- * UI
     {- | UI elements around the 'World' are:
 
-    * a 'RectFrame'
-    * Colored textual informations (aligned the 4 sides of the 'RectFrame')
+    * a 'RectFrame' created by 'mkFrameSpec' to visually delimit the 'World'
+    * 'ColorString' information, placed around the 'RectFrame':
 
-    'WorldEvolutions' makes these elements animate during level changes
-    to provide a smooth visual transformation.
+        * Up: 'Level' target
+        * Left: remaining ammunitions / shot 'Number's
+        * Down: 'Level' number
     -}
     , mkFrameSpec
-    , WorldEvolutions(..)
-    , WorldAnimation(..)
-    , renderWorldAnimation
-    , isFinished
+    -- ** Inter-level animations
+    , module Imj.Game.Level.Animation
+    -- * Secondary types
+    , WallDistribution(..)
+    , WorldShape(..)
+    , LevelFinished(..)
+    , GameStops(..)
     -- * Reexports
     , module Imj.Draw
+    , ColorString
     ) where
 
 import           Imj.Prelude
 
-import           Control.Monad.Reader(when)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Char( intToDigit )
-import           Data.Maybe( isNothing, isJust )
+import           Data.Maybe( isNothing )
+import           Data.Text( pack )
 
 import           Imj.Animation.Design.Types
 import           Imj.Draw
-import           Imj.Geo.Discrete.Bresenham
-import           Imj.Geo.Discrete
-import           Imj.Game.Color
 import           Imj.Game.Event
+import           Imj.Game.Level.Types
+import           Imj.Game.Level.Animation
+import           Imj.Game.Parameters
+import           Imj.Game.Timing
+import           Imj.Game.World.Create
 import           Imj.Game.World.Embedded
-import           Imj.Game.World.Evolution
-import           Imj.Game.World.Laser
 import           Imj.Game.World.Number
-import           Imj.Game.World.Ship
+import           Imj.Game.World.Render
 import           Imj.Game.World.Size
 import           Imj.Game.World.Space
 import           Imj.Game.World.Types
-import           Imj.Physics.Discrete.Collision
-import           Imj.Timing
-
-
-data WorldShape = Square
-                -- ^ Width = Height
-                | Rectangle2x1
-                -- ^ Width = 2 * Height
-
-worldSizeFromLevel :: Int
-                   -- ^ 'Level' number
-                   -> WorldShape -> Size
-worldSizeFromLevel level shape =
-  let h = heightFromLevel level
-      -- we need even world dimensions to ease level construction
-      w = fromIntegral $ assert (even h) h * case shape of
-        Square       -> 1
-        Rectangle2x1 -> 2
-  in Size h w
+import           Imj.Geo.Discrete
+import           Imj.Laser
+import           Imj.Text.ColorString
+import           Imj.Util
 
 -- | Note that the position of the 'BattleShip' remains unchanged.
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -178,32 +189,6 @@ updateWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTim
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
   in World newBalls changePos newShip size anims e
 
-ballMotion :: Space -> PosSpeed -> PosSpeed
-ballMotion space ps@(PosSpeed pos _) =
-  let (newPs@(PosSpeed newPos _), collision) =
-        mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space) ps
-  in  case collision of
-        PreCollision ->
-          if pos /= newPos
-            then
-              newPs
-            else
-              -- Precollision position is the same as the previous position, we try to move
-              doBallMotionUntilCollision space newPs
-        NoCollision  -> doBallMotion newPs
-
-doBallMotion :: PosSpeed -> PosSpeed
-doBallMotion (PosSpeed pos speed) =
-  PosSpeed (sumCoords pos speed) speed
-
--- | Changes the position until a collision is found.
---   Doesn't change the speed
-doBallMotionUntilCollision :: Space -> PosSpeed -> PosSpeed
-doBallMotionUntilCollision space (PosSpeed pos speed) =
-  let trajectory = bresenham $ mkSegment pos $ sumCoords pos speed
-      newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
-  in PosSpeed newPos speed
-
 -- | Returns the earliest 'BoundedAnimation' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ _ animations _) =
@@ -224,7 +209,7 @@ eventAction
   let (maybeLaserRayTheoretical, newAmmo) =
        if ammo > 0 then case event of
          (Action Laser dir) ->
-           (LaserRay dir <$> shootLaserFromShip shipCoords dir Infinite (`location` space), pred ammo)
+           (LaserRay dir <$> shootLaserWithOffset shipCoords dir Infinite (`location` space), pred ammo)
          _ ->
            (Nothing, ammo)
        else
@@ -233,11 +218,11 @@ eventAction
       ((remainingBalls', destroyedBalls), maybeLaserRay) =
          maybe
            ((balls,[]), Nothing)
-           (survivingNumbers balls RayDestroysFirst)
+           (\r -> computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
              maybeLaserRayTheoretical
 
       remainingBalls = case event of
-         Timeout GameDeadline _ ->
+         Timeout (Deadline _ MoveFlyingItems) ->
            if isNothing safeTime
              then
                filter (`notElem` collisions) remainingBalls'
@@ -246,75 +231,34 @@ eventAction
          _ -> remainingBalls'
   in (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo)
 
---------------------------------------------------------------------------------
--- IO
---------------------------------------------------------------------------------
 
-mkWorld :: (MonadIO m)
-        => EmbeddedWorld
-        -- ^ Tells where to draw the 'World' from
-        -> Size
-        -- ^ The dimensions
-        -> WallDistribution
-        -- ^ How the 'Wall's should be constructed
-        -> [Int]
-        -- ^ The numbers for which we will create 'Number's.
-        -> Int
-        -- ^ Ammunition : how many laser shots are available.
-        -> m World
-mkWorld e s walltype nums ammo = do
-  space <- case walltype of
-    None          -> return $ mkEmptySpace s
-    Deterministic -> return $ mkDeterministicallyFilledSpace s
-    Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
-  t <- liftIO getSystemTime
-  balls <- mapM (createRandomNumber space) nums
-  ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls ballMotion (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
+isLevelFinished :: World
+                -> Int
+                -- ^ The current sum of all shot 'Numbers'
+                -> Int
+                -- ^ The 'Level' 's target number.
+                -> TimestampedEvent
+                -- ^ The current event
+                -> Maybe LevelFinished
+isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimestampedEvent lastEvent t) =
+    maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
+  where
+    allChecks = checkShipCollision <|> checkSum <|> checkAmmo
 
-createRandomNumber :: (MonadIO m)
-                   => Space
-                   -> Int
-                   -> m Number
-createRandomNumber space i = do
-  ps <- liftIO $ createRandomNonCollidingPosSpeed space
-  return $ Number ps i
+    checkShipCollision = case lastEvent of
+      Timeout (Deadline _ MoveFlyingItems) ->
+        maybe
+          (case map (\(Number _ n) -> n) collisions of
+            [] -> Nothing
+            l  -> Just $ Lost $ "collision with " <> showListOrSingleton l)
+          (const Nothing)
+          safeTime
+      _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
 
-
-{-# INLINABLE renderWorld #-}
-renderWorld :: (Draw e, MonadReader e m, MonadIO m)
-            => World
-            -> m ()
-renderWorld
-  (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-         space _ (EmbeddedWorld _ upperLeft))  = do
-  -- render numbers, including the ones that will be destroyed, if any
-  let s = translateInDir Down $ translateInDir RIGHT upperLeft
-  mapM_ (\b -> renderNumber b space s) balls
-  when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
-    let colors =
-          if isNothing safeTime
-            then
-              shipColors
-            else
-              shipColorsSafe
-    drawChar '+' (sumCoords shipCoords s) colors
-
-
-{-# INLINABLE renderNumber #-}
-renderNumber :: (Draw e, MonadReader e m, MonadIO m)
-             => Number
-             -> Space
-             -> Coords
-             -> m ()
-renderNumber (Number (PosSpeed pos _) i) space b =
-  when (location pos space == InsideWorld) $
-    drawChar (intToDigit i) (sumCoords pos b) (numberColor i)
-
-
-{-# INLINABLE renderWorldAnimation #-}
-renderWorldAnimation :: (Draw e, MonadReader e m, MonadIO m)
-                     => WorldAnimation
-                     -> m ()
-renderWorldAnimation (WorldAnimation evolutions _ (Iteration _ frame)) =
-  renderEvolutions evolutions frame
+    checkSum = case compare sumNumbers target of
+      LT -> Nothing
+      EQ -> Just Won
+      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target
+    checkAmmo
+      | ammo <= 0 = Just $ Lost $ pack "no ammo left"
+      | otherwise = Nothing

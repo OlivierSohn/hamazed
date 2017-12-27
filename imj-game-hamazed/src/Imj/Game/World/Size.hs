@@ -1,8 +1,10 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Size
     ( maxWorldSize
-    , heightFromLevel
+    , worldSizeFromLevel
     ) where
 
 import           Imj.Prelude
@@ -10,6 +12,7 @@ import           Imj.Prelude
 import           Imj.Geo.Discrete.Types
 
 import           Imj.Game.Level.Types
+import           Imj.Game.World.Types
 
 maxLevelHeight :: Length Height
 maxLevelHeight = 36
@@ -23,3 +26,15 @@ maxWorldSize = Size maxLevelHeight maxLevelWidth
 heightFromLevel :: Int -> Length Height
 heightFromLevel level =
   maxLevelHeight + fromIntegral (2 * (firstLevel-level)) -- less and less space as level increases
+
+
+worldSizeFromLevel :: Int
+                   -- ^ 'Level' number
+                   -> WorldShape -> Size
+worldSizeFromLevel level shape =
+  let h = heightFromLevel level
+      -- we need even world dimensions to ease level construction
+      w = fromIntegral $ assert (even h) h * case shape of
+        Square       -> 1
+        Rectangle2x1 -> 2
+  in Size h w

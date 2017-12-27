@@ -122,7 +122,7 @@ polygon nSides radius center =
       extrs = polyExtremities (pos2vec center) (fromIntegral radius) startAngle nSides
   in connect $ map vec2coords extrs
 
--- | Animate the radius by first expanding then shrinking.
+-- | Animates the radius by first expanding then shrinking.
 animateRadius :: Int -> Int -> Int
 animateRadius i nSides =
   let limit

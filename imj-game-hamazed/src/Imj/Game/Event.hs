@@ -1,98 +1,104 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Event
-    ( Event(..)
-    , userEventPriority
-    , priority
-    , eventFromKey
-    , TimedEvent(..)
+    ( TimestampedEvent(..)
+    , Event(..)
+    , Deadline(..)
     , ActionTarget(..)
+    , playerEventPriority
+    , deadlinePriority
+    , eventFromKey
     , getKeyTime
-    , coordsForActionTargets
     , DeadlineType(..)
-    , Meta(..)
+    , MetaAction(..)
     ) where
 
-
 import           Imj.Prelude
-
-import           Data.List( foldl' )
-import           Data.Maybe( mapMaybe )
 
 import           Imj.Geo.Discrete
 import           Imj.Key.Types
 import           Imj.Timing
 
-data TimedEvent = TimedEvent Event SystemTime
+-- | A foreseen game or animation update.
+data Deadline = Deadline {
+    _deadlineTime :: !KeyTime
+  , _deadlineType :: !DeadlineType
+} deriving(Eq, Show)
 
-data Event =  Action ActionTarget Direction
-            | Timeout DeadlineType KeyTime
-            | Explosion Int
-            | GravityExplosion
-            | StartLevel Int
-            | EndGame
-            | Interrupt Meta
-            | Nonsense
-            deriving(Eq, Show)
 
-data Meta = Configure
-          | Quit
-          | Help
-          deriving(Eq, Show)
+data TimestampedEvent = TimestampedEvent {
+    _timestampedEventEvt :: !Event
+  , _timestampedEventTime :: !SystemTime
+    -- ^ When the 'Event' occured.
+} deriving(Show)
 
-data DeadlineType = GameDeadline
-                  | AnimationDeadline
-                  | MessageDeadline
-                  | FrameAnimationDeadline
+data Event = Action !ActionTarget !Direction
+           -- ^ A player action on an 'ActionTarget' in a 'Direction'.
+           | Timeout !Deadline
+           -- ^ The 'Deadline' that needs to be handled immediately.
+           | StartLevel !Int
+           -- ^ New level.
+           | EndGame
+           -- ^ End of game.
+           | Interrupt !MetaAction
+           -- ^ A game interruption.
+           deriving(Eq, Show)
+
+data MetaAction = Quit
+                -- ^ The player decided to quit the game.
+                | Configure
+                -- ^ The player wants to configure the game /(Not implemented yet)/
+                | Help
+                -- ^ The player wants to read the help page /(Not implemented yet)/
+                deriving(Eq, Show)
+
+data DeadlineType = MoveFlyingItems
+                  -- ^ Move 'Number's and 'BattleShip' according to their current
+                  -- speeds.
+                  | Animate
+                  -- ^ Update one or more 'Animation's.
+                  | DisplayContinueMessage
+                  -- ^ Show the /Hit a key to continue/ message
+                  | AnimateUI
+                  -- ^ Update the inter-level animation
                   deriving(Eq, Show)
 
-priority :: DeadlineType -> Int
-priority FrameAnimationDeadline = -1
-priority MessageDeadline        = 0
-priority GameDeadline           = 1
--- userEvent is here (in terms of priority)
-priority AnimationDeadline      = 3
+playerEventPriority :: Int
+playerEventPriority = 40
 
-userEventPriority :: Int
-userEventPriority = 2
+-- Note that if changing priorities here you should also change 'getDeadlinesByDecreasingPriority'
+deadlinePriority :: DeadlineType -> Int
+deadlinePriority AnimateUI              = playerEventPriority + 30
+deadlinePriority DisplayContinueMessage = playerEventPriority + 20
+deadlinePriority MoveFlyingItems        = playerEventPriority + 10
+deadlinePriority Animate                = playerEventPriority - 10
 
 data ActionTarget = Ship
+                  -- ^ The player wants to accelerate the 'BattleShip'
                   | Laser
+                  -- ^ The player wants to shoot with the laser.
                   deriving(Eq, Show)
 
-eventFromKey :: Key -> Event
+-- | Tries to map a 'Key' (pressed by the player) to an 'Event'.
+eventFromKey :: Key -> Maybe Event
 eventFromKey = \case
-  Escape -> Interrupt Quit
+  Escape -> Just $ Interrupt Quit
   AlphaNum c -> case c of
-    'k' -> Action Laser Down
-    'i' -> Action Laser Up
-    'j' -> Action Laser LEFT
-    'l' -> Action Laser RIGHT
-    'd' -> Action Ship Down
-    'e' -> Action Ship Up
-    's' -> Action Ship LEFT
-    'f' -> Action Ship RIGHT
-    ' ' -> Explosion 2
-    'g' -> GravityExplosion
-    _   -> Nonsense
-  _      -> Nonsense
+    'k' -> Just $ Action Laser Down
+    'i' -> Just $ Action Laser Up
+    'j' -> Just $ Action Laser LEFT
+    'l' -> Just $ Action Laser RIGHT
+    'd' -> Just $ Action Ship Down
+    'e' -> Just $ Action Ship Up
+    's' -> Just $ Action Ship LEFT
+    'f' -> Just $ Action Ship RIGHT
+    _   -> Nothing
+  _ -> Nothing
 
 
 getKeyTime :: Event -> Maybe KeyTime
-getKeyTime (Timeout _ k) = Just k
+getKeyTime (Timeout (Deadline k _)) = Just k
 getKeyTime _             = Nothing
-
-coordsForActionTargets :: ActionTarget -> [Event] -> Coords
-coordsForActionTargets target actions =
-  foldl' sumCoords zeroCoords $ map coordsForDirection $ filterActions target actions
-
-filterActions :: ActionTarget -> [Event] -> [Direction]
-filterActions target =
-  mapMaybe (maybeDirectionFor target)
-
-maybeDirectionFor :: ActionTarget -> Event -> Maybe Direction
-maybeDirectionFor targetFilter (Action actionTarget dir)
-   | actionTarget == targetFilter = Just dir
-   | otherwise                    = Nothing
-maybeDirectionFor _ _ = Nothing

@@ -3,6 +3,9 @@
 
 ## Misc.
 
+- chose target and numbers such that there is a single possibility to reach that sum,
+or such that only one of the number should be ruled out?
+
 - make bigger worlds (whole terminal) with more numbers (maybe duplicate some)
   - precompute some one connected components worlds if it is slow.
   - or change the air/wall ratio
@@ -17,7 +20,7 @@
 - if terminal size is too small, pause the game and display a message
 
 - make inter-level animation time independent of compute / render time
--> keep "the last time world evolution was rendered" in worldEvolution to not make deadlines based on current time
+-> keep "the last time world evolution was rendered" in UIEvolutions to not make deadlines based on current time
 
 - when expanding, invert animation order between frame and infos
 

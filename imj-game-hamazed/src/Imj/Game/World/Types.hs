@@ -3,16 +3,16 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.World.Types
-        (
-          World(..)
+        ( World(..)
         , WallDistribution(..)
+        , WorldShape(..)
         , BattleShip(..)
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
         , mkFrameSpec
-        , WorldAnimation(..)
-        , WorldEvolutions(..)
+        , UIAnimation(..)
+        , UIEvolutions(..)
         , EmbeddedWorld(..)
         , isFinished
         -- * Reexports
@@ -37,6 +37,11 @@ import           Imj.Timing
 import           Imj.UI.RectFrame
 
 
+data WorldShape = Square
+                -- ^ Width = Height
+                | Rectangle2x1
+                -- ^ Width = 2 * Height
+
 -- | How should walls be created?
 data WallDistribution = None
               -- ^ No 'Wall's.
@@ -45,29 +50,29 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
--- | Manages the progress and deadline of the 'WorldEvolutions' animation.
-data WorldAnimation = WorldAnimation {
-    _worldAnimationEvs :: !WorldEvolutions
-  , _worldAnimationDeadline :: !(Maybe KeyTime)
-  -- ^ Time at which the 'WorldEvolution' should be rendered and updated
-  , _worldAnimationProgress :: !Iteration
+-- | Manages the progress and deadline of the 'UIEvolutions' animation.
+data UIAnimation = UIAnimation {
+    _uiAnimationEvs :: !UIEvolutions
+  , _uiAnimationDeadline :: !(Maybe KeyTime)
+  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
+  , _uiAnimationProgress :: !Iteration
   -- ^ Current 'Iteration' of the animation.
 } deriving(Show)
 
 -- | Used when transitionning between two levels to smoothly transform the aspect
--- of the 'RectFrame' around the world, as well as textual information around it.
-data WorldEvolutions = WorldEvolutions {
-    _worldEvolutionFrame :: !(Evolution RectFrame)
+-- of the 'RectFrame' around the 'World', as well as textual information around it.
+data UIEvolutions = UIEvolutions {
+    _uiEvolutionFrame :: !(Evolution RectFrame)
     -- ^ The transformation of the 'RectFrame' around the 'World'.
-  , _worldEvolutionsUpDown :: !(TextAnimation AnchorChars)
+  , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
-  , _worldEvolutionLeft    :: !(TextAnimation AnchorStrings)
+  , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
     -- ^ The transformation of colored text left and right of the 'RectFrame'.
 } deriving(Show)
 
--- | Is the 'WorldAnimation' finished?
-isFinished :: WorldAnimation -> Bool
-isFinished (WorldAnimation _ Nothing _) = True
+-- | Is the 'UIAnimation' finished?
+isFinished :: UIAnimation -> Bool
+isFinished (UIAnimation _ Nothing _) = True
 isFinished _ = False
 
 -- | Helper function to create a 'RectFrame' placed around the 'World' limits.

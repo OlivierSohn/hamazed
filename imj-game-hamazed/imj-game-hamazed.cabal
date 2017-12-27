@@ -21,21 +21,21 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Env
-                     , Imj.Game.Deadline
                      , Imj.Game.Event
                      , Imj.Game
                      , Imj.Game.Color
                      , Imj.Game.Level
+                     , Imj.Game.Level.Animation
                      , Imj.Game.Level.Types
                      , Imj.Game.Parameters
                      , Imj.Game.Render
                      , Imj.Game.Timing
                      , Imj.Game.Types
                      , Imj.Game.World
+                     , Imj.Game.World.Create
                      , Imj.Game.World.Embedded
-                     , Imj.Game.World.Evolution
-                     , Imj.Game.World.Laser
                      , Imj.Game.World.Number
+                     , Imj.Game.World.Render
                      , Imj.Game.World.Ship
                      , Imj.Game.World.Size
                      , Imj.Game.World.Space

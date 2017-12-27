@@ -1,26 +1,28 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
+{-| This module defines the colors of every game element, except animations. -}
+
 module Imj.Game.Color (
-  -- * Text colors
-    configColors
-  , messageColor
-  , neutralMessageColor
+  -- * World colors
+  -- ** Items
+  -- *** Ship
+    shipColor
+  , shipColors
+  , shipColorSafe
+  , shipColorsSafe
+  -- *** Numbers
+  , numberColor
+  -- ** Materials
+  , wallColors
+  , airColors
   -- * UI colors
   , worldFrameColors
   , ammoColor
   , bracketsColor
-  -- * World colors
-  -- ** Materials
-  , wallColors
-  , airColors
-  -- ** Items
-  -- *** Numbers
-  , numberColor
-  -- *** Ship
-  , shipColor
-  , shipColors
-  , shipColorSafe
-  , shipColorsSafe
+  -- ** Text colors
+  , configColors
+  , messageColor
+  , neutralMessageColor
   -- * Reexports
   , module Imj.Color
   ) where

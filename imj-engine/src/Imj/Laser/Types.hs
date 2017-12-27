@@ -1,19 +1,15 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Laser.Types
     (
-     -- * Laser representations
-     {- | Laser types 'LaserRay' and 'Ray' are parametrized by phantom types
-     'Theoretical' and 'Actual' to indicate if the ray was computed taking
-     obstacles into account or not.
-      -}
       LaserRay(..)
     , Ray(..)
     , Theoretical
     , Actual
     , LaserPolicy(..)
-    , LaserType(..)
+    , LaserReach(..)
     ) where
 
 
@@ -36,9 +32,11 @@ data Theoretical
 -- | The laser ray was computed taking obstacles into account.
 data Actual
 
--- | How the laser destroys its targets.
-data LaserPolicy = RayDestroysFirst
-                 | RayDestroysAll
+-- | Tells which obstacles are destroyed on the 'Segment' of 'Ray' 'Theoretical'
+data LaserPolicy = DestroyFirstObstacle
+                 -- ^ The first obstacle is destroyed.
+                 | DestroyAllObstacles
+                 -- ^ All obstacles are destroyed.
 
 -- | The reach of the laser.
-data LaserType = Infinite
+data LaserReach = Infinite

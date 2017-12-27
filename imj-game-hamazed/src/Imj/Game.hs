@@ -1,9 +1,69 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game(
-        -- * Run the hamazed game
+
+module Imj.Game
+      ( -- * The game
+        {-| In Hamazed, you are a 'BattleShip' pilot surrounded by flying 'Number's.
+
+        Your mission is to shoot exactly the 'Number's whose sum will equate the
+        current 'Level' 's /target number/.
+
+        The higher the 'Level' (1..12), the more 'Number's are flying around (up-to 16).
+        And the smaller the 'World' gets.
+
+        Good luck !
+        -}
         gameWorker
+        -- * Game loop
+        {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
+
+        * 'getNextDeadline'
+
+            * compute \(deadline\) = the next foreseen 'Deadline' to handle, given a 'GameState'.
+
+        * 'getEventForMaybeDeadline'
+
+            * From \(deadline\), deduce \(timeout\) = max wait time for a player event
+            * Wait for the \(player\) to press a valid key for \(timeout\) seconds.
+
+                * If no \(player\) @event@ occured before \(timeout\) seconds
+                , \(timestampedEvent\) = \(deadline\) @event@
+                * Else, \(timestampedEvent\) = \(player\) @event@
+
+        * 'updateAndRender'
+
+            * Update 'GameState' according to \(timestampedEvent\)
+            * Render if needed, using "Imj.Render.Delta" to avoid
+            <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+        -}
+      , getNextDeadline
+      , getEventForMaybeDeadline
+      , updateAndRender
+        -- * Deadlines
+      , Deadline(..)
+      , DeadlineType(..)
+      -- ** Overdue deadlines priorities
+      -- | When multiple overdue deadlines are competing, the following priorities apply:
+      --
+      -- 'AnimateUI' > 'DisplayContinueMessage' > 'MoveFlyingItems' > /Player event/ > 'Animate'
+      , deadlinePriority
+      , playerEventPriority
+        -- * Timestamped Events
+        -- | Every 'Event' is timestamped with the time at which it was generated:
+      , TimestampedEvent(..)
+        -- * Events
+      , Event(..)
+      , ActionTarget(..)
+      , MetaAction(..)
+        -- * GameState
+        {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
+        we render the /old/ 'World' while using the /new/ 'World' 's
+        dimensions to animate the UI accordingly (see "Imj.Game.Level.Animation"). -} -- TODO this could be done differently
+      , GameState(..)
+        -- * Utilities
+      , eventFromKey
+      , getKeyTime
       ) where
 
 import           Imj.Prelude
@@ -15,20 +75,21 @@ import           Imj.Animation
 import           Imj.Animation.Chars
 import           Imj.Animation.Design hiding (earliestDeadline)
 import           Imj.Game.Color
-import           Imj.Game.Deadline( Deadline(..) )
-import           Imj.Game.Types
 import           Imj.Game.Event
 import           Imj.Game.Level
+import           Imj.Game.Level.Types
 import           Imj.Game.Parameters
 import           Imj.Game.Render
+import           Imj.Game.Timing
+import           Imj.Game.Types
 import           Imj.Game.World
-import           Imj.Game.World.Evolution
-import           Imj.Game.World.Laser
+import           Imj.Game.World.Types
 import           Imj.Game.World.Number
 import           Imj.Game.World.Ship
 import           Imj.Game.World.Space.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Laser
 import           Imj.Physics.Discrete.Collision
 
 -- | Runs the Hamazed game.
@@ -40,12 +101,12 @@ gameWorker =
 
 
 nextGameState :: GameState
-              -> TimedEvent
+              -> TimestampedEvent
               -> GameState
 nextGameState
   (GameState b world@(World _ c ship@(BattleShip posspeed ammo safeTime collisions) space animations e) futureWorld
-             g (Level i target finished) (WorldAnimation (WorldEvolutions j upDown left) k l))
-  te@(TimedEvent event t) =
+             g (Level i target finished) (UIAnimation (UIEvolutions j upDown left) k l))
+  te@(TimestampedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = eventAction event world
       keyTime = KeyTime t
 
@@ -76,7 +137,7 @@ nextGameState
             in mkTextAnimLeft frameSpace frameSpace infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
-      newAnim = WorldAnimation (WorldEvolutions j upDown newLeft) k l
+      newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
   in assert (isFinished newAnim) $ GameState b newWorld futureWorld allShotNumbers newLevel newAnim
 
 
@@ -112,8 +173,46 @@ replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
 replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =
   GameState c (World wa wb wc wd anims ew) b f g h
 
-nextDeadline :: GameState -> SystemTime -> Maybe Deadline
-nextDeadline s t =
+{- | Returns the next 'Deadline' to handle.
+
+We prefer having time-accurate game motions for central items of the game
+(the 'BattleShip', the 'Number's) than having time-accurate explosive 'Animation's.
+
+Hence, when multiple overdue deadlines are competing, the following priorities apply
+(higher number = higher priority):
+
+\[
+\newcommand\T{\Rule{0pt}{.5em}{.3em}}
+  \begin{array}{|c|c|c|}
+	\hline
+  \textbf{ Priority } \T & \textbf{ Name     } \T & \textbf{ Description                            } \\\hline
+	\text{ 5 } & \text{ AnimateUI              } \T & \text{ Inter-level animations                   } \\\hline
+	\text{ 4 } & \text{ DisplayContinueMessage } \T & \textit{ Press a key to continue                } \\\hline
+  \text{ 3 } & \text{ MoveFlyingItems        } \T & \text{ Move the BattleShip and Numbers          } \\\hline
+  \text{ 2 } & \textit{ Player event         } \T & \text{ Handle a key-press                       } \\\hline
+  \text{ 1 } & \text{ Animate                } \T & \text{ Update animations (explosions and others)} \\\hline
+	\end{array}
+\]
+
+Applying these priorities to overdue 'Deadline's, a long-overdue 'Animate' deadline
+could be ignored in favor of a recent 'MoveFlyingItems' deadline.
+
+Note that if no 'Deadline' is overdue (they all happen in the future), we return
+the closest one in time, irrespective of its priority.
+
+We /could/ apply prioritiesfor non-overdue deadlines, too. For example if a
+'MoveFlyingItems' very closely follows an 'Animate' (say, 15 millisecond after),
+we could swap their order so as to have a better guarantee that the game motion
+will happen in-time and not be delayed by a potentially heavy animation update.
+But it's very unlikely that it will make a difference, except if updating
+the 'Animation's becomes /very/ slow for some reason.
+-}
+getNextDeadline :: GameState
+                -- ^ Current state
+                -> SystemTime
+                -- ^ The current time.
+                -> Maybe Deadline
+getNextDeadline s t =
   let l = getDeadlinesByDecreasingPriority s t
   in  overdueDeadline t l <|> earliestDeadline l
 
@@ -124,33 +223,34 @@ earliestDeadline l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> com
 overdueDeadline :: SystemTime -> [Deadline] -> Maybe Deadline
 overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
 
--- | priorities are : message > game forward > animation forward
+-- | priorities are : uiAnimation > message > game > player key > animation
 getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
-  maybe
-    (catMaybes [messageDeadline level t, getGameDeadline s, animationDeadline s])
-    (: [])
-      (worldAnimationDeadline s)
+  catMaybes [ uiAnimationDeadline s
+            , messageDeadline level t
+            , getMoveFlyingItemsDeadline s
+            , animationDeadline s
+            ]
 
-getGameDeadline :: GameState -> Maybe Deadline
-getGameDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
+getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
+getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
   maybe
     (maybe
       Nothing
-      (\s -> Just $ Deadline s GameDeadline)
+      (\s -> Just $ Deadline s MoveFlyingItems)
         nextGameStep)
     (const Nothing)
       levelFinished
 
 animationDeadline :: GameState -> Maybe Deadline
 animationDeadline (GameState _ world _ _ _ _) =
-  maybe Nothing (\ti -> Just $ Deadline ti AnimationDeadline) $ earliestAnimationDeadline world
+  maybe Nothing (\ti -> Just $ Deadline ti Animate) $ earliestAnimationDeadline world
 
-worldAnimationDeadline :: GameState -> Maybe Deadline
-worldAnimationDeadline (GameState _ _ _ _ _ (WorldAnimation _ mayDeadline _)) =
+uiAnimationDeadline :: GameState -> Maybe Deadline
+uiAnimationDeadline (GameState _ _ _ _ _ (UIAnimation _ mayDeadline _)) =
   maybe
     Nothing
-    (\deadline -> Just $ Deadline deadline FrameAnimationDeadline)
+    (\deadline -> Just $ Deadline deadline AnimateUI)
       mayDeadline
 
 
@@ -200,18 +300,18 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
                 mayState
             curInfos = mkInfos Normal ammo shotNums level
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
-            worldAnimation =
-              mkWorldAnimation
+            uiAnimation =
+              mkUIAnimation
                 (mkFrameSpec worldFrameColors curWorld, curInfos)
                 (mkFrameSpec worldFrameColors newWorld, newInfos)
                 t
             gameDeadline =
-              if isFinished worldAnimation
+              if isFinished uiAnimation
                 then
                   Just $ KeyTime t
                 else
                   Nothing
-        return $ Right $ GameState gameDeadline curWorld newWorld newShotNums newLevel worldAnimation
+        return $ Right $ GameState gameDeadline curWorld newWorld newShotNums newLevel uiAnimation
   mkEmbeddedWorld newSize >>= either (return . Left) make
 
 
@@ -229,40 +329,51 @@ loop params state =
 updateGame :: (Draw e, MonadReader e m, MonadIO m)
            => GameParameters
            -> GameState
-           -> m (GameState, Maybe Meta)
+           -> m (GameState, Maybe MetaAction)
 updateGame params state = do
   evt <- liftIO $ getTimedEvent state
   case evt of
-    TimedEvent (Interrupt i) _ -> return (state, Just i)
+    TimestampedEvent (Interrupt i) _ -> return (state, Just i)
     _ -> do
-      st <- updateGameUsingTimedEvent params state evt
+      st <- updateAndRender params state evt
       return (st, Nothing)
 
-getTimedEvent :: GameState -> IO TimedEvent
+getTimedEvent :: GameState -> IO TimestampedEvent
 getTimedEvent state =
   getEvent state >>= \evt -> do
     t <- getSystemTime
-    return $ TimedEvent evt t
+    return $ TimestampedEvent evt t
 
 getEvent :: GameState -> IO Event
-getEvent state@(GameState _ _ _ _ level _) = do
+getEvent state = do
+  mayEvent <- getEvent' state
+  case mayEvent of
+    Just event -> return event
+    Nothing -> getEvent state
+
+getEvent' :: GameState -> IO (Maybe Event)
+getEvent' state@(GameState _ _ _ _ level _) = do
   t <- getSystemTime
-  let deadline = nextDeadline state t
+  let deadline = getNextDeadline state t
   getEventForMaybeDeadline level deadline t
 
-
-{-# INLINABLE updateGameUsingTimedEvent #-}
-updateGameUsingTimedEvent :: (Draw e, MonadReader e m, MonadIO m)
-                          => GameParameters
-                          -> GameState
-                          -> TimedEvent
-                          -> m GameState
-updateGameUsingTimedEvent
+-- | Updates the 'GameState', if needed, and renders using "Imj.Render.Delta"
+-- to avoid <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+{-# INLINABLE updateAndRender #-}
+updateAndRender :: (Draw e, MonadReader e m, MonadIO m)  -- TODO This function should be split in two : update / render.
+                => GameParameters
+                -- ^ 'World' creation parameters
+                -- (will be used in case the 'Event' is 'StartLevel')
+                -> GameState
+                -- ^ The current state
+                -> TimestampedEvent
+                -- ^ The 'TimestampedEvent' that should be handled here.
+                -> m GameState
+updateAndRender
  params
  state@(GameState b world futWorld f h@(Level level target mayLevelFinished) i)
- te@(TimedEvent event t) =
+ te@(TimestampedEvent event t) =
   case event of
-    Nonsense -> return state
     StartLevel nextLevel ->
       mkInitialState params nextLevel (Just state)
         >>= \case
@@ -270,10 +381,11 @@ updateGameUsingTimedEvent
               Right s -> return s
     _ -> do
           let newState = case event of
-                (Timeout FrameAnimationDeadline _) -> updateAnim t state
-                (Timeout GameDeadline gt) -> GameState (Just $ addGameStepDuration gt) (updateWorld t world) futWorld f h i
-                (Timeout MessageDeadline _) -> -- TODO this part is ugly, we should not have to deduce so much
-                                           -- MessageDeadline is probably the wrong abstraction level
+                (Timeout (Deadline _ AnimateUI))
+                  -> updateAnim t state
+                (Timeout (Deadline gt MoveFlyingItems))
+                  -> GameState (Just $ addDuration gameMotionPeriod gt) (updateWorld t world) futWorld f h i
+                (Timeout (Deadline _ DisplayContinueMessage)) ->
                   case mayLevelFinished of
                     Just (LevelFinished stop finishTime _) ->
                       let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
@@ -284,7 +396,7 @@ updateGameUsingTimedEvent
 
 
 updateAnim :: SystemTime -> GameState -> GameState
-updateAnim t (GameState _ curWorld futWorld j k (WorldAnimation evolutions _ it)) =
+updateAnim t (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it)) =
      let nextIt@(Iteration _ nextFrame) = nextIteration it
          (world, gameDeadline, worldAnimDeadline) =
             maybe
@@ -292,20 +404,21 @@ updateAnim t (GameState _ curWorld futWorld j k (WorldAnimation evolutions _ it)
               (\dt ->
                (curWorld, Nothing         , Just $ KeyTime $ addSystemTime (floatSecondsToDiffTime dt) t))
               $ getDeltaTime evolutions nextFrame
-         wa = WorldAnimation evolutions worldAnimDeadline nextIt
+         wa = UIAnimation evolutions worldAnimDeadline nextIt
      in GameState gameDeadline world futWorld j k wa
 
 
 {-# INLINABLE updateGame2 #-}
 updateGame2 :: (Draw e, MonadReader e m, MonadIO m)
-            => TimedEvent
+            => TimestampedEvent
             -> GameState
             -> m GameState
 updateGame2
- te@(TimedEvent event _)
+ te@(TimestampedEvent event _)
  s@(GameState _ _ _ _ _ anim) =
   case event of
-    Action Ship dir -> return $ accelerateShip' dir s
+    Action Ship dir ->
+      return $ accelerateShip' dir s
     _ -> do
       let s2 =
             if isFinished anim
@@ -332,7 +445,7 @@ renderGame k (GameState _ world@(World _ _ _ space@(Space _ (Size rs cs) _)
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
         renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner)
-        renderWorldAnimation wa -- render it last so that when it animates
+        renderUIAnimation wa -- render it last so that when it animates
                                   -- to reduce, it goes over numbers and ship
         return activeAnimations)
 

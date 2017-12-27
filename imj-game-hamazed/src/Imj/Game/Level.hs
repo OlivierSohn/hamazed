@@ -1,19 +1,14 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Level
-    ( Level(..)
-    , LevelFinished(..)
-    , renderLevelMessage
-    , isLevelFinished
+    ( renderLevelMessage
     , renderLevelState
-    , MessageState(..)
-    , GameStops(..)
     , messageDeadline
     , getEventForMaybeDeadline
-    -- * Reexports
-    , module Imj.Game.Level.Types
     ) where
 
 import           Imj.Prelude
@@ -21,58 +16,27 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Text( pack )
 import           System.Timeout( timeout )
 
 import           Imj.Draw
 import           Imj.Game.Color
-import           Imj.Game.Deadline( Deadline(..) )
 import           Imj.Game.Event
 import           Imj.Game.Level.Types
-import           Imj.Game.World( BattleShip(..)
-                      , Number(..)
-                      , World(..) )
 import           Imj.Geo.Discrete
 import           Imj.Key.NonBlocking
 import           Imj.Key.Blocking( getKeyThenFlush )
 import           Imj.Key.Types
 import           Imj.Timing
-import           Imj.Util( showListOrSingleton )
 
-eventFromKey' :: Level -> Key -> Event
+eventFromKey' :: Level -> Key -> Maybe Event
 eventFromKey' (Level n _ finished) key =
   case finished of
     Nothing -> eventFromKey key
-    Just (LevelFinished stop _ ContinueMessage) ->
+    Just (LevelFinished stop _ ContinueMessage) -> Just $
       case stop of
         Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
         (Lost _) -> StartLevel firstLevel
-    _ -> Nonsense -- between level end and proposal to continue
-
-
-isLevelFinished :: World -> Int -> Int -> TimedEvent -> Maybe LevelFinished
-isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimedEvent lastEvent t) =
-    maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
-  where
-    allChecks = checkShipCollision <|> checkSum <|> checkAmmo
-
-    checkShipCollision = case lastEvent of
-      (Timeout GameDeadline _) ->
-        maybe
-          (case map (\(Number _ n) -> n) collisions of
-            [] -> Nothing
-            l  -> Just $ Lost $ "collision with " <> showListOrSingleton l)
-          (const Nothing)
-          safeTime
-      _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
-
-    checkSum = case compare sumNumbers target of
-      LT -> Nothing
-      EQ -> Just Won
-      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target
-    checkAmmo
-      | ammo <= 0 = Just $ Lost $ pack "no ammo left"
-      | otherwise = Nothing
+    _ -> Nothing -- between level end and proposal to continue
 
 messageDeadline :: Level -> SystemTime -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) t =
@@ -83,11 +47,19 @@ messageDeadline (Level _ _ mayLevelFinished) t =
         let finishedSinceSeconds = diffSystemTime t timeFinished
             delay = 2
             nextMessageStep = addSystemTime (delay - finishedSinceSeconds) t
-        in  Just $ Deadline (KeyTime nextMessageStep) MessageDeadline
+        in  Just $ Deadline (KeyTime nextMessageStep) DisplayContinueMessage
       ContinueMessage -> Nothing)
   mayLevelFinished
 
-getEventForMaybeDeadline :: Level -> Maybe Deadline -> SystemTime -> IO Event
+-- | Returns a /player event/ or the 'Event' associated to the 'Deadline' if the
+-- 'Deadline' expired before the /player/ could press a 'Key'.
+getEventForMaybeDeadline :: Level
+                         -- ^ Current level
+                         -> Maybe Deadline
+                         -- ^ May contain a 'Deadline'
+                         -> SystemTime
+                         -- ^ Current time
+                         -> IO (Maybe Event)
 getEventForMaybeDeadline level mayDeadline curTime =
   case mayDeadline of
     (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
@@ -96,11 +68,11 @@ getEventForMaybeDeadline level mayDeadline curTime =
       eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
     Nothing -> eventFromKey' level <$> getKeyThenFlush
 
-eventWithinDurationMicros :: Level -> Int -> KeyTime -> DeadlineType -> IO Event
+eventWithinDurationMicros :: Level -> Int -> KeyTime -> DeadlineType -> IO (Maybe Event)
 eventWithinDurationMicros level durationMicros k step =
   (\case
     Just key -> eventFromKey' level key
-    _ -> Timeout step k
+    _ -> Just $ Timeout (Deadline k step)
     ) <$> getCharWithinDurationMicros durationMicros step
 
 getCharWithinDurationMicros :: Int -> DeadlineType -> IO (Maybe Key)
@@ -108,7 +80,7 @@ getCharWithinDurationMicros durationMicros step =
   if durationMicros < 0
     -- overdue
     then
-      if priority step < userEventPriority
+      if playerEventPriority > deadlinePriority step
         then
           tryGetKeyThenFlush
         else

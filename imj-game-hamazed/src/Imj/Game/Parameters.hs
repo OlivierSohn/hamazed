@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
@@ -5,9 +7,6 @@
 module Imj.Game.Parameters(
         GameParameters(..)
       , getGameParameters
-      , WallDistribution(..)
-      , RandomParameters(..)
-      , Strategy(..)
       ) where
 
 import           Imj.Prelude
@@ -15,16 +14,21 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
+import           Imj.Draw
 import           Imj.Game.Color
-import           Imj.Game.World
-import           Imj.Game.World.Evolution
-
+import           Imj.Game.Level.Animation
+import           Imj.Game.World.Create
+import           Imj.Game.World.Embedded
+import           Imj.Game.World.Render
+import           Imj.Game.World.Size
+import           Imj.Game.World.Space
+import           Imj.Game.World.Types
+import           Imj.Game.World.Space.Types
 import           Imj.Geo.Discrete
-
 import           Imj.Key.Blocking
 import           Imj.Key.Types
-import           Imj.Timing
 import           Imj.Text.Alignment
+import           Imj.Timing
 
 
 data GameParameters = GameParameters {
@@ -39,6 +43,8 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
 initialParameters :: GameParameters
 initialParameters = GameParameters Square None
 
+-- | Displays the configuration UI showing the game creation options,
+-- and returns when the player has finished chosing the options.
 {-# INLINABLE getGameParameters #-}
 getGameParameters :: (Draw e, MonadReader e m, MonadIO m)
                   => m GameParameters
@@ -73,20 +79,18 @@ updateFromChar c p@(GameParameters shape wallType) =
 {-# INLINABLE dText #-}
 dText :: (Draw e, MonadReader e m, MonadIO m)
       => Text
-      -> LayeredColor
       -> Coords
       -> m Coords
-dText txt color pos =
-  drawTxt txt pos color >> return (translateInDir Down pos)
+dText txt pos =
+  drawTxt txt pos configColors >> return (translateInDir Down pos)
 
 {-# INLINABLE dText_ #-}
 dText_ :: (Draw e, MonadReader e m, MonadIO m)
        => Text
-       -> LayeredColor
        -> Coords
        -> m ()
-dText_ txt color pos =
-  void (dText txt color pos)
+dText_ txt pos =
+  void (dText txt pos)
 
 {-# INLINABLE render' #-}
 render' :: (Draw e, MonadReader e m, MonadIO m)
@@ -110,16 +114,15 @@ render' (GameParameters shape wall) = do
             >>= drawAlignedTxt_ "------------------" configColors
           drawAlignedTxt_ "Hit 'Space' to start game" configColors (mkCentered $ translateInDir Up middleLow)
 
-          translateInDir Down <$> dText "- World shape" configColors (move 5 Up left)
-            >>= dText "'1' -> width = height" configColors
-              >>= dText_ "'2' -> width = 2 x height" configColors
-          translateInDir Down <$> dText "- World walls" configColors left
-            >>= dText "'e' -> no walls" configColors
-              >>= dText "'r' -> deterministic walls" configColors
-                >>= dText_ "'t' -> random walls" configColors
+          translateInDir Down <$> dText "- World shape" (move 5 Up left)
+            >>= dText "'1' -> width = height"
+              >>= dText_ "'2' -> width = 2 x height"
+          translateInDir Down <$> dText "- World walls" left
+            >>= dText "'e' -> no walls"
+              >>= dText "'r' -> deterministic walls"
+                >>= dText_ "'t' -> random walls"
 
           t <- liftIO getSystemTime
-          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),([""],[""])))
-              worldAnimation = mkWorldAnimation infos infos t
-          renderWorldAnimation worldAnimation
+          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),[[""],[""]]))
+          renderUIAnimation $ mkUIAnimation infos infos t
       renderDrawing

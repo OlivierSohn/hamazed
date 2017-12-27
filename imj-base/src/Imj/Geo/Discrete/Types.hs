@@ -104,3 +104,4 @@ data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
              -- ^ Vertical segment
              | Oblique    !Coords !Coords
              -- ^ Oblique segment
+             deriving(Show)

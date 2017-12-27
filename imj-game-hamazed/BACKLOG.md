@@ -5,6 +5,10 @@
 
 - split updateRender in update, render
 
+- do not render 2 times within 5 ms : it corresponds to a 200Hz refresh rate.
+It means we can group updates of deadlines that are within a 5ms timespan.
+To do that we also need to decouple GameState update from rendering.
+
 - when console is resized, move the world (recompute embeddedWorld)
 
 - chose target and numbers such that there is a single possibility to reach that sum,

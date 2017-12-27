@@ -28,6 +28,7 @@ library
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
+                     , Imj.Threading
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*

@@ -160,7 +160,7 @@ module Imj.Render.Delta
     * assuming 'YourEnv' owns a 'DeltaEnv'
     and implements a 'Draw' instance which forwards to the 'Draw' instance of
     the 'DeltaEnv' (like in
-    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Env.hs this game>):
+    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Env.hs this game>):
 
     @
     import YourApp(createYourEnv)

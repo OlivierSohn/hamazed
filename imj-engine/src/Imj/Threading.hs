@@ -28,7 +28,8 @@ import           Control.Exception( SomeException(..) )
 import           Control.Monad( (>=>) )
 
 -- | Was the thread termination nomal or due to an error?
-data Termination = Normal | Abnormal
+data Termination = NormalTermination
+                 | AbnormalTermination
 
 --------------------------------------------------------------------------------
 -- IO
@@ -64,5 +65,5 @@ myForkIO io = do
 
 
 handleTerminationCause :: Either SomeException a -> IO Termination
-handleTerminationCause (Left e) = Prelude.putStrLn ("From game thread:\n" ++ show e) >> return Abnormal
-handleTerminationCause _        = return Normal
+handleTerminationCause (Left e) = Prelude.putStrLn ("From game thread:\n" ++ show e) >> return AbnormalTermination
+handleTerminationCause _        = return NormalTermination

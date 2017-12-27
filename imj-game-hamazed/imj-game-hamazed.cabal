@@ -20,10 +20,10 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Env
-                     , Imj.Game.Event
-                     , Imj.Game
+  exposed-modules:     Imj.Game
                      , Imj.Game.Color
+                     , Imj.Game.Env
+                     , Imj.Game.Event
                      , Imj.Game.Level
                      , Imj.Game.Level.Types
                      , Imj.Game.Parameters
@@ -40,8 +40,6 @@ library
                      , Imj.Game.World.Space
                      , Imj.Game.World.Space.Types
                      , Imj.Game.World.Types
-                     , Imj.Run
-                     , Imj.Threading
   build-depends:       base >= 4.8 && < 4.11
                      , containers >= 0.5.9.2
                      , matrix >= 0.3.5.0

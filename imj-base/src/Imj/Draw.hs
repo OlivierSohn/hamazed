@@ -35,7 +35,7 @@ main = do
   runReaderT helloWorld env
 @
 
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Env.hs This example>
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Env.hs This example>
 follows this pattern.    -}
         , module Imj.Draw.FromMonadReader
         -- * Reexports

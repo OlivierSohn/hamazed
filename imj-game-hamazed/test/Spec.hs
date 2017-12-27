@@ -1,7 +1,7 @@
 import Control.Monad.Reader(runReaderT)
 
 import           Imj.Draw
-import           Imj.Env
+import           Imj.Game.Env
 import           Imj.Render.Delta(runThenRestoreConsoleSettings)
 
 import           Test.Imj.Rendering

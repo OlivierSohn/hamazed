@@ -14,7 +14,7 @@ module Imj.Game
 
         Good luck !
         -}
-        gameWorker
+          run
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 
@@ -61,12 +61,20 @@ module Imj.Game
         we render the /old/ 'World' while using the /new/ 'World' 's
         dimensions to animate the UI accordingly (see "Imj.UI.Animation"). -} -- TODO this could be done differently
       , GameState(..)
+        -- * Environment
+        {- | -}
+      , module Imj.Game.Env
         -- * Utilities
       , eventFromKey
       , getKeyTime
       ) where
 
 import           Imj.Prelude
+import qualified Prelude (putStrLn)
+
+import           System.Info(os)
+
+import           Control.Monad.Reader(runReaderT)
 
 import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
@@ -75,6 +83,7 @@ import           Imj.Animation
 import           Imj.Animation.Chars
 import           Imj.Animation.Design hiding (earliestDeadline)
 import           Imj.Game.Color
+import           Imj.Game.Env
 import           Imj.Game.Event
 import           Imj.Game.Level
 import           Imj.Game.Level.Types
@@ -92,8 +101,31 @@ import           Imj.Geo.Discrete
 import           Imj.Laser
 import           Imj.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
+import           Imj.Render.Delta
+import           Imj.Threading
 
--- | Runs the Hamazed game.
+{- | Runs the Hamazed game.
+
+If your current terminal window is too small, the program will error and
+tell you what is the minimum window size to run the game.
+
+The game doesn't run on Windows, because with GHC,
+<https://ghc.haskell.org/trac/ghc/ticket/7353 IO operations cannot be interrupted on Windows>.
+-}
+run :: IO ()
+run =
+  if os == "mingw32"
+    then
+      Prelude.putStrLn $ "Windows is not currently supported,"
+      ++ " due to this GHC bug: https://ghc.haskell.org/trac/ghc/ticket/7353."
+    else
+      void doRun
+
+doRun :: IO Termination
+doRun =
+  runThenRestoreConsoleSettings
+    (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)
+
 {-# INLINABLE gameWorker #-}
 gameWorker :: (Draw e, MonadReader e m, MonadIO m)
            => m ()
@@ -202,7 +234,7 @@ could be ignored in favor of a recent 'MoveFlyingItems' deadline.
 Note that if no 'Deadline' is overdue (they all happen in the future), we return
 the closest one in time, irrespective of its priority.
 
-We /could/ apply prioritiesfor non-overdue deadlines, too. For example if a
+We /could/ apply priorities for non-overdue deadlines, too. For example if a
 'MoveFlyingItems' very closely follows an 'Animate' (say, 15 millisecond after),
 we could swap their order so as to have a better guarantee that the game motion
 will happen in-time and not be delayed by a potentially heavy animation update.

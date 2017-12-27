@@ -2,15 +2,7 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - create a text-decorated RectContainer
-
-  - do not render 2 times within 5 ms : it corresponds to a 200Hz refresh rate.
-  It means we can group updates of deadlines that are within a 5ms timespan.
-  To do that we also need to decouple GameState update from rendering.
-
   - Env should be in Game ? Run also?
-  - make better doc for
-    - Game*
   - Aggregate doc when appropriate.
 
   - unit-test resampleWithExtremities

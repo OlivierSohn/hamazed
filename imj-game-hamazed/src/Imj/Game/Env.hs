@@ -1,5 +1,6 @@
+{-# OPTIONS_HADDOCK hide #-}
 
-module Imj.Env(
+module Imj.Game.Env(
          Env
        , createEnv
        ) where

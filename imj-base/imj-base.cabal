@@ -104,12 +104,16 @@ test-suite imj-base-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.Bresenham3
                      , Test.Imj.Ease
+                     , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
                      , Test.Imj.Stdout
                      , Test.Imj.Timing
                      , Test.Imj.Vector
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
+                     , ansi-terminal >= 0.6.3.1
+                     , mtl >= 2.2.1 && < 2.3
+                     , text ==1.2.*
                      , imj-base
                      , imj-prelude ==0.1.*
                      , time ==1.8.*

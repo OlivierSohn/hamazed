@@ -28,7 +28,7 @@ renderWorld :: (Draw e, MonadReader e m, MonadIO m)
             => World
             -> m ()
 renderWorld
-  (World balls _ (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
+  (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
          space _ (EmbeddedWorld _ upperLeft))  = do
   -- render numbers, including the ones that will be destroyed, if any
   let s = translateInDir Down $ translateInDir RIGHT upperLeft

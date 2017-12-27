@@ -101,7 +101,7 @@ render' (GameParameters shape wall) = do
   mkEmbeddedWorld worldSize >>= \case
     Left err -> error err
     Right rew@(EmbeddedWorld _ ul) -> do
-      world@(World _ _ _ space _ _) <- mkWorld rew worldSize wall [] 0
+      world@(World _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space ul >>=
         \worldCoords -> do
           renderWorld world

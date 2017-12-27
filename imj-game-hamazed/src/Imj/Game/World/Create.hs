@@ -4,6 +4,7 @@
 
 module Imj.Game.World.Create
         ( mkWorld
+        , updateMovableItem
         ) where
 
 import           Imj.Prelude
@@ -38,11 +39,17 @@ mkWorld e s walltype nums ammo = do
   t <- liftIO getSystemTime
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls ballMotion (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
+  return $ World balls (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
 
 
-ballMotion :: Space -> PosSpeed -> PosSpeed
-ballMotion space ps@(PosSpeed pos _) =
+-- | Updates 'PosSpeed' of a movable item in 'Space'.
+updateMovableItem :: Space
+                  -- ^ The surrounding 'Space' will be taken into account for collisions.
+                  -> PosSpeed
+                  -- ^ The current position and speed of the moving item.
+                  -> PosSpeed
+                  -- ^ The updated position and speed.
+updateMovableItem space ps@(PosSpeed pos _) =
   let (newPs@(PosSpeed newPos _), collision) =
         mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space) ps
   in  case collision of

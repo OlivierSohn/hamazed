@@ -77,12 +77,11 @@ isFinished _ = False
 
 -- | Helper function to create a 'RectFrame' placed around the 'World' limits.
 mkFrameSpec :: LayeredColor -> World -> RectFrame
-mkFrameSpec colors (World _ _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
+mkFrameSpec colors (World _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
   RectFrame sz upperLeft colors
 
 data World = World {
     _worldNumbers :: ![Number]
-  , _howBallMoves :: Space -> PosSpeed -> PosSpeed
   , _worldShip :: !BattleShip
   , _worldSpace :: !Space
   , _worldAnimations :: ![BoundedAnimation]

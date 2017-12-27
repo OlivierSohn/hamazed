@@ -2,7 +2,6 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - remove the function field of World, document World fields
   - do not render 2 times within 5 ms : it corresponds to a 200Hz refresh rate.
   It means we can group updates of deadlines that are within a 5ms timespan.
   To do that we also need to decouple GameState update from rendering.

@@ -97,13 +97,17 @@ module Imj.Game.World
     , createRandomNonCollidingPosSpeed
       -- ** Rendering
     , renderSpace
-      -- * BattleShip
+      -- * Movable items
+      -- | A Movable item's 'PosSpeed' is updated using 'updateMovableItem'
+      -- at each 'MoveFlyingItems' event:
+    , updateMovableItem
+      -- ** BattleShip
     , BattleShip(..)
-    -- ** Move BattleShip
+    -- *** Accelerate BattleShip
     -- | The 'BattleShip' is controlled in (discrete) acceleration by the player
     -- using the keyboard.
     , accelerateShip
-    -- * Number
+    -- ** Number
     -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
     --
     -- Number can collide with the 'BattleShip', hence triggering colorfull
@@ -179,19 +183,19 @@ updateWorld :: SystemTime
             -- ^ The current time
             -> World
             -> World
-updateWorld curTime (World balls changePos (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
+updateWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t then Nothing else safeTime
         _        -> Nothing
-      newBalls = map (\(Number ps n) -> Number (changePos size ps) n) balls
-      newPosSpeed@(PosSpeed pos _) = changePos size shipPosSpeed
+      newBalls = map (\(Number ps n) -> Number (updateMovableItem size ps) n) balls
+      newPosSpeed@(PosSpeed pos _) = updateMovableItem size shipPosSpeed
       collisions = getColliding pos newBalls
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
-  in World newBalls changePos newShip size anims e
+  in World newBalls newShip size anims e
 
 -- | Returns the earliest 'BoundedAnimation' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ _ animations _) =
+earliestAnimationDeadline (World _ _ _ animations _) =
   earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 -- TODO use Number Live Number Dead
@@ -203,7 +207,7 @@ eventAction :: Event
             -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
 eventAction
   event
-  (World balls _ (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
+  (World balls (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
         space _ _)
  =
   let (maybeLaserRayTheoretical, newAmmo) =
@@ -240,7 +244,7 @@ isLevelFinished :: World
                 -> TimestampedEvent
                 -- ^ The current event
                 -> Maybe LevelFinished
-isLevelFinished (World _ _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimestampedEvent lastEvent t) =
+isLevelFinished (World _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimestampedEvent lastEvent t) =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
     allChecks = checkShipCollision <|> checkSum <|> checkAmmo

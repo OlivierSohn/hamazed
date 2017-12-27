@@ -104,7 +104,7 @@ nextGameState :: GameState
               -> TimestampedEvent
               -> GameState
 nextGameState
-  (GameState b world@(World _ c ship@(BattleShip posspeed ammo safeTime collisions) space animations e) futureWorld
+  (GameState b world@(World _ ship@(BattleShip posspeed ammo safeTime collisions) space animations e) futureWorld
              g (Level i target finished) (UIAnimation (UIEvolutions j upDown left) k l))
   te@(TimestampedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = eventAction event world
@@ -124,7 +124,7 @@ nextGameState
          ++ outerSpaceAnims_
          ++ animations
 
-      newWorld = World remainingBalls c (BattleShip posspeed newAmmo safeTime collisions) space newAnimations e
+      newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions) space newAnimations e
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newLeft =
@@ -170,8 +170,8 @@ laserAnims keyTime ray
  = [BoundedAnimation (laserAnimation keyTime ray) WorldFrame]
 
 replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
-replaceAnimations anims (GameState c (World wa wb wc wd _ ew) b f g h) =
-  GameState c (World wa wb wc wd anims ew) b f g h
+replaceAnimations anims (GameState c (World wa wc wd _ ew) b f g h) =
+  GameState c (World wa wc wd anims ew) b f g h
 
 {- | Returns the next 'Deadline' to handle.
 
@@ -255,9 +255,9 @@ uiAnimationDeadline (GameState _ _ _ _ _ (UIAnimation _ mayDeadline _)) =
 
 
 accelerateShip' :: Direction -> GameState -> GameState
-accelerateShip' dir (GameState c (World wa wb ship wc wd we) b f g h) =
+accelerateShip' dir (GameState c (World wa ship wc wd we) b f g h) =
   let newShip = accelerateShip dir ship
-      world = World wa wb newShip wc wd we
+      world = World wa newShip wc wd we
   in GameState c world b f g h
 
 
@@ -294,7 +294,7 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
         let (curWorld, level, ammo, shotNums) =
               maybe
               (newWorld, newLevel, 0, [])
-              (\(GameState _ w@(World _ _ (BattleShip _ curAmmo _ _) _ _ _)
+              (\(GameState _ w@(World _ (BattleShip _ curAmmo _ _) _ _ _)
                            _ curShotNums curLevel _) ->
                   (w, curLevel, curAmmo, curShotNums))
                 mayState
@@ -436,8 +436,8 @@ renderGame :: (Draw e, MonadReader e m, MonadIO m)
            => Maybe KeyTime
            -> GameState
            -> m [BoundedAnimation]
-renderGame k (GameState _ world@(World _ _ _ space@(Space _ (Size rs cs) _)
-                                         animations (EmbeddedWorld mayTermWindow curUpperLeft))
+renderGame k (GameState _ world@(World _ _ space@(Space _ (Size rs cs) _)
+                                       animations (EmbeddedWorld mayTermWindow curUpperLeft))
                         _ _ level wa) =
   renderSpace space curUpperLeft >>=
     (\worldCorner -> do

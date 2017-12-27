@@ -7,14 +7,16 @@ module Imj.Interpolation.Evolution
 {- | 'Evolution' is a helper type to interpolate between 'DiscretelyInterpolable's.
 It stores the total interpolation distance and the the inverse ease function.
 
-The preferred way to create it is to use 'mkEvolution'.
+The preferred way to create it is to use 'mkEvolutionEaseQuart'.
 
 To produce the desired /easing/ effect, the interpolation frame should be
 incremented at specific time intervals. In that respect, 'getDeltaTimeToNextFrame'
 computes the next time at which the interpolation should be updated and rendered,
-based on the current frame and the inverse ease function.
+based on the current frame and the inverse ease function (in that particular case,
+'invQuartEaseInOut').
 -}
            Evolution(..)
+         , mkEvolutionEaseQuart
          , mkEvolution
          , getDeltaTimeToNextFrame
          -- * Getting - or drawing - the interpolated value
@@ -46,18 +48,30 @@ import           Imj.Interpolation.Class
 import           Imj.Iteration
 import           Imj.Math.Ease
 
+{-# INLINABLE mkEvolutionEaseQuart #-}
+-- | An evolution between n values. With a 4th order ease in & out.
+mkEvolutionEaseQuart :: DiscretelyInterpolable v
+                     => Successive v
+                     -- ^ Values through which the evolution will pass.
+                     -> Float
+                     -- ^ Duration in seconds
+                     -> Evolution v
+mkEvolutionEaseQuart = mkEvolution invQuartEaseInOut
+
+-- | An evolution between n values. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}
--- | An evolution between n values.
 mkEvolution :: DiscretelyInterpolable v
-            => Successive v
+            => (Float -> Float)
+            -- ^ Inverse continuous ease function
+            -> Successive v
             -- ^ Values through which the evolution will pass.
             -> Float
             -- ^ Duration in seconds
             -> Evolution v
-mkEvolution s duration =
+mkEvolution ease s duration =
   let nSteps = distanceSuccessive s
       lastFrame = Frame $ pred nSteps
-  in Evolution s lastFrame duration (discreteInvQuartEaseInOut nSteps)
+  in Evolution s lastFrame duration (discreteAdaptor ease nSteps)
 
 -- | Used to synchronize multiple 'Evolution's.
 newtype EaseClock = EaseClock (Evolution NotDiscretelyInterpolable) deriving (Show)

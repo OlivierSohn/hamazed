@@ -20,16 +20,16 @@ testICS = do
 
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
-      e@(Evolution _ (Frame lastFrame) _ _) = mkEvolution (Successive [from, to]) 1
+      e@(Evolution _ (Frame lastFrame) _ _) = mkEvolutionEaseQuart (Successive [from, to]) 1
       from' = colored "travel" (rgb 5 0 0)
       to'   = colored "trail" (rgb 5 5 5)
-      e'@(Evolution _ (Frame lastFrame') _ _) = mkEvolution (Successive [from', to']) 1
+      e'@(Evolution _ (Frame lastFrame') _ _) = mkEvolutionEaseQuart (Successive [from', to']) 1
       pFrom   = colored "[.]" (rgb 5 5 5)
       pTo   = colored "[......]" (rgb 5 5 5)
-      e''@(Evolution _ (Frame lastFrame'') _ _) = mkEvolution (Successive [pFrom, pTo]) 1
+      e''@(Evolution _ (Frame lastFrame'') _ _) = mkEvolutionEaseQuart (Successive [pFrom, pTo]) 1
       p1   = colored "[.]" (rgb 5 5 5)
       p2   = colored "[.]" (rgb 5 0 0)
-      e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolution (Successive [p1,p2,p1]) 1
+      e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolutionEaseQuart (Successive [p1,p2,p1]) 1
 
   mapM_
     (\i@(Frame c') -> do

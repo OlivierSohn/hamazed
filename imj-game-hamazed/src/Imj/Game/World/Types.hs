@@ -50,20 +50,20 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
--- | Manages the progress and deadline of the 'UIEvolutions' animation.
+-- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {
     _uiAnimationEvs :: !UIEvolutions
   , _uiAnimationDeadline :: !(Maybe KeyTime)
   -- ^ Time at which the 'UIEvolutions' should be rendered and updated
   , _uiAnimationProgress :: !Iteration
-  -- ^ Current 'Iteration' of the animation.
+  -- ^ Current 'Iteration'.
 } deriving(Show)
 
 -- | Used when transitionning between two levels to smoothly transform the aspect
--- of the 'RectFrame' around the 'World', as well as textual information around it.
+-- of the 'RectFrame', as well as textual information around it.
 data UIEvolutions = UIEvolutions {
     _uiEvolutionFrame :: !(Evolution RectFrame)
-    -- ^ The transformation of the 'RectFrame' around the 'World'.
+    -- ^ The transformation of the 'RectFrame'.
   , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
   , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
@@ -82,15 +82,23 @@ mkFrameSpec colors (World _ _ (Space _ sz _) _ (EmbeddedWorld _ upperLeft)) =
 
 data World = World {
     _worldNumbers :: ![Number]
+    -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
   , _worldShip :: !BattleShip
+    -- ^ The player's 'BattleShip'
   , _worldSpace :: !Space
+    -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , _worldAnimations :: ![BoundedAnimation]
+    -- ^ Visual animations. They don't have an influence on the game, they are just here
+    -- for aesthetics.
   , _worldEmbedded :: !EmbeddedWorld
+    -- ^ To know where we should draw the 'World' from, w.r.t terminal frame.
 }
 
 data EmbeddedWorld = EmbeddedWorld {
     _embeddedWorldTerminal :: !(Maybe (Terminal.Window Int))
+    -- ^ The size of the terminal window
   , _embeddedWorldUpperLeft :: !Coords
+    -- ^ The corresponding 'World' upper left coordinates w.r.t terminal frame.
 } deriving (Show)
 
 data BoundedAnimation = BoundedAnimation !Animation !Boundaries deriving(Show)
@@ -112,5 +120,5 @@ data Number = Number {
     _numberPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , _numberNum :: !Int
-  -- ^ Which number it represents.
+  -- ^ Which number it represents (1 to 16).
 } deriving(Eq, Show)

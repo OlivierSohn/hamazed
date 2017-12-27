@@ -42,7 +42,7 @@ mkWorld e s walltype nums ammo = do
   return $ World balls (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
 
 
--- | Updates 'PosSpeed' of a movable item in 'Space'.
+-- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
                   -- ^ The surrounding 'Space' will be taken into account for collisions.
                   -> PosSpeed

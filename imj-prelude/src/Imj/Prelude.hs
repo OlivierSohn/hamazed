@@ -1,8 +1,11 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- Initially I needed this custom Prelude to hide putStr and putChar,
 -- since I provide equivalent functions that should be used instead to
 -- render the game.
+--
 -- I find it also usefull to default-import functions that I use a lot.
 
 module Imj.Prelude

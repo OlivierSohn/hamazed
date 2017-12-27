@@ -3,16 +3,14 @@
 {-| This module defines the colors of every game element, except animations. -}
 
 module Imj.Game.Color (
-  -- * World colors
-  -- ** Items
-  -- *** Ship
+  -- * Ship colors
     shipColor
   , shipColors
   , shipColorSafe
   , shipColorsSafe
-  -- *** Numbers
+  -- * Numbers colors
   , numberColor
-  -- ** Materials
+  -- * Materials colors
   , wallColors
   , airColors
   -- * UI colors

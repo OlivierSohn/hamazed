@@ -3,6 +3,10 @@
 
 ## Misc.
 
+- split updateRender in update, render
+
+- when console is resized, move the world (recompute embeddedWorld)
+
 - chose target and numbers such that there is a single possibility to reach that sum,
 or such that only one of the number should be ruled out?
 

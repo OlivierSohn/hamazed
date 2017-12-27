@@ -65,7 +65,7 @@ mkUIAnimation :: (RectFrame, (([ColorString], [ColorString]), [[ColorString]]))
 mkUIAnimation (from, ((f1,f2),f3)) (to, ((t1,t2),t3)) t =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolution (Successive [from, to]) 1
+  frameE = mkEvolutionEaseQuart (Successive [from, to]) 1
 
   (ta1,ta2) = createUITextAnimations from to (f1++t1, f2++t2, zipWith (++) f3 t3) 1
   evolutions = UIEvolutions frameE ta1 ta2

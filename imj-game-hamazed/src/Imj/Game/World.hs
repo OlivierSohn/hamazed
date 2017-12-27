@@ -98,7 +98,7 @@ module Imj.Game.World
       -- ** Rendering
     , renderSpace
       -- * Movable items
-      -- | A Movable item's 'PosSpeed' is updated using 'updateMovableItem'
+      -- | A movable item's 'PosSpeed' is updated using 'updateMovableItem'
       -- at each 'MoveFlyingItems' event:
     , updateMovableItem
       -- ** BattleShip

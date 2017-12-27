@@ -152,10 +152,10 @@ mkSequentialTextTranslationsCharAnchored l duration =
             in (froms ++ build from sz, tos ++ build to sz))
           ([], [])
           l
-      strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
+      strsEv = map (\(txts,_,_) -> mkEvolutionEaseQuart (Successive txts) duration) l
       fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
       evAnchors@(Evolution _ anchorsLF _ _) =
-        mkEvolution (Successive [SequentiallyInterpolatedList from_,
+        mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                  SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
@@ -167,10 +167,10 @@ mkSequentialTextTranslationsStringAnchored :: [([ColorString], Coords, Coords)]
                                            -> TextAnimation AnchorStrings
 mkSequentialTextTranslationsStringAnchored l duration =
   let (from_,to_) = unzip $ map (\(_,f,t) -> (f,t)) l
-      strsEv = map (\(txts,_,_) -> mkEvolution (Successive txts) duration) l
+      strsEv = map (\(txts,_,_) -> mkEvolutionEaseQuart (Successive txts) duration) l
       fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
       evAnchors@(Evolution _ anchorsLF _ _) =
-        mkEvolution (Successive [SequentiallyInterpolatedList from_,
+        mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                  SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
@@ -186,12 +186,12 @@ mkTextTranslation :: ColorString
                   -> TextAnimation AnchorChars
 mkTextTranslation text duration from to =
   let sz = countChars text
-      strEv@(Evolution _ fromToLF _ _) = mkEvolution (Successive [text]) duration
+      strEv@(Evolution _ fromToLF _ _) = mkEvolutionEaseQuart (Successive [text]) duration
       from_ = build from sz
       to_ = build to sz
       strsEv = [strEv]
       fromTosLF = fromToLF
       evAnchors@(Evolution _ anchorsLF _ _) =
-        mkEvolution (Successive [SequentiallyInterpolatedList from_,
+        mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                  SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut

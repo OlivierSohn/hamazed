@@ -18,7 +18,7 @@ import           Imj.Draw
 import           Imj.Game.Color
 import           Imj.UI.Animation
 import           Imj.Game.World.Create
-import           Imj.Game.World.Embedded
+import           Imj.Game.World.InTerminal
 import           Imj.Game.World.Render
 import           Imj.Game.World.Size
 import           Imj.Game.World.Space
@@ -123,6 +123,6 @@ render' (GameParameters shape wall) = do
                 >>= dText_ "'t' -> random walls"
 
           t <- liftIO getSystemTime
-          let infos = (mkFrameSpec worldFrameColors world, (([""],[""]),[[""],[""]]))
+          let infos = (mkWorldContainer worldFrameColors world, (([""],[""]),[[""],[""]]))
           renderUIAnimation $ mkUIAnimation infos infos t
       renderDrawing

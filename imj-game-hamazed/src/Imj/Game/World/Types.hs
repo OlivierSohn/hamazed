@@ -10,14 +10,14 @@ module Imj.Game.World.Types
         , Number(..)
         , BoundedAnimation(..)
         , Boundaries(..)
-        , mkFrameSpec
+        , mkWorldContainer
         , InTerminal(..)
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Text.Animation
         , module Imj.Physics.Discrete.Types
         , Terminal.Window
-        , RectFrame(..)
+        , RectContainer(..)
         ) where
 
 import           Imj.Prelude
@@ -31,7 +31,7 @@ import           Imj.Physics.Discrete.Types
 import           Imj.Text.Animation
 import           Imj.Text.ColorString
 import           Imj.Timing
-import           Imj.UI.RectFrame
+import           Imj.UI.RectContainer
 
 
 data WorldShape = Square
@@ -47,10 +47,10 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
--- | Helper function to create a 'RectFrame' placed around the 'World' limits.
-mkFrameSpec :: LayeredColor -> World -> RectFrame
-mkFrameSpec colors (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
-  RectFrame sz upperLeft colors
+-- | Helper function to create a 'RectContainer' containing a 'World'.
+mkWorldContainer :: LayeredColor -> World -> RectContainer
+mkWorldContainer colors (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
+  RectContainer sz upperLeft colors
 
 data World = World {
     _worldNumbers :: ![Number]
@@ -70,7 +70,8 @@ data InTerminal = InTerminal {
     _inTerminalSize :: !(Maybe (Terminal.Window Int))
     -- ^ The size of the terminal window
   , _inTerminalUpperLeft :: !Coords
-    -- ^ The corresponding 'World' upper left coordinates w.r.t terminal frame.
+    -- ^ The 'World' 's 'RectContainer' upper left coordinates,
+    -- w.r.t terminal frame.
 } deriving (Show)
 
 data BoundedAnimation = BoundedAnimation  {

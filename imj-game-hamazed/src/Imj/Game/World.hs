@@ -123,14 +123,14 @@ module Imj.Game.World
     -- * UI
     {- | UI elements around the 'World' are:
 
-    * a 'RectFrame' created by 'mkFrameSpec' to visually delimit the 'World'
-    * 'ColorString' information, placed around the 'RectFrame':
+    * a 'RectContainer' created by 'mkWorldContainer' to visually delimit the 'World'
+    * 'ColorString' information, placed around the 'RectContainer':
 
         * Up: 'Level' target
         * Left: remaining ammunitions / shot 'Number's
         * Down: 'Level' number
     -}
-    , mkFrameSpec
+    , mkWorldContainer
     -- ** Inter-level animations
     , module Imj.UI.Animation
     -- * Secondary types
@@ -159,7 +159,7 @@ import           Imj.UI.Animation
 import           Imj.Game.Parameters
 import           Imj.Game.Timing
 import           Imj.Game.World.Create
-import           Imj.Game.World.Embedded
+import           Imj.Game.World.InTerminal
 import           Imj.Game.World.Number
 import           Imj.Game.World.Render
 import           Imj.Game.World.Size

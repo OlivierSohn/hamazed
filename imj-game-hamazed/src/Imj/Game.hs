@@ -90,6 +90,7 @@ import           Imj.Game.World.Space.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Laser
+import           Imj.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
 
 -- | Runs the Hamazed game.
@@ -132,9 +133,9 @@ nextGameState
           then
             left
           else
-            let frameSpace = mkFrameSpec worldFrameColors world
+            let frameSpace = mkWorldContainer worldFrameColors world
                 infos = mkLeftInfo Normal newAmmo allShotNumbers
-                (_, _, leftMiddle) = computeRSForInfos frameSpace
+                (_, _, leftMiddle) = getSideCentersAtDistance frameSpace 2
             in mkTextAnimRightAligned leftMiddle leftMiddle infos 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
       newLevel = Level i target newFinished
@@ -303,8 +304,8 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
             uiAnimation =
               mkUIAnimation
-                (mkFrameSpec worldFrameColors curWorld, curInfos)
-                (mkFrameSpec worldFrameColors newWorld, newInfos)
+                (mkWorldContainer worldFrameColors curWorld, curInfos)
+                (mkWorldContainer worldFrameColors newWorld, newInfos)
                 t
             gameDeadline =
               if isFinished uiAnimation

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Embedded
+module Imj.Game.World.InTerminal
     ( mkInTerminal
     ) where
 
@@ -26,6 +26,8 @@ minimalWorldMargin = 4
 {-# INLINABLE mkInTerminal #-}
 mkInTerminal :: (MonadIO m)
                 => Size
+                -- ^ Measures the dimensions of the /inner/ content of the 'World',
+                -- excluding the outer frame.
                 -> m (Either String InTerminal)
 mkInTerminal s = do
   mayTermSize <- liftIO Terminal.size
@@ -53,6 +55,8 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
               Right $ worldUpperLeftFromTermSize termSize worldSize
     Nothing -> Right $ Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
 
+-- | upper left for the /outer/ content of the 'World', i.e including the /outer/
+-- frame.
 worldUpperLeftFromTermSize :: Terminal.Window Int -> Size -> Coords
 worldUpperLeftFromTermSize (Terminal.Window h w) (Size rs cs) =
   let walls = 2 :: Int

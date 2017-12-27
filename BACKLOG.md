@@ -2,7 +2,7 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - put UIEvolutions in engine or base : Imj.UI.Animation
+  - create a text-decorated RectContainer
 
   - do not render 2 times within 5 ms : it corresponds to a 200Hz refresh rate.
   It means we can group updates of deadlines that are within a 5ms timespan.

@@ -146,13 +146,14 @@ instance (DiscretelyInterpolable a)
   interpolate l l' progress =
     zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
 
-
+-- | Wraps a list to define a 'DiscretelyInterpolable' instance where interpolation
+-- occurs sequentially (one index at a time) between same-index elements.
 newtype SequentiallyInterpolatedList a =
   SequentiallyInterpolatedList [a]
   deriving(Eq, Ord, Show)
 
 -- | Interpolation between 2 SequentiallyInterpolatedList, occuring sequentially
---   between same-index elements.
+--    (one index at a time) between same-index elements.
 --   Prerequisite : lists have the same lengths.
 --
 --  For an interpolation that occurs in parallel, use [].

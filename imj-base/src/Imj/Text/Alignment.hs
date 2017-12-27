@@ -27,8 +27,10 @@ data AlignmentKind = Centered
                    -- ^ Draw the text left of the reference coordinates.
 
 data Alignment = Alignment {
-    _alignmentKing :: !AlignmentKind -- ^ The kind of alignment.
-  , _alignmentRef :: !Coords -- ^ The reference coordinates.
+    _alignmentKing :: !AlignmentKind
+    -- ^ The kind of alignment.
+  , _alignmentRef :: !Coords
+    -- ^ The reference coordinates.
 }
 
 mkRightAlign :: Coords
@@ -51,9 +53,25 @@ align' (Alignment a ref) count =
   let (amount, dir) = align a count
   in move amount dir ref
 
--- | Given a number of characters and an alignment, returns the displacement
--- that should be done relatively to the reference coordinates in order to find
--- the first character position.
+{- | Given a number of characters and an alignment, returns the displacement
+that should be done relatively to the reference coordinates in order to find
+the first character 'Coords'.
+
+For 'Centered', when we have an /even/ count of characters to draw,
+we (somewhat arbitrarily) chose to favor the 'RIGHT' 'Direction', as
+illustrated here where @^@ indicates where the reference 'Coords' is:
+
+@
+   1
+   12
+  123
+  1234
+   ^
+@
+
+Note that this choice impacts the implementation of
+'Imj.UI.RectContainer.getSideCentersAtDistance'.
+-}
 align :: AlignmentKind
       -> Int
       -- ^ Count of characters
@@ -63,7 +81,9 @@ align a count =
  where
   amount =
     case a of
-      Centered     -> 1 + quot count 2
+      -- for one character, centerered, there is no displacement:
+      Centered     -> quot (count-1) 2
+      -- for one character, right aligned, there is a /1/ displacement:
       RightAligned -> count
 
 -- | Moves the reference coordinate one line down.

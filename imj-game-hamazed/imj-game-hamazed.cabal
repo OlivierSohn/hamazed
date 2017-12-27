@@ -32,7 +32,7 @@ library
                      , Imj.Game.Types
                      , Imj.Game.World
                      , Imj.Game.World.Create
-                     , Imj.Game.World.Embedded
+                     , Imj.Game.World.InTerminal
                      , Imj.Game.World.Number
                      , Imj.Game.World.Render
                      , Imj.Game.World.Ship

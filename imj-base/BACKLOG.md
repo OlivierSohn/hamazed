@@ -7,7 +7,7 @@
 some evolutions don't use the interpolation aspect as they are only used to time.
 => we should separate the 2 aspects by defining 2 distinct types.
 
-### RectFrame
+### RectContainer
 - animate frame color while transitioning (red -> white -> red)
 - reduction from 2 edges
 

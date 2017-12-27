@@ -9,7 +9,6 @@ module Imj.UI.Animation
            , renderUIAnimation
            , isFinished
            , mkTextAnimRightAligned
-           , computeRSForInfos
            ) where
 
 import           Imj.Prelude
@@ -24,7 +23,7 @@ import           Imj.Text.Alignment
 import           Imj.Text.Animation
 import           Imj.Text.ColorString
 import           Imj.Timing
-import           Imj.UI.RectFrame
+import           Imj.UI.RectContainer
 
 
 -- | Manages the progress and deadline of 'UIEvolutions'.
@@ -36,15 +35,17 @@ data UIAnimation = UIAnimation {
   -- ^ Current 'Iteration'.
 } deriving(Show)
 
+
+-- TODO generalize as an Evolution (text-decorated RectContainer)
 -- | Used when transitionning between two levels to smoothly transform the aspect
--- of the 'RectFrame', as well as textual information around it.
+-- of the 'RectContainer', as well as textual information around it.
 data UIEvolutions = UIEvolutions {
-    _uiEvolutionFrame :: !(Evolution RectFrame)
-    -- ^ The transformation of the 'RectFrame'.
+    _uiEvolutionContainer :: !(Evolution RectContainer)
+    -- ^ The transformation of the 'RectContainer'.
   , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
-    -- ^ The transformation of colored text at the top and at the bottom of the 'RectFrame'.
+    -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
   , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
-    -- ^ The transformation of colored text left and right of the 'RectFrame'.
+    -- ^ The transformation of colored text left and right of the 'RectContainer'.
 } deriving(Show)
 
 
@@ -84,9 +85,9 @@ getRelativeFrames
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
 
-mkUIAnimation :: (RectFrame, (([ColorString], [ColorString]), [[ColorString]]))
+mkUIAnimation :: (RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
               -- ^ From
-              -> (RectFrame, (([ColorString], [ColorString]), [[ColorString]]))
+              -> (RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
               -- ^ To
               -> SystemTime
               -- ^ Time at which the animation starts
@@ -105,23 +106,23 @@ mkUIAnimation (from, ((f1,f2),f3)) (to, ((t1,t2),t3)) t =
       $ getDeltaTime evolutions zeroFrame
 
 
-createUITextAnimations :: RectFrame
+createUITextAnimations :: RectContainer
                        -- ^ From
-                       -> RectFrame
+                       -> RectContainer
                        -- ^ To
                        -> ([ColorString],[ColorString],[[ColorString]])
                        -- ^ Upper text, Lower text, Left texts
                        -> Float
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) duration =
-    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = computeRSForInfos from
-        (centerUpTo, centerDownTo, leftMiddleTo) = computeRSForInfos to
+    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = getSideCentersAtDistance from 2
+        (centerUpTo, centerDownTo, leftMiddleTo) = getSideCentersAtDistance to 2
         ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
         ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts duration
     in (ta1, ta2)
 
 -- | Creates the 'TextAnimation' to animate the texts that appears left of the main
--- 'RectFrame'
+-- 'RectContainer'
 
 mkTextAnimRightAligned :: Coords
                        -- ^ Alignment ref /from/
@@ -169,23 +170,3 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
 alignTxt :: Alignment -> ColorString  -> Coords
 alignTxt (Alignment al pos) txt =
   uncurry move (align al $ countChars txt) pos
-
--- | Returns points that are close to a frame, and can be used to align text.
---
--- The points are at a distance of 2 from the frame, outwards from it.
-computeRSForInfos :: RectFrame
-                  -- ^ The frame
-                  -> (Coords, Coords, Coords)
-                  -- ^ (center Up, center Down, middle Left)
-computeRSForInfos (RectFrame (Size rs cs) upperLeft _) =
-  (centerUp, centerDown, leftMiddle)
- where
-  addWallSize = (+ 2)
-  half = flip quot 2
-  mkSizes s = (addWallSize s, half s)
-  (rFull, rHalf) = mkSizes rs
-  cHalf = quot cs 2
-
-  centerUp   = translate' (-1)        (cHalf + 1) upperLeft
-  centerDown = translate' (rFull + 1) (cHalf + 1) upperLeft
-  leftMiddle = translate' (rHalf + 1) (-1)  upperLeft

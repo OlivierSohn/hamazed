@@ -2,11 +2,11 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.UI.RectFrame.InterpolateParallel4
-          ( renderPartialRectFrame
-          , countWorldFrameHorizontal
-          , countWorldFrameVertical
-          , countWorldFrameChars
+module Imj.UI.RectContainer.InterpolateParallel4
+          ( renderPartialRectContainer
+          , countRectContainerHorizontalChars
+          , countRectContainerVerticalChars
+          , countRectContainerChars
           ) where
 
 import           Imj.Prelude
@@ -19,25 +19,27 @@ import           Imj.Geo.Discrete
 
 
 
-countWorldFrameChars :: Size -> Int
-countWorldFrameChars s =
-  2 * countWorldFrameHorizontal s + 2 * countWorldFrameVertical s
+countRectContainerChars :: Size -> Int
+countRectContainerChars s =
+  2 * countRectContainerHorizontalChars s + 2 * countRectContainerVerticalChars s
 
-countWorldFrameHorizontal :: Size -> Int
-countWorldFrameHorizontal (Size _ cs) =
+countRectContainerHorizontalChars :: Size -> Int
+countRectContainerHorizontalChars (Size _ cs) =
   fromIntegral cs + 2
 
-countWorldFrameVertical :: Size -> Int
-countWorldFrameVertical (Size rs _) =
+countRectContainerVerticalChars :: Size -> Int
+countRectContainerVerticalChars (Size rs _) =
   fromIntegral rs
 
-{-# INLINABLE renderPartialRectFrame #-}
-renderPartialRectFrame :: (Draw e, MonadReader e m, MonadIO m)
-                       => Size
-                       -> LayeredColor
-                       -> (Coords, Int, Int)
-                       -> m ()
-renderPartialRectFrame sz colors r =
+{-# INLINABLE renderPartialRectContainer #-}
+renderPartialRectContainer :: (Draw e, MonadReader e m, MonadIO m)
+                           => Size
+                           -- ^ Dimensions of the content of the container
+                           -> LayeredColor
+                           -> (Coords, Int, Int)
+                           -- ^ Coordinates of the upper left corner of the container, from, to.
+                           -> m ()
+renderPartialRectContainer sz colors r =
   renderUpperWall sz colors r
     >>= renderRightWall sz colors
     >>= renderLowerWall sz colors
@@ -68,7 +70,7 @@ renderSideWall :: (Draw e, MonadReader e m, MonadIO m)
                -> (Coords, Int, Int)
                -> m (Coords, Int, Int)
 renderSideWall dir sz colors (ref, from, to) = do
-  let countMax = countWorldFrameVertical sz
+  let countMax = countRectContainerVerticalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n dir ref) [actualFrom..actualTo]
@@ -108,7 +110,7 @@ renderHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
                      -> (Coords, Int, Int)
                      -> m (Coords, Int, Int)
 renderHorizontalWall dirV dirH char sz colors (upperLeft, from, to) = do
-  let countMax = countWorldFrameHorizontal sz
+  let countMax = countRectContainerHorizontalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
       nextR = translateInDir dirV $ move (countMax - 1) dirH upperLeft

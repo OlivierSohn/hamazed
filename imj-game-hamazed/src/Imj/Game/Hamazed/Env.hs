@@ -1,6 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
-module Imj.Hamazed.Env(
+module Imj.Game.Hamazed.Env(
          Env
        , createEnv
        ) where

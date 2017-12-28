@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Hamazed.World.Space.Types
+module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , Material(..)
     , RandomParameters(..)

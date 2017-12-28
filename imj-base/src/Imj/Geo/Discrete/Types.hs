@@ -26,7 +26,7 @@ module Imj.Geo.Discrete.Types
     -- ** Segment
     , Segment(..)
     -- * Reexports
-    , module Imj.Geo.Types
+    , Pos, Vel
     ) where
 
 import           Imj.Prelude
@@ -45,8 +45,8 @@ data Row
 -- | Represents a column index (x)
 data Col
 
--- | Two-dimensional discrete coordinates. We use phantom types to distinguish
--- positions from speeds.
+-- | Two-dimensional discrete coordinates. We use phantom types 'Pos', 'Vel'
+-- to distinguish positions from speeds.
 data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)

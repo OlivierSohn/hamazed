@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Hamazed.World.Number(
+module Imj.Game.Hamazed.World.Number(
     getColliding
   , computeActualLaserShot
   , destroyedNumbersAnimations
@@ -15,10 +15,10 @@ import           Imj.Animation
 import           Data.Char( intToDigit )
 
 import           Imj.Game.Element.Laser
+import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.Event
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Hamazed.World.Types
-import           Imj.Hamazed.Event
 import           Imj.Timing
 
 getColliding :: Coords Pos -> [Number] -> [Number]

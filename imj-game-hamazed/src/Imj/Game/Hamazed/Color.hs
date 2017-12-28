@@ -2,7 +2,7 @@
 
 {-| This module defines the colors of every game element, except animations. -}
 
-module Imj.Hamazed.Color (
+module Imj.Game.Hamazed.Color (
   -- * Ship colors
     shipColor
   , shipColors
@@ -28,7 +28,7 @@ module Imj.Hamazed.Color (
 import           Imj.Prelude
 
 import           Imj.Color
-import           Imj.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Level.Types
 
 configColors :: LayeredColor
 configColors = LayeredColor (gray 0) (gray 8)

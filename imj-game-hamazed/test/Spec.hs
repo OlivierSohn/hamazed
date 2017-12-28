@@ -1,7 +1,7 @@
 import Control.Monad.Reader(runReaderT)
 
 import           Imj.Draw
-import           Imj.Hamazed.Env
+import           Imj.Game.Hamazed.Env
 import           Imj.Render.Delta(runThenRestoreConsoleSettings)
 
 import           Test.Imj.Rendering

@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Geo.Types
         ( Pos
@@ -6,11 +7,11 @@ module Imj.Geo.Types
         ) where
 
 
--- A position
+-- | Phantom type : position
 data Pos
 
--- A velocity
+-- | Phantom type : velocity
 data Vel
 
--- An acceleration
+-- | Phantom type : acceleration
 data Acc

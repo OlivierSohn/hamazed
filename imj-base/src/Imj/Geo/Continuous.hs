@@ -2,7 +2,7 @@
 
 module Imj.Geo.Continuous
            (-- * Continuous coordinates
-             module Imj.Geo.Continuous.Types
+             Vec2(..)
            , module Imj.Geo.Continuous.Conversion
            -- * Sampled continuous geometry
            -- ** Circle
@@ -16,6 +16,8 @@ module Imj.Geo.Continuous
            , sumVec2d
            , scalarProd
            , rotateByQuarters
+           -- * Reexports
+           , Pos, Vel, Acc
            ) where
 
 import           Imj.Prelude

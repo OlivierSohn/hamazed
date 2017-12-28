@@ -2,15 +2,17 @@ name:                imj-base
 version:             0.1.0.0
 Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
-Synopsis:            Discrete & continuous geometry, physics, interpolations, easing, colored text, rendering.
-Description:         Library containing types for color, position, rectangular frame, colored text,
-                     animation execution (Iteration, Frame).
+Synopsis: Discrete & continuous geo, interpolations, easing, colored text, delta rendering
+Description:         Library containing common types for color, continuous and discrete geometry,
+                     collision detection, simple UIs, colored text,
+                     interpolation.
                      .
 
-                     An optimized renderer avoids screen tearing in the terminal.
+                     An optimized renderer avoids screen tearing in the terminal,
+                     using what is called "delta rendering".
                      .
 
-                     DiscretelyInterpolable instances to animate common types.
+                     Provides DiscretelyInterpolable instances to animate common types.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3

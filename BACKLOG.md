@@ -2,6 +2,8 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
+  - add to Draw namespace : Text UI Color Animation Render
+
   - refactor DiscretelyInterpolable :
     the goal is to disambiguate wether interpolate or interpolateIO is implemented.
     interpolate in DiscretelyInterpolable -> the intermediate values can be represented using the type

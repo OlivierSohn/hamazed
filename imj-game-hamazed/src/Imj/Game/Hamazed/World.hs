@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Hamazed.World
+module Imj.Game.Hamazed.World
     (
       -- * Parameters
       {-| When the game starts, the player can chose 'World' parameters:
@@ -154,18 +154,18 @@ import           Data.Text( pack )
 import           Imj.Animation.Design.Animation
 import           Imj.Draw
 import           Imj.Game.Element.Laser
+import           Imj.Game.Hamazed.Event
+import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Parameters
+import           Imj.Game.Hamazed.Timing
+import           Imj.Game.Hamazed.World.Create
+import           Imj.Game.Hamazed.World.InTerminal
+import           Imj.Game.Hamazed.World.Number
+import           Imj.Game.Hamazed.World.Render
+import           Imj.Game.Hamazed.World.Size
+import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
-import           Imj.Hamazed.Event
-import           Imj.Hamazed.Level.Types
-import           Imj.Hamazed.Parameters
-import           Imj.Hamazed.Timing
-import           Imj.Hamazed.World.Create
-import           Imj.Hamazed.World.InTerminal
-import           Imj.Hamazed.World.Number
-import           Imj.Hamazed.World.Render
-import           Imj.Hamazed.World.Size
-import           Imj.Hamazed.World.Space
-import           Imj.Hamazed.World.Types
 import           Imj.Text.ColorString
 import           Imj.UI.Animation
 import           Imj.Util

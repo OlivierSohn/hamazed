@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Hamazed.World.InTerminal
+module Imj.Game.Hamazed.World.InTerminal
     ( mkInTerminal
     ) where
 
@@ -12,9 +12,9 @@ import           Control.Monad.IO.Class(MonadIO)
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 
+import           Imj.Game.Hamazed.World.Size
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete.Types
-import           Imj.Hamazed.World.Size
-import           Imj.Hamazed.World.Types
 
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world

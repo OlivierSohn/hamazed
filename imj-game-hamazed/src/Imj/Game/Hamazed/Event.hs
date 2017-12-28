@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Hamazed.Event
+module Imj.Game.Hamazed.Event
     ( TimestampedEvent(..)
     , Event(..)
     , Deadline(..)

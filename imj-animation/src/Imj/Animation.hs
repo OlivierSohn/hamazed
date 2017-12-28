@@ -55,7 +55,7 @@ laserAnimation :: LaserRay Actual
                -> Animation
 laserAnimation ray@(LaserRay _ (Ray seg)) keyTime =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-  in mkAnimation [laserAnimationGeo ray] keyTime WithZero (Speed 1) collisionFree Nothing
+  in mkAnimation [laserAnimationGeo ray] keyTime (Speed 1) collisionFree Nothing
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second has 4*8=32 points.
@@ -73,7 +73,7 @@ quantitativeExplosionThenSimpleExplosion :: Int
 quantitativeExplosionThenSimpleExplosion num pos keyTime animSpeed char =
   let funcs = [ quantitativeExplosionGeo num Interact
               , simpleExplosionGeo 8 Interact ]
-  in mkAnimation funcs keyTime SkipZero animSpeed pos (Just char)
+  in mkAnimation funcs keyTime animSpeed pos (Just char)
 
 -- | An animation where a geometric figure (polygon or circle) expands then shrinks,
 -- and doesn't interact with the environment.
@@ -89,7 +89,7 @@ animatedPolygon :: Int
                 -- ^ Character used when drawing the animation.
                 -> Animation
 animatedPolygon n pos keyTime animSpeed char =
-  mkAnimation [animatePolygonGeo n] keyTime SkipZero animSpeed pos (Just char)
+  mkAnimation [animatePolygonGeo n] keyTime animSpeed pos (Just char)
 
 -- | A circular explosion configurable in number of points
 simpleExplosion :: Int
@@ -104,7 +104,7 @@ simpleExplosion :: Int
                 -- ^ Character used when drawing the animation.
                 -> Animation
 simpleExplosion resolution pos keyTime animSpeed char =
-  mkAnimation [simpleExplosionGeo resolution Interact] keyTime SkipZero animSpeed pos (Just char)
+  mkAnimation [simpleExplosionGeo resolution Interact] keyTime animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -135,9 +135,7 @@ freeFall :: Vec2 Vel
          -- ^ Character used when drawing the animation.
          -> Animation
 freeFall speed pos keyTime animSpeed char =
-  -- we want the WithZero here so that outer world animations start right next to
-  -- a wall, even for the bottom wall.
-  mkAnimation [gravityFallGeo speed Interact] keyTime WithZero animSpeed pos (Just char)
+  mkAnimation [gravityFallGeo speed Interact] keyTime animSpeed pos (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
@@ -178,5 +176,4 @@ freeFallThenExplode :: Vec2 Vel
 freeFallThenExplode speed pos keyTime animSpeed char =
   let funcs = [ gravityFallGeo speed Interact
               , simpleExplosionGeo 8 Interact]
-  -- WithZero looks better on collision between the ship and a number.
-  in mkAnimation funcs keyTime WithZero animSpeed pos (Just char)
+  in mkAnimation funcs keyTime animSpeed pos (Just char)

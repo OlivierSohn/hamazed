@@ -26,7 +26,6 @@ module Imj.Animation.Design.Animation
       Animation
       -- ** Create an Animation
     , mkAnimation
-    , AnimationZero(..)
       -- ** Update an Animation
       {- |
       'updateAnimationIfNeeded' updates the 'Animation' if the current time
@@ -96,8 +95,6 @@ mkAnimation :: [Coords Pos -> Frame -> [AnimatedPoint]]
             updated using the \(k\)-th animation function in this list-}
             -> KeyTime
             -- ^ When this animation was created.
-            -> AnimationZero
-            -- ^ Keep or skip the zero frame.
             -> Speed
             -- ^ Animation discrete speed. Tells by how much the 'Frame', passed
             -- to animation functions, is incremented during an update.
@@ -108,9 +105,9 @@ mkAnimation :: [Coords Pos -> Frame -> [AnimatedPoint]]
             -- ^ The default 'Char' to draw an 'AnimatedPoint' with, if it doesn't
             -- specify one.
             -> Animation
-mkAnimation updates t frameInit speed pos mayChar =
+mkAnimation updates t speed pos mayChar =
   let update = updateAnimatedPoints updates
-      u = firstUpdateSpec t frameInit speed
+      u = UpdateSpec t (zeroIteration speed)
       points = mkAnimatedPoints pos
   in Animation points update u mayChar
 
@@ -242,11 +239,6 @@ render'
   childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child interaction colorFunc r) children
   return $ isAlive || or childrenAlive
 
--- | Specifies if the zero frame should be skipped or not.
-data AnimationZero = WithZero -- TODO hide this, and use WithZero always.
-                   | SkipZero
-
-
 -- | Specifies what should be updated.
 data StepType = Initialize
               -- ^ Update 'AnimatedPoints'
@@ -254,10 +246,3 @@ data StepType = Initialize
               -- ^ Update 'AnimatedPoints' and 'Iteration'
               | Same
               -- ^ Update 'Iteration'
-
-firstUpdateSpec :: KeyTime -> AnimationZero -> Speed -> UpdateSpec
-firstUpdateSpec t animZero speed =
-  let mayNext = case animZero of
-                  WithZero -> id
-                  SkipZero -> nextIteration
-  in UpdateSpec t (mayNext $ zeroIteration speed)

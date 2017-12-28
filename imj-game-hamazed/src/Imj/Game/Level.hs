@@ -46,7 +46,7 @@ messageDeadline (Level _ _ mayLevelFinished) t =
       InfoMessage ->
         let finishedSinceSeconds = diffSystemTime t timeFinished
             delay = 2
-            nextMessageStep = addSystemTime (delay - finishedSinceSeconds) t
+            nextMessageStep = addToSystemTime (delay - finishedSinceSeconds) t
         in  Just $ Deadline (KeyTime nextMessageStep) DisplayContinueMessage
       ContinueMessage -> Nothing)
   mayLevelFinished

@@ -8,7 +8,7 @@ module Imj.Timing
       KeyTime(..)
     , addDuration
     -- * SystemTime / DiffTime utilities
-    , addSystemTime
+    , addToSystemTime
     , diffSystemTime
     , diffTimeSecToMicros
     , floatSecondsToDiffTime
@@ -27,12 +27,18 @@ import           Data.Time(DiffTime, diffTimeToPicoseconds,
 import           Data.Time.Clock.System
                           (getSystemTime, SystemTime(..) )
 
-addSystemTime :: DiffTime -> SystemTime -> SystemTime
-addSystemTime diff t =
+-- | Adds a 'DiffTime' to a 'SystemTime'
+addToSystemTime :: DiffTime -> SystemTime -> SystemTime
+addToSystemTime diff t =
   let d = diffTimeToSystemTime diff
   in sumSystemTimes d t
 
-diffSystemTime :: SystemTime -> SystemTime -> DiffTime
+-- | Returns t1-t2
+diffSystemTime :: SystemTime
+               -- ^ t1
+               -> SystemTime
+               -- ^ t2
+               -> DiffTime
 diffSystemTime (MkSystemTime s1 ns1) (MkSystemTime s2 ns2) =
   let -- ns1 and ns2 are Word32, which is an unsigned type.
       -- To avoid underflowing Word32, to compute their difference, we use
@@ -84,4 +90,4 @@ microsecondsToDiffTime x = fromRational (x % fromIntegral microSecondsPerSecond)
 
 -- | Adds a 'DiffTime' to a 'KeyTime'.
 addDuration :: DiffTime -> KeyTime -> KeyTime
-addDuration durationSeconds (KeyTime t) = KeyTime $ addSystemTime durationSeconds t
+addDuration durationSeconds (KeyTime t) = KeyTime $ addToSystemTime durationSeconds t

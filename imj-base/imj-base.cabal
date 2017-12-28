@@ -1,7 +1,7 @@
 name:                imj-base
 version:             0.1.0.0
 Category:            Game Engine
-Synopsis:            Library of common data types, rendererers, utilities for a 2d game engine.
+Synopsis:            Discrete geometry, interpolations, easing, colored text, rendering.
 Description:         Library containing types for color, position, rectangular frame, colored text,
                      animation execution (Iteration, Frame).
                      .

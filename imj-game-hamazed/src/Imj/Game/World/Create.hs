@@ -39,7 +39,7 @@ mkWorld e s walltype nums ammo = do
   t <- liftIO getSystemTime
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo (Just $ addSystemTime 5 t) (getColliding pos balls)) space [] e
+  return $ World balls (BattleShip ship ammo (Just $ addToSystemTime 5 t) (getColliding pos balls)) space [] e
 
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.

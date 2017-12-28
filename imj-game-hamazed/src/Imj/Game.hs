@@ -436,7 +436,7 @@ updateAnim t (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it)) =
             maybe
               (futWorld , Just $ KeyTime t, Nothing)
               (\dt ->
-               (curWorld, Nothing         , Just $ KeyTime $ addSystemTime (floatSecondsToDiffTime dt) t))
+               (curWorld, Nothing         , Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) t))
               $ getDeltaTime evolutions nextFrame
          wa = UIAnimation evolutions worldAnimDeadline nextIt
      in GameState gameDeadline world futWorld j k wa

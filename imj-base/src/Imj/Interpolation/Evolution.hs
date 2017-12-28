@@ -6,13 +6,13 @@ module Imj.Interpolation.Evolution
 {- | 'Evolution' is a helper type to interpolate between 'DiscretelyInterpolable's.
 It stores the total interpolation distance and the the inverse ease function.
 
-The preferred way to create it is to use 'mkEvolutionEaseQuart'.
+The preferred way to create it is to use 'mkEvolutionEaseQuart' which uses the
+inverse ease function 'invQuartEaseInOut'.
 
 To produce the desired /easing/ effect, the interpolation frame should be
 incremented at specific time intervals. In that respect, 'getDeltaTimeToNextFrame'
 computes the next time at which the interpolation should be updated and rendered,
-based on the current frame and the inverse ease function (in that particular case,
-'invQuartEaseInOut').
+based on the current frame and the inverse ease function.
 -}
            Evolution(..)
          , mkEvolutionEaseQuart

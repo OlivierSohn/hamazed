@@ -51,8 +51,8 @@ testDiffSystemTime3 = do
 testAddSystemTime :: IO ()
 testAddSystemTime = do
   let s = MkSystemTime 1 0
-      (MkSystemTime seconds nanos) = addSystemTime 1 s
-      (MkSystemTime seconds' nanos') = addSystemTime (-1) s
+      (MkSystemTime seconds nanos) = addToSystemTime 1 s
+      (MkSystemTime seconds' nanos') = addToSystemTime (-1) s
   when (seconds /= 2) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 0) $ error $ "seconds' = " ++ show seconds'
@@ -62,8 +62,8 @@ testAddSystemTime = do
 testAddSystemTime2 :: IO ()
 testAddSystemTime2 = do
   let s = MkSystemTime 1 999999999
-      (MkSystemTime seconds nanos) = addSystemTime (picosecondsToDiffTime 1000) s
-      (MkSystemTime seconds' nanos') = addSystemTime (picosecondsToDiffTime (-1000)) s
+      (MkSystemTime seconds nanos) = addToSystemTime (picosecondsToDiffTime 1000) s
+      (MkSystemTime seconds' nanos') = addToSystemTime (picosecondsToDiffTime (-1000)) s
   when (seconds /= 2) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 1) $ error $ "seconds' = " ++ show seconds'
@@ -72,8 +72,8 @@ testAddSystemTime2 = do
 testAddSystemTime3 :: IO ()
 testAddSystemTime3 = do
   let s = MkSystemTime 1 999999999
-      (MkSystemTime seconds nanos) = addSystemTime (picosecondsToDiffTime $ 1000000000000 + 1000) s
-      (MkSystemTime seconds' nanos') = addSystemTime (picosecondsToDiffTime (-(1000000000000 + 1000))) s
+      (MkSystemTime seconds nanos) = addToSystemTime (picosecondsToDiffTime $ 1000000000000 + 1000) s
+      (MkSystemTime seconds' nanos') = addToSystemTime (picosecondsToDiffTime (-(1000000000000 + 1000))) s
   when (seconds /= 3) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 0) $ error $ "seconds' = " ++ show seconds'

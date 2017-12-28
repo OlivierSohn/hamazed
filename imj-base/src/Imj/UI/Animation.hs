@@ -102,7 +102,7 @@ mkUIAnimation (from, ((f1,f2),f3)) (to, ((t1,t2),t3)) t =
   deadline =
     maybe
       Nothing
-      (\dt -> Just $ KeyTime $ addSystemTime (floatSecondsToDiffTime dt) t)
+      (\dt -> Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) t)
       $ getDeltaTime evolutions zeroFrame
 
 

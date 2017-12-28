@@ -21,7 +21,7 @@ import           Imj.Hamazed.Event
 import           Imj.Laser
 import           Imj.Timing
 
-getColliding :: Coords -> [Number] -> [Number]
+getColliding :: Coords Pos -> [Number] -> [Number]
 getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
 destroyedNumbersAnimations :: KeyTime
@@ -35,11 +35,11 @@ destroyedNumbersAnimations keyTime event =
   in concatMap (destroyedNumberAnimations keyTime laserSpeed)
 
 destroyedNumberAnimations :: KeyTime
-                          -> Vec2
+                          -> Vec2 Vel
                           -> Number
                           -> [BoundedAnimation]
 destroyedNumberAnimations keyTime laserSpeed (Number (PosSpeed pos _) n) =
   let char = intToDigit n
   in map (`BoundedAnimation` WorldFrame)
         $ animatedPolygon n pos keyTime (Speed 1) char
-        : fragmentsFreeFallThenExplode (scalarProd 2 laserSpeed) pos keyTime (Speed 2) char
+        : fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos keyTime (Speed 2) char

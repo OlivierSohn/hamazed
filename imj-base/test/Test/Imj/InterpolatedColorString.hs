@@ -63,25 +63,25 @@ testICS = do
 
 drawColorString' :: (Draw e, MonadReader e m, MonadIO m)
              => ColorString
-             -> Coords
-             -> Coords
+             -> Coords Pos
+             -> Coords Pos
              -> m ()
 drawColorString' cs pos rs =
   void (drawColorStr cs (translate pos rs))
 
 drawStr''' :: (Draw e, MonadReader e m, MonadIO m)
          => String
-         -> Coords
-         -> Coords
-         -> m Coords
+         -> Coords Pos
+         -> Coords Pos
+         -> m (Coords Pos)
 drawStr''' cs pos rs =
   drawStr'' cs (translate pos rs) (LayeredColor black white)
 
 
 drawStr'' :: (Draw e, MonadReader e m, MonadIO m)
           => String
-          -> Coords
+          -> Coords Pos
           -> LayeredColor
-          -> m Coords
+          -> m (Coords Pos)
 drawStr'' str pos color =
   drawStr str pos color >> return (translateInDir Down pos)

@@ -31,7 +31,7 @@ import           Imj.Render.Delta.Types
 -- | Draw a 'Char'
 deltaDrawChar :: IORef Buffers
               -> Char
-              -> Coords
+              -> Coords Pos
               -- ^ Location
               -> LayeredColor
               -- ^ Background and foreground colors
@@ -52,7 +52,7 @@ deltaDrawChars :: IORef Buffers
                -> Int
                -- ^ Number of chars to draw
                -> Char
-               -> Coords
+               -> Coords Pos
                -- ^ Location of left-most 'Char'
                -> LayeredColor
                -- ^ Background and foreground colors
@@ -73,7 +73,7 @@ deltaDrawChars ref count c pos colors =
 -- | Draw a 'String'
 deltaDrawStr :: IORef Buffers
              -> String
-             -> Coords
+             -> Coords Pos
              -- ^ Location of first 'Char'
              -> LayeredColor
              -- ^ Background and foreground colors
@@ -92,7 +92,7 @@ deltaDrawStr ref str pos colors =
 -- | Draw a 'Text'
 deltaDrawTxt :: IORef Buffers
              -> Text
-             -> Coords
+             -> Coords Pos
              -- ^ Location of first 'Char'
              -> LayeredColor
              -- ^ Background and foreground colors
@@ -123,7 +123,7 @@ fillBackBuffer (Buffers (Buffer b) _ _ _ _) =
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Dim Size -> Dim Width -> Coords -> Dim BufferIndex
+indexFromPos :: Dim Size -> Dim Width -> Coords Pos -> Dim BufferIndex
 indexFromPos size width (Coords y x) =
   (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
 

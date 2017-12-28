@@ -34,7 +34,7 @@ mkInTerminal s = do
   return $ InTerminal mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
 
 
-worldUpperLeftToCenterIt' :: Size -> Maybe (Terminal.Window Int) -> Either String Coords
+worldUpperLeftToCenterIt' :: Size -> Maybe (Terminal.Window Int) -> Either String (Coords Pos)
 worldUpperLeftToCenterIt' worldSize mayTermSize =
   case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
@@ -57,7 +57,7 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
 
 -- | upper left for the /outer/ content of the 'World', i.e including the /outer/
 -- frame.
-worldUpperLeftFromTermSize :: Terminal.Window Int -> Size -> Coords
+worldUpperLeftFromTermSize :: Terminal.Window Int -> Size -> (Coords Pos)
 worldUpperLeftFromTermSize (Terminal.Window h w) (Size rs cs) =
   let walls = 2 :: Int
   in toCoords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)

@@ -20,13 +20,13 @@ import           Imj.Iteration
 
 -- | Doesn't change the existing /level 1/ 'AnimatedPoints's, but can convert some
 -- 'AnimatedPoint's to 'AnimatedPoints's.
-updatePointsAndMutateIfNeeded :: (Coords -> Frame -> [AnimatedPoint])
+updatePointsAndMutateIfNeeded :: (Coords Pos -> Frame -> [AnimatedPoint])
                               -- ^ Geometric animation function
-                              -> Coords
+                              -> Coords Pos
                               -- ^ Center of the animation
                               -> Frame
                               -- ^ Relative frame
-                              -> (Coords -> InteractionResult)
+                              -> (Coords Pos -> InteractionResult)
                               -- ^ Interaction function
                               -> Maybe [Either AnimatedPoints AnimatedPoint]
                               -- ^ Current branches
@@ -43,7 +43,7 @@ updatePointsAndMutateIfNeeded animation root frame interaction branches =
 combine :: [AnimatedPoint]
         -> [Either AnimatedPoints AnimatedPoint]
         -> Frame
-        -> (Coords -> InteractionResult)
+        -> (Coords Pos -> InteractionResult)
         -> [Either AnimatedPoints AnimatedPoint]
 combine points previousState frame interaction =
   zipWith
@@ -51,7 +51,7 @@ combine points previousState frame interaction =
     points
     (assert (length previousState == length points) previousState)
 
-combinePoints :: (Coords -> InteractionResult)
+combinePoints :: (Coords Pos -> InteractionResult)
               -> Frame
               -> AnimatedPoint
               -> Either AnimatedPoints AnimatedPoint
@@ -75,7 +75,7 @@ combinePoints interaction frame point@(AnimatedPoint onWall coords _) =
     )
 
 -- The first point of the trajectory is expected to be stable
-getCoordsBeforeMutation :: [Coords] -> (Coords -> InteractionResult) -> Maybe Coords
+getCoordsBeforeMutation :: [Coords Pos] -> (Coords Pos -> InteractionResult) -> Maybe (Coords Pos)
 getCoordsBeforeMutation [] _ = error "not supposed to happen"
 getCoordsBeforeMutation [_] _ = Nothing
 getCoordsBeforeMutation (a:as@(b:_)) interaction =

@@ -25,17 +25,17 @@ import           Imj.Text.ColorString
 --of 'drawChar', but the implementation would have been suboptimal in most cases.
 class Draw e where
   -- | Draw a 'Char'.
-  drawChar' :: (MonadIO m) => e -> Char -> Coords -> LayeredColor -> m ()
+  drawChar' :: (MonadIO m) => e -> Char -> Coords Pos -> LayeredColor -> m ()
   -- | Draw repeated chars.
-  drawChars' :: (MonadIO m) => e -> Int -> Char -> Coords -> LayeredColor -> m ()
+  drawChars' :: (MonadIO m) => e -> Int -> Char -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'Text'.
-  drawTxt' :: (MonadIO m) => e -> Text -> Coords -> LayeredColor -> m ()
+  drawTxt' :: (MonadIO m) => e -> Text -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'String'.
-  drawStr' :: (MonadIO m) => e -> String -> Coords -> LayeredColor -> m ()
+  drawStr' :: (MonadIO m) => e -> String -> Coords Pos -> LayeredColor -> m ()
 
   -- | Draw a 'ColorString'.
   {-# INLINABLE drawColorStr' #-}
-  drawColorStr' :: (MonadIO m) => e -> ColorString -> Coords -> m ()
+  drawColorStr' :: (MonadIO m) => e -> ColorString -> Coords Pos -> m ()
   drawColorStr' env (ColorString cs) pos =
     foldM_
       (\count (txt, color) -> do

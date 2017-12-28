@@ -185,12 +185,12 @@ outerSpaceAnims k (Space _ sz _) ray@(LaserRay dir _) =
        Nothing -> []
 
 outerSpaceAnims' :: KeyTime
-                 -> Coords
+                 -> Coords Pos
                  -> Direction
                  -> [BoundedAnimation]
 outerSpaceAnims' keyTime@(KeyTime (MkSystemTime _ nanos)) fronteerPoint dir =
   let char = niceChar $ fromIntegral nanos -- cycle character every nano second
-      speed = scalarProd 2 $ speed2vec $ coordsForDirection dir
+      speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
       outerSpacePoint = translateInDir dir fronteerPoint
       anims = fragmentsFreeFall speed outerSpacePoint keyTime (Speed 1) char
   in map (`BoundedAnimation` TerminalWindow) anims
@@ -487,7 +487,7 @@ renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
                  => Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
-                 -> Coords
+                 -> Coords Pos
                  -> [BoundedAnimation]
                  -> m [BoundedAnimation]
 renderAnimations k space mayTermWindow worldCorner animations = do

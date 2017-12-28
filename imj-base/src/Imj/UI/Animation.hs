@@ -126,9 +126,9 @@ createUITextAnimations from to (ups, downs, lefts) duration =
 -- | Creates the 'TextAnimation' to animate the texts that appears left of the main
 -- 'RectContainer'
 
-mkTextAnimRightAligned :: Coords
+mkTextAnimRightAligned :: Coords Pos
                        -- ^ Alignment ref /from/
-                       -> Coords
+                       -> Coords Pos
                        -- ^ Alignment ref /to/
                        -> [[ColorString]]
                        -- ^ Each inner list is expected to be of length 1 or more.
@@ -149,8 +149,8 @@ mkTextAnimRightAligned refFrom refTo listTxts duration =
                   [0..] listTxts
   in  mkSequentialTextTranslationsStringAnchored l duration
 
-mkTextAnimCenteredUpDown :: (Coords, Coords)
-                         -> (Coords, Coords)
+mkTextAnimCenteredUpDown :: (Coords Pos, Coords Pos)
+                         -> (Coords Pos, Coords Pos)
                          -> ([ColorString], [ColorString])
                          -- ^ Each list is expected to be of size at least 1.
                          -> Float
@@ -169,6 +169,6 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
            (txtLowers, centerDownFromAligned, centerDownToAligned)]
           duration
 
-alignTxt :: Alignment -> ColorString  -> Coords
+alignTxt :: Alignment -> ColorString  -> Coords Pos
 alignTxt (Alignment al pos) txt =
   uncurry move (align al $ countChars txt) pos

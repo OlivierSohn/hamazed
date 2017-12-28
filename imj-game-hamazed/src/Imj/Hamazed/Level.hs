@@ -90,7 +90,7 @@ getCharWithinDurationMicros durationMicros step =
 
 {-# INLINABLE renderLevelState #-}
 renderLevelState :: (Draw e, MonadReader e m, MonadIO m)
-                 => Coords
+                 => Coords Pos
                  -> Int
                  -> LevelFinished
                  -> m ()
@@ -116,7 +116,7 @@ renderLevelState s level (LevelFinished stop _ messageState) = do
 {-# INLINABLE renderLevelMessage #-}
 renderLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
                    => Level
-                   -> Coords
+                   -> Coords Pos
                    -> m ()
 renderLevelMessage (Level level _ levelState) rightMiddle =
   mapM_ (renderLevelState rightMiddle level) levelState

@@ -69,7 +69,7 @@ data World = World {
 data InTerminal = InTerminal {
     _inTerminalSize :: !(Maybe (Terminal.Window Int))
     -- ^ The size of the terminal window
-  , _inTerminalUpperLeft :: !Coords
+  , _inTerminalUpperLeft :: !(Coords Pos)
     -- ^ The 'World' 's 'RectContainer' upper left coordinates,
     -- w.r.t terminal frame.
 } deriving (Show)

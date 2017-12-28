@@ -20,17 +20,18 @@ zipAll e x = (getValueAt e x, getDeltaTimeToNextFrame e x)
 
 
 
-testCoords :: [(Coords, Maybe Float)]
+testCoords :: [(Coords Pos, Maybe Float)]
 testCoords =
-  let from = Coords 0 0
+  let from :: Coords Pos
+      from = Coords 0 0
       to = Coords 1 0
       d = distance from to
       e = mkEvolutionEaseQuart (Successive [from, to]) 1
   in map (zipAll e . Frame) [0..pred d]
 
-testListCoords :: [([Coords], Maybe Float)]
+testListCoords :: [([Coords Pos], Maybe Float)]
 testListCoords =
-  let from = [Coords 0 0, Coords 10 10]
+  let from = [Coords 0 0, (Coords 10 10 :: Coords Pos)]
       to   = [Coords 1 0, Coords 11 10]
       d = distance from to
       e = mkEvolutionEaseQuart (Successive [from, to]) 1

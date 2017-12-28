@@ -26,7 +26,7 @@ For an optimized version, see 'Delta' of module imj-render-delta-term.
 -}
 newtype NaiveDraw = NaiveDraw Int -- ^ Int is not used, I had to add it else () doesn't compile
 
-move' :: Coords -> IO ()
+move' :: Coords Pos -> IO ()
 move' (Coords (Coord y) (Coord x)) =
   setCursorPosition y x
 

@@ -36,7 +36,7 @@ import           Imj.Text.ColorString
 -- | Draw a 'ColorString'.
 {-# INLINABLE drawColorStr #-}
 drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
-            => ColorString -> Coords -> m ()
+            => ColorString -> Coords Pos -> m ()
 drawColorStr cs pos = do
   d <- asks drawColorStr'
   d cs pos
@@ -77,7 +77,7 @@ drawAlignedTxt txt colors a = do
 {-# INLINABLE drawTxt #-}
 drawTxt :: (Draw e, MonadReader e m, MonadIO m)
         => Text
-        -> Coords
+        -> Coords Pos
         -> LayeredColor
         -> m ()
 drawTxt txt co la = do
@@ -88,7 +88,7 @@ drawTxt txt co la = do
 {-# INLINABLE drawStr #-}
 drawStr :: (Draw e, MonadReader e m, MonadIO m)
         => String
-        -> Coords
+        -> Coords Pos
         -> LayeredColor
         -> m ()
 drawStr str co la = do
@@ -101,7 +101,7 @@ drawStr str co la = do
 drawChars :: (Draw e, MonadReader e m, MonadIO m)
           => Int
           -> Char
-          -> Coords
+          -> Coords Pos
           -> LayeredColor
           -> m ()
 drawChars i c co la = do
@@ -111,7 +111,7 @@ drawChars i c co la = do
 {-# INLINABLE drawChar #-}
 drawChar :: (Draw e, MonadReader e m, MonadIO m)
          => Char
-         -> Coords
+         -> Coords Pos
          -> LayeredColor
          -> m ()
 drawChar c co la = do

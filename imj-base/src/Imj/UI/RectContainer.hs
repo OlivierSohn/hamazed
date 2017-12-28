@@ -41,7 +41,7 @@ l = RectContainer's lower left corner, at (5,4)
 data RectContainer = RectContainer {
     _rectFrameContentSize :: !Size
     -- ^ /Content/ size.
-  , _rectFrameUpperLeft :: !Coords
+  , _rectFrameUpperLeft :: !(Coords Pos)
     -- ^ Upper left corner.
   , _rectFrameColors :: !LayeredColor
     -- ^ Foreground and background colors
@@ -220,7 +220,7 @@ getSideCentersAtDistance :: RectContainer
                          -- ^ Reference container
                          -> Int
                          -- ^ A distance
-                         -> (Coords, Coords, Coords)
+                         -> (Coords Pos, Coords Pos, Coords Pos)
                          -- ^ (center Up, center Down, center Left)
 getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft' _) dist =
   (centerUp, centerDown, leftMiddle)

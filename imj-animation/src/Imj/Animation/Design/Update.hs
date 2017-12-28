@@ -26,12 +26,12 @@ interacting with its environment:
 * if \( k < n \), the new 'AnimatedPoints' will be populated by 'AnimatedPoints'
 using the \( k+1 \)th animation function.
 -}
-updateAnimatedPoints :: [Coords -> Frame -> [AnimatedPoint]]
+updateAnimatedPoints :: [Coords Pos -> Frame -> [AnimatedPoint]]
                      -- ^ The animation function at index @i@ updates
                      -- 'AnimatedPoints' at level @i@.
                      -> Frame
                      -- ^ Current iteration
-                     -> (Coords -> InteractionResult)
+                     -> (Coords Pos -> InteractionResult)
                      -- ^ Interaction function
                      -> AnimatedPoints
                      -> AnimatedPoints

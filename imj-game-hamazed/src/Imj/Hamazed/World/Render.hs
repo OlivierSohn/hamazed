@@ -46,7 +46,7 @@ renderWorld
 renderNumber :: (Draw e, MonadReader e m, MonadIO m)
              => Number
              -> Space
-             -> Coords
+             -> Coords Pos
              -> m ()
 renderNumber (Number (PosSpeed pos _) i) space b =
   when (location pos space == InsideWorld) $

@@ -61,7 +61,7 @@ laserAnimation ray@(LaserRay _ (Ray seg)) keyTime =
 -- can be configured in number of points, the second has 4*8=32 points.
 quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Number of points in the first explosion
-                                         -> Coords
+                                         -> Coords Pos
                                          -- ^ Center of the first explosion
                                          -> KeyTime
                                          -- ^ 'KeyTime' of the game event that started this animation
@@ -79,7 +79,7 @@ quantitativeExplosionThenSimpleExplosion num pos keyTime animSpeed char =
 -- and doesn't interact with the environment.
 animatedPolygon :: Int
                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
-                -> Coords
+                -> Coords Pos
                 -- ^ Center of the polygon (or circle)
                 -> KeyTime
                 -- ^ 'KeyTime' of the game event that started this animation
@@ -94,7 +94,7 @@ animatedPolygon n pos keyTime animSpeed char =
 -- | A circular explosion configurable in number of points
 simpleExplosion :: Int
                 -- ^ Number of points in the explosion
-                -> Coords
+                -> Coords Pos
                 -- ^ Center of the explosion
                 -> KeyTime
                 -- ^ 'KeyTime' of the game event that started this animation
@@ -108,9 +108,9 @@ simpleExplosion resolution pos keyTime animSpeed char =
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
-fragmentsFreeFall :: Vec2
+fragmentsFreeFall :: Vec2 Vel
                   -- ^ Initial speed
-                  -> Coords
+                  -> Coords Pos
                   -- ^ Initial position
                   -> KeyTime
                   -- ^ 'KeyTime' of the game event that started this animation
@@ -123,9 +123,9 @@ fragmentsFreeFall speed pos keyTime animSpeed char =
   map (\sp -> freeFall sp pos keyTime animSpeed char) $ variations speed
 
 -- | A gravity-based free-falling animation.
-freeFall :: Vec2
+freeFall :: Vec2 Vel
          -- ^ Initial speed
-         -> Coords
+         -> Coords Pos
          -- ^ Initial position
          -> KeyTime
          -- ^ 'KeyTime' of the game event that started this animation
@@ -141,9 +141,9 @@ freeFall speed pos keyTime animSpeed char =
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
-fragmentsFreeFallThenExplode :: Vec2
+fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
-                             -> Coords
+                             -> Coords Pos
                              -- ^ Initial position
                              -> KeyTime
                              -- ^ 'KeyTime' of the game event that started this animation
@@ -156,17 +156,17 @@ fragmentsFreeFallThenExplode speed pos k s c =
   map (\sp -> freeFallThenExplode sp pos k s c) $ variations speed
 
 -- | Given an input speed, computes four slightly different input speeds
-variations :: Vec2 -> [Vec2]
+variations :: Vec2 Vel -> [Vec2 Vel]
 variations sp =
-  map (sumVec2d sp) [ Vec2 0.3     (-0.4)
-                    , Vec2 (-0.55) (-0.29)
-                    , Vec2 (-0.1)  0.9
-                    , Vec2 1.2     0.2]
+  map (sumVec2d sp) [ Vec2 0.12     (-0.16)
+                    , Vec2 (-0.22) (-0.116)
+                    , Vec2 (-0.04)  0.36
+                    , Vec2 0.48     0.08]
 
 -- | An animation chaining a gravity-based free-fall and a circular explosion of 4*8 points.
-freeFallThenExplode :: Vec2
+freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
-                    -> Coords
+                    -> Coords Pos
                     -- ^ Initial position
                     -> KeyTime
                     -- ^ 'KeyTime' of the game event that started this animation

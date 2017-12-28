@@ -68,7 +68,7 @@ oneRandom a b = do
 randomSpeed :: IO Int
 randomSpeed = oneRandom (-1) 1
 
-randomNonCollidingPos :: Space -> IO Coords
+randomNonCollidingPos :: Space -> IO (Coords Pos)
 randomNonCollidingPos space@(Space _ worldSize _) = do
   coords <- randomCoords worldSize
   case getMaterial coords space of
@@ -79,7 +79,7 @@ randomInt :: Int -> IO Int
 randomInt sz =
   oneRandom 0 (sz-1)
 
-randomCoords :: Size -> IO Coords
+randomCoords :: Size -> IO (Coords Pos)
 randomCoords (Size rs cs) = do
   r <- randomCoord $ fromIntegral rs
   c <- randomCoord $ fromIntegral cs
@@ -195,7 +195,7 @@ flatten = getMatrixAsVector
 at :: Matrix a -> (Int, Int) -> a
 at mat (i, j) = getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
 
-connectedNeighbours :: CInt -> Coords -> Matrix CInt -> (Int, Int) -> [Coords]
+connectedNeighbours :: CInt -> Coords Pos -> Matrix CInt -> (Int, Int) -> [Coords Pos]
 connectedNeighbours matchIdx coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
   in mapMaybe (\other@(Coords (Coord r) (Coord c)) ->
@@ -256,14 +256,14 @@ matToRenderGroups mat s@(Size _ cs) =
                          RenderGroup (Coords row col) materialColor materialChar count))
                   (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
-getInnerMaterial :: Coords -> Space -> Material
+getInnerMaterial :: Coords Pos -> Space -> Material
 getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
   mapInt $ mat `at` (r+borderSize, c+borderSize)
 
 
 -- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix
-getMaterial :: Coords -> Space -> Material
+getMaterial :: Coords Pos -> Space -> Material
 getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
   | r < 0 || c < 0       = Wall
   | r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = Wall
@@ -275,11 +275,11 @@ materialToLocation m = case m of
   Air  -> InsideWorld
 
 -- | Considers that outside 'Space', everything is 'OutsideWorld'
-location :: Coords -> Space -> Location
+location :: Coords Pos -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
 -- | Considers that outside 'Space', everything is 'InsideWorld'
-strictLocation :: Coords -> Space -> Location
+strictLocation :: Coords Pos -> Space -> Location
 strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
     | r < 0 || c < 0 || r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = InsideWorld
     | otherwise = materialToLocation $ getInnerMaterial coords space
@@ -288,9 +288,9 @@ strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
 {-# INLINABLE renderSpace #-}
 renderSpace :: (Draw e, MonadReader e m, MonadIO m)
             => Space
-            -> Coords
+            -> Coords Pos
             -- ^ World upper left coordinates w.r.t terminal frame.
-            -> m Coords
+            -> m (Coords Pos)
 renderSpace (Space _ _ renderedWorld) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
   mapM_ (renderGroup worldCoords) renderedWorld
@@ -298,7 +298,7 @@ renderSpace (Space _ _ renderedWorld) upperLeft = do
 
 {-# INLINABLE renderGroup #-}
 renderGroup :: (Draw e, MonadReader e m, MonadIO m)
-            => Coords
+            => Coords Pos
             -> RenderGroup
             -> m ()
 renderGroup worldCoords (RenderGroup pos colors char count) =
@@ -307,11 +307,11 @@ renderGroup worldCoords (RenderGroup pos colors char count) =
 scopedLocation :: Space
                  -> Maybe (Window Int)
                  -- ^ The terminal size
-                 -> Coords
+                 -> Coords Pos
                  -- ^ The world upper left coordinates w.r.t terminal frame.
                  -> Boundaries
                  -- ^ The scope
-                 -> Coords
+                 -> Coords Pos
                  -- ^ The coordinates to test
                  -> Location
 scopedLocation space@(Space _ sz _) mayTermWindow wcc =

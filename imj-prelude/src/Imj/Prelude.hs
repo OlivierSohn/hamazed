@@ -37,7 +37,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(.
                         , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)
                         , realToFrac, fromIntegral, fromRational, recip, signum, pred, succ
                         , sin, cos, pi
-                        , mod, min, max, abs, floor, ceiling, maxBound
+                        , mod, min, max, abs, floor, round, ceiling, maxBound
                         , negate, div, divMod, quot, quotRem, even, odd
                         , error, undefined
                         )

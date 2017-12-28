@@ -62,15 +62,17 @@ updateMovableItem space ps@(PosSpeed pos _) =
               doBallMotionUntilCollision space newPs
         NoCollision  -> doBallMotion newPs
 
+-- if we ever change this, we should chek other places where we use sumPosSpeed
+-- to use this function instead
 doBallMotion :: PosSpeed -> PosSpeed
 doBallMotion (PosSpeed pos speed) =
-  PosSpeed (sumCoords pos speed) speed
+  PosSpeed (sumPosSpeed pos speed) speed
 
 -- | Changes the position until a collision is found.
 --   Doesn't change the speed
 doBallMotionUntilCollision :: Space -> PosSpeed -> PosSpeed
 doBallMotionUntilCollision space (PosSpeed pos speed) =
-  let trajectory = bresenham $ mkSegment pos $ sumCoords pos speed
+  let trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
 

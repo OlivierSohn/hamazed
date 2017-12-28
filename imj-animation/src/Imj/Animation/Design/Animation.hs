@@ -61,7 +61,7 @@ import           Imj.Iteration
 import           Imj.Timing
 
 -- | Constructs an 'AnimatedPoints'.
-mkAnimatedPoints :: Coords
+mkAnimatedPoints :: Coords Pos
                  -- ^ Where the first animation should start.
                  -> AnimatedPoints
 mkAnimatedPoints c =
@@ -71,7 +71,7 @@ data Animation = Animation {
     _animationPoints :: !AnimatedPoints
     -- ^ The current points.
   , _animationUpdate :: !(Frame
-                      -> (Coords -> InteractionResult)
+                      -> (Coords Pos -> InteractionResult)
                       -> AnimatedPoints
                       -> AnimatedPoints)
     -- ^ The function updating 'AnimatedPoints'.
@@ -88,7 +88,7 @@ instance Show Animation where
     showString $ "Animation{" ++ show (a,b,c) ++ "}"
 
 
-mkAnimation :: [Coords -> Frame -> [AnimatedPoint]]
+mkAnimation :: [Coords Pos -> Frame -> [AnimatedPoint]]
             {- ^ The /animation functions/, where the 'Coords' argument is called
             the /center/.
 
@@ -101,7 +101,7 @@ mkAnimation :: [Coords -> Frame -> [AnimatedPoint]]
             -> Speed
             -- ^ Animation discrete speed. Tells by how much the 'Frame', passed
             -- to animation functions, is incremented during an update.
-            -> Coords
+            -> Coords Pos
             -- ^ Will be passed as a /center/ argument to the first
             -- animation function to generate level 1 'AnimatedPoint's.
             -> Maybe Char
@@ -134,7 +134,7 @@ earliestDeadline animations =
 
 updateAnimationIfNeeded :: Maybe KeyTime
                         -- ^ 'Just' the current 'KeyTime', or 'Nothing'
-                        -> (Coords -> InteractionResult)
+                        -> (Coords Pos -> InteractionResult)
                         -- ^ The environmental interaction function
                         -> Animation
                         -- ^ The current animation
@@ -194,13 +194,13 @@ contain a default char, else this function errors.
 {-# INLINABLE renderAnim #-}
 renderAnim :: (Draw e, MonadReader e m, MonadIO m)
            => Animation
-           -> (Coords -> InteractionResult)
+           -> (Coords Pos -> InteractionResult)
            -- ^ The interaction function. Animated points for which this
            -- function returns 'Stable' are drawn. Other animated points are
            -- not drawn because they would overlap with the environment.
            -> (Frame -> LayeredColor)
            -- ^ Color function
-           -> Coords
+           -> Coords Pos
            -- ^ Reference coordinates.
            -> m Bool
            -- ^ True if at least one animated point is "alive"
@@ -213,9 +213,9 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         -> Maybe Char
         -- ^ default char to use when there is no char specified in the state
         -> AnimatedPoints
-        -> (Coords -> InteractionResult)
+        -> (Coords Pos -> InteractionResult)
         -> (Frame -> LayeredColor)
-        -> Coords
+        -> Coords Pos
         -> m Bool
         -- ^ True if at least one animated point is "alive"
 render' _ _ (AnimatedPoints _ _ Nothing) _ _ _ = return False

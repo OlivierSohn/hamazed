@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Defines the notion of interpolation between two values of the same type.
 
@@ -177,7 +178,7 @@ instance (DiscretelyInterpolable a)
         $ zip l (assert (length l' == length l) l')
 
 -- | Using bresenham 2d line algorithm.
-instance DiscretelyInterpolable Coords where
+instance DiscretelyInterpolable (Coords Pos) where
   distance = bresenhamLength
 
   interpolate c c' i

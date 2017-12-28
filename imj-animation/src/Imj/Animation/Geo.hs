@@ -27,7 +27,7 @@ import           Imj.Iteration
 
 -- | Note that the Coords parameter is unused.
 laserAnimationGeo :: LaserRay Actual
-                  -> Coords
+                  -> Coords Pos
                   -- ^ Unused, because the 'LaserRay' encodes the origin already
                   -> Frame
                   -> [AnimatedPoint]
@@ -47,37 +47,37 @@ laserAnimationGeo (LaserRay dir (Ray seg)) _ (Frame i) =
   in map (\p -> AnimatedPoint DontInteract p (Just char)) points
 
 -- | Gravity free-fall
-gravityFallGeo :: Vec2
+gravityFallGeo :: Vec2 Vel
                -- ^ Initial speed
                -> CanInteract
-               -> Coords
+               -> Coords Pos
                -- ^ Initial position
                -> Frame
                -> [AnimatedPoint]
-gravityFallGeo initialSpeed canInteract origin (Frame iteration) =
+gravityFallGeo initialSpeed canInteract origin frame =
   let o = pos2vec origin
-      points = [vec2coords $ parabola o initialSpeed iteration]
+      points = [vec2pos $ parabola o initialSpeed frame]
   in map (\p -> AnimatedPoint canInteract p Nothing) points
 
 -- | Circular explosion by copying quarter arcs.
 simpleExplosionGeo :: Int
                    -- ^ Number of points per quarter arc.
                    -> CanInteract
-                   -> Coords
+                   -> Coords Pos
                    -- ^ Center
                    -> Frame
                    -> [AnimatedPoint]
 simpleExplosionGeo resolution canInteract center (Frame iteration) =
   let radius = fromIntegral iteration :: Float
       c = pos2vec center
-      points = map vec2coords $ translatedFullCircleFromQuarterArc c radius 0 resolution
+      points = map vec2pos $ translatedFullCircleFromQuarterArc c radius 0 resolution
   in map (\p -> AnimatedPoint canInteract p Nothing) points
 
 -- | Circular explosion
 quantitativeExplosionGeo :: Int
                          -- ^ The number of points of the circle
                          -> CanInteract
-                         -> Coords
+                         -> Coords Pos
                          -- ^ Center
                          -> Frame
                          -> [AnimatedPoint]
@@ -88,13 +88,13 @@ quantitativeExplosionGeo number canInteract center (Frame iteration) =
       radius = fromIntegral iteration :: Float
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
       c = pos2vec center
-      points = map vec2coords $ translatedFullCircle c radius firstAngle number
+      points = map vec2pos $ translatedFullCircle c radius firstAngle number
   in map (\p -> AnimatedPoint canInteract p Nothing) points
 
 -- | Expanding then shrinking geometric figure.
 animatePolygonGeo :: Int
                   -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                  -> Coords
+                  -> Coords Pos
                   -- ^ Center
                   -> Frame
                   -- ^ Used to compute the radius.
@@ -114,11 +114,11 @@ animatePolygonGeo n center (Frame i) =
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation
 -- so we need to resampleWithExtremities according to the biggest possible figure.
-polygon :: Int -> Int -> Coords -> [Coords]
+polygon :: Int -> Int -> Coords Pos -> [Coords Pos]
 polygon nSides radius center =
   let startAngle = if odd nSides then pi else pi/4.0
       extrs = polyExtremities (pos2vec center) (fromIntegral radius) startAngle nSides
-  in connect $ map vec2coords extrs
+  in connect $ map vec2pos extrs
 
 -- | Animates the radius by first expanding then shrinking.
 animateRadius :: Int -> Int -> Int
@@ -133,18 +133,18 @@ animateRadius i nSides =
        else
          2 * limit - i
 
-connect :: [Coords] -> [Coords]
+connect :: [Coords Pos] -> [Coords Pos]
 connect []  = []
 connect l@[_] = l
 connect (a:rest@(b:_)) = connect2 a b ++ connect rest
 
-connect2 :: Coords -> Coords -> [Coords]
+connect2 :: Coords Pos -> Coords Pos -> [Coords Pos]
 connect2 start end =
   let numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
   in sampledBresenham numpoints start end
 
 -- | Applies bresenham transformation and resamples it
-sampledBresenham :: Int -> Coords -> Coords -> [Coords]
+sampledBresenham :: Int -> Coords Pos -> Coords Pos -> [Coords Pos]
 sampledBresenham nSamples start end =
   let l = bresenhamLength start end
       seg = mkSegment start end

@@ -14,7 +14,9 @@ module Imj.Geo.Discrete
            , coordsForDirection
            -- * Use Coords
            , diffCoords
+           , diffPosToSpeed
            , sumCoords
+           , sumPosSpeed
            , move
            , translate
            , translate'
@@ -43,47 +45,63 @@ import           Imj.Geo.Discrete.Bresenham3
 import           Imj.Geo.Discrete.Resample
 
 -- | 'zeroCoords' = 'Coords' 0 0
-zeroCoords :: Coords
+zeroCoords :: Coords a
 zeroCoords = Coords 0 0
 
 -- | Returns a - b
-diffCoords :: Coords
+diffCoords :: Coords a
            -- ^ a
-           -> Coords
+           -> Coords a
            -- ^ b
-           -> Coords
+           -> Coords a
            -- ^ a - b
 diffCoords (Coords r1 c1) (Coords r2 c2) =
   Coords (r1 - r2) (c1 - c2)
 
 -- | Returns a + b
-sumCoords :: Coords
+sumCoords :: Coords a
            -- ^ a
-           -> Coords
+           -> Coords a
            -- ^ b
-           -> Coords
+           -> Coords a
            -- ^ a + b
 sumCoords (Coords r1 c1) (Coords r2 c2) =
   Coords (r1 + r2) (c1 + c2)
 
+-- | Assumes that we integrate over one game step.
+--
+-- Returns a + b
+sumPosSpeed :: Coords Pos
+            -> Coords Vel
+            -> Coords Pos
+sumPosSpeed (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 + r2) (c1 + c2)
+
+{-# INLINE diffPosToSpeed #-}
+diffPosToSpeed :: Coords Pos
+               -> Coords Pos
+               -> Coords Vel
+diffPosToSpeed (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 - r2) (c1 - c2)
+
 -- | Returns the coordinates that correspond to one step in the given direction.
-coordsForDirection :: Direction -> Coords
+coordsForDirection :: Direction -> Coords a
 coordsForDirection Down  = Coords 1 0
 coordsForDirection Up    = Coords (-1) 0
 coordsForDirection LEFT  = Coords 0 (-1)
 coordsForDirection RIGHT = Coords 0 1
 
-multiply :: Int -> Coords -> Coords
+multiply :: Int -> Coords a -> Coords a
 multiply n (Coords r c) = Coords (r * fromIntegral n) (c * fromIntegral n)
 
 -- | Translate of 1 step in a given direction.
-translateInDir :: Direction -> Coords -> Coords
+translateInDir :: Direction -> Coords a -> Coords a
 translateInDir dir = translate $ coordsForDirection dir
 
 
-mkSegment :: Coords
+mkSegment :: Coords Pos
           -- ^ Segment start
-          -> Coords
+          -> Coords Pos
           -- ^ Segment end
           -> Segment
 mkSegment coord1@(Coords r1 c1) coord2@(Coords r2 c2)
@@ -99,7 +117,7 @@ changeSegmentLength i (Vertical   col r1 _) = Vertical   col r1 $ r1 + fromInteg
 changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments" -- TODO use bresenham if it is valid
 
 -- | Returns the distance from segment start
-segmentContains :: Coords
+segmentContains :: Coords Pos
                 -- ^ The coordinates to test
                 -> Segment
                 -> Maybe Int
@@ -121,7 +139,7 @@ segmentContains _ _ =
   error "segmentContains cannot operate on oblique segments" -- TODO use bresenham
 
 -- | Returns the start and end coordinates.
-extremities :: Segment -> (Coords, Coords)
+extremities :: Segment -> (Coords Pos, Coords Pos)
 extremities (Horizontal row c1 c2) = (Coords row c1, Coords row c2)
 extremities (Vertical   col r1 r2) = (Coords r1 col, Coords r2 col)
 extremities (Oblique c1 c2)         = (c1, c2)
@@ -137,7 +155,7 @@ rangeContains r1 r2 i =
       Nothing
 
 -- | 'translate' = 'sumCoords'
-translate :: Coords -> Coords -> Coords
+translate :: Coords a -> Coords a -> Coords a
 translate = sumCoords
 
 -- | Translate by a given height and width.
@@ -145,9 +163,9 @@ translate' :: Length Height
            -- ^ The height to add
            -> Length Width
            -- ^ The width to add
-           -> Coords
+           -> Coords Pos
            -- The initial coordinates
-           -> Coords
+           -> Coords Pos
 translate' h w c =
   sumCoords c $ toCoords h w
 
@@ -155,23 +173,23 @@ move :: Int
      -- ^ Take that many steps
      -> Direction
      -- ^ In that direction
-     -> Coords
+     -> Coords a
      -- ^ From these coordinates
-     -> Coords
+     -> Coords a
 move t dir c = sumCoords c $ multiply t $ coordsForDirection dir
 
-mkSegmentByExtendingWhile :: Coords
+mkSegmentByExtendingWhile :: Coords Pos
                           -- ^ start of the segment
                           -> Direction
                           -- ^ 'Direction' in which to extend
-                          -> (Coords -> Bool)
+                          -> (Coords Pos -> Bool)
                           -- ^ Continue extension while this functions returns 'True'.
                           -> Segment
 mkSegmentByExtendingWhile start dir f =
   let end = extend' start dir f
   in mkSegment start end
 
-extend' :: Coords -> Direction -> (Coords -> Bool) -> Coords
+extend' :: Coords Pos -> Direction -> (Coords Pos -> Bool) -> Coords Pos
 extend' coords dir continue =
   let loc = translateInDir dir coords
   in if continue loc

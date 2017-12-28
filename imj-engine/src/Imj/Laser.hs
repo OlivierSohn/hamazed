@@ -39,22 +39,22 @@ import           Imj.Physics.Discrete.Collision
 
 
 -- | Same as 'shootLaser' but offsets the start 'Coords' by one in the shot 'Direction'.
-shootLaserWithOffset :: Coords
-                   -- ^ Start coordinates
-                   -> Direction
-                   -- ^ Direction of the shot
-                   -> LaserReach
-                   -> (Coords -> Location)
-                   -- ^ Collision function
-                   -> Maybe (Ray Theoretical)
+shootLaserWithOffset :: Coords Pos
+                     -- ^ Start coordinates
+                     -> Direction
+                     -- ^ Direction of the shot
+                     -> LaserReach
+                     -> (Coords Pos -> Location)
+                     -- ^ Collision function
+                     -> Maybe (Ray Theoretical)
 shootLaserWithOffset shipCoords dir =
   shootLaser (translateInDir dir shipCoords) dir
 
 -- | Creates a 'Ray' by extending from a 'Coords' until a collision is found.
-shootLaser :: Coords
+shootLaser :: Coords Pos
            -> Direction
            -> LaserReach
-           -> (Coords -> Location)
+           -> (Coords Pos -> Location)
            -> Maybe (Ray Theoretical)
 shootLaser laserStart dir laserType getLocation =
   case getLocation laserStart of
@@ -67,14 +67,14 @@ shootLaser laserStart dir laserType getLocation =
           in Just $ Ray seg
 
 
-stopRayAtFirstCollision :: [Coords] -> Ray Theoretical -> (Ray Actual, Maybe Coords)
+stopRayAtFirstCollision :: [Coords Pos] -> Ray Theoretical -> (Ray Actual, Maybe (Coords Pos))
 stopRayAtFirstCollision coords (Ray s) =
   let collisions =
         map (\(c, Just i) -> (c,i))
         $ filter (\(_, i) -> isJust i)
         $ zip coords
         $ map (`segmentContains` s) coords
-      limitAtFirstCollision :: [(Coords, Int)] -> Segment -> (Ray Actual, Maybe Coords)
+      limitAtFirstCollision :: [(Coords Pos, Int)] -> Segment -> (Ray Actual, Maybe (Coords Pos))
       limitAtFirstCollision collis seg = case collis of
         [] -> (Ray seg, Nothing)
         l -> (Ray (changeSegmentLength (snd minElt) seg), Just $ fst minElt)
@@ -83,7 +83,7 @@ stopRayAtFirstCollision coords (Ray s) =
   in limitAtFirstCollision collisions s
 
 -- | Returns the 'Coords' that is just after the end of the 'LaserRay'
-afterEnd :: LaserRay Actual -> Coords
+afterEnd :: LaserRay Actual -> Coords Pos
 afterEnd (LaserRay dir (Ray seg)) =
   translateInDir dir $ snd $ extremities seg
 
@@ -93,7 +93,7 @@ afterEnd (LaserRay dir (Ray seg)) =
 -- Returns a partition of obstacles between the remaining and the destroyed ones.
 computeActualLaserShot :: [a]
                        -- ^ Obstacles.
-                       -> (a -> Coords)
+                       -> (a -> Coords Pos)
                        -- ^ Obstacle to 'Coords' function.
                        -> LaserRay Theoretical
                        -- ^ The 'LaserRay' that doesn't take obstacles into account.

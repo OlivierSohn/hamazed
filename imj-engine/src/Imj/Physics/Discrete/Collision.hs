@@ -17,9 +17,7 @@ module Imj.Physics.Discrete.Collision
 
 import           Imj.Prelude
 
-import           Imj.Geo.Discrete( mkSegment , sumCoords, diffCoords )
-import           Imj.Geo.Discrete.Bresenham(bresenham)
-import           Imj.Geo.Discrete.Types
+import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Types
 
 
@@ -38,7 +36,7 @@ data CollisionStatus = NoCollision
                      -- and speed was mirrored
 
 -- | On collision, mirrors speed and moves to the pre-collision position.
-mirrorSpeedAndMoveToPrecollisionIfNeeded :: (Coords -> Location)
+mirrorSpeedAndMoveToPrecollisionIfNeeded :: (Coords Pos -> Location)
                -- ^ Interaction function.
                -> PosSpeed
                -- ^ Input position and speed.
@@ -50,24 +48,25 @@ mirrorSpeedAndMoveToPrecollisionIfNeeded getLocation posspeed@(PosSpeed pos spee
     adjustPosSpeed
     $ firstCollision getLocation trajectory
  where
-  trajectory = bresenham $ mkSegment pos $ sumCoords pos speed
-  adjustPosSpeed (mirror, newPos) = (PosSpeed newPos $ mirrorCoords speed mirror, PreCollision)
+  trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
+  adjustPosSpeed (mirror, newPos) = (PosSpeed newPos $ mirrorSpeed speed mirror, PreCollision)
 
 -- | Handles the first collision on a trajectory, assuming that the first position
 -- has no collision.
-firstCollision :: (Coords -> Location)
+firstCollision :: (Coords Pos -> Location)
                -- ^ The collision function.
-               -> [Coords]
+               -> [Coords Pos]
                -- ^ The trajectory (the first position is expected to be collision-free).
-               -> Maybe (Mirror, Coords)
+               -> Maybe (Mirror, Coords Pos)
                -- ^ On collision, the kind of speed mirroring
                --   that should be applied and the position just before the collision.
 firstCollision getLocation (p1:theRest@(p2:_)) =
-  mirrorIfNeededAtomic getLocation (PosSpeed p1 (diffCoords p2 p1)) <|> firstCollision getLocation theRest
+  mirrorIfNeededAtomic getLocation (PosSpeed p1 (diffPosToSpeed p2 p1)) <|> firstCollision getLocation theRest
 firstCollision _ _ = Nothing
 
-mirrorCoords :: Coords -> Mirror -> Coords
-mirrorCoords (Coords dr dc) m =
+-- | Mirrors a speed
+mirrorSpeed :: Coords Vel -> Mirror -> Coords Vel
+mirrorSpeed (Coords dr dc) m =
   case m of
     MirrorRow -> Coords (negate dr) dc
     MirrorCol -> Coords dr          (negate dc)
@@ -84,7 +83,7 @@ data Mirror = MirrorRow
 -- | When continuing with current speed, if at next iteration we encounter a wall
 -- (or go through a wall for diagonal case),
 -- we change the speed according to the normal of the closest wall before collision
-mirrorIfNeededAtomic :: (Coords -> Location) -> PosSpeed -> Maybe (Mirror, Coords)
+mirrorIfNeededAtomic :: (Coords Pos -> Location) -> PosSpeed -> Maybe (Mirror, Coords Pos)
 mirrorIfNeededAtomic getLocation (PosSpeed pos@(Coords r c) (Coords dr dc)) =
   let future = Coords (r+dr) (c+dc)
       isWall coord = getLocation coord == OutsideWorld

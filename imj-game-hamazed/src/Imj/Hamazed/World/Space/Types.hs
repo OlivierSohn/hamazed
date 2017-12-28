@@ -40,7 +40,7 @@ data RandomParameters = RandomParameters {
 }
 
 data RenderGroup = RenderGroup {
-    _renderGroupCoords :: !Coords
+    _renderGroupCoords :: !(Coords Pos)
   , _renderGroupColors :: !LayeredColor
   , _renderGroupChar :: !Char
   , _renderGroupCount :: !Int

@@ -12,10 +12,8 @@ module Imj.Geo.Discrete.Types
     -- ** Direction
       Direction(..)
     -- ** Coordinates
-    , Col
-    , Row
     , Coords(..)
-    , Coord(..)
+    , Coord(..), Col, Row
     -- ** Size
     , Size(..)
     , Length(..)
@@ -27,9 +25,13 @@ module Imj.Geo.Discrete.Types
     , containsWithOuterBorder
     -- ** Segment
     , Segment(..)
+    -- * Reexports
+    , module Imj.Geo.Types
     ) where
 
 import           Imj.Prelude
+
+import           Imj.Geo.Types
 
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
@@ -43,8 +45,9 @@ data Row
 -- | Represents a column index (x)
 data Col
 
--- | Two-dimensional discrete coordinates.
-data Coords = Coords {
+-- | Two-dimensional discrete coordinates. We use phantom types to distinguish
+-- positions from speeds.
+data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
 } deriving (Eq, Show, Ord)
@@ -64,7 +67,7 @@ data Size = Size {
 } deriving (Eq, Show)
 
 -- | Width and Height to Coords
-toCoords :: Length Height -> Length Width -> Coords
+toCoords :: Length Height -> Length Width -> Coords Pos
 toCoords (Length h) (Length w) =
   Coords (Coord h) (Coord w)
 
@@ -75,7 +78,7 @@ maxLength (Size (Length h) (Length w)) =
 
 -- | Tests if a 'Coords' lies on the outer border of a region of a given size,
 -- containing (0,0) and positive coordinates.
-onOuterBorder :: Coords
+onOuterBorder :: Coords Pos
               -- ^ The coordinates to test
               -> Size
               -- ^ The size
@@ -91,7 +94,7 @@ onOuterBorder (Coords r c) (Size rs cs)
 
 -- | Tests if a 'Coords' is contained or on the outer border of a region
 -- of a given size, containing (0,0) and positive coordinates.
-containsWithOuterBorder :: Coords -> Size -> Bool -- TODO simplify, pass a number for the outer border size
+containsWithOuterBorder :: Coords Pos -> Size -> Bool -- TODO simplify, pass a number for the outer border size
 containsWithOuterBorder (Coords r c) (Size rs cs)
   = r >= -1 && c >= -1 && r <= fromIntegral rs && c <= fromIntegral cs
 
@@ -102,6 +105,6 @@ data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
              -- ^ Horizontal segment
              | Vertical   !(Coord Col) !(Coord Row) !(Coord Row)
              -- ^ Vertical segment
-             | Oblique    !Coords !Coords
+             | Oblique    !(Coords Pos) !(Coords Pos)
              -- ^ Oblique segment
              deriving(Show)

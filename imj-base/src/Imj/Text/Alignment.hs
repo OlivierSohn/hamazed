@@ -29,16 +29,16 @@ data AlignmentKind = Centered
 data Alignment = Alignment {
     _alignmentKing :: !AlignmentKind
     -- ^ The kind of alignment.
-  , _alignmentRef :: !Coords
+  , _alignmentRef :: !(Coords Pos)
     -- ^ The reference coordinates.
 }
 
-mkRightAlign :: Coords
+mkRightAlign :: Coords Pos
              -- ^ The text will be written left of these coordinates.
              -> Alignment
 mkRightAlign = Alignment RightAligned
 
-mkCentered :: Coords
+mkCentered :: Coords Pos
            -- ^ The text will be centered on these coordinates.
            -> Alignment
 mkCentered = Alignment Centered
@@ -48,7 +48,7 @@ mkCentered = Alignment Centered
 align' :: Alignment
        -> Int
        -- ^ number of characters to draw
-       -> Coords
+       -> Coords Pos
 align' (Alignment a ref) count =
   let (amount, dir) = align a count
   in move amount dir ref

@@ -42,6 +42,7 @@ library
                      , Imj.Geo.Discrete.Bresenham3
                      , Imj.Geo.Discrete.Resample
                      , Imj.Geo.Discrete.Types
+                     , Imj.Geo.Types
                      , Imj.Iteration
                      , Imj.Key
                      , Imj.Key.Blocking

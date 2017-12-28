@@ -32,7 +32,7 @@ to allow them to place 'AnimatedPoint's accordingly.
 data AnimatedPoints = AnimatedPoints {
     _animatedPointsFrame :: !Frame
     -- ^ The frame at which this 'AnimatedPoints' was initialized, relatively to the parent, if any.
-  , _animatedPointsCenter :: !Coords
+  , _animatedPointsCenter :: !(Coords Pos)
     -- ^ The center, w.r.t the animation reference frame.
   , _animatedPointsBranches :: !(Maybe [Either AnimatedPoints AnimatedPoint])
     -- ^ The tree structure
@@ -42,7 +42,7 @@ data AnimatedPoints = AnimatedPoints {
 data AnimatedPoint = AnimatedPoint {
     _animatedPointCanInteract :: !CanInteract
     -- ^ Can the point interact with the environment?
-  , _animatedPointCoords :: {-# UNPACK #-} !Coords
+  , _animatedPointCoords :: {-# UNPACK #-} !(Coords Pos)
     -- ^ Its location, w.r.t the animation reference frame.
   , _animatedPointRenderedWith :: !(Maybe Char)
     -- ^ The char used to render it. If 'Nothing', 'Animation' /must/ specify a 'Char'.

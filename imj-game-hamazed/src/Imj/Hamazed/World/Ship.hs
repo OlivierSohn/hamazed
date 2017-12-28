@@ -39,9 +39,9 @@ shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
           let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
               (Number _ n) = head collisions
           in  map (`BoundedAnimation` WorldFrame) $
-                  fragmentsFreeFallThenExplode (speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
+                  fragmentsFreeFallThenExplode (scalarProd 0.4 $ speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
                   ++
-                  fragmentsFreeFallThenExplode (speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)
+                  fragmentsFreeFallThenExplode (scalarProd 0.4 $ speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)
         else
           []
     _ -> []

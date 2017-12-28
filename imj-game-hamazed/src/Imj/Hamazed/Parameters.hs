@@ -78,15 +78,15 @@ updateFromChar c p@(GameParameters shape wallType) =
 {-# INLINABLE dText #-}
 dText :: (Draw e, MonadReader e m, MonadIO m)
       => Text
-      -> Coords
-      -> m Coords
+      -> Coords Pos
+      -> m (Coords Pos)
 dText txt pos =
   drawTxt txt pos configColors >> return (translateInDir Down pos)
 
 {-# INLINABLE dText_ #-}
 dText_ :: (Draw e, MonadReader e m, MonadIO m)
        => Text
-       -> Coords
+       -> Coords Pos
        -> m ()
 dText_ txt pos =
   void (dText txt pos)

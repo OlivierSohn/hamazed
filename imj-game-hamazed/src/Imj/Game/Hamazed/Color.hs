@@ -22,13 +22,13 @@ module Imj.Game.Hamazed.Color (
   , messageColor
   , neutralMessageColor
   -- * Reexports
-  , module Imj.Color
+  , module Imj.Graphics.Color
   ) where
 
 import           Imj.Prelude
 
-import           Imj.Color
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Graphics.Color
 
 configColors :: LayeredColor
 configColors = LayeredColor (gray 0) (gray 8)

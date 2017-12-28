@@ -21,17 +21,17 @@ library
   other-modules:
   exposed-modules:
                       -- initially in a separate module for implementations
-                       Imj.Animation
-                     , Imj.Animation.Chars
-                     , Imj.Animation.Geo
+                       Imj.Graphics.Animation
+                     , Imj.Graphics.Animation.Chars
+                     , Imj.Graphics.Animation.Geo
                       -- initially in a separate module for core
-                     , Imj.Animation.Design
-                     , Imj.Animation.Design.Animation
-                     , Imj.Animation.Design.Apply
-                     , Imj.Animation.Design.Color
-                     , Imj.Animation.Design.Timing
-                     , Imj.Animation.Design.Types
-                     , Imj.Animation.Design.Update
+                     , Imj.Graphics.Animation.Design
+                     , Imj.Graphics.Animation.Design.Animation
+                     , Imj.Graphics.Animation.Design.Apply
+                     , Imj.Graphics.Animation.Design.Color
+                     , Imj.Graphics.Animation.Design.Timing
+                     , Imj.Graphics.Animation.Design.Types
+                     , Imj.Graphics.Animation.Design.Update
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*

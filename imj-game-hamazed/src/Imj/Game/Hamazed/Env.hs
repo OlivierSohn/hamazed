@@ -5,8 +5,8 @@ module Imj.Game.Hamazed.Env(
        , createEnv
        ) where
 
-import           Imj.Draw.Class(Draw(..))
-import           Imj.Render.Delta(newDefaultEnv, DeltaEnv)
+import           Imj.Graphics.Draw.Class(Draw(..))
+import           Imj.Graphics.Render.Delta(newDefaultEnv, DeltaEnv)
 
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program

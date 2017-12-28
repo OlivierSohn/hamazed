@@ -34,7 +34,7 @@ module Imj.Game.Hamazed
         * 'updateAndRender'
 
             * Update 'GameState' according to \(timestampedEvent\)
-            * Render if needed, using "Imj.Render.Delta" to avoid
+            * Render if needed, using "Imj.Graphics.Render.Delta" to avoid
             <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
         -}
       , getNextDeadline
@@ -59,7 +59,7 @@ module Imj.Game.Hamazed
         -- * GameState
         {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
         we render the /old/ 'World' while using the /new/ 'World' 's
-        dimensions to animate the UI accordingly (see "Imj.UI.Animation"). -} -- TODO this could be done differently
+        dimensions to animate the UI accordingly (see "Imj.Graphics.UI.Animation"). -} -- TODO this could be done differently
       , GameState(..)
         -- * Environment
         {- | -}
@@ -79,9 +79,6 @@ import           Control.Monad.Reader(runReaderT)
 import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
 
-import           Imj.Animation
-import           Imj.Animation.Design hiding (earliestDeadline)
-import           Imj.Game.Element.Laser
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Event
@@ -96,11 +93,14 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.UI.RectContainer
+import           Imj.Graphics.Animation
+import           Imj.Graphics.Animation.Design hiding (earliestDeadline)
+import           Imj.Graphics.Render.Delta
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
-import           Imj.Render.Delta
 import           Imj.Threading
 
 {- | Runs the Hamazed game.
@@ -390,7 +390,7 @@ getEvent' state@(GameState _ _ _ _ level _) = do
   let deadline = getNextDeadline state t
   getEventForMaybeDeadline level deadline t
 
--- | Updates the 'GameState', if needed, and renders using "Imj.Render.Delta"
+-- | Updates the 'GameState', if needed, and renders using "Imj.Graphics.Render.Delta"
 -- to avoid <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 {-# INLINABLE updateAndRender #-}
 updateAndRender :: (Draw e, MonadReader e m, MonadIO m)  -- TODO This function should be split in two : update / render.

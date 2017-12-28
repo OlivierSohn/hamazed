@@ -22,7 +22,7 @@ import           Data.Text(pack, singleton)
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level.Types
-import           Imj.Text.ColorString
+import           Imj.Graphics.Text.ColorString
 
 mkLevelCS :: InfoType -> Int -> [ColorString]
 mkLevelCS t level =

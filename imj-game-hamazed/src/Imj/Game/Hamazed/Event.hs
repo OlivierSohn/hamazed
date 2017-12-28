@@ -19,7 +19,7 @@ module Imj.Game.Hamazed.Event
 import           Imj.Prelude
 
 import           Imj.Geo.Discrete
-import           Imj.Key.Types
+import           Imj.Input.Types
 import           Imj.Timing
 
 -- | A foreseen game or animation update.

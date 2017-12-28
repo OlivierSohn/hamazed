@@ -14,7 +14,7 @@ module Imj.Game.Hamazed.World.Types
         , InTerminal(..)
         -- * Reexports
         , module Imj.Iteration
-        , module Imj.Text.Animation
+        , module Imj.Graphics.Text.Animation
         , module Imj.Physics.Discrete.Types
         , Terminal.Window
         , RectContainer(..)
@@ -24,14 +24,14 @@ import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
-import           Imj.Animation.Design.Animation
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Animation.Design.Animation
+import           Imj.Graphics.Text.Animation
+import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Types
-import           Imj.Text.Animation
-import           Imj.Text.ColorString
 import           Imj.Timing
-import           Imj.UI.RectContainer
 
 
 data WorldShape = Square

@@ -1,7 +1,7 @@
 
 module Test.Imj.Ease (testEase) where
 
-import Imj.Math.Ease
+import Imj.Graphics.Math.Ease
 
 
 testEase :: IO()

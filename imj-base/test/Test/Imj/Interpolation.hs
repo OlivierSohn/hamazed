@@ -8,8 +8,8 @@ module Test.Imj.Interpolation
            , testSuccessiveInts
            , testClock ) where
 
-import Imj.Math.Ease
-import Imj.Interpolation
+import Imj.Graphics.Math.Ease
+import Imj.Graphics.Interpolation
 import Imj.Geo.Discrete
 
 testInterpolation :: IO ()

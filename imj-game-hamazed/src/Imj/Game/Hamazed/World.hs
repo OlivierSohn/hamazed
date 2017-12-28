@@ -132,14 +132,14 @@ module Imj.Game.Hamazed.World
     -}
     , mkWorldContainer
     -- ** Inter-level animations
-    , module Imj.UI.Animation
+    , module Imj.Graphics.UI.Animation
     -- * Secondary types
     , WallDistribution(..)
     , WorldShape(..)
     , LevelFinished(..)
     , GameStops(..)
     -- * Reexports
-    , module Imj.Draw
+    , module Imj.Graphics.Draw
     , ColorString
     ) where
 
@@ -151,9 +151,6 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Maybe( isNothing )
 import           Data.Text( pack )
 
-import           Imj.Animation.Design.Animation
-import           Imj.Draw
-import           Imj.Game.Element.Laser
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Parameters
@@ -165,9 +162,12 @@ import           Imj.Game.Hamazed.World.Render
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
+import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Discrete
-import           Imj.Text.ColorString
-import           Imj.UI.Animation
+import           Imj.Graphics.Animation.Design.Animation
+import           Imj.Graphics.Draw
+import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.Animation
 import           Imj.Util
 
 -- | Note that the position of the 'BattleShip' remains unchanged.

@@ -1,8 +1,8 @@
 import           System.Console.ANSI(clearScreen)
 import           Control.Monad.Reader(runReaderT)
 
-import           Imj.Draw
-import           Imj.Render.Naive
+import           Imj.Graphics.Draw
+import           Imj.Graphics.Render.Naive
 
 --import           Test.Imj.Stdout
 --import           Test.Imj.Ease

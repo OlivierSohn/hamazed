@@ -14,7 +14,6 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Draw
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.InTerminal
@@ -23,11 +22,11 @@ import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
-import           Imj.Key.Blocking
-import           Imj.Key.Types
-import           Imj.Text.Alignment
+import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.UI.Animation
+import           Imj.Input.Blocking
+import           Imj.Input.Types
 import           Imj.Timing
-import           Imj.UI.Animation
 
 
 data GameParameters = GameParameters {

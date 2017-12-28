@@ -14,12 +14,12 @@ import           Data.Char( intToDigit )
 import           Data.List( foldl' )
 import           Data.Maybe( isNothing )
 
-import           Imj.Animation
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Event
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
+import           Imj.Graphics.Animation
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.

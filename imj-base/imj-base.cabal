@@ -38,10 +38,8 @@ library
                     -- The comments intercalated in this list delimit the old libraries.
                     --
                     -- former package : imj-base
-                       Imj.Color.Types
-                     , Imj.Color
-                     , Imj.Game.Element.Laser.Types
-                     , Imj.Game.Element.Laser
+                       Imj.GameItem.Weapon.Laser.Types
+                     , Imj.GameItem.Weapon.Laser
                      , Imj.Geo.Discrete
                      , Imj.Geo.Discrete.Bresenham
                      , Imj.Geo.Discrete.Bresenham3
@@ -51,50 +49,52 @@ library
                      , Imj.Geo.Continuous.Conversion
                      , Imj.Geo.Continuous.Types
                      , Imj.Geo.Types
+                     , Imj.Graphics.Color.Types
+                     , Imj.Graphics.Color
+                     , Imj.Graphics.Text.Alignment
+                     , Imj.Graphics.Text.Animation
+                     , Imj.Graphics.Text.ColorString
+                     , Imj.Graphics.UI.Animation
+                     , Imj.Graphics.UI.RectContainer
+                     , Imj.Input
+                     , Imj.Input.Blocking
+                     , Imj.Input.NonBlocking
+                     , Imj.Input.Types
                      , Imj.Iteration
-                     , Imj.Key
-                     , Imj.Key.Blocking
-                     , Imj.Key.NonBlocking
-                     , Imj.Key.Types
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
-                     , Imj.Text.Alignment
-                     , Imj.Text.Animation
-                     , Imj.Text.ColorString
                      , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
-                     , Imj.UI.Animation
-                     , Imj.UI.RectContainer
-                       -- former package : imj-draw
-                     , Imj.Draw
-                     , Imj.Draw.Class
-                     , Imj.Draw.FromMonadReader
+                        -- former package : imj-draw
+                     , Imj.Graphics.Draw
+                     , Imj.Graphics.Draw.Class
+                     , Imj.Graphics.Draw.FromMonadReader
                        -- former package : imj-render-delta-term
-                     , Imj.Render.Delta
-                     , Imj.Render.Delta.Buffers
-                     , Imj.Render.Delta.Buffers.Dimensions
-                     , Imj.Render.Delta.Cell
-                     , Imj.Render.Delta.Cells
-                     , Imj.Render.Delta.Clear
-                     , Imj.Render.Delta.Console
-                     , Imj.Render.Delta.DefaultPolicies
-                     , Imj.Render.Delta.DynUnboxedVec
-                     , Imj.Render.Delta.Draw
-                     , Imj.Render.Delta.Env
-                     , Imj.Render.Delta.Flush
-                     , Imj.Render.Delta.Internal.Types
-                     , Imj.Render.Delta.Types
+                     , Imj.Graphics.Render.Delta
+                     , Imj.Graphics.Render.Delta.Buffers
+                     , Imj.Graphics.Render.Delta.Buffers.Dimensions
+                     , Imj.Graphics.Render.Delta.Cell
+                     , Imj.Graphics.Render.Delta.Cells
+                     , Imj.Graphics.Render.Delta.Clear
+                     , Imj.Graphics.Render.Delta.Console
+                     , Imj.Graphics.Render.Delta.DefaultPolicies
+                     , Imj.Graphics.Render.Delta.DynUnboxedVec
+                     , Imj.Graphics.Render.Delta.Draw
+                     , Imj.Graphics.Render.Delta.Env
+                     , Imj.Graphics.Render.Delta.Flush
+                     , Imj.Graphics.Render.Delta.Internal.Types
+                     , Imj.Graphics.Render.Delta.Types
                        -- former package : imj-render-naive-term
-                     , Imj.Render.Naive
+                     , Imj.Graphics.Render.Naive
                        -- former package : imj-interpolation-base
-                     , Imj.Math.Ease
-                     , Imj.Interpolation
-                     , Imj.Interpolation.Class
-                     , Imj.Interpolation.Evolution
+                     , Imj.Graphics.Interpolation
+                     , Imj.Graphics.Interpolation.Class
+                     , Imj.Graphics.Interpolation.Evolution
+                     , Imj.Graphics.Math.Ease
                        -- former package : imj-interpolation
-                     , Imj.UI.RectContainer.InterpolateParallel4
+                     , Imj.Graphics.UI.RectContainer.InterpolateParallel4
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*

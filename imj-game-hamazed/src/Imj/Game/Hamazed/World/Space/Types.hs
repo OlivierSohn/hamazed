@@ -18,8 +18,8 @@ import           Data.Matrix( Matrix )
 
 import           Foreign.C.Types( CInt(..) )
 
-import           Imj.Color.Types
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Color.Types
 
 data Strategy = StrictlyOneComponent
               -- ^ There should be a single connected component of air.

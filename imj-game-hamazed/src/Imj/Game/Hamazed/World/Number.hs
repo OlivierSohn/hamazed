@@ -10,15 +10,14 @@ module Imj.Game.Hamazed.World.Number(
 
 import           Imj.Prelude
 
-import           Imj.Animation
-
 import           Data.Char( intToDigit )
 
-import           Imj.Game.Element.Laser
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Event
+import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Animation
 import           Imj.Timing
 
 getColliding :: Coords Pos -> [Number] -> [Number]

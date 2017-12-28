@@ -15,7 +15,7 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.World.Types
-import           Imj.UI.Animation
+import           Imj.Graphics.UI.Animation
 
 
 data GameState = GameState {

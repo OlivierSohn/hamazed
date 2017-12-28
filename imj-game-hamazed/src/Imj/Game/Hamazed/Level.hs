@@ -18,14 +18,14 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           System.Timeout( timeout )
 
-import           Imj.Draw
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Graphics.Draw
 import           Imj.Geo.Discrete
-import           Imj.Key.NonBlocking
-import           Imj.Key.Blocking( getKeyThenFlush )
-import           Imj.Key.Types
+import           Imj.Input.NonBlocking
+import           Imj.Input.Blocking( getKeyThenFlush )
+import           Imj.Input.Types
 import           Imj.Timing
 
 eventFromKey' :: Level -> Key -> Maybe Event

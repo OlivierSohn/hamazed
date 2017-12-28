@@ -14,11 +14,16 @@ module Imj.Game.Hamazed.Event
     , getKeyTime
     , DeadlineType(..)
     , MetaAction(..)
+    -- * Reexports (for haddock hyperlinks)
+    , module Imj.Game.Hamazed.World.Types
+    , module Imj.Graphics.Animation.Design.Animation
     ) where
 
 import           Imj.Prelude
 
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Animation.Design.Animation
 import           Imj.Input.Types
 import           Imj.Timing
 
@@ -101,4 +106,4 @@ eventFromKey = \case
 
 getKeyTime :: Event -> Maybe KeyTime
 getKeyTime (Timeout (Deadline k _)) = Just k
-getKeyTime _             = Nothing
+getKeyTime _                        = Nothing

@@ -20,26 +20,28 @@ module Imj.Game.Hamazed
 
         * 'getNextDeadline'
 
-            * compute \(deadline\) = the next foreseen 'Deadline' to handle, given a 'GameState'.
+            * \(deadline\) = the next foreseen 'Deadline'.
 
         * 'getEventForMaybeDeadline'
 
-            * From \(deadline\), deduce \(timeout\) = max wait time for a player event
-            * Wait for the \(player\) to press a valid key for \(timeout\) seconds.
+            * \(event\) =
 
-                * If no \(player\) @event@ occured before \(timeout\) seconds
-                , \(timestampedEvent\) = \(deadline\) @event@
-                * Else, \(timestampedEvent\) = \(player\) @event@
+                * a key-press occuring /before/ \(deadline\) expires
+                * or the \(deadline\) event
 
-        * 'updateAndRender'
+        * 'update'
 
-            * Update 'GameState' according to \(timestampedEvent\)
-            * Render if needed, using "Imj.Graphics.Render.Delta" to avoid
-            <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+            * Update 'GameState' according to \(event\)
+
+        * 'render'
+
+            * Render (using "Imj.Graphics.Render.Delta" to avoid
+            <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>).
         -}
       , getNextDeadline
       , getEventForMaybeDeadline
-      , updateAndRender
+      , update
+      , render
         -- * Deadlines
       , Deadline(..)
       , DeadlineType(..)
@@ -67,6 +69,8 @@ module Imj.Game.Hamazed
         -- * Utilities
       , eventFromKey
       , getKeyTime
+        -- * Reexport
+      , module Imj.Game.Hamazed.World
       ) where
 
 import           Imj.Prelude
@@ -89,7 +93,6 @@ import           Imj.Game.Hamazed.Render
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Game.Hamazed.World.Space.Types
@@ -97,7 +100,6 @@ import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation
-import           Imj.Graphics.Animation.Design hiding (earliestDeadline)
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
@@ -132,12 +134,16 @@ gameWorker =
   getGameParameters >>= runGameWorker
 
 
+-- TODO simplify : no need to update animations if it's not an animation event,
+-- when there are new animations, update just these, not the other
 nextGameState :: GameState
               -> TimestampedEvent
               -> GameState
 nextGameState
-  (GameState b world@(World _ ship@(BattleShip posspeed ammo safeTime collisions) space animations e) futureWorld
-             g (Level i target finished) (UIAnimation (UIEvolutions j upDown left) k l))
+  (GameState b world@(World _ ship@(BattleShip posspeed ammo safeTime collisions)
+                     space animations e@(InTerminal mayTermWindow curUpperLeft))
+             futureWorld g (Level i target finished)
+             (UIAnimation (UIEvolutions j upDown left) k l))
   te@(TimestampedEvent event t) =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = eventAction event world
       keyTime = KeyTime t
@@ -149,12 +155,15 @@ nextGameState
            else
             []
 
-      newAnimations =
+      newAnimations' =
             destroyedNumbersAnimations keyTime event destroyedBalls
          ++ shipAnims ship event
          ++ maybe [] (`laserAnims` keyTime) maybeLaserRay
          ++ outerSpaceAnims_
          ++ animations
+
+      worldCorner = translate' 1 1 curUpperLeft
+      newAnimations = updateAnimations (getKeyTime event) space mayTermWindow worldCorner newAnimations'
 
       newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions) space newAnimations e
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
@@ -202,10 +211,6 @@ laserAnims :: LaserRay Actual
 laserAnims keyTime ray
  = [BoundedAnimation (laserAnimation keyTime ray) WorldFrame]
 
-replaceAnimations :: [BoundedAnimation] -> GameState -> GameState
-replaceAnimations anims (GameState c (World wa wc wd _ ew) b f g h) =
-  GameState c (World wa wc wd anims ew) b f g h
-
 {- | Returns the next 'Deadline' to handle.
 
 We prefer having time-accurate game motions for central items of the game
@@ -247,11 +252,11 @@ getNextDeadline :: GameState
                 -> Maybe Deadline
 getNextDeadline s t =
   let l = getDeadlinesByDecreasingPriority s t
-  in  overdueDeadline t l <|> earliestDeadline l
+  in  overdueDeadline t l <|> earliestDeadline' l
 
-earliestDeadline :: [Deadline] -> Maybe Deadline
-earliestDeadline [] = Nothing
-earliestDeadline l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
+earliestDeadline' :: [Deadline] -> Maybe Deadline
+earliestDeadline' [] = Nothing
+earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
 
 overdueDeadline :: SystemTime -> [Deadline] -> Maybe Deadline
 overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
@@ -353,23 +358,19 @@ loop :: (Draw e, MonadReader e m, MonadIO m)
      => GameParameters
      -> GameState
      -> m ()
-loop params state =
-  updateGame params state >>= (\(st, mayMeta) ->
-    maybe (loop params st) (const $ return ()) mayMeta)
-
-
-{-# INLINABLE updateGame #-}
-updateGame :: (Draw e, MonadReader e m, MonadIO m)
-           => GameParameters
-           -> GameState
-           -> m (GameState, Maybe MetaAction)
-updateGame params state = do
-  evt <- liftIO $ getTimedEvent state
+loop params state = do
+  te@(TimestampedEvent evt _) <- liftIO $ getTimedEvent state
   case evt of
-    TimestampedEvent (Interrupt i) _ -> return (state, Just i)
+    (Interrupt _) -> return ()
     _ -> do
-      st <- updateAndRender params state evt
-      return (st, Nothing)
+      newState <- liftIO $ update params state te
+      when (needsRendering evt) $ render newState
+      loop params newState
+
+needsRendering :: Event -> Bool
+needsRendering = \case
+  (Action Ship _) -> False -- when the ship accelerates, nothing changes
+  _ -> True
 
 getTimedEvent :: GameState -> IO TimestampedEvent
 getTimedEvent state =
@@ -390,115 +391,109 @@ getEvent' state@(GameState _ _ _ _ level _) = do
   let deadline = getNextDeadline state t
   getEventForMaybeDeadline level deadline t
 
--- | Updates the 'GameState', if needed, and renders using "Imj.Graphics.Render.Delta"
--- to avoid <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
-{-# INLINABLE updateAndRender #-}
-updateAndRender :: (Draw e, MonadReader e m, MonadIO m)  -- TODO This function should be split in two : update / render.
-                => GameParameters
-                -- ^ 'World' creation parameters
-                -- (will be used in case the 'Event' is 'StartLevel')
-                -> GameState
-                -- ^ The current state
-                -> TimestampedEvent
-                -- ^ The 'TimestampedEvent' that should be handled here.
-                -> m GameState
-updateAndRender
+-- | Updates the state. It needs IO just to generate random numbers in case
+-- 'Event' is 'StartLevel'
+{-# INLINABLE update #-}
+update :: GameParameters
+       -- ^ 'World' creation parameters
+       -- (will be used in case the 'Event' is 'StartLevel')
+       -> GameState
+       -- ^ The current state
+       -> TimestampedEvent
+       -- ^ The 'TimestampedEvent' that should be handled here.
+       -> IO GameState
+update
  params
- state@(GameState b world futWorld f h@(Level level target mayLevelFinished) i)
+ state@(GameState b world futWorld f h@(Level level target mayLevelFinished) anim)
  te@(TimestampedEvent event t) =
   case event of
     StartLevel nextLevel ->
-      mkInitialState params nextLevel (Just state)
-        >>= \case
-              Left err -> error err
-              Right s -> return s
-    _ -> do
-          let newState = case event of
-                (Timeout (Deadline _ AnimateUI))
-                  -> updateAnim t state
-                (Timeout (Deadline gt MoveFlyingItems))
-                  -> GameState (Just $ addDuration gameMotionPeriod gt) (updateWorld t world) futWorld f h i
-                (Timeout (Deadline _ DisplayContinueMessage)) ->
-                  case mayLevelFinished of
-                    Just (LevelFinished stop finishTime _) ->
-                      let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
-                      in GameState b world futWorld f newLevel i
-                    Nothing -> state
-                _ -> state
-          updateGame2 te newState
-
+      mkInitialState params nextLevel (Just state) >>= \case
+        Left err -> error err
+        Right s -> return s
+    (Interrupt _) ->
+      return state
+    (Timeout (Deadline _ AnimateUI)) ->
+      return $ updateAnim t state
+    (Timeout (Deadline _ DisplayContinueMessage)) ->
+      return $ case mayLevelFinished of
+        Just (LevelFinished stop finishTime _) ->
+          let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
+          in GameState b world futWorld f newLevel anim
+        Nothing -> state
+    (Timeout (Deadline gt MoveFlyingItems)) -> do
+        let newState = GameState (Just $ addDuration gameMotionPeriod gt) (updateWorld t world) futWorld f h anim
+        return $ nextGameState newState te
+    Action Ship dir ->
+      return $ accelerateShip' dir state
+    _ ->
+      return $ if isFinished anim
+        then
+          nextGameState state te
+        else
+          state
 
 updateAnim :: SystemTime -> GameState -> GameState
 updateAnim t (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it)) =
-     let nextIt@(Iteration _ nextFrame) = nextIteration it
-         (world, gameDeadline, worldAnimDeadline) =
-            maybe
-              (futWorld , Just $ KeyTime t, Nothing)
-              (\dt ->
-               (curWorld, Nothing         , Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) t))
-              $ getDeltaTime evolutions nextFrame
-         wa = UIAnimation evolutions worldAnimDeadline nextIt
-     in GameState gameDeadline world futWorld j k wa
+  let nextIt@(Iteration _ nextFrame) = nextIteration it
+      (world, gameDeadline, worldAnimDeadline) =
+        maybe
+          (futWorld , Just $ KeyTime t, Nothing)
+          (\dt ->
+           (curWorld, Nothing         , Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) t))
+          $ getDeltaTime evolutions nextFrame
+      wa = UIAnimation evolutions worldAnimDeadline nextIt
+  in GameState gameDeadline world futWorld j k wa
 
 
-{-# INLINABLE updateGame2 #-}
-updateGame2 :: (Draw e, MonadReader e m, MonadIO m)
-            => TimestampedEvent
-            -> GameState
-            -> m GameState
-updateGame2
- te@(TimestampedEvent event _)
- s@(GameState _ _ _ _ _ anim) =
-  case event of
-    Action Ship dir ->
-      return $ accelerateShip' dir s
-    _ -> do
-      let s2 =
-            if isFinished anim
-              then
-                nextGameState s te
-              else
-                s
-      animations <- renderGame (getKeyTime event) s2
-      renderDrawing
-      return $ replaceAnimations animations s2
-
-
-{-# INLINABLE renderGame #-}
-renderGame :: (Draw e, MonadReader e m, MonadIO m)
-           => Maybe KeyTime
-           -> GameState
-           -> m [BoundedAnimation]
-renderGame k (GameState _ world@(World _ _ space@(Space _ (Size rs cs) _)
-                                       animations (InTerminal mayTermWindow curUpperLeft))
-                        _ _ level wa) =
+-- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid
+-- <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+{-# INLINABLE render #-}
+render :: (Draw e, MonadReader e m, MonadIO m)
+       => GameState -> m ()
+render (GameState _ world@(World _ _ space@(Space _ (Size rs cs) _)
+                           animations (InTerminal mayTermWindow curUpperLeft))
+                  _ _ level wa) =
   renderSpace space curUpperLeft >>=
     (\worldCorner -> do
-        activeAnimations <- renderAnimations k space mayTermWindow worldCorner animations
+        renderAnimations space mayTermWindow worldCorner animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
         renderLevelMessage level (translate' (quot rs 2) (cs + 2) worldCorner)
         renderUIAnimation wa -- render it last so that when it animates
-                                  -- to reduce, it goes over numbers and ship
-        return activeAnimations)
+                             -- to reduce, it goes over numbers and ship
+        ) >> renderDrawing
 
-{-# INLINABLE renderAnimations #-}
-renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
-                 => Maybe KeyTime
+{-# INLINABLE updateAnimations #-}
+updateAnimations :: Maybe KeyTime
                  -> Space
                  -> Maybe (Window Int)
                  -> Coords Pos
                  -> [BoundedAnimation]
-                 -> m [BoundedAnimation]
-renderAnimations k space mayTermWindow worldCorner animations = do
+                 -> [BoundedAnimation]
+updateAnimations k space mayTermWindow worldCorner animations =
+  let updateAnimation (BoundedAnimation a scope) =
+        let interaction =
+              scopedLocation space mayTermWindow worldCorner scope >>> \case
+                InsideWorld  -> Stable
+                OutsideWorld -> Mutation
+        in case updateAnimationIfNeeded k interaction a of
+          Nothing -> Nothing
+          Just a' -> Just $ BoundedAnimation a' scope
+  in catMaybes $ map updateAnimation animations
+
+{-# INLINABLE renderAnimations #-}
+renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
+                 => Space
+                 -> Maybe (Window Int)
+                 -> Coords Pos
+                 -> [BoundedAnimation]
+                 -> m ()
+renderAnimations space mayTermWindow worldCorner animations = do
   let renderAnimation (BoundedAnimation a scope) = do
-        let interaction = scopedLocation space mayTermWindow worldCorner scope
-                           >>> \case
-                                InsideWorld  -> Stable
-                                OutsideWorld -> Mutation
-            a' = updateAnimationIfNeeded k interaction a
-        renderAnim a' interaction colorFromFrame worldCorner
-          >>= \case
-            True -> return $ Just $ BoundedAnimation a' scope
-            False -> return Nothing
-  catMaybes <$> mapM renderAnimation animations
+        let interaction =
+              scopedLocation space mayTermWindow worldCorner scope >>> \case
+                InsideWorld  -> Stable
+                OutsideWorld -> Mutation
+        renderAnim a interaction worldCorner
+  mapM_ renderAnimation animations

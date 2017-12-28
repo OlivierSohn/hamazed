@@ -21,7 +21,8 @@ import           Imj.Graphics.Animation
 import           Imj.Timing
 
 getColliding :: Coords Pos -> [Number] -> [Number]
-getColliding pos = filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
+getColliding pos =
+  filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
 destroyedNumbersAnimations :: KeyTime
                            -> Event

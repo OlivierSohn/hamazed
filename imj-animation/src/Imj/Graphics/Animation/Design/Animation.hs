@@ -51,10 +51,10 @@ import           GHC.Show(showString)
 import           Data.Either(partitionEithers)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Animation.Design.Color
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Timing
 import           Imj.Graphics.Animation.Design.Update
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Draw
 import           Imj.Iteration
 import           Imj.Timing
@@ -135,8 +135,9 @@ updateAnimationIfNeeded :: Maybe KeyTime
                         -- ^ The environmental interaction function
                         -> Animation
                         -- ^ The current animation
-                        -> Animation
-                        -- ^ The updated animation
+                        -> Maybe Animation
+                        -- ^ The updated animation, or Nothing if the 'Animation'
+                        -- is over.
 updateAnimationIfNeeded
  mayK
  interaction
@@ -148,8 +149,10 @@ updateAnimationIfNeeded
                         _      -> u
       newAnim = Animation newPoints update newUpdateSpec c
   in case step of
-       Same -> anim
-       _ -> newAnim
+       Same -> Just anim
+       _    -> case isActive newAnim of
+                 True -> Just newAnim
+                 False -> Nothing
 
 defaultStep :: Maybe [Either AnimatedPoints AnimatedPoint] -> StepType
 defaultStep =
@@ -195,12 +198,9 @@ renderAnim :: (Draw e, MonadReader e m, MonadIO m)
            -- ^ The interaction function. Animated points for which this
            -- function returns 'Stable' are drawn. Other animated points are
            -- not drawn because they would overlap with the environment.
-           -> (Frame -> LayeredColor)
-           -- ^ Color function
            -> Coords Pos
            -- ^ Reference coordinates.
-           -> m Bool
-           -- ^ True if at least one animated point is "alive"
+           -> m ()
 renderAnim (Animation points _ (UpdateSpec _ (Iteration _ frameForNextUpdate)) mayChar) =
   render' frameForNextUpdate mayChar points
 
@@ -208,20 +208,16 @@ renderAnim (Animation points _ (UpdateSpec _ (Iteration _ frameForNextUpdate)) m
 render' :: (Draw e, MonadReader e m, MonadIO m)
         => Frame
         -> Maybe Char
-        -- ^ default char to use when there is no char specified in the state
+        -- ^ Default char to use when there is no char specified in the state
         -> AnimatedPoints
         -> (Coords Pos -> InteractionResult)
-        -> (Frame -> LayeredColor)
         -> Coords Pos
-        -> m Bool
-        -- ^ True if at least one animated point is "alive"
-render' _ _ (AnimatedPoints _ _ Nothing) _ _ _ = return False
-render' _ _ (AnimatedPoints _ _ (Just [])) _ _ _ = return False
+        -> m ()
+render' _ _ (AnimatedPoints _ _ Nothing) _ _   = return ()
+render' _ _ (AnimatedPoints _ _ (Just [])) _ _ = return ()
 render'
- parentFrame mayCharAnim (AnimatedPoints childFrame _ (Just branches))
- interaction colorFunc r = do
+ parentFrame mayCharAnim (AnimatedPoints childFrame _ (Just branches)) interaction r = do
   let (children, aliveCoordinates) = partitionEithers branches
-      isAlive = (not . null) aliveCoordinates
       selectRenderedCoordinates =
         filter (\(AnimatedPoint canInteract coords _) ->
                     case canInteract of
@@ -231,13 +227,27 @@ render'
                       -- Note that when the environment will be dynamic, it will be wrong:
                       Interact -> True)
       relFrame = parentFrame - childFrame
-      color = colorFunc relFrame
+      color = colorFromFrame relFrame
   mapM_ (\(AnimatedPoint _ c mayChar) -> do
             let char = fromMaybe (error "no char was specified") $ mayChar <|> mayCharAnim
             drawChar char (sumCoords c r) color)
         $ selectRenderedCoordinates aliveCoordinates
-  childrenAlive <- mapM (\child -> render' relFrame mayCharAnim child interaction colorFunc r) children
-  return $ isAlive || or childrenAlive
+  mapM_ (\child -> render' relFrame mayCharAnim child interaction r) children
+
+isActive :: Animation
+         -> Bool
+isActive (Animation points _ _ _) =
+  hasActivePoints points
+
+hasActivePoints :: AnimatedPoints
+                -> Bool
+hasActivePoints (AnimatedPoints _ _ Nothing)         = False
+hasActivePoints (AnimatedPoints _ _ (Just []))       = False
+hasActivePoints (AnimatedPoints _ _ (Just branches)) =
+  let (children, activeCoordinates) = partitionEithers branches
+      childrenActive = map hasActivePoints children
+  in (not . null) activeCoordinates || or childrenActive
+
 
 -- | Specifies what should be updated.
 data StepType = Initialize

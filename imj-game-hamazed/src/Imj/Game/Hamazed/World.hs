@@ -161,10 +161,8 @@ import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Render
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Types
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Animation
 import           Imj.Graphics.Draw
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Animation

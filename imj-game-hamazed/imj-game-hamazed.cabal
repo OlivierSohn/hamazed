@@ -23,12 +23,20 @@ library
   exposed-modules:     Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Color
                      , Imj.Game.Hamazed.Env
-                     , Imj.Game.Hamazed.Event
+                     , Imj.Game.Hamazed.KeysMaps
                      , Imj.Game.Hamazed.Level
                      , Imj.Game.Hamazed.Level.Types
                      , Imj.Game.Hamazed.Parameters
-                     , Imj.Game.Hamazed.Render
-                     , Imj.Game.Hamazed.Timing
+                     , Imj.Game.Hamazed.Infos
+                     , Imj.Game.Hamazed.Loop.Create
+                     , Imj.Game.Hamazed.Loop.Deadlines
+                     , Imj.Game.Hamazed.Loop.Event.Priorities
+                     , Imj.Game.Hamazed.Loop.Event.Types
+                     , Imj.Game.Hamazed.Loop.Event
+                     , Imj.Game.Hamazed.Loop.Render
+                     , Imj.Game.Hamazed.Loop.Run
+                     , Imj.Game.Hamazed.Loop.Timing
+                     , Imj.Game.Hamazed.Loop.Update
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create

@@ -119,7 +119,6 @@ module Imj.Game.Hamazed.World
     -- | 'BoundedAnimation' allows to specify in which environment an 'Animation'
     -- runs : in the world, in the terminal, in both (see 'Boundaries')
     , BoundedAnimation(..)
-    , earliestAnimationDeadline
     -- * UI
     {- | UI elements around the 'World' are:
 
@@ -151,10 +150,10 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Maybe( isNothing )
 import           Data.Text( pack )
 
-import           Imj.Game.Hamazed.Event
+import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Parameters
-import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Game.Hamazed.World.Number
@@ -190,11 +189,6 @@ updateWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size 
       collisions = getColliding pos newBalls
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
   in World newBalls newShip size anims e
-
--- | Returns the earliest 'BoundedAnimation' deadline.
-earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ animations _) =
-  earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
 
 -- TODO use Number Live Number Dead
 -- | Computes the effect of an 'Event' on the 'World'.

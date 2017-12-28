@@ -2,6 +2,7 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
+  - move render and update code to dedicated modules.
   - simplify nextGameState
 
   - add to Draw namespace : Text UI Color Animation Render

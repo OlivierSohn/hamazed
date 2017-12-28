@@ -12,8 +12,7 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 
-import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.Event
+import           Imj.Game.Hamazed.Loop.Event
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete

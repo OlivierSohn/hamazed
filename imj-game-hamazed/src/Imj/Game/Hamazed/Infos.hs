@@ -3,13 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Render(
+module Imj.Game.Hamazed.Infos(
         mkInfos
       , mkLeftInfo
-      , mkLevelCS
-      , mkAmmoCS
-      , mkObjectiveCS
-      , mkShotNumbersCS
       , InfoType(..)
       ) where
 
@@ -20,9 +16,10 @@ import           Data.List( length, foldl' )
 import           Data.Text(pack, singleton)
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Graphics.Text.ColorString
+
+data InfoType = Normal | ColorAnimated
 
 mkLevelCS :: InfoType -> Int -> [ColorString]
 mkLevelCS t level =
@@ -66,8 +63,6 @@ mkLeftInfo t ammo shotNums =
 mkUpDownInfo :: InfoType -> Level -> ([ColorString], [ColorString])
 mkUpDownInfo t (Level level target _) =
   (mkObjectiveCS t target, mkLevelCS t level)
-
-data InfoType = Normal | ColorAnimated
 
 mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), [[ColorString]])
 mkInfos t ammo shotNums level =

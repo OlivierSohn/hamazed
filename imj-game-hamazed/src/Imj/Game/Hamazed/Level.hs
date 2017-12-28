@@ -19,7 +19,9 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           System.Timeout( timeout )
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Graphics.Draw
 import           Imj.Geo.Discrete

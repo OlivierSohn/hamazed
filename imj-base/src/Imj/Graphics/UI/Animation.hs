@@ -8,6 +8,7 @@ module Imj.Graphics.UI.Animation
            , mkUIAnimation
            , UIAnimation(..)
            , getDeltaTime
+           , getUIAnimationDeadline
            , renderUIAnimation
            , isFinished
            , mkTextAnimRightAligned
@@ -51,6 +52,9 @@ data UIEvolutions = UIEvolutions {
 } deriving(Show)
 
 
+getUIAnimationDeadline :: UIAnimation -> Maybe KeyTime
+getUIAnimationDeadline (UIAnimation _ mayDeadline _) =
+  mayDeadline
 
 -- | Is the 'UIAnimation' finished?
 isFinished :: UIAnimation -> Bool

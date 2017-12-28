@@ -5,15 +5,15 @@
 module Imj.Game.Hamazed.Types
     ( GameState(..)
     -- * Reexports
-    , Level
+    , module Imj.Game.Hamazed.Level.Types
+    , module Imj.Game.Hamazed.World.Types
     , UIAnimation
-    , World
     ) where
 
 import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Level.Types
-import           Imj.Game.Hamazed.Timing
+import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.UI.Animation
 

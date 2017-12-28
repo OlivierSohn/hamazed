@@ -14,9 +14,8 @@ import           Data.Char( intToDigit )
 import           Data.List( foldl' )
 import           Data.Maybe( isNothing )
 
+import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.Event
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 import           Imj.Graphics.Animation

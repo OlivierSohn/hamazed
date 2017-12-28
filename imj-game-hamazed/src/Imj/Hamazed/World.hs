@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World
+module Imj.Hamazed.World
     (
       -- * Parameters
       {-| When the game starts, the player can chose 'World' parameters:
@@ -153,21 +153,21 @@ import           Data.Text( pack )
 
 import           Imj.Animation.Design.Animation
 import           Imj.Draw
-import           Imj.Game.Event
-import           Imj.Game.Level.Types
-import           Imj.UI.Animation
-import           Imj.Game.Parameters
-import           Imj.Game.Timing
-import           Imj.Game.World.Create
-import           Imj.Game.World.InTerminal
-import           Imj.Game.World.Number
-import           Imj.Game.World.Render
-import           Imj.Game.World.Size
-import           Imj.Game.World.Space
-import           Imj.Game.World.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Event
+import           Imj.Hamazed.Level.Types
+import           Imj.Hamazed.Parameters
+import           Imj.Hamazed.Timing
+import           Imj.Hamazed.World.Create
+import           Imj.Hamazed.World.InTerminal
+import           Imj.Hamazed.World.Number
+import           Imj.Hamazed.World.Render
+import           Imj.Hamazed.World.Size
+import           Imj.Hamazed.World.Space
+import           Imj.Hamazed.World.Types
 import           Imj.Laser
 import           Imj.Text.ColorString
+import           Imj.UI.Animation
 import           Imj.Util
 
 -- | Note that the position of the 'BattleShip' remains unchanged.

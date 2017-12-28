@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Parameters(
+module Imj.Hamazed.Parameters(
         GameParameters(..)
       , getGameParameters
       ) where
@@ -15,20 +15,19 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Draw
-import           Imj.Game.Color
-import           Imj.UI.Animation
-import           Imj.Game.World.Create
-import           Imj.Game.World.InTerminal
-import           Imj.Game.World.Render
-import           Imj.Game.World.Size
-import           Imj.Game.World.Space
-import           Imj.Game.World.Types
-import           Imj.Game.World.Space.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.World.Create
+import           Imj.Hamazed.World.InTerminal
+import           Imj.Hamazed.World.Render
+import           Imj.Hamazed.World.Size
+import           Imj.Hamazed.World.Space
+import           Imj.Hamazed.World.Types
 import           Imj.Key.Blocking
 import           Imj.Key.Types
 import           Imj.Text.Alignment
 import           Imj.Timing
+import           Imj.UI.Animation
 
 
 data GameParameters = GameParameters {

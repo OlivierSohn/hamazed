@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Render
+module Imj.Hamazed.World.Render
         ( renderUIAnimation
         , renderWorld
         ) where
@@ -13,14 +13,13 @@ import           Data.Char( intToDigit )
 import           Data.Maybe( isNothing, isJust )
 
 import           Imj.Draw
-
-import           Imj.Game.Color
-import           Imj.UI.Animation
-import           Imj.Game.World.Space.Types
-import           Imj.Game.World.Space
-import           Imj.Game.World.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.World.Space.Types
+import           Imj.Hamazed.World.Space
+import           Imj.Hamazed.World.Types
 import           Imj.Physics.Discrete.Collision
+import           Imj.UI.Animation
 
 
 {-# INLINABLE renderWorld #-}

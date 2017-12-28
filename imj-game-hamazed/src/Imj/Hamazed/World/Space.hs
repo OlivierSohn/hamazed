@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.World.Space
+module Imj.Hamazed.World.Space
     ( Space
     , Material(..)
     , mkEmptySpace
@@ -42,9 +42,9 @@ import           Data.Vector(Vector, slice, (!))
 import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Draw
-import           Imj.Game.Color
-import           Imj.Game.World.Space.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.World.Space.Types
 import           Imj.Physics.Discrete
 import           Imj.Util
 

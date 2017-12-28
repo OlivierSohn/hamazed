@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Level.Types
+module Imj.Hamazed.Level.Types
     ( Level(..)
     , LevelFinished(..)
     , MessageState(..)

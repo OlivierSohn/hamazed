@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Render(
+module Imj.Hamazed.Render(
         mkInfos
       , mkLeftInfo
       , mkLevelCS
@@ -19,9 +19,9 @@ import           Data.Char( intToDigit )
 import           Data.List( length, foldl' )
 import           Data.Text(pack, singleton)
 
-import           Imj.Game.Color
-import           Imj.Game.Types
-import           Imj.Game.Level.Types
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.Types
+import           Imj.Hamazed.Level.Types
 import           Imj.Text.ColorString
 
 mkLevelCS :: InfoType -> Int -> [ColorString]

@@ -20,26 +20,26 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Game
-                     , Imj.Game.Color
-                     , Imj.Game.Env
-                     , Imj.Game.Event
-                     , Imj.Game.Level
-                     , Imj.Game.Level.Types
-                     , Imj.Game.Parameters
-                     , Imj.Game.Render
-                     , Imj.Game.Timing
-                     , Imj.Game.Types
-                     , Imj.Game.World
-                     , Imj.Game.World.Create
-                     , Imj.Game.World.InTerminal
-                     , Imj.Game.World.Number
-                     , Imj.Game.World.Render
-                     , Imj.Game.World.Ship
-                     , Imj.Game.World.Size
-                     , Imj.Game.World.Space
-                     , Imj.Game.World.Space.Types
-                     , Imj.Game.World.Types
+  exposed-modules:     Imj.Hamazed
+                     , Imj.Hamazed.Color
+                     , Imj.Hamazed.Env
+                     , Imj.Hamazed.Event
+                     , Imj.Hamazed.Level
+                     , Imj.Hamazed.Level.Types
+                     , Imj.Hamazed.Parameters
+                     , Imj.Hamazed.Render
+                     , Imj.Hamazed.Timing
+                     , Imj.Hamazed.Types
+                     , Imj.Hamazed.World
+                     , Imj.Hamazed.World.Create
+                     , Imj.Hamazed.World.InTerminal
+                     , Imj.Hamazed.World.Number
+                     , Imj.Hamazed.World.Render
+                     , Imj.Hamazed.World.Ship
+                     , Imj.Hamazed.World.Size
+                     , Imj.Hamazed.World.Space
+                     , Imj.Hamazed.World.Space.Types
+                     , Imj.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
                      , containers >= 0.5.9.2
                      , matrix >= 0.3.5.0

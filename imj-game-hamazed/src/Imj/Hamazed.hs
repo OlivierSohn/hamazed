@@ -2,7 +2,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 
-module Imj.Game
+module Imj.Hamazed
       ( -- * The game
         {-| In Hamazed, you are a 'BattleShip' pilot surrounded by flying 'Number's.
 
@@ -63,7 +63,7 @@ module Imj.Game
       , GameState(..)
         -- * Environment
         {- | -}
-      , module Imj.Game.Env
+      , module Imj.Hamazed.Env
         -- * Utilities
       , eventFromKey
       , getKeyTime
@@ -81,22 +81,22 @@ import           Data.Maybe( catMaybes )
 
 import           Imj.Animation
 import           Imj.Animation.Design hiding (earliestDeadline)
-import           Imj.Game.Color
-import           Imj.Game.Env
-import           Imj.Game.Event
-import           Imj.Game.Level
-import           Imj.Game.Level.Types
-import           Imj.Game.Parameters
-import           Imj.Game.Render
-import           Imj.Game.Timing
-import           Imj.Game.Types
-import           Imj.Game.World
-import           Imj.Game.World.Types
-import           Imj.Game.World.Number
-import           Imj.Game.World.Ship
-import           Imj.Game.World.Space.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.Env
+import           Imj.Hamazed.Event
+import           Imj.Hamazed.Level
+import           Imj.Hamazed.Level.Types
+import           Imj.Hamazed.Parameters
+import           Imj.Hamazed.Render
+import           Imj.Hamazed.Timing
+import           Imj.Hamazed.Types
+import           Imj.Hamazed.World
+import           Imj.Hamazed.World.Types
+import           Imj.Hamazed.World.Number
+import           Imj.Hamazed.World.Ship
+import           Imj.Hamazed.World.Space.Types
 import           Imj.Laser
 import           Imj.UI.RectContainer
 import           Imj.Physics.Discrete.Collision

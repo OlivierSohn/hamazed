@@ -4,7 +4,7 @@
 
 -- | This modules handle time constants of the game logic.
 
-module Imj.Game.Timing
+module Imj.Hamazed.Timing
         ( gameMotionPeriod
         , module Imj.Timing
         ) where

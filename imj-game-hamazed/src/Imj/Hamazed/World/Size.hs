@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Size
+module Imj.Hamazed.World.Size
     ( maxWorldSize
     , worldSizeFromLevel
     ) where
@@ -10,9 +10,8 @@ module Imj.Game.World.Size
 import           Imj.Prelude
 
 import           Imj.Geo.Discrete.Types
-
-import           Imj.Game.Level.Types
-import           Imj.Game.World.Types
+import           Imj.Hamazed.Level.Types
+import           Imj.Hamazed.World.Types
 
 maxLevelHeight :: Length Height
 maxLevelHeight = 36

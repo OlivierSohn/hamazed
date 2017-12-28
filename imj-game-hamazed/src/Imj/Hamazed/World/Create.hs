@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Create
+module Imj.Hamazed.World.Create
         ( mkWorld
         , updateMovableItem
         ) where
@@ -11,11 +11,11 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 
-import           Imj.Game.World.Number
-import           Imj.Game.World.Ship
-import           Imj.Game.World.Space
-import           Imj.Game.World.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.World.Number
+import           Imj.Hamazed.World.Ship
+import           Imj.Hamazed.World.Space
+import           Imj.Hamazed.World.Types
 import           Imj.Physics.Discrete.Collision
 import           Imj.Timing
 

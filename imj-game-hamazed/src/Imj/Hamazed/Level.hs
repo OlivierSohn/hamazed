@@ -4,7 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Level
+module Imj.Hamazed.Level
     ( renderLevelMessage
     , renderLevelState
     , messageDeadline
@@ -19,10 +19,10 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           System.Timeout( timeout )
 
 import           Imj.Draw
-import           Imj.Game.Color
-import           Imj.Game.Event
-import           Imj.Game.Level.Types
 import           Imj.Geo.Discrete
+import           Imj.Hamazed.Color
+import           Imj.Hamazed.Event
+import           Imj.Hamazed.Level.Types
 import           Imj.Key.NonBlocking
 import           Imj.Key.Blocking( getKeyThenFlush )
 import           Imj.Key.Types

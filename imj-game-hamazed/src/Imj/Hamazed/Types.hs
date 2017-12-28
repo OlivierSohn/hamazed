@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Types
+module Imj.Hamazed.Types
     ( GameState(..)
     -- * Reexports
     , Level
@@ -12,9 +12,9 @@ module Imj.Game.Types
 
 import           Imj.Prelude
 
-import           Imj.Game.Level.Types
-import           Imj.Game.Timing
-import           Imj.Game.World.Types
+import           Imj.Hamazed.Level.Types
+import           Imj.Hamazed.Timing
+import           Imj.Hamazed.World.Types
 import           Imj.UI.Animation
 
 

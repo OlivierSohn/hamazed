@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Types
+module Imj.Hamazed.World.Types
         ( World(..)
         , WallDistribution(..)
         , WorldShape(..)
@@ -25,7 +25,7 @@ import           Imj.Prelude
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
 import           Imj.Animation.Design.Animation
-import           Imj.Game.World.Space.Types
+import           Imj.Hamazed.World.Space.Types
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Types
 import           Imj.Text.Animation

@@ -1,7 +1,7 @@
 module Main where
 
 import           Control.Monad(void)
-import           Imj.Game( run )
+import           Imj.Hamazed( run )
 
 main :: IO ()
 main =

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.World.Space.Types
+module Imj.Hamazed.World.Space.Types
     ( Space(..)
     , Material(..)
     , RandomParameters(..)
@@ -19,7 +19,6 @@ import           Data.Matrix( Matrix )
 import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Color.Types
-
 import           Imj.Geo.Discrete.Types
 
 data Strategy = StrictlyOneComponent

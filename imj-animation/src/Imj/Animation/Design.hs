@@ -1,6 +1,6 @@
 
-{- | The animation framework. Also, the source code of "Imj.Animation" can be
-read to see the functions discussed here being used to create concrete animations. -}
+{- | The animation framework. These notions are used in "Imj.Animation"
+to create concrete animations. -}
 
 module Imj.Animation.Design
           ( module Imj.Animation.Design.Animation

@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.World.Ship
+module Imj.Hamazed.World.Ship
         ( shipAnims
         , createShipPos
         ) where
@@ -15,11 +15,11 @@ import           Data.List( foldl' )
 import           Data.Maybe( isNothing )
 
 import           Imj.Animation
-import           Imj.Game.World.Space
-import           Imj.Game.World.Types
-import           Imj.Game.Event
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
+import           Imj.Hamazed.World.Space
+import           Imj.Hamazed.World.Types
+import           Imj.Hamazed.Event
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.

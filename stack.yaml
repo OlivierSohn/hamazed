@@ -5,7 +5,6 @@ resolver: lts-10.0
 packages:
 - './imj-prelude'
 - './imj-base'
-- './imj-engine'
 - './imj-animation'
 - './imj-game-hamazed'
 

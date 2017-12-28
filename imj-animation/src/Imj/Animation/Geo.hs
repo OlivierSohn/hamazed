@@ -19,7 +19,7 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Imj.Animation.Design.Types
-import           Imj.Laser.Types
+import           Imj.Game.Element.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Iteration

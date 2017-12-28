@@ -2,9 +2,8 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Laser.Types
-    (
-      LaserRay(..)
+module Imj.Game.Element.Laser.Types
+    ( LaserRay(..)
     , Ray(..)
     , Theoretical
     , Actual

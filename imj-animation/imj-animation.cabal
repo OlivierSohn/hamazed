@@ -1,6 +1,6 @@
 name:                imj-animation
 version:             0.1.0.0
-Category:            Game Engine
+Category:            Animation, Game Engine, Graphics, Algorithms
 Synopsis:            Animation Framework
 Description:         Framework to create event-based, physics-based, composed, generative animations.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-animation/README.md
@@ -35,7 +35,6 @@ library
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*
-                     , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math

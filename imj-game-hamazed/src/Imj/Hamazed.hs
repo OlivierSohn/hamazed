@@ -81,6 +81,7 @@ import           Data.Maybe( catMaybes )
 
 import           Imj.Animation
 import           Imj.Animation.Design hiding (earliestDeadline)
+import           Imj.Game.Element.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Hamazed.Color
@@ -97,7 +98,6 @@ import           Imj.Hamazed.World.Types
 import           Imj.Hamazed.World.Number
 import           Imj.Hamazed.World.Ship
 import           Imj.Hamazed.World.Space.Types
-import           Imj.Laser
 import           Imj.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
 import           Imj.Render.Delta

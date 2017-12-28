@@ -1,9 +1,28 @@
 
 # Backlog
 
+## Testing
+
+- use hspec
+
+## Playability
+
+- it seems that the console has a fixed refresh rate of 21 fps, so if we render an a slightly different fps
+there will be every once in a while a frame than will be slow (as if a frame was skipped) for animations.
+It would be nice to synchronize animation exactly with console fps to have a better fluidity
+
+## Games to implement:
+- make a brick-breaking game
+- make a tower based defense game
+- make a pong
+
+- Play multiple games at once
+
 ## UI
 
 - create a text-decorated RectContainer
+
+- provide "nice" default colors (notion of palette?)
 
 ## Interpolation
 
@@ -71,3 +90,7 @@ be more efficient to switch to
 ## Geo
 
 - unit-test resampleWithExtremities
+
+- take into account the fact that character width and height are not equal,
+so geometric figures are stretched in height. We could compensate for that by using
+a stretching factor in poly function and circle function

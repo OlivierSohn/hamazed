@@ -1,6 +1,6 @@
 name:                imj-game-hamazed
 version:             0.1.0.0
-Category:            Game
+Category:            Animation, Game, Graphics, Education, Application
 Synopsis:            A game with flying numbers and 8-bit color animations.
 Description:         You fly a ship through numbers, the goal is to shoot
                      the numbers whose sum will be equal to the level's target.
@@ -50,7 +50,6 @@ library
                      , imj-animation ==0.1.*
                      , imj-animation ==0.1.*
                      , imj-base ==0.1.*
-                     , imj-engine ==0.1.*
                      , imj-prelude ==0.1.*
 
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
@@ -75,7 +74,6 @@ test-suite imj-game-hamazed-test
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-base ==0.1.*
-                     , imj-engine ==0.1.*
                      , imj-game-hamazed
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*

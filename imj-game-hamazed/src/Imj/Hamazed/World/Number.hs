@@ -14,11 +14,11 @@ import           Imj.Animation
 
 import           Data.Char( intToDigit )
 
+import           Imj.Game.Element.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Hamazed.World.Types
 import           Imj.Hamazed.Event
-import           Imj.Laser
 import           Imj.Timing
 
 getColliding :: Coords Pos -> [Number] -> [Number]

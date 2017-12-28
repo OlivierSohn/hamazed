@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Laser
+module Imj.Game.Element.Laser
     ( -- * Laser representations
     {- | 'LaserRay' and 'Ray' are parametrized by phantom types
     'Theoretical' and 'Actual' to indicate if the ray was computed taking
@@ -33,8 +33,8 @@ import           Data.List( minimumBy, partition )
 import           Data.Maybe( isJust, isNothing )
 
 import           Imj.Draw
+import           Imj.Game.Element.Laser.Types
 import           Imj.Geo.Discrete
-import           Imj.Laser.Types
 import           Imj.Physics.Discrete.Collision
 
 

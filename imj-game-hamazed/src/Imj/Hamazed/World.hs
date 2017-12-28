@@ -153,6 +153,7 @@ import           Data.Text( pack )
 
 import           Imj.Animation.Design.Animation
 import           Imj.Draw
+import           Imj.Game.Element.Laser
 import           Imj.Geo.Discrete
 import           Imj.Hamazed.Event
 import           Imj.Hamazed.Level.Types
@@ -165,7 +166,6 @@ import           Imj.Hamazed.World.Render
 import           Imj.Hamazed.World.Size
 import           Imj.Hamazed.World.Space
 import           Imj.Hamazed.World.Types
-import           Imj.Laser
 import           Imj.Text.ColorString
 import           Imj.UI.Animation
 import           Imj.Util

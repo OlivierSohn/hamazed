@@ -43,9 +43,9 @@ import           Imj.Prelude
 import           Imj.Animation.Chars
 import           Imj.Animation.Design
 import           Imj.Animation.Geo
+import           Imj.Game.Element.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Laser.Types
 
 -- | A laser ray animation, with a fade-out effect.
 laserAnimation :: LaserRay Actual

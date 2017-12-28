@@ -2,9 +2,6 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
-  I don't think there is a need yet to convert a speed to discrete?
-
   - refactor DiscretelyInterpolable :
     the goal is to disambiguate wether interpolate or interpolateIO is implemented.
     interpolate in DiscretelyInterpolable -> the intermediate values can be represented using the type
@@ -16,10 +13,6 @@ https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
     - chained animations with a lot of points
     - delta renderer
   compilation times are slower by 4% with -O2.
-
-  - Categories :You can have more than one category, separated by commas.
-
-    - Animation, Game, Graphics, Education (because it teaches how to sum numbers)
 
   - try stack sdist / stack upload on prelude
 

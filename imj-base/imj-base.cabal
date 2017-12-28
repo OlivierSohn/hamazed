@@ -2,7 +2,7 @@ name:                imj-base
 version:             0.1.0.0
 Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
-Synopsis: Discrete & continuous geo, interpolations, easing, colored text, delta rendering
+Synopsis: Discrete & continuous geo, easing, animated text, delta rendering
 Description:         Library containing common types for color, continuous and discrete geometry,
                      collision detection, simple UIs, colored text,
                      interpolation.

@@ -71,6 +71,7 @@ module Imj.Game.Hamazed
       , getKeyTime
         -- * Reexport
       , module Imj.Game.Hamazed.World
+      , UIAnimation(..)
       ) where
 
 import           Imj.Prelude

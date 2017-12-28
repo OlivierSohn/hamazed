@@ -185,7 +185,6 @@ module Imj.Render.Delta
           , module Imj.Draw
             -- ** Cleanup
           , module Imj.Render.Delta.Console
-
           ) where
 
 import           Imj.Draw

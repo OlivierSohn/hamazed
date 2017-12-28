@@ -2,11 +2,6 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - Env should be in Game ? Run also?
-  - Aggregate doc when appropriate.
-
-  - unit-test resampleWithExtremities
-
   - refactor Coords : Coords Pos / Coords Speed : it is important when converting to / from continuous
   I don't think there is a need yet to convert a speed to discrete?
 

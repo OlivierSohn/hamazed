@@ -67,3 +67,7 @@ be more efficient to switch to
 - test Unicode support (document, provide an example)
 
 - it could be more efficient to have a global contiguous buffer for the string that will be actually written.
+
+## Geo
+
+- unit-test resampleWithExtremities

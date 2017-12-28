@@ -55,7 +55,7 @@ laserAnimation :: LaserRay Actual
                -> Animation
 laserAnimation ray@(LaserRay _ (Ray seg)) keyTime =
   let collisionFree = fst $ extremities seg -- this needs to be collision-free
-  in mkAnimation [laserAnimationGeo ray] keyTime SkipZero (Speed 1) collisionFree Nothing
+  in mkAnimation [laserAnimationGeo ray] keyTime WithZero (Speed 1) collisionFree Nothing
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second has 4*8=32 points.

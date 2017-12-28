@@ -32,13 +32,20 @@ laserAnimationGeo :: LaserRay Actual
                   -> Frame
                   -> [AnimatedPoint]
 laserAnimationGeo (LaserRay dir (Ray seg)) _ (Frame i) =
+  -- frame 0 : original char
+  -- frame 1 and 2 : replacement char
+  -- frame 3 : the end
   let (originalChar, replacementChar) =
         if dir == LEFT || dir == RIGHT
           then
             ('=','-')
           else
             ('|','.')
-      char = if i>= 2 then replacementChar else originalChar
+      char = if i >= 2
+                then
+                  replacementChar
+                else
+                  originalChar
       points = if i >= 4
                  then
                    []

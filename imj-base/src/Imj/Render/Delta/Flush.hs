@@ -15,7 +15,7 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 
-import           Imj.Color.Types
+import           Imj.Color
 import           Imj.Render.Delta.Buffers
 import           Imj.Render.Delta.Cell
 import           Imj.Render.Delta.Clear
@@ -73,7 +73,8 @@ renderDelta :: IOVector Cell
             -> Maybe (Dim BufferIndex)
             -> IO LayeredColor
 renderDelta delta size width index prevColors prevIndex
- | fromIntegral size == index = return $ LayeredColor (Color8 0) (Color8 0)
+ | fromIntegral size == index =
+    return whiteOnBlack -- the value is not used
  | otherwise = do
     c <- read delta $ fromIntegral index
     let (bg, fg, idx, char) = expandIndexed c

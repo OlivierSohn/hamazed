@@ -1,116 +1,86 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{- |
 
-Functions to create
-<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit ANSI colors> (single or layered).
 
--}
+module Imj.Color
+  (
+    -- * 8-bits colors
+    {- | There are
+    <https://en.wikipedia.org/wiki/ANSI_escape_code#Colors several types of colors we can use to draw in a terminal>.
 
-module Imj.Color (
-    Color8(..)
-  , LayeredColor(..)
-  -- * Single colors
-  {- | 'rgb' creates a color in RGB color space, with 6x6x6 different possible colors.
+    The terminal I was developping with didn't support 24-bit colors, hence I
+    used 8-bit colors.
 
-  'gray' creates a grayscale color in RGB space with 24 possible shades from
-  /very-close-to-black/ to /very-close-to-white/.
-  -}
+    8-bit colors have 6*6*6 = 216 rgb colors and 24 grays. They are represented by
+    'Color8', which also provides a 'DiscretelyInterpolable' instance : using a 3D
+    Bresenham line algorithm, we can smoothly interpolate, in RGB space, between
+    two rgb colors or between two grays.
+
+    When drawing in the terminal, we can change both the 'Background' and the
+    'Foreground' colors. 'LayeredColor' represents this.
+
+    The constructor of 'Color8' is not exported, however if you want to go back to the rgb
+    or gray values, use 'color8CodeToXterm256' which will give you a 'Xterm256Color'.
+    For the inverse operation, use 'xterm256ColorToCode'.
+    -}
+    Color8
+    -- ** Create a single color
+    {- | 'rgb' creates a red, green, blue color with 6x6x6 possible combinations.
+    To see how the color is mapped to a color of an sRGB colorspace, see 'xtermMapRGB8bitComponent'.
+
+    'gray' creates a gray terminal color with 24 possible shades.
+    To see how the color is mapped to a color of an sRGB colorspace, see 'xtermMapGray8bitComponent'. -}
   , rgb
   , gray
-  -- * Layered colors
+    -- ** Introspect a single color
+  , color8CodeToXterm256
+  , xterm256ColorToCode
+  , Xterm256Color(..)
+    -- ** Create a LayeredColor
+  , LayeredColor(..)
+  , Background
+  , Foreground
   , onBlack
   , whiteOnBlack
-  -- * Predefined colors
-  , white
-  , black
-  , red
-  , green
-  , magenta
-  , cyan
-  , yellow
-  , blue
-  -- * Interpolation
-  {- | We can interpolate between two single colors in RGB space, provided that
-  they were both created either using 'rgb' or both created using 'gray'.-}
-  , module Imj.Color.Interpolate
-  -- * Utilities
+    -- ** Predefined colors
+  , white, black, red, green, magenta, cyan, yellow, blue
+    -- ** SGR codes
+  , color8BgSGRToCode
+  , color8FgSGRToCode
+    -- ** Interpolation
+    {-| We can interpolate between two 'Color8', provided that
+    they were both created either using 'rgb' or both created using 'gray'.-}
+  , bresenhamColor8
+  , bresenhamColor8Length
+    -- ** XTerm color mapping
   , xtermMapGray8bitComponent
   , xtermMapRGB8bitComponent
-  -- * Reexports
-  , module Imj.Color.Types
-) where
+    -- * Reexports
+  , DiscretelyInterpolable
+  , RGB(..)
+  ) where
 
 import           Imj.Prelude
 
-import           Imj.Color.Interpolate
 import           Imj.Color.Types
-
-{-# INLINE onBlack #-}
--- | Creates a 'LayeredColor' with a black background color.
-onBlack :: Color8 Foreground -> LayeredColor
-onBlack = LayeredColor (rgb 0 0 0)
-
-{-# INLINE whiteOnBlack #-}
--- | Creates a 'LayeredColor' with white foreground and black background color.
-whiteOnBlack :: LayeredColor
-whiteOnBlack = onBlack white
-
--- | Creates a rgb 'Color8' as defined in
--- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
---
--- Input components are expected to be in range [0..5]
-rgb :: Word8
-    -- ^ red component in [0..5]
-    -> Word8
-    -- ^ green component in [0..5]
-    -> Word8
-    -- ^ blue component in [0..5]
-    -> Color8 a
-rgb r g b
-  | r >= 6 || g >= 6 || b >= 6 = error "out of range"
-  | otherwise = Color8 $ fromIntegral $ 16 + 36 * r + 6 * g + b
+import           Imj.Interpolation.Class
 
 
--- | Creates a gray 'Color8' as defined in
--- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
---
--- Input is expected to be in the range [0..23] (from darkest to lightest)
-gray :: Word8
-     -- ^ gray value in [0..23]
-     -> Color8 a
-gray i
-  | i >= 24 = error "out of range gray"
-  | otherwise      = Color8 $ fromIntegral (i + 232)
-
-red, green, blue, yellow, magenta, cyan, white, black :: Color8 a
-red   = rgb 5 0 0
-green = rgb 0 5 0
-blue  = rgb 0 0 5
-yellow = rgb 5 5 0
-magenta = rgb 5 0 5
-cyan = rgb 0 5 5
-white = rgb 5 5 5
-black = rgb 0 0 0
-
-
--- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)
+-- | How
+-- <https://jonasjacek.github.io/colors/ xterm interprets 8bit rgb colors>
 xtermMapRGB8bitComponent :: Word8
-                         -- ^ input values are in range [0..5]
-                         -- (the admissible range for rgb components of 8 bit
-                         -- rgb ANSI colors, cf.
-                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                         -- ^ input values are in
+                         -- <https://en.wikipedia.org/wiki/ANSI_escape_code#Colors [0..5]>
                          -> Word8
                          -- ^ output is in range [0..255]
 xtermMapRGB8bitComponent 0 = 0
 xtermMapRGB8bitComponent n = 55 + n * 40
 
--- | how xterm interprets 8bit grayscale colors (deduced from https://jonasjacek.github.io/colors/)
+-- | How
+-- <https://jonasjacek.github.io/colors/ xterm interprets 8bit grayscale colors>
 xtermMapGray8bitComponent :: Word8
-                         -- ^ input values are in range [0..23]
-                         -- (the admissible range for gray component of 8 bit
-                         -- grayscale ANSI colors, cf.
-                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                          -- ^ input values are in
+                          -- <https://en.wikipedia.org/wiki/ANSI_escape_code#Colors [0..23]>
                           -> Word8
                           -- ^ output is in range [0..255]
 xtermMapGray8bitComponent v = 8 + 10 * v

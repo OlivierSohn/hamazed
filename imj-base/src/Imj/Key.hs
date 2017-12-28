@@ -1,5 +1,7 @@
 
-{- | When we read a key with 'getKeyThenFlush' or 'tryGetKeyThenFlush',
+{- | This module is about reading player key-presses.
+
+When we read a key with 'getKeyThenFlush' or 'tryGetKeyThenFlush',
 we flush 'stdin' just after having read from it, to avoid repeated keys
 slowing down the game.
 -}

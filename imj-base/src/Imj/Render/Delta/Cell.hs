@@ -40,11 +40,11 @@ secondWord32 = fromIntegral
 
 {-# INLINE getForegroundColor #-}
 getForegroundColor :: Cell -> Color8 Foreground
-getForegroundColor w = Color8 $ secondWord8 w
+getForegroundColor w = mkColor8 $ secondWord8 w
 
 {-# INLINE getBackgroundColor #-}
 getBackgroundColor :: Cell -> Color8 Background
-getBackgroundColor w = Color8 $ firstWord8 w
+getBackgroundColor w = mkColor8 $ firstWord8 w
 
 {-# INLINE getCharacter #-}
 getCharacter :: Cell -> Char
@@ -71,13 +71,6 @@ expandIndexed w =
   ,getForegroundColor w
   ,getIndex w
   ,getCharacter w)
-
-{-# INLINE encodeColors #-}
-encodeColors :: LayeredColor -> Word16
-encodeColors (LayeredColor (Color8 bg') (Color8 fg')) =
-  let fg = fromIntegral fg' :: Word16
-      bg = fromIntegral bg' :: Word16
-  in (bg `shiftL` 8) .|. fg
 
 -- The memory layout is such that when sorted with 'compare', the order of
 -- importance of fields is (by decreasing importance) :

@@ -25,9 +25,12 @@ output of length \( m \):
 
 If \( m' \) is the number of over-represented samples,
 
-\[ m = r*n + m' \]
-
-\[ \Longrightarrow m' = m - r*n \]
+\[
+\begin{alignedat}{2}
+                  m &= r*n + m'   \\
+\implies \quad   m' &= m - r*n
+\end{alignedat}
+\]
 
 We can chose over-represented samples in at least two different ways:
 

@@ -1,6 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-
 module Imj.Interpolation.Evolution
          (
          -- * Evolution

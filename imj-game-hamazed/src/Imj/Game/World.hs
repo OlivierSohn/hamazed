@@ -4,13 +4,13 @@
 module Imj.Game.World
     (
       -- * Parameters
-      {-| When the game starts, the player can chose :
+      {-| When the game starts, the player can chose 'World' parameters:
 
       * 'WorldShape' : square or rectangular 'World' where the width is twice the height
       * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
        -}
-        getGameParameters
-      , GameParameters(..)
+      getGameParameters
+    , GameParameters(..)
       -- * Level
       {-| There are 12 levels in Hamazed, numbered from 1 to 12.
       -}

@@ -53,9 +53,9 @@ mkBuffers :: Dim Width
           -> IO (Buffer Back, Buffer Front, Delta, Dim Width)
 mkBuffers width' height' backBufferCell = do
   let (sz, width) = bufferSizeFromWH width' height'
-      (Color8 bg, Color8 fg, char) = expand backBufferCell
+      (bg, fg, char) = expand backBufferCell
       -- We initialize to different colors to force a first render to the whole console.
-      frontBufferCell = mkCell (LayeredColor (Color8 (succ bg)) (Color8 (succ fg))) (succ char)
+      frontBufferCell = mkCell (LayeredColor (succ bg) (succ fg)) (succ char)
   buf <- newBufferArray sz (backBufferCell, frontBufferCell)
   delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
   let (back, front) = unzip buf

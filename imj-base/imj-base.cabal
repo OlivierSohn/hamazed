@@ -77,7 +77,6 @@ library
                      , Imj.Render.Naive
                        -- former package : imj-interpolation-base
                      , Imj.Math.Ease
-                     , Imj.Color.Interpolate
                      , Imj.Interpolation
                      , Imj.Interpolation.Class
                      , Imj.Interpolation.Evolution

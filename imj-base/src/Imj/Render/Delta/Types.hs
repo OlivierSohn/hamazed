@@ -23,7 +23,7 @@ module Imj.Render.Delta.Types
             , Row
             , Col
             , IORef
-            , Color8(..)
+            , Color8
             ) where
 
 import           Imj.Prelude

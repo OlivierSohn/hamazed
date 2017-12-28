@@ -27,7 +27,7 @@ import           Imj.Prelude
 import           Data.String(IsString(..))
 import           Data.Text( Text, length, pack, unpack )
 
-import           Imj.Color
+import           Imj.Color.Types
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 

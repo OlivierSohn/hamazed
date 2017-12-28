@@ -151,7 +151,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Maybe( isNothing )
 import           Data.Text( pack )
 
-import           Imj.Animation.Design.Types
+import           Imj.Animation.Design.Animation
 import           Imj.Draw
 import           Imj.Game.Event
 import           Imj.Game.Level.Types

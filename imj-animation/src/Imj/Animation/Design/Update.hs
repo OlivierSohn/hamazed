@@ -11,7 +11,7 @@ module Imj.Animation.Design.Update
 import           Imj.Prelude
 
 import           Imj.Animation.Design.Apply
-import           Imj.Animation.Design.Internal.Types
+import           Imj.Animation.Design.Types
 import           Imj.Geo.Discrete
 import           Imj.Iteration
 

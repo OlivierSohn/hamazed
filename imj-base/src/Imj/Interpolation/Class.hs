@@ -1,10 +1,13 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 -- | Defines the notion of interpolation between two values of the same type.
 
 module Imj.Interpolation.Class
-         ( DiscretelyInterpolable(..)
-         -- * Instances
+         (-- * Discrete interpolation
+          DiscretelyInterpolable(..)
+         -- ** Instances
          , SequentiallyInterpolatedList(..)
          , Successive(..)
          ) where

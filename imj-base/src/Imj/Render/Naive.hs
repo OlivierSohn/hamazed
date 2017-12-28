@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-} -- so as to encourage users to use the optimized version
+
 module Imj.Render.Naive
           ( NaiveDraw(..)
           ) where

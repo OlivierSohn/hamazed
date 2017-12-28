@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-} -- TODO refactor and doc
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.UI.Animation

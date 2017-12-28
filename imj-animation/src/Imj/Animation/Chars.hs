@@ -1,6 +1,6 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
--- | This module is about characters we can use for explosive animations
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Chars
     ( niceChar
@@ -12,7 +12,7 @@ import           Imj.Prelude
 
 import Data.Word(Word8)
 
--- | Returns one of the "nice chars" for animations
+-- | Returns one of the characters that /look good/ for explosive animations.
 niceChar :: Word8
          -- ^ We take the modulo of that value
          -> Char

@@ -1,13 +1,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module exports some /ready-to-use/ 'Animation's.
+-- | Some /ready-to-use/ 'Animation's.
 
 module Imj.Animation
     (
-    -- * Explosive
+    -- * Animations
+    -- ** Explosive
       simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
-    -- * Free fall
+    -- ** Free fall
     {- | 'freeFall' simulates the effect of gravity on an object that has an initial speed.
 
     'freeFallThenExplode' adds an explosion when the falling object hits the environment
@@ -16,7 +17,7 @@ module Imj.Animation
     -}
     , freeFall
     , freeFallThenExplode
-    -- * Fragments
+    -- ** Fragments
     {- | 'fragmentsFreeFall' gives the impression that the object disintegrated in multiple
     pieces before falling.
 
@@ -26,13 +27,20 @@ module Imj.Animation
     -}
     , fragmentsFreeFall
     , fragmentsFreeFallThenExplode
-    -- * Geometric
+    -- ** Geometric
     , animatedPolygon
     , laserAnimation
+    -- * Chars
+    {-| 'niceChar' cycles through a list of 'Char's that /look good/ for
+    explosive animations. In Hamazed, they are used to create some /outer world/
+    animations. -}
+    , niceChar
+    , module Imj.Animation.Geo
     ) where
 
 import           Imj.Prelude
 
+import           Imj.Animation.Chars
 import           Imj.Animation.Design
 import           Imj.Animation.Geo
 import           Imj.Geo.Continuous

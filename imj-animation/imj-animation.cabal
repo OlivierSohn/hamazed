@@ -26,9 +26,9 @@ library
                      , Imj.Animation.Geo
                       -- initially in a separate module for core
                      , Imj.Animation.Design
+                     , Imj.Animation.Design.Animation
                      , Imj.Animation.Design.Apply
                      , Imj.Animation.Design.Color
-                     , Imj.Animation.Design.Internal.Types
                      , Imj.Animation.Design.Timing
                      , Imj.Animation.Design.Types
                      , Imj.Animation.Design.Update

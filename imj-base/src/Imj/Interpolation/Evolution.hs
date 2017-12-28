@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Interpolation.Evolution
@@ -18,7 +20,7 @@ based on the current frame and the inverse ease function.
          , mkEvolutionEaseQuart
          , mkEvolution
          , getDeltaTimeToNextFrame
-         -- * Getting - or drawing - the interpolated value
+         -- ** Getting - or drawing - the interpolated value
          {- |
  * If the underlying 'DiscretelyInterpolable' instance implements 'interpolate', it
  is valid to call 'getValueAt' but 'drawValueAt' will error.
@@ -27,7 +29,7 @@ based on the current frame and the inverse ease function.
          -}
          , getValueAt
          , drawValueAt
-         -- * Synchronizing multiple Evolutions
+         -- ** Synchronizing multiple Evolutions
          {- | 'EaseClock' can be used to synchronize
          multiple 'Evolution's.
          -}

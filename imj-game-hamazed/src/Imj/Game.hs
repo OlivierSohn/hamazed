@@ -80,7 +80,6 @@ import           Data.List( minimumBy, find )
 import           Data.Maybe( catMaybes )
 
 import           Imj.Animation
-import           Imj.Animation.Chars
 import           Imj.Animation.Design hiding (earliestDeadline)
 import           Imj.Game.Color
 import           Imj.Game.Env

@@ -1,17 +1,15 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_HADDOCK hide #-}
 
--- | This module exports animation functions.
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Animation.Geo
     (
-    -- * Gravity
+    -- * Animation functions
+    -- | These are the building blocks for more complex animations.
       gravityFallGeo
-    -- * Explosion
     , simpleExplosionGeo
     , quantitativeExplosionGeo
-    -- * Geometric figures
     , animatePolygonGeo
-    -- * Laser
     , laserAnimationGeo
     ) where
 
@@ -20,7 +18,7 @@ import           Imj.Prelude
 import           Data.Char( intToDigit )
 import           Data.List( length )
 
-import           Imj.Animation.Design.Internal.Types
+import           Imj.Animation.Design.Types
 import           Imj.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete

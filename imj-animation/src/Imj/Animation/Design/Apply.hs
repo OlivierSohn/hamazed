@@ -12,7 +12,7 @@ import           Imj.Prelude
 import           Data.List( length )
 import           Data.Maybe( fromMaybe )
 
-import           Imj.Animation.Design.Internal.Types
+import           Imj.Animation.Design.Types
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Discrete
 import           Imj.Iteration

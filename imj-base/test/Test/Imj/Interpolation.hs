@@ -8,9 +8,9 @@ module Test.Imj.Interpolation
            , testSuccessiveInts
            , testClock ) where
 
-import Imj.Graphics.Math.Ease
-import Imj.Graphics.Interpolation
-import Imj.Geo.Discrete
+import           Imj.Graphics.Math.Ease
+import           Imj.Geo.Discrete
+import           Imj.Graphics.Interpolation
 
 testInterpolation :: IO ()
 testInterpolation = mapM_ print testClock

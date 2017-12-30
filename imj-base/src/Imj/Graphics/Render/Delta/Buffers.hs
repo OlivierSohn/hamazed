@@ -16,14 +16,13 @@ import           Data.Maybe( fromMaybe )
 import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
 
 import           Imj.Graphics.Color.Types
-
+import           Imj.Graphics.Render.Delta.Types
+import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Buffers.Dimensions
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Cells
 import qualified Imj.Graphics.Render.Delta.DynUnboxedVec as Dyn (new)
-import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.DefaultPolicies
-import           Imj.Graphics.Render.Delta.Internal.Types
 
 
 -- we use IORef Buffers instead of Buffers because we want to update the size of the buffers

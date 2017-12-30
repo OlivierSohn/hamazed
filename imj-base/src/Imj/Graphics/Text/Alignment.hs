@@ -16,8 +16,6 @@ module Imj.Graphics.Text.Alignment
 
 import           Imj.Geo.Discrete
 
--- TODO the reference coordinates should be part of 'Alignment'
-
 -- | Specifies where the 'Text' is w.r.t the reference coordinates.
 data AlignmentKind = Centered
                    {- ^ /Centered/ on reference coordinates, favoring the 'RIGHT'

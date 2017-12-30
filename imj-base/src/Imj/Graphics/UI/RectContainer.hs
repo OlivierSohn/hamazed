@@ -20,10 +20,10 @@ import           Data.List( mapAccumL, zip )
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
-import           Imj.Graphics.UI.RectContainer.MorphParallel4
 import           Imj.Graphics.Class.DiscreteColorableMorphing
+import           Imj.Graphics.Render
+import           Imj.Graphics.UI.RectContainer.MorphParallel4
 
 {-|
 

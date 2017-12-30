@@ -18,8 +18,8 @@ module Imj.Timing
     , getSystemTime
     ) where
 
-import           Prelude(Integer)
 import           Imj.Prelude
+import           Prelude(Integer)
 
 import           Data.Int(Int64)
 import           Data.Time(DiffTime, diffTimeToPicoseconds,

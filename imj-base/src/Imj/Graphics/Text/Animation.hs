@@ -38,10 +38,10 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip)
 
-import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
+import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
 
 

@@ -19,14 +19,14 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           System.Timeout( timeout )
 
 import           Imj.Game.Hamazed.Color
+import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
-import           Imj.Game.Hamazed.Level.Types
-import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Render
 import           Imj.Input.NonBlocking
-import           Imj.Input.Blocking( getKeyThenFlush )
+import           Imj.Input.Blocking
 import           Imj.Input.Types
 import           Imj.Timing
 

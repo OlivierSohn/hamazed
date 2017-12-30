@@ -27,13 +27,9 @@ import           Control.Concurrent( forkFinally
 import           Control.Exception( SomeException(..) )
 import           Control.Monad( (>=>) )
 
--- | Was the thread termination nomal or due to an error?
+-- | Was the thread termination normal or due to an error?
 data Termination = NormalTermination
                  | AbnormalTermination
-
---------------------------------------------------------------------------------
--- IO
---------------------------------------------------------------------------------
 
 -- | Runs an IO action in a separate thread, and waits for it to finish,
 -- returning its result.

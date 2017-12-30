@@ -12,9 +12,8 @@ Modified from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/s
 * Added a sort function.
 * Added 'accessUnderlying' to be able to use sort algorithms efficiently, without copying.
 * Changed behaviour of clear, to avoid reallocation.
-* fixed new / unsafeNew (the size was equal to the capacity instead of zero)
+* Fixed new / unsafeNew (the size was equal to the capacity instead of zero)
 * Removed functions that I don't use and won't have time to support
-
 -}
 
 
@@ -41,21 +40,15 @@ module Imj.Graphics.Render.Delta.DynUnboxedVec(
 
 import           Imj.Prelude
 
-import           Data.Data
-                    (Typeable)
-import           Data.Vector.Algorithms.Intro
-                    (sort) -- unstable sort
+import           Data.Data(Typeable)
+import           Data.Vector.Algorithms.Intro(sort) -- unstable sort
 
-import           Control.Monad.Primitive
-                    (RealWorld, PrimMonad, PrimState)
-import           Data.Primitive.MutVar
-                    (MutVar, readMutVar, newMutVar, writeMutVar)
+import           Control.Monad.Primitive(RealWorld, PrimMonad, PrimState)
+import           Data.Primitive.MutVar(MutVar, readMutVar, newMutVar, writeMutVar)
 
-import qualified Data.Vector.Unboxed.Mutable as MV
-                    (MVector, take, length, new, unsafeRead,
-                     unsafeGrow, unsafeWrite)
-import qualified Data.Vector.Unboxed as V
-                    (Unbox)
+import qualified Data.Vector.Unboxed.Mutable as MV(MVector, take, length, new, unsafeRead,
+                                                  unsafeGrow, unsafeWrite)
+import qualified Data.Vector.Unboxed as V(Unbox)
 
 
 -- | Mutable vector with dynamic behaviour living in the ST or IO monad.

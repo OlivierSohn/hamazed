@@ -15,8 +15,8 @@ import           Data.List(length)
 import           Data.Text(pack)
 
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Class.DiscreteDistance
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Graphics.Text.ColorString
 import           Imj.Util

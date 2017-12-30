@@ -10,9 +10,9 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
+import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Size

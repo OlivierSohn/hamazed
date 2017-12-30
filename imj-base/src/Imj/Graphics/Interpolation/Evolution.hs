@@ -39,10 +39,10 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Class.DiscreteMorphing
 import           Imj.Graphics.Class.DiscreteInterpolation
-import           Imj.Iteration
+import           Imj.Graphics.Class.DiscreteMorphing
 import           Imj.Graphics.Math.Ease
+import           Imj.Iteration
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
 -- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.

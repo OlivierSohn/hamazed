@@ -20,11 +20,11 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( write, set, length )
 
-import           Imj.Graphics.Color
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Color
 import           Imj.Graphics.Render.Delta.Internal.Types
-import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Types
+import           Imj.Graphics.Render.Delta.Cell
 
 
 {-# INLINABLE deltaDrawChar #-}

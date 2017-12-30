@@ -14,8 +14,8 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Physics.Discrete.Collision
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Physics.Discrete.Collision
 
 
 -- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid

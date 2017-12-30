@@ -1,10 +1,10 @@
 
 module Test.Imj.Stdout where
 
-import Imj.Prelude
+import           Imj.Prelude
 
-import Control.Concurrent
-import System.IO
+import           Control.Concurrent
+import           System.IO
 
 cursorForward, cursorBackward, noop:: String
 cursorForward = "\ESC[C"

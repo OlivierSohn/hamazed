@@ -19,9 +19,8 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
-import           Imj.Iteration
+import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString

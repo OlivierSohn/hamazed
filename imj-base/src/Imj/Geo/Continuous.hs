@@ -22,8 +22,8 @@ module Imj.Geo.Continuous
 
 import           Imj.Prelude
 
-import           Imj.Geo.Continuous.Conversion
 import           Imj.Geo.Continuous.Types
+import           Imj.Geo.Continuous.Conversion
 import           Imj.Iteration
 
 -- | Creates a list of 4 'Vec2' from a single one by rotating it successively by pi/2.

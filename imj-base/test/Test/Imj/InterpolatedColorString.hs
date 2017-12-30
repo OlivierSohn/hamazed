@@ -8,10 +8,10 @@ import           Control.Monad(void)
 
 import           Data.Monoid((<>))
 
-import           Imj.Graphics.Color
-import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Color
 import           Imj.Graphics.Interpolation
+import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
 
 testICS :: (Draw e, MonadReader e m, MonadIO m)

@@ -33,9 +33,8 @@ import           Control.Exception(assert)
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
-import           Imj.Graphics.Color.Types
 import           Imj.Geo.Discrete.Types(Width, Height, Row, Col)
-
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 
 -- | When and how to resize buffers.

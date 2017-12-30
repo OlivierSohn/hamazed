@@ -1,9 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Geo.Types
-        ( Pos
-        , Vel
-        , Acc
+        ( Pos, Vel, Acc
         ) where
 
 

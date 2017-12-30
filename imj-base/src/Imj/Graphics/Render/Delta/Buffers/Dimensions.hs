@@ -9,7 +9,6 @@ module Imj.Graphics.Render.Delta.Buffers.Dimensions
 import           Imj.Prelude
 
 import           Data.Word( Word16, Word32 )
-
 import           System.Console.Terminal.Size as Term (size, Window(..))
 
 import           Imj.Graphics.Render.Delta.Types

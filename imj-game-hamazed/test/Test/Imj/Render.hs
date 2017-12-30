@@ -3,8 +3,8 @@ module Test.Imj.Render(testSpace) where
 import Control.Monad( void )
 import Control.Monad.Reader(liftIO)
 
-import Imj.Geo.Discrete.Types
 import Imj.Game.Hamazed.World.Space
+import Imj.Geo.Discrete.Types
 
 testSpace :: (MonadReader e m, Draw e, MonadIO m) => m ()
 testSpace = do

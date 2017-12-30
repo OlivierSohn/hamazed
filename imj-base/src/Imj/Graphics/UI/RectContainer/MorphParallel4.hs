@@ -18,7 +18,6 @@ import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 
 
-
 countRectContainerChars :: Size -> Int
 countRectContainerChars s =
   2 * countRectContainerHorizontalChars s + 2 * countRectContainerVerticalChars s

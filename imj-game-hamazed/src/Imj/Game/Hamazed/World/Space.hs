@@ -24,9 +24,7 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-
 import           System.Console.Terminal.Size( Window(..) )
-
 import           Data.Graph( Graph
                            , graphFromEdges
                            , components )
@@ -38,7 +36,6 @@ import           Data.Matrix( getElem
                             , Matrix
                             , nrows, ncols )
 import           Data.Vector(Vector, slice, (!))
-
 import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Game.Hamazed.Color

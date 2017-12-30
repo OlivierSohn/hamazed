@@ -56,10 +56,10 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text)
 
-import Imj.Graphics.Class.Draw
-import Imj.Graphics.Class.Render
-import Imj.Graphics.Render.FromMonadReader
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Render.FromMonadReader
 
-import Imj.Graphics.Color(LayeredColor(..))
-import Imj.Geo.Discrete(Coords(..))
-import Imj.Graphics.Text.Alignment(Alignment(..))
+import           Imj.Graphics.Color(LayeredColor(..))
+import           Imj.Geo.Discrete(Coords(..))
+import           Imj.Graphics.Text.Alignment(Alignment(..))

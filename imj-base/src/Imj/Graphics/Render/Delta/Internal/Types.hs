@@ -17,8 +17,7 @@ import           Data.IORef( IORef )
 import           Data.Word( Word64 )
 import           Data.Vector.Unboxed.Mutable( IOVector )
 
-import qualified Imj.Graphics.Render.Delta.DynUnboxedVec as Dyn
-                                ( IOVector )
+import qualified Imj.Graphics.Render.Delta.DynUnboxedVec as Dyn( IOVector )
 
 -- | Buffer types
 data Back

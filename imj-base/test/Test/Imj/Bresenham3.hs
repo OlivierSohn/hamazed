@@ -4,7 +4,7 @@
 
 module Test.Imj.Bresenham3(testBres3) where
 
-import Imj.Geo.Discrete.Bresenham3
+import           Imj.Geo.Discrete.Bresenham3
 
 testBres3 :: IO Bool
 testBres3 = do

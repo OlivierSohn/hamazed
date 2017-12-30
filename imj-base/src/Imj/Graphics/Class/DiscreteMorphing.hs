@@ -18,9 +18,9 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
+import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Drawable
-import           Imj.Graphics.Class.DiscreteDistance
 
 
 {-| Morph between /drawn/ representations of 'Drawble's.

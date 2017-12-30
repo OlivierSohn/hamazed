@@ -12,8 +12,8 @@ import           Control.Monad(foldM_)
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text, length)
 
-import           Imj.Graphics.Color.Types
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 

@@ -1,7 +1,7 @@
 import           System.Console.ANSI(clearScreen)
 import           Control.Monad.Reader(runReaderT)
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Naive
 
 --import           Test.Imj.Stdout
@@ -22,8 +22,8 @@ main = do
 
   clearScreen -- to not overwrite current terminal content.
   runReaderT (testICS >>
-              renderDrawing
-              ) (NaiveDraw 2)
+              renderToScreen
+              ) (NaiveDraw)
 
   --testStdout
   --testEase

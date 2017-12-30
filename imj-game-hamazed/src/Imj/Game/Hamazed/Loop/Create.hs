@@ -18,6 +18,7 @@ import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.Colored
 import           Imj.Timing
 
 mkInitialState :: (MonadIO m)
@@ -46,8 +47,8 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
             uiAnimation =
               mkUIAnimation
-                (mkWorldContainer worldFrameColors curWorld, curInfos)
-                (mkWorldContainer worldFrameColors newWorld, newInfos)
+                (Colored worldFrameColors $ mkWorldContainer curWorld, curInfos)
+                (Colored worldFrameColors $ mkWorldContainer newWorld, newInfos)
                 t
             gameDeadline =
               if isFinished uiAnimation

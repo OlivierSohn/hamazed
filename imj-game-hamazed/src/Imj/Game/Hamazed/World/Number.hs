@@ -24,13 +24,12 @@ getColliding pos =
   filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
 destroyedNumbersAnimations :: KeyTime
-                           -> Event
+                           -> Direction
+                           -- ^ 'Direction' of the laser shot
                            -> [Number]
                            -> [BoundedAnimation]
-destroyedNumbersAnimations keyTime event =
-  let laserSpeed = case event of
-        (Action Laser dir) -> speed2vec $ coordsForDirection dir
-        _                  -> Vec2 0 0
+destroyedNumbersAnimations keyTime dir =
+  let laserSpeed = speed2vec $ coordsForDirection dir
   in concatMap (destroyedNumberAnimations keyTime laserSpeed)
 
 destroyedNumberAnimations :: KeyTime

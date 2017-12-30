@@ -3,35 +3,118 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {-|
-= Introduction
+The purpose of this module is to render games and animations in the terminal
+without <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
+
+It supports <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit Colors>
+and <http://www.unicode.org/ Unicode> characters.
+
+In short, <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>
+is mitigated by:
+
+    * Using double buffering techniques (/back/ and /front/ buffers)
+    * Rendering in each frame /only/ the locations that have changed, in an order
+    that allows to omit many byte-expensive commands,
+    * Chosing the smallest rendering command among equivalent alternatives.
+
+A more detailed overview can be seen at the end of this documentation.
+-}
+
+module Imj.Graphics.Render.Delta
+  ( -- * Usage
+{- |
+* from a 'MonadIO' monad:
+
+    @
+    import Imj.Graphics.Class.Draw(drawStr')
+    import Imj.Graphics.Class.Render(renderToScreen')
+
+    helloWorld :: (MonadIO m) => m ()
+    helloWorld env = do
+      drawStr' env \"Hello World\" (Coords 10 10) green
+      renderToScreen' env
+
+    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
+    @
+
+* from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad,
+
+    @
+    import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
+
+    helloWorld :: (Draw e, Render e, MonadReader e m, MonadIO m) => m ()
+    helloWorld = do
+      drawStr \"Hello World\" (Coords 10 10) green
+      renderToScreen
+
+    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
+    @
+
+* from a 'MonadIO', 'MonadReader' 'YourEnv' monad,
+
+    * assuming 'YourEnv' owns a 'DeltaEnv'
+    and implements a 'Draw' instance which forwards to the 'Draw' instance of
+    the 'DeltaEnv' (like in
+    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs this game>):
+
+    @
+    import YourApp(createYourEnv)
+    import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
+
+    helloWorld :: (Draw e, Render e, MonadReader e m, MonadIO m) => m ()
+    helloWorld = do
+      drawStr \"Hello World\" (Coords 10 10) r green
+      renderToScreen
+
+    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= createYourEnv >>= runReaderT helloWorld
+    @
+-}
+
+  -- * Environment
+  -- | Back and front buffers are persisted in the delta-rendering environment:
+  -- 'DeltaEnv'.
+  DeltaEnv
+  -- ** Environment creation
+, newDefaultEnv
+, newEnv
+-- ** Policies
+{- | Note that policy changes take effect after the next render. -}
+-- *** Resize
+, ResizePolicy(..)
+, defaultResizePolicy
+, setResizePolicy
+-- *** Clear after render
+, ClearPolicy(..)
+, defaultClearPolicy
+, setClearPolicy
+, defaultClearColor
+, setClearColor
+-- ** Stdout BufferMode
+{- When using 'setStdoutBufferMode', the stdout 'BufferMode' change is applied
+immediately. -}
+, defaultStdoutMode
+, setStdoutBufferMode
+  -- * Draw and render
+  {- | The functions below present drawing and rendering functions in a 'MonadReader'
+  monad, which is the recommended way to use delta rendering.
+
+  More alternatives are presented in this module:
+  -}
+, module Imj.Graphics.Render
+, module Imj.Graphics.Render.FromMonadReader
+  -- * Cleanup
+, module Imj.Graphics.Render.Delta.Console
+-- * Reexports
+, BufferMode(..)
+
+-- * Motivations and technical overview
+{- |
+
+= Screen tearing
 
 <https://en.wikipedia.org/wiki/Screen_tearing Screen tearing> occurs in the terminal
 when, for a given frame, rendering commands exceed the capacity of stdout buffer.
 To avoid overflowing stdout, the system flushes it, thereby triggering a /partial/ frame render.
-
-During a game, occasional partial frames distract the player, hence, it is crucially
-important to address this issue. And this is exactly what this package is about!
-
-If you encounter screen tearing issues in you game, and if this package doesn't
-the issue entirely, please tell me, I'll investigate :-)
-
-= Features
-
-The functions exported by this module allow to render complex animated graphics.
-
-<https://en.wikipedia.org/wiki/Screen_tearing Screen tearing> is mitigated by:
-
-* Using double buffering techniques
-* Rendering in each frame /only/ the locations that have changed, in a smart order
-that allows to omit many byte-expensive commands,
-* Chosing the smallest (in bytes) rendering command when there are equivalent alternatives.
-
-<https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit Colors>
-are supported, as well as <http://www.unicode.org/ Unicode>
-characters.
-
-A particular attention is given to using algorithms and datastructures that
-achieve a low run-time overhead and a reduced memory footprint (see below).
 
 = Motivations
 
@@ -115,78 +198,13 @@ I also introduced a third in-memory vector, the "Delta" vector, which contains j
 Due to the previously described encoding, when <http://hackage.haskell.org/package/vector-algorithms-0.7.0.1/docs/Data-Vector-Algorithms-Intro.html sorting>
 the delta vector, same-color locations end up being grouped in the same slice of the vector,
 and are sorted by increasing position, which is exactly what we want to implement the optimizations I mentionned earlier.
-
-= Performance documentation
-
-Here I'll report on the amount of bytes sent to stdout with concrete examples.
 -}
+  ) where
 
-module Imj.Graphics.Render.Delta
-          (
-          -- * Usage
-{- |
-* from a 'MonadIO' monad:
+-- TODO add a section on 'Performance documentation' to report on the amount of bytes
+-- sent to stdout with concrete examples.
 
-    @
-    import Imj.Graphics.Draw.Class(drawStr', renderDrawing')
-
-    helloWorld :: (MonadIO m) => m ()
-    helloWorld env = do
-      drawStr' env \"Hello\" (Coords 10 10) red
-      drawStr' env \"World\" (Coords 20 20) green
-      renderDrawing' env
-
-    main =
-      runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
-    @
-
-* from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad,
-
-    @
-    import Imj.Graphics.Draw.Helpers.MonadReader(drawStr, renderDrawing)
-
-    helloWorld :: (Draw e, MonadReader e m, MonadIO m) => m ()
-    helloWorld = do
-      drawStr \"Hello\" (Coords 10 10) red
-      drawStr \"World\" (Coords 20 20) green
-      renderDrawing
-
-    main =
-      runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
-    @
-
-* from a 'MonadIO', 'MonadReader' 'YourEnv' monad,
-
-    * assuming 'YourEnv' owns a 'DeltaEnv'
-    and implements a 'Draw' instance which forwards to the 'Draw' instance of
-    the 'DeltaEnv' (like in
-    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Hamazed/Env.hs this game>):
-
-    @
-    import YourApp(createYourEnv)
-    import Imj.Graphics.Draw.Helpers.MonadReader(drawStr, renderDrawing)
-
-    helloWorld :: (Draw e, MonadReader e m, MonadIO m) => m ()
-    helloWorld = do
-      drawStr \"Hello\" (Coords 10 10) red
-      drawStr \"World\" (Coords 20 20) green
-      renderDrawing
-
-    main =
-      runThenRestoreConsoleSettings $ newDefaultEnv >>= createYourEnv >>= runReaderT helloWorld
-    @
--}
-            -- * API
-            -- ** Environment
-            -- | /Back/ and /front/ buffers are persisted in a 'DeltaEnv' environment,
-            -- created and configured using functions of this module:
-            module Imj.Graphics.Render.Delta.Env
-            -- ** Draw and render
-          , module Imj.Graphics.Draw
-            -- ** Cleanup
-          , module Imj.Graphics.Render.Delta.Console
-          ) where
-
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Console
+import           Imj.Graphics.Render.FromMonadReader

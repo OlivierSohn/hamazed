@@ -14,7 +14,7 @@ module Imj.Game.Hamazed
 
         Good luck !
 
-        /In case you need to adapt the keyboard maps, you can modify 'eventFromKey'./
+        /Note that to adapt the keyboard layout, you can modify 'eventFromKey'./
         -}
           run
         -- * Game loop
@@ -62,9 +62,8 @@ module Imj.Game.Hamazed
         -- * Environment
         {- | -}
       , module Imj.Game.Hamazed.Env
-        -- * Utilities
+        -- * Keyboard layout
       , eventFromKey
-      , getKeyTime
         -- * Reexport
       , module Imj.Game.Hamazed.World
       , UIAnimation(..)

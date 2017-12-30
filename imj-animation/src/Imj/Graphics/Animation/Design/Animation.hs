@@ -55,7 +55,7 @@ import           Imj.Graphics.Animation.Design.Color
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Timing
 import           Imj.Graphics.Animation.Design.Update
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Iteration
 import           Imj.Timing
 

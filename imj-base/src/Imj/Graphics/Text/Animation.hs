@@ -5,12 +5,13 @@ module Imj.Graphics.Text.Animation
          (
          -- * TextAnimation
 {- |
-Animates in parallel:
+Interpolates between various 'ColorString's, and /at the same time/ interpolates
+their anchors.
 
-* characters replacements, inserts, deletes
-* characters color changes
-* if a = 'AnchorStrings' : the locations of ColorStings
-* if a = 'AnchorChars' : the locations of each individual character
+Anchors interpolation can occur :
+
+* at the 'ColorString' level using 'AnchorStrings', or
+* at the 'Char' level using 'AnchorChars'
 -}
            TextAnimation(..)
          , AnchorChars
@@ -19,7 +20,7 @@ Animates in parallel:
          , mkTextTranslation
          , mkSequentialTextTranslationsCharAnchored
          , mkSequentialTextTranslationsStringAnchored
-         -- * Drawing
+         -- * Draw
          , renderAnimatedTextCharAnchored
          , renderAnimatedTextStringAnchored
          , getAnimatedTextRenderStates
@@ -37,7 +38,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip)
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
@@ -52,7 +53,7 @@ data AnchorChars
 
 -- TODO find a generic implementation: 2 aspects (location and content) are
 -- interpolated at the same time.
--- | Animates a 'ColorString' content and anchors.
+-- | Interpolates 'ColorString's and anchors.
 data TextAnimation a = TextAnimation {
    _textAnimationFromTos :: ![Evolution ColorString] -- TODO is it equivalent to Evolution [ColorString]?
  , _textAnimationAnchorsFrom :: !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
@@ -138,7 +139,7 @@ build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
 -- | The order of animation is: move, change characters, change color
 mkSequentialTextTranslationsCharAnchored :: [([ColorString], Coords Pos, Coords Pos)]
-                                         -- ^ List of (text + from anchor + to anchor)
+                                         -- ^ List of (texts + from anchor + to anchor)
                                          -> Float
                                          -- ^ duration in seconds
                                          -> TextAnimation AnchorChars

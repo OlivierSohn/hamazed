@@ -2,9 +2,10 @@
 
 module Imj.Graphics.Math.Ease
       (
-      -- * 4th order inverse easing, continuous
-      {- | I use the term /Inverse/ in the title because easing is traditionally a function
-            from time to value, and here it is a function from value to time.
+      -- * 4th order /inverse/ easing, continuous
+      {- | Easing is traditionally seen as a function from /time/ to value.
+
+        Here, it is a function from /value/ to time, hence the use of the term /Inverse/ in the title.
       -}
         invQuartEaseInOut
       -- * From continuous to discrete

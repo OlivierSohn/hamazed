@@ -78,7 +78,7 @@ executable imj-game-hamazed-exe
 test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Imj.Rendering
+  other-modules:       Test.Imj.Render
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-base ==0.1.*

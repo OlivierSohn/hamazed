@@ -38,7 +38,7 @@ import           Imj.Geo.Discrete.Types(Width, Height, Row, Col)
 
 import           Imj.Graphics.Render.Delta.Internal.Types
 
--- | Front and back buffers sizes.
+-- | When and how to resize buffers.
 data ResizePolicy = MatchTerminalSize
                   -- ^ After each render, buffers are resized (if needed) to match
                   -- terminal size.

@@ -5,34 +5,29 @@
 module Imj.Graphics.Interpolation.Evolution
          (
          -- * Evolution
-{- | 'Evolution' is a helper type to interpolate between 'DiscretelyInterpolable's.
-It stores the total interpolation distance and the the inverse ease function.
+{- | 'Evolution' is a helper type to interpolate between 'DiscreteInterpolation's
+or morph between 'DiscreteMorphing'.
+
+It stores the 'distance' to cache potential expensive distance computations.
 
 The preferred way to create it is to use 'mkEvolutionEaseQuart' which uses the
 inverse ease function 'invQuartEaseInOut'.
 
-To produce the desired /easing/ effect, the interpolation frame should be
-incremented at specific time intervals. In that respect, 'getDeltaTimeToNextFrame'
-computes the next time at which the interpolation should be updated and rendered,
-based on the current frame and the inverse ease function.
+To produce the desired /easing/ effect, the 'Evolution' should be updated
+at specific time intervals. In that respect, 'getDeltaTimeToNextFrame'
+computes the next time at which the interpolation should be updated (for interpolations)
+or rendered (for morphings), based on the current frame and the inverse ease function.
 -}
            Evolution(..)
          , mkEvolutionEaseQuart
          , mkEvolution
          , getDeltaTimeToNextFrame
-         -- ** Getting - or drawing - the interpolated value
-         {- |
- * If the underlying 'DiscretelyInterpolable' instance implements 'interpolate', it
- is valid to call 'getValueAt' but 'drawValueAt' will error.
- * If the underlying 'DiscretelyInterpolable' instance implements 'interpolateIO', it
- is valid to call 'drawValueAt' but 'getValueAt' will error.
-         -}
+         -- ** Getting an interpolated value
          , getValueAt
-         , drawValueAt
+         -- ** Draw a morphing
+         , drawMorphingAt
          -- ** Synchronizing multiple Evolutions
-         {- | 'EaseClock' can be used to synchronize
-         multiple 'Evolution's.
-         -}
+         -- | 'EaseClock' can be used to synchronize multiple 'Evolution's.
          , EaseClock(..)
          , mkEaseClock
          ) where
@@ -44,28 +39,28 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Draw.Class
-import           Imj.Graphics.Interpolation.Class
+import           Imj.Graphics.Class.DiscreteMorphing
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Iteration
 import           Imj.Graphics.Math.Ease
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
--- | An evolution between n values. With a 4th order ease in & out.
-mkEvolutionEaseQuart :: DiscretelyInterpolable v
+-- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.
+mkEvolutionEaseQuart :: DiscreteDistance v
                      => Successive v
-                     -- ^ Values through which the evolution will pass.
+                     -- ^ 'DiscreteDistance's through which the evolution will pass.
                      -> Float
                      -- ^ Duration in seconds
                      -> Evolution v
 mkEvolutionEaseQuart = mkEvolution invQuartEaseInOut
 
--- | An evolution between n values. With a user-specified (inverse) ease function.
+-- | An evolution between n 'DiscreteDistance's. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}
-mkEvolution :: DiscretelyInterpolable v
+mkEvolution :: DiscreteDistance v
             => (Float -> Float)
             -- ^ Inverse continuous ease function
             -> Successive v
-            -- ^ Values through which the evolution will pass.
+            -- ^ 'DiscreteDistance's through which the evolution will pass.
             -> Float
             -- ^ Duration in seconds
             -> Evolution v
@@ -75,13 +70,12 @@ mkEvolution ease s duration =
   in Evolution s lastFrame duration (discreteAdaptor ease nSteps)
 
 -- | Used to synchronize multiple 'Evolution's.
-newtype EaseClock = EaseClock (Evolution NotDiscretelyInterpolable) deriving (Show)
-newtype NotDiscretelyInterpolable = NotDiscretelyInterpolable () deriving(Show)
+newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show)
+newtype NotWaypoint = NotWaypoint () deriving(Show)
 
--- | To make sure that we never use the values of an 'EaseClock'.
-instance DiscretelyInterpolable NotDiscretelyInterpolable where
-  distance = error "don't use distance on NotDiscretelyInterpolable"
-  interpolate = error "don't use interpolate on NotDiscretelyInterpolable"
+-- | To make sure that we never use distance on an 'EaseClock'.
+instance DiscreteDistance NotWaypoint where
+  distance = error "don't use distance on NotWaypoint"
 
 -- | Constructor of 'EaseClock'
 mkEaseClock :: Float
@@ -99,10 +93,10 @@ mkEaseClock duration lastFrame ease =
 -- and select the interval without having to recompute every distance.
 -- We could change the Successive type to store the cumulated distance,
 -- then do a binary search
--- | Defines an interpolation between 'Successive' 'DiscretelyInterpolable's.
+-- | Defines an evolution (interpolation or morphing) between 'Successive' 'DiscreteDistance's.
 data Evolution v = Evolution {
     _evolutionSuccessive :: !(Successive v)
-  -- ^ 'Successive' values.
+  -- ^ 'Successive' 'DiscreteDistance's.
   , _evolutionLastFrame :: !Frame
   -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
   , _evolutionDuration :: Float
@@ -112,7 +106,7 @@ data Evolution v = Evolution {
 }
 
 instance (Show v) => Show (Evolution v) where
-        showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
+  showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
 
 -- | Computes the time increment between the input 'Frame' and the next.
 getDeltaTimeToNextFrame :: Evolution v
@@ -132,9 +126,8 @@ getDeltaTimeToNextFrame (Evolution _ lastFrame@(Frame lastStep) duration easeVal
 
 
 {-# INLINABLE getValueAt #-}
--- | Gets the value of an 'Evolution' at a given 'Frame'. Errors if the 'DiscretelyInterpolable'
--- doesn't implement the 'interpolate' method.
-getValueAt :: DiscretelyInterpolable v
+-- | Gets the value of an 'Evolution' at a given 'Frame'.
+getValueAt :: DiscreteInterpolation v
            => Evolution v
            -> Frame
            -> v
@@ -145,12 +138,11 @@ getValueAt (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
   | otherwise          = interpolateSuccessive s step
 
 
-{-# INLINABLE drawValueAt #-}
--- | Draws an 'Evolution' for a given 'Frame'. Errors if the 'DiscretelyInterpolable'
--- doesn't implement the 'interpolateIO' method.
-drawValueAt :: (DiscretelyInterpolable v, Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawMorphingAt #-}
+-- | Draws an 'Evolution' at a given 'Frame'.
+drawMorphingAt :: (DiscreteMorphing v, Draw e, MonadReader e m, MonadIO m)
             => Evolution v
             -> Frame
             -> m ()
-drawValueAt (Evolution s _ _ _) (Frame step) =
-  interpolateSuccessiveIO s $ assert (step >= 0) step
+drawMorphingAt (Evolution s _ _ _) (Frame step) =
+  drawMorphingSuccessive s $ assert (step >= 0) step

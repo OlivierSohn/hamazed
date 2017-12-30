@@ -23,7 +23,7 @@ import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Level.Types
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 import           Imj.Input.NonBlocking
 import           Imj.Input.Blocking( getKeyThenFlush )
@@ -36,7 +36,11 @@ eventFromKey' (Level n _ finished) key =
     Nothing -> eventFromKey key
     Just (LevelFinished stop _ ContinueMessage) -> Just $
       case stop of
-        Won      -> if n < lastLevel then StartLevel (succ n) else EndGame
+        Won -> if n < lastLevel
+                 then
+                   StartLevel (succ n)
+                 else
+                   EndGame
         (Lost _) -> StartLevel firstLevel
     _ -> Nothing -- between level end and proposal to continue
 

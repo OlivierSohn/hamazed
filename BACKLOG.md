@@ -2,17 +2,9 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - move render and update code to dedicated modules.
-  - simplify nextGameState
+  - provide examples for mkSequentialTextTranslationsCharAnchored
 
-  - add to Draw namespace : Text UI Color Animation Render
-
-  - refactor DiscretelyInterpolable :
-    the goal is to disambiguate wether interpolate or interpolateIO is implemented.
-    interpolate in DiscretelyInterpolable -> the intermediate values can be represented using the type
-    interpolateIO in DiscretelyTransformable m -> the intermediate values cannot be represented using the type
-      - The doc doesn't see the instance when the type is not in the same module as the
-      class... maybe it would make sense to collapse some of the modules (but ):
+  - use y in github to permalinks Env.hs
 
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points

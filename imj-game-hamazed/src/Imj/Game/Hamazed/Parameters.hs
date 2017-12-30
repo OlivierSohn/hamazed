@@ -24,6 +24,7 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.Colored
 import           Imj.Input.Blocking
 import           Imj.Input.Types
 import           Imj.Timing
@@ -44,12 +45,12 @@ initialParameters = GameParameters Square None
 -- | Displays the configuration UI showing the game creation options,
 -- and returns when the player has finished chosing the options.
 {-# INLINABLE getGameParameters #-}
-getGameParameters :: (Draw e, MonadReader e m, MonadIO m)
+getGameParameters :: (Render e, MonadReader e m, MonadIO m)
                   => m GameParameters
 getGameParameters = update initialParameters
 
 {-# INLINABLE update #-}
-update :: (Draw e, MonadReader e m, MonadIO m)
+update :: (Render e, MonadReader e m, MonadIO m)
        => GameParameters
        -> m GameParameters
 update params = do
@@ -91,7 +92,7 @@ dText_ txt pos =
   void (dText txt pos)
 
 {-# INLINABLE render' #-}
-render' :: (Draw e, MonadReader e m, MonadIO m)
+render' :: (Render e, MonadReader e m, MonadIO m)
         => GameParameters
         -> m ()
 render' (GameParameters shape wall) = do
@@ -121,6 +122,6 @@ render' (GameParameters shape wall) = do
                 >>= dText_ "'t' -> random walls"
 
           t <- liftIO getSystemTime
-          let infos = (mkWorldContainer worldFrameColors world, (([""],[""]),[[""],[""]]))
+          let infos = (Colored worldFrameColors $ mkWorldContainer world, (([""],[""]),[[""],[""]]))
           renderUIAnimation $ mkUIAnimation infos infos t
-      renderDrawing
+      renderToScreen

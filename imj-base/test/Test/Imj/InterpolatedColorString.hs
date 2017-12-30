@@ -9,7 +9,7 @@ import           Control.Monad(void)
 import           Data.Monoid((<>))
 
 import           Imj.Graphics.Color
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Text.ColorString

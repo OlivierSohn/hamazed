@@ -1,7 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-
-
 module Imj.Graphics.Color
   (
     -- * 8-bits colors
@@ -12,7 +10,7 @@ module Imj.Graphics.Color
     used 8-bit colors.
 
     8-bit colors have 6*6*6 = 216 rgb colors and 24 grays. They are represented by
-    'Color8', which also provides a 'DiscretelyInterpolable' instance : using a 3D
+    'Color8', which also provides a 'DiscreteDistance' instance : using a 3D
     Bresenham line algorithm, we can smoothly interpolate, in RGB space, between
     two rgb colors or between two grays.
 
@@ -56,15 +54,14 @@ module Imj.Graphics.Color
   , xtermMapGray8bitComponent
   , xtermMapRGB8bitComponent
     -- * Reexports
-  , DiscretelyInterpolable
+  , DiscreteDistance
   , RGB(..)
   ) where
 
 import           Imj.Prelude
 
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color.Types
-import           Imj.Graphics.Interpolation.Class
-
 
 -- | How
 -- <https://jonasjacek.github.io/colors/ xterm interprets 8bit rgb colors>

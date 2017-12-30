@@ -4,10 +4,14 @@
 module Imj.Graphics.UI.RectContainer
         (
           -- * RectContainer
-          {- | 'RectContainer' Represents a rectangular UI container. It
-          contains the 'Size' of its /content/, and an upper left coordinate. -}
+            {- | 'RectContainer' represents a rectangular UI container. It
+            contains the 'Size' of its /content/, and an upper left coordinate.
+
+            Being 'Colorable', it can be wrapped in a 'Colored' to gain the notion of color. -}
           RectContainer(..)
         , getSideCentersAtDistance
+          -- * Reexports
+        , Colorable(..)
         ) where
 
 import           Imj.Prelude
@@ -16,10 +20,10 @@ import           Data.List( mapAccumL, zip )
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Interpolation
-import           Imj.Graphics.UI.RectContainer.InterpolateParallel4
+import           Imj.Graphics.UI.RectContainer.MorphParallel4
+import           Imj.Graphics.Class.DiscreteColorableMorphing
 
 {-|
 
@@ -43,33 +47,40 @@ data RectContainer = RectContainer {
     -- ^ /Content/ size.
   , _rectFrameUpperLeft :: !(Coords Pos)
     -- ^ Upper left corner.
-  , _rectFrameColors :: !LayeredColor
-    -- ^ Foreground and background colors
 } deriving(Eq, Show)
 
+-- TODO notion "continuous closed path" to factor 'ranges' and 'renderRectFrameInterpolation' logics.
+
+instance Colorable RectContainer where
+  drawUsingColor = renderWhole
+  {-# INLINABLE drawUsingColor #-}
 
 -- | Smoothly transforms the 4 sides of the rectangle simultaneously, from their middle
 -- to their extremities.
-instance DiscretelyInterpolable RectContainer where
-  distance (RectContainer s  _ _ )
-           (RectContainer s' _ _ ) -- TODO animate colors too
-    | s == s'   = 1 -- no animation because sizes are equal
+instance DiscreteDistance RectContainer where
+  {-# INLINABLE distance #-}
+  distance c@(RectContainer s  _)
+           c'@(RectContainer s' _)
+    | c == c'   = 1
     | otherwise = 1 + quot (1 + max (maxLength s) (maxLength s')) 2
 
-  {-# INLINABLE interpolateIO #-}
-  interpolateIO from to frame
-    | frame <= 0         = renderWhole from
-    | frame >= lastFrame = renderWhole to
-    | otherwise          = renderRectFrameInterpolation from to lastFrame frame
+
+instance DiscreteColorableMorphing RectContainer where
+  {-# INLINABLE drawMorphingUsingColor #-}
+  drawMorphingUsingColor from to frame color
+    | frame <= 0         = drawUsingColor from color
+    | frame >= lastFrame = drawUsingColor to color
+    | otherwise          = renderRectFrameInterpolation from to lastFrame frame color
     where
       lastFrame = pred $ distance from to
 
 {-# INLINABLE renderWhole #-}
 renderWhole :: (Draw e, MonadReader e m, MonadIO m)
             => RectContainer
+            -> LayeredColor
             -> m ()
-renderWhole (RectContainer sz upperLeft color) =
-  renderPartialRectContainer sz color (upperLeft, 0, countRectContainerChars sz - 1)
+renderWhole (RectContainer sz upperLeft) =
+  renderPartialRectContainer sz (upperLeft, 0, countRectContainerChars sz - 1)
 
 {-# INLINABLE renderRectFrameInterpolation #-}
 renderRectFrameInterpolation :: (Draw e, MonadReader e m, MonadIO m)
@@ -77,15 +88,16 @@ renderRectFrameInterpolation :: (Draw e, MonadReader e m, MonadIO m)
                              -> RectContainer
                              -> Int
                              -> Int
+                             -> LayeredColor
                              -> m ()
-renderRectFrameInterpolation rf1@(RectContainer sz1 upperLeft1 _)
-                 rf2@(RectContainer sz2 upperLeft2 _) lastFrame frame = do
+renderRectFrameInterpolation rf1@(RectContainer sz1 upperLeft1)
+                 rf2@(RectContainer sz2 upperLeft2) lastFrame frame color = do
   let (Coords _ (Coord dc)) = diffCoords upperLeft1 upperLeft2
       render di1 di2 = do
-        let fromRanges = ranges (lastFrame-(frame+di1)) sz1 Extremities
-            toRanges   = ranges (lastFrame-(frame+di2)) sz2 Middle
-        mapM_ (renderRectFrameRange rf1) fromRanges
-        mapM_ (renderRectFrameRange rf2) toRanges
+        let fromRanges = ranges (lastFrame-(frame+di1)) sz1 FromBs
+            toRanges   = ranges (lastFrame-(frame+di2)) sz2 FromAs
+        mapM_ (renderRectFrameRange rf1 color) fromRanges
+        mapM_ (renderRectFrameRange rf2 color) toRanges
   if dc >= 0
     then
       -- expanding animation
@@ -98,14 +110,26 @@ renderRectFrameInterpolation rf1@(RectContainer sz1 upperLeft1 _)
 {-# INLINABLE renderRectFrameRange #-}
 renderRectFrameRange :: (Draw e, MonadReader e m, MonadIO m)
                      => RectContainer
+                     -> LayeredColor
                      -> (Int, Int)
                      -> m ()
-renderRectFrameRange (RectContainer sz r color) (min_, max_) =
-  renderPartialRectContainer sz color (r, min_, max_)
+renderRectFrameRange (RectContainer sz r) color (min_, max_) =
+  renderPartialRectContainer sz (r, min_, max_) color
 
-
-data BuildFrom = Middle
-               | Extremities -- generates the complement
+-- | Considering a closed continuous path with an even number of points labeled
+--  A and B and alternating along the path : A,B,A,B,A,B
+--
+-- (Think of a rectangle, the middles of the sides being
+-- the A points, the extremities being the B points)
+--
+--
+-- FromBs is the complement, i.e the same as above, but replacing As with Bs and vice-versa.
+data BuildFrom = FromAs
+               -- ^ First draw A points, then expand the drawn regions
+               -- to the right and left of A points, until B points are reached.
+               | FromBs
+               -- ^ First draw B points, then expand the drawn regions
+               -- to the right and left of B points, until A points are reached.
 
 ranges :: Int
        -- ^ Progress of the interpolation
@@ -129,8 +153,8 @@ ranges progress sz =
       (total, starts) = mapAccumL (\acc v -> (acc + v, acc)) 0 lengths
       res = map (\(ext, s) -> ext s) $ zip exts starts
   in \case
-        Middle      -> res
-        Extremities -> complement 0 (total-1) res
+        FromAs -> res
+        FromBs -> complement 0 (total-1) res
 
 complement :: Int -> Int -> [(Int, Int)] -> [(Int, Int)]
 complement a max_ []          = [(a, max_)]
@@ -144,11 +168,11 @@ rangeByRemovingFromTotal remove total start =
 
 
 -- TODO split : function to make the container at a distance, and function to take the centers.
-{- | Returns points centered on the sides of a container which is at a given distance
-from the reference container.
+{- | Returns points centered on the sides of a container which is at a given distances
+(dx and dy) from the reference container.
 
 [container at a distance from another container]
-In this illustration, @cont'@ is at distance 3 from @cont@:
+In this illustration, @cont'@ is at dx = dy = 3 from @cont@:
 
 @
     cont'
@@ -218,25 +242,28 @@ as illustrated here (@^@ indicates the chosen center):
 -}
 getSideCentersAtDistance :: RectContainer
                          -- ^ Reference container
-                         -> Int
-                         -- ^ A distance
-                         -> (Coords Pos, Coords Pos, Coords Pos)
-                         -- ^ (center Up, center Down, center Left)
-getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft' _) dist =
-  (centerUp, centerDown, leftMiddle)
+                         -> Length Width
+                         -- ^ Horizontal distance
+                         -> Length Height
+                         -- ^ Horizontal distance
+                         -> (Coords Pos, Coords Pos, Coords Pos, Coords Pos)
+                         -- ^ (center Up, center Down, center Left, center Right)
+getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft') dx dy =
+  (centerUp, centerDown, leftMiddle, rightMiddle)
  where
-  deltaLength =
+  deltaLength dist =
     2 *    -- in both directions
       (1 +   -- from inner content to outer container
        dist) -- from container to container'
-  rs = rs' + fromIntegral deltaLength
-  cs = cs' + fromIntegral deltaLength
-  upperLeft = translate' (fromIntegral $ -dist) (fromIntegral $ -dist) upperLeft'
+  rs = rs' + fromIntegral (deltaLength dy)
+  cs = cs' + fromIntegral (deltaLength dx)
+  upperLeft = translate' (fromIntegral $ -dy) (fromIntegral $ -dx) upperLeft'
 
   cHalf = quot (cs-1) 2 -- favors 'LEFT' 'Direction', see haddock comments.
   rHalf = quot (rs-1) 2 -- favors 'Up' 'Direction'
   rFull = rs-1
 
-  centerUp   = translate' 0     cHalf upperLeft
-  centerDown = translate' rFull cHalf upperLeft
-  leftMiddle = translate' rHalf 0     upperLeft
+  centerUp    = translate' 0     cHalf upperLeft
+  centerDown  = translate' rFull cHalf upperLeft
+  leftMiddle  = translate' rHalf 0     upperLeft
+  rightMiddle = translate' rHalf (cs-1) upperLeft

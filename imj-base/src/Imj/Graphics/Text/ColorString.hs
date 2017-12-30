@@ -4,10 +4,7 @@
 module Imj.Graphics.Text.ColorString
             (
             -- * Type
-            {- | A 'ColorString' is a multicolored 'Text'.
-
-            For even more complex interpolations, where the location of characters
-            can be animated, see the 'TextAnimation' type. -}
+            {- | A 'ColorString' is a multicolored 'Text'.-}
               ColorString(..)
             -- * Constructors
             {- | 'colored' creates a 'ColorString' using the specified foreground color on
@@ -25,7 +22,7 @@ module Imj.Graphics.Text.ColorString
 import           Imj.Prelude
 
 import           Data.String(IsString(..))
-import           Data.Text( Text, length, pack, unpack )
+import           Data.Text( Text, pack, unpack, length )
 
 import           Imj.Graphics.Color.Types
 
@@ -54,7 +51,7 @@ colored t c = colored' t $ onBlack c
 
 -- | Counts the chars in the 'ColorString'
 countChars :: ColorString -> Int
-countChars (ColorString cs) = sum $ map (length . fst) cs
+countChars (ColorString cs) = sum $ map (Data.Text.length . fst) cs
 
 instance Monoid ColorString where
   mempty = ColorString [("", onBlack white)]

@@ -4,8 +4,8 @@
 
 module Imj.Physics.Discrete.Types
     ( -- * Discrete position and speed
-    {- | In a terminal, it's only possible to represent objects at discrete
-    locations, hence for convenience movable objects have discrete speeds and
+    {- | In a terminal, it is only possible to represent objects at /discrete/
+    locations, hence, movable objects have /discrete/ speeds and
     positions. -}
       PosSpeed(..)
     ) where

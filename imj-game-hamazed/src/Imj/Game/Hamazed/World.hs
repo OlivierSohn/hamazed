@@ -21,7 +21,7 @@ module Imj.Game.Hamazed.World
       'Number's that should be reached to finish the 'Level'.
 
        A 'Level' is finished once the sum of shot 'Number's amounts to the /target number/. -}
-    , isLevelFinished
+    , checkTargetAndAmmo
     -- * World
     {- | A 'World' brings together:
 
@@ -46,13 +46,12 @@ module Imj.Game.Hamazed.World
     -- | Every 'gameMotionPeriod' seconds, the positions of 'BattleShip' and 'Numbers'
     -- are updated according to their speeds:
     , gameMotionPeriod
-    , updateWorld
+    , moveWorld
     -- ** Render World
     , renderWorld
     -- ** World utilities
-    -- | When a player 'Event' occurs (like a laser shot), 'eventAction' returns
-    -- the effect that this 'Event' would have on the 'World'.
-    , eventAction
+    -- | 'laserEventAction' returns the effect a laser shot it has on the 'World'.
+    , laserEventAction
     -- * InTerminal
     -- | 'InTerminal' allows to place the game in the center of the terminal.
     , mkInTerminal
@@ -95,7 +94,7 @@ module Imj.Game.Hamazed.World
     , Boundaries(..)
       -- ** Collision detection utilities
     , createRandomNonCollidingPosSpeed
-      -- ** Rendering
+      -- ** Render
     , renderSpace
       -- * Movable items
       -- | A movable item's 'PosSpeed' is updated using 'updateMovableItem'
@@ -138,7 +137,7 @@ module Imj.Game.Hamazed.World
     , LevelFinished(..)
     , GameStops(..)
     -- * Reexports
-    , module Imj.Graphics.Draw
+    , module Imj.Graphics.Render
     , ColorString
     ) where
 
@@ -147,7 +146,6 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Maybe( isNothing )
 import           Data.Text( pack )
 
 import           Imj.Game.Hamazed.Loop.Event
@@ -162,10 +160,9 @@ import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Animation
-import           Imj.Util
 
 -- | Note that the position of the 'BattleShip' remains unchanged.
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -176,13 +173,17 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'BoundedAnimation's are not updated.
-updateWorld :: SystemTime
-            -- ^ The current time
-            -> World
-            -> World
-updateWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
+moveWorld :: SystemTime
+          -- ^ The current time
+          -> World
+          -> World
+moveWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
-        (Just t) -> if curTime > t then Nothing else safeTime
+        (Just t) -> if curTime > t
+                      then
+                        Nothing
+                      else
+                        safeTime
         _        -> Nothing
       newBalls = map (\(Number ps n) -> Number (updateMovableItem size ps) n) balls
       newPosSpeed@(PosSpeed pos _) = updateMovableItem size shipPosSpeed
@@ -191,65 +192,41 @@ updateWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size 
   in World newBalls newShip size anims e
 
 -- TODO use Number Live Number Dead
--- | Computes the effect of an 'Event' on the 'World'.
-eventAction :: Event
-            -- ^ The event whose action will be evaluated
-            -> World
-            -> ([Number], [Number], Maybe (LaserRay Actual), Int)
-            -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
-eventAction
-  event
-  (World balls (BattleShip (PosSpeed shipCoords _) ammo safeTime collisions)
-        space _ _)
- =
+-- | Computes the effect of an laser shot on the 'World'.
+laserEventAction :: Direction
+                 -- ^ The direction of the laser shot
+                 -> World
+                 -> ([Number], [Number], Maybe (LaserRay Actual), Int)
+                 -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
+laserEventAction dir (World balls (BattleShip (PosSpeed shipCoords _) ammo _ _) space _ _) =
   let (maybeLaserRayTheoretical, newAmmo) =
-       if ammo > 0 then case event of
-         (Action Laser dir) ->
-           (LaserRay dir <$> shootLaserWithOffset shipCoords dir Infinite (`location` space), pred ammo)
-         _ ->
-           (Nothing, ammo)
-       else
-         (Nothing, ammo)
+        if ammo > 0 then
+          (LaserRay dir <$> shootLaserWithOffset shipCoords dir Infinite (`location` space), pred ammo)
+        else
+          (Nothing, ammo)
 
-      ((remainingBalls', destroyedBalls), maybeLaserRay) =
+      ((remainingBalls, destroyedBalls), maybeLaserRay) =
          maybe
            ((balls,[]), Nothing)
            (\r -> computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
              maybeLaserRayTheoretical
 
-      remainingBalls = case event of
-         Timeout (Deadline _ MoveFlyingItems) ->
-           if isNothing safeTime
-             then
-               filter (`notElem` collisions) remainingBalls'
-             else
-               remainingBalls'
-         _ -> remainingBalls'
   in (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo)
 
 
-isLevelFinished :: World
-                -> Int
-                -- ^ The current sum of all shot 'Numbers'
-                -> Int
-                -- ^ The 'Level' 's target number.
-                -> TimestampedEvent
-                -- ^ The current event
-                -> Maybe LevelFinished
-isLevelFinished (World _ (BattleShip _ ammo safeTime collisions) _ _ _) sumNumbers target (TimestampedEvent lastEvent t) =
+checkTargetAndAmmo :: Int
+                   -- ^ Remaining ammo
+                   -> Int
+                   -- ^ The current sum of all shot 'Numbers'
+                   -> Int
+                   -- ^ The 'Level' 's target number.
+                   -> SystemTime
+                   -- ^ The current time
+                   -> Maybe LevelFinished
+checkTargetAndAmmo ammo sumNumbers target t =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
-    allChecks = checkShipCollision <|> checkSum <|> checkAmmo
-
-    checkShipCollision = case lastEvent of
-      Timeout (Deadline _ MoveFlyingItems) ->
-        maybe
-          (case map (\(Number _ n) -> n) collisions of
-            [] -> Nothing
-            l  -> Just $ Lost $ "collision with " <> showListOrSingleton l)
-          (const Nothing)
-          safeTime
-      _ -> Nothing -- this optimization is to not re-do the check when nothing has moved
+    allChecks = checkSum <|> checkAmmo
 
     checkSum = case compare sumNumbers target of
       LT -> Nothing

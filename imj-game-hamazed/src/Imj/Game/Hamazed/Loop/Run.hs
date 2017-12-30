@@ -22,7 +22,7 @@ import           Imj.Game.Hamazed.Loop.Render
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.Types
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Threading
 
@@ -49,14 +49,14 @@ doRun =
     (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)
 
 {-# INLINABLE gameWorker #-}
-gameWorker :: (Draw e, MonadReader e m, MonadIO m)
+gameWorker :: (Render e, MonadReader e m, MonadIO m)
            => m ()
 gameWorker =
   getGameParameters >>= runGameWorker
 
 
 {-# INLINABLE runGameWorker #-}
-runGameWorker :: (Draw e, MonadReader e m, MonadIO m)
+runGameWorker :: (Render e, MonadReader e m, MonadIO m)
               => GameParameters
               -> m ()
 runGameWorker params =
@@ -66,7 +66,7 @@ runGameWorker params =
       Right ew -> loop params ew
 
 {-# INLINABLE loop #-}
-loop :: (Draw e, MonadReader e m, MonadIO m)
+loop :: (Render e, MonadReader e m, MonadIO m)
      => GameParameters
      -> GameState
      -> m ()

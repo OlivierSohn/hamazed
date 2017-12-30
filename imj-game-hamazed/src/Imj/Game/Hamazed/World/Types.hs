@@ -27,7 +27,6 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Animation.Design.Animation
 import           Imj.Graphics.Text.Animation
-import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Types
@@ -48,9 +47,9 @@ data WallDistribution = None
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
 -- | Helper function to create a 'RectContainer' containing a 'World'.
-mkWorldContainer :: LayeredColor -> World -> RectContainer
-mkWorldContainer colors (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
-  RectContainer sz upperLeft colors
+mkWorldContainer :: World -> RectContainer
+mkWorldContainer (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
+  RectContainer sz upperLeft
 
 data World = World {
     _worldNumbers :: ![Number]

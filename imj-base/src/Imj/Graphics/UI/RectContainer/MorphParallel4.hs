@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.UI.RectContainer.InterpolateParallel4
+module Imj.Graphics.UI.RectContainer.MorphParallel4
           ( renderPartialRectContainer
           , countRectContainerHorizontalChars
           , countRectContainerVerticalChars
@@ -14,7 +14,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 
 
@@ -35,11 +35,11 @@ countRectContainerVerticalChars (Size rs _) =
 renderPartialRectContainer :: (Draw e, MonadReader e m, MonadIO m)
                            => Size
                            -- ^ Dimensions of the content of the container
-                           -> LayeredColor
                            -> (Coords Pos, Int, Int)
                            -- ^ Coordinates of the upper left corner of the container, from, to.
+                           -> LayeredColor
                            -> m ()
-renderPartialRectContainer sz colors r =
+renderPartialRectContainer sz r colors =
   renderUpperWall sz colors r
     >>= renderRightWall sz colors
     >>= renderLowerWall sz colors

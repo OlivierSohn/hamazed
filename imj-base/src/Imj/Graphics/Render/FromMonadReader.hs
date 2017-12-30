@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Draw.FromMonadReader
+module Imj.Graphics.Render.FromMonadReader
        (
        -- ** Draw char(s)
          drawChar
@@ -16,7 +16,7 @@ module Imj.Graphics.Draw.FromMonadReader
        , drawAlignedTxt
        , drawAlignedColorStr
        -- ** Render to the physical device
-       , renderDrawing
+       , renderToScreen
        ) where
 
 import           Imj.Prelude
@@ -26,9 +26,10 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
-import           Imj.Graphics.Color(LayeredColor(..))
-import           Imj.Graphics.Draw.Class
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 
@@ -119,8 +120,8 @@ drawChar c co la = do
   d c co la
 
 -- | Render the drawing to {the screen, the console, etc...}.
-{-# INLINABLE renderDrawing #-}
-renderDrawing :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE renderToScreen #-}
+renderToScreen :: (Render e, MonadReader e m, MonadIO m)
               => m ()
-renderDrawing =
-  join (asks renderDrawing')
+renderToScreen =
+  join (asks renderToScreen')

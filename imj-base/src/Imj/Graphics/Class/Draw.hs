@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Draw.Class(
+module Imj.Graphics.Class.Draw(
          Draw(..)
        ) where
 
@@ -18,9 +18,6 @@ import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 
 
-{- | Class describing the ability to draw colored text on a drawing,
- and to render the resulting drawing.
--}
 --'drawChars'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
 --of 'drawChar', but the implementation would have been suboptimal in most cases.
 class Draw e where
@@ -68,6 +65,3 @@ class Draw e where
     let leftCorner = align' a (countChars cs)
     _ <- drawColorStr' env cs leftCorner
     return $ toNextLine a
-
-  -- | Render the drawing to the physical destination.
-  renderDrawing' :: (MonadIO m) => e -> m ()

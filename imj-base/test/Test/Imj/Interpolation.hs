@@ -15,7 +15,7 @@ import Imj.Geo.Discrete
 testInterpolation :: IO ()
 testInterpolation = mapM_ print testClock
 
-zipAll :: (DiscretelyInterpolable a) => Evolution a -> Frame -> (a, Maybe Float)
+zipAll :: (DiscreteInterpolation a) => Evolution a -> Frame -> (a, Maybe Float)
 zipAll e x = (getValueAt e x, getDeltaTimeToNextFrame e x)
 
 

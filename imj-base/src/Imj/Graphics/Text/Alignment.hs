@@ -1,10 +1,8 @@
--- | This module is about text alignment.
+-- | This module exports functions and types to handle text alignemnt.
 
 module Imj.Graphics.Text.Alignment
             ( -- * Alignment
-            {- | Text can be right-aligned and center-aligned.
-
-            Note that standard text is left-aligned. -}
+            {- | Text can be right-aligned, center-aligned or left-aligned. -}
               AlignmentKind(..)
             , Alignment(..)
             , mkRightAlign
@@ -20,11 +18,39 @@ import           Imj.Geo.Discrete
 
 -- TODO the reference coordinates should be part of 'Alignment'
 
--- | Specifies where the 'Text' should be drawn w.r.t the reference coordinates.
+-- | Specifies where the 'Text' is w.r.t the reference coordinates.
 data AlignmentKind = Centered
-                   -- ^ Draw the text centered on reference coordinates.
+                   {- ^ /Centered/ on reference coordinates, favoring the 'RIGHT'
+                   side in case of ambiguity:
+
+@
+  1
+  12
+ 123
+ 1234
+  ^
+@ -}
                    | RightAligned
-                   -- ^ Draw the text left of the reference coordinates.
+                   {- ^ /Left/ of the reference coordinates, including it:
+
+@
+   1
+  12
+ 123
+1234
+   ^
+@ -}
+                   | LeftAligned
+                   {- ^ /Right/ of the reference coordinates, including it:
+
+@
+1
+12
+123
+1234
+^
+@
+-}
 
 data Alignment = Alignment {
     _alignmentKing :: !AlignmentKind
@@ -57,9 +83,9 @@ align' (Alignment a ref) count =
 that should be done relatively to the reference coordinates in order to find
 the first character 'Coords'.
 
-For 'Centered', when we have an /even/ count of characters to draw,
-we (somewhat arbitrarily) chose to favor the 'RIGHT' 'Direction', as
-illustrated here where @^@ indicates where the reference 'Coords' is:
+For 'Centered', when we have an /even/ count of characters to draw, we
+(somewhat arbitrarily) chose to favor the 'RIGHT' 'Direction', as illustrated
+here where @^@ indicates where the reference 'Coords' is:
 
 @
    1
@@ -83,8 +109,9 @@ align a count =
     case a of
       -- for one character, centerered, there is no displacement:
       Centered     -> quot (count-1) 2
-      -- for one character, right aligned, there is a /1/ displacement:
-      RightAligned -> count
+      -- for one character, right aligned, there is no displacement:
+      RightAligned -> (count - 1)
+      LeftAligned -> 0
 
 -- | Moves the reference coordinate one line down.
 toNextLine :: Alignment -> Alignment

@@ -5,7 +5,8 @@ module Imj.Game.Hamazed.Env(
        , createEnv
        ) where
 
-import           Imj.Graphics.Draw.Class(Draw(..))
+import           Imj.Graphics.Class.Draw(Draw(..))
+import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Graphics.Render.Delta(newDefaultEnv, DeltaEnv)
 
 
@@ -20,12 +21,14 @@ instance Draw Env where
   drawChars'     (Env a) = drawChars'     a
   drawTxt'       (Env a) = drawTxt'       a
   drawStr'       (Env a) = drawStr'       a
-  renderDrawing' (Env a) = renderDrawing' a
   {-# INLINE drawChar' #-}
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
-  {-# INLINE renderDrawing' #-}
+-- | Forwards to the 'Render' instance of 'DeltaEnv'.
+instance Render Env where
+  renderToScreen' (Env a) = renderToScreen' a
+  {-# INLINE renderToScreen' #-}
 
 -- | Constructor of 'Env'
 createEnv :: IO Env

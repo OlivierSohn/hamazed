@@ -1,4 +1,4 @@
-module Test.Imj.Rendering(testSpace) where
+module Test.Imj.Render(testSpace) where
 
 import Control.Monad( void )
 import Control.Monad.Reader(liftIO)

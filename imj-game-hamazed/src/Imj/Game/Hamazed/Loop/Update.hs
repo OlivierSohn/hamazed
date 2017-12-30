@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Loop.Update
@@ -9,9 +10,8 @@ module Imj.Game.Hamazed.Loop.Update
 
 import           Imj.Prelude
 
-import           Data.Maybe( catMaybes )
+import           Data.Maybe( catMaybes, isNothing )
 
-import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Create
@@ -29,40 +29,85 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
+import           Imj.Util
 
 
--- TODO simplify : no need to update animations if it's not an animation event,
--- when there are new animations, update just these, not the other
-nextGameState :: GameState
-              -> TimestampedEvent
-              -> GameState
-nextGameState
-  (GameState b world@(World _ ship@(BattleShip posspeed ammo safeTime collisions)
+-- | Updates the state. It needs IO just to generate random numbers in case
+-- 'Event' is 'StartLevel'
+{-# INLINABLE update #-}
+update :: GameParameters
+       -- ^ 'World' creation parameters, used in case the 'Event' is 'StartLevel'.
+       -> GameState
+       -- ^ The current state
+       -> TimestampedEvent
+       -- ^ The 'TimestampedEvent' that should be handled here.
+       -> IO GameState
+update
+ params
+ state@(GameState b world@(World c d space animations e@(InTerminal mayTermWindow curUpperLeft))
+                  futWorld f h@(Level level target mayLevelFinished) anim)
+ (TimestampedEvent event t) =
+  case event of
+    StartLevel nextLevel ->
+      mkInitialState params nextLevel (Just state) >>= \case
+        Left err -> error err
+        Right s -> return s
+    (Timeout (Deadline _ AnimateUI)) ->
+      return $ updateAnim t state
+    (Timeout (Deadline _ DisplayContinueMessage)) ->
+      return $ case mayLevelFinished of
+        Just (LevelFinished stop finishTime _) ->
+          let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
+          in GameState b world futWorld f newLevel anim
+        Nothing -> state
+    (Timeout (Deadline _ Animate)) -> do
+      let worldCorner = translate' 1 1 curUpperLeft
+          newAnimations = updateAnimations (getKeyTime event) space mayTermWindow worldCorner animations
+      return $ GameState b (World c d space newAnimations e) futWorld f h anim
+    (Timeout (Deadline gt MoveFlyingItems)) -> do
+      let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld t world) futWorld f h anim
+      return $ onHasMoved movedState (KeyTime t)
+    Action Laser dir ->
+      return $ if isFinished anim
+        then
+          onLaser state dir (KeyTime t)
+        else
+          state
+    Action Ship dir ->
+      return $ accelerateShip' dir state
+    (Interrupt _) ->
+      return state
+    EndGame -> -- TODO instead, go back to game configuration ?
+      return state
+
+
+onLaser :: GameState
+        -> Direction
+        -> KeyTime
+        -> GameState
+onLaser
+  (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
                      space animations e@(InTerminal mayTermWindow curUpperLeft))
              futureWorld g (Level i target finished)
              (UIAnimation (UIEvolutions j upDown left) k l))
-  te@(TimestampedEvent event t) =
-  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = eventAction event world
-      keyTime = KeyTime t
-
+  dir keyTime@(KeyTime t) =
+  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) =
+        laserEventAction dir world
       outerSpaceAnims_ =
          if null destroyedBalls
            then
              maybe [] (outerSpaceAnims keyTime space) maybeLaserRay
            else
             []
-
-      newAnimations' =
-            destroyedNumbersAnimations keyTime event destroyedBalls
-         ++ shipAnims ship event
-         ++ maybe [] (`laserAnims` keyTime) maybeLaserRay
-         ++ outerSpaceAnims_
-         ++ animations
-
       worldCorner = translate' 1 1 curUpperLeft
-      newAnimations = updateAnimations (getKeyTime event) space mayTermWindow worldCorner newAnimations'
+      newAnimations =
+        updateAnimations (Just keyTime) space mayTermWindow worldCorner
+          $ destroyedNumbersAnimations keyTime dir destroyedBalls
+          ++ maybe [] (`laserAnims` keyTime) maybeLaserRay
+          ++ outerSpaceAnims_
 
-      newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions) space newAnimations e
+      newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions)
+                       space (newAnimations ++ animations) e
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newLeft =
@@ -70,14 +115,43 @@ nextGameState
           then
             left
           else
-            let frameSpace = mkWorldContainer worldFrameColors world
+            let frameSpace = mkWorldContainer world
                 infos = mkLeftInfo Normal newAmmo allShotNumbers
-                (_, _, leftMiddle) = getSideCentersAtDistance frameSpace 2
+                (_, _, leftMiddle, _) = getSideCentersAtDistance frameSpace 3 2
             in mkTextAnimRightAligned leftMiddle leftMiddle infos 0 -- 0 duration, since animation is over anyway
-      newFinished = finished <|> isLevelFinished newWorld (sum allShotNumbers) target te
+      newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
       newLevel = Level i target newFinished
       newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
   in assert (isFinished newAnim) $ GameState b newWorld futureWorld allShotNumbers newLevel newAnim
+
+-- | The world has moved, so we update it.
+onHasMoved :: GameState
+           -> KeyTime
+           -> GameState
+onHasMoved
+  (GameState b (World balls ship@(BattleShip _ _ safeTime collisions) space animations
+                      e@(InTerminal mayTermWindow curUpperLeft))
+             futureWorld shotNums (Level i target finished) anim)
+  keyTime@(KeyTime t) =
+  let worldCorner = translate' 1 1 curUpperLeft
+      newAnimations = updateAnimations (Just keyTime) space mayTermWindow worldCorner
+        $ shipAnims ship keyTime
+      remainingBalls =
+           if isNothing safeTime
+             then
+               filter (`notElem` collisions) balls
+             else
+               balls
+      newWorld = World remainingBalls ship space (newAnimations ++ animations) e
+      finishIfShipCollides =
+        maybe
+          (case map (\(Number _ n) -> n) collisions of
+            [] -> Nothing
+            l  -> Just $ LevelFinished (Lost $ "collision with " <> showListOrSingleton l) t InfoMessage )
+          (const Nothing)
+            safeTime
+      newLevel = Level i target (finished <|> finishIfShipCollides)
+  in assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim
 
 
 outerSpaceAnims :: KeyTime
@@ -114,49 +188,6 @@ accelerateShip' dir (GameState c (World wa ship wc wd we) b f g h) =
   let newShip = accelerateShip dir ship
       world = World wa newShip wc wd we
   in GameState c world b f g h
-
-
--- | Updates the state. It needs IO just to generate random numbers in case
--- 'Event' is 'StartLevel'
-{-# INLINABLE update #-}
-update :: GameParameters
-       -- ^ 'World' creation parameters
-       -- (will be used in case the 'Event' is 'StartLevel')
-       -> GameState
-       -- ^ The current state
-       -> TimestampedEvent
-       -- ^ The 'TimestampedEvent' that should be handled here.
-       -> IO GameState
-update
- params
- state@(GameState b world futWorld f h@(Level level target mayLevelFinished) anim)
- te@(TimestampedEvent event t) =
-  case event of
-    StartLevel nextLevel ->
-      mkInitialState params nextLevel (Just state) >>= \case
-        Left err -> error err
-        Right s -> return s
-    (Interrupt _) ->
-      return state
-    (Timeout (Deadline _ AnimateUI)) ->
-      return $ updateAnim t state
-    (Timeout (Deadline _ DisplayContinueMessage)) ->
-      return $ case mayLevelFinished of
-        Just (LevelFinished stop finishTime _) ->
-          let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
-          in GameState b world futWorld f newLevel anim
-        Nothing -> state
-    (Timeout (Deadline gt MoveFlyingItems)) -> do
-        let newState = GameState (Just $ addDuration gameMotionPeriod gt) (updateWorld t world) futWorld f h anim
-        return $ nextGameState newState te
-    Action Ship dir ->
-      return $ accelerateShip' dir state
-    _ ->
-      return $ if isFinished anim
-        then
-          nextGameState state te
-        else
-          state
 
 updateAnim :: SystemTime -> GameState -> GameState
 updateAnim t (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it)) =

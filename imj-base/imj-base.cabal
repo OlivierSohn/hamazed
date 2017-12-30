@@ -12,7 +12,7 @@ Description:         Library containing common types for color, continuous and d
                      using what is called "delta rendering".
                      .
 
-                     Provides DiscretelyInterpolable instances to animate common types.
+                     Provides DiscreteDistance instances to animate common types.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -49,13 +49,47 @@ library
                      , Imj.Geo.Continuous.Conversion
                      , Imj.Geo.Continuous.Types
                      , Imj.Geo.Types
-                     , Imj.Graphics.Color.Types
+                     , Imj.Graphics.Class
+                     , Imj.Graphics.Class.Colorable
+                     , Imj.Graphics.Class.DiscreteColorableMorphing
+                     , Imj.Graphics.Class.DiscreteInterpolation
+                     , Imj.Graphics.Class.DiscreteMorphing
+                     , Imj.Graphics.Class.Drawable
+                     , Imj.Graphics.Class.Draw
+                     , Imj.Graphics.Class.HasLayeredColor
+                     , Imj.Graphics.Class.Render
+                     , Imj.Graphics.Class.DiscreteDistance
                      , Imj.Graphics.Color
+                     , Imj.Graphics.Color.Types
+                     , Imj.Graphics.Render
+                     , Imj.Graphics.Render.FromMonadReader
+                     , Imj.Graphics.Interpolation
+                     , Imj.Graphics.Interpolation.SequentiallyInterpolatedList
+                     , Imj.Graphics.Interpolation.Evolution
+                     , Imj.Graphics.Math.Ease
+                     , Imj.Graphics.Render.Delta
+                     , Imj.Graphics.Render.Delta.Buffers
+                     , Imj.Graphics.Render.Delta.Buffers.Dimensions
+                     , Imj.Graphics.Render.Delta.Cell
+                     , Imj.Graphics.Render.Delta.Cells
+                     , Imj.Graphics.Render.Delta.Clear
+                     , Imj.Graphics.Render.Delta.Console
+                     , Imj.Graphics.Render.Delta.DefaultPolicies
+                     , Imj.Graphics.Render.Delta.Draw
+                     , Imj.Graphics.Render.Delta.DynUnboxedVec
+                     , Imj.Graphics.Render.Delta.Env
+                     , Imj.Graphics.Render.Delta.Flush
+                     , Imj.Graphics.Render.Delta.Internal.Types
+                     , Imj.Graphics.Render.Delta.Types
+                     , Imj.Graphics.Render.Naive
                      , Imj.Graphics.Text.Alignment
                      , Imj.Graphics.Text.Animation
                      , Imj.Graphics.Text.ColorString
+                     , Imj.Graphics.Text.ColorString.Interpolation
                      , Imj.Graphics.UI.Animation
+                     , Imj.Graphics.UI.Colored
                      , Imj.Graphics.UI.RectContainer
+                     , Imj.Graphics.UI.RectContainer.MorphParallel4
                      , Imj.Input
                      , Imj.Input.Blocking
                      , Imj.Input.NonBlocking
@@ -67,34 +101,6 @@ library
                      , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
-                        -- former package : imj-draw
-                     , Imj.Graphics.Draw
-                     , Imj.Graphics.Draw.Class
-                     , Imj.Graphics.Draw.FromMonadReader
-                       -- former package : imj-render-delta-term
-                     , Imj.Graphics.Render.Delta
-                     , Imj.Graphics.Render.Delta.Buffers
-                     , Imj.Graphics.Render.Delta.Buffers.Dimensions
-                     , Imj.Graphics.Render.Delta.Cell
-                     , Imj.Graphics.Render.Delta.Cells
-                     , Imj.Graphics.Render.Delta.Clear
-                     , Imj.Graphics.Render.Delta.Console
-                     , Imj.Graphics.Render.Delta.DefaultPolicies
-                     , Imj.Graphics.Render.Delta.DynUnboxedVec
-                     , Imj.Graphics.Render.Delta.Draw
-                     , Imj.Graphics.Render.Delta.Env
-                     , Imj.Graphics.Render.Delta.Flush
-                     , Imj.Graphics.Render.Delta.Internal.Types
-                     , Imj.Graphics.Render.Delta.Types
-                       -- former package : imj-render-naive-term
-                     , Imj.Graphics.Render.Naive
-                       -- former package : imj-interpolation-base
-                     , Imj.Graphics.Interpolation
-                     , Imj.Graphics.Interpolation.Class
-                     , Imj.Graphics.Interpolation.Evolution
-                     , Imj.Graphics.Math.Ease
-                       -- former package : imj-interpolation
-                     , Imj.Graphics.UI.RectContainer.InterpolateParallel4
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*

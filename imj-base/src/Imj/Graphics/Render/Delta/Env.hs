@@ -1,39 +1,25 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This module exports functions to create and configure a 'DeltaEnv'.
 
 module Imj.Graphics.Render.Delta.Env
-          (
-          -- * Type
-            DeltaEnv
-          -- * Creation
-          , newDefaultEnv
-          , newEnv
-          -- * Configuration
-          --
-          -- | Policy changes will be applied only after the next render:
-          --
-          --     * 'setResizePolicy' lets you chose how front and back buffer resize:
-          --     they can either dynamically adapt to the terminal size, or have a fixed size.
-          --
-          --     * 'setClearPolicy' and 'setClearColor' let you configure if and how the back buffer
-          --      is cleared after a render.
-          --
-          --     * Finally, 'setStdoutBufferMode' lets you to chose stdout's 'BufferMode'.
-
-          , setResizePolicy
-          , defaultResizePolicy
-          , ResizePolicy(..)
-          , setClearPolicy
-          , defaultClearPolicy
-          , ClearPolicy(..)
-          , setClearColor
-          , defaultClearColor
-          , setStdoutBufferMode
-          , defaultStdoutMode
-          -- * Reexports
-          , BufferMode(..)
-          ) where
+    ( DeltaEnv
+    , newDefaultEnv
+    , newEnv
+    , ResizePolicy(..)
+    , defaultResizePolicy
+    , setResizePolicy
+    , ClearPolicy(..)
+    , defaultClearPolicy
+    , setClearPolicy
+    , defaultClearColor
+    , setClearColor
+    , defaultStdoutMode
+    , setStdoutBufferMode
+    -- * Reexports
+    , BufferMode(..)
+    ) where
 
 import           Imj.Prelude
 
@@ -44,40 +30,43 @@ import           Control.Monad.IO.Class(liftIO)
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
 
-import           Imj.Graphics.Draw.Class
-
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Console
+import           Imj.Graphics.Render.Delta.DefaultPolicies
 import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Flush
-import           Imj.Graphics.Render.Delta.DefaultPolicies
 import           Imj.Graphics.Render.Delta.Types
 
 newtype DeltaEnv = DeltaEnv (IORef Buffers)
 
--- | Draws and renders using the delta rendering engine.
+-- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
   drawChar'      (DeltaEnv a) b c d   = liftIO $ deltaDrawChar  a b c d
   drawChars'     (DeltaEnv a) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a) b c d   = liftIO $ deltaDrawStr   a b c d
-  renderDrawing' (DeltaEnv a)         = liftIO $ deltaFlush     a
   {-# INLINABLE drawChar' #-}
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
-  {-# INLINABLE renderDrawing' #-}
+-- | Renders using the delta rendering engine.
+instance Render DeltaEnv where
+  renderToScreen' (DeltaEnv a)         = liftIO $ deltaFlush     a
+  {-# INLINABLE renderToScreen' #-}
 
 
--- | Creates an environment using default policies (see "Imj.Graphics.Render.Delta.DefaultPolicies").
+-- | Creates an environment using default policies.
 newDefaultEnv :: IO DeltaEnv
 newDefaultEnv = newEnv Nothing Nothing Nothing Nothing
 
+-- | Creates an environment with policies.
 newEnv :: Maybe ResizePolicy
        -> Maybe ClearPolicy
        -> Maybe (Color8 Background)
        -> Maybe BufferMode
-       -- ^ Preferred stdout buffering.
+       -- ^ Preferred stdout 'BufferMode'.
        -> IO DeltaEnv
 newEnv a b c mayBufferMode = do
   let stdoutBufMode = fromMaybe defaultStdoutMode mayBufferMode
@@ -85,7 +74,7 @@ newEnv a b c mayBufferMode = do
   DeltaEnv <$> newContext a b c
 
 
--- | Sets the 'ResizePolicy' for front and back buffers.
+-- | Sets the 'ResizePolicy' for back and front buffers.
 -- Defaults to 'defaultResizePolicy' when Nothing is passed.
 setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
@@ -109,7 +98,7 @@ setClearPolicy mayClearPolicy (DeltaEnv ref) =
           buffers = Buffers a b d e (Policies f clearPolicy clearColor)
       writeIORef ref buffers
 
--- | Sets 'ClearColor' to use when clearing.
+-- | Sets the 'Color8' to use when clearing.
 --   Defaults to 'defaultClearColor' when Nothing is passed.
 setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv

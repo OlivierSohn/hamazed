@@ -40,13 +40,10 @@ Hence, when multiple overdue deadlines are competing, the following priorities a
 	\end{array}
 \]
 
-Applying these priorities to overdue 'Deadline's, a long-overdue 'Animate' deadline
-could be ignored in favor of a recent 'MoveFlyingItems' deadline.
-
-Note that if no 'Deadline' is overdue (they all happen in the future), we return
-the closest one in time, irrespective of its priority.
-
-We /could/ apply priorities for non-overdue deadlines, too. For example if a
+When no 'Deadline' is overdue, we return the closest one in time, irrespective
+of its priority.
+-}
+{-We /could/ apply priorities for non-overdue deadlines, too. For example if a
 'MoveFlyingItems' very closely follows an 'Animate' (say, 15 millisecond after),
 we could swap their order so as to have a better guarantee that the game motion
 will happen in-time and not be delayed by a potentially heavy animation update.

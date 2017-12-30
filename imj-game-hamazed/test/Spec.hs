@@ -1,10 +1,11 @@
 import Control.Monad.Reader(runReaderT)
 
-import           Imj.Graphics.Draw
-import           Imj.Game.Hamazed.Env
+import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta(runThenRestoreConsoleSettings)
 
-import           Test.Imj.Rendering
+import           Imj.Game.Hamazed.Env
+
+import           Test.Imj.Render
 
 main :: IO ()
 main = do
@@ -13,4 +14,4 @@ main = do
   runThenRestoreConsoleSettings $
     createEnv
       >>= runReaderT (testSpace >> -- this is it visible in the logs, not in the console
-                      renderDrawing)
+                      renderToScreen)

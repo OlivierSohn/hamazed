@@ -19,14 +19,15 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Geo.Discrete
 import           Imj.Iteration
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString
-import           Imj.Timing
+import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Timing
 
 
 -- | Manages the progress and deadline of 'UIEvolutions'.
@@ -43,7 +44,7 @@ data UIAnimation = UIAnimation {
 -- | Used when transitionning between two levels to smoothly transform the aspect
 -- of the 'RectContainer', as well as textual information around it.
 data UIEvolutions = UIEvolutions {
-    _uiEvolutionContainer :: !(Evolution RectContainer)
+    _uiEvolutionContainer :: !(Evolution (Colored RectContainer))
     -- ^ The transformation of the 'RectContainer'.
   , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
@@ -67,7 +68,7 @@ renderUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
                   -> m ()
 renderUIAnimation (UIAnimation we@(UIEvolutions frameE upDown left) _ (Iteration _ frame)) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
-  drawValueAt frameE relFrameFrameE
+  drawMorphingAt frameE relFrameFrameE
   renderAnimatedTextCharAnchored upDown relFrameUD
   renderAnimatedTextStringAnchored left relFrameLeft
 
@@ -91,19 +92,20 @@ getRelativeFrames
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
 
-mkUIAnimation :: (RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
+mkUIAnimation :: (Colored RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
               -- ^ From
-              -> (RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
+              -> (Colored RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
               -- ^ To
               -> SystemTime
               -- ^ Time at which the animation starts
               -> UIAnimation
-mkUIAnimation (from, ((f1,f2),f3)) (to, ((t1,t2),t3)) t =
+mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
+              (to@(Colored _ toR), ((t1,t2),t3)) t =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
   frameE = mkEvolutionEaseQuart (Successive [from, to]) 1
 
-  (ta1,ta2) = createUITextAnimations from to (f1++t1, f2++t2, zipWith (++) f3 t3) 1
+  (ta1,ta2) = createUITextAnimations fromR toR (f1++t1, f2++t2, zipWith (++) f3 t3) 1
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
     maybe
@@ -121,8 +123,8 @@ createUITextAnimations :: RectContainer
                        -> Float
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) duration =
-    let (centerUpFrom, centerDownFrom, leftMiddleFrom) = getSideCentersAtDistance from 2
-        (centerUpTo, centerDownTo, leftMiddleTo) = getSideCentersAtDistance to 2
+    let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) = getSideCentersAtDistance from 3 2
+        (centerUpTo, centerDownTo, leftMiddleTo, _) = getSideCentersAtDistance to 3 2
         ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
         ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts duration
     in (ta1, ta2)

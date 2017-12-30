@@ -17,7 +17,7 @@ module Imj.Game.Hamazed.World.Space
     , renderSpace
     , createRandomNonCollidingPosSpeed
     -- * Reexports
-    , module Imj.Graphics.Draw
+    , module Imj.Graphics.Render
     ) where
 
 import           Imj.Prelude
@@ -44,7 +44,7 @@ import           Foreign.C.Types( CInt(..) )
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
 

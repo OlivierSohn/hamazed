@@ -32,7 +32,7 @@ import           Imj.Prelude
 import           Data.List( minimumBy, partition )
 import           Data.Maybe( isJust, isNothing )
 
-import           Imj.Graphics.Draw
+import           Imj.Graphics.Render
 import           Imj.GameItem.Weapon.Laser.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision

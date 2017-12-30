@@ -64,7 +64,7 @@ data Material = Air
 data Boundaries = WorldFrame
                 -- ^ Just the world.
                 | TerminalWindow
-                -- ^ Outside the world, in the terminal.
+                -- ^ The terminal, not the world.
                 | Both
-                -- ^ The whole terminal.
+                -- ^ The terminal.
                 deriving(Show)

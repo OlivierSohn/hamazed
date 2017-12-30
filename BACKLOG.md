@@ -2,6 +2,20 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
+  - split updateAnimationIfNeeded:
+    - animationShouldBeUpdated :: KeyTime -> Animation -> Bool
+    - updateAnimation :: (no KeyTime) ...
+  - restructure doc for animations:
+    - "update / render"
+    - "create simple animations"
+      - ready to use animations
+        - explosive
+        - free fall
+      - nice chars
+    - "create advanced animations"
+      - animation functions
+      - animation framework
+
   - provide examples for mkSequentialTextTranslationsCharAnchored
 
   - use y in github to permalinks Env.hs

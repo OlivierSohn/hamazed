@@ -90,4 +90,5 @@ microsecondsToDiffTime x = fromRational (x % fromIntegral microSecondsPerSecond)
 
 -- | Adds a 'DiffTime' to a 'KeyTime'.
 addDuration :: DiffTime -> KeyTime -> KeyTime
-addDuration durationSeconds (KeyTime t) = KeyTime $ addToSystemTime durationSeconds t
+addDuration durationSeconds (KeyTime t) =
+  KeyTime $ addToSystemTime durationSeconds t

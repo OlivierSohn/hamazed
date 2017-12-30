@@ -47,9 +47,6 @@ module Imj.Game.Hamazed
         -- * Deadlines
       , Deadline(..)
       , DeadlineType(..)
-        -- * Timestamped Events
-        -- | Every 'Event' is timestamped with the time at which it was generated:
-      , TimestampedEvent(..)
         -- * Events
       , Event(..)
       , ActionTarget(..)

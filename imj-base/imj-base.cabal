@@ -3,16 +3,13 @@ version:             0.1.0.0
 Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
 Synopsis: Discrete & continuous geo, easing, animated text, delta rendering
-Description:         Library containing common types for color, continuous and discrete geometry,
-                     collision detection, simple UIs, colored text,
-                     interpolation.
+Description:         Game engine library containing : common types, classes, discrete and
+                     continuous geometry, collision detection, animated UIs, colored text,
+                     interpolations and morphings.
                      .
 
-                     An optimized renderer avoids screen tearing in the terminal,
-                     using what is called "delta rendering".
-                     .
-
-                     Provides DiscreteDistance instances to animate common types.
+                     Also contains an optimized renderer to avoid screen tearing in the terminal,
+                     using "delta rendering".
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3

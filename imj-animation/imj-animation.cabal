@@ -26,12 +26,13 @@ library
                      , Imj.Graphics.Animation.Geo
                       -- initially in a separate module for core
                      , Imj.Graphics.Animation.Design
-                     , Imj.Graphics.Animation.Design.Animation
-                     , Imj.Graphics.Animation.Design.Apply
                      , Imj.Graphics.Animation.Design.Color
+                     , Imj.Graphics.Animation.Design.Create
+                     , Imj.Graphics.Animation.Design.Render
                      , Imj.Graphics.Animation.Design.Timing
                      , Imj.Graphics.Animation.Design.Types
                      , Imj.Graphics.Animation.Design.Update
+                     , Imj.Graphics.Animation.Design.UpdateAnimatedPoints
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*

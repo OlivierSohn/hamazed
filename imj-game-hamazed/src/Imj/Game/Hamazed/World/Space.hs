@@ -302,19 +302,22 @@ renderGroup worldCoords (RenderGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
 
 scopedLocation :: Space
-                 -> Maybe (Window Int)
-                 -- ^ The terminal size
-                 -> Coords Pos
-                 -- ^ The world upper left coordinates w.r.t terminal frame.
-                 -> Boundaries
-                 -- ^ The scope
-                 -> Coords Pos
-                 -- ^ The coordinates to test
-                 -> Location
+               -> Maybe (Window Int)
+               -- ^ The terminal size
+               -> Coords Pos
+               -- ^ The world upper left coordinates w.r.t terminal frame.
+               -> Boundaries
+               -- ^ The scope
+               -> Coords Pos
+               -- ^ The coordinates to test
+               -> Location
 scopedLocation space@(Space _ sz _) mayTermWindow wcc =
+  -- Use a big terminal by default, it will just make animations be updated for longer
+  -- than they should:
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
-      terminalLocation (Window h w) coordsInWorld =
+      (Window h w) = fromMaybe (Window {height = 150, width = 400}) mayTermWindow
+      terminalLocation coordsInWorld =
         let (Coords (Coord r) (Coord c)) = sumCoords coordsInWorld wcc
         in if r >= 0 && r < h && c >= 0 && c < w
              then
@@ -326,15 +329,9 @@ scopedLocation space@(Space _ sz _) mayTermWindow wcc =
         OutsideWorld -> OutsideWorld
   in \case
     WorldFrame -> worldLocation
-    TerminalWindow -> maybe
-                        worldLocation
-                        (\wd coo-> if containsWithOuterBorder coo sz
-                                    then
-                                      OutsideWorld
-                                    else
-                                      terminalLocation wd coo)
-                        mayTermWindow
-    Both       -> maybe
-                    worldLocation
-                    (\wd coo-> productLocations (terminalLocation wd coo) (worldLocationExcludingBorders coo))
-                    mayTermWindow
+    TerminalWindow -> (\coo-> if containsWithOuterBorder coo sz
+                                then
+                                  OutsideWorld
+                                else
+                                  terminalLocation coo)
+    Both -> (\coo-> productLocations (terminalLocation coo) (worldLocationExcludingBorders coo))

@@ -5,8 +5,7 @@
 
 module Imj.Game.Hamazed.Loop.Event
     ( needsRendering
-    , getKeyTime
-    , getTimedEvent
+    , getEvent
     -- * Reexports
     , module Imj.Game.Hamazed.Loop.Event.Types
     ) where
@@ -24,16 +23,6 @@ needsRendering :: Event -> Bool
 needsRendering = \case
   (Action Ship _) -> False -- When the ship accelerates, nothing changes visually
   _ -> True
-
-getKeyTime :: Event -> Maybe KeyTime
-getKeyTime (Timeout (Deadline k _)) = Just k
-getKeyTime _                        = Nothing
-
-getTimedEvent :: GameState -> IO TimestampedEvent
-getTimedEvent state =
-  getEvent state >>= \evt -> do
-    t <- getSystemTime
-    return $ TimestampedEvent evt t
 
 getEvent :: GameState -> IO Event
 getEvent state = do

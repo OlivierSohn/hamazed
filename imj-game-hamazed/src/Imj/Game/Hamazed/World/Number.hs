@@ -17,27 +17,27 @@ import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation
-import           Imj.Timing
 
 getColliding :: Coords Pos -> [Number] -> [Number]
 getColliding pos =
   filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
 
-destroyedNumbersAnimations :: KeyTime
-                           -> Direction
-                           -- ^ 'Direction' of the laser shot
+destroyedNumbersAnimations :: Either SystemTime KeyTime
+                           -> Direction -- ^ 'Direction' of the laser shot
+                           -> World -- ^ the 'World' the 'Number's live in
                            -> [Number]
-                           -> [BoundedAnimation]
-destroyedNumbersAnimations keyTime dir =
+                           -> [Animation]
+destroyedNumbersAnimations keyTime dir world =
   let laserSpeed = speed2vec $ coordsForDirection dir
-  in concatMap (destroyedNumberAnimations keyTime laserSpeed)
+  in concatMap (destroyedNumberAnimations keyTime laserSpeed world)
 
-destroyedNumberAnimations :: KeyTime
+destroyedNumberAnimations :: Either SystemTime KeyTime
                           -> Vec2 Vel
+                          -> World
                           -> Number
-                          -> [BoundedAnimation]
-destroyedNumberAnimations keyTime laserSpeed (Number (PosSpeed pos _) n) =
+                          -> [Animation]
+destroyedNumberAnimations k laserSpeed world (Number (PosSpeed pos _) n) =
   let char = intToDigit n
-  in map (`BoundedAnimation` WorldFrame)
-        $ animatedPolygon n pos keyTime (Speed 1) char
-        : fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos keyTime (Speed 2) char
+      envFunc = environmentInteraction world WorldFrame
+  in catMaybes ([animatedPolygon n pos envFunc (Speed 1) k char])
+     ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos envFunc (Speed 2) k char

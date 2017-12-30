@@ -19,7 +19,6 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 import           Imj.Graphics.Animation
-import           Imj.Timing
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.
@@ -27,19 +26,21 @@ this function creates an animation where the ship and the colliding number explo
 The ship animation will have the initial speed of the number and vice-versa,
 to mimic the rebound due to the collision.
 -}
-shipAnims :: BattleShip
+shipAnims :: World
           -> KeyTime
-          -> [BoundedAnimation]
-shipAnims (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) k =
+          -> [Animation]
+shipAnims world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _ _) k =
   if not (null collisions) && isNothing safeTime
     then
       -- when number and ship explode, they exchange speeds
-      let collidingNumbersSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
+      let collidingNumbersAvgSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
+          numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
+          shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
           (Number _ n) = head collisions
-      in  map (`BoundedAnimation` WorldFrame) $
-              fragmentsFreeFallThenExplode (scalarProd 0.4 $ speed2vec collidingNumbersSpeed) shipCoords k (Speed 1) '|'
-              ++
-              fragmentsFreeFallThenExplode (scalarProd 0.4 $ speed2vec shipSpeed) shipCoords k (Speed 1) (intToDigit n)
+          interaction = environmentInteraction world WorldFrame
+      in  fragmentsFreeFallThenExplode numSpeed shipCoords interaction (Speed 1) (Right k) '|'
+          ++
+          fragmentsFreeFallThenExplode shipSpeed2 shipCoords interaction (Speed 1) (Right k) (intToDigit n)
     else
       []
 

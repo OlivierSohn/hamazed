@@ -71,10 +71,9 @@ loop :: (Render e, MonadReader e m, MonadIO m)
      -> GameState
      -> m ()
 loop params state = do
-  te@(TimestampedEvent evt _) <- liftIO $ getTimedEvent state
-  case evt of
+  liftIO (getEvent state) >>= \evt -> case evt of
     (Interrupt _) -> return ()
     _ -> do
-      newState <- liftIO $ update params state te
+      newState <- liftIO $ update params state evt
       when (needsRendering evt) $ render newState
       loop params newState

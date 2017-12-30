@@ -10,7 +10,7 @@ module Imj.Graphics.Animation.Chars
 
 import           Imj.Prelude
 
-import Data.Word(Word8)
+import           Data.Word(Word8)
 
 -- | Returns one of the characters that /look good/ for explosive animations.
 niceChar :: Word8

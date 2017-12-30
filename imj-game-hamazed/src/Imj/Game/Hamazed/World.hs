@@ -114,10 +114,6 @@ module Imj.Game.Hamazed.World
     --
     -- 'Number's never change speed, except when they rebound on 'Wall's, of course.
     , Number(..)
-    -- * BoundedAnimation
-    -- | 'BoundedAnimation' allows to specify in which environment an 'Animation'
-    -- runs : in the world, in the terminal, in both (see 'Boundaries')
-    , BoundedAnimation(..)
     -- * UI
     {- | UI elements around the 'World' are:
 
@@ -173,11 +169,11 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'BoundedAnimation's are not updated.
-moveWorld :: SystemTime
+moveWorld :: KeyTime
           -- ^ The current time
           -> World
           -> World
-moveWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
+moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t
                       then

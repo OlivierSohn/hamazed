@@ -14,8 +14,9 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.Animation.Design.Render
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Physics.Discrete.Collision
 
 
 -- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid
@@ -23,11 +24,11 @@ import           Imj.Physics.Discrete.Collision
 {-# INLINABLE render #-}
 render :: (Render e, MonadReader e m, MonadIO m)
        => GameState -> m ()
-render (GameState _ world@(World _ _ space animations (InTerminal mayTermWindow curUpperLeft))
+render (GameState _ world@(World _ _ space animations (InTerminal _ curUpperLeft))
                   _ _ level wa) =
   renderSpace space curUpperLeft >>=
     (\worldCorner -> do
-        renderAnimations space mayTermWindow worldCorner animations
+        renderAnimations worldCorner animations
         -- TODO merge 2 functions below (and no need to pass worldCorner)
         renderWorld world
         let (_,_,_,rightMiddle) = getSideCentersAtDistance (mkWorldContainer world) 3 2
@@ -38,16 +39,9 @@ render (GameState _ world@(World _ _ space animations (InTerminal mayTermWindow 
 
 {-# INLINABLE renderAnimations #-}
 renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
-                 => Space
-                 -> Maybe (Window Int)
-                 -> Coords Pos
-                 -> [BoundedAnimation]
+                 => Coords Pos
+                 -> [Animation]
                  -> m ()
-renderAnimations space mayTermWindow worldCorner animations = do
-  let renderAnimation (BoundedAnimation a scope) = do
-        let interaction =
-              scopedLocation space mayTermWindow worldCorner scope >>> \case
-                InsideWorld  -> Stable
-                OutsideWorld -> Mutation
-        renderAnim a interaction worldCorner
+renderAnimations worldCorner animations = do
+  let renderAnimation a = renderAnim a worldCorner
   mapM_ renderAnimation animations

@@ -1,41 +1,73 @@
+{-# OPTIONS_HADDOCK hide #-}
+
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Imj.Graphics.Animation.Design.Types
-          ( AnimatedPoints(..)
+          ( Animation(..)
+          , StepType(..)
+          , UpdateSpec(..)
+          , AnimatedPoints(..)
           , AnimatedPoint(..)
           , CanInteract(..)
           , InteractionResult(..)
           ) where
 
+import           Imj.Prelude
+
+import           GHC.Show(showString)
+
 import           Imj.Geo.Discrete
 import           Imj.Iteration
+import           Imj.Timing
 
-{- | 'AnimatedPoints' can be seen as a
-<https://en.wikipedia.org/wiki/Tree_(graph_theory) tree>, whith
 
-* internal nodes that are 'AnimatedPoints' with 'Just' branches.
-* leaves that are one of:
+data Animation = Animation {
+    _animationPoints :: !AnimatedPoints
+    -- ^ The current points.
+  , _animationUpdate :: !((Coords Pos -> InteractionResult)
+                      -> Frame
+                      -> AnimatedPoints
+                      -> AnimatedPoints)
+    -- ^ The function updating 'AnimatedPoints'.
+  , _animationInteraction :: !(Coords Pos -> InteractionResult)
+    -- ^ The environment interaction function.
+  , _animationNextUpdateSpec :: !UpdateSpec
+    -- ^ The time and iteration of the next update
+  , _animationChar :: !(Maybe Char)
+    -- ^ The char used to draw animated points when the 'AnimatedPoints'
+    -- don't specify one. If 'Nothing', the animation function /must/ specify one
+    -- when creating new 'AnimatedPoint's.
+}
 
-    * 'AnimatedPoint'
-    * 'AnimatedPoints' with 'Nothing' branches
+instance Show Animation where
+  showsPrec _ (Animation a _ _ b c) =
+    showString $ "Animation{" ++ show (a,b,c) ++ "}"
 
-* a <https://en.wikipedia.org/wiki/Branching_factor branching factor> @=@
-the number of 'AnimatedPoint' returned by a call to the /animation functions/
-that generate the first-level 'AnimatedPoint's for this 'AnimatedPoints'.
 
-[Growth]
-'AnimatedPoints' is said to /grow/ when an interaction between one of its 'AnimatedPoint's
-and the environment results in a 'Mutation' into a new 'AnimatedPoints' with 'Nothing' branches.
+data UpdateSpec = UpdateSpec {
+    _updateSpecTime :: !KeyTime
+    -- ^ The time at which the update should happen.
+  , _updateSpecIteration :: !Iteration
+    -- ^ The iteration that will be used in the update.
+} deriving(Show)
 
-[Center]
-The /center/ of an 'AnimatedPoints' is the coordinates passed to the animation function
-to allow them to place 'AnimatedPoint's accordingly.
--}
+-- | Specifies what should be updated in the 'Animation'.
+data StepType = Initialize
+              -- ^ Update 'AnimatedPoints'
+              | Update
+              -- ^ Update 'AnimatedPoints' and 'Iteration'
+              | Same
+              -- ^ Update 'Iteration'
+
+
 data AnimatedPoints = AnimatedPoints {
-    _animatedPointsFrame :: !Frame
-    -- ^ The frame at which this 'AnimatedPoints' was initialized, relatively to the parent, if any.
+    _animatedPointsBranches :: !(Maybe [Either AnimatedPoints AnimatedPoint])
+    -- ^ When a 'Right' 'AnimatedPoint' mutates, it is converted to an empty 'Left' 'AnimatedPoints'
   , _animatedPointsCenter :: !(Coords Pos)
-    -- ^ The center, w.r.t the animation reference frame.
-  , _animatedPointsBranches :: !(Maybe [Either AnimatedPoints AnimatedPoint])
-    -- ^ The tree structure
+    -- ^ The center, aka the coordinates of the 'AnimatedPoint', w.r.t the animation reference frame,
+    -- that gave birth to this 'AnimatedPoints'.
+  , _animatedPointsFrame :: !Frame
+    -- ^ The frame at which this 'AnimatedPoints' was created, relatively to the parent, if any.
 } deriving (Show)
 
 -- | Represents an animated point.
@@ -56,9 +88,6 @@ data CanInteract = DontInteract
                  -- animation functions returning 'AnimatedPoint's that
                  -- 'DontInteract' should return an empty list of 'AnimatedPoint's
                  -- for each 'Frame' after a given 'Frame'.
-                 --
-                 -- TODO document why that works, as it breaks the
-                 -- /animation functions should return the same number of 'AnimatedPoint's at each iteration/ law.
                  | Interact
                  -- ^ The 'AnimatedPoint' can be mutated after an interaction
                  -- with the environment.

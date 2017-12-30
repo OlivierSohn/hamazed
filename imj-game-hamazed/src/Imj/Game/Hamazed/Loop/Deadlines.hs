@@ -16,6 +16,7 @@ import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.Animation.Design.Update
 import           Imj.Timing
 
 
@@ -99,4 +100,4 @@ uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
 -- | Returns the earliest 'BoundedAnimation' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ animations _) =
-  earliestDeadline $ map (\(BoundedAnimation a _) -> a) animations
+  earliestDeadline animations

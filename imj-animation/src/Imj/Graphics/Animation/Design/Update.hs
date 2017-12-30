@@ -4,45 +4,97 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.Animation.Design.Update
-    ( updateAnimatedPoints
+    ( updateAnimationIfNeeded
+    , earliestDeadline
     ) where
 
 
 import           Imj.Prelude
 
-import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Apply
+import           Data.Either(partitionEithers)
+
 import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.Animation.Design.Timing
 import           Imj.Iteration
+import           Imj.Timing
 
 
-{- | Given a length \( n \) list of animation functions, updates the \( n \)
-first levels of an 'AnimatedPoints' using one animation function per level.
+{- | Updates the 'Animation' if the current time is /close enough/
+(cf. 'animationUpdateMargin') to the 'Animation' deadline. Else, the unmodified
+'Animation' is returned. -}
+updateAnimationIfNeeded :: KeyTime
+                        -- ^ The 'KeyTime' we want to update
+                        -> Animation
+                        -- ^ The current animation
+                        -> Maybe Animation
+                        -- ^ The updated animation, or Nothing if the 'Animation'
+                        -- is over.
+updateAnimationIfNeeded
+ keyTime
+ anim@(Animation points@(AnimatedPoints branches _ _) update interaction u@(UpdateSpec k it@(Iteration _ frame)) c) =
+  let step = computeStep branches k keyTime
+      newPoints = update interaction frame points
+      newUpdateSpec = case step of
+                        Update -> UpdateSpec (addDuration animationPeriod k) (nextIteration it)
+                        _      -> u
+      newAnim = Animation newPoints update interaction newUpdateSpec c
+  in case step of
+       Same -> Just anim
+       _    -> case isActive newAnim of
+                 True -> Just newAnim
+                 False -> Nothing
 
-An 'AnimatedPoint' at level \( k <= n \) can mutate to an 'AnimatedPoints' by
-interacting with its environment:
+defaultStep :: Maybe [Either AnimatedPoints AnimatedPoint] -> StepType
+defaultStep =
+  -- if branches is Nothing, it is the first time the animation is rendered / updated
+  -- so we need to initialize the state
+  maybe Initialize (const Same)
 
-* if \( k = n \) , the new 'AnimatedPoints' will remain empty.
-* if \( k < n \), the new 'AnimatedPoints' will be populated by 'AnimatedPoints'
-using the \( k+1 \)th animation function.
--}
-updateAnimatedPoints :: [Coords Pos -> Frame -> [AnimatedPoint]]
-                     -- ^ The animation function at index @i@ updates
-                     -- 'AnimatedPoints' at level @i@.
-                     -> Frame
-                     -- ^ Current iteration
-                     -> (Coords Pos -> InteractionResult)
-                     -- ^ Interaction function
-                     -> AnimatedPoints
-                     -> AnimatedPoints
-updateAnimatedPoints [] _ _ aps = aps
-updateAnimatedPoints (f:fs) globalFrame interaction (AnimatedPoints startFrame center branches) =
-  let relativeFrame = globalFrame - startFrame
-      branchesLevel1Mutated = updatePointsAndMutateIfNeeded f center relativeFrame interaction branches
-      newBranches = map (\case
-                            -- recurse for the 'AnimatedPoints's
-                            Left aps -> Left $ updateAnimatedPoints fs relativeFrame interaction aps
-                            -- the 'AnimatedPoint's are already up-to-date due to updatePointsAndMutateIfNeeded:
-                            Right ap -> Right ap
-                            ) branchesLevel1Mutated
-  in AnimatedPoints startFrame center (Just newBranches)
+computeStep :: Maybe [Either AnimatedPoints AnimatedPoint]
+            -- ^ The root branch.
+            -> KeyTime
+            -- ^ The animation 'KeyTime'
+            -> KeyTime
+            -- ^ The current 'KeyTime'
+            -> StepType
+computeStep mayBranches k keyTime =
+  fromMaybe (defaultStep mayBranches) (computeStep' k keyTime)
+
+computeStep' :: KeyTime
+            -- ^ The animation 'KeyTime'
+            -> KeyTime
+            -- ^ The current 'KeyTime'
+            -> Maybe StepType
+computeStep' (KeyTime k') (KeyTime k) =
+  -- group animations whose keytimes are close
+  -- to reduce the amount of renderings needed
+  if diffSystemTime k' k < animationUpdateMargin
+    then
+      Just Update
+    else
+      Nothing
+
+
+isActive :: Animation
+         -> Bool
+isActive (Animation points _ _ _ _) =
+  hasActivePoints points
+
+hasActivePoints :: AnimatedPoints
+                -> Bool
+hasActivePoints (AnimatedPoints Nothing _ _)         = False
+hasActivePoints (AnimatedPoints (Just []) _ _)       = False
+hasActivePoints (AnimatedPoints (Just branches) _ _) =
+  let (children, activeCoordinates) = partitionEithers branches
+      childrenActive = map hasActivePoints children
+  in (not . null) activeCoordinates || or childrenActive
+
+-- | Returns the earliest animation deadline
+earliestDeadline :: [Animation] -> Maybe KeyTime
+earliestDeadline animations =
+  if null animations
+    then
+      Nothing
+    else
+      let getDeadline (Animation _ _ _ (UpdateSpec k _) _) = k
+      in Just $ minimum $ map getDeadline animations

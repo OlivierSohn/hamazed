@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World.Types
         ( World(..)
@@ -8,10 +9,10 @@ module Imj.Game.Hamazed.World.Types
         , WorldShape(..)
         , BattleShip(..)
         , Number(..)
-        , BoundedAnimation(..)
         , Boundaries(..)
         , mkWorldContainer
         , InTerminal(..)
+        , environmentInteraction
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -25,11 +26,14 @@ import           Imj.Prelude
 import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Animation.Design.Animation
+import           Imj.Game.Hamazed.World.Space
+import           Imj.Geo.Discrete
+import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Types
+import           Imj.Physics.Discrete
 import           Imj.Timing
 
 
@@ -58,7 +62,7 @@ data World = World {
     -- ^ The player's 'BattleShip'
   , _worldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , _worldAnimations :: ![BoundedAnimation]
+  , _worldAnimations :: ![Animation]
     -- ^ Visual animations. They don't have an influence on the game, they are just here
     -- for aesthetics.
   , _worldEmbedded :: !InTerminal
@@ -72,14 +76,6 @@ data InTerminal = InTerminal {
     -- ^ The 'World' 's 'RectContainer' upper left coordinates,
     -- w.r.t terminal frame.
 } deriving (Show)
-
-data BoundedAnimation = BoundedAnimation  {
-    _boundedAnimationAnimation :: !Animation
-    -- ^ The 'Animation'
-  , _boundedAnimationBoundaries :: !Boundaries
-    -- ^ The scope in which the interactions between 'AnimatedPoint's and the
-    -- environment should be computed.
-} deriving(Show)
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
@@ -100,3 +96,11 @@ data Number = Number {
   , _numberNum :: !Int
   -- ^ Which number it represents (1 to 16).
 } deriving(Eq, Show)
+
+-- | An interaction function taking into account a 'World' and 'Boundaries'
+environmentInteraction :: World -> Boundaries -> Coords Pos -> InteractionResult
+environmentInteraction (World _ _ space _ (InTerminal mayTermWindow upperLeft)) scope =
+  let worldCorner = translate' 1 1 upperLeft
+  in scopedLocation space mayTermWindow worldCorner scope >>> \case
+    InsideWorld  -> Stable
+    OutsideWorld -> Mutation

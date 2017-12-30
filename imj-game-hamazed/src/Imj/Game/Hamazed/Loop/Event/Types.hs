@@ -3,15 +3,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Hamazed.Loop.Event.Types
-        ( TimestampedEvent(..)
-        , Event(..)
+        ( Event(..)
         , Deadline(..)
         , ActionTarget(..)
         , DeadlineType(..)
         , MetaAction(..)
         -- * Reexports (for haddock hyperlinks)
         , module Imj.Game.Hamazed.World.Types
-        , module Imj.Graphics.Animation.Design.Animation
+        , module Imj.Graphics.Animation.Design.Create
         ) where
 
 import           Imj.Prelude
@@ -19,7 +18,7 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Animation
+import           Imj.Graphics.Animation.Design.Create
 import           Imj.Timing
 
 -- | A foreseen game or animation update.
@@ -27,13 +26,6 @@ data Deadline = Deadline {
     _deadlineTime :: !KeyTime
   , _deadlineType :: !DeadlineType
 } deriving(Eq, Show)
-
-
-data TimestampedEvent = TimestampedEvent {
-    _timestampedEventEvt :: !Event
-  , _timestampedEventTime :: !SystemTime
-    -- ^ When the 'Event' occured.
-} deriving(Show)
 
 data Event = Action !ActionTarget !Direction
            -- ^ A player action on an 'ActionTarget' in a 'Direction'.

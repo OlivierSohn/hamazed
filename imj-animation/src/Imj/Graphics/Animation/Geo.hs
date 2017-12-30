@@ -131,9 +131,9 @@ polygon nSides radius center =
 animateRadius :: Int -> Int -> Int
 animateRadius i nSides =
   let limit
-          | nSides <= 4 = 5
-          | nSides <= 6 = 7
-          | otherwise   = 10
+        | nSides <= 4 = 5
+        | nSides <= 6 = 7
+        | otherwise   = 10
   in if i < limit
        then
          i

@@ -8,6 +8,8 @@ and on the game side.
 
 # Packages
 
+- imj-prelude
+  - The prelude I use in other packages.
 - imj-base
   - An "engine" library: it contains base classes and types, geometry, delta-rendering, etc...
   - Also contains an executable that can be run to see examples (at the time of writing,
@@ -43,6 +45,15 @@ And test using
 `stack test --pedantic`
 
 # Misc.
+
+## A comparison between DiscreteInterpolation and DiscreteMorphing / DiscreteColorableMorphing
+
+DiscreteInterpolation interpolates between values :
+the result of the interpolation between 2 'v' is a 'v'.
+
+DiscreteMorphing, DiscreteColorableMorphing interpolates between graphical representations of a value:
+the result of a morphing between 2 'v' is a graphical representation
+"somewhat in-between" the 2 graphical representations of the 'v'.
 
 ## A comparison between Animations and Morphings (notions used in the libraries)
 

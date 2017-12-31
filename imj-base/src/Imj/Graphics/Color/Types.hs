@@ -28,6 +28,8 @@ import           Data.Bits(shiftL, (.|.))
 import           Data.Word (Word8, Word16)
 
 import           Imj.Geo.Discrete.Bresenham3
+import           Imj.Graphics.Class.DiscreteDistance
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Components are expected to be between 0 and 5 included.
@@ -42,6 +44,21 @@ data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !(Color8 Background)
   , _colorsForeground :: {-# UNPACK #-} !(Color8 Foreground)
 } deriving(Eq, Show)
+
+-- TODO use bresenham 6 to interpolate foreground and background at the same time:
+-- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
+-- | First interpolate background color, then foreground color
+instance DiscreteDistance LayeredColor where
+  distance (LayeredColor bg fg) (LayeredColor bg' fg') =
+    succ $ pred (distance bg bg') + pred (distance fg fg')
+
+-- | First interpolate background color, then foreground color
+instance DiscreteInterpolation LayeredColor where
+  interpolate (LayeredColor bg fg) (LayeredColor bg' fg') i
+    | i < lastBgFrame = LayeredColor (interpolate bg bg' i) fg
+    | otherwise       = LayeredColor bg' $ interpolate fg fg' $ i - lastBgFrame
+    where
+      lastBgFrame = pred $ distance bg bg'
 
 
 {-# INLINE encodeColors #-}
@@ -84,6 +101,23 @@ data Foreground
 data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
 newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum)
+
+-- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
+instance DiscreteDistance (Color8 a) where
+  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+  distance = bresenhamColor8Length
+
+-- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
+instance DiscreteInterpolation (Color8 a) where
+  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+  interpolate c c' i
+    | c == c' = c
+    | otherwise =
+        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
+            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+            index = clamp i 0 lastFrame
+        in head . drop index $ bresenhamColor8 c c'
+
 
 {-# INLINE mkColor8 #-}
 mkColor8 :: Word8 -> Color8 a

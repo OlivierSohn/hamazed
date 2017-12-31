@@ -3,30 +3,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Geo.Discrete.Bresenham
-    ( bresenhamLength
-    , bresenham
+    ( bla
     ) where
 
 import           Imj.Prelude
 
-import           Imj.Geo.Discrete.Types
-import           Imj.Util( range )
-
-
--- | Returns the bresenham 2d distance between two coordinates.
-bresenhamLength :: Coords Pos -> Coords Pos -> Int
-bresenhamLength (Coords r1 c1) (Coords r2 c2)
-  = succ $ max (fromIntegral (abs (r1-r2))) $ fromIntegral (abs (c1-c2))
-
--- | Bresenham 2d algorithm, slightly optimized for horizontal and vertical lines.
-bresenham :: Segment -> [Coords Pos]
-bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2
-bresenham (Vertical c r1 r2)   = map (flip Coords c) $ range r1 r2
-bresenham (Oblique (Coords y0 x0) c2@(Coords y1 x1)) =
-  takeWhileInclusive (/= c2)
-  $ map (\(x,y) -> Coords (Coord y) (Coord x) )
-  $ bla (fromIntegral x0,fromIntegral y0)
-        (fromIntegral x1,fromIntegral y1)
 
 -- adapted from http://www.roguebasin.com/index.php?title=Bresenham%27s_Line_Algorithm#Haskell
 balancedWord :: Int -> Int -> Int -> [Int]
@@ -45,12 +26,3 @@ bla (x0, y0) (x1, y1) =
                    | otherwise       = (abs dx, abs dy, yxStep)
       walk w xy = xy : walk (tail w) (step (head w) xy)
   in  walk (balancedWord p q 0) (x0, y0)
-
-
-takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
-takeWhileInclusive _ [] = []
-takeWhileInclusive p (x:xs) = x : if p x
-                                    then
-                                      takeWhileInclusive p xs
-                                    else
-                                      []

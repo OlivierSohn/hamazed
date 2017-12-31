@@ -99,6 +99,7 @@ library
                      , Imj.Timing
                      , Imj.Util
                      , Imj.Example.SequentialTextTranslationsAnchored
+                     , Imj.Example.DeltaRenderFromMonadIO
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*

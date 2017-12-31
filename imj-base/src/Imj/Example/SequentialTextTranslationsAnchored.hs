@@ -43,19 +43,14 @@ import           Imj.Graphics.UI.RectContainer
 exampleOfsequentialTextTranslationsAnchored :: (Render e, MonadReader e m, MonadIO m)
                                             => m ()
 exampleOfsequentialTextTranslationsAnchored = do
-  let (Examples es) = allExamples
-      rs = map (\(i, (Example e _ _)) ->
-                  let (a,b) = runExampleCharAnchored e ref
-                      ref = translate upperLeft $ Coords (fromIntegral height*i) 0
-                  in (a,b,ref)) $ zip [0..] es
-      rs' = map (\(i, (Example e _ _)) ->
-                  let (a,b) = runExampleStringAnchored e ref
-                      ref = translate upperLeft $ Coords (fromIntegral height*i) (fromIntegral width)
-                  in (a,b,ref)) $ zip [0..] es
-  animate (rs ++ rs') es ["Char anchored", "String anchored"]
+  let (Examples es') = allExamples
+      es = accumHeights es' 0
+  animate es
 
-height :: Length Height
-height = 10
+accumHeights :: [Example] -> Length Height -> [Example]
+accumHeights [] _ = []
+accumHeights ((Example a h _ b c):es) acc =
+              (Example a h acc b c):accumHeights es (acc + h)
 
 width :: Length Width
 width = 30
@@ -67,6 +62,8 @@ data Examples = Examples [Example]
 
 data Example = Example {
     _exampleInputData :: ![([ColorString], Coords Pos, Coords Pos)]
+  , _exampleSelfHeight :: !(Length Height)
+  , _exampleStartHeight :: !(Length Height)
   , _exampleName :: !String
   , _exampleComment :: !String
 }
@@ -98,19 +95,28 @@ translateInput tr input =
 allExamples :: Examples
 allExamples =
   Examples
-    [ Example exampleColorComplexWithMotionAndTwoStrings
+    [ Example exampleColorComplexWithMotionAndTwoStrings 7 0
                     "ColorComplexWithMotionAndTwoStrings"
                     "Char and String anchors give different results because there is a move"
-    , Example exampleColorComplexWithMotion
+    , Example exampleColorComplexWithMotion 7 0
                     "ColorComplexWithMotion"
                     "Char and String anchors give different results because there is a move"
-    , Example exampleBug
-                    "Bug"
-                    "Bug: color should change progressively when the char changes"
-    , Example exampleColorComplex
+    , Example exampleCharAdditionsAndChanges 10 0
+                    "CharAdditionsAndChanges"
+                    "We first interpolate characters, then the colors. Anchors are interpolated at the same time."
+    , Example exampleIntermediateCharAdditions 6 0
+                    "IntermediateCharAdditions"
+                    "When the chars are inserted in the middle, their color is a gradual interpolation between neighbour colors."
+    , Example exampleExtremeCharAdditions 6 0
+                    "ExtremeCharAdditions"
+                    "When the chars are inserted at an extremity, they match the neighbour color."
+    , Example exampleOneCharChange 6 0
+                    "OneCharChange"
+                    "When the char changes, the old color is kept at first"
+    , Example exampleColorComplex 6 0
                     "ColorComplex"
                     "Char and String anchors give the same result because there is no move"
-    , Example exampleColor
+    , Example exampleColor 6 0
                     "Color"
                     "Char and String anchors give the same result because there is no move"
     ]
@@ -156,9 +162,8 @@ exampleColor =
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
 
--- | TODO color should change progressively when the char changes.
-exampleBug :: [([ColorString], Coords Pos, Coords Pos)]
-exampleBug =
+exampleCharAdditionsAndChanges :: [([ColorString], Coords Pos, Coords Pos)]
+exampleCharAdditionsAndChanges =
   let a = colored "ABC" green
       b = colored "DEFGH" blue
       txt1 = [a, b]
@@ -166,23 +171,59 @@ exampleBug =
       to1 = Coords 4 0
   in [(txt1, from1, to1)]
 
+
+exampleIntermediateCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
+exampleIntermediateCharAdditions =
+  let a = colored "A" green <> colored "O" white
+      b = colored "A" green <> colored "BCDEFGHIJKLMN" white <> colored "O" green
+      txt1 = [a, b]
+      from1 = Coords 0 0
+      to1 = Coords 0 0
+  in [(txt1, from1, to1)]
+
+exampleExtremeCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
+exampleExtremeCharAdditions =
+  let a = colored "ABC" green
+      b = colored "ABC" green <> colored "DEF" white
+      txt1 = [a, b]
+      from1 = Coords 0 0
+      to1 = Coords 0 0
+  in [(txt1, from1, to1)]
+
+exampleOneCharChange :: [([ColorString], Coords Pos, Coords Pos)]
+exampleOneCharChange =
+  let a = colored "A" green <> colored "B" white <> colored "C" green
+      b = colored "AFC" green
+      txt1 = [a, b]
+      from1 = Coords 0 0
+      to1 = Coords 0 0
+  in [(txt1, from1, to1)]
+
 animate :: (Render e, MonadReader e m, MonadIO m)
-        => [(Frame, (Frame -> m ()), Coords Pos)]
-        -> [Example]
-        -> [String]
+        => [Example]
         -> m ()
-animate listActions examples colTitles = do
-  let frames = replicate (length listActions) (Frame 0)
+animate examples = do
+  let listActions = concatMap (\ex@(Example e _ startHeight _ _) ->
+                    let (a,b) = runExampleCharAnchored e ref
+                        (c,d) = runExampleStringAnchored e (move (fromIntegral width) RIGHT ref)
+                        ref = getRef startHeight
+                    in [(a,b,ex,0),(c,d,ex,1)]) examples
+      frames = replicate (length listActions) (Frame 0)
+      colTitles = ["Char anchored", "String anchored"]
   animate' listActions examples frames colTitles
 
+getRef :: Length Height -> Coords Pos
+getRef startHeight =
+  translate upperLeft $ Coords (fromIntegral startHeight) 0
+
 animate' :: (Render e, MonadReader e m, MonadIO m)
-        => [(Frame, (Frame -> m ()), Coords Pos)]
+        => [(Frame, (Frame -> m ()), Example, Int)]
         -> [Example]
         -> [Frame]
         -> [String]
         -> m ()
 animate' listActions examples frames colTitles = do
-  let newFrames = zipWith (\count (lastFrame, _, _) ->
+  let newFrames = zipWith (\count (lastFrame, _, _, _) ->
                               if count >= lastFrame
                                 then Frame 0
                                 else succ count) frames listActions
@@ -199,12 +240,13 @@ myLightGray :: LayeredColor
 myLightGray = onBlack $ gray 10
 
 drawActions :: (Render e, MonadReader e m, MonadIO m)
-            => [(Frame, (Frame -> m ()), Coords Pos)]
+            => [(Frame, (Frame -> m ()), Example, Int)]
             -> [Frame]
             -> m ()
 drawActions listActions frames =
-  mapM_ (\(frame, (lastFrame, action, ref)) -> do
+  mapM_ (\(frame, (lastFrame, action, (Example _ height startHeight _ _), wIdx)) -> do
             let r = RectContainer (Size (height-2) (width-3)) (translate (Coords (-2) (-2)) ref)
+                ref = move (wIdx * fromIntegral width) RIGHT (getRef startHeight)
             drawUsingColor r myDarkGray
             action frame
             drawColorStr (progress frame lastFrame) (translate ref $ Coords (fromIntegral height - 4) 0)
@@ -214,13 +256,13 @@ drawExamples :: (Render e, MonadReader e m, MonadIO m)
             => [Example]
             -> m ()
 drawExamples examples =
-  mapM_ (\(i,(Example _ leftTitle rightComment)) -> do
-            let down = (quot (fromIntegral height) 2) + fromIntegral (i*height) - 2
+  mapM_ (\(Example _ height startHeight leftTitle rightComment) -> do
+            let down = (quot (fromIntegral height) 2) + fromIntegral startHeight - 2
                 at = translate upperLeft (Coords down (-8))
                 at' = translate upperLeft (Coords down $ 2 * (fromIntegral width))
             drawAlignedTxt_ (pack leftTitle) myDarkGray (mkRightAlign at)
             drawStr rightComment at' myDarkGray
-            ) $ zip [0..] examples
+            ) examples
 
 drawColTitles :: (Render e, MonadReader e m, MonadIO m)
             => [String]

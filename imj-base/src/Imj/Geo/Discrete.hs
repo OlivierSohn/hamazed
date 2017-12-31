@@ -3,7 +3,6 @@
 module Imj.Geo.Discrete
            ( module Imj.Geo.Discrete.Types
            -- * Construct Segment
-           , mkSegment
            , mkSegmentByExtendingWhile
            , changeSegmentLength
            -- * Use Segment
@@ -97,17 +96,6 @@ multiply n (Coords r c) = Coords (r * fromIntegral n) (c * fromIntegral n)
 -- | Translate of 1 step in a given direction.
 translateInDir :: Direction -> Coords a -> Coords a
 translateInDir dir = translate $ coordsForDirection dir
-
-
-mkSegment :: Coords Pos
-          -- ^ Segment start
-          -> Coords Pos
-          -- ^ Segment end
-          -> Segment
-mkSegment coord1@(Coords r1 c1) coord2@(Coords r2 c2)
-  | r1 == r2  = Horizontal r1 c1 c2
-  | c1 == c2  = Vertical   c1 r1 r2
-  | otherwise = Oblique coord1 coord2
 
 
 -- | Modify the end of the segment to reach the given length

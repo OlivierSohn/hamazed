@@ -3,6 +3,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Types for discrete geometry.
 
@@ -25,13 +26,20 @@ module Imj.Geo.Discrete.Types
     , containsWithOuterBorder
     -- ** Segment
     , Segment(..)
+    , mkSegment
+    -- * Bresenham line algorithm
+    , bresenhamLength
+    , bresenham
     -- * Reexports
     , Pos, Vel
     ) where
 
 import           Imj.Prelude
 
+import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types
+import           Imj.Graphics.Class.DiscreteInterpolation
+import           Imj.Util
 
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
@@ -39,6 +47,20 @@ data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
 -- | Discrete coordinate.
 newtype Coord a = Coord Int
   deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
+
+-- | Using bresenham 2d line algorithm.
+instance DiscreteInterpolation (Coords Pos) where
+  interpolate c c' i
+    | c == c' = c
+    | otherwise =
+        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
+            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+            index = clamp i 0 lastFrame
+        in head . drop index $ bresenham $ mkSegment c c'
+
+-- | Using bresenham 2d line algorithm.
+instance DiscreteDistance (Coords Pos) where
+  distance = bresenhamLength
 
 -- | Represents a row index (y)
 data Row
@@ -108,3 +130,38 @@ data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
              | Oblique    !(Coords Pos) !(Coords Pos)
              -- ^ Oblique segment
              deriving(Show)
+
+mkSegment :: Coords Pos
+          -- ^ Segment start
+          -> Coords Pos
+          -- ^ Segment end
+          -> Segment
+mkSegment coord1@(Coords r1 c1) coord2@(Coords r2 c2)
+  | r1 == r2  = Horizontal r1 c1 c2
+  | c1 == c2  = Vertical   c1 r1 r2
+  | otherwise = Oblique coord1 coord2
+
+
+-- | Returns the bresenham 2d distance between two coordinates.
+bresenhamLength :: Coords Pos -> Coords Pos -> Int
+bresenhamLength (Coords r1 c1) (Coords r2 c2)
+  = succ $ max (fromIntegral (abs (r1-r2))) $ fromIntegral (abs (c1-c2))
+
+-- | Bresenham 2d algorithm, slightly optimized for horizontal and vertical lines.
+bresenham :: Segment -> [Coords Pos]
+bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2
+bresenham (Vertical c r1 r2)   = map (flip Coords c) $ range r1 r2
+bresenham (Oblique (Coords y0 x0) c2@(Coords y1 x1)) =
+  takeWhileInclusive (/= c2)
+  $ map (\(x,y) -> Coords (Coord y) (Coord x) )
+  $ bla (fromIntegral x0,fromIntegral y0)
+        (fromIntegral x1,fromIntegral y1)
+
+takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
+takeWhileInclusive _ [] = []
+takeWhileInclusive p (x:xs) =
+  x : if p x
+        then
+          takeWhileInclusive p xs
+        else
+          []

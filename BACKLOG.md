@@ -2,10 +2,13 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - http://hackage.haskell.org/package/optparse-applicative to parametrize 
-  - use y in github to permalinks Env.hs
-
+  - when drawing outside the buffers, do not mod, just don't render
   - verify render examples work
+    - DeltaRenderFromMonadIO : make color easier to use (functions for foreground by default,
+                                                         postfix to set background also ?)
+
+  - http://hackage.haskell.org/package/optparse-applicative to parametrize examples
+  - use y in github to permalinks Env.hs
 
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points

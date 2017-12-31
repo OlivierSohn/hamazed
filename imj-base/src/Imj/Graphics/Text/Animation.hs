@@ -137,7 +137,7 @@ getAnimatedTextRenderStates evolution i =
 build :: Coords Pos -> Int -> [Coords Pos]
 build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
-{- | Translates text in an animated way, character by character.
+{- | Translates text in an animated way,ete character by character.
 
 Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
  -}
@@ -158,7 +158,7 @@ mkSequentialTextTranslationsCharAnchored l duration =
       fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
       evAnchors@(Evolution _ anchorsLF _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
-                                 SequentiallyInterpolatedList to_]) duration
+                                          SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
 {- | Translates text in an animated way, 'ColorString' by 'ColorString'.
@@ -176,7 +176,7 @@ mkSequentialTextTranslationsStringAnchored l duration =
       fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
       evAnchors@(Evolution _ anchorsLF _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
-                                 SequentiallyInterpolatedList to_]) duration
+                                          SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
 
@@ -198,5 +198,5 @@ mkTextTranslation text duration from to =
       fromTosLF = fromToLF
       evAnchors@(Evolution _ anchorsLF _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
-                                 SequentiallyInterpolatedList to_]) duration
+                                          SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut

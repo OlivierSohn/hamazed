@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 module Imj.Graphics.Class.DiscreteInterpolation
         ( DiscreteInterpolation(..)
@@ -12,13 +11,8 @@ module Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Prelude
 
 import           Data.List(length)
-import           Data.Text(pack)
 
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.DiscreteDistance
-import           Imj.Graphics.Color.Types
-import           Imj.Graphics.Text.ColorString.Interpolation
-import           Imj.Graphics.Text.ColorString
 import           Imj.Util
 
 
@@ -83,55 +77,3 @@ instance (DiscreteInterpolation a)
       => DiscreteInterpolation ([] a) where
   interpolate l l' progress =
     zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
-
--- | Using bresenham 2d line algorithm.
-instance DiscreteInterpolation (Coords Pos) where
-  interpolate c c' i
-    | c == c' = c
-    | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
-            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 lastFrame
-        in head . drop index $ bresenham $ mkSegment c c'
-
--- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
-instance DiscreteInterpolation (Color8 a) where
-  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
-  interpolate c c' i
-    | c == c' = c
-    | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
-            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 lastFrame
-        in head . drop index $ bresenhamColor8 c c'
-
--- | First interpolate background color, then foreground color
-instance DiscreteInterpolation LayeredColor where
-  interpolate (LayeredColor bg fg) (LayeredColor bg' fg') i
-    | i < lastBgFrame = LayeredColor (interpolate bg bg' i) fg
-    | otherwise       = LayeredColor bg' $ interpolate fg fg' $ i - lastBgFrame
-    where
-      lastBgFrame = pred $ distance bg bg'
-
--- | First interpolating characters, then color.
-instance DiscreteInterpolation ColorString where
-  interpolate c1 c2 i =
-    let c2' = simplify c2
-        (c1', remaining) = interpolateChars (simplify c1) c2' i
-    in ColorString $ map (\(char,color) -> (pack [char], color)) $
-        if remaining >= 0
-          then
-            c1'
-          else
-            interpolateColors c1' c2' (negate remaining)
-
-interpolateColors :: [(Char, LayeredColor)]
-                  -- ^ from
-                  ->[(Char, LayeredColor)]
-                  -- ^ to
-                  -> Int
-                  -- ^ progress
-                  -> [(Char, LayeredColor)]
-interpolateColors c1 c2 i =
-  let z (_, color) (char, color') = (char, interpolate color color' i)
-  in  zipWith z c1 c2

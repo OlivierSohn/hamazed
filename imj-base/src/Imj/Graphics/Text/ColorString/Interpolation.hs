@@ -6,12 +6,15 @@
 module Imj.Graphics.Text.ColorString.Interpolation
             ( -- * Interpolation
               interpolateChars
+              -- * Helpers
+            , insertionColors
             ) where
 
 import           Imj.Prelude
 
 import           Data.List(length, splitAt)
 
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color.Types
 import           Imj.Util
 
@@ -47,8 +50,12 @@ interpolateChars s1 s2 i =
       nCDReplaced = clamp i 0 totalCD
 
       s2AfterCommonPref = drop lPref s2
-      -- TODO use source color when replacing a char (color will be interpolated later on)
-      cdReplaced = take nCDReplaced s2AfterCommonPref
+      cdReplaced =
+        -- start with the color of the old char to have a smooth color transition:
+        zipWith
+          (\(_, color1) (char2, _) -> (char2, color1))
+          (take nCDReplaced s1AfterCommonPref)
+          (take nCDReplaced s2AfterCommonPref)
 
       nCDUnchanged = totalCD - nCDReplaced
       cdUnchanged = take nCDUnchanged $ drop nCDReplaced s1AfterCommonPref
@@ -63,10 +70,44 @@ interpolateChars s1 s2 i =
             (0, signedNExDiff)
           else
             (abs $ signedTotalExDiff - signedNExDiff, 0)
+      -- TODO use an already existing color instead of switching to the new color immediately
       ed1 = take nExDiff1 $ drop totalCD s1AfterCommonPref
-      ed2 = take nExDiff2 $ drop totalCD s2AfterCommonPref
+      ed2 = zipWith
+              (\idx (char, color) -> (char, fromMaybe color $ insertionColors insertionBounds idx nExDiff2))
+              [0..]
+              $ take nExDiff2 $ drop totalCD s2AfterCommonPref
+
+      insertionBounds :: [LayeredColor]
+      insertionBounds = catMaybes $
+        [ if null pre
+            then
+              Nothing
+            else
+              Just $ snd $ last pre
+        , if null commonSuff
+            then
+              Nothing
+            else
+              Just $ snd $ head commonSuff ]
 
       remaining = (totalCD + abs signedTotalExDiff) - i
 
-  in ( commonPref ++ cdReplaced ++ cdUnchanged ++ ed1 ++ ed2 ++ commonSuff
+      pre = commonPref ++ cdReplaced ++ cdUnchanged
+  in ( pre ++ ed1 ++ ed2 ++ commonSuff
      , assert (remaining == max n1 n2 - (lPref + lSuff) - i) remaining)
+
+-- | Computes color to be applied when a character is inserted
+-- in a 'ColorString' (during inteprolation) so that color matches right and or left
+-- colors.
+insertionColors :: [LayeredColor] -> Int -> Int -> Maybe LayeredColor
+insertionColors insertionBounds n total =
+  case insertionBounds of
+    [] -> Nothing
+    [color] -> Just color
+    [colorFrom, colorTo] ->
+      let dist = distance colorFrom colorTo
+          -- when n == -1    we are at colorFrom (frame = 0)
+          -- when n == total we are at colorTo   (frame = pred dist)
+          frame = round (fromIntegral ((n+1) * pred dist) / fromIntegral (total+1) :: Float)
+      in Just $ interpolate colorFrom colorTo frame
+    _ -> error "insertionBounds has at most 2 elements"

@@ -20,6 +20,7 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( write, set, length )
 
+import           Imj.Geo.Discrete
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.Delta.Internal.Types
@@ -62,10 +63,8 @@ deltaDrawChars ref count c pos colors =
     >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let cell = mkCell colors c
           size = fromIntegral $ length b
-          idx = indexFromPos size width pos
       mapM_
-        (\i -> let idx' = (fromIntegral idx + i) `fastMod` size
-               in writeToBack back idx' cell)
+        (\i -> writeToBack back (indexFromPos size width (move i RIGHT pos)) cell)
         [0..pred count]
 
 
@@ -82,10 +81,9 @@ deltaDrawStr ref str pos colors =
   readIORef ref
     >>= \(Buffers back@(Buffer b) _ width _ _) -> do
       let size = fromIntegral $ length b
-          idx = indexFromPos size width pos
       mapM_
         (\(c, i) ->
-            writeToBack back (idx+i `fastMod` size) (mkCell colors c))
+            writeToBack back (indexFromPos size width (move i RIGHT pos)) (mkCell colors c))
         $ zip str [0..]
 
 {-# INLINABLE deltaDrawTxt #-}
@@ -101,8 +99,10 @@ deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 
 
 {-# INLINE writeToBack #-}
-writeToBack :: Buffer Back -> Dim BufferIndex -> Cell -> IO ()
-writeToBack (Buffer b) pos = write b (fromIntegral pos)
+writeToBack :: Buffer Back -> Maybe (Dim BufferIndex) -> Cell -> IO ()
+writeToBack _ Nothing _ = return ()
+writeToBack (Buffer b) (Just pos) cell =
+  write b (fromIntegral pos) cell
 
 
 -- | Fills the entire area with a colored char.
@@ -123,9 +123,15 @@ fillBackBuffer (Buffers (Buffer b) _ _ _ _) =
 
 
 {-# INLINE indexFromPos #-}
-indexFromPos :: Dim Size -> Dim Width -> Coords Pos -> Dim BufferIndex
+indexFromPos :: Dim Size -> Dim Width -> Coords Pos -> Maybe (Dim BufferIndex)
 indexFromPos size width (Coords y x) =
-  (fromIntegral y * fromIntegral width + fromIntegral x) `fastMod` size
+  if x >= fromIntegral width
+    then Nothing
+    else
+      let idx = fromIntegral y * fromIntegral width + fromIntegral x
+      in if idx < size
+        then Just $ fromIntegral idx
+        else Nothing
 
 
 -- | Modulo optimized for cases where most of the time,

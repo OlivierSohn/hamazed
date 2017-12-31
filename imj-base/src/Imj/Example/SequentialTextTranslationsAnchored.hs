@@ -1,16 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-{- | Animated text examples by comparing these functions:
+{- | Examples of animated text.
 
-* 'mkSequentialTextTranslationsCharAnchored' / 'renderAnimatedTextCharAnchored'
-* 'mkSequentialTextTranslationsStringAnchored' / 'renderAnimatedTextStringAnchored'
+Run @imj-base-examples-exe@ to see these examples displayed in the terminal,
+in a grid.
 
-The results of the animations are displayed in a grid, then it's easy to compare
-char-anchored animations with string-anchored animations.
+Grid lines correspond to different examples, and grid columns are :
 
-Each example comes with a comment displayed in the console.
+* left : using "AnchorChars"
+* right: using "StringChars"
 
-To run these example, execute @imj-base-examples-exe@.
 -}
 
 module Imj.Example.SequentialTextTranslationsAnchored
@@ -95,36 +94,30 @@ translateInput tr input =
 allExamples :: Examples
 allExamples =
   Examples
-    [ Example exampleColorComplexWithMotionAndTwoStrings 7 0
-                    "ColorComplexWithMotionAndTwoStrings"
+    [ Example exampleDownTranslationDuo 7 0
+                    "DownTranslationDuo"
                     "Char and String anchors give different results because there is a move"
-    , Example exampleColorComplexWithMotion 7 0
-                    "ColorComplexWithMotion"
+    , Example exampleDownTranslationMono 7 0
+                    "DownTranslationMono"
                     "Char and String anchors give different results because there is a move"
-    , Example exampleCharAdditionsAndChanges 10 0
-                    "CharAdditionsAndChanges"
-                    "We first interpolate characters, then the colors. Anchors are interpolated at the same time."
     , Example exampleIntermediateCharAdditions 6 0
                     "IntermediateCharAdditions"
                     "When the chars are inserted in the middle, their color is a gradual interpolation between neighbour colors."
+    , Example exampleIntermediateCharRemovals 6 0
+                    "IntermediateCharRemovals"
+                    ""
     , Example exampleExtremeCharAdditions 6 0
                     "ExtremeCharAdditions"
                     "When the chars are inserted at an extremity, they match the neighbour color."
-    , Example exampleOneCharChange 6 0
-                    "OneCharChange"
-                    "When the char changes, the old color is kept at first"
-    , Example exampleColorComplex 6 0
-                    "ColorComplex"
-                    "Char and String anchors give the same result because there is no move"
-    , Example exampleColor 6 0
-                    "Color"
-                    "Char and String anchors give the same result because there is no move"
+    , Example exampleExtremeCharRemovals 6 0
+                    "ExtremeCharRemovals"
+                    ""
     ]
 
 -- | shows an example with multiple strings : global color is changed in parallel
 -- but anchors are changed sequentially
-exampleColorComplexWithMotionAndTwoStrings :: [([ColorString], Coords Pos, Coords Pos)]
-exampleColorComplexWithMotionAndTwoStrings =
+exampleDownTranslationDuo :: [([ColorString], Coords Pos, Coords Pos)]
+exampleDownTranslationDuo =
   let a = colored "ABC" green <> colored "DEF" (rgb 2 2 2)
       b = colored "ABC" white <> colored "DEF" yellow
       txt1 = [a, b]
@@ -135,8 +128,8 @@ exampleColorComplexWithMotionAndTwoStrings =
   in [(txt1, from1, to1)
     , (txt1, from2, to2)]
 
-exampleColorComplexWithMotion :: [([ColorString], Coords Pos, Coords Pos)]
-exampleColorComplexWithMotion =
+exampleDownTranslationMono :: [([ColorString], Coords Pos, Coords Pos)]
+exampleDownTranslationMono =
   let a = colored "ABC" green <> colored "DEF" (rgb 2 2 2)
       b = colored "ABC" white <> colored "DEF" yellow
       txt1 = [a, b]
@@ -144,38 +137,20 @@ exampleColorComplexWithMotion =
       to1 = Coords 1 0
   in [(txt1, from1, to1)]
 
-exampleColorComplex :: [([ColorString], Coords Pos, Coords Pos)]
-exampleColorComplex =
-  let a = colored "ABC" green <> colored "DEF" (rgb 2 2 2)
-      b = colored "ABC" white <> colored "DEF" yellow
-      txt1 = [a, b]
-      from1 = Coords 0 0
-      to1 = Coords 0 0
-  in [(txt1, from1, to1)]
-
-exampleColor :: [([ColorString], Coords Pos, Coords Pos)]
-exampleColor =
-  let a = colored "ABC" green
-      b = colored "ABC" blue
-      txt1 = [a, b]
-      from1 = Coords 0 0
-      to1 = Coords 0 0
-  in [(txt1, from1, to1)]
-
-exampleCharAdditionsAndChanges :: [([ColorString], Coords Pos, Coords Pos)]
-exampleCharAdditionsAndChanges =
-  let a = colored "ABC" green
-      b = colored "DEFGH" blue
-      txt1 = [a, b]
-      from1 = Coords 0 0
-      to1 = Coords 4 0
-  in [(txt1, from1, to1)]
-
 
 exampleIntermediateCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
 exampleIntermediateCharAdditions =
   let a = colored "A" green <> colored "O" white
-      b = colored "A" green <> colored "BCDEFGHIJKLMN" white <> colored "O" green
+      b = colored "ABCDEFGHIJKLMNO" white
+      txt1 = [a, b]
+      from1 = Coords 0 0
+      to1 = Coords 0 0
+  in [(txt1, from1, to1)]
+
+exampleIntermediateCharRemovals :: [([ColorString], Coords Pos, Coords Pos)]
+exampleIntermediateCharRemovals =
+  let a = colored "ABCDEFGHIJKLMNO" white
+      b = colored "A" green <> colored "O" white
       txt1 = [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0
@@ -190,10 +165,11 @@ exampleExtremeCharAdditions =
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
 
-exampleOneCharChange :: [([ColorString], Coords Pos, Coords Pos)]
-exampleOneCharChange =
-  let a = colored "A" green <> colored "B" white <> colored "C" green
-      b = colored "AFC" green
+
+exampleExtremeCharRemovals :: [([ColorString], Coords Pos, Coords Pos)]
+exampleExtremeCharRemovals =
+  let a = colored "ABC" green <> colored "DEF" white
+      b = colored "ABC" green
       txt1 = [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0

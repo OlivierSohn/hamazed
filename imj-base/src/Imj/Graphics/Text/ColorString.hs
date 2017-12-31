@@ -1,20 +1,27 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+  {- | A 'ColorString' is a multicolored 'Text'.-}
+
 module Imj.Graphics.Text.ColorString
             (
             -- * Type
-            {- | A 'ColorString' is a multicolored 'Text'.-}
               ColorString(..)
             -- * Constructors
             {- | 'colored' creates a 'ColorString' using the specified foreground color on
             /black/ background, wherease 'colored'' allows you to chose both the
-            background and the foreground colors. -}
+            background and the foreground colors.
+
+And since 'ColorString' is 'Monoid', we can write:
+
+@
+str = colored \"Hello\" white <> colored \" World\" yellow
+@
+ -}
             , colored
             , colored'
             -- * Utilities
             , countChars
-            , simplify
             -- * Reexports
             , LayeredColor(..)
             ) where

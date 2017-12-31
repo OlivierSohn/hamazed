@@ -1,6 +1,13 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
+{- |
+= Examples
+
+Examples are available in "Imj.Example.SequentialTextTranslationsAnchored":
+
+* Run @imj-base-examples-exe@ to see these examples displayed in the terminal
+-}
 module Imj.Graphics.Text.Animation
          (
          -- * TextAnimation
@@ -11,8 +18,7 @@ their anchors.
 Anchors interpolation can occur :
 
 * at the 'ColorString' level using 'AnchorStrings', or
-* at the 'Char' level using 'AnchorChars'
--}
+* at the 'Char' level using 'AnchorChars' -}
            TextAnimation(..)
          , AnchorChars
          , AnchorStrings

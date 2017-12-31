@@ -37,7 +37,7 @@ import           Imj.Graphics.Text.ColorString
 -- | Draw a 'ColorString'.
 {-# INLINABLE drawColorStr #-}
 drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
-            => ColorString -> Coords Pos -> m ()
+             => ColorString -> Coords Pos -> m ()
 drawColorStr cs pos = do
   d <- asks drawColorStr'
   d cs pos
@@ -45,7 +45,7 @@ drawColorStr cs pos = do
 -- | Draw a 'ColorString' with an 'Alignment' constraint.
 {-# INLINABLE drawAlignedColorStr #-}
 drawAlignedColorStr :: (Draw e, MonadReader e m, MonadIO m)
-                   => Alignment -> ColorString -> m Alignment
+                    => Alignment -> ColorString -> m Alignment
 drawAlignedColorStr a cs = do
   d <- asks drawAlignedColorStr'
   d a cs
@@ -122,6 +122,6 @@ drawChar c co la = do
 -- | Render the drawing to {the screen, the console, etc...}.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-              => m ()
+               => m ()
 renderToScreen =
   join (asks renderToScreen')

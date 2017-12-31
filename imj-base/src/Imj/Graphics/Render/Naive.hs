@@ -3,18 +3,18 @@ module Imj.Graphics.Render.Naive
           ( NaiveDraw(..)
           ) where
 
-import Data.Text(unpack)
+import           Data.Text(unpack)
 
-import Control.Monad.Reader(liftIO)
+import           Control.Monad.Reader(liftIO)
 
-import System.IO(hFlush, stdout)
-import System.Console.ANSI(setCursorPosition, clearFromCursorToScreenEnd)
-import System.Console.ANSI.Codes(csi)
+import           System.IO(hFlush, stdout)
+import           System.Console.ANSI(setCursorPosition, clearFromCursorToScreenEnd)
+import           System.Console.ANSI.Codes(csi)
 
-import Imj.Geo.Discrete
-import Imj.Graphics.Class.Draw
-import Imj.Graphics.Class.Render
-import Imj.Graphics.Color
+import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Color.Types
 
 {- | FOR TESTS ONLY. For production, please use "Imj.Graphics.Render.Delta".
 

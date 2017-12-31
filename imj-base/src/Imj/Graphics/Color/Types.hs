@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Graphics.Color.Types
-          ( Color8
+          ( Color8 -- constructor is intentionaly not exposed.
           , mkColor8
           , Background
           , Foreground
@@ -15,8 +15,6 @@ module Imj.Graphics.Color.Types
           , bresenhamColor8Length
           , rgb
           , gray
-          , xterm256ColorToCode
-          , color8CodeToXterm256
           , Xterm256Color(..)
           , onBlack
           , whiteOnBlack
@@ -102,12 +100,12 @@ data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
 newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum)
 
--- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
+-- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteDistance (Color8 a) where
-  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
+  -- | The two input 'Color8' are expected to be both 'rgb' or both 'gray'.
   distance = bresenhamColor8Length
 
--- | Using bresenham 3D algorithm in RGB space. Only valid between 2 'rgb' or 2 'gray'.
+-- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteInterpolation (Color8 a) where
   -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
   interpolate c c' i
@@ -135,39 +133,36 @@ color8BgSGRToCode :: Color8 Background -> [Int]
 color8BgSGRToCode (Color8 c) =
   [48, 5, fromIntegral c]
 
--- Interpolations between 2 rgb or 2 grays are well-defined, whereas
---   other interpolations will error. To improve on this, we could define conversion
---   functions between different representations in the future.
-
--- | Computes the bresenham length between two colors.
---
--- The two input 'Color8' are expected to have been both created with the same
--- constructor ('rgb' or 'gray').
+-- | Computes the bresenham length between two colors. If both are 'gray', the
+-- interpolation happens in grayscale space.
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8 a -> Color8 a -> Int
 bresenhamColor8Length c c'
   | c == c' = 1
-  | otherwise =
-      case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
-        (RGBColor rgb1, RGBColor rgb2) -> bresenhamRGBLength rgb1 rgb2
-        (GrayColor g1, GrayColor g2) -> 1 + fromIntegral (abs (g2 - g1))
-        colors -> error $ "cannot get length between colors " ++ show colors
+  | otherwise = case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
+      (GrayColor g1,  GrayColor g2)  -> 1 + fromIntegral (abs (g2 - g1))
+      (RGBColor rgb1, RGBColor rgb2) -> bresenhamRGBLength rgb1 rgb2
+      (RGBColor rgb1, GrayColor g2)  -> bresenhamRGBLength rgb1 (grayToRGB rgb1 g2)
+      (GrayColor g1,  RGBColor rgb2) -> bresenhamRGBLength (grayToRGB rgb2 g1) rgb2
 
--- | Returns the bresenham path between two colors.
---
--- The two input 'Color8' are expected to have been both created with the same
--- constructor ('rgb' or 'gray').
+{- | Returns the bresenham path between two colors.
+
+If both are 'gray', the interpolation happens in grayscale space.
+
+If one is a 'gray' and the other 'rgb', the 'gray' one will be approximated by
+the closest 'rgb' in the direction of the other color, so as to produce
+a /monotonic/ interpolation. -}
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]
 bresenhamColor8 c c'
   | c == c' = [c]
-  | otherwise =
-      case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
-        (RGBColor rgb1, RGBColor rgb2) ->
-          map (xterm256ColorToCode . RGBColor) $ bresenhamRGB rgb1 rgb2
-        (GrayColor g1, GrayColor g2) ->
-          map Color8 $ range g1 g2
-        colors -> error $ "cannot interpolate between colors " ++ show colors
+  | otherwise = case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
+    (GrayColor g1, GrayColor g2)   -> map Color8 $ range g1 g2
+    (RGBColor rgb1, RGBColor rgb2) -> mapBresRGB rgb1 rgb2
+    (RGBColor rgb1, GrayColor g2)  -> mapBresRGB rgb1 (grayToRGB rgb1 g2)
+    (GrayColor g1, RGBColor rgb2)  -> mapBresRGB (grayToRGB rgb2 g1) rgb2
+  where
+    mapBresRGB c1 c2 = map (xterm256ColorToCode . RGBColor) $ bresenhamRGB c1 c2
 
 {-# INLINABLE bresenhamRGBLength #-}
 bresenhamRGBLength :: RGB -> RGB -> Int
@@ -181,7 +176,6 @@ bresenhamRGB (RGB r g b) (RGB r' g' b') =
     (\(x,y,z) -> RGB (fromIntegral x) (fromIntegral y) (fromIntegral z))
     $ bresenham3 (fromIntegral r ,fromIntegral g ,fromIntegral b )
                  (fromIntegral r',fromIntegral g',fromIntegral b')
-
 
 
 -- | Converts a 'Color8' to a 'Xterm256Color'.
@@ -250,3 +244,62 @@ magenta = rgb 5 0 5
 cyan    = rgb 0 5 5
 white   = rgb 5 5 5
 black   = rgb 0 0 0
+
+
+
+-- | converts a GrayColor to a RGBColor, using another RGBColor
+-- to know in which way to approximate.
+grayToRGB :: RGB
+          -- ^ We'll round the resulting r,g,b components towards this color
+          -> Word8
+          -- ^ The gray component
+          -> RGB
+grayToRGB (RGB r g b) grayComponent =
+  RGB (approximateGrayComponentAsRGBComponent r grayComponent)
+      (approximateGrayComponentAsRGBComponent g grayComponent)
+      (approximateGrayComponentAsRGBComponent b grayComponent)
+
+
+approximateGrayComponentAsRGBComponent :: Word8
+                                       -- ^ rgb target component to know in which way to appoximate
+                                       -> Word8
+                                       -- ^ gray component
+                                       -> Word8
+                                       -- ^ rgb component
+approximateGrayComponentAsRGBComponent _ 0 = 0
+approximateGrayComponentAsRGBComponent _ 1 = 0
+approximateGrayComponentAsRGBComponent colorComponent grayComponent =
+  let c = grayComponentToFollowingRGBComponent grayComponent
+  in if colorComponent < c
+       then
+         -- using the /following/ component, we went in the wrong direction
+         -- so we take the previous one.
+         pred c
+       else
+         -- using the /following/ component, we went in the right direction
+         c
+
+{- Gives the first RGB component that has a color value strictly greater
+than the color value of the gray component.
+
+Using implementations of 'xtermMapGray8bitComponent' and 'xtermMapRGB8bitComponent'
+we can deduce the following correspondances, where we align values:
+@
+rgb  val:  0         95      135       175       215       255
+rgb  idx:  0         1        2         3         4         5
+gray idx:   0 1    8  9    12  13    16  17    20  21    23
+gray val:   8 18.. 88 98.. 128 138.. 168 178.. 208 218.. 238
+@
+
+Note that no 2 color values match between rgb and gray.
+-}
+grayComponentToFollowingRGBComponent :: Word8
+                                      -- ^ gray component
+                                      -> Word8
+                                      -- ^ rgb component
+grayComponentToFollowingRGBComponent g
+  | g > 20 = 5
+  | g > 16 = 4
+  | g > 12 = 3
+  | g > 8  = 2
+  | otherwise = 1

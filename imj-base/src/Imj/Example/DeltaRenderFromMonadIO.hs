@@ -1,3 +1,5 @@
+-- | This example is related to "Imj.Graphics.Render.Delta" : /from a 'MonadIO'/
+
 module Imj.Example.DeltaRenderFromMonadIO
   ( main
   ) where

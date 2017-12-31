@@ -15,7 +15,7 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 
-import           Imj.Graphics.Color
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Cell

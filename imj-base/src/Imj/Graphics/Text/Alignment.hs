@@ -2,7 +2,6 @@
 
 module Imj.Graphics.Text.Alignment
             ( -- * Alignment
-            {- | Text can be right-aligned, center-aligned or left-aligned. -}
               AlignmentKind(..)
             , Alignment(..)
             , mkRightAlign

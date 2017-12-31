@@ -132,13 +132,3 @@ indexFromPos size width (Coords y x) =
       in if idx < size
         then Just $ fromIntegral idx
         else Nothing
-
-
--- | Modulo optimized for cases where most of the time,
---    a < b (for a mod b)
-{-# INLINE fastMod #-}
-fastMod :: Int -> Dim Size -> Dim BufferIndex
-fastMod a b'
-  | 0 <= a && a < b = fromIntegral a          -- fast path
-  | otherwise       = fromIntegral $ a `mod` b  -- slow path
-  where b = fromIntegral b'

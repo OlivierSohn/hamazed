@@ -24,8 +24,8 @@ library
                        Imj.Graphics.Animation
                      , Imj.Graphics.Animation.Chars
                      , Imj.Graphics.Animation.Geo
+                     , Imj.Graphics.Animation.Internal
                       -- initially in a separate module for core
-                     , Imj.Graphics.Animation.Design
                      , Imj.Graphics.Animation.Design.Color
                      , Imj.Graphics.Animation.Design.Create
                      , Imj.Graphics.Animation.Design.Render

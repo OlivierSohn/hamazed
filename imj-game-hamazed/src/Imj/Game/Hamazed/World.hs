@@ -26,7 +26,7 @@ module Imj.Game.Hamazed.World
     {- | A 'World' brings together:
 
     * game elements : 'Space', 'BattleShip' and 'Number's,
-    * rendering elements: 'BoundedAnimation's,
+    * rendering elements: 'Animation's,
     * terminal-awareness : 'InTerminal'
     -}
     , World(..)
@@ -110,7 +110,7 @@ module Imj.Game.Hamazed.World
     -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
     --
     -- Number can collide with the 'BattleShip', hence triggering colorfull
-    -- 'BoundedAnimation' explosions.
+    -- 'Animation' explosions.
     --
     -- 'Number's never change speed, except when they rebound on 'Wall's, of course.
     , Number(..)
@@ -168,7 +168,7 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
 
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
--- Note that 'BoundedAnimation's are not updated.
+-- Note that 'Animation's are not updated.
 moveWorld :: KeyTime
           -- ^ The current time
           -> World

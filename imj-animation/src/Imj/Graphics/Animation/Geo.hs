@@ -3,10 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.Animation.Geo
-    (
-    -- * Animation functions
-    -- | These are the building blocks for more complex animations.
-      gravityFallGeo
+    ( gravityFallGeo
     , simpleExplosionGeo
     , quantitativeExplosionGeo
     , animatePolygonGeo

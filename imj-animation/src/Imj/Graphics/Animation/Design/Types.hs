@@ -70,7 +70,6 @@ data AnimatedPoints = AnimatedPoints {
     -- ^ The frame at which this 'AnimatedPoints' was created, relatively to the parent, if any.
 } deriving (Show)
 
--- | Represents an animated point.
 data AnimatedPoint = AnimatedPoint {
     _animatedPointCanInteract :: !CanInteract
     -- ^ Can the point interact with the environment?
@@ -80,11 +79,10 @@ data AnimatedPoint = AnimatedPoint {
     -- ^ The char used to render it. If 'Nothing', 'Animation' /must/ specify a 'Char'.
 } deriving (Show)
 
--- | Indicates if an 'AnimatedPoint' can interact with the environment.
 data CanInteract = DontInteract
-                 -- ^ No interaction is allowed.
+                 -- ^ The 'AnimatedPoint' can't interact with the environment.
                  --
-                 -- To ensure that the animation is finite in time,
+                 -- To ensure that the 'Animation' is finite in time,
                  -- animation functions returning 'AnimatedPoint's that
                  -- 'DontInteract' should return an empty list of 'AnimatedPoint's
                  -- for each 'Frame' after a given 'Frame'.
@@ -101,10 +99,8 @@ data CanInteract = DontInteract
                  -- coordinates using functions diverging in the 'Frame' argument.
                  deriving (Show, Eq)
 
--- | The result of an interaction between an 'AnimatedPoint' and the environment.
 data InteractionResult = Mutation
-                       -- ^ The 'AnimatedPoint' mutates, if it is allowed
-                       -- to interact with the environment.
+                       -- ^ The 'AnimatedPoint' can mutate.
                        | Stable
                        -- ^ The 'AnimatedPoint' doesn't mutate.
                        deriving(Eq,Show)

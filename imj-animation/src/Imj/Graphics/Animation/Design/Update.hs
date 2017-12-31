@@ -5,7 +5,7 @@
 
 module Imj.Graphics.Animation.Design.Update
     ( updateAnimationIfNeeded
-    , earliestDeadline
+    , getDeadline
     ) where
 
 
@@ -89,12 +89,6 @@ hasActivePoints (AnimatedPoints (Just branches) _ _) =
       childrenActive = map hasActivePoints children
   in (not . null) activeCoordinates || or childrenActive
 
--- | Returns the earliest animation deadline
-earliestDeadline :: [Animation] -> Maybe KeyTime
-earliestDeadline animations =
-  if null animations
-    then
-      Nothing
-    else
-      let getDeadline (Animation _ _ _ (UpdateSpec k _) _) = k
-      in Just $ minimum $ map getDeadline animations
+-- | Returns the time at which an 'Animation' should be updated.
+getDeadline :: Animation -> KeyTime
+getDeadline (Animation _ _ _ (UpdateSpec k _) _) = k

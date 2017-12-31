@@ -97,7 +97,17 @@ uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
     (\deadline -> Just $ Deadline deadline AnimateUI)
       $ getUIAnimationDeadline uianim
 
--- | Returns the earliest 'BoundedAnimation' deadline.
+-- | Returns the earliest 'Animation' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ animations _) =
-  earliestDeadline animations
+  earliestKeyTime $ map getDeadline animations
+
+
+-- | Returns the earliest deadline
+earliestKeyTime :: [KeyTime] -> Maybe KeyTime
+earliestKeyTime deadlines =
+  if null deadlines
+    then
+      Nothing
+    else
+      Just $ minimum deadlines

@@ -1,22 +1,43 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {-|
-In this documentation, we first present higher-level concrete animations,
-so that the reader can get a feel of what can be achieved, visually, with an 'Animation'.
-
-Then, we show some /animation functions/, seen as building blocks for the concrete
-animations.
-
-Finally, we document the internals of the /animation framework/, to explain the
-animation process in detail. In particular, we will see that each /animation function/
-is assigned to updating one /level/ of a tree-like structure containing animated points.
+We will begin by explaining the mechanisms involved in 'Animation's, so if you
+need ready-to-use animations, you can jump to /predefined animations/ section.
 -}
 
 module Imj.Graphics.Animation
     (
-    -- * Concrete animations
+     -- * Animation
+      Animation
+      {- | An 'Animation' generates 'AnimatedPoint's: -}
+    , AnimatedPoint(..)
+      {- | 'AnimatedPoint's live in a
+      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>:
+      -}
+    , AnimatedPoints(..)
+    -- | 'AnimatedPoint's can interact with their environment:
+    , CanInteract(..)
+    -- | The result of an interaction between an 'AnimatedPoint' and its environment
+    -- can trigger a /mutation/:
+    , InteractionResult(..)
+      -- ** Create
+    , mkAnimation
+    -- ** Update
+    {-| The update of an 'Animation' creates and updates 'AnimatedPoint's: -}
+    , updateAnimationIfNeeded
+    , getDeadline
+    -- ** Render
+    , renderAnim
+    -- * Animation functions
+    -- | Animation functions are used by 'Animation's to update 'AnimatedPoint's.
+    , gravityFallGeo
+    , simpleExplosionGeo
+    , quantitativeExplosionGeo
+    , animatePolygonGeo
+    , laserAnimationGeo
+    -- * Predefined animations
     -- ** Explosive
-      simpleExplosion
+    , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
     -- ** Free fall
     {- | 'freeFall' simulates the effect of gravity on an object that has an initial speed.
@@ -40,12 +61,16 @@ module Imj.Graphics.Animation
     -- ** Geometric
     , animatedPolygon
     , laserAnimation
-    -- * Nice chars
+    -- ** Nice chars
     {-| 'niceChar' presents a list of 'Char's that /look good/
     when used in explosive and free fall animations. -}
     , niceChar
-    , module Imj.Graphics.Animation.Geo
-    , module Imj.Graphics.Animation.Design
+    -- * Internal
+    , module Imj.Graphics.Animation.Internal
+    -- * Reexports
+    , module Imj.Timing
+    , module Imj.Iteration
+    , Coords
     ) where
 
 import           Imj.Prelude
@@ -54,8 +79,16 @@ import           Imj.GameItem.Weapon.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Chars
-import           Imj.Graphics.Animation.Design
+import           Imj.Graphics.Animation.Design.Create
+import           Imj.Graphics.Animation.Design.Color
+import           Imj.Graphics.Animation.Design.Render
+import           Imj.Graphics.Animation.Design.Timing
+import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.Animation.Design.Update
 import           Imj.Graphics.Animation.Geo
+import           Imj.Graphics.Animation.Internal
+import           Imj.Iteration
+import           Imj.Timing
 
 -- | A laser ray animation, with a fade-out effect.
 laserAnimation :: LaserRay Actual

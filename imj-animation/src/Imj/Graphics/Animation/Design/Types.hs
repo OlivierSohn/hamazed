@@ -4,7 +4,6 @@
 
 module Imj.Graphics.Animation.Design.Types
           ( Animation(..)
-          , StepType(..)
           , UpdateSpec(..)
           , AnimatedPoints(..)
           , AnimatedPoint(..)
@@ -51,18 +50,12 @@ data UpdateSpec = UpdateSpec {
     -- ^ The iteration that will be used in the update.
 } deriving(Show)
 
--- | Specifies what should be updated in the 'Animation'.
-data StepType = Initialize
-              -- ^ Update 'AnimatedPoints'
-              | Update
-              -- ^ Update 'AnimatedPoints' and 'Iteration'
-              | Same
-              -- ^ Update 'Iteration'
-
 
 data AnimatedPoints = AnimatedPoints {
     _animatedPointsBranches :: !(Maybe [Either AnimatedPoints AnimatedPoint])
-    -- ^ When a 'Right' 'AnimatedPoint' mutates, it is converted to an empty 'Left' 'AnimatedPoints'
+    -- ^ The children. A child can be 'Right' 'AnimatedPoint' or 'Left' 'AnimatedPoints'.
+    --
+    --  When a 'Right' 'AnimatedPoint' mutates, it is converted to an empty 'Left' 'AnimatedPoints'
   , _animatedPointsCenter :: !(Coords Pos)
     -- ^ The center, aka the coordinates of the 'AnimatedPoint', w.r.t the animation reference frame,
     -- that gave birth to this 'AnimatedPoints'.

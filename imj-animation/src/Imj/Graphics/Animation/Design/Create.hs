@@ -58,7 +58,7 @@ mkAnimation center updates speed interaction t' mayChar =
       t = either KeyTime id t'
       u = UpdateSpec t (zeroIteration speed)
       points = mkAnimatedPoints center
-  in updateAnimationIfNeeded t $ Animation points update interaction u mayChar
+  in updateAnimation $ Animation points update interaction u mayChar
 
 
 -- | Constructs an 'AnimatedPoints'.

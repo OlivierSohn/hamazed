@@ -1,45 +1,34 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{-|
-We will begin by explaining the mechanisms involved in 'Animation's, so if you
-need ready-to-use animations, you can jump to /predefined animations/ section.
--}
-
 module Imj.Graphics.Animation
     (
+    -- * Animation functions
+    -- | Animation functions are used by 'Animation's to update 'AnimatedPoint's.
+      gravityFallGeo
+    , simpleExplosionGeo
+    , quantitativeExplosionGeo
+    , animatePolygonGeo
+    , laserAnimationGeo
      -- * Animation
-      Animation
+    , Animation
       {- | An 'Animation' generates 'AnimatedPoint's: -}
     , AnimatedPoint(..)
-      {- | 'AnimatedPoint's live in a
-      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>:
-      -}
-    , AnimatedPoints(..)
     -- | 'AnimatedPoint's can interact with their environment:
     , CanInteract(..)
     -- | The result of an interaction between an 'AnimatedPoint' and its environment
     -- can trigger a /mutation/:
     , InteractionResult(..)
+      {- | 'AnimatedPoint's live in a
+      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>:
+      -}
+    , AnimatedPoints(..)
       -- ** Create
     , mkAnimation
-    -- ** Update
-    {-| The update of an 'Animation' creates and updates 'AnimatedPoint's: -}
-    , updateAnimationIfNeeded
-    , getDeadline
-    -- ** Render
-    , renderAnim
-    -- * Animation functions
-    -- | Animation functions are used by 'Animation's to update 'AnimatedPoint's.
-    , gravityFallGeo
-    , simpleExplosionGeo
-    , quantitativeExplosionGeo
-    , animatePolygonGeo
-    , laserAnimationGeo
-    -- * Predefined animations
-    -- ** Explosive
+    -- ** Predefined animations
+    -- *** Explosive
     , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
-    -- ** Free fall
+    -- *** Free fall
     {- | 'freeFall' simulates the effect of gravity on an object that has an initial speed.
 
     'freeFallThenExplode' adds an explosion when the falling object hits the environment
@@ -48,7 +37,7 @@ module Imj.Graphics.Animation
     -}
     , freeFall
     , freeFallThenExplode
-    -- ** Fragments
+    -- *** Fragments
     {- | 'fragmentsFreeFall' gives the impression that the object disintegrated in multiple
     pieces before falling.
 
@@ -58,13 +47,19 @@ module Imj.Graphics.Animation
     -}
     , fragmentsFreeFall
     , fragmentsFreeFallThenExplode
-    -- ** Geometric
+    -- *** Geometric
     , animatedPolygon
     , laserAnimation
-    -- ** Nice chars
+    -- *** Nice chars
     {-| 'niceChar' presents a list of 'Char's that /look good/
     when used in explosive and free fall animations. -}
     , niceChar
+    -- ** Update
+    , getDeadline
+    , shouldUpdate
+    , updateAnimation
+    -- ** Render
+    , renderAnim
     -- * Internal
     , module Imj.Graphics.Animation.Internal
     -- * Reexports

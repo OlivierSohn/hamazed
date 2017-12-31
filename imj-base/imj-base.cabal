@@ -98,6 +98,7 @@ library
                      , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
+                     , Imj.Example.SequentialTextTranslationsAnchored
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1
                      , imj-prelude ==0.1.*
@@ -110,6 +111,21 @@ library
                      , text ==1.2.*
                      , vector >= 0.12.0.1 && < 0.12.1
                      , vector-algorithms >= 0.7.0.1 && < 0.8
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
+                     -fexcess-precision -optc-ffast-math
+  default-language:    Haskell2010
+
+executable imj-base-examples-exe
+  hs-source-dirs:      example
+  other-modules:
+  main-is:             Main.hs
+  build-depends:       base >= 4.8 && < 4.11
+                     , ansi-terminal >= 0.6.3.1
+                     , mtl >= 2.2.1 && < 2.3
+                     , text ==1.2.*
+                     , imj-base
+                     , imj-prelude ==0.1.*
+                     , time ==1.8.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010

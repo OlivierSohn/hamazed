@@ -24,6 +24,5 @@ main = do
   runReaderT (testICS >>
               renderToScreen
               ) (NaiveDraw)
-
   --testStdout
   --testEase

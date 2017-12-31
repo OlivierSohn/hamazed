@@ -137,9 +137,12 @@ getAnimatedTextRenderStates evolution i =
 build :: Coords Pos -> Int -> [Coords Pos]
 build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
--- | The order of animation is: move, change characters, change color
+{- | Translates text in an animated way, character by character.
+
+Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
+ -}
 mkSequentialTextTranslationsCharAnchored :: [([ColorString], Coords Pos, Coords Pos)]
-                                         -- ^ List of (texts + from anchor + to anchor)
+                                         -- ^ List of (texts, from anchor, to anchor)
                                          -> Float
                                          -- ^ duration in seconds
                                          -> TextAnimation AnchorChars
@@ -158,7 +161,10 @@ mkSequentialTextTranslationsCharAnchored l duration =
                                  SequentiallyInterpolatedList to_]) duration
   in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
 
--- | Same as 'mkSequentialTextTranslationsCharAnchored' except it is String anchored
+{- | Translates text in an animated way, 'ColorString' by 'ColorString'.
+
+Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
+ -}
 mkSequentialTextTranslationsStringAnchored :: [([ColorString], Coords Pos, Coords Pos)]
                                            -- ^ List of (texts, from anchor, to anchor)
                                            -> Float

@@ -23,47 +23,51 @@ A more detailed overview can be seen at the end of this documentation.
 module Imj.Graphics.Render.Delta
   ( -- * Usage
 {- |
-* from a 'MonadIO' monad:
+* from a 'MonadIO' monad (see
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
 
     @
     import Imj.Graphics.Class.Draw(drawStr')
     import Imj.Graphics.Class.Render(renderToScreen')
 
-    helloWorld :: (MonadIO m) => m ()
+    helloWorld :: (MonadIO m) => DeltaEnv -> m ()
     helloWorld env = do
-      drawStr' env \"Hello World\" (Coords 10 10) green
+      drawStr' env \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen' env
 
     main = runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
     @
 
-* from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad,
+* from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad (see
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Example/DeltaRender/FromMonadReader.hs this example>):
 
     @
     import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
 
-    helloWorld :: (Draw e, Render e, MonadReader e m, MonadIO m) => m ()
+    -- Note that we omit 'Draw e', which is implied by 'Render e':
+    helloWorld :: (Render e, MonadReader e m, MonadIO m) => m ()
     helloWorld = do
-      drawStr \"Hello World\" (Coords 10 10) green
+      drawStr \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen
 
     main = runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
     @
 
-* from a 'MonadIO', 'MonadReader' 'YourEnv' monad,
+* from a 'MonadIO', 'MonadReader' 'YourEnv' monad (see
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs this example>):
 
-    * assuming 'YourEnv' owns a 'DeltaEnv'
-    and implements a 'Draw' instance which forwards to the 'Draw' instance of
-    the 'DeltaEnv' (like in
-    <https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs this game>):
+    * assuming 'YourEnv' owns a 'DeltaEnv' and implements 'Draw' and 'Render'
+    instances which forwards to the 'Draw' and 'Render' instance of
+    the owned 'DeltaEnv':
 
     @
     import YourApp(createYourEnv)
     import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
 
-    helloWorld :: (Draw e, Render e, MonadReader e m, MonadIO m) => m ()
+    -- Note that we omit 'Draw e', which is implied by 'Render e':
+    helloWorld :: (Render e, MonadReader e m, MonadIO m) => m ()
     helloWorld = do
-      drawStr \"Hello World\" (Coords 10 10) r green
+      drawStr \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen
 
     main = runThenRestoreConsoleSettings $ newDefaultEnv >>= createYourEnv >>= runReaderT helloWorld

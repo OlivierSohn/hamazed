@@ -2,7 +2,6 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - when drawing outside the buffers, do not mod, just don't render
   - verify render examples work
     - DeltaRenderFromMonadIO : make color easier to use (functions for foreground by default,
                                                          postfix to set background also ?)

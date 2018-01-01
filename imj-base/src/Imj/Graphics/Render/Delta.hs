@@ -24,7 +24,7 @@ module Imj.Graphics.Render.Delta
   ( -- * Usage
 {- |
 * from a 'MonadIO' monad (see
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-base/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
 
     @
     import Imj.Graphics.Class.Draw(drawStr')
@@ -39,7 +39,7 @@ module Imj.Graphics.Render.Delta
     @
 
 * from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad (see
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Example/DeltaRender/FromMonadReader.hs this example>):
+<https://github.com/OlivierSohn/hamazed/blob/master/imj-base/src/Imj/Example/DeltaRender/FromMonadReader.hs this example>):
 
     @
     import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)

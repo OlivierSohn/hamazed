@@ -2,10 +2,6 @@
 - make 11 packages
 https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - verify render examples work
-    - DeltaRenderFromMonadIO : make color easier to use (functions for foreground by default,
-                                                         postfix to set background also ?)
-
   - http://hackage.haskell.org/package/optparse-applicative to parametrize examples
   - use y in github to permalinks Env.hs
 

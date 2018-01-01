@@ -1,3 +1,6 @@
+-- Environment of the Hamazed game, also used as an example in "Imj.Graphics.Render.Delta" :
+-- /from a MonadIO, MonadReader YourEnv monad/
+
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Game.Hamazed.Env(

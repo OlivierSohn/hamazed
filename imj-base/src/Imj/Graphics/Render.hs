@@ -36,7 +36,7 @@ helloWorld = drawStr \"Hello World\" (Coords 10 10) green >> renderToScreen
 main = createEnv >>= runReaderT helloWorld
 @
 
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs This example>
+<https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs This example>
 follows this pattern. -}
   , module Imj.Graphics.Render.FromMonadReader
   -- * Reexports

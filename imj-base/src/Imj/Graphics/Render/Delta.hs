@@ -24,7 +24,7 @@ module Imj.Graphics.Render.Delta
   ( -- * Usage
 {- |
 * from a 'MonadIO' monad (see
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-base/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
+<https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-base/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
 
     @
     import Imj.Graphics.Class.Draw(drawStr')
@@ -39,7 +39,7 @@ module Imj.Graphics.Render.Delta
     @
 
 * from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad (see
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-base/src/Imj/Example/DeltaRender/FromMonadReader.hs this example>):
+<https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-base/src/Imj/Example/DeltaRender/FromMonadReader.hs this example>):
 
     @
     import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
@@ -54,10 +54,10 @@ module Imj.Graphics.Render.Delta
     @
 
 * from a 'MonadIO', 'MonadReader' 'YourEnv' monad (see
-<https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs this example>):
+<https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs this example>):
 
     * assuming 'YourEnv' owns a 'DeltaEnv' and implements 'Draw' and 'Render'
-    instances which forwards to the 'Draw' and 'Render' instance of
+    instances forwarding to the 'Draw' and 'Render' instance of
     the owned 'DeltaEnv':
 
     @
@@ -123,8 +123,8 @@ To avoid overflowing stdout, the system flushes it, thereby triggering a /partia
 = Motivations
 
 At the beginning of the development of
-<https://github.com/OlivierSohn/hamazed hamazed, my first terminal game>,
-I was clearing the screen at every frame and filling stdout with rendering commands
+<https://github.com/OlivierSohn/hamazed hamazed>,
+I was clearing the terminal screen at every frame and filling stdout with rendering commands
 for every game element and animation.
 
 As the complexity of animations grew, screen tearing occured, so I looked for ways to fix it.

@@ -2,34 +2,31 @@
 
 The monorepo for the game "Hamazed" and its packages.
 
-To get familiar with the concepts, I recommend browsing the haddock documentation:
-it is up-to-date, structured, and quite exhaustive, both on the libraries side
-and on the game side.
+The haddock documentation explains the concepts used, both on the game side and
+on the game engine side.
 
-# Packages
+# Packages list
 
 - imj-prelude
   - The prelude I use in other packages.
 - imj-base
-  - An "engine" library: it contains base classes and types, geometry, delta-rendering, etc...
+  - An "engine" library: it contains base classes and types, geometry, text animations.
+  - Also contains a "delta renderer" that could be useful for anyone writing a game for the terminal,
+  and wanting to avoid screen tearing without sacrificing animations.
   - Also contains an executable that can be run to see examples (at the time of writing,
     examples about text animation).
 - imj-animation
-  - A library to create animations. Uses imj-base.
+  - A library to create animations.
 - imj-game-hamazed
-  - An application (the game), using the two libraries above.
-
-With imj-base and imj-animation you can start a game of your own,
-that's the idea behind making this project open-source.
-
-Either you can just use the delta renderer ("Imj.Graphics.Render.Delta") which will
-ensure that your games runs wihout screen tearing, or you can also
-use the other concepts of imj-base and imj-animations.
+  - The game, using the two libraries above.
+- imj-measure-stdout
+  - An test application to measure the maximum capacity of stdout, and observe the effect
+  of different buffering modes.
 
 # Contributions
 
-Contributions are welcome, if you want you can open an issue to discuss it beforehand,
-or directly open a PR.
+Contributions are welcome. You can design new animations, new games, enhance the
+current features, etc...
 
 The code compiles with --pedantic, please make sure it compiles with it before
 submitting a PR.
@@ -44,7 +41,10 @@ And test using
 
 `stack test --pedantic`
 
-# Misc.
+# Concepts comparisons
+
+Here I underline some similarities and differences between different concepts
+I introduced in the libraries : interpolation, animation and morphing.
 
 ## A comparison between DiscreteInterpolation and DiscreteMorphing / DiscreteColorableMorphing
 
@@ -55,7 +55,7 @@ DiscreteMorphing, DiscreteColorableMorphing interpolates between graphical repre
 the result of a morphing between 2 'v' is a graphical representation
 "somewhat in-between" the 2 graphical representations of the 'v'.
 
-## A comparison between Animations and Morphings (notions used in the libraries)
+## A comparison between Animations and Morphings
 
 There are two ways to "animate things graphically" : Animations (Animation in imj-animation)
 and morphings (DiscreteMorphing, DiscreteColorableMorphing in imj-base).

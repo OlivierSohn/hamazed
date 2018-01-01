@@ -2,14 +2,18 @@ name:                imj-base
 version:             0.1.0.0
 Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
-Synopsis: Discrete & continuous geo, easing, animated text, delta rendering
-Description:         Game engine library containing : common types, classes, discrete and
-                     continuous geometry, collision detection, animated UIs, colored text,
-                     interpolations and morphings.
+Synopsis: Game engine with geometry, easing, animated text, delta rendering.
+Description:         Game engine that is intended to help implementing games
+                     for the terminal.
                      .
 
-                     Also contains an optimized renderer to avoid screen tearing in the terminal,
-                     using "delta rendering".
+                     Contains types and classes about discrete and continuous
+                     geometry, collision detection, animated UIs,
+                     animated colored text and easing functions.
+                     .
+
+                     Also contains a renderer (delta-renderer) optimized to avoid
+                     screen tearing in the terminal.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-base/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -26,16 +30,10 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:
-                    -- Initially, this package was split in multiple smaller packages.
-                    -- The problem was that documentation for instances was not cross-package
-                    -- so we couldn't know easily which types implemented what class.
-                    -- So I decided to put all instances in the imj-base module.
-                    --
-                    -- The comments intercalated in this list delimit the old libraries.
-                    --
-                    -- former package : imj-base
-                       Imj.GameItem.Weapon.Laser.Types
+  exposed-modules:     Imj.Example.DeltaRender.FromMonadIO
+                     , Imj.Example.DeltaRender.FromMonadReader
+                     , Imj.Example.SequentialTextTranslationsAnchored
+                     , Imj.GameItem.Weapon.Laser.Types
                      , Imj.GameItem.Weapon.Laser
                      , Imj.Geo.Discrete
                      , Imj.Geo.Discrete.Bresenham
@@ -98,11 +96,8 @@ library
                      , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
-                     , Imj.Example.SequentialTextTranslationsAnchored
-                     , Imj.Example.DeltaRender.FromMonadIO
-                     , Imj.Example.DeltaRender.FromMonadReader
   build-depends:       base >= 4.8 && < 4.11
-                     , ansi-terminal >= 0.6.3.1
+                     , ansi-terminal >= 0.6.3.1 && < 0.9
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , primitive ==0.6.*
@@ -122,7 +117,7 @@ executable imj-base-examples-exe
   other-modules:
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , ansi-terminal >= 0.6.3.1
+                     , ansi-terminal >= 0.6.3.1 && < 0.9
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
                      , imj-base
@@ -143,7 +138,7 @@ test-suite imj-base-test
                      , Test.Imj.Vector
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , ansi-terminal >= 0.6.3.1
+                     , ansi-terminal >= 0.6.3.1 && < 0.9
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
                      , imj-base

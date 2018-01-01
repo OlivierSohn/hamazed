@@ -1,12 +1,22 @@
 
 module Imj.Measure.Stdout
     ( testStdout
+    , testStdoutSize -- for its doc
+    , Settings(..)
+    -- * Reexports
     ) where
 
 import           Imj.Prelude
 
 import           Control.Concurrent
 import           System.IO
+
+
+data Settings = LengthTest {
+  _settingsLengthTestLength :: !Int
+}
+               | OtherTests !Bool
+
 
 cursorForward, cursorBackward, noop:: String
 cursorForward = "\ESC[C"
@@ -33,18 +43,31 @@ mkSmartStringToExactlyFillBufferOfSize char bufferSz =
        else
          str
 
--- | A function to visually see if the stdout size is smaller or bigger than given numbers.
---
--- see 'testStdoutSizes'.
-testStdoutSizes :: IO ()
-testStdoutSizes = do
-  print "test stdout size"
-  let bufferSizes = [8096, 8097]
-      -- on my system, 8096 is the stdout max buffer size for
-      -- BlockBuffering and LineBuffering modes
-  mapM_ testStdoutSize bufferSizes
+{- | A function to visually see if the stdout size is smaller or bigger than given numbers.
+
+@
+if you see 1, then 2, then 3,
+    size of stdout buffer < size
+if you see 1, then 2 and 3 at the same time,
+    size of stdout buffer >= size
+@
+
+see 'testStdoutSize' doc to understand how to determine the size.
+-}
+testStdoutSizes :: Int -> IO ()
+testStdoutSizes size = do
+
+  when (size <= 1) $ error $ "The size (" ++ show size ++ ") should be >= 2."
+
+  print "test stdout size :"
+  print " -if you see 1, then 2, then 3:"
+  print $ "    maximum size of stdout buffer < " ++ show size
+  print " -if you see 1, then 2 and 3 at the same time:"
+  print $ "    maximum size of stdout buffer >= " ++ show size
+  -- on my system, 8192 is the stdout max buffer size for
+  -- BlockBuffering and LineBuffering modes
+  mapM_ testStdoutSize [size]
   putStrLn ""
-  print "... done"
 
 {- | This function, when run from a process whose stdout is the console,
 can be used to visually determine the maximum capacity of stdout.
@@ -91,17 +114,20 @@ testStdoutSize sz = do
 
 withBufferMode :: BufferMode -> IO ()
 withBufferMode b = do
-  putStrLn ""
   setBufferModeAndVerify b
-  hShow stdout >>= print
+  bufmode <- hShow stdout
+  putStrLn ""
+  putStrLn $ "Buffer Mode = " ++ bufmode
+  putStrLn ""
   hFlush stdout
 
 
 -- TODO ask the user wha to do : testStdoutSizes (and which size) or other.
 -- maybe pass using command line params.
-testStdout :: IO ()
-testStdout = do
-  testStdoutSizes
+testStdout :: Settings -> IO ()
+testStdout (LengthTest candidateLength) = testStdoutSizes candidateLength
+testStdout (OtherTests False) = error "missing option (use --help to see the different possibilities)"
+testStdout (OtherTests True) = do
   let actions = [
                 -- shows that the 'n' in "BlockBuffering (Just n)" is homogenous to
                 -- a string length, containing both displayable characters and characters

@@ -134,12 +134,13 @@ My first idea to mitigate screen tearing was to maximize the size of stdout buff
 
 > hSetBuffering stdout $ BlockBuffering $ Just maxBound
 
-Using 'imj-measure-stdout-exe' I saw that it went from 2048 bytes to 8096 bytes long.
-But it solved the problem only very temporarily. As I introduced more animations in the game,
-screen tearing was back!
+I developped @ imj-measure-stdout-exe @ to measure the size of stdout buffer and found
+that the size had quadrupled, from 2048 to 8192 bytes.
 
-I needed to not only maximize stdout size but also reduce the amount of data that
-I was writing in it.
+But it solved the problem only very temporarily. As I introduced more animations
+in the game, screen tearing was back : I needed not only to maximize stdout size
+but also to reduce the amount of data that I was writing in it. This is when I
+discovered the /delta rendering/ approach.
 
 == Delta rendering
 

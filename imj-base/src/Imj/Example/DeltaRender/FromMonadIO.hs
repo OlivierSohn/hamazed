@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 -- | This example is related to "Imj.Graphics.Render.Delta" : /from a 'MonadIO'/
 
 module Imj.Example.DeltaRender.FromMonadIO

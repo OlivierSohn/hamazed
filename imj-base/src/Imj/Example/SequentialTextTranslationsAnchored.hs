@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE OverloadedStrings #-}
 
 {- | Examples of animated text.

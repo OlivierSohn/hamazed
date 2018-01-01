@@ -1,9 +1,19 @@
 name:                imj-game-hamazed
-version:             0.1.0.0
+version:             0.1.0.1
 Category:            Animation, Game, Graphics, Education, Application
 Synopsis:            A game with flying numbers and 8-bit color animations.
-Description:         You fly a ship through numbers, the goal is to shoot
-                     the numbers whose sum will be equal to the level's target.
+Description:         In Hamazed, you are a 'BattleShip' pilot surrounded by flying 'Number's.
+                     .
+
+                     Your mission is to shoot exactly the 'Number's whose sum will equate the
+                     current 'Level' 's /target number/.
+                     .
+
+                     The higher the 'Level' (1..12), the more 'Number's are flying around (up-to 16).
+                     And the smaller the 'World' gets.
+                     .
+
+                     Good luck !
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-game-hamazed//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3

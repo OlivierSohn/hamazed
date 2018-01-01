@@ -1,8 +1,14 @@
 # What is it?
 
-An framework to create event-based, physics-based, composed, generative animations.
+A framework to create event-based, physics-based, composed, generative animations.
 
 Also contains ready-to-use animations.
+
+## Demos
+
+The following game uses this library to create its animations:
+
+[![asciicast](https://asciinema.org/a/151434.png)](https://asciinema.org/a/151434)
 
 # Build
 
@@ -12,5 +18,4 @@ You can build using [stack](https://docs.haskellstack.org):
 
 # Contributions
 
-Contributions are welcome, make sure you can build with `stack build --pedantic`
-before submitting a pull request.
+Contributions are welcome!

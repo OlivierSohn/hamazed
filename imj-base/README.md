@@ -1,13 +1,12 @@
 # What is it?
 
-A library containing
+A game-engine library containing:
 
-- Common low-level data types
+- Types and classes about discrete and continuous geometry, collision detection,
+animated UIs, animated colored text and easing functions.
 
-- A terminal render engine that mitigates screen tearing when rendering complex
-  game graphics, by minimizing the amount of data sent to stdout.
+- A renderer (delta-renderer) optimized to avoid screen tearing in the terminal.
 
-- The classes DiscreteDistance, DiscreteInterpolation, DiscreteMorphing, DiscreteColorableMorphing
- and their implementation on common data-types.
+- IO utilities to read player key-presses.
 
-- IO utilities to know which keys the user has pressed.
+Also produces a demo-application on text animation, `imj-base-examples-exe`.

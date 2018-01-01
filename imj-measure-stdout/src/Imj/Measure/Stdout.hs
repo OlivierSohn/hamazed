@@ -122,8 +122,6 @@ withBufferMode b = do
   hFlush stdout
 
 
--- TODO ask the user wha to do : testStdoutSizes (and which size) or other.
--- maybe pass using command line params.
 testStdout :: Settings -> IO ()
 testStdout (LengthTest candidateLength) = testStdoutSizes candidateLength
 testStdout (OtherTests False) = error "missing option (use --help to see the different possibilities)"

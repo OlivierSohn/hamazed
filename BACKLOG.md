@@ -1,18 +1,16 @@
 
 - make packages https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - try stack sdist / stack upload on prelude
-
-  - Measure if O2 is necessary, especially for:
-    - chained animations with a lot of points
-    - delta renderer
-  compilation times are slower by 4% with -O2.
-
   - about the hyperlinked-source option
   https://www.reddit.com/r/haskell/comments/6o4rnb/psa_regarding_cabal_haddock/
 
   - a script to build doc
   https://gist.github.com/stbuehler/7068764
+
+  - Measure if O2 is necessary, especially for:
+    - chained animations with a lot of points
+    - delta renderer
+  compilation times are slower by 4% with -O2.
 
   -  The hackage-server attempts to build documentation for library packages, but this can fail. Maintainers can generate their own documentation and upload it by using something along the lines of the shell script below (note that the last two commands are the key ones):
 #!/bin/sh

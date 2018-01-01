@@ -17,8 +17,7 @@ on the game engine side.
   - An "engine" library: it contains base classes and types, geometry, text animations.
   - Also contains a "delta renderer" that could be useful for anyone writing a game for the terminal,
   with animations, and wanting to avoid screen tearing.
-  - Also contains an executable that can be run to see examples (at the time of writing,
-    examples about text animation).
+  - Also contains an executable that can be run to see examples of text animation.
 - imj-animation
   - A library to create animations.
 - imj-game-hamazed

@@ -1,5 +1,5 @@
 name:                imj-base
-version:             0.1.0.0
+version:             0.1.0.1
 Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
 Synopsis: Game engine with geometry, easing, animated text, delta rendering.

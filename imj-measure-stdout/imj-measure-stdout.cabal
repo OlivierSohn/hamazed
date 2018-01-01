@@ -1,9 +1,20 @@
 name:                imj-measure-stdout
-version:             0.1.0.0
+version:             0.1.0.1
 Category:            Console, Terminal
-Synopsis:            A way to visually determine the current size of stdout buffer.
-Description:         When looking at the program output, you can tell if your
-                     stdout buffer is bigger or smaller than a given value.
+Synopsis:            An application to determine the maximum capacity of stdout buffer.
+Description:         The program helps you determine the maximum capacity of your stdout buffer.
+                     .
+
+                     It was initially developped to diagnose screen tearing issues
+                     in a terminal-based game I was developping, and more specifically, to see the
+                     effect of the following action :
+                     .
+
+                     > hSetBuffering stdout $ BlockBuffering $ Just maxBound
+                     .
+
+                     Using this program, I found that, on my system, the previous call quadruples
+                     stdout's capacity, from 2048 to 8192 bytes.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-measure-stdout/README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3

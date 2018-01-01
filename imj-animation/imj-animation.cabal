@@ -1,5 +1,5 @@
 name:                imj-animation
-version:             0.1.0.1
+version:             0.1.0.2
 Category:            Animation, Game Engine, Graphics, Algorithms
 Synopsis:            Animation Framework
 Description:         Framework to create event-based, physics-based, composed, generative animations.

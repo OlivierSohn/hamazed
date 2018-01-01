@@ -1,5 +1,5 @@
 name:                imj-prelude
-version:             0.1.0.1
+version:             0.1.0.2
 Category:            Game Engine
 Synopsis:            Prelude library.
 Description:         Library of commonly used functions and types.

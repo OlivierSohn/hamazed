@@ -1,5 +1,5 @@
 name:                imj-measure-stdout
-version:             0.1.0.2
+version:             0.1.0.3
 Category:            Console, Terminal
 Synopsis:            An application to determine the maximum capacity of stdout buffer.
 Description:         The program helps you determine the maximum capacity of your stdout buffer.

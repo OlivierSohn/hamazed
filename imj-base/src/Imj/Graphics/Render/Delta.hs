@@ -3,14 +3,17 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 {-|
-The purpose of this module is to render games and animations in the terminal
+This
+<https://en.wikipedia.org/wiki/Delta_encoding delta>
+renderer renders games and animations in the terminal
 without <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 
 It supports <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit 8-bit Colors>
 and <http://www.unicode.org/ Unicode> characters.
 
-In short, <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>
-is mitigated by:
+It mitigates
+<https://en.wikipedia.org/wiki/Screen_tearing screen tearing>
+by:
 
     * Using double buffering techniques (/back/ and /front/ buffers)
     * Rendering in each frame /only/ the locations that have changed, in an order
@@ -99,8 +102,8 @@ immediately. -}
 , defaultStdoutMode
 , setStdoutBufferMode
   -- * Draw and render
-  {- | The functions below present drawing and rendering functions in a 'MonadReader'
-  monad, which is the recommended way to use delta rendering.
+  {- | The functions below allow to draw and render in a 'MonadReader'
+  monad, which is the recommended way of using the delta renderer.
 
   More alternatives are presented in this module:
   -}

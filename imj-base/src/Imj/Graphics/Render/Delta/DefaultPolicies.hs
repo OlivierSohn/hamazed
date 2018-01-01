@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_HADDOCK hide #-}
 
--- | This module defines the default policies.
+-- | This module defines the delta renderer's default policies.
 
 module Imj.Graphics.Render.Delta.DefaultPolicies
            where

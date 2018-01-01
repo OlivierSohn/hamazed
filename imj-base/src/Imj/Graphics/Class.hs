@@ -1,4 +1,3 @@
--- doc module
 
 module Imj.Graphics.Class
   ( -- * Classes

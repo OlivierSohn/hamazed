@@ -1,4 +1,4 @@
--- | This module exports functions and types to handle text alignemnt.
+-- | This module exports functions and types related to text alignemnt.
 
 module Imj.Graphics.Text.Alignment
             ( -- * Alignment

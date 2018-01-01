@@ -1,9 +1,19 @@
 # What is it?
 
-It's a terminal ascii game where you fly a ship through numbers. The goal is to shoot
-the numbers whose sum will be equal to the level's target. It's easy at the beginning,
-but higher levels have more and more numbers, and less and less space to navigate through them!
-The last level is level 12: I never reached it, but I hope somebody will :).
+It's a terminal ascii game.
+
+## The pitch
+
+You fly a ship through numbers. The goal is to shoot
+the numbers whose sum will be equal to the level's target.
+
+Higher levels have more and more numbers, and less and less space to navigate through them.
+
+Good Luck!
+
+## What's inside
+
+Contains 8-bit color, physics animations, inter-level animations, and an optimized renderer to avoid screen tearing.
 
 # Demos
 
@@ -17,23 +27,24 @@ The last level is level 12: I never reached it, but I hope somebody will :).
 
 # Configurability
 
-The game can be configured in "world shape" (square, rectangle) and "kind of walls"
-(none, deterministic, random).
+The world is configurable (square or rectangle, with or without random walls)
 
 ![Configuration snapshot](images/config.png?raw=true "Configuration")
 
 You can define your own keyboard mapping by modifying the 'eventFromKey' function
-defined [here](src/Game/Event.hs), the default mapping being:
-- ship acceleration : 's' 'e' 'd' 'f'
-- laser shots       : 'j' 'i' 'k' 'l'
+defined
+[here](https://github.com/OlivierSohn/hamazed/blob/3821705b036f1c5234a913c7675da1484739f1ed/imj-game-hamazed/src/Imj/Game/Hamazed/KeysMaps.hs)
+, the default mapping being:
+- ship acceleration : [s e d f]
+- laser shots       : [j i k l]
 
 # Supported Platforms / Terminals:
 
-|OS       |Support|
-|---------|-------|
-|OS X     |Yes    |
-|Linux    |Yes    |
-|Windows  |No (see [this](https://ghc.haskell.org/trac/ghc/ticket/7353)) |
+Linux, OS X are supported.
+
+Windows is not supported due to
+[this](https://ghc.haskell.org/trac/ghc/ticket/7353))
+.
 
 Your terminal window should have a dimension of at least {height = 42, width = 146}.
 If it is too small, the program will fail with the following error message:
@@ -46,20 +57,6 @@ Current terminal size : Window {height = 22, width = 165}.
 The current terminal size doesn't match the minimum size,
 please adjust your terminal size and restart the executable.
 ```
-
-# Version history
-- 2.1 :
-  - New animations :
-    - With colors (8-bit)
-    - Also between levels
-    - Using physics and gravity
-    - "Terminal size"-aware
-- 2.0 :
-  - World is configurable (square or rectangle, with or without random walls)
-  - Explosion animations
-  - Optimized rendering (delta rendering)
-- 1.0 :
-  - The world is a square. (Note : ship acceleration was 'w' 'a' 's' 'd' at that time)
 
 # Build
 

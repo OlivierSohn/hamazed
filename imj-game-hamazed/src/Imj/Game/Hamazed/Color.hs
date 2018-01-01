@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-{-| This module defines the colors of every game element, except animations. -}
+-- | This module defines colors of Hamazed game elements.
 
 module Imj.Game.Hamazed.Color (
   -- * Ship colors

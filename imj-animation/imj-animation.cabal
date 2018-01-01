@@ -1,5 +1,5 @@
 name:                imj-animation
-version:             0.1.0.2
+version:             0.1.0.3
 Category:            Animation, Game Engine, Graphics, Algorithms
 Synopsis:            Animation Framework
 Description:         Framework to create event-based, physics-based, composed, generative animations.
@@ -20,12 +20,12 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:
-                      -- initially in a separate module for implementations
+                      -- concrete animations
                        Imj.Graphics.Animation
                      , Imj.Graphics.Animation.Chars
                      , Imj.Graphics.Animation.Geo
                      , Imj.Graphics.Animation.Internal
-                      -- initially in a separate module for core
+                      -- core animation
                      , Imj.Graphics.Animation.Design.Color
                      , Imj.Graphics.Animation.Design.Create
                      , Imj.Graphics.Animation.Design.Render

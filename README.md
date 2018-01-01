@@ -16,7 +16,7 @@ on the game engine side.
 - imj-base
   - An "engine" library: it contains base classes and types, geometry, text animations.
   - Also contains a "delta renderer" that could be useful for anyone writing a game for the terminal,
-  and wanting to avoid screen tearing without sacrificing animations.
+  with animations, and wanting to avoid screen tearing.
   - Also contains an executable that can be run to see examples (at the time of writing,
     examples about text animation).
 - imj-animation
@@ -24,16 +24,13 @@ on the game engine side.
 - imj-game-hamazed
   - The game, using the two libraries above.
 - imj-measure-stdout
-  - An test application to measure the maximum capacity of stdout, and observe the effect
+  - A test application to measure the maximum capacity of stdout, and observe the effect
   of different buffering modes.
 
 # Contributions
 
 Contributions are welcome. You can design new animations, new games, enhance the
 current features, etc...
-
-The code compiles with --pedantic, please make sure it compiles with it before
-submitting a PR.
 
 # Build
 

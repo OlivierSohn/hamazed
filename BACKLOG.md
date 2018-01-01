@@ -1,15 +1,12 @@
 
-- make 11 packages
-https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
+- make packages https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
 
-  - use y in github to permalinks Env.hs
+  - try stack sdist / stack upload on prelude
 
   - Measure if O2 is necessary, especially for:
     - chained animations with a lot of points
     - delta renderer
   compilation times are slower by 4% with -O2.
-
-  - try stack sdist / stack upload on prelude
 
   - about the hyperlinked-source option
   https://www.reddit.com/r/haskell/comments/6o4rnb/psa_regarding_cabal_haddock/

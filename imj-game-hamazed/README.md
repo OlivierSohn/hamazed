@@ -13,7 +13,7 @@ The last level is level 12: I never reached it, but I hope somebody will :).
 
 ## Random walls, rectangular world
 
-[![asciicast](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY.png)](https://asciinema.org/a/uYy7GU9Uzs68PF102Cfsx1olY)
+[![asciicast](https://asciinema.org/a/151404.png)](https://asciinema.org/a/151404)
 
 # Configurability
 

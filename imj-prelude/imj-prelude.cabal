@@ -9,7 +9,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Olivier Sohn
 maintainer:          olivier.sohn@gmail.com
-copyright:           2017 Olivier Sohn
+copyright:           2017 - 2018 Olivier Sohn
 build-type:          Simple
 extra-source-files:  README.md CHANGELOG.md
 cabal-version:       >=1.10

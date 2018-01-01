@@ -1,3 +1,3 @@
 # What is it?
 
-The prelude used by all libraries
+The prelude used by 'imj-****' libraries

@@ -5,6 +5,10 @@ The monorepo for the game "Hamazed" and its packages.
 The haddock documentation explains the concepts used, both on the game side and
 on the game engine side.
 
+## Demo
+
+[![asciicast](https://asciinema.org/a/151404.png)](https://asciinema.org/a/151404)
+
 # Packages list
 
 - imj-prelude

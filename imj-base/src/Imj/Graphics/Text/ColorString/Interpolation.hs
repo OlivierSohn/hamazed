@@ -7,7 +7,7 @@ module Imj.Graphics.Text.ColorString.Interpolation
             ( -- * Interpolation
               interpolateChars
               -- * Helpers
-            , insertionColors
+            , insertionColor
             ) where
 
 import           Imj.Prelude
@@ -73,12 +73,12 @@ interpolateChars s1 s2 i =
       -- TODO use an already existing color instead of switching to the new color immediately
       ed1 = take nExDiff1 $ drop totalCD s1AfterCommonPref
       ed2 = zipWith
-              (\idx (char, color) -> (char, fromMaybe color $ insertionColors insertionBounds idx nExDiff2))
+              (\idx (char, color) -> (char, fromMaybe color $ insertionColor insertionBounds idx nExDiff2))
               [0..]
               $ take nExDiff2 $ drop totalCD s2AfterCommonPref
 
       insertionBounds :: [LayeredColor]
-      insertionBounds = catMaybes $
+      insertionBounds = catMaybes
         [ if null pre
             then
               Nothing
@@ -99,8 +99,8 @@ interpolateChars s1 s2 i =
 -- | Computes color to be applied when a character is inserted
 -- in a 'ColorString' (during inteprolation) so that color matches right and or left
 -- colors.
-insertionColors :: [LayeredColor] -> Int -> Int -> Maybe LayeredColor
-insertionColors insertionBounds n total =
+insertionColor :: [LayeredColor] -> Int -> Int -> Maybe LayeredColor
+insertionColor insertionBounds n total =
   case insertionBounds of
     [] -> Nothing
     [color] -> Just color
@@ -110,4 +110,4 @@ insertionColors insertionBounds n total =
           -- when n == total we are at colorTo   (frame = pred dist)
           frame = round (fromIntegral ((n+1) * pred dist) / fromIntegral (total+1) :: Float)
       in Just $ interpolate colorFrom colorTo frame
-    _ -> error "insertionBounds has at most 2 elements"
+    _ -> error "insertionBounds has at more than 2 elements"

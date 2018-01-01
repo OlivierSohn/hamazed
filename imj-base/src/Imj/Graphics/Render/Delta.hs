@@ -134,7 +134,7 @@ My first idea to mitigate screen tearing was to maximize the size of stdout buff
 
 > hSetBuffering stdout $ BlockBuffering $ Just maxBound
 
-Using 'testStdoutSizes' I measured that it went from 2048 bytes to 8096 bytes long.
+Using 'imj-measure-stdout-exe' I saw that it went from 2048 bytes to 8096 bytes long.
 But it solved the problem only very temporarily. As I introduced more animations in the game,
 screen tearing was back!
 

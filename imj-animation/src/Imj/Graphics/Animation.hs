@@ -178,7 +178,7 @@ fragmentsFreeFall :: Vec2 Vel
                   -- ^ Character used when drawing the animation.
                   -> [Animation]
 fragmentsFreeFall speed pos interaction animSpeed keyTime char =
-  catMaybes $ map (\sp -> freeFall sp pos interaction animSpeed keyTime char) $ variations speed
+  mapMaybe (\sp -> freeFall sp pos interaction animSpeed keyTime char) $ variations speed
 
 -- | A gravity-based free-falling animation.
 freeFall :: Vec2 Vel
@@ -217,7 +217,7 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Character used when drawing the animation.
                              -> [Animation]
 fragmentsFreeFallThenExplode speed pos interaction k s c =
-  catMaybes $ map (\sp -> freeFallThenExplode sp pos interaction k s c) $ variations speed
+  mapMaybe (\sp -> freeFallThenExplode sp pos interaction k s c) $ variations speed
 
 -- | Given an input speed, computes four slightly different input speeds
 variations :: Vec2 Vel -> [Vec2 Vel]

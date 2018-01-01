@@ -4,7 +4,6 @@ import           Control.Monad.Reader(runReaderT)
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Naive
 
---import           Test.Imj.Stdout
 --import           Test.Imj.Ease
 import           Test.Imj.Vector
 import           Test.Imj.Bresenham3
@@ -24,5 +23,4 @@ main = do
   runReaderT (testICS >>
               renderToScreen
               ) (NaiveDraw)
-  --testStdout
   --testEase

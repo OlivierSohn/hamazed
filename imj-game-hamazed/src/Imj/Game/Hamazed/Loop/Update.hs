@@ -60,7 +60,7 @@ update
         in GameState b world futWorld f newLevel anim
       Nothing -> state
   (Timeout (Deadline k Animate)) -> do
-    let newAnimations = catMaybes $ map (\a -> if shouldUpdate a k
+    let newAnimations = mapMaybe (\a -> if shouldUpdate a k
                                                 then updateAnimation a
                                                 else Just a) animations
     return $ GameState b (World c d space newAnimations e) futWorld f h anim

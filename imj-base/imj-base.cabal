@@ -139,7 +139,6 @@ test-suite imj-base-test
                      , Test.Imj.Ease
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
-                     , Test.Imj.Stdout
                      , Test.Imj.Timing
                      , Test.Imj.Vector
   main-is:             Spec.hs

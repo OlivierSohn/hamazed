@@ -1,0 +1,34 @@
+name:                imj-measure-stdout
+version:             0.1.0.0
+Category:            Console, Terminal
+Synopsis:            A way to visually determine the current size of stdout buffer.
+Description:         When looking at the program output, you can tell if your
+                     stdout buffer is bigger or smaller than a given value.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-measure-stdout/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md CHANGELOG.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+executable imj-measure-stdout-exe
+  hs-source-dirs:      app, src
+  main-is:             Main.hs
+  other-modules:       Imj.Measure.Stdout
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
+                     -threaded -rtsopts -with-rtsopts=-maxN4
+                     -fexcess-precision -optc-ffast-math
+  build-depends:       base >= 4.8 && < 4.11
+                     , imj-prelude ==0.1.*
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-measure-stdout

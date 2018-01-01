@@ -15,13 +15,13 @@ import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
 import           Data.Maybe( fromMaybe )
 import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
 
+import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn (new)
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Buffers.Dimensions
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Cells
-import qualified Imj.Graphics.Render.Delta.DynUnboxedVec as Dyn (new)
 import           Imj.Graphics.Render.Delta.DefaultPolicies
 
 

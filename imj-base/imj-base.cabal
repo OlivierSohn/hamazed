@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Example.DeltaRender.FromMonadIO
+  exposed-modules:     Imj.Data.Vector.Unboxed.Mutable.Dynamic
+                     , Imj.Example.DeltaRender.FromMonadIO
                      , Imj.Example.DeltaRender.FromMonadReader
                      , Imj.Example.SequentialTextTranslationsAnchored
                      , Imj.GameItem.Weapon.Laser.Types
@@ -71,7 +72,6 @@ library
                      , Imj.Graphics.Render.Delta.Console
                      , Imj.Graphics.Render.Delta.DefaultPolicies
                      , Imj.Graphics.Render.Delta.Draw
-                     , Imj.Graphics.Render.Delta.DynUnboxedVec
                      , Imj.Graphics.Render.Delta.Env
                      , Imj.Graphics.Render.Delta.Flush
                      , Imj.Graphics.Render.Delta.Internal.Types

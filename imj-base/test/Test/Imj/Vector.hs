@@ -5,7 +5,7 @@ module Test.Imj.Vector
 import           Control.Monad(when)
 import           Prelude hiding (length, read)
 
-import           Imj.Graphics.Render.Delta.DynUnboxedVec
+import           Imj.Data.Vector.Unboxed.Mutable.Dynamic
 
 -- | returns 1 on success, else errors
 testVector :: IO Bool

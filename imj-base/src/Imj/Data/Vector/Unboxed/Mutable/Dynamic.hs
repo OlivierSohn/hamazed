@@ -12,12 +12,14 @@ Modified from https://hackage.haskell.org/package/dynamic-mvector-0.1.0.5/docs/s
 * Added a sort function.
 * Added 'accessUnderlying' to be able to use sort algorithms efficiently, without copying.
 * Changed behaviour of clear, to avoid reallocation.
-* Fixed new / unsafeNew (the size was equal to the capacity instead of zero)
-* Removed functions that I don't use and won't have time to support
+* Fixed new / unsafeNew (the size was equal to the capacity instead of zero).
+* Removed functions that I don't use and won't have time to support.
+
+Unit tests : "Test.Imj.Vector"
 -}
 
 
-module Imj.Graphics.Render.Delta.DynUnboxedVec(
+module Imj.Data.Vector.Unboxed.Mutable.Dynamic(
         STVector
       , IOVector
       -- * Creation

@@ -15,15 +15,15 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 
+import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
+                                (unstableSort, accessUnderlying, length,
+                                 clear, pushBack )
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Clear
 import           Imj.Graphics.Render.Delta.Internal.Types
-import qualified Imj.Graphics.Render.Delta.DynUnboxedVec as Dyn
-                                (unstableSort, accessUnderlying, length,
-                                 clear, pushBack )
 
 
 -- | Flushes the frame, i.e renders it to the console.

@@ -3,29 +3,21 @@
 
 ## Misc.
 
-- split updateRender in update, render
-
 - do not render 2 times within 5 ms : it corresponds to a 200Hz refresh rate.
 It means we can group updates of deadlines that are within a 5ms timespan.
 To do that we also need to decouple GameState update from rendering.
 
-- when console is resized, move the world (recompute embeddedWorld)
+- when terminal is resized, re-center world accordingly.
+  - if terminal size is too small, pause the game and display a message
 
 - chose target and numbers such that there is a single possibility to reach that sum,
 or such that only one of the number should be ruled out?
-
-- make bigger worlds (whole terminal) with more numbers (maybe duplicate some)
-  - precompute some one connected components worlds if it is slow.
-  - or change the air/wall ratio
 
 - use hspec for testing
 
 - 3..2..1..GO! countdown at the beginning of a level
 
 - animate lose/win messages
-
-- when terminal is resized, re-center world accordingly.
-- if terminal size is too small, pause the game and display a message
 
 - make inter-level animation time independent of compute / render time
 -> keep "the last time world evolution was rendered" in UIEvolutions to not make deadlines based on current time
@@ -54,7 +46,20 @@ when shooting upwards
 - let users chose:
   - blocksize
 
-## Random world constraints
+## World
+
+- keep ship at the center of the screen:
+  we need a mask notion in the delta renderer:
+    either we put it behind the IORef, then we can mutate it without anyone noticing, and keep the MonadReader
+    or we use MonadState
+
+- make the world bigger but show just a part of it.
+
+- make bigger worlds (whole terminal) with more numbers (maybe duplicate some)
+  - precompute some one connected components worlds if it is slow.
+  - or change the air/wall ratio
+
+### Random world constraints
 
 - allow multiple connected components, but use the biggest connected component
 (in terms of area? number of cells? both?) and put numbers and ship in it.

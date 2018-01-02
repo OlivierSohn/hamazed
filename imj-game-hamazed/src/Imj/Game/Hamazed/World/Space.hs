@@ -316,7 +316,7 @@ scopedLocation space@(Space _ sz _) mayTermWindow wcc =
   -- than they should:
   let worldLocation = (`location` space)
       worldLocationExcludingBorders = (`strictLocation` space)
-      (Window h w) = fromMaybe (Window {height = 150, width = 400}) mayTermWindow
+      (Window h w) = fromMaybe Window{height = 150, width = 400} mayTermWindow
       terminalLocation coordsInWorld =
         let (Coords (Coord r) (Coord c)) = sumCoords coordsInWorld wcc
         in if r >= 0 && r < h && c >= 0 && c < w

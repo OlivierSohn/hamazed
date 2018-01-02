@@ -103,7 +103,7 @@ render' (GameParameters shape wall) = do
       world@(World _ _ space _ _) <- mkWorld rew worldSize wall [] 0
       _ <- renderSpace space ul >>=
         \worldCoords -> do
-          renderWorld world
+          renderWorld world worldCoords
           let middle = move (quot cs 2) RIGHT worldCoords
               middleCenter = move (quot (rs-1) 2 ) Down middle
               middleLow    = move (rs-1)           Down middle

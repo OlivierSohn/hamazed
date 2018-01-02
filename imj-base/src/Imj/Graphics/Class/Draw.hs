@@ -2,9 +2,9 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Class.Draw(
-         Draw(..)
-       ) where
+module Imj.Graphics.Class.Draw
+    ( Draw(..)
+    ) where
 
 import           Imj.Prelude
 

@@ -24,12 +24,11 @@ import           Imj.Graphics.UI.Animation
 {-# INLINABLE renderWorld #-}
 renderWorld :: (Draw e, MonadReader e m, MonadIO m)
             => World
+            -> Coords Pos
             -> m ()
-renderWorld
-  (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-         space _ (InTerminal _ upperLeft))  = do
+renderWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
+                   space _ _) s  = do
   -- render numbers, including the ones that will be destroyed, if any
-  let s = translateInDir Down $ translateInDir RIGHT upperLeft
   mapM_ (\b -> renderNumber b space s) balls
   when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
     let colors =

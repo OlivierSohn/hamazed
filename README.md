@@ -1,3 +1,5 @@
+https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master
+
 # What is it?
 
 The monorepo for the game "Hamazed" and its packages.

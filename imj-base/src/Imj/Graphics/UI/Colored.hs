@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.UI.Colored
@@ -11,7 +13,6 @@ import           Imj.Prelude
 import           Imj.Graphics.Class.Colorable
 import           Imj.Graphics.Class.DiscreteColorableMorphing
 import           Imj.Graphics.Class.HasLayeredColor
-import           Imj.Graphics.Color
 import           Imj.Graphics.Interpolation
 
 
@@ -19,6 +20,9 @@ data Colored a = Colored {
     _coloredColor :: !LayeredColor
   , _coloredColorable :: !a
 } deriving(Show)
+
+instance Functor Colored where
+  fmap f (Colored color a) = Colored color $ f a
 
 instance HasLayeredColor (Colored a) where
   getColor (Colored color _) = color

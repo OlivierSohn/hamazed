@@ -5,7 +5,7 @@
 
 module Imj.Graphics.Render.Delta.Types
             (
-             -- * Buffers
+             -- * Buffers type
               Buffers(..)
              -- ** Policies
             , Policies(..)
@@ -17,6 +17,7 @@ module Imj.Graphics.Render.Delta.Types
             , getRowCol
             , getHeight
             -- ** Reexported types
+            , Scissor
             , Word16
             , Height
             , Width
@@ -33,7 +34,8 @@ import           Control.Exception(assert)
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
 
-import           Imj.Geo.Discrete.Types(Width, Height, Row, Col)
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 
@@ -90,7 +92,8 @@ getRowCol (Dim idx) (Dim w) =
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)
   , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- The size is stored in back and front buffers
+  , _buffersDrawWidth :: !(Dim Width) -- We don't store the size as it is in back and front buffers
+  , _buffersDrawScissor :: !Scissor
   , _buffersDelta :: !Delta
   -- ^ The delta-buffer is used in renderFrame
   , _buffersPolicies :: !Policies

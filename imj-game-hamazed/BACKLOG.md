@@ -29,9 +29,8 @@ or such that only one of the number should be ruled out?
 - verify timing for ship safety when transitioning, currently it starts from beginning of animation!
 
 - for world with rectangular shape, the walls become visible at the other side of the fronteer
-on animations. Maybe we should animate the world too.
-
-At least do a rendering mask.
+on animations. Maybe we should animate the world too, or use a scissor of the shape of the morphed
+frame when drawing it.
 
 - a mode with limited visibility (a circle around the ship)
 
@@ -48,13 +47,6 @@ when shooting upwards
 
 ## World
 
-- keep ship at the center of the screen:
-  we need a mask notion in the delta renderer:
-    either we put it behind the IORef, then we can mutate it without anyone noticing, and keep the MonadReader
-    or we use MonadState
-
-- make the world bigger but show just a part of it.
-
 - make bigger worlds (whole terminal) with more numbers (maybe duplicate some)
   - precompute some one connected components worlds if it is slow.
   - or change the air/wall ratio
@@ -68,15 +60,6 @@ This relaxes the constraint on having a single connected component.
 
 - prevent "reduced rectangle" effect (i.e. make sure on each side there is Air touching the border)
 
-## Event driven aspect
-The game is driven by these events:
-
-|event            |start of the period|period length|rate|number of instances at any given time|priority|
-|-----------------|-------------------|-------------|----|-------------------------------------|--------|
-|game forward     |start of game      |constant     |med |1                                    |1       |
-|animation forward|anytime            |constant     |high|0..n                                 |3       |
-|user event       |anytime            |not periodic |low |0..1                                 |2       |
-
 ## Game Notions
 - some numbers are hidden in the walls
 - 3 lives at the beginning, gain one life if you complete a level in less than 5 seconds.
@@ -88,14 +71,8 @@ hitting a key (the key should be present also in the other room)
 
 ## Animation Design
 
-- make an animation between levels to make the world reduce progressively
-  for this animation we need to render the frame on top of the world
-
-  it's more complicated than an animation because there are multiple chars
-- use a different animation when the target is met?
-
 ## Playability
-- do not count duplicate laser shots in same motion step.
+- do not count duplicate laser shots in same motion step, it's "unfair".
 - write a help
 
 ## Difficulty

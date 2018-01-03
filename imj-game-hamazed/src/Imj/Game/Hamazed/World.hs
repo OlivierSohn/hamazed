@@ -8,6 +8,7 @@ module Imj.Game.Hamazed.World
 
       * 'WorldShape' : square or rectangular 'World' where the width is twice the height
       * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
+      * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
        -}
       getGameParameters
     , GameParameters(..)
@@ -26,7 +27,7 @@ module Imj.Game.Hamazed.World
     {- | A 'World' brings together:
 
     * game elements : 'Space', 'BattleShip' and 'Number's,
-    * rendering elements: 'Animation's,
+    * drawing elements: 'Animation's,
     * terminal-awareness : 'InTerminal'
     -}
     , World(..)
@@ -47,8 +48,8 @@ module Imj.Game.Hamazed.World
     -- are updated according to their speeds:
     , gameMotionPeriod
     , moveWorld
-    -- ** Render World
-    , renderWorld
+    -- ** Draw World
+    , drawWorld
     -- ** World utilities
     -- | 'laserEventAction' returns the effect a laser shot it has on the 'World'.
     , laserEventAction
@@ -86,16 +87,16 @@ module Imj.Game.Hamazed.World
       {- | 'location' is the standard collision detection function that considers
       that being outside the world means being in collision.
 
-      'scopedLocation' prevides more options with the use of 'Boundaries' to
+      'scopedLocation' prevides more options with the use of 'Scope' to
       defines the collision detection scopes.
        -}
     , location
     , scopedLocation
-    , Boundaries(..)
+    , Scope(..)
       -- ** Collision detection utilities
     , createRandomNonCollidingPosSpeed
-      -- ** Render
-    , renderSpace
+      -- ** Draw
+    , drawSpace
       -- * Movable items
       -- | A movable item's 'PosSpeed' is updated using 'updateMovableItem'
       -- at each 'MoveFlyingItems' event:
@@ -117,24 +118,22 @@ module Imj.Game.Hamazed.World
     -- * UI
     {- | UI elements around the 'World' are:
 
-    * a 'RectContainer' created by 'mkWorldContainer' to visually delimit the 'World'
+    * a 'RectContainer' created by 'mkRectContainerWithTotalArea' to visually delimit the 'World'
     * 'ColorString' information, placed around the 'RectContainer':
 
         * Up: 'Level' target
         * Left: remaining ammunitions / shot 'Number's
         * Down: 'Level' number
     -}
-    , mkWorldContainer
+    , mkRectContainerWithTotalArea
     -- ** Inter-level animations
     , module Imj.Graphics.UI.Animation
     -- * Secondary types
-    , WallDistribution(..)
-    , WorldShape(..)
+    , WallDistribution(..), WorldShape(..), ViewMode(..)
     , LevelFinished(..)
     , GameStops(..)
     -- * Reexports
     , module Imj.Graphics.Render
-    , ColorString
     ) where
 
 import           Imj.Prelude
@@ -149,16 +148,16 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.World.Create
+import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Game.Hamazed.World.Number
-import           Imj.Game.Hamazed.World.Render
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Render
-import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.RectContainer
 
 -- | Note that the position of the 'BattleShip' remains unchanged.
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -196,15 +195,19 @@ laserEventAction :: Direction
                  -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
 laserEventAction dir (World balls (BattleShip (PosSpeed shipCoords _) ammo _ _) space _ _) =
   let (maybeLaserRayTheoretical, newAmmo) =
-        if ammo > 0 then
-          (LaserRay dir <$> shootLaserWithOffset shipCoords dir Infinite (`location` space), pred ammo)
-        else
-          (Nothing, ammo)
+        if ammo > 0
+          then
+            (Just $ shootLaserWithOffset shipCoords dir Infinite (`location` space)
+           , pred ammo)
+          else
+            (Nothing
+           , ammo)
 
       ((remainingBalls, destroyedBalls), maybeLaserRay) =
          maybe
            ((balls,[]), Nothing)
-           (\r -> computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
+           (\r -> let (a,laserRay) = computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle
+                  in (a, Just laserRay))
              maybeLaserRayTheoretical
 
   in (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo)

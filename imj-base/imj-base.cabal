@@ -48,13 +48,14 @@ library
                      , Imj.Graphics.Class
                      , Imj.Graphics.Class.Colorable
                      , Imj.Graphics.Class.DiscreteColorableMorphing
+                     , Imj.Graphics.Class.DiscreteDistance
                      , Imj.Graphics.Class.DiscreteInterpolation
                      , Imj.Graphics.Class.DiscreteMorphing
                      , Imj.Graphics.Class.Drawable
                      , Imj.Graphics.Class.Draw
                      , Imj.Graphics.Class.HasLayeredColor
+                     , Imj.Graphics.Class.HasRectArea
                      , Imj.Graphics.Class.Render
-                     , Imj.Graphics.Class.DiscreteDistance
                      , Imj.Graphics.Color
                      , Imj.Graphics.Color.Types
                      , Imj.Graphics.Render
@@ -81,8 +82,10 @@ library
                      , Imj.Graphics.Text.Animation
                      , Imj.Graphics.Text.ColorString
                      , Imj.Graphics.Text.ColorString.Interpolation
+                     , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Colored
+                     , Imj.Graphics.UI.RectArea
                      , Imj.Graphics.UI.RectContainer
                      , Imj.Graphics.UI.RectContainer.MorphParallel4
                      , Imj.Input

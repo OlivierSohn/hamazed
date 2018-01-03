@@ -2,8 +2,8 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Design.Render
-    ( renderAnim
+module Imj.Graphics.Animation.Design.Draw
+    ( drawAnim
     ) where
 
 
@@ -20,22 +20,22 @@ import           Imj.Graphics.Animation.Design.Color
 import           Imj.Graphics.Render
 import           Imj.Iteration
 
-{- | If an 'AnimatedPoint' has no specific 'Char' to be rendered with,
-it will be rendered with the 'Char' of the 'Animation'.
+{- | If an 'AnimatedPoint' has no specific 'Char' to be drawn with,
+it will be drawn with the 'Char' of the 'Animation'.
 
 Hence, if neither 'AnimatedPoint' nor 'Animation' contain a 'Char', this function
 errors.-}
-{-# INLINABLE renderAnim #-}
-renderAnim :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawAnim #-}
+drawAnim :: (Draw e, MonadReader e m, MonadIO m)
            => Animation
            -> Coords Pos
            -- ^ Reference coordinates.
            -> m ()
-renderAnim (Animation points _ interaction (UpdateSpec _ (Iteration _ frameForNextUpdate)) mayChar) =
-  render' frameForNextUpdate mayChar points interaction
+drawAnim (Animation points _ interaction (UpdateSpec _ (Iteration _ frameForNextUpdate)) mayChar) =
+  draw' frameForNextUpdate mayChar points interaction
 
-{-# INLINABLE render' #-}
-render' :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE draw' #-}
+draw' :: (Draw e, MonadReader e m, MonadIO m)
         => Frame
         -> Maybe Char
         -- ^ Default char to use when there is no char specified in the state
@@ -43,12 +43,12 @@ render' :: (Draw e, MonadReader e m, MonadIO m)
         -> (Coords Pos -> InteractionResult)
         -> Coords Pos
         -> m ()
-render' _ _ (AnimatedPoints Nothing _ _) _ _   = return ()
-render' _ _ (AnimatedPoints (Just []) _ _) _ _ = return ()
-render'
+draw' _ _ (AnimatedPoints Nothing _ _) _ _   = return ()
+draw' _ _ (AnimatedPoints (Just []) _ _) _ _ = return ()
+draw'
  parentFrame mayCharAnim (AnimatedPoints (Just branches) _ childFrame) interaction r = do
   let (children, aliveCoordinates) = partitionEithers branches
-      selectRenderedCoordinates =
+      selectDrawnCoordinates =
         filter (\(AnimatedPoint canInteract coords _) ->
                     case canInteract of
                       -- An alive animated point may collide:
@@ -61,5 +61,5 @@ render'
   mapM_ (\(AnimatedPoint _ c mayChar) -> do
             let char = fromMaybe (error "no char was specified") $ mayChar <|> mayCharAnim
             drawChar char (sumCoords c r) color)
-        $ selectRenderedCoordinates aliveCoordinates
-  mapM_ (\child -> render' relFrame mayCharAnim child interaction r) children
+        $ selectDrawnCoordinates aliveCoordinates
+  mapM_ (\child -> draw' relFrame mayCharAnim child interaction r) children

@@ -2,11 +2,17 @@
 module Imj.Graphics.Class
   ( -- * Classes
   -- | A collection of classes representing graphical elements and their properties.
-    module Imj.Graphics.Class.HasLayeredColor
-  , module Imj.Graphics.Class.Colorable
-  , module Imj.Graphics.Class.Drawable
+    HasLayeredColor(..)
+  , Colorable(..)
+  , Drawable(..)
+  , HasRectArea(..)
+  -- * Reexports
+  , Draw
+  , RectArea
+  , LayeredColor
   ) where
 
 import Imj.Graphics.Class.Colorable
 import Imj.Graphics.Class.Drawable
 import Imj.Graphics.Class.HasLayeredColor
+import Imj.Graphics.Class.HasRectArea

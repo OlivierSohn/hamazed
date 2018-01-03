@@ -43,10 +43,16 @@ newtype DeltaEnv = DeltaEnv (IORef Buffers)
 
 -- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
+  fill'          (DeltaEnv a) b c     = liftIO $ deltaFill a b c
+  setScissor     (DeltaEnv a) b       = liftIO $ deltaSetScissor a b
+  getScissor'    (DeltaEnv a)         = liftIO $ deltaGetScissor a
   drawChar'      (DeltaEnv a) b c d   = liftIO $ deltaDrawChar  a b c d
   drawChars'     (DeltaEnv a) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a) b c d   = liftIO $ deltaDrawStr   a b c d
+  {-# INLINABLE fill' #-}
+  {-# INLINABLE setScissor #-}
+  {-# INLINABLE getScissor' #-}
   {-# INLINABLE drawChar' #-}
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
@@ -81,9 +87,9 @@ setResizePolicy :: Maybe ResizePolicy
                 -> IO ()
 setResizePolicy mayResizePolicy (DeltaEnv ref) =
   readIORef ref
-    >>= \(Buffers a b d e (Policies _ f g)) -> do
+    >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
-      writeIORef ref $ Buffers a b d e (Policies resizePolicy f g)
+      writeIORef ref $ Buffers a b c d e (Policies resizePolicy f g)
 
 
 -- | Sets the 'ClearPolicy'.
@@ -93,9 +99,9 @@ setClearPolicy :: Maybe ClearPolicy
                -> IO ()
 setClearPolicy mayClearPolicy (DeltaEnv ref) =
   readIORef ref
-    >>= \(Buffers a b d e (Policies f _ clearColor)) -> do
+    >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
       let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
-          buffers = Buffers a b d e (Policies f clearPolicy clearColor)
+          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
       writeIORef ref buffers
 
 -- | Sets the 'Color8' to use when clearing.
@@ -105,9 +111,9 @@ setClearColor :: Maybe (Color8 Background)
               -> IO ()
 setClearColor mayClearColor (DeltaEnv ref) =
   readIORef ref
-    >>= \(Buffers a b d e (Policies f clearPolicy _)) -> do
+    >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
       let clearColor = fromMaybe defaultClearColor mayClearColor
-          buffers = Buffers a b d e (Policies f clearPolicy clearColor)
+          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
       writeIORef ref buffers
 
 -- | Sets stdout's 'BufferMode'. Defaults to 'defaultStdoutMode' when Nothing is passed.
@@ -115,3 +121,19 @@ setStdoutBufferMode :: Maybe BufferMode
                     -> IO ()
 setStdoutBufferMode mayBufferMode =
   hSetBuffering stdout (fromMaybe defaultStdoutMode mayBufferMode)
+
+
+deltaSetScissor :: IORef Buffers
+                 -> Scissor
+                 -> IO ()
+deltaSetScissor ref v =
+  readIORef ref
+    >>= \(Buffers a b c _ e f) ->
+          writeIORef ref (Buffers a b c v e f)
+
+deltaGetScissor :: IORef Buffers
+                 -> IO Scissor
+deltaGetScissor ref =
+  readIORef ref
+    >>= \(Buffers _ _ _ viewport _ _) ->
+          return viewport

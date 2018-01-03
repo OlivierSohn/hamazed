@@ -3,20 +3,19 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.Render.FromMonadReader
-       (
-       -- ** Draw char(s)
-         drawChar
+       ( usingScissor
+       , fill
+       , drawChar
        , drawChars
-       -- ** Draw text
        , drawTxt
        , drawStr
        , drawColorStr
-       -- ** Draw aligned text
        , drawAlignedTxt_
        , drawAlignedTxt
        , drawAlignedColorStr
-       -- ** Render to the physical device
        , renderToScreen
+       -- * Reexports
+       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw, Render, MonadReader, MonadIO
        ) where
 
 import           Imj.Prelude
@@ -33,6 +32,23 @@ import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 
+
+-- | Executes actions in context of a given 'Scissor'.
+{-# INLINABLE usingScissor #-}
+usingScissor :: (Draw e, MonadReader e m, MonadIO m)
+              => Scissor -> m () -> m ()
+usingScissor v actions = do
+  d <- asks usingScissor'
+  d v actions
+
+-- | Fills the region delimited by the 'Scissor' (or the entire screen if no 'Scissor')
+-- is in active at the moment.
+{-# INLINABLE fill #-}
+fill :: (Draw e, MonadReader e m, MonadIO m)
+     => Char -> LayeredColor -> m ()
+fill char col= do
+  d <- asks fill'
+  d char col
 
 -- | Draw a 'ColorString'.
 {-# INLINABLE drawColorStr #-}

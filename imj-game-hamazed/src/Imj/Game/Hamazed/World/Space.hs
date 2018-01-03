@@ -6,6 +6,8 @@
 module Imj.Game.Hamazed.World.Space
     ( Space
     , Material(..)
+    , materialColor
+    , materialChar
     , mkEmptySpace
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
@@ -13,8 +15,8 @@ module Imj.Game.Hamazed.World.Space
     , Strategy(..)
     , location
     , scopedLocation
-    , Boundaries(..)
-    , renderSpace
+    , Scope(..)
+    , drawSpace
     , createRandomNonCollidingPosSpeed
     -- * Reexports
     , module Imj.Graphics.Render
@@ -24,7 +26,6 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           System.Console.Terminal.Size( Window(..) )
 import           Data.Graph( Graph
                            , graphFromEdges
                            , components )
@@ -206,7 +207,7 @@ mkSpaceFromInnerMat :: Size -> [[CInt]] -> Space
 mkSpaceFromInnerMat s innerMatMaybeSmaller =
   let innerMat = extend s innerMatMaybeSmaller
       mat = fromLists $ addBorder s innerMat
-  in Space mat s $ matToRenderGroups mat s
+  in Space mat s $ matToDrawGroups mat s
 
 extend :: Size -> [[a]] -> [[a]]
 extend (Size rs cs) mat =
@@ -235,22 +236,28 @@ addBorder (Size _ widthEmptySpace) l =
 borderSize :: Int
 borderSize = 1
 
-matToRenderGroups :: Matrix CInt -> Size -> [RenderGroup]
-matToRenderGroups mat s@(Size _ cs) =
+{-# INLINE materialColor #-}
+materialColor :: Material -> LayeredColor
+materialColor = \case
+  Wall -> wallColors
+  Air  -> airColors
+
+{-# INLINE materialChar #-}
+materialChar :: Material -> Char
+materialChar = \case
+  Wall -> 'Z'
+  Air  -> ' '
+
+matToDrawGroups :: Matrix CInt -> Size -> [DrawGroup]
+matToDrawGroups mat s@(Size _ cs) =
   concat $
     forEachRowPure mat s $
       \row accessMaterial ->
           snd $ mapAccumL
                   (\col listMaterials@(material:_) ->
                      let count = length listMaterials
-                         materialColor = case material of
-                           Wall -> wallColors
-                           Air -> airColors
-                         materialChar = case material of
-                           Wall -> 'Z'
-                           Air -> ' '
                      in (col + fromIntegral count,
-                         RenderGroup (Coords row col) materialColor materialChar count))
+                         DrawGroup (Coords row col) (materialColor material) (materialChar material) count))
                   (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
 getInnerMaterial :: Coords Pos -> Space -> Material
@@ -262,7 +269,7 @@ getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix
 getMaterial :: Coords Pos -> Space -> Material
 getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
-  | r < 0 || c < 0       = Wall
+  | r < 0 || c < 0 = Wall
   | r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = Wall
   | otherwise = getInnerMaterial coords space
 
@@ -275,63 +282,37 @@ materialToLocation m = case m of
 location :: Coords Pos -> Space -> Location
 location c s = materialToLocation $ getMaterial c s
 
--- | Considers that outside 'Space', everything is 'InsideWorld'
-strictLocation :: Coords Pos -> Space -> Location
-strictLocation coords@(Coords r c) space@(Space _ (Size rs cs) _)
-    | r < 0 || c < 0 || r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = InsideWorld
-    | otherwise = materialToLocation $ getInnerMaterial coords space
-
-
-{-# INLINABLE renderSpace #-}
-renderSpace :: (Draw e, MonadReader e m, MonadIO m)
-            => Space
-            -> Coords Pos
-            -- ^ World upper left coordinates w.r.t terminal frame.
-            -> m (Coords Pos)
-renderSpace (Space _ _ renderedWorld) upperLeft = do
+{-# INLINABLE drawSpace #-}
+drawSpace :: (Draw e, MonadReader e m, MonadIO m)
+          => Space
+          -> Coords Pos
+          -- ^ World upper left coordinates w.r.t terminal frame.
+          -> m (Coords Pos)
+drawSpace (Space _ _ drawGroups) upperLeft = do
   let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
-  mapM_ (renderGroup worldCoords) renderedWorld
+  mapM_ (drawGroup worldCoords) drawGroups
   return worldCoords
 
-{-# INLINABLE renderGroup #-}
-renderGroup :: (Draw e, MonadReader e m, MonadIO m)
-            => Coords Pos
-            -> RenderGroup
-            -> m ()
-renderGroup worldCoords (RenderGroup pos colors char count) =
+{-# INLINABLE drawGroup #-}
+drawGroup :: (Draw e, MonadReader e m, MonadIO m)
+          => Coords Pos
+          -> DrawGroup
+          -> m ()
+drawGroup worldCoords (DrawGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
 
 scopedLocation :: Space
-               -> Maybe (Window Int)
-               -- ^ The terminal size
-               -> Coords Pos
-               -- ^ The world upper left coordinates w.r.t terminal frame.
-               -> Boundaries
+               -> Scope
                -- ^ The scope
                -> Coords Pos
                -- ^ The coordinates to test
                -> Location
-scopedLocation space@(Space _ sz _) mayTermWindow wcc =
-  -- Use a big terminal by default, it will just make animations be updated for longer
-  -- than they should:
-  let worldLocation = (`location` space)
-      worldLocationExcludingBorders = (`strictLocation` space)
-      (Window h w) = fromMaybe Window{height = 150, width = 400} mayTermWindow
-      terminalLocation coordsInWorld =
-        let (Coords (Coord r) (Coord c)) = sumCoords coordsInWorld wcc
-        in if r >= 0 && r < h && c >= 0 && c < w
-             then
-               InsideWorld
-             else
-               OutsideWorld
-      productLocations l l' = case l of
-        InsideWorld -> l'
-        OutsideWorld -> OutsideWorld
-  in \case
-    WorldFrame -> worldLocation
-    TerminalWindow -> (\coo-> if containsWithOuterBorder coo sz
-                                then
-                                  OutsideWorld
-                                else
-                                  terminalLocation coo)
-    Both -> (\coo-> productLocations (terminalLocation coo) (worldLocationExcludingBorders coo))
+scopedLocation space = \case
+  WorldScope mat -> (\pos -> if mat == getMaterial pos space
+                               then
+                                 if tooFar pos -- to stop animations that diverge
+                                    then OutsideWorld
+                                    else InsideWorld
+                               else OutsideWorld)
+ where
+   tooFar (Coords r c) = abs r > 500 || abs c > 500

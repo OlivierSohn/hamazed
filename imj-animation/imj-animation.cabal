@@ -28,7 +28,7 @@ library
                       -- core animation
                      , Imj.Graphics.Animation.Design.Color
                      , Imj.Graphics.Animation.Design.Create
-                     , Imj.Graphics.Animation.Design.Render
+                     , Imj.Graphics.Animation.Design.Draw
                      , Imj.Graphics.Animation.Design.Timing
                      , Imj.Graphics.Animation.Design.Types
                      , Imj.Graphics.Animation.Design.Update

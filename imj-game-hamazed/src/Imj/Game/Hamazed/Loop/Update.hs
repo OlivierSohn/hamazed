@@ -22,10 +22,12 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
+import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Physics.Discrete.Collision
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Update
 import           Imj.Graphics.Animation
@@ -70,9 +72,9 @@ update
   Action Laser dir ->
     if isFinished anim
       then
-        getSystemTime >>= return . (onLaser state dir)
+        onLaser state dir <$> getSystemTime
       else
-        return $ state
+        return state
   Action Ship dir ->
     return $ accelerateShip' dir state
   (Interrupt _) ->
@@ -87,8 +89,8 @@ onLaser :: GameState
         -> GameState
 onLaser
   (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
-                     space animations e)
-             futureWorld g (Level i target finished)
+                     space animations e@(InTerminal _ viewMode view))
+             futureWorld g level@(Level i target finished)
              (UIAnimation (UIEvolutions j upDown left) k l))
   dir t =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) =
@@ -113,10 +115,11 @@ onLaser
           then
             left
           else
-            let frameSpace = mkWorldContainer world
-                infos = mkLeftInfo Normal newAmmo allShotNumbers
-                (_, _, leftMiddle, _) = getSideCentersAtDistance frameSpace 3 2
-            in mkTextAnimRightAligned leftMiddle leftMiddle infos 0 -- 0 duration, since animation is over anyway
+            let frameSpace = mkRectContainerWithTotalArea view
+                infos = mkLeftInfo Normal newAmmo allShotNumbers level
+                (horizontalDist, verticalDist) = computeViewDistances viewMode
+                (_, _, leftMiddle, _) = getSideCentersAtDistance frameSpace horizontalDist verticalDist
+            in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
       newLevel = Level i target newFinished
       newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
@@ -153,23 +156,21 @@ outerSpaceAnims :: SystemTime
                 -> World
                 -> LaserRay Actual
                 -> [Animation]
-outerSpaceAnims t world@(World _ _ (Space _ sz _) _ _) ray@(LaserRay dir _) =
+outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
-  in case onOuterBorder laserTarget sz of
-       Just outDir -> outerSpaceAnims' t world laserTarget $ assert (dir == outDir) dir
-       Nothing -> []
+  in  case location laserTarget space of
+        InsideWorld -> []
+        OutsideWorld -> outerSpaceAnims' t world laserTarget dir
 
 outerSpaceAnims' :: SystemTime
                  -> World
                  -> Coords Pos
                  -> Direction
                  -> [Animation]
-outerSpaceAnims' t@(MkSystemTime _ nanos) world fronteerPoint dir =
-  let char = niceChar $ fromIntegral nanos -- cycle character every nano second
-      speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
-      outerSpacePoint = translateInDir dir fronteerPoint
-      interaction = environmentInteraction world TerminalWindow
-  in fragmentsFreeFall speed outerSpacePoint interaction (Speed 1) (Left t) char
+outerSpaceAnims' t world afterLaserEndPoint dir =
+  let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
+      interaction = environmentInteraction world (WorldScope Wall)
+  in fragmentsFreeFall speed afterLaserEndPoint interaction (Speed 1) (Left t) (materialChar Wall)
 
 
 laserAnims :: World
@@ -177,7 +178,7 @@ laserAnims :: World
            -> SystemTime
            -> [Animation]
 laserAnims world ray t =
-  let interaction = environmentInteraction world WorldFrame
+  let interaction = environmentInteraction world (WorldScope Air)
   in catMaybes [laserAnimation ray interaction (Left t)]
 
 

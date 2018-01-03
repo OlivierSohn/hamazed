@@ -23,10 +23,10 @@ data InfoType = Normal | ColorAnimated
 
 mkLevelCS :: InfoType -> Int -> [ColorString]
 mkLevelCS t level =
-  let txt c = colored "Level " white <> colored (pack (show level)) c <> colored (" of " <> pack (show lastLevel)) white
+  let txt c = colored "Level " configFgColor <> colored (pack (show level)) c <> colored (" of " <> pack (show lastLevel)) configFgColor
   in case t of
-    Normal -> [txt white]
-    ColorAnimated -> [txt red, txt white]
+    Normal -> [txt configFgColor]
+    ColorAnimated -> [txt red, txt configFgColor]
 
 mkAmmoCS :: InfoType -> Int -> [ColorString]
 mkAmmoCS _ ammo =
@@ -37,7 +37,7 @@ mkAmmoCS _ ammo =
 
 mkObjectiveCS :: InfoType -> Int -> [ColorString]
 mkObjectiveCS t target =
-  let txt c = colored "Objective : " white <> colored (pack (show target)) c
+  let txt c = colored "Objective : " configFgColor <> colored (pack (show target)) c
   in case t of
     Normal -> [txt white]
     ColorAnimated -> [txt red, txt white]
@@ -56,14 +56,18 @@ mkShotNumbersCS _ nums =
 
   in [middle <> last_]
 
-mkLeftInfo :: InfoType -> Int -> [Int] -> [[ColorString]]
-mkLeftInfo t ammo shotNums =
-  [mkAmmoCS t ammo, mkShotNumbersCS t shotNums]
+mkLeftInfo :: InfoType -> Int -> [Int] -> Level -> [[ColorString]]
+mkLeftInfo t ammo shotNums (Level level target _)=
+  [ mkObjectiveCS t target
+  , mkShotNumbersCS t shotNums
+  , mkAmmoCS t ammo
+  , mkLevelCS t level
+  ]
 
-mkUpDownInfo :: InfoType -> Level -> ([ColorString], [ColorString])
-mkUpDownInfo t (Level level target _) =
-  (mkObjectiveCS t target, mkLevelCS t level)
+mkUpDownInfo :: ([ColorString], [ColorString])
+mkUpDownInfo =
+  ([],[])
 
 mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), [[ColorString]])
 mkInfos t ammo shotNums level =
-  (mkUpDownInfo t level, mkLeftInfo t ammo shotNums)
+  (mkUpDownInfo, mkLeftInfo t ammo shotNums level)

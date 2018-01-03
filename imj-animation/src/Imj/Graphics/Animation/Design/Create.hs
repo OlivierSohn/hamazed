@@ -39,7 +39,7 @@ mkAnimation :: Coords Pos
             During update, 'AnimatedPoint's for which this function returns
             'Mutation' can mutate if they are allowed to.
 
-            During render, 'AnimatedPoint's for which this
+            During draw, 'AnimatedPoint's for which this
             function returns 'Stable' are drawn. Others are
             not drawn because they would overlap with the environment. -}
             -> Either SystemTime KeyTime

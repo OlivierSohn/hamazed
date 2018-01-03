@@ -20,10 +20,16 @@ newtype Env = Env {
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
 instance Draw Env where
+  setScissor     (Env a) = setScissor     a
+  getScissor'    (Env a) = getScissor'    a
+  fill'          (Env a) = fill'          a
   drawChar'      (Env a) = drawChar'      a
   drawChars'     (Env a) = drawChars'     a
   drawTxt'       (Env a) = drawTxt'       a
   drawStr'       (Env a) = drawStr'       a
+  {-# INLINABLE setScissor #-}
+  {-# INLINABLE getScissor' #-}
+  {-# INLINABLE fill' #-}
   {-# INLINE drawChar' #-}
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}

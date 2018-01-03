@@ -11,14 +11,16 @@ module Imj.Game.Hamazed.Color (
   -- * Numbers colors
   , numberColor
   -- * Materials colors
-  , wallColors
   , airColors
+  , wallColors
+  , outerWallsColors
   -- * UI colors
   , worldFrameColors
   , ammoColor
   , bracketsColor
   -- ** Text colors
   , configColors
+  , configFgColor
   , messageColor
   , neutralMessageColor
   -- * Reexports
@@ -30,11 +32,19 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Graphics.Color
 
+
+configFgColor :: Color8 Foreground
+configFgColor = gray 8
+
 configColors :: LayeredColor
-configColors = LayeredColor (gray 0) (gray 8)
+configColors = LayeredColor (gray 0) configFgColor
 
 wallColors :: LayeredColor
 wallColors = LayeredColor (gray 0) (gray 3)
+
+-- | Outer meaning outside the world
+outerWallsColors :: LayeredColor
+outerWallsColors = LayeredColor (rgb 0 0 0) (gray 1)
 
 airColors :: LayeredColor
 airColors = LayeredColor black white

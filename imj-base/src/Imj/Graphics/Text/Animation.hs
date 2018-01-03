@@ -27,9 +27,9 @@ Anchors interpolation can occur :
          , mkSequentialTextTranslationsCharAnchored
          , mkSequentialTextTranslationsStringAnchored
          -- * Draw
-         , renderAnimatedTextCharAnchored
-         , renderAnimatedTextStringAnchored
-         , getAnimatedTextRenderStates
+         , drawAnimatedTextCharAnchored
+         , drawAnimatedTextStringAnchored
+         , getAnimatedTextAnchors
          -- * Reexports
          , module Imj.Graphics.Interpolation
          ) where
@@ -42,7 +42,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Text( unpack, length )
-import           Data.List(foldl', splitAt, unzip)
+import           Data.List(foldl', splitAt, unzip3)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Math.Ease
@@ -67,76 +67,76 @@ data TextAnimation a = TextAnimation {
 } deriving(Show)
 
 
--- | Render a string-anchored 'TextAnimation' for a given 'Frame'
-{-# INLINABLE renderAnimatedTextStringAnchored #-}
-renderAnimatedTextStringAnchored :: (Draw e, MonadReader e m, MonadIO m)
+-- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
+{-# INLINABLE drawAnimatedTextStringAnchored #-}
+drawAnimatedTextStringAnchored :: (Draw e, MonadReader e m, MonadIO m)
                                  => TextAnimation AnchorStrings
                                  -> Frame
                                  -> m ()
-renderAnimatedTextStringAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
-  let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextStringAnchored' fromToStrs rss i
+drawAnimatedTextStringAnchored (TextAnimation fromToStrs anchorsEvolution _) i = do
+  let rss = getAnimatedTextAnchors anchorsEvolution i
+  drawAnimatedTextStringAnchored' fromToStrs rss i
 
 
-{-# INLINABLE renderAnimatedTextStringAnchored' #-}
-renderAnimatedTextStringAnchored' :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawAnimatedTextStringAnchored' #-}
+drawAnimatedTextStringAnchored' :: (Draw e, MonadReader e m, MonadIO m)
                                   => [Evolution ColorString]
                                   -> [Coords Pos]
                                   -> Frame
                                   -> m ()
-renderAnimatedTextStringAnchored' [] _ _ = return ()
-renderAnimatedTextStringAnchored' l@(_:_) rs i = do
+drawAnimatedTextStringAnchored' [] _ _ = return ()
+drawAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
       rsNow = head rs
       colorStr = getValueAt e i
   drawColorStr colorStr rsNow
-  renderAnimatedTextStringAnchored' (tail l) (tail rs) i
+  drawAnimatedTextStringAnchored' (tail l) (tail rs) i
 
--- | Render a char-anchored 'TextAnimation' for a given 'Frame'
-{-# INLINABLE renderAnimatedTextCharAnchored #-}
-renderAnimatedTextCharAnchored :: (Draw e, MonadReader e m, MonadIO m)
+-- | Draw a char-anchored 'TextAnimation' for a given 'Frame'
+{-# INLINABLE drawAnimatedTextCharAnchored #-}
+drawAnimatedTextCharAnchored :: (Draw e, MonadReader e m, MonadIO m)
                                => TextAnimation AnchorChars
                                -> Frame
                                -> m ()
-renderAnimatedTextCharAnchored (TextAnimation fromToStrs renderStatesEvolution _) i = do
-  let rss = getAnimatedTextRenderStates renderStatesEvolution i
-  renderAnimatedTextCharAnchored' fromToStrs rss i
+drawAnimatedTextCharAnchored (TextAnimation fromToStrs anchorsEvolution _) i = do
+  let rss = getAnimatedTextAnchors anchorsEvolution i
+  drawAnimatedTextCharAnchored' fromToStrs rss i
 
 
-{-# INLINABLE renderAnimatedTextCharAnchored' #-}
-renderAnimatedTextCharAnchored' :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawAnimatedTextCharAnchored' #-}
+drawAnimatedTextCharAnchored' :: (Draw e, MonadReader e m, MonadIO m)
                                 => [Evolution ColorString]
                                 -> [Coords Pos]
                                 -> Frame
                                 -> m ()
-renderAnimatedTextCharAnchored' [] _ _ = return ()
-renderAnimatedTextCharAnchored' l@(_:_) rs i = do
-  -- use length of from to know how many renderstates we should take
+drawAnimatedTextCharAnchored' [] _ _ = return ()
+drawAnimatedTextCharAnchored' l@(_:_) rs i = do
+  -- use length of from to know how many Anchors we should take
   let e@(Evolution (Successive colorStrings) _ _ _) = head l
       nRS = maximum $ map countChars colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       (ColorString colorStr) = getValueAt e i
-  renderColorStringAt colorStr nowRS
-  renderAnimatedTextCharAnchored' (tail l) laterRS i
+  drawColorStringAt colorStr nowRS
+  drawAnimatedTextCharAnchored' (tail l) laterRS i
 
 
-{-# INLINABLE renderColorStringAt #-}
-renderColorStringAt :: (Draw e, MonadReader e m, MonadIO m)
-                    => [(Text, LayeredColor)]
-                    -> [Coords Pos]
-                    -> m ()
-renderColorStringAt [] _ = return ()
-renderColorStringAt l@(_:_) rs = do
+{-# INLINABLE drawColorStringAt #-}
+drawColorStringAt :: (Draw e, MonadReader e m, MonadIO m)
+                  => [(Text, LayeredColor)]
+                  -> [Coords Pos]
+                  -> m ()
+drawColorStringAt [] _ = return ()
+drawColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
   zipWithM_ (\char coord -> drawChar char coord color) (unpack txt) headRs
-  renderColorStringAt (tail l) tailRs
+  drawColorStringAt (tail l) tailRs
 
-getAnimatedTextRenderStates :: Evolution (SequentiallyInterpolatedList (Coords Pos))
+getAnimatedTextAnchors :: Evolution (SequentiallyInterpolatedList (Coords Pos))
                             -> Frame
                             -> [Coords Pos]
-getAnimatedTextRenderStates evolution i =
+getAnimatedTextAnchors evolution i =
   let (SequentiallyInterpolatedList l) = getValueAt evolution i
   in l
 
@@ -152,7 +152,7 @@ mkSequentialTextTranslationsCharAnchored :: [([ColorString], Coords Pos, Coords 
                                          -> Float
                                          -- ^ duration in seconds
                                          -> TextAnimation AnchorChars
-mkSequentialTextTranslationsCharAnchored l duration =
+mkSequentialTextTranslationsCharAnchored l =
   let (from_,to_) =
         foldl'
           (\(froms, tos) (colorStrs, from, to) ->
@@ -160,12 +160,8 @@ mkSequentialTextTranslationsCharAnchored l duration =
             in (froms ++ build from sz, tos ++ build to sz))
           ([], [])
           l
-      strsEv = map (\(txts,_,_) -> mkEvolutionEaseQuart (Successive txts) duration) l
-      fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
-      evAnchors@(Evolution _ anchorsLF _ _) =
-        mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
-                                          SequentiallyInterpolatedList to_]) duration
-  in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
+      txts = map (\(t,_,_) -> t) l
+  in mkSequentialTextTranslationsAnchored txts from_ to_
 
 {- | Translates text in an animated way, 'ColorString' by 'ColorString'.
 
@@ -176,14 +172,27 @@ mkSequentialTextTranslationsStringAnchored :: [([ColorString], Coords Pos, Coord
                                            -> Float
                                            -- ^ Duration in seconds
                                            -> TextAnimation AnchorStrings
-mkSequentialTextTranslationsStringAnchored l duration =
-  let (from_,to_) = unzip $ map (\(_,f,t) -> (f,t)) l
-      strsEv = map (\(txts,_,_) -> mkEvolutionEaseQuart (Successive txts) duration) l
-      fromTosLF = maximum $ map (\(Evolution _ lf _ _) -> lf) strsEv
-      evAnchors@(Evolution _ anchorsLF _ _) =
+mkSequentialTextTranslationsStringAnchored l =
+  let (txts, from_,to_) = unzip3 l
+  in mkSequentialTextTranslationsAnchored txts from_ to_
+
+mkSequentialTextTranslationsAnchored :: [[ColorString]]
+                                     -- ^ List of texts
+                                     -> [Coords Pos]
+                                     -- ^ /From/ anchors
+                                     -> [Coords Pos]
+                                     -- ^ /To/ anchors
+                                     -> Float
+                                     -- ^ Duration in seconds
+                                     -> TextAnimation a
+mkSequentialTextTranslationsAnchored txts from_ to_ duration =
+  let strsEv = map (\ltxt -> mkEvolutionEaseQuart (Successive ltxt) duration) txts
+      fromTosLastFrame = maximum $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
+      evAnchors@(Evolution _ anchorsLastFrame _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                           SequentiallyInterpolatedList to_]) duration
-  in TextAnimation strsEv evAnchors $ mkEaseClock duration (max anchorsLF fromTosLF) invQuartEaseInOut
+  in TextAnimation strsEv evAnchors
+     $ mkEaseClock duration (max anchorsLastFrame fromTosLastFrame) invQuartEaseInOut
 
 
 -- | Translates a 'ColorString' between two anchors.

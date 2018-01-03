@@ -4,6 +4,8 @@
 
 module Imj.Graphics.Class.Colorable
             ( Colorable(..)
+            -- * reexport
+            , Draw, MonadReader, MonadIO
             ) where
 
 
@@ -11,7 +13,6 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.Draw
-import           Imj.Graphics.Color.Types
 
 -- | A 'Colorable' is a colourless graphical element.
 class Colorable a where-- TODO add HasPosition constraint here

@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.UI.RectContainer.MorphParallel4
-          ( renderPartialRectContainer
+          ( drawPartialRectContainer
           , countRectContainerHorizontalChars
           , countRectContainerVerticalChars
           , countRectContainerChars
@@ -30,45 +30,45 @@ countRectContainerVerticalChars :: Size -> Int
 countRectContainerVerticalChars (Size rs _) =
   fromIntegral rs
 
-{-# INLINABLE renderPartialRectContainer #-}
-renderPartialRectContainer :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawPartialRectContainer #-}
+drawPartialRectContainer :: (Draw e, MonadReader e m, MonadIO m)
                            => Size
                            -- ^ Dimensions of the content of the container
                            -> (Coords Pos, Int, Int)
                            -- ^ Coordinates of the upper left corner of the container, from, to.
                            -> LayeredColor
                            -> m ()
-renderPartialRectContainer sz r colors =
-  renderUpperWall sz colors r
-    >>= renderRightWall sz colors
-    >>= renderLowerWall sz colors
-    >>= renderLeftWall sz colors
+drawPartialRectContainer sz r colors =
+  drawUpperWall sz colors r
+    >>= drawRightWall sz colors
+    >>= drawLowerWall sz colors
+    >>= drawLeftWall sz colors
     >> return ()
 
-{-# INLINABLE renderLeftWall #-}
-renderLeftWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawLeftWall #-}
+drawLeftWall :: (Draw e, MonadReader e m, MonadIO m)
                => Size
                -> LayeredColor
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
-renderLeftWall = renderSideWall Up
+drawLeftWall = drawSideWall Up
 
-{-# INLINABLE renderRightWall #-}
-renderRightWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawRightWall #-}
+drawRightWall :: (Draw e, MonadReader e m, MonadIO m)
                => Size
                -> LayeredColor
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
-renderRightWall = renderSideWall Down
+drawRightWall = drawSideWall Down
 
-{-# INLINABLE renderSideWall #-}
-renderSideWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawSideWall #-}
+drawSideWall :: (Draw e, MonadReader e m, MonadIO m)
                => Direction
                -> Size
                -> LayeredColor
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
-renderSideWall dir sz colors (ref, from, to) = do
+drawSideWall dir sz colors (ref, from, to) = do
   let countMax = countRectContainerVerticalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
@@ -81,26 +81,26 @@ renderSideWall dir sz colors (ref, from, to) = do
     else
       return (nextRef, from + nChars - countMax, to - countMax)
 
-{-# INLINABLE renderUpperWall #-}
-renderUpperWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawUpperWall #-}
+drawUpperWall :: (Draw e, MonadReader e m, MonadIO m)
                 => Size
                 -> LayeredColor
                 -> (Coords Pos, Int, Int)
                 -> m (Coords Pos, Int, Int)
-renderUpperWall =
-  renderHorizontalWall Down RIGHT '_'
+drawUpperWall =
+  drawHorizontalWall Down RIGHT '_'
 
-{-# INLINABLE renderLowerWall #-}
-renderLowerWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawLowerWall #-}
+drawLowerWall :: (Draw e, MonadReader e m, MonadIO m)
                 => Size
                 -> LayeredColor
                 -> (Coords Pos, Int, Int)
                 -> m (Coords Pos, Int, Int)
-renderLowerWall =
-  renderHorizontalWall Up LEFT 'T'
+drawLowerWall =
+  drawHorizontalWall Up LEFT 'T'
 
-{-# INLINABLE renderHorizontalWall #-}
-renderHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawHorizontalWall #-}
+drawHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
                      => Direction
                      -> Direction
                      -> Char
@@ -108,7 +108,7 @@ renderHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
                      -> LayeredColor
                      -> (Coords Pos, Int, Int)
                      -> m (Coords Pos, Int, Int)
-renderHorizontalWall dirV dirH char sz colors (upperLeft, from, to) = do
+drawHorizontalWall dirV dirH char sz colors (upperLeft, from, to) = do
   let countMax = countRectContainerHorizontalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom

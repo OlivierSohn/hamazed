@@ -68,8 +68,8 @@ data AnimatedPoint = AnimatedPoint {
     -- ^ Can the point interact with the environment?
   , _animatedPointCoords :: {-# UNPACK #-} !(Coords Pos)
     -- ^ Its location, w.r.t the animation reference frame.
-  , _animatedPointRenderedWith :: !(Maybe Char)
-    -- ^ The char used to render it. If 'Nothing', 'Animation' /must/ specify a 'Char'.
+  , _animatedPointDrawnWith :: !(Maybe Char)
+    -- ^ The char used to draw it. If 'Nothing', 'Animation' /must/ specify a 'Char'.
 } deriving (Show)
 
 data CanInteract = DontInteract

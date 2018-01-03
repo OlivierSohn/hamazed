@@ -8,43 +8,55 @@ module Imj.Game.Hamazed.Loop.Render
 
 import           Imj.Prelude
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
-import           Imj.Graphics.Animation.Design.Render
-import           Imj.Graphics.UI.RectContainer
-
+import           Imj.Graphics.Animation.Design.Draw
+import           Imj.Graphics.UI.RectArea
 
 -- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid
 -- <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
 {-# INLINABLE render #-}
 render :: (Render e, MonadReader e m, MonadIO m)
        => GameState -> m ()
-render (GameState _ world@(World _ (BattleShip (PosSpeed shipPos _) _ _ _) space@(Space _ (Size h w) _) animations (InTerminal _ curUpperLeft'))
+render (GameState _ world@(World _ _ space animations (InTerminal _ mode view@(RectArea from to)))
                   _ _ level wa) = do
-  let screenCenter = Coords (fromIntegral $ quot h 2) (fromIntegral $ quot w 2)
-      offsetToCenterOnShip = diffCoords screenCenter shipPos
-      curUpperLeft = translate curUpperLeft' offsetToCenterOnShip
-  renderSpace space curUpperLeft >>=
-    (\worldCorner -> do
-        renderAnimations worldCorner animations
-        -- TODO merge 2 functions below (and no need to pass worldCorner)
-        renderWorld world worldCorner
-        let (_,_,_,rightMiddle) = getSideCentersAtDistance (mkWorldContainer world) 3 2
-        renderLevelMessage level rightMiddle
-        renderUIAnimation wa -- render it last so that when it animates
-                             -- to reduce, it goes over numbers and ship
-        ) >> renderToScreen
+  let getOffset (World _ (BattleShip (PosSpeed shipPos _) _ _ _) _ _ _) =
+          let (Coords h w) = diffCoords to from
+              screenCenter = Coords (quot h 2) (quot w 2)
+          in case mode of
+              CenterSpace -> zeroCoords
+              CenterShip  -> diffCoords screenCenter shipPos
+      offset = getOffset world
+      curUpperLeft = translate from offset
 
-{-# INLINABLE renderAnimations #-}
-renderAnimations :: (Draw e, MonadReader e m, MonadIO m)
+  -- draw the walls outside the matrix:
+  fill (materialChar Wall) outerWallsColors
+  -- draw the matrix:
+  drawSpace space curUpperLeft >>=
+    (\worldCorner -> do
+        drawAnimations worldCorner animations
+        drawWorld world worldCorner)
+  drawUIAnimation offset wa -- draw it after the world so that when it morphs
+                            -- it goes over numbers and ship
+  -- draw last so that the message is clearly visible:
+  drawLevelMessage level (rectAreaCenter view)
+  renderToScreen
+
+{-# INLINABLE drawAnimations #-}
+drawAnimations :: (Draw e, MonadReader e m, MonadIO m)
                  => Coords Pos
                  -> [Animation]
                  -> m ()
-renderAnimations worldCorner animations = do
-  let renderAnimation a = renderAnim a worldCorner
-  mapM_ renderAnimation animations
+drawAnimations worldCorner animations = do
+  let drawAnimation a = drawAnim a worldCorner
+  -- animations are relative to the (moving) worldcorner.
+  -- we should split animations in 2 : relative to the world, relative to the terminal.
+  --
+  mapM_ drawAnimation animations

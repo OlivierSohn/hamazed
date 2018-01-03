@@ -37,7 +37,7 @@ shipAnims world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime 
           numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
           shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
           (Number _ n) = head collisions
-          interaction = environmentInteraction world WorldFrame
+          interaction = environmentInteraction world (WorldScope Air)
       in  fragmentsFreeFallThenExplode numSpeed shipCoords interaction (Speed 1) (Right k) '|'
           ++
           fragmentsFreeFallThenExplode shipSpeed2 shipCoords interaction (Speed 1) (Right k) (intToDigit n)

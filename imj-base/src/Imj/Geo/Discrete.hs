@@ -3,11 +3,9 @@
 module Imj.Geo.Discrete
            ( module Imj.Geo.Discrete.Types
            -- * Construct Segment
-           , mkSegmentByExtendingWhile
            , changeSegmentLength
            -- * Use Segment
            , extremities
-           , segmentContains
            -- * Construct Coords
            , zeroCoords
            , coordsForDirection
@@ -20,6 +18,7 @@ module Imj.Geo.Discrete
            , translate
            , translate'
            , translateInDir
+           , countInDir
            -- * Discrete algorithms
            -- ** Bresenham
            {- | The 2d version, 'bresenham', allows to
@@ -37,6 +36,8 @@ module Imj.Geo.Discrete
           ) where
 
 import           Imj.Prelude
+
+import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Geo.Discrete.Bresenham
@@ -91,11 +92,13 @@ coordsForDirection LEFT  = Coords 0 (-1)
 coordsForDirection RIGHT = Coords 0 1
 
 multiply :: Int -> Coords a -> Coords a
-multiply n (Coords r c) = Coords (r * fromIntegral n) (c * fromIntegral n)
+multiply n (Coords r c) =
+  Coords (r * fromIntegral n) (c * fromIntegral n)
 
 -- | Translate of 1 step in a given direction.
 translateInDir :: Direction -> Coords a -> Coords a
-translateInDir dir = translate $ coordsForDirection dir
+translateInDir dir =
+  translate $ coordsForDirection dir
 
 
 -- | Modify the end of the segment to reach the given length
@@ -104,43 +107,11 @@ changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + fromInteg
 changeSegmentLength i (Vertical   col r1 _) = Vertical   col r1 $ r1 + fromIntegral i
 changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments" -- TODO use bresenham if it is valid
 
--- | Returns the distance from segment start
-segmentContains :: Coords Pos
-                -- ^ The coordinates to test
-                -> Segment
-                -> Maybe Int
-                -- ^ 'Nothing' if the coordinate is not contained, else 'Just'
-                -- the distance from segment start.
-segmentContains (Coords row' c) (Horizontal row c1 c2) =
-  if row' == row
-    then
-      fromIntegral <$> rangeContains c1 c2 c
-    else
-      Nothing
-segmentContains (Coords r col') (Vertical col r1 r2) =
-  if col' == col
-    then
-      fromIntegral <$> rangeContains r1 r2 r
-    else
-      Nothing
-segmentContains _ _ =
-  error "segmentContains cannot operate on oblique segments" -- TODO use bresenham
-
 -- | Returns the start and end coordinates.
 extremities :: Segment -> (Coords Pos, Coords Pos)
 extremities (Horizontal row c1 c2) = (Coords row c1, Coords row c2)
 extremities (Vertical   col r1 r2) = (Coords r1 col, Coords r2 col)
-extremities (Oblique c1 c2)         = (c1, c2)
-
--- returns Just (value - range start) if it is contained
-{-# INLINABLE rangeContains #-}
-rangeContains :: (Num a, Eq a) => a -> a -> a -> Maybe a
-rangeContains r1 r2 i =
-  if abs (r2-i) + abs (i-r1) == abs (r2-r1)
-    then
-      Just (i - r1)
-    else
-      Nothing
+extremities (Oblique c1 c2)        = (c1, c2)
 
 -- | 'translate' = 'sumCoords'
 translate :: Coords a -> Coords a -> Coords a
@@ -166,22 +137,17 @@ move :: Int
      -> Coords a
 move t dir c = sumCoords c $ multiply t $ coordsForDirection dir
 
-mkSegmentByExtendingWhile :: Coords Pos
-                          -- ^ start of the segment
-                          -> Direction
-                          -- ^ 'Direction' in which to extend
-                          -> (Coords Pos -> Bool)
-                          -- ^ Continue extension while this functions returns 'True'.
-                          -> Segment
-mkSegmentByExtendingWhile start dir f =
-  let end = extend' start dir f
-  in mkSegment start end
-
-extend' :: Coords Pos -> Direction -> (Coords Pos -> Bool) -> Coords Pos
-extend' coords dir continue =
-  let loc = translateInDir dir coords
-  in if continue loc
-       then
-         extend' loc dir continue
-       else
-         coords
+-- | Returns the number of valid positions when moving in a given direction
+-- from a start position. The start position is tested also, hence when this function
+-- returns 0, the start is invalid.
+countInDir :: Direction -> Coords Pos -> (Coords Pos -> Bool) -> Word32
+countInDir dir start continue =
+    extend 0
+  where
+    extend :: Word32 -> Word32
+    extend n =
+      if continue $ move (fromIntegral n) dir start
+        then
+          extend (succ n)
+        else
+          n

@@ -108,6 +108,9 @@ data Evolution v = Evolution {
 instance (Show v) => Show (Evolution v) where
   showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
 
+instance Functor Evolution where
+  fmap f (Evolution s a b c) = Evolution (fmap f s) a b c
+
 -- | Computes the time increment between the input 'Frame' and the next.
 getDeltaTimeToNextFrame :: Evolution v
                         -> Frame

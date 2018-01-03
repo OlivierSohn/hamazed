@@ -2,10 +2,9 @@
 
 module Imj.Graphics.Render
   (
-  -- * Draw and Render
-  {- | 'Draw' describes the ability to draw colored 'Char's, 'String's, 'Text's.
-
-  'Render' makes the result of draw*** calls visible on the screen.
+  -- * Types for Draw and Render
+  {- | 'Draw' does not necessarily render to the screen, but 'Render' makes the
+  result of 'Draw' method calls visible on the screen.
 
   Optimized instances of 'Draw' and 'Render', for games and animations
   drawing in the terminal, are
@@ -13,8 +12,9 @@ module Imj.Graphics.Render
   buffering and delta rendering, thereby mitigating the
   <https://en.wikipedia.org/wiki/Screen_tearing screen tearing effect>.
   -}
-    module Imj.Graphics.Class.Draw
-  , module Imj.Graphics.Class.Render
+    Scissor
+  , Draw(..)
+  , Render(..)
   -- * From MonadReader
 {- | The functions below use 'Draw' and 'Render' instances in a 'MonadReader' monad.
 
@@ -38,16 +38,24 @@ main = createEnv >>= runReaderT helloWorld
 
 <https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-game-hamazed/src/Imj/Game/Hamazed/Env.hs This example>
 follows this pattern. -}
-  , module Imj.Graphics.Render.FromMonadReader
+  -- * Use Scissor
+  , usingScissor
+  -- * Draw colored chars
+  , fill
+  , drawChar
+  , drawChars
+  , drawTxt
+  , drawStr
+  , drawColorStr
+  , drawAlignedTxt_
+  , drawAlignedTxt
+  , drawAlignedColorStr
+  -- ** Render to the physical device
+  , renderToScreen
   -- * Reexports
-  , LayeredColor(..)
-  , Coords(..)
-  , Alignment(..)
-  , Text
-  , Char
-  , String
-  , MonadIO
-  , MonadReader
+  , LayeredColor(..), Coords(..), Pos
+  , Alignment(..), ColorString, Text, Char, String
+  , MonadReader, MonadIO
   ) where
 
 import           Imj.Prelude

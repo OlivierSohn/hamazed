@@ -102,13 +102,9 @@ immediately. -}
 , defaultStdoutMode
 , setStdoutBufferMode
   -- * Draw and render
-  {- | The functions below allow to draw and render in a 'MonadReader'
-  monad, which is the recommended way of using the delta renderer.
-
-  More alternatives are presented in this module:
-  -}
+  -- | Drawing and rendering is possible both from 'MonadReader' and 'MonadIO'
+  -- monads:
 , module Imj.Graphics.Render
-, module Imj.Graphics.Render.FromMonadReader
   -- * Cleanup
 , module Imj.Graphics.Render.Delta.Console
 -- * Reexports
@@ -215,4 +211,3 @@ and are sorted by increasing position, which is exactly what we want to implemen
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Console
-import           Imj.Graphics.Render.FromMonadReader

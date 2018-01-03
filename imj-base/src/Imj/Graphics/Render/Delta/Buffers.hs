@@ -23,6 +23,7 @@ import           Imj.Graphics.Render.Delta.Buffers.Dimensions
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Cells
 import           Imj.Graphics.Render.Delta.DefaultPolicies
+import           Imj.Graphics.UI.RectArea
 
 
 -- we use IORef Buffers instead of Buffers because we want to update the size of the buffers
@@ -61,7 +62,7 @@ mkBuffers width' height' backBufferCell = do
   return (Buffer back, Buffer front, Delta delta, width)
 
 adjustSizeIfNeeded :: Buffers -> IO Buffers
-adjustSizeIfNeeded buffers@(Buffers (Buffer back) _ prevWidth _ policies@(Policies resizePolicy _ _)) = do
+adjustSizeIfNeeded buffers@(Buffers (Buffer back) _ prevWidth _ _ policies@(Policies resizePolicy _ _)) = do
   (width, height) <- getDimensions resizePolicy
   let prevSize = fromIntegral $ length back
       prevHeight = getHeight prevWidth prevSize
@@ -75,7 +76,7 @@ createBuffers :: Policies -> Dim Width -> Dim Height -> IO Buffers
 createBuffers pol@(Policies _ _ clearColor) w h = do
   (newBack, newFront, newDelta, newWidth) <- mkBuffers w h (clearCell clearColor)
   -- no need to clear : we initialized with the right value
-  return $ Buffers newBack newFront newWidth newDelta pol
+  return $ Buffers newBack newFront newWidth maxRectArea newDelta pol
 
 updateSize :: IORef Buffers -> IO ()
 updateSize ref =

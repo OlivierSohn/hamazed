@@ -19,6 +19,7 @@ import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
 mkInitialState :: (MonadIO m)
@@ -26,17 +27,17 @@ mkInitialState :: (MonadIO m)
                -> Int
                -> Maybe GameState
                -> m (Either String GameState)
-mkInitialState (GameParameters shape wallType) levelNumber mayState = do
+mkInitialState (GameParameters shape wallType mode) levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
       newLevel = Level levelNumber target Nothing
       newSize = worldSizeFromLevel levelNumber shape
       newAmmo = 10
       newShotNums = []
-      make ew = do
+      make ew@(InTerminal _ _ newWorldView) = do
         newWorld <- mkWorld ew newSize wallType numbers newAmmo
         t <- liftIO getSystemTime
-        let (curWorld, level, ammo, shotNums) =
+        let (curWorld@(World _ _ _ _ (InTerminal _ viewMode curWorldView)), level, ammo, shotNums) =
               maybe
               (newWorld, newLevel, 0, [])
               (\(GameState _ w@(World _ (BattleShip _ curAmmo _ _) _ _ _)
@@ -45,11 +46,12 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
                 mayState
             curInfos = mkInfos Normal ammo shotNums level
             newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
+            (horizontalDist, verticalDist) = computeViewDistances viewMode
             uiAnimation =
               mkUIAnimation
-                (Colored worldFrameColors $ mkWorldContainer curWorld, curInfos)
-                (Colored worldFrameColors $ mkWorldContainer newWorld, newInfos)
-                t
+                (Colored worldFrameColors $ mkRectContainerWithTotalArea curWorldView, curInfos)
+                (Colored worldFrameColors $ mkRectContainerWithTotalArea newWorldView, newInfos)
+                horizontalDist verticalDist t
             gameDeadline =
               if isFinished uiAnimation
                 then
@@ -57,4 +59,4 @@ mkInitialState (GameParameters shape wallType) levelNumber mayState = do
                 else
                   Nothing
         return $ Right $ GameState gameDeadline curWorld newWorld newShotNums newLevel uiAnimation
-  mkInTerminal newSize >>= either (return . Left) make
+  mkInTerminal newSize mode >>= either (return . Left) make

@@ -7,8 +7,8 @@ module Imj.Game.Hamazed.World.Space.Types
     , Material(..)
     , RandomParameters(..)
     , Strategy(..)
-    , RenderGroup(..)
-    , Boundaries(..)
+    , DrawGroup(..)
+    , Scope(..)
     , module Imj.Geo.Discrete.Types
     ) where
 
@@ -39,11 +39,11 @@ data RandomParameters = RandomParameters {
     -- ^ Space characteristics (only /one connected component/ is available for the moment)
 }
 
-data RenderGroup = RenderGroup {
-    _renderGroupCoords :: !(Coords Pos)
-  , _renderGroupColors :: !LayeredColor
-  , _renderGroupChar :: !Char
-  , _renderGroupCount :: !Int
+data DrawGroup = DrawGroup {
+    _drawGroupCoords :: !(Coords Pos)
+  , _drawGroupColors :: !LayeredColor
+  , _drawGroupChar :: !Char
+  , _drawGroupCount :: !Int
 }
 
 data Space = Space {
@@ -51,8 +51,8 @@ data Space = Space {
     -- ^ The material matrix.
   , _spaceSize :: !Size
     -- ^ The AABB of the space, excluding the outer border.
-  , _spaceRender :: ![RenderGroup]
-    -- ^ How to render the space.
+  , _spaceDraw :: ![DrawGroup]
+    -- ^ How to draw the space.
 }
 
 data Material = Air
@@ -61,10 +61,8 @@ data Material = Air
               -- ^ Ship and numbers rebound on 'Wall's.
               deriving(Eq, Show)
 
-data Boundaries = WorldFrame
-                -- ^ Just the world.
-                | TerminalWindow
-                -- ^ The terminal, not the world.
-                | Both
-                -- ^ The terminal.
+data Scope = WorldScope !Material
+           -- ^ The world, with a 'Material' to say what is the scope of the animation.
+--           | ScreenExceptWorldView
+--           -- ^ The terminal, excluding the world view.
                 deriving(Show)

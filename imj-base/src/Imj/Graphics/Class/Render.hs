@@ -2,9 +2,11 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Class.Render(
-         Render(..)
-       ) where
+module Imj.Graphics.Class.Render
+    ( Render(..)
+    -- * Reexports
+    , module Imj.Graphics.Class.Draw
+    ) where
 
 import           Control.Monad.IO.Class(MonadIO)
 

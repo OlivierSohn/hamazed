@@ -25,7 +25,8 @@ module Imj.Prelude
           , module Data.Word
           ) where
 
-import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(..), Monad(..)
+import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
+                        , Functor
                         , Bool(..), Char, Float, IO, Int, Maybe(..), Either(..), Ordering(..)
                         , either, maybe
                         , sum, map, concatMap, concat, filter, mapM, mapM_
@@ -37,14 +38,14 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Integral, Ord, Monoid(.
                         , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)
                         , realToFrac, fromIntegral, fromRational, recip, signum, pred, succ
                         , sin, cos, pi
-                        , mod, min, max, abs, floor, round, ceiling, maxBound
+                        , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
                         , negate, div, divMod, quot, quotRem, even, odd
                         , error, undefined
                         )
 
 import           Control.Applicative((<|>))
 import           Control.Arrow((>>>))
-import           Control.Monad(when, void, (<=<), Monad)
+import           Control.Monad(when, unless, void, (<=<), Monad)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Control.Exception(assert)

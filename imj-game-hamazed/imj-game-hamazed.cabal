@@ -50,9 +50,9 @@ library
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
+                     , Imj.Game.Hamazed.World.Draw
                      , Imj.Game.Hamazed.World.InTerminal
                      , Imj.Game.Hamazed.World.Number
-                     , Imj.Game.Hamazed.World.Render
                      , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space

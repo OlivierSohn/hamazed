@@ -15,6 +15,6 @@ import           Imj.Graphics.Render.Delta.Cells
 import           Imj.Graphics.Render.Delta.Draw
 
 clearIfNeeded :: ClearContext -> Buffers -> IO ()
-clearIfNeeded context b@(Buffers _ _ _ _ (Policies _ clearPolicy clearColor)) =
+clearIfNeeded context b@(Buffers _ _ _ _ _ (Policies _ clearPolicy clearColor)) =
   when (clearPolicy == ClearAtEveryFrame || context == OnAllocation) $
     fillBackBuffer b (clearCell clearColor)

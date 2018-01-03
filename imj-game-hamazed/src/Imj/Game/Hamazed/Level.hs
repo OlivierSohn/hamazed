@@ -5,8 +5,8 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Level
-    ( renderLevelMessage
-    , renderLevelState
+    ( drawLevelMessage
+    , drawLevelState
     , messageDeadline
     , getEventForMaybeDeadline
     ) where
@@ -25,6 +25,7 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Render
+import           Imj.Graphics.Text.Alignment
 import           Imj.Input.NonBlocking
 import           Imj.Input.Blocking
 import           Imj.Input.Types
@@ -94,20 +95,19 @@ getCharWithinDurationMicros durationMicros step =
     else
       timeout durationMicros getKeyThenFlush
 
-{-# INLINABLE renderLevelState #-}
-renderLevelState :: (Draw e, MonadReader e m, MonadIO m)
-                 => Coords Pos
-                 -> Int
-                 -> LevelFinished
-                 -> m ()
-renderLevelState s level (LevelFinished stop _ messageState) = do
-  let topLeft = translateInDir RIGHT s
-      stopMsg = case stop of
+{-# INLINABLE drawLevelState #-}
+drawLevelState :: (Draw e, MonadReader e m, MonadIO m)
+               => Coords Pos
+               -> Int
+               -> LevelFinished
+               -> m ()
+drawLevelState centerRef level (LevelFinished stop _ messageState) = do
+  let stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  drawTxt stopMsg topLeft (messageColor stop)
+  drawAlignedTxt_ stopMsg (messageColor stop) (mkCentered centerRef)
   when (messageState == ContinueMessage) $
-    drawTxt
+    drawAlignedTxt_
       (if level == lastLevel
         then
           "You reached the end of the game!"
@@ -115,14 +115,14 @@ renderLevelState s level (LevelFinished stop _ messageState) = do
           let action = case stop of
                             (Lost _) -> "restart"
                             Won      -> "continue"
-          in "Hit a key to " <> action <> " ...")
-      (move 2 Down topLeft) neutralMessageColor
+          in "Press a key to " <> action <> " ...")
+             neutralMessageColor (mkCentered $ move 2 Down centerRef)
 
 
-{-# INLINABLE renderLevelMessage #-}
-renderLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
-                   => Level
-                   -> Coords Pos
-                   -> m ()
-renderLevelMessage (Level level _ levelState) rightMiddle =
-  mapM_ (renderLevelState rightMiddle level) levelState
+{-# INLINABLE drawLevelMessage #-}
+drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
+                 => Level
+                 -> Coords Pos
+                 -> m ()
+drawLevelMessage (Level level _ levelState) ref =
+  mapM_ (drawLevelState ref level) levelState

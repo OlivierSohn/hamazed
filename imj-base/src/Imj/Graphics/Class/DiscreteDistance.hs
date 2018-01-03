@@ -14,6 +14,9 @@ import           Data.List( length )
 -- | Wrapper on a list, to represents successive waypoints.
 newtype Successive a = Successive [a] deriving(Show)
 
+instance Functor Successive where
+  fmap f (Successive l) = Successive $ fmap f l
+
 {- | Instances should satisfy:
 
 \( \forall (\, from, to)\, \in v, \)

@@ -18,6 +18,9 @@ newtype SequentiallyInterpolatedList a =
   SequentiallyInterpolatedList [a]
   deriving(Eq, Ord, Show)
 
+instance Functor SequentiallyInterpolatedList where
+  fmap f (SequentiallyInterpolatedList l) = SequentiallyInterpolatedList $ fmap f l
+
 -- | Interpolation between 2 'SequentiallyInterpolatedList', occuring sequentially
 --   i.e interpolating between one pair of same-index elements at a time, starting with
 -- 0 index and increasing.

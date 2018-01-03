@@ -28,7 +28,7 @@ import           Imj.Graphics.Class.DiscreteMorphing
 Morph between /drawn/ representations of 'Colorable'.
 
 [Drawn representation of 'Colorable' x]
-The visual result of IO rendering commands induced by a 'drawUsingColor' @x@ call.
+The visual result of IO drawing commands induced by a 'drawUsingColor' @x@ call.
 
 Instances should statisfy the following constraints:
 

@@ -4,13 +4,13 @@
 
 module Imj.GameItem.Weapon.Laser.Types
     ( LaserRay(..)
-    , Ray(..)
     , Theoretical
     , Actual
     , LaserPolicy(..)
     , LaserReach(..)
     ) where
 
+import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Types
 
@@ -18,12 +18,11 @@ import           Imj.Geo.Discrete.Types
 data LaserRay a = LaserRay {
     _laserRayDir :: !Direction
     -- ^ The direction in which the laser was shot
-  , _laserRaySeg :: !(Ray a)
-    -- ^ The laser trajectory.
+  , _laserStart :: !(Coords Pos)
+    -- ^ The first point of the laser.
+  , _laserLength :: !Word32
+    -- ^ The size of the visible portion.
 }
-
--- | A Laser ray
-newtype Ray a = Ray Segment
 
 -- | The laser ray was computed ignoring obstacles
 data Theoretical
@@ -31,7 +30,7 @@ data Theoretical
 -- | The laser ray was computed taking obstacles into account.
 data Actual
 
--- | Tells which obstacles are destroyed on the 'Segment' of 'Ray' 'Theoretical'
+-- | Tells which obstacles are destroyed by a 'LaserRay' 'Theoretical'
 data LaserPolicy = DestroyFirstObstacle
                  -- ^ The first obstacle is destroyed.
                  | DestroyAllObstacles

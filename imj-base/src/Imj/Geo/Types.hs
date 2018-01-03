@@ -5,7 +5,7 @@ module Imj.Geo.Types
         ) where
 
 
--- | Phantom type : position
+-- | Phantom type : position.
 data Pos
 
 -- | Phantom type : velocity

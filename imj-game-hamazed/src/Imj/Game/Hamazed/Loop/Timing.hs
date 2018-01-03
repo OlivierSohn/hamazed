@@ -17,8 +17,8 @@ gameMotionPeriod :: DiffTime
 gameMotionPeriod =
   fromIntegral gameMotionPeriodMicros / 1000000
 
--- using the "incremental" render backend, there is no flicker
--- using the "full" render backend, flicker starts at 40
+-- using the "delta" render backend, there is no flicker
+-- using the "naive" render backend, flicker starts at 40
 gameMotionPeriodMicros :: Int
 gameMotionPeriodMicros =
   millis * 1000

@@ -1,33 +1,20 @@
+- cross-dissolve between worlds, to have smooth transitions (especially important
+  when there are walls)
 
-- make packages https://begriffs.com/posts/2014-10-25-creating-package-hackage.html
+- when frame morphs, it should be centered in the screen, hence:
+use an evolution to replace the ship in the center, morph, then use another
+evolution to place the ship where it is in the next world.
+- rebound animations with decaying velocity when free falling in walls.
+we should make the functions field lazy to have an infinite list?
+-> need to have a TooFar interaction result that stops the growth in that direction even if it's not the last level.
+- when animating in a wall, progressively fade with the wall color (notion of alpha)
+- do not change background color for outer world animations
 
-  - about the hyperlinked-source option
-  https://www.reddit.com/r/haskell/comments/6o4rnb/psa_regarding_cabal_haddock/
+- scissors should be combinable : we need a stack of scissors.
 
-  - a script to build doc
-  https://gist.github.com/stbuehler/7068764
+- Measure if O2 is necessary, especially for:
+  - chained animations with a lot of points
+  - delta renderer
+compilation times are slower by 4% with -O2.
 
-  - Measure if O2 is necessary, especially for:
-    - chained animations with a lot of points
-    - delta renderer
-  compilation times are slower by 4% with -O2.
-
-  -  The hackage-server attempts to build documentation for library packages, but this can fail. Maintainers can generate their own documentation and upload it by using something along the lines of the shell script below (note that the last two commands are the key ones):
-#!/bin/sh
-set -e
-
-dir=$(mktemp -d dist-docs.XXXXXX)
-trap 'rm -r "$dir"' EXIT
-
-cabal haddock --builddir="$dir" --for-hackage --haddock-option=--hyperlinked-source
-# Starting with cabal 2.0, `--publish` is needed for uploading to non-candidate releases
-cabal upload -d $dir/*-docs.tar.gz
-
-
-
-
---html-location=http://hackage.haskell.org/packages/archive/$pkg/latest/doc/html
---for-hackage
---hoogle
-
-for stackage, which ghc versions should I support? https://www.fpcomplete.com/blog/2014/05/stackage-server
+- for stackage, which ghc versions should I support? https://www.fpcomplete.com/blog/2014/05/stackage-server

@@ -14,7 +14,8 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..), size )
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Geo.Discrete.Types
+import           Imj.Geo.Discrete
+import           Imj.Graphics.UI.RectArea
 
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
@@ -26,17 +27,19 @@ minimalWorldMargin = 4
 {-# INLINABLE mkInTerminal #-}
 mkInTerminal :: (MonadIO m)
                 => Size
-                -- ^ Measures the dimensions of the /inner/ content of the 'World',
+                -- ^ Measures the dimensions of the /inner/ content of the world view,
                 -- excluding the outer frame.
+                -> ViewMode
                 -> m (Either String InTerminal)
-mkInTerminal s = do
+mkInTerminal s mode = do
   mayTermSize <- liftIO Terminal.size
-  return $ InTerminal mayTermSize <$> worldUpperLeftToCenterIt' s mayTermSize
+  return $ InTerminal mayTermSize mode <$> worldViewCentered s mayTermSize
 
 
-worldUpperLeftToCenterIt' :: Size -> Maybe (Terminal.Window Int) -> Either String (Coords Pos)
-worldUpperLeftToCenterIt' worldSize mayTermSize =
-  case mayTermSize of
+worldViewCentered :: Size -> Maybe (Terminal.Window Int) -> Either String (RectArea a)
+worldViewCentered worldSize@(Size wr wc) mayTermSize =
+  let viewSize = Size (2 + wr) (2 + wc)
+  in case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
       let (Size rs cs) = maxWorldSize
           heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
@@ -52,13 +55,15 @@ worldUpperLeftToCenterIt' worldSize mayTermSize =
                   ++  "\nplease adjust your terminal size and restart the executable"
                   ++ ".\n"
             else
-              Right $ worldUpperLeftFromTermSize termSize worldSize
-    Nothing -> Right $ Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
+              let upperLeft = worldViewUpperLeftFromTermSize termSize worldSize
+              in Right $ mkRectArea upperLeft viewSize
+    Nothing ->
+      let upperLeft = Coords (Coord minimalWorldMargin) (Coord minimalWorldMargin)
+      in Right $ mkRectArea upperLeft viewSize
 
--- | upper left for the /outer/ content of the 'World', i.e including the /outer/
--- frame.
-worldUpperLeftFromTermSize :: Terminal.Window Int -> Size -> (Coords Pos)
-worldUpperLeftFromTermSize (Terminal.Window h w) (Size rs cs) =
+-- | upper left for the 'World' view, including the /outer/ frame.
+worldViewUpperLeftFromTermSize :: Terminal.Window Int -> Size -> Coords Pos
+worldViewUpperLeftFromTermSize (Terminal.Window h w) (Size rs cs) =
   let walls = 2 :: Int
   in toCoords (quot (fromIntegral h-(rs+ fromIntegral walls)) 2)
               (quot (fromIntegral w-(cs+ fromIntegral walls)) 2)

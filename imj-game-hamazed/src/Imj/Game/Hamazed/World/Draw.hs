@@ -2,9 +2,9 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Hamazed.World.Render
-        ( renderUIAnimation
-        , renderWorld
+module Imj.Game.Hamazed.World.Draw
+        ( drawUIAnimation
+        , drawWorld
         ) where
 
 import           Imj.Prelude
@@ -21,15 +21,15 @@ import           Imj.Physics.Discrete.Collision
 import           Imj.Graphics.UI.Animation
 
 
-{-# INLINABLE renderWorld #-}
-renderWorld :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawWorld #-}
+drawWorld :: (Draw e, MonadReader e m, MonadIO m)
             => World
             -> Coords Pos
             -> m ()
-renderWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
+drawWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
                    space _ _) s  = do
-  -- render numbers, including the ones that will be destroyed, if any
-  mapM_ (\b -> renderNumber b space s) balls
+  -- draw numbers, including the ones that will be destroyed, if any
+  mapM_ (\b -> drawNumber b space s) balls
   when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
     let colors =
           if isNothing safeTime
@@ -40,12 +40,12 @@ renderWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisio
     drawChar '+' (sumCoords shipCoords s) colors
 
 
-{-# INLINABLE renderNumber #-}
-renderNumber :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawNumber #-}
+drawNumber :: (Draw e, MonadReader e m, MonadIO m)
              => Number
              -> Space
              -> Coords Pos
              -> m ()
-renderNumber (Number (PosSpeed pos _) i) space b =
+drawNumber (Number (PosSpeed pos _) i) space b =
   when (location pos space == InsideWorld) $
     drawChar (intToDigit i) (sumCoords pos b) (numberColor i)

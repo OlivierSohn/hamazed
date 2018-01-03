@@ -28,27 +28,29 @@ laserAnimationGeo :: LaserRay Actual
                   -- ^ Unused, because the 'LaserRay' encodes the origin already
                   -> Frame
                   -> [AnimatedPoint]
-laserAnimationGeo (LaserRay dir (Ray seg)) _ (Frame i) =
-  -- frame 0 : original char
-  -- frame 1 and 2 : replacement char
-  -- frame 3 : the end
-  let (originalChar, replacementChar) =
-        if dir == LEFT || dir == RIGHT
-          then
-            ('=','-')
-          else
-            ('|','.')
-      char = if i >= 2
-                then
-                  replacementChar
-                else
-                  originalChar
-      points = if i >= 4
-                 then
-                   []
-                 else
-                   bresenham seg
-  in map (\p -> AnimatedPoint DontInteract p (Just char)) points
+laserAnimationGeo (LaserRay dir start len) _ (Frame i)
+  | len == 0 = []
+  | otherwise =
+    -- frame 0 and 1 : original char
+    -- frame 2 and 3 : replacement char
+    -- frame 4 : the end
+    let (originalChar, replacementChar) =
+          if dir == LEFT || dir == RIGHT
+            then
+              ('=','-')
+            else
+              ('|','.')
+        char = if i >= 2
+                  then
+                    replacementChar
+                  else
+                    originalChar
+        points = if i >= 4
+                   then
+                     []
+                   else
+                     map (\n -> move n dir start) [0..fromIntegral $ pred len]
+    in map (\p -> AnimatedPoint DontInteract p (Just char)) points
 
 -- | Gravity free-fall
 gravityFallGeo :: Vec2 Vel

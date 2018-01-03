@@ -9,8 +9,6 @@ module Imj.Graphics.Class.DiscreteMorphing
         , module Imj.Graphics.Class.DiscreteDistance
         , module Imj.Graphics.Class.Drawable
         , module Imj.Graphics.Class.Draw
-        , MonadIO
-        , MonadReader
         ) where
 
 import           Imj.Prelude
@@ -26,7 +24,7 @@ import           Imj.Graphics.Class.Drawable
 {-| Morph between /drawn/ representations of 'Drawble's.
 
 [Drawn representation of 'Drawable' x]
-The visual result of IO rendering commands induced by a 'draw' @x@ call.
+The visual result of IO drawing commands induced by a 'draw' @x@ call.
 
 Instances should statisfy the following constraints:
 

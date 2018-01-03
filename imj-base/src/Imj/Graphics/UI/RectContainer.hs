@@ -1,14 +1,13 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.UI.RectContainer
         (
-          -- * RectContainer
-            {- | 'RectContainer' represents a rectangular UI container. It
-            contains the 'Size' of its /content/, and an upper left coordinate.
-
-            Being 'Colorable', it can be wrapped in a 'Colored' to gain the notion of color. -}
           RectContainer(..)
+        , applyOffset
+        , mkRectContainerWithTotalArea
         , getSideCentersAtDistance
           -- * Reexports
         , Colorable(..)
@@ -22,7 +21,8 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.DiscreteColorableMorphing
-import           Imj.Graphics.Render
+import           Imj.Graphics.Class.HasRectArea
+import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer.MorphParallel4
 
 {-|
@@ -49,11 +49,17 @@ data RectContainer = RectContainer {
     -- ^ Upper left corner.
 } deriving(Eq, Show)
 
--- TODO notion "continuous closed path" to factor 'ranges' and 'renderRectFrameInterpolation' logics.
+-- TODO notion "continuous closed path" to factor 'ranges' and 'drawRectFrameInterpolation' logics.
 
 instance Colorable RectContainer where
-  drawUsingColor = renderWhole
+  drawUsingColor = drawWhole
   {-# INLINABLE drawUsingColor #-}
+
+-- | Returns the content area, /excluding/ the frame around it.
+instance HasRectArea RectContainer where
+  getRectArea (RectContainer (Size h w) upperLeft) =
+    RectArea (translate' 1 1 upperLeft) (translate upperLeft $ toCoords h w)
+  {-# INLINABLE getRectArea #-}
 
 -- | Smoothly transforms the 4 sides of the rectangle simultaneously, from their middle
 -- to their extremities.
@@ -70,51 +76,54 @@ instance DiscreteColorableMorphing RectContainer where
   drawMorphingUsingColor from to frame color
     | frame <= 0         = drawUsingColor from color
     | frame >= lastFrame = drawUsingColor to color
-    | otherwise          = renderRectFrameInterpolation from to lastFrame frame color
+    | otherwise          = drawRectFrameInterpolation from to lastFrame frame color
     where
       lastFrame = pred $ distance from to
 
-{-# INLINABLE renderWhole #-}
-renderWhole :: (Draw e, MonadReader e m, MonadIO m)
-            => RectContainer
-            -> LayeredColor
-            -> m ()
-renderWhole (RectContainer sz upperLeft) =
-  renderPartialRectContainer sz (upperLeft, 0, countRectContainerChars sz - 1)
+applyOffset :: Coords Pos -> RectContainer -> RectContainer
+applyOffset offset (RectContainer a coords) = RectContainer a $ sumCoords offset coords
 
-{-# INLINABLE renderRectFrameInterpolation #-}
-renderRectFrameInterpolation :: (Draw e, MonadReader e m, MonadIO m)
-                             => RectContainer
-                             -> RectContainer
-                             -> Int
-                             -> Int
-                             -> LayeredColor
-                             -> m ()
-renderRectFrameInterpolation rf1@(RectContainer sz1 upperLeft1)
+{-# INLINABLE drawWhole #-}
+drawWhole :: (Draw e, MonadReader e m, MonadIO m)
+          => RectContainer
+          -> LayeredColor
+          -> m ()
+drawWhole (RectContainer sz upperLeft) =
+  drawPartialRectContainer sz (upperLeft, 0, countRectContainerChars sz - 1)
+
+{-# INLINABLE drawRectFrameInterpolation #-}
+drawRectFrameInterpolation :: (Draw e, MonadReader e m, MonadIO m)
+                           => RectContainer
+                           -> RectContainer
+                           -> Int
+                           -> Int
+                           -> LayeredColor
+                           -> m ()
+drawRectFrameInterpolation rf1@(RectContainer sz1 upperLeft1)
                  rf2@(RectContainer sz2 upperLeft2) lastFrame frame color = do
   let (Coords _ (Coord dc)) = diffCoords upperLeft1 upperLeft2
-      render di1 di2 = do
+      draw' di1 di2 = do
         let fromRanges = ranges (lastFrame-(frame+di1)) sz1 FromBs
             toRanges   = ranges (lastFrame-(frame+di2)) sz2 FromAs
-        mapM_ (renderRectFrameRange rf1 color) fromRanges
-        mapM_ (renderRectFrameRange rf2 color) toRanges
+        mapM_ (drawRectFrameRange rf1 color) fromRanges
+        mapM_ (drawRectFrameRange rf2 color) toRanges
   if dc >= 0
     then
       -- expanding animation
-      render dc 0
+      draw' dc 0
     else
       -- shrinking animation
-      render 0 (negate dc)
+      draw' 0 (negate dc)
 
 
-{-# INLINABLE renderRectFrameRange #-}
-renderRectFrameRange :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawRectFrameRange #-}
+drawRectFrameRange :: (Draw e, MonadReader e m, MonadIO m)
                      => RectContainer
                      -> LayeredColor
                      -> (Int, Int)
                      -> m ()
-renderRectFrameRange (RectContainer sz r) color (min_, max_) =
-  renderPartialRectContainer sz (r, min_, max_) color
+drawRectFrameRange (RectContainer sz r) color (min_, max_) =
+  drawPartialRectContainer sz (r, min_, max_) color
 
 -- | Considering a closed continuous path with an even number of points labeled
 --  A and B and alternating along the path : A,B,A,B,A,B
@@ -267,3 +276,9 @@ getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft') dx dy =
   centerDown  = translate' rFull cHalf upperLeft
   leftMiddle  = translate' rHalf 0     upperLeft
   rightMiddle = translate' rHalf (cs-1) upperLeft
+
+-- | Helper function to create a 'RectContainer' whose /content/ matches a 'RectArea'.
+mkRectContainerWithTotalArea :: RectArea a -> RectContainer
+mkRectContainerWithTotalArea rectArea@(RectArea upperLeft _) =
+  let (Size h w) = reactAreaSize rectArea
+  in RectContainer (Size (h-2) (w-2)) upperLeft

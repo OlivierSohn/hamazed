@@ -4,6 +4,8 @@
 
 module Imj.Graphics.Class.HasLayeredColor
             ( HasLayeredColor(..)
+            -- * reexport
+            , LayeredColor
             ) where
 
 import           Imj.Graphics.Color.Types

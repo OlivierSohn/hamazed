@@ -1,6 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
-
 
 module Imj.Game.Hamazed
       ( -- * The game
@@ -52,9 +50,6 @@ module Imj.Game.Hamazed
       , ActionTarget(..)
       , MetaAction(..)
         -- * GameState
-        {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
-        we render the /old/ 'World' while using the /new/ 'World' 's
-        dimensions to animate the UI accordingly (see "Imj.Graphics.UI.Animation"). -} -- TODO this could be done differently
       , GameState(..)
         -- * Environment
         {- | -}

@@ -13,6 +13,7 @@ import           Imj.Prelude
 import           Data.Char( intToDigit )
 
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
@@ -38,6 +39,6 @@ destroyedNumberAnimations :: Either SystemTime KeyTime
                           -> [Animation]
 destroyedNumberAnimations k laserSpeed world (Number (PosSpeed pos _) n) =
   let char = intToDigit n
-      envFunc = environmentInteraction world WorldFrame
-  in catMaybes ([animatedPolygon n pos envFunc (Speed 1) k char])
+      envFunc = environmentInteraction world (WorldScope Air)
+  in catMaybes [animatedPolygon n pos envFunc (Speed 1) k char]
      ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos envFunc (Speed 2) k char

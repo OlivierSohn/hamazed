@@ -39,8 +39,8 @@ import           Imj.Graphics.UI.RectContainer
 -- | Shows the differences between 'AnchorChars' and 'AnchorStrings', by comparing,
 -- with the same inputs:
 --
--- * 'mkSequentialTextTranslationsCharAnchored' / 'renderAnimatedTextCharAnchored'
--- * 'mkSequentialTextTranslationsStringAnchored' / 'renderAnimatedTextStringAnchored'
+-- * 'mkSequentialTextTranslationsCharAnchored' / 'drawAnimatedTextCharAnchored'
+-- * 'mkSequentialTextTranslationsStringAnchored' / 'drawAnimatedTextStringAnchored'
 exampleOfsequentialTextTranslationsAnchored :: (Render e, MonadReader e m, MonadIO m)
                                             => m ()
 exampleOfsequentialTextTranslationsAnchored = do
@@ -76,7 +76,7 @@ runExampleCharAnchored :: (Render e, MonadReader e m, MonadIO m)
 runExampleCharAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
         mkSequentialTextTranslationsCharAnchored (translateInput ref input) 1
-  in (lastFrame, (renderAnimatedTextCharAnchored anim))
+  in (lastFrame, (drawAnimatedTextCharAnchored anim))
 
 runExampleStringAnchored :: (Render e, MonadReader e m, MonadIO m)
                          => [([ColorString], Coords Pos, Coords Pos)]
@@ -85,7 +85,7 @@ runExampleStringAnchored :: (Render e, MonadReader e m, MonadIO m)
 runExampleStringAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
         mkSequentialTextTranslationsStringAnchored (translateInput ref input) 1
-  in (lastFrame, (renderAnimatedTextStringAnchored anim))
+  in (lastFrame, (drawAnimatedTextStringAnchored anim))
 
 translateInput :: Coords Pos
                -> [([ColorString], Coords Pos, Coords Pos)]

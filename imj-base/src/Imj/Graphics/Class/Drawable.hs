@@ -4,9 +4,10 @@
 
 module Imj.Graphics.Class.Drawable
             ( Drawable(..)
+            -- * reexport
+            , Draw, MonadReader
             ) where
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.Draw

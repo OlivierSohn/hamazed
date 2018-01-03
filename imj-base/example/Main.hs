@@ -3,8 +3,8 @@
 
 In particular, it shows examples using these functions:
 
-* 'mkSequentialTextTranslationsCharAnchored' / 'renderAnimatedTextCharAnchored'
-* 'mkSequentialTextTranslationsStringAnchored' / 'renderAnimatedTextStringAnchored'
+* 'mkSequentialTextTranslationsCharAnchored' / 'drawAnimatedTextCharAnchored'
+* 'mkSequentialTextTranslationsStringAnchored' / 'drawAnimatedTextStringAnchored'
 -}
 
 module Main where

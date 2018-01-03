@@ -59,7 +59,7 @@ module Imj.Graphics.Animation
     , shouldUpdate
     , updateAnimation
     -- ** Render
-    , renderAnim
+    , drawAnim
     -- * Internal
     , module Imj.Graphics.Animation.Internal
     -- * Reexports
@@ -76,7 +76,7 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Chars
 import           Imj.Graphics.Animation.Design.Create
 import           Imj.Graphics.Animation.Design.Color
-import           Imj.Graphics.Animation.Design.Render
+import           Imj.Graphics.Animation.Design.Draw
 import           Imj.Graphics.Animation.Design.Timing
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Update
@@ -95,9 +95,9 @@ laserAnimation :: LaserRay Actual
                -- that triggered this animation, or 'Left' 'SystemTime'
                -- of the current time if a player action triggered this animation
                -> Maybe Animation
-laserAnimation ray@(LaserRay _ (Ray seg)) interaction keyTime =
-  let pos = fst $ extremities seg -- this needs to be collision-free
-  in mkAnimation pos [laserAnimationGeo ray] (Speed 1) interaction keyTime Nothing
+laserAnimation ray@(LaserRay _ start len) interaction keyTime
+  | len == 0  = Nothing
+  | otherwise = mkAnimation start [laserAnimationGeo ray] (Speed 1) interaction keyTime Nothing
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second has 4*8=32 points.

@@ -9,9 +9,10 @@ module Imj.Game.Hamazed.World.Types
         , WorldShape(..)
         , BattleShip(..)
         , Number(..)
-        , Boundaries(..)
-        , mkWorldContainer
+        , Scope(..)
         , InTerminal(..)
+        , ViewMode(..)
+        , computeViewDistances
         , environmentInteraction
         -- * Reexports
         , module Imj.Iteration
@@ -19,6 +20,7 @@ module Imj.Game.Hamazed.World.Types
         , module Imj.Physics.Discrete.Types
         , Terminal.Window
         , RectContainer(..)
+        , RectArea, Filter, Positive
         ) where
 
 import           Imj.Prelude
@@ -27,9 +29,9 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Text.Animation
+import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Types
@@ -50,11 +52,6 @@ data WallDistribution = None
               | Random !RandomParameters
               -- ^ 'Wall's are created with an algorithm involving random numbers.
 
--- | Helper function to create a 'RectContainer' containing a 'World'.
-mkWorldContainer :: World -> RectContainer
-mkWorldContainer (World _ _ (Space _ sz _) _ (InTerminal _ upperLeft)) =
-  RectContainer sz upperLeft
-
 data World = World {
     _worldNumbers :: ![Number]
     -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
@@ -72,10 +69,22 @@ data World = World {
 data InTerminal = InTerminal {
     _inTerminalSize :: !(Maybe (Terminal.Window Int))
     -- ^ The size of the terminal window
-  , _inTerminalUpperLeft :: !(Coords Pos)
-    -- ^ The 'World' 's 'RectContainer' upper left coordinates,
-    -- w.r.t terminal frame.
+  , _inTerminalShouldCenterShip :: !ViewMode
+  , _inTerminalWorldView :: !(RectArea (Filter Positive))
+    -- ^ The area of the world view, including outer frame. Its 'Coords' are w.r.t terminal frame.
 } deriving (Show)
+
+
+data ViewMode = CenterShip
+              -- ^ the 'BattleShip' position is fixed w.r.t the screen.
+              | CenterSpace
+              -- ^ the 'Space' frame is fixed w.r.t the screen.
+              deriving(Show)
+
+computeViewDistances :: ViewMode -> (Length Width, Length Height)
+computeViewDistances CenterShip  = (30, 2) -- it will overlapp for large worlds but that's okay:
+                                          -- the overlap is far away from where the ship is
+computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
     _shipPosSpeed :: !PosSpeed
@@ -97,10 +106,9 @@ data Number = Number {
   -- ^ Which number it represents (1 to 16).
 } deriving(Eq, Show)
 
--- | An interaction function taking into account a 'World' and 'Boundaries'
-environmentInteraction :: World -> Boundaries -> Coords Pos -> InteractionResult
-environmentInteraction (World _ _ space _ (InTerminal mayTermWindow upperLeft)) scope =
-  let worldCorner = translate' 1 1 upperLeft
-  in scopedLocation space mayTermWindow worldCorner scope >>> \case
+-- | An interaction function taking into account a 'World' and 'Scope'
+environmentInteraction :: World -> Scope -> Coords Pos -> InteractionResult
+environmentInteraction (World _ _ space _ _) scope =
+  scopedLocation space scope >>> \case
     InsideWorld  -> Stable
     OutsideWorld -> Mutation

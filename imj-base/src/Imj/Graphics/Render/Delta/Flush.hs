@@ -40,8 +40,10 @@ deltaFlush ioRefBuffers =
           hFlush stdout -- TODO is flush blocking? slow? could it be async?
 
 
+-- | Note that the 'Scissor' is not taken into account here.
+-- We could take it into account, if needed.
 render :: Buffers -> IO ()
-render buffers@(Buffers _ _ width (Delta delta) _) = do
+render buffers@(Buffers _ _ width _ (Delta delta) _) = do
   computeDelta buffers 0
 
   clearIfNeeded OnFrame buffers
@@ -89,7 +91,7 @@ computeDelta :: Buffers
              -- ^ the buffer index
              -> IO ()
 computeDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ (Delta delta) _)
+ b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _)
  idx
   | fromIntegral idx == size = return ()
   | otherwise = do

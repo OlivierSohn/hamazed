@@ -13,8 +13,7 @@ module Imj.Geo.Discrete.Types
     -- ** Direction
       Direction(..)
     -- ** Coordinates
-    , Coords(..)
-    , Coord(..), Col, Row
+    , Col, Row, Coord(..), Coords(..)
     -- ** Size
     , Size(..)
     , Length(..)
@@ -22,8 +21,6 @@ module Imj.Geo.Discrete.Types
     , Height
     , toCoords
     , maxLength
-    , onOuterBorder
-    , containsWithOuterBorder
     -- ** Segment
     , Segment(..)
     , mkSegment
@@ -44,9 +41,10 @@ import           Imj.Util
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
 
--- | Discrete coordinate.
+-- | One-dimensional discrete coordinate. We use phantom types 'Row', 'Col'
+-- to distinguish between rows and columns.
 newtype Coord a = Coord Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded)
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteInterpolation (Coords Pos) where
@@ -62,13 +60,19 @@ instance DiscreteInterpolation (Coords Pos) where
 instance DiscreteDistance (Coords Pos) where
   distance = bresenhamLength
 
--- | Represents a row index (y)
+{- | Represents a row index (y).
+
+When used to represent a /screen/ row, index 0 is at the /top/ of the screen,
+indexes increase towards the /bottom/ of the screen. -}
 data Row
--- | Represents a column index (x)
+{- | Represents a column index (x).
+
+When used to represent a /screen/ column, index 0 is at the /left/ of the screen,
+indexes increase towards the /right/ of the screen. -}
 data Col
 
--- | Two-dimensional discrete coordinates. We use phantom types 'Pos', 'Vel'
--- to distinguish positions from speeds.
+{- | Two-dimensional discrete coordinates. We use phantom types 'Pos', 'Vel'
+to distinguish positions from speeds. -}
 data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
@@ -89,6 +93,7 @@ data Size = Size {
 } deriving (Eq, Show)
 
 -- | Width and Height to Coords
+{-# INLINE toCoords #-}
 toCoords :: Length Height -> Length Width -> Coords Pos
 toCoords (Length h) (Length w) =
   Coords (Coord h) (Coord w)
@@ -97,28 +102,6 @@ toCoords (Length h) (Length w) =
 maxLength :: Size -> Int
 maxLength (Size (Length h) (Length w)) =
   max w h
-
--- | Tests if a 'Coords' lies on the outer border of a region of a given size,
--- containing (0,0) and positive coordinates.
-onOuterBorder :: Coords Pos
-              -- ^ The coordinates to test
-              -> Size
-              -- ^ The size
-              -> Maybe Direction
-              -- ^ If the coordinates are on the border, returns a 'Direction' pointing
-              -- away from the region (at the given coordinates).
-onOuterBorder (Coords r c) (Size rs cs)
-  | r == -1 = Just Up
-  | c == -1 = Just LEFT
-  | r == fromIntegral rs = Just Down
-  | c == fromIntegral cs = Just RIGHT
-  | otherwise = Nothing
-
--- | Tests if a 'Coords' is contained or on the outer border of a region
--- of a given size, containing (0,0) and positive coordinates.
-containsWithOuterBorder :: Coords Pos -> Size -> Bool -- TODO simplify, pass a number for the outer border size
-containsWithOuterBorder (Coords r c) (Size rs cs)
-  = r >= -1 && c >= -1 && r <= fromIntegral rs && c <= fromIntegral cs
 
 -- | A segment is a line betwen two discrete coordinates.
 --
@@ -140,7 +123,6 @@ mkSegment coord1@(Coords r1 c1) coord2@(Coords r2 c2)
   | r1 == r2  = Horizontal r1 c1 c2
   | c1 == c2  = Vertical   c1 r1 r2
   | otherwise = Oblique coord1 coord2
-
 
 -- | Returns the bresenham 2d distance between two coordinates.
 bresenhamLength :: Coords Pos -> Coords Pos -> Int

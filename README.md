@@ -1,8 +1,6 @@
-https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master
-
 # What is it?
 
-The monorepo for the game "Hamazed" and its packages.
+The monorepo for the game "Hamazed" and its packages. [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
 
 The haddock documentation explains the concepts used, both on the game side and
 on the game engine side.

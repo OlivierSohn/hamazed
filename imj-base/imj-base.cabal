@@ -93,6 +93,8 @@ library
                      , Imj.Input.NonBlocking
                      , Imj.Input.Types
                      , Imj.Iteration
+                     , Imj.Physics
+                     , Imj.Physics.Continuous.Types
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types

@@ -9,7 +9,6 @@ module Imj.Graphics.Animation.Design.Create
 
 import           Imj.Prelude
 
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Update
 import           Imj.Graphics.Animation.Design.UpdateAnimatedPoints
@@ -17,9 +16,9 @@ import           Imj.Iteration
 import           Imj.Timing
 
 -- | Creates an animation and initializes it by updating it once.
-mkAnimation :: Coords Pos
+mkAnimation :: VecPosSpeed
             -- ^ Center of the root 'AnimatedPoints'.
-            -> [Coords Pos -> Frame -> [AnimatedPoint]]
+            -> [VecPosSpeed -> Frame -> [AnimatedPoint]]
             {- ^ List of /animation functions/. Every /animation function/ generates
             'AnimatedPoint's for a given level of the root 'AnimatedPoints':
 
@@ -33,15 +32,9 @@ mkAnimation :: Coords Pos
             -> Speed
             -- ^ Animation discrete speed. Tells by how much the 'Frame', passed
             -- to animation functions, is incremented during an update.
-            -> (Coords Pos -> InteractionResult)
-            {- ^ The environmental interaction function.
-
-            During update, 'AnimatedPoint's for which this function returns
-            'Mutation' can mutate if they are allowed to.
-
-            During draw, 'AnimatedPoint's for which this
-            function returns 'Stable' are drawn. Others are
-            not drawn because they would overlap with the environment. -}
+            -> EnvFunctions
+            -- ^ Functions determining when 'AnimatedPoint's should be mutated,
+            -- or even removed from the 'Animation'
             -> Either SystemTime KeyTime
             -- ^ 'Right' 'KeyTime' of the event's deadline
             -- that triggered this animation, or 'Left' 'SystemTime'
@@ -62,7 +55,7 @@ mkAnimation center updates speed interaction t' mayChar =
 
 
 -- | Constructs an 'AnimatedPoints'.
-mkAnimatedPoints :: Coords Pos
+mkAnimatedPoints :: VecPosSpeed
                  -- ^ Where the first animation should start.
                  -> AnimatedPoints
 mkAnimatedPoints center =

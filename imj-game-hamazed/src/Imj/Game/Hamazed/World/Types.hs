@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.World.Types
         , InTerminal(..)
         , ViewMode(..)
         , computeViewDistances
-        , environmentInteraction
+        , envFunctions
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -29,6 +29,7 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
@@ -112,3 +113,17 @@ environmentInteraction (World _ _ space _ _) scope =
   scopedLocation space scope >>> \case
     InsideWorld  -> Stable
     OutsideWorld -> Mutation
+
+
+envDistance :: Vec2 Pos -> Distance
+envDistance (Vec2 x y) =
+  if abs x > 500 || abs y > 500
+    then
+      TooFar
+    else
+      DistanceOK
+
+-- | Creates environment functions taking into account a 'World' and 'Scope'
+envFunctions :: World -> Scope -> EnvFunctions
+envFunctions world scope =
+  EnvFunctions (environmentInteraction world scope) envDistance

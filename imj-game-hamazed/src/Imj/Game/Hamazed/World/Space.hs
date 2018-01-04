@@ -310,9 +310,6 @@ scopedLocation :: Space
 scopedLocation space = \case
   WorldScope mat -> (\pos -> if mat == getMaterial pos space
                                then
-                                 if tooFar pos -- to stop animations that diverge
-                                    then OutsideWorld
-                                    else InsideWorld
-                               else OutsideWorld)
- where
-   tooFar (Coords r c) = abs r > 500 || abs c > 500
+                                 InsideWorld
+                               else
+                                 OutsideWorld)

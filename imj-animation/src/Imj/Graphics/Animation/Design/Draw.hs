@@ -14,11 +14,13 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Either(partitionEithers)
 
+import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Color
 import           Imj.Graphics.Render
 import           Imj.Iteration
+import           Imj.Physics.Continuous.Types
 
 {- | If an 'AnimatedPoint' has no specific 'Char' to be drawn with,
 it will be drawn with the 'Char' of the 'Animation'.
@@ -31,7 +33,7 @@ drawAnim :: (Draw e, MonadReader e m, MonadIO m)
            -> Coords Pos
            -- ^ Reference coordinates.
            -> m ()
-drawAnim (Animation points _ interaction (UpdateSpec _ (Iteration _ frameForNextUpdate)) mayChar) =
+drawAnim (Animation points _ (EnvFunctions interaction _) (UpdateSpec _ (Iteration _ frameForNextUpdate)) mayChar) =
   draw' frameForNextUpdate mayChar points interaction
 
 {-# INLINABLE draw' #-}
@@ -49,17 +51,18 @@ draw'
  parentFrame mayCharAnim (AnimatedPoints (Just branches) _ childFrame) interaction r = do
   let (children, aliveCoordinates) = partitionEithers branches
       selectDrawnCoordinates =
-        filter (\(AnimatedPoint canInteract coords _) ->
+        filter (\(AnimatedPoint canInteract (VecPosSpeed coords _) _) ->
                     case canInteract of
                       -- An alive animated point may collide:
-                      DontInteract -> interaction coords == Stable
+                      DontInteract -> interaction (vec2pos coords) == Stable
                       -- We make the assumption that every alive point is guaranteed to be collision-free.
                       -- Note that when the environment will be dynamic, it will be wrong:
                       Interact -> True)
       relFrame = parentFrame - childFrame
       color = colorFromFrame relFrame
-  mapM_ (\(AnimatedPoint _ c mayChar) -> do
+  mapM_ (\(AnimatedPoint _ (VecPosSpeed vc _) mayChar) -> do
             let char = fromMaybe (error "no char was specified") $ mayChar <|> mayCharAnim
+                c = vec2pos vc
             drawChar char (sumCoords c r) color)
         $ selectDrawnCoordinates aliveCoordinates
   mapM_ (\child -> draw' relFrame mayCharAnim child interaction r) children

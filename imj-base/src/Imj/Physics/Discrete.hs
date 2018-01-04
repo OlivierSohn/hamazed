@@ -1,3 +1,5 @@
+{-# OPTIONS_HADDOCK hide #-}
+
 module Imj.Physics.Discrete
         ( module Imj.Physics.Discrete.Types
         , module Imj.Physics.Discrete.Collision

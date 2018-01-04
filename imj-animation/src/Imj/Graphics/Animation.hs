@@ -3,7 +3,22 @@
 module Imj.Graphics.Animation
     (
     -- * Animation functions
-    -- | Animation functions are used by 'Animation's to update 'AnimatedPoint's.
+    {- | In their pre-applied form ('VecPosSpeed' -> 'Frame' -> ['AnimatedPoint']),
+    /animation functions/ are used by an 'Animation' to produce 'AnimatedPoint's.
+
+    They are expected to return a /constant/ number of 'AnimatedPoint's across frames,
+    except when they know they reached the end of their animation, then they return 0
+    'AnimatedPoint's.
+
+    Some /animated functions/ will produce 'AnimatedPoint's /forever/. This doesn't
+    imply that the 'Animation' that uses them will go on forever, because
+    'AnimatedPoint's can be mutated by the environment, or removed when they go
+    too far away (cf. 'EnvFunctions').
+
+    However, /animation functions/ producing 'AnimatedPoint's that 'DontInteract'
+    are required to eventually finish because the 'AnimatedPoints' they generate
+    cannot be mutated by the environment or be removed from the animation when they
+    are too far (as explained in 'EnvFunctions' and 'CanInteract'). -}
       gravityFallGeo
     , simpleExplosionGeo
     , quantitativeExplosionGeo
@@ -13,14 +28,13 @@ module Imj.Graphics.Animation
     , Animation
       {- | An 'Animation' generates 'AnimatedPoint's: -}
     , AnimatedPoint(..)
-    -- | 'AnimatedPoint's can interact with their environment:
+      -- | An 'AnimatedPoint' can interact with its environment using 'EnvFunctions':
+    , EnvFunctions(..)
     , CanInteract(..)
-    -- | The result of an interaction between an 'AnimatedPoint' and its environment
-    -- can trigger a /mutation/:
+    , Distance(..)
     , InteractionResult(..)
       {- | 'AnimatedPoint's live in a
-      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>:
-      -}
+      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>: -}
     , AnimatedPoints(..)
       -- ** Create
     , mkAnimation
@@ -36,6 +50,7 @@ module Imj.Graphics.Animation
      the environment is 'Mutation').
     -}
     , freeFall
+    , freeFallWithRebounds
     , freeFallThenExplode
     -- *** Fragments
     {- | 'fragmentsFreeFall' gives the impression that the object disintegrated in multiple
@@ -83,21 +98,24 @@ import           Imj.Graphics.Animation.Design.Update
 import           Imj.Graphics.Animation.Geo
 import           Imj.Graphics.Animation.Internal
 import           Imj.Iteration
+import           Imj.Physics.Continuous.Types
 import           Imj.Timing
 
 -- | A laser ray animation, with a fade-out effect.
 laserAnimation :: LaserRay Actual
                -- ^ The laser ray
-               -> (Coords Pos -> InteractionResult)
-               -- ^ Environment interaction function
                -> Either SystemTime KeyTime
                -- ^ 'Right' 'KeyTime' of the event's deadline
                -- that triggered this animation, or 'Left' 'SystemTime'
                -- of the current time if a player action triggered this animation
                -> Maybe Animation
-laserAnimation ray@(LaserRay _ start len) interaction keyTime
+laserAnimation ray@(LaserRay _ start len) keyTime
   | len == 0  = Nothing
-  | otherwise = mkAnimation start [laserAnimationGeo ray] (Speed 1) interaction keyTime Nothing
+  | otherwise = mkAnimation posspeed [laserAnimationGeo ray] (Speed 1) envFunctions keyTime Nothing
+ where
+  -- speed doesn't matter to 'laserAnimationGeo'
+  posspeed = mkStaticVecPosSpeed $ pos2vec start
+  envFunctions = EnvFunctions (const Stable) (const DistanceOK)
 
 -- | An animation chaining two circular explosions, the first explosion
 -- can be configured in number of points, the second has 4*8=32 points.
@@ -105,8 +123,7 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Number of points in the first explosion
                                          -> Coords Pos
                                          -- ^ Center of the first explosion
-                                         -> (Coords Pos -> InteractionResult)
-                                         -- ^ Environment interaction function
+                                         -> EnvFunctions
                                          -> Speed
                                          -- ^ Animation speed
                                          -> Either SystemTime KeyTime
@@ -116,10 +133,12 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -> Char
                                          -- ^ Character used when drawing the animation.
                                          -> Maybe Animation
-quantitativeExplosionThenSimpleExplosion num pos interaction animSpeed keyTime char =
+quantitativeExplosionThenSimpleExplosion num pos envFuncs animSpeed keyTime char =
   let funcs = [ quantitativeExplosionGeo num Interact
               , simpleExplosionGeo 8 Interact ]
-  in mkAnimation pos funcs animSpeed interaction keyTime (Just char)
+       -- speed doesn't matter to 'quantitativeExplosionGeo' and 'simpleExplosionGeo'
+      posspeed = mkStaticVecPosSpeed $ pos2vec pos
+  in mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
 
 -- | An animation where a geometric figure (polygon or circle) expands then shrinks,
 -- and doesn't interact with the environment.
@@ -127,8 +146,6 @@ animatedPolygon :: Int
                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                 -> Coords Pos
                 -- ^ Center of the polygon (or circle)
-                -> (Coords Pos -> InteractionResult)
-                -- ^ Environment interaction function
                 -> Speed
                 -- ^ Animation speed
                 -> Either SystemTime KeyTime
@@ -138,16 +155,19 @@ animatedPolygon :: Int
                 -> Char
                 -- ^ Character used when drawing the animation.
                 -> Maybe Animation
-animatedPolygon n pos interaction animSpeed keyTime char =
-  mkAnimation pos [animatePolygonGeo n] animSpeed interaction keyTime (Just char)
+animatedPolygon n pos animSpeed keyTime char =
+  mkAnimation posspeed [animatePolygonGeo n] animSpeed envFunctions keyTime (Just char)
+ where
+  -- speed doesn't matter to 'animatePolygonGeo'
+  posspeed = mkStaticVecPosSpeed $ pos2vec pos
+  envFunctions = EnvFunctions (const Stable) (const DistanceOK)
 
 -- | A circular explosion configurable in number of points
 simpleExplosion :: Int
                 -- ^ Number of points in the explosion
                 -> Coords Pos
                 -- ^ Center of the explosion
-                -> (Coords Pos -> InteractionResult)
-                -- ^ Environment interaction function
+                -> EnvFunctions
                 -> Speed
                 -- ^ Animation speed
                 -> Either SystemTime KeyTime
@@ -157,8 +177,11 @@ simpleExplosion :: Int
                 -> Char
                 -- ^ Character used when drawing the animation.
                 -> Maybe Animation
-simpleExplosion resolution pos interaction animSpeed keyTime char =
-  mkAnimation pos [simpleExplosionGeo resolution Interact] animSpeed interaction keyTime (Just char)
+simpleExplosion resolution pos envFuncs animSpeed keyTime char =
+  mkAnimation posspeed [simpleExplosionGeo resolution Interact] animSpeed envFuncs keyTime (Just char)
+ where
+  -- speed doesn't matter to 'simpleExplosion'
+  posspeed = mkStaticVecPosSpeed $ pos2vec pos
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -166,8 +189,7 @@ fragmentsFreeFall :: Vec2 Vel
                   -- ^ Initial speed
                   -> Coords Pos
                   -- ^ Initial position
-                  -> (Coords Pos -> InteractionResult)
-                  -- ^ Environment interaction function
+                  -> EnvFunctions
                   -> Speed
                   -- ^ Animation speed
                   -> Either SystemTime KeyTime
@@ -177,16 +199,15 @@ fragmentsFreeFall :: Vec2 Vel
                   -> Char
                   -- ^ Character used when drawing the animation.
                   -> [Animation]
-fragmentsFreeFall speed pos interaction animSpeed keyTime char =
-  mapMaybe (\sp -> freeFall sp pos interaction animSpeed keyTime char) $ variations speed
+fragmentsFreeFall speed pos envFuncs animSpeed keyTime char =
+  mapMaybe (\sp -> freeFallWithRebounds sp pos envFuncs animSpeed keyTime char) $ variations speed
 
 -- | A gravity-based free-falling animation.
 freeFall :: Vec2 Vel
          -- ^ Initial speed
          -> Coords Pos
          -- ^ Initial position
-         -> (Coords Pos -> InteractionResult)
-         -- ^ Environment interaction function
+         -> EnvFunctions
          -> Speed
          -- ^ Animation speed
          -> Either SystemTime KeyTime
@@ -196,8 +217,29 @@ freeFall :: Vec2 Vel
          -> Char
          -- ^ Character used when drawing the animation.
          -> Maybe Animation
-freeFall speed pos interaction animSpeed keyTime char =
-  mkAnimation pos [gravityFallGeo speed Interact] animSpeed interaction keyTime (Just char)
+freeFall speed pos envFuncs animSpeed keyTime char =
+  mkAnimation (VecPosSpeed (pos2vec pos) speed) [gravityFallGeo Interact] animSpeed envFuncs keyTime (Just char)
+
+-- | A gravity-based free-falling animation.
+freeFallWithRebounds :: Vec2 Vel
+                     -- ^ Initial speed
+                     -> Coords Pos
+                     -- ^ Initial position
+                     -> EnvFunctions
+                     -> Speed
+                     -- ^ Animation speed
+                     -> Either SystemTime KeyTime
+                     -- ^ 'Right' 'KeyTime' of the event's deadline
+                     -- that triggered this animation, or 'Left' 'SystemTime'
+                     -- of the current time if a player action triggered this animation
+                     -> Char
+                     -- ^ Character used when drawing the animation.
+                     -> Maybe Animation
+freeFallWithRebounds speed pos envFuncs animSpeed keyTime char =
+  mkAnimation (VecPosSpeed (pos2vec pos) speed)
+              [ gravityFallGeo Interact
+              , gravityFallGeo Interact
+              , gravityFallGeo Interact] animSpeed envFuncs keyTime (Just char)
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
@@ -205,8 +247,7 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
                              -> Coords Pos
                              -- ^ Initial position
-                             -> (Coords Pos -> InteractionResult)
-                             -- ^ Environment interaction function
+                             -> EnvFunctions
                              -> Speed
                              -- ^ Animation speed
                              -> Either SystemTime KeyTime
@@ -216,8 +257,8 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -> Char
                              -- ^ Character used when drawing the animation.
                              -> [Animation]
-fragmentsFreeFallThenExplode speed pos interaction k s c =
-  mapMaybe (\sp -> freeFallThenExplode sp pos interaction k s c) $ variations speed
+fragmentsFreeFallThenExplode speed pos envFuncs k s c =
+  mapMaybe (\sp -> freeFallThenExplode sp pos envFuncs k s c) $ variations speed
 
 -- | Given an input speed, computes four slightly different input speeds
 variations :: Vec2 Vel -> [Vec2 Vel]
@@ -232,8 +273,7 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
                     -> Coords Pos
                     -- ^ Initial position
-                    -> (Coords Pos -> InteractionResult)
-                    -- ^ Environment interaction function
+                    -> EnvFunctions
                     -> Speed
                     -- ^ Animation speed
                     -> Either SystemTime KeyTime
@@ -243,7 +283,7 @@ freeFallThenExplode :: Vec2 Vel
                     -> Char
                     -- ^ Character used when drawing the animation.
                     -> Maybe Animation
-freeFallThenExplode speed pos interaction animSpeed keyTime char =
-  let funcs = [ gravityFallGeo speed Interact
+freeFallThenExplode speed pos envFuncs animSpeed keyTime char =
+  let funcs = [ gravityFallGeo Interact
               , simpleExplosionGeo 8 Interact]
-  in mkAnimation pos funcs animSpeed interaction keyTime (Just char)
+  in mkAnimation (VecPosSpeed (pos2vec pos) speed) funcs animSpeed envFuncs keyTime (Just char)

@@ -63,6 +63,4 @@ data Material = Air
 
 data Scope = WorldScope !Material
            -- ^ The world, with a 'Material' to say what is the scope of the animation.
---           | ScreenExceptWorldView
---           -- ^ The terminal, excluding the world view.
-                deriving(Show)
+           deriving(Show)

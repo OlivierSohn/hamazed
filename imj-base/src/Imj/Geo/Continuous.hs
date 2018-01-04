@@ -14,6 +14,7 @@ module Imj.Geo.Continuous
            , polyExtremities
            -- * Vec2 utilities
            , sumVec2d
+           , diffVec2d
            , scalarProd
            , rotateByQuarters
            -- * Reexports
@@ -25,6 +26,7 @@ import           Imj.Prelude
 import           Imj.Geo.Continuous.Types
 import           Imj.Geo.Continuous.Conversion
 import           Imj.Iteration
+import           Imj.Physics.Continuous.Types
 
 -- | Creates a list of 4 'Vec2' from a single one by rotating it successively by pi/2.
 rotateByQuarters :: Vec2 Pos -> [Vec2 Pos]
@@ -37,7 +39,14 @@ rotateByQuarters v@(Vec2 x y) =
 -- | Sums two 'Vec2'.
 {-# INLINE sumVec2d #-}
 sumVec2d :: Vec2 a -> Vec2 a -> Vec2 a
-sumVec2d (Vec2 vx vy) (Vec2 wx wy) = Vec2 (vx+wx) (vy+wy)
+sumVec2d (Vec2 vx vy) (Vec2 wx wy) =
+  Vec2 (vx+wx) (vy+wy)
+
+-- | Diffs two 'Vec2'.
+{-# INLINE diffVec2d #-}
+diffVec2d :: Vec2 a -> Vec2 a -> Vec2 a
+diffVec2d (Vec2 vx vy) (Vec2 wx wy) =
+  Vec2 (vx-wx) (vy-wy)
 
 -- | Multiplies a 'Vec2' by a scalar.
 scalarProd :: Float -> Vec2 a -> Vec2 a
@@ -48,6 +57,13 @@ scalarProd f (Vec2 x y) = Vec2 (f*x) (f*y)
 integrateAcceleration2 :: Frame -> Vec2 Acc -> Vec2 Pos
 integrateAcceleration2 (Frame time) (Vec2 vx vy) =
   let factor = 0.5 * fromIntegral (time * time)
+  in Vec2 (vx * factor) (vy * factor)
+
+-- | Integrate once a constant acceleration over a duration, return a velocity
+{-# INLINE integrateAcceleration1 #-}
+integrateAcceleration1 :: Frame -> Vec2 Acc -> Vec2 Vel
+integrateAcceleration1 (Frame time) (Vec2 vx vy) =
+  let factor = fromIntegral time
   in Vec2 (vx * factor) (vy * factor)
 
 -- | Integrate a constant velocity over a duration, return a position
@@ -63,9 +79,11 @@ gravity = Vec2 0 0.032 -- this number was adjusted so that the timing in Hamazed
                        -- of the world.
 
 {-| Using
-<https://en.wikipedia.org/wiki/Equations_of_motion equation [2] in "Constant linear acceleration in any direction">:
+<https://en.wikipedia.org/wiki/Equations_of_motion equations [1] and [2] in "Constant linear acceleration in any direction">:
 
-\[ \vec r = \vec r_0 + \vec v_0*t + {1 \over 2}* \vec a*t^2 \]
+\[ \vec v = \vec a*t + \vec v_0 \] (1)
+
+\[ \vec r = \vec r_0 + \vec v_0*t + {1 \over 2}* \vec a*t^2 \] (2)
 
 \[ where \]
 
@@ -80,11 +98,13 @@ gravity = Vec2 0 0.032 -- this number was adjusted so that the timing in Hamazed
 \[ t = time \]
 
 -}
-parabola :: Vec2 Pos -> Vec2 Vel -> Frame -> Vec2 Pos
-parabola r0 v0 time =
+parabola :: VecPosSpeed -> Frame -> VecPosSpeed
+parabola (VecPosSpeed r0 v0) time =
   let iv = integrateVelocity time v0
       ia = integrateAcceleration2 time gravity
-  in sumVec2d r0 $ sumVec2d iv ia
+      newPos = sumVec2d r0 $ sumVec2d iv ia
+      newSpeed = sumVec2d v0 $ integrateAcceleration1 time gravity
+  in VecPosSpeed newPos newSpeed
 
 mkPointOnCircle :: Float -> Float -> Vec2 Pos
 mkPointOnCircle radius angle =

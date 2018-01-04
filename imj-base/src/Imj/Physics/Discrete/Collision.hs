@@ -3,16 +3,12 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Physics.Discrete.Collision
-    ( -- * Handling collisions
-    {- | To give a better realism in the game, if the location
-    /before/ a collision is not touching a wall, then the position /after/ the
-    collision will be forced to touch a wall. Note that forcing the position
-    only happens if the absolute speed of one coordinate is >= 2.
-    -}
-      mirrorSpeedAndMoveToPrecollisionIfNeeded
+    ( shouldMirrorAtomic
+    , mirrorSpeedAndMoveToPrecollisionIfNeeded
     , CollisionStatus(..)
     , firstCollision
     , Location(..)
+    , Mirror(..)
     ) where
 
 import           Imj.Prelude
@@ -35,13 +31,24 @@ data CollisionStatus = NoCollision
                      -- position was changed to be just before the collision
                      -- and speed was mirrored
 
--- | On collision, mirrors speed and moves to the pre-collision position.
+{- | If a collision would exist on the trajectory between the current position and the
+next, mirrors speed and moves to the pre-collision position.
+Else, does not change the position.
+
+Note that the next position may be several pixels away from the current position,
+depending on the speed.
+
+If the location /before/ a collision is not touching a wall, then the position /after/ the
+collision will be forced to touch a wall. Note that forcing the position
+only happens if the absolute speed of one coordinate is >= 2.
+-}
 mirrorSpeedAndMoveToPrecollisionIfNeeded :: (Coords Pos -> Location)
-               -- ^ Interaction function.
-               -> PosSpeed
-               -- ^ Input position and speed.
-               -> (PosSpeed, CollisionStatus)
-               -- ^ The speed was potentially mirrored
+                                         -- ^ Interaction function.
+                                         -> PosSpeed
+                                         -- ^ Input position and speed.
+                                         -> (PosSpeed, CollisionStatus)
+                                         -- ^ The position was maybe updated (depending on 'CollisionStatus')
+                                         -- , the speed was potentially mirrored.
 mirrorSpeedAndMoveToPrecollisionIfNeeded getLocation posspeed@(PosSpeed pos speed) =
   maybe
     (posspeed, NoCollision)
@@ -51,17 +58,21 @@ mirrorSpeedAndMoveToPrecollisionIfNeeded getLocation posspeed@(PosSpeed pos spee
   trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
   adjustPosSpeed (mirror, newPos) = (PosSpeed newPos $ mirrorSpeed speed mirror, PreCollision)
 
--- | Handles the first collision on a trajectory, assuming that the first position
--- has no collision.
+-- | Finds the first collision on a trajectory (assumes that the first position
+-- has no collision).
 firstCollision :: (Coords Pos -> Location)
                -- ^ The collision function.
                -> [Coords Pos]
-               -- ^ The trajectory (the first position is expected to be collision-free).
+               -- ^ The trajectory.
                -> Maybe (Mirror, Coords Pos)
-               -- ^ On collision, the kind of speed mirroring
+               -- ^ On collision, returns the kind of speed mirroring
                --   that should be applied and the position just before the collision.
 firstCollision getLocation (p1:theRest@(p2:_)) =
-  mirrorIfNeededAtomic getLocation (PosSpeed p1 (diffPosToSpeed p2 p1)) <|> firstCollision getLocation theRest
+  let mayMirror = shouldMirrorAtomic getLocation p1 p2
+  in maybe
+      (firstCollision getLocation theRest)
+      (\mirror -> Just (mirror, p1))
+      mayMirror
 firstCollision _ _ = Nothing
 
 -- | Mirrors a speed
@@ -80,32 +91,43 @@ data Mirror = MirrorRow
             | MirrorAll
             -- ^ Mirror x and y coordinates
 
--- | When continuing with current speed, if at next iteration we encounter a wall
--- (or go through a wall for diagonal case),
--- we change the speed according to the normal of the closest wall before collision
-mirrorIfNeededAtomic :: (Coords Pos -> Location) -> PosSpeed -> Maybe (Mirror, Coords Pos)
-mirrorIfNeededAtomic getLocation (PosSpeed pos@(Coords r c) (Coords dr dc)) =
-  let future = Coords (r+dr) (c+dc)
-      isWall coord = getLocation coord == OutsideWorld
-      mirror = case getLocation future of
+{- | The two positions passed are expected to be consecutive in bresenham style,
+i.e either next to one another or placed in diagonal (this is why the function
+name contains /atomic/), else the behaviour is not guaranteed.
+
+This function tells if the current speed should be mirrored, as a result of a
+collision which could happen either on the /future/ position, or, when the
+movement is in /diagonal/, on a /virtual/ position between current and future
+positions (i.e a position that would /not/ have been part of the visible trajectory).
+
+'Mirror' is deduced from the /normal/ of the closest wall before collision. -}
+shouldMirrorAtomic :: (Coords Pos -> Location)
+                     -> Coords Pos
+                     -- ^ /Current/ position
+                     -> Coords Pos
+                     -- ^ /Future/ position
+                     -> Maybe Mirror
+                     -- ^ Nothing if speed should not be mirrored.
+shouldMirrorAtomic getLocation (Coords r c) future@(Coords futR futC) =
+  let isWall = (== OutsideWorld) . getLocation
+  in case getLocation future of
         OutsideWorld
-          | dr == 0   -> Just MirrorCol
-          | dc == 0   -> Just MirrorRow
+          | r == futR -> Just MirrorCol
+          | c == futC -> Just MirrorRow
           | otherwise -> -- diagonal case
-                case (isWall (Coords (r+dr) c),
-                      isWall (Coords r (c+dc))) of
+                case (isWall (Coords futR c),
+                      isWall (Coords r    futC)) of
                         (True, True)   -> Just MirrorAll
                         (False, False) -> Just MirrorAll
                         (True, False)  -> Just MirrorRow
                         (False, True)  -> Just MirrorCol
         InsideWorld
-          | dr == 0   -> Nothing
-          | dc == 0   -> Nothing
+          | r == futR -> Nothing
+          | c == futC -> Nothing
           | otherwise -> -- diagonal case
-                case (isWall (Coords (r+dr) c),
-                      isWall (Coords r (c+dc))) of
+                case (isWall (Coords futR c),
+                      isWall (Coords r    futC)) of
                         (True, True)   -> Just MirrorAll
                         (False, False) -> Nothing
                         (True, False)  -> Just MirrorRow
                         (False, True)  -> Just MirrorCol
-  in maybe Nothing (\m -> Just (m, pos)) mirror

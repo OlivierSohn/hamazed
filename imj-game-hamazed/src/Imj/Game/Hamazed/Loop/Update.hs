@@ -103,7 +103,7 @@ onLaser
             []
       newAnimations =
         destroyedNumbersAnimations (Left t) dir world destroyedBalls
-        ++ maybe [] (\r -> laserAnims world r t) maybeLaserRay
+        ++ maybe [] (`laserAnims` t) maybeLaserRay
         ++ outerSpaceAnims_
 
       newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions)
@@ -169,17 +169,15 @@ outerSpaceAnims' :: SystemTime
                  -> [Animation]
 outerSpaceAnims' t world afterLaserEndPoint dir =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
-      interaction = environmentInteraction world (WorldScope Wall)
-  in fragmentsFreeFall speed afterLaserEndPoint interaction (Speed 1) (Left t) (materialChar Wall)
+      envFuncs = envFunctions world (WorldScope Wall)
+  in fragmentsFreeFall speed afterLaserEndPoint envFuncs (Speed 1) (Left t) (materialChar Wall)
 
 
-laserAnims :: World
-           -> LaserRay Actual
+laserAnims :: LaserRay Actual
            -> SystemTime
            -> [Animation]
-laserAnims world ray t =
-  let interaction = environmentInteraction world (WorldScope Air)
-  in catMaybes [laserAnimation ray interaction (Left t)]
+laserAnims ray t =
+  catMaybes [laserAnimation ray (Left t)]
 
 
 accelerateShip' :: Direction -> GameState -> GameState

@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.Animation.Design.Update
     ( shouldUpdate
@@ -40,9 +39,11 @@ updateAnimation
   let newPoints = update interaction frame points
       newUpdateSpec = UpdateSpec (addDuration animationPeriod k) (nextIteration it)
       newAnim = Animation newPoints update interaction newUpdateSpec c
-  in case isActive newAnim of
-       True -> Just newAnim
-       False -> Nothing
+  in if isActive newAnim
+       then
+         Just newAnim
+       else
+         Nothing
 
 isActive :: Animation
          -> Bool

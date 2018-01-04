@@ -3,11 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Physics.Discrete.Types
-    ( -- * Discrete position and speed
-    {- | In a terminal, it is only possible to represent objects at /discrete/
-    locations, hence, movable objects have /discrete/ speeds and
-    positions. -}
-      PosSpeed(..)
+    ( PosSpeed(..)
     ) where
 
 import           Imj.Prelude

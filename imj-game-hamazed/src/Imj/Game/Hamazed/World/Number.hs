@@ -39,6 +39,6 @@ destroyedNumberAnimations :: Either SystemTime KeyTime
                           -> [Animation]
 destroyedNumberAnimations k laserSpeed world (Number (PosSpeed pos _) n) =
   let char = intToDigit n
-      envFunc = environmentInteraction world (WorldScope Air)
-  in catMaybes [animatedPolygon n pos envFunc (Speed 1) k char]
-     ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos envFunc (Speed 2) k char
+      envFuncs = envFunctions world (WorldScope Air)
+  in catMaybes [animatedPolygon n pos (Speed 1) k char]
+     ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos envFuncs (Speed 2) k char

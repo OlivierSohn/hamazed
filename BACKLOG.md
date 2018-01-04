@@ -1,3 +1,4 @@
+
 - cross-dissolve between worlds, to have smooth transitions (especially important
   when there are walls)
 
@@ -6,6 +7,7 @@ use an evolution to replace the ship in the center, morph, then use another
 evolution to place the ship where it is in the next world.
 - rebound animations with decaying velocity when free falling in walls.
 we should make the functions field lazy to have an infinite list?
+add the notion of velocity to animated points?
 -> need to have a TooFar interaction result that stops the growth in that direction even if it's not the last level.
 - when animating in a wall, progressively fade with the wall color (notion of alpha)
 - do not change background color for outer world animations

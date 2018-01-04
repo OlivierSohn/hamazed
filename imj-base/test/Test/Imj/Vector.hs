@@ -45,8 +45,7 @@ testSort n = do
 testWithCapacity :: Int -> IO Bool
 testWithCapacity desiredCap = do
   --print $ "capacity " ++ show desiredCap
-  v <- new desiredCap
-  let _m = v :: IOVector Int -- TODO is this the only way I can force the type?
+  v <- new desiredCap :: IO (IOVector Int)
   l <- length v
   when (0 /= l) $ error "initial length should be 0"
   actualCap <- capacity v

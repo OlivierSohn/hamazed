@@ -40,18 +40,25 @@ updateAnimatedPoints :: [VecPosSpeed -> Frame -> [AnimatedPoint]]
                      -> AnimatedPoints
                      -> AnimatedPoints
 updateAnimatedPoints [] _ _ aps = aps
-updateAnimatedPoints (f:fs) interaction globalFrame (AnimatedPoints branches center startFrame) =
+updateAnimatedPoints
+ (f:fs)
+ envFuncs@(EnvFunctions _ distance)
+ globalFrame
+ original@(AnimatedPoints branches center@(VecPosSpeed cPos _) startFrame) =
   let relativeFrame = globalFrame - startFrame
-      branchesLevel1Mutated = updatePointsAndMutateIfNeeded f center relativeFrame interaction branches
+      branchesLevel1Mutated = updatePointsAndMutateIfNeeded f center relativeFrame envFuncs branches
       newBranches = map (\case
                             -- recurse for the 'AnimatedPoints's
-                            Left aps -> Left $ updateAnimatedPoints fs interaction relativeFrame aps
+                            Left aps -> Left $ updateAnimatedPoints fs envFuncs relativeFrame aps
                             -- the 'AnimatedPoint's are already up-to-date due to updatePointsAndMutateIfNeeded:
                             Right ap -> Right ap
                             ) branchesLevel1Mutated
-     -- TODO if branches is null, check center location, if it is too far, don't
-     -- change anything.
-  in AnimatedPoints (Just newBranches) center startFrame
+  in if isNothing branches && distance cPos == TooFar
+       then
+         -- do not develop this branch, as its center is too far.
+         original
+       else
+         AnimatedPoints (Just newBranches) center startFrame
 
 
 -- | Doesn't change the existing /level 1/ 'AnimatedPoints's, but can convert some

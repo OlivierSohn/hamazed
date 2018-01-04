@@ -117,7 +117,7 @@ environmentInteraction (World _ _ space _ _) scope =
 
 envDistance :: Vec2 Pos -> Distance
 envDistance (Vec2 x y) =
-  if abs x > 500 || abs y > 500
+  if abs x > 500 || abs y > 500 -- TODO use command line arguments
     then
       TooFar
     else

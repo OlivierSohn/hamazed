@@ -12,6 +12,7 @@ module Imj.Graphics.Render.Delta.Draw
             , module Imj.Geo.Discrete.Types
             , String
               -- utilities
+            , initializeWithContent
             , fillBackBuffer
             ) where
 
@@ -19,11 +20,12 @@ import           Imj.Prelude
 
 import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
-import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length )
+import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSlice, unsafeCopy )
 
 import           Imj.Geo.Discrete
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color
+import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Cell
@@ -171,3 +173,25 @@ indexFromPos size width scissor coords@(Coords y x)
         else Nothing
  where
   height = getHeight width size
+
+-- | Copy the backbuffer content of the first 'Buffers' back buffer to the other
+-- 'Buffers' back /and/ front buffers
+initializeWithContent :: Buffers -> Buffers -> IO ()
+initializeWithContent
+  src@(Buffers (Buffer bSrc) _ _ _ _ _)
+  tgt@(Buffers (Buffer bTgt) (Buffer fTgt) _ _ _ _) = do
+  let (fromW, fromH) = getBufferDimensions src
+      (toW, toH) = getBufferDimensions tgt
+  mapM_
+    (\rowIdx -> do
+      let baseIdxFrom = fromIntegral $ rowIdx * fromIntegral fromW
+          baseIdxTo   = fromIntegral $ rowIdx * fromIntegral toW
+          countElems = fromIntegral $ min fromW toW
+          sliceFrom = unsafeSlice baseIdxFrom countElems bSrc
+          sliceTo1   = unsafeSlice baseIdxTo countElems bTgt
+          sliceTo2   = unsafeSlice baseIdxTo countElems fTgt
+      unsafeCopy sliceTo1 sliceFrom
+      -- we also copy to the front buffer. for rendering, we will force to render everything
+      -- so it's not a problem that back and front match.
+      unsafeCopy sliceTo2 sliceFrom)
+    [0..pred $ min fromH toH]

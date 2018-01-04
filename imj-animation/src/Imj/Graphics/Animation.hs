@@ -146,6 +146,7 @@ animatedPolygon :: Int
                 -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                 -> Coords Pos
                 -- ^ Center of the polygon (or circle)
+                -> EnvFunctions
                 -> Speed
                 -- ^ Animation speed
                 -> Either SystemTime KeyTime
@@ -155,12 +156,11 @@ animatedPolygon :: Int
                 -> Char
                 -- ^ Character used when drawing the animation.
                 -> Maybe Animation
-animatedPolygon n pos animSpeed keyTime char =
-  mkAnimation posspeed [animatePolygonGeo n] animSpeed envFunctions keyTime (Just char)
+animatedPolygon n pos envFuncs animSpeed keyTime char =
+  mkAnimation posspeed [animatePolygonGeo n] animSpeed envFuncs keyTime (Just char)
  where
   -- speed doesn't matter to 'animatePolygonGeo'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
-  envFunctions = EnvFunctions (const Stable) (const DistanceOK)
 
 -- | A circular explosion configurable in number of points
 simpleExplosion :: Int

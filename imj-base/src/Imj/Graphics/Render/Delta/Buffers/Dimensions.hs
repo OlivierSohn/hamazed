@@ -2,7 +2,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Graphics.Render.Delta.Buffers.Dimensions
-        ( getDimensions
+        ( getPolicyDimensions
         , bufferSizeFromWH
         ) where
 
@@ -14,10 +14,10 @@ import           System.Console.Terminal.Size as Term (size, Window(..))
 import           Imj.Graphics.Render.Delta.Types
 
 
-getDimensions :: ResizePolicy -> IO (Dim Width, Dim Height)
-getDimensions (FixedSize w h) =
+getPolicyDimensions :: ResizePolicy -> IO (Dim Width, Dim Height)
+getPolicyDimensions (FixedSize w h) =
   return (w,h)
-getDimensions MatchTerminalSize =
+getPolicyDimensions MatchTerminalSize =
   maybe
     (Dim 300, Dim 90) -- sensible default values in case we fail to get terminal size
     (\(Term.Window h w) -> (Dim w, Dim h))

@@ -11,7 +11,7 @@ import           Imj.Prelude
 import qualified Prelude(putStr, putChar)
 
 import           Control.Monad(when)
-import           Data.IORef( IORef , readIORef )
+import           Data.IORef( IORef , readIORef, writeIORef)
 import           Data.Vector.Unboxed.Mutable( IOVector, read, write, length )
 import           System.IO( stdout, hFlush )
 
@@ -23,6 +23,7 @@ import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Clear
+import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Internal.Types
 
 
@@ -30,21 +31,36 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 --   Then, resizes the context if needed (see 'ResizePolicy')
 --   and clears the back buffer (see 'ClearPolicy').
 deltaFlush :: IORef Buffers -> IO ()
-deltaFlush ioRefBuffers =
-  readIORef ioRefBuffers
-    >>=
-      render
-        >> do
-          updateSize ioRefBuffers
-          -- TODO if buffers resized because the terminal resized, send a clearScreen command or re-render with new size
-          hFlush stdout -- TODO is flush blocking? slow? could it be async?
+deltaFlush ref =
+  readIORef ref
+  >>= \buffers@(Buffers _ _ _ _ _ policies) -> do
+        maySize <- shouldAdjustSize buffers
+        maybe
+          (render DeltaMode buffers)
+          -- We force to render everything when size changes because
+          -- the terminal will have moved content on resize:
+          (\sz -> do
+            b <- uncurry (createBuffers policies) sz
+            writeIORef ref b
+            initializeWithContent buffers b
+            render FullMode b)
+            maySize
+  >> hFlush stdout -- TODO is flush blocking? slow? could it be async?
 
+data RenderMode = DeltaMode | FullMode
 
 -- | Note that the 'Scissor' is not taken into account here.
 -- We could take it into account, if needed.
-render :: Buffers -> IO ()
-render buffers@(Buffers _ _ width _ (Delta delta) _) = do
-  computeDelta buffers 0
+render :: RenderMode -> Buffers -> IO ()
+render mode buffers@(Buffers (Buffer b) _ width _ (Delta delta) _) = do
+  case mode of
+    DeltaMode -> computeDelta buffers 0
+    FullMode ->
+      mapM_
+        (\i -> do
+          v <- read b i
+          Dyn.pushBack delta $ mkIndexedCell v $ fromIntegral i)
+        [0..pred $ length b]
 
   clearIfNeeded OnFrame buffers
 

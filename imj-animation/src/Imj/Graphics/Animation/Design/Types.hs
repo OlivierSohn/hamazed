@@ -71,7 +71,7 @@ data EnvFunctions = EnvFunctions {
 data Distance = DistanceOK
               | TooFar
               -- ^ When an 'AnimatedPoint' is too far, the animation removes it.
-              deriving(Show)
+              deriving(Show, Eq)
 
 
 instance Show Animation where

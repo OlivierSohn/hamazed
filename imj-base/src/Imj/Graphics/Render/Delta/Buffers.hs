@@ -6,12 +6,15 @@ module Imj.Graphics.Render.Delta.Buffers
           , IORef
           , newContext
           -- utilities
-          , updateSize
+          , shouldAdjustSize
+          , getBufferDimensions
+          , createBuffers
           ) where
 
+import           Imj.Prelude hiding(replicate)
 import           Prelude hiding (replicate, unzip, length)
 
-import           Data.IORef( IORef , newIORef , readIORef , writeIORef )
+import           Data.IORef( IORef , newIORef )
 import           Data.Maybe( fromMaybe )
 import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
 
@@ -42,9 +45,9 @@ newContext mayResizePolicy mayClearPolicy mayClearColor = do
 
 newContext' :: Policies -> IO (IORef Buffers)
 newContext' policies@(Policies resizePolicy _ _) =
-  getDimensions resizePolicy
-    >>= uncurry (createBuffers policies)
-      >>= newIORef
+  getPolicyDimensions resizePolicy
+  >>= uncurry (createBuffers policies)
+  >>= newIORef
 
 -- | Creates buffers for given width and height, replaces 0 width or height by 1.
 mkBuffers :: Dim Width
@@ -61,26 +64,23 @@ mkBuffers width' height' backBufferCell = do
   let (back, front) = unzip buf
   return (Buffer back, Buffer front, Delta delta, width)
 
-adjustSizeIfNeeded :: Buffers -> IO Buffers
-adjustSizeIfNeeded buffers@(Buffers (Buffer back) _ prevWidth _ _ policies@(Policies resizePolicy _ _)) = do
-  (width, height) <- getDimensions resizePolicy
-  let prevSize = fromIntegral $ length back
-      prevHeight = getHeight prevWidth prevSize
-  if prevWidth /= width || prevHeight /= height
+getBufferDimensions :: Buffers -> (Dim Width, Dim Height)
+getBufferDimensions (Buffers (Buffer back) _ width _ _ _) =
+  (width, getHeight width $ fromIntegral $ length back)
+
+shouldAdjustSize :: Buffers -> IO (Maybe (Dim Width, Dim Height))
+shouldAdjustSize b@(Buffers _ _ _ _ _ (Policies resizePolicy _ _)) =
+  (\policyDims -> if policyDims /= getBufferDimensions b
     then
-      createBuffers policies width height
+      Just policyDims
     else
-      return buffers
+      Nothing) <$> getPolicyDimensions resizePolicy
 
 createBuffers :: Policies -> Dim Width -> Dim Height -> IO Buffers
 createBuffers pol@(Policies _ _ clearColor) w h = do
   (newBack, newFront, newDelta, newWidth) <- mkBuffers w h (clearCell clearColor)
   -- no need to clear : we initialized with the right value
   return $ Buffers newBack newFront newWidth maxRectArea newDelta pol
-
-updateSize :: IORef Buffers -> IO ()
-updateSize ref =
-  readIORef ref >>= adjustSizeIfNeeded >>= writeIORef ref
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
 newBufferArray :: Dim BufferSize -> (Cell, Cell) -> IO BackFrontBuffer

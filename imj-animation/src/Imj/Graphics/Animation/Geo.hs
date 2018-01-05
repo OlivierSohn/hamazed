@@ -55,13 +55,14 @@ laserAnimationGeo (LaserRay dir start len) _ (Frame i)
         points
 
 -- | Gravity free-fall
-gravityFallGeo :: CanInteract
+gravityFallGeo :: Float
+               -> CanInteract
                -> VecPosSpeed
                -- ^ Initial position and speed
                -> Frame
                -> [AnimatedPoint]
-gravityFallGeo canInteract origin frame =
-  let point = parabola origin frame
+gravityFallGeo scaleSpeed canInteract (VecPosSpeed pos speed) frame =
+  let point = parabola (VecPosSpeed pos $ scalarProd scaleSpeed speed) frame
   in [AnimatedPoint canInteract point Nothing]
 
 -- | Circular explosion by copying quarter arcs.

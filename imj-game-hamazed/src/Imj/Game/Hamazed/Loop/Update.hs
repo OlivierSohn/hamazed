@@ -170,7 +170,10 @@ outerSpaceAnims' :: SystemTime
 outerSpaceAnims' t world afterLaserEndPoint dir =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
       envFuncs = envFunctions world (WorldScope Wall)
-  in fragmentsFreeFall speed afterLaserEndPoint envFuncs (Speed 1) (Left t) (materialChar Wall)
+      speedAttenuation = 0.7
+      nRebounds = 3
+  in  fragmentsFreeFallWithReboundsThenExplode
+        speed afterLaserEndPoint speedAttenuation nRebounds envFuncs (Speed 1) (Left t) (materialChar Wall)
 
 
 laserAnims :: LaserRay Actual

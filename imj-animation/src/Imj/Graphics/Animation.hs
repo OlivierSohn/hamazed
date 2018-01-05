@@ -50,7 +50,7 @@ module Imj.Graphics.Animation
      the environment is 'Mutation').
     -}
     , freeFall
-    , freeFallWithRebounds
+    , freeFallWithReboundsThenExplode
     , freeFallThenExplode
     -- *** Fragments
     {- | 'fragmentsFreeFall' gives the impression that the object disintegrated in multiple
@@ -61,6 +61,7 @@ module Imj.Graphics.Animation
     the environment is 'Mutation').
     -}
     , fragmentsFreeFall
+    , fragmentsFreeFallWithReboundsThenExplode
     , fragmentsFreeFallThenExplode
     -- *** Geometric
     , animatedPolygon
@@ -200,7 +201,32 @@ fragmentsFreeFall :: Vec2 Vel
                   -- ^ Character used when drawing the animation.
                   -> [Animation]
 fragmentsFreeFall speed pos envFuncs animSpeed keyTime char =
-  mapMaybe (\sp -> freeFallWithRebounds sp pos envFuncs animSpeed keyTime char) $ variations speed
+  mapMaybe (\sp -> freeFall sp pos envFuncs animSpeed keyTime char) $ variations speed
+
+-- | Animation representing an object with an initial velocity disintegrating in
+-- 4 different parts and rebounding several times until it explodes.
+fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
+                                         -- ^ Initial speed
+                                         -> Coords Pos
+                                         -- ^ Initial position
+                                         -> Float
+                                         -- ^ Rebound speed attenuation factor
+                                         -> Int
+                                         -- ^ Number of rebounds
+                                         -> EnvFunctions
+                                         -> Speed
+                                         -- ^ Animation speed
+                                         -> Either SystemTime KeyTime
+                                         -- ^ 'Right' 'KeyTime' of the event's deadline
+                                         -- that triggered this animation, or 'Left' 'SystemTime'
+                                         -- of the current time if a player action triggered this animation
+                                         -> Char
+                                         -- ^ Character used when drawing the animation.
+                                         -> [Animation]
+fragmentsFreeFallWithReboundsThenExplode speed pos spAtt nRebounds envFuncs animSpeed keyTime char =
+  mapMaybe
+    (\sp -> freeFallWithReboundsThenExplode sp pos spAtt nRebounds envFuncs animSpeed keyTime char)
+    $ variations speed
 
 -- | A gravity-based free-falling animation.
 freeFall :: Vec2 Vel
@@ -218,28 +244,36 @@ freeFall :: Vec2 Vel
          -- ^ Character used when drawing the animation.
          -> Maybe Animation
 freeFall speed pos envFuncs animSpeed keyTime char =
-  mkAnimation (VecPosSpeed (pos2vec pos) speed) [gravityFallGeo Interact] animSpeed envFuncs keyTime (Just char)
+  mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
+ where
+  posspeed = VecPosSpeed (pos2vec pos) speed
+  funcs = [gravityFallGeo 1.0 Interact]
 
--- | A gravity-based free-falling animation.
-freeFallWithRebounds :: Vec2 Vel
-                     -- ^ Initial speed
-                     -> Coords Pos
-                     -- ^ Initial position
-                     -> EnvFunctions
-                     -> Speed
-                     -- ^ Animation speed
-                     -> Either SystemTime KeyTime
-                     -- ^ 'Right' 'KeyTime' of the event's deadline
-                     -- that triggered this animation, or 'Left' 'SystemTime'
-                     -- of the current time if a player action triggered this animation
-                     -> Char
-                     -- ^ Character used when drawing the animation.
-                     -> Maybe Animation
-freeFallWithRebounds speed pos envFuncs animSpeed keyTime char =
-  mkAnimation (VecPosSpeed (pos2vec pos) speed)
-              [ gravityFallGeo Interact
-              , gravityFallGeo Interact
-              , gravityFallGeo Interact] animSpeed envFuncs keyTime (Just char)
+-- | A gravity-based free-falling animation, with several rebounds and a final
+-- explosion.
+freeFallWithReboundsThenExplode :: Vec2 Vel
+                                -- ^ Initial speed
+                                -> Coords Pos
+                                -- ^ Initial position
+                                -> Float
+                                -- ^ Velocity attenuation factor on rebound
+                                -> Int
+                                -- ^ Number of rebounds
+                                -> EnvFunctions
+                                -> Speed
+                                -- ^ Animation speed
+                                -> Either SystemTime KeyTime
+                                -- ^ 'Right' 'KeyTime' of the event's deadline
+                                -- that triggered this animation, or 'Left' 'SystemTime'
+                                -- of the current time if a player action triggered this animation
+                                -> Char
+                                -- ^ Character used when drawing the animation.
+                                -> Maybe Animation
+freeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
+  mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
+ where
+  posspeed = VecPosSpeed (pos2vec pos) $ scalarProd (recip velAtt) speed
+  funcs = replicate nRebounds (gravityFallGeo velAtt Interact) ++ [simpleExplosionGeo nRebounds Interact]
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
@@ -284,6 +318,6 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Character used when drawing the animation.
                     -> Maybe Animation
 freeFallThenExplode speed pos envFuncs animSpeed keyTime char =
-  let funcs = [ gravityFallGeo Interact
+  let funcs = [ gravityFallGeo 1.0 Interact
               , simpleExplosionGeo 8 Interact]
   in mkAnimation (VecPosSpeed (pos2vec pos) speed) funcs animSpeed envFuncs keyTime (Just char)

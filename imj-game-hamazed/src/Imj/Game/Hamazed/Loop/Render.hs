@@ -35,14 +35,14 @@ render (GameState _ world@(World _ _ space animations (InTerminal _ mode view@(R
               CenterShip  -> diffCoords screenCenter shipPos
       offset = getOffset world
       curUpperLeft = translate from offset
+      worldCorner = translate' 1 1 curUpperLeft
 
   -- draw the walls outside the matrix:
   fill (materialChar Wall) outerWallsColors
   -- draw the matrix:
-  drawSpace space curUpperLeft >>=
-    (\worldCorner -> do
-        drawAnimations worldCorner animations
-        drawWorld world worldCorner)
+  drawSpace space worldCorner
+  drawAnimations worldCorner animations
+  drawWorld world worldCorner
   drawUIAnimation offset wa -- draw it after the world so that when it morphs
                             -- it goes over numbers and ship
   -- draw last so that the message is clearly visible:

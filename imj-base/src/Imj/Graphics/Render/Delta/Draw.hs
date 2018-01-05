@@ -163,7 +163,7 @@ unsafeIndexFromPos width (Coords y x) =
 indexFromPos :: Dim BufferSize -> Dim Width -> Scissor -> Coords Pos -> Maybe (Dim BufferIndex)
 indexFromPos size width scissor coords@(Coords y x)
   -- is the position inside the scissor?
-  | not $ contains scissor coords = Nothing
+  | not $ scissor `contains` coords  = Nothing
   -- is the column position within the handled column indexes ?
   | x < 0 || y < 0 || x >= fromIntegral width || y >= fromIntegral height = Nothing
   | otherwise =

@@ -50,7 +50,7 @@ data Space = Space {
     _space :: !(Matrix CInt)
     -- ^ The material matrix.
   , _spaceSize :: !Size
-    -- ^ The AABB of the space, excluding the outer border.
+    -- ^ The AABB of the space, excluding the outer border
   , _spaceDraw :: ![DrawGroup]
     -- ^ How to draw the space.
 }
@@ -62,5 +62,7 @@ data Material = Air
               deriving(Eq, Show)
 
 data Scope = WorldScope !Material
-           -- ^ The world, with a 'Material' to say what is the scope of the animation.
+           -- ^ A given 'Material' of the world.
+           | NegativeWorldContainer
+           -- ^ Excludes the 'World' and its outer view frame.
            deriving(Show)

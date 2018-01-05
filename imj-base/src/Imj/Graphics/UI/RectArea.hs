@@ -1,10 +1,12 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.UI.RectArea
   ( RectArea(..)
   , mkRectArea
+  , growRectArea
   , maxRectArea
   , reactAreaSize
   , contains
@@ -71,6 +73,12 @@ mkRectArea :: Coords Pos -> Size -> RectArea a
 mkRectArea upperLeft (Size h w) =
   let lowerRight = translate' (fromIntegral $ pred h) (fromIntegral $ pred w) upperLeft
   in RectArea upperLeft lowerRight
+
+growRectArea :: Int -> RectArea a -> RectArea a
+growRectArea i' (RectArea from to) =
+  RectArea (translate' (-i) (fromIntegral $ -i) from) (translate' i (fromIntegral i) to)
+ where
+  !i = fromIntegral i'
 
 reactAreaSize :: RectArea a -> Size
 reactAreaSize r@(RectArea (Coords r1 c1) (Coords r2 c2)) =

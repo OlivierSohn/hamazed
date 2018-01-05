@@ -226,7 +226,7 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
 fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
   if velAtt <= 0
     then
-      error "velocity attentuation should be > 0"
+      error "velocity attenuation should be > 0"
     else
       mapMaybe
         (\sp -> freeFallWithReboundsThenExplode sp pos velAtt nRebounds envFuncs animSpeed keyTime char)
@@ -276,7 +276,7 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
 freeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
   if velAtt <= 0
     then
-      error "velocity attentuation should be > 0"
+      error "velocity attenuation should be > 0"
     else
       mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
  where

@@ -111,31 +111,31 @@ render' (GameParameters shape wall _) = do
     Right rew@(InTerminal _ _ (RectArea ul _)) -> do
       world@(World _ _ space _ (InTerminal _ _ sz)) <- mkWorld rew worldSize wall [] 0
       fill (materialChar Wall) outerWallsColors
-      _ <- drawSpace space ul >>=
-        \worldCoords -> do
-          drawWorld world worldCoords
-          let middle = move (quot cs 2) RIGHT worldCoords
-              middleCenter = move (quot (rs-1) 2 ) Down middle
-              middleLow    = move (rs-1)           Down middle
-              leftMargin = 3
-              left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
-          drawAlignedTxt "Game configuration" configColors (mkCentered $ translateInDir Down middle)
-            >>= drawAlignedTxt_ "------------------" configColors
-          drawAlignedTxt_ "Hit 'Space' to start game" configColors (mkCentered $ translateInDir Up middleLow)
+      let worldCoords = translate' 1 1 ul
+      drawSpace space worldCoords
+      drawWorld world worldCoords
+      let middle = move (quot cs 2) RIGHT worldCoords
+          middleCenter = move (quot (rs-1) 2 ) Down middle
+          middleLow    = move (rs-1)           Down middle
+          leftMargin = 3
+          left = move (quot (rs-1) 2 - leftMargin) LEFT middleCenter
+      drawAlignedTxt "Game configuration" configColors (mkCentered $ translateInDir Down middle)
+        >>= drawAlignedTxt_ "------------------" configColors
+      drawAlignedTxt_ "Hit 'Space' to start game" configColors (mkCentered $ translateInDir Up middleLow)
 
-          translateInDir Down <$> dText "- World shape" (move 5 Up left)
-            >>= dText "'1' -> width = height"
-            >>= dText_ "'2' -> width = 2 x height"
-          translateInDir Down <$> dText "- World walls" left
-            >>= dText "'e' -> No walls"
-            >>= dText "'r' -> Deterministic walls"
-            >>= dText "'t' -> Random walls"
-            >>= return . translateInDir Down
-            >>= dText "- Center view on:"
-            >>= dText "'d' -> Space"
-            >>= dText_ "'f' -> Ship"
+      translateInDir Down <$> dText "- World shape" (move 5 Up left)
+        >>= dText "'1' -> width = height"
+        >>= dText_ "'2' -> width = 2 x height"
+      translateInDir Down <$> dText "- World walls" left
+        >>= dText "'e' -> No walls"
+        >>= dText "'r' -> Deterministic walls"
+        >>= dText "'t' -> Random walls"
+        >>= return . translateInDir Down
+        >>= dText "- Center view on:"
+        >>= dText "'d' -> Space"
+        >>= dText_ "'f' -> Ship"
 
-          t <- liftIO getSystemTime
-          let infos = (Colored worldFrameColors $ mkRectContainerWithTotalArea sz, (([""],[""]),[[""],[""]]))
-          drawUIAnimation zeroCoords $ mkUIAnimation infos infos 0 0 t
+      t <- liftIO getSystemTime
+      let infos = (Colored worldFrameColors $ mkRectContainerWithTotalArea sz, (([""],[""]),[[""],[""]]))
+      drawUIAnimation zeroCoords $ mkUIAnimation infos infos 0 0 t
       renderToScreen

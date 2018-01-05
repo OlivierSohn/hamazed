@@ -6,3 +6,6 @@
 
 # cabal sdist
 dist
+
+# cabal helper
+cabal-helper*

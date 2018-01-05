@@ -158,18 +158,25 @@ outerSpaceAnims :: SystemTime
                 -> [Animation]
 outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
+      dist = distanceToSpace laserTarget space
   in  case location laserTarget space of
         InsideWorld -> []
-        OutsideWorld -> outerSpaceAnims' t world laserTarget dir
+        OutsideWorld ->
+          if dist > 0
+              then
+                outerSpaceAnims' t world NegativeWorldContainer (translateInDir dir laserTarget) dir
+              else
+                outerSpaceAnims' t world (WorldScope Wall) laserTarget dir
 
 outerSpaceAnims' :: SystemTime
                  -> World
+                 -> Scope
                  -> Coords Pos
                  -> Direction
                  -> [Animation]
-outerSpaceAnims' t world afterLaserEndPoint dir =
+outerSpaceAnims' t world scope afterLaserEndPoint dir =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
-      envFuncs = envFunctions world (WorldScope Wall)
+      envFuncs = envFunctions world scope
       speedAttenuation = 0.4
       nRebounds = 3
   in  fragmentsFreeFallWithReboundsThenExplode

@@ -1,13 +1,7 @@
-- separate outside world from inside, at the frame position.
-- when the animation does this:
-  mutate with precollision on point A, one animated point only
-   mutate with precollision on point A, one animated point only
-    mutate with precollision on point A, one animated point only
-  if the animations functions are "one function repeating",
-  it is equivalent to not mutate, and instead change the center of the 'AnimatedPoints'.
-  it will save some CPU and RAM.
 - it would be nice to decay the color of animated points when they rebound, until they have no color.
 (notion of alpha using backbuffer value + bresenham or "decay color" + bresenham)
+to do that , the animation functions need to be passed what level they're in, and
+handle the color of animated points.
 - cross-dissolve between worlds, to have smooth transitions (especially important
   when there are walls)
 

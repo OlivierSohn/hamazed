@@ -87,7 +87,7 @@ module Imj.Game.Hamazed.World
       {- | 'location' is the standard collision detection function that considers
       that being outside the world means being in collision.
 
-      'scopedLocation' prevides more options with the use of 'Scope' to
+      'scopedLocation' provides more options with the use of 'Scope' to
       defines the collision detection scopes.
        -}
     , location

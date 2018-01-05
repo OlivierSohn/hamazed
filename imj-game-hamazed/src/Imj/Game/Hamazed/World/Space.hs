@@ -14,6 +14,7 @@ module Imj.Game.Hamazed.World.Space
     , RandomParameters(..)
     , Strategy(..)
     , location
+    , distanceToSpace
     , scopedLocation
     , Scope(..)
     , drawSpace
@@ -42,6 +43,7 @@ import           Foreign.C.Types( CInt(..) )
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Geo.Discrete
+import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
@@ -59,9 +61,8 @@ createRandomNonCollidingPosSpeed space = do
     $ PosSpeed pos (Coords (Coord dx) (Coord dy))
 
 oneRandom :: Int -> Int -> IO Int
-oneRandom a b = do
-  r <- randomRsIO a b
-  return $ head $ take 1 r
+oneRandom a b =
+  head <$> randomRsIO a b
 
 randomSpeed :: IO Int
 randomSpeed = oneRandom (-1) 1
@@ -84,28 +85,26 @@ randomCoords (Size rs cs) = do
   return $ Coords r c
 
 randomCoord :: Coord a -> IO (Coord a)
-randomCoord (Coord sz) = Coord <$> randomInt sz
+randomCoord (Coord sz) =
+  Coord <$> randomInt sz
 
 forEachRowPure :: Matrix CInt -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
 forEachRowPure mat (Size nRows nColumns) f =
   let rowIndexes = [0..fromIntegral $ nRows-1] -- index of inner row
-      internalRowLength = nInternalColumns
-      rowLength = internalRowLength - 2
-      nInternalColumns = nColumns + 2  -- size of a column in the matrix
       matAsOneVector = flatten mat -- this is O(1)
   in map (\rowIdx -> do
-    let internalRowIdx = succ rowIdx
-        startInternalIdx = fromIntegral internalRowIdx * fromIntegral nInternalColumns :: Int
-        startIdx = succ startInternalIdx
-        row = slice startIdx (fromIntegral rowLength) matAsOneVector
+    let startIdx = fromIntegral rowIdx * fromIntegral nColumns :: Int
+        row = slice startIdx (fromIntegral nColumns) matAsOneVector
     f rowIdx (\c -> mapInt $ row ! fromIntegral c)) rowIndexes
 
 -- unfortunately I didn't find a Matrix implementation that supports arbitrary types
 -- so I need to map my type on a CInt
+{-# INLINE mapMaterial #-}
 mapMaterial :: Material -> CInt
 mapMaterial Air  = 0
 mapMaterial Wall = 1
 
+{-# INLINE mapInt #-}
 mapInt :: CInt -> Material
 mapInt 0 = Air
 mapInt 1 = Wall
@@ -114,8 +113,7 @@ mapInt _ = error "mapInt arg out of bounds"
 -- | Creates a rectangular empty space of size specified in parameters.
 mkEmptySpace :: Size -> Space
 mkEmptySpace s =
-  let air  = mapMaterial Air
-  in mkSpaceFromInnerMat s [[air]]
+  mkSpaceFromMat s [[mapMaterial Air]]
 
 -- | Creates a rectangular deterministic space of size specified in parameters.
 mkDeterministicallyFilledSpace :: Size -> Space
@@ -132,7 +130,7 @@ mkDeterministicallyFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
       n1 = quot nEmpty 2
       n2 = nEmpty - n1
       l = replicate n1 middleRow ++ replicate ncolls collisionRow ++ replicate n2 middleRow
-  in mkSpaceFromInnerMat s l
+  in mkSpaceFromMat s l
 
 -- | Creates a rectangular random space of size specified in parameters, with a
 -- one-element border. 'IO' is used for random numbers generation.
@@ -141,7 +139,7 @@ mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   smallWorldMat <- mkSmallWorld s blockSize strategy
 
   let innerMat = replicateElements blockSize $ map (replicateElements blockSize) smallWorldMat
-  return $ mkSpaceFromInnerMat s innerMat
+  return $ mkSpaceFromMat s innerMat
 
 --  TODO We could measure, on average, how many tries it takes to generate a graph
 --  that meets the requirement for usual values of:
@@ -191,7 +189,8 @@ flatten :: Matrix a -> Vector a
 flatten = getMatrixAsVector
 
 at :: Matrix a -> (Int, Int) -> a
-at mat (i, j) = getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
+at mat (i, j) =
+  getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
 
 connectedNeighbours :: CInt -> Coords Pos -> Matrix CInt -> (Int, Int) -> [Coords Pos]
 connectedNeighbours matchIdx coords mat (nRows,nCols) =
@@ -203,10 +202,10 @@ connectedNeighbours matchIdx coords mat (nRows,nCols) =
           else
             Just other) neighbours
 
-mkSpaceFromInnerMat :: Size -> [[CInt]] -> Space
-mkSpaceFromInnerMat s innerMatMaybeSmaller =
-  let innerMat = extend s innerMatMaybeSmaller
-      mat = fromLists $ addBorder s innerMat
+mkSpaceFromMat :: Size -> [[CInt]] -> Space
+mkSpaceFromMat s matMaybeSmaller =
+  let ext = extend s matMaybeSmaller
+      mat = fromLists ext
   in Space mat s $ matToDrawGroups mat s
 
 extend :: Size -> [[a]] -> [[a]]
@@ -224,17 +223,6 @@ extend' sz l@(_:_) =
 
 rands :: IO [CInt]
 rands = randomRsIO 0 1
-
-addBorder :: Size -> [[CInt]] -> [[CInt]]
-addBorder (Size _ widthEmptySpace) l =
-  let nCols = fromIntegral widthEmptySpace + 2 * borderSize
-      wall = mapMaterial Wall
-      wallRow = replicate nCols wall
-      encloseIn b e = b ++ e ++ b
-  in encloseIn (replicate borderSize wallRow) $ map (encloseIn $ replicate borderSize wall) l
-
-borderSize :: Int
-borderSize = 1
 
 {-# INLINE materialColor #-}
 materialColor :: Material -> LayeredColor
@@ -260,10 +248,9 @@ matToDrawGroups mat s@(Size _ cs) =
                          DrawGroup (Coords row col) (materialColor material) (materialChar material) count))
                   (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
-getInnerMaterial :: Coords Pos -> Space -> Material
-getInnerMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
-  mapInt $ mat `at` (r+borderSize, c+borderSize)
-
+unsafeGetMaterial :: Coords Pos -> Space -> Material
+unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
+  mapInt $ mat `at` (r, c)
 
 -- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix
@@ -271,7 +258,18 @@ getMaterial :: Coords Pos -> Space -> Material
 getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
   | r < 0 || c < 0 = Wall
   | r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = Wall
-  | otherwise = getInnerMaterial coords space
+  | otherwise = unsafeGetMaterial coords space
+
+-- | If 'Coords' is inside 'Space', returns 0. Else returns
+-- the manhattan distance to the space border.
+distanceToSpace :: Coords Pos -> Space -> Int
+distanceToSpace (Coords r c) (Space _ (Size rs cs) _) =
+    dist r (rs-1) + dist c (cs-1)
+  where
+    dist x b
+      | x < 0 = fromIntegral $ - x
+      | x > fromIntegral b = fromIntegral x - fromIntegral b
+      | otherwise = 0
 
 materialToLocation :: Material -> Location
 materialToLocation m = case m of
@@ -280,18 +278,17 @@ materialToLocation m = case m of
 
 -- | Considers that outside 'Space', everything is 'OutsideWorld'
 location :: Coords Pos -> Space -> Location
-location c s = materialToLocation $ getMaterial c s
+location c s =
+  materialToLocation $ getMaterial c s
 
 {-# INLINABLE drawSpace #-}
 drawSpace :: (Draw e, MonadReader e m, MonadIO m)
           => Space
           -> Coords Pos
           -- ^ World upper left coordinates w.r.t terminal frame.
-          -> m (Coords Pos)
-drawSpace (Space _ _ drawGroups) upperLeft = do
-  let worldCoords = move borderSize Down $ move borderSize RIGHT upperLeft
-  mapM_ (drawGroup worldCoords) drawGroups
-  return worldCoords
+          -> m ()
+drawSpace (Space _ _ drawGroups) upperLeft =
+  mapM_ (drawGroup upperLeft) drawGroups
 
 {-# INLINABLE drawGroup #-}
 drawGroup :: (Draw e, MonadReader e m, MonadIO m)
@@ -307,9 +304,17 @@ scopedLocation :: Space
                -> Coords Pos
                -- ^ The coordinates to test
                -> Location
-scopedLocation space = \case
-  WorldScope mat -> (\pos -> if mat == getMaterial pos space
+scopedLocation space@(Space _ sz _) = \case
+  WorldScope mat -> (\pos -> if worldArea `contains` pos && mat == unsafeGetMaterial pos space
                                then
                                  InsideWorld
                                else
                                  OutsideWorld)
+  NegativeWorldContainer -> (\pos -> if worldViewArea `contains` pos
+                                      then
+                                        OutsideWorld
+                                      else
+                                        InsideWorld)
+ where
+  worldArea = mkRectArea zeroCoords sz
+  worldViewArea = growRectArea 1 worldArea

@@ -165,7 +165,7 @@ indexFromPos size width scissor coords@(Coords y x)
   -- is the position inside the scissor?
   | not $ contains scissor coords = Nothing
   -- is the column position within the handled column indexes ?
-  | x >= fromIntegral width || y >= fromIntegral height = Nothing
+  | x < 0 || y < 0 || x >= fromIntegral width || y >= fromIntegral height = Nothing
   | otherwise =
       let idx = unsafeIndexFromPos width coords
       in if idx < fromIntegral size

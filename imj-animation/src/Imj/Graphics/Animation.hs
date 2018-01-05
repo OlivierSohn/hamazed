@@ -210,7 +210,7 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> Coords Pos
                                          -- ^ Initial position
                                          -> Float
-                                         -- ^ Rebound speed attenuation factor
+                                         -- ^ Rebound speed attenuation factor, expected to be strictly positive.
                                          -> Int
                                          -- ^ Number of rebounds
                                          -> EnvFunctions
@@ -223,10 +223,14 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> Char
                                          -- ^ Character used when drawing the animation.
                                          -> [Animation]
-fragmentsFreeFallWithReboundsThenExplode speed pos spAtt nRebounds envFuncs animSpeed keyTime char =
-  mapMaybe
-    (\sp -> freeFallWithReboundsThenExplode sp pos spAtt nRebounds envFuncs animSpeed keyTime char)
-    $ variations speed
+fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
+  if velAtt <= 0
+    then
+      error "velocity attentuation should be > 0"
+    else
+      mapMaybe
+        (\sp -> freeFallWithReboundsThenExplode sp pos velAtt nRebounds envFuncs animSpeed keyTime char)
+        $ variations speed
 
 -- | A gravity-based free-falling animation.
 freeFall :: Vec2 Vel
@@ -256,7 +260,7 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -> Coords Pos
                                 -- ^ Initial position
                                 -> Float
-                                -- ^ Velocity attenuation factor on rebound
+                                -- ^ Velocity attenuation factor on rebound, expected to be strictly positive.
                                 -> Int
                                 -- ^ Number of rebounds
                                 -> EnvFunctions
@@ -270,7 +274,11 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- ^ Character used when drawing the animation.
                                 -> Maybe Animation
 freeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
-  mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
+  if velAtt <= 0
+    then
+      error "velocity attentuation should be > 0"
+    else
+      mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
  where
   posspeed = VecPosSpeed (pos2vec pos) $ scalarProd (recip velAtt) speed
   funcs = replicate nRebounds (gravityFallGeo velAtt Interact) ++ [simpleExplosionGeo nRebounds Interact]

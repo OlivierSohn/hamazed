@@ -160,36 +160,51 @@ outerSpaceAnims :: SystemTime
 outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
       dist = distanceToSpace laserTarget space
-      nRebounds = 10
       char = materialChar Wall
   in  case location laserTarget space of
         InsideWorld -> []
         OutsideWorld ->
-          if dist > 0
+          let (LayeredColor bg _) = wallColors
+          in if dist > 0
               then
-                let color _fragment _level _frame = wallColors
+                let color _fragment _level (Frame _frame) =
+                      if 0 == _fragment `mod` 2
+                        then
+                          LayeredColor bg $ interpolateCyclic (rgb 5 2 4) (rgb 1 1 2) $ quot _frame 4
+                        else
+                          LayeredColor bg $ interpolateCyclic (rgb 4 2 1) (rgb 4 0 0) $ quot _frame 4
                     pos = translateInDir dir laserTarget
-                in outerSpaceAnims' t world NegativeWorldContainer pos dir nRebounds color char
+                    speedAttenuation = 0.3
+                    nRebounds = 3
+                in outerSpaceAnims' world NegativeWorldContainer pos dir speedAttenuation nRebounds color char t
               else
-                let color _fragment _level _frame = LayeredColor (rgb 0 0 0) (gray 2)
-                in outerSpaceAnims' t world (WorldScope Wall) laserTarget dir nRebounds color char
+                let color _fragment _level (Frame _frame) =
+                      if 0 == _fragment `mod` 3
+                        then
+                          LayeredColor bg $ interpolateCyclic (rgb 3 2 2) (rgb 3 1 0) $ quot _frame 4
+                        else
+                          LayeredColor bg $ interpolateCyclic (rgb 4 2 1) (rgb 3 2 2) $ quot _frame 4
+--                      LayeredColor (gray 0) $ interpolateCyclic (gray 5) (gray 7) $ quot _frame 4
+                    speedAttenuation = 0.4
+                    nRebounds = 5
+                in outerSpaceAnims' world (WorldScope Wall) laserTarget dir speedAttenuation nRebounds color char t
 
-outerSpaceAnims' :: SystemTime
-                 -> World
+outerSpaceAnims' :: World
                  -> Scope
                  -> Coords Pos
                  -> Direction
+                 -> Float
                  -> Int
                  -> (Int -> Int -> Frame -> LayeredColor)
                  -> Char
+                 -> SystemTime
                  -> [Animation]
-outerSpaceAnims' t world scope afterLaserEndPoint dir nRebounds colorFuncs char =
+outerSpaceAnims' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
       envFuncs = envFunctions world scope
-      speedAttenuation = 0.4
   in  fragmentsFreeFallWithReboundsThenExplode
-        speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs envFuncs
-        (Speed 1) (Left t) char
+        speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
+        (Speed 1) envFuncs (Left t)
 
 
 laserAnims :: LaserRay Actual

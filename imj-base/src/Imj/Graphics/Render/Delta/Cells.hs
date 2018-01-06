@@ -12,4 +12,4 @@ import Imj.Graphics.Render.Delta.Cell
 clearCell :: Color8 Background -> Cell
 clearCell clearColor =
   -- Any foreground color would be ok
-  mkCell (LayeredColor clearColor white) ' '
+  mkCell (LayeredColor clearColor black) ' '

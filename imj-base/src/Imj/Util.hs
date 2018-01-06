@@ -11,6 +11,7 @@ module Imj.Util
       -- * Math utilities
     , randomRsIO
     , clamp
+    , zigzag
       -- * Reexports
     , Int64
     ) where
@@ -57,6 +58,26 @@ range n m =
       [n,(pred n)..m]
     else
       [n..m]
+
+-- | Produces an infinite triangle signal given a linear input.
+{-# INLINABLE zigzag #-}
+zigzag :: Integral a
+       => a
+       -- ^ Inclusive min
+       -> a
+       -- ^ Inclusive max
+       -> a
+       -- ^ Value
+       -> a
+zigzag from' to' v =
+  let from = min from' to'
+      to = max from' to'
+      d = to-from
+      v' = v `mod` (2*d)
+  in from + if v' <= d
+              then v'
+              else
+                2*d - v'
 
 -- | Returns a list of random values uniformly distributed in the closed interval
 -- [lo,hi].

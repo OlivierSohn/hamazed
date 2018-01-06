@@ -3,11 +3,17 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.Animation.Geo
-    ( gravityFallGeo
-    , simpleExplosionGeo
-    , quantitativeExplosionGeo
-    , animatePolygonGeo
-    , laserAnimationGeo
+    ( particlesFreefall
+    , gravityExplosionGeo
+    , particlesExplosion
+    , particlesPolygonExpandShrink
+    , particlesLaser
+    , explosion
+    -- integrating speed and forces
+    , gravityMotion
+    , zeroForceMotion
+    -- meta functions
+    , particles
     ) where
 
 import           Imj.Prelude
@@ -22,13 +28,14 @@ import           Imj.Graphics.Animation.Design.Types
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 
--- | Note that the Coords parameter is unused.
-laserAnimationGeo :: LaserRay Actual
-                  -> VecPosSpeed
-                  -- ^ Unused, because the 'LaserRay' encodes the origin already
-                  -> Frame
-                  -> [AnimatedPoint]
-laserAnimationGeo (LaserRay dir start len) _ (Frame i)
+-- | Note that the 'VecPosSpeed' parameter is unused.
+particlesLaser :: LaserRay Actual
+               -> (Frame -> LayeredColor)
+               -> VecPosSpeed
+               -- ^ Unused, because the 'LaserRay' encodes the origin already
+               -> Frame
+               -> [Particle]
+particlesLaser (LaserRay dir start len) color _ frame@(Frame i)
   | len == 0 = []
   | otherwise =
     -- frame 0 and 1 : original char
@@ -51,73 +58,155 @@ laserAnimationGeo (LaserRay dir start len) _ (Frame i)
                    else
                      map (\n -> move n dir start) [0..fromIntegral $ pred len]
     in map
-        (\p -> AnimatedPoint DontInteract (mkStaticVecPosSpeed $ pos2vec p) (Just char) Nothing)
+        (\p -> Particle DontInteract (mkStaticVecPosSpeed $ pos2vec p) char (color frame))
         points
 
 -- | Gravity free-fall
-gravityFallGeo :: Float
-               -> CanInteract
-               -> (Frame -> LayeredColor)
-               -> VecPosSpeed
-               -- ^ Initial position and speed
-               -> Frame
-               -> [AnimatedPoint]
-gravityFallGeo scaleSpeed canInteract colorFunc (VecPosSpeed pos speed) frame =
-  let point = parabola (VecPosSpeed pos $ scalarProd scaleSpeed speed) frame
-  in [AnimatedPoint canInteract point Nothing (Just $ colorFunc frame)]
+particlesFreefall :: Float
+                  -> CanInteract
+                  -> Char
+                  -> (Frame -> LayeredColor)
+                  -> VecPosSpeed
+                  -- ^ Initial position and speed
+                  -> Frame
+                  -> [Particle]
+particlesFreefall scaleSpeed =
+  let adaptSpeed (VecPosSpeed pos speed) =
+        VecPosSpeed pos $ scalarProd scaleSpeed speed
+  in particles ((:[]) . adaptSpeed) gravityMotion
 
--- | Circular explosion by copying quarter arcs.
-simpleExplosionGeo :: Int
-                   -- ^ Number of points per quarter arc.
+{- | A generic function to produce particles -}
+particles :: (VecPosSpeed -> [VecPosSpeed])
+          -- ^ Produces initial particles from the seed particle.
+          -> (Frame -> VecPosSpeed -> VecPosSpeed)
+          -- ^ Integrates the motion of a particle
+          -> CanInteract
+          -> Char
+          -> (Frame -> LayeredColor)
+          -> VecPosSpeed
+          -- ^ The seed particle
+          -> Frame
+          -> [Particle]
+particles producePs moveP canInteract char color seedP frame =
+  map
+    (\p -> let newP = moveP frame p
+           in Particle canInteract newP char (color frame))
+    $ producePs seedP
+
+-- | Integrates the motion according to
+-- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
+-- assuming no force is applied.
+zeroForceMotion :: Frame
+                -> VecPosSpeed
+                -> VecPosSpeed
+zeroForceMotion frame (VecPosSpeed pos speed) =
+  VecPosSpeed (sumVec2d pos $ integrateVelocity frame speed) speed
+
+-- | Integrates the motion according to
+-- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
+-- with the effect of gravity.
+gravityMotion :: Frame
+              -> VecPosSpeed
+              -> VecPosSpeed
+gravityMotion frame ps =
+  parabola ps frame
+
+explosionByQuartArcs :: Int
+                     -- ^ Number of points per quarter arc.
+                     -> Float
+                     -- ^ First angle
+                     -> VecPosSpeed
+                     -- ^ Seed particle (its speed is ignored)
+                     -> [VecPosSpeed]
+                     -- ^ Produced particles (they have the same position as
+                     -- the seed particle, but their velocities
+                     -- are set so as to produce an explosion-like motion)
+explosionByQuartArcs resolution angle (VecPosSpeed center _) =
+  let points = fullCircleFromQuarterArc 1 angle resolution
+  in map (\(Vec2 dx dy) ->  VecPosSpeed center $ Vec2 dx dy) points
+
+explosionByCircle :: Int
+                  -- ^ Number of points per quarter arc.
+                  -> Float
+                  -- ^ First angle
+                  -> VecPosSpeed
+                  -- ^ Seed particle (its speed is ignored)
+                  -> [VecPosSpeed]
+                  -- ^ Produced particles (they have the same position as
+                  -- the seed particle, but their velocities
+                  -- are set so as to produce an explosion-like motion)
+explosionByCircle resolution angle (VecPosSpeed center _) =
+  let points = fullCircle 1 angle resolution
+  in map (\(Vec2 dx dy) -> VecPosSpeed center $ Vec2 dx dy) points
+
+explosion :: Int
+          -- ^ Number of points per quarter arc.
+          -> Float
+          -- ^ First angle
+          -> VecPosSpeed
+          -- ^ Seed particle (its speed is ignored)
+          -> [VecPosSpeed]
+          -- ^ Produced particles (they have the same position as
+explosion n =
+  let (q,r) = quotRem n 4
+  in if r == 0
+      then
+        explosionByQuartArcs q
+      else
+        explosionByCircle n
+
+-- | Circular explosion
+particlesExplosion :: Int
+                   -- ^ The number of particles
+                   -> Float
+                   -- ^ Angle of the first particle.
                    -> CanInteract
+                   -> Char
                    -> (Frame -> LayeredColor)
                    -> VecPosSpeed
                    -- ^ Center
                    -> Frame
-                   -> [AnimatedPoint]
-simpleExplosionGeo resolution canInteract colorFunc (VecPosSpeed center _) frame@(Frame iteration) =
-  let radius = fromIntegral iteration :: Float
-      points = translatedFullCircleFromQuarterArc center radius 0 resolution
-  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing (Just $ colorFunc frame)) points
+                   -> [Particle]
+particlesExplosion resolution angle =
+  particles (explosion resolution angle) zeroForceMotion
 
--- | Circular explosion
-quantitativeExplosionGeo :: Int
-                         -- ^ The number of points of the circle
-                         -> CanInteract
-                         -> VecPosSpeed
-                         -- ^ Center
-                         -> Frame
-                         -> [AnimatedPoint]
-quantitativeExplosionGeo number canInteract (VecPosSpeed center _) (Frame iteration) =
-  let numRand = 10 :: Int
-      rnd = 2 :: Int -- TODO store the random number in the state of the animation
-  -- rnd <- getStdRandom $ randomR (0,numRand-1)
-      radius = fromIntegral iteration :: Float
-      firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
-      points = translatedFullCircle center radius firstAngle number
-  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing Nothing) points
+
+-- | Explosion where each particle is subject to gravity.
+gravityExplosionGeo :: Int
+                    -- ^ The number of points of the circle
+                    -> Float
+                    -- ^ First angle
+                    -> CanInteract
+                    -> Char
+                    -> (Frame -> LayeredColor)
+                    -> VecPosSpeed
+                    -- ^ Center
+                    -> Frame
+                    -> [Particle]
+gravityExplosionGeo resolution angle =
+  particles (explosion resolution angle) gravityMotion
 
 -- | Expanding then shrinking geometric figure.
-animatePolygonGeo :: Int
-                  -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                  -> (Frame -> LayeredColor)
-                  -> VecPosSpeed
-                  -- ^ Center
-                  -> Frame
-                  -- ^ Used to compute the radius.
-                  -> [AnimatedPoint]
-animatePolygonGeo n colorFunc c@(VecPosSpeed center _) (Frame i) =
+particlesPolygonExpandShrink :: Int
+                             -- ^ number of extremities of the polygon (if 1, draw a circle instead)
+                             -> (Frame -> LayeredColor)
+                             -> VecPosSpeed
+                             -- ^ Center
+                             -> Frame
+                             -- ^ Used to compute the radius.
+                             -> [Particle]
+particlesPolygonExpandShrink n colorFunc c@(VecPosSpeed center _) (Frame i) =
   let r = animateRadius (quot i 2) n
       frame' = Frame r
-      points = if r < 0
+  in if r < 0
        then
          []
        else
          case n of
-            1 -> let p = simpleExplosionGeo 8 DontInteract colorFunc c frame'
-                 in map (\(AnimatedPoint _ p' _ _) -> p') p
-            _ -> map (mkStaticVecPosSpeed . pos2vec) $ polygon n r center
-  in map (\p -> AnimatedPoint DontInteract p (Just $ intToDigit n) (Just $ colorFunc frame')) points
+            1 -> particlesExplosion 0 32 DontInteract '1' colorFunc c frame'
+            _ -> map (\p' -> let p = mkStaticVecPosSpeed $ pos2vec p'
+                             in Particle DontInteract p (intToDigit n) (colorFunc frame') )
+                    $ polygon n r center
 
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation

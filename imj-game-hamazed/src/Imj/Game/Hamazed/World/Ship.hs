@@ -37,9 +37,9 @@ shipAnims world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime 
           shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
           (Number _ n) = head collisions
           envFuncs = envFunctions world (WorldScope Air)
-      in  fragmentsFreeFallThenExplode numSpeed shipCoords envFuncs (Speed 1) (Right k) '|'
+      in  fragmentsFreeFallThenExplode numSpeed shipCoords '|' (Speed 1) envFuncs (Right k)
           ++
-          fragmentsFreeFallThenExplode shipSpeed2 shipCoords envFuncs (Speed 1) (Right k) (intToDigit n)
+          fragmentsFreeFallThenExplode shipSpeed2 shipCoords (intToDigit n) (Speed 1) envFuncs (Right k)
     else
       []
 

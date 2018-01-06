@@ -32,7 +32,7 @@ library
                      , Imj.Graphics.Animation.Design.Timing
                      , Imj.Graphics.Animation.Design.Types
                      , Imj.Graphics.Animation.Design.Update
-                     , Imj.Graphics.Animation.Design.UpdateAnimatedPoints
+                     , Imj.Graphics.Animation.Design.UpdateParticles
   build-depends:       base >= 4.8 && < 4.11
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*

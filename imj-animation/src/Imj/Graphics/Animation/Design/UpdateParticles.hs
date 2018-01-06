@@ -3,8 +3,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Graphics.Animation.Design.UpdateAnimatedPoints
-    ( updateAnimatedPoints
+module Imj.Graphics.Animation.Design.UpdateParticles
+    ( updateParticles
     ) where
 
 
@@ -16,41 +16,42 @@ import           Data.Maybe( fromMaybe )
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.Color
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Collision
 import           Imj.Physics.Continuous.Types
 
 
-{- | Given a length \( n \) list of animation functions, updates the \( n \)
-first levels of an 'AnimatedPoints' using one animation function per level.
+{- | Given a length \( n \) list of particle functions, updates the \( n \)
+first levels of a 'Particles' using one particle function per level.
 
-An 'AnimatedPoint' at level \( k <= n \) can mutate to an 'AnimatedPoints' by
+An 'Particle' at level \( k <= n \) can mutate to a 'Particles' by
 interacting with its environment:
 
-* if \( k = n \) , the new 'AnimatedPoints' will remain empty.
-* if \( k < n \), the new 'AnimatedPoints' will be populated by 'AnimatedPoints'
-using the \( k+1 \)th animation function.
+* if \( k = n \) , the new 'Particles' will remain empty.
+* if \( k < n \), the new 'Particles' will be populated by 'Particles'
+using the \( k+1 \)th particle function.
 -}
-updateAnimatedPoints :: [VecPosSpeed -> Frame -> [AnimatedPoint]]
-                     -- ^ The animation function at index @i@ updates
-                     -- 'AnimatedPoints' at level @i@.
+updateParticles :: [VecPosSpeed -> Frame -> [Particle]]
+                     -- ^ The particle function at index @i@ updates
+                     -- 'Particles' at level @i@.
                      -> EnvFunctions
                      -> Frame
                      -- ^ Current iteration
-                     -> AnimatedPoints
-                     -> AnimatedPoints
-updateAnimatedPoints [] _ _ aps = aps
-updateAnimatedPoints
+                     -> Particles
+                     -> Particles
+updateParticles [] _ _ aps = aps
+updateParticles
  (f:fs)
  envFuncs@(EnvFunctions _ distance)
  globalFrame
- original@(AnimatedPoints branches center@(VecPosSpeed cPos _) startFrame) =
+ original@(Particles branches center@(VecPosSpeed cPos _) startFrame) =
   let relativeFrame = globalFrame - startFrame
       branchesLevel1Mutated = updatePointsAndMutateIfNeeded f center relativeFrame envFuncs branches
       newBranches = map (\case
-                            -- recurse for the 'AnimatedPoints's
-                            Left aps -> Left $ updateAnimatedPoints fs envFuncs relativeFrame aps
-                            -- the 'AnimatedPoint's are already up-to-date due to updatePointsAndMutateIfNeeded:
+                            -- recurse for the 'Particles's
+                            Left aps -> Left $ updateParticles fs envFuncs relativeFrame aps
+                            -- the 'Particle's are already up-to-date due to updatePointsAndMutateIfNeeded:
                             Right ap -> Right ap
                             ) branchesLevel1Mutated
   in if isNothing branches && distance cPos == TooFar
@@ -58,38 +59,38 @@ updateAnimatedPoints
          -- do not develop this branch, as its center is too far.
          original
        else
-         AnimatedPoints (Just newBranches) center startFrame
+         Particles (Just newBranches) center startFrame
 
 
--- | Doesn't change the existing /level 1/ 'AnimatedPoints's, but can convert some
--- 'AnimatedPoint's to 'AnimatedPoints's.
-updatePointsAndMutateIfNeeded :: (VecPosSpeed -> Frame -> [AnimatedPoint])
-                              -- ^ Geometric animation function
+-- | Doesn't change the existing /level 1/ 'Particles's, but can convert some
+-- 'Particle's to 'Particles's.
+updatePointsAndMutateIfNeeded :: (VecPosSpeed -> Frame -> [Particle])
+                              -- ^ Geometric particle function
                               -> VecPosSpeed
                               -- ^ Center of the animation
                               -> Frame
                               -- ^ Relative frame
                               -> EnvFunctions
-                              -> Maybe [Either AnimatedPoints AnimatedPoint]
+                              -> Maybe [Either Particles Particle]
                               -- ^ Current branches
-                              -> [Either AnimatedPoints AnimatedPoint]
+                              -> [Either Particles Particle]
                               -- ^ Updated branches
 updatePointsAndMutateIfNeeded
  animation root@(VecPosSpeed rootPos _) frame envFunctions@(EnvFunctions interaction _) branches =
   let points = animation (assert (interaction (vec2pos rootPos) == Stable) root) frame
-      defaultState = map (\(AnimatedPoint canInteract _ _ _) ->
-                            Right $ AnimatedPoint canInteract root Nothing Nothing)
+      defaultState = map (\(Particle canInteract _ _ _) ->
+                            Right $ Particle canInteract root ' ' whiteOnBlack)
                         points
       previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
   in combine points previousState frame envFunctions
 
-combine :: [AnimatedPoint]
-        -> [Either AnimatedPoints AnimatedPoint]
+combine :: [Particle]
+        -> [Either Particles Particle]
         -> Frame
         -> EnvFunctions
-        -> [Either AnimatedPoints AnimatedPoint]
+        -> [Either Particles Particle]
 combine points previousState frame interaction =
   let check = allowedPointCountVariation (length previousState) (length points)
   in  assert check $
@@ -99,25 +100,25 @@ combine points previousState frame interaction =
 
 combinePoints :: EnvFunctions
               -> Frame
-              -> AnimatedPoint
-              -> Either AnimatedPoints AnimatedPoint
-              -> Either AnimatedPoints AnimatedPoint
-combinePoints (EnvFunctions interaction distance) frame point@(AnimatedPoint onWall cur@(VecPosSpeed curPos _) _ _) =
+              -> Particle
+              -> Either Particles Particle
+              -> Either Particles Particle
+combinePoints (EnvFunctions interaction distance) frame point@(Particle onWall cur@(VecPosSpeed curPos _) _ _) =
   either
     Left
-    (\(AnimatedPoint prevOnWall prev _ _) ->
+    (\(Particle prevOnWall prev _ _) ->
       case assert (prevOnWall == onWall) onWall of
         DontInteract -> Right point
         Interact ->
           case distance curPos of
-            TooFar -> Left $ AnimatedPoints Nothing cur frame
+            TooFar -> Left $ Particles Nothing cur frame
             DistanceOK ->
               -- Since the environment is static, we can drop the first point of the trajectory,
               -- because we know by design that it doesn't collide. This assert verifies that:
               maybe
                  (Right $ assert (interaction (vec2pos curPos) == Stable) point)
                  (\preCollisionMirrored ->
-                    Left $ AnimatedPoints Nothing preCollisionMirrored frame)
+                    Left $ Particles Nothing preCollisionMirrored frame)
                  $ getCoordsBeforeMutation' prev cur interaction
     )
 
@@ -233,7 +234,7 @@ getCoordsBeforeMutation (a:as@(b:_)) interaction i =
 
 {- | Verifies that the variation in number of points is allowed:
 
-The number of points generated by a particular /animation function/ should be constant,
+The number of points generated by a particular /particle function/ should be constant,
 or change from non-zero to 0 to signify the end of the animation. -}
 allowedPointCountVariation :: Int
                            -- ^ From

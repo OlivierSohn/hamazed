@@ -47,12 +47,23 @@ import           Imj.Util
 @
 -}
 class (DiscreteDistance v) => DiscreteInterpolation v where
-  -- | Implement this function if you want to interpolate /by value/, i.e the result of
-  -- the interpolation between two \(v\) is a \(v\).
+  -- | When the current step is outside bounds, the interplated value is one
+  -- of the first and last values.
   interpolate :: v -- ^ first value
               -> v -- ^ last value
               -> Int -- ^ the current step
               -> v -- ^ the interpolated value
+
+  -- | When the current step is outside bounds, we use 'zigzag' to interpolate
+  -- back and forth.
+  interpolateCyclic :: v -- ^ first value
+                    -> v -- ^ last value
+                    -> Int -- ^ the current step
+                    -> v -- ^ the interpolated value
+  interpolateCyclic a b =
+      interpolate a b . zigzag 0 lf
+    where
+      lf = pred $ distance a b
 
   interpolateSuccessive :: Successive v
                         -> Int

@@ -6,7 +6,9 @@ module Imj.Geo.Continuous
            , module Imj.Geo.Continuous.Conversion
            -- * Sampled continuous geometry
            -- ** Circle
+           , fullCircle
            , translatedFullCircle
+           , fullCircleFromQuarterArc
            , translatedFullCircleFromQuarterArc
            -- ** Parabola
            , parabola
@@ -15,6 +17,7 @@ module Imj.Geo.Continuous
            -- * Vec2 utilities
            , sumVec2d
            , diffVec2d
+           , integrateVelocity
            , scalarProd
            , rotateByQuarters
            -- * Reexports
@@ -44,7 +47,7 @@ sumVec2d (Vec2 vx vy) (Vec2 wx wy) =
 
 -- | Diffs two 'Vec2'.
 {-# INLINE diffVec2d #-}
-diffVec2d :: Vec2 a -> Vec2 a -> Vec2 a
+diffVec2d :: Vec2 a -> Vec2 a -> Vec2 b
 diffVec2d (Vec2 vx vy) (Vec2 wx wy) =
   Vec2 (vx-wx) (vy-wy)
 

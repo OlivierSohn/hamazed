@@ -67,8 +67,8 @@ nature w.r.t:
   - Animations require only a "start" state to be specified.
 - Number of elements
   - Morphings are always applied to a single element, and cannot create "new elements".
-  - Animations create multiple animated points, each of them can in turn "give birth" to
-  other animated points, depending on interactions with the environment.
+  - Animations create multiple particles, each of them can in turn "give birth" to
+  other particles, depending on interactions with the environment.
 - Current usage in Hamazed game:
   - Animations typically represent a physical phenomenon happening in the game
   (an explosion, a laser shot, a free fall, an object breaking apart).

@@ -15,6 +15,7 @@ module Imj.Graphics.Color.Types
           , bresenhamColor8Length
           , rgb
           , gray
+          , grayToRGB
           , Xterm256Color(..)
           , color8CodeToXterm256
           , onBlack
@@ -103,19 +104,20 @@ newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum)
 
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteDistance (Color8 a) where
-  -- | The two input 'Color8' are expected to be both 'rgb' or both 'gray'.
   distance = bresenhamColor8Length
 
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteInterpolation (Color8 a) where
-  -- | The two input 'Color8' are supposed to be both 'rgb' or both 'gray'.
   interpolate c c' i
     | c == c' = c
+    | i <= 0 = c
+    | i >= lastFrame = c'
     | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
-            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
+        let -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
             index = clamp i 0 lastFrame
         in head . drop index $ bresenhamColor8 c c'
+    where
+      lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
 
 
 {-# INLINE mkColor8 #-}
@@ -158,7 +160,7 @@ bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]
 bresenhamColor8 c c'
   | c == c' = [c]
   | otherwise = case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
-    (GrayColor g1, GrayColor g2)   -> map Color8 $ range g1 g2
+    (GrayColor g1, GrayColor g2)   -> map gray $ range g1 g2
     (RGBColor rgb1, RGBColor rgb2) -> mapBresRGB rgb1 rgb2
     (RGBColor rgb1, GrayColor g2)  -> mapBresRGB rgb1 (grayToRGB rgb1 g2)
     (GrayColor g1, RGBColor rgb2)  -> mapBresRGB (grayToRGB rgb2 g1) rgb2
@@ -248,7 +250,7 @@ black   = rgb 0 0 0
 
 
 
--- | converts a GrayColor to a RGBColor, using another RGBColor
+-- | converts a GrayColor to the closest RGBColor, using another RGBColor
 -- to know in which way to approximate.
 grayToRGB :: RGB
           -- ^ We'll round the resulting r,g,b components towards this color

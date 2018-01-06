@@ -50,8 +50,8 @@ exampleOfsequentialTextTranslationsAnchored = do
 
 accumHeights :: [Example] -> Length Height -> [Example]
 accumHeights [] _ = []
-accumHeights ((Example a h _ b c):es) acc =
-              (Example a h acc b c):accumHeights es (acc + h)
+accumHeights (Example a h _ b c:es) acc =
+              Example a h acc b c:accumHeights es (acc + h)
 
 width :: Length Width
 width = 30
@@ -161,7 +161,7 @@ exampleIntermediateCharRemovals =
 exampleExtremeCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
 exampleExtremeCharAdditions =
   let a = colored "ABC" green
-      b = colored "ABC" green <> colored "DEF" white
+      b = colored "ABC" green <> colored "DEF" red
       txt1 = [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0

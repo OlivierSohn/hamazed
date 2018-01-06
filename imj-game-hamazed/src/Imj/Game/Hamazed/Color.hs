@@ -48,7 +48,7 @@ outerWallsColors :: LayeredColor
 outerWallsColors = LayeredColor (rgb 0 0 0) (gray 1)
 
 airColors :: LayeredColor
-airColors = LayeredColor black white
+airColors = LayeredColor black black
 
 neutralMessageColor :: LayeredColor
 neutralMessageColor = onBlack $ gray 10

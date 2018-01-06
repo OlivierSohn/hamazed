@@ -35,10 +35,10 @@ updateAnimation :: Animation
                 -- ^ The updated animation, or Nothing if the 'Animation'
                 -- is over.
 updateAnimation
- (Animation points update interaction (UpdateSpec k it@(Iteration _ frame)) c) =
+ (Animation points update interaction (UpdateSpec k it@(Iteration _ frame))) =
   let newPoints = update interaction frame points
       newUpdateSpec = UpdateSpec (addDuration animationPeriod k) (nextIteration it)
-      newAnim = Animation newPoints update interaction newUpdateSpec c
+      newAnim = Animation newPoints update interaction newUpdateSpec
   in if isActive newAnim
        then
          Just newAnim
@@ -47,18 +47,18 @@ updateAnimation
 
 isActive :: Animation
          -> Bool
-isActive (Animation points _ _ _ _) =
+isActive (Animation points _ _ _) =
   hasActivePoints points
 
-hasActivePoints :: AnimatedPoints
+hasActivePoints :: Particles
                 -> Bool
-hasActivePoints (AnimatedPoints Nothing _ _)         = False
-hasActivePoints (AnimatedPoints (Just []) _ _)       = False
-hasActivePoints (AnimatedPoints (Just branches) _ _) =
+hasActivePoints (Particles Nothing _ _)         = False
+hasActivePoints (Particles (Just []) _ _)       = False
+hasActivePoints (Particles (Just branches) _ _) =
   let (children, activeCoordinates) = partitionEithers branches
       childrenActive = map hasActivePoints children
   in (not . null) activeCoordinates || or childrenActive
 
 -- | Returns the time at which an 'Animation' should be updated.
 getDeadline :: Animation -> KeyTime
-getDeadline (Animation _ _ _ (UpdateSpec k _) _) = k
+getDeadline (Animation _ _ _ (UpdateSpec k _)) = k

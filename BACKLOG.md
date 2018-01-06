@@ -1,7 +1,12 @@
+- in renderer, add the possibility to just change a color (fg or bg), just change a char.
+  - use it to create end level effects : draw everything with '.' or '+' except the winning message
+  and the messages on the left.
+  - when laser is shot, make a circle expanding, where chars are overridden by '+' or
+  color is overridden.
+- for wall anims, use same colors as walls, just change the character (Y,X).
 - it would be nice to decay the color of animated points when they rebound, until they have no color.
-(notion of alpha using backbuffer value + bresenham or "decay color" + bresenham)
-to do that , the animation functions need to be passed what level they're in, and
-handle the color of animated points.
+(notion of alpha using back-buffer value + bresenham or "decay color" + bresenham)
+to do that , the animation functions need to handle the color of animated points.
 - cross-dissolve between worlds, to have smooth transitions (especially important
   when there are walls)
 

@@ -16,6 +16,7 @@ module Imj.Graphics.Color.Types
           , rgb
           , gray
           , Xterm256Color(..)
+          , color8CodeToXterm256
           , onBlack
           , whiteOnBlack
           , white, black, red, green, magenta, cyan, yellow, blue

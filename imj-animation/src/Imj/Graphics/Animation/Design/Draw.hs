@@ -18,6 +18,7 @@ import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Color
+import           Imj.Graphics.Color
 import           Imj.Graphics.Render
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
@@ -51,7 +52,7 @@ draw'
  parentFrame mayCharAnim (AnimatedPoints (Just branches) _ childFrame) interaction r = do
   let (children, aliveCoordinates) = partitionEithers branches
       selectDrawnCoordinates =
-        filter (\(AnimatedPoint canInteract (VecPosSpeed coords _) _) ->
+        filter (\(AnimatedPoint canInteract (VecPosSpeed coords _) _ _) ->
                     case canInteract of
                       -- An alive animated point may collide:
                       DontInteract -> interaction (vec2pos coords) == Stable
@@ -59,9 +60,10 @@ draw'
                       -- Note that when the environment will be dynamic, it will be wrong:
                       Interact -> True)
       relFrame = parentFrame - childFrame
-      color = colorFromFrame relFrame
-  mapM_ (\(AnimatedPoint _ (VecPosSpeed vc _) mayChar) -> do
+      fg = onBlack $ colorFromFrame (rgb 4 0 0) relFrame
+  mapM_ (\(AnimatedPoint _ (VecPosSpeed vc _) mayChar mayColor) -> do
             let char = fromMaybe (error "no char was specified") $ mayChar <|> mayCharAnim
+                color = fromMaybe fg mayColor
                 c = vec2pos vc
             drawChar char (sumCoords c r) color)
         $ selectDrawnCoordinates aliveCoordinates

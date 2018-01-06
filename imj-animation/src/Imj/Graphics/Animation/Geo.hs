@@ -51,32 +51,34 @@ laserAnimationGeo (LaserRay dir start len) _ (Frame i)
                    else
                      map (\n -> move n dir start) [0..fromIntegral $ pred len]
     in map
-        (\p -> AnimatedPoint DontInteract (mkStaticVecPosSpeed $ pos2vec p) (Just char))
+        (\p -> AnimatedPoint DontInteract (mkStaticVecPosSpeed $ pos2vec p) (Just char) Nothing)
         points
 
 -- | Gravity free-fall
 gravityFallGeo :: Float
                -> CanInteract
+               -> (Frame -> LayeredColor)
                -> VecPosSpeed
                -- ^ Initial position and speed
                -> Frame
                -> [AnimatedPoint]
-gravityFallGeo scaleSpeed canInteract (VecPosSpeed pos speed) frame =
+gravityFallGeo scaleSpeed canInteract colorFunc (VecPosSpeed pos speed) frame =
   let point = parabola (VecPosSpeed pos $ scalarProd scaleSpeed speed) frame
-  in [AnimatedPoint canInteract point Nothing]
+  in [AnimatedPoint canInteract point Nothing (Just $ colorFunc frame)]
 
 -- | Circular explosion by copying quarter arcs.
 simpleExplosionGeo :: Int
                    -- ^ Number of points per quarter arc.
                    -> CanInteract
+                   -> (Frame -> LayeredColor)
                    -> VecPosSpeed
                    -- ^ Center
                    -> Frame
                    -> [AnimatedPoint]
-simpleExplosionGeo resolution canInteract (VecPosSpeed center _) (Frame iteration) =
+simpleExplosionGeo resolution canInteract colorFunc (VecPosSpeed center _) frame@(Frame iteration) =
   let radius = fromIntegral iteration :: Float
       points = translatedFullCircleFromQuarterArc center radius 0 resolution
-  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing) points
+  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing (Just $ colorFunc frame)) points
 
 -- | Circular explosion
 quantitativeExplosionGeo :: Int
@@ -93,27 +95,29 @@ quantitativeExplosionGeo number canInteract (VecPosSpeed center _) (Frame iterat
       radius = fromIntegral iteration :: Float
       firstAngle = (fromIntegral rnd :: Float) * 2*pi / (fromIntegral numRand :: Float)
       points = translatedFullCircle center radius firstAngle number
-  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing) points
+  in map (\p -> AnimatedPoint canInteract (mkStaticVecPosSpeed p) Nothing Nothing) points
 
 -- | Expanding then shrinking geometric figure.
 animatePolygonGeo :: Int
                   -- ^ number of extremities of the polygon (if 1, draw a circle instead)
+                  -> (Frame -> LayeredColor)
                   -> VecPosSpeed
                   -- ^ Center
                   -> Frame
                   -- ^ Used to compute the radius.
                   -> [AnimatedPoint]
-animatePolygonGeo n c@(VecPosSpeed center _) (Frame i) =
+animatePolygonGeo n colorFunc c@(VecPosSpeed center _) (Frame i) =
   let r = animateRadius (quot i 2) n
+      frame' = Frame r
       points = if r < 0
        then
          []
        else
          case n of
-            1 -> let p = simpleExplosionGeo 8 DontInteract c $ Frame r
-                 in map (\(AnimatedPoint _ p' _) -> p') p
+            1 -> let p = simpleExplosionGeo 8 DontInteract colorFunc c frame'
+                 in map (\(AnimatedPoint _ p' _ _) -> p') p
             _ -> map (mkStaticVecPosSpeed . pos2vec) $ polygon n r center
-  in map (\p -> AnimatedPoint DontInteract p (Just $ intToDigit n)) points
+  in map (\p -> AnimatedPoint DontInteract p (Just $ intToDigit n) (Just $ colorFunc frame')) points
 
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation

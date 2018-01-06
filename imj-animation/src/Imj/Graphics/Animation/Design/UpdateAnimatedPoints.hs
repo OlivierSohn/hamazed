@@ -77,7 +77,9 @@ updatePointsAndMutateIfNeeded :: (VecPosSpeed -> Frame -> [AnimatedPoint])
 updatePointsAndMutateIfNeeded
  animation root@(VecPosSpeed rootPos _) frame envFunctions@(EnvFunctions interaction _) branches =
   let points = animation (assert (interaction (vec2pos rootPos) == Stable) root) frame
-      defaultState = map (\(AnimatedPoint canInteract _ _) -> Right $ AnimatedPoint canInteract root Nothing) points
+      defaultState = map (\(AnimatedPoint canInteract _ _ _) ->
+                            Right $ AnimatedPoint canInteract root Nothing Nothing)
+                        points
       previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
@@ -100,10 +102,10 @@ combinePoints :: EnvFunctions
               -> AnimatedPoint
               -> Either AnimatedPoints AnimatedPoint
               -> Either AnimatedPoints AnimatedPoint
-combinePoints (EnvFunctions interaction distance) frame point@(AnimatedPoint onWall cur@(VecPosSpeed curPos _) _) =
+combinePoints (EnvFunctions interaction distance) frame point@(AnimatedPoint onWall cur@(VecPosSpeed curPos _) _ _) =
   either
     Left
-    (\(AnimatedPoint prevOnWall prev _) ->
+    (\(AnimatedPoint prevOnWall prev _ _) ->
       case assert (prevOnWall == onWall) onWall of
         DontInteract -> Right point
         Interact ->

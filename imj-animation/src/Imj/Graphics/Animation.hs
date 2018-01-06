@@ -98,9 +98,13 @@ import           Imj.Graphics.Animation.Design.Types
 import           Imj.Graphics.Animation.Design.Update
 import           Imj.Graphics.Animation.Geo
 import           Imj.Graphics.Animation.Internal
+import           Imj.Graphics.Color
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 import           Imj.Timing
+
+defaultColors :: Frame -> LayeredColor
+defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
 
 -- | A laser ray animation, with a fade-out effect.
 laserAnimation :: LaserRay Actual
@@ -136,7 +140,7 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -> Maybe Animation
 quantitativeExplosionThenSimpleExplosion num pos envFuncs animSpeed keyTime char =
   let funcs = [ quantitativeExplosionGeo num Interact
-              , simpleExplosionGeo 8 Interact ]
+              , simpleExplosionGeo 8 Interact defaultColors]
        -- speed doesn't matter to 'quantitativeExplosionGeo' and 'simpleExplosionGeo'
       posspeed = mkStaticVecPosSpeed $ pos2vec pos
   in mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
@@ -158,7 +162,7 @@ animatedPolygon :: Int
                 -- ^ Character used when drawing the animation.
                 -> Maybe Animation
 animatedPolygon n pos envFuncs animSpeed keyTime char =
-  mkAnimation posspeed [animatePolygonGeo n] animSpeed envFuncs keyTime (Just char)
+  mkAnimation posspeed [animatePolygonGeo n defaultColors] animSpeed envFuncs keyTime (Just char)
  where
   -- speed doesn't matter to 'animatePolygonGeo'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
@@ -179,10 +183,11 @@ simpleExplosion :: Int
                 -- ^ Character used when drawing the animation.
                 -> Maybe Animation
 simpleExplosion resolution pos envFuncs animSpeed keyTime char =
-  mkAnimation posspeed [simpleExplosionGeo resolution Interact] animSpeed envFuncs keyTime (Just char)
+  mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
  where
   -- speed doesn't matter to 'simpleExplosion'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
+  funcs = [simpleExplosionGeo resolution Interact defaultColors]
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -213,6 +218,8 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -- ^ Rebound speed attenuation factor, expected to be strictly positive.
                                          -> Int
                                          -- ^ Number of rebounds
+                                         -> (Int -> Int -> Frame -> LayeredColor)
+                                         -- ^ fragment index -> animation function level -> relative frame -> color
                                          -> EnvFunctions
                                          -> Speed
                                          -- ^ Animation speed
@@ -223,14 +230,16 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> Char
                                          -- ^ Character used when drawing the animation.
                                          -> [Animation]
-fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
+fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs envFuncs animSpeed keyTime char =
   if velAtt <= 0
     then
       error "velocity attenuation should be > 0"
     else
       mapMaybe
-        (\sp -> freeFallWithReboundsThenExplode sp pos velAtt nRebounds envFuncs animSpeed keyTime char)
-        $ variations speed
+        (\(idx,sp) ->
+            freeFallWithReboundsThenExplode
+              sp pos velAtt nRebounds (colorFuncs idx) envFuncs animSpeed keyTime char)
+        $ zip [0..] $ variations speed
 
 -- | A gravity-based free-falling animation.
 freeFall :: Vec2 Vel
@@ -251,7 +260,7 @@ freeFall speed pos envFuncs animSpeed keyTime char =
   mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
  where
   posspeed = VecPosSpeed (pos2vec pos) speed
-  funcs = [gravityFallGeo 1.0 Interact]
+  funcs = [gravityFallGeo 1.0 Interact defaultColors]
 
 -- | A gravity-based free-falling animation, with several rebounds and a final
 -- explosion.
@@ -263,6 +272,8 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- ^ Velocity attenuation factor on rebound, expected to be strictly positive.
                                 -> Int
                                 -- ^ Number of rebounds
+                                -> (Int -> Frame -> LayeredColor)
+                                -- ^ (animation function level -> relative frame -> color)
                                 -> EnvFunctions
                                 -> Speed
                                 -- ^ Animation speed
@@ -273,7 +284,7 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -> Char
                                 -- ^ Character used when drawing the animation.
                                 -> Maybe Animation
-freeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed keyTime char =
+freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs envFuncs animSpeed keyTime char =
   if velAtt <= 0
     then
       error "velocity attenuation should be > 0"
@@ -281,7 +292,8 @@ freeFallWithReboundsThenExplode speed pos velAtt nRebounds envFuncs animSpeed ke
       mkAnimation posspeed funcs animSpeed envFuncs keyTime (Just char)
  where
   posspeed = VecPosSpeed (pos2vec pos) $ scalarProd (recip velAtt) speed
-  funcs = replicate nRebounds (gravityFallGeo velAtt Interact) ++ [simpleExplosionGeo nRebounds Interact]
+  funcs = map (gravityFallGeo velAtt Interact . colorFuncs) [0..pred nRebounds]
+          ++ [simpleExplosionGeo nRebounds Interact (colorFuncs nRebounds)]
 
 -- | Animation representing an object with an initial velocity disintegrating in
 -- 4 different parts free-falling and then exploding.
@@ -326,6 +338,6 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Character used when drawing the animation.
                     -> Maybe Animation
 freeFallThenExplode speed pos envFuncs animSpeed keyTime char =
-  let funcs = [ gravityFallGeo 1.0 Interact
-              , simpleExplosionGeo 8 Interact]
+  let funcs = [ gravityFallGeo 1.0 Interact defaultColors
+              , simpleExplosionGeo 8 Interact defaultColors]
   in mkAnimation (VecPosSpeed (pos2vec pos) speed) funcs animSpeed envFuncs keyTime (Just char)

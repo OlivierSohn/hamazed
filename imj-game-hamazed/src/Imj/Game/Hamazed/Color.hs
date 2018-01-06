@@ -15,6 +15,7 @@ module Imj.Game.Hamazed.Color (
   , wallColors
   , outerWallsColors
   -- * UI colors
+  , worldFrameFgColor
   , worldFrameColors
   , ammoColor
   , bracketsColor

@@ -13,6 +13,7 @@ module Imj.Graphics.Animation.Design.Types
           , InteractionResult(..)
           -- Reexports
           , VecPosSpeed
+          , LayeredColor
           ) where
 
 import           Imj.Prelude
@@ -20,6 +21,7 @@ import           Imj.Prelude
 import           GHC.Show(showString)
 
 import           Imj.Iteration
+import           Imj.Graphics.Color.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Physics.Continuous.Types
 import           Imj.Timing
@@ -106,6 +108,7 @@ data AnimatedPoint = AnimatedPoint {
     -- ^ Continuous location and speed, w.r.t the animation reference frame.
   , _animatedPointDrawnWith :: !(Maybe Char)
     -- ^ The char used to draw it. If 'Nothing', 'Animation' /must/ specify a 'Char'.
+  , _animatedPointColor :: !(Maybe LayeredColor)
 } deriving (Show)
 
 data CanInteract = DontInteract

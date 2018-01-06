@@ -12,6 +12,7 @@ import           Imj.Prelude
 
 import           Data.Maybe( catMaybes, isNothing )
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Create
@@ -159,28 +160,36 @@ outerSpaceAnims :: SystemTime
 outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
       dist = distanceToSpace laserTarget space
+      nRebounds = 10
+      char = materialChar Wall
   in  case location laserTarget space of
         InsideWorld -> []
         OutsideWorld ->
           if dist > 0
               then
-                outerSpaceAnims' t world NegativeWorldContainer (translateInDir dir laserTarget) dir
+                let color _fragment _level _frame = wallColors
+                    pos = translateInDir dir laserTarget
+                in outerSpaceAnims' t world NegativeWorldContainer pos dir nRebounds color char
               else
-                outerSpaceAnims' t world (WorldScope Wall) laserTarget dir
+                let color _fragment _level _frame = LayeredColor (rgb 0 0 0) (gray 2)
+                in outerSpaceAnims' t world (WorldScope Wall) laserTarget dir nRebounds color char
 
 outerSpaceAnims' :: SystemTime
                  -> World
                  -> Scope
                  -> Coords Pos
                  -> Direction
+                 -> Int
+                 -> (Int -> Int -> Frame -> LayeredColor)
+                 -> Char
                  -> [Animation]
-outerSpaceAnims' t world scope afterLaserEndPoint dir =
+outerSpaceAnims' t world scope afterLaserEndPoint dir nRebounds colorFuncs char =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
       envFuncs = envFunctions world scope
       speedAttenuation = 0.4
-      nRebounds = 3
   in  fragmentsFreeFallWithReboundsThenExplode
-        speed afterLaserEndPoint speedAttenuation nRebounds envFuncs (Speed 1) (Left t) (materialChar Wall)
+        speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs envFuncs
+        (Speed 1) (Left t) char
 
 
 laserAnims :: LaserRay Actual

@@ -2,12 +2,12 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Design.Types
-          ( Animation(..)
+module Imj.Graphics.ParticleSystem.Design.Types
+          ( ParticleSystem(..)
           , EnvFunctions(..)
           , Distance(..)
           , UpdateSpec(..)
-          , Particles(..)
+          , ParticleTree(..)
           , Particle(..)
           , CanInteract(..)
           , InteractionResult(..)
@@ -27,18 +27,14 @@ import           Imj.Physics.Continuous.Types
 import           Imj.Timing
 
 
-data Animation = Animation {
-    _animationPoints :: !Particles
-    -- ^ The current points.
-  , _animationUpdate :: !(EnvFunctions
-                      -> Frame
-                      -> Particles
-                      -> Particles)
-    -- ^ The function updating 'Particles'.
-  , _animationEnvFunctions :: !EnvFunctions
-    -- ^ The environment functiosn.
-  , _animationNextUpdateSpec :: !UpdateSpec
-    -- ^ The time and iteration of the next update
+data ParticleSystem = ParticleSystem {
+    _particleSystemPoints :: !ParticleTree
+  , _particleSystemUpdate :: !(EnvFunctions
+                          -> Frame
+                          -> ParticleTree
+                          -> ParticleTree)
+  , _particleSystemEnvFunctions :: !EnvFunctions
+  , _particleSystemNextUpdateSpec :: !UpdateSpec
 }
 
 -- | Functions to interact with the environment
@@ -56,25 +52,25 @@ data EnvFunctions = EnvFunctions {
     {- ^ /Distance/ function.
 
     During update, 'Particle's which 'CanInteract' with the environment, and
-    for which this function returns 'TooFar' are removed from the animation
-    (i.e, they are converted to a 'Particles' at their location,
-    and this 'Particles' will not evolve because its center, too will be 'TooFar'.).
+    for which this function returns 'TooFar' are removed from the particle system
+    (i.e, they are converted to a 'ParticleTree' at their location,
+    and this 'ParticleTree' will not evolve because its center, too will be 'TooFar'.).
 
     Note that 'Particle's that 'DontInteract' with the environment will not
     be affected. As of today, particle functions generating 'Particle's that
-    'DontInteract' don't diverge, so it's not an issue. In case new types of animation
+    'DontInteract' don't diverge, so it's not an issue. In case new types of particle
     functions are developped, we could change this behaviour. -}
 }
 
 data Distance = DistanceOK
               | TooFar
-              -- ^ When an 'Particle' is too far, the animation removes it.
+              -- ^ When a 'Particle' is too far, it is not rendered and not updated anymore.
               deriving(Show, Eq)
 
 
-instance Show Animation where
-  showsPrec _ (Animation a _ _ b) =
-    showString $ "Animation{" ++ show (a,b) ++ "}"
+instance Show ParticleSystem where
+  showsPrec _ (ParticleSystem a _ _ b) =
+    showString $ "ParticleSystem{" ++ show (a,b) ++ "}"
 
 
 data UpdateSpec = UpdateSpec {
@@ -85,23 +81,23 @@ data UpdateSpec = UpdateSpec {
 } deriving(Show)
 
 
-data Particles = Particles {
-    _particlesBranches :: !(Maybe [Either Particles Particle])
-    -- ^ The children. A child can be 'Right' 'Particle' or 'Left' 'Particles'.
+data ParticleTree = ParticleTree {
+    _particleTreeBranches :: !(Maybe [Either ParticleTree Particle])
+    -- ^ The children. A child can be 'Right' 'Particle' or 'Left' 'ParticleTree'.
     --
-    --  When a 'Right' 'Particle' mutates, it is converted to an empty 'Left' 'Particles'
-  , _particlesCenter :: !VecPosSpeed
-    -- ^ The center, aka the position and speed of the 'Particle', w.r.t the animation reference frame,
-    -- that gave birth to this 'Particles'.
-  , _particlesFrame :: !Frame
-    -- ^ The frame at which this 'Particles' was created, relatively to the parent, if any.
+    --  When a 'Right' 'Particle' mutates, it is converted to an empty 'Left' 'ParticleTree'
+  , _particleTreeCenter :: !VecPosSpeed
+    -- ^ The center, aka the position and speed of the 'Particle', w.r.t the particle system reference frame,
+    -- that gave birth to this 'ParticleTree'.
+  , _particleTreeFrame :: !Frame
+    -- ^ The frame at which this 'ParticleTree' was created, relatively to the parent, if any.
 } deriving (Show)
 
 data Particle = Particle {
     _particleCanInteract :: !CanInteract
     -- ^ Can the particle interact with the environment?
   , _particleVecPosSpeed :: {-# UNPACK #-} !VecPosSpeed
-    -- ^ Continuous location and speed, w.r.t the animation reference frame.
+    -- ^ Continuous location and speed, w.r.t the particle system reference frame.
   , _particleDrawnWith :: !Char
     -- ^ The char used to draw the particle.
   , _particleColor :: !LayeredColor
@@ -111,7 +107,7 @@ data Particle = Particle {
 data CanInteract = DontInteract
                  {- ^ The 'Particle' can't interact with the environment.
 
-                 To ensure that the 'Animation' is finite in time,
+                 To ensure that the 'ParticleSystem' is finite in time,
                  particle functions returning 'Particle's that
                  'DontInteract' should return an empty list of 'Particle's
                  for each 'Frame' after a given 'Frame'. -}
@@ -119,12 +115,12 @@ data CanInteract = DontInteract
                  {- ^ The 'Particle' can be mutated after an interaction
                  with the environment.
 
-                 For the animation to be finite in time, 'Particle's that
+                 For the particle system to be finite in time, 'Particle's that
                  'Interact' /must/ eventually be either mutated by the environment
                  or be declared 'TooFar'.
 
                  Hence, particle functions returning 'Particle's that
-                 'Interact' can guarantee animation finitude by computing their
+                 'Interact' can guarantee particle system finitude by computing their
                  coordinates using functions /diverging/ in the 'Frame' argument:
 
                  * if the environment has a finite size, they will eventually mutate

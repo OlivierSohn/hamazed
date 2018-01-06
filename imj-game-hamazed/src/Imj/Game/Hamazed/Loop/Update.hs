@@ -29,9 +29,9 @@ import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
-import           Imj.Graphics.Animation.Design.Types
-import           Imj.Graphics.Animation.Design.Update
-import           Imj.Graphics.Animation
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Update
+import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
@@ -48,7 +48,7 @@ update :: GameParameters
        -> IO GameState
 update
  params
- state@(GameState b world@(World c d space animations e)
+ state@(GameState b world@(World c d space systems e)
                   futWorld f h@(Level level target mayLevelFinished) anim) = \case
   StartLevel nextLevel ->
     mkInitialState params nextLevel (Just state) >>= \case
@@ -62,11 +62,11 @@ update
         let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
         in GameState b world futWorld f newLevel anim
       Nothing -> state
-  (Timeout (Deadline k Animate)) -> do
-    let newAnimations = mapMaybe (\a -> if shouldUpdate a k
-                                                then updateAnimation a
-                                                else Just a) animations
-    return $ GameState b (World c d space newAnimations e) futWorld f h anim
+  (Timeout (Deadline k AnimateParticleSystems)) -> do
+    let newSystems = mapMaybe (\a -> if shouldUpdate a k
+                                        then updateParticleSystem a
+                                        else Just a) systems
+    return $ GameState b (World c d space newSystems e) futWorld f h anim
   (Timeout (Deadline gt MoveFlyingItems)) -> do
     let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim
     return $ onHasMoved movedState gt
@@ -90,25 +90,25 @@ onLaser :: GameState
         -> GameState
 onLaser
   (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
-                     space animations e@(InTerminal _ viewMode view))
+                     space systems e@(InTerminal _ viewMode view))
              futureWorld g level@(Level i target finished)
              (UIAnimation (UIEvolutions j upDown left) k l))
   dir t =
   let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) =
         laserEventAction dir world
-      outerSpaceAnims_ =
+      outerSpaceParticleSystems_ =
          if null destroyedBalls
            then
-             maybe [] (outerSpaceAnims t world) maybeLaserRay
+             maybe [] (outerSpaceParticleSystems t world) maybeLaserRay
            else
             []
-      newAnimations =
-        destroyedNumbersAnimations (Left t) dir world destroyedBalls
-        ++ maybe [] (`laserAnims` t) maybeLaserRay
-        ++ outerSpaceAnims_
+      newSystems =
+        destroyedNumbersParticleSystems (Left t) dir world destroyedBalls
+        ++ maybe [] (`laserParticleSystems` t) maybeLaserRay
+        ++ outerSpaceParticleSystems_
 
       newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions)
-                       space (newAnimations ++ animations) e
+                       space (newSystems ++ systems) e
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
       allShotNumbers = g ++ destroyedNumbers
       newLeft =
@@ -131,17 +131,17 @@ onHasMoved :: GameState
            -> KeyTime
            -> GameState
 onHasMoved
-  (GameState b world@(World balls ship@(BattleShip _ _ safeTime collisions) space animations e)
+  (GameState b world@(World balls ship@(BattleShip _ _ safeTime collisions) space systems e)
              futureWorld shotNums (Level i target finished) anim)
   keyTime@(KeyTime t) =
-  let newAnimations = shipAnims world keyTime
+  let newSystems = shipParticleSystems world keyTime
       remainingBalls =
         if isNothing safeTime
           then
             filter (`notElem` collisions) balls
           else
             balls
-      newWorld = World remainingBalls ship space (newAnimations ++ animations) e
+      newWorld = World remainingBalls ship space (newSystems ++ systems) e
       finishIfShipCollides =
         maybe
           (case map (\(Number _ n) -> n) collisions of
@@ -153,11 +153,11 @@ onHasMoved
   in assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim
 
 
-outerSpaceAnims :: SystemTime
-                -> World
-                -> LaserRay Actual
-                -> [Animation]
-outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
+outerSpaceParticleSystems :: SystemTime
+                          -> World
+                          -> LaserRay Actual
+                          -> [ParticleSystem]
+outerSpaceParticleSystems t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
       dist = distanceToSpace laserTarget space
       char = materialChar Wall
@@ -176,7 +176,7 @@ outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
                     pos = translateInDir dir laserTarget
                     speedAttenuation = 0.3
                     nRebounds = 3
-                in outerSpaceAnims' world NegativeWorldContainer pos dir speedAttenuation nRebounds color char t
+                in outerSpaceParticleSystems' world NegativeWorldContainer pos dir speedAttenuation nRebounds color char t
               else
                 let color _fragment _level (Frame _frame) =
                       if 0 == _fragment `mod` 3
@@ -187,19 +187,19 @@ outerSpaceAnims t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
 --                      LayeredColor (gray 0) $ interpolateCyclic (gray 5) (gray 7) $ quot _frame 4
                     speedAttenuation = 0.4
                     nRebounds = 5
-                in outerSpaceAnims' world (WorldScope Wall) laserTarget dir speedAttenuation nRebounds color char t
+                in outerSpaceParticleSystems' world (WorldScope Wall) laserTarget dir speedAttenuation nRebounds color char t
 
-outerSpaceAnims' :: World
-                 -> Scope
-                 -> Coords Pos
-                 -> Direction
-                 -> Float
-                 -> Int
-                 -> (Int -> Int -> Frame -> LayeredColor)
-                 -> Char
-                 -> SystemTime
-                 -> [Animation]
-outerSpaceAnims' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t =
+outerSpaceParticleSystems' :: World
+                           -> Scope
+                           -> Coords Pos
+                           -> Direction
+                           -> Float
+                           -> Int
+                           -> (Int -> Int -> Frame -> LayeredColor)
+                           -> Char
+                           -> SystemTime
+                           -> [ParticleSystem]
+outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t =
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
       envFuncs = envFunctions world scope
   in  fragmentsFreeFallWithReboundsThenExplode
@@ -207,11 +207,11 @@ outerSpaceAnims' world scope afterLaserEndPoint dir speedAttenuation nRebounds c
         (Speed 1) envFuncs (Left t)
 
 
-laserAnims :: LaserRay Actual
+laserParticleSystems :: LaserRay Actual
            -> SystemTime
-           -> [Animation]
-laserAnims ray t =
-  catMaybes [laserAnimation ray (Left t)]
+           -> [ParticleSystem]
+laserParticleSystems ray t =
+  catMaybes [laserShot ray (Left t)]
 
 
 accelerateShip' :: Direction -> GameState -> GameState

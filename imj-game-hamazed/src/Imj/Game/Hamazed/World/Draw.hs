@@ -17,8 +17,8 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
-import           Imj.Physics.Discrete.Collision
 import           Imj.Graphics.UI.Animation
+import           Imj.Physics.Discrete.Collision
 
 
 {-# INLINABLE drawWorld #-}

@@ -16,14 +16,14 @@ import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.UI.Animation
-import           Imj.Graphics.Animation.Design.Update
+import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Timing
 
 
 {- | Returns the next 'Deadline' to handle.
 
 We prefer having time-accurate game motions for central items of the game
-(the 'BattleShip', the 'Number's) than having time-accurate explosive 'Animation's.
+(the 'BattleShip', the 'Number's) than having time-accurate explosive 'ParticleSystem's.
 
 Hence, when multiple overdue deadlines are competing, the following priorities apply
 (higher number = higher priority):
@@ -37,7 +37,7 @@ Hence, when multiple overdue deadlines are competing, the following priorities a
 	\text{ 4 } & \text{ DisplayContinueMessage } \T & \textit{ Press a key to continue                } \\\hline
   \text{ 3 } & \text{ MoveFlyingItems        } \T & \text{ Move the BattleShip and Numbers          } \\\hline
   \text{ 2 } & \textit{ Player event         } \T & \text{ Handle a key-press                       } \\\hline
-  \text{ 1 } & \text{ Animate                } \T & \text{ Update animations (explosions and others)} \\\hline
+  \text{ 1 } & \text{ AnimateParticleSystems } \T & \text{ Update particle systems                  } \\\hline
 	\end{array}
 \]
 
@@ -45,11 +45,11 @@ When no 'Deadline' is overdue, we return the closest one in time, irrespective
 of its priority.
 -}
 {-We /could/ apply priorities for non-overdue deadlines, too. For example if a
-'MoveFlyingItems' very closely follows an 'Animate' (say, 15 millisecond after),
+'MoveFlyingItems' very closely follows an 'AnimateParticleSystems' (say, 15 millisecond after),
 we could swap their order so as to have a better guarantee that the game motion
 will happen in-time and not be delayed by a potentially heavy animation update.
 But it's very unlikely that it will make a difference, except if updating
-the 'Animation's becomes /very/ slow for some reason.
+the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
 getNextDeadline :: GameState
                 -- ^ Current state
@@ -73,7 +73,7 @@ getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
   catMaybes [ uiAnimationDeadline s
             , messageDeadline level t
             , getMoveFlyingItemsDeadline s
-            , animationDeadline s
+            , particleSystemsDeadline s
             ]
 
 getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
@@ -86,9 +86,9 @@ getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinishe
     (const Nothing)
       levelFinished
 
-animationDeadline :: GameState -> Maybe Deadline
-animationDeadline (GameState _ world _ _ _ _) =
-  maybe Nothing (\ti -> Just $ Deadline ti Animate) $ earliestAnimationDeadline world
+particleSystemsDeadline :: GameState -> Maybe Deadline
+particleSystemsDeadline (GameState _ world _ _ _ _) =
+  maybe Nothing (\ti -> Just $ Deadline ti AnimateParticleSystems) $ earliestAnimationDeadline world
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
 uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
@@ -97,7 +97,7 @@ uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
     (\deadline -> Just $ Deadline deadline AnimateUI)
       $ getUIAnimationDeadline uianim
 
--- | Returns the earliest 'Animation' deadline.
+-- | Returns the earliest 'ParticleSystem' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
 earliestAnimationDeadline (World _ _ _ animations _) =
   earliestKeyTime $ map getDeadline animations

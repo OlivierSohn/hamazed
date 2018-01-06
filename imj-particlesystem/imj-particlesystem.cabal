@@ -1,0 +1,57 @@
+name:                imj-particlesystem
+version:             0.1.0.3
+Category:            ParticleSystem, Game Engine, Graphics, Algorithms
+Synopsis:            ParticleSystem Framework
+Description:         Framework to create event-based, physics-based, composed, generative animations.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-particlesystem/README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md CHANGELOG.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+library
+  hs-source-dirs:      src
+  other-modules:
+  exposed-modules:
+                      -- concrete particle systems
+                       Imj.Graphics.ParticleSystem
+                     , Imj.Graphics.ParticleSystem.Chars
+                     , Imj.Graphics.ParticleSystem.Geo
+                     , Imj.Graphics.ParticleSystem.Internal
+                      -- core
+                     , Imj.Graphics.ParticleSystem.Design.Color
+                     , Imj.Graphics.ParticleSystem.Design.Create
+                     , Imj.Graphics.ParticleSystem.Design.Draw
+                     , Imj.Graphics.ParticleSystem.Design.Timing
+                     , Imj.Graphics.ParticleSystem.Design.Types
+                     , Imj.Graphics.ParticleSystem.Design.Update
+                     , Imj.Graphics.ParticleSystem.Design.UpdateParticles
+  build-depends:       base >= 4.8 && < 4.11
+                     , mtl >= 2.2.1 && < 2.3
+                     , imj-base ==0.1.*
+                     , imj-prelude ==0.1.*
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
+                     -fexcess-precision -optc-ffast-math
+  default-language:    Haskell2010
+
+test-suite imj-particlesystem-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:
+  main-is:             Spec.hs
+  build-depends:       base >= 4.8 && < 4.11
+  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
+                     -fexcess-precision -optc-ffast-math
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-particlesystem

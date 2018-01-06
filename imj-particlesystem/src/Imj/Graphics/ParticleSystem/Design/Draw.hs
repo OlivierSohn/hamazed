@@ -2,8 +2,8 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Design.Draw
-    ( drawAnim
+module Imj.Graphics.ParticleSystem.Design.Draw
+    ( drawSystem
     ) where
 
 
@@ -11,41 +11,36 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-
 import           Data.Either(partitionEithers)
 
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Render
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 
-{- | If an 'Particle' has no specific 'Char' to be drawn with,
-it will be drawn with the 'Char' of the 'Animation'.
 
-Hence, if neither 'Particle' nor 'Animation' contain a 'Char', this function
-errors.-}
-{-# INLINABLE drawAnim #-}
-drawAnim :: (Draw e, MonadReader e m, MonadIO m)
-           => Animation
+{-# INLINABLE drawSystem #-}
+drawSystem :: (Draw e, MonadReader e m, MonadIO m)
+           => ParticleSystem
            -> Coords Pos
            -- ^ Reference coordinates.
            -> m ()
-drawAnim (Animation points _ (EnvFunctions interaction _) (UpdateSpec _ (Iteration _ frameForNextUpdate))) =
+drawSystem (ParticleSystem points _ (EnvFunctions interaction _) (UpdateSpec _ (Iteration _ frameForNextUpdate))) =
   draw' frameForNextUpdate points interaction
 
 {-# INLINABLE draw' #-}
 draw' :: (Draw e, MonadReader e m, MonadIO m)
-        => Frame
-        -> Particles
-        -> (Coords Pos -> InteractionResult)
-        -> Coords Pos
-        -> m ()
-draw' _ (Particles Nothing _ _) _ _   = return ()
-draw' _ (Particles (Just []) _ _) _ _ = return ()
+      => Frame
+      -> ParticleTree
+      -> (Coords Pos -> InteractionResult)
+      -> Coords Pos
+      -> m ()
+draw' _ (ParticleTree Nothing _ _) _ _   = return ()
+draw' _ (ParticleTree (Just []) _ _) _ _ = return ()
 draw'
- parentFrame (Particles (Just branches) _ childFrame) interaction r = do
+ parentFrame (ParticleTree (Just branches) _ childFrame) interaction r = do
   let (children, aliveCoordinates) = partitionEithers branches
       selectDrawnCoordinates =
         filter (\(Particle canInteract (VecPosSpeed coords _) _ _) ->

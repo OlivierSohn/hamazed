@@ -1,6 +1,6 @@
 name:                imj-game-hamazed
 version:             0.1.0.3
-Category:            Animation, Game, Graphics, Education, Application
+Category:            ParticleSystem, Game, Graphics, Education, Application
 Synopsis:            A game with flying numbers and 8-bit color animations.
 Description:         In Hamazed, you are a 'BattleShip' pilot surrounded by flying 'Number's.
                      .
@@ -65,8 +65,8 @@ library
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , vector >= 0.12.0.1 && < 0.12.1
-                     , imj-animation ==0.1.*
-                     , imj-animation ==0.1.*
+                     , imj-particlesystem ==0.1.*
+                     , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
 

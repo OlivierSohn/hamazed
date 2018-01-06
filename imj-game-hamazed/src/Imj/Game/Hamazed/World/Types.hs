@@ -30,7 +30,7 @@ import qualified System.Console.Terminal.Size as Terminal( Window(..))
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Continuous.Types
-import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
@@ -60,8 +60,8 @@ data World = World {
     -- ^ The player's 'BattleShip'
   , _worldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , _worldAnimations :: ![Animation]
-    -- ^ Visual animations. They don't have an influence on the game, they are just here
+  , _worldParticleSystems :: ![ParticleSystem]
+    -- ^ They don't have an influence on the game, they are just here
     -- for aesthetics.
   , _worldEmbedded :: !InTerminal
     -- ^ To know where we should draw the 'World' from, w.r.t terminal frame.

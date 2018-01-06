@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Design.Color
+module Imj.Graphics.ParticleSystem.Design.Color
         ( colorFromFrame
         ) where
 
@@ -12,8 +12,8 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Color.Types
 import           Imj.Iteration
 
--- | Returns the color used to draw an animation, based on the frame number
--- (relative to the parent animation, if any) and a /base/ 'Color8'.
+-- | Returns the color used to draw a 'Particle', based on the frame number
+-- and a /base/ 'Color8'.
 colorFromFrame :: Color8 Foreground
                -- ^ Base color, expected to be an rgb with r <= 6, g <= 5, b <= 4.
                -> Frame

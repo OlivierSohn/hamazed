@@ -2,7 +2,7 @@
 
 -- | Functions and types around the notion of iteration.
 --
--- Iterations are used for animations ("Imj.Graphics.Animation.Design") and
+-- Iterations are used for animations ("Imj.Graphics.ParticleSystem.Design") and
 -- evolutions ("Imj.Graphics.Interpolation.Evolution").
 {-# LANGUAGE GeneralizedNewtypeDeriving, NoImplicitPrelude #-}
 

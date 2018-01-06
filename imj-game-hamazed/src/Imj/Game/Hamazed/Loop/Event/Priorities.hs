@@ -19,4 +19,4 @@ deadlinePriority :: DeadlineType -> Int
 deadlinePriority AnimateUI              = playerEventPriority + 30
 deadlinePriority DisplayContinueMessage = playerEventPriority + 20
 deadlinePriority MoveFlyingItems        = playerEventPriority + 10
-deadlinePriority Animate                = playerEventPriority - 10
+deadlinePriority AnimateParticleSystems = playerEventPriority - 10

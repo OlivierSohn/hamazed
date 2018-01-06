@@ -3,11 +3,9 @@
 resolver: lts-10.0
 
 packages:
-- './imj-prelude'
-- './imj-base'
-- './imj-particlesystem'
-- './imj-game-hamazed'
-- './imj-measure-stdout'
+- '.'
+- '../imj-prelude'
+- '../imj-base'
 
 extra-deps: []
 

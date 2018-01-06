@@ -26,8 +26,6 @@ or such that only one of the number should be ruled out?
 
 - use a dedicated animation for world swap, and then one for game start
 
-- verify timing for ship safety when transitioning, currently it starts from beginning of animation!
-
 - for world with rectangular shape, the walls become visible at the other side of the fronteer
 on animations. Maybe we should animate the world too, or use a scissor of the shape of the morphed
 frame when drawing it.
@@ -69,7 +67,7 @@ This relaxes the constraint on having a single connected component.
 hitting a key (the key should be present also in the other room)
 - or each room has an objective number, once the objective is reached, a door opens to the next room
 
-## Animation Design
+## ParticleSystem Design
 
 ## Playability
 - do not count duplicate laser shots in same motion step, it's "unfair".

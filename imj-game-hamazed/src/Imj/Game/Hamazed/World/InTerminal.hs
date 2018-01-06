@@ -17,6 +17,7 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.RectArea
 
+
 -- | Minimal margin between the upper left corner of the console
 --   and upper left corner of the world
 minimalWorldMargin :: Int

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Geo
+module Imj.Graphics.ParticleSystem.Geo
     ( particlesFreefall
     , gravityExplosionGeo
     , particlesExplosion
@@ -24,7 +24,7 @@ import           Data.List( length )
 import           Imj.GameItem.Weapon.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 

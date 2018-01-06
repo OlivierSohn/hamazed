@@ -10,7 +10,7 @@ module Imj.Game.Hamazed.Loop.Event.Types
         , MetaAction(..)
         -- * Reexports (for haddock hyperlinks)
         , module Imj.Game.Hamazed.World.Types
-        , module Imj.Graphics.Animation.Design.Create
+        , module Imj.Graphics.ParticleSystem.Design.Create
         ) where
 
 import           Imj.Prelude
@@ -18,7 +18,7 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Create
+import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Timing
 
 -- | A foreseen game or animation update.
@@ -50,8 +50,8 @@ data MetaAction = Quit
 data DeadlineType = MoveFlyingItems
                   -- ^ Move 'Number's and 'BattleShip' according to their current
                   -- speeds.
-                  | Animate
-                  -- ^ Update one or more 'Animation's.
+                  | AnimateParticleSystems
+                  -- ^ Update one or more 'ParticleSystem's.
                   | DisplayContinueMessage
                   -- ^ Show the /Hit a key to continue/ message
                   | AnimateUI

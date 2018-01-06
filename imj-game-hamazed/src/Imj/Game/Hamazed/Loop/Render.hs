@@ -16,8 +16,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Types
-import           Imj.Graphics.Animation.Design.Draw
+import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.UI.RectArea
 
 -- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid
@@ -41,22 +40,10 @@ render (GameState _ world@(World _ _ space animations (InTerminal _ mode view@(R
   fill (materialChar Wall) outerWallsColors
   -- draw the matrix:
   drawSpace space worldCorner
-  drawAnimations worldCorner animations
+  mapM_ (`drawSystem` worldCorner) animations
   drawWorld world worldCorner
   drawUIAnimation offset wa -- draw it after the world so that when it morphs
                             -- it goes over numbers and ship
   -- draw last so that the message is clearly visible:
   drawLevelMessage level (rectAreaCenter view)
   renderToScreen
-
-{-# INLINABLE drawAnimations #-}
-drawAnimations :: (Draw e, MonadReader e m, MonadIO m)
-                 => Coords Pos
-                 -> [Animation]
-                 -> m ()
-drawAnimations worldCorner animations = do
-  let drawAnimation a = drawAnim a worldCorner
-  -- animations are relative to the (moving) worldcorner.
-  -- we should split animations in 2 : relative to the world, relative to the terminal.
-  --
-  mapM_ drawAnimation animations

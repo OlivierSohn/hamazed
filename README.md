@@ -18,7 +18,7 @@ on the game engine side.
   - Also contains a "delta renderer" that could be useful for anyone writing a game for the terminal,
   with animations, and wanting to avoid screen tearing.
   - Also contains an executable that can be run to see examples of text animation.
-- imj-animation
+- imj-particlesystem
   - A library to create animations.
 - imj-game-hamazed
   - The game, using the two libraries above.
@@ -57,7 +57,7 @@ the result of a morphing between 2 'v' is a graphical representation
 
 ## A comparison between Animations and Morphings
 
-There are two ways to "animate things graphically" : Animations (Animation in imj-animation)
+There are two ways to "animate things graphically" : Animations (ParticleSystem in imj-particlesystem)
 and morphings (DiscreteMorphing, DiscreteColorableMorphing in imj-base).
 
 Both share the fact that they "animate items" across time, yet they are deeply different in

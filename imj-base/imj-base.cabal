@@ -1,6 +1,6 @@
 name:                imj-base
 version:             0.1.0.3
-Category:            Animation, Game Engine, Graphics, Algorithms, Mathematics,
+Category:            ParticleSystem, Game Engine, Graphics, Algorithms, Mathematics,
                      Optimisation, Optimization, User Interface, Terminal
 Synopsis: Game engine with geometry, easing, animated text, delta rendering.
 Description:         Game engine that is intended to help implementing games

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation.Chars
+module Imj.Graphics.ParticleSystem.Chars
     ( niceChar
     -- * Reexports
     , Word8
@@ -12,7 +12,7 @@ import           Imj.Prelude
 
 import           Data.Word(Word8)
 
--- | Returns one of the characters that /look good/ for explosive animations.
+-- | Returns one of the characters that /look good/ for explosive particle systems.
 niceChar :: Word8
          -- ^ We take the modulo of that value
          -> Char

@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Hamazed.World.Ship
-        ( shipAnims
+        ( shipParticleSystems
         , createShipPos
         ) where
 
@@ -17,18 +17,17 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
-import           Imj.Graphics.Animation
+import           Imj.Graphics.ParticleSystem
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.
 
-The ship animation will have the initial speed of the number and vice-versa,
-to mimic the rebound due to the collision.
--}
-shipAnims :: World
-          -> KeyTime
-          -> [Animation]
-shipAnims world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _ _) k =
+The ship 'ParticleSystem' will have the initial speed of the number and vice-versa,
+to mimic the rebound due to the collision. -}
+shipParticleSystems :: World
+                    -> KeyTime
+                    -> [ParticleSystem]
+shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _ _) k =
   if not (null collisions) && isNothing safeTime
     then
       -- when number and ship explode, they exchange speeds

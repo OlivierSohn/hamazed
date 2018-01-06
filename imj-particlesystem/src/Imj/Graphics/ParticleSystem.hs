@@ -1,46 +1,40 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Graphics.Animation
+module Imj.Graphics.ParticleSystem
     (
+    -- * Principal types
+      {- | A 'ParticleSystem' handles 'Particle's living in a 'ParticleTree'.-}
+      ParticleSystem(..)
+    , ParticleTree(..)
+    , Particle(..)
     -- * Particle functions
-    {- | In their pre-applied form ('VecPosSpeed' -> 'Frame' -> ['Particle']),
-    /particle functions/ are used by an 'Animation' to produce 'Particle's.
+    {- | 'Particle's are produced by /particle functions/ which should enforce the following rules:
 
-    A /particle function/ may return either:
-
-    * a constant number of 'Particle's across 'Frame's,
-    * or 0 'Particle' to indicate that it will not produce any more 'Particle' in
-    future 'Frame's.
-
-    During an 'Animation' update, a 'Particle' produced by a /particle function/
-    'CanInteract' with its environment, or be removed from the animation, if it is
-    too far away (cf. 'EnvFunctions'). -}
-      particles
+      * For every 'Frame', they produce a constant number of 'Particle's, and
+      same-index 'Particle's are correlated,
+      * until they (maybe) produce 0 'Particle' to indicate the end of the production. -}
+    , particles
     , particlesFreefall
     , particlesExplosion
     , particlesPolygonExpandShrink
     , particlesLaser
-     -- * Animation
-    , Animation
-      {- | An 'Animation' generates 'Particle's: -}
-    , Particle(..)
-      -- | An 'Particle' can interact with its environment using 'EnvFunctions':
+     -- * ParticleSystem
+      -- ** Create
+    , mkSystem
+    -- ** Update
+      {- | During 'ParticleSystem' update, 'Particle's can interact
+      ('CanInteract') with their environment, or be removed from the 'ParticleSystem'
+       if they are too far away ('TooFar'). -}
     , EnvFunctions(..)
     , CanInteract(..)
-    , Distance(..)
     , InteractionResult(..)
-      {- | 'Particle's live in a
-      <https://en.wikipedia.org/wiki/Tree_(graph_theory) tree-like structure>: -}
-    , Particles(..)
-      -- ** Create
-    , mkAnimation
-    -- ** Update
+    , Distance(..)
     , getDeadline
     , shouldUpdate
-    , updateAnimation
+    , updateParticleSystem
     -- ** Render
-    , drawAnim
-    -- * Predefined animations
+    , drawSystem
+    -- * Predefined ParticleSystems
     -- ** Explosive
     , simpleExplosion
     , quantitativeExplosionThenSimpleExplosion
@@ -68,13 +62,13 @@ module Imj.Graphics.Animation
     , fragmentsFreeFallWithReboundsThenExplode
     -- ** Geometric
     , expandShrinkPolygon
-    , laserAnimation
+    , laserShot
     -- ** Nice chars
     {-| 'niceChar' presents a list of 'Char's that /look good/
-    when used in explosive and free fall animations. -}
+    when used in explosive and free fall particle systems. -}
     , niceChar
     -- * Internal
-    , module Imj.Graphics.Animation.Internal
+    , module Imj.Graphics.ParticleSystem.Internal
     -- * Reexports
     , module Imj.Timing
     , module Imj.Iteration
@@ -86,15 +80,15 @@ import           Imj.Prelude
 import           Imj.GameItem.Weapon.Laser.Types
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Chars
-import           Imj.Graphics.Animation.Design.Create
-import           Imj.Graphics.Animation.Design.Color
-import           Imj.Graphics.Animation.Design.Draw
-import           Imj.Graphics.Animation.Design.Timing
-import           Imj.Graphics.Animation.Design.Types
-import           Imj.Graphics.Animation.Design.Update
-import           Imj.Graphics.Animation.Geo
-import           Imj.Graphics.Animation.Internal
+import           Imj.Graphics.ParticleSystem.Chars
+import           Imj.Graphics.ParticleSystem.Design.Create
+import           Imj.Graphics.ParticleSystem.Design.Color
+import           Imj.Graphics.ParticleSystem.Design.Draw
+import           Imj.Graphics.ParticleSystem.Design.Timing
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Update
+import           Imj.Graphics.ParticleSystem.Geo
+import           Imj.Graphics.ParticleSystem.Internal
 import           Imj.Graphics.Color
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
@@ -103,47 +97,47 @@ import           Imj.Timing
 defaultColors :: Frame -> LayeredColor
 defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
 
--- | A laser ray animation, with a fade-out effect.
-laserAnimation :: LaserRay Actual
-               -- ^ The laser ray
-               -> Either SystemTime KeyTime
-               -- ^ 'Right' 'KeyTime' of the event's deadline
-               -- that triggered this animation, or 'Left' 'SystemTime'
-               -- of the current time if a player action triggered this animation
-               -> Maybe Animation
-laserAnimation ray@(LaserRay _ start len) keyTime
+-- | Creates a 'ParticleSystem' representing a laser ray with a fade-out effect.
+laserShot :: LaserRay Actual
+          -- ^ The laser ray
+          -> Either SystemTime KeyTime
+          -- ^ 'Right' 'KeyTime' of the event's deadline
+          -- that triggered this call, or 'Left' 'SystemTime'
+          -- of the current time if a player action triggered this call
+          -> Maybe ParticleSystem
+laserShot ray@(LaserRay _ start len) keyTime
   | len == 0  = Nothing
-  | otherwise = mkAnimation posspeed [particlesLaser ray defaultColors] (Speed 1) envFunctions keyTime
+  | otherwise = mkSystem posspeed [particlesLaser ray defaultColors] (Speed 1) envFunctions keyTime
  where
   -- speed doesn't matter to 'particlesLaser'
   posspeed = mkStaticVecPosSpeed $ pos2vec start
   envFunctions = EnvFunctions (const Stable) (const DistanceOK)
 
--- | An animation chaining two circular explosions, the first explosion
+-- | Creates a 'ParticleSystem' chaining two circular explosions, the first explosion
 -- can be configured in number of particles, the second has 32 particles.
 quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Number of particles in the first explosion
                                          -> Coords Pos
                                          -- ^ Center of the first explosion
                                          -> Char
-                                         -- ^ Character used when drawing the animation.
+                                         -- ^ Character used when drawing the 'Particle'.
                                          -> Speed
-                                         -- ^ Animation speed
+                                         -- ^ ParticleSystem speed
                                          -> EnvFunctions
                                          -> Either SystemTime KeyTime
                                          -- ^ 'Right' 'KeyTime' of the event's deadline
-                                         -- that triggered this animation, or 'Left' 'SystemTime'
-                                         -- of the current time if a player action triggered this animation
-                                         -> Maybe Animation
+                                         -- that triggered this call, or 'Left' 'SystemTime'
+                                         -- of the current time if a player action triggered this call
+                                         -> Maybe ParticleSystem
 quantitativeExplosionThenSimpleExplosion num pos char =
   let firstAngle = 2*pi / 5
       funcs = [ particles (explosion num firstAngle) zeroForceMotion Interact char defaultColors
               , particles (explosion 32 0) zeroForceMotion Interact char defaultColors]
        -- speed doesn't matter to 'particlesExplosionByCircle' and 'particlesExplosionByQuartArcs':
       posspeed = mkStaticVecPosSpeed $ pos2vec pos
-  in mkAnimation posspeed funcs
+  in mkSystem posspeed funcs
 
--- | An animation where a geometric figure (polygon or circle) expands then shrinks,
+-- | Creates a 'ParticleSystem' where a geometric figure (polygon or circle) expands then shrinks,
 -- and doesn't interact with the environment.
 expandShrinkPolygon :: Int
                     -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
@@ -151,14 +145,14 @@ expandShrinkPolygon :: Int
                     -- ^ Center of the polygon (or circle)
                     -> Speed
                     -> EnvFunctions
-                    -- ^ Animation speed
+                    -- ^ ParticleSystem speed
                     -> Either SystemTime KeyTime
                     -- ^ 'Right' 'KeyTime' of the event's deadline
-                    -- that triggered this animation, or 'Left' 'SystemTime'
-                    -- of the current time if a player action triggered this animation
-                    -> Maybe Animation
+                    -- that triggered this call, or 'Left' 'SystemTime'
+                    -- of the current time if a player action triggered this call
+                    -> Maybe ParticleSystem
 expandShrinkPolygon n pos =
-  mkAnimation posspeed funcs
+  mkSystem posspeed funcs
  where
   -- speed doesn't matter to 'particlesPolygonExpandShrink'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
@@ -170,42 +164,42 @@ simpleExplosion :: Int
                 -> Coords Pos
                 -- ^ Center of the explosion
                 -> Char
-                -- ^ Character used when drawing the animation.
+                -- ^ Character used when drawing the 'Particle'.
                 -> Speed
-                -- ^ Animation speed
+                -- ^ ParticleSystem speed
                 -> EnvFunctions
                 -> Either SystemTime KeyTime
                 -- ^ 'Right' 'KeyTime' of the event's deadline
-                -- that triggered this animation, or 'Left' 'SystemTime'
-                -- of the current time if a player action triggered this animation
-                -> Maybe Animation
+                -- that triggered this call, or 'Left' 'SystemTime'
+                -- of the current time if a player action triggered this call
+                -> Maybe ParticleSystem
 simpleExplosion resolution pos char =
-  mkAnimation posspeed funcs
+  mkSystem posspeed funcs
  where
   -- speed doesn't matter to 'simpleExplosion'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
   funcs = [particles (explosion resolution 0) zeroForceMotion Interact char defaultColors]
 
--- | Animation representing an object with an initial velocity disintegrating in
+-- | ParticleSystem representing an object with an initial velocity disintegrating in
 -- 4 different parts.
 fragmentsFreeFall :: Vec2 Vel
                   -- ^ Initial speed
                   -> Coords Pos
                   -- ^ Initial position
                   -> Char
-                  -- ^ Character used when drawing the animation.
+                  -- ^ Character used when drawing the 'Particle'.
                   -> Speed
-                  -- ^ Animation speed
+                  -- ^ ParticleSystem speed
                   -> EnvFunctions
                   -> Either SystemTime KeyTime
                   -- ^ 'Right' 'KeyTime' of the event's deadline
-                  -- that triggered this animation, or 'Left' 'SystemTime'
-                  -- of the current time if a player action triggered this animation
-                  -> [Animation]
+                  -- that triggered this call, or 'Left' 'SystemTime'
+                  -- of the current time if a player action triggered this call
+                  -> [ParticleSystem]
 fragmentsFreeFall speed pos char animSpeed envFuncs keyTime =
   mapMaybe (\sp -> freeFall sp pos char animSpeed envFuncs keyTime) $ variations speed
 
--- | Animation representing an object with an initial velocity disintegrating in
+-- | ParticleSystem representing an object with an initial velocity disintegrating in
 -- 4 different parts and rebounding several times until it explodes.
 fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -- ^ Initial speed
@@ -218,15 +212,15 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> (Int -> Int -> Frame -> LayeredColor)
                                          -- ^ fragment index -> particle function level -> relative frame -> color
                                          -> Char
-                                         -- ^ Character used when drawing the animation.
+                                         -- ^ Character used when drawing the 'Particle'.
                                          -> Speed
-                                         -- ^ Animation speed
+                                         -- ^ ParticleSystem speed
                                          -> EnvFunctions
                                          -> Either SystemTime KeyTime
                                          -- ^ 'Right' 'KeyTime' of the event's deadline
-                                         -- that triggered this animation, or 'Left' 'SystemTime'
-                                         -- of the current time if a player action triggered this animation
-                                         -> [Animation]
+                                         -- that triggered this call, or 'Left' 'SystemTime'
+                                         -- of the current time if a player action triggered this call
+                                         -> [ParticleSystem]
 fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char animSpeed envFuncs keyTime =
   if velAtt <= 0
     then
@@ -238,28 +232,28 @@ fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs c
               sp pos velAtt nRebounds (colorFuncs idx) char animSpeed envFuncs keyTime)
         $ zip [0..] $ variations speed
 
--- | A gravity-based free-falling animation.
+-- | Creates a 'ParticleSystem' simulating a gravity-based free-falling 'Particle'.
 freeFall :: Vec2 Vel
          -- ^ Initial speed
          -> Coords Pos
          -- ^ Initial position
          -> Char
-         -- ^ Character used when drawing the animation.
+         -- ^ Character used when drawing the 'Particle'.
          -> Speed
-         -- ^ Animation speed
+         -- ^ ParticleSystem speed
          -> EnvFunctions
          -> Either SystemTime KeyTime
          -- ^ 'Right' 'KeyTime' of the event's deadline
-         -- that triggered this animation, or 'Left' 'SystemTime'
-         -- of the current time if a player action triggered this animation
-         -> Maybe Animation
+         -- that triggered this call, or 'Left' 'SystemTime'
+         -- of the current time if a player action triggered this call
+         -> Maybe ParticleSystem
 freeFall speed pos char =
-  mkAnimation posspeed funcs
+  mkSystem posspeed funcs
  where
   posspeed = VecPosSpeed (pos2vec pos) speed
   funcs = [particlesFreefall 1 Interact char defaultColors]
 
--- | A gravity-based free-falling animation, with several rebounds and a final
+-- | Same as 'freeFall', with several rebounds and a final
 -- explosion.
 freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- ^ Initial speed
@@ -272,43 +266,43 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -> (Int -> Frame -> LayeredColor)
                                 -- ^ (particle function level -> relative frame -> color)
                                 -> Char
-                                -- ^ Character used when drawing the animation.
+                                -- ^ Character used when drawing the 'Particle'.
                                 -> Speed
-                                -- ^ Animation speed
+                                -- ^ ParticleSystem speed
                                 -> EnvFunctions
                                 -> Either SystemTime KeyTime
                                 -- ^ 'Right' 'KeyTime' of the event's deadline
-                                -- that triggered this animation, or 'Left' 'SystemTime'
-                                -- of the current time if a player action triggered this animation
-                                -> Maybe Animation
+                                -- that triggered this call, or 'Left' 'SystemTime'
+                                -- of the current time if a player action triggered this call
+                                -> Maybe ParticleSystem
 freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char =
   if velAtt <= 0
     then
       error "velocity attenuation should be > 0"
     else
-      mkAnimation posspeed funcs
+      mkSystem posspeed funcs
  where
   posspeed = VecPosSpeed (pos2vec pos) $ scalarProd (recip velAtt) speed
   nFragments = 16
   funcs = map (particlesFreefall velAtt Interact char . colorFuncs) [0..pred nRebounds]
           ++ [particles (explosion nFragments (pi/16)) gravityMotion Interact char (colorFuncs nRebounds)]
 
--- | Animation representing an object with an initial velocity disintegrating in
--- 4 different parts free-falling and then exploding.
+-- | Creates a 'ParticleSystem' representing an object with an initial velocity disintegrating in
+-- 4 different 'Particle's free-falling and then exploding.
 fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
                              -> Coords Pos
                              -- ^ Initial position
                              -> Char
-                             -- ^ Character used when drawing the animation.
+                             -- ^ Character used when drawing the 'Particle'.
                              -> Speed
-                             -- ^ Animation speed
+                             -- ^ ParticleSystem speed
                              -> EnvFunctions
                              -> Either SystemTime KeyTime
                              -- ^ 'Right' 'KeyTime' of the event's deadline
-                             -- that triggered this animation, or 'Left' 'SystemTime'
-                             -- of the current time if a player action triggered this animation
-                             -> [Animation]
+                             -- that triggered this call, or 'Left' 'SystemTime'
+                             -- of the current time if a player action triggered this call
+                             -> [ParticleSystem]
 fragmentsFreeFallThenExplode speed pos c s envFuncs k =
   mapMaybe (\sp -> freeFallThenExplode sp pos c s envFuncs k) $ variations speed
 
@@ -320,22 +314,23 @@ variations sp =
                     , Vec2 (-0.04)  0.36
                     , Vec2 0.48     0.08]
 
--- | An animation chaining a gravity-based free-fall and a circular explosion of 32 particles.
+-- | Creates a 'ParticleSystem' by chaining a gravity-based free-fall and a
+-- circular explosion of 32 particles.
 freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
                     -> Coords Pos
                     -- ^ Initial position
                     -> Char
-                    -- ^ Character used when drawing the animation.
+                    -- ^ Character used when drawing the 'Particle'.
                     -> Speed
-                    -- ^ Animation speed
+                    -- ^ ParticleSystem speed
                     -> EnvFunctions
                     -> Either SystemTime KeyTime
                     -- ^ 'Right' 'KeyTime' of the event's deadline
-                    -- that triggered this animation, or 'Left' 'SystemTime'
-                    -- of the current time if a player action triggered this animation
-                    -> Maybe Animation
+                    -- that triggered this call, or 'Left' 'SystemTime'
+                    -- of the current time if a player action triggered this call
+                    -> Maybe ParticleSystem
 freeFallThenExplode speed pos char =
   let funcs = [ particlesFreefall 1.0 Interact char defaultColors
               , particles (explosion 32 0) zeroForceMotion Interact char defaultColors]
-  in mkAnimation (VecPosSpeed (pos2vec pos) speed) funcs
+  in mkSystem (VecPosSpeed (pos2vec pos) speed) funcs

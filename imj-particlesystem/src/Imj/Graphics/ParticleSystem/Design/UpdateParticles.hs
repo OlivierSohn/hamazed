@@ -3,7 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Graphics.Animation.Design.UpdateParticles
+module Imj.Graphics.ParticleSystem.Design.UpdateParticles
     ( updateParticles
     ) where
 
@@ -15,7 +15,7 @@ import           Data.Maybe( fromMaybe )
 
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.Animation.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Color
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Collision
@@ -23,33 +23,33 @@ import           Imj.Physics.Continuous.Types
 
 
 {- | Given a length \( n \) list of particle functions, updates the \( n \)
-first levels of a 'Particles' using one particle function per level.
+first levels of a 'ParticleTree' using one particle function per level.
 
-An 'Particle' at level \( k <= n \) can mutate to a 'Particles' by
+An 'Particle' at level \( k <= n \) can mutate to a 'ParticleTree' by
 interacting with its environment:
 
-* if \( k = n \) , the new 'Particles' will remain empty.
-* if \( k < n \), the new 'Particles' will be populated by 'Particles'
+* if \( k = n \) , the new 'ParticleTree' will remain empty.
+* if \( k < n \), the new 'ParticleTree' will be populated by 'ParticleTree'
 using the \( k+1 \)th particle function.
 -}
 updateParticles :: [VecPosSpeed -> Frame -> [Particle]]
-                     -- ^ The particle function at index @i@ updates
-                     -- 'Particles' at level @i@.
-                     -> EnvFunctions
-                     -> Frame
-                     -- ^ Current iteration
-                     -> Particles
-                     -> Particles
+                -- ^ The particle function at index @i@ updates
+                -- 'ParticleTree' at level @i@.
+                -> EnvFunctions
+                -> Frame
+                -- ^ Current iteration
+                -> ParticleTree
+                -> ParticleTree
 updateParticles [] _ _ aps = aps
 updateParticles
  (f:fs)
  envFuncs@(EnvFunctions _ distance)
  globalFrame
- original@(Particles branches center@(VecPosSpeed cPos _) startFrame) =
+ original@(ParticleTree branches center@(VecPosSpeed cPos _) startFrame) =
   let relativeFrame = globalFrame - startFrame
       branchesLevel1Mutated = updatePointsAndMutateIfNeeded f center relativeFrame envFuncs branches
       newBranches = map (\case
-                            -- recurse for the 'Particles's
+                            -- recurse for the 'ParticleTree's
                             Left aps -> Left $ updateParticles fs envFuncs relativeFrame aps
                             -- the 'Particle's are already up-to-date due to updatePointsAndMutateIfNeeded:
                             Right ap -> Right ap
@@ -59,66 +59,65 @@ updateParticles
          -- do not develop this branch, as its center is too far.
          original
        else
-         Particles (Just newBranches) center startFrame
+         ParticleTree (Just newBranches) center startFrame
 
 
--- | Doesn't change the existing /level 1/ 'Particles's, but can convert some
--- 'Particle's to 'Particles's.
+-- | Doesn't change the existing /level 1/ 'ParticleTree's, but can convert some
+-- 'Particle's to 'ParticleTree's.
 updatePointsAndMutateIfNeeded :: (VecPosSpeed -> Frame -> [Particle])
                               -- ^ Geometric particle function
                               -> VecPosSpeed
-                              -- ^ Center of the animation
                               -> Frame
                               -- ^ Relative frame
                               -> EnvFunctions
-                              -> Maybe [Either Particles Particle]
+                              -> Maybe [Either ParticleTree Particle]
                               -- ^ Current branches
-                              -> [Either Particles Particle]
+                              -> [Either ParticleTree Particle]
                               -- ^ Updated branches
 updatePointsAndMutateIfNeeded
- animation root@(VecPosSpeed rootPos _) frame envFunctions@(EnvFunctions interaction _) branches =
-  let points = animation (assert (interaction (vec2pos rootPos) == Stable) root) frame
+ mkParticles root@(VecPosSpeed rootPos _) frame envFunctions@(EnvFunctions interaction _) branches =
+  let particles = mkParticles (assert (interaction (vec2pos rootPos) == Stable) root) frame
       defaultState = map (\(Particle canInteract _ _ _) ->
                             Right $ Particle canInteract root ' ' whiteOnBlack)
-                        points
+                        particles
       previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.
       -- I wonder if lazyness takes care of that or not?
-  in combine points previousState frame envFunctions
+  in combine particles previousState frame envFunctions
 
 combine :: [Particle]
-        -> [Either Particles Particle]
+        -> [Either ParticleTree Particle]
         -> Frame
         -> EnvFunctions
-        -> [Either Particles Particle]
-combine points previousState frame interaction =
-  let check = allowedPointCountVariation (length previousState) (length points)
+        -> [Either ParticleTree Particle]
+combine particles previousState frame interaction =
+  let check = allowedPointCountVariation (length previousState) (length particles)
   in  assert check $
       zipWith
-        (combinePoints interaction frame)
-        points previousState
+        (combineParticles interaction frame)
+        particles previousState
 
-combinePoints :: EnvFunctions
-              -> Frame
-              -> Particle
-              -> Either Particles Particle
-              -> Either Particles Particle
-combinePoints (EnvFunctions interaction distance) frame point@(Particle onWall cur@(VecPosSpeed curPos _) _ _) =
+combineParticles :: EnvFunctions
+                 -> Frame
+                 -> Particle
+                 -> Either ParticleTree Particle
+                 -> Either ParticleTree Particle
+combineParticles (EnvFunctions interaction distance) frame particle@(Particle onWall cur@(VecPosSpeed curPos _) _ _) =
   either
     Left
     (\(Particle prevOnWall prev _ _) ->
       case assert (prevOnWall == onWall) onWall of
-        DontInteract -> Right point
+        DontInteract -> Right particle
         Interact ->
           case distance curPos of
-            TooFar -> Left $ Particles Nothing cur frame
+            TooFar -> Left $ ParticleTree Nothing cur frame
             DistanceOK ->
               -- Since the environment is static, we can drop the first point of the trajectory,
               -- because we know by design that it doesn't collide. This assert verifies that:
               maybe
-                 (Right $ assert (interaction (vec2pos curPos) == Stable) point)
+                 (Right $ assert (interaction (vec2pos curPos) == Stable) particle)
                  (\preCollisionMirrored ->
-                    Left $ Particles Nothing preCollisionMirrored frame)
+                    Left $ ParticleTree Nothing preCollisionMirrored frame)
                  $ getCoordsBeforeMutation' prev cur interaction
     )
 
@@ -234,8 +233,8 @@ getCoordsBeforeMutation (a:as@(b:_)) interaction i =
 
 {- | Verifies that the variation in number of points is allowed:
 
-The number of points generated by a particular /particle function/ should be constant,
-or change from non-zero to 0 to signify the end of the animation. -}
+The number of 'Particle's generated by a particular /particle function/ should be constant,
+or change from non-zero to 0 to signify the end of the production. -}
 allowedPointCountVariation :: Int
                            -- ^ From
                            -> Int

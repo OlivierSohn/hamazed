@@ -15,7 +15,6 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
-import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.UI.RectArea
 
@@ -24,18 +23,10 @@ import           Imj.Graphics.UI.RectArea
 {-# INLINABLE render #-}
 render :: (Render e, MonadReader e m, MonadIO m)
        => GameState -> m ()
-render (GameState _ world@(World _ _ space animations (InTerminal _ mode view@(RectArea from to)))
+render (GameState _ world@(World _ _ space animations (InTerminal _ _ view))
                   _ _ level wa) = do
-  let getOffset (World _ (BattleShip (PosSpeed shipPos _) _ _ _) _ _ _) =
-          let (Coords h w) = diffCoords to from
-              screenCenter = Coords (quot h 2) (quot w 2)
-          in case mode of
-              CenterSpace -> zeroCoords
-              CenterShip  -> diffCoords screenCenter shipPos
-      offset = getOffset world
-      curUpperLeft = translate from offset
-      worldCorner = translate' 1 1 curUpperLeft
-
+  let offset = getWorldOffset world
+      worldCorner = getWorldCorner world offset
   -- draw the walls outside the matrix:
   fill (materialChar Wall) outerWallsColors
   -- draw the matrix:

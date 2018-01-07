@@ -14,6 +14,9 @@ module Imj.Game.Hamazed.World.Types
         , ViewMode(..)
         , computeViewDistances
         , envFunctions
+        , scopedLocation
+        , getWorldCorner
+        , getWorldOffset
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -25,11 +28,12 @@ module Imj.Game.Hamazed.World.Types
 
 import           Imj.Prelude
 
-import qualified System.Console.Terminal.Size as Terminal( Window(..))
+import qualified System.Console.Terminal.Size as Terminal(Window(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Continuous.Types
+import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
@@ -109,8 +113,8 @@ data Number = Number {
 
 -- | An interaction function taking into account a 'World' and 'Scope'
 environmentInteraction :: World -> Scope -> Coords Pos -> InteractionResult
-environmentInteraction (World _ _ space _ _) scope =
-  scopedLocation space scope >>> \case
+environmentInteraction world scope =
+  scopedLocation world scope >>> \case
     InsideWorld  -> Stable
     OutsideWorld -> Mutation
 
@@ -127,3 +131,50 @@ envDistance (Vec2 x y) =
 envFunctions :: World -> Scope -> EnvFunctions
 envFunctions world scope =
   EnvFunctions (environmentInteraction world scope) envDistance
+
+
+
+scopedLocation :: World
+               -> Scope
+               -- ^ The scope
+               -> Coords Pos
+               -- ^ The coordinates to test
+               -> Location
+scopedLocation world@(World _ _ space@(Space _ sz _) _ (InTerminal mayTermSize _ _)) = \case
+  WorldScope mat -> (\pos -> if worldArea `contains` pos && mat == unsafeGetMaterial pos space
+                               then
+                                 InsideWorld
+                               else
+                                 OutsideWorld)
+  NegativeWorldContainer -> (\pos -> if worldViewArea `contains` pos
+                                      then
+                                        OutsideWorld
+                                      else
+                                        maybe
+                                          InsideWorld
+                                          (\szTerm -> if szTerm `termContains` pos
+                                                        then
+                                                          InsideWorld
+                                                        else
+                                                          OutsideWorld)
+                                          mayTermSize)
+ where
+  worldArea = mkRectArea zeroCoords sz
+  worldViewArea = growRectArea 1 worldArea
+  termContains (Terminal.Window h w) pos =
+    let corner = getWorldCorner world $ getWorldOffset world
+        (Coords r c) = sumCoords pos corner
+    in r < fromIntegral h && c >= 0 && c < fromIntegral w
+
+getWorldOffset :: World -> Coords Pos
+getWorldOffset (World _ (BattleShip (PosSpeed shipPos _) _ _ _) _ _ (InTerminal _ mode (RectArea from to))) =
+  let (Coords h w) = diffCoords to from
+      screenCenter = Coords (quot h 2) (quot w 2)
+  in case mode of
+       CenterSpace -> zeroCoords
+       CenterShip  -> diffCoords screenCenter shipPos
+
+getWorldCorner :: World -> Coords Pos -> Coords Pos
+getWorldCorner (World _ _ _ _ (InTerminal _ _ (RectArea from _))) offset =
+  let curUpperLeft = translate from offset
+  in translate' 1 1 curUpperLeft

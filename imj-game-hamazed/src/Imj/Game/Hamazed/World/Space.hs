@@ -15,10 +15,10 @@ module Imj.Game.Hamazed.World.Space
     , Strategy(..)
     , location
     , distanceToSpace
-    , scopedLocation
     , Scope(..)
     , drawSpace
     , createRandomNonCollidingPosSpeed
+    , unsafeGetMaterial
     -- * Reexports
     , module Imj.Graphics.Render
     ) where
@@ -43,7 +43,6 @@ import           Foreign.C.Types( CInt(..) )
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Geo.Discrete
-import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
@@ -297,24 +296,3 @@ drawGroup :: (Draw e, MonadReader e m, MonadIO m)
           -> m ()
 drawGroup worldCoords (DrawGroup pos colors char count) =
   drawChars count char (sumCoords pos worldCoords) colors
-
-scopedLocation :: Space
-               -> Scope
-               -- ^ The scope
-               -> Coords Pos
-               -- ^ The coordinates to test
-               -> Location
-scopedLocation space@(Space _ sz _) = \case
-  WorldScope mat -> (\pos -> if worldArea `contains` pos && mat == unsafeGetMaterial pos space
-                               then
-                                 InsideWorld
-                               else
-                                 OutsideWorld)
-  NegativeWorldContainer -> (\pos -> if worldViewArea `contains` pos
-                                      then
-                                        OutsideWorld
-                                      else
-                                        InsideWorld)
- where
-  worldArea = mkRectArea zeroCoords sz
-  worldViewArea = growRectArea 1 worldArea

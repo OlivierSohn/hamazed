@@ -203,7 +203,7 @@ particlesPolygonExpandShrink n colorFunc c@(VecPosSpeed center _) (Frame i) =
          []
        else
          case n of
-            1 -> particlesExplosion 0 32 DontInteract '1' colorFunc c frame'
+            1 -> particlesExplosion 32 0 DontInteract '1' colorFunc c frame'
             _ -> map (\p' -> let p = mkStaticVecPosSpeed $ pos2vec p'
                              in Particle DontInteract p (intToDigit n) (colorFunc frame') )
                     $ polygon n r center

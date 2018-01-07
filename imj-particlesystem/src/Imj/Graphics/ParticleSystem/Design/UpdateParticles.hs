@@ -76,7 +76,10 @@ updatePointsAndMutateIfNeeded :: (VecPosSpeed -> Frame -> [Particle])
                               -- ^ Updated branches
 updatePointsAndMutateIfNeeded
  mkParticles root@(VecPosSpeed rootPos _) frame envFunctions@(EnvFunctions interaction _) branches =
-  let particles = mkParticles (assert (interaction (vec2pos rootPos) == Stable) root) frame
+  let particles =
+        mkParticles
+          (assert (interaction (vec2pos rootPos) == Stable || error (show rootPos)) root)
+          frame
       defaultState = map (\(Particle canInteract _ _ _) ->
                             Right $ Particle canInteract root ' ' whiteOnBlack)
                         particles
@@ -135,7 +138,10 @@ coordinate, we compute \(intersect\), the intersection of the (continuous) traje
 * When a speed mirroring occurs on both coordinates, we use the pixel-centered
 precollision point.
 -}
-getCoordsBeforeMutation' :: VecPosSpeed -> VecPosSpeed -> (Coords Pos -> InteractionResult) -> Maybe VecPosSpeed
+getCoordsBeforeMutation' :: VecPosSpeed
+                         -> VecPosSpeed
+                         -> (Coords Pos -> InteractionResult)
+                         -> Maybe VecPosSpeed
 getCoordsBeforeMutation'
  (VecPosSpeed prevVecCoords' prevSpeed)
  (VecPosSpeed vecCoords curSpeed)
@@ -156,18 +162,16 @@ getCoordsBeforeMutation'
           where
             maxIdx = pred $ length trajectory
             progress = fromIntegral i / fromIntegral maxIdx -- maxIdx is never 0 when this is fully evaluated
-        vPosPreCol@(Vec2 precolX precolY) = pos2vec preCollision
+        vPosPreCol@(Vec2 precolX precolY) = pos2vec $ assert (interaction preCollision == Stable) preCollision
         (Vec2 afterPrecolX afterPrecolY) = pos2vec afterPreCollision
     in case mirror of
         MirrorAll ->
-          VecPosSpeed vPosPreCol
-                         $ Vec2 (negate speedX) (negate speedY)
+          VecPosSpeed vPosPreCol $ Vec2 (negate speedX) (negate speedY)
         _ ->
-          VecPosSpeed pos
-          $ case mirror of
-              MirrorCol -> Vec2 (negate speedX) speedY
-              MirrorRow -> Vec2 speedX          (negate speedY)
-              MirrorAll -> error "logic error"
+          VecPosSpeed pos $ case mirror of
+                      MirrorCol -> Vec2 (negate speedX) speedY
+                      MirrorRow -> Vec2 speedX          (negate speedY)
+                      MirrorAll -> error "logic error"
           where
             pos =
               let -- fronteerLine describes the fronteer between pixels
@@ -176,13 +180,23 @@ getCoordsBeforeMutation'
                     MirrorCol -> VerticalPxFronteer   $ (precolX + afterPrecolX) / 2
                     MirrorRow -> HorizontalPxFronteer $ (precolY + afterPrecolY) / 2
                     MirrorAll -> error "logic error"
-              in maybe
+              in
+                 -- We approximate the real trajectory by a straight line and compute
+                 -- the intersection with the pixel-fronteer line, based on precollision and mirroring:
+                 maybe
                   vPosPreCol
-                  (\(Vec2 fronteerX fronteerY) -> case mirror of
-                      MirrorCol -> Vec2 precolX fronteerY
-                      MirrorRow -> Vec2 fronteerX precolY
-                      MirrorAll -> error "logic error")
-                  $ fronteerIntersection prevVecCoords vecCoords fronteerLine
+                  (\(Vec2 fronteerX fronteerY) ->
+                      let adjustedIntersection = case mirror of
+                            MirrorCol -> Vec2 precolX fronteerY
+                            MirrorRow -> Vec2 fronteerX precolY
+                            MirrorAll -> error "logic error"
+                      in if interaction (vec2pos adjustedIntersection) == Stable
+                          then adjustedIntersection
+                          -- Collides when the position just after precollision
+                          -- is very different from vecCoords, which could happen
+                          -- for parabollas. In that case, fallback to precollision:
+                          else vPosPreCol
+                  ) $ fronteerIntersection prevVecCoords vecCoords fronteerLine
 
 data PixelFronteer = HorizontalPxFronteer !Float
                    | VerticalPxFronteer !Float
@@ -218,6 +232,7 @@ getCoordsBeforeMutation :: [Coords Pos]
                         -> Int
                         -- ^ The pre-collision index sofar (non recursive caller should pass 0)
                         -> Maybe (Int, Mirror, Coords Pos, Coords Pos)
+                        -- ^ (index of precollision, mirroring, precollision, after precollision)
 getCoordsBeforeMutation [] _ _ = error "not supposed to happen"
 getCoordsBeforeMutation [_] _ _ = Nothing
 getCoordsBeforeMutation (a:as@(b:_)) interaction i =

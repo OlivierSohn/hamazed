@@ -24,6 +24,12 @@ module Imj.Game.Hamazed.Color (
   , configFgColor
   , messageColor
   , neutralMessageColor
+  -- ** Cyclic colors
+  , cycleOuterColors1
+  , cycleOuterColors2
+  , cycleWallColors1
+  , cycleWallColors2
+  , cycleLaserColors
   -- * Reexports
   , module Imj.Graphics.Color
   ) where
@@ -31,8 +37,30 @@ module Imj.Game.Hamazed.Color (
 import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color
+import           Imj.Iteration
 
+
+cycleOuterColors1 :: Frame -> LayeredColor
+cycleOuterColors1 (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic (rgb 5 2 4) (rgb 1 1 2) frame
+
+cycleOuterColors2 :: Frame -> LayeredColor
+cycleOuterColors2 (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic (rgb 4 2 1) (rgb 3 1 0) frame
+
+cycleWallColors1 :: Frame -> LayeredColor
+cycleWallColors1 (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic (rgb 3 2 2) (rgb 3 1 0) frame
+
+cycleWallColors2 :: Frame -> LayeredColor
+cycleWallColors2 (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic (rgb 4 2 1) (rgb 3 2 2) frame
+
+cycleLaserColors :: Frame -> LayeredColor
+cycleLaserColors (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic (rgb 3 2 4) (rgb 3 2 2) frame
 
 configFgColor :: Color8 Foreground
 configFgColor = gray 8
@@ -73,13 +101,13 @@ shipColor :: Color8 Foreground
 shipColor = rgb 5 4 4
 
 shipColorSafe :: Color8 Foreground
-shipColorSafe = rgb 5 0 0
+shipColorSafe = rgb 5 4 4
 
 shipBgColor :: Color8 Background
 shipBgColor = black
 
 shipBgColorSafe :: Color8 Background
-shipBgColorSafe = rgb 1 0 0
+shipBgColorSafe = gray 3
 
 -- | Cycles through the 6 colors of the cube delimited in RGB space by
 -- (5,4,1) and (5,5,3).

@@ -43,7 +43,7 @@ worldViewCentered worldSize@(Size wr wc) mayTermSize =
   in case mayTermSize of
     Just termSize@(Terminal.Window h w)  ->
       let (Size rs cs) = maxWorldSize
-          heightMargin = 2 * (1 {-outer walls-} + 1 {-1 line above and below-})
+          heightMargin = 2 * 1 {-outer walls-}
           widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
           minSize@(Terminal.Window minh minw) =
             Terminal.Window (fromIntegral rs + heightMargin)

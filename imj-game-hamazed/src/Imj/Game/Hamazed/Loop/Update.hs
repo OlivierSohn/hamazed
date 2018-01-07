@@ -152,42 +152,38 @@ onHasMoved
       newLevel = Level i target (finished <|> finishIfShipCollides)
   in assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim
 
-
 outerSpaceParticleSystems :: SystemTime
                           -> World
                           -> LaserRay Actual
                           -> [ParticleSystem]
 outerSpaceParticleSystems t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
   let laserTarget = afterEnd ray
-      dist = distanceToSpace laserTarget space
       char = materialChar Wall
   in  case location laserTarget space of
         InsideWorld -> []
         OutsideWorld ->
-          let (LayeredColor bg _) = wallColors
-          in if dist > 0
-              then
-                let color _fragment _level (Frame _frame) =
-                      if 0 == _fragment `mod` 2
-                        then
-                          LayeredColor bg $ interpolateCyclic (rgb 5 2 4) (rgb 1 1 2) $ quot _frame 4
-                        else
-                          LayeredColor bg $ interpolateCyclic (rgb 4 2 1) (rgb 4 0 0) $ quot _frame 4
-                    pos = translateInDir dir laserTarget
-                    speedAttenuation = 0.3
-                    nRebounds = 3
-                in outerSpaceParticleSystems' world NegativeWorldContainer pos dir speedAttenuation nRebounds color char t
-              else
-                let color _fragment _level (Frame _frame) =
-                      if 0 == _fragment `mod` 3
-                        then
-                          LayeredColor bg $ interpolateCyclic (rgb 3 2 2) (rgb 3 1 0) $ quot _frame 4
-                        else
-                          LayeredColor bg $ interpolateCyclic (rgb 4 2 1) (rgb 3 2 2) $ quot _frame 4
---                      LayeredColor (gray 0) $ interpolateCyclic (gray 5) (gray 7) $ quot _frame 4
-                    speedAttenuation = 0.4
-                    nRebounds = 5
-                in outerSpaceParticleSystems' world (WorldScope Wall) laserTarget dir speedAttenuation nRebounds color char t
+          if distanceToSpace laserTarget space > 0
+            then
+              let color _fragment _level _frame =
+                    if 0 == _fragment `mod` 2
+                      then
+                        cycleOuterColors1 $ quot _frame 4
+                      else
+                        cycleOuterColors2 $ quot _frame 4
+                  pos = translateInDir dir laserTarget
+                  (speedAttenuation, nRebounds) = (0.3, 3)
+              in outerSpaceParticleSystems' world NegativeWorldContainer pos
+                   dir speedAttenuation nRebounds color char t
+            else
+              let color _fragment _level _frame =
+                    if 0 == _fragment `mod` 3
+                      then
+                        cycleWallColors1 $ quot _frame 4
+                      else
+                        cycleWallColors2 $ quot _frame 4
+                  (speedAttenuation, nRebounds) = (0.4, 5)
+              in outerSpaceParticleSystems' world (WorldScope Wall) laserTarget
+                   dir speedAttenuation nRebounds color char t
 
 outerSpaceParticleSystems' :: World
                            -> Scope
@@ -211,7 +207,7 @@ laserParticleSystems :: LaserRay Actual
            -> SystemTime
            -> [ParticleSystem]
 laserParticleSystems ray t =
-  catMaybes [laserShot ray (Left t)]
+  catMaybes [laserShot ray cycleLaserColors (Left t)]
 
 
 accelerateShip' :: Direction -> GameState -> GameState

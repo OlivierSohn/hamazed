@@ -13,6 +13,7 @@ import           Data.Char( intToDigit )
 import           Data.List( foldl' )
 import           Data.Maybe( isNothing )
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
@@ -36,9 +37,14 @@ shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _
           shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
           (Number _ n) = head collisions
           envFuncs = envFunctions world (WorldScope Air)
-      in  fragmentsFreeFallThenExplode numSpeed shipCoords '|' (Speed 1) envFuncs (Right k)
+          color i = if even i
+                      then cycleOuterColors1
+                      else cycleWallColors2
+      in  fragmentsFreeFallThenExplode numSpeed shipCoords color
+            '|' (Speed 1) envFuncs (Right k)
           ++
-          fragmentsFreeFallThenExplode shipSpeed2 shipCoords (intToDigit n) (Speed 1) envFuncs (Right k)
+          fragmentsFreeFallThenExplode shipSpeed2 shipCoords color
+            (intToDigit n) (Speed 1) envFuncs (Right k)
     else
       []
 

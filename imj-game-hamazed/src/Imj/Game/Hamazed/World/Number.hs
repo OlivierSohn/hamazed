@@ -12,6 +12,7 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
@@ -40,5 +41,9 @@ destroyedNumberParticleSystems :: Either SystemTime KeyTime
                                -> [ParticleSystem]
 destroyedNumberParticleSystems k laserSpeed world (Number (PosSpeed pos _) n) =
   let envFuncs = envFunctions world (WorldScope Air)
-  in catMaybes [expandShrinkPolygon n pos (Speed 1) envFuncs k]
-     ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos (intToDigit n) (Speed 2) envFuncs k
+  in catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
+     ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos
+          (\i -> if even i
+                  then cycleOuterColors1
+                  else cycleWallColors2)
+          (intToDigit n) (Speed 2) envFuncs k

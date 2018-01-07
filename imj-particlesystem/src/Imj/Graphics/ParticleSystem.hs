@@ -100,14 +100,15 @@ defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
 -- | Creates a 'ParticleSystem' representing a laser ray with a fade-out effect.
 laserShot :: LaserRay Actual
           -- ^ The laser ray
+          -> (Frame -> LayeredColor)
           -> Either SystemTime KeyTime
           -- ^ 'Right' 'KeyTime' of the event's deadline
           -- that triggered this call, or 'Left' 'SystemTime'
           -- of the current time if a player action triggered this call
           -> Maybe ParticleSystem
-laserShot ray@(LaserRay _ start len) keyTime
+laserShot ray@(LaserRay _ start len) colors keyTime
   | len == 0  = Nothing
-  | otherwise = mkSystem posspeed [particlesLaser ray defaultColors] (Speed 1) envFunctions keyTime
+  | otherwise = mkSystem posspeed [particlesLaser ray colors] (Speed 1) envFunctions keyTime
  where
   -- speed doesn't matter to 'particlesLaser'
   posspeed = mkStaticVecPosSpeed $ pos2vec start
@@ -143,6 +144,7 @@ expandShrinkPolygon :: Int
                     -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                     -> Coords Pos
                     -- ^ Center of the polygon (or circle)
+                    -> (Frame -> LayeredColor)
                     -> Speed
                     -> EnvFunctions
                     -- ^ ParticleSystem speed
@@ -151,12 +153,12 @@ expandShrinkPolygon :: Int
                     -- that triggered this call, or 'Left' 'SystemTime'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
-expandShrinkPolygon n pos =
+expandShrinkPolygon n pos colors =
   mkSystem posspeed funcs
  where
   -- speed doesn't matter to 'particlesPolygonExpandShrink'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
-  funcs = [particlesPolygonExpandShrink n defaultColors]
+  funcs = [particlesPolygonExpandShrink n colors]
 
 -- | A circular explosion configurable in number of particles
 simpleExplosion :: Int
@@ -293,6 +295,8 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
                              -> Coords Pos
                              -- ^ Initial position
+                             -> (Int -> Frame -> LayeredColor)
+                             -- ^ First argument of the function is the fragment index.
                              -> Char
                              -- ^ Character used when drawing the 'Particle'.
                              -> Speed
@@ -303,8 +307,10 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- that triggered this call, or 'Left' 'SystemTime'
                              -- of the current time if a player action triggered this call
                              -> [ParticleSystem]
-fragmentsFreeFallThenExplode speed pos c s envFuncs k =
-  mapMaybe (\sp -> freeFallThenExplode sp pos c s envFuncs k) $ variations speed
+fragmentsFreeFallThenExplode speed pos colors c s envFuncs k =
+  mapMaybe
+    (\(i,sp) -> freeFallThenExplode sp pos (colors i) c s envFuncs k)
+    $ zip [0..] $ variations speed
 
 -- | Given an input speed, computes four slightly different input speeds
 variations :: Vec2 Vel -> [Vec2 Vel]
@@ -320,6 +326,7 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
                     -> Coords Pos
                     -- ^ Initial position
+                    -> (Frame -> LayeredColor)
                     -> Char
                     -- ^ Character used when drawing the 'Particle'.
                     -> Speed
@@ -330,7 +337,7 @@ freeFallThenExplode :: Vec2 Vel
                     -- that triggered this call, or 'Left' 'SystemTime'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
-freeFallThenExplode speed pos char =
-  let funcs = [ particlesFreefall 1.0 Interact char defaultColors
-              , particles (explosion 32 0) zeroForceMotion Interact char defaultColors]
+freeFallThenExplode speed pos colors char =
+  let funcs = [ particlesFreefall 1.0 Interact char colors
+              , particles (explosion 32 0) zeroForceMotion Interact char colors]
   in mkSystem (VecPosSpeed (pos2vec pos) speed) funcs

@@ -5,6 +5,7 @@
 
 module Imj.Geo.Discrete.Bresenham
     ( bla
+    , blaLength
     ) where
 
 import           Imj.Prelude
@@ -14,7 +15,7 @@ import           Imj.Prelude
 -- | Bresenham's line algorithm.
 -- Includes the first point and goes through the second to infinity.
 bla :: (Int, Int) -> (Int, Int) -> [(Int, Int)]
-bla (x0, y0) (x1, y1) =
+bla (!x0, !y0) (!x1, !y1) =
   let (dx, dy) = (x1 - x0, y1 - y0)
       xyStep b (x, y) = (x + signum dx,     y + signum dy * b)
       yxStep b (x, y) = (x + signum dx * b, y + signum dy)
@@ -28,3 +29,7 @@ bla (x0, y0) (x1, y1) =
 
       walk w xy = xy : walk (tail w) (step (head w) xy)
   in  walk (balancedWord 0) (x0, y0)
+
+blaLength :: (Int, Int) -> (Int, Int) -> Int
+blaLength (r1,c1) (r2,c2) =
+  succ $ max (abs (r1-r2)) $ abs (c1-c2)

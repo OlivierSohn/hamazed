@@ -135,10 +135,12 @@ executable imj-base-examples-exe
 test-suite imj-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Imj.Bresenham3
+  other-modules:       Test.Imj.Bresenham2
+                     , Test.Imj.Bresenham3
                      , Test.Imj.Ease
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
+                     , Test.Imj.Segment
                      , Test.Imj.Timing
                      , Test.Imj.Vector
                      , Test.Imj.ZigZag

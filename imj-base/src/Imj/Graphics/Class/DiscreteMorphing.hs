@@ -21,7 +21,7 @@ import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Drawable
 
 
-{-| Morph between /drawn/ representations of 'Drawble's.
+{-| Morph between /drawn/ representations of 'Drawable's.
 
 [Drawn representation of 'Drawable' x]
 The visual result of IO drawing commands induced by a 'draw' @x@ call.

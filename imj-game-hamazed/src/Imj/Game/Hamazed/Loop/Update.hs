@@ -172,8 +172,10 @@ outerSpaceParticleSystems t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
                         cycleOuterColors2 $ quot _frame 4
                   pos = translateInDir dir laserTarget
                   (speedAttenuation, nRebounds) = (0.3, 3)
-              in outerSpaceParticleSystems' world NegativeWorldContainer pos
-                   dir speedAttenuation nRebounds color char t
+              in case scopedLocation world NegativeWorldContainer pos of
+                  InsideWorld -> outerSpaceParticleSystems' world NegativeWorldContainer pos
+                                  dir speedAttenuation nRebounds color char t
+                  OutsideWorld -> []
             else
               let color _fragment _level _frame =
                     if 0 == _fragment `mod` 3

@@ -24,6 +24,7 @@ module Imj.Geo.Discrete.Types
     -- ** Segment
     , Segment(..)
     , mkSegment
+    , countSegmentElements
     -- * Bresenham line algorithm
     , bresenhamLength
     , bresenham
@@ -32,6 +33,8 @@ module Imj.Geo.Discrete.Types
     ) where
 
 import           Imj.Prelude
+
+import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types
@@ -58,7 +61,7 @@ instance DiscreteInterpolation (Coords Pos) where
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteDistance (Coords Pos) where
-  distance = bresenhamLength
+  distance a b = fromIntegral $ bresenhamLength a b
 
 {- | Represents a row index (y).
 
@@ -110,7 +113,7 @@ data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
              -- ^ Horizontal segment
              | Vertical   !(Coord Col) !(Coord Row) !(Coord Row)
              -- ^ Vertical segment
-             | Oblique    !(Coords Pos) !(Coords Pos)
+             | Oblique    !(Coords Pos) !(Coords Pos) !Word32
              -- ^ Oblique segment
              deriving(Show)
 
@@ -119,31 +122,30 @@ mkSegment :: Coords Pos
           -> Coords Pos
           -- ^ Segment end
           -> Segment
-mkSegment coord1@(Coords r1 c1) coord2@(Coords r2 c2)
+mkSegment e1@(Coords r1 c1) e2@(Coords r2 c2)
   | r1 == r2  = Horizontal r1 c1 c2
   | c1 == c2  = Vertical   c1 r1 r2
-  | otherwise = Oblique coord1 coord2
+  | otherwise = Oblique e1 e2 $ bresenhamLength e1 e2
+
+-- | returns the number of elements in a segment
+countSegmentElements :: Segment -> Int
+countSegmentElements (Horizontal _ c1 c2) = fromIntegral $ succ $ abs $ c2-c1
+countSegmentElements (Vertical _ r1 r2)   = fromIntegral $ succ $ abs $ r2-r1
+countSegmentElements (Oblique _ _ n)      = fromIntegral n
 
 -- | Returns the bresenham 2d distance between two coordinates.
-bresenhamLength :: Coords Pos -> Coords Pos -> Int
+bresenhamLength :: Coords Pos -> Coords Pos -> Word32
 bresenhamLength (Coords r1 c1) (Coords r2 c2)
-  = succ $ max (fromIntegral (abs (r1-r2))) $ fromIntegral (abs (c1-c2))
+  = fromIntegral
+  $ blaLength (fromIntegral r1, fromIntegral c1)
+              (fromIntegral r2, fromIntegral c2)
 
 -- | Bresenham 2d algorithm, slightly optimized for horizontal and vertical lines.
 bresenham :: Segment -> [Coords Pos]
 bresenham (Horizontal r c1 c2) = map (Coords r) $ range c1 c2
 bresenham (Vertical c r1 r2)   = map (flip Coords c) $ range r1 r2
-bresenham (Oblique (Coords y0 x0) c2@(Coords y1 x1)) =
-  takeWhileInclusive (/= c2)
+bresenham (Oblique (Coords y0 x0) (Coords y1 x1) l) =
+  take (fromIntegral l)
   $ map (\(x,y) -> Coords (Coord y) (Coord x) )
   $ bla (fromIntegral x0,fromIntegral y0)
         (fromIntegral x1,fromIntegral y1)
-
-takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
-takeWhileInclusive _ [] = []
-takeWhileInclusive p (x:xs) =
-  x : if p x
-        then
-          takeWhileInclusive p xs
-        else
-          []

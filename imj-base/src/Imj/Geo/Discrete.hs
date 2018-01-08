@@ -1,9 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Geo.Discrete
            ( module Imj.Geo.Discrete.Types
            -- * Construct Segment
-           , changeSegmentLength
+           , changeSegmentCount
            -- * Use Segment
            , extremities
            -- * Construct Coords
@@ -101,17 +102,24 @@ translateInDir dir =
   translate $ coordsForDirection dir
 
 
--- | Modify the end of the segment to reach the given length
-changeSegmentLength :: Int -> Segment -> Segment
-changeSegmentLength i (Horizontal row c1 _) = Horizontal row c1 $ c1 + fromIntegral i
-changeSegmentLength i (Vertical   col r1 _) = Vertical   col r1 $ r1 + fromIntegral i
-changeSegmentLength _ _ = error "changeSegmentLength cannot operate on oblique segments" -- TODO use bresenham if it is valid
+-- | Modifies the number of elements in a 'Segment'
+changeSegmentCount :: Int -> Segment -> Segment
+changeSegmentCount n'
+  | n' <= 0 = error $ "Segment count should be strictly positive : " ++ show n'
+  | otherwise = \case
+      (Horizontal row c1 _) -> Horizontal row c1 $ c1 + fromIntegral n
+      (Vertical   col r1 _) -> Vertical   col r1 $ r1 + fromIntegral n
+      (Oblique c1 c2 _) -> Oblique c1 c2 $ fromIntegral n'
+    where
+      n = pred n'
 
 -- | Returns the start and end coordinates.
 extremities :: Segment -> (Coords Pos, Coords Pos)
 extremities (Horizontal row c1 c2) = (Coords row c1, Coords row c2)
 extremities (Vertical   col r1 r2) = (Coords r1 col, Coords r2 col)
-extremities (Oblique c1 c2)        = (c1, c2)
+extremities oblique@(Oblique c1 _ l)
+  | l <= 0 = error $ "Segment length should be strictly positive : " ++ show l
+  | otherwise = (c1, last $ bresenham oblique)
 
 -- | 'translate' = 'sumCoords'
 translate :: Coords a -> Coords a -> Coords a

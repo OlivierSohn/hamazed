@@ -240,10 +240,10 @@ connect2 start end =
   let numpoints = 80 -- more than 2 * (max height width of world) to avoid spaces
   in sampledBresenham numpoints start end
 
--- | Applies bresenham transformation and resamples it
+-- | Applies bresenham line algorithm and resamples it
 sampledBresenham :: Int -> Coords Pos -> Coords Pos -> [Coords Pos]
 sampledBresenham nSamples start end =
-  let l = bresenhamLength start end
-      seg = mkSegment start end
+  let seg = mkSegment start end
+      l = countSegmentElements seg
       bres = bresenham seg
   in resampleWithExtremities bres (assert (l == length bres) l) nSamples

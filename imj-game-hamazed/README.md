@@ -1,19 +1,20 @@
 # What is it?
 
-It's a terminal ascii game.
+It's a terminal ascii game:
 
-## The pitch
-
-You fly a ship through numbers. The goal is to shoot
+You fly a ship through numbers, the goal is to shoot
 the numbers whose sum will be equal to the level's target.
 
 Higher levels have more and more numbers, and less and less space to navigate through them.
 
 Good Luck!
 
-## What's inside
+## Features
 
-Contains 8-bit color, physics animations, inter-level animations, and an optimized renderer to avoid screen tearing.
+- 8-bit colors,
+- Physics-based animations,
+- Inter-level animations,
+- Optimized renderer to avoid screen tearing.
 
 # Demos
 

@@ -5,6 +5,7 @@ module Imj.Util
       showListOrSingleton
     , replicateElements
     , range
+    , takeWhileInclusive
       -- * String utilities
     , commonPrefix
     , commonSuffix
@@ -39,6 +40,16 @@ showListOrSingleton l   = pack $ show l
 -- | Replicates each list element n times and concatenates the result.
 replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)
+
+-- | Takes elements, until (inclusively) a condition is met.
+takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
+takeWhileInclusive _ [] = []
+takeWhileInclusive p (x:xs) =
+  x : if p x
+        then
+          takeWhileInclusive p xs
+        else
+          []
 
 {-# INLINABLE range #-}
 {- | Builds a range with no constraint on the order of bounds:

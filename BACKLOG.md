@@ -1,4 +1,6 @@
 
+- a game where we need to escape a randomly generated maze.
+
 - in renderer, add the possibility to just change a color (fg or bg), just change a char.
   - use it to create end level effects : draw everything with '.' or '+' except the winning message
   and the messages on the left.

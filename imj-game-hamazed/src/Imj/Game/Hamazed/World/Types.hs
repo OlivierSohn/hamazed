@@ -121,7 +121,7 @@ environmentInteraction world scope =
 
 envDistance :: Vec2 Pos -> Distance
 envDistance (Vec2 x y) =
-  if abs x > 500 || abs y > 500 -- TODO use command line arguments
+  if abs x > 500 || abs y > 500 -- TODO deduce it from the size of the terminal.
     then
       TooFar
     else

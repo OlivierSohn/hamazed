@@ -20,7 +20,7 @@ import           Imj.Graphics.UI.Animation
 
 {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
 we draw the /old/ 'World' while using the /new/ 'World' 's
-dimensions to animate the UI accordingly. -} -- TODO this could be done differently
+dimensions to animate the UI accordingly. -}
 data GameState = GameState {
     _gameStateNextMotionStep :: !(Maybe KeyTime)
     -- ^ When the next 'World' motion update should happen,

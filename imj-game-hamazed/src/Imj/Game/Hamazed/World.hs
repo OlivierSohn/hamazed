@@ -186,7 +186,6 @@ moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime 
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
   in World newBalls newShip size anims e
 
--- TODO use Number Live Number Dead
 -- | Computes the effect of an laser shot on the 'World'.
 laserEventAction :: Direction
                  -- ^ The direction of the laser shot

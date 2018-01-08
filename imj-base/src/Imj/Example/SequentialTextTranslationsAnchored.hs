@@ -117,6 +117,9 @@ allExamples =
     , Example exampleExtremeCharRemovals 6 0
                     "ExtremeCharRemovals"
                     ""
+    , Example exampleCharRemovalsAndReplacements 6 0
+                    "CharRemovalsAndReplacements"
+                    "Here we should (todo) shrink before replacing."
     ]
 
 -- | shows an example with multiple strings : global color is changed in parallel
@@ -175,6 +178,16 @@ exampleExtremeCharRemovals :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleExtremeCharRemovals =
   let a = colored "ABC" green <> colored "DEF" white
       b = colored "ABC" green
+      txt1 = Successive [a, b]
+      from1 = Coords 0 0
+      to1 = Coords 0 0
+  in [(txt1, from1, to1)]
+
+
+exampleCharRemovalsAndReplacements :: [(Successive ColorString, Coords Pos, Coords Pos)]
+exampleCharRemovalsAndReplacements =
+  let a = colored "In" green <> colored "stalla" yellow <> colored "tion" green
+      b = colored "In" green <> colored "fla" yellow <> colored "tion" green
       txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0

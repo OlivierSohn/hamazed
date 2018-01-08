@@ -176,7 +176,6 @@ rangeByRemovingFromTotal remove total start =
   in (start + min_, start + max_)
 
 
--- TODO split : function to make the container at a distance, and function to take the centers.
 {- | Returns points centered on the sides of a container which is at a given distances
 (dx and dy) from the reference container.
 
@@ -249,6 +248,7 @@ as illustrated here (@^@ indicates the chosen center):
   ^
 @
 -}
+-- TODO split : function to make the container at a distance, and function to take the centers.
 getSideCentersAtDistance :: RectContainer
                          -- ^ Reference container
                          -> Length Width

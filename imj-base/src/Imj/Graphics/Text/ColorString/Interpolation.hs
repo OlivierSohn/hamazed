@@ -61,7 +61,7 @@ interpolateChars s1 s2 i =
       cdUnchanged = take nCDUnchanged $ drop nCDReplaced s1AfterCommonPref
 
       -- exclusive differences (ie char deletion or insertion)
-      -- TODO if n1 > n2, reduce before replacing
+      -- TODO if n1 > n2, reduce before replacing (cf CharRemovalsAndReplacements example)
       signedTotalExDiff = n2 - n1
       signedNExDiff = signum signedTotalExDiff * clamp (i - totalCD) 0 (abs signedTotalExDiff)
       (nExDiff1,nExDiff2) =
@@ -70,7 +70,6 @@ interpolateChars s1 s2 i =
             (0, signedNExDiff)
           else
             (abs $ signedTotalExDiff - signedNExDiff, 0)
-      -- TODO use an already existing color instead of switching to the new color immediately
       ed1 = take nExDiff1 $ drop totalCD s1AfterCommonPref
       ed2 = zipWith
               (\idx (char, color) -> (char, fromMaybe color $ insertionColor insertionBounds idx nExDiff2))

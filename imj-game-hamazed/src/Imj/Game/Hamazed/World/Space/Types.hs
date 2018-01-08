@@ -30,7 +30,7 @@ data Strategy = StrictlyOneComponent
 -- TODO support a world / air ratio (today it is 50 50)
 -- | Parameters for random walls creation.
 data RandomParameters = RandomParameters {
-    _randomWallsBlockSize :: !Int -- TODO support 'Size' to have non-square blocks
+    _randomWallsBlockSize :: !Int
     -- ^ The size of a square wall block.
     --
     -- Note that the smaller the block size, the harder it will be for the algorithm to find

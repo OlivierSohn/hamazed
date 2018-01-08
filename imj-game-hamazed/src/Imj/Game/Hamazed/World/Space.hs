@@ -169,7 +169,7 @@ mkSmallWorld s@(Size heightEmptySpace widthEmptySpace) multFactor strategy = do
       graph = graphOfIndex (mapMaterial Air) mat
   case strategy of
     StrictlyOneComponent -> case components graph of
-      [_] -> return smallMat -- TODO return Matrix (mat) instead of list of list
+      [_] -> return smallMat
       _   -> mkSmallWorld s multFactor strategy
 
 graphOfIndex :: CInt -> Matrix CInt -> Graph

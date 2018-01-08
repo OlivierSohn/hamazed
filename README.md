@@ -7,7 +7,7 @@ on the game engine side.
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/151404.png)](https://asciinema.org/a/151404)
+  [![asciicast](https://asciinema.org/a/151404.png)](https://asciinema.org/a/151404)
 
 # Packages list
 

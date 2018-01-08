@@ -14,10 +14,15 @@ on the game engine side.
 - imj-prelude
   - The prelude I use in other packages.
 - imj-base
-  - An "engine" library: it contains base classes and types, geometry, text animations.
-  - Also contains a "delta renderer" that could be useful for anyone writing a game for the terminal,
-  with animations, and wanting to avoid screen tearing.
-  - Also contains an executable that can be run to see examples of text animation.
+
+It is an "engine" library: it contains
+
+  - base classes and types, geometry, text animations,
+  - a "delta renderer" rendering in the terminal without screen tearing,
+  - `imj-base-examples-exe`, a text animation demo:
+
+  [![asciicast](https://asciinema.org/a/156054.png)](https://asciinema.org/a/156054)
+
 - imj-particlesystem
   - A library to create animations.
 - imj-game-hamazed

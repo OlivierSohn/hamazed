@@ -105,7 +105,7 @@ allExamples =
                     "Char and String anchors give different results because there is a move."
     , Example exampleIntermediateCharAdditions 6 0
                     "IntermediateCharAdditions"
-                    $  "When the chars are inserted in the middle, their color"
+                    $  "When the chars are inserted in the middle, their color "
                     ++ "is a gradual interpolation between neighbour colors."
     , Example exampleIntermediateCharRemovals 6 0
                     "IntermediateCharRemovals"

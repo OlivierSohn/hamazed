@@ -8,7 +8,7 @@ Also contains ready-to-use animations.
 
 The following game uses this library to create its animations:
 
-[![asciicast](https://asciinema.org/a/151434.png)](https://asciinema.org/a/151434)
+[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 
 # Build
 

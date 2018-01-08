@@ -20,11 +20,11 @@ Good Luck!
 
 ## No walls, square world
 
-[![asciicast](https://asciinema.org/a/151434.png)](https://asciinema.org/a/151434)
+[![asciicast](https://asciinema.org/a/156061.png)](https://asciinema.org/a/156061)
 
 ## Random walls, rectangular world
 
-[![asciicast](https://asciinema.org/a/151404.png)](https://asciinema.org/a/151404)
+[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 
 # Configurability
 

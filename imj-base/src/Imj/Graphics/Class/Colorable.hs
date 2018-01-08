@@ -15,7 +15,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Imj.Graphics.Class.Draw
 
 -- | A 'Colorable' is a colourless graphical element.
-class Colorable a where-- TODO add HasPosition constraint here
+class Colorable a where
   -- | To draw a 'Colorable', we need to pass a 'LayeredColor'.
   drawUsingColor :: (Draw e, MonadReader e m, MonadIO m)
                  => a -> LayeredColor -> m ()

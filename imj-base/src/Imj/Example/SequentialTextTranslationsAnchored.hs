@@ -20,7 +20,8 @@ module Imj.Example.SequentialTextTranslationsAnchored
     , module Imj.Graphics.Text.Animation
     ) where
 
-import           Data.Monoid((<>))
+import           Imj.Prelude
+
 import           Data.Text(pack)
 import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
@@ -59,10 +60,10 @@ width = 30
 upperLeft :: Coords Pos
 upperLeft = Coords 4 50
 
-data Examples = Examples [Example]
+data Examples = Examples ![Example]
 
 data Example = Example {
-    _exampleInputData :: ![([ColorString], Coords Pos, Coords Pos)]
+    _exampleInputData :: ![(Successive ColorString, Coords Pos, Coords Pos)]
   , _exampleSelfHeight :: !(Length Height)
   , _exampleStartHeight :: !(Length Height)
   , _exampleName :: !String
@@ -70,47 +71,49 @@ data Example = Example {
 }
 
 runExampleCharAnchored :: (Render e, MonadReader e m, MonadIO m)
-                       => [([ColorString], Coords Pos, Coords Pos)]
+                       => [(Successive ColorString, Coords Pos, Coords Pos)]
                        -> Coords Pos
-                       -> (Frame, (Frame -> m ()))
+                       -> (Frame, Frame -> m ())
 runExampleCharAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
         mkSequentialTextTranslationsCharAnchored (translateInput ref input) 1
-  in (lastFrame, (drawAnimatedTextCharAnchored anim))
+  in (lastFrame, drawAnimatedTextCharAnchored anim)
 
 runExampleStringAnchored :: (Render e, MonadReader e m, MonadIO m)
-                         => [([ColorString], Coords Pos, Coords Pos)]
+                         => [(Successive ColorString, Coords Pos, Coords Pos)]
                          -> Coords Pos
-                         -> (Frame, (Frame -> m ()))
+                         -> (Frame, Frame -> m ())
 runExampleStringAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
         mkSequentialTextTranslationsStringAnchored (translateInput ref input) 1
-  in (lastFrame, (drawAnimatedTextStringAnchored anim))
+  in (lastFrame, drawAnimatedTextStringAnchored anim)
 
 translateInput :: Coords Pos
-               -> [([ColorString], Coords Pos, Coords Pos)]
-               -> [([ColorString], Coords Pos, Coords Pos)]
-translateInput tr input =
-  map (\(l, c1, c2) -> (l, translate tr c1, translate tr c2)) input
+               -> [(Successive ColorString, Coords Pos, Coords Pos)]
+               -> [(Successive ColorString, Coords Pos, Coords Pos)]
+translateInput tr =
+  map (\(l, c1, c2) -> (l, translate tr c1, translate tr c2))
 
 allExamples :: Examples
 allExamples =
   Examples
     [ Example exampleDownTranslationDuo 7 0
                     "DownTranslationDuo"
-                    "Char and String anchors give different results because there is a move"
+                    "Char and String anchors give different results because there is a move."
     , Example exampleDownTranslationMono 7 0
                     "DownTranslationMono"
-                    "Char and String anchors give different results because there is a move"
+                    "Char and String anchors give different results because there is a move."
     , Example exampleIntermediateCharAdditions 6 0
                     "IntermediateCharAdditions"
-                    "When the chars are inserted in the middle, their color is a gradual interpolation between neighbour colors."
+                    $  "When the chars are inserted in the middle, their color"
+                    ++ "is a gradual interpolation between neighbour colors."
     , Example exampleIntermediateCharRemovals 6 0
                     "IntermediateCharRemovals"
                     ""
     , Example exampleExtremeCharAdditions 6 0
                     "ExtremeCharAdditions"
-                    "When the chars are inserted at an extremity, they match the neighbour color."
+                    $  "When the chars are inserted at an extremity,"
+                    ++ " they match the neighbour color."
     , Example exampleExtremeCharRemovals 6 0
                     "ExtremeCharRemovals"
                     ""
@@ -118,11 +121,11 @@ allExamples =
 
 -- | shows an example with multiple strings : global color is changed in parallel
 -- but anchors are changed sequentially
-exampleDownTranslationDuo :: [([ColorString], Coords Pos, Coords Pos)]
+exampleDownTranslationDuo :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleDownTranslationDuo =
   let a = colored "ABC" green <> colored "DEF" (rgb 2 2 2)
       b = colored "ABC" white <> colored "DEF" yellow
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 1 0
       from2 = Coords 0 10
@@ -130,49 +133,49 @@ exampleDownTranslationDuo =
   in [(txt1, from1, to1)
     , (txt1, from2, to2)]
 
-exampleDownTranslationMono :: [([ColorString], Coords Pos, Coords Pos)]
+exampleDownTranslationMono :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleDownTranslationMono =
   let a = colored "ABC" green <> colored "DEF" (rgb 2 2 2)
       b = colored "ABC" white <> colored "DEF" yellow
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 1 0
   in [(txt1, from1, to1)]
 
 
-exampleIntermediateCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
+exampleIntermediateCharAdditions :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleIntermediateCharAdditions =
   let a = colored "A" green <> colored "O" white
       b = colored "ABCDEFGHIJKLMNO" white
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
 
-exampleIntermediateCharRemovals :: [([ColorString], Coords Pos, Coords Pos)]
+exampleIntermediateCharRemovals :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleIntermediateCharRemovals =
   let a = colored "ABCDEFGHIJKLMNO" white
       b = colored "A" green <> colored "O" white
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
 
-exampleExtremeCharAdditions :: [([ColorString], Coords Pos, Coords Pos)]
+exampleExtremeCharAdditions :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleExtremeCharAdditions =
   let a = colored "ABC" green
       b = colored "ABC" green <> colored "DEF" red
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
 
 
-exampleExtremeCharRemovals :: [([ColorString], Coords Pos, Coords Pos)]
+exampleExtremeCharRemovals :: [(Successive ColorString, Coords Pos, Coords Pos)]
 exampleExtremeCharRemovals =
   let a = colored "ABC" green <> colored "DEF" white
       b = colored "ABC" green
-      txt1 = [a, b]
+      txt1 = Successive [a, b]
       from1 = Coords 0 0
       to1 = Coords 0 0
   in [(txt1, from1, to1)]
@@ -195,7 +198,7 @@ getRef startHeight =
   translate upperLeft $ Coords (fromIntegral startHeight) 0
 
 animate' :: (Render e, MonadReader e m, MonadIO m)
-        => [(Frame, (Frame -> m ()), Example, Int)]
+        => [(Frame, Frame -> m (), Example, Int)]
         -> [Example]
         -> [Frame]
         -> [String]
@@ -218,11 +221,11 @@ myLightGray :: LayeredColor
 myLightGray = onBlack $ gray 10
 
 drawActions :: (Render e, MonadReader e m, MonadIO m)
-            => [(Frame, (Frame -> m ()), Example, Int)]
+            => [(Frame, Frame -> m (), Example, Int)]
             -> [Frame]
             -> m ()
 drawActions listActions frames =
-  mapM_ (\(frame, (lastFrame, action, (Example _ height startHeight _ _), wIdx)) -> do
+  mapM_ (\(frame, (lastFrame, action, Example _ height startHeight _ _, wIdx)) -> do
             let r = RectContainer (Size (height-2) (width-3)) (translate (Coords (-2) (-2)) ref)
                 ref = move (wIdx * fromIntegral width) RIGHT (getRef startHeight)
             drawUsingColor r myDarkGray
@@ -231,16 +234,17 @@ drawActions listActions frames =
             ) $ zip frames listActions
 
 drawExamples :: (Render e, MonadReader e m, MonadIO m)
-            => [Example]
-            -> m ()
-drawExamples examples =
-  mapM_ (\(Example _ height startHeight leftTitle rightComment) -> do
-            let down = (quot (fromIntegral height) 2) + fromIntegral startHeight - 2
-                at = translate upperLeft (Coords down (-8))
-                at' = translate upperLeft (Coords down $ 2 * (fromIntegral width))
-            drawAlignedTxt_ (pack leftTitle) myDarkGray (mkRightAlign at)
-            drawStr rightComment at' myDarkGray
-            ) examples
+             => [Example]
+             -> m ()
+drawExamples =
+  mapM_ drawOneExample
+ where
+  drawOneExample (Example _ _ startHeight leftTitle rightComment) = do
+    let down = fromIntegral startHeight
+        at = translate upperLeft (Coords down (-8))
+        at' = translate upperLeft (Coords down $ 2 * fromIntegral width)
+    drawAlignedTxt_ (pack leftTitle) myDarkGray (mkRightAlign at)
+    drawMultiLineStr rightComment at' myDarkGray 30
 
 drawColTitles :: (Render e, MonadReader e m, MonadIO m)
             => [String]

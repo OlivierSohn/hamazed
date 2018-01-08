@@ -5,6 +5,7 @@
 module Imj.Graphics.Class.DiscreteDistance
         ( DiscreteDistance(..)
         , Successive(..)
+        , concatSuccessive
         ) where
 
 import           Imj.Prelude
@@ -16,6 +17,10 @@ newtype Successive a = Successive [a] deriving(Show)
 
 instance Functor Successive where
   fmap f (Successive l) = Successive $ fmap f l
+
+concatSuccessive :: Successive x -> Successive x -> Successive x
+concatSuccessive (Successive a) (Successive b) =
+  Successive $ a++b
 
 {- | Instances should satisfy:
 

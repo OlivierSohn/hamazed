@@ -45,11 +45,11 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
 
 import           Control.Applicative((<|>))
 import           Control.Arrow((>>>))
-import           Control.Monad(when, unless, void, (<=<), Monad)
+import           Control.Monad(when, unless, void, (<=<), Monad, zipWithM_)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Control.Exception(assert)
-import           Data.List(intercalate, cycle, repeat)
+import           Data.List(intercalate, cycle, repeat, words, unwords)
 import           Data.Maybe(listToMaybe, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Monoid((<>))
 import           Data.Ratio((%))

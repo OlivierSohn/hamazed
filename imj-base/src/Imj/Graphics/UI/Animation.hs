@@ -21,6 +21,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List(length)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.Animation
@@ -106,9 +107,9 @@ getRelativeFrames
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
 
-mkUIAnimation :: (Colored RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
+mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive ColorString), [Successive ColorString]))
               -- ^ From
-              -> (Colored RectContainer, (([ColorString], [ColorString]), [[ColorString]]))
+              -> (Colored RectContainer, ((Successive ColorString, Successive ColorString), [Successive ColorString]))
               -- ^ To
               -> Length Width
               -> Length Height
@@ -117,18 +118,20 @@ mkUIAnimation :: (Colored RectContainer, (([ColorString], [ColorString]), [[Colo
               -> UIAnimation
 mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
               (to@(Colored _ toR), ((t1,t2),t3))
-              horizontalDistance verticalDistance t =
+              horizontalDistance verticalDistance time =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
   frameE = mkEvolutionEaseQuart (Successive [from, to]) 1
 
-  (ta1,ta2) = createUITextAnimations fromR toR (f1++t1, f2++t2, zipWith (++) f3 t3)
+  (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
+                                                concatSuccessive f2 t2,
+                                                zipWith concatSuccessive f3 t3)
                                      horizontalDistance verticalDistance 1
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
     maybe
       Nothing
-      (\dt -> Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) t)
+      (\dt -> Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) time)
       $ getDeltaTime evolutions zeroFrame
 
 
@@ -136,7 +139,9 @@ createUITextAnimations :: RectContainer
                        -- ^ From
                        -> RectContainer
                        -- ^ To
-                       -> ([ColorString],[ColorString],[[ColorString]])
+                       -> (Successive ColorString,
+                           Successive ColorString,
+                           [Successive ColorString])
                        -- ^ Upper text, Lower text, Left texts
                        -> Length Width
                        -> Length Height
@@ -161,11 +166,8 @@ mkTextAnimRightAligned :: Coords Pos
                        -> Coords Pos
                        -- ^ Alignment ref /to/ Text will be vertically centered
                        -- according to it.
-                       -> [[ColorString]]
-                       -- ^ Each inner list is expected to be of length 1 or more.
-                       --
-                       -- If length = 1, the 'ColorString' is not animated. Else, the inner list
-                       -- contains 'ColorString' waypoints.
+                       -> [Successive ColorString]
+                       -- ^ Each 'Successive' is expected to be of length 1 or more.
                        -> Int
                        -- ^ Interline spaces
                        -> Float
@@ -176,7 +178,7 @@ mkTextAnimRightAligned refFrom refTo listTxts interline duration =
       nTxtLines = length listTxts
       heightTxt = nTxtLines + pred nTxtLines * interline
       verticalOffset = quot heightTxt 2
-      l = zipWith (\i txts ->
+      l = zipWith (\i s@(Successive txts) ->
                     let firstTxt = head txts
                         lastTxt = last txts
                         rightAlign pos =
@@ -185,17 +187,18 @@ mkTextAnimRightAligned refFrom refTo listTxts interline duration =
                           alignTxt (mkRightAlign pos)
                         fromAligned = rightAlign refFrom firstTxt
                         toAligned   = rightAlign refTo lastTxt
-                    in (txts, fromAligned, toAligned))
+                    in (s, fromAligned, toAligned))
                   [0..] listTxts
   in  mkSequentialTextTranslationsStringAnchored l duration
 
 mkTextAnimCenteredUpDown :: (Coords Pos, Coords Pos)
                          -> (Coords Pos, Coords Pos)
-                         -> ([ColorString], [ColorString])
-                         -- ^ Each list is expected to be of size at least 1.
+                         -> (Successive ColorString, Successive ColorString)
+                         -- ^ If one 'Successive' has a 0 length, the animation will be empty.
                          -> Float
                          -> TextAnimation AnchorChars
-mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (txtUppers, txtLowers)
+mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo)
+  (sUp@(Successive txtUppers), sLow@(Successive txtLowers))
                  duration =
     let alignTxtCentered pos = alignTxt $ mkCentered pos
 
@@ -209,8 +212,8 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
             TextAnimation [] (Evolution (Successive []) 0 0 id) (mkEaseClock 0 0 id)
           else
             mkSequentialTextTranslationsCharAnchored
-              [(txtUppers, centerUpFromAligned, centerUpToAligned),
-               (txtLowers, centerDownFromAligned, centerDownToAligned)]
+              [(sUp, centerUpFromAligned, centerUpToAligned),
+               (sLow, centerDownFromAligned, centerDownToAligned)]
               duration
 
 alignTxt :: Alignment -> ColorString  -> Coords Pos

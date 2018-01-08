@@ -126,7 +126,6 @@ computeDelta
   where
     size = length backBuf
 
--- TODO merge with color change command to save 2 bytes
 -- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
 -- of a char, so we avoid sending this command when not strictly needed.

@@ -14,23 +14,26 @@ module Imj.Graphics.Render.FromMonadReader
        , drawAlignedTxt
        , drawAlignedColorStr
        , renderToScreen
+       , drawMultiLineStr
        -- * Reexports
        , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw, Render, MonadReader, MonadIO
        ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
-import           Imj.Geo.Discrete.Types
+import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
+import           Imj.Util
 
 
 -- | Executes actions in context of a given 'Scissor'.
@@ -90,6 +93,25 @@ drawAlignedTxt txt colors a = do
   d <- asks drawAlignedTxt'
   d txt colors a
 
+-- | Draw a 'String' on multiple lines.
+drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
+                 => String
+                 -> Coords Pos
+                 -- ^ The text will be centered vertically and left justified
+                 -- according to this position.
+                 -> LayeredColor
+                 -> Int
+                 -- ^ Maximum line size.
+                 -> m ()
+drawMultiLineStr str ref' color nChars = do
+  let strs = multiLine str nChars
+      -- center vertically
+      ref = move (quot (length strs) 2) Up ref'
+  zipWithM_
+    (\i s -> drawStr s (move i Down ref) color)
+    [0..] strs
+
+
 
 {-# INLINABLE drawTxt #-}
 drawTxt :: (Draw e, MonadReader e m, MonadIO m)
@@ -135,7 +157,7 @@ drawChar c co la = do
   d <- asks drawChar'
   d c co la
 
--- | Render the drawing to {the screen, the console, etc...}.
+-- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
                => m ()

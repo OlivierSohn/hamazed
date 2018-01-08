@@ -136,6 +136,7 @@ render' (GameParameters shape wall _) = do
         >>= dText_ "'f' -> Ship"
 
       t <- liftIO getSystemTime
-      let infos = (Colored worldFrameColors $ mkRectContainerWithTotalArea sz, (([""],[""]),[[""],[""]]))
+      let e = Successive [""]
+          infos = (Colored worldFrameColors $ mkRectContainerWithTotalArea sz, ((e, e),[e,e]))
       drawUIAnimation zeroCoords $ mkUIAnimation infos infos 0 0 t
       renderToScreen

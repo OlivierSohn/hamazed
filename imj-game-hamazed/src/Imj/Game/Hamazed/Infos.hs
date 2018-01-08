@@ -17,33 +17,34 @@ import           Data.Text(pack, singleton)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Text.ColorString
 
 data InfoType = Normal | ColorAnimated
 
-mkLevelCS :: InfoType -> Int -> [ColorString]
+mkLevelCS :: InfoType -> Int -> Successive ColorString
 mkLevelCS t level =
   let txt c = colored "Level " configFgColor <> colored (pack (show level)) c <> colored (" of " <> pack (show lastLevel)) configFgColor
-  in case t of
+  in Successive $ case t of
     Normal -> [txt configFgColor]
     ColorAnimated -> [txt red, txt configFgColor]
 
-mkAmmoCS :: InfoType -> Int -> [ColorString]
+mkAmmoCS :: InfoType -> Int -> Successive ColorString
 mkAmmoCS _ ammo =
   let s = colored (singleton '[') bracketsColor
        <> colored (pack $ replicate ammo '.') ammoColor
        <> colored (singleton ']') bracketsColor
-   in [s]
+   in Successive [s]
 
-mkObjectiveCS :: InfoType -> Int -> [ColorString]
+mkObjectiveCS :: InfoType -> Int -> Successive ColorString
 mkObjectiveCS t target =
   let txt c = colored "Objective : " configFgColor <> colored (pack (show target)) c
-  in case t of
+  in Successive $ case t of
     Normal -> [txt white]
     ColorAnimated -> [txt red, txt white]
 
 
-mkShotNumbersCS :: InfoType -> [Int] -> [ColorString]
+mkShotNumbersCS :: InfoType -> [Int] -> Successive ColorString
 mkShotNumbersCS _ nums =
   let lastIndex = length nums - 1
       first = colored (singleton '[') bracketsColor
@@ -54,9 +55,9 @@ mkShotNumbersCS _ nums =
                                                   _ -> pack [num, ' ']
                                          in (i-1, s <> colored' t (numberColor n))) (lastIndex, first) nums
 
-  in [middle <> last_]
+  in Successive [middle <> last_]
 
-mkLeftInfo :: InfoType -> Int -> [Int] -> Level -> [[ColorString]]
+mkLeftInfo :: InfoType -> Int -> [Int] -> Level -> [Successive ColorString]
 mkLeftInfo t ammo shotNums (Level level target _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
@@ -64,10 +65,14 @@ mkLeftInfo t ammo shotNums (Level level target _)=
   , mkLevelCS t level
   ]
 
-mkUpDownInfo :: ([ColorString], [ColorString])
+mkUpDownInfo :: (Successive ColorString, Successive ColorString)
 mkUpDownInfo =
-  ([],[])
+  (Successive [],Successive [])
 
-mkInfos :: InfoType -> Int -> [Int] -> Level -> (([ColorString], [ColorString]), [[ColorString]])
+mkInfos :: InfoType
+        -> Int
+        -> [Int]
+        -> Level
+        -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
 mkInfos t ammo shotNums level =
   (mkUpDownInfo, mkLeftInfo t ammo shotNums level)

@@ -46,6 +46,7 @@ follows this pattern. -}
   , drawChars
   , drawTxt
   , drawStr
+  , drawMultiLineStr
   , drawColorStr
   , drawAlignedTxt_
   , drawAlignedTxt

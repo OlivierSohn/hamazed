@@ -4,11 +4,11 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.UI.RectContainer
-        (
-          RectContainer(..)
-        , applyOffset
+        ( RectContainer(..)
+        , translateRectContainer
         , mkRectContainerWithTotalArea
-        , getSideCentersAtDistance
+        , mkRectContainerAtDistance
+        , getSideCenters
           -- * Reexports
         , Colorable(..)
         ) where
@@ -49,7 +49,7 @@ data RectContainer = RectContainer {
     -- ^ Upper left corner.
 } deriving(Eq, Show)
 
--- TODO notion "continuous closed path" to factor 'ranges' and 'drawRectFrameInterpolation' logics.
+-- TODO typeclass "continuous closed path" to gather 'ranges' and 'drawRectFrameInterpolation' logics.
 
 instance Colorable RectContainer where
   drawUsingColor = drawWhole
@@ -80,8 +80,10 @@ instance DiscreteColorableMorphing RectContainer where
     where
       lastFrame = pred $ distance from to
 
-applyOffset :: Coords Pos -> RectContainer -> RectContainer
-applyOffset offset (RectContainer a coords) = RectContainer a $ sumCoords offset coords
+
+translateRectContainer :: Coords Pos -> RectContainer -> RectContainer
+translateRectContainer offset (RectContainer a coords) =
+  RectContainer a $ sumCoords offset coords
 
 {-# INLINABLE drawWhole #-}
 drawWhole :: (Draw e, MonadReader e m, MonadIO m)
@@ -175,12 +177,10 @@ rangeByRemovingFromTotal remove total start =
       max_ = total - 1 - remove
   in (start + min_, start + max_)
 
+{- | Produces a 'RectContainer' at given horizontal and vertical distances from
+another 'RectContainer'.
 
-{- | Returns points centered on the sides of a container which is at a given distances
-(dx and dy) from the reference container.
-
-[container at a distance from another container]
-In this illustration, @cont'@ is at dx = dy = 3 from @cont@:
+For example, in this illustration, @cont'@ is at dx = dy = 3 from @cont@:
 
 @
     cont'
@@ -199,6 +199,20 @@ In this illustration, @cont'@ is at dx = dy = 3 from @cont@:
    >|--|<
     dx = 3
 @
+-}
+mkRectContainerAtDistance :: RectContainer
+                          -- ^ Reference container
+                          -> Length Width
+                          -- ^ Horizontal distance
+                          -> Length Height
+                          -- ^ Vertical distance
+                          -> RectContainer
+mkRectContainerAtDistance (RectContainer (Size y x) upperLeft) dx dy =
+  RectContainer (Size (y+2*dy) (x + 2*dx))
+  $ translate' (fromIntegral $ -dy) (fromIntegral $ -dx) upperLeft
+
+
+{- | Returns points centered on the sides of a container.
 
 [Favored direction for centers of horizontal sides]
 When computing the /center/ of an horizontal side, if the side has an /even/ length,
@@ -248,25 +262,15 @@ as illustrated here (@^@ indicates the chosen center):
   ^
 @
 -}
--- TODO split : function to make the container at a distance, and function to take the centers.
-getSideCentersAtDistance :: RectContainer
-                         -- ^ Reference container
-                         -> Length Width
-                         -- ^ Horizontal distance
-                         -> Length Height
-                         -- ^ Horizontal distance
-                         -> (Coords Pos, Coords Pos, Coords Pos, Coords Pos)
-                         -- ^ (center Up, center Down, center Left, center Right)
-getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft') dx dy =
+getSideCenters :: RectContainer
+               -> (Coords Pos, Coords Pos, Coords Pos, Coords Pos)
+               -- ^ (center Up, center Down, center Left, center Right)
+getSideCenters (RectContainer (Size rs' cs') upperLeft) =
   (centerUp, centerDown, leftMiddle, rightMiddle)
  where
-  deltaLength dist =
-    2 *    -- in both directions
-      (1 +   -- from inner content to outer container
-       dist) -- from container to container'
-  rs = rs' + fromIntegral (deltaLength dy)
-  cs = cs' + fromIntegral (deltaLength dx)
-  upperLeft = translate' (fromIntegral $ -dy) (fromIntegral $ -dx) upperLeft'
+  -- in both directions, from inner content to outer container:
+  rs = rs' + 2
+  cs = cs' + 2
 
   cHalf = quot (cs-1) 2 -- favors 'LEFT' 'Direction', see haddock comments.
   rHalf = quot (rs-1) 2 -- favors 'Up' 'Direction'
@@ -277,8 +281,9 @@ getSideCentersAtDistance (RectContainer (Size rs' cs') upperLeft') dx dy =
   leftMiddle  = translate' rHalf 0     upperLeft
   rightMiddle = translate' rHalf (cs-1) upperLeft
 
+
 -- | Helper function to create a 'RectContainer' whose /content/ matches a 'RectArea'.
 mkRectContainerWithTotalArea :: RectArea a -> RectContainer
 mkRectContainerWithTotalArea rectArea@(RectArea upperLeft _) =
-  let (Size h w) = reactAreaSize rectArea
+  let (Size h w) = rectAreaSize rectArea
   in RectContainer (Size (h-2) (w-2)) upperLeft

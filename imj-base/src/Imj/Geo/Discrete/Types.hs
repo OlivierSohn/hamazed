@@ -55,9 +55,7 @@ instance DiscreteInterpolation (Coords Pos) where
     | c == c' = c
     | otherwise =
         let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
-            -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 lastFrame
-        in head . drop index $ bresenham $ mkSegment c c'
+        in bresenham (mkSegment c c') !! clamp i 0 lastFrame
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteDistance (Coords Pos) where

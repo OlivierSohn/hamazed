@@ -21,7 +21,7 @@ module Imj.Graphics.UI
    -- * RectArea functions
   , mkRectArea
   , maxRectArea
-  , reactAreaSize
+  , rectAreaSize
   , contains
   , intersection
   , isEmpty
@@ -32,9 +32,10 @@ module Imj.Graphics.UI
   , Negative
   -- * RectContainer type
   , RectContainer(..)
-  , applyOffset
+  , translateRectContainer
   , mkRectContainerWithTotalArea
-  , getSideCentersAtDistance
+  , mkRectContainerAtDistance
+  , getSideCenters
   -- * Colored Type
   , Colored(..)
   -- * Reexports

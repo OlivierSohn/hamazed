@@ -9,6 +9,8 @@ import           Test.Imj.Bresenham3
 --import           Test.Imj.Ease
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
+import           Test.Imj.RectArea
+import           Test.Imj.Resample
 import           Test.Imj.Segment
 import           Test.Imj.Timing
 import           Test.Imj.Vector
@@ -19,6 +21,8 @@ main = do
   putStrLn "" -- for readablilty
   testBres2 >>= print
   testBres3 >>= print
+  testRectArea >>= print
+  testResample >>= print
   testTiming >>= print
   testSegment >>= print
   testVector >>= print

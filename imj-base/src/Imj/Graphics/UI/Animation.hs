@@ -82,7 +82,7 @@ moveContainerEvolution :: Evolution (Colored RectContainer)
 moveContainerEvolution ev' offset =
   if zeroCoords /= offset
     then
-      fmap (fmap (applyOffset offset)) ev'
+      fmap (fmap (translateRectContainer offset)) ev'
     else
       ev'
 
@@ -149,9 +149,9 @@ createUITextAnimations :: RectContainer
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDistance duration =
     let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
-          getSideCentersAtDistance from horizontalDistance verticalDistance
+          getSideCenters $ mkRectContainerAtDistance from horizontalDistance verticalDistance
         (centerUpTo, centerDownTo, leftMiddleTo, _) =
-          getSideCentersAtDistance to horizontalDistance verticalDistance
+          getSideCenters $ mkRectContainerAtDistance to horizontalDistance verticalDistance
         ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
         ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts 1 duration
     in (ta1, ta2)

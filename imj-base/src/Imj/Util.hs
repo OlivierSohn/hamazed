@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Util
     ( -- * List utilities
@@ -141,7 +142,7 @@ clamp :: Ord a
       -> a
       -- ^ The inclusive maximum bound
       -> a
-clamp n min_ max_
+clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n

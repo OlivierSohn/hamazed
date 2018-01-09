@@ -41,6 +41,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
                         , negate, div, divMod, quot, quotRem, even, odd
                         , error, undefined
+                        , (!!)
                         )
 
 import           Control.Applicative((<|>))

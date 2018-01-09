@@ -1,5 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
+
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.Color.Types
           ( Color8 -- constructor is intentionaly not exposed.
@@ -109,15 +111,10 @@ instance DiscreteDistance (Color8 a) where
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteInterpolation (Color8 a) where
   interpolate c c' i
-    | c == c' = c
-    | i <= 0 = c
     | i >= lastFrame = c'
-    | otherwise =
-        let -- TODO measure if "head . drop (pred n)"" is more optimal than "!! n"
-            index = clamp i 0 lastFrame
-        in head . drop index $ bresenhamColor8 c c'
+    | otherwise = bresenhamColor8 c c' !! clamp i 0 lastFrame
     where
-      lastFrame = pred $ fromIntegral $ bresenhamColor8Length c c'
+      !lastFrame = pred $ bresenhamColor8Length c c'
 
 
 {-# INLINE mkColor8 #-}
@@ -140,7 +137,7 @@ color8BgSGRToCode (Color8 c) =
 -- interpolation happens in grayscale space.
 {-# INLINABLE bresenhamColor8Length #-}
 bresenhamColor8Length :: Color8 a -> Color8 a -> Int
-bresenhamColor8Length c c'
+bresenhamColor8Length !c !c'
   | c == c' = 1
   | otherwise = case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
       (GrayColor g1,  GrayColor g2)  -> 1 + fromIntegral (abs (g2 - g1))
@@ -157,7 +154,7 @@ the closest 'rgb' in the direction of the other color, so as to produce
 a /monotonic/ interpolation. -}
 {-# INLINABLE bresenhamColor8 #-}
 bresenhamColor8 :: Color8 a -> Color8 a -> [Color8 a]
-bresenhamColor8 c c'
+bresenhamColor8 !c !c'
   | c == c' = [c]
   | otherwise = case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
     (GrayColor g1, GrayColor g2)   -> map gray $ range g1 g2

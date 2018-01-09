@@ -80,7 +80,8 @@ We can chose over-represented samples in at least two different ways:
 resampleWithExtremities :: [a]
                         -- ^ Input
                         -> Int
-                        -- ^ \( n \) : input length. It is expected that \( 0 <= n <= \) @length input@
+                        -- ^ \( n \) : input length. If input is a finite list,
+                        -- it is expected that \( 0 <= n <= \) @length input@
                         -> Int
                         -- ^ \( m \) : output length. It is expected that \( 0 <= m \).
                         -> [a]
@@ -88,7 +89,7 @@ resampleWithExtremities :: [a]
                         --
                         -- * when \( m < n \), it is a /downsampled/ version of the input,
                         -- * when \( m > n \), it is an /upsampled/ version of the input.
-resampleWithExtremities input n m
+resampleWithExtremities input' n m
    | assert (m >= 0) m == n = input
    | otherwise =
        let r = quot m n
@@ -98,6 +99,8 @@ resampleWithExtremities input n m
             | otherwise = let overRepIdx = getOverRepIdx (assert (m' > 0) m') n 0
                           in  resampleRec m' n 0 (overRepIdx, 0) input r
        in  assert (verifyResample input m res) res
+  where
+    input = take n input'
 
 
 resampleRec :: Int
@@ -117,7 +120,7 @@ resampleRec :: Int
 resampleRec _ _ _ _ [] _ = []
 resampleRec m' n curIdx (overRepIdx, s) l@(_:_) r =
   let (nCopies, nextState)
-  -- This commented guard was used to debug cases where the assert on the line after would fail
+-- uncomment the following line to debug cases where the assert on the line after would fail:
 --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
         | assert (overRepIdx >= curIdx) overRepIdx == curIdx
                 = let nextS = succ s

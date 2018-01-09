@@ -119,7 +119,7 @@ onLaser
             let frameSpace = mkRectContainerWithTotalArea view
                 infos = mkLeftInfo Normal newAmmo allShotNumbers level
                 (horizontalDist, verticalDist) = computeViewDistances viewMode
-                (_, _, leftMiddle, _) = getSideCentersAtDistance frameSpace horizontalDist verticalDist
+                (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
             in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
       newLevel = Level i target newFinished

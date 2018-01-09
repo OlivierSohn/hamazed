@@ -8,7 +8,7 @@ module Imj.Graphics.UI.RectArea
   , mkRectArea
   , growRectArea
   , maxRectArea
-  , reactAreaSize
+  , rectAreaSize
   , contains
   , intersection
   , isEmpty
@@ -34,7 +34,7 @@ import           Imj.Geo.Discrete
 data RectArea a = RectArea {
     _viewportInclusiveUpperLeft :: {-# UNPACK #-} !(Coords Pos)
   , _viewportInclusiveLowerRight :: {-# UNPACK #-} !(Coords Pos)
-} deriving(Show)
+} deriving(Show, Eq)
 
 -- | with phantom types 'Positive' and 'Negative' to tell the kind of filter.
 data Filter a
@@ -76,12 +76,13 @@ mkRectArea upperLeft (Size h w) =
 
 growRectArea :: Int -> RectArea a -> RectArea a
 growRectArea i' (RectArea from to) =
-  RectArea (translate' (-i) (fromIntegral $ -i) from) (translate' i (fromIntegral i) to)
+  RectArea (translate' (-i) (fromIntegral $ -i) from)
+           (translate' i    (fromIntegral i)    to)
  where
   !i = fromIntegral i'
 
-reactAreaSize :: RectArea a -> Size
-reactAreaSize r@(RectArea (Coords r1 c1) (Coords r2 c2)) =
+rectAreaSize :: RectArea a -> Size
+rectAreaSize r@(RectArea (Coords r1 c1) (Coords r2 c2)) =
   if isEmpty r
     then
       Size 0 0
@@ -90,8 +91,7 @@ reactAreaSize r@(RectArea (Coords r1 c1) (Coords r2 c2)) =
           w = 1 + (c2 - c1)
       in Size (fromIntegral h) (fromIntegral w)
 
-intersection :: RectArea a -> RectArea a -> RectArea a -- TODO unit test to verify it alway works
--- (irrespective of how the bounds are swapped, and even if both are empty)
+intersection :: RectArea a -> RectArea a -> RectArea a
 intersection (RectArea (Coords r1 c1) (Coords r2 c2))
              (RectArea (Coords r1' c1') (Coords r2' c2')) =
   RectArea (Coords (max r1 r1') (max c1 c1')) (Coords (min r2 r2') (min c2 c2'))

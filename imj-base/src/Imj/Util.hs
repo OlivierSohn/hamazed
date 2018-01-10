@@ -8,7 +8,6 @@ module Imj.Util
     , range
     , takeWhileInclusive
       -- * String utilities
-    , multiLine
     , commonPrefix
     , commonSuffix
       -- * Math utilities
@@ -20,7 +19,6 @@ module Imj.Util
     ) where
 
 import           Imj.Prelude
-import           Prelude(length)
 
 import           Data.Int(Int64)
 import           Data.List(reverse)
@@ -111,26 +109,6 @@ commonPrefix _ _ = []
 
 commonSuffix :: String -> String -> String
 commonSuffix s s' = reverse $ commonPrefix (reverse s) (reverse s')
-
--- | Layouts a 'String' on multiple lines.
-multiLine :: String
-          -> Int
-          -- ^ Maximum length of a line.
-          -> [String]
-multiLine str maxLineSize =
-  map (unwords . reverse) $ reverse $ toMultiLine' (words str) 0 [] [[]]
- where
-  toMultiLine' :: [String] -> Int -> [String] -> [[String]] -> [[String]]
-  toMultiLine' [] _ []      curLines = curLines
-  toMultiLine' [] _ curLine curLines = curLine : curLines
-  toMultiLine' a@(x:xs) curLineSize curLine curLines =
-    let l = length x
-        sz = 1 + l + curLineSize
-    in if sz > maxLineSize
-        then
-          toMultiLine' a 0 [] (curLine : curLines)
-        else
-          toMultiLine' xs sz (x:curLine) curLines
 
 -- | Expects the bounds to be in the right order.
 {-# INLINABLE clamp #-}

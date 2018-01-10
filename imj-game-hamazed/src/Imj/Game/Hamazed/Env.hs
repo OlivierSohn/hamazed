@@ -3,10 +3,10 @@
 
 {-# OPTIONS_HADDOCK hide #-}
 
-module Imj.Game.Hamazed.Env(
-         Env
-       , createEnv
-       ) where
+module Imj.Game.Hamazed.Env
+      ( Env
+      , createEnv
+      ) where
 
 import           Imj.Graphics.Class.Draw(Draw(..))
 import           Imj.Graphics.Class.Render(Render(..))

@@ -1,9 +1,10 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleContexts #-}
 
-module Imj.Game.Hamazed.Loop.Render
-      ( render
+module Imj.Game.Hamazed.Loop.Draw
+      ( draw
       ) where
 
 import           Imj.Prelude
@@ -18,12 +19,11 @@ import           Imj.Game.Hamazed.World
 import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.UI.RectArea
 
--- | Renders the game to the screen, using "Imj.Graphics.Render.Delta" to avoid
--- <https://en.wikipedia.org/wiki/Screen_tearing screen tearing>.
-{-# INLINABLE render #-}
-render :: (Render e, MonadReader e m, MonadIO m)
-       => GameState -> m ()
-render (GameState _ world@(World _ _ space animations (InTerminal _ _ view))
+-- | Draws the game content.
+{-# INLINABLE draw #-}
+draw :: (Draw e, MonadReader e m, MonadIO m)
+     => GameState -> m ()
+draw (GameState _ world@(World _ _ space animations (InTerminal _ _ view))
                   _ _ level wa) = do
   let offset = getWorldOffset world
       worldCorner = getWorldCorner world offset
@@ -37,4 +37,3 @@ render (GameState _ world@(World _ _ space animations (InTerminal _ _ view))
                             -- it goes over numbers and ship
   -- draw last so that the message is clearly visible:
   drawLevelMessage level (rectAreaCenter view)
-  renderToScreen

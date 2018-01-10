@@ -37,6 +37,7 @@ data Event = Action !ActionTarget !Direction
            -- ^ End of game.
            | Interrupt !MetaAction
            -- ^ A game interruption.
+           | ToggleEventRecording
            deriving(Eq, Show)
 
 data MetaAction = Quit

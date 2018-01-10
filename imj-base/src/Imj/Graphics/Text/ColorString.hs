@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE InstanceSigs #-}
 
   {- | A 'ColorString' is a multicolored 'Text'.-}
 
@@ -8,9 +9,9 @@ module Imj.Graphics.Text.ColorString
             -- * Type
               ColorString(..)
             -- * Constructors
-            {- | 'colored' creates a 'ColorString' using the specified foreground color on
-            /black/ background, wherease 'colored'' allows you to chose both the
-            background and the foreground colors.
+{- | 'colored' creates a 'ColorString' using the specified foreground color on
+/black/ background, wherease 'colored'' allows you to chose both the
+background and the foreground colors.
 
 And since 'ColorString' is 'Monoid', we can write:
 
@@ -22,17 +23,20 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             , colored'
             -- * Utilities
             , countChars
+            , take
             -- * Reexports
             , LayeredColor(..)
             ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(take)
 
+import           Data.Char(isSpace)
 import           Data.String(IsString(..))
-import           Data.Text( Text, pack, unpack, length )
+import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt)
 import qualified Data.List as List(length)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
+import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
@@ -40,7 +44,7 @@ import           Imj.Util
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
 
 instance IsString ColorString where
-  fromString str = ColorString [(pack str, onBlack white)]
+  fromString str = ColorString [(Text.pack str, onBlack white)]
 
 
 -- TODO maybe it would be faster to have a representation with Array (Char, LayeredColor)
@@ -78,7 +82,7 @@ instance DiscreteInterpolation ColorString where
   interpolate c1 c2 i =
     let c2' = simplify c2
         (c1', remaining) = interpolateChars (simplify c1) c2' i
-    in ColorString $ map (\(char,color) -> (pack [char], color)) $
+    in ColorString $ map (\(char,color) -> (Text.pack [char], color)) $
         if remaining >= 0
           then
             c1'
@@ -106,7 +110,7 @@ simplify (ColorString l@(_:_)) =
   let (txt, color) = head l
   in map
        (\c -> (c,color))
-       (unpack txt)
+       (Text.unpack txt)
      ++ simplify (ColorString $ tail l)
 
 
@@ -117,9 +121,84 @@ colored :: Text -> Color8 Foreground -> ColorString
 colored t c = colored' t $ onBlack c
 
 -- | Counts the chars in the 'ColorString'
-countChars :: ColorString -> Int
-countChars (ColorString cs) = sum $ map (Data.Text.length . fst) cs
+countChars :: ColorString -> Int -- TODO rename as length
+countChars (ColorString cs) =
+  sum $ map (Text.length . fst) cs
+
+take :: Int -> ColorString -> ColorString
+take nChars (ColorString l)
+  | nChars <= 0 = mempty
+  | otherwise = ColorString $ reverse $ take' nChars [] l
+  where
+    take' :: Int -> [(Text, LayeredColor)] -> [(Text, LayeredColor)] -> [(Text, LayeredColor)]
+    take' _ cur [] = cur
+    take' 0 cur _  = cur
+    take' n cur (r@(txt,color):rs)
+      | n >= lr = take' (n-lr) (r:cur) rs
+      | otherwise = (Text.take n txt, color):cur
+      where lr = Text.length txt
 
 instance Monoid ColorString where
-  mempty = ColorString [("", onBlack white)]
+  mempty = ColorString []
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
+
+instance Words ColorString where
+  length = countChars
+
+  splitAt idx (SingleWord (ColorString l)) =
+    (SingleWord $ ColorString $ reverse left
+   , SingleWord $ ColorString $ reverse right)
+    where
+      (left, right) = split' idx l ([],[])
+      split' :: Int
+             -> [(Text,LayeredColor)]
+             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
+             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
+      split' _ [] cur = cur
+      split' n (t@(txt,color):xs) (lefts,rights)
+        | n >= len  = split' (n-len) xs (            t:lefts,                rights)
+        | n > 0     = split' 0       xs ((tLeft,color):lefts, (tRight,color):rights)
+        | otherwise = split' 0       xs (              lefts,              t:rights)
+        where
+          len = Text.length txt
+          (tLeft,tRight) = Text.splitAt n txt
+
+  unwords :: [SingleWord ColorString] -> ColorString
+  unwords strs =
+    unwords' (reverse strs) mempty
+   where
+    unwords' [] cur = cur
+    unwords' (SingleWord x:xs) (ColorString []) =
+      unwords' xs x
+    unwords' (SingleWord (ColorString x):xs) (ColorString ((c,color):cs)) =
+      unwords' xs $ ColorString $ x ++ ((Text.cons ' ' c,color):cs)
+
+  words :: ColorString -> [SingleWord ColorString]
+  words (ColorString l) =
+    map (SingleWord . ColorString) $ reverse $ words' l False []
+   where
+    words' :: [(Text,LayeredColor)] -> Bool -> [[(Text,LayeredColor)]] -> [[(Text,LayeredColor)]]
+    words' [] _ cur = cur
+    words' ((txt,color):xs) prevShouldMergeLastWord cur =
+      case Text.words txt of
+        [] ->
+          words' xs prevShouldMergeLastWord cur
+        asWords@(firstWord:lastWords) ->
+          words' xs (not $ isSpace $ Text.last txt) cur'
+         where
+          cur' =
+            if not (isSpace $ Text.head txt) && prevShouldMergeLastWord
+              then
+                -- we merge this iteration's first word with the previous iteration's
+                -- last word.
+                case cur of
+                  [] -> error "prevShouldMergeLastWord is True, cur cannot be empty"
+                  c:cs -> map (\aw -> [(aw, color)]) (reverse lastWords)
+                          ++ ((c ++ [(firstWord, color)]) : cs)
+              else
+                -- we don't merge words
+                map (\aw -> [(aw, color)]) (reverse asWords) ++ cur
+  {-# INLINABLE words #-}
+  {-# INLINABLE unwords #-}
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}

@@ -3,7 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Hamazed.Types
-    ( GameState(..)
+    ( Game(..)
+    , GameState(..)
+    , GameParameters(..)
     -- * Reexports
     , module Imj.Game.Hamazed.Level.Types
     , module Imj.Game.Hamazed.World.Types
@@ -17,6 +19,18 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.UI.Animation
 
+
+data Game = Game {
+    _gameGameParameters :: !GameParameters
+  , _gameGameState :: !GameState
+}
+
+
+data GameParameters = GameParameters {
+    _gameParamsWorldShape :: !WorldShape
+  , _gameParamsWallDistrib :: !WallDistribution
+  , _gameParamsViewMode :: !ViewMode
+}
 
 {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
 we draw the /old/ 'World' while using the /new/ 'World' 's

@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
@@ -13,14 +14,17 @@ import qualified Prelude (putStrLn)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.Reader(runReaderT)
+import           Control.Monad.State.Class(MonadState)
+import           Control.Monad.State(runStateT, state, get)
 import           System.Info(os)
 
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create
+import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Loop.Render
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Parameters
+import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
@@ -46,34 +50,31 @@ run =
 doRun :: IO Termination
 doRun =
   runThenRestoreConsoleSettings
-    (createEnv >>= runAndWaitForTermination . runReaderT gameWorker)
-
-{-# INLINABLE gameWorker #-}
-gameWorker :: (Render e, MonadReader e m, MonadIO m)
-           => m ()
-gameWorker =
-  getGameParameters >>= runGameWorker
-
-
-{-# INLINABLE runGameWorker #-}
-runGameWorker :: (Render e, MonadReader e m, MonadIO m)
-              => GameParameters
-              -> m ()
-runGameWorker params =
-  mkInitialState params firstLevel Nothing
-    >>= \case
-      Left err -> error err
-      Right ew -> loop params ew
+    (createEnv >>= \env ->
+      runAndWaitForTermination
+      $ runStateT (runReaderT loop env) createState)
 
 {-# INLINABLE loop #-}
-loop :: (Render e, MonadReader e m, MonadIO m)
-     => GameParameters
-     -> GameState
-     -> m ()
-loop params state = do
-  liftIO (getEvent state) >>= \evt -> case evt of
-    (Interrupt _) -> return ()
-    _ -> do
-      newState <- liftIO $ update params state evt
-      when (needsRendering evt) $ render newState
-      loop params newState
+loop :: (Render e, MonadState AppState m, MonadReader e m, MonadIO m)
+     => m ()
+loop =
+  get >>= \(AppState game _ _) ->
+    case game of
+      Nothing -> do
+        params <- getGameParameters
+        mkInitialState params firstLevel Nothing
+          >>= \case
+            Left err -> error err
+            Right newState -> state (setGame $ Just (Game params newState)) >> loop
+      Just (Game params st) ->
+        liftIO (getEvent st) >>= \evt -> do
+          newState <- liftIO $ update params st evt
+          state (setGame $ Just (Game params newState))
+          strEvt <- onEvent evt
+          when (needsRendering evt) $ do
+            draw newState
+            zipWithM_ (\i s -> drawColorStr s $ Coords i 0) [0..] strEvt
+            renderToScreen
+          case evt of
+            (Interrupt _) -> return ()
+            _ -> loop

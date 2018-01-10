@@ -6,6 +6,7 @@ module Imj.Graphics.Class
   , Colorable(..)
   , Drawable(..)
   , HasRectArea(..)
+  , Words
   -- * Reexports
   , Draw
   , RectArea
@@ -16,3 +17,4 @@ import Imj.Graphics.Class.Colorable
 import Imj.Graphics.Class.Drawable
 import Imj.Graphics.Class.HasLayeredColor
 import Imj.Graphics.Class.HasRectArea
+import Imj.Graphics.Class.Words

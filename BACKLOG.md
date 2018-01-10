@@ -1,3 +1,24 @@
+- add a ProgramStart event
+- when deadlines are overdue, write them on the screen.
+-
+class Positionable a where
+  draw :: a -> Coords -> IO ()
+
+instance Positionable ColorString where
+  draw cs pos = drawColorStr cs pos
+
+instance Positionable (Colored Char) where
+  draw (Colored color str) pos = drawChar str pos color
+
+instance Positionable (Colored String) where
+  draw (Colored color str) pos = drawStr str pos color
+
+instance Positionable (Colored Text) where
+  draw (Colored color str) pos = drawTxt str pos color
+
+
+- use http://book.realworldhaskell.org/read/monad-transformers.html
+to simplify if needed
 
 - a game where we need to escape a randomly generated maze.
 

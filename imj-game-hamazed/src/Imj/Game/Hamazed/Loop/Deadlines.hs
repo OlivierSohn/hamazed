@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Loop.Deadlines
     ( getNextDeadline
@@ -65,7 +64,8 @@ earliestDeadline' [] = Nothing
 earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
 
 overdueDeadline :: SystemTime -> [Deadline] -> Maybe Deadline
-overdueDeadline t = find (\(Deadline (KeyTime t') _) -> t' < t)
+overdueDeadline t =
+  find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : uiAnimation > message > game > player key > animation
 getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]
@@ -88,14 +88,17 @@ getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinishe
 
 particleSystemsDeadline :: GameState -> Maybe Deadline
 particleSystemsDeadline (GameState _ world _ _ _ _) =
-  maybe Nothing (\ti -> Just $ Deadline ti AnimateParticleSystems) $ earliestAnimationDeadline world
+  maybe
+    Nothing
+    (\ti -> Just $ Deadline ti AnimateParticleSystems)
+    $ earliestAnimationDeadline world
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
 uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
   maybe
     Nothing
     (\deadline -> Just $ Deadline deadline AnimateUI)
-      $ getUIAnimationDeadline uianim
+    $ getUIAnimationDeadline uianim
 
 -- | Returns the earliest 'ParticleSystem' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime

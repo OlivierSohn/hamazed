@@ -14,13 +14,13 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Animation
@@ -31,12 +31,6 @@ import           Imj.Input.Blocking
 import           Imj.Input.Types
 import           Imj.Timing
 
-
-data GameParameters = GameParameters {
-    _gameParamsWorldShape :: !WorldShape
-  , _gameParamsWallDistrib :: !WallDistribution
-  , _gameParamsViewMode :: !ViewMode
-}
 
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)

@@ -40,9 +40,7 @@ import           Imj.Util
 -- 'Event' is 'StartLevel'
 {-# INLINABLE update #-}
 update :: GameParameters
-       -- ^ 'World' creation parameters, used in case the 'Event' is 'StartLevel'.
        -> GameState
-       -- ^ The current state
        -> Event
        -- ^ The 'Event' that should be handled here.
        -> IO GameState
@@ -78,8 +76,8 @@ update
         return state
   Action Ship dir ->
     return $ accelerateShip' dir state
-  (Interrupt _) ->
-    return state
+  (Interrupt _) -> return state
+  ToggleEventRecording -> return state
   EndGame -> -- TODO instead, go back to game configuration ?
     return state
 

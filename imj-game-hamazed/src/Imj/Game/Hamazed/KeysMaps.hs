@@ -27,5 +27,6 @@ eventFromKey = \case
     'e' -> Just $ Action Ship Up
     's' -> Just $ Action Ship LEFT
     'f' -> Just $ Action Ship RIGHT
+    'r'-> Just ToggleEventRecording
     _   -> Nothing
   _ -> Nothing

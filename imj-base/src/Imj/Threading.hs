@@ -33,7 +33,7 @@ data Termination = NormalTermination
 
 -- | Runs an IO action in a separate thread, and waits for it to finish,
 -- returning its result.
-runAndWaitForTermination :: IO () -> IO Termination
+runAndWaitForTermination :: IO a -> IO Termination
 runAndWaitForTermination io = do
   --setupCapabilities
   -- launch game thread
@@ -53,7 +53,7 @@ setupCapabilities = do
 -- This function was introduced so that the parent thread can wait on the
 -- returned MVar to be set to know that the child thread has terminated.
 -- cf https://hackage.haskell.org/package/base-4.10.0.0/docs/Control-Concurrent.html#g:12
-myForkIO :: IO () -> IO (MVar Termination)
+myForkIO :: IO a -> IO (MVar Termination)
 myForkIO io = do
   mvar <- newEmptyMVar
   _ <- forkFinally io (handleTerminationCause >=> putMVar mvar)

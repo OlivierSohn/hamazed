@@ -16,11 +16,12 @@ module Imj.Graphics.Render.FromMonadReader
        , renderToScreen
        , drawMultiLineStr
        -- * Reexports
-       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw, Render, MonadReader, MonadIO
+       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw
+       , Render, MonadReader, MonadIO
        ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+import qualified Prelude(length)
 
 import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
@@ -30,10 +31,10 @@ import           Data.Text(Text)
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
-import           Imj.Util
 
 
 -- | Executes actions in context of a given 'Scissor'.
@@ -106,11 +107,10 @@ drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
 drawMultiLineStr str ref' color nChars = do
   let strs = multiLine str nChars
       -- center vertically
-      ref = move (quot (length strs) 2) Up ref'
+      ref = move (quot (Prelude.length strs) 2) Up ref'
   zipWithM_
     (\i s -> drawStr s (move i Down ref) color)
     [0..] strs
-
 
 
 {-# INLINABLE drawTxt #-}

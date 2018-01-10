@@ -4,8 +4,12 @@
 
 module Imj.Game.Hamazed.Types
     ( Game(..)
+    , UserIntent(..)
     , GameState(..)
+    , startGameState
     , GameParameters(..)
+    , initialParameters
+    , minRandomBlockSize
     -- * Reexports
     , module Imj.Game.Hamazed.Level.Types
     , module Imj.Game.Hamazed.World.Types
@@ -17,14 +21,17 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.UI.Animation
 
+data UserIntent = Configure
+                | Play
 
 data Game = Game {
-    _gameGameParameters :: !GameParameters
+    _gameUserIntent :: !UserIntent
+  , _gameGameParameters :: !GameParameters
   , _gameGameState :: !GameState
 }
-
 
 data GameParameters = GameParameters {
     _gameParamsWorldShape :: !WorldShape
@@ -49,3 +56,19 @@ data GameState = GameState {
   , _gameStateUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
 }
+
+
+startGameState :: SystemTime -> GameState -> GameState
+startGameState t (GameState _ world world' b d e) =
+  GameState (Just $ KeyTime t) (startWorld t world) (startWorld t world') b d e
+
+
+minRandomBlockSize :: Int
+minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
+                       -- 6 has always been ok
+
+initialParameters :: GameParameters
+initialParameters = GameParameters Rectangle2x1 (Random defaultRandom) CenterSpace
+
+defaultRandom :: RandomParameters
+defaultRandom = RandomParameters minRandomBlockSize StrictlyOneComponent

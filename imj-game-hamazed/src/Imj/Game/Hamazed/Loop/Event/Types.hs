@@ -42,8 +42,6 @@ data Event = Action !ActionTarget !Direction
 
 data MetaAction = Quit
                 -- ^ The player decided to quit the game.
-                | Configure
-                -- ^ The player wants to configure the game /(Not implemented yet)/
                 | Help
                 -- ^ The player wants to read the help page /(Not implemented yet)/
                 deriving(Eq, Show)

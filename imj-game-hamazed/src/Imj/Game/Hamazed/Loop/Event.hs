@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Event
     ( needsRendering
@@ -12,10 +13,13 @@ module Imj.Game.Hamazed.Loop.Event
 
 import           Imj.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
+
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.State
 import           Imj.Timing
 
 -- | Tells if after handling an 'Event' we should render or not.
@@ -24,15 +28,16 @@ needsRendering = \case
   (Action Ship _) -> False -- When the ship accelerates, nothing changes visually
   _ -> True
 
-getEvent :: GameState -> IO Event
-getEvent state = do
-  mayEvent <- getEvent' state
-  case mayEvent of
+getEvent :: (MonadState AppState m, MonadIO m)
+         => m Event
+getEvent =
+  getEvent' >>= \case
     Just event -> return event
-    Nothing -> getEvent state
+    Nothing -> getEvent
 
-getEvent' :: GameState -> IO (Maybe Event)
-getEvent' state@(GameState _ _ _ _ level _) = do
-  t <- getSystemTime
-  let deadline = getNextDeadline state t
-  getEventForMaybeDeadline level deadline t
+getEvent' :: (MonadState AppState m, MonadIO m)
+          => m (Maybe Event)
+getEvent' = do
+  t <- liftIO getSystemTime
+  deadline <- getNextDeadline t
+  getEventForMaybeDeadline deadline t

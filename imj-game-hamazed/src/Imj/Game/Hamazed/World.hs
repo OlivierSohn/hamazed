@@ -3,19 +3,10 @@
 
 module Imj.Game.Hamazed.World
     (
-      -- * Parameters
-      {-| When the game starts, the player can chose 'World' parameters:
-
-      * 'WorldShape' : square or rectangular 'World' where the width is twice the height
-      * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
-      * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
-       -}
-      getGameParameters
-    , GameParameters(..)
       -- * Level
       {-| There are 12 levels in Hamazed, numbered from 1 to 12.
       -}
-    , Level(..)
+      Level(..)
       -- ** Level termination
       {-| [Target number]
       Each level has a different /target number/ which represents the sum of shot
@@ -146,7 +137,6 @@ import           Data.Text( pack )
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Level.Types
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.InTerminal

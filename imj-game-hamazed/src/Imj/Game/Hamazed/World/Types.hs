@@ -5,6 +5,7 @@
 
 module Imj.Game.Hamazed.World.Types
         ( World(..)
+        , startWorld
         , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
@@ -70,6 +71,10 @@ data World = World {
   , _worldEmbedded :: !InTerminal
     -- ^ To know where we should draw the 'World' from, w.r.t terminal frame.
 }
+
+startWorld :: SystemTime -> World -> World
+startWorld t (World a (BattleShip ship ammo _ col) b c d) =
+  World a (BattleShip ship ammo (Just $ addToSystemTime 5 t) col) b c d
 
 data InTerminal = InTerminal {
     _inTerminalSize :: !(Maybe (Terminal.Window Int))

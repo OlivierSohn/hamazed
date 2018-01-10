@@ -14,7 +14,15 @@ module Imj.Game.Hamazed
 
         /Note that to adapt the keyboard layout, you can modify 'eventFromKey'./
         -}
-          run
+        run
+      -- * Parameters
+      {-| When the game starts, the player can chose 'World' parameters:
+
+      * 'WorldShape' : square or rectangular 'World' where the width is twice the height
+      * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
+      * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
+       -}
+      , GameParameters(..)
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 
@@ -75,6 +83,5 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Run
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Loop.Update
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World

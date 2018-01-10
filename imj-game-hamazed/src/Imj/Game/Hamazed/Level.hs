@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Level
     ( drawLevelMessage
@@ -18,8 +19,9 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           System.Timeout( timeout )
 
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
@@ -31,19 +33,21 @@ import           Imj.Input.Blocking
 import           Imj.Input.Types
 import           Imj.Timing
 
-eventFromKey' :: Level -> Key -> Maybe Event
-eventFromKey' (Level n _ finished) key =
-  case finished of
-    Nothing -> eventFromKey key
-    Just (LevelFinished stop _ ContinueMessage) -> Just $
-      case stop of
-        Won -> if n < lastLevel
-                 then
-                   StartLevel (succ n)
-                 else
-                   EndGame
-        (Lost _) -> StartLevel firstLevel
-    _ -> Nothing -- between level end and proposal to continue
+eventFromKey' :: (MonadState AppState m)
+              => Key -> m (Maybe Event)
+eventFromKey' key =
+  getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _) ->
+    return $ case finished of
+      Nothing -> eventFromKey key
+      Just (LevelFinished stop _ ContinueMessage) -> Just $
+        case stop of
+          Won -> if n < lastLevel
+                   then
+                     StartLevel (succ n)
+                   else
+                     EndGame
+          (Lost _) -> StartLevel firstLevel
+      _ -> Nothing -- between level end and proposal to continue
 
 messageDeadline :: Level -> SystemTime -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) t =
@@ -60,27 +64,26 @@ messageDeadline (Level _ _ mayLevelFinished) t =
 
 -- | Returns a /player event/ or the 'Event' associated to the 'Deadline' if the
 -- 'Deadline' expired before the /player/ could press a 'Key'.
-getEventForMaybeDeadline :: Level
-                         -- ^ Current level
-                         -> Maybe Deadline
+getEventForMaybeDeadline :: (MonadState AppState m, MonadIO m)
+                         => Maybe Deadline
                          -- ^ May contain a 'Deadline'
                          -> SystemTime
                          -- ^ Current time
-                         -> IO (Maybe Event)
-getEventForMaybeDeadline level mayDeadline curTime =
+                         -> m (Maybe Event)
+getEventForMaybeDeadline mayDeadline curTime =
   case mayDeadline of
     (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadline curTime
-      eventWithinDurationMicros level timeToDeadlineMicros k deadlineType
-    Nothing -> eventFromKey' level <$> getKeyThenFlush
+      eventWithinDurationMicros timeToDeadlineMicros k deadlineType
+    Nothing -> liftIO getKeyThenFlush >>= eventFromKey'
 
-eventWithinDurationMicros :: Level -> Int -> KeyTime -> DeadlineType -> IO (Maybe Event)
-eventWithinDurationMicros level durationMicros k step =
-  (\case
-    Just key -> eventFromKey' level key
-    _ -> Just $ Timeout (Deadline k step)
-    ) <$> getCharWithinDurationMicros durationMicros step
+eventWithinDurationMicros :: (MonadState AppState m, MonadIO m)
+                          => Int -> KeyTime -> DeadlineType -> m (Maybe Event)
+eventWithinDurationMicros durationMicros k step =
+  liftIO (getCharWithinDurationMicros durationMicros step) >>= \case
+    Just key -> eventFromKey' key
+    _ -> return $ Just $ Timeout (Deadline k step)
 
 getCharWithinDurationMicros :: Int -> DeadlineType -> IO (Maybe Key)
 getCharWithinDurationMicros durationMicros step =

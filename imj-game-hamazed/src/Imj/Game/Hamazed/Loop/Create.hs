@@ -12,7 +12,6 @@ import           Control.Monad.IO.Class(MonadIO)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Size
@@ -52,11 +51,5 @@ mkInitialState (GameParameters shape wallType mode) levelNumber mayState = do
                 (Colored worldFrameColors $ mkRectContainerWithTotalArea curWorldView, curInfos)
                 (Colored worldFrameColors $ mkRectContainerWithTotalArea newWorldView, newInfos)
                 horizontalDist verticalDist t
-            gameDeadline =
-              if isFinished uiAnimation
-                then
-                  Just $ KeyTime t
-                else
-                  Nothing
-        return $ Right $ GameState gameDeadline curWorld newWorld newShotNums newLevel uiAnimation
+        return $ Right $ GameState Nothing curWorld newWorld newShotNums newLevel uiAnimation
   mkInTerminal newSize mode >>= either (return . Left) make

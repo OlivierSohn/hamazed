@@ -17,7 +17,6 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
-import           Imj.Timing
 
 mkWorld :: (MonadIO m)
         => InTerminal
@@ -36,11 +35,9 @@ mkWorld e s walltype nums ammo = do
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
-  t <- liftIO getSystemTime
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo (Just $ addToSystemTime 5 t) (getColliding pos balls)) space [] e
-
+  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space [] e
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

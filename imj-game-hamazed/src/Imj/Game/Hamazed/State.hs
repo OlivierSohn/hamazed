@@ -6,28 +6,59 @@
 module Imj.Game.Hamazed.State
       (
       -- * AppState type
-      AppState(..)
+        AppState(..)
       , RecordMode(..)
       , OccurencesHist
       , toColorStr
       -- * Create
       , createState
+      -- * Access
+      , getRenderable
+      , getGameState
+      , getGame
       -- * Modify
-      , setGame
+      , putGame
+      , putGameState
       , onEvent
       , toggleRecordEvent
+      , addIgnoredOverdues
+      -- * reexports
+      , MonadState
       ) where
 
 import           Imj.Prelude
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(state, get)
+import           Control.Monad.State(state, get, put)
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString
+
+
+data Occurences a = Occurences {
+    _occurencesCount :: !Int
+  , _occurencesItem :: !EventRepr
+}
+
+data AppState  = AppState {
+    _appStateGame :: !Game
+  , _appStateEventHistory :: !OccurencesHist
+  -- ^ Can record which events where handled.
+  , _appStateRecordEvents :: !RecordMode
+  -- ^ Should the handled events be recorded?
+}
+
+data RecordMode = Record
+                | DontRecord
+                deriving(Eq)
+
+data OccurencesHist = OccurencesHist {
+    _occurencesHistList :: ![Occurences EventRepr]
+  , _occurencesHistTailStr :: !ColorString
+}
 
 data EventRepr = Laser'
                | Ship'
@@ -39,6 +70,9 @@ data EventRepr = Laser'
                | EndGame'
                | Interrupt'
                | ToggleEventRecording'
+               | IgnoredOverdue
+               -- ^ Represents when an overdue deadline was ignored because its priority was lower
+               -- than another overdue deadline.
                deriving(Eq, Show)
 
 representation :: Event -> EventRepr
@@ -54,10 +88,11 @@ representation (Timeout (Deadline _ AnimateUI))              = AnimateUI'
 representation ToggleEventRecording = ToggleEventRecording'
 
 reprToCS :: EventRepr -> ColorString
+reprToCS IgnoredOverdue = colored "X" red
 reprToCS StartLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
 reprToCS Interrupt'  = colored "I" yellow
-reprToCS Laser'      = colored "L" red
+reprToCS Laser'      = colored "L" cyan
 reprToCS Ship'       = colored "S" blue
 reprToCS MoveFlyingItems'        = colored "M" green
 reprToCS AnimateParticleSystems' = colored "P" blue
@@ -67,14 +102,21 @@ reprToCS ToggleEventRecording'   = colored "T" yellow
 
 
 onEvent :: MonadState AppState m
-        => Event -> m [ColorString]
+        => Event -> m ()
 onEvent evt = do
   when (evt == ToggleEventRecording) $ state toggleRecordEvent
   getRecording >>= \case
-    -- TODO 150 (screen width) should be part of the state
-    Record -> state (addEvent evt) >>= \history ->
-      return $ toColorStr history `multiLine` 150
-    DontRecord -> return []
+    Record -> state (addEvent evt)
+    DontRecord -> return ()
+
+getRenderable :: MonadState AppState m
+              => m (GameState, [ColorString])
+getRenderable =
+  get >>= \(AppState (Game _ _ gameState) h r) -> do
+    let strs = case r of
+              Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
+              DontRecord -> []
+    return (gameState, strs)
 
 getRecording :: MonadState AppState m
              => m RecordMode
@@ -82,10 +124,10 @@ getRecording = do
   (AppState _ _ record) <- get
   return record
 
-addEvent :: Event -> AppState -> (OccurencesHist, AppState)
+addEvent :: Event -> AppState -> ((), AppState)
 addEvent e (AppState g es r) =
-  let es' = addEvent' e es
-  in (es', AppState g es' r)
+  let es' = addEventRepr (representation e) es
+  in ((), AppState g es' r)
 
 toggleRecordEvent :: AppState -> ((), AppState)
 toggleRecordEvent (AppState g _ r) =
@@ -94,17 +136,40 @@ toggleRecordEvent (AppState g _ r) =
         DontRecord -> Record
   in ((), AppState g mkEmptyOccurencesHist r')
 
-setGame :: Maybe Game -> AppState -> ((), AppState)
-setGame g (AppState _ es r) = ((), AppState g es r)
+putGame :: MonadState AppState m => Game -> m ()
+putGame g =
+  get >>= \(AppState _ r h) ->
+    put $ AppState g r h
+
+putGameState :: MonadState AppState m => GameState -> m ()
+putGameState s =
+  get >>= \(AppState (Game i params _) r h) ->
+    put $ AppState (Game i params s) r h
+
+getGameState :: MonadState AppState m => m GameState
+getGameState =
+  getGame >>= \(Game _ _ s) -> return s
+
+getGame :: MonadState AppState m => m Game
+getGame =
+  get >>= \(AppState g _ _) -> return g
+
+addIgnoredOverdues :: MonadState AppState m
+                   => Int -> m ()
+addIgnoredOverdues n =
+  get >>= \(AppState a hist record) -> do
+    let hist' = case record of
+          Record -> iterate (addEventRepr IgnoredOverdue) hist !! n
+          DontRecord -> hist
+    put $ AppState a hist' record
 
 toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
 toColorStr (OccurencesHist (x:_) tailStr) = tailStr <> toColorStr' x
 
-addEvent' :: Event -> OccurencesHist -> OccurencesHist
-addEvent' e' oh@(OccurencesHist h r) =
-  let e = representation e'
-  in case h of
+addEventRepr :: EventRepr -> OccurencesHist -> OccurencesHist
+addEventRepr e oh@(OccurencesHist h r) =
+  case h of
     [] -> mkOccurencesHist (Occurences 1 e)
     Occurences n o:xs -> if o == e
                             then
@@ -113,28 +178,9 @@ addEvent' e' oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: AppState
-createState = AppState Nothing mkEmptyOccurencesHist DontRecord
-
-data Occurences a = Occurences {
-    _occurencesCount :: !Int
-  , _occurencesItem :: !EventRepr
-}
-
-data AppState  = AppState {
-    _appStateGame :: !(Maybe Game)
-  , _appStateEventHistory :: !OccurencesHist
-  , _appStateRecordEvents :: !RecordMode
-}
-
-data RecordMode = Record
-                | DontRecord
-                deriving(Eq)
-
-data OccurencesHist = OccurencesHist {
-    _occurencesHistList :: ![Occurences EventRepr]
-  , _occurencesHistTailStr :: !ColorString
-}
+createState :: Game -> AppState
+createState game =
+  AppState game mkEmptyOccurencesHist DontRecord
 
 toColorStr' :: Occurences EventRepr -> ColorString
 toColorStr' (Occurences n e) =

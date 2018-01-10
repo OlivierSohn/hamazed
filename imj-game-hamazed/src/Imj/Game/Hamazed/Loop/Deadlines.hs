@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Loop.Deadlines
     ( getNextDeadline
@@ -8,12 +10,13 @@ module Imj.Game.Hamazed.Loop.Deadlines
 
 import           Imj.Prelude
 
-import           Data.List( minimumBy, find )
+import           Data.List( minimumBy, length )
 import           Data.Maybe( catMaybes )
 
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.State
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Timing
@@ -50,22 +53,24 @@ will happen in-time and not be delayed by a potentially heavy animation update.
 But it's very unlikely that it will make a difference, except if updating
 the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
-getNextDeadline :: GameState
-                -- ^ Current state
-                -> SystemTime
+getNextDeadline :: (MonadState AppState m)
+                => SystemTime
                 -- ^ The current time.
-                -> Maybe Deadline
-getNextDeadline s t =
-  let l = getDeadlinesByDecreasingPriority s t
-  in  overdueDeadline t l <|> earliestDeadline' l
+                -> m (Maybe Deadline)
+getNextDeadline t =
+  getGameState >>= \st -> do
+    let l = getDeadlinesByDecreasingPriority st t
+        overdues = filter (\(Deadline (KeyTime t') _) -> t' < t) l
+    case overdues of
+      [] -> return $ earliestDeadline' l
+      high:lows -> do
+        addIgnoredOverdues $ length lows
+        return $ Just high
 
 earliestDeadline' :: [Deadline] -> Maybe Deadline
 earliestDeadline' [] = Nothing
 earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
 
-overdueDeadline :: SystemTime -> [Deadline] -> Maybe Deadline
-overdueDeadline t =
-  find (\(Deadline (KeyTime t') _) -> t' < t)
 
 -- | priorities are : uiAnimation > message > game > player key > animation
 getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]

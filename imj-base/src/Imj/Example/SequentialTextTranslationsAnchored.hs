@@ -28,12 +28,14 @@ import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
 
@@ -54,8 +56,8 @@ accumHeights [] _ = []
 accumHeights (Example a h _ b c:es) acc =
               Example a h acc b c:accumHeights es (acc + h)
 
-width :: Length Width
-width = 30
+cellWidth :: Length Width
+cellWidth = 30
 
 upperLeft :: Coords Pos
 upperLeft = Coords 4 50
@@ -199,7 +201,7 @@ animate :: (Render e, MonadReader e m, MonadIO m)
 animate examples = do
   let listActions = concatMap (\ex@(Example e _ startHeight _ _) ->
                     let (a,b) = runExampleCharAnchored e ref
-                        (c,d) = runExampleStringAnchored e (move (fromIntegral width) RIGHT ref)
+                        (c,d) = runExampleStringAnchored e (move (fromIntegral cellWidth) RIGHT ref)
                         ref = getRef startHeight
                     in [(a,b,ex,0),(c,d,ex,1)]) examples
       frames = replicate (length listActions) (Frame 0)
@@ -239,11 +241,11 @@ drawActions :: (Render e, MonadReader e m, MonadIO m)
             -> m ()
 drawActions listActions frames =
   mapM_ (\(frame, (lastFrame, action, Example _ height startHeight _ _, wIdx)) -> do
-            let r = RectContainer (Size (height-2) (width-3)) (translate (Coords (-2) (-2)) ref)
-                ref = move (wIdx * fromIntegral width) RIGHT (getRef startHeight)
+            let r = RectContainer (Size (height-2) (cellWidth-3)) (translate (Coords (-2) (-2)) ref)
+                ref = move (wIdx * fromIntegral cellWidth) RIGHT (getRef startHeight)
             drawUsingColor r myDarkGray
             action frame
-            drawColorStr (progress frame lastFrame) (translate ref $ Coords (fromIntegral height - 4) 0)
+            drawAt (progress frame lastFrame) (translate ref $ Coords (fromIntegral height - 4) 0)
             ) $ zip frames listActions
 
 drawExamples :: (Render e, MonadReader e m, MonadIO m)
@@ -255,8 +257,8 @@ drawExamples =
   drawOneExample (Example _ _ startHeight leftTitle rightComment) = do
     let down = fromIntegral startHeight
         at = translate upperLeft (Coords down (-8))
-        at' = translate upperLeft (Coords down $ 2 * fromIntegral width)
-    drawAlignedTxt_ (pack leftTitle) myDarkGray (mkRightAlign at)
+        at' = translate upperLeft (Coords down $ 2 * fromIntegral cellWidth)
+    drawAligned_ (Colored myDarkGray leftTitle)  (mkRightAlign at)
     drawMultiLineStr rightComment at' myDarkGray 30
 
 drawColTitles :: (Render e, MonadReader e m, MonadIO m)
@@ -264,9 +266,9 @@ drawColTitles :: (Render e, MonadReader e m, MonadIO m)
             -> m ()
 drawColTitles l =
     mapM_ (\(i,colTitle) -> do
-              let right = quot (fromIntegral width) 2 + fromIntegral (i*width) - 3
+              let right = quot (fromIntegral cellWidth) 2 + fromIntegral (i*cellWidth) - 3
                   at = translate upperLeft (Coords (-3) right)
-              drawAlignedTxt_ (pack colTitle) myDarkGray (mkCentered at)
+              drawAligned_ (Colored myDarkGray colTitle) (mkCentered at)
               ) $ zip [0..] l
 
 progress :: Frame -> Frame -> ColorString

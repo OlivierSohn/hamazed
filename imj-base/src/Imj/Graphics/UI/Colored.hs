@@ -13,6 +13,8 @@ import           Imj.Prelude
 import           Imj.Graphics.Class.Colorable
 import           Imj.Graphics.Class.DiscreteColorableMorphing
 import           Imj.Graphics.Class.HasLayeredColor
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.UncoloredTextual
 import           Imj.Graphics.Interpolation
 
 
@@ -23,6 +25,13 @@ data Colored a = Colored {
 
 instance Functor Colored where
   fmap f (Colored color a) = Colored color $ f a
+
+instance (UncoloredTextual t) => Positionable (Colored t) where
+  drawAt (Colored color txt) pos = drawTextual txt pos color
+  {-# INLINABLE drawAt #-}
+
+  width (Colored _ txt) = textLength txt
+  {-# INLINABLE width #-}
 
 instance HasLayeredColor (Colored a) where
   getColor (Colored color _) = color

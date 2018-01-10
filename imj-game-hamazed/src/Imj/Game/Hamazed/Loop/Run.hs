@@ -26,6 +26,7 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Input.Types
@@ -100,7 +101,7 @@ loop =
           when (needsRendering evt) $ -- TODO add a Render event that is pushed to a queue
             getRenderable >>= \(gameState, evtStrs) -> do
               draw gameState
-              zipWithM_ (\i str -> drawColorStr str $ Coords i 0) [0..] evtStrs
+              zipWithM_ (\i str -> drawAt str $ Coords i 0) [0..] evtStrs
               renderToScreen
           case evt of
             (Interrupt _) -> return ()

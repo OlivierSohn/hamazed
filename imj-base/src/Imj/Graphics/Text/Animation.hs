@@ -47,6 +47,7 @@ import           Data.List(foldl', splitAt, unzip3)
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
 
@@ -94,7 +95,7 @@ drawAnimatedTextStringAnchored' l@(_:_) rs i = do
   let e = head l
       rsNow = head rs
       colorStr = getValueAt e i
-  drawColorStr colorStr rsNow
+  drawAt colorStr rsNow
   drawAnimatedTextStringAnchored' (tail l) (tail rs) i
 
 -- | Draw a char-anchored 'TextAnimation' for a given 'Frame'

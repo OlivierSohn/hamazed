@@ -48,9 +48,6 @@ follows this pattern. -}
   , drawStr
   , drawMultiLineStr
   , drawColorStr
-  , drawAlignedTxt_
-  , drawAlignedTxt
-  , drawAlignedColorStr
   -- ** Render to the physical device
   , renderToScreen
   -- * Reexports

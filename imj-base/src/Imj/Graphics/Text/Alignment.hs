@@ -69,7 +69,7 @@ mkCentered = Alignment Centered
 -- | Computes starting coordinates where from we should draw a series of characters
 --  of a given length, to meet the alignment constraint.
 align' :: Alignment
-       -> Int
+       -> Length Width
        -- ^ number of characters to draw
        -> Coords Pos
 align' (Alignment a ref) count =
@@ -96,18 +96,18 @@ Note that this choice impacts the implementation of
 'Imj.Graphics.UI.RectContainer.getSideCentersAtDistance'.
 -}
 align :: AlignmentKind
-      -> Int
+      -> Length Width
       -- ^ Count of characters
       -> (Int, Direction)
 align a count =
-  (amount, LEFT)
+  (fromIntegral amount, LEFT)
  where
   amount =
     case a of
       -- for one character, centerered, there is no displacement:
       Centered     -> quot (count-1) 2
       -- for one character, right aligned, there is no displacement:
-      RightAligned -> (count - 1)
+      RightAligned -> count - 1
       LeftAligned -> 0
 
 -- | Moves the reference coordinate one line down.

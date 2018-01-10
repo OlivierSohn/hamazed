@@ -21,7 +21,6 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.Class.HasRectArea
 import           Imj.Graphics.Color.Types
-import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 
 
@@ -86,28 +85,3 @@ class Draw e where
         drawTxt' env txt (move count RIGHT pos) color
         return $ count + l
       ) 0 cs
-
-  -- | Draw text aligned w.r.t alignment and reference coordinates.
-  {-# INLINABLE drawAlignedTxt_' #-}
-  drawAlignedTxt_' :: (MonadIO m) => e -> Text -> LayeredColor -> Alignment -> m ()
-  drawAlignedTxt_' env txt colors a = do
-    let leftCorner = align' a (length txt)
-    drawTxt' env txt leftCorner colors
-
-  -- | Draws text aligned w.r.t alignment and reference coordinates.
-  --
-  -- Returns an 'Alignment' where the reference coordinate of the input 'Alignment'
-  -- was projected on the next line.
-  {-# INLINABLE drawAlignedTxt' #-}
-  drawAlignedTxt' :: (MonadIO m) => e -> Text -> LayeredColor -> Alignment -> m Alignment
-  drawAlignedTxt' env txt colors a =
-    drawAlignedTxt_' env txt colors a
-      >> return (toNextLine a)
-
-  -- | Draw a 'ColorString' with an 'Alignment' constraint.
-  {-# INLINABLE drawAlignedColorStr' #-}
-  drawAlignedColorStr' :: (MonadIO m)  => e -> Alignment -> ColorString -> m Alignment
-  drawAlignedColorStr' env a cs = do
-    let leftCorner = align' a (countChars cs)
-    _ <- drawColorStr' env cs leftCorner
-    return $ toNextLine a

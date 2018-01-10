@@ -55,7 +55,9 @@ library
                      , Imj.Graphics.Class.Draw
                      , Imj.Graphics.Class.HasLayeredColor
                      , Imj.Graphics.Class.HasRectArea
+                     , Imj.Graphics.Class.Positionable
                      , Imj.Graphics.Class.Render
+                     , Imj.Graphics.Class.UncoloredTextual
                      , Imj.Graphics.Class.Words
                      , Imj.Graphics.Color
                      , Imj.Graphics.Color.Types

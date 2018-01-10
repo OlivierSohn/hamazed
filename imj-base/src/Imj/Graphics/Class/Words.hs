@@ -12,6 +12,7 @@ import qualified Prelude(splitAt, length)
 
 import           Imj.Prelude hiding(unwords, words)
 import qualified Data.String as String(words, unwords)
+import qualified Data.Text as Text(length, splitAt, words, unwords)
 
 newtype SingleWord a = SingleWord a
 
@@ -62,6 +63,17 @@ instance Words ([] Char) where
   length = Prelude.length
   splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
     where (w1,w2) = Prelude.splitAt n w
+  {-# INLINABLE words #-}
+  {-# INLINABLE unwords #-}
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}
+
+instance Words Text where
+  words = map SingleWord . Text.words
+  unwords = Text.unwords . map (\(SingleWord w) -> w)
+  length = Text.length
+  splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
+    where (w1,w2) = Text.splitAt n w
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
   {-# INLINABLE length #-}

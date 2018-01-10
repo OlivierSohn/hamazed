@@ -17,7 +17,9 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
 
@@ -50,6 +52,14 @@ dText_ :: (Draw e, MonadReader e m, MonadIO m)
 dText_ txt pos =
   void (dText txt pos)
 
+dTextAl :: (Render e, MonadReader e m, MonadIO m)
+          => Text -> Alignment -> m Alignment
+dTextAl txt = drawAligned (Colored configColors txt)
+
+dTextAl_ :: (Render e, MonadReader e m, MonadIO m)
+           => Text -> Alignment -> m ()
+dTextAl_ a b = void $ dTextAl a b
+
 {-# INLINABLE draw' #-}
 draw' :: (Render e, MonadReader e m, MonadIO m)
       => GameState
@@ -58,9 +68,10 @@ draw' (GameState _ _ (World _ _ _ _ (InTerminal _ _ sz)) _ _ _) = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
         getSideCenters $ mkRectContainerWithTotalArea sz
       left = move 12 LEFT (Coords r c)
-  drawAlignedTxt "Game configuration" configColors (mkCentered $ translateInDir Down topMiddle)
-    >>= drawAlignedTxt_ "------------------" configColors
-  drawAlignedTxt_ "Hit 'Space' to start game" configColors (mkCentered $ translateInDir Up bottomCenter)
+
+  dTextAl "Game configuration" (mkCentered $ translateInDir Down topMiddle)
+    >>= dTextAl_ "------------------"
+  dTextAl_ "Hit 'Space' to start game" (mkCentered $ translateInDir Up bottomCenter)
 
   translateInDir Down <$> dText "- World shape" (move 5 Up left)
     >>= dText "'1' -> width = height"

@@ -26,8 +26,10 @@ import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.UI.Colored
 import           Imj.Input.NonBlocking
 import           Imj.Input.Blocking
 import           Imj.Input.Types
@@ -108,18 +110,18 @@ drawLevelState centerRef level (LevelFinished stop _ messageState) = do
   let stopMsg = case stop of
         (Lost reason) -> "You Lose (" <> reason <> ")"
         Won           -> "You Win!"
-  drawAlignedTxt_ stopMsg (messageColor stop) (mkCentered centerRef)
+  drawAligned_ (Colored (messageColor stop) stopMsg) (mkCentered centerRef)
   when (messageState == ContinueMessage) $
-    drawAlignedTxt_
-      (if level == lastLevel
+    drawAligned_ (Colored neutralMessageColor $
+      if level == lastLevel
         then
           "You reached the end of the game!"
         else
           let action = case stop of
                             (Lost _) -> "restart"
                             Won      -> "continue"
-          in "Press a key to " <> action <> " ...")
-             neutralMessageColor (mkCentered $ move 2 Down centerRef)
+          in "Press a key to " <> action <> " ..." :: Text)
+           (mkCentered $ move 2 Down centerRef)
 
 
 {-# INLINABLE drawLevelMessage #-}

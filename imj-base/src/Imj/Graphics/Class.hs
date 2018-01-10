@@ -4,9 +4,11 @@ module Imj.Graphics.Class
   -- | A collection of classes representing graphical elements and their properties.
     HasLayeredColor(..)
   , Colorable(..)
+  , Positionable(..)
   , Drawable(..)
   , HasRectArea(..)
-  , Words
+  , Words(..)
+  , UncoloredTextual(..)
   -- * Reexports
   , Draw
   , RectArea
@@ -17,4 +19,6 @@ import Imj.Graphics.Class.Colorable
 import Imj.Graphics.Class.Drawable
 import Imj.Graphics.Class.HasLayeredColor
 import Imj.Graphics.Class.HasRectArea
+import Imj.Graphics.Class.Positionable
+import Imj.Graphics.Class.UncoloredTextual
 import Imj.Graphics.Class.Words

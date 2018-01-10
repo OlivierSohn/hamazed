@@ -218,4 +218,4 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
 
 alignTxt :: Alignment -> ColorString  -> Coords Pos
 alignTxt (Alignment al pos) txt =
-  uncurry move (align al $ countChars txt) pos
+  uncurry move (align al $ fromIntegral $ countChars txt) pos

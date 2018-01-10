@@ -10,9 +10,6 @@ module Imj.Graphics.Render.FromMonadReader
        , drawTxt
        , drawStr
        , drawColorStr
-       , drawAlignedTxt_
-       , drawAlignedTxt
-       , drawAlignedColorStr
        , renderToScreen
        , drawMultiLineStr
        -- * Reexports
@@ -61,38 +58,6 @@ drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
 drawColorStr cs pos = do
   d <- asks drawColorStr'
   d cs pos
-
--- | Draw a 'ColorString' with an 'Alignment' constraint.
-{-# INLINABLE drawAlignedColorStr #-}
-drawAlignedColorStr :: (Draw e, MonadReader e m, MonadIO m)
-                    => Alignment -> ColorString -> m Alignment
-drawAlignedColorStr a cs = do
-  d <- asks drawAlignedColorStr'
-  d a cs
-
--- | Draws text with 'Alignment'.
-{-# INLINABLE drawAlignedTxt_ #-}
-drawAlignedTxt_ :: (Draw e, MonadReader e m, MonadIO m)
-                => Text
-                -> LayeredColor
-                -> Alignment
-                -> m ()
-drawAlignedTxt_ txt colors a = do
-  d <- asks drawAlignedTxt_'
-  d txt colors a
-
--- | Draws text with 'Alignment'.
---
--- Returns the 'Alignment' projected on the next line.
-{-# INLINABLE drawAlignedTxt #-}
-drawAlignedTxt :: (Draw e, MonadReader e m, MonadIO m)
-               => Text
-               -> LayeredColor
-               -> Alignment
-               -> m Alignment
-drawAlignedTxt txt colors a = do
-  d <- asks drawAlignedTxt'
-  d txt colors a
 
 -- | Draw a 'String' on multiple lines.
 drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)

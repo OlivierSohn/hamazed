@@ -16,7 +16,6 @@ language: generic
 addons:
   apt:
     packages: &glfw_deps
-    - libgl1-mesa-dev
     - libxcursor-dev
     - libxi-dev
     - libxinerama-dev

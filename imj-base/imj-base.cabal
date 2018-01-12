@@ -68,12 +68,14 @@ library
                      , Imj.Graphics.Interpolation.Evolution
                      , Imj.Graphics.Math.Ease
                      , Imj.Graphics.Render.Delta
+                     , Imj.Graphics.Render.Delta.Backend
+                     , Imj.Graphics.Render.Delta.Backend.Console
+                     , Imj.Graphics.Render.Delta.Backend.Types
                      , Imj.Graphics.Render.Delta.Buffers
                      , Imj.Graphics.Render.Delta.Buffers.Dimensions
                      , Imj.Graphics.Render.Delta.Cell
                      , Imj.Graphics.Render.Delta.Cells
                      , Imj.Graphics.Render.Delta.Clear
-                     , Imj.Graphics.Render.Delta.Console
                      , Imj.Graphics.Render.Delta.DefaultPolicies
                      , Imj.Graphics.Render.Delta.Draw
                      , Imj.Graphics.Render.Delta.Env
@@ -106,6 +108,7 @@ library
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
+                     , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , primitive ==0.6.*

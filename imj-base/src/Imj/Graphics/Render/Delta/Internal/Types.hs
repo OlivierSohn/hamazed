@@ -10,6 +10,7 @@ module Imj.Graphics.Render.Delta.Internal.Types
        , ClearContext(..)
        -- * Reexports
        , IORef
+       , Dyn.IOVector
        ) where
 
 import           Data.IORef( IORef )

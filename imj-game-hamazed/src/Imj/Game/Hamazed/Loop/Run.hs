@@ -28,10 +28,9 @@ import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
-import           Imj.Graphics.Render.Delta
+import           Imj.Graphics.Render.Delta(withDeltaRendering, DeltaRendering(..))
 import           Imj.Input.Types
 import           Imj.Input.Blocking
-import           Imj.Threading
 import           Imj.Timing
 
 {- | Runs the Hamazed game.
@@ -49,16 +48,13 @@ run =
       Prelude.putStrLn $ "Windows is not currently supported,"
       ++ " due to this GHC bug: https://ghc.haskell.org/trac/ghc/ticket/7353."
     else
-      void doRun
+      doRun
 
-doRun :: IO Termination
+doRun :: IO ()
 doRun =
-  runThenRestoreConsoleSettings
-    (createEnv >>= \env ->
-      runAndWaitForTermination
-      $ do
-        g <- initialGame
-        runStateT (runReaderT loop env) (createState g))
+  withDeltaRendering Console $ \drawEnv ->
+    void $ createState <$> initialGame
+      >>= runStateT (runReaderT loop (Env drawEnv))
 
 initialGame :: IO Game
 initialGame =
@@ -67,10 +63,9 @@ initialGame =
 
 initialGameState :: GameParameters -> IO GameState
 initialGameState params =
-  mkInitialState params firstLevel Nothing
-    >>= \case
-      Left err -> error err
-      Right newState -> return newState
+  mkInitialState params firstLevel Nothing >>= \case
+    Left err -> error err
+    Right newState -> return newState
 
 {-# INLINABLE loop #-}
 loop :: (Render e, MonadState AppState m, MonadReader e m, MonadIO m)

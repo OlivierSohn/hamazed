@@ -1,7 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.Render.Delta.Env
     ( DeltaEnv
@@ -15,41 +15,36 @@ module Imj.Graphics.Render.Delta.Env
     , setClearPolicy
     , defaultClearColor
     , setClearColor
-    , defaultStdoutMode
-    , setStdoutBufferMode
-    -- * Reexports
-    , BufferMode(..)
     ) where
 
 import           Imj.Prelude
 
-import           System.IO(BufferMode(..), hSetBuffering, stdout)
-
 import           Control.Monad.IO.Class(liftIO)
-
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
 
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.Delta.Buffers
-import           Imj.Graphics.Render.Delta.Console
 import           Imj.Graphics.Render.Delta.DefaultPolicies
 import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Flush
 import           Imj.Graphics.Render.Delta.Types
 
-newtype DeltaEnv = DeltaEnv (IORef Buffers)
+data DeltaEnv = DeltaEnv {
+    _deltaEnvBuffers :: !(IORef Buffers)
+  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO ())
+}
 
 -- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
-  fill'          (DeltaEnv a) b c     = liftIO $ deltaFill a b c
-  setScissor     (DeltaEnv a) b       = liftIO $ deltaSetScissor a b
-  getScissor'    (DeltaEnv a)         = liftIO $ deltaGetScissor a
-  drawChar'      (DeltaEnv a) b c d   = liftIO $ deltaDrawChar  a b c d
-  drawChars'     (DeltaEnv a) b c d e = liftIO $ deltaDrawChars a b c d e
-  drawTxt'       (DeltaEnv a) b c d   = liftIO $ deltaDrawTxt   a b c d
-  drawStr'       (DeltaEnv a) b c d   = liftIO $ deltaDrawStr   a b c d
+  fill'          (DeltaEnv a _) b c     = liftIO $ deltaFill a b c
+  setScissor     (DeltaEnv a _) b       = liftIO $ deltaSetScissor a b
+  getScissor'    (DeltaEnv a _)         = liftIO $ deltaGetScissor a
+  drawChar'      (DeltaEnv a _) b c d   = liftIO $ deltaDrawChar  a b c d
+  drawChars'     (DeltaEnv a _) b c d e = liftIO $ deltaDrawChars a b c d e
+  drawTxt'       (DeltaEnv a _) b c d   = liftIO $ deltaDrawTxt   a b c d
+  drawStr'       (DeltaEnv a _) b c d   = liftIO $ deltaDrawStr   a b c d
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
@@ -59,25 +54,24 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawStr' #-}
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
-  renderToScreen' (DeltaEnv a)         = liftIO $ deltaFlush     a
+  renderToScreen' (DeltaEnv a b)         = liftIO $ deltaFlush     a b
   {-# INLINABLE renderToScreen' #-}
 
 
 -- | Creates an environment using default policies.
-newDefaultEnv :: IO DeltaEnv
-newDefaultEnv = newEnv Nothing Nothing Nothing Nothing
+newDefaultEnv :: (Delta -> Dim Width -> IO ())
+              -> IO DeltaEnv
+newDefaultEnv renderFunc =
+  newEnv renderFunc Nothing Nothing Nothing
 
 -- | Creates an environment with policies.
-newEnv :: Maybe ResizePolicy
+newEnv :: (Delta -> Dim Width -> IO ())
+       -> Maybe ResizePolicy
        -> Maybe ClearPolicy
        -> Maybe (Color8 Background)
-       -> Maybe BufferMode
-       -- ^ Preferred stdout 'BufferMode'.
        -> IO DeltaEnv
-newEnv a b c mayBufferMode = do
-  let stdoutBufMode = fromMaybe defaultStdoutMode mayBufferMode
-  configureConsoleFor Gaming stdoutBufMode
-  DeltaEnv <$> newContext a b c
+newEnv renderFunc a b c =
+  (`DeltaEnv` renderFunc) <$> newContext a b c
 
 
 -- | Sets the 'ResizePolicy' for back and front buffers.
@@ -85,7 +79,7 @@ newEnv a b c mayBufferMode = do
 setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
                 -> IO ()
-setResizePolicy mayResizePolicy (DeltaEnv ref) =
+setResizePolicy mayResizePolicy (DeltaEnv ref _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
@@ -97,7 +91,7 @@ setResizePolicy mayResizePolicy (DeltaEnv ref) =
 setClearPolicy :: Maybe ClearPolicy
                -> DeltaEnv
                -> IO ()
-setClearPolicy mayClearPolicy (DeltaEnv ref) =
+setClearPolicy mayClearPolicy (DeltaEnv ref _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
       let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
@@ -109,30 +103,24 @@ setClearPolicy mayClearPolicy (DeltaEnv ref) =
 setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv
               -> IO ()
-setClearColor mayClearColor (DeltaEnv ref) =
+setClearColor mayClearColor (DeltaEnv ref _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
       let clearColor = fromMaybe defaultClearColor mayClearColor
           buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
       writeIORef ref buffers
 
--- | Sets stdout's 'BufferMode'. Defaults to 'defaultStdoutMode' when Nothing is passed.
-setStdoutBufferMode :: Maybe BufferMode
-                    -> IO ()
-setStdoutBufferMode mayBufferMode =
-  hSetBuffering stdout (fromMaybe defaultStdoutMode mayBufferMode)
-
 
 deltaSetScissor :: IORef Buffers
-                 -> Scissor
-                 -> IO ()
+                -> Scissor
+                -> IO ()
 deltaSetScissor ref v =
   readIORef ref
     >>= \(Buffers a b c _ e f) ->
           writeIORef ref (Buffers a b c v e f)
 
 deltaGetScissor :: IORef Buffers
-                 -> IO Scissor
+                -> IO Scissor
 deltaGetScissor ref =
   readIORef ref
     >>= \(Buffers _ _ _ viewport _ _) ->

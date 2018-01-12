@@ -11,12 +11,10 @@ module Main where
 
 import           Control.Monad.Reader(runReaderT)
 
-import           Imj.Graphics.Render.Delta(runThenRestoreConsoleSettings, newDefaultEnv)
+import           Imj.Graphics.Render.Delta(withDeltaRendering, DeltaRendering(..))
 
 import           Imj.Example.SequentialTextTranslationsAnchored
 
 main :: IO ()
-main = do
-  runThenRestoreConsoleSettings $
-    newDefaultEnv
-      >>= runReaderT exampleOfsequentialTextTranslationsAnchored
+main =
+  withDeltaRendering Console (runReaderT exampleOfsequentialTextTranslationsAnchored)

@@ -20,4 +20,5 @@ helloWorld env = do
 
 
 main :: IO ()
-main = runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
+main =
+  withDeltaRendering Console helloWorld

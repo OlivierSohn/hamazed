@@ -17,6 +17,7 @@ module Imj.Graphics.Render.Delta.Types
             , getRowCol
             , getHeight
             -- ** Reexported types
+            , Delta
             , Scissor
             , Word16
             , Height
@@ -87,7 +88,6 @@ getRowCol (Dim idx) (Dim w) =
     where
       y = idx `div` w
       x = idx - y * w
-
 
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)

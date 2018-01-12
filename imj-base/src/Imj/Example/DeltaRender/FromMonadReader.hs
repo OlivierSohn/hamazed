@@ -18,5 +18,7 @@ helloWorld = do
   drawStr "Hello World" (Coords 10 10) (onBlack green)
   renderToScreen
 
+
 main :: IO ()
-main = runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
+main =
+  withDeltaRendering Console (runReaderT helloWorld)

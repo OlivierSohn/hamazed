@@ -208,8 +208,8 @@ outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation n
 
 
 laserParticleSystems :: LaserRay Actual
-           -> SystemTime
-           -> [ParticleSystem]
+                     -> SystemTime
+                     -> [ParticleSystem]
 laserParticleSystems ray t =
   catMaybes [laserShot ray cycleLaserColors (Left t)]
 

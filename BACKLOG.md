@@ -1,25 +1,13 @@
+
+
+- draw with opengl, using delta technique
+- resizepolicy matchterminalsize should be renamed for opengl
+
+- handle multiple deadlines before rendering, when those deadlines are close
+
 - the program can generate events :
   - ProgramStart
   - Render
-
--
-class Positionable a where
-  draw :: a -> Coords -> IO ()
-
-instance Positionable ColorString where
-  draw cs pos = drawColorStr cs pos
-  drawMulti -- goes down
-
-instance Positionable (Colored Char) where
-  draw (Colored color str) pos = drawChar str pos color
-
-instance Positionable (Colored String) where
-  draw (Colored color str) pos = drawStr str pos color
-
-instance Positionable (Colored Text) where
-  draw (Colored color str) pos = drawTxt str pos color
-
-
 
 - use http://book.realworldhaskell.org/read/monad-transformers.html
 to simplify if needed

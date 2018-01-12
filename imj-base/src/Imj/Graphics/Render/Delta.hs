@@ -1,4 +1,3 @@
-{-# OPTIONS_HADDOCK prune #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -21,11 +20,9 @@ by:
     * Chosing the smallest rendering command among equivalent alternatives.
 
 A more detailed overview can be seen at the end of this documentation.
--}
 
-module Imj.Graphics.Render.Delta
-  ( -- * Usage
-{- |
+= Usage
+
 * from a 'MonadIO' monad (see
 <https://github.com/OlivierSohn/hamazed/blob/f38901ba9e33450cae1425c26fd55bd7b171c5ba/imj-base/src/Imj/Example/DeltaRender/FromMonadIO.hs this example>):
 
@@ -38,7 +35,7 @@ module Imj.Graphics.Render.Delta
       drawStr' env \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen' env
 
-    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= helloWorld
+    main = withDeltaRendering Console helloWorld
     @
 
 * from a 'MonadIO', 'MonadReader' 'DeltaEnv' monad (see
@@ -53,7 +50,7 @@ module Imj.Graphics.Render.Delta
       drawStr \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen
 
-    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= runReaderT helloWorld
+    main = withDeltaRendering Console (runReaderT helloWorld)
     @
 
 * from a 'MonadIO', 'MonadReader' 'YourEnv' monad (see
@@ -73,45 +70,50 @@ module Imj.Graphics.Render.Delta
       drawStr \"Hello World\" (Coords 10 10) (onBlack green)
       renderToScreen
 
-    main = runThenRestoreConsoleSettings $ newDefaultEnv >>= createYourEnv >>= runReaderT helloWorld
+    main = withDeltaRendering Console (createYourEnv >>= runReaderT helloWorld)
     @
 -}
-
-  -- * Environment
-  -- | Back and front buffers are persisted in the delta-rendering environment:
-  -- 'DeltaEnv'.
+module Imj.Graphics.Render.Delta
+  (
+-- * Environment type
+-- | Back and front buffers are persisted in the delta-rendering environment:
+-- 'DeltaEnv'.
   DeltaEnv
-  -- ** Environment creation
-, newDefaultEnv
-, newEnv
--- ** Policies
-{- | Note that policy changes take effect after the next render. -}
--- *** Resize
+-- * Delta-rendering backends
+{- | Two backends are available: -}
+, DeltaRendering(..)
+{- | 'withDeltaRendering' lets you chose the backend, and run an action using the
+delta rendering environment.
+
+'withDeltaRendering'' also lets you specify the policies of the delta-rendering environment.-}
+, withDeltaRendering
+, withDeltaRendering'
+-- * Policies
+-- ** Resize
 , ResizePolicy(..)
 , defaultResizePolicy
-, setResizePolicy
--- *** Clear after render
+-- ** Clear after render
 , ClearPolicy(..)
 , defaultClearPolicy
-, setClearPolicy
 , defaultClearColor
+-- * Changing policies dynamically
+{- | Dynamic policy changes take effect after the next 'renderToScreen'. -}
+, setResizePolicy
+, setClearPolicy
 , setClearColor
--- ** Stdout BufferMode
-{- When using 'setStdoutBufferMode', the stdout 'BufferMode' change is applied
-immediately. -}
-, defaultStdoutMode
-, setStdoutBufferMode
   -- * Draw and render
   -- | Drawing and rendering is possible both from 'MonadReader' and 'MonadIO'
   -- monads:
 , module Imj.Graphics.Render
-  -- * Cleanup
-, module Imj.Graphics.Render.Delta.Console
--- * Reexports
-, BufferMode(..)
 
 -- * Motivations and technical overview
 {- |
+
+= Preliminary notes
+
+Design decisions were made according to the 'Console' backend which was the first
+available backend. Hence, some optimizations will be seen as premature optimizations
+when using the 'OpenGL' backend.
 
 = Screen tearing
 
@@ -203,11 +205,12 @@ Due to the previously described encoding, when <http://hackage.haskell.org/packa
 the delta vector, same-color locations end up being grouped in the same slice of the vector,
 and are sorted by increasing position, which is exactly what we want to implement the optimizations I mentionned earlier.
 -}
-  ) where
+) where
 
 -- TODO add a section on 'Performance documentation' to report on the amount of bytes
 -- sent to stdout with concrete examples.
 
 import           Imj.Graphics.Render
+import           Imj.Graphics.Render.Delta.Types
+import           Imj.Graphics.Render.Delta.Backend
 import           Imj.Graphics.Render.Delta.Env
-import           Imj.Graphics.Render.Delta.Console

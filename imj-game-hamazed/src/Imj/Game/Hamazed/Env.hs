@@ -4,13 +4,12 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 module Imj.Game.Hamazed.Env
-      ( Env
-      , createEnv
+      ( Env(..)
       ) where
 
 import           Imj.Graphics.Class.Draw(Draw(..))
 import           Imj.Graphics.Class.Render(Render(..))
-import           Imj.Graphics.Render.Delta(newDefaultEnv, DeltaEnv)
+import           Imj.Graphics.Render.Delta(DeltaEnv)
 
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
@@ -38,7 +37,3 @@ instance Draw Env where
 instance Render Env where
   renderToScreen' (Env a) = renderToScreen' a
   {-# INLINE renderToScreen' #-}
-
--- | Constructor of 'Env'
-createEnv :: IO Env
-createEnv = Env <$> newDefaultEnv

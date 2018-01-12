@@ -16,11 +16,11 @@ language: generic
 addons:
   apt:
     packages: &glfw_deps
-    - libgl
-    - libxcursor
-    - libxi
-    - libxinerama
-    - libxrandr
+    - libgl1-mesa-dev
+    - libxcursor-dev
+    - libxi-dev
+    - libxinerama-dev
+    - libxrandr-dev
 
 # Caching so the next build will be fast too.
 cache:

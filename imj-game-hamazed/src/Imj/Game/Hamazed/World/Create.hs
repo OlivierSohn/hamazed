@@ -92,7 +92,7 @@ createShipPos space numbers = do
       createShipPos space numbers
 
 validateScreen :: Screen -> IO ()
-validateScreen (Screen sz center) =
+validateScreen (Screen sz _) =
   case sz of
     Nothing -> return ()
     (Just winSize@(Size h w)) -> do

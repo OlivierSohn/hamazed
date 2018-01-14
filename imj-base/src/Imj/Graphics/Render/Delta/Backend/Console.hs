@@ -37,7 +37,7 @@ instance DeltaRenderBackend ConsoleBackend where
   render _ = deltaRenderConsole
   cleanup _ = configureConsoleFor Editing LineBuffering
   getDiscreteSize _ = do
-    sz <- Terminal.size
+    sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
     return $ maybe (Nothing) (\(Terminal.Window h w)
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
 

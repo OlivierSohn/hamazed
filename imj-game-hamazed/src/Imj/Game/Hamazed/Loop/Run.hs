@@ -81,9 +81,9 @@ loop =
                 putGame $ startGame t game
               else do
                 let newParams = updateFromChar c params
-                sz <- getTargetSize
-                newState <- liftIO $ initialGameState newParams sz
-                putGame $ Game Configure newParams newState
+                getTargetSize
+                  >>= liftIO . initialGameState newParams
+                  >>= putGame . Game Configure newParams
           _ -> return ()
         loop
       Play ->

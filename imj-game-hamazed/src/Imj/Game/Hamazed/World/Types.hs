@@ -31,7 +31,7 @@ module Imj.Game.Hamazed.World.Types
         ) where
 
 import           Imj.Prelude
-import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
+import qualified System.Console.Terminal.Size as Terminal(Window(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space

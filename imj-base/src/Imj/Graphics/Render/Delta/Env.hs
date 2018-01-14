@@ -48,7 +48,7 @@ instance Draw DeltaEnv where
   drawChars'     (DeltaEnv a _ _) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawStr   a b c d
-  getTargetSize' (DeltaEnv a _ s)         = liftIO s
+  getTargetSize' (DeltaEnv _ _ s)         = liftIO s
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}

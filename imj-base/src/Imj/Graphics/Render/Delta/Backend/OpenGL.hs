@@ -42,7 +42,7 @@ instance DeltaRenderBackend OpenGLBackend where
 
 winWidth :: Int
 winHeight :: Int
-winWidth = 640
+winWidth = 800
 winHeight = 480
 
 newOpenGLBackend :: String -> IO OpenGLBackend
@@ -58,6 +58,7 @@ newOpenGLBackend title = do
 createWindow :: Int -> Int -> String -> IO GLFW.Window
 createWindow width height title = do
   GLFW.windowHint $ GLFW.WindowHint'Resizable False
+  -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
   m <- GLFW.createWindow width height title Nothing Nothing
   let win = fromMaybe (error "could not create GLFW window") m
@@ -80,12 +81,13 @@ destroyWindow win = do
   GLFW.terminate
 
 deltaRenderOpenGL :: GLFW.Window -> Delta -> Dim Width -> IO ()
-deltaRenderOpenGL win (Delta delta) w = do
+deltaRenderOpenGL _ (Delta delta) w = do
   putStrLn "render"
   renderDelta delta w
   putStrLn "rendered"
-  -- Single buffering goes well with delta-rendering, hence we use single buffering.
-  GL.finish -- make sure all commands are visible on screen after this call
+  -- make sure all commands are visible on screen after this call.
+  -- this is needed because we use single-buffering, so there is no GLFW swap to synchronize.
+  GL.finish
   GLFW.pollEvents -- necessary so that the window is shown.
 
 renderDelta :: Dyn.IOVector Cell
@@ -116,6 +118,8 @@ draw c' r' _char _bg _fg = do
       (r1,r2) = (unitRow r', unitRow (succ r'))
       (c1,c2) = (unitCol c', unitCol (succ c'))
       totalH = fromIntegral $ quot winHeight pixelPerUnit
+
+      -- the +/- 0.5 are to place at pixel centers.
       unitRow x = -1 + unit winHeight * (fromIntegral (totalH-x) - 0.5)
       unitCol x = -1 + unit winWidth * (fromIntegral x + 0.5)
 

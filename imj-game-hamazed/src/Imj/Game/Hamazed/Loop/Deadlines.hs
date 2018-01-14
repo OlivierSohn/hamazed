@@ -74,7 +74,7 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> co
 
 -- | priorities are : uiAnimation > message > game > player key > animation
 getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) t =
   catMaybes [ uiAnimationDeadline s
             , messageDeadline level t
             , getMoveFlyingItemsDeadline s
@@ -82,7 +82,7 @@ getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _) t =
             ]
 
 getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
-getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _) =
+getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _ _) =
   maybe
     (maybe
       Nothing
@@ -92,14 +92,14 @@ getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinishe
       levelFinished
 
 particleSystemsDeadline :: GameState -> Maybe Deadline
-particleSystemsDeadline (GameState _ world _ _ _ _) =
+particleSystemsDeadline (GameState _ world _ _ _ _ _) =
   maybe
     Nothing
     (\ti -> Just $ Deadline ti AnimateParticleSystems)
     $ earliestAnimationDeadline world
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
-uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
+uiAnimationDeadline (GameState _ _ _ _ _ uianim _) =
   maybe
     Nothing
     (\deadline -> Just $ Deadline deadline AnimateUI)
@@ -107,7 +107,7 @@ uiAnimationDeadline (GameState _ _ _ _ _ uianim) =
 
 -- | Returns the earliest 'ParticleSystem' deadline.
 earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ animations _) =
+earliestAnimationDeadline (World _ _ _ animations) =
   earliestKeyTime $ map getDeadline animations
 
 

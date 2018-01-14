@@ -1,7 +1,7 @@
 import Control.Monad.Reader(runReaderT)
 
 import           Imj.Graphics.Render
-import           Imj.Graphics.Render.Delta(withDeltaRendering, DeltaRendering(..))
+import           Imj.Graphics.Render.Delta
 
 import           Imj.Game.Hamazed.Env
 
@@ -11,7 +11,6 @@ main :: IO ()
 main = do
   putStrLn "" -- for readablilty
 
-  withDeltaRendering Console $ \deltaEnv -> do
-    let env = Env deltaEnv
+  newConsoleBackend >>= withDefaultPolicies (\deltaEnv -> do
     runReaderT (testSpace >> -- this is it visible in the logs, not in the console
-                renderToScreen) env
+                renderToScreen) (Env deltaEnv))

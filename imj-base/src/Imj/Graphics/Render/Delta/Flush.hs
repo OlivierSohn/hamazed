@@ -30,11 +30,13 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 deltaFlush :: IORef Buffers
            -> (Delta -> Dim Width -> IO ())
            -- ^ rendering function
+           -> IO (Maybe Size)
+           -- ^ get discrete size function
            -> IO ()
-deltaFlush ref renderFunc =
+deltaFlush ref renderFunc sizeFunc =
   readIORef ref
   >>= \buffers@(Buffers _ _ _ _ _ policies) -> do
-        maySize <- shouldAdjustSize buffers
+        maySize <- shouldAdjustSize buffers sizeFunc
         maybe
           (render DeltaMode renderFunc buffers)
           -- We force to render everything when size changes because

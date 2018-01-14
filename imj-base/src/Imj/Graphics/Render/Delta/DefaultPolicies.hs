@@ -10,9 +10,9 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Render.Delta.Types
 
 
--- | @=@ 'MatchTerminalSize'
+-- | @=@ 'DynamicSize'
 defaultResizePolicy :: ResizePolicy
-defaultResizePolicy = MatchTerminalSize
+defaultResizePolicy = DynamicSize
 
 -- | @=@ 'ClearAtEveryFrame'
 defaultClearPolicy :: ClearPolicy

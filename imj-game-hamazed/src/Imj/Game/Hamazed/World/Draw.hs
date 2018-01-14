@@ -27,7 +27,7 @@ drawWorld :: (Draw e, MonadReader e m, MonadIO m)
             -> Coords Pos
             -> m ()
 drawWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-                   space _ _) s  = do
+                   space _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (\b -> drawNumber b space s) balls
   when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do

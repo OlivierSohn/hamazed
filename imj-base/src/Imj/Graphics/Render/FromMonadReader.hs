@@ -10,8 +10,9 @@ module Imj.Graphics.Render.FromMonadReader
        , drawTxt
        , drawStr
        , drawColorStr
-       , renderToScreen
        , drawMultiLineStr
+       , getTargetSize
+       , renderToScreen
        -- * Reexports
        , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw
        , Render, MonadReader, MonadIO
@@ -121,6 +122,13 @@ drawChar :: (Draw e, MonadReader e m, MonadIO m)
 drawChar c co la = do
   d <- asks drawChar'
   d c co la
+
+
+{-# INLINABLE getTargetSize #-}
+getTargetSize :: (Draw e, MonadReader e m, MonadIO m)
+              => m (Maybe Size)
+getTargetSize =
+  join (asks getTargetSize')
 
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}

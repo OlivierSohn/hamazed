@@ -38,7 +38,7 @@ import           Imj.Timing
 eventFromKey' :: (MonadState AppState m)
               => Key -> m (Maybe Event)
 eventFromKey' key =
-  getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _) ->
+  getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _ _) ->
     return $ case finished of
       Nothing -> eventFromKey key
       Just (LevelFinished stop _ ContinueMessage) -> Just $

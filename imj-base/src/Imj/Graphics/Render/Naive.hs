@@ -64,6 +64,7 @@ instance Draw NaiveDraw where
     drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
+    getTargetSize' _         = return Nothing
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}
     {-# INLINABLE drawTxt' #-}
@@ -71,6 +72,7 @@ instance Draw NaiveDraw where
     {-# INLINABLE getScissor' #-}
     {-# INLINABLE setScissor #-}
     {-# INLINABLE fill' #-}
+    {-# INLINABLE getTargetSize' #-}
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
 -- and creates heavy screen tearing.

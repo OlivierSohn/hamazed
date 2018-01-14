@@ -70,7 +70,7 @@ library
                      , Imj.Graphics.Render.Delta
                      , Imj.Graphics.Render.Delta.Backend
                      , Imj.Graphics.Render.Delta.Backend.Console
-                     , Imj.Graphics.Render.Delta.Backend.Types
+                     , Imj.Graphics.Render.Delta.Backend.OpenGL
                      , Imj.Graphics.Render.Delta.Buffers
                      , Imj.Graphics.Render.Delta.Buffers.Dimensions
                      , Imj.Graphics.Render.Delta.Cell
@@ -111,12 +111,16 @@ library
                      , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
+                     , OpenGL ==3.0.*
+                     , pretty ==1.1.*
                      , primitive ==0.6.*
                      , random ==1.1.*
+                     , stm ==2.4.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , time ==1.8.*
                      , text ==1.2.*
+                     , transformers == 0.5.*
                      , vector >= 0.12.0.1 && < 0.12.1
                      , vector-algorithms >= 0.7.0.1 && < 0.8
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints

@@ -18,6 +18,7 @@ module Imj.Graphics.Color.Types
           , rgb
           , gray
           , grayToRGB
+          , color8ToUnitRGB
           , Xterm256Color(..)
           , color8CodeToXterm256
           , onBlack
@@ -224,6 +225,39 @@ data Xterm256Color a = RGBColor !RGB
                      -- - [0xE8-0xFF]:  grayscale from dark gray to near white in 24 steps
                      deriving (Eq, Show, Read)
 
+
+color8ToUnitRGB :: Color8 a -> (Float, Float, Float)
+color8ToUnitRGB c =
+  case color8CodeToXterm256 c of
+    RGBColor (RGB r g b) -> (rgbToUnit r,rgbToUnit g,rgbToUnit b)
+    GrayColor g -> let v = grayToUnit g in (v,v,v)
+  where
+    rgbToUnit :: Word8 -> Float
+    rgbToUnit x = fromIntegral (xtermMapRGB8bitComponent x) / 255
+    grayToUnit :: Word8 -> Float
+    grayToUnit gr = fromIntegral (xtermMapGray8bitComponent gr) / 255
+
+
+-- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)
+xtermMapRGB8bitComponent :: Word8
+                         -- ^ input values are in range [0..5]
+                         -- (the admissible range for rgb components of 8 bit
+                         -- rgb ANSI colors, cf.
+                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                         -> Word8
+                         -- ^ output is in range [0..255]
+xtermMapRGB8bitComponent 0 = 0
+xtermMapRGB8bitComponent n = 55 + n * 40
+
+-- | how xterm interprets 8bit grayscale colors (deduced from https://jonasjacek.github.io/colors/)
+xtermMapGray8bitComponent :: Word8
+                         -- ^ input values are in range [0..23]
+                         -- (the admissible range for gray component of 8 bit
+                         -- grayscale ANSI colors, cf.
+                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                          -> Word8
+                          -- ^ output is in range [0..255]
+xtermMapGray8bitComponent v = 8 + 10 * v
 
 {-# INLINE onBlack #-}
 -- | Creates a 'LayeredColor' with a black background color.

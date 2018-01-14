@@ -44,10 +44,6 @@ module Imj.Game.Hamazed.World
     -- ** World utilities
     -- | 'laserEventAction' returns the effect a laser shot it has on the 'World'.
     , laserEventAction
-    -- * InTerminal
-    -- | 'InTerminal' allows to place the game in the center of the terminal.
-    , mkInTerminal
-    , InTerminal(..)
     -- * Space
     {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
     live.
@@ -139,7 +135,6 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
-import           Imj.Game.Hamazed.World.InTerminal
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
@@ -162,7 +157,7 @@ moveWorld :: KeyTime
           -- ^ The current time
           -> World
           -> World
-moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims e) =
+moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t
                       then
@@ -174,7 +169,7 @@ moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime 
       newPosSpeed@(PosSpeed pos _) = updateMovableItem size shipPosSpeed
       collisions = getColliding pos newBalls
       newShip = BattleShip newPosSpeed ammo newSafeTime collisions
-  in World newBalls newShip size anims e
+  in World newBalls newShip size anims
 
 -- | Computes the effect of an laser shot on the 'World'.
 laserEventAction :: Direction
@@ -182,7 +177,7 @@ laserEventAction :: Direction
                  -> World
                  -> ([Number], [Number], Maybe (LaserRay Actual), Int)
                  -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
-laserEventAction dir (World balls (BattleShip (PosSpeed shipCoords _) ammo _ _) space _ _) =
+laserEventAction dir (World balls (BattleShip (PosSpeed shipCoords _) ammo _ _) space _) =
   let (maybeLaserRayTheoretical, newAmmo) =
         if ammo > 0
           then

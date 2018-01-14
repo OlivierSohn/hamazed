@@ -5,23 +5,21 @@
 module Imj.Game.Hamazed.World.Create
         ( mkWorld
         , updateMovableItem
+        , validateScreen
         ) where
 
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 
-import           Imj.Game.Hamazed.World.Number
-import           Imj.Game.Hamazed.World.Ship
+import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 
 mkWorld :: (MonadIO m)
-        => InTerminal
-        -- ^ Tells where to draw the 'World' from
-        -> Size
+        => Size
         -- ^ The dimensions
         -> WallDistribution
         -- ^ How the 'Wall's should be constructed
@@ -30,14 +28,14 @@ mkWorld :: (MonadIO m)
         -> Int
         -- ^ Ammunition : how many laser shots are available.
         -> m World
-mkWorld e s walltype nums ammo = do
+mkWorld s walltype nums ammo = do
   space <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space [] e
+  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space []
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
@@ -81,3 +79,33 @@ createRandomNumber :: (MonadIO m)
 createRandomNumber space i = do
   ps <- liftIO $ createRandomNonCollidingPosSpeed space
   return $ Number ps i
+
+
+createShipPos :: Space -> [Number] -> IO PosSpeed
+createShipPos space numbers = do
+  let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
+  candidate@(PosSpeed pos _) <- createRandomNonCollidingPosSpeed space
+  if pos `notElem` numPositions
+    then
+      return candidate
+    else
+      createShipPos space numbers
+
+validateScreen :: Screen -> IO ()
+validateScreen (Screen sz center) =
+  case sz of
+    Nothing -> return ()
+    (Just winSize@(Size h w)) -> do
+      let (Size rs cs) = maxWorldSize
+          heightMargin = 2 * 1 {-outer walls-}
+          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
+          minSize@(Size minh minw) =
+            Size (fromIntegral rs + heightMargin)
+                 (fromIntegral cs + widthMargin)
+      when (h < minh || w < minw) $
+        error $ "\nMinimum discrete size : " ++ show minSize
+            ++ ".\nCurrent discrete size : " ++ show winSize
+            ++ ".\nThe current discrete size doesn't match the minimum size,"
+            ++  "\nplease adjust your terminal or window size and restart the executable"
+            ++ ".\n"
+      return ()

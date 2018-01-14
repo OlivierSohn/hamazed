@@ -9,21 +9,17 @@ module Imj.Graphics.Render.Delta.Buffers.Dimensions
 import           Imj.Prelude
 
 import           Data.Word( Word16, Word32 )
-import           System.Console.Terminal.Size as Term (size, Window(..))
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render.Delta.Types
 
 
-getPolicyDimensions :: ResizePolicy -> IO (Dim Width, Dim Height)
-getPolicyDimensions (FixedSize w h) =
-  return (w,h)
-getPolicyDimensions MatchTerminalSize =
-  maybe
-    (Dim 300, Dim 90) -- sensible default values in case we fail to get terminal size
-    (\(Term.Window h w) -> (Dim w, Dim h))
-    <$> Term.size
-
-
+getPolicyDimensions :: ResizePolicy -> IO (Maybe Size) -> IO (Dim Width, Dim Height)
+getPolicyDimensions (FixedSize w h) _  = return (w,h)
+getPolicyDimensions DynamicSize     sz =
+  sz >>= return . maybe
+          (Dim 300, Dim 90)
+          (\(Size h w) -> (fromIntegral w, fromIntegral h))
 
 bufferSizeFromWH :: Dim Width -> Dim Height -> (Dim BufferSize, Dim Width)
 bufferSizeFromWH (Dim w') (Dim h') =

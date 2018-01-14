@@ -1,14 +1,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.Render.Delta.Backend.Console
-    ( deltaRenderConsole
-    , mkConsoleBackend
+    ( ConsoleBackend
+    , newConsoleBackend
     ) where
 
 import           Imj.Prelude
 import qualified Prelude(putStr, putChar)
 
-import           System.Console.Terminal.Size( size , Window(..))
+import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor )
 import           System.IO( hSetBuffering
@@ -23,22 +23,28 @@ import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, unstableSort, accessUnderlying, length)
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
-import           Imj.Graphics.Render.Delta.Backend.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 
 
-mkConsoleBackend :: Maybe BufferMode
-                 -- ^ Preferred stdout 'BufferMode'.
-                 -> Backend
-mkConsoleBackend maybeStdoutBufferMode =
-  let stdoutBufMode = fromMaybe defaultStdoutMode maybeStdoutBufferMode
-  in Backend
-      (configureConsoleFor Gaming stdoutBufMode)
-      deltaRenderConsole
-      (configureConsoleFor Editing LineBuffering)
+data ConsoleBackend = ConsoleBackend
+
+instance DeltaRenderBackend ConsoleBackend where
+  render _ = deltaRenderConsole
+  cleanup _ = configureConsoleFor Editing LineBuffering
+  getDiscreteSize _ = do
+    sz <- Terminal.size
+    return $ maybe (Nothing) (\(Terminal.Window h w)
+                -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
+
+newConsoleBackend :: IO ConsoleBackend
+newConsoleBackend = do
+  configureConsoleFor Gaming defaultStdoutMode
+  return ConsoleBackend
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode
@@ -72,7 +78,10 @@ configureConsoleFor config stdoutMode =
       showCursor
       -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
       setSGR []
-      size >>= maybe (return ()) (\(Window x _) -> setCursorPosition (pred x) 0)
+      Terminal.size
+        >>= maybe
+              (return ())
+              (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
 deltaRenderConsole :: Delta -> Dim Width -> IO ()
@@ -175,12 +184,6 @@ csi :: [Int]
     -> String
     -> String
 csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
-
-
-{-# INLINE xyFromIndex #-}
-xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
-xyFromIndex w idx =
-  getRowCol idx w
 
 -- TODO use this formalism
 {-

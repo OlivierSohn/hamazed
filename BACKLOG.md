@@ -1,4 +1,9 @@
+- when drawing with opengl, we know the size of the window in pixels.
+  - with a "pixels per unit" (user choses?) we can deduce the number of full rows and full columns.
+when drawing in the terminal, we know the number of columns and rows :
+it defines the discrete area for rebounds.
 
+- "mode center sz" should be taken from the context
 
 - draw with opengl, using delta technique
 - resizepolicy matchterminalsize should be renamed for opengl

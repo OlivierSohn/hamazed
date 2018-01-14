@@ -62,11 +62,11 @@ dTextAl_ a b = void $ dTextAl a b
 
 {-# INLINABLE draw' #-}
 draw' :: (Render e, MonadReader e m, MonadIO m)
-      => GameState
+      => RectContainer
       -> m ()
-draw' (GameState _ _ (World _ _ _ _ (InTerminal _ _ sz)) _ _ _) = do
+draw' cont = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
-        getSideCenters $ mkRectContainerWithTotalArea sz
+        getSideCenters cont
       left = move 12 LEFT (Coords r c)
 
   dTextAl "Game configuration" (mkCentered $ translateInDir Down topMiddle)

@@ -8,6 +8,7 @@ module Imj.Graphics.UI.RectContainer
         , translateRectContainer
         , mkRectContainerWithTotalArea
         , mkRectContainerAtDistance
+        , mkRectContainerWithCenterAndInnerSize
         , getSideCenters
           -- * Reexports
         , Colorable(..)
@@ -282,8 +283,14 @@ getSideCenters (RectContainer (Size rs' cs') upperLeft) =
   rightMiddle = translate' rHalf (cs-1) upperLeft
 
 
--- | Helper function to create a 'RectContainer' whose /content/ matches a 'RectArea'.
+-- | Create a 'RectContainer' whose inner and outter /content/ matches a 'RectArea'.
 mkRectContainerWithTotalArea :: RectArea a -> RectContainer
 mkRectContainerWithTotalArea rectArea@(RectArea upperLeft _) =
   let (Size h w) = rectAreaSize rectArea
   in RectContainer (Size (h-2) (w-2)) upperLeft
+
+-- | Create a 'RectContainer' whose inner /content/ matches a 'RectArea'.
+mkRectContainerWithCenterAndInnerSize :: Coords Pos -> Size -> RectContainer
+mkRectContainerWithCenterAndInnerSize center s@(Size h w) =
+  let ul = translate' (fromIntegral $ -1 - quot h 2) (fromIntegral $ -1 - quot w 2) center
+  in RectContainer s ul

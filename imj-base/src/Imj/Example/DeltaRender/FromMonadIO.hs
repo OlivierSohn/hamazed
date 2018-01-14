@@ -21,4 +21,4 @@ helloWorld env = do
 
 main :: IO ()
 main =
-  withDeltaRendering Console helloWorld
+  newConsoleBackend >>= withDefaultPolicies helloWorld

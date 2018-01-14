@@ -20,5 +20,5 @@ helloWorld = do
 
 
 main :: IO ()
-main =
-  withDeltaRendering Console (runReaderT helloWorld)
+main = do
+  newConsoleBackend >>= withDefaultPolicies (runReaderT helloWorld)

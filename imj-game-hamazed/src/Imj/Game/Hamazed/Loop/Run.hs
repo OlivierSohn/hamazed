@@ -24,11 +24,14 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
-import           Imj.Graphics.Render.Delta(withDeltaRendering, DeltaRendering(..))
+import           Imj.Graphics.Render.Delta
+import           Imj.Graphics.Render.FromMonadReader
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
 import           Imj.Input.Blocking
 import           Imj.Timing
@@ -52,30 +55,23 @@ run =
 
 doRun :: IO ()
 doRun =
-  withDeltaRendering Console $ \drawEnv ->
-    void $ createState <$> initialGame
-      >>= runStateT (runReaderT loop (Env drawEnv))
-
-initialGame :: IO Game
-initialGame =
-  initialGameState initialParameters
-    >>= return . Game Configure initialParameters
-
-initialGameState :: GameParameters -> IO GameState
-initialGameState params =
-  mkInitialState params firstLevel Nothing >>= \case
-    Left err -> error err
-    Right newState -> return newState
+--  newConsoleBackend
+  newOpenGLBackend "Hamazed"
+    >>= \backend -> withDefaultPolicies (\drawEnv -> do
+      sz <- getDiscreteSize backend
+      void (createState sz
+        >>= runStateT (runReaderT loop (Env drawEnv)))) backend
 
 {-# INLINABLE loop #-}
 loop :: (Render e, MonadState AppState m, MonadReader e m, MonadIO m)
      => m ()
 loop =
-  get >>= \(AppState game@(Game mode params s) _ _) ->
+  get >>= \(AppState game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) _ _) ->
     case mode of
       Configure -> do
+        (Screen _ centerScreen) <- getCurScreen
         draw s
-        draw' s
+        draw' $ mkRectContainerWithCenterAndInnerSize centerScreen sz
         renderToScreen
         liftIO getKeyThenFlush >>= \case
           AlphaNum c ->
@@ -85,7 +81,8 @@ loop =
                 putGame $ startGame t game
               else do
                 let newParams = updateFromChar c params
-                newState <- liftIO $ initialGameState newParams
+                sz <- getTargetSize
+                newState <- liftIO $ initialGameState newParams sz
                 putGame $ Game Configure newParams newState
           _ -> return ()
         loop

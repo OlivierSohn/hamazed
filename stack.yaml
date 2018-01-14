@@ -10,6 +10,15 @@ packages:
 - './imj-game-hamazed'
 - './imj-measure-stdout'
 
+- location:
+    git: https://github.com/OlivierSohn/GLFW-b.git
+    commit: c77bc69f740b7863a020a63531d0e181c465a50f
+  extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/bindings-GLFW.git
+    commit: f04f9cd23aab48ac4dcd456736d298ce863d905c
+  extra-dep: true
+
 extra-deps: []
 
 flags: {}

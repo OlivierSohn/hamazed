@@ -16,6 +16,9 @@ module Imj.Game.Hamazed.State
       , getRenderable
       , getGameState
       , getGame
+      , getMode
+      , getCurScreen
+      , envFunctions
       -- * Modify
       , putGame
       , putGameState
@@ -27,21 +30,25 @@ module Imj.Game.Hamazed.State
       ) where
 
 import           Imj.Prelude
+
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(state, get, put)
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color
+import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Text.ColorString
-
 
 data Occurences a = Occurences {
     _occurencesCount :: !Int
   , _occurencesItem :: !EventRepr
 }
+
 
 data AppState  = AppState {
     _appStateGame :: !Game
@@ -154,6 +161,14 @@ getGame :: MonadState AppState m => m Game
 getGame =
   get >>= \(AppState g _ _) -> return g
 
+getMode :: MonadState AppState m => m ViewMode
+getMode =
+  getGame >>= \(Game _ (GameParameters _ _ mode) _) -> return mode
+
+getCurScreen :: MonadState AppState m => m Screen
+getCurScreen =
+  getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ screen)) -> return screen
+
 addIgnoredOverdues :: MonadState AppState m
                    => Int -> m ()
 addIgnoredOverdues n =
@@ -178,9 +193,10 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Game -> AppState
-createState game =
-  AppState game mkEmptyOccurencesHist DontRecord
+createState :: Maybe Size -> IO AppState
+createState ms = do
+  game <- initialGame ms
+  return $ AppState game mkEmptyOccurencesHist DontRecord
 
 toColorStr' :: Occurences EventRepr -> ColorString
 toColorStr' (Occurences n e) =
@@ -196,3 +212,11 @@ mkOccurencesHist o =
 
 mkEmptyOccurencesHist :: OccurencesHist
 mkEmptyOccurencesHist = OccurencesHist [] mempty
+
+-- | Creates environment functions taking into account a 'World' and 'Scope'
+envFunctions :: (MonadState AppState m)
+             => World -> Scope -> m EnvFunctions
+envFunctions world scope = do
+  mode <- getMode
+  screen <- getCurScreen
+  return $ EnvFunctions (environmentInteraction world mode screen scope) envDistance

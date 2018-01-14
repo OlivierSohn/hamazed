@@ -36,16 +36,19 @@ import           Imj.Graphics.UI.RectArea
 newContext :: Maybe ResizePolicy
            -> Maybe ClearPolicy
            -> Maybe (Color8 Background)
+           -> IO (Maybe Size)
            -> IO (IORef Buffers)
-newContext mayResizePolicy mayClearPolicy mayClearColor = do
+newContext mayResizePolicy mayClearPolicy mayClearColor sz = do
   let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
       clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
       clearColor = fromMaybe defaultClearColor mayClearColor
-  newContext' $ Policies resizePolicy clearPolicy clearColor
+  newContext' (Policies resizePolicy clearPolicy clearColor) sz
 
-newContext' :: Policies -> IO (IORef Buffers)
-newContext' policies@(Policies resizePolicy _ _) =
-  getPolicyDimensions resizePolicy
+newContext' :: Policies
+            -> IO (Maybe Size)
+            -> IO (IORef Buffers)
+newContext' policies@(Policies resizePolicy _ _) sz =
+  getPolicyDimensions resizePolicy sz
   >>= uncurry (createBuffers policies)
   >>= newIORef
 
@@ -68,13 +71,13 @@ getBufferDimensions :: Buffers -> (Dim Width, Dim Height)
 getBufferDimensions (Buffers (Buffer back) _ width _ _ _) =
   (width, getHeight width $ fromIntegral $ length back)
 
-shouldAdjustSize :: Buffers -> IO (Maybe (Dim Width, Dim Height))
-shouldAdjustSize b@(Buffers _ _ _ _ _ (Policies resizePolicy _ _)) =
+shouldAdjustSize :: Buffers -> IO (Maybe Size) -> IO (Maybe (Dim Width, Dim Height))
+shouldAdjustSize b@(Buffers _ _ _ _ _ (Policies resizePolicy _ _)) sizeFunc =
   (\policyDims -> if policyDims /= getBufferDimensions b
     then
       Just policyDims
     else
-      Nothing) <$> getPolicyDimensions resizePolicy
+      Nothing) <$> getPolicyDimensions resizePolicy sizeFunc
 
 createBuffers :: Policies -> Dim Width -> Dim Height -> IO Buffers
 createBuffers pol@(Policies _ _ clearColor) w h = do

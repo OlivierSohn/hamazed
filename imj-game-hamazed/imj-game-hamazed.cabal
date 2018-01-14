@@ -52,7 +52,6 @@ library
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
-                     , Imj.Game.Hamazed.World.InTerminal
                      , Imj.Game.Hamazed.World.Number
                      , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size

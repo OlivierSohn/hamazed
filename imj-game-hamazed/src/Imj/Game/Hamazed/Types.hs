@@ -47,7 +47,7 @@ data GameState = GameState {
     -- ^ When the next 'World' motion update should happen,
   , _gameStatePreviousWorld :: !World
     -- ^ The previous 'World'
-  , _gameStateCurrentWorld :: !World
+  , gameStateCurrentWorld :: !World
     -- ^ The current 'World'
   , _gameStateShotNumbers :: ![Int]
     -- ^ Which 'Number's were shot
@@ -55,12 +55,13 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , _gameStateUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
+  , _gameStateScreen :: !Screen
 }
 
 
 startGameState :: SystemTime -> GameState -> GameState
-startGameState t (GameState _ world world' b d e) =
-  GameState (Just $ KeyTime t) (startWorld t world) (startWorld t world') b d e
+startGameState t (GameState _ world world' b d e f) =
+  GameState (Just $ KeyTime t) (startWorld t world) (startWorld t world') b d e f
 
 
 minRandomBlockSize :: Int

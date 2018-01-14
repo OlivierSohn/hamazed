@@ -26,6 +26,7 @@ instance Draw Env where
   drawChars'     (Env a) = drawChars'     a
   drawTxt'       (Env a) = drawTxt'       a
   drawStr'       (Env a) = drawStr'       a
+  getTargetSize' (Env a) = getTargetSize' a
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE fill' #-}
@@ -33,6 +34,7 @@ instance Draw Env where
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
+  {-# INLINE getTargetSize' #-}
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
 instance Render Env where
   renderToScreen' (Env a) = renderToScreen' a

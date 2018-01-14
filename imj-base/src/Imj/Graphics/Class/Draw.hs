@@ -57,6 +57,10 @@ class Draw e where
   -- | Draw 'String'.
   drawStr' :: (MonadIO m) => e -> String -> Coords Pos -> LayeredColor -> m ()
 
+  -- | The size of the target (window or terminal). Homogenous to 'Coords' 'Pos',
+  -- /not/ to pixels.
+  getTargetSize' :: (MonadIO m) => e -> m (Maybe Size)
+
   {- |
   1. Store the current 'Scissor'
   2. Execute the actions in the new 'Scissor'

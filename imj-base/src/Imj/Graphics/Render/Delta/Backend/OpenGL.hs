@@ -5,6 +5,7 @@
 module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
     , OpenGLBackend
+    , windowCloseCallback -- for doc
     ) where
 
 import           Imj.Prelude hiding((<>))
@@ -29,11 +30,17 @@ import           Imj.Timing
 pixelPerUnit :: Int
 pixelPerUnit = 4
 
-data EventKey = EventKey !GLFW.Key !Int !GLFW.KeyState !GLFW.ModifierKeys
+data EventKey = EventKey !Key !Int !GLFW.KeyState !GLFW.ModifierKeys
 
 keyCallback :: TQueue EventKey -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
 keyCallback tc _ k sc ka mk =
-  atomically $ writeTQueue tc $ EventKey k sc ka mk
+  atomically $ writeTQueue tc $ EventKey
+    (glfwKeyToKey k) sc ka mk
+
+windowCloseCallback :: TQueue EventKey -> GLFW.Window -> IO ()
+windowCloseCallback keyQueue _ =
+  atomically $ writeTQueue keyQueue $ EventKey
+    StopProgram 0 GLFW.KeyState'Pressed $ GLFW.ModifierKeys False False False False
 
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: !GLFW.Window
@@ -95,16 +102,20 @@ instance PlayerInput OpenGLBackend where
       (tryFillQueue >> tryReadQueue)
       (return . Just)
 
+  programShouldEnd (OpenGLBackend win _) =
+    liftIO $ GLFW.windowShouldClose win
+
   {-# INLINABLE tryGetKey #-}
   {-# INLINABLE getKey #-}
   {-# INLINABLE getKeyTimeout #-}
+  {-# INLINABLE programShouldEnd #-}
 
 {-# INLINABLE tryGetFirstKeyPress #-}
 tryGetFirstKeyPress :: TQueue EventKey -> IO (Maybe Key)
 tryGetFirstKeyPress keyQueue = do
   (liftIO $ atomically $ tryReadTQueue keyQueue) >>= \case
     Nothing -> return Nothing
-    Just (EventKey key _ GLFW.KeyState'Pressed _) -> return $ Just $ glfwKeyToKey key
+    Just (EventKey key _ GLFW.KeyState'Pressed _) -> return $ Just key
     Just _ -> tryGetFirstKeyPress keyQueue
 
 
@@ -169,6 +180,7 @@ newOpenGLBackend title = do
   keyEventsChan <- newTQueueIO :: IO (TQueue EventKey)
   win <- createWindow winWidth winHeight title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
+  GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
   return $ OpenGLBackend win keyEventsChan
 
 createWindow :: Int -> Int -> String -> IO GLFW.Window

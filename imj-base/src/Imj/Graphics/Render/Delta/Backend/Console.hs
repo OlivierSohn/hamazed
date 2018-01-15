@@ -53,6 +53,13 @@ instance PlayerInput ConsoleBackend where
     liftIO $ timeout ms getKeyThenFlush
   tryGetKey _ =
     liftIO tryGetKeyThenFlush
+  programShouldEnd _ =
+    return False
+
+  {-# INLINABLE programShouldEnd #-}
+  {-# INLINABLE getKey #-}
+  {-# INLINABLE getKeyTimeout #-}
+  {-# INLINABLE tryGetKey #-}
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do

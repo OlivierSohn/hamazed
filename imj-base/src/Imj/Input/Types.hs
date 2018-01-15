@@ -25,6 +25,9 @@ data Key = AlphaNum Char
          -- ^ One of the four direction arrows
          | Escape
          -- ^ The escape key
+         | StopProgram
+         -- ^ a key that should be interpreted as "the user wants the program
+         -- to stop" : in 'windowCloseCallback', we generate a key press of that key.
          | Unknown
          -- ^ An unhandled key
          deriving(Show)
@@ -48,3 +51,7 @@ class PlayerInput a where
             => a
             -> m (Maybe Key)
             -- ^ Nothing when no input is available.
+
+  -- Return 'True' when the program should end
+  programShouldEnd :: (MonadIO m)
+                   => a -> m Bool

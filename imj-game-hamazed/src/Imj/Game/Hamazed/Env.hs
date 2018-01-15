@@ -46,6 +46,8 @@ instance PlayerInput x => PlayerInput (Env x) where
   getKey (Env _ a) = getKey a
   getKeyTimeout (Env _ a) = getKeyTimeout a
   tryGetKey (Env _ a) = tryGetKey a
+  programShouldEnd (Env _ a) = programShouldEnd a
   {-# INLINE getKey #-}
   {-# INLINE getKeyTimeout #-}
   {-# INLINE tryGetKey #-}
+  {-# INLINE programShouldEnd #-}

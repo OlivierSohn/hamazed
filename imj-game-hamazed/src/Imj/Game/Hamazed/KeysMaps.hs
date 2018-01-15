@@ -18,6 +18,7 @@ import           Imj.Input.Types
 eventFromKey :: Key -> Maybe Event
 eventFromKey = \case
   Escape -> Just $ Interrupt Quit
+  StopProgram -> Just $ Interrupt Quit
   AlphaNum c -> case c of
     'k' -> Just $ Action Laser Down
     'i' -> Just $ Action Laser Up

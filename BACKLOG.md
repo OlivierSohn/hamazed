@@ -1,3 +1,7 @@
+- draw numbers using colors : yellow = on, grey = off.
+
+- pass arguments to tell which backend to use.
+
 - support windowShouldClose (check before rendering)
 
 - handle multiple deadlines before rendering, when those deadlines are close

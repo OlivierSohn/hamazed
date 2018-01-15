@@ -66,8 +66,10 @@ doRun =
 {-# INLINABLE loop #-}
 loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
      => m ()
-loop =
-  get >>= \(AppState game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) _ _) ->
+loop = do
+  end <- playerEndsProgram
+  unless end $
+   get >>= \(AppState game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) _ _) ->
     case mode of
       Configure -> do
         (Screen _ centerScreen) <- getCurScreen

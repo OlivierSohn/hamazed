@@ -7,6 +7,7 @@ module Imj.Input.FromMonadReader
          getPlayerKey
        , getPlayerKeyTimeout
        , tryGetPlayerKey
+       , playerEndsProgram
        -- * Reexports
        , MonadReader, MonadIO
        ) where
@@ -40,3 +41,9 @@ tryGetPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
                 => m (Maybe Key)
 tryGetPlayerKey =
   join(asks tryGetKey)
+
+{-# INLINABLE playerEndsProgram #-}
+playerEndsProgram :: (PlayerInput i, MonadReader i m, MonadIO m)
+                  => m Bool
+playerEndsProgram =
+  join(asks programShouldEnd)

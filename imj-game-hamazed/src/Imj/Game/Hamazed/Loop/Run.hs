@@ -33,7 +33,7 @@ import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
-import           Imj.Input.Blocking
+import           Imj.Input.FromMonadReader
 import           Imj.Timing
 
 {- | Runs the Hamazed game.
@@ -57,13 +57,14 @@ doRun :: IO ()
 doRun =
 --  newConsoleBackend
   newOpenGLBackend "Hamazed"
+  -- TODO simplify, backend is used 4 times!
     >>= \backend -> withDefaultPolicies (\drawEnv -> do
       sz <- getDiscreteSize backend
       void (createState sz
-        >>= runStateT (runReaderT loop (Env drawEnv)))) backend
+        >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
 
 {-# INLINABLE loop #-}
-loop :: (Render e, MonadState AppState m, MonadReader e m, MonadIO m)
+loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
      => m ()
 loop =
   get >>= \(AppState game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) _ _) ->
@@ -73,7 +74,7 @@ loop =
         draw s
         draw' $ mkRectContainerWithCenterAndInnerSize centerScreen sz
         renderToScreen
-        liftIO getKeyThenFlush >>= \case
+        getPlayerKey >>= \case
           AlphaNum c ->
             if c == ' '
               then do

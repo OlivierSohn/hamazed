@@ -12,11 +12,11 @@ packages:
 
 - location:
     git: https://github.com/OlivierSohn/GLFW-b.git
-    commit: c77bc69f740b7863a020a63531d0e181c465a50f
+    commit: 9c4a7a1306e6a4f07a33897e773d87cc5e547178
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/bindings-GLFW.git
-    commit: f04f9cd23aab48ac4dcd456736d298ce863d905c
+    commit: 02d8896984607e98de5a8b46872b8939863637af
   extra-dep: true
 
 extra-deps: []

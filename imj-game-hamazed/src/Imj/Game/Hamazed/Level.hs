@@ -17,8 +17,6 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           System.Timeout( timeout )
-
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.State
@@ -30,9 +28,8 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
-import           Imj.Input.NonBlocking
-import           Imj.Input.Blocking
 import           Imj.Input.Types
+import           Imj.Input.FromMonadReader
 import           Imj.Timing
 
 eventFromKey' :: (MonadState AppState m)
@@ -66,7 +63,8 @@ messageDeadline (Level _ _ mayLevelFinished) t =
 
 -- | Returns a /player event/ or the 'Event' associated to the 'Deadline' if the
 -- 'Deadline' expired before the /player/ could press a 'Key'.
-getEventForMaybeDeadline :: (MonadState AppState m, MonadIO m)
+{-# INLINABLE getEventForMaybeDeadline #-}
+getEventForMaybeDeadline :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
                          => Maybe Deadline
                          -- ^ May contain a 'Deadline'
                          -> SystemTime
@@ -77,28 +75,31 @@ getEventForMaybeDeadline mayDeadline curTime =
     (Just (Deadline k@(KeyTime deadline) deadlineType)) -> do
       let
         timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadline curTime
-      eventWithinDurationMicros timeToDeadlineMicros k deadlineType
-    Nothing -> liftIO getKeyThenFlush >>= eventFromKey'
+      eventWithinDurationMicros curTime timeToDeadlineMicros k deadlineType
+    Nothing -> getPlayerKey >>= eventFromKey'
 
-eventWithinDurationMicros :: (MonadState AppState m, MonadIO m)
-                          => Int -> KeyTime -> DeadlineType -> m (Maybe Event)
-eventWithinDurationMicros durationMicros k step =
-  liftIO (getCharWithinDurationMicros durationMicros step) >>= \case
+{-# INLINABLE eventWithinDurationMicros #-}
+eventWithinDurationMicros :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
+                          => SystemTime -> Int -> KeyTime -> DeadlineType -> m (Maybe Event)
+eventWithinDurationMicros curTime durationMicros k step =
+  getCharWithinDurationMicros curTime durationMicros step >>= \case
     Just key -> eventFromKey' key
     _ -> return $ Just $ Timeout (Deadline k step)
 
-getCharWithinDurationMicros :: Int -> DeadlineType -> IO (Maybe Key)
-getCharWithinDurationMicros durationMicros step =
+{-# INLINABLE getCharWithinDurationMicros #-}
+getCharWithinDurationMicros :: (PlayerInput i, MonadReader i m, MonadIO m)
+                            => SystemTime -> Int -> DeadlineType -> m (Maybe Key)
+getCharWithinDurationMicros curTime durationMicros step =
   if durationMicros < 0
     -- overdue
     then
       if playerEventPriority > deadlinePriority step
         then
-          tryGetKeyThenFlush
+          tryGetPlayerKey
         else
           return Nothing
     else
-      timeout durationMicros getKeyThenFlush
+      getPlayerKeyTimeout curTime durationMicros
 
 {-# INLINABLE drawLevelState #-}
 drawLevelState :: (Draw e, MonadReader e m, MonadIO m)

@@ -46,7 +46,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
 
 import           Control.Applicative((<|>))
 import           Control.Arrow((>>>))
-import           Control.Monad(when, unless, void, (<=<), Monad, zipWithM_)
+import           Control.Monad(when, unless, void, (<=<), (>=>), Monad, zipWithM_)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Control.Exception(assert)

@@ -74,6 +74,8 @@ diffTimeToSystemTime diff =
 newtype KeyTime = KeyTime SystemTime deriving(Eq, Ord, Show)
 
 -- | Convert a 'DiffTime' to a number of microseconds.
+--
+-- Note that if it represents more that 536 seconds (2^29 / 10^6), it will overflow the Int.
 diffTimeSecToMicros :: DiffTime -> Int
 diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
 

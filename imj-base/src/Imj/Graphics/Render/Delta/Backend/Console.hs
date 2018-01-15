@@ -1,4 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Imj.Graphics.Render.Delta.Backend.Console
     ( ConsoleBackend
@@ -17,7 +19,7 @@ import           System.IO( hSetBuffering
                           , BufferMode(..)
                           , stdin
                           , stdout )
-
+import           System.Timeout( timeout )
 import           Data.Vector.Unboxed.Mutable(read)
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -29,6 +31,9 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
+import           Imj.Input.Types
+import           Imj.Input.Blocking
+import           Imj.Input.NonBlocking
 
 
 data ConsoleBackend = ConsoleBackend
@@ -40,6 +45,14 @@ instance DeltaRenderBackend ConsoleBackend where
     sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
     return $ maybe (Nothing) (\(Terminal.Window h w)
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
+
+instance PlayerInput ConsoleBackend where
+  getKey _ =
+    liftIO getKeyThenFlush
+  getKeyTimeout _ _ ms =
+    liftIO $ timeout ms getKeyThenFlush
+  tryGetKey _ =
+    liftIO tryGetKeyThenFlush
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do

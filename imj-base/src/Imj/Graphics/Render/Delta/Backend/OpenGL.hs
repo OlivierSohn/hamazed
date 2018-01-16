@@ -9,8 +9,9 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     ) where
 
 import           Imj.Prelude hiding((<>))
-import           Prelude(putStrLn)
+import           Prelude(putStrLn, length)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
+import           Data.Char(ord, chr, isHexDigit, digitToInt)
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 
@@ -120,48 +121,15 @@ tryGetFirstKeyPress keyQueue = do
 
 
 glfwKeyToKey :: GLFW.Key -> Key
-glfwKeyToKey GLFW.Key'0 = AlphaNum '0'
-glfwKeyToKey GLFW.Key'1 = AlphaNum '1'
-glfwKeyToKey GLFW.Key'2 = AlphaNum '2'
-glfwKeyToKey GLFW.Key'3 = AlphaNum '3'
-glfwKeyToKey GLFW.Key'4 = AlphaNum '4'
-glfwKeyToKey GLFW.Key'5 = AlphaNum '5'
-glfwKeyToKey GLFW.Key'6 = AlphaNum '6'
-glfwKeyToKey GLFW.Key'7 = AlphaNum '7'
-glfwKeyToKey GLFW.Key'8 = AlphaNum '8'
-glfwKeyToKey GLFW.Key'9 = AlphaNum '9'
+glfwKeyToKey k
+  | k >= GLFW.Key'0 && k <= GLFW.Key'9 = AlphaNum $ chr $ (ord '0') + (length [GLFW.Key'0 .. pred k])
+  | k >= GLFW.Key'A && k <= GLFW.Key'Z = AlphaNum $ chr $ (ord 'a') + (length [GLFW.Key'A .. pred k])
 glfwKeyToKey GLFW.Key'Space = AlphaNum ' '
-glfwKeyToKey GLFW.Key'A = AlphaNum 'a'
-glfwKeyToKey GLFW.Key'B = AlphaNum 'b'
-glfwKeyToKey GLFW.Key'C = AlphaNum 'c'
-glfwKeyToKey GLFW.Key'D = AlphaNum 'd'
-glfwKeyToKey GLFW.Key'E = AlphaNum 'e'
-glfwKeyToKey GLFW.Key'F = AlphaNum 'f'
-glfwKeyToKey GLFW.Key'G = AlphaNum 'g'
-glfwKeyToKey GLFW.Key'H = AlphaNum 'h'
-glfwKeyToKey GLFW.Key'I = AlphaNum 'i'
-glfwKeyToKey GLFW.Key'J = AlphaNum 'j'
-glfwKeyToKey GLFW.Key'K = AlphaNum 'k'
-glfwKeyToKey GLFW.Key'L = AlphaNum 'l'
-glfwKeyToKey GLFW.Key'M = AlphaNum 'm'
-glfwKeyToKey GLFW.Key'N = AlphaNum 'n'
-glfwKeyToKey GLFW.Key'O = AlphaNum 'o'
-glfwKeyToKey GLFW.Key'P = AlphaNum 'p'
-glfwKeyToKey GLFW.Key'Q = AlphaNum 'q'
-glfwKeyToKey GLFW.Key'R = AlphaNum 'r'
-glfwKeyToKey GLFW.Key'S = AlphaNum 's'
-glfwKeyToKey GLFW.Key'T = AlphaNum 't'
-glfwKeyToKey GLFW.Key'U = AlphaNum 'u'
-glfwKeyToKey GLFW.Key'V = AlphaNum 'v'
-glfwKeyToKey GLFW.Key'W = AlphaNum 'w'
-glfwKeyToKey GLFW.Key'X = AlphaNum 'x'
-glfwKeyToKey GLFW.Key'Y = AlphaNum 'y'
-glfwKeyToKey GLFW.Key'Z = AlphaNum 'z'
+glfwKeyToKey GLFW.Key'Escape = Escape
 glfwKeyToKey GLFW.Key'Right = Arrow RIGHT
 glfwKeyToKey GLFW.Key'Left  = Arrow LEFT
 glfwKeyToKey GLFW.Key'Down  = Arrow Down
 glfwKeyToKey GLFW.Key'Up    = Arrow Up
-glfwKeyToKey GLFW.Key'Escape = Escape
 glfwKeyToKey _ = Unknown
 
 winWidth :: Int
@@ -234,24 +202,44 @@ renderDelta delta' w = do
   void (renderDelta' 0)
 
 draw :: Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
-draw c' r' char bg fg = do
-  let color3f = GL.color $ GL.Color3 r g (b :: GL.GLfloat)
-      vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
-      (r1,r2) = (unitRow r', unitRow (succ r'))
-      (c1,c2) = (unitCol c', unitCol (succ c'))
-      totalH = fromIntegral $ quot winHeight pixelPerUnit
-
-      -- the +/- 0.5 are to place at pixel centers.
-      unitRow x = -1 + unit winHeight * (fromIntegral (totalH-x) - 0.5)
-      unitCol x = -1 + unit winWidth * (fromIntegral x + 0.5)
-
-      unit x = 2 * recip (fromIntegral $ quot x pixelPerUnit)
-
-      (r,g,b) = if char == ' '
+draw col row char bg fg
+  | isHexDigit char = do
+    let n = digitToInt char
+        (d,d') = quotRem n 8
+        (c,c') = quotRem d' 4
+        (b,a) = quotRem c' 2
+        colorOn  = GL.Color3 1 1 0       -- yellow
+        colorOff = GL.Color3 0.4 0.4 0.4 -- grey
+        bits = [a,b,c,d]
+        locations = [(0.5,0.5),(1.5,0.5),(1.5,1.5),(0.5,1.5)]
+    mapM_
+      (\((dx, dy), bit) -> do
+        let color
+              | bit == 0 = colorOff
+              | otherwise = colorOn
+        drawSquare (quot pixelPerUnit 2) (2 * fromIntegral col + dx)
+                                         (2 * fromIntegral row + dy) color)
+      $ zip locations bits
+  | otherwise = do
+  let (r,g,b) = if char == ' '
                   then color8ToUnitRGB bg
                   else color8ToUnitRGB fg
+  drawSquare pixelPerUnit (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
+
+
+drawSquare :: Int -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
+drawSquare ppu c' r' color = do
+  let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
+      unit x = 2 * recip (fromIntegral $ quot x ppu)
+      -- the +/- 0.5 are to place at pixel centers.
+      totalH = fromIntegral $ quot winHeight ppu
+      unitRow x = -1 + unit winHeight * ((totalH-x) - 0.5)
+      unitCol x = -1 + unit winWidth * (x + 0.5)
+
+      (r1,r2) = (unitRow r', unitRow (1 + r'))
+      (c1,c2) = (unitCol c', unitCol (1 + c'))
   GL.renderPrimitive GL.TriangleFan $ do
-    color3f
+    GL.color color
     vertex3f c2 r1 0
     vertex3f c2 r2 0
     vertex3f c1 r2 0

@@ -55,8 +55,8 @@ run =
 
 doRun :: IO ()
 doRun =
---  newConsoleBackend
-  newOpenGLBackend "Hamazed"
+  newConsoleBackend
+--  newOpenGLBackend "Hamazed"
   -- TODO simplify, backend is used 4 times!
     >>= \backend -> withDefaultPolicies (\drawEnv -> do
       sz <- getDiscreteSize backend

@@ -121,16 +121,18 @@ envDistance (Vec2 x y) =
     else
       DistanceOK
 
-getWorldOffset :: ViewMode -> World -> Coords Pos -> Coords Pos
-getWorldOffset mode (World _ (BattleShip (PosSpeed shipPos _) _ _ _) _ _) screenCenter =
+getWorldOffset :: ViewMode -> World -> Coords Pos
+getWorldOffset mode (World _ (BattleShip (PosSpeed shipPos _) _ _ _) (Space _ (Size h w) _) _) =
   case mode of
     CenterSpace -> zeroCoords
-    CenterShip  -> diffCoords screenCenter shipPos
+    CenterShip  ->
+      let worldCenter = Coords (fromIntegral $ quot h 2) (fromIntegral $ quot w 2)
+      in diffCoords worldCenter shipPos
 
 getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
-getWorldCorner (World _ _ (Space _ (Size w h) _) _) screenCenter offset =
-  let (w',h') = (quot w 2, quot h 2)
-  in sumCoords offset $ translate' (-w') (-h') screenCenter
+getWorldCorner (World _ _ (Space _ (Size h w) _) _) screenCenter offset =
+  let (h',w') = (quot h 2, quot w 2)
+  in sumCoords offset $ translate' (-h') (-w') screenCenter
 
 
 -- | An interaction function taking into account a 'World' and 'Scope'
@@ -155,7 +157,7 @@ scopedLocation :: World
                -> Location
 scopedLocation world@(World _ _ space@(Space _ sz _) _) mode (Screen mayTermSize screenCenter) scope pos =
   let termContains (Size h w) =
-        let corner = getWorldCorner world screenCenter $ getWorldOffset mode world screenCenter
+        let corner = getWorldCorner world screenCenter $ getWorldOffset mode world
             (Coords r c) = sumCoords pos corner
         in r < fromIntegral h && c >= 0 && c < fromIntegral w
   in case scope of

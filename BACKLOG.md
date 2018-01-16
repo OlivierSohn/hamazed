@@ -1,4 +1,4 @@
-- draw numbers using colors : yellow = on, grey = off.
+- try retina glfw
 
 - pass arguments to tell which backend to use.
 

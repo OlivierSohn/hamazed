@@ -26,7 +26,7 @@ draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      -> m ()
 draw (GameState _ world@(World _ _ space animations) _ _ level wa (Screen _ screenCenter)) = do
   mode <- getMode
-  let offset = getWorldOffset mode world screenCenter
+  let offset = getWorldOffset mode world
       worldCorner = getWorldCorner world screenCenter offset
   -- draw the walls outside the matrix:
   fill (materialChar Wall) outerWallsColors

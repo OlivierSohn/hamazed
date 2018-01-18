@@ -10,6 +10,9 @@ module Imj.Graphics.Render.Delta.Backend.Console
 import           Imj.Prelude
 import qualified Prelude(putStr, putChar)
 
+import           Control.Concurrent.STM
+                  (TQueue, isEmptyTQueue,
+                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor )
@@ -20,8 +23,8 @@ import           System.IO( hSetBuffering
                           , stdin
                           , stdout )
 import           System.Timeout( timeout )
-import           Data.Vector.Unboxed.Mutable(read)
 
+import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, unstableSort, accessUnderlying, length)
 
@@ -34,9 +37,10 @@ import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Input.Blocking
 import           Imj.Input.NonBlocking
+import           Imj.Util
 
 
-data ConsoleBackend = ConsoleBackend
+data ConsoleBackend = ConsoleBackend !(TQueue Key)
 
 instance DeltaRenderBackend ConsoleBackend where
   render _ = deltaRenderConsole
@@ -46,13 +50,24 @@ instance DeltaRenderBackend ConsoleBackend where
     return $ maybe (Nothing) (\(Terminal.Window h w)
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
 
+fromMaybeM :: Monad m
+           => m a
+           -> m (Maybe a)
+           -> m a
+fromMaybeM nothingAction mayAction =
+  mayAction >>= maybe nothingAction return
+
 instance PlayerInput ConsoleBackend where
-  getKey _ =
-    liftIO getKeyThenFlush
-  getKeyTimeout _ _ ms =
-    liftIO $ timeout ms getKeyThenFlush
-  tryGetKey _ =
-    liftIO tryGetKeyThenFlush
+  getKey (ConsoleBackend queue) =
+    liftIO $ fromMaybeM getKeyThenFlush (atomically $ tryReadTQueue queue)
+  getKeyTimeout (ConsoleBackend queue) _ ms =
+    liftIO $ (atomically $ tryReadTQueue queue) <|> (timeout ms getKeyThenFlush)
+  tryGetKey (ConsoleBackend queue) =
+    liftIO $ (atomically $ tryReadTQueue queue) <|> tryGetKeyThenFlush
+  someInputIsAvailable (ConsoleBackend queue) = do
+    liftIO $ (atomically $ not <$> isEmptyTQueue queue) <|=> stdinIsReady
+  unGetKey (ConsoleBackend queue) k =
+    liftIO (atomically $ unGetTQueue queue k)
   programShouldEnd _ =
     return False
 
@@ -60,11 +75,12 @@ instance PlayerInput ConsoleBackend where
   {-# INLINABLE getKey #-}
   {-# INLINABLE getKeyTimeout #-}
   {-# INLINABLE tryGetKey #-}
+  {-# INLINABLE someInputIsAvailable #-}
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do
   configureConsoleFor Gaming defaultStdoutMode
-  return ConsoleBackend
+  ConsoleBackend <$> newTQueueIO
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode

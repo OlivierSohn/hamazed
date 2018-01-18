@@ -30,7 +30,6 @@ module Imj.Graphics.ParticleSystem
     , InteractionResult(..)
     , Distance(..)
     , getDeadline
-    , shouldUpdate
     , updateParticleSystem
     -- ** Render
     , drawSystem

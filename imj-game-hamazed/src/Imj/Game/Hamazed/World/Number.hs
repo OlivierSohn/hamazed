@@ -15,6 +15,7 @@ import           Data.Char( intToDigit )
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
@@ -27,7 +28,7 @@ destroyedNumbersParticleSystems :: (MonadState AppState m)
                                 -> Direction -- ^ 'Direction' of the laser shot
                                 -> World -- ^ the 'World' the 'Number's live in
                                 -> [Number]
-                                -> m [ParticleSystem]
+                                -> m [Prioritized ParticleSystem]
 destroyedNumbersParticleSystems keyTime dir world nums = do
   let laserSpeed = speed2vec $ coordsForDirection dir
   ps <- mapM (destroyedNumberParticleSystems keyTime laserSpeed world) nums
@@ -38,10 +39,12 @@ destroyedNumberParticleSystems :: (MonadState AppState m)
                                -> Vec2 Vel
                                -> World
                                -> Number
-                               -> m [ParticleSystem]
+                               -> m [Prioritized ParticleSystem]
 destroyedNumberParticleSystems k laserSpeed world (Number (PosSpeed pos _) n) = do
   envFuncs <- envFunctions world (WorldScope Air)
-  return $ catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
+  return
+    $ map (Prioritized particleSystDefaultPriority)
+    $ catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
      ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos
           (\i -> if even i
                   then cycleOuterColors1

@@ -12,6 +12,7 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
@@ -32,7 +33,7 @@ draw (GameState _ world@(World _ _ space animations) _ _ level wa (Screen _ scre
   fill (materialChar Wall) outerWallsColors
   -- draw the matrix:
   drawSpace space worldCorner
-  mapM_ (`drawSystem` worldCorner) animations
+  mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
   drawWorld world worldCorner
   drawUIAnimation offset wa -- draw it after the world so that when it morphs
                             -- it goes over numbers and ship

@@ -44,10 +44,14 @@ instance Render (Env x) where
 
 instance PlayerInput x => PlayerInput (Env x) where
   getKey (Env _ a) = getKey a
+  unGetKey (Env _ a) = unGetKey a
   getKeyTimeout (Env _ a) = getKeyTimeout a
   tryGetKey (Env _ a) = tryGetKey a
+  someInputIsAvailable (Env _ a) = someInputIsAvailable a
   programShouldEnd (Env _ a) = programShouldEnd a
   {-# INLINE getKey #-}
+  {-# INLINE unGetKey #-}
   {-# INLINE getKeyTimeout #-}
   {-# INLINE tryGetKey #-}
+  {-# INLINE someInputIsAvailable #-}
   {-# INLINE programShouldEnd #-}

@@ -18,6 +18,7 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.World
@@ -55,23 +56,24 @@ update evt =
         mkInitialState params sz nextLevel (Just state) >>= \case
           Left err -> error err
           Right st -> return st
-      (Timeout (Deadline gt AnimateUI)) -> do
+      (Timeout (Deadline gt _ AnimateUI)) -> do
         let st@(GameState _ _ _ _ _ anims _) = updateAnim gt state
         if isFinished anims
           then flip startGameState st <$> liftIO getSystemTime
           else return st
-      (Timeout (Deadline _ DisplayContinueMessage)) ->
+      (Timeout (Deadline _ _ DisplayContinueMessage)) ->
         return $ case mayLevelFinished of
           Just (LevelFinished stop finishTime _) ->
             let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
             in GameState b world futWorld f newLevel anim s
           Nothing -> state
-      (Timeout (Deadline k AnimateParticleSystems)) -> do
-        let newSystems = mapMaybe (\a -> if shouldUpdate a k
-                                            then updateParticleSystem a
-                                            else Just a) systems
+      (Timeout (Deadline k priority AnimateParticleSystems)) -> do
+        let newSystems = mapMaybe (\pr@(Prioritized p a) ->
+                                      if p == priority && getDeadline a == k
+                                        then fmap (Prioritized p) $ updateParticleSystem a
+                                        else Just pr) systems
         return $ GameState b (World c d space newSystems) futWorld f h anim s
-      (Timeout (Deadline gt MoveFlyingItems)) -> do
+      (Timeout (Deadline gt _ MoveFlyingItems)) -> do
         let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim s
         onHasMoved movedState gt
       Action Laser dir ->
@@ -160,7 +162,7 @@ outerSpaceParticleSystems :: (MonadState AppState m)
                           => SystemTime
                           -> World
                           -> LaserRay Actual
-                          -> m [ParticleSystem]
+                          -> m [Prioritized ParticleSystem]
 outerSpaceParticleSystems t world@(World _ _ space _) ray@(LaserRay dir _ _) = do
   let laserTarget = afterEnd ray
       char = materialChar Wall
@@ -204,20 +206,23 @@ outerSpaceParticleSystems' :: (MonadState AppState m)
                            -> (Int -> Int -> Frame -> LayeredColor)
                            -> Char
                            -> SystemTime
-                           -> m [ParticleSystem]
+                           -> m [Prioritized ParticleSystem]
 outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t = do
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
   envFuncs <- envFunctions world scope
-  return $ fragmentsFreeFallWithReboundsThenExplode
+  return
+    $ fmap (Prioritized particleSystDefaultPriority)
+    $ fragmentsFreeFallWithReboundsThenExplode
         speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
         (Speed 1) envFuncs (Left t)
 
 
 laserParticleSystems :: LaserRay Actual
                      -> SystemTime
-                     -> [ParticleSystem]
+                     -> [Prioritized ParticleSystem]
 laserParticleSystems ray t =
-  catMaybes [laserShot ray cycleLaserColors (Left t)]
+  catMaybes [fmap (Prioritized particleSystLaserPriority)
+            $ laserShot ray cycleLaserColors (Left t)]
 
 
 accelerateShip' :: Direction -> GameState -> GameState

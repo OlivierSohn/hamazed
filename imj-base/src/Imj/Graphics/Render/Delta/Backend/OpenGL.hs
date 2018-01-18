@@ -10,8 +10,11 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 
 import           Imj.Prelude hiding((<>))
 import           Prelude(putStrLn, length)
-import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, tryReadTQueue, writeTQueue)
+import           Control.Concurrent.STM
+                  (TQueue,
+                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
 import           Data.Char(ord, chr, isHexDigit, digitToInt)
+import           Data.Maybe(isJust)
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 
@@ -27,6 +30,7 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Timing
+import           Imj.Util
 
 pixelPerUnit :: Int
 pixelPerUnit = 4
@@ -40,8 +44,12 @@ keyCallback tc _ k sc ka mk =
 
 windowCloseCallback :: TQueue EventKey -> GLFW.Window -> IO ()
 windowCloseCallback keyQueue _ =
-  atomically $ writeTQueue keyQueue $ EventKey
-    StopProgram 0 GLFW.KeyState'Pressed $ GLFW.ModifierKeys False False False False
+  atomically $ writeTQueue keyQueue $ mkKeyPress StopProgram
+
+{-# INLINE mkKeyPress #-}
+mkKeyPress :: Key -> EventKey
+mkKeyPress k =
+  EventKey k 0 GLFW.KeyState'Pressed $ GLFW.ModifierKeys False False False False
 
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: !GLFW.Window
@@ -67,7 +75,7 @@ instance DeltaRenderBackend OpenGLBackend where
 -- If no key press was found, in 'getKey' we recurse.
 instance PlayerInput OpenGLBackend where
   getKey (OpenGLBackend _ keyQueue) = do
-    let tryReadQueue = liftIO $ tryGetFirstKeyPress keyQueue
+    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         fillQueue = liftIO GLFW.waitEvents
         readQueue =
           tryReadQueue >>= \case
@@ -76,7 +84,7 @@ instance PlayerInput OpenGLBackend where
     readQueue
 
   getKeyTimeout b@(OpenGLBackend _ keyQueue) callerTime allowedMicros = do
-    let tryReadQueue = liftIO $ tryGetFirstKeyPress keyQueue
+    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
     -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
     -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
         tryFillQueue = liftIO $ GLFW.waitEventsTimeout (fromIntegral allowedMicros / 1000000)
@@ -97,27 +105,51 @@ instance PlayerInput OpenGLBackend where
       (return . Just)
 
   tryGetKey (OpenGLBackend _ keyQueue) = do
-    let tryReadQueue = liftIO $ tryGetFirstKeyPress keyQueue
+    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         tryFillQueue = liftIO GLFW.pollEvents
     tryReadQueue >>= maybe
       (tryFillQueue >> tryReadQueue)
       (return . Just)
 
+  unGetKey (OpenGLBackend _ keyQueue) k =
+    liftIO $ atomically $ unGetTQueue keyQueue $ mkKeyPress k
+
+  -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
+  someInputIsAvailable (OpenGLBackend _ keyQueue) = do
+    let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
+        tryFillQueue = liftIO GLFW.pollEvents
+    tryPeekQueue >>= maybe
+      (tryFillQueue >> tryPeekQueue >>= return . isJust)
+      (const $ return True)
+
   programShouldEnd (OpenGLBackend win _) =
     liftIO $ GLFW.windowShouldClose win
 
   {-# INLINABLE tryGetKey #-}
+  {-# INLINABLE someInputIsAvailable #-}
   {-# INLINABLE getKey #-}
   {-# INLINABLE getKeyTimeout #-}
   {-# INLINABLE programShouldEnd #-}
 
-{-# INLINABLE tryGetFirstKeyPress #-}
-tryGetFirstKeyPress :: TQueue EventKey -> IO (Maybe Key)
-tryGetFirstKeyPress keyQueue = do
+{-# INLINABLE tryReadFirstKeyPress #-}
+tryReadFirstKeyPress :: TQueue EventKey
+                     -> IO (Maybe Key)
+tryReadFirstKeyPress keyQueue = do
   (liftIO $ atomically $ tryReadTQueue keyQueue) >>= \case
     Nothing -> return Nothing
     Just (EventKey key _ GLFW.KeyState'Pressed _) -> return $ Just key
-    Just _ -> tryGetFirstKeyPress keyQueue
+    Just _ -> tryReadFirstKeyPress keyQueue
+
+{-# INLINABLE tryPeekFirstKeyPress #-}
+tryPeekFirstKeyPress :: TQueue EventKey
+                     -> IO (Maybe Key)
+tryPeekFirstKeyPress keyQueue = do
+  (liftIO $ atomically $ tryReadTQueue keyQueue) >>= \case
+    Nothing -> return Nothing
+    Just e@(EventKey key _ GLFW.KeyState'Pressed _) -> do
+      liftIO (atomically $ unGetTQueue keyQueue e)
+      return $ Just key
+    Just _ -> tryPeekFirstKeyPress keyQueue
 
 
 glfwKeyToKey :: GLFW.Key -> Key
@@ -142,8 +174,8 @@ newOpenGLBackend title = do
   let simpleErrorCallback e s =
         putStrLn $ unwords [show e, show s]
   GLFW.setErrorCallback $ Just simpleErrorCallback
-  r <- GLFW.init
-  unless r $ error "could not initialize GLFW"
+
+  _ <- GLFW.init <|=> error "could not initialize GLFW"
 
   keyEventsChan <- newTQueueIO :: IO (TQueue EventKey)
   win <- createWindow winWidth winHeight title

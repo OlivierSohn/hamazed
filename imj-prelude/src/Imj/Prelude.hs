@@ -26,7 +26,7 @@ module Imj.Prelude
           ) where
 
 import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
-                        , Functor
+                        , Functor, Read, Applicative
                         , Bool(..), Char, Float, IO, Int, Maybe(..), Either(..), Ordering(..)
                         , either, maybe
                         , sum, map, concatMap, concat, filter, mapM, mapM_
@@ -44,12 +44,12 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , (!!)
                         )
 
-import           Control.Applicative((<|>))
+import           Control.Applicative((<|>), pure)
 import           Control.Arrow((>>>))
+import           Control.Exception(assert)
 import           Control.Monad(when, unless, void, (<=<), (>=>), Monad, zipWithM_)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
-import           Control.Exception(assert)
 import           Data.List(intercalate, cycle, repeat, words, unwords)
 import           Data.Maybe(listToMaybe, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Monoid((<>))

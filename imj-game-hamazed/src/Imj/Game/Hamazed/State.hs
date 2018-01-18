@@ -17,6 +17,7 @@ module Imj.Game.Hamazed.State
       , getGameState
       , getGame
       , getMode
+      , getRecording
       , getCurScreen
       , envFunctions
       -- * Modify
@@ -88,10 +89,10 @@ representation EndGame          = EndGame'
 representation (Interrupt _)    = Interrupt'
 representation (Action Laser _) = Laser'
 representation (Action Ship _)  = Ship'
-representation (Timeout (Deadline _ MoveFlyingItems))        = MoveFlyingItems'
-representation (Timeout (Deadline _ AnimateParticleSystems)) = AnimateParticleSystems'
-representation (Timeout (Deadline _ DisplayContinueMessage)) = DisplayContinueMessage'
-representation (Timeout (Deadline _ AnimateUI))              = AnimateUI'
+representation (Timeout (Deadline _ _ MoveFlyingItems))        = MoveFlyingItems'
+representation (Timeout (Deadline _ _ AnimateParticleSystems)) = AnimateParticleSystems'
+representation (Timeout (Deadline _ _ DisplayContinueMessage)) = DisplayContinueMessage'
+representation (Timeout (Deadline _ _ AnimateUI))              = AnimateUI'
 representation ToggleEventRecording = ToggleEventRecording'
 
 reprToCS :: EventRepr -> ColorString
@@ -107,7 +108,7 @@ reprToCS DisplayContinueMessage' = colored "C" white
 reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
 
-
+{-# INLINABLE onEvent #-}
 onEvent :: MonadState AppState m
         => Event -> m ()
 onEvent evt = do
@@ -116,6 +117,7 @@ onEvent evt = do
     Record -> state (addEvent evt)
     DontRecord -> return ()
 
+{-# INLINABLE getRenderable #-}
 getRenderable :: MonadState AppState m
               => m (GameState, [ColorString])
 getRenderable =
@@ -125,6 +127,7 @@ getRenderable =
               DontRecord -> []
     return (gameState, strs)
 
+{-# INLINABLE getRecording #-}
 getRecording :: MonadState AppState m
              => m RecordMode
 getRecording = do
@@ -143,28 +146,34 @@ toggleRecordEvent (AppState g _ r) =
         DontRecord -> Record
   in ((), AppState g mkEmptyOccurencesHist r')
 
+{-# INLINABLE putGame #-}
 putGame :: MonadState AppState m => Game -> m ()
 putGame g =
   get >>= \(AppState _ r h) ->
     put $ AppState g r h
 
+{-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
 putGameState s =
   get >>= \(AppState (Game i params _) r h) ->
     put $ AppState (Game i params s) r h
 
+{-# INLINABLE getGameState #-}
 getGameState :: MonadState AppState m => m GameState
 getGameState =
   getGame >>= \(Game _ _ s) -> return s
 
+{-# INLINABLE getGame #-}
 getGame :: MonadState AppState m => m Game
 getGame =
   get >>= \(AppState g _ _) -> return g
 
+{-# INLINABLE getMode #-}
 getMode :: MonadState AppState m => m ViewMode
 getMode =
   getGame >>= \(Game _ (GameParameters _ _ mode) _) -> return mode
 
+{-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
 getCurScreen =
   getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ screen)) -> return screen
@@ -173,9 +182,7 @@ addIgnoredOverdues :: MonadState AppState m
                    => Int -> m ()
 addIgnoredOverdues n =
   get >>= \(AppState a hist record) -> do
-    let hist' = case record of
-          Record -> iterate (addEventRepr IgnoredOverdue) hist !! n
-          DontRecord -> hist
+    let hist' = iterate (addEventRepr IgnoredOverdue) hist !! n
     put $ AppState a hist' record
 
 toColorStr :: OccurencesHist -> ColorString
@@ -214,6 +221,7 @@ mkEmptyOccurencesHist :: OccurencesHist
 mkEmptyOccurencesHist = OccurencesHist [] mempty
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
+{-# INLINABLE envFunctions #-}
 envFunctions :: (MonadState AppState m)
              => World -> Scope -> m EnvFunctions
 envFunctions world scope = do

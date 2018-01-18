@@ -30,7 +30,7 @@ module Imj.Game.Hamazed
 
             * \(deadline\) = the next foreseen 'Deadline'.
 
-        * 'getEventForMaybeDeadline'
+        * 'getEventForDeadline'
 
             * \(event\) =
 
@@ -48,7 +48,7 @@ module Imj.Game.Hamazed
             * 'renderToScreen' : renders what was drawn to the screen.
         -}
       , getNextDeadline
-      , getEventForMaybeDeadline
+      , getEventForDeadline
       , update
       , draw
         -- * Deadlines

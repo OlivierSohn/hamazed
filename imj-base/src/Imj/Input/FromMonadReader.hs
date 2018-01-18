@@ -7,6 +7,8 @@ module Imj.Input.FromMonadReader
          getPlayerKey
        , getPlayerKeyTimeout
        , tryGetPlayerKey
+       , hasPlayerKey
+       , unGetPlayerKey
        , playerEndsProgram
        -- * Reexports
        , MonadReader, MonadIO
@@ -27,6 +29,14 @@ getPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
 getPlayerKey = do
   join(asks getKey)
 
+{-# INLINABLE unGetPlayerKey #-}
+unGetPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
+               => Key
+               -> m ()
+unGetPlayerKey k = do
+  d <- asks unGetKey
+  d k
+
 {-# INLINABLE getPlayerKeyTimeout #-}
 getPlayerKeyTimeout :: (PlayerInput i, MonadReader i m, MonadIO m)
                     => SystemTime
@@ -41,6 +51,12 @@ tryGetPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
                 => m (Maybe Key)
 tryGetPlayerKey =
   join(asks tryGetKey)
+
+{-# INLINABLE hasPlayerKey #-}
+hasPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
+             => m Bool
+hasPlayerKey =
+  join(asks someInputIsAvailable)
 
 {-# INLINABLE playerEndsProgram #-}
 playerEndsProgram :: (PlayerInput i, MonadReader i m, MonadIO m)

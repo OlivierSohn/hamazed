@@ -33,6 +33,7 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
 
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Continuous.Types
@@ -67,7 +68,7 @@ data World = World {
     -- ^ The player's 'BattleShip'
   , _worldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , _worldParticleSystems :: ![ParticleSystem]
+  , _worldParticleSystems :: ![Prioritized ParticleSystem]
     -- ^ They don't have an influence on the game, they are just here
     -- for aesthetics.
 }

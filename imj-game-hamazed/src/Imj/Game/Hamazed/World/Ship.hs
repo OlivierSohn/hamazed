@@ -15,6 +15,7 @@ import           Data.Maybe( isNothing )
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
@@ -30,7 +31,7 @@ to mimic the rebound due to the collision. -}
 shipParticleSystems :: (MonadState AppState m)
                     => World
                     -> KeyTime
-                    -> m [ParticleSystem]
+                    -> m [Prioritized ParticleSystem]
 shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _) k =
   if not (null collisions) && isNothing safeTime
     then do
@@ -43,11 +44,9 @@ shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _
                       then cycleOuterColors1
                       else cycleWallColors2
       envFuncs <- envFunctions world (WorldScope Air)
-      return $
-        fragmentsFreeFallThenExplode numSpeed shipCoords color
-          '|' (Speed 1) envFuncs (Right k)
-        ++
-        fragmentsFreeFallThenExplode shipSpeed2 shipCoords color
-          (intToDigit n) (Speed 1) envFuncs (Right k)
+      return
+        $ map (Prioritized particleSystDefaultPriority)
+        $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs (Right k) ++
+          fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs (Right k)
     else
       return []

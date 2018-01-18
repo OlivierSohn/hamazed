@@ -14,7 +14,9 @@ module Imj.Util
     , randomRsIO
     , clamp
     , zigzag
-      -- * Reexports
+    -- * Bool utilities
+    , (<|=>)
+    -- * Reexports
     , Int64
     ) where
 
@@ -124,3 +126,20 @@ clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
+
+
+-- | A lifted ('||'), but short-circuited.
+--
+-- Copied from
+-- <https://hackage.haskell.org/package/control-bool-0.2.1/docs/Control-Bool.html here>.
+{-# INLINABLE (<|=>) #-}
+(<|=>) :: Monad m => m Bool -> m Bool -> m Bool
+m <|=> n = do
+    r <- m
+    bool n (return True) r
+
+-- | @bool a b@ is a function that returns a if the argument is True, otherwise returns 'b'.
+{-# INLINE bool #-}
+bool :: a -> a -> Bool -> a
+bool x _ False = x
+bool _ y True = y

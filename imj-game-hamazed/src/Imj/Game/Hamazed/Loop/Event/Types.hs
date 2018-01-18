@@ -24,6 +24,8 @@ import           Imj.Timing
 -- | A foreseen game or animation update.
 data Deadline = Deadline {
     _deadlineTime :: !KeyTime
+    -- ^ At which time should the update become visible to the user.
+  , _deadlinePriority :: !Int
   , _deadlineType :: !DeadlineType
 } deriving(Eq, Show)
 

@@ -26,8 +26,7 @@ data Key = AlphaNum Char
          | Escape
          -- ^ The escape key
          | StopProgram
-         -- ^ a key that should be interpreted as "the user wants the program
-         -- to stop" : in 'windowCloseCallback', we generate a key press of that key.
+         -- ^ To be interpreted as "the program should stop now".
          | Unknown
          -- ^ An unhandled key
          deriving(Show)
@@ -37,6 +36,13 @@ class PlayerInput a where
   getKey :: (MonadIO m)
          => a
          -> m Key
+
+  -- | Call this function to undo a getKey : it will fill a queue that is read
+  -- before getting actual player input.
+  unGetKey :: (MonadIO m)
+           => a
+           -> Key
+           -> m ()
 
   getKeyTimeout :: (MonadIO m)
                 => a
@@ -51,6 +57,10 @@ class PlayerInput a where
             => a
             -> m (Maybe Key)
             -- ^ Nothing when no input is available.
+
+  someInputIsAvailable :: (MonadIO m)
+                       => a
+                       -> m Bool
 
   -- Return 'True' when the program should end
   programShouldEnd :: (MonadIO m)

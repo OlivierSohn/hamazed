@@ -3,8 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.ParticleSystem.Design.Update
-    ( shouldUpdate
-    , updateParticleSystem
+    ( updateParticleSystem
     , getDeadline
     ) where
 
@@ -19,34 +18,21 @@ import           Imj.Iteration
 import           Imj.Timing
 
 
-{- | Returns 'True' if the 'KeyTime' is beyond the 'ParticleSystem' deadline or if the
-time difference is within 'particleSystemUpdateMargin'. -}
-shouldUpdate :: ParticleSystem
-             -> KeyTime
-             -- ^ The current 'KeyTime'
-             -> Bool
-shouldUpdate a (KeyTime k) =
-  let (KeyTime k') = getDeadline a
-  in diffSystemTime k' k < particleSystemUpdateMargin
-
+-- | Note that if the 'ParticleSystem' deadlines become overdue,
+-- there is no mechanism to "catch up", i.e we don't use the current time
+-- as a reference for the new deadline, instead we use the previous deadline.
 updateParticleSystem :: ParticleSystem
                      -> Maybe ParticleSystem
-                     -- ^ Nothing if all contained 'Particle's are inactive.
+                     -- ^ Nothing if every contained 'Particle' is inactive.
 updateParticleSystem
  (ParticleSystem points update interaction (UpdateSpec k it@(Iteration _ frame))) =
   let newPoints = update interaction frame points
-      newUpdateSpec = UpdateSpec (addDuration particleSystemPeriod k) (nextIteration it)
-      newAnim = ParticleSystem newPoints update interaction newUpdateSpec
-  in if isActive newAnim
+  in if hasActiveParticles newPoints
        then
-         Just newAnim
+         Just $ ParticleSystem newPoints update interaction
+              $ UpdateSpec (addDuration particleSystemPeriod k) (nextIteration it)
        else
          Nothing
-
-isActive :: ParticleSystem
-         -> Bool
-isActive (ParticleSystem points _ _ _) =
-  hasActiveParticles points
 
 hasActiveParticles :: ParticleTree -> Bool
 hasActiveParticles (ParticleTree Nothing _ _)         = False

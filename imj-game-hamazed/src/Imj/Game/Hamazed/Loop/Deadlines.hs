@@ -10,12 +10,13 @@ module Imj.Game.Hamazed.Loop.Deadlines
 
 import           Imj.Prelude
 
-import           Data.List( minimumBy, length )
+import           Data.List( minimumBy, sortBy )
 import           Data.Maybe( catMaybes )
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.ParticleSystem.Design.Update
@@ -60,62 +61,45 @@ getNextDeadline :: (MonadState AppState m)
 getNextDeadline t =
   getGameState >>= \st -> do
     let l = getDeadlinesByDecreasingPriority st t
-        overdues = filter (\(Deadline (KeyTime t') _) -> t' < t) l
-    case overdues of
-      [] -> return $ earliestDeadline' l
-      high:lows -> do
-        addIgnoredOverdues $ length lows
-        return $ Just high
+        overdues = filter (\(Deadline (KeyTime t') _ _) -> t' < t) l
+    return $ case overdues of
+      [] -> earliestDeadline' l
+      highPriorityOverdue:_ -> Just highPriorityOverdue
 
 earliestDeadline' :: [Deadline] -> Maybe Deadline
 earliestDeadline' [] = Nothing
-earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _) (Deadline t2 _) -> compare t1 t2 ) l
+earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) -> compare t1 t2 ) l
 
 
--- | priorities are : uiAnimation > message > game > player key > animation
 getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) t =
-  catMaybes [ uiAnimationDeadline s
-            , messageDeadline level t
-            , getMoveFlyingItemsDeadline s
-            , particleSystemsDeadline s
-            ]
+  -- sort from highest to lowest
+  sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
+    (catMaybes
+      [ uiAnimationDeadline s
+      , messageDeadline level t
+      , getMoveFlyingItemsDeadline s
+      ]
+    ) ++ getParticleSystemsDeadlines s
 
 getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
 getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _ _) =
   maybe
     (maybe
       Nothing
-      (\s -> Just $ Deadline s MoveFlyingItems)
+      (\s -> Just $ Deadline s moveItemsPriority MoveFlyingItems)
         nextGameStep)
     (const Nothing)
       levelFinished
 
-particleSystemsDeadline :: GameState -> Maybe Deadline
-particleSystemsDeadline (GameState _ world _ _ _ _ _) =
-  maybe
-    Nothing
-    (\ti -> Just $ Deadline ti AnimateParticleSystems)
-    $ earliestAnimationDeadline world
+getParticleSystemsDeadlines :: GameState -> [Deadline]
+getParticleSystemsDeadlines (GameState _ (World _ _ _ animations) _ _ _ _ _) =
+  map (\(Prioritized p a) -> let t = getDeadline a
+                             in Deadline t p AnimateParticleSystems) animations
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
 uiAnimationDeadline (GameState _ _ _ _ _ uianim _) =
   maybe
     Nothing
-    (\deadline -> Just $ Deadline deadline AnimateUI)
+    (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)
     $ getUIAnimationDeadline uianim
-
--- | Returns the earliest 'ParticleSystem' deadline.
-earliestAnimationDeadline :: World -> Maybe KeyTime
-earliestAnimationDeadline (World _ _ _ animations) =
-  earliestKeyTime $ map getDeadline animations
-
-
--- | Returns the earliest deadline
-earliestKeyTime :: [KeyTime] -> Maybe KeyTime
-earliestKeyTime deadlines =
-  if null deadlines
-    then
-      Nothing
-    else
-      Just $ minimum deadlines

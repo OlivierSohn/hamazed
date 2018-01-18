@@ -69,6 +69,7 @@ library
                      , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
+                     , optparse-applicative == 0.14.*
 
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math

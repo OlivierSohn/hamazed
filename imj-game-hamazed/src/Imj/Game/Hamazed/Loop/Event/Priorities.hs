@@ -1,22 +1,33 @@
-{-# OPTIONS_HADDOCK hide #-}
-
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Hamazed.Loop.Event.Priorities
-        ( deadlinePriority
-        , playerEventPriority
+        ( playerPriority
+        , animateUIPriority
+        , continueMsgPriority
+        , moveItemsPriority
+        , particleSystDefaultPriority
+        , particleSystLaserPriority
+        , Prioritized(..)
         ) where
 
 import           Imj.Prelude
 
-import           Imj.Game.Hamazed.Loop.Event.Types
+{-# INLINE playerPriority #-}
+{-# INLINE animateUIPriority #-}
+{-# INLINE continueMsgPriority #-}
+{-# INLINE moveItemsPriority #-}
+{-# INLINE particleSystDefaultPriority #-}
+{-# INLINE particleSystLaserPriority #-}
+playerPriority, animateUIPriority, continueMsgPriority :: Int
+moveItemsPriority, particleSystDefaultPriority, particleSystLaserPriority :: Int
+animateUIPriority           = 70
+continueMsgPriority         = 60
+particleSystLaserPriority   = 55 -- so that the laser disappears promptly
+moveItemsPriority           = 50
+playerPriority         = 40
+particleSystDefaultPriority = 30
 
-playerEventPriority :: Int
-playerEventPriority = 40
-
--- Note that if changing priorities here you should also change 'getDeadlinesByDecreasingPriority'
-deadlinePriority :: DeadlineType -> Int
-deadlinePriority AnimateUI              = playerEventPriority + 30
-deadlinePriority DisplayContinueMessage = playerEventPriority + 20
-deadlinePriority MoveFlyingItems        = playerEventPriority + 10
-deadlinePriority AnimateParticleSystems = playerEventPriority - 10
+data Prioritized a = Prioritized {
+    _prioritizedPriority :: !Int
+  , _prioritizedItem :: !a
+}

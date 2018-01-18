@@ -24,7 +24,7 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem
 
 destroyedNumbersParticleSystems :: (MonadState AppState m)
-                                => Either SystemTime KeyTime
+                                => Either TimeSpec KeyTime
                                 -> Direction -- ^ 'Direction' of the laser shot
                                 -> World -- ^ the 'World' the 'Number's live in
                                 -> [Number]
@@ -35,7 +35,7 @@ destroyedNumbersParticleSystems keyTime dir world nums = do
   return $ concat ps
 
 destroyedNumberParticleSystems :: (MonadState AppState m)
-                               => Either SystemTime KeyTime
+                               => Either TimeSpec KeyTime
                                -> Vec2 Vel
                                -> World
                                -> Number

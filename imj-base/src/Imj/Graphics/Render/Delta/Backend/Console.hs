@@ -61,7 +61,7 @@ instance PlayerInput ConsoleBackend where
   getKey (ConsoleBackend queue) =
     liftIO $ fromMaybeM getKeyThenFlush (atomically $ tryReadTQueue queue)
   getKeyTimeout (ConsoleBackend queue) _ ms =
-    liftIO $ (atomically $ tryReadTQueue queue) <|> (timeout ms getKeyThenFlush)
+    liftIO $ (atomically $ tryReadTQueue queue) <|> (timeout (fromIntegral ms) getKeyThenFlush)
   tryGetKey (ConsoleBackend queue) =
     liftIO $ (atomically $ tryReadTQueue queue) <|> tryGetKeyThenFlush
   someInputIsAvailable (ConsoleBackend queue) = do

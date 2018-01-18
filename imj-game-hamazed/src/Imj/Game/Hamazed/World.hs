@@ -203,7 +203,7 @@ checkTargetAndAmmo :: Int
                    -- ^ The current sum of all shot 'Numbers'
                    -> Int
                    -- ^ The 'Level' 's target number.
-                   -> SystemTime
+                   -> TimeSpec
                    -- ^ The current time
                    -> Maybe LevelFinished
 checkTargetAndAmmo ammo sumNumbers target t =

@@ -59,9 +59,9 @@ data GameState = GameState {
 }
 
 
-startGameState :: SystemTime -> GameState -> GameState
+startGameState :: KeyTime -> GameState -> GameState
 startGameState t (GameState _ world world' b d e f) =
-  GameState (Just $ KeyTime t) (startWorld t world) (startWorld t world') b d e f
+  GameState (Just t) (startWorld t world) (startWorld t world') b d e f
 
 
 minRandomBlockSize :: Int

@@ -49,15 +49,14 @@ eventFromKey' key =
           (Lost _) -> StartLevel firstLevel
       _ -> Nothing -- between level end and proposal to continue
 
-messageDeadline :: Level -> SystemTime -> Maybe Deadline
-messageDeadline (Level _ _ mayLevelFinished) t =
+messageDeadline :: Level -> Maybe Deadline
+messageDeadline (Level _ _ mayLevelFinished) =
   maybe Nothing
   (\(LevelFinished _ timeFinished messageType) ->
     case messageType of
       InfoMessage ->
-        let finishedSinceSeconds = diffSystemTime t timeFinished
-            delay = 2
-            nextMessageStep = addToSystemTime (delay - finishedSinceSeconds) t
+        let delay = TimeSpec 2 0
+            nextMessageStep = delay + timeFinished
         in  Just $ Deadline (KeyTime nextMessageStep) continueMsgPriority DisplayContinueMessage
       ContinueMessage -> Nothing)
   mayLevelFinished
@@ -71,12 +70,12 @@ getEventForDeadline :: (MonadState AppState m, PlayerInput i, MonadReader i m, M
 getEventForDeadline d@(Deadline (KeyTime deadlineTime) _ _) = do
   curTime <- liftIO getSystemTime
   let
-    timeToDeadlineMicros = diffTimeSecToMicros $ diffSystemTime deadlineTime curTime
+    timeToDeadlineMicros = diffTimeSecToMicros deadlineTime curTime
   eventWithinDurationMicros curTime timeToDeadlineMicros d
 
 {-# INLINABLE eventWithinDurationMicros #-}
 eventWithinDurationMicros :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
-                          => SystemTime -> Int -> Deadline -> m (Maybe Event)
+                          => TimeSpec -> Int64 -> Deadline -> m (Maybe Event)
 eventWithinDurationMicros curTime durationMicros d =
   getCharWithinDurationMicros curTime durationMicros d >>= \case
     Just key -> eventFromKey' key
@@ -84,7 +83,7 @@ eventWithinDurationMicros curTime durationMicros d =
 
 {-# INLINABLE getCharWithinDurationMicros #-}
 getCharWithinDurationMicros :: (PlayerInput i, MonadReader i m, MonadIO m)
-                            => SystemTime -> Int -> Deadline -> m (Maybe Key)
+                            => TimeSpec -> Int64 -> Deadline -> m (Maybe Key)
 getCharWithinDurationMicros curTime durationMicros (Deadline _ deadlinePriority _) =
   if durationMicros < 0
     -- overdue

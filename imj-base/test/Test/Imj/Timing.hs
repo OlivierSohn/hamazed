@@ -3,8 +3,6 @@
 module Test.Imj.Timing where
 
 import           Imj.Prelude
-import           Data.Time(secondsToDiffTime, picosecondsToDiffTime)
-import           Data.Time.Clock.System(SystemTime(..))
 
 import           Imj.Timing
 
@@ -23,36 +21,36 @@ testTiming = do
 
 testDiffSystemTime :: IO ()
 testDiffSystemTime = do
-  let s1 = MkSystemTime 1 0
-      s2 = MkSystemTime 2 0
-      d = diffSystemTime s1 s2
-      d' = diffSystemTime s2 s1
-  when (d /= secondsToDiffTime (-1)) $ error $ "d = " ++ show d
-  when (d' /= secondsToDiffTime 1) $ error $ "d' = " ++ show d'
+  let s1 = TimeSpec 1 0
+      s2 = TimeSpec 2 0
+      d =  s1 - s2
+      d' = s2 - s1
+  when (d /= TimeSpec (-1) 0) $ error $ "d = " ++ show d
+  when (d' /= TimeSpec 1 0) $ error $ "d' = " ++ show d'
 
 testDiffSystemTime2 :: IO ()
 testDiffSystemTime2 = do
-  let s1 = MkSystemTime 1 1
-      s2 = MkSystemTime 1 2
-      d = diffSystemTime s1 s2
-      d' = diffSystemTime s2 s1
-  when (d /= picosecondsToDiffTime (-1000)) $ error $ "d = " ++ show d
-  when (d' /= picosecondsToDiffTime 1000) $ error $ "d' = " ++ show d'
+  let s1 = TimeSpec 1 1
+      s2 = TimeSpec 1 2
+      d =  s1 - s2
+      d' = s2 - s1
+  when (d /= TimeSpec 0 (-1)) $ error $ "d = " ++ show d
+  when (d' /= TimeSpec 0 1) $ error $ "d' = " ++ show d'
 
 testDiffSystemTime3 :: IO ()
 testDiffSystemTime3 = do
-  let s1 = MkSystemTime 1 1
-      s2 = MkSystemTime 2 2
-      d = diffSystemTime s1 s2
-      d' = diffSystemTime s2 s1
-  when (d /= secondsToDiffTime (-1) + picosecondsToDiffTime (-1000)) $ error $ "d = " ++ show d
-  when (d' /= secondsToDiffTime 1 + picosecondsToDiffTime 1000) $ error $ "d' = " ++ show d'
+  let s1 = TimeSpec 1 1
+      s2 = TimeSpec 2 2
+      d =  s1 - s2
+      d' = s2 - s1
+  when (d /= TimeSpec (-1) (-1)) $ error $ "d = " ++ show d
+  when (d' /= TimeSpec 1 1) $ error $ "d' = " ++ show d'
 
 testAddSystemTime :: IO ()
 testAddSystemTime = do
-  let s = MkSystemTime 1 0
-      (MkSystemTime seconds nanos) = addToSystemTime 1 s
-      (MkSystemTime seconds' nanos') = addToSystemTime (-1) s
+  let s = TimeSpec 1 0
+      (TimeSpec seconds nanos) = TimeSpec 1 0 + s
+      (TimeSpec seconds' nanos') = TimeSpec (-1) 0 + s
   when (seconds /= 2) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 0) $ error $ "seconds' = " ++ show seconds'
@@ -61,9 +59,9 @@ testAddSystemTime = do
 
 testAddSystemTime2 :: IO ()
 testAddSystemTime2 = do
-  let s = MkSystemTime 1 999999999
-      (MkSystemTime seconds nanos) = addToSystemTime (picosecondsToDiffTime 1000) s
-      (MkSystemTime seconds' nanos') = addToSystemTime (picosecondsToDiffTime (-1000)) s
+  let s = TimeSpec 1 999999999
+      (TimeSpec seconds nanos) = TimeSpec 0 1 + s
+      (TimeSpec seconds' nanos') = TimeSpec 0 (-1) + s
   when (seconds /= 2) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 1) $ error $ "seconds' = " ++ show seconds'
@@ -71,9 +69,9 @@ testAddSystemTime2 = do
 
 testAddSystemTime3 :: IO ()
 testAddSystemTime3 = do
-  let s = MkSystemTime 1 999999999
-      (MkSystemTime seconds nanos) = addToSystemTime (picosecondsToDiffTime $ 1000000000000 + 1000) s
-      (MkSystemTime seconds' nanos') = addToSystemTime (picosecondsToDiffTime (-(1000000000000 + 1000))) s
+  let s = TimeSpec 1 999999999
+      (TimeSpec seconds nanos) = TimeSpec 1 1 + s
+      (TimeSpec seconds' nanos') = TimeSpec (-1) (-1) + s
   when (seconds /= 3) $ error $ "seconds = " ++ show seconds
   when (nanos /= 0) $ error $ "nanos = " ++ show nanos
   when (seconds' /= 0) $ error $ "seconds' = " ++ show seconds'
@@ -81,30 +79,30 @@ testAddSystemTime3 = do
 
 testFloatSecondsToDiffTime :: IO ()
 testFloatSecondsToDiffTime = do
-  let minusOneSecAsMicros = diffTimeSecToMicros $ floatSecondsToDiffTime (-1)
-  when (minusOneSecAsMicros /= -1000000)
-    $ error $ "minusOneSecAsMicros = " ++ show minusOneSecAsMicros
+  let t = floatSecondsToDiffTime (-1)
+  when (t /= TimeSpec (-1) 0)
+    $ error $ "t = " ++ show t
 
-  let halfSecAsMicros = diffTimeSecToMicros $ floatSecondsToDiffTime 0.5
-  when (halfSecAsMicros /= 500000)
-    $ error $ "halfSecAsMicros = " ++ show halfSecAsMicros
+  let halfSec = floatSecondsToDiffTime 0.5
+  when (halfSec /= TimeSpec 0 500000000)
+    $ error $ "halfSecAsMicros = " ++ show halfSec
 
-  let oneMicros = diffTimeSecToMicros $ floatSecondsToDiffTime 0.000001
-  when (oneMicros /= 1)
+  let oneMicros = floatSecondsToDiffTime 0.000001
+  when (oneMicros /= TimeSpec 0 1000)
     $ error $ "oneMicros = " ++ show oneMicros
 
-  let minusOneMicros = diffTimeSecToMicros $ floatSecondsToDiffTime $ -0.000001
-  when (minusOneMicros /= -1)
-    $ error $ "minusOneMicros = " ++ show oneMicros
+  let minusOneMicros = floatSecondsToDiffTime $ -0.000001
+  when (minusOneMicros /= TimeSpec 0 (-1000))
+    $ error $ "minusOneMicros = " ++ show minusOneMicros
 
 
 testDiffTimeSecToMicros :: IO ()
 testDiffTimeSecToMicros = do
-  let oneSecondAsMicros = diffTimeSecToMicros 1
+  let oneSecondAsMicros = diffTimeSecToMicros (TimeSpec 1 0) (TimeSpec 0 0)
   when (oneSecondAsMicros /= 1000000)
     $ error $ "oneSecondAsMicros = " ++ show oneSecondAsMicros
 
   t <- getSystemTime
-  let zeroDiff = diffTimeSecToMicros $ diffSystemTime t t
+  let zeroDiff = diffTimeSecToMicros t t
   when (zeroDiff /= 0)
     $ error $ "zeroDiff = " ++ show zeroDiff

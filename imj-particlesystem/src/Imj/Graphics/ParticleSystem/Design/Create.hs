@@ -35,9 +35,9 @@ mkSystem :: VecPosSpeed
             -> EnvFunctions
             -- ^ Functions determining when 'Particle's should be mutated,
             -- or even removed from the 'ParticleSystem'
-            -> Either SystemTime KeyTime
+            -> Either TimeSpec KeyTime
             -- ^ 'Right' 'KeyTime' of the event's deadline
-            -- that triggered this call, or 'Left' 'SystemTime'
+            -- that triggered this call, or 'Left' 'TimeSpec'
             -- of the current time if a player action triggered this call
             -> Maybe ParticleSystem
             -- ^ Depending on /particle functions/, the created 'ParticleSystem' may be over

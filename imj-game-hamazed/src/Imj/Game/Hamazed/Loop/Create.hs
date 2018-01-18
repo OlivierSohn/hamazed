@@ -51,7 +51,7 @@ mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState =
       newShotNums = []
       screen@(Screen _ newScreenCenter) = mkScreen maySz
   newWorld <- mkWorld newSize wallType numbers newAmmo
-  t <- liftIO getSystemTime
+  kt <- KeyTime <$> liftIO getSystemTime
   liftIO $ validateScreen screen
   let (curWorld@(World _ _ (Space _ curSz _) _), curScreenCenter, level, ammo, shotNums) =
         maybe
@@ -69,5 +69,5 @@ mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState =
           $ mkRectContainerWithCenterAndInnerSize curScreenCenter curSz, curInfos)
           (Colored worldFrameColors
           $ mkRectContainerWithCenterAndInnerSize newScreenCenter newSize, newInfos)
-          horizontalDist verticalDist t
+          horizontalDist verticalDist kt
   return $ Right $ GameState Nothing curWorld newWorld newShotNums newLevel uiAnimation screen

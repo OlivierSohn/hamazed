@@ -6,7 +6,8 @@ module Imj.Input.Types
     ( Key(..)
     , PlayerInput(..)
     -- * reexports
-    , SystemTime
+    , Int64
+    , TimeSpec
     , MonadIO
     ) where
 
@@ -14,8 +15,9 @@ module Imj.Input.Types
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
+import           Data.Int(Int64)
 
-import           Imj.Geo.Discrete.Types( Direction(..) )
+import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
 
 -- | Represents a key-press, read from stdin.
@@ -46,9 +48,9 @@ class PlayerInput a where
 
   getKeyTimeout :: (MonadIO m)
                 => a
-                -> SystemTime
+                -> TimeSpec
                 -- ^ Current time measured by the caller.
-                -> Int
+                -> Int64
                 -- ^ A timeout in microseconds.
                 -> m (Maybe Key)
                 -- ^ Nothing when the timeout was reached.

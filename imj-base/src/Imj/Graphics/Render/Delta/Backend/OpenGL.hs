@@ -96,7 +96,7 @@ instance PlayerInput OpenGLBackend where
           -- or the glfw event was not a key event) or there was a key repeat or key release
           -- event in the queue.
           now <- liftIO getSystemTime
-          let elapsedMicros = diffTimeSecToMicros $ diffSystemTime now callerTime
+          let elapsedMicros = diffTimeSecToMicros now callerTime
           if elapsedMicros < allowedMicros
             then
               getKeyTimeout b now (allowedMicros - elapsedMicros)

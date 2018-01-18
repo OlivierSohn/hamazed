@@ -113,7 +113,7 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive Co
               -- ^ To
               -> Length Width
               -> Length Height
-              -> SystemTime
+              -> KeyTime
               -- ^ Time at which the animation starts
               -> UIAnimation
 mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
@@ -131,7 +131,7 @@ mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
   deadline =
     maybe
       Nothing
-      (\dt -> Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) time)
+      (\dt -> Just $ addDuration dt time)
       $ getDeltaTime evolutions zeroFrame
 
 

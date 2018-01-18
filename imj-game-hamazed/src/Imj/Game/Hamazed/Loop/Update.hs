@@ -59,7 +59,7 @@ update evt =
       (Timeout (Deadline gt _ AnimateUI)) -> do
         let st@(GameState _ _ _ _ _ anims _) = updateAnim gt state
         if isFinished anims
-          then flip startGameState st <$> liftIO getSystemTime
+          then KeyTime <$> liftIO getSystemTime >>= return . flip startGameState st 
           else return st
       (Timeout (Deadline _ _ DisplayContinueMessage)) ->
         return $ case mayLevelFinished of
@@ -93,7 +93,7 @@ update evt =
 onLaser :: (MonadState AppState m)
         => GameState
         -> Direction
-        -> SystemTime
+        -> TimeSpec
         -> m GameState
 onLaser (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
                                   space@(Space _ sz _) systems)
@@ -159,7 +159,7 @@ onHasMoved
   return $ assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim s
 
 outerSpaceParticleSystems :: (MonadState AppState m)
-                          => SystemTime
+                          => TimeSpec
                           -> World
                           -> LaserRay Actual
                           -> m [Prioritized ParticleSystem]
@@ -205,7 +205,7 @@ outerSpaceParticleSystems' :: (MonadState AppState m)
                            -> Int
                            -> (Int -> Int -> Frame -> LayeredColor)
                            -> Char
-                           -> SystemTime
+                           -> TimeSpec
                            -> m [Prioritized ParticleSystem]
 outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t = do
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
@@ -218,7 +218,7 @@ outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation n
 
 
 laserParticleSystems :: LaserRay Actual
-                     -> SystemTime
+                     -> TimeSpec
                      -> [Prioritized ParticleSystem]
 laserParticleSystems ray t =
   catMaybes [fmap (Prioritized particleSystLaserPriority)
@@ -238,7 +238,7 @@ updateAnim kt (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it) s
         maybe
           (futWorld, Nothing)
           (\dt ->
-           (curWorld, Just $ addDuration (floatSecondsToDiffTime dt) kt))
+           (curWorld, Just $ addDuration dt kt))
           $ getDeltaTime evolutions nextFrame
       wa = UIAnimation evolutions worldAnimDeadline nextIt
   in GameState Nothing world futWorld j k wa s

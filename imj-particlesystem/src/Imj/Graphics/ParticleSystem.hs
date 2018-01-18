@@ -100,9 +100,9 @@ defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
 laserShot :: LaserRay Actual
           -- ^ The laser ray
           -> (Frame -> LayeredColor)
-          -> Either SystemTime KeyTime
+          -> Either TimeSpec KeyTime
           -- ^ 'Right' 'KeyTime' of the event's deadline
-          -- that triggered this call, or 'Left' 'SystemTime'
+          -- that triggered this call, or 'Left' 'TimeSpec'
           -- of the current time if a player action triggered this call
           -> Maybe ParticleSystem
 laserShot ray@(LaserRay _ start len) colors keyTime
@@ -124,9 +124,9 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
-                                         -> Either SystemTime KeyTime
+                                         -> Either TimeSpec KeyTime
                                          -- ^ 'Right' 'KeyTime' of the event's deadline
-                                         -- that triggered this call, or 'Left' 'SystemTime'
+                                         -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> Maybe ParticleSystem
 quantitativeExplosionThenSimpleExplosion num pos char =
@@ -147,9 +147,9 @@ expandShrinkPolygon :: Int
                     -> Speed
                     -> EnvFunctions
                     -- ^ ParticleSystem speed
-                    -> Either SystemTime KeyTime
+                    -> Either TimeSpec KeyTime
                     -- ^ 'Right' 'KeyTime' of the event's deadline
-                    -- that triggered this call, or 'Left' 'SystemTime'
+                    -- that triggered this call, or 'Left' 'TimeSpec'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
 expandShrinkPolygon n pos colors =
@@ -169,9 +169,9 @@ simpleExplosion :: Int
                 -> Speed
                 -- ^ ParticleSystem speed
                 -> EnvFunctions
-                -> Either SystemTime KeyTime
+                -> Either TimeSpec KeyTime
                 -- ^ 'Right' 'KeyTime' of the event's deadline
-                -- that triggered this call, or 'Left' 'SystemTime'
+                -- that triggered this call, or 'Left' 'TimeSpec'
                 -- of the current time if a player action triggered this call
                 -> Maybe ParticleSystem
 simpleExplosion resolution pos char =
@@ -192,9 +192,9 @@ fragmentsFreeFall :: Vec2 Vel
                   -> Speed
                   -- ^ ParticleSystem speed
                   -> EnvFunctions
-                  -> Either SystemTime KeyTime
+                  -> Either TimeSpec KeyTime
                   -- ^ 'Right' 'KeyTime' of the event's deadline
-                  -- that triggered this call, or 'Left' 'SystemTime'
+                  -- that triggered this call, or 'Left' 'TimeSpec'
                   -- of the current time if a player action triggered this call
                   -> [ParticleSystem]
 fragmentsFreeFall speed pos char animSpeed envFuncs keyTime =
@@ -217,9 +217,9 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
-                                         -> Either SystemTime KeyTime
+                                         -> Either TimeSpec KeyTime
                                          -- ^ 'Right' 'KeyTime' of the event's deadline
-                                         -- that triggered this call, or 'Left' 'SystemTime'
+                                         -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> [ParticleSystem]
 fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char animSpeed envFuncs keyTime =
@@ -243,9 +243,9 @@ freeFall :: Vec2 Vel
          -> Speed
          -- ^ ParticleSystem speed
          -> EnvFunctions
-         -> Either SystemTime KeyTime
+         -> Either TimeSpec KeyTime
          -- ^ 'Right' 'KeyTime' of the event's deadline
-         -- that triggered this call, or 'Left' 'SystemTime'
+         -- that triggered this call, or 'Left' 'TimeSpec'
          -- of the current time if a player action triggered this call
          -> Maybe ParticleSystem
 freeFall speed pos char =
@@ -271,9 +271,9 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -> Speed
                                 -- ^ ParticleSystem speed
                                 -> EnvFunctions
-                                -> Either SystemTime KeyTime
+                                -> Either TimeSpec KeyTime
                                 -- ^ 'Right' 'KeyTime' of the event's deadline
-                                -- that triggered this call, or 'Left' 'SystemTime'
+                                -- that triggered this call, or 'Left' 'TimeSpec'
                                 -- of the current time if a player action triggered this call
                                 -> Maybe ParticleSystem
 freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char =
@@ -301,9 +301,9 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -> Speed
                              -- ^ ParticleSystem speed
                              -> EnvFunctions
-                             -> Either SystemTime KeyTime
+                             -> Either TimeSpec KeyTime
                              -- ^ 'Right' 'KeyTime' of the event's deadline
-                             -- that triggered this call, or 'Left' 'SystemTime'
+                             -- that triggered this call, or 'Left' 'TimeSpec'
                              -- of the current time if a player action triggered this call
                              -> [ParticleSystem]
 fragmentsFreeFallThenExplode speed pos colors c s envFuncs k =
@@ -331,9 +331,9 @@ freeFallThenExplode :: Vec2 Vel
                     -> Speed
                     -- ^ ParticleSystem speed
                     -> EnvFunctions
-                    -> Either SystemTime KeyTime
+                    -> Either TimeSpec KeyTime
                     -- ^ 'Right' 'KeyTime' of the event's deadline
-                    -- that triggered this call, or 'Left' 'SystemTime'
+                    -- that triggered this call, or 'Left' 'TimeSpec'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
 freeFallThenExplode speed pos colors char =

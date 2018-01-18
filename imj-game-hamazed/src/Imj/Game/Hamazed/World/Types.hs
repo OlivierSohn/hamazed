@@ -73,9 +73,9 @@ data World = World {
     -- for aesthetics.
 }
 
-startWorld :: SystemTime -> World -> World
-startWorld t (World a (BattleShip ship ammo _ col) b c) =
-  World a (BattleShip ship ammo (Just $ addToSystemTime 5 t) col) b c
+startWorld :: KeyTime -> World -> World
+startWorld (KeyTime t) (World a (BattleShip ship ammo _ col) b c) =
+  World a (BattleShip ship ammo (Just $ (floatSecondsToDiffTime 5) + t) col) b c
 
 
 data ViewMode = CenterShip
@@ -94,7 +94,7 @@ data BattleShip = BattleShip {
   -- ^ Discrete position and speed.
   , _shipAmmo :: !Int
   -- ^ How many laser shots are left.
-  , _shipSafeUntil :: !(Maybe SystemTime)
+  , _shipSafeUntil :: !(Maybe TimeSpec)
   -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
   -- for a given time. This field holds the time at which the immunity ends.
   , _shipCollisions :: ![Number]

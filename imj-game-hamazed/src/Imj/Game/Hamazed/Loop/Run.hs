@@ -17,7 +17,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(runStateT, get)
+import           Control.Monad.State(runStateT)
 import           Data.Text(pack, toLower)
 import           Options.Applicative
                   (progDesc, fullDesc, info, customExecParser, (<**>), prefs, helper
@@ -137,7 +137,7 @@ loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadI
      => m ()
 loop = do
   playerEndsProgram >>= \end -> unless end $
-   getGame >>= \game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) ->
+   getGame >>= \(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) ->
     case mode of
       Configure -> do
         (Screen _ centerScreen) <- getCurScreen
@@ -146,8 +146,8 @@ loop = do
         renderToScreen
         getPlayerKey >>= \case
           AlphaNum ' ' -> do
-                t <- liftIO getSystemTime
-                putGame $ Game Play params $ startGameState t s
+                kt <- KeyTime <$> liftIO getSystemTime
+                putGame $ Game Play params $ startGameState kt s
           AlphaNum c -> do
                 let newParams = updateFromChar c params
                 getTargetSize
@@ -166,11 +166,7 @@ loop = do
           (return ())
           (\n -> printStats n >> renderAll >> loop)
 
--- TODO when there are a lot of overdue deadlines, we need to limit
--- the work we do by computing updates for a limited time :
--- maxCumulUpdates = floatSecondsToDiffTime 0.008
-{- We allow waiting when we have not yet handled any visible deadline (hence
-there is no need to render). -}
+
 {-# INLINABLE playLoop #-}
 playLoop :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
          => m (Maybe Int)
@@ -211,48 +207,12 @@ playLoop = do
 
             tryUpdate (Interrupt _) = return Nothing
             tryUpdate e
-              | conflict  = return $ Just n
-              | otherwise = update e >> onEvent e >> go'
-              where
-                conflict = thisPrincipal && principal
-                !thisPrincipal = isPrincipal e
-                go' = go (succ n) (thisPrincipal || principal) newVisibles
-                newVisibles = [e | isVisible e] ++ visibles
+             |conflict  = return $ Just n
+             |otherwise = update e >> onEvent e >> go'
+             where
+              conflict = thisPrincipal && principal
+              !thisPrincipal = isPrincipal e
+              go' = go (succ n) (thisPrincipal || principal) newVisibles
+              newVisibles = [e | isVisible e] ++ visibles
         getNextDeadline timeBegin >>= maybe deadlineStarvation onDeadline
   go 0 False []
-
-  {- TODO measure time differences using the monotonic clock in
-  https://hackage.haskell.org/package/clock-0.4.1.3/docs/System-Clock.html
-  It will measure real time differences (not cpu time differences) and will not be
-  subject to time adjustment of system time-of-day. -}
-
-  {- Deadlines are ordered on a timeline, and are associated to events.
-
-  Deadlines are prioritized. A lower priority deadline can be run after a higher priority deadline, even if
-  it is placed before it on the timeline.
-
-  Some events don't induce visible changes, hence they don't call for a subsequent rendering.
-  One example is when the user wants the ship to accelerate, it changes the ship velocity but not
-  its position.
-
-  Some events do call for a subsequent rendering. The will be called "visible" deadlines.
-  If we render after each of them, we will run out of CPU / GPU when they are close to one another.
-  Hence, we want to group those events before doing a render.
-
-  The time interval inside which deadlines can be handled in one iteration
-  is : [-infinity, t+0.01], where t is:
-  - the current time, if there are visible overdue deadlines w.r.t the current time
-  (meaning a previous update / render / ... was too long)
-  - else (we wait for potential user input in that case) : the time
-  at which we handle the update of the closest deadline with visible change, which is either the
-  foreseen deadline time or the time at which a user input was received.
-
-  All deadlines within this interval will be handled within the same iteration if the updates
-  are fast, but as soon as the cumulated update duration becomes greater than 0.008,
-  we force a render. Hence, the order in which the deadlines are updated is important,
-  and defined this way: we first handle all overdue deadlines, then we handle the
-  closest deadlines.
-
-  To keep things consistent for the user, we should not group two visible deadlines
-  that modify the game state in the same step.
-  -}

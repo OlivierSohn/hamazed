@@ -11,7 +11,7 @@ module Imj.Input.FromMonadReader
        , unGetPlayerKey
        , playerEndsProgram
        -- * Reexports
-       , MonadReader, MonadIO
+       , MonadReader, MonadIO, Int64
        ) where
 
 import           Imj.Prelude
@@ -39,8 +39,8 @@ unGetPlayerKey k = do
 
 {-# INLINABLE getPlayerKeyTimeout #-}
 getPlayerKeyTimeout :: (PlayerInput i, MonadReader i m, MonadIO m)
-                    => SystemTime
-                    -> Int
+                    => TimeSpec
+                    -> Int64
                     -> m (Maybe Key)
 getPlayerKeyTimeout curTime ms = do
   d <- asks getKeyTimeout

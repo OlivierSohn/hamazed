@@ -13,10 +13,12 @@ import           Imj.Prelude
 
 import           Imj.Timing
 
-gameMotionPeriod :: DiffTime
+{-# INLINE gameMotionPeriod #-}
+gameMotionPeriod :: Float
 gameMotionPeriod =
   fromIntegral gameMotionPeriodMicros / 1000000
 
+{-# INLINE gameMotionPeriodMicros #-}
 -- using the "delta" render backend, there is no flicker
 -- using the "naive" render backend, flicker starts at 40
 gameMotionPeriodMicros :: Int

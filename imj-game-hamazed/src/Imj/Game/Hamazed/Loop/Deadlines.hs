@@ -55,12 +55,12 @@ But it's very unlikely that it will make a difference, except if updating
 the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
 getNextDeadline :: (MonadState AppState m)
-                => SystemTime
+                => TimeSpec
                 -- ^ The current time.
                 -> m (Maybe Deadline)
 getNextDeadline t =
   getGameState >>= \st -> do
-    let l = getDeadlinesByDecreasingPriority st t
+    let l = getDeadlinesByDecreasingPriority st
         overdues = filter (\(Deadline (KeyTime t') _ _) -> t' < t) l
     return $ case overdues of
       [] -> earliestDeadline' l
@@ -71,13 +71,13 @@ earliestDeadline' [] = Nothing
 earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) -> compare t1 t2 ) l
 
 
-getDeadlinesByDecreasingPriority :: GameState -> SystemTime -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) t =
+getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     (catMaybes
       [ uiAnimationDeadline s
-      , messageDeadline level t
+      , messageDeadline level
       , getMoveFlyingItemsDeadline s
       ]
     ) ++ getParticleSystemsDeadlines s

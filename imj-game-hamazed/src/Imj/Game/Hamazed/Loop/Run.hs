@@ -136,9 +136,8 @@ runWith backend =
 loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
      => m ()
 loop = do
-  end <- playerEndsProgram
-  unless end $
-   get >>= \(AppState game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) _ _) ->
+  playerEndsProgram >>= \end -> unless end $
+   getGame >>= \game@(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) ->
     case mode of
       Configure -> do
         (Screen _ centerScreen) <- getCurScreen
@@ -146,12 +145,10 @@ loop = do
         draw' $ mkRectContainerWithCenterAndInnerSize centerScreen sz
         renderToScreen
         getPlayerKey >>= \case
-          AlphaNum c ->
-            if c == ' '
-              then do
+          AlphaNum ' ' -> do
                 t <- liftIO getSystemTime
-                putGame $ startGame t game
-              else do
+                putGame $ Game Play params $ startGameState t s
+          AlphaNum c -> do
                 let newParams = updateFromChar c params
                 getTargetSize
                   >>= liftIO . initialGameState newParams
@@ -172,6 +169,9 @@ loop = do
 -- TODO when there are a lot of overdue deadlines, we need to limit
 -- the work we do by computing updates for a limited time :
 -- maxCumulUpdates = floatSecondsToDiffTime 0.008
+{- We allow waiting when we have not yet handled any visible deadline (hence
+there is no need to render). -}
+{-# INLINABLE playLoop #-}
 playLoop :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
          => m (Maybe Int)
 playLoop = do
@@ -256,7 +256,3 @@ playLoop = do
   To keep things consistent for the user, we should not group two visible deadlines
   that modify the game state in the same step.
   -}
-
-startGame :: SystemTime -> Game -> Game
-startGame t (Game _ params s) =
-  Game Play params $ startGameState t s

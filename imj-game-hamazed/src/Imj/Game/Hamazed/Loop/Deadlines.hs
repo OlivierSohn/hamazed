@@ -36,11 +36,12 @@ Hence, when multiple overdue deadlines are competing, the following priorities a
   \begin{array}{|c|c|c|}
 	\hline
   \textbf{ Priority } \T & \textbf{ Name     } \T & \textbf{ Description                            } \\\hline
-	\text{ 5 } & \text{ AnimateUI              } \T & \text{ Inter-level animations                   } \\\hline
-	\text{ 4 } & \text{ DisplayContinueMessage } \T & \textit{ Press a key to continue                } \\\hline
-  \text{ 3 } & \text{ MoveFlyingItems        } \T & \text{ Move the BattleShip and Numbers          } \\\hline
-  \text{ 2 } & \textit{ Player event         } \T & \text{ Handle a key-press                       } \\\hline
-  \text{ 1 } & \text{ AnimateParticleSystems } \T & \text{ Update particle systems                  } \\\hline
+	\text{ 6 } & \text{ UI update              } \T & \text{ Inter-level animations                   } \\\hline
+	\text{ 5 } & \text{ Text messages          } \T & \textit{ 'Press a key to continue', etc...      } \\\hline
+	\text{ 4 } & \text{ Laser particle-system  } \T & \textit{ Updates a 'laser shot' particle system } \\\hline
+  \text{ 3 } & \text{ Game step              } \T & \text{ Move the BattleShip and Numbers          } \\\hline
+  \text{ 2 } & \textit{ Player input         } \T & \text{ Handle a key-press                       } \\\hline
+  \text{ 1 } & \text{ Default particle-system} \T & \text{ Updates other particle systems (explosions, etc...)} \\\hline
 	\end{array}
 \]
 

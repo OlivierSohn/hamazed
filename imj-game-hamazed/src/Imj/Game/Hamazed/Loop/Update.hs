@@ -48,7 +48,7 @@ update :: (MonadState AppState m, MonadReader e m, Canvas e, MonadIO m)
        -> m ()
 update evt =
   getGame >>=
-    \(Game _ params
+    \(Game mode params
       state@(GameState b world@(World c d space systems) futWorld f h@(Level level target mayLevelFinished) anim s)) -> do
     t <- liftIO getSystemTime
     let onConfigParams x =
@@ -92,8 +92,9 @@ update evt =
           _ -> error $ "The caller should handle:" ++ show evt
     case evt of
       Configuration char -> onConfigParams $ updateFromChar char params
-      EndGame         -> onConfigParams params
-      _ -> getNewPlayState >>= putGame . Game Play params
+      StartGame          -> putUserIntent Play >> update (StartLevel firstLevel)
+      EndGame            -> onConfigParams params
+      _ -> getNewPlayState >>= putGame . Game mode params
 
 onLaser :: (MonadState AppState m)
         => GameState
@@ -127,9 +128,9 @@ onLaser (GameState b world@(World _ (BattleShip posspeed ammo safeTime collision
             left
           else
             let frameSpace = mkRectContainerWithCenterAndInnerSize center sz
-                infos = mkLeftInfo Normal newAmmo allShotNumbers level
                 (horizontalDist, verticalDist) = computeViewDistances mode
                 (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
+                infos = mkLeftInfo Normal newAmmo allShotNumbers level
             in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 0 -- 0 duration, since animation is over anyway
       newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
       newLevel = Level i target newFinished

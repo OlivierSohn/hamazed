@@ -42,6 +42,8 @@ data DeadlineType = MoveFlyingItems
 
 data Event = Configuration !Char
            -- ^ Configures game parameters
+           | StartGame
+           -- ^ To transition from configuration mode to play mode.
            | Action !ActionTarget !Direction
            -- ^ A player action on an 'ActionTarget' in a 'Direction'.
            | Timeout !Deadline

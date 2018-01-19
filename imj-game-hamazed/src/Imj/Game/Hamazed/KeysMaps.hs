@@ -27,7 +27,7 @@ eventFromKey k = do
     StopProgram -> Just $ Interrupt Quit
     _ -> case intent of
       Configure -> case k of
-        AlphaNum ' ' -> Just $ StartLevel firstLevel
+        AlphaNum ' ' -> Just $ StartGame
         _ -> Nothing
       Play -> case k of
         AlphaNum c -> case c of

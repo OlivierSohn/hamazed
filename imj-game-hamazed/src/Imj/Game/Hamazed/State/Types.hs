@@ -22,6 +22,7 @@ module Imj.Game.Hamazed.State.Types
       , envFunctions
       -- * Modify
       , putGame
+      , putUserIntent
       -- * reexports
       , MonadState
       , TimeSpec
@@ -70,6 +71,7 @@ data EventRepr = Laser'
                | AnimateUI'
                | StartLevel'
                | Configuration'
+               | StartGame'
                | EndGame'
                | Interrupt'
                | ToggleEventRecording'
@@ -114,6 +116,10 @@ putGame :: MonadState AppState m => Game -> m ()
 putGame g =
   get >>= \(AppState a _ e r h) ->
     put $ AppState a g e r h
+
+putUserIntent :: MonadState AppState m => UserIntent -> m ()
+putUserIntent i =
+  getGame >>= \(Game _ a b) -> putGame $ Game i a b
 
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool

@@ -33,18 +33,21 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
+import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State.Types
-import           Imj.Geo.Discrete.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
 representation :: Event -> EventRepr
 representation (Configuration _)  = Configuration'
 representation EndGame          = EndGame'
+representation StartGame        = StartGame'
 representation (StartLevel _)   = StartLevel'
 representation (Interrupt _)    = Interrupt'
 representation (Action Laser _) = Laser'
@@ -59,6 +62,7 @@ reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
 reprToCS StartLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
+reprToCS StartGame'  = colored "S" cyan
 reprToCS Configuration' = colored "C" yellow
 reprToCS Interrupt'  = colored "I" yellow
 reprToCS Laser'      = colored "L" cyan
@@ -131,6 +135,12 @@ renderAll =
   getRenderable >>= \(gameState, evtStrs) -> do
     t1 <- liftIO getSystemTime
     draw gameState
+    getUserIntent >>= \case
+      Configure -> do
+        (Screen _ center) <- getCurScreen
+        getGameState >>= \(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _) ->
+          draw' $ mkRectContainerWithCenterAndInnerSize center sz
+      _ -> return ()
     t2 <- liftIO getSystemTime
     zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
     (dtDelta, dtCmds, dtFlush) <- renderToScreen

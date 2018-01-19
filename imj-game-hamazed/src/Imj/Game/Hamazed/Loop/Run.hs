@@ -11,7 +11,7 @@ module Imj.Game.Hamazed.Loop.Run
       ) where
 
 import           Imj.Prelude
-import           Prelude (putStrLn, getChar)
+import           Prelude (putStrLn, getLine)
 
 import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
@@ -111,10 +111,10 @@ userPicksBackend = do
   putStrLn "          [Equivalent to '-r opengl']"
   putStrLn ""
   hFlush stdout
-  getChar >>= \case
-    '1' -> return Console
-    '2' -> return OpenGLWindow
-    _ -> userPicksBackend
+  getLine >>= \case
+    "1" -> return Console
+    "2" -> return OpenGLWindow
+    c -> putStrLn ("invalid value : " ++ c) >> userPicksBackend
 
 runWithBackend :: Maybe BackendType -> Bool -> IO ()
 runWithBackend maybeBackend debug =

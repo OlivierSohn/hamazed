@@ -12,5 +12,6 @@ main = do
   putStrLn "" -- for readablilty
 
   newConsoleBackend >>= \backend -> withDefaultPolicies (\deltaEnv -> do
-    runReaderT (testSpace >> -- this is it visible in the logs, not in the console
-                renderToScreen) (Env deltaEnv backend)) backend
+    _ <- runReaderT (testSpace >> -- this is it visible in the logs, not in the console
+                renderToScreen) (Env deltaEnv backend)
+    return ()) backend

@@ -29,7 +29,20 @@ data Deadline = Deadline {
   , _deadlineType :: !DeadlineType
 } deriving(Eq, Show)
 
-data Event = Action !ActionTarget !Direction
+data DeadlineType = MoveFlyingItems
+                  -- ^ Move 'Number's and 'BattleShip' according to their current
+                  -- speeds.
+                  | AnimateParticleSystems
+                  -- ^ Update one or more 'ParticleSystem's.
+                  | DisplayContinueMessage
+                  -- ^ Show the /Hit a key to continue/ message
+                  | AnimateUI
+                  -- ^ Update the inter-level animation
+                  deriving(Eq, Show)
+
+data Event = Configuration !Char
+           -- ^ Configures game parameters
+           | Action !ActionTarget !Direction
            -- ^ A player action on an 'ActionTarget' in a 'Direction'.
            | Timeout !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
@@ -47,17 +60,6 @@ data MetaAction = Quit
                 | Help
                 -- ^ The player wants to read the help page /(Not implemented yet)/
                 deriving(Eq, Show)
-
-data DeadlineType = MoveFlyingItems
-                  -- ^ Move 'Number's and 'BattleShip' according to their current
-                  -- speeds.
-                  | AnimateParticleSystems
-                  -- ^ Update one or more 'ParticleSystem's.
-                  | DisplayContinueMessage
-                  -- ^ Show the /Hit a key to continue/ message
-                  | AnimateUI
-                  -- ^ Update the inter-level animation
-                  deriving(Eq, Show)
 
 data ActionTarget = Ship
                   -- ^ The player wants to accelerate the 'BattleShip'

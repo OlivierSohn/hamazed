@@ -25,6 +25,7 @@ import           Control.Monad.IO.Class(liftIO)
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
 
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.Delta.Buffers
@@ -35,7 +36,7 @@ import           Imj.Graphics.Render.Delta.Types
 
 data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
-  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO ())
+  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
   , _deltaEnvTargetSize :: !(IO (Maybe Size))
 }
 
@@ -48,7 +49,6 @@ instance Draw DeltaEnv where
   drawChars'     (DeltaEnv a _ _) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawStr   a b c d
-  getTargetSize' (DeltaEnv _ _ s)         = liftIO s
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
@@ -56,7 +56,11 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
+
+instance Canvas DeltaEnv where
+  getTargetSize' (DeltaEnv _ _ s)         = liftIO s
   {-# INLINABLE getTargetSize' #-}
+
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
   renderToScreen' (DeltaEnv a b c)         = liftIO $ deltaFlush     a b c
@@ -64,7 +68,8 @@ instance Render DeltaEnv where
 
 
 class DeltaRenderBackend a where
-    render :: a -> Delta -> Dim Width -> IO ()
+    -- | returns (duration to issue commands, duration to flush)
+    render :: a -> Delta -> Dim Width -> IO (TimeSpec, TimeSpec)
     cleanup :: a -> IO ()
     getDiscreteSize :: a -> IO (Maybe Size)
 

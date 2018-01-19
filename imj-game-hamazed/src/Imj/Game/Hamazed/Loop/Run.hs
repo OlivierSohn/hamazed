@@ -25,23 +25,14 @@ import           Options.Applicative
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
 
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Loop.Create
-import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Loop.Update
-import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State
-import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
-import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
 import           Imj.Input.FromMonadReader
 import           Imj.Timing
@@ -132,87 +123,48 @@ runWith backend =
     void (createState sz
       >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
 
-{-# INLINABLE loop #-}
 loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
      => m ()
 loop = do
-  playerEndsProgram >>= \end -> unless end $
-   getGame >>= \(Game mode params s@(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _)) ->
-    case mode of
-      Configure -> do
-        (Screen _ centerScreen) <- getCurScreen
-        draw s
-        draw' $ mkRectContainerWithCenterAndInnerSize centerScreen sz
-        renderToScreen
-        getPlayerKey >>= \case
-          AlphaNum ' ' -> do
-                kt <- KeyTime <$> liftIO getSystemTime
-                putGame $ Game Play params $ startGameState kt s
-          AlphaNum c -> do
-                let newParams = updateFromChar c params
-                getTargetSize
-                  >>= liftIO . initialGameState newParams
-                  >>= putGame . Game Configure newParams
-          _ -> return ()
-        loop
-      Play -> do
-        let renderAll =
-              getRenderable >>= \(gameState, evtStrs) -> do
-                draw gameState
-                zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
-                renderToScreen
-            printStats _x = return ()-- liftIO $ putStrLn $ replicate (pred _x) ' ' ++ "|"
-        playLoop >>= maybe
-          (return ())
-          (\n -> printStats n >> renderAll >> loop)
+  canWait <- not <$> hasVisibleNonRenderedUpdates
+  lastRenderTime <- getLastRenderTime
+  produceEvent canWait lastRenderTime >>= \case
+    (Just (Interrupt _ )) -> return ()
+    mayEvt -> playerEndsProgram >>= \case
+      True -> return ()
+      _ -> onEvent mayEvt >> loop
 
+-- | MonadState AppState is needed to know if the level is finished or not.
+{-# INLINABLE produceEvent #-}
+produceEvent :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
+             => Bool
+             -> TimeSpec
+             -> m (Maybe Event)
+produceEvent canWait lastRenderTime = do
+  hasPlayer <- hasPlayerKey
+  let onDeadline d@(Deadline (KeyTime deadlineTime) priority _)
+       |preferPlayer && hasPlayer = tryPlayer -- won't block
+       |deadlineIsOverdue = return $ Just $ Timeout d
+       |otherwise =
+         -- deadline is not overdue
+         if canWait
+           then
+             getEventForDeadline d
+           else
+             return Nothing
+       where
+        preferPlayer = not deadlineIsOverdue || priority < playerPriority
+        deadlineIsOverdue = deadlineTime < lastRenderTime
 
-{-# INLINABLE playLoop #-}
-playLoop :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
-         => m (Maybe Int)
-playLoop = do
-  timeBegin <- liftIO getSystemTime
-  let go n principal visibles = do
-        playerPending <- hasPlayerKey
-        let onDeadline d@(Deadline (KeyTime deadlineTime) priority _)
-             |preferPlayer && playerPending = tryPlayer -- won't block
-             |deadlineIsOverdue = tryUpdate $ Timeout d
-             |otherwise =
-               -- deadline is not overdue
-               if null visibles
-                 then
-                   -- we have no update that needs to be rendered, hence we can wait
-                   getEventForDeadline d >>= maybe (return $ Just n) tryUpdate
-                 else
-                   -- we have updates that should be rendered
-                   return $ Just n
-             where
-              preferPlayer = not deadlineIsOverdue || priority < playerPriority
-              deadlineIsOverdue = deadlineTime < timeBegin
+      deadlineStarvation =
+        if canWait
+          then
+            tryPlayer -- may block, waiting for player input
+          else
+            -- force a render
+            return Nothing
 
-            deadlineStarvation =
-              if null visibles
-                then
-                  tryPlayer -- may block, waiting for player input
-                else
-                  return $ Just n
+      tryPlayer =
+        getPlayerKey >>= eventFromKey'
 
-            tryPlayer =
-              getPlayerKey >>= \k -> eventFromKey' k >>= \case
-                Nothing -> return $ Just n
-                Just e -> tryUpdate e >>= \res -> case res of
-                  -- unGet the 'Key' if the corresponding update was not performed:
-                  Just n' -> when (n == n') (unGetPlayerKey k) >> return res
-                  Nothing -> return res
-
-            tryUpdate (Interrupt _) = return Nothing
-            tryUpdate e
-             |conflict  = return $ Just n
-             |otherwise = update e >> onEvent e >> go'
-             where
-              conflict = thisPrincipal && principal
-              !thisPrincipal = isPrincipal e
-              go' = go (succ n) (thisPrincipal || principal) newVisibles
-              newVisibles = [e | isVisible e] ++ visibles
-        getNextDeadline timeBegin >>= maybe deadlineStarvation onDeadline
-  go 0 False []
+  getNextDeadline lastRenderTime >>= maybe deadlineStarvation onDeadline

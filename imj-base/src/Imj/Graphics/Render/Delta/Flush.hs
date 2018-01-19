@@ -11,7 +11,6 @@ import           Imj.Prelude
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef, writeIORef)
 import           Data.Vector.Unboxed.Mutable(read, write, length )
-import           System.IO( stdout, hFlush )
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                                 (clear, pushBack)
@@ -22,17 +21,18 @@ import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Clear
 import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Internal.Types
+import           Imj.Timing
 
 
 -- | Flushes the frame, i.e renders it.
 --   Then, resizes the context if needed (see 'ResizePolicy')
 --   and clears the back buffer (see 'ClearPolicy').
 deltaFlush :: IORef Buffers
-           -> (Delta -> Dim Width -> IO ())
+           -> (Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
            -- ^ rendering function
            -> IO (Maybe Size)
            -- ^ get discrete size function
-           -> IO ()
+           -> IO (TimeSpec, TimeSpec, TimeSpec)
 deltaFlush ref renderFunc sizeFunc =
   readIORef ref
   >>= \buffers@(Buffers _ _ _ _ _ policies) -> do
@@ -47,18 +47,18 @@ deltaFlush ref renderFunc sizeFunc =
             initializeWithContent buffers b
             render FullMode renderFunc b)
             maySize
-  >> hFlush stdout -- TODO is flush blocking? slow? could it be async?
 
 data RenderMode = DeltaMode | FullMode
 
 -- | Note that the 'Scissor' is not taken into account here.
 -- We could take it into account, if needed.
 render :: RenderMode
-       -> (Delta -> Dim Width -> IO ())
+       -> (Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
        -- ^ rendering function
        -> Buffers
-       -> IO ()
+       -> IO (TimeSpec, TimeSpec, TimeSpec)
 render mode renderFunc buffers@(Buffers (Buffer b) _ width _ d@(Delta delta) _) = do
+  t1 <- getSystemTime
   case mode of
     DeltaMode -> computeDelta buffers 0
     FullMode ->
@@ -69,9 +69,11 @@ render mode renderFunc buffers@(Buffers (Buffer b) _ width _ d@(Delta delta) _) 
         [0..pred $ length b]
 
   clearIfNeeded OnFrame buffers
+  t2 <- getSystemTime
 
-  renderFunc d width
+  (dtCommands, dtFlush) <- renderFunc d width
   Dyn.clear delta
+  return (t2-t1, dtCommands, dtFlush)
 
 
 computeDelta :: Buffers

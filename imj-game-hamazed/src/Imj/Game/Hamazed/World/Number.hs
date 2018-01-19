@@ -16,7 +16,7 @@ import           Data.Char( intToDigit )
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous

@@ -48,6 +48,7 @@ library
                      , Imj.Game.Hamazed.Loop.Update
                      , Imj.Game.Hamazed.Parameters
                      , Imj.Game.Hamazed.State
+                     , Imj.Game.Hamazed.State.Types
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create

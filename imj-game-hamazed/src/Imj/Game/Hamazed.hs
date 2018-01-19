@@ -77,11 +77,12 @@ module Imj.Game.Hamazed
           won't be in the same group, but a game step and many particle systems updates can
           be in the same group.
 
-          * (TODO) To keep a good render rate, we limit the duration used to address grouped deadlines to 10 ms.
-          This can have the side effect that when a lot of particle systems are running,
-          they will not "catch-up" as fast as the could if larger groups were used.
+          * To keep a stable render rate, we limit the duration used to update grouped deadlines to 10 ms.
 
-          * (TODO) We do not place updates of the same particle system in the same group.
+          * We ensure that no 2 visible deadlines that are separated by more than the period of
+          particle system animation are in the same group. This ensures than every update
+          of a given particle system happens in a distinct group.
+
         -}
       , Deadline(..)
       , DeadlineType(..)

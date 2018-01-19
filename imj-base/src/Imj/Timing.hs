@@ -8,18 +8,22 @@ module Imj.Timing
       KeyTime(..)
     , addDuration
     -- * Utilities
+    , zeroTime
     , getSystemTime
     , diffTimeSecToMicros
-    , floatSecondsToDiffTime
+    , secondsToTimeSpec
+    , showTime
     -- * Reexports
+    , toNanoSecs
     , Int64
     , TimeSpec(..)
     ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Data.Int(Int64)
-import           System.Clock(TimeSpec(..), Clock(..), getTime)
+import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
 -- | Represents deadlines and event times.
 newtype KeyTime = KeyTime TimeSpec deriving(Eq, Ord, Show)
@@ -34,15 +38,23 @@ diffTimeSecToMicros t1 t2 =
   in 10^(6::Int) * seconds + quot nanos (10^(3::Int))
 
 -- | Converts a duration expressed in seconds using a 'Float' to a 'TimeSpec'
-floatSecondsToDiffTime :: Float -> TimeSpec
-floatSecondsToDiffTime f = fromIntegral $ (floor $ f * 10^(9::Int) :: Int)
+secondsToTimeSpec :: Float -> TimeSpec
+secondsToTimeSpec f = fromIntegral $ (floor $ f * 10^(9::Int) :: Int64)
 
 -- | Adds a 'TimeSpec' to a 'KeyTime'.
 addDuration :: Float -> KeyTime -> KeyTime
 addDuration dt (KeyTime t) =
-  KeyTime $ (floatSecondsToDiffTime dt) + t
+  KeyTime $ (secondsToTimeSpec dt) + t
 
 -- | Returns the time as seen by a monotonic clock.
 {-# INLINE getSystemTime #-}
 getSystemTime :: IO TimeSpec
 getSystemTime = getTime Monotonic
+
+showTime :: TimeSpec -> String
+showTime x = rJustify $ show $ quot (toNanoSecs x) 1000
+  where rJustify txt = replicate (5-length txt) ' ' ++ txt
+
+{-# INLINE zeroTime #-}
+zeroTime :: TimeSpec
+zeroTime = TimeSpec 0 0

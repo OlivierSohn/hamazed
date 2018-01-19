@@ -5,6 +5,7 @@
 module Imj.Graphics.Class.Draw
     ( Draw(..)
     , Scissor
+    , Canvas
       -- * Reexports
     , Coords, Pos, LayeredColor
     , MonadIO
@@ -19,6 +20,7 @@ import           Data.Text(Text, length)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.RectArea
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.HasRectArea
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString
@@ -33,7 +35,7 @@ type Scissor = RectArea (Filter Positive)
 * draw colored 'Char's, 'String's, 'Text's,
 * fill with a 'LayeredColor' and a 'Char',
 * filter drawn locations using a 'Scissor'. -}
-class Draw e where
+class (Canvas e) => Draw e where
   -- | Sets the area defining where to draw.
   --
   -- Do not use directly, prefer 'usingScissor'' instead.
@@ -56,10 +58,6 @@ class Draw e where
   drawTxt' :: (MonadIO m) => e -> Text -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'String'.
   drawStr' :: (MonadIO m) => e -> String -> Coords Pos -> LayeredColor -> m ()
-
-  -- | The size of the target (window or terminal). Homogenous to 'Coords' 'Pos',
-  -- /not/ to pixels.
-  getTargetSize' :: (MonadIO m) => e -> m (Maybe Size)
 
   {- |
   1. Store the current 'Scissor'

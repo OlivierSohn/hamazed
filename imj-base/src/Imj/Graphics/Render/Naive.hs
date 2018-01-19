@@ -12,10 +12,12 @@ import           System.Console.ANSI(setCursorPosition, clearFromCursorToScreenE
 import           System.Console.ANSI.Codes(csi)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.UI.RectArea
+import           Imj.Timing
 
 {- | FOR TESTS ONLY. For production, please use "Imj.Graphics.Render.Delta".
 
@@ -64,7 +66,6 @@ instance Draw NaiveDraw where
     drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
-    getTargetSize' _         = return Nothing
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}
     {-# INLINABLE drawTxt' #-}
@@ -72,6 +73,9 @@ instance Draw NaiveDraw where
     {-# INLINABLE getScissor' #-}
     {-# INLINABLE setScissor #-}
     {-# INLINABLE fill' #-}
+
+instance Canvas NaiveDraw where
+    getTargetSize' _         = return Nothing
     {-# INLINABLE getTargetSize' #-}
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
@@ -80,4 +84,5 @@ instance Render NaiveDraw where
     renderToScreen' _         = liftIO $ hFlush stdout
                                         >> setCursorPosition 0 0
                                         >> clearFromCursorToScreenEnd
+                                        >> return (zeroTime, zeroTime, zeroTime)
     {-# INLINABLE renderToScreen' #-}

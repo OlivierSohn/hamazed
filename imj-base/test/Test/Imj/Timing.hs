@@ -79,26 +79,26 @@ testAddSystemTime3 = do
 
 testFloatSecondsToDiffTime :: IO ()
 testFloatSecondsToDiffTime = do
-  let t = floatSecondsToDiffTime (-1)
+  let t = secondsToTimeSpec (-1)
   when (t /= TimeSpec (-1) 0)
     $ error $ "t = " ++ show t
 
-  let halfSec = floatSecondsToDiffTime 0.5
+  let halfSec = secondsToTimeSpec 0.5
   when (halfSec /= TimeSpec 0 500000000)
     $ error $ "halfSecAsMicros = " ++ show halfSec
 
-  let oneMicros = floatSecondsToDiffTime 0.000001
+  let oneMicros = secondsToTimeSpec 0.000001
   when (oneMicros /= TimeSpec 0 1000)
     $ error $ "oneMicros = " ++ show oneMicros
 
-  let minusOneMicros = floatSecondsToDiffTime $ -0.000001
+  let minusOneMicros = secondsToTimeSpec $ -0.000001
   when (minusOneMicros /= TimeSpec 0 (-1000))
     $ error $ "minusOneMicros = " ++ show minusOneMicros
 
 
 testDiffTimeSecToMicros :: IO ()
 testDiffTimeSecToMicros = do
-  let oneSecondAsMicros = diffTimeSecToMicros (TimeSpec 1 0) (TimeSpec 0 0)
+  let oneSecondAsMicros = diffTimeSecToMicros (TimeSpec 1 0) zeroTime
   when (oneSecondAsMicros /= 1000000)
     $ error $ "oneSecondAsMicros = " ++ show oneSecondAsMicros
 

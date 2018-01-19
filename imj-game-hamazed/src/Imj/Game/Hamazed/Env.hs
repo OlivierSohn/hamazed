@@ -7,6 +7,7 @@ module Imj.Game.Hamazed.Env
       ( Env(..)
       ) where
 
+import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw(Draw(..))
 import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Graphics.Render.Delta(DeltaEnv)
@@ -28,7 +29,6 @@ instance Draw (Env x) where
   drawChars'     (Env a _) = drawChars'     a
   drawTxt'       (Env a _) = drawTxt'       a
   drawStr'       (Env a _) = drawStr'       a
-  getTargetSize' (Env a _) = getTargetSize' a
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE fill' #-}
@@ -36,7 +36,12 @@ instance Draw (Env x) where
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
+
+-- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
+instance Canvas (Env x) where
+  getTargetSize' (Env a _) = getTargetSize' a
   {-# INLINE getTargetSize' #-}
+
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
 instance Render (Env x) where
   renderToScreen' (Env a _) = renderToScreen' a

@@ -20,7 +20,8 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.Parameters
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
@@ -33,62 +34,66 @@ import           Imj.Physics.Discrete.Collision
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
 
--- | Updates the state. It needs IO just to generate random numbers in case
+-- | Updates the game state. It needs IO just to generate random numbers in case
 -- 'Event' is 'StartLevel'
 {-# INLINABLE update #-}
-update :: (MonadState AppState m, MonadIO m)
+update :: (MonadState AppState m, MonadReader e m, Canvas e, MonadIO m)
        => Event
        -- ^ The 'Event' that should be handled here.
        -> m ()
 update evt =
-  getGame >>= updateGame >>= putGameState
- where
-   updateGame
-    (Game _ params
-     state@(GameState b world@(World c d space systems) futWorld f h@(Level level target mayLevelFinished) anim s)) =
+  getGame >>=
+    \(Game _ params
+      state@(GameState b world@(World c d space systems) futWorld f h@(Level level target mayLevelFinished) anim s)) -> do
+    t <- liftIO getSystemTime
+    let onConfigParams x =
+          getTargetSize
+            >>= liftIO . initialGameState x
+            >>= putGame . Game Configure x
+        getNewPlayState = case evt of
+          StartLevel nextLevel -> do
+            (Screen sz _) <- getCurScreen
+            mkInitialState params sz nextLevel (Just state) >>= \case
+              Left err -> error err
+              Right st -> return st
+          (Timeout (Deadline gt _ AnimateUI)) -> do
+            let st@(GameState _ _ _ _ _ anims _) = updateAnim gt state
+            if isFinished anims
+              then return $ startGameState (KeyTime t) st
+              else return st
+          (Timeout (Deadline _ _ DisplayContinueMessage)) ->
+            return $ case mayLevelFinished of
+              Just (LevelFinished stop finishTime _) ->
+                let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
+                in GameState b world futWorld f newLevel anim s
+              Nothing -> state
+          (Timeout (Deadline k priority AnimateParticleSystems)) -> do
+            let newSystems = mapMaybe (\pr@(Prioritized p a) ->
+                                          if p == priority && getDeadline a == k
+                                            then fmap (Prioritized p) $ updateParticleSystem t a
+                                            else Just pr) systems
+            return $ GameState b (World c d space newSystems) futWorld f h anim s
+          (Timeout (Deadline gt _ MoveFlyingItems)) -> do
+            let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim s
+            onHasMoved movedState gt
+          Action Laser dir ->
+            if isFinished anim
+              then
+                onLaser state dir t
+              else
+                return state
+          Action Ship dir ->
+            return $ accelerateShip' dir state
+          _ -> error $ "The caller should handle:" ++ show evt
     case evt of
-      StartLevel nextLevel -> do
-        (Screen sz _) <- getCurScreen
-        mkInitialState params sz nextLevel (Just state) >>= \case
-          Left err -> error err
-          Right st -> return st
-      (Timeout (Deadline gt _ AnimateUI)) -> do
-        let st@(GameState _ _ _ _ _ anims _) = updateAnim gt state
-        if isFinished anims
-          then KeyTime <$> liftIO getSystemTime >>= return . flip startGameState st 
-          else return st
-      (Timeout (Deadline _ _ DisplayContinueMessage)) ->
-        return $ case mayLevelFinished of
-          Just (LevelFinished stop finishTime _) ->
-            let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
-            in GameState b world futWorld f newLevel anim s
-          Nothing -> state
-      (Timeout (Deadline k priority AnimateParticleSystems)) -> do
-        let newSystems = mapMaybe (\pr@(Prioritized p a) ->
-                                      if p == priority && getDeadline a == k
-                                        then fmap (Prioritized p) $ updateParticleSystem a
-                                        else Just pr) systems
-        return $ GameState b (World c d space newSystems) futWorld f h anim s
-      (Timeout (Deadline gt _ MoveFlyingItems)) -> do
-        let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim s
-        onHasMoved movedState gt
-      Action Laser dir ->
-        if isFinished anim
-          then do
-            t <- liftIO getSystemTime
-            onLaser state dir t
-          else
-            return state
-      Action Ship dir ->
-        return $ accelerateShip' dir state
-      (Interrupt _) -> return state
-      ToggleEventRecording -> return state
-      EndGame -> -- TODO instead, go back to game configuration ?
-        return state
+      Configuration char -> onConfigParams $ updateFromChar char params
+      EndGame         -> onConfigParams params
+      _ -> getNewPlayState >>= putGame . Game Play params
 
 onLaser :: (MonadState AppState m)
         => GameState

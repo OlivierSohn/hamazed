@@ -75,7 +75,7 @@ data World = World {
 
 startWorld :: KeyTime -> World -> World
 startWorld (KeyTime t) (World a (BattleShip ship ammo _ col) b c) =
-  World a (BattleShip ship ammo (Just $ (floatSecondsToDiffTime 5) + t) col) b c
+  World a (BattleShip ship ammo (Just $ (secondsToTimeSpec 5) + t) col) b c
 
 
 data ViewMode = CenterShip

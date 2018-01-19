@@ -16,7 +16,7 @@ import           Data.Maybe( isNothing )
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous

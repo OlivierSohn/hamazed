@@ -13,7 +13,7 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space

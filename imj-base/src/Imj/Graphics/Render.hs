@@ -16,10 +16,10 @@ module Imj.Graphics.Render
   , Draw(..)
   , Render(..)
   -- * From MonadReader
-{- | The functions below use 'Draw' and 'Render' instances in a 'MonadReader' monad.
+{- | The functions below use 'Draw', 'Canvas', 'Render' instances in a 'MonadReader' monad.
 
 Hence, if you run in a 'MonadReader' 'YourEnv' monad
-(where 'YourEnv' is your environment equiped with 'Draw' and 'Render' instances),
+(where 'YourEnv' is your environment equiped with 'Draw', 'Canvas' and 'Render' instances),
 you can write:
 
 @

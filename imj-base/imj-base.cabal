@@ -46,6 +46,7 @@ library
                      , Imj.Geo.Discrete.Types
                      , Imj.Geo.Types
                      , Imj.Graphics.Class
+                     , Imj.Graphics.Class.Canvas
                      , Imj.Graphics.Class.Colorable
                      , Imj.Graphics.Class.DiscreteColorableMorphing
                      , Imj.Graphics.Class.DiscreteDistance

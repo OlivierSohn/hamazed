@@ -45,9 +45,10 @@ mkSystem :: VecPosSpeed
 mkSystem center updates speed interaction t' =
   let update = updateParticles updates
       t = either KeyTime id t'
+      timeSpec = either id (\(KeyTime v) -> v) t'
       u = UpdateSpec t (zeroIteration speed)
       points = mkParticleTree center
-  in updateParticleSystem $ ParticleSystem points update interaction u
+  in updateParticleSystem timeSpec $ ParticleSystem points update interaction u
 
 
 -- | Constructs a 'ParticleTree'.

@@ -226,7 +226,7 @@ animate' listActions examples frames colTitles = do
   drawActions listActions frames
   drawExamples examples
   drawColTitles colTitles
-  renderToScreen
+  _ <- renderToScreen
   liftIO $ threadDelay 1000000
   animate' listActions examples newFrames colTitles
 

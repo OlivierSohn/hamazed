@@ -19,6 +19,7 @@ import           System.Console.ANSI( clearScreen, hideCursor
 import           System.IO( hSetBuffering
                           , hGetBuffering
                           , hSetEcho
+                          , hFlush
                           , BufferMode(..)
                           , stdin
                           , stdout )
@@ -37,7 +38,7 @@ import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Input.Blocking
 import           Imj.Input.NonBlocking
-import           Imj.Util
+import           Imj.Timing
 
 
 data ConsoleBackend = ConsoleBackend !(TQueue Key)
@@ -50,24 +51,29 @@ instance DeltaRenderBackend ConsoleBackend where
     return $ maybe (Nothing) (\(Terminal.Window h w)
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
 
-fromMaybeM :: Monad m
-           => m a
-           -> m (Maybe a)
-           -> m a
-fromMaybeM nothingAction mayAction =
-  mayAction >>= maybe nothingAction return
-
 instance PlayerInput ConsoleBackend where
   getKey (ConsoleBackend queue) =
-    liftIO $ fromMaybeM getKeyThenFlush (atomically $ tryReadTQueue queue)
-  getKeyTimeout (ConsoleBackend queue) _ ms =
-    liftIO $ (atomically $ tryReadTQueue queue) <|> (timeout (fromIntegral ms) getKeyThenFlush)
-  tryGetKey (ConsoleBackend queue) =
-    liftIO $ (atomically $ tryReadTQueue queue) <|> tryGetKeyThenFlush
+    liftIO (atomically $ tryReadTQueue queue)
+      >>= maybe (liftIO getKeyThenFlush) return
+
+  getKeyTimeout (ConsoleBackend queue) _ ms = do
+    fromQueue <- liftIO (atomically $ tryReadTQueue queue)
+    fromStdin <- liftIO (timeout (fromIntegral ms) getKeyThenFlush)
+    return $ fromQueue <|> fromStdin
+
+  tryGetKey (ConsoleBackend queue) = do
+    fromQueue <- liftIO (atomically $ tryReadTQueue queue)
+    fromStdin <- liftIO tryGetKeyThenFlush
+    return $ fromQueue <|> fromStdin
+
   someInputIsAvailable (ConsoleBackend queue) = do
-    liftIO $ (atomically $ not <$> isEmptyTQueue queue) <|=> stdinIsReady
+    fromQueue <- liftIO $ atomically $ not <$> isEmptyTQueue queue
+    fromStdin <- liftIO stdinIsReady
+    return $ fromQueue || fromStdin
+
   unGetKey (ConsoleBackend queue) k =
     liftIO (atomically $ unGetTQueue queue k)
+
   programShouldEnd _ =
     return False
 
@@ -120,7 +126,7 @@ configureConsoleFor config stdoutMode =
               (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
-deltaRenderConsole :: Delta -> Dim Width -> IO ()
+deltaRenderConsole :: Delta -> Dim Width -> IO (TimeSpec, TimeSpec)
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -130,8 +136,13 @@ deltaRenderConsole :: Delta -> Dim Width -> IO ()
   -- In 'Cell', color is encoded in higher bits than position, so this sort
   -- sorts by color first, then by position, which is what we want.
 deltaRenderConsole (Delta delta) w = do
+  t1 <- getSystemTime
   Dyn.unstableSort delta
   renderDelta delta w
+  t2 <- getSystemTime
+  hFlush stdout -- TODO is flush blocking? slow? could it be async?
+  t3 <- getSystemTime
+  return (t2-t1, t3-t2)
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width

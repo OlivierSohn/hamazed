@@ -20,7 +20,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.KeysMaps
@@ -37,9 +37,9 @@ eventFromKey' :: (MonadState AppState m)
               => Key -> m (Maybe Event)
 eventFromKey' key =
   getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _ _) ->
-    return $ case finished of
+    case finished of
       Nothing -> eventFromKey key
-      Just (LevelFinished stop _ ContinueMessage) -> Just $
+      Just (LevelFinished stop _ ContinueMessage) -> return $ Just $
         case stop of
           Won -> if n < lastLevel
                    then
@@ -47,7 +47,7 @@ eventFromKey' key =
                    else
                      EndGame
           (Lost _) -> StartLevel firstLevel
-      _ -> Nothing -- between level end and proposal to continue
+      _ -> return Nothing -- between level end and proposal to continue
 
 messageDeadline :: Level -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) =

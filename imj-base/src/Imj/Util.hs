@@ -14,8 +14,11 @@ module Imj.Util
     , randomRsIO
     , clamp
     , zigzag
-    -- * Bool utilities
-    , (<|=>)
+    -- ** Range
+    , Range
+    , mkRangeSingleton
+    , extendRange
+    , diameter
     -- * Reexports
     , Int64
     ) where
@@ -127,19 +130,22 @@ clamp !n min_ max_
   | n > max_ = max_
   | otherwise = n
 
+data Range a = Range {
+    _rangeMin :: !a
+  , _rangeMax :: !a
+}
 
--- | A lifted ('||'), but short-circuited.
---
--- Copied from
--- <https://hackage.haskell.org/package/control-bool-0.2.1/docs/Control-Bool.html here>.
-{-# INLINABLE (<|=>) #-}
-(<|=>) :: Monad m => m Bool -> m Bool -> m Bool
-m <|=> n = do
-    r <- m
-    bool n (return True) r
+{-# INLINE mkRangeSingleton #-}
+mkRangeSingleton :: a -> Range a
+mkRangeSingleton v = Range v v
 
--- | @bool a b@ is a function that returns a if the argument is True, otherwise returns 'b'.
-{-# INLINE bool #-}
-bool :: a -> a -> Bool -> a
-bool x _ False = x
-bool _ y True = y
+{-# INLINABLE diameter #-}
+diameter :: (Num a) => Range a -> a
+diameter (Range v1 v2) = v2 - v1
+
+{-# INLINABLE extendRange #-}
+extendRange :: (Ord a) => a -> Range a -> Range a
+extendRange !v r@(Range v1 v2)
+  | v < v1 = Range v v2
+  | v > v2 = Range v1 v
+  | otherwise = r

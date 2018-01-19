@@ -30,7 +30,6 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Timing
-import           Imj.Util
 
 pixelPerUnit :: Int
 pixelPerUnit = 4
@@ -57,16 +56,15 @@ data OpenGLBackend = OpenGLBackend {
 }
 
 instance DeltaRenderBackend OpenGLBackend where
-    render :: OpenGLBackend -> Delta -> Dim Width -> IO ()
     render (OpenGLBackend win _) = deltaRenderOpenGL win
 
-    cleanup :: OpenGLBackend -> IO ()
     cleanup (OpenGLBackend win _) = destroyWindow win
 
-    getDiscreteSize :: OpenGLBackend -> IO (Maybe Size)
     getDiscreteSize _ =
       return $ Just $ Size (fromIntegral $ quot winHeight pixelPerUnit)
                            (fromIntegral $ quot winWidth pixelPerUnit)
+    {-# INLINABLE render #-}
+    {-# INLINABLE getDiscreteSize #-}
 
 -- | First, we try to read from the queue. Then, we 'GLFW.pollEvents',
 -- 'GLFW.waitEvents' or 'GLFW.waitEventsTimeout' (depending on the function)
@@ -175,7 +173,9 @@ newOpenGLBackend title = do
         putStrLn $ unwords [show e, show s]
   GLFW.setErrorCallback $ Just simpleErrorCallback
 
-  _ <- GLFW.init <|=> error "could not initialize GLFW"
+  GLFW.init >>= \case
+    False -> error "could not initialize GLFW"
+    True -> return ()
 
   keyEventsChan <- newTQueueIO :: IO (TQueue EventKey)
   win <- createWindow winWidth winHeight title
@@ -208,12 +208,16 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
-deltaRenderOpenGL :: GLFW.Window -> Delta -> Dim Width -> IO ()
+deltaRenderOpenGL :: GLFW.Window -> Delta -> Dim Width -> IO (TimeSpec,TimeSpec)
 deltaRenderOpenGL _ (Delta delta) w = do
+  t1 <- getSystemTime
   renderDelta delta w
+  t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
   GL.finish
+  t3 <- getSystemTime
+  return (t2-t1,t3-t2)
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width

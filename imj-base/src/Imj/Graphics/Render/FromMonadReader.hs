@@ -14,8 +14,8 @@ module Imj.Graphics.Render.FromMonadReader
        , getTargetSize
        , renderToScreen
        -- * Reexports
-       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw
-       , Render, MonadReader, MonadIO
+       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString
+       , Draw, Render, Canvas, MonadReader, MonadIO
        ) where
 
 import           Imj.Prelude
@@ -27,6 +27,7 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
@@ -125,7 +126,7 @@ drawChar c co la = do
 
 
 {-# INLINABLE getTargetSize #-}
-getTargetSize :: (Draw e, MonadReader e m, MonadIO m)
+getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
               => m (Maybe Size)
 getTargetSize =
   join (asks getTargetSize')
@@ -133,6 +134,6 @@ getTargetSize =
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m ()
+               => m (TimeSpec, TimeSpec, TimeSpec)
 renderToScreen =
   join (asks renderToScreen')

@@ -17,20 +17,22 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Iteration
 import           Imj.Timing
 
-
--- | Note that if the 'ParticleSystem' deadlines become overdue,
--- there is no mechanism to "catch up", i.e we don't use the current time
--- as a reference for the new deadline, instead we use the previous deadline.
-updateParticleSystem :: ParticleSystem
+-- TODO monitor the drift between current time and deadline time.
+-- | We chose not to base the next deadline time on the time of the previous deadline,
+-- so as to leave the liberty to the user of the library to adjust timing.
+updateParticleSystem :: TimeSpec
+                     -- ^ Time from which we should base the next deadline on.
+                     -- In most cases, this should be the current time.
+                     -> ParticleSystem
                      -> Maybe ParticleSystem
                      -- ^ Nothing if every contained 'Particle' is inactive.
-updateParticleSystem
- (ParticleSystem points update interaction (UpdateSpec k it@(Iteration _ frame))) =
+updateParticleSystem t
+ (ParticleSystem points update interaction (UpdateSpec _ it@(Iteration _ frame))) =
   let newPoints = update interaction frame points
   in if hasActiveParticles newPoints
        then
          Just $ ParticleSystem newPoints update interaction
-              $ UpdateSpec (addDuration particleSystemPeriod k) (nextIteration it)
+              $ UpdateSpec (addDuration particleSystemPeriod (KeyTime t)) (nextIteration it)
        else
          Nothing
 

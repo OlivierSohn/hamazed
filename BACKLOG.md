@@ -1,12 +1,5 @@
 
-- measure the time it takes for a full playLoop, see how the frame rate is changed
-under "many heavy particle systems" conditions
-
-- avoid the "terminal speedup" effect for particle systems that were overdue:
-
-the real speed changes should be smoothed:
-record when the particle system update was rendered, deduce the real speed, and compute
-next deadline time according to this speed.
+- limit the time an update takes ?
 
 - store update time in deadlines, to replace "while we are under the budget"
   by "if curTimeSpent + foreseenTimeSpent < budget then update this deadline"

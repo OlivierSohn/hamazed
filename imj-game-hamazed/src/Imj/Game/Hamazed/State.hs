@@ -5,87 +5,47 @@
 
 module Imj.Game.Hamazed.State
       (
-      -- * AppState type
-        AppState(..)
-      , RecordMode(..)
-      , OccurencesHist
-      , toColorStr
       -- * Create
-      , createState
+        createState
       -- * Access
       , getRenderable
-      , getGameState
-      , getGame
-      , getMode
       , getRecording
-      , getCurScreen
-      , envFunctions
       -- * Modify
-      , putGame
-      , putGameState
       , onEvent
       , toggleRecordEvent
       , addIgnoredOverdues
       -- * reexports
-      , MonadState
+      , module Imj.Game.Hamazed.State.Types
       ) where
 
 import           Imj.Prelude
+import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(state, get, put)
+import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.IO.Class(MonadIO)
+
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Create
-import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.Loop.Draw
+import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Update
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Geo.Discrete.Types
-import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
-import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
-
-data Occurences a = Occurences {
-    _occurencesCount :: !Int
-  , _occurencesItem :: !EventRepr
-}
-
-
-data AppState  = AppState {
-    _appStateGame :: !Game
-  , _appStateEventHistory :: !OccurencesHist
-  -- ^ Can record which events where handled.
-  , _appStateRecordEvents :: !RecordMode
-  -- ^ Should the handled events be recorded?
-}
-
-data RecordMode = Record
-                | DontRecord
-                deriving(Eq)
-
-data OccurencesHist = OccurencesHist {
-    _occurencesHistList :: ![Occurences EventRepr]
-  , _occurencesHistTailStr :: !ColorString
-}
-
-data EventRepr = Laser'
-               | Ship'
-               | MoveFlyingItems'
-               | AnimateParticleSystems'
-               | DisplayContinueMessage'
-               | AnimateUI'
-               | StartLevel'
-               | EndGame'
-               | Interrupt'
-               | ToggleEventRecording'
-               | IgnoredOverdue
-               -- ^ Represents when an overdue deadline was ignored because its priority was lower
-               -- than another overdue deadline.
-               deriving(Eq, Show)
+import           Imj.Timing
 
 representation :: Event -> EventRepr
-representation (StartLevel _)   = StartLevel'
+representation (Configuration _)  = Configuration'
 representation EndGame          = EndGame'
+representation (StartLevel _)   = StartLevel'
 representation (Interrupt _)    = Interrupt'
 representation (Action Laser _) = Laser'
 representation (Action Ship _)  = Ship'
@@ -99,6 +59,7 @@ reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
 reprToCS StartLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
+reprToCS Configuration' = colored "C" yellow
 reprToCS Interrupt'  = colored "I" yellow
 reprToCS Laser'      = colored "L" cyan
 reprToCS Ship'       = colored "S" blue
@@ -109,19 +70,81 @@ reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
-onEvent :: MonadState AppState m
-        => Event -> m ()
-onEvent evt = do
-  when (evt == ToggleEventRecording) $ state toggleRecordEvent
-  getRecording >>= \case
-    Record -> state (addEvent evt)
-    DontRecord -> return ()
+onEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+        => Maybe Event -> m ()
+onEvent (Just ToggleEventRecording) = state toggleRecordEvent
+onEvent (Just evt) = do
+      getRecording >>= \case
+        Record -> state (addEvent evt)
+        DontRecord -> return ()
+      handleEvent (Just evt)
+onEvent Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
+
+{-# INLINABLE handleEvent #-}
+handleEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+            => Maybe Event -> m ()
+handleEvent e = do
+  addToCurrentGroupOrRenderAndStartNewGroup e
+  maybe
+    (return ())
+    (\evt -> do
+      t1 <- liftIO getSystemTime
+      update evt
+      t2 <- liftIO getSystemTime
+      addUpdateTime (t2 - t1))
+    e
+
+{-# INLINE addUpdateTime #-}
+addUpdateTime :: MonadState AppState m
+              => TimeSpec -> m ()
+addUpdateTime add =
+  get >>= \(AppState t a (EventGroup d e prevT f) b c) ->
+    put $ AppState t a (EventGroup d e (add + prevT) f) b c
+
+{-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
+addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+                                          => Maybe Event -> m ()
+addToCurrentGroupOrRenderAndStartNewGroup evt = do
+  get >>= \(AppState prevTime game prevGroup b c) -> do
+    let onRender = do
+          -- we use putStr, the end of line will be written by 'renderAll'
+          liftIO $ putStr $ groupStats prevGroup
+          renderAll
+          liftIO (tryGrow evt mkEmptyGroup) >>= maybe
+            (error "growing an empty group never fails")
+            return
+    liftIO (tryGrow evt prevGroup) >>= maybe
+      (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
+      (return . (,) prevTime)
+    >>= \(t,g) -> put $ AppState t game g b c
+
+
+groupStats :: EventGroup -> String
+groupStats (EventGroup l _ t _) =
+  replicate (pred $ length l) ' ' ++ "|" ++
+    replicate (10 - (length l)) ' ' ++ " u " ++ showTime t
+
+{-# INLINABLE renderAll #-}
+renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+          => m ()
+renderAll =
+  getRenderable >>= \(gameState, evtStrs) -> do
+    t1 <- liftIO getSystemTime
+    draw gameState
+    t2 <- liftIO getSystemTime
+    zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
+    (dtDelta, dtCmds, dtFlush) <- renderToScreen
+    liftIO $ putStrLn
+      $ " d " ++ showTime (t2 - t1)
+      ++ " de " ++ showTime dtDelta
+      ++ " cmd " ++ showTime dtCmds
+      ++ " fl " ++ showTime dtFlush
 
 {-# INLINABLE getRenderable #-}
 getRenderable :: MonadState AppState m
               => m (GameState, [ColorString])
 getRenderable =
-  get >>= \(AppState (Game _ _ gameState) h r) -> do
+  get >>= \(AppState _ (Game _ _ gameState) _ h r) -> do
     let strs = case r of
               Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
               DontRecord -> []
@@ -131,59 +154,27 @@ getRenderable =
 getRecording :: MonadState AppState m
              => m RecordMode
 getRecording = do
-  (AppState _ _ record) <- get
+  (AppState _ _ _ _ record) <- get
   return record
 
 addEvent :: Event -> AppState -> ((), AppState)
-addEvent e (AppState g es r) =
+addEvent e (AppState t g evts es r) =
   let es' = addEventRepr (representation e) es
-  in ((), AppState g es' r)
+  in ((), AppState t g evts es' r)
 
 toggleRecordEvent :: AppState -> ((), AppState)
-toggleRecordEvent (AppState g _ r) =
+toggleRecordEvent (AppState t g e _ r) =
   let r' = case r of
         Record -> DontRecord
         DontRecord -> Record
-  in ((), AppState g mkEmptyOccurencesHist r')
-
-{-# INLINABLE putGame #-}
-putGame :: MonadState AppState m => Game -> m ()
-putGame g =
-  get >>= \(AppState _ r h) ->
-    put $ AppState g r h
-
-{-# INLINABLE putGameState #-}
-putGameState :: MonadState AppState m => GameState -> m ()
-putGameState s =
-  get >>= \(AppState (Game i params _) r h) ->
-    put $ AppState (Game i params s) r h
-
-{-# INLINABLE getGameState #-}
-getGameState :: MonadState AppState m => m GameState
-getGameState =
-  getGame >>= \(Game _ _ s) -> return s
-
-{-# INLINABLE getGame #-}
-getGame :: MonadState AppState m => m Game
-getGame =
-  get >>= \(AppState g _ _) -> return g
-
-{-# INLINABLE getMode #-}
-getMode :: MonadState AppState m => m ViewMode
-getMode =
-  getGame >>= \(Game _ (GameParameters _ _ mode) _) -> return mode
-
-{-# INLINABLE getCurScreen #-}
-getCurScreen :: MonadState AppState m => m Screen
-getCurScreen =
-  getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ screen)) -> return screen
+  in ((), AppState t g e mkEmptyOccurencesHist r')
 
 addIgnoredOverdues :: MonadState AppState m
                    => Int -> m ()
 addIgnoredOverdues n =
-  get >>= \(AppState a hist record) -> do
+  get >>= \(AppState t a e hist record) -> do
     let hist' = iterate (addEventRepr IgnoredOverdue) hist !! n
-    put $ AppState a hist' record
+    put $ AppState t a e hist' record
 
 toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
@@ -203,7 +194,8 @@ addEventRepr e oh@(OccurencesHist h r) =
 createState :: Maybe Size -> IO AppState
 createState ms = do
   game <- initialGame ms
-  return $ AppState game mkEmptyOccurencesHist DontRecord
+  t <- getSystemTime
+  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord
 
 toColorStr' :: Occurences EventRepr -> ColorString
 toColorStr' (Occurences n e) =
@@ -219,12 +211,3 @@ mkOccurencesHist o =
 
 mkEmptyOccurencesHist :: OccurencesHist
 mkEmptyOccurencesHist = OccurencesHist [] mempty
-
--- | Creates environment functions taking into account a 'World' and 'Scope'
-{-# INLINABLE envFunctions #-}
-envFunctions :: (MonadState AppState m)
-             => World -> Scope -> m EnvFunctions
-envFunctions world scope = do
-  mode <- getMode
-  screen <- getCurScreen
-  return $ EnvFunctions (environmentInteraction world mode screen scope) envDistance

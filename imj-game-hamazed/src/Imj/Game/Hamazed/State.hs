@@ -102,17 +102,18 @@ handleEvent e = do
 addUpdateTime :: MonadState AppState m
               => TimeSpec -> m ()
 addUpdateTime add =
-  get >>= \(AppState t a (EventGroup d e prevT f) b c) ->
-    put $ AppState t a (EventGroup d e (add + prevT) f) b c
+  get >>= \(AppState t a (EventGroup d e prevT f) b c de) ->
+    put $ AppState t a (EventGroup d e (add + prevT) f) b c de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
                                           => Maybe Event -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt = do
-  get >>= \(AppState prevTime game prevGroup b c) -> do
+  get >>= \(AppState prevTime game prevGroup b c d) -> do
     let onRender = do
-          -- we use putStr, the end of line will be written by 'renderAll'
-          liftIO $ putStr $ groupStats prevGroup
+          debug >>= \case
+            True -> liftIO $ putStr $ groupStats prevGroup
+            False -> return ()
           renderAll
           liftIO (tryGrow evt mkEmptyGroup) >>= maybe
             (error "growing an empty group never fails")
@@ -120,7 +121,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt = do
     liftIO (tryGrow evt prevGroup) >>= maybe
       (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
       (return . (,) prevTime)
-    >>= \(t,g) -> put $ AppState t game g b c
+    >>= \(t,g) -> put $ AppState t game g b c d
 
 
 groupStats :: EventGroup -> String
@@ -144,17 +145,18 @@ renderAll =
     t2 <- liftIO getSystemTime
     zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
     (dtDelta, dtCmds, dtFlush) <- renderToScreen
-    liftIO $ putStrLn
-      $ " d " ++ showTime (t2 - t1)
-      ++ " de " ++ showTime dtDelta
-      ++ " cmd " ++ showTime dtCmds
-      ++ " fl " ++ showTime dtFlush
+    debug >>= \case
+      True -> liftIO $ putStrLn $ " d " ++ showTime (t2 - t1)
+                                ++ " de " ++ showTime dtDelta
+                                ++ " cmd " ++ showTime dtCmds
+                                ++ " fl " ++ showTime dtFlush
+      False -> return ()
 
 {-# INLINABLE getRenderable #-}
 getRenderable :: MonadState AppState m
               => m (GameState, [ColorString])
 getRenderable =
-  get >>= \(AppState _ (Game _ _ gameState) _ h r) -> do
+  get >>= \(AppState _ (Game _ _ gameState) _ h r _) -> do
     let strs = case r of
               Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
               DontRecord -> []
@@ -164,27 +166,27 @@ getRenderable =
 getRecording :: MonadState AppState m
              => m RecordMode
 getRecording = do
-  (AppState _ _ _ _ record) <- get
+  (AppState _ _ _ _ record _) <- get
   return record
 
 addEvent :: Event -> AppState -> ((), AppState)
-addEvent e (AppState t g evts es r) =
+addEvent e (AppState t g evts es r d) =
   let es' = addEventRepr (representation e) es
-  in ((), AppState t g evts es' r)
+  in ((), AppState t g evts es' r d)
 
 toggleRecordEvent :: AppState -> ((), AppState)
-toggleRecordEvent (AppState t g e _ r) =
+toggleRecordEvent (AppState t g e _ r d) =
   let r' = case r of
         Record -> DontRecord
         DontRecord -> Record
-  in ((), AppState t g e mkEmptyOccurencesHist r')
+  in ((), AppState t g e mkEmptyOccurencesHist r' d)
 
 addIgnoredOverdues :: MonadState AppState m
                    => Int -> m ()
 addIgnoredOverdues n =
-  get >>= \(AppState t a e hist record) -> do
+  get >>= \(AppState t a e hist record d) -> do
     let hist' = iterate (addEventRepr IgnoredOverdue) hist !! n
-    put $ AppState t a e hist' record
+    put $ AppState t a e hist' record d
 
 toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
@@ -201,11 +203,17 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Maybe Size -> IO AppState
-createState ms = do
+createState :: Maybe Size -> Bool -> IO AppState
+createState ms dbg = do
   game <- initialGame ms
   t <- getSystemTime
-  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord
+  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord dbg
+
+
+{-# INLINABLE debug #-}
+debug :: MonadState AppState m => m Bool
+debug =
+  get >>= \(AppState _ _ _ _ _ d) -> return d
 
 toColorStr' :: Occurences EventRepr -> ColorString
 toColorStr' (Occurences n e) =

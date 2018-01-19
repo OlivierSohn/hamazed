@@ -1,5 +1,6 @@
 
-- limit the time an update takes ?
+- display debug infos in a nice way when using the terminal :
+overlay, 
 
 - store update time in deadlines, to replace "while we are under the budget"
   by "if curTimeSpent + foreseenTimeSpent < budget then update this deadline"

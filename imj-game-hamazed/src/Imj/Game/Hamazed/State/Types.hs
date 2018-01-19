@@ -52,6 +52,8 @@ data AppState  = AppState {
   -- ^ Can record which events where handled.
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
+  , _appStateDebug :: !Bool
+  -- ^ Print times and group information in the terminal.
 }
 
 data RecordMode = Record
@@ -84,7 +86,7 @@ data EventRepr = Laser'
 {-# INLINABLE getGame #-}
 getGame :: MonadState AppState m => m Game
 getGame =
-  get >>= \(AppState _ g _ _ _) -> return g
+  get >>= \(AppState _ g _ _ _ _) -> return g
 
 {-# INLINABLE getGameState #-}
 getGameState :: MonadState AppState m => m GameState
@@ -109,13 +111,13 @@ getCurScreen =
 {-# INLINABLE getLastRenderTime #-}
 getLastRenderTime :: MonadState AppState m => m TimeSpec
 getLastRenderTime =
-  get >>= \(AppState t _ _ _ _) -> return t
+  get >>= \(AppState t _ _ _ _ _) -> return t
 
 {-# INLINABLE putGame #-}
 putGame :: MonadState AppState m => Game -> m ()
 putGame g =
-  get >>= \(AppState a _ e r h) ->
-    put $ AppState a g e r h
+  get >>= \(AppState a _ e r h d) ->
+    put $ AppState a g e r h d
 
 putUserIntent :: MonadState AppState m => UserIntent -> m ()
 putUserIntent i =
@@ -124,7 +126,7 @@ putUserIntent i =
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool
 hasVisibleNonRenderedUpdates =
-  get >>= \(AppState _ _ group _ _) -> return $ visible group
+  get >>= \(AppState _ _ group _ _ _) -> return $ visible group
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}

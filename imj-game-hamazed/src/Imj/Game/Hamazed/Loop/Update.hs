@@ -55,7 +55,7 @@ update evt =
           getTargetSize
             >>= liftIO . initialGameState x
             >>= putGame . Game Configure x
-        getNewPlayState = case evt of
+        getNewState = case evt of
           StartLevel nextLevel -> do
             (Screen sz _) <- getCurScreen
             mkInitialState params sz nextLevel (Just state) >>= \case
@@ -93,8 +93,8 @@ update evt =
     case evt of
       Configuration char -> onConfigParams $ updateFromChar char params
       StartGame          -> putUserIntent Play >> update (StartLevel firstLevel)
-      EndGame            -> onConfigParams params
-      _ -> getNewPlayState >>= putGame . Game mode params
+      EndGame            -> onConfigParams params -- go back to configuration mode.
+      _ -> getNewState >>= putGame . Game mode params
 
 onLaser :: (MonadState AppState m)
         => GameState

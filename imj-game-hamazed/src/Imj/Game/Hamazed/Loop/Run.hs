@@ -13,6 +13,7 @@ module Imj.Game.Hamazed.Loop.Run
 import           Imj.Prelude
 import           Prelude (putStrLn, getChar)
 
+import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.Reader(runReaderT)
@@ -20,12 +21,14 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(runStateT)
 import           Data.Text(pack, toLower)
 import           Options.Applicative
-                  (progDesc, fullDesc, info, customExecParser, (<**>), prefs, helper
-                  , showHelpOnError, short, long, option, str, help, optional, ReadM, readerError)
+                  (progDesc, fullDesc, info, header, customExecParser, prefs, helper
+                  , showHelpOnError, short, long, option, str, help, optional
+                  , ReadM, readerError, (<*>), switch)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
 
 import           Imj.Game.Hamazed.Env
+import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
@@ -52,15 +55,38 @@ run =
       putStrLn $ "Windows is not currently supported"
       ++ " (https://ghc.haskell.org/trac/ghc/ticket/7353)."
     else
-      argsPickBackend >>= (\case
-        Nothing -> userPicksBackend
-        Just x -> return x) >>= runWithBackend
+      runWithArgs
 
 data BackendType = Console
                  | OpenGLWindow
 
+runWithArgs :: IO ()
+runWithArgs =
+  join . customExecParser (prefs showHelpOnError) $
+    info (helper <*> parser)
+    (  fullDesc
+    <> header "imj-game-hamazed-exe runs the 'Hamazed' game."
+    <> progDesc "Hamazed is a game with flying numbers abd 8-bit color animations."
+    )
+ where
+  parser =
+    runWithBackend
+      <$> optional
+             (option backendArg (long "render"
+                              <> short 'r'
+                              <> help ("Use argument 'console' to play in the console. " ++
+                                        "Use 'opengl' to play in an opengl window (experimental). " ++
+                                        renderHelp)))
+      <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
+
+renderHelp :: String
+renderHelp =
+  "\nAccepted synonyms of 'console' are 'ascii', 'term', 'terminal'." ++
+  "\nAccepted synonyms of 'opengl' are 'win', 'window'."
+
 backendArg :: ReadM BackendType
-backendArg = str >>= \s -> case toLower $ pack s of
+backendArg =
+  str >>= \s -> case toLower $ pack s of
     "ascii"        -> return Console
     "console"      -> return Console
     "term"         -> return Console
@@ -72,24 +98,6 @@ backendArg = str >>= \s -> case toLower $ pack s of
                     ++ show s
                     ++ "\nAccepted render types are 'console' and 'opengl'."
                     ++ renderHelp
-
-renderHelp :: String
-renderHelp =
-  "\nAccepted synonyms of 'console' are 'ascii', 'term', 'terminal'." ++
-  "\nAccepted synonyms of 'opengl' are 'win', 'window'."
-
-argsPickBackend :: IO (Maybe BackendType)
-argsPickBackend =
-  customExecParser p opts
-  where
-    opts = info (optional
-                  $ option backendArg (long "render"
-                                    <> short 'r'
-                                    <> help ("Use argument 'console' to play in the console. Use 'opengl' to play in an opengl window (experimental). " ++ renderHelp))
-                <**> helper)
-      ( fullDesc
-     <> progDesc "imj-game-hamazed-exe runs the 'Hamazed' game." )
-    p = prefs showHelpOnError
 
 userPicksBackend :: IO BackendType
 userPicksBackend = do
@@ -108,19 +116,19 @@ userPicksBackend = do
     '2' -> return OpenGLWindow
     _ -> userPicksBackend
 
-runWithBackend :: BackendType -> IO ()
-runWithBackend = \case
-  Console      -> newConsoleBackend >>= runWith
-  OpenGLWindow -> newOpenGLBackend "Hamazed" >>= runWith
+runWithBackend :: Maybe BackendType -> Bool -> IO ()
+runWithBackend maybeBackend debug =
+  maybe userPicksBackend return maybeBackend >>= \case
+    Console      -> newConsoleBackend >>= runWith debug
+    OpenGLWindow -> newOpenGLBackend "Hamazed" >>= runWith debug
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
-        => a -> IO ()
-runWith backend =
-  -- TODO simplify, backend is used 4 times!
+        => Bool -> a -> IO ()
+runWith debug backend =
   withDefaultPolicies (\drawEnv -> do
     sz <- getDiscreteSize backend
-    void (createState sz
+    void (createState sz debug
       >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
 
 loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
@@ -165,6 +173,6 @@ produceEvent canWait lastRenderTime = do
             return Nothing
 
       tryPlayer =
-        getPlayerKey >>= eventFromKey'
+        getPlayerKey >>= eventFromKey
 
   getNextDeadline lastRenderTime >>= maybe deadlineStarvation onDeadline

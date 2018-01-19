@@ -10,7 +10,6 @@ module Imj.Game.Hamazed.Level
     , drawLevelState
     , messageDeadline
     , getEventForDeadline
-    , eventFromKey'
     ) where
 
 import           Imj.Prelude
@@ -32,22 +31,6 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Input.Types
 import           Imj.Input.FromMonadReader
 import           Imj.Timing
-
-eventFromKey' :: (MonadState AppState m)
-              => Key -> m (Maybe Event)
-eventFromKey' key =
-  getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _ _) ->
-    case finished of
-      Nothing -> eventFromKey key
-      Just (LevelFinished stop _ ContinueMessage) -> return $ Just $
-        case stop of
-          Won -> if n < lastLevel
-                   then
-                     StartLevel (succ n)
-                   else
-                     EndGame
-          (Lost _) -> StartLevel firstLevel
-      _ -> return Nothing -- between level end and proposal to continue
 
 messageDeadline :: Level -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) =
@@ -78,7 +61,7 @@ eventWithinDurationMicros :: (MonadState AppState m, PlayerInput i, MonadReader 
                           => TimeSpec -> Int64 -> Deadline -> m (Maybe Event)
 eventWithinDurationMicros curTime durationMicros d =
   getCharWithinDurationMicros curTime durationMicros d >>= \case
-    Just key -> eventFromKey' key
+    Just key -> eventFromKey key
     _ -> return $ Just $ Timeout d
 
 {-# INLINABLE getCharWithinDurationMicros #-}

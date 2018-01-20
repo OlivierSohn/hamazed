@@ -28,6 +28,10 @@ import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 -- | Represents deadlines and event times.
 newtype KeyTime = KeyTime TimeSpec deriving(Eq, Ord, Show)
 
+-- TODO use these
+--data GameTime
+--data SystemTime
+
 -- | Converts a 'TimeSpec' difference to a number of microseconds.
 --
 -- If the difference is more than 536 seconds (2^29 / 10^6), or less than -536 seconds,

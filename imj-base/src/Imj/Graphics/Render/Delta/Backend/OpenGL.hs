@@ -31,9 +31,6 @@ import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Timing
 
-pixelPerUnit :: Int
-pixelPerUnit = 4
-
 data EventKey = EventKey !Key !Int !GLFW.KeyState !GLFW.ModifierKeys
 
 keyCallback :: TQueue EventKey -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
@@ -53,16 +50,20 @@ mkKeyPress k =
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: !GLFW.Window
   , _glfwKeyEvts :: !(TQueue EventKey)
+  , _ppu :: !Int
+  -- ^ Number of pixels per discrete unit length. Keep it even for best results.
+  , _windowSize :: !Size
+  -- ^ In number of pixels.
 }
 
 instance DeltaRenderBackend OpenGLBackend where
-    render (OpenGLBackend win _) = deltaRenderOpenGL win
+    render (OpenGLBackend win _ ppu size) = deltaRenderOpenGL win ppu size
 
-    cleanup (OpenGLBackend win _) = destroyWindow win
+    cleanup (OpenGLBackend win _ _ _) = destroyWindow win
 
-    getDiscreteSize _ =
-      return $ Just $ Size (fromIntegral $ quot winHeight pixelPerUnit)
-                           (fromIntegral $ quot winWidth pixelPerUnit)
+    getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w)) =
+      return $ Just $ Size (fromIntegral $ quot (fromIntegral h) pixelPerUnit)
+                           (fromIntegral $ quot (fromIntegral w) pixelPerUnit)
     {-# INLINABLE render #-}
     {-# INLINABLE getDiscreteSize #-}
 
@@ -72,7 +73,7 @@ instance DeltaRenderBackend OpenGLBackend where
 --
 -- If no key press was found, in 'getKey' we recurse.
 instance PlayerInput OpenGLBackend where
-  getKey (OpenGLBackend _ keyQueue) = do
+  getKey (OpenGLBackend _ keyQueue _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         fillQueue = liftIO GLFW.waitEvents
         readQueue =
@@ -81,7 +82,7 @@ instance PlayerInput OpenGLBackend where
             Nothing -> fillQueue >> readQueue
     readQueue
 
-  getKeyTimeout b@(OpenGLBackend _ keyQueue) callerTime allowedMicros = do
+  getKeyTimeout b@(OpenGLBackend _ keyQueue _ _) callerTime allowedMicros = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
     -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
     -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
@@ -102,25 +103,25 @@ instance PlayerInput OpenGLBackend where
               return Nothing)
       (return . Just)
 
-  tryGetKey (OpenGLBackend _ keyQueue) = do
+  tryGetKey (OpenGLBackend _ keyQueue _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         tryFillQueue = liftIO GLFW.pollEvents
     tryReadQueue >>= maybe
       (tryFillQueue >> tryReadQueue)
       (return . Just)
 
-  unGetKey (OpenGLBackend _ keyQueue) k =
+  unGetKey (OpenGLBackend _ keyQueue _ _) k =
     liftIO $ atomically $ unGetTQueue keyQueue $ mkKeyPress k
 
   -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
-  someInputIsAvailable (OpenGLBackend _ keyQueue) = do
+  someInputIsAvailable (OpenGLBackend _ keyQueue _ _) = do
     let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
         tryFillQueue = liftIO GLFW.pollEvents
     tryPeekQueue >>= maybe
       (tryFillQueue >> tryPeekQueue >>= return . isJust)
       (const $ return True)
 
-  programShouldEnd (OpenGLBackend win _) =
+  programShouldEnd (OpenGLBackend win _ _ _) =
     liftIO $ GLFW.windowShouldClose win
 
   {-# INLINABLE tryGetKey #-}
@@ -162,13 +163,8 @@ glfwKeyToKey GLFW.Key'Down  = Arrow Down
 glfwKeyToKey GLFW.Key'Up    = Arrow Up
 glfwKeyToKey _ = Unknown
 
-winWidth :: Int
-winHeight :: Int
-winWidth = 800
-winHeight = 480
-
-newOpenGLBackend :: String -> IO OpenGLBackend
-newOpenGLBackend title = do
+newOpenGLBackend :: String -> Int -> Size -> IO OpenGLBackend
+newOpenGLBackend title ppu size@(Size h w) = do
   let simpleErrorCallback e s =
         putStrLn $ unwords [show e, show s]
   GLFW.setErrorCallback $ Just simpleErrorCallback
@@ -178,10 +174,10 @@ newOpenGLBackend title = do
     True -> return ()
 
   keyEventsChan <- newTQueueIO :: IO (TQueue EventKey)
-  win <- createWindow winWidth winHeight title
+  win <- createWindow (fromIntegral w) (fromIntegral h) title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
-  return $ OpenGLBackend win keyEventsChan
+  return $ OpenGLBackend win keyEventsChan ppu size
 
 createWindow :: Int -> Int -> String -> IO GLFW.Window
 createWindow width height title = do
@@ -190,6 +186,7 @@ createWindow width height title = do
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
   m <- GLFW.createWindow width height title Nothing Nothing
   let win = fromMaybe (error "could not create GLFW window") m
+  GLFW.setCursorInputMode win GLFW.CursorInputMode'Disabled
   GLFW.makeContextCurrent (Just win)
 
   GL.clearColor GL.$= GL.Color4 0 0 0 1
@@ -208,10 +205,10 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
-deltaRenderOpenGL :: GLFW.Window -> Delta -> Dim Width -> IO (TimeSpec,TimeSpec)
-deltaRenderOpenGL _ (Delta delta) w = do
+deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> Delta -> Dim Width -> IO (TimeSpec,TimeSpec)
+deltaRenderOpenGL _ ppu size (Delta delta) w = do
   t1 <- getSystemTime
-  renderDelta delta w
+  renderDelta ppu size delta w
   t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
@@ -219,10 +216,12 @@ deltaRenderOpenGL _ (Delta delta) w = do
   t3 <- getSystemTime
   return (t2-t1,t3-t2)
 
-renderDelta :: Dyn.IOVector Cell
+renderDelta :: Int
+            -> Size
+            -> Dyn.IOVector Cell
             -> Dim Width
             -> IO ()
-renderDelta delta' w = do
+renderDelta ppu size delta' w = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
@@ -233,12 +232,12 @@ renderDelta delta' w = do
           c <- read delta $ fromIntegral index
           let (bg, fg, idx, char) = expandIndexed c
               (x,y) = xyFromIndex w idx
-          draw x y char bg fg
+          draw ppu size x y char bg fg
           renderDelta' $ succ index
   void (renderDelta' 0)
 
-draw :: Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
-draw col row char bg fg
+draw :: Int -> Size -> Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
+draw ppu size col row char bg fg
   | isHexDigit char = do
     let n = digitToInt char
         (d,d') = quotRem n 8
@@ -253,24 +252,24 @@ draw col row char bg fg
         let color
               | bit == 0 = colorOff
               | otherwise = colorOn
-        drawSquare (quot pixelPerUnit 2) (2 * fromIntegral col + dx)
-                                         (2 * fromIntegral row + dy) color)
+        drawSquare (quot ppu 2) size (2 * fromIntegral col + dx)
+                                     (2 * fromIntegral row + dy) color)
       $ zip locations bits
   | otherwise = do
   let (r,g,b) = if char == ' '
                   then color8ToUnitRGB bg
                   else color8ToUnitRGB fg
-  drawSquare pixelPerUnit (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
+  drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
 
 
-drawSquare :: Int -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
-drawSquare ppu c' r' color = do
+drawSquare :: Int -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
+drawSquare ppu (Size winHeight winWidth) c' r' color = do
   let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
       unit x = 2 * recip (fromIntegral $ quot x ppu)
       -- the +/- 0.5 are to place at pixel centers.
-      totalH = fromIntegral $ quot winHeight ppu
-      unitRow x = -1 + unit winHeight * ((totalH-x) - 0.5)
-      unitCol x = -1 + unit winWidth * (x + 0.5)
+      totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
+      unitRow x = -1 + unit (fromIntegral winHeight) * ((totalH-x) - 0.5)
+      unitCol x = -1 + unit (fromIntegral winWidth) * (x + 0.5)
 
       (r1,r2) = (unitRow r', unitRow (1 + r'))
       (c1,c2) = (unitCol c', unitCol (1 + c'))

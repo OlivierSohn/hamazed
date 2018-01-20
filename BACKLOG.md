@@ -1,6 +1,27 @@
+- make text visible in opengl
+- try round instead of square for walls.
+- make time scalable using a multiplicator. support changes from 1 to 0
+  use phantom type :
+    TimeSpec SystemTime
+    TimeSpec GameTime : should be used when adding periods
+
+- pause the game when hitting space. pause time also.
+
+- go back and forth in time.
+
+- add state transitions:
+
+  - hitting escape:
+
+  play -> quit the current game? yes / no -> configuration -> quit ? yes / no
+
+  - hitting space : play -> paused -> play
+
+should animations continue or should we pause them?
+if yes we should have a time offset in the state.
 
 - display debug infos in a nice way when using the terminal :
-overlay, 
+overlay,
 
 - store update time in deadlines, to replace "while we are under the budget"
   by "if curTimeSpent + foreseenTimeSpent < budget then update this deadline"

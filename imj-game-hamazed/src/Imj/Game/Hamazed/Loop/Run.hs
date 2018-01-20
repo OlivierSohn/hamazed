@@ -34,6 +34,7 @@ import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Input.Types
@@ -120,7 +121,7 @@ runWithBackend :: Maybe BackendType -> Bool -> IO ()
 runWithBackend maybeBackend debug =
   maybe userPicksBackend return maybeBackend >>= \case
     Console      -> newConsoleBackend >>= runWith debug
-    OpenGLWindow -> newOpenGLBackend "Hamazed" >>= runWith debug
+    OpenGLWindow -> newOpenGLBackend "Hamazed" 8 (Size 600 1200) >>= runWith debug
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)

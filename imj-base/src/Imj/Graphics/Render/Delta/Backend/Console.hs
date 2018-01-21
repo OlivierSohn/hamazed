@@ -38,7 +38,6 @@ import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 import           Imj.Input.Blocking
 import           Imj.Input.NonBlocking
-import           Imj.Timing
 
 
 data ConsoleBackend = ConsoleBackend !(TQueue Key)
@@ -56,9 +55,9 @@ instance PlayerInput ConsoleBackend where
     liftIO (atomically $ tryReadTQueue queue)
       >>= maybe (liftIO getKeyThenFlush) return
 
-  getKeyTimeout (ConsoleBackend queue) _ ms = do
+  getKeyTimeout (ConsoleBackend queue) _ duration = do
     fromQueue <- liftIO (atomically $ tryReadTQueue queue)
-    fromStdin <- liftIO (timeout (fromIntegral ms) getKeyThenFlush)
+    fromStdin <- liftIO (timeout (fromIntegral $ toMicros duration) getKeyThenFlush)
     return $ fromQueue <|> fromStdin
 
   tryGetKey (ConsoleBackend queue) = do
@@ -126,7 +125,7 @@ configureConsoleFor config stdoutMode =
               (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
-deltaRenderConsole :: Delta -> Dim Width -> IO (TimeSpec, TimeSpec)
+deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -142,7 +141,7 @@ deltaRenderConsole (Delta delta) w = do
   t2 <- getSystemTime
   hFlush stdout -- TODO is flush blocking? slow? could it be async?
   t3 <- getSystemTime
-  return (t2-t1, t3-t2)
+  return (t1...t2, t2...t3)
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width

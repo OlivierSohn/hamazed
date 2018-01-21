@@ -23,7 +23,7 @@ import           Imj.Timing
 
 -- | A foreseen game or animation update.
 data Deadline = Deadline {
-    _deadlineTime :: !KeyTime
+    _deadlineTime :: !(Time Point System)
     -- ^ At which time should the update become visible to the user.
   , _deadlinePriority :: !Int
   , _deadlineType :: !DeadlineType
@@ -32,7 +32,7 @@ data Deadline = Deadline {
 data DeadlineType = MoveFlyingItems
                   -- ^ Move 'Number's and 'BattleShip' according to their current
                   -- speeds.
-                  | AnimateParticleSystems
+                  | AnimateParticleSystem ParticleSystemKey
                   -- ^ Update one or more 'ParticleSystem's.
                   | DisplayContinueMessage
                   -- ^ Show the /Hit a key to continue/ message

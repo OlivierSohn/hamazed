@@ -19,6 +19,7 @@ module Imj.Util
     , mkRangeSingleton
     , extendRange
     , diameter
+    , onBounds
     -- * Reexports
     , Int64
     ) where
@@ -134,6 +135,11 @@ data Range a = Range {
     _rangeMin :: !a
   , _rangeMax :: !a
 }
+
+{-# INLINE onBounds #-}
+onBounds :: (a -> a -> b) -> Range a -> b
+onBounds diam (Range rMin rMax) =
+  diam rMin rMax
 
 {-# INLINE mkRangeSingleton #-}
 mkRangeSingleton :: a -> Range a

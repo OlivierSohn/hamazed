@@ -39,7 +39,6 @@ import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Input.Types
 import           Imj.Input.FromMonadReader
-import           Imj.Timing
 
 {- | Runs the Hamazed game.
 
@@ -135,9 +134,7 @@ runWith debug backend =
 loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
      => m ()
 loop = do
-  canWait <- not <$> hasVisibleNonRenderedUpdates
-  lastRenderTime <- getLastRenderTime
-  produceEvent canWait lastRenderTime >>= \case
+  produceEvent >>= \case
     (Just (Interrupt _ )) -> return ()
     mayEvt -> playerEndsProgram >>= \case
       True -> return ()
@@ -146,12 +143,12 @@ loop = do
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
-             => Bool
-             -> TimeSpec
-             -> m (Maybe Event)
-produceEvent canWait lastRenderTime = do
+             => m (Maybe Event)
+produceEvent = do
+  canWait <- not <$> hasVisibleNonRenderedUpdates
+  lastRenderTime <- getLastRenderTime
   hasPlayer <- hasPlayerKey
-  let onDeadline d@(Deadline (KeyTime deadlineTime) priority _)
+  let onDeadline d@(Deadline deadlineTime priority _)
        |preferPlayer && hasPlayer = tryPlayer -- won't block
        |deadlineIsOverdue = return $ Just $ Timeout d
        |otherwise =

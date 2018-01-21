@@ -51,7 +51,7 @@ mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState =
       newShotNums = []
       screen@(Screen _ newScreenCenter) = mkScreen maySz
   newWorld <- mkWorld newSize wallType numbers newAmmo
-  kt <- KeyTime <$> liftIO getSystemTime
+  kt <- liftIO getSystemTime
   liftIO $ validateScreen screen
   let (curWorld@(World _ _ (Space _ curSz _) _), curScreenCenter, level, ammo, shotNums) =
         maybe

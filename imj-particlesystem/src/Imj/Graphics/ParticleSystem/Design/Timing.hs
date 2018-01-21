@@ -4,11 +4,15 @@
 
 module Imj.Graphics.ParticleSystem.Design.Timing
     ( particleSystemPeriod
+    , ParticleSyst
     ) where
 
-import           Imj.Prelude
+import           Imj.Timing
 
 -- | The console can refresh at approx. 21 fps, hence this value seems
 -- appropriate (1/25 second)
-particleSystemPeriod :: Float
-particleSystemPeriod = 0.04
+{-# INLINE particleSystemPeriod #-}
+particleSystemPeriod :: Time Duration ParticleSyst
+particleSystemPeriod = fromSecs 0.04
+
+data ParticleSyst

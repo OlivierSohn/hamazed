@@ -100,10 +100,7 @@ defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
 laserShot :: LaserRay Actual
           -- ^ The laser ray
           -> (Frame -> LayeredColor)
-          -> Either TimeSpec KeyTime
-          -- ^ 'Right' 'KeyTime' of the event's deadline
-          -- that triggered this call, or 'Left' 'TimeSpec'
-          -- of the current time if a player action triggered this call
+          -> Time Point ParticleSyst
           -> Maybe ParticleSystem
 laserShot ray@(LaserRay _ start len) colors keyTime
   | len == 0  = Nothing
@@ -124,8 +121,8 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
-                                         -> Either TimeSpec KeyTime
-                                         -- ^ 'Right' 'KeyTime' of the event's deadline
+                                         -> Time Point ParticleSyst
+                                         -- ^ 'Right' 'Time' of the event's deadline
                                          -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> Maybe ParticleSystem
@@ -147,8 +144,8 @@ expandShrinkPolygon :: Int
                     -> Speed
                     -> EnvFunctions
                     -- ^ ParticleSystem speed
-                    -> Either TimeSpec KeyTime
-                    -- ^ 'Right' 'KeyTime' of the event's deadline
+                    -> Time Point ParticleSyst
+                    -- ^ 'Right' 'Time' of the event's deadline
                     -- that triggered this call, or 'Left' 'TimeSpec'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
@@ -169,8 +166,8 @@ simpleExplosion :: Int
                 -> Speed
                 -- ^ ParticleSystem speed
                 -> EnvFunctions
-                -> Either TimeSpec KeyTime
-                -- ^ 'Right' 'KeyTime' of the event's deadline
+                -> Time Point ParticleSyst
+                -- ^ 'Right' 'Time' of the event's deadline
                 -- that triggered this call, or 'Left' 'TimeSpec'
                 -- of the current time if a player action triggered this call
                 -> Maybe ParticleSystem
@@ -192,8 +189,8 @@ fragmentsFreeFall :: Vec2 Vel
                   -> Speed
                   -- ^ ParticleSystem speed
                   -> EnvFunctions
-                  -> Either TimeSpec KeyTime
-                  -- ^ 'Right' 'KeyTime' of the event's deadline
+                  -> Time Point ParticleSyst
+                  -- ^ 'Right' 'Time' of the event's deadline
                   -- that triggered this call, or 'Left' 'TimeSpec'
                   -- of the current time if a player action triggered this call
                   -> [ParticleSystem]
@@ -217,8 +214,8 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
-                                         -> Either TimeSpec KeyTime
-                                         -- ^ 'Right' 'KeyTime' of the event's deadline
+                                         -> Time Point ParticleSyst
+                                         -- ^ 'Right' 'Time' of the event's deadline
                                          -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> [ParticleSystem]
@@ -243,8 +240,8 @@ freeFall :: Vec2 Vel
          -> Speed
          -- ^ ParticleSystem speed
          -> EnvFunctions
-         -> Either TimeSpec KeyTime
-         -- ^ 'Right' 'KeyTime' of the event's deadline
+         -> Time Point ParticleSyst
+         -- ^ 'Right' 'Time' of the event's deadline
          -- that triggered this call, or 'Left' 'TimeSpec'
          -- of the current time if a player action triggered this call
          -> Maybe ParticleSystem
@@ -271,8 +268,8 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -> Speed
                                 -- ^ ParticleSystem speed
                                 -> EnvFunctions
-                                -> Either TimeSpec KeyTime
-                                -- ^ 'Right' 'KeyTime' of the event's deadline
+                                -> Time Point ParticleSyst
+                                -- ^ 'Right' 'Time' of the event's deadline
                                 -- that triggered this call, or 'Left' 'TimeSpec'
                                 -- of the current time if a player action triggered this call
                                 -> Maybe ParticleSystem
@@ -301,8 +298,8 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -> Speed
                              -- ^ ParticleSystem speed
                              -> EnvFunctions
-                             -> Either TimeSpec KeyTime
-                             -- ^ 'Right' 'KeyTime' of the event's deadline
+                             -> Time Point ParticleSyst
+                             -- ^ 'Right' 'Time' of the event's deadline
                              -- that triggered this call, or 'Left' 'TimeSpec'
                              -- of the current time if a player action triggered this call
                              -> [ParticleSystem]
@@ -331,8 +328,8 @@ freeFallThenExplode :: Vec2 Vel
                     -> Speed
                     -- ^ ParticleSystem speed
                     -> EnvFunctions
-                    -> Either TimeSpec KeyTime
-                    -- ^ 'Right' 'KeyTime' of the event's deadline
+                    -> Time Point ParticleSyst
+                    -- ^ 'Right' 'Time' of the event's deadline
                     -- that triggered this call, or 'Left' 'TimeSpec'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem

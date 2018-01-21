@@ -34,7 +34,7 @@ import           Imj.Timing
 -- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {
     _uiAnimationEvs :: !UIEvolutions
-  , _uiAnimationDeadline :: !(Maybe KeyTime)
+  , _uiAnimationDeadline :: !(Maybe (Time Point System))
   -- ^ Time at which the 'UIEvolutions' should be rendered and updated
   , _uiAnimationProgress :: !Iteration
   -- ^ Current 'Iteration'.
@@ -54,7 +54,7 @@ data UIEvolutions = UIEvolutions {
 } deriving(Show)
 
 
-getUIAnimationDeadline :: UIAnimation -> Maybe KeyTime
+getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
 getUIAnimationDeadline (UIAnimation _ mayDeadline _) =
   mayDeadline
 
@@ -88,7 +88,7 @@ moveContainerEvolution ev' offset =
 
 
 -- | Compute the time interval between the current frame and the next.
-getDeltaTime :: UIEvolutions -> Frame -> Maybe Float
+getDeltaTime :: UIEvolutions -> Frame -> Maybe (Time Duration System)
 getDeltaTime we@(UIEvolutions containerEvolution (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
   in getDeltaTimeToNextFrame containerEvolution relFrameFrameE
@@ -113,7 +113,7 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive Co
               -- ^ To
               -> Length Width
               -> Length Height
-              -> KeyTime
+              -> Time Point System
               -- ^ Time at which the animation starts
               -> UIAnimation
 mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
@@ -145,7 +145,7 @@ createUITextAnimations :: RectContainer
                        -- ^ Upper text, Lower text, Left texts
                        -> Length Width
                        -> Length Height
-                       -> Float
+                       -> Time Duration System
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDistance duration =
     let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
@@ -170,7 +170,7 @@ mkTextAnimRightAligned :: Coords Pos
                        -- ^ Each 'Successive' is expected to be of length 1 or more.
                        -> Int
                        -- ^ Interline spaces
-                       -> Float
+                       -> Time Duration System
                        -- ^ The duration of the animation
                        -> TextAnimation AnchorStrings
 mkTextAnimRightAligned refFrom refTo listTxts interline duration =
@@ -195,7 +195,7 @@ mkTextAnimCenteredUpDown :: (Coords Pos, Coords Pos)
                          -> (Coords Pos, Coords Pos)
                          -> (Successive ColorString, Successive ColorString)
                          -- ^ If one 'Successive' has a 0 length, the animation will be empty.
-                         -> Float
+                         -> Time Duration System
                          -> TextAnimation AnchorChars
 mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo)
   (sUp@(Successive txtUppers), sLow@(Successive txtLowers))

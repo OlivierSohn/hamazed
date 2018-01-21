@@ -92,12 +92,10 @@ module Imj.Game.Hamazed
       , MetaAction(..)
         -- * GameState
       , GameState(..)
-        -- * Environment
-        {- | -}
-      , module Imj.Game.Hamazed.Env
         -- * Keyboard layout
       , eventFromKey
         -- * Reexport
+      , module Imj.Game.Hamazed.Env
       , module Imj.Game.Hamazed.World
       , UIAnimation(..)
       ) where

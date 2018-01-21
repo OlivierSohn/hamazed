@@ -1,10 +1,7 @@
+- make game time scalable using a multiplicator. support changes from 1 to 0
+
 - make text visible in opengl
 - try round instead of square for walls.
-- make time scalable using a multiplicator. support changes from 1 to 0
-  use phantom type :
-    TimeSpec SystemTime
-    TimeSpec GameTime : should be used when adding periods
-
 - pause the game when hitting space. pause time also.
 
 - go back and forth in time.

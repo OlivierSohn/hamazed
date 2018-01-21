@@ -153,11 +153,11 @@ accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
-moveWorld :: KeyTime
+moveWorld :: Time Point System
           -- ^ The current time
           -> World
           -> World
-moveWorld (KeyTime curTime) (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims) =
+moveWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims) =
   let newSafeTime = case safeTime of
         (Just t) -> if curTime > t
                       then
@@ -203,7 +203,7 @@ checkTargetAndAmmo :: Int
                    -- ^ The current sum of all shot 'Numbers'
                    -> Int
                    -- ^ The 'Level' 's target number.
-                   -> TimeSpec
+                   -> Time Point System
                    -- ^ The current time
                    -> Maybe LevelFinished
 checkTargetAndAmmo ammo sumNumbers target t =

@@ -23,6 +23,7 @@ module Imj.Game.Hamazed.State.Types
       -- * Modify
       , putGame
       , putUserIntent
+      , takeKey
       -- * reexports
       , MonadState
       , TimeSpec
@@ -45,13 +46,14 @@ data Occurences a = Occurences {
 }
 
 data AppState  = AppState {
-    _appStateTimeAfterRender :: !TimeSpec
+    _appStateTimeAfterRender :: !(Time Point System)
   , _appStateGame :: !Game
   , _appStateEvents :: !EventGroup
   , _appStateEventHistory :: !OccurencesHist
   -- ^ Can record which events where handled.
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
+  , getNextParticleSystemKey :: !ParticleSystemKey
   , _appStateDebug :: !Bool
   -- ^ Print times and group information in the terminal.
 }
@@ -68,7 +70,7 @@ data OccurencesHist = OccurencesHist {
 data EventRepr = Laser'
                | Ship'
                | MoveFlyingItems'
-               | AnimateParticleSystems'
+               | AnimateParticleSystem'
                | DisplayContinueMessage'
                | AnimateUI'
                | StartLevel'
@@ -85,13 +87,11 @@ data EventRepr = Laser'
 
 {-# INLINABLE getGame #-}
 getGame :: MonadState AppState m => m Game
-getGame =
-  get >>= \(AppState _ g _ _ _ _) -> return g
+getGame = get >>= \(AppState _ g _ _ _ _ _) -> return g
 
 {-# INLINABLE getGameState #-}
 getGameState :: MonadState AppState m => m GameState
-getGameState =
-  getGame >>= \(Game _ _ s) -> return s
+getGameState = getGame >>= \(Game _ _ s) -> return s
 
 {-# INLINABLE getMode #-}
 getMode :: MonadState AppState m => m ViewMode
@@ -109,15 +109,19 @@ getCurScreen =
   getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ screen)) -> return screen
 
 {-# INLINABLE getLastRenderTime #-}
-getLastRenderTime :: MonadState AppState m => m TimeSpec
-getLastRenderTime =
-  get >>= \(AppState t _ _ _ _ _) -> return t
+getLastRenderTime :: MonadState AppState m => m (Time Point System)
+getLastRenderTime = get >>= \(AppState t _ _ _ _ _ _) -> return t
 
 {-# INLINABLE putGame #-}
 putGame :: MonadState AppState m => Game -> m ()
-putGame g =
-  get >>= \(AppState a _ e r h d) ->
-    put $ AppState a g e r h d
+putGame g = get >>= \(AppState a _ e r h d f) ->
+  put $ AppState a g e r h d f
+
+{-# INLINABLE takeKey #-}
+takeKey :: MonadState AppState m => m ParticleSystemKey
+takeKey = get >>= \(AppState a b c d e key f) -> do
+  put $ AppState a b c d e (succ key) f
+  return key
 
 putUserIntent :: MonadState AppState m => UserIntent -> m ()
 putUserIntent i =
@@ -126,7 +130,7 @@ putUserIntent i =
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool
 hasVisibleNonRenderedUpdates =
-  get >>= \(AppState _ _ group _ _ _) -> return $ visible group
+  get >>= \(AppState _ _ group _ _ _ _) -> return $ visible group
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}

@@ -11,11 +11,13 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.List( foldl' )
+import           Data.Map.Strict(Map, empty, fromList)
 import           Data.Maybe( isNothing )
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
@@ -30,8 +32,8 @@ The ship 'ParticleSystem' will have the initial speed of the number and vice-ver
 to mimic the rebound due to the collision. -}
 shipParticleSystems :: (MonadState AppState m)
                     => World
-                    -> KeyTime
-                    -> m [Prioritized ParticleSystem]
+                    -> Time Point System
+                    -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
 shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _) k =
   if not (null collisions) && isNothing safeTime
     then do
@@ -43,10 +45,14 @@ shipParticleSystems world@(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _
           color i = if even i
                       then cycleOuterColors1
                       else cycleWallColors2
+          k' = systemTimePointToParticleSystemTimePoint k
       envFuncs <- envFunctions world (WorldScope Air)
+      keys <- forever takeKey
       return
+        $ fromList
+        $ zip keys
         $ map (Prioritized particleSystDefaultPriority)
-        $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs (Right k) ++
-          fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs (Right k)
+        $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
+          fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
     else
-      return []
+      return empty

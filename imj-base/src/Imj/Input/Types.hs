@@ -6,9 +6,8 @@ module Imj.Input.Types
     ( Key(..)
     , PlayerInput(..)
     -- * reexports
-    , Int64
-    , TimeSpec
     , MonadIO
+    , module Imj.Timing
     ) where
 
 
@@ -48,10 +47,10 @@ class PlayerInput a where
 
   getKeyTimeout :: (MonadIO m)
                 => a
-                -> TimeSpec
+                -> Time Point System
                 -- ^ Current time measured by the caller.
-                -> Int64
-                -- ^ A timeout in microseconds.
+                -> Time Duration System
+                -- ^ A delta time
                 -> m (Maybe Key)
                 -- ^ Nothing when the timeout was reached.
 

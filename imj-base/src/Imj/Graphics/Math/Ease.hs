@@ -71,9 +71,9 @@ Hence, the formulas for 'invQuartEaseInOut' are :
 \]
 
  -}
-invQuartEaseInOut :: Float
+invQuartEaseInOut :: Double
                   -- ^ Value : \( y \)
-                  -> Float
+                  -> Double
                   -- ^ Time : \( t \)
 invQuartEaseInOut y =
   if y < 0.5
@@ -83,13 +83,13 @@ invQuartEaseInOut y =
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
 
 -- | Adapts continuous inout ease functions to the discrete case.
-discreteAdaptor :: (Float -> Float)
+discreteAdaptor :: (Double -> Double)
                 -- ^ Continuous (optionally inverse) ease in/out function
                 -> Int
                 -- ^ The number of discrete steps
-                -> Float
+                -> Double
                 -- ^ Input value
-                -> Float
+                -> Double
                 -- ^ (optionnaly inverse) Eased value
 discreteAdaptor f n v =
   -- We use the center of the intervals instead of the extremities.
@@ -104,8 +104,8 @@ discreteAdaptor f n v =
 -- given a 4th order ease in-out function, and a total number of discrete steps.
 discreteInvQuartEaseInOut :: Int
                           -- ^ The number of discrete steps
-                          -> Float
+                          -> Double
                           -- ^ Value
-                          -> Float
+                          -> Double
                           -- ^ Time
 discreteInvQuartEaseInOut = discreteAdaptor invQuartEaseInOut

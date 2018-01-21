@@ -28,11 +28,11 @@ import           Imj.Timing
 --   Then, resizes the context if needed (see 'ResizePolicy')
 --   and clears the back buffer (see 'ClearPolicy').
 deltaFlush :: IORef Buffers
-           -> (Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
+           -> (Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
            -- ^ rendering function
            -> IO (Maybe Size)
            -- ^ get discrete size function
-           -> IO (TimeSpec, TimeSpec, TimeSpec)
+           -> IO (Time Duration System, Time Duration System, Time Duration System)
 deltaFlush ref renderFunc sizeFunc =
   readIORef ref
   >>= \buffers@(Buffers _ _ _ _ _ policies) -> do
@@ -53,10 +53,10 @@ data RenderMode = DeltaMode | FullMode
 -- | Note that the 'Scissor' is not taken into account here.
 -- We could take it into account, if needed.
 render :: RenderMode
-       -> (Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
+       -> (Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
        -- ^ rendering function
        -> Buffers
-       -> IO (TimeSpec, TimeSpec, TimeSpec)
+       -> IO (Time Duration System, Time Duration System, Time Duration System)
 render mode renderFunc buffers@(Buffers (Buffer b) _ width _ d@(Delta delta) _) = do
   t1 <- getSystemTime
   case mode of
@@ -73,7 +73,7 @@ render mode renderFunc buffers@(Buffers (Buffer b) _ width _ d@(Delta delta) _) 
 
   (dtCommands, dtFlush) <- renderFunc d width
   Dyn.clear delta
-  return (t2-t1, dtCommands, dtFlush)
+  return (t1...t2, dtCommands, dtFlush)
 
 
 computeDelta :: Buffers

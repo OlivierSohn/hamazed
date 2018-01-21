@@ -34,9 +34,11 @@ import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Flush
 import           Imj.Graphics.Render.Delta.Types
 
+import           Imj.Timing
+
 data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
-  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (TimeSpec, TimeSpec))
+  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
   , _deltaEnvTargetSize :: !(IO (Maybe Size))
 }
 
@@ -69,7 +71,7 @@ instance Render DeltaEnv where
 
 class DeltaRenderBackend a where
     -- | returns (duration to issue commands, duration to flush)
-    render :: a -> Delta -> Dim Width -> IO (TimeSpec, TimeSpec)
+    render :: a -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
     cleanup :: a -> IO ()
     getDiscreteSize :: a -> IO (Maybe Size)
 

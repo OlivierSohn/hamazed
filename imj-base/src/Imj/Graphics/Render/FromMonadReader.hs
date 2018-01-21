@@ -34,6 +34,7 @@ import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
+import           Imj.Timing
 
 
 -- | Executes actions in context of a given 'Scissor'.
@@ -134,6 +135,6 @@ getTargetSize =
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m (TimeSpec, TimeSpec, TimeSpec)
+               => m (Time Duration System, Time Duration System, Time Duration System)
 renderToScreen =
   join (asks renderToScreen')

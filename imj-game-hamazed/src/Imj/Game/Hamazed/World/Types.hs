@@ -2,9 +2,11 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.World.Types
         ( World(..)
+        , ParticleSystemKey(..)
         , startWorld
         , WallDistribution(..)
         , WorldShape(..)
@@ -32,6 +34,8 @@ module Imj.Game.Hamazed.World.Types
 
 import           Imj.Prelude
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
+
+import           Data.Map.Strict(Map)
 
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space.Types
@@ -68,14 +72,16 @@ data World = World {
     -- ^ The player's 'BattleShip'
   , _worldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , _worldParticleSystems :: ![Prioritized ParticleSystem]
-    -- ^ They don't have an influence on the game, they are just here
-    -- for aesthetics.
+  , _worldParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
+    -- ^ Animated particle systems, illustrating player actions and important game events.
 }
 
-startWorld :: KeyTime -> World -> World
-startWorld (KeyTime t) (World a (BattleShip ship ammo _ col) b c) =
-  World a (BattleShip ship ammo (Just $ (secondsToTimeSpec 5) + t) col) b c
+newtype ParticleSystemKey = ParticleSystemKey Int
+  deriving (Eq, Ord, Enum, Show)
+
+startWorld :: Time Point System -> World -> World
+startWorld t (World a (BattleShip ship ammo _ col) b c) =
+  World a (BattleShip ship ammo (Just $ addDuration (fromSecs 5) t) col) b c
 
 
 data ViewMode = CenterShip
@@ -94,7 +100,7 @@ data BattleShip = BattleShip {
   -- ^ Discrete position and speed.
   , _shipAmmo :: !Int
   -- ^ How many laser shots are left.
-  , _shipSafeUntil :: !(Maybe TimeSpec)
+  , _shipSafeUntil :: !(Maybe (Time Point System))
   -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
   -- for a given time. This field holds the time at which the immunity ends.
   , _shipCollisions :: ![Number]

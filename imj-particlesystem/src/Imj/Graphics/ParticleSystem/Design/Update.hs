@@ -20,7 +20,7 @@ import           Imj.Timing
 -- TODO monitor the drift between current time and deadline time.
 -- | We chose not to base the next deadline time on the time of the previous deadline,
 -- so as to leave the liberty to the user of the library to adjust timing.
-updateParticleSystem :: TimeSpec
+updateParticleSystem :: Time Point ParticleSyst
                      -- ^ Time from which we should base the next deadline on.
                      -- In most cases, this should be the current time.
                      -> ParticleSystem
@@ -32,7 +32,7 @@ updateParticleSystem t
   in if hasActiveParticles newPoints
        then
          Just $ ParticleSystem newPoints update interaction
-              $ UpdateSpec (addDuration particleSystemPeriod (KeyTime t)) (nextIteration it)
+              $ UpdateSpec (addDuration particleSystemPeriod t) (nextIteration it)
        else
          Nothing
 
@@ -44,6 +44,6 @@ hasActiveParticles (ParticleTree (Just branches) _ _) =
       childrenActive = map hasActiveParticles children
   in (not . null) activeCoordinates || or childrenActive
 
--- | Returns the time at which an 'ParticleSystem' should be updated.
-getDeadline :: ParticleSystem -> KeyTime
+-- | Returns the time at which a 'ParticleSystem' should be updated.
+getDeadline :: ParticleSystem -> Time Point ParticleSyst
 getDeadline (ParticleSystem _ _ _ (UpdateSpec k _)) = k

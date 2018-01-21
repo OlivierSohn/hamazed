@@ -11,6 +11,7 @@ module Imj.Game.Hamazed.World.Create
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
+import           Data.Map.Strict(empty)
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
@@ -35,7 +36,7 @@ mkWorld s walltype nums ammo = do
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
   balls <- mapM (createRandomNumber space) nums
   ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space []
+  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space empty
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

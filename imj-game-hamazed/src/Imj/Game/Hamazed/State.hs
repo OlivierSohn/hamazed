@@ -53,7 +53,7 @@ representation (Interrupt _)    = Interrupt'
 representation (Action Laser _) = Laser'
 representation (Action Ship _)  = Ship'
 representation (Timeout (Deadline _ _ MoveFlyingItems))        = MoveFlyingItems'
-representation (Timeout (Deadline _ _ AnimateParticleSystems)) = AnimateParticleSystems'
+representation (Timeout (Deadline _ _ (AnimateParticleSystem _))) = AnimateParticleSystem'
 representation (Timeout (Deadline _ _ DisplayContinueMessage)) = DisplayContinueMessage'
 representation (Timeout (Deadline _ _ AnimateUI))              = AnimateUI'
 representation ToggleEventRecording = ToggleEventRecording'
@@ -68,7 +68,7 @@ reprToCS Interrupt'  = colored "I" yellow
 reprToCS Laser'      = colored "L" cyan
 reprToCS Ship'       = colored "S" blue
 reprToCS MoveFlyingItems'        = colored "M" green
-reprToCS AnimateParticleSystems' = colored "P" blue
+reprToCS AnimateParticleSystem' = colored "P" blue
 reprToCS DisplayContinueMessage' = colored "C" white
 reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
@@ -95,21 +95,21 @@ handleEvent e = do
       t1 <- liftIO getSystemTime
       update evt
       t2 <- liftIO getSystemTime
-      addUpdateTime (t2 - t1))
+      addUpdateTime $ t1...t2)
     e
 
 {-# INLINE addUpdateTime #-}
 addUpdateTime :: MonadState AppState m
-              => TimeSpec -> m ()
+              => Time Duration System -> m ()
 addUpdateTime add =
-  get >>= \(AppState t a (EventGroup d e prevT f) b c de) ->
-    put $ AppState t a (EventGroup d e (add + prevT) f) b c de
+  get >>= \(AppState t a (EventGroup d e prevT f) b c g de) ->
+    put $ AppState t a (EventGroup d e (add + prevT) f) b c g de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
                                           => Maybe Event -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt = do
-  get >>= \(AppState prevTime game prevGroup b c d) -> do
+  get >>= \(AppState prevTime game prevGroup b c d e) -> do
     let onRender = do
           debug >>= \case
             True -> liftIO $ putStr $ groupStats prevGroup
@@ -121,7 +121,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt = do
     liftIO (tryGrow evt prevGroup) >>= maybe
       (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
       (return . (,) prevTime)
-    >>= \(t,g) -> put $ AppState t game g b c d
+    >>= \(t,g) -> put $ AppState t game g b c d e
 
 
 groupStats :: EventGroup -> String
@@ -146,7 +146,7 @@ renderAll =
     zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
     (dtDelta, dtCmds, dtFlush) <- renderToScreen
     debug >>= \case
-      True -> liftIO $ putStrLn $ " d " ++ showTime (t2 - t1)
+      True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
                                 ++ " de " ++ showTime dtDelta
                                 ++ " cmd " ++ showTime dtCmds
                                 ++ " fl " ++ showTime dtFlush
@@ -156,7 +156,7 @@ renderAll =
 getRenderable :: MonadState AppState m
               => m (GameState, [ColorString])
 getRenderable =
-  get >>= \(AppState _ (Game _ _ gameState) _ h r _) -> do
+  get >>= \(AppState _ (Game _ _ gameState) _ h r _ _) -> do
     let strs = case r of
               Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
               DontRecord -> []
@@ -166,27 +166,27 @@ getRenderable =
 getRecording :: MonadState AppState m
              => m RecordMode
 getRecording = do
-  (AppState _ _ _ _ record _) <- get
+  (AppState _ _ _ _ record _ _) <- get
   return record
 
 addEvent :: Event -> AppState -> ((), AppState)
-addEvent e (AppState t g evts es r d) =
+addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (representation e) es
-  in ((), AppState t g evts es' r d)
+  in ((), AppState t g evts es' r b d)
 
 toggleRecordEvent :: AppState -> ((), AppState)
-toggleRecordEvent (AppState t g e _ r d) =
+toggleRecordEvent (AppState t g e _ r b d) =
   let r' = case r of
         Record -> DontRecord
         DontRecord -> Record
-  in ((), AppState t g e mkEmptyOccurencesHist r' d)
+  in ((), AppState t g e mkEmptyOccurencesHist r' b d)
 
 addIgnoredOverdues :: MonadState AppState m
                    => Int -> m ()
 addIgnoredOverdues n =
-  get >>= \(AppState t a e hist record d) -> do
+  get >>= \(AppState t a e hist record b d) -> do
     let hist' = iterate (addEventRepr IgnoredOverdue) hist !! n
-    put $ AppState t a e hist' record d
+    put $ AppState t a e hist' record b d
 
 toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
@@ -207,13 +207,13 @@ createState :: Maybe Size -> Bool -> IO AppState
 createState ms dbg = do
   game <- initialGame ms
   t <- getSystemTime
-  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord dbg
+  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 
 
 {-# INLINABLE debug #-}
 debug :: MonadState AppState m => m Bool
 debug =
-  get >>= \(AppState _ _ _ _ _ d) -> return d
+  get >>= \(AppState _ _ _ _ _ _ d) -> return d
 
 toColorStr' :: Occurences EventRepr -> ColorString
 toColorStr' (Occurences n e) =

@@ -10,6 +10,7 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 
 import           Imj.Prelude hiding((<>))
 import           Prelude(putStrLn, length)
+
 import           Control.Concurrent.STM
                   (TQueue,
                   atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
@@ -29,7 +30,6 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
-import           Imj.Timing
 
 data EventKey = EventKey !Key !Int !GLFW.KeyState !GLFW.ModifierKeys
 
@@ -82,11 +82,11 @@ instance PlayerInput OpenGLBackend where
             Nothing -> fillQueue >> readQueue
     readQueue
 
-  getKeyTimeout b@(OpenGLBackend _ keyQueue _ _) callerTime allowedMicros = do
+  getKeyTimeout b@(OpenGLBackend _ keyQueue _ _) callerTime allowed = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
     -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
     -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
-        tryFillQueue = liftIO $ GLFW.waitEventsTimeout (fromIntegral allowedMicros / 1000000)
+        tryFillQueue = liftIO $ GLFW.waitEventsTimeout $ toSecs allowed
     tryReadQueue >>= maybe
       (tryFillQueue >> tryReadQueue >>= \case
         Just k -> return $ Just k
@@ -95,10 +95,10 @@ instance PlayerInput OpenGLBackend where
           -- or the glfw event was not a key event) or there was a key repeat or key release
           -- event in the queue.
           now <- liftIO getSystemTime
-          let elapsedMicros = diffTimeSecToMicros now callerTime
-          if elapsedMicros < allowedMicros
+          let elapsed = callerTime...now
+          if elapsed < allowed
             then
-              getKeyTimeout b now (allowedMicros - elapsedMicros)
+              getKeyTimeout b now $ allowed - elapsed
             else
               return Nothing)
       (return . Just)
@@ -205,7 +205,7 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
-deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> Delta -> Dim Width -> IO (TimeSpec,TimeSpec)
+deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
 deltaRenderOpenGL _ ppu size (Delta delta) w = do
   t1 <- getSystemTime
   renderDelta ppu size delta w
@@ -214,7 +214,7 @@ deltaRenderOpenGL _ ppu size (Delta delta) w = do
   -- in single-buffer mode, we use glFinish:
   GL.finish
   t3 <- getSystemTime
-  return (t2-t1,t3-t2)
+  return (t1...t2,t2...t3)
 
 renderDelta :: Int
             -> Size

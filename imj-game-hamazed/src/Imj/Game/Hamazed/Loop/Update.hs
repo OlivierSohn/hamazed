@@ -11,7 +11,8 @@ module Imj.Game.Hamazed.Loop.Update
 
 import           Imj.Prelude
 
-import           Data.Maybe(catMaybes, isNothing)
+import           Data.Map.Strict(updateWithKey, Map, empty, singleton, fromList, union, unions)
+import           Data.Maybe(isNothing)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
@@ -51,7 +52,8 @@ update evt =
     \(Game mode params
       state@(GameState b world@(World c d space systems) futWorld f h@(Level level target mayLevelFinished) anim s)) -> do
     t <- liftIO getSystemTime
-    let onConfigParams x =
+    let tps = systemTimePointToParticleSystemTimePoint t
+        onConfigParams x =
           getTargetSize
             >>= liftIO . initialGameState x
             >>= putGame . Game Configure x
@@ -64,7 +66,7 @@ update evt =
           (Timeout (Deadline gt _ AnimateUI)) -> do
             let st@(GameState _ _ _ _ _ anims _) = updateAnim gt state
             if isFinished anims
-              then return $ startGameState (KeyTime t) st
+              then return $ startGameState t st
               else return st
           (Timeout (Deadline _ _ DisplayContinueMessage)) ->
             return $ case mayLevelFinished of
@@ -72,14 +74,15 @@ update evt =
                 let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
                 in GameState b world futWorld f newLevel anim s
               Nothing -> state
-          (Timeout (Deadline k priority AnimateParticleSystems)) -> do
-            let newSystems = mapMaybe (\pr@(Prioritized p a) ->
-                                          if p == priority && getDeadline a == k
-                                            then fmap (Prioritized p) $ updateParticleSystem t a
-                                            else Just pr) systems
+          (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> do
+            let newSystems =
+                  updateWithKey
+                    (\_ (Prioritized p a) -> fmap (Prioritized p) $ updateParticleSystem tps a)
+                    key systems
             return $ GameState b (World c d space newSystems) futWorld f h anim s
           (Timeout (Deadline gt _ MoveFlyingItems)) -> do
-            let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim s
+            let tgame = systemTimePointToGameTimePoint gt
+                movedState = GameState (Just $ addDuration gameMotionPeriod tgame) (moveWorld gt world) futWorld f h anim s
             onHasMoved movedState gt
           Action Laser dir ->
             if isFinished anim
@@ -99,7 +102,7 @@ update evt =
 onLaser :: (MonadState AppState m)
         => GameState
         -> Direction
-        -> TimeSpec
+        -> Time Point System
         -> m GameState
 onLaser (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
                                   space@(Space _ sz _) systems)
@@ -108,16 +111,17 @@ onLaser (GameState b world@(World _ (BattleShip posspeed ammo safeTime collision
   dir t = do
   mode <- getMode
   (Screen _ center) <- getCurScreen
-  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = laserEventAction dir world
+  let tps = systemTimePointToParticleSystemTimePoint t
+      (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) = laserEventAction dir world
   outerSpaceParticleSystems_ <-
     if null destroyedBalls
       then
-        maybe (return []) (outerSpaceParticleSystems t world) maybeLaserRay
+        maybe (return empty) (outerSpaceParticleSystems tps world) maybeLaserRay
       else
-        return []
-  newSystems <- destroyedNumbersParticleSystems (Left t) dir world destroyedBalls
-  let laserSystems = maybe [] (`laserParticleSystems` t) maybeLaserRay
-      allSystems = newSystems ++ laserSystems ++ outerSpaceParticleSystems_ ++ systems
+        return empty
+  newSystems <- destroyedNumbersParticleSystems tps dir world destroyedBalls
+  laserSystems <- maybe (return empty) (`laserParticleSystems` tps) maybeLaserRay
+  let allSystems = unions [newSystems, laserSystems, outerSpaceParticleSystems_, systems]
       newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions)
                        space allSystems
       destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
@@ -140,20 +144,20 @@ onLaser (GameState b world@(World _ (BattleShip posspeed ammo safeTime collision
 -- | The world has moved, so we update it.
 onHasMoved :: (MonadState AppState m)
            => GameState
-           -> KeyTime
+           -> Time Point System
            -> m GameState
 onHasMoved
   (GameState b world@(World balls ship@(BattleShip _ _ safeTime collisions) space systems)
              futureWorld shotNums (Level i target finished) anim s)
-  keyTime@(KeyTime t) = do
-  newSystems <- shipParticleSystems world keyTime
+  t = do
+  newSystems <- shipParticleSystems world t
   let remainingBalls =
         if isNothing safeTime
           then
             filter (`notElem` collisions) balls
           else
             balls
-      newWorld = World remainingBalls ship space (newSystems ++ systems)
+      newWorld = World remainingBalls ship space (union newSystems systems)
       finishIfShipCollides =
         maybe
           (case map (\(Number _ n) -> n) collisions of
@@ -165,15 +169,15 @@ onHasMoved
   return $ assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim s
 
 outerSpaceParticleSystems :: (MonadState AppState m)
-                          => TimeSpec
+                          => Time Point ParticleSyst
                           -> World
                           -> LaserRay Actual
-                          -> m [Prioritized ParticleSystem]
+                          -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
 outerSpaceParticleSystems t world@(World _ _ space _) ray@(LaserRay dir _ _) = do
   let laserTarget = afterEnd ray
       char = materialChar Wall
   case location laserTarget space of
-        InsideWorld -> return []
+        InsideWorld -> return empty
         OutsideWorld ->
           if distanceToSpace laserTarget space > 0
             then do
@@ -190,7 +194,7 @@ outerSpaceParticleSystems t world@(World _ _ space _) ray@(LaserRay dir _ _) = d
               case scopedLocation world mode screen NegativeWorldContainer pos of
                   InsideWorld -> outerSpaceParticleSystems' world NegativeWorldContainer pos
                                   dir speedAttenuation nRebounds color char t
-                  OutsideWorld -> return []
+                  OutsideWorld -> return empty
             else do
               let color _fragment _level _frame =
                     if 0 == _fragment `mod` 3
@@ -211,24 +215,29 @@ outerSpaceParticleSystems' :: (MonadState AppState m)
                            -> Int
                            -> (Int -> Int -> Frame -> LayeredColor)
                            -> Char
-                           -> TimeSpec
-                           -> m [Prioritized ParticleSystem]
+                           -> Time Point ParticleSyst
+                           -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
 outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t = do
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
   envFuncs <- envFunctions world scope
+  keys <- forever takeKey
   return
+    $ fromList
+    $ zip keys
     $ fmap (Prioritized particleSystDefaultPriority)
     $ fragmentsFreeFallWithReboundsThenExplode
         speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
-        (Speed 1) envFuncs (Left t)
+        (Speed 1) envFuncs t
 
 
-laserParticleSystems :: LaserRay Actual
-                     -> TimeSpec
-                     -> [Prioritized ParticleSystem]
+laserParticleSystems :: (MonadState AppState m)
+                     => LaserRay Actual
+                     -> Time Point ParticleSyst
+                     -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
 laserParticleSystems ray t =
-  catMaybes [fmap (Prioritized particleSystLaserPriority)
-            $ laserShot ray cycleLaserColors (Left t)]
+  maybe (return empty) (\v -> flip singleton v <$> takeKey)
+    $ fmap (Prioritized particleSystLaserPriority)
+    $ laserShot ray cycleLaserColors t
 
 
 accelerateShip' :: Direction -> GameState -> GameState
@@ -237,7 +246,7 @@ accelerateShip' dir (GameState c (World wa ship wc wd) b f g h s) =
       world = World wa newShip wc wd
   in GameState c world b f g h s
 
-updateAnim :: KeyTime -> GameState -> GameState
+updateAnim :: Time Point System -> GameState -> GameState
 updateAnim kt (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it) s) =
   let nextIt@(Iteration _ nextFrame) = nextIteration it
       (world, worldAnimDeadline) =

@@ -39,8 +39,8 @@ unGetPlayerKey k = do
 
 {-# INLINABLE getPlayerKeyTimeout #-}
 getPlayerKeyTimeout :: (PlayerInput i, MonadReader i m, MonadIO m)
-                    => TimeSpec
-                    -> Int64
+                    => Time Point System
+                    -> Time Duration System
                     -> m (Maybe Key)
 getPlayerKeyTimeout curTime ms = do
   d <- asks getKeyTimeout

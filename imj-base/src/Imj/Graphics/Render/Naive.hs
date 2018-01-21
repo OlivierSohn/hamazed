@@ -84,5 +84,5 @@ instance Render NaiveDraw where
     renderToScreen' _         = liftIO $ hFlush stdout
                                         >> setCursorPosition 0 0
                                         >> clearFromCursorToScreenEnd
-                                        >> return (zeroTime, zeroTime, zeroTime)
+                                        >> return (zeroDuration, zeroDuration, zeroDuration)
     {-# INLINABLE renderToScreen' #-}

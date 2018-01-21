@@ -43,26 +43,28 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.DiscreteMorphing
 import           Imj.Graphics.Math.Ease
 import           Imj.Iteration
+import           Imj.Timing
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
 -- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.
 mkEvolutionEaseQuart :: DiscreteDistance v
                      => Successive v
                      -- ^ 'DiscreteDistance's through which the evolution will pass.
-                     -> Float
-                     -- ^ Duration in seconds
+                     -> Time Duration System
+                     -- ^ Duration
                      -> Evolution v
-mkEvolutionEaseQuart = mkEvolution invQuartEaseInOut
+mkEvolutionEaseQuart =
+  mkEvolution invQuartEaseInOut
 
 -- | An evolution between n 'DiscreteDistance's. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}
 mkEvolution :: DiscreteDistance v
-            => (Float -> Float)
+            => (Double -> Double)
             -- ^ Inverse continuous ease function
             -> Successive v
             -- ^ 'DiscreteDistance's through which the evolution will pass.
-            -> Float
-            -- ^ Duration in seconds
+            -> Time Duration System
+            -- ^ Duration
             -> Evolution v
 mkEvolution ease s duration =
   let nSteps = distanceSuccessive s
@@ -78,11 +80,11 @@ instance DiscreteDistance NotWaypoint where
   distance = error "don't use distance on NotWaypoint"
 
 -- | Constructor of 'EaseClock'
-mkEaseClock :: Float
-            -- ^ Duration in seconds
+mkEaseClock :: Time Duration System
+            -- ^ Duration
             -> Frame
             -- ^ Last frame
-            -> (Float -> Float)
+            -> (Double -> Double)
             -- ^ Inverse ease function (value -> time, both between 0 and 1)
             -> EaseClock
 mkEaseClock duration lastFrame ease =
@@ -99,9 +101,9 @@ data Evolution v = Evolution {
   -- ^ 'Successive' 'DiscreteDistance's.
   , _evolutionLastFrame :: !Frame
   -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
-  , _evolutionDuration :: Float
-  -- ^ Duration of the interpolation in seconds.
-  , _evolutionInverseEase :: Float -> Float
+  , _evolutionDuration :: !(Time Duration System)
+  -- ^ Duration of the interpolation
+  , _evolutionInverseEase :: !(Double -> Double)
   -- ^ Inverse ease function.
 }
 
@@ -114,18 +116,17 @@ instance Functor Evolution where
 -- | Computes the time increment between the input 'Frame' and the next.
 getDeltaTimeToNextFrame :: Evolution v
                         -> Frame
-                        -> Maybe Float
+                        -> Maybe (Time Duration System)
                         -- ^ If evolution is still ongoing, returns the time interval
                         --      between the input 'Frame' and the next.
 getDeltaTimeToNextFrame (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
   | frame < 0          = error "negative frame"
   | frame >= lastFrame = Nothing
-  | otherwise          = Just dt
+  | otherwise          = Just $ (easeValToTime targetValue - easeValToTime thisValue) .* duration
   where
     nextStep = succ step
     thisValue = fromIntegral step / fromIntegral lastStep
     targetValue = fromIntegral nextStep / fromIntegral lastStep
-    dt = duration * (easeValToTime targetValue - easeValToTime thisValue)
 
 
 {-# INLINABLE getValueAt #-}

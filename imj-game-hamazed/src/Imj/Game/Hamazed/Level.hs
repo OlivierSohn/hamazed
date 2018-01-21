@@ -30,7 +30,6 @@ import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
 import           Imj.Input.Types
 import           Imj.Input.FromMonadReader
-import           Imj.Timing
 
 messageDeadline :: Level -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) =
@@ -38,9 +37,8 @@ messageDeadline (Level _ _ mayLevelFinished) =
   (\(LevelFinished _ timeFinished messageType) ->
     case messageType of
       InfoMessage ->
-        let delay = TimeSpec 2 0
-            nextMessageStep = delay + timeFinished
-        in  Just $ Deadline (KeyTime nextMessageStep) continueMsgPriority DisplayContinueMessage
+        let nextMessageStep = addDuration (fromSecs 2) timeFinished
+        in  Just $ Deadline nextMessageStep continueMsgPriority DisplayContinueMessage
       ContinueMessage -> Nothing)
   mayLevelFinished
 
@@ -50,34 +48,23 @@ messageDeadline (Level _ _ mayLevelFinished) =
 getEventForDeadline :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
                     => Deadline
                     -> m (Maybe Event)
-getEventForDeadline d@(Deadline (KeyTime deadlineTime) _ _) = do
+getEventForDeadline d@(Deadline deadlineTime _ _) = do
   curTime <- liftIO getSystemTime
-  let
-    timeToDeadlineMicros = diffTimeSecToMicros deadlineTime curTime
-  eventWithinDurationMicros curTime timeToDeadlineMicros d
-
-{-# INLINABLE eventWithinDurationMicros #-}
-eventWithinDurationMicros :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
-                          => TimeSpec -> Int64 -> Deadline -> m (Maybe Event)
-eventWithinDurationMicros curTime durationMicros d =
-  getCharWithinDurationMicros curTime durationMicros d >>= \case
+  getKeyWithinDuration curTime (curTime...deadlineTime) d >>= \case
     Just key -> eventFromKey key
     _ -> return $ Just $ Timeout d
 
-{-# INLINABLE getCharWithinDurationMicros #-}
-getCharWithinDurationMicros :: (PlayerInput i, MonadReader i m, MonadIO m)
-                            => TimeSpec -> Int64 -> Deadline -> m (Maybe Key)
-getCharWithinDurationMicros curTime durationMicros (Deadline _ deadlinePriority _) =
-  if durationMicros < 0
-    -- overdue
-    then
-      if playerPriority > deadlinePriority
-        then
-          tryGetPlayerKey
-        else
-          return Nothing
-    else
-      getPlayerKeyTimeout curTime durationMicros
+{-# INLINABLE getKeyWithinDuration #-}
+getKeyWithinDuration :: (PlayerInput i, MonadReader i m, MonadIO m)
+                     => Time Point System -> Time Duration System -> Deadline -> m (Maybe Key)
+getKeyWithinDuration curTime duration (Deadline _ deadlinePriority _)
+ | duration < 0 = -- overdue
+    if playerPriority > deadlinePriority
+      then
+        tryGetPlayerKey
+      else
+        return Nothing
+ | otherwise = getPlayerKeyTimeout curTime duration
 
 {-# INLINABLE drawLevelState #-}
 drawLevelState :: (Draw e, MonadReader e m, MonadIO m)

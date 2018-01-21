@@ -27,4 +27,4 @@ class (Draw e) => Render e where
   -- * duration to compute delta
   -- * duration to issue rendering commands
   -- * duration to flush
-  renderToScreen' :: (MonadIO m) => e -> m (TimeSpec, TimeSpec, TimeSpec)
+  renderToScreen' :: (MonadIO m) => e -> m (Time Duration System, Time Duration System, Time Duration System)

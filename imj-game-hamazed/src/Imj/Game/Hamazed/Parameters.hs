@@ -4,8 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Parameters
-      ( updateFromChar
-      , draw'
+      ( draw'
       ) where
 
 import           Imj.Prelude
@@ -21,19 +20,6 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
-
-
-updateFromChar :: Char -> GameParameters -> GameParameters
-updateFromChar c p@(GameParameters shape wallType mode) =
-  case c of
-    '1' -> GameParameters Square wallType mode
-    '2' -> GameParameters Rectangle2x1 wallType mode
-    'e' -> GameParameters shape None mode
-    'r' -> GameParameters shape Deterministic mode
-    't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent) mode
-    'd' -> GameParameters shape wallType CenterSpace
-    'f' -> GameParameters shape wallType CenterShip
-    _ -> p
 
 
 {-# INLINABLE dText #-}

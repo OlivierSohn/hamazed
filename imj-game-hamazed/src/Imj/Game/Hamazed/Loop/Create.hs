@@ -32,16 +32,14 @@ initialGame ms =
 
 initialGameState :: GameParameters -> Maybe Size -> IO GameState
 initialGameState params ms =
-  mkInitialState params ms firstLevel Nothing >>= \case
-    Left err -> error err
-    Right newState -> return newState
+  mkInitialState params ms firstLevel Nothing
 
 mkInitialState :: (MonadIO m)
                => GameParameters
                -> Maybe Size
                -> Int
                -> Maybe GameState
-               -> m (Either String GameState)
+               -> m GameState
 mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState = do
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
@@ -70,4 +68,4 @@ mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState =
           (Colored worldFrameColors
           $ mkRectContainerWithCenterAndInnerSize newScreenCenter newSize, newInfos)
           horizontalDist verticalDist kt
-  return $ Right $ GameState Nothing curWorld newWorld newShotNums newLevel uiAnimation screen
+  return $ GameState Nothing curWorld newWorld newShotNums newLevel uiAnimation screen

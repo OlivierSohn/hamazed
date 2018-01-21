@@ -37,9 +37,9 @@ module Imj.Game.Hamazed
                 * a key-press occuring /before/ \(deadline\) expires
                 * or the \(deadline\) event
 
-        * 'update'
+        * 'updateAppState'
 
-            * Update 'GameState' according to \(event\)
+            * Update according to \(event\)
 
         * Draw and render using "Imj.Graphics.Render.Delta" to avoid
         <https://en.wikipedia.org/wiki/Screen_tearing screen tearing:
@@ -49,7 +49,7 @@ module Imj.Game.Hamazed
         -}
       , getNextDeadline
       , getEventForDeadline
-      , update
+      , updateAppState
       , draw
         -- * Deadlines
         {-| Deadlines are ordered on a timeline, and are associated to events.

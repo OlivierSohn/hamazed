@@ -14,6 +14,8 @@ module Imj.Game.Hamazed.State.Types
       -- * Access
       , getGame
       , getGameState
+      , getGameParameters
+      , getWorld
       , getUserIntent
       , getMode
       , getCurScreen
@@ -22,23 +24,31 @@ module Imj.Game.Hamazed.State.Types
       , envFunctions
       -- * Modify
       , putGame
+      , putGameState
+      , putGameParameters
+      , putWorld
       , putUserIntent
-      , takeKey
+      , addParticleSystems
+      , updateOneParticleSystem
       -- * reexports
       , MonadState
       , TimeSpec
       ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(get, put)
+import           Data.Map.Strict(fromList, union, updateWithKey)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.Text.ColorString
-import           Imj.Timing
 
 data Occurences a = Occurences {
     _occurencesCount :: !Int
@@ -93,6 +103,14 @@ getGame = get >>= \(AppState _ g _ _ _ _ _) -> return g
 getGameState :: MonadState AppState m => m GameState
 getGameState = getGame >>= \(Game _ _ s) -> return s
 
+{-# INLINABLE getGameParameters #-}
+getGameParameters :: MonadState AppState m => m GameParameters
+getGameParameters = getGame >>= \(Game _ p _) -> return p
+
+{-# INLINABLE getWorld #-}
+getWorld :: MonadState AppState m => m World
+getWorld = getGameState >>= \(GameState _ w _ _ _ _ _) -> return w
+
 {-# INLINABLE getMode #-}
 getMode :: MonadState AppState m => m ViewMode
 getMode =
@@ -117,12 +135,56 @@ putGame :: MonadState AppState m => Game -> m ()
 putGame g = get >>= \(AppState a _ e r h d f) ->
   put $ AppState a g e r h d f
 
-{-# INLINABLE takeKey #-}
-takeKey :: MonadState AppState m => m ParticleSystemKey
-takeKey = get >>= \(AppState a b c d e key f) -> do
-  put $ AppState a b c d e (succ key) f
-  return key
+{-# INLINABLE putGameState #-}
+putGameState :: MonadState AppState m => GameState -> m ()
+putGameState s = getGame >>= \(Game a b _) ->
+  putGame $ Game a b s
 
+{-# INLINABLE putGameParameters #-}
+putGameParameters :: MonadState AppState m => GameParameters -> m ()
+putGameParameters p = getGame >>= \(Game a _ b) ->
+  putGame $ Game a p b
+
+{-# INLINABLE putWorld #-}
+putWorld :: MonadState AppState m => World -> m ()
+putWorld w = getGameState >>= \(GameState a _ c d e f g) ->
+  putGameState $ GameState a w c d e f g
+
+{-# INLINABLE takeKeys #-}
+takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]
+takeKeys n
+  | n <= 0 = return []
+  | otherwise =
+      get >>= \(AppState a b c d e key f) -> do
+        let endKey = key + fromIntegral n
+        put $ AppState a b c d e endKey f
+        return [key..pred endKey]
+
+{-# INLINABLE addParticleSystems #-}
+addParticleSystems :: MonadState AppState m
+                   => [Prioritized ParticleSystem]
+                   -> m ()
+addParticleSystems l = do
+  keys <- takeKeys $ length l
+  let ps2 = fromList $ zip keys l
+  getGameState >>= \(GameState a (World b c d ps) e f g h i) ->
+    putGameState $ GameState a (World b c d (union ps ps2)) e f g h i
+
+{-# INLINABLE updateOneParticleSystem #-}
+updateOneParticleSystem :: MonadState AppState m
+                        => ParticleSystemKey
+                        -> Time Point System
+                        -> m ()
+updateOneParticleSystem key t =
+  getWorld >>= \(World a b c systems) -> do
+    let tps = systemTimePointToParticleSystemTimePoint t
+        newSystems =
+          updateWithKey
+            (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
+            key systems
+    putWorld $ (World a b c newSystems)
+
+{-# INLINABLE putUserIntent #-}
 putUserIntent :: MonadState AppState m => UserIntent -> m ()
 putUserIntent i =
   getGame >>= \(Game _ a b) -> putGame $ Game i a b
@@ -135,8 +197,9 @@ hasVisibleNonRenderedUpdates =
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}
 envFunctions :: (MonadState AppState m)
-             => World -> Scope -> m EnvFunctions
-envFunctions world scope = do
+             => Scope -> m EnvFunctions
+envFunctions scope = do
+  world <- getWorld
   mode <- getMode
   screen <- getCurScreen
   return $ EnvFunctions (environmentInteraction world mode screen scope) envDistance

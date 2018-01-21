@@ -1,3 +1,4 @@
+- fix ui animation regression
 - make game time scalable using a multiplicator. support changes from 1 to 0
 
 - make text visible in opengl

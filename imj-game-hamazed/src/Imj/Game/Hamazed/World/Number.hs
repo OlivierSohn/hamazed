@@ -12,7 +12,6 @@ module Imj.Game.Hamazed.World.Number(
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
-import           Data.Map.Strict (Map, unions, fromList)
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
@@ -29,25 +28,21 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 destroyedNumbersParticleSystems :: (MonadState AppState m)
                                 => Time Point ParticleSyst
                                 -> Direction -- ^ 'Direction' of the laser shot
-                                -> World -- ^ the 'World' the 'Number's live in
                                 -> [Number]
-                                -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
-destroyedNumbersParticleSystems keyTime dir world nums = do
+                                -> m [Prioritized ParticleSystem]
+destroyedNumbersParticleSystems keyTime dir nums = do
   let laserSpeed = speed2vec $ coordsForDirection dir
-  ps <- mapM (destroyedNumberParticleSystems keyTime laserSpeed world) nums
-  return $ unions ps
+  ps <- mapM (destroyedNumberParticleSystems keyTime laserSpeed) nums
+  return $ concat ps
 
 destroyedNumberParticleSystems :: (MonadState AppState m)
                                => Time Point ParticleSyst
                                -> Vec2 Vel
-                               -> World
                                -> Number
-                               -> m (Map ParticleSystemKey (Prioritized ParticleSystem))
-destroyedNumberParticleSystems k laserSpeed world (Number (PosSpeed pos _) n) = do
-  envFuncs <- envFunctions world (WorldScope Air)
-  keys <- forever takeKey
-  return $ fromList
-    $ zip keys
+                               -> m [Prioritized ParticleSystem]
+destroyedNumberParticleSystems k laserSpeed (Number (PosSpeed pos _) n) = do
+  envFuncs <- envFunctions (WorldScope Air)
+  return
     $ map (Prioritized particleSystDefaultPriority)
     $ catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
      ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos

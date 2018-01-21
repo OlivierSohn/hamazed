@@ -1,20 +1,24 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
 
--- | This modules exports types and functions related to /monotonic/ timing.
+{- | This modules exports types and functions related to /monotonic/ timing.
 
+Some functions are /unsafe/-prefixed. You should use them only to implement
+conversion between different time-spaces. Otherwise, these functions are too
+low-level for your usage and may lead to mistakes because you'll convert from one
+time-space to another wihtout noticing it.
+-}
 module Imj.Timing
     ( -- * Time
       Time
     , System
     , Point
     , Duration
-    , unsafeGetTimeSpec
-    , unsafeFromTimeSpec
     , addDuration
     -- * Utilities
     , zeroDuration
-    , zeroPoint
+    , unsafeGetTimeSpec
+    , unsafeFromTimeSpec
     , getSystemTime
     , fromSecs
     , toSecs
@@ -105,7 +109,7 @@ getSystemTime :: IO (Time Point System)
 getSystemTime =
   Time <$> getTime Monotonic
 
-showTime :: Time Duration System -> String
+showTime :: Time Duration a -> String
 showTime (Time x) =
   rJustify $ show $ quot (toNanoSecs x) 1000
   where
@@ -114,7 +118,3 @@ showTime (Time x) =
 {-# INLINE zeroDuration #-}
 zeroDuration :: Time Duration b
 zeroDuration = Time $ TimeSpec 0 0
-
-{-# INLINE zeroPoint #-}
-zeroPoint :: Time Point b
-zeroPoint = Time $ TimeSpec 0 0

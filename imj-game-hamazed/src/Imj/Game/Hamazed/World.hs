@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.World
     (
@@ -130,19 +131,27 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Text( pack )
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
+import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Render
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Physics.Discrete.Collision
+
 
 -- | Note that the position of the 'BattleShip' remains unchanged.
 accelerateShip :: Direction -> BattleShip -> BattleShip
@@ -172,29 +181,110 @@ moveWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size an
   in World newBalls newShip size anims
 
 -- | Computes the effect of an laser shot on the 'World'.
-laserEventAction :: Direction
+laserEventAction :: (MonadState AppState m)
+                 => Direction
                  -- ^ The direction of the laser shot
-                 -> World
-                 -> ([Number], [Number], Maybe (LaserRay Actual), Int)
-                 -- ^ 'Number's still alive, 'Number's destroyed, maybe an actual laser ray, Ammo left.
-laserEventAction dir (World balls (BattleShip (PosSpeed shipCoords _) ammo _ _) space _) =
-  let (maybeLaserRayTheoretical, newAmmo) =
-        if ammo > 0
-          then
-            (Just $ shootLaserWithOffset shipCoords dir Infinite (`location` space)
-           , pred ammo)
-          else
-            (Nothing
-           , ammo)
+                 -> Time Point System
+                 -> m [Number]
+                 -- ^ 'Number's destroyed
+laserEventAction dir t =
+  getWorld >>= \(World balls (BattleShip shipPS@(PosSpeed shipCoords _) ammo a b) space d) -> do
+    let (maybeLaserRayTheoretical, newAmmo) =
+          if ammo > 0
+            then
+              (Just $ shootLaserWithOffset shipCoords dir Infinite (`location` space)
+             , pred ammo)
+            else
+              (Nothing
+             , ammo)
 
-      ((remainingBalls, destroyedBalls), maybeLaserRay) =
-         maybe
-           ((balls,[]), Nothing)
-           (\r -> let (a,laserRay) = computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle
-                  in (a, Just laserRay))
-             maybeLaserRayTheoretical
+        ((remainingBalls, destroyedBalls), maybeLaserRay) =
+           maybe
+             ((balls,[]), Nothing)
+             (\r -> fmap Just
+                    $ computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
+               maybeLaserRayTheoretical
+    putWorld $ World remainingBalls (BattleShip shipPS newAmmo a b) space d
 
-  in (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo)
+    let tps = systemTimePointToParticleSystemTimePoint t
+    outerSpaceParticleSystems_ <-
+      if null destroyedBalls
+        then
+          maybe (return []) (outerSpaceParticleSystems tps) maybeLaserRay
+        else
+          return []
+    newSystems <- destroyedNumbersParticleSystems tps dir destroyedBalls
+    laserSystems <- maybe (return []) (`laserParticleSystems` tps) maybeLaserRay
+    addParticleSystems $ concat [newSystems, laserSystems, outerSpaceParticleSystems_]
+
+    return destroyedBalls
+
+
+outerSpaceParticleSystems :: (MonadState AppState m)
+                          => Time Point ParticleSyst
+                          -> LaserRay Actual
+                          -> m [Prioritized ParticleSystem]
+outerSpaceParticleSystems t ray@(LaserRay dir _ _) = do
+  world@(World _ _ space _) <- getWorld
+  let laserTarget = afterEnd ray
+      char = materialChar Wall
+  case location laserTarget space of
+        InsideWorld -> return []
+        OutsideWorld ->
+          if distanceToSpace laserTarget space > 0
+            then do
+              let color _fragment _level _frame =
+                    if 0 == _fragment `mod` 2
+                      then
+                        cycleOuterColors1 $ quot _frame 4
+                      else
+                        cycleOuterColors2 $ quot _frame 4
+                  pos = translateInDir dir laserTarget
+                  (speedAttenuation, nRebounds) = (0.3, 3)
+              mode <- getMode
+              screen <- getCurScreen
+              case scopedLocation world mode screen NegativeWorldContainer pos of
+                  InsideWorld -> outerSpaceParticleSystems' NegativeWorldContainer pos
+                                  dir speedAttenuation nRebounds color char t
+                  OutsideWorld -> return []
+            else do
+              let color _fragment _level _frame =
+                    if 0 == _fragment `mod` 3
+                      then
+                        cycleWallColors1 $ quot _frame 4
+                      else
+                        cycleWallColors2 $ quot _frame 4
+                  (speedAttenuation, nRebounds) = (0.4, 5)
+              outerSpaceParticleSystems' (WorldScope Wall) laserTarget
+                   dir speedAttenuation nRebounds color char t
+
+outerSpaceParticleSystems' :: (MonadState AppState m)
+                           => Scope
+                           -> Coords Pos
+                           -> Direction
+                           -> Float
+                           -> Int
+                           -> (Int -> Int -> Frame -> LayeredColor)
+                           -> Char
+                           -> Time Point ParticleSyst
+                           -> m [Prioritized ParticleSystem]
+outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t = do
+  envFuncs <- envFunctions scope
+  let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
+  return
+    $ map (Prioritized particleSystDefaultPriority)
+    $ fragmentsFreeFallWithReboundsThenExplode
+      speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
+      (Speed 1) envFuncs t
+
+laserParticleSystems :: (MonadState AppState m)
+                     => LaserRay Actual
+                     -> Time Point ParticleSyst
+                     -> m [Prioritized ParticleSystem]
+laserParticleSystems ray t =
+  return $ catMaybes
+    [fmap (Prioritized particleSystLaserPriority)
+    $ laserShot ray cycleLaserColors t]
 
 
 checkTargetAndAmmo :: Int

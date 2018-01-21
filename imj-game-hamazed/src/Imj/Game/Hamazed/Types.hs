@@ -7,7 +7,6 @@ module Imj.Game.Hamazed.Types
     , GameTime
     , UserIntent(..)
     , GameState(..)
-    , startGameState
     , GameParameters(..)
     , initialParameters
     , minRandomBlockSize
@@ -58,10 +57,6 @@ data GameState = GameState {
     -- ^ Inter-level animation.
   , _gameStateScreen :: !Screen
 }
-
-startGameState :: Time Point System -> GameState -> GameState
-startGameState t (GameState _ world world' b d e f) =
-  GameState (Just zeroPoint) (startWorld t world) (startWorld t world') b d e f
 
 
 minRandomBlockSize :: Int

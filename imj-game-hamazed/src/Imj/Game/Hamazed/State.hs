@@ -93,7 +93,7 @@ handleEvent e = do
     (return ())
     (\evt -> do
       t1 <- liftIO getSystemTime
-      update evt
+      updateAppState evt
       t2 <- liftIO getSystemTime
       addUpdateTime $ t1...t2)
     e

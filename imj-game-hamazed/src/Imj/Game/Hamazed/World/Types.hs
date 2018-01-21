@@ -77,7 +77,7 @@ data World = World {
 }
 
 newtype ParticleSystemKey = ParticleSystemKey Int
-  deriving (Eq, Ord, Enum, Show)
+  deriving (Eq, Ord, Enum, Show, Num)
 
 startWorld :: Time Point System -> World -> World
 startWorld t (World a (BattleShip ship ammo _ col) b c) =

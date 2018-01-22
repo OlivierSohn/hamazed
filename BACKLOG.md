@@ -1,3 +1,4 @@
+- make game step go faster and faster.
 
 - make text visible in opengl
 - try round instead of square for walls.

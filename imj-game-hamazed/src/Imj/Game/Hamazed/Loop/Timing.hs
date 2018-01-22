@@ -10,7 +10,7 @@ module Imj.Game.Hamazed.Loop.Timing
         , particleSystemTimePointToSystemTimePoint
         , systemTimePointToParticleSystemTimePoint
         , GameTime
-        , gameTimeMultiplicator
+        , initalGameMultiplicator
         -- reexport
         , module Imj.Timing
         ) where
@@ -26,6 +26,9 @@ gameMotionPeriod :: Time Duration GameTime
 gameMotionPeriod = fromSecs 0.16
 
 data GameTime
+
+initalGameMultiplicator :: Multiplicator GameTime
+initalGameMultiplicator = gameTimeMultiplicator 1
 
 gameTimeMultiplicator :: Double -> Multiplicator GameTime
 gameTimeMultiplicator = Multiplicator

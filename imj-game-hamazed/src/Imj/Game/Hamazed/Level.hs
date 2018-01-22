@@ -9,27 +9,20 @@ module Imj.Game.Hamazed.Level
     ( drawLevelMessage
     , drawLevelState
     , messageDeadline
-    , getEventForDeadline
     ) where
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.Reader.Class(MonadReader)
-
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
-import           Imj.Input.Types
-import           Imj.Input.FromMonadReader
+import           Imj.Timing
 
 messageDeadline :: Level -> Maybe Deadline
 messageDeadline (Level _ _ mayLevelFinished) =
@@ -41,30 +34,6 @@ messageDeadline (Level _ _ mayLevelFinished) =
         in  Just $ Deadline nextMessageStep continueMsgPriority DisplayContinueMessage
       ContinueMessage -> Nothing)
   mayLevelFinished
-
--- | Returns a /player event/ or the 'Event' associated to the 'Deadline' if the
--- 'Deadline' expired before the /player/ could press a 'Key'.
-{-# INLINABLE getEventForDeadline #-}
-getEventForDeadline :: (MonadState AppState m, PlayerInput i, MonadReader i m, MonadIO m)
-                    => Deadline
-                    -> m (Maybe Event)
-getEventForDeadline d@(Deadline deadlineTime _ _) = do
-  curTime <- liftIO getSystemTime
-  getKeyWithinDuration curTime (curTime...deadlineTime) d >>= \case
-    Just key -> eventFromKey key
-    _ -> return $ Just $ Timeout d
-
-{-# INLINABLE getKeyWithinDuration #-}
-getKeyWithinDuration :: (PlayerInput i, MonadReader i m, MonadIO m)
-                     => Time Point System -> Time Duration System -> Deadline -> m (Maybe Key)
-getKeyWithinDuration curTime duration (Deadline _ deadlinePriority _)
- | strictlyNegative duration = -- overdue
-    if playerPriority > deadlinePriority
-      then
-        tryGetPlayerKey
-      else
-        return Nothing
- | otherwise = getPlayerKeyTimeout curTime duration
 
 {-# INLINABLE drawLevelState #-}
 drawLevelState :: (Draw e, MonadReader e m, MonadIO m)

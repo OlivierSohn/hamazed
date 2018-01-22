@@ -45,14 +45,12 @@ class PlayerInput a where
            -> Key
            -> m ()
 
-  getKeyTimeout :: (MonadIO m)
-                => a
-                -> Time Point System
-                -- ^ Current time measured by the caller.
-                -> Time Duration System
-                -- ^ A delta time
-                -> m (Maybe Key)
-                -- ^ Nothing when the timeout was reached.
+  getKeyBefore :: (MonadIO m)
+               => a
+               -> Time Point System
+               -- ^ The time before which we should get the key.
+               -> m (Maybe Key)
+               -- ^ Nothing when the timeout was reached.
 
   tryGetKey :: (MonadIO m)
             => a

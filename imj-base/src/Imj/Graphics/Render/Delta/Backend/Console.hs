@@ -52,23 +52,29 @@ instance DeltaRenderBackend ConsoleBackend where
 
 instance PlayerInput ConsoleBackend where
   getKey (ConsoleBackend queue) =
-    liftIO (atomically $ tryReadTQueue queue)
-      >>= maybe (liftIO getKeyThenFlush) return
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO getKeyThenFlush)
+      return
 
-  getKeyTimeout (ConsoleBackend queue) _ duration = do
-    fromQueue <- liftIO (atomically $ tryReadTQueue queue)
-    fromStdin <- liftIO (timeout (fromIntegral $ toMicros duration) getKeyThenFlush)
-    return $ fromQueue <|> fromStdin
+  getKeyBefore (ConsoleBackend queue) t =
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO (getDurationFromNowTo t) >>= \allowed ->
+        if strictlyNegative allowed
+           then
+             return Nothing
+           else
+             liftIO $ timeout (fromIntegral $ toMicros allowed) getKeyThenFlush)
+      (return . Just)
 
   tryGetKey (ConsoleBackend queue) = do
-    fromQueue <- liftIO (atomically $ tryReadTQueue queue)
-    fromStdin <- liftIO tryGetKeyThenFlush
-    return $ fromQueue <|> fromStdin
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO tryGetKeyThenFlush)
+      (return . Just)
 
   someInputIsAvailable (ConsoleBackend queue) = do
-    fromQueue <- liftIO $ atomically $ not <$> isEmptyTQueue queue
-    fromStdin <- liftIO stdinIsReady
-    return $ fromQueue || fromStdin
+    liftIO (atomically $ not <$> isEmptyTQueue queue) >>= \case
+      True -> return True
+      False -> liftIO stdinIsReady
 
   unGetKey (ConsoleBackend queue) k =
     liftIO (atomically $ unGetTQueue queue k)
@@ -78,7 +84,7 @@ instance PlayerInput ConsoleBackend where
 
   {-# INLINABLE programShouldEnd #-}
   {-# INLINABLE getKey #-}
-  {-# INLINABLE getKeyTimeout #-}
+  {-# INLINABLE getKeyBefore #-}
   {-# INLINABLE tryGetKey #-}
   {-# INLINABLE someInputIsAvailable #-}
 

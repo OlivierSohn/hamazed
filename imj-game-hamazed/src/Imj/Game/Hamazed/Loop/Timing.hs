@@ -6,12 +6,11 @@
 
 module Imj.Game.Hamazed.Loop.Timing
         ( gameMotionPeriod
-        , gameTimePointToSystemTimePoint
-        , systemTimePointToGameTimePoint
         , particleSystemDurationToSystemDuration
         , particleSystemTimePointToSystemTimePoint
         , systemTimePointToParticleSystemTimePoint
         , GameTime
+        , gameTimeMultiplicator
         -- reexport
         , module Imj.Timing
         ) where
@@ -22,18 +21,14 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Timing
 
 {-# INLINE gameMotionPeriod #-}
+-- | Nominal game period when the associated 'Multiplicator' is 1.
 gameMotionPeriod :: Time Duration GameTime
 gameMotionPeriod = fromSecs 0.16
 
-{-# INLINE systemTimePointToGameTimePoint #-}
-systemTimePointToGameTimePoint :: Time Point System -> Time Point GameTime
-systemTimePointToGameTimePoint = unsafeFromTimeSpec . unsafeGetTimeSpec
-
-{-# INLINE gameTimePointToSystemTimePoint #-}
-gameTimePointToSystemTimePoint :: Time Point GameTime -> Time Point System
-gameTimePointToSystemTimePoint = unsafeFromTimeSpec . unsafeGetTimeSpec
-
 data GameTime
+
+gameTimeMultiplicator :: Double -> Multiplicator GameTime
+gameTimeMultiplicator = Multiplicator
 
 {-# INLINE particleSystemDurationToSystemDuration #-}
 particleSystemDurationToSystemDuration :: Time Duration ParticleSyst -> Time Duration System

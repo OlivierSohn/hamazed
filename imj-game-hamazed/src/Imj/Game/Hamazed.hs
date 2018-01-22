@@ -26,16 +26,9 @@ module Imj.Game.Hamazed
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 
-        * 'getNextDeadline'
+        * 'produceEvent'
 
-            * \(deadline\) = the next foreseen 'Deadline'.
-
-        * 'getEventForDeadline'
-
-            * \(event\) =
-
-                * a key-press occuring /before/ \(deadline\) expires
-                * or the \(deadline\) event
+            * creates the next \(event\) to handle.
 
         * 'updateAppState'
 
@@ -47,8 +40,7 @@ module Imj.Game.Hamazed
             * 'draw' : draws the game elements.
             * 'renderToScreen' : renders what was drawn to the screen.
         -}
-      , getNextDeadline
-      , getEventForDeadline
+      , produceEvent
       , updateAppState
       , draw
         -- * Deadlines
@@ -105,10 +97,8 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Draw
-import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Run
 import           Imj.Game.Hamazed.Loop.Timing

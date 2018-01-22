@@ -82,26 +82,26 @@ instance PlayerInput OpenGLBackend where
             Nothing -> fillQueue >> readQueue
     readQueue
 
-  getKeyTimeout b@(OpenGLBackend _ keyQueue _ _) callerTime allowed = do
+  getKeyBefore b@(OpenGLBackend _ keyQueue _ _) t = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
-    -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
-    -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
-        tryFillQueue = liftIO $ GLFW.waitEventsTimeout $ toSecs allowed
-    tryReadQueue >>= maybe
-      (tryFillQueue >> tryReadQueue >>= \case
-        Just k -> return $ Just k
-        Nothing -> do
-          -- Either there was nothing in the queue (hence, we hit the timeout
-          -- or the glfw event was not a key event) or there was a key repeat or key release
-          -- event in the queue.
-          now <- liftIO getSystemTime
-          let elapsed = callerTime...now
-          if elapsed < allowed
-            then
-              getKeyTimeout b now $ allowed |-| elapsed
-            else
-              return Nothing)
-      (return . Just)
+        -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
+        -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
+        tryFillQueue x = liftIO $ GLFW.waitEventsTimeout $ unsafeToSecs x
+
+    liftIO (getDurationFromNowTo t) >>= \allowed -> do
+      tryReadQueue >>= maybe
+        (if strictlyNegative allowed
+          then
+            return Nothing
+          else
+            tryFillQueue allowed >> tryReadQueue >>= \case
+              Just k -> return $ Just k
+              Nothing -> do
+                -- Either there was nothing in the queue (hence, we hit the timeout
+                -- or the glfw event was not a key event) or there was a key repeat or key release
+                -- event in the queue.
+                getKeyBefore b t)
+        (return . Just)
 
   tryGetKey (OpenGLBackend _ keyQueue _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
@@ -127,7 +127,7 @@ instance PlayerInput OpenGLBackend where
   {-# INLINABLE tryGetKey #-}
   {-# INLINABLE someInputIsAvailable #-}
   {-# INLINABLE getKey #-}
-  {-# INLINABLE getKeyTimeout #-}
+  {-# INLINABLE getKeyBefore #-}
   {-# INLINABLE programShouldEnd #-}
 
 {-# INLINABLE tryReadFirstKeyPress #-}

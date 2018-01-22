@@ -99,10 +99,10 @@ testFromSecs = do
   when (toMicros minusOneMicros /= -1)
     $ error $ "minusOneMicros = " ++ show minusOneMicros
 
-  let oneSec = toSecs $ fromSecs 1
+  let oneSec = unsafeToSecs $ fromSecs 1
   unless (oneSec == 1) $ error $ "oneSec = " ++ show oneSec
 
-  let p1Sec = toSecs $ fromSecs 0.1
+  let p1Sec = unsafeToSecs $ fromSecs 0.1
   unless (p1Sec == 0.1) $ error $ "p1Sec = " ++ show p1Sec
 
 
@@ -136,7 +136,7 @@ test___ = do
 testScale :: IO ()
 testScale = do
   let dur2 = 0.5 .* fromSecs 1.5
-  unless (toSecs dur2 == 0.75) $ error $ "dur2 = " ++ show dur2
+  unless (unsafeToSecs dur2 == 0.75) $ error $ "dur2 = " ++ show dur2
 
 assertAlmostEq :: Double -> Double -> String -> IO ()
 assertAlmostEq v1 v2 str =
@@ -150,7 +150,7 @@ testDuration = do
       diff' = d2 |-| d1
       sum_ = d1 |+| d2
       sum_' = d2 |+| d1
-  unless (toSecs diff == 1.6) $ error $ "diff = " ++ show diff
-  unless (toSecs diff' == (-1.6)) $ error $ "diff' = " ++ show diff'
-  unless (toSecs sum_ == 1.4) $ error $ "sum_ = " ++ show sum_
-  unless (toSecs sum_' == 1.4) $ error $ "sum_' = " ++ show sum_'
+  unless (unsafeToSecs diff == 1.6) $ error $ "diff = " ++ show diff
+  unless (unsafeToSecs diff' == (-1.6)) $ error $ "diff' = " ++ show diff'
+  unless (unsafeToSecs sum_ == 1.4) $ error $ "sum_ = " ++ show sum_
+  unless (unsafeToSecs sum_' == 1.4) $ error $ "sum_' = " ++ show sum_'

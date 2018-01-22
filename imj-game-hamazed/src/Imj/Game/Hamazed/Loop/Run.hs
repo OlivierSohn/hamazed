@@ -8,6 +8,7 @@
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
+      , produceEvent
       ) where
 
 import           Imj.Prelude
@@ -29,10 +30,8 @@ import           System.IO(hFlush, stdout)
 
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.State
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render
@@ -110,7 +109,7 @@ userPicksBackend = do
   putStrLn " - Press (2) then (Enter) to play in a separate window where openGL will be used to render the game (experimental)."
   putStrLn "          [Equivalent to '-r opengl']"
   putStrLn ""
-  hFlush stdout
+  hFlush stdout -- just in case buffer mode is block
   getLine >>= \case
     "1" -> return Console
     "2" -> return OpenGLWindow
@@ -144,33 +143,24 @@ loop = do
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
              => m (Maybe Event)
-produceEvent = do
-  canWait <- not <$> hasVisibleNonRenderedUpdates
-  lastRenderTime <- getLastRenderTime
-  hasPlayer <- hasPlayerKey
-  let onDeadline d@(Deadline deadlineTime priority _)
-       |preferPlayer && hasPlayer = tryPlayer -- won't block
-       |deadlineIsOverdue = return $ Just $ Timeout d
-       |otherwise =
-         -- deadline is not overdue
-         if canWait
-           then
-             getEventForDeadline d
-           else
-             return Nothing
-       where
-        preferPlayer = not deadlineIsOverdue || priority < playerPriority
-        deadlineIsOverdue = deadlineTime < lastRenderTime
-
-      deadlineStarvation =
-        if canWait
-          then
-            tryPlayer -- may block, waiting for player input
-          else
-            -- force a render
-            return Nothing
-
-      tryPlayer =
-        getPlayerKey >>= eventFromKey
-
-  getNextDeadline lastRenderTime >>= maybe deadlineStarvation onDeadline
+produceEvent =
+  -- 'playerPriority' is bigger that every other priority so we handle non-blocking player events:
+  hasPlayerKey >>= \case
+    True -> getPlayerKey >>= eventFromKey
+    False -> do
+      let whenWaitingIsAllowed x = hasVisibleNonRenderedUpdates >>= \case
+            True ->
+              -- we can't afford waiting, we force a render
+              return Nothing
+            False ->
+              -- we can afford waiting, we execute the action
+              x
+      getLastRenderTime >>= getNextDeadline >>= maybe
+          (whenWaitingIsAllowed $ getPlayerKey >>= eventFromKey)
+          (\case
+            Overdue d -> return $ Just $ Timeout d
+            Future d@(Deadline deadlineTime _ _) ->
+              whenWaitingIsAllowed $ do
+                getPlayerKeyBefore deadlineTime >>= \case
+                  Just key -> eventFromKey key
+                  Nothing -> return $ Just $ Timeout d)

@@ -33,21 +33,19 @@ updateAppState :: (MonadState AppState m, MonadReader e m, Canvas e, MonadIO m)
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState evt =
-  getGame >>= \(Game _ params state@(GameState _ _ _ _ _ anim _)) -> case evt of
+  getGame >>= \(Game _ params state@(GameState _ _ _ _ _ _ anim _)) -> case evt of
     Configuration char -> updateGameParamsFromChar char
     StartGame          -> putUserIntent Play >> updateAppState (StartLevel firstLevel)
     EndGame            -> onEndGame
-    StartLevel nextLevel -> do
-      (Screen sz _) <- getCurScreen
-      mkInitialState params sz nextLevel (Just state)
-        >>= putGameState
-    (Timeout (Deadline gt _ AnimateUI)) -> updateUIAnim gt
-    (Timeout (Deadline gt _ MoveFlyingItems)) -> onMove gt
+    StartLevel nextLevel -> getCurScreen >>= \(Screen sz _) ->
+      mkInitialState params sz nextLevel (Just state) >>= putGameState
+    (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
+    (Timeout (Deadline _ _ MoveFlyingItems)) -> onMove
     (Timeout (Deadline _ _ (AnimateParticleSystem key))) ->
       liftIO getSystemTime >>= updateOneParticleSystem key
     Action target dir -> do
       when (isFinished anim) $ case target of
-        Laser -> liftIO getSystemTime >>= onLaser dir
+        Laser -> liftIO getSystemTime >>= \t -> laserEventAction dir t >>= onDestroyedNumbers t
         Ship  -> accelerateShip' dir
     (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
     _ -> error $ "The caller should handle:" ++ show evt
@@ -79,30 +77,28 @@ updateGameParamsFromChar c =
 onContinueMessage :: (MonadState AppState m)
                   => m ()
 onContinueMessage =
-  getGameState >>= \(GameState a b c d (Level n target mayFinished) e f) -> do
+  getGameState >>= \(GameState a t b c d (Level n target mayFinished) e f) -> do
     case mayFinished of
       Just (LevelFinished stop finishTime _) -> do
         let newLevel = Level n target (Just $ LevelFinished stop finishTime ContinueMessage)
-        putGameState $ GameState a b c d newLevel e f
+        putGameState $ GameState a t b c d newLevel e f
       Nothing -> return ()
 
 startGameState :: (MonadState AppState m)
                => Time Point System
                -> m ()
 startGameState t =
-  getGameState >>= \(GameState _ world world' b d e f) ->
+  getGameState >>= \(GameState _ m world world' b d e f) ->
     putGameState
-      $ GameState (Just $ systemTimePointToGameTimePoint t) (startWorld t world) (startWorld t world') b d e f
+      $ GameState (Just t) m (startWorld t world) (startWorld t world') b d e f
 
-{-# INLINABLE onLaser #-}
-onLaser :: (MonadState AppState m)
-        => Direction
-        -> Time Point System
-        -> m ()
-onLaser dir t = do
-  destroyedBalls <- laserEventAction dir t
-
-  getGameState >>= \(GameState b (World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
+{-# INLINABLE onDestroyedNumbers #-}
+onDestroyedNumbers :: (MonadState AppState m)
+                   => Time Point System
+                   -> [Number]
+                   -> m ()
+onDestroyedNumbers t destroyedBalls =
+  getGameState >>= \(GameState b m (World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
                                futureWorld g level@(Level i target finished)
                    (UIAnimation (UIEvolutions j upDown left) k l) s) -> do
     (Screen _ center) <- getCurScreen
@@ -125,28 +121,24 @@ onLaser dir t = do
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
     putGameState
       $ assert (isFinished newAnim)
-      $ GameState b newWorld futureWorld allShotNumbers newLevel newAnim s
+      $ GameState b m newWorld futureWorld allShotNumbers newLevel newAnim s
 
 {-# INLINABLE onMove #-}
-onMove :: (MonadState AppState m)
-       => Time Point System
-       -> m ()
-onMove t =
-  getGameState >>= \(GameState _ world a b c d e) -> do
-    let tgame = systemTimePointToGameTimePoint t
-        nextTime = Just $ addDuration gameMotionPeriod tgame
-        newWorld = moveWorld t world
-    putGameState $ GameState nextTime newWorld a b c d e
-    onHasMoved t
+onMove :: (MonadState AppState m, MonadIO m) => m ()
+onMove = getGameState >>= \(GameState _ m world a b c d e) -> do
+  t <- liftIO getSystemTime
+  let nextTime = addDuration (toSystemDuration m gameMotionPeriod) t
+  putGameState $ GameState (Just nextTime) m (moveWorld t world) a b c d e
+  onHasMoved t
 
 {-# INLINABLE onHasMoved #-}
 onHasMoved :: (MonadState AppState m)
            => Time Point System
            -> m ()
 onHasMoved t = do
-  shipParticleSystems t >>= addParticleSystems
-  getGameState >>= \(GameState b (World balls ship@(BattleShip _ _ safeTime collisions) space systems)
-             futureWorld shotNums (Level i target finished) anim s) -> do
+  shipParticleSystems t >>= addParticleSystems >> getGameState
+    >>= \(GameState b m (World balls ship@(BattleShip _ _ safeTime collisions) space systems)
+                    futureWorld shotNums (Level i target finished) anim s) -> do
     let remainingBalls =
           if isNothing safeTime
             then
@@ -162,7 +154,7 @@ onHasMoved t = do
             (const Nothing)
               safeTime
         newLevel = Level i target (finished <|> finishIfShipCollides)
-    putGameState $ assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim s
+    putGameState $ assert (isFinished anim) $ GameState b m newWorld futureWorld shotNums newLevel anim s
 
 {-# INLINABLE accelerateShip' #-}
 accelerateShip' :: (MonadState AppState m)
@@ -175,7 +167,7 @@ accelerateShip' dir =
 updateUIAnim :: (MonadState AppState m)
              => Time Point System -> m()
 updateUIAnim t =
-  getGameState >>= \(GameState _ curWorld futWorld j k (UIAnimation evolutions _ it) s) -> do
+  getGameState >>= \(GameState _ m curWorld futWorld j k (UIAnimation evolutions _ it) s) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, worldAnimDeadline) =
           maybe
@@ -184,5 +176,5 @@ updateUIAnim t =
              (curWorld, Just $ addDuration dt t))
             $ getDeltaTime evolutions nextFrame
         anims = UIAnimation evolutions worldAnimDeadline nextIt
-    putGameState $ GameState Nothing world futWorld j k anims s
+    putGameState $ GameState Nothing m world futWorld j k anims s
     when (isFinished anims) $ startGameState t

@@ -31,7 +31,7 @@ eventFromKey k = do
         AlphaNum c -> Just $ Configuration c
         _ -> Nothing
       Play ->
-        getGameState >>= \(GameState _ _ _ _ (Level n _ finished) _ _) ->
+        getGameState >>= \(GameState _ _ _ _ _ (Level n _ finished) _ _) ->
           case finished of
             Nothing -> return $ case k of
               AlphaNum c -> case c of

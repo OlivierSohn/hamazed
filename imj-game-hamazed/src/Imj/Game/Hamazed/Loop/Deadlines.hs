@@ -6,6 +6,7 @@
 
 module Imj.Game.Hamazed.Loop.Deadlines
     ( getNextDeadline
+    , TypedDeadline(..)
     ) where
 
 import           Imj.Prelude
@@ -59,14 +60,20 @@ the 'ParticleSystem's becomes /very/ slow for some reason.
 getNextDeadline :: (MonadState AppState m)
                 => Time Point System
                 -- ^ The current time.
-                -> m (Maybe Deadline)
+                -> m (Maybe TypedDeadline)
 getNextDeadline t =
   getGameState >>= \st -> do
     let l = getDeadlinesByDecreasingPriority st
         overdues = filter (\(Deadline t' _ _) -> t' < t) l
     return $ case overdues of
-      [] -> earliestDeadline' l
-      highPriorityOverdue:_ -> Just highPriorityOverdue
+      [] ->
+        Future <$> earliestDeadline' l
+      highPriorityOverdue:_ ->
+        Just $ Overdue highPriorityOverdue
+
+data TypedDeadline = Future {-# UNPACK #-} !Deadline
+                   | Overdue {-# UNPACK #-} !Deadline
+
 
 earliestDeadline' :: [Deadline] -> Maybe Deadline
 earliestDeadline' [] = Nothing
@@ -74,7 +81,7 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 
 getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) =
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _ _) =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     (catMaybes
@@ -85,24 +92,24 @@ getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ level _ _) =
     ) ++ getParticleSystemsDeadlines s
 
 getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
-getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ (Level _ _ levelFinished) _ _) =
+getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ _ (Level _ _ levelFinished) _ _) =
   maybe
     (maybe
       Nothing
-      (\s -> Just $ Deadline (gameTimePointToSystemTimePoint s) moveItemsPriority MoveFlyingItems)
+      (\s -> Just $ Deadline s moveItemsPriority MoveFlyingItems)
         nextGameStep)
     (const Nothing)
       levelFinished
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
-getParticleSystemsDeadlines (GameState _ (World _ _ _ animations) _ _ _ _ _) =
+getParticleSystemsDeadlines (GameState _ _ (World _ _ _ animations) _ _ _ _ _) =
   map (\(key, (Prioritized p a)) ->
         Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
           $ AnimateParticleSystem key)
     $ toList animations
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
-uiAnimationDeadline (GameState _ _ _ _ _ uianim _) =
+uiAnimationDeadline (GameState _ _ _ _ _ _ uianim _) =
   maybe
     Nothing
     (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)

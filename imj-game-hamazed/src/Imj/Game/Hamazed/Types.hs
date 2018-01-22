@@ -43,8 +43,9 @@ data GameParameters = GameParameters {
 we draw the /old/ 'World' while using the /new/ 'World' 's
 dimensions to animate the UI accordingly. -}
 data GameState = GameState {
-    _gameStateNextMotionStep :: !(Maybe (Time Point GameTime))
-    -- ^ When the next 'World' motion update should happen,
+    _gameStateNextMotionStep :: !(Maybe (Time Point System))
+    -- ^ When the next 'World' motion update should happen
+  , _gameStateTimeMultiplicator :: !(Multiplicator GameTime)
   , _gameStatePreviousWorld :: !World
     -- ^ The previous 'World'
   , gameStateCurrentWorld :: !World

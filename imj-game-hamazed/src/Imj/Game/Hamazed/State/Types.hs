@@ -108,7 +108,7 @@ getGameParameters = getGame >>= \(Game _ p _) -> return p
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
-getWorld = getGameState >>= \(GameState _ w _ _ _ _ _) -> return w
+getWorld = getGameState >>= \(GameState _ _ w _ _ _ _ _) -> return w
 
 {-# INLINABLE getMode #-}
 getMode :: MonadState AppState m => m ViewMode
@@ -123,7 +123,7 @@ getUserIntent =
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
 getCurScreen =
-  getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ screen)) -> return screen
+  getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ _ screen)) -> return screen
 
 {-# INLINABLE getLastRenderTime #-}
 getLastRenderTime :: MonadState AppState m => m (Time Point System)
@@ -146,17 +146,17 @@ putGameParameters p = getGame >>= \(Game a _ b) ->
 
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState AppState m => World -> m ()
-putWorld w = getGameState >>= \(GameState a _ c d e f g) ->
-  putGameState $ GameState a w c d e f g
+putWorld w = getGameState >>= \(GameState a t _ c d e f g) ->
+  putGameState $ GameState a t w c d e f g
 
 {-# INLINABLE takeKeys #-}
 takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]
 takeKeys n
   | n <= 0 = return []
   | otherwise =
-      get >>= \(AppState a b c d e key f) -> do
+      get >>= \(AppState a c d e f key g) -> do
         let endKey = key + fromIntegral n
-        put $ AppState a b c d e endKey f
+        put $ AppState a c d e f endKey g
         return [key..pred endKey]
 
 {-# INLINABLE addParticleSystems #-}
@@ -166,8 +166,8 @@ addParticleSystems :: MonadState AppState m
 addParticleSystems l = do
   keys <- takeKeys $ length l
   let ps2 = fromList $ zip keys l
-  getGameState >>= \(GameState a (World b c d ps) e f g h i) ->
-    putGameState $ GameState a (World b c d (union ps ps2)) e f g h i
+  getGameState >>= \(GameState a t (World b c d ps) e f g h i) ->
+    putGameState $ GameState a t (World b c d (union ps ps2)) e f g h i
 
 {-# INLINABLE updateOneParticleSystem #-}
 updateOneParticleSystem :: MonadState AppState m

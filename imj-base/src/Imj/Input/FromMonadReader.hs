@@ -5,7 +5,7 @@
 module Imj.Input.FromMonadReader
        ( -- * Player input
          getPlayerKey
-       , getPlayerKeyTimeout
+       , getPlayerKeyBefore
        , tryGetPlayerKey
        , hasPlayerKey
        , unGetPlayerKey
@@ -37,14 +37,13 @@ unGetPlayerKey k = do
   d <- asks unGetKey
   d k
 
-{-# INLINABLE getPlayerKeyTimeout #-}
-getPlayerKeyTimeout :: (PlayerInput i, MonadReader i m, MonadIO m)
-                    => Time Point System
-                    -> Time Duration System
-                    -> m (Maybe Key)
-getPlayerKeyTimeout curTime ms = do
-  d <- asks getKeyTimeout
-  d curTime ms
+{-# INLINABLE getPlayerKeyBefore #-}
+getPlayerKeyBefore :: (PlayerInput i, MonadReader i m, MonadIO m)
+                   => Time Point System
+                   -> m (Maybe Key)
+getPlayerKeyBefore t = do
+  d <- asks getKeyBefore
+  d t
 
 {-# INLINABLE tryGetPlayerKey #-}
 tryGetPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)

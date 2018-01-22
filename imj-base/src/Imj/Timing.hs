@@ -17,21 +17,30 @@ module Imj.Timing
     , System
     , Point
     , Duration
+    -- * Translate a time point
     , addDuration
-    -- * Utilities
-    , unsafeGetTimeSpec
-    , unsafeFromTimeSpec
-    , getSystemTime
-    , fromSecs
-    , toSecs
-    , showTime
-    , toMicros
+    -- * Produce durations
     , (...)
+    -- * Scale, add, substract durations
     , (.*)
     , (|-|)
     , (|+|)
+    -- * Convert durations between time spaces
+    , Multiplicator(..)
+    , fromSystemDuration
+    , toSystemDuration
+    -- * Convert system durations from / to seconds
+    , fromSecs
+    , unsafeToSecs
+    -- * Utilities
+    , getSystemTime
+    , getDurationFromNowTo
+    , showTime
+    , toMicros
     , strictlyNegative
     , zeroDuration
+    , unsafeGetTimeSpec
+    , unsafeFromTimeSpec
     -- * Reexports
     , Int64
     ) where
@@ -44,22 +53,17 @@ import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
 {- | Represents a time.
 
-The phantom type 'a' represents the timeline: there is system time (see 'System')
- and we could have a /game/ time, which could be a slown down, or reversed time.
+The phantom type 'a' represents the time space. It could be 'System'
+ or another phantom type.
 
  The phantom type 'b' specifies the nature of the time (a point on the timeline
  or a duration)-}
 newtype Time a b = Time TimeSpec deriving(Eq, Ord, Show, Generic)
+
 instance PrettyVal (Time Point b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:", s, n)
 instance PrettyVal (Time Duration b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:", s, n)
-
-unsafeGetTimeSpec :: Time a b -> TimeSpec
-unsafeGetTimeSpec (Time t) = t
-
-unsafeFromTimeSpec :: TimeSpec -> Time a b
-unsafeFromTimeSpec = Time
 
 {- | A location on a timeline.
 
@@ -67,14 +71,31 @@ Note that summing 'Time' 'Point' has no meaning, and substracting them is achiev
 using '...' -}
 data Point deriving(Generic)
 
-{- | A difference between two locations on a timeline.
+{- | A difference between two locations of the same time space.
 
-I prefer not to give a 'Num' to 'Time' 'Duration', because fromInteger takes nanoseconds, which
-leads to ambiguous code (see <https://github.com/corsis/clock/issues/49 this issue>).
+See 'Multiplicator', 'fromSystemDuration' and 'toSystemDuration' to convert
+a 'Duration' of a given time space from / to the 'SystemTime' time space.
 
-Instead, '|-|' and '|+|' are available.
--}
+'|-|' and '|+|' are available to add or substract durations.
+A 'Num' instance is /not/ provided, as it would lead to more
+ambiguous code, as explained <https://github.com/corsis/clock/issues/49 here>. -}
 data Duration deriving(Generic)
+
+-- | The system time (see 'getSystemTime')
+data System deriving(Generic)
+
+-- | 'Multiplicator', multiplied with a 'System' duration produces a duration in
+-- another time space specified by the phantom type 'a'.
+newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, PrettyVal)
+
+
+{-# INLINE fromSystemDuration #-}
+fromSystemDuration :: Multiplicator a -> Time Duration System -> Time Duration a
+fromSystemDuration (Multiplicator m) = unsafeFromTimeSpec . unsafeGetTimeSpec . ((.*) m)
+
+{-# INLINE toSystemDuration #-}
+toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
+toSystemDuration (Multiplicator m) = ((.*) $ recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
 
 
 {- | Substraction for 'Time' 'Duration' -}
@@ -86,15 +107,13 @@ Time a |+| Time b = Time $ a+b
 {- | Scalar multiplication for 'Time' 'Duration' -}
 (.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
-  fromSecs $ scale * toSecs t
-
-strictlyNegative :: Time Duration a -> Bool
-strictlyNegative (Time t) = t < 0
-
--- | The system time (see 'getSystemTime')
-data System deriving(Generic)
+  fromSecs $ scale * unsafeToSecs t
+{-# INLINE (.*) #-}
+{-# INLINE (|-|) #-}
+{-# INLINE (|+|) #-}
 
 -- | Produce a duration between two points.
+{-# INLINE (...) #-}
 (...) :: Time Point b
       -- ^ t1
       -> Time Point b
@@ -115,8 +134,9 @@ toMicros :: Time Duration System -> Int64
 toMicros (Time (TimeSpec seconds nanos)) =
   10^(6::Int) * seconds + quot nanos (10^(3::Int))
 
-toSecs :: Time Duration a -> Double
-toSecs (Time (TimeSpec seconds nanos)) =
+{-# INLINE unsafeToSecs #-}
+unsafeToSecs :: Time Duration a -> Double
+unsafeToSecs (Time (TimeSpec seconds nanos)) =
   fromIntegral seconds + fromIntegral nanos / fromIntegral (10^(9::Int) :: Int)
 
 -- | Converts a duration expressed in seconds using a 'Double' to a 'TimeSpec'
@@ -130,6 +150,11 @@ getSystemTime :: IO (Time Point System)
 getSystemTime =
   Time <$> getTime Monotonic
 
+getDurationFromNowTo :: Time Point System
+                     -> IO (Time Duration System)
+getDurationFromNowTo t =
+  getSystemTime >>= \now -> return $ now ... t
+
 showTime :: Time Duration a -> String
 showTime (Time x) =
   rJustify $ show $ quot (toNanoSecs x) 1000
@@ -139,3 +164,15 @@ showTime (Time x) =
 {-# INLINE zeroDuration #-}
 zeroDuration :: Time Duration b
 zeroDuration = Time $ TimeSpec 0 0
+
+{-# INLINE unsafeGetTimeSpec #-}
+unsafeGetTimeSpec :: Time a b -> TimeSpec
+unsafeGetTimeSpec (Time t) = t
+
+{-# INLINE unsafeFromTimeSpec #-}
+unsafeFromTimeSpec :: TimeSpec -> Time a b
+unsafeFromTimeSpec = Time
+
+{-# INLINE strictlyNegative #-}
+strictlyNegative :: Time Duration a -> Bool
+strictlyNegative (Time t) = t < 0

@@ -7,9 +7,6 @@ module Imj.Game.Hamazed.State
       (
       -- * Create
         createState
-      -- * Access
-      , getRenderable
-      , getRecording
       -- * Modify
       , onEvent
       , toggleRecordEvent
@@ -132,35 +129,33 @@ groupStats (EventGroup l _ t _) =
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
           => m ()
-renderAll =
-  getRenderable >>= \(gameState, evtStrs) -> do
-    t1 <- liftIO getSystemTime
-    draw gameState
-    getUserIntent >>= \case
-      Configure -> do
-        (Screen _ center) <- getCurScreen
-        getGameState >>= \(GameState _ (World _ _ (Space _ sz _) _) _ _ _ _ _) ->
-          draw' $ mkRectContainerWithCenterAndInnerSize center sz
-      _ -> return ()
-    t2 <- liftIO getSystemTime
-    zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..] evtStrs
-    (dtDelta, dtCmds, dtFlush) <- renderToScreen
-    debug >>= \case
-      True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
-                                ++ " de " ++ showTime dtDelta
-                                ++ " cmd " ++ showTime dtCmds
-                                ++ " fl " ++ showTime dtFlush
-      False -> return ()
+renderAll = do
+  t1 <- liftIO getSystemTime
+  draw
+  getUserIntent >>= \case
+    Configure -> do
+      (Screen _ center) <- getCurScreen
+      getGameState >>= \(GameState _ _ (World _ _ (Space _ sz _) _) _ _ _ _ _) ->
+        draw' $ mkRectContainerWithCenterAndInnerSize center sz
+    _ -> return ()
+  t2 <- liftIO getSystemTime
+  getEvtStrs >>= zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..]
+  (dtDelta, dtCmds, dtFlush) <- renderToScreen
+  debug >>= \case
+    True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
+                              ++ " de " ++ showTime dtDelta
+                              ++ " cmd " ++ showTime dtCmds
+                              ++ " fl " ++ showTime dtFlush
+    False -> return ()
 
-{-# INLINABLE getRenderable #-}
-getRenderable :: MonadState AppState m
-              => m (GameState, [ColorString])
-getRenderable =
-  get >>= \(AppState _ (Game _ _ gameState) _ h r _ _) -> do
-    let strs = case r of
-              Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
-              DontRecord -> []
-    return (gameState, strs)
+{-# INLINABLE getEvtStrs #-}
+getEvtStrs :: MonadState AppState m
+              => m [ColorString]
+getEvtStrs =
+  get >>= \(AppState _ _ _ h r _ _) ->
+    return $ case r of
+      Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
+      DontRecord -> []
 
 {-# INLINABLE getRecording #-}
 getRecording :: MonadState AppState m

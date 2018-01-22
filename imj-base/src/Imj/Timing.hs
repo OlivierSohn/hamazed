@@ -3,10 +3,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-{- | This modules exports types and functions related to /monotonic/ timing.
+{- | This module exports types and functions related to /monotonic/ timing.
 
 Some functions are /unsafe/-prefixed. You should use them only to implement
-conversion between different time-spaces. Otherwise, these functions are too
+conversion between different time-spaces (time-space = first phantom type of 'Time').
+Otherwise, these functions are too
 low-level for your usage and may lead to mistakes because you'll convert from one
 time-space to another wihtout noticing it.
 -}
@@ -18,7 +19,6 @@ module Imj.Timing
     , Duration
     , addDuration
     -- * Utilities
-    , zeroDuration
     , unsafeGetTimeSpec
     , unsafeFromTimeSpec
     , getSystemTime
@@ -31,6 +31,7 @@ module Imj.Timing
     , (|-|)
     , (|+|)
     , strictlyNegative
+    , zeroDuration
     -- * Reexports
     , Int64
     ) where

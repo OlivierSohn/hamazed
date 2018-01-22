@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This modules handle time constants of the game logic.
+-- | This module handles time constants of the game logic.
 
 module Imj.Game.Hamazed.Loop.Timing
         ( gameMotionPeriod

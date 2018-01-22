@@ -4,6 +4,8 @@ module Test.Imj.Timing where
 
 import           Imj.Prelude
 
+import           System.Clock(TimeSpec(..)) -- to test the parts Imj.timing relies on
+
 import           Imj.Timing
 
 testTiming :: IO Bool
@@ -144,19 +146,11 @@ testDuration :: IO ()
 testDuration = do
   let d1 = fromSecs 1.5
       d2 = fromSecs $ -0.1
-      diff  = d1 - d2
-      diff' = d2 - d1
-      sum_ = d1 + d2
-      sum_' = d2 + d1
-      d2' = negate d2
-      d2'' = abs d2
-      m1 = d1 * d2
-      m1' = d2 * d1
+      diff  = d1 |-| d2
+      diff' = d2 |-| d1
+      sum_ = d1 |+| d2
+      sum_' = d2 |+| d1
   unless (toSecs diff == 1.6) $ error $ "diff = " ++ show diff
   unless (toSecs diff' == (-1.6)) $ error $ "diff' = " ++ show diff'
   unless (toSecs sum_ == 1.4) $ error $ "sum_ = " ++ show sum_
   unless (toSecs sum_' == 1.4) $ error $ "sum_' = " ++ show sum_'
-  unless (toSecs d2' == 0.1) $ error $ "d2' = " ++ show d2'
-  unless (toSecs d2'' == 0.1) $ error $ "d2'' = " ++ show d2''
-  assertAlmostEq (toSecs m1) (-0.15) "m1"
-  assertAlmostEq (toSecs m1') (-0.15) "m1'"

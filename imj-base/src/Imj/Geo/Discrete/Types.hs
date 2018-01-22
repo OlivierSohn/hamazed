@@ -2,6 +2,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 
@@ -42,12 +43,20 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Discrete directions.
-data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show)
+data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show, Generic)
+instance PrettyVal Direction where
+  prettyVal Up = prettyVal "Up"
+  prettyVal Down = prettyVal "Down"
+  prettyVal LEFT = prettyVal "LEFT"
+  prettyVal RIGHT = prettyVal "RIGHT"
 
 -- | One-dimensional discrete coordinate. We use phantom types 'Row', 'Col'
 -- to distinguish between rows and columns.
 newtype Coord a = Coord Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Generic)
+
+instance PrettyVal (Coord a) where
+  prettyVal (Coord x) = prettyVal x
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteInterpolation (Coords Pos) where
@@ -77,11 +86,14 @@ to distinguish positions from speeds. -}
 data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
-} deriving (Eq, Show, Ord)
+} deriving (Eq, Show, Ord, Generic)
+
+instance PrettyVal (Coords a) where
+  prettyVal (Coords x y) = prettyVal ("Coords:",x,y)
 
 -- | Discrete length
 newtype Length a = Length Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic)
 
 -- | Phantom type for width
 data Width
@@ -91,7 +103,10 @@ data Height
 data Size = Size {
     _sizeY :: {-# UNPACK #-} !(Length Height)
   , _sizeX :: {-# UNPACK #-} !(Length Width)
-} deriving (Eq, Show)
+} deriving (Eq, Show, Generic)
+
+instance PrettyVal Size where
+  prettyVal (Size x y) = prettyVal ("Size:",x,y)
 
 -- | Width and Height to Coords
 {-# INLINE toCoords #-}

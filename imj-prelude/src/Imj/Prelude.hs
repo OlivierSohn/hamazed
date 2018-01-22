@@ -2,12 +2,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- Initially I needed this custom Prelude to hide putStr and putChar,
--- since I provide equivalent functions that should be used instead to
--- render the game.
---
--- I find it also usefull to default-import functions that I use a lot.
-
 module Imj.Prelude
           ( module Prelude
           , module Control.Applicative
@@ -23,6 +17,9 @@ module Imj.Prelude
           , module Data.String
           , module Data.Text
           , module Data.Word
+          , module GHC.Generics
+          , module System.IO
+          , module Text.Show.Pretty
           ) where
 
 import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
@@ -44,6 +41,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , (!!)
                         )
 
+import           GHC.Generics(Generic)
 import           Control.Applicative((<|>), pure)
 import           Control.Arrow((>>>))
 import           Control.Exception(assert)
@@ -58,3 +56,6 @@ import           Data.Ratio((%))
 import           Data.String(String)
 import           Data.Text(Text)
 import           Data.Word(Word8)
+import           System.IO(putStrLn)
+
+import           Text.Show.Pretty(PrettyVal(..))

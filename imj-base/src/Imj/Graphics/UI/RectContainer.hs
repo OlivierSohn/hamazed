@@ -2,6 +2,8 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.UI.RectContainer
         ( RectContainer(..)
@@ -48,7 +50,7 @@ data RectContainer = RectContainer {
     -- ^ /Content/ size.
   , _rectFrameUpperLeft :: !(Coords Pos)
     -- ^ Upper left corner.
-} deriving(Eq, Show)
+} deriving(Eq, Show, Generic, PrettyVal)
 
 -- TODO typeclass "continuous closed path" to gather 'ranges' and 'drawRectFrameInterpolation' logics.
 

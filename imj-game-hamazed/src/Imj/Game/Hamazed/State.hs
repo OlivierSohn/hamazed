@@ -103,7 +103,7 @@ addUpdateTime :: MonadState AppState m
               => Time Duration System -> m ()
 addUpdateTime add =
   get >>= \(AppState t a (EventGroup d e prevT f) b c g de) ->
-    put $ AppState t a (EventGroup d e (add + prevT) f) b c g de
+    put $ AppState t a (EventGroup d e (add |+| prevT) f) b c g de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)

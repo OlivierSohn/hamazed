@@ -98,7 +98,7 @@ instance PlayerInput OpenGLBackend where
           let elapsed = callerTime...now
           if elapsed < allowed
             then
-              getKeyTimeout b now $ allowed - elapsed
+              getKeyTimeout b now $ allowed |-| elapsed
             else
               return Nothing)
       (return . Just)

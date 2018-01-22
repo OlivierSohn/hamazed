@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 {- | This modules exports types and functions related to /monotonic/ timing.
 
@@ -26,15 +28,15 @@ module Imj.Timing
     , toMicros
     , (...)
     , (.*)
+    , (|-|)
+    , (|+|)
+    , strictlyNegative
     -- * Reexports
-    , toNanoSecs
     , Int64
-    , TimeSpec(..)
     ) where
 
 import           Imj.Prelude
 import           Prelude(length)
-import           GHC.Num(fromInteger)
 
 import           Data.Int(Int64)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
@@ -46,7 +48,11 @@ The phantom type 'a' represents the timeline: there is system time (see 'System'
 
  The phantom type 'b' specifies the nature of the time (a point on the timeline
  or a duration)-}
-newtype Time a b = Time TimeSpec deriving(Eq, Ord, Show)
+newtype Time a b = Time TimeSpec deriving(Eq, Ord, Show, Generic)
+instance PrettyVal (Time Point b) where
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:", s, n)
+instance PrettyVal (Time Duration b) where
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:", s, n)
 
 unsafeGetTimeSpec :: Time a b -> TimeSpec
 unsafeGetTimeSpec (Time t) = t
@@ -54,33 +60,47 @@ unsafeGetTimeSpec (Time t) = t
 unsafeFromTimeSpec :: TimeSpec -> Time a b
 unsafeFromTimeSpec = Time
 
--- | A location on a timeline.
-data Point
--- | A difference between two locations on a timeline.
-data Duration
+{- | A location on a timeline.
 
--- note that Time Point a has no Num instance because adding two of them doesn't make sense,
--- and substracting makes sense but produces a different type (Time Duration)
-instance Num (Time Duration a) where
-  negate (Time t) = Time $ negate t
-  (+) (Time t) (Time t2) = Time $ t + t2
-  (*) (Time t) (Time t2) = Time $ t * t2
-  abs (Time t)    = Time $ abs t
-  signum (Time t) = Time $ signum t
-  fromInteger     = Time . fromInteger
+Note that summing 'Time' 'Point' has no meaning, and substracting them is achieved
+using '...' -}
+data Point deriving(Generic)
+
+{- | A difference between two locations on a timeline.
+
+I prefer not to give a 'Num' to 'Time' 'Duration', because fromInteger takes nanoseconds, which
+leads to ambiguous code (see <https://github.com/corsis/clock/issues/49 this issue>).
+
+Instead, '|-|' and '|+|' are available.
+-}
+data Duration deriving(Generic)
 
 
--- | The system time (see 'getSystemTime')
-data System
-
--- | Produce a duration between two points.
-(...) :: Time Point b -> Time Point b -> Time Duration b
-Time a ... Time b = Time $ b - a
-
--- | Scale a duration
+{- | Substraction for 'Time' 'Duration' -}
+(|-|) :: Time Duration a -> Time Duration a -> Time Duration a
+Time a |-| Time b = Time $ a-b
+{- | Addition for 'Time' 'Duration' -}
+(|+|) :: Time Duration a -> Time Duration a -> Time Duration a
+Time a |+| Time b = Time $ a+b
+{- | Scalar multiplication for 'Time' 'Duration' -}
 (.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
   fromSecs $ scale * toSecs t
+
+strictlyNegative :: Time Duration a -> Bool
+strictlyNegative (Time t) = t < 0
+
+-- | The system time (see 'getSystemTime')
+data System deriving(Generic)
+
+-- | Produce a duration between two points.
+(...) :: Time Point b
+      -- ^ t1
+      -> Time Point b
+      -- ^ t2
+      -> Time Duration b
+      -- ^ = t2 - t1
+Time a ... Time b = Time $ b - a
 
 -- | Adds seconds to a 'Point'.
 {-# INLINE addDuration #-}

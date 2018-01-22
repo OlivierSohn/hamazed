@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-} -- TODO refactor and doc
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.UI.Animation
            (-- * Animated UI
@@ -30,7 +32,6 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-
 -- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {
     _uiAnimationEvs :: !UIEvolutions
@@ -38,7 +39,7 @@ data UIAnimation = UIAnimation {
   -- ^ Time at which the 'UIEvolutions' should be rendered and updated
   , _uiAnimationProgress :: !Iteration
   -- ^ Current 'Iteration'.
-} deriving(Show)
+} deriving(Show, Generic, PrettyVal)
 
 
 -- TODO generalize as an Evolution (text-decorated RectContainer)
@@ -51,7 +52,7 @@ data UIEvolutions = UIEvolutions {
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
   , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
     -- ^ The transformation of colored text left and right of the 'RectContainer'.
-} deriving(Show)
+} deriving(Show, PrettyVal, Generic)
 
 
 getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
@@ -121,12 +122,12 @@ mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
               horizontalDistance verticalDistance time =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolutionEaseQuart (Successive [from, to]) 1
+  frameE = mkEvolutionEaseQuart (Successive [from, to]) (fromSecs 1)
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
                                                 concatSuccessive f2 t2,
                                                 zipWith concatSuccessive f3 t3)
-                                     horizontalDistance verticalDistance 1
+                                     horizontalDistance verticalDistance (fromSecs 1)
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
     maybe
@@ -209,7 +210,7 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
         centerDownToAligned   = alignTxtCentered centerDownTo (last txtLowers)
     in  if null txtUppers || null txtLowers
           then
-            TextAnimation [] (Evolution (Successive []) 0 0 id) (mkEaseClock 0 0 id)
+            TextAnimation [] (Evolution (Successive []) 0 (fromSecs 0) id) (mkEaseClock (fromSecs 0) 0 id)
           else
             mkSequentialTextTranslationsCharAnchored
               [(sUp, centerUpFromAligned, centerUpToAligned),

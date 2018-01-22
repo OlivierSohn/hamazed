@@ -58,7 +58,7 @@ getEventForDeadline d@(Deadline deadlineTime _ _) = do
 getKeyWithinDuration :: (PlayerInput i, MonadReader i m, MonadIO m)
                      => Time Point System -> Time Duration System -> Deadline -> m (Maybe Key)
 getKeyWithinDuration curTime duration (Deadline _ deadlinePriority _)
- | duration < 0 = -- overdue
+ | strictlyNegative duration = -- overdue
     if playerPriority > deadlinePriority
       then
         tryGetPlayerKey

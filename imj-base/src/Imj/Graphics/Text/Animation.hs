@@ -1,5 +1,7 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 {- |
 = Examples
@@ -71,7 +73,7 @@ data TextAnimation a = TextAnimation {
  maximum number of characters in a 'ColorString' of the given 'Evolution' 'ColorString'. -}
  , _textAnimationClock :: !EaseClock
  -- ^ Schedules the animation.
-} deriving(Show)
+} deriving(Show, PrettyVal, Generic)
 
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'

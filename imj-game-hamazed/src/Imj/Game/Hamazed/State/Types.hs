@@ -32,7 +32,6 @@ module Imj.Game.Hamazed.State.Types
       , updateOneParticleSystem
       -- * reexports
       , MonadState
-      , TimeSpec
       ) where
 
 import           Imj.Prelude
@@ -63,7 +62,7 @@ data AppState  = AppState {
   -- ^ Can record which events where handled.
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
-  , getNextParticleSystemKey :: !ParticleSystemKey
+  , _nextParticleSystemKey :: !ParticleSystemKey
   , _appStateDebug :: !Bool
   -- ^ Print times and group information in the terminal.
 }

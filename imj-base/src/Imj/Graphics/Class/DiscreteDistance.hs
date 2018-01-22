@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Graphics.Class.DiscreteDistance
         ( DiscreteDistance(..)
@@ -13,7 +15,7 @@ import           Imj.Prelude
 import           Data.List( length )
 
 -- | Wrapper on a list, to represents successive waypoints.
-newtype Successive a = Successive [a] deriving(Show)
+newtype Successive a = Successive [a] deriving(Show, Generic, PrettyVal)
 
 instance Functor Successive where
   fmap f (Successive l) = Successive $ fmap f l

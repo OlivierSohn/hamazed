@@ -6,7 +6,7 @@ module Imj.Graphics.Class.Render
     ( Render(..)
     -- * Reexports
     , module Imj.Graphics.Class.Draw
-    , TimeSpec
+    , module Imj.Timing
     ) where
 
 import           Control.Monad.IO.Class(MonadIO)

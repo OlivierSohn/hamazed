@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.Color.Types
@@ -27,6 +29,8 @@ module Imj.Graphics.Color.Types
           , RGB(..)
           ) where
 
+import           Imj.Prelude
+
 import           Data.Bits(shiftL, (.|.))
 import           Data.Word (Word8, Word16)
 
@@ -40,13 +44,13 @@ data RGB = RGB {
     _rgbR :: {-# UNPACK #-} !Word8
   , _rgbG :: {-# UNPACK #-} !Word8
   , _rgbB :: {-# UNPACK #-} !Word8
-} deriving(Eq, Show, Read)
+} deriving(Eq, Show, Read, PrettyVal, Generic)
 
 -- | A background and a foreground 'Color8'.
 data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !(Color8 Background)
   , _colorsForeground :: {-# UNPACK #-} !(Color8 Foreground)
-} deriving(Eq, Show)
+} deriving(Eq, Show, PrettyVal, Generic)
 
 -- TODO use bresenham 6 to interpolate foreground and background at the same time:
 -- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
@@ -103,7 +107,9 @@ gray i
 data Foreground
 data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
-newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum)
+newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum, Generic)
+instance PrettyVal (Color8 a) where
+  prettyVal (Color8 x) = prettyVal ("Color8:",x)
 
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteDistance (Color8 a) where

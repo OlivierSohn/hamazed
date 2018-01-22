@@ -34,7 +34,6 @@ import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
-import           Imj.Timing
 
 
 -- | Executes actions in context of a given 'Scissor'.

@@ -34,8 +34,6 @@ import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Flush
 import           Imj.Graphics.Render.Delta.Types
 
-import           Imj.Timing
-
 data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
   , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))

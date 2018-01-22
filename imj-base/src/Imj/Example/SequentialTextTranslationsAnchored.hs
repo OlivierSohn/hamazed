@@ -38,7 +38,6 @@ import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
-
 -- | Shows the differences between 'AnchorChars' and 'AnchorStrings', by comparing,
 -- with the same inputs:
 --
@@ -78,7 +77,7 @@ runExampleCharAnchored :: (Render e, MonadReader e m, MonadIO m)
                        -> (Frame, Frame -> m ())
 runExampleCharAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
-        mkSequentialTextTranslationsCharAnchored (translateInput ref input) 1
+        mkSequentialTextTranslationsCharAnchored (translateInput ref input) (fromSecs 1)
   in (lastFrame, drawAnimatedTextCharAnchored anim)
 
 runExampleStringAnchored :: (Render e, MonadReader e m, MonadIO m)
@@ -87,7 +86,7 @@ runExampleStringAnchored :: (Render e, MonadReader e m, MonadIO m)
                          -> (Frame, Frame -> m ())
 runExampleStringAnchored input ref =
   let anim@(TextAnimation _ _ (EaseClock (Evolution _ lastFrame _ _))) =
-        mkSequentialTextTranslationsStringAnchored (translateInput ref input) 1
+        mkSequentialTextTranslationsStringAnchored (translateInput ref input) (fromSecs 1)
   in (lastFrame, drawAnimatedTextStringAnchored anim)
 
 translateInput :: Coords Pos

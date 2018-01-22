@@ -119,7 +119,7 @@ onLaser dir t = do
                   (horizontalDist, verticalDist) = computeViewDistances mode
                   (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
                   infos = mkLeftInfo Normal newAmmo allShotNumbers level
-              in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 0 -- 0 duration, since animation is over anyway
+              in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
         newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
         newLevel = Level i target newFinished
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l

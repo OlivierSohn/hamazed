@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.UI.Colored
            ( Colored(..)
@@ -21,7 +23,7 @@ import           Imj.Graphics.Interpolation
 data Colored a = Colored {
     _coloredColor :: !LayeredColor
   , _coloredColorable :: !a
-} deriving(Show)
+} deriving(Generic, Show, PrettyVal)
 
 instance Functor Colored where
   fmap f (Colored color a) = Colored color $ f a

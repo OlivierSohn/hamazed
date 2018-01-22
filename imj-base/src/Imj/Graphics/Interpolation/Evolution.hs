@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.Interpolation.Evolution
          (
@@ -72,8 +74,11 @@ mkEvolution ease s duration =
   in Evolution s lastFrame duration (discreteAdaptor ease nSteps)
 
 -- | Used to synchronize multiple 'Evolution's.
-newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show)
-newtype NotWaypoint = NotWaypoint () deriving(Show)
+newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show, Generic, PrettyVal)
+newtype NotWaypoint = NotWaypoint () deriving(Show, Generic)
+
+instance PrettyVal NotWaypoint where
+  prettyVal _ = prettyVal "NotWaypoint"
 
 -- | To make sure that we never use distance on an 'EaseClock'.
 instance DiscreteDistance NotWaypoint where
@@ -105,10 +110,13 @@ data Evolution v = Evolution {
   -- ^ Duration of the interpolation
   , _evolutionInverseEase :: !(Double -> Double)
   -- ^ Inverse ease function.
-}
+} deriving (Generic)
 
 instance (Show v) => Show (Evolution v) where
   showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
+
+instance (PrettyVal v) => PrettyVal (Evolution v) where
+  prettyVal (Evolution a b c _) = prettyVal (a,b,c)
 
 instance Functor Evolution where
   fmap f (Evolution s a b c) = Evolution (fmap f s) a b c

@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 
   {- | A 'ColorString' is a multicolored 'Text'.-}
@@ -41,7 +43,9 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
 
-newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show)
+newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic)
+instance PrettyVal ColorString where
+  prettyVal c = prettyVal $ map fst $ simplify c
 
 instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, onBlack white)]

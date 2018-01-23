@@ -99,7 +99,7 @@ validateScreen (Screen sz _) =
     (Just winSize@(Size h w)) -> do
       let (Size rs cs) = maxWorldSize
           heightMargin = 2 * 1 {-outer walls-}
-          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + 16 * 2 {-display all numbers-})
+          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + (9 + 6 * 2) {-display all numbers-})
           minSize@(Size minh minw) =
             Size (fromIntegral rs + heightMargin)
                  (fromIntegral cs + widthMargin)

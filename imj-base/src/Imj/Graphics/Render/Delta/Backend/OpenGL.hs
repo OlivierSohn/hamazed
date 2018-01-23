@@ -16,6 +16,8 @@ import           Control.Concurrent.STM
                   atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
 import           Data.Char(ord, chr, isHexDigit, digitToInt)
 import           Data.Maybe(isJust)
+import           Foreign.Ptr(nullPtr)
+import           Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 
@@ -54,14 +56,15 @@ data OpenGLBackend = OpenGLBackend {
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: !Size
   -- ^ In number of pixels.
+  , _font :: FTGL.Font
 }
 
 instance DeltaRenderBackend OpenGLBackend where
-    render (OpenGLBackend win _ ppu size) = deltaRenderOpenGL win ppu size
+    render (OpenGLBackend win _ ppu size font) = deltaRenderOpenGL win ppu size font
 
-    cleanup (OpenGLBackend win _ _ _) = destroyWindow win
+    cleanup (OpenGLBackend win _ _ _ _) = destroyWindow win
 
-    getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w)) =
+    getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w) _) =
       return $ Just $ Size (fromIntegral $ quot (fromIntegral h) pixelPerUnit)
                            (fromIntegral $ quot (fromIntegral w) pixelPerUnit)
     {-# INLINABLE render #-}
@@ -73,7 +76,7 @@ instance DeltaRenderBackend OpenGLBackend where
 --
 -- If no key press was found, in 'getKey' we recurse.
 instance PlayerInput OpenGLBackend where
-  getKey (OpenGLBackend _ keyQueue _ _) = do
+  getKey (OpenGLBackend _ keyQueue _ _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         fillQueue = liftIO GLFW.waitEvents
         readQueue =
@@ -82,7 +85,7 @@ instance PlayerInput OpenGLBackend where
             Nothing -> fillQueue >> readQueue
     readQueue
 
-  getKeyBefore b@(OpenGLBackend _ keyQueue _ _) t = do
+  getKeyBefore b@(OpenGLBackend _ keyQueue _ _ _) t = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
         -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
@@ -103,25 +106,25 @@ instance PlayerInput OpenGLBackend where
                 getKeyBefore b t)
         (return . Just)
 
-  tryGetKey (OpenGLBackend _ keyQueue _ _) = do
+  tryGetKey (OpenGLBackend _ keyQueue _ _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         tryFillQueue = liftIO GLFW.pollEvents
     tryReadQueue >>= maybe
       (tryFillQueue >> tryReadQueue)
       (return . Just)
 
-  unGetKey (OpenGLBackend _ keyQueue _ _) k =
+  unGetKey (OpenGLBackend _ keyQueue _ _ _) k =
     liftIO $ atomically $ unGetTQueue keyQueue $ mkKeyPress k
 
   -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
-  someInputIsAvailable (OpenGLBackend _ keyQueue _ _) = do
+  someInputIsAvailable (OpenGLBackend _ keyQueue _ _ _) = do
     let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
         tryFillQueue = liftIO GLFW.pollEvents
     tryPeekQueue >>= maybe
       (tryFillQueue >> tryPeekQueue >>= return . isJust)
       (const $ return True)
 
-  programShouldEnd (OpenGLBackend win _ _ _) =
+  programShouldEnd (OpenGLBackend win _ _ _ _) =
     liftIO $ GLFW.windowShouldClose win
 
   {-# INLINABLE tryGetKey #-}
@@ -177,7 +180,24 @@ newOpenGLBackend title ppu size@(Size h w) = do
   win <- createWindow (fromIntegral w) (fromIntegral h) title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
-  return $ OpenGLBackend win keyEventsChan ppu size
+  OpenGLBackend win keyEventsChan ppu size <$> createFont ppu
+
+createFont :: Int -> IO FTGL.Font
+createFont ppu = do
+  let fontName = "Inconsolata-Regular.ttf" -- TODO make it parametrizable
+  --font <- FTGL.createBitmapFont fontName -- gives brighter colors but the shape of letters is awkward.
+  font <- FTGL.createPixmapFont fontName
+  -- the creation methods that "don't work" (i.e need to use matrix positionning?)
+  --font <- FTGL.createTextureFont fontName
+  --font <- FTGL.createBufferFont fontName
+  --font <- FTGL.createOutlineFont fontName
+  --font <- FTGL.createPolygonFont fontName
+  --font <- FTGL.createTextureFont fontName
+  --font <- FTGL.createExtrudeFont fontName
+
+  when (font == nullPtr) $ error $ "font not found : " ++ fontName
+  _ <- FTGL.setFontFaceSize font ppu 72-- 24 72
+  return font
 
 createWindow :: Int -> Int -> String -> IO GLFW.Window
 createWindow width height title = do
@@ -191,6 +211,7 @@ createWindow width height title = do
 
   GL.clearColor GL.$= GL.Color4 0 0 0 1
   GL.clear [GL.ColorBuffer, GL.DepthBuffer]
+  GL.finish
 
   --GL.position (GL.Light 0) GL.$= GL.Vertex4 5 5 10 0 -- light position
   --GL.light    (GL.Light 0) GL.$= GL.Enabled          -- enable light
@@ -205,10 +226,10 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
-deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
-deltaRenderOpenGL _ ppu size (Delta delta) w = do
+deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> FTGL.Font -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
+deltaRenderOpenGL _ ppu size font (Delta delta) w = do
   t1 <- getSystemTime
-  renderDelta ppu size delta w
+  renderDelta ppu size font delta w
   t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
@@ -218,10 +239,11 @@ deltaRenderOpenGL _ ppu size (Delta delta) w = do
 
 renderDelta :: Int
             -> Size
+            -> FTGL.Font
             -> Dyn.IOVector Cell
             -> Dim Width
             -> IO ()
-renderDelta ppu size delta' w = do
+renderDelta ppu size font delta' w = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
@@ -232,13 +254,13 @@ renderDelta ppu size delta' w = do
           c <- read delta $ fromIntegral index
           let (bg, fg, idx, char) = expandIndexed c
               (x,y) = xyFromIndex w idx
-          draw ppu size x y char bg fg
+          draw ppu size font x y char bg fg
           renderDelta' $ succ index
   void (renderDelta' 0)
 
-draw :: Int -> Size -> Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
-draw ppu size col row char bg fg
-  | isHexDigit char = do
+draw :: Int -> Size -> FTGL.Font -> Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
+draw ppu size font col row char bg fg
+  {-| isHexDigit char = do
     let n = digitToInt char
         (d,d') = quotRem n 8
         (c,c') = quotRem d' 4
@@ -246,7 +268,7 @@ draw ppu size col row char bg fg
         colorOn  = GL.Color3 1 1 0       -- yellow
         colorOff = GL.Color3 0.4 0.4 0.4 -- grey
         bits = [a,b,c,d]
-        locations = [(0.5,0.5),(1.5,0.5),(1.5,1.5),(0.5,1.5)]
+        locations = [(0,0),(1,0),(1,1),(0,1)]
     mapM_
       (\((dx, dy), bit) -> do
         let color
@@ -254,22 +276,50 @@ draw ppu size col row char bg fg
               | otherwise = colorOn
         drawSquare (quot ppu 2) size (2 * fromIntegral col + dx)
                                      (2 * fromIntegral row + dy) color)
-      $ zip locations bits
+      $ zip locations bits-}
+  | isMaterial char = do
+      let (r,g,b) = if char == ' '
+                      then (bR,bG,bB)
+                      else (fR,fG,fB)
+      drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
   | otherwise = do
-  let (r,g,b) = if char == ' '
-                  then color8ToUnitRGB bg
-                  else color8ToUnitRGB fg
-  drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
+      drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 bR bG (bB :: GL.GLfloat)
+      renderChar font ppu size col row char $ GL.Color3 fR fG (fB :: GL.GLfloat)
+ where
+   isMaterial = \case
+    'Z' -> True -- wall
+    ' ' -> True -- air
+    '|' -> True -- outer vertical wall
+    'T' -> True -- outer bottom wall
+    '_' -> True -- outer top wall
+    '+' -> True -- ship
+    otherwise -> False
+   (bR,bG,bB) = color8ToUnitRGB bg
+   (fR,fG,fB) = color8ToUnitRGB fg
 
+
+renderChar :: FTGL.Font -> Int -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
+renderChar font ppu (Size winHeight winWidth) col row c color = do
+  let unit x = 2 * recip (fromIntegral $ quot x ppu)
+      totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
+      unitRow x = -1 + (4/fromIntegral winHeight) +  unit (fromIntegral winHeight) * (totalH - x)
+      unitCol x = -1 + (4/fromIntegral winWidth) + unit (fromIntegral winWidth) * x
+  -- The present raster color is locked by the use glRasterPos*()
+  -- <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>
+  --
+  -- Hence, we set the color /before/ raster pos:
+  GL.color color
+  GL.rasterPos $ GL.Vertex2 (unitCol (fromIntegral col :: Float) :: GL.GLfloat)
+                            (unitRow (fromIntegral (succ row) :: Float))
+  FTGL.renderFont font [c] Front --Side
 
 drawSquare :: Int -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
 drawSquare ppu (Size winHeight winWidth) c' r' color = do
   let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
       unit x = 2 * recip (fromIntegral $ quot x ppu)
-      -- the +/- 0.5 are to place at pixel centers.
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
-      unitRow x = -1 + unit (fromIntegral winHeight) * ((totalH-x) - 0.5)
-      unitCol x = -1 + unit (fromIntegral winWidth) * (x + 0.5)
+      unitRow x = -1 + unit (fromIntegral winHeight) * (totalH - x)
+      unitCol x = -1 + unit (fromIntegral winWidth) * x
 
       (r1,r2) = (unitRow r', unitRow (1 + r'))
       (c1,c2) = (unitCol c', unitCol (1 + c'))

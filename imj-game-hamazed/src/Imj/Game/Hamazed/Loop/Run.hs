@@ -119,7 +119,7 @@ runWithBackend :: Maybe BackendType -> Bool -> IO ()
 runWithBackend maybeBackend debug =
   maybe userPicksBackend return maybeBackend >>= \case
     Console      -> newConsoleBackend >>= runWith debug
-    OpenGLWindow -> newOpenGLBackend "Hamazed" 8 (Size 600 1200) >>= runWith debug
+    OpenGLWindow -> newOpenGLBackend "Hamazed" 10 (Size 600 1400) >>= runWith debug
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)

@@ -1,6 +1,12 @@
-- make game step go faster and faster.
 
-- make text visible in opengl
+- try retina glfw
+
+- make distance between world and text depend on unit width
+
+- add license for font used:
+
+https://github.com/opensourcedesign/fonts
+
 - try round instead of square for walls.
 - pause the game when hitting space. pause time also.
 
@@ -27,7 +33,6 @@ overlay,
   takes longer if there is a collision
 
 - try glfw on windows, if it works, disable limitation
-- try retina glfw
 
 - use http://book.realworldhaskell.org/read/monad-transformers.html
 to simplify if needed

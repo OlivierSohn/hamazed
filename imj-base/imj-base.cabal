@@ -111,6 +111,7 @@ library
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
                      , clock ==0.7.*
+                     , FTGL ==2.1.*
                      , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3

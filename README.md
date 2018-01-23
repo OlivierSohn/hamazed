@@ -32,7 +32,15 @@ The "engine" library containing:
 
 Contributions are welcome!
 
-# Build
+# Build / Dependencies
+
+## FTGL
+
+You need ftgl on your system, it is used to render fonts when using the OpenGL backend.
+
+- On OSX, you can install it using `brew install ftgl`
+
+## Build
 
 You can build using [stack](https://docs.haskellstack.org):
 

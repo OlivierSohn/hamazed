@@ -59,6 +59,9 @@ class (Canvas e) => Draw e where
   -- | Draw 'String'.
   drawStr' :: (MonadIO m) => e -> String -> Coords Pos -> LayeredColor -> m ()
 
+  -- | Change the font used to render text.
+  changeFont' :: (MonadIO m) => e -> m ()
+
   {- |
   1. Store the current 'Scissor'
   2. Execute the actions in the new 'Scissor'

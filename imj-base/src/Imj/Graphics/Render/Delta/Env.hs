@@ -38,17 +38,19 @@ data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
   , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
   , _deltaEnvTargetSize :: !(IO (Maybe Size))
+  , _deltaEnvCycleRenderingOptions :: !(IO ())
 }
 
 -- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
-  fill'          (DeltaEnv a _ _) b c     = liftIO $ deltaFill a b c
-  setScissor     (DeltaEnv a _ _) b       = liftIO $ deltaSetScissor a b
-  getScissor'    (DeltaEnv a _ _)         = liftIO $ deltaGetScissor a
-  drawChar'      (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawChar  a b c d
-  drawChars'     (DeltaEnv a _ _) b c d e = liftIO $ deltaDrawChars a b c d e
-  drawTxt'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
-  drawStr'       (DeltaEnv a _ _) b c d   = liftIO $ deltaDrawStr   a b c d
+  fill'          (DeltaEnv a _ _ _) b c     = liftIO $ deltaFill a b c
+  setScissor     (DeltaEnv a _ _ _) b       = liftIO $ deltaSetScissor a b
+  getScissor'    (DeltaEnv a _ _ _)         = liftIO $ deltaGetScissor a
+  drawChar'      (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
+  drawChars'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
+  drawTxt'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
+  drawStr'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
+  changeFont'    (DeltaEnv a _ _ f)         = liftIO $ f >> deltaForgetFrontValues a
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
@@ -56,14 +58,15 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
+  {-# INLINABLE changeFont' #-}
 
 instance Canvas DeltaEnv where
-  getTargetSize' (DeltaEnv _ _ s)         = liftIO s
+  getTargetSize' (DeltaEnv _ _ s _)         = liftIO s
   {-# INLINABLE getTargetSize' #-}
 
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
-  renderToScreen' (DeltaEnv a b c)         = liftIO $ deltaFlush     a b c
+  renderToScreen' (DeltaEnv a b c _)         = liftIO $ deltaFlush     a b c
   {-# INLINABLE renderToScreen' #-}
 
 
@@ -72,6 +75,7 @@ class DeltaRenderBackend a where
     render :: a -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
     cleanup :: a -> IO ()
     getDiscreteSize :: a -> IO (Maybe Size)
+    cycleRenderingOption :: a -> IO ()
 
     withPolicies :: Maybe ResizePolicy
                  -> Maybe ClearPolicy
@@ -99,7 +103,7 @@ newEnv :: (DeltaRenderBackend a)
        -> IO DeltaEnv
 newEnv backend a b c = do
   ctxt <- newContext a b c (getDiscreteSize backend)
-  return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend)
+  return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend) (cycleRenderingOption backend)
 
 
 -- | Sets the 'ResizePolicy' for back and front buffers.
@@ -107,7 +111,7 @@ newEnv backend a b c = do
 setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
                 -> IO ()
-setResizePolicy mayResizePolicy (DeltaEnv ref _ _) =
+setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
@@ -119,7 +123,7 @@ setResizePolicy mayResizePolicy (DeltaEnv ref _ _) =
 setClearPolicy :: Maybe ClearPolicy
                -> DeltaEnv
                -> IO ()
-setClearPolicy mayClearPolicy (DeltaEnv ref _ _) =
+setClearPolicy mayClearPolicy (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
       let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
@@ -131,7 +135,7 @@ setClearPolicy mayClearPolicy (DeltaEnv ref _ _) =
 setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv
               -> IO ()
-setClearColor mayClearColor (DeltaEnv ref _ _) =
+setClearColor mayClearColor (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
       let clearColor = fromMaybe defaultClearColor mayClearColor

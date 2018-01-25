@@ -130,7 +130,7 @@ runWith debug backend =
     void (createState sz debug
       >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
 
-loop :: (Render e, MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
+loop :: (MonadState AppState m, MonadReader e m, Render e, PlayerInput e, MonadIO m)
      => m ()
 loop = do
   produceEvent >>= \case
@@ -141,7 +141,7 @@ loop = do
 
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
-produceEvent :: (MonadState AppState m, PlayerInput e, MonadReader e m, MonadIO m)
+produceEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, MonadIO m)
              => m (Maybe Event)
 produceEvent =
   -- 'playerPriority' is bigger that every other priority so we handle non-blocking player events:

@@ -45,6 +45,7 @@ data ConsoleBackend = ConsoleBackend !(TQueue Key)
 instance DeltaRenderBackend ConsoleBackend where
   render _ = deltaRenderConsole
   cleanup _ = configureConsoleFor Editing LineBuffering
+  cycleRenderingOption _ = return ()
   getDiscreteSize _ = do
     sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
     return $ maybe (Nothing) (\(Terminal.Window h w)

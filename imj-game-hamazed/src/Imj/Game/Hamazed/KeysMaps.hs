@@ -25,6 +25,7 @@ eventFromKey k = do
   case k of
     Escape      -> return $ Just $ Interrupt Quit
     StopProgram -> return $ Just $ Interrupt Quit
+    AlphaNum 'y' -> return $ Just CycleRenderingOptions
     _ -> case intent of
       Configure -> return $ case k of
         AlphaNum ' ' -> Just $ StartGame

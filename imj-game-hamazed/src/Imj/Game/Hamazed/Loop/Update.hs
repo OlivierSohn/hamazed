@@ -26,9 +26,8 @@ import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
-
 {-# INLINABLE updateAppState #-}
-updateAppState :: (MonadState AppState m, MonadReader e m, Canvas e, MonadIO m)
+updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, MonadIO m)
                => Event
                -- ^ The 'Event' that should be handled here.
                -> m ()
@@ -37,6 +36,7 @@ updateAppState = \case
   StartGame            -> putUserIntent Play >> updateAppState (StartLevel firstLevel)
   EndGame              -> onEndGame
   StartLevel nextLevel -> onStartLevel nextLevel
+  CycleRenderingOptions -> changeFont
   (Action target dir)  -> onAction target dir
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ MoveFlyingItems)) -> onMove
@@ -107,33 +107,28 @@ onDestroyedNumbers :: (MonadState AppState m)
                    -> [Number]
                    -> m ()
 onDestroyedNumbers t destroyedBalls =
-  getGameState >>= \(GameState b m (World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
+  getGameState >>= \(GameState b m world@(World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
                                futureWorld g level@(Level i target finished)
-                   (UIAnimation (UIEvolutions j upDown left) k l) s) -> do
+                   (UIAnimation (UIEvolutions j upDown _) k l) s) -> do
     (Screen _ center) <- getCurScreen
     mode <- getMode
-    newWorld@(World _ (BattleShip _ newAmmo _ _) _ _) <- getWorld
     let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
         allShotNumbers = g ++ destroyedNumbers
         newLeft =
-          if null destroyedNumbers && ammo == newAmmo
-            then
-              left
-            else
-              let frameSpace = mkRectContainerWithCenterAndInnerSize center sz
-                  (horizontalDist, verticalDist) = computeViewDistances mode
-                  (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-                  infos = mkLeftInfo Normal newAmmo allShotNumbers level
-              in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
+          let frameSpace = mkRectContainerWithCenterAndInnerSize center sz
+              (horizontalDist, verticalDist) = computeViewDistances mode
+              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
+              infos = mkLeftInfo Normal ammo allShotNumbers level
+          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
         newMultiplicator
           | null destroyedBalls = m
           | otherwise = initalGameMultiplicator
-        newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
+        newFinished = finished <|> checkTargetAndAmmo ammo (sum allShotNumbers) target t
         newLevel = Level i target newFinished
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
     putGameState
       $ assert (isFinished newAnim)
-      $ GameState b newMultiplicator newWorld futureWorld allShotNumbers newLevel newAnim s
+      $ GameState b newMultiplicator world futureWorld allShotNumbers newLevel newAnim s
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m) => m ()

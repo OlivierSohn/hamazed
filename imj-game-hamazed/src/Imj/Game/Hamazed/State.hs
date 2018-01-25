@@ -42,6 +42,7 @@ import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
 representation :: Event -> EventRepr
+representation CycleRenderingOptions = CycleRenderingOptions'
 representation (Configuration _)  = Configuration'
 representation EndGame          = EndGame'
 representation StartGame        = StartGame'
@@ -61,6 +62,7 @@ reprToCS StartLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
 reprToCS StartGame'  = colored "S" cyan
 reprToCS Configuration' = colored "C" yellow
+reprToCS CycleRenderingOptions' = colored "R" yellow
 reprToCS Interrupt'  = colored "I" yellow
 reprToCS Laser'      = colored "L" cyan
 reprToCS Ship'       = colored "S" blue

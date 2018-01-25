@@ -1,5 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.Render.Delta.Flush
@@ -80,22 +81,15 @@ computeDelta :: Buffers
              -> Dim BufferIndex
              -- ^ the buffer index
              -> IO ()
-computeDelta
- b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _)
- idx
+computeDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _) idx
   | fromIntegral idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
-      -- read from back buffer
       valueToDisplay <- read backBuf i
-      -- read from front buffer
       valueCurrentlyDisplayed <- read frontBuf i
-      -- if differences are found, update front buffer and push the difference
-      -- in delta vector
       when (valueToDisplay /= valueCurrentlyDisplayed) $ do
           write frontBuf i valueToDisplay
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx
-      -- recurse
       computeDelta b (succ idx)
   where
-    size = length backBuf
+    !size = length backBuf

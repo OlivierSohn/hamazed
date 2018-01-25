@@ -55,18 +55,21 @@ draw' cont = do
         getSideCenters cont
       left = move 12 LEFT (Coords r c)
 
-  dTextAl "Game configuration" (mkCentered $ translateInDir Down topMiddle)
+  dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"
-  dTextAl_ "Hit 'Space' to start game" (mkCentered $ translateInDir Up bottomCenter)
+  dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
-  translateInDir Down <$> dText "- World shape" (move 5 Up left)
-    >>= dText "'1' -> width = height"
-    >>= dText_ "'2' -> width = 2 x height"
-  translateInDir Down <$> dText "- World walls" left
-    >>= dText "'e' -> No walls"
-    >>= dText "'r' -> Deterministic walls"
-    >>= dText "'t' -> Random walls"
+  translateInDir Down <$> dText "* World shape" (move 5 Up left)
+    >>= dText "'1' : width is height"
+    >>= dText_ "'2' : width is 2 x height"
+  translateInDir Down <$> dText "* World walls" left
+    >>= dText "'e' : No walls"
+    >>= dText "'r' : Deterministic walls"
+    >>= dText "'t' : Random walls"
     >>= return . translateInDir Down
-    >>= dText "- Center view on:"
-    >>= dText "'d' -> Space"
-    >>= dText_ "'f' -> Ship"
+    >>= dText "* Center view on:"
+    >>= dText "'d' : Space"
+    >>= dText "'f' : Ship"
+    >>= return . translateInDir Down
+    >>= dText "* Rendering:"
+    >>= dText_ "'y' : Cycle rendering (OpenGL only)"

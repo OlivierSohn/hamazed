@@ -13,7 +13,6 @@ import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Input.Types
 
-
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
 data Env a = Env {
     _envDeltaEnv :: !DeltaEnv
@@ -29,6 +28,7 @@ instance Draw (Env x) where
   drawChars'     (Env a _) = drawChars'     a
   drawTxt'       (Env a _) = drawTxt'       a
   drawStr'       (Env a _) = drawStr'       a
+  changeFont'    (Env a _) = changeFont'       a
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE fill' #-}
@@ -36,6 +36,7 @@ instance Draw (Env x) where
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
+  {-# INLINE changeFont' #-}
 
 -- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
 instance Canvas (Env x) where

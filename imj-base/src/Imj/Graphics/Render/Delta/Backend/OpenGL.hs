@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
@@ -11,13 +13,15 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Prelude hiding((<>))
 import           Prelude(putStrLn, length)
 
+import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM
                   (TQueue,
                   atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
+import           Control.DeepSeq(NFData)
 import           Data.Char(ord, chr, isHexDigit, digitToInt)
 import           Data.Maybe(isJust)
 import           Foreign.Ptr(nullPtr)
-import           Graphics.Rendering.FTGL as FTGL
+import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 
@@ -56,18 +60,35 @@ data OpenGLBackend = OpenGLBackend {
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: !Size
   -- ^ In number of pixels.
-  , _font :: FTGL.Font
+  , _fonts :: !(MVar RenderingOptions)
+  -- ^ Mutable rendering options
 }
 
+data RenderingOptions = RenderingOptions !Int !RenderingStyle !FTGL.Font
+  deriving(Generic, NFData, Show)
+
+instance PrettyVal RenderingOptions where
+  prettyVal opt = prettyVal ("RenderingOptions:", show opt)
+
+data RenderingStyle = AllFont
+                    | SquareNums
+                    deriving(Generic, NFData, Eq, Show, PrettyVal)
+
 instance DeltaRenderBackend OpenGLBackend where
-    render (OpenGLBackend win _ ppu size font) = deltaRenderOpenGL win ppu size font
+    render (OpenGLBackend win _ ppu size mFont) d w =
+      readMVar mFont >>= \(RenderingOptions _ rs font) ->
+        deltaRenderOpenGL win ppu size font rs d w
 
     cleanup (OpenGLBackend win _ _ _ _) = destroyWindow win
+
+    cycleRenderingOption (OpenGLBackend _ _ ppu _ mRO) =
+      void( readMVar mRO >>= cycleRenderingOptions ppu >>= swapMVar mRO )
 
     getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w) _) =
       return $ Just $ Size (fromIntegral $ quot (fromIntegral h) pixelPerUnit)
                            (fromIntegral $ quot (fromIntegral w) pixelPerUnit)
     {-# INLINABLE render #-}
+    {-# INLINABLE cleanup #-}
     {-# INLINABLE getDiscreteSize #-}
 
 -- | First, we try to read from the queue. Then, we 'GLFW.pollEvents',
@@ -180,11 +201,29 @@ newOpenGLBackend title ppu size@(Size h w) = do
   win <- createWindow (fromIntegral w) (fromIntegral h) title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
-  OpenGLBackend win keyEventsChan ppu size <$> createFont ppu
+  ro <- RenderingOptions 0 AllFont <$> createFont 0 ppu
+  OpenGLBackend win keyEventsChan ppu size <$> newMVar ro
 
-createFont :: Int -> IO FTGL.Font
-createFont ppu = do
-  let fontName = "Inconsolata-Regular.ttf" -- TODO make it parametrizable
+cycleRenderingOptions :: Int -> RenderingOptions -> IO RenderingOptions
+cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
+  let newRo = case rs of
+        AllFont -> SquareNums
+        SquareNums -> AllFont
+      newIdx = succ idx
+      (q,r) = quotRem newIdx 2
+      l = length fontNames
+  RenderingOptions newIdx newRo
+    <$> if 0 == r && l > 1
+          then createFont (q `mod` l) ppu
+          else return font
+
+fontNames :: [String]
+fontNames =
+  [ "SourceCodePro-Bold" ]
+
+createFont :: Int -> Int -> IO FTGL.Font
+createFont idx ppu = do
+  let fontName = fontNames!!idx  ++ ".ttf"
   --font <- FTGL.createBitmapFont fontName -- gives brighter colors but the shape of letters is awkward.
   font <- FTGL.createPixmapFont fontName
   -- the creation methods that "don't work" (i.e need to use matrix positionning?)
@@ -197,6 +236,7 @@ createFont ppu = do
 
   when (font == nullPtr) $ error $ "font not found : " ++ fontName
   _ <- FTGL.setFontFaceSize font ppu 72-- 24 72
+  putStrLn $ "using font: " ++ fontName
   return font
 
 createWindow :: Int -> Int -> String -> IO GLFW.Window
@@ -226,10 +266,17 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
-deltaRenderOpenGL :: GLFW.Window -> Int -> Size -> FTGL.Font -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
-deltaRenderOpenGL _ ppu size font (Delta delta) w = do
+deltaRenderOpenGL :: GLFW.Window
+                  -> Int
+                  -> Size
+                  -> FTGL.Font
+                  -> RenderingStyle
+                  -> Delta
+                  -> Dim Width
+                  -> IO (Time Duration System, Time Duration System)
+deltaRenderOpenGL _ ppu size font rs (Delta delta) w = do
   t1 <- getSystemTime
-  renderDelta ppu size font delta w
+  renderDelta ppu size font rs delta w
   t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
@@ -240,10 +287,11 @@ deltaRenderOpenGL _ ppu size font (Delta delta) w = do
 renderDelta :: Int
             -> Size
             -> FTGL.Font
+            -> RenderingStyle
             -> Dyn.IOVector Cell
             -> Dim Width
             -> IO ()
-renderDelta ppu size font delta' w = do
+renderDelta ppu size font rs delta' w = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
@@ -254,13 +302,19 @@ renderDelta ppu size font delta' w = do
           c <- read delta $ fromIntegral index
           let (bg, fg, idx, char) = expandIndexed c
               (x,y) = xyFromIndex w idx
-          draw ppu size font x y char bg fg
+          draw ppu size font rs x y char bg fg
           renderDelta' $ succ index
   void (renderDelta' 0)
 
-draw :: Int -> Size -> FTGL.Font -> Dim Col -> Dim Row -> Char -> Color8 Background -> Color8 Foreground -> IO ()
-draw ppu size font col row char bg fg
-  {-| isHexDigit char = do
+draw :: Int
+     -> Size
+     -> FTGL.Font
+     -> RenderingStyle
+     -> Dim Col -> Dim Row
+     -> Char
+     -> Color8 Background -> Color8 Foreground -> IO ()
+draw ppu size font rs col row char bg fg
+  | rs == SquareNums && isHexDigit char = do
     let n = digitToInt char
         (d,d') = quotRem n 8
         (c,c') = quotRem d' 4
@@ -276,24 +330,11 @@ draw ppu size font col row char bg fg
               | otherwise = colorOn
         drawSquare (quot ppu 2) size (2 * fromIntegral col + dx)
                                      (2 * fromIntegral row + dy) color)
-      $ zip locations bits-}
-  | isMaterial char = do
-      let (r,g,b) = if char == ' '
-                      then (bR,bG,bB)
-                      else (fR,fG,fB)
-      drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 r g (b :: GL.GLfloat)
+      $ zip locations bits
   | otherwise = do
       drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 bR bG (bB :: GL.GLfloat)
       renderChar font ppu size col row char $ GL.Color3 fR fG (fB :: GL.GLfloat)
  where
-   isMaterial = \case
-    'Z' -> True -- wall
-    ' ' -> True -- air
-    '|' -> True -- outer vertical wall
-    'T' -> True -- outer bottom wall
-    '_' -> True -- outer top wall
-    '+' -> True -- ship
-    otherwise -> False
    (bR,bG,bB) = color8ToUnitRGB bg
    (fR,fG,fB) = color8ToUnitRGB fg
 
@@ -302,7 +343,8 @@ renderChar :: FTGL.Font -> Int -> Size -> Dim Col -> Dim Row -> Char -> GL.Color
 renderChar font ppu (Size winHeight winWidth) col row c color = do
   let unit x = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
-      unitRow x = -1 + (4/fromIntegral winHeight) +  unit (fromIntegral winHeight) * (totalH - x)
+      -- with 6,5 there are leftovers on top of pipe, with 4 it's below.
+      unitRow x = -1 + (4/fromIntegral winHeight) + unit (fromIntegral winHeight) * (totalH - x)
       unitCol x = -1 + (4/fromIntegral winWidth) + unit (fromIntegral winWidth) * x
   -- The present raster color is locked by the use glRasterPos*()
   -- <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>
@@ -311,7 +353,7 @@ renderChar font ppu (Size winHeight winWidth) col row c color = do
   GL.color color
   GL.rasterPos $ GL.Vertex2 (unitCol (fromIntegral col :: Float) :: GL.GLfloat)
                             (unitRow (fromIntegral (succ row) :: Float))
-  FTGL.renderFont font [c] Front --Side
+  FTGL.renderFont font [c] FTGL.Front --FTGL.Side
 
 drawSquare :: Int -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
 drawSquare ppu (Size winHeight winWidth) c' r' color = do

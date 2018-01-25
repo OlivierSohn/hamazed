@@ -42,6 +42,8 @@ data DeadlineType = MoveFlyingItems
 
 data Event = Configuration !Char
            -- ^ Configures game parameters
+           | CycleRenderingOptions
+           -- ^ CHages the font used to render
            | StartGame
            -- ^ To transition from configuration mode to play mode.
            | Action !ActionTarget !Direction

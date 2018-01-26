@@ -21,7 +21,7 @@ addons:
     - libxinerama-dev
     - libxrandr-dev
     packages: &FTGL_deps
-    - libftgl
+    - libftgl-dev
 
 # Caching so the next build will be fast too.
 cache:

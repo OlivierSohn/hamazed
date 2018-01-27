@@ -23,7 +23,6 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Buffers.Dimensions
-import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Graphics.Render.Delta.Cells
 import           Imj.Graphics.Render.Delta.DefaultPolicies
 import           Imj.Graphics.UI.RectArea
@@ -59,7 +58,6 @@ mkBuffers :: Dim Width
           -> IO (Buffer Back, Buffer Front, Delta, Dim Width)
 mkBuffers width' height' backBufferCell = do
   let (sz, width) = bufferSizeFromWH width' height'
-      (bg, fg, char) = expand backBufferCell
       -- To force a first render to the whole console, we initialize the front buffer
       -- to an inexistant value.
   buf <- newBufferArray sz (backBufferCell, invalidCell)

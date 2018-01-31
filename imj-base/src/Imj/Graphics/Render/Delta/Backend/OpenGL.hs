@@ -13,12 +13,14 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Prelude hiding((<>))
 import           Prelude(putStrLn, length)
 
+import           System.IO.Temp(withSystemTempDirectory)
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM
                   (TQueue,
                   atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Char(ord, chr, isHexDigit, digitToInt)
+import           Data.ByteString(writeFile)
 import           Data.Maybe(isJust)
 import           Foreign.Ptr(nullPtr)
 import qualified Graphics.Rendering.FTGL as FTGL
@@ -31,6 +33,7 @@ import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
@@ -71,7 +74,7 @@ instance PrettyVal RenderingOptions where
   prettyVal opt = prettyVal ("RenderingOptions:", show opt)
 
 data RenderingStyle = AllFont
-                    | SquareNums
+                    | HexDigitAsBits
                     deriving(Generic, NFData, Eq, Show, PrettyVal)
 
 instance DeltaRenderBackend OpenGLBackend where
@@ -207,37 +210,42 @@ newOpenGLBackend title ppu size@(Size h w) = do
 cycleRenderingOptions :: Int -> RenderingOptions -> IO RenderingOptions
 cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
   let newRo = case rs of
-        AllFont -> SquareNums
-        SquareNums -> AllFont
+        AllFont -> HexDigitAsBits
+        HexDigitAsBits -> AllFont
       newIdx = succ idx
       (q,r) = quotRem newIdx 2
-      l = length fontNames
+      l = length fontFiles
   RenderingOptions newIdx newRo
     <$> if 0 == r && l > 1
           then createFont (q `mod` l) ppu
           else return font
 
-fontNames :: [String]
-fontNames =
-  [ "SourceCodePro-Bold" ]
+withTempFontFile :: Int -> (String -> IO a) -> IO a
+withTempFontFile fontIdx act =
+  withSystemTempDirectory "fontDir" $ \tmpDir -> do
+    let filePath = tmpDir ++ "/font" ++ show fontIdx ++ ".ttf"
+    -- we don't bother closing the file, it will be done by withSystemTempDirectory
+    writeFile filePath (fontFiles!!fontIdx)
+    act filePath
 
 createFont :: Int -> Int -> IO FTGL.Font
-createFont idx ppu = do
-  let fontName = fontNames!!idx  ++ ".ttf"
-  --font <- FTGL.createBitmapFont fontName -- gives brighter colors but the shape of letters is awkward.
-  font <- FTGL.createPixmapFont fontName
-  -- the creation methods that "don't work" (i.e need to use matrix positionning?)
-  --font <- FTGL.createTextureFont fontName
-  --font <- FTGL.createBufferFont fontName
-  --font <- FTGL.createOutlineFont fontName
-  --font <- FTGL.createPolygonFont fontName
-  --font <- FTGL.createTextureFont fontName
-  --font <- FTGL.createExtrudeFont fontName
+createFont idx ppu =
+  withTempFontFile idx $ \filePath -> do
+    --font <- FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
+    font <- FTGL.createPixmapFont filePath
+    -- the creation methods that "don't work" (i.e need to use matrix positionning?)
+    --font <- FTGL.createTextureFont filePath
+    --font <- FTGL.createBufferFont filePath
+    --font <- FTGL.createOutlineFont filePath
+    --font <- FTGL.createPolygonFont filePath
+    --font <- FTGL.createTextureFont filePath
+    --font <- FTGL.createExtrudeFont filePath
 
-  when (font == nullPtr) $ error $ "font not found : " ++ fontName
-  _ <- FTGL.setFontFaceSize font ppu 72-- 24 72
-  putStrLn $ "using font: " ++ fontName
-  return font
+    when (font == nullPtr) $ error $ "error loading font : " ++ filePath
+    FTGL.setFontFaceSize font ppu 72 >>= \case
+      -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
+      1 -> return font
+      err -> error $ "failed to set font size : " ++ show err
 
 createWindow :: Int -> Int -> String -> IO GLFW.Window
 createWindow width height title = do
@@ -314,7 +322,7 @@ draw :: Int
      -> Char
      -> Color8 Background -> Color8 Foreground -> IO ()
 draw ppu size font rs col row char bg fg
-  | rs == SquareNums && isHexDigit char = do
+  | rs == HexDigitAsBits && isHexDigit char = do
     let n = digitToInt char
         (d,d') = quotRem n 8
         (c,c') = quotRem d' 4

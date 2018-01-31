@@ -62,12 +62,12 @@ library
                      , Imj.Graphics.Class.Words
                      , Imj.Graphics.Color
                      , Imj.Graphics.Color.Types
-                     , Imj.Graphics.Render
-                     , Imj.Graphics.Render.FromMonadReader
+                     , Imj.Graphics.Font
                      , Imj.Graphics.Interpolation
                      , Imj.Graphics.Interpolation.SequentiallyInterpolatedList
                      , Imj.Graphics.Interpolation.Evolution
                      , Imj.Graphics.Math.Ease
+                     , Imj.Graphics.Render
                      , Imj.Graphics.Render.Delta
                      , Imj.Graphics.Render.Delta.Backend
                      , Imj.Graphics.Render.Delta.Backend.Console
@@ -83,6 +83,7 @@ library
                      , Imj.Graphics.Render.Delta.Flush
                      , Imj.Graphics.Render.Delta.Internal.Types
                      , Imj.Graphics.Render.Delta.Types
+                     , Imj.Graphics.Render.FromMonadReader
                      , Imj.Graphics.Render.Naive
                      , Imj.Graphics.Text.Alignment
                      , Imj.Graphics.Text.Animation
@@ -110,9 +111,11 @@ library
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
+                     , bytestring == 0.10.*
                      , clock ==0.7.*
                      , deepseq ==1.4.*
                      , FTGL ==2.1.*
+                     , file-embed ==0.0.*
                      , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
@@ -122,6 +125,7 @@ library
                      , random ==1.1.*
                      , stm ==2.4.*
                      , strict-concurrency ==0.2.*
+                     , temporary ==1.2.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , transformers == 0.5.*

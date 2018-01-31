@@ -1,16 +1,9 @@
-- adapt font (https://en.wikipedia.org/wiki/SIL_Open_Font_License allows to modify
-and redistribute the font.):
-  - pipe is too big (there are leftovers)
-  - Make characters more square
+- multiplayer mode where two ships (one cannot collide the other) work on the same sum.
+If one ship collides, the other can continue.
 
-- embed font, use temporary to write file then load it then delete the file
+- make font characters more square
 
 - make distance between world and text depend on unit width
-
-- add license for font used:
-
-https://en.wikipedia.org/wiki/SIL_Open_Font_License
-https://github.com/opensourcedesign/fonts
 
 - try round instead of square for walls.
 

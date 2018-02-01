@@ -1,5 +1,19 @@
 - multiplayer mode where two ships (one cannot collide the other) work on the same sum.
 If one ship collides, the other can continue.
+  - the other ship can double numbers (think of levels where we need to double
+    some numbers in order to reach the sum)
+  - the other ship can multiply
+
+  - one of the entities will be the server, containing game/world state and making the world step.
+  clients know when the server will send an update (todo explain how) event hence
+  if there is a connection problem, they can say so (lost connection, please wait...)
+
+  0th step : use multi cast with a single user group : write to the group, and read from the group.
+
+  1st step: find a way to communicate between client and server.
+  compare using :
+  - http://haskell-distributed.github.io/
+  - https://hackage.haskell.org/package/network-multicast
 
 - make font characters more square
 

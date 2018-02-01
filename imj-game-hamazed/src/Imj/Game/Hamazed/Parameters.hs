@@ -72,4 +72,4 @@ draw' cont = do
     >>= dText "'f' : Ship"
     >>= return . translateInDir Down
     >>= dText "* Rendering:"
-    >>= dText_ "'y' : Cycle rendering (OpenGL only)"
+    >>= dText_ "'y' : Change rendering mode (OpenGL only)"

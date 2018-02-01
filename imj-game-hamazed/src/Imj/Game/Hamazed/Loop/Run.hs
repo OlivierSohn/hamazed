@@ -74,7 +74,7 @@ runWithArgs =
              (option backendArg (long "render"
                               <> short 'r'
                               <> help ("Use argument 'console' to play in the console. " ++
-                                        "Use 'opengl' to play in an opengl window (experimental). " ++
+                                        "Use 'opengl' to play in an opengl window. " ++
                                         renderHelp)))
       <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
 
@@ -103,11 +103,11 @@ userPicksBackend = do
   putStrLn ""
   putStrLn " Welcome to Hamazed!"
   putStrLn ""
-  putStrLn " - Press (1) then (Enter) to play in the console, where the game will be rendered using colored ascii characters."
+  putStrLn " - Press (1) then (Enter) to play in the console."
   putStrLn "     An error message will inform you if your console is too small."
-  putStrLn "          [Equivalent to '-r console']"
-  putStrLn " - Press (2) then (Enter) to play in a separate window where openGL will be used to render the game (experimental)."
-  putStrLn "          [Equivalent to '-r opengl']"
+  putStrLn "          [Equivalent to passing '-r console']"
+  putStrLn " - Press (2) then (Enter) to play in a separate window (enables more rendering options)."
+  putStrLn "          [Equivalent to passing '-r opengl']"
   putStrLn ""
   hFlush stdout -- just in case buffer mode is block
   getLine >>= \case

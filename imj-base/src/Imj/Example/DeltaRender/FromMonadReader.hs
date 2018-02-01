@@ -20,5 +20,5 @@ helloWorld = do
 
 
 main :: IO ()
-main = do
+main =
   newConsoleBackend >>= withDefaultPolicies (runReaderT helloWorld)

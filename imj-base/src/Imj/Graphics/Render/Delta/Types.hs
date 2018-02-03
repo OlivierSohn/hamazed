@@ -16,6 +16,7 @@ module Imj.Graphics.Render.Delta.Types
             , BufferIndex
             , getRowCol
             , getHeight
+            , xyFromIndex
             -- ** Reexported types
             , Delta
             , Scissor
@@ -41,9 +42,9 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 
 -- | When and how to resize buffers.
-data ResizePolicy = MatchTerminalSize
+data ResizePolicy = DynamicSize
                   -- ^ After each render, buffers are resized (if needed) to match
-                  -- terminal size.
+                  -- a size passed as argument of 'deltaFlush'.
                   | FixedSize !(Dim Width) !(Dim Height)
                   -- ^ Buffers have a fixed size. If they are vertically
                   -- or horizontally bigger than the terminal, rendering
@@ -88,6 +89,11 @@ getRowCol (Dim idx) (Dim w) =
     where
       y = idx `div` w
       x = idx - y * w
+
+{-# INLINE xyFromIndex #-}
+xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
+xyFromIndex w idx =
+  getRowCol idx w
 
 data Buffers = Buffers {
     _renderStateBackBuffer :: !(Buffer Back)

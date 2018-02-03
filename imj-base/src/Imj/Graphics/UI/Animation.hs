@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-} -- TODO refactor and doc
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.UI.Animation
            (-- * Animated UI
@@ -30,15 +32,14 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-
 -- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {
     _uiAnimationEvs :: !UIEvolutions
-  , _uiAnimationDeadline :: !(Maybe KeyTime)
+  , _uiAnimationDeadline :: !(Maybe (Time Point System))
   -- ^ Time at which the 'UIEvolutions' should be rendered and updated
   , _uiAnimationProgress :: !Iteration
   -- ^ Current 'Iteration'.
-} deriving(Show)
+} deriving(Show, Generic, PrettyVal)
 
 
 -- TODO generalize as an Evolution (text-decorated RectContainer)
@@ -51,10 +52,10 @@ data UIEvolutions = UIEvolutions {
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
   , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
     -- ^ The transformation of colored text left and right of the 'RectContainer'.
-} deriving(Show)
+} deriving(Show, PrettyVal, Generic)
 
 
-getUIAnimationDeadline :: UIAnimation -> Maybe KeyTime
+getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
 getUIAnimationDeadline (UIAnimation _ mayDeadline _) =
   mayDeadline
 
@@ -88,7 +89,7 @@ moveContainerEvolution ev' offset =
 
 
 -- | Compute the time interval between the current frame and the next.
-getDeltaTime :: UIEvolutions -> Frame -> Maybe Float
+getDeltaTime :: UIEvolutions -> Frame -> Maybe (Time Duration System)
 getDeltaTime we@(UIEvolutions containerEvolution (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
   in getDeltaTimeToNextFrame containerEvolution relFrameFrameE
@@ -113,7 +114,7 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive Co
               -- ^ To
               -> Length Width
               -> Length Height
-              -> SystemTime
+              -> Time Point System
               -- ^ Time at which the animation starts
               -> UIAnimation
 mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
@@ -121,17 +122,17 @@ mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
               horizontalDistance verticalDistance time =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolutionEaseQuart (Successive [from, to]) 1
+  frameE = mkEvolutionEaseQuart (Successive [from, to]) (fromSecs 1)
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
                                                 concatSuccessive f2 t2,
                                                 zipWith concatSuccessive f3 t3)
-                                     horizontalDistance verticalDistance 1
+                                     horizontalDistance verticalDistance (fromSecs 1)
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
     maybe
       Nothing
-      (\dt -> Just $ KeyTime $ addToSystemTime (floatSecondsToDiffTime dt) time)
+      (\dt -> Just $ addDuration dt time)
       $ getDeltaTime evolutions zeroFrame
 
 
@@ -145,7 +146,7 @@ createUITextAnimations :: RectContainer
                        -- ^ Upper text, Lower text, Left texts
                        -> Length Width
                        -> Length Height
-                       -> Float
+                       -> Time Duration System
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDistance duration =
     let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
@@ -170,7 +171,7 @@ mkTextAnimRightAligned :: Coords Pos
                        -- ^ Each 'Successive' is expected to be of length 1 or more.
                        -> Int
                        -- ^ Interline spaces
-                       -> Float
+                       -> Time Duration System
                        -- ^ The duration of the animation
                        -> TextAnimation AnchorStrings
 mkTextAnimRightAligned refFrom refTo listTxts interline duration =
@@ -195,7 +196,7 @@ mkTextAnimCenteredUpDown :: (Coords Pos, Coords Pos)
                          -> (Coords Pos, Coords Pos)
                          -> (Successive ColorString, Successive ColorString)
                          -- ^ If one 'Successive' has a 0 length, the animation will be empty.
-                         -> Float
+                         -> Time Duration System
                          -> TextAnimation AnchorChars
 mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo)
   (sUp@(Successive txtUppers), sLow@(Successive txtLowers))
@@ -209,7 +210,7 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
         centerDownToAligned   = alignTxtCentered centerDownTo (last txtLowers)
     in  if null txtUppers || null txtLowers
           then
-            TextAnimation [] (Evolution (Successive []) 0 0 id) (mkEaseClock 0 0 id)
+            TextAnimation [] (Evolution (Successive []) 0 (fromSecs 0) id) (mkEaseClock (fromSecs 0) 0 id)
           else
             mkSequentialTextTranslationsCharAnchored
               [(sUp, centerUpFromAligned, centerUpToAligned),

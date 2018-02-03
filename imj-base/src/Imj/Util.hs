@@ -14,7 +14,13 @@ module Imj.Util
     , randomRsIO
     , clamp
     , zigzag
-      -- * Reexports
+    -- ** Range
+    , Range
+    , mkRangeSingleton
+    , extendRange
+    , diameter
+    , onBounds
+    -- * Reexports
     , Int64
     ) where
 
@@ -124,3 +130,28 @@ clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
+
+data Range a = Range {
+    _rangeMin :: !a
+  , _rangeMax :: !a
+}
+
+{-# INLINE onBounds #-}
+onBounds :: (a -> a -> b) -> Range a -> b
+onBounds diam (Range rMin rMax) =
+  diam rMin rMax
+
+{-# INLINE mkRangeSingleton #-}
+mkRangeSingleton :: a -> Range a
+mkRangeSingleton v = Range v v
+
+{-# INLINABLE diameter #-}
+diameter :: (Num a) => Range a -> a
+diameter (Range v1 v2) = v2 - v1
+
+{-# INLINABLE extendRange #-}
+extendRange :: (Ord a) => a -> Range a -> Range a
+extendRange !v r@(Range v1 v2)
+  | v < v1 = Range v v2
+  | v > v2 = Range v1 v
+  | otherwise = r

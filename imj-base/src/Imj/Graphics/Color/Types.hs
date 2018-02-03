@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.Color.Types
@@ -18,6 +20,7 @@ module Imj.Graphics.Color.Types
           , rgb
           , gray
           , grayToRGB
+          , color8ToUnitRGB
           , Xterm256Color(..)
           , color8CodeToXterm256
           , onBlack
@@ -25,6 +28,8 @@ module Imj.Graphics.Color.Types
           , white, black, red, green, magenta, cyan, yellow, blue
           , RGB(..)
           ) where
+
+import           Imj.Prelude
 
 import           Data.Bits(shiftL, (.|.))
 import           Data.Word (Word8, Word16)
@@ -39,13 +44,13 @@ data RGB = RGB {
     _rgbR :: {-# UNPACK #-} !Word8
   , _rgbG :: {-# UNPACK #-} !Word8
   , _rgbB :: {-# UNPACK #-} !Word8
-} deriving(Eq, Show, Read)
+} deriving(Eq, Show, Read, PrettyVal, Generic)
 
 -- | A background and a foreground 'Color8'.
 data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !(Color8 Background)
   , _colorsForeground :: {-# UNPACK #-} !(Color8 Foreground)
-} deriving(Eq, Show)
+} deriving(Eq, Show, PrettyVal, Generic)
 
 -- TODO use bresenham 6 to interpolate foreground and background at the same time:
 -- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
@@ -102,7 +107,9 @@ gray i
 data Foreground
 data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
-newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum)
+newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum, Generic)
+instance PrettyVal (Color8 a) where
+  prettyVal (Color8 x) = prettyVal ("Color8:",x)
 
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteDistance (Color8 a) where
@@ -224,6 +231,39 @@ data Xterm256Color a = RGBColor !RGB
                      -- - [0xE8-0xFF]:  grayscale from dark gray to near white in 24 steps
                      deriving (Eq, Show, Read)
 
+
+color8ToUnitRGB :: Color8 a -> (Float, Float, Float)
+color8ToUnitRGB c =
+  case color8CodeToXterm256 c of
+    RGBColor (RGB r g b) -> (rgbToUnit r,rgbToUnit g,rgbToUnit b)
+    GrayColor g -> let v = grayToUnit g in (v,v,v)
+  where
+    rgbToUnit :: Word8 -> Float
+    rgbToUnit x = fromIntegral (xtermMapRGB8bitComponent x) / 255
+    grayToUnit :: Word8 -> Float
+    grayToUnit gr = fromIntegral (xtermMapGray8bitComponent gr) / 255
+
+
+-- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)
+xtermMapRGB8bitComponent :: Word8
+                         -- ^ input values are in range [0..5]
+                         -- (the admissible range for rgb components of 8 bit
+                         -- rgb ANSI colors, cf.
+                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                         -> Word8
+                         -- ^ output is in range [0..255]
+xtermMapRGB8bitComponent 0 = 0
+xtermMapRGB8bitComponent n = 55 + n * 40
+
+-- | how xterm interprets 8bit grayscale colors (deduced from https://jonasjacek.github.io/colors/)
+xtermMapGray8bitComponent :: Word8
+                         -- ^ input values are in range [0..23]
+                         -- (the admissible range for gray component of 8 bit
+                         -- grayscale ANSI colors, cf.
+                         -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
+                          -> Word8
+                          -- ^ output is in range [0..255]
+xtermMapGray8bitComponent v = 8 + 10 * v
 
 {-# INLINE onBlack #-}
 -- | Creates a 'LayeredColor' with a black background color.

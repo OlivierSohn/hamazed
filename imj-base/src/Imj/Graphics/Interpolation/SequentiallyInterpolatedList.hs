@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Graphics.Interpolation.SequentiallyInterpolatedList(
          SequentiallyInterpolatedList(..)
@@ -16,7 +18,7 @@ import           Imj.Util
 -- | A 'List'-like type to interpolate sequentially (one index at a time) between same-index elements.
 newtype SequentiallyInterpolatedList a =
   SequentiallyInterpolatedList [a]
-  deriving(Eq, Ord, Show)
+  deriving(Eq, Ord, Show, PrettyVal, Generic)
 
 instance Functor SequentiallyInterpolatedList where
   fmap f (SequentiallyInterpolatedList l) = SequentiallyInterpolatedList $ fmap f l

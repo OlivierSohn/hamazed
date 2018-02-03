@@ -10,11 +10,13 @@ module Imj.Graphics.Render.FromMonadReader
        , drawTxt
        , drawStr
        , drawColorStr
-       , renderToScreen
        , drawMultiLineStr
+       , changeFont
+       , getTargetSize
+       , renderToScreen
        -- * Reexports
-       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString, Draw
-       , Render, MonadReader, MonadIO
+       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString
+       , Draw, Render, Canvas, MonadReader, MonadIO
        ) where
 
 import           Imj.Prelude
@@ -26,6 +28,7 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
@@ -122,9 +125,22 @@ drawChar c co la = do
   d <- asks drawChar'
   d c co la
 
+
+{-# INLINABLE changeFont #-}
+changeFont :: (Draw e, MonadReader e m, MonadIO m) => m ()
+changeFont =
+  join $ asks changeFont'
+
+
+{-# INLINABLE getTargetSize #-}
+getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
+              => m (Maybe Size)
+getTargetSize =
+  join (asks getTargetSize')
+
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m ()
+               => m (Time Duration System, Time Duration System, Time Duration System)
 renderToScreen =
   join (asks renderToScreen')

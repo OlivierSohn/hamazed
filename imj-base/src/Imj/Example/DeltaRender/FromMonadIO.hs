@@ -6,6 +6,7 @@ module Imj.Example.DeltaRender.FromMonadIO
   ( main
   ) where
 
+import Control.Monad(void)
 import Control.Monad.IO.Class(MonadIO)
 
 import Imj.Graphics.Color
@@ -16,9 +17,9 @@ import Imj.Graphics.Render.Delta
 helloWorld :: (MonadIO m) => DeltaEnv -> m ()
 helloWorld env = do
   drawStr' env "Hello World" (Coords 10 10) (onBlack green)
-  renderToScreen' env
+  void $ renderToScreen' env
 
 
 main :: IO ()
 main =
-  withDeltaRendering Console helloWorld
+  newConsoleBackend >>= withDefaultPolicies helloWorld

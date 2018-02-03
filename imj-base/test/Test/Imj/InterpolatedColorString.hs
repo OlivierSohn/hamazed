@@ -14,22 +14,24 @@ import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Render
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.Text.ColorString
+import           Imj.Timing
 
 testICS :: (Draw e, MonadReader e m, MonadIO m)
         => m ()
 testICS = do
   let from = colored "hello" (rgb 5 0 0) <> colored " world" (rgb 0 5 0) <> colored " :)" (rgb 3 5 1)
       to   = colored "hello" (rgb 5 5 5) <> colored " world" (rgb 1 2 5) <> colored " :)" (rgb 5 1 4)
-      e@(Evolution _ (Frame lastFrame) _ _) = mkEvolutionEaseQuart (Successive [from, to]) 1
+      dt = fromSecs 1
+      e@(Evolution _ (Frame lastFrame) _ _) = mkEvolutionEaseQuart (Successive [from, to]) dt
       from' = colored "travel" (rgb 5 0 0)
       to'   = colored "trail" (rgb 5 5 5)
-      e'@(Evolution _ (Frame lastFrame') _ _) = mkEvolutionEaseQuart (Successive [from', to']) 1
+      e'@(Evolution _ (Frame lastFrame') _ _) = mkEvolutionEaseQuart (Successive [from', to']) dt
       pFrom   = colored "[.]" (rgb 5 5 5)
       pTo   = colored "[......]" (rgb 5 5 5)
-      e''@(Evolution _ (Frame lastFrame'') _ _) = mkEvolutionEaseQuart (Successive [pFrom, pTo]) 1
+      e''@(Evolution _ (Frame lastFrame'') _ _) = mkEvolutionEaseQuart (Successive [pFrom, pTo]) dt
       p1   = colored "[.]" (rgb 5 5 5)
       p2   = colored "[.]" (rgb 5 0 0)
-      e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolutionEaseQuart (Successive [p1,p2,p1]) 1
+      e'''@(Evolution _ (Frame lastFrame''') _ _) = mkEvolutionEaseQuart (Successive [p1,p2,p1]) dt
 
   mapM_
     (\i@(Frame c') -> do

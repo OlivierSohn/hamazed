@@ -1,107 +1,166 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
+      , produceEvent
       ) where
 
 import           Imj.Prelude
-import qualified Prelude (putStrLn)
+import           Prelude (putStrLn, getLine)
 
+import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(runStateT, get)
+import           Control.Monad.State(runStateT)
+import           Data.Text(pack, toLower)
+import           Options.Applicative
+                  (progDesc, fullDesc, info, header, customExecParser, prefs, helper
+                  , showHelpOnError, short, long, option, str, help, optional
+                  , ReadM, readerError, (<*>), switch)
 import           System.Info(os)
+import           System.IO(hFlush, stdout)
 
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Env
-import           Imj.Game.Hamazed.Loop.Create
-import           Imj.Game.Hamazed.Loop.Draw
+import           Imj.Game.Hamazed.KeysMaps
+import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Loop.Update
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Game.Hamazed.State
-import           Imj.Graphics.Class.Positionable
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render
-import           Imj.Graphics.Render.Delta(withDeltaRendering, DeltaRendering(..))
+import           Imj.Graphics.Render.Delta
 import           Imj.Input.Types
-import           Imj.Input.Blocking
-import           Imj.Timing
+import           Imj.Input.FromMonadReader
 
 {- | Runs the Hamazed game.
 
-If your current terminal window is too small, the program will error and
-tell you what is the minimum window size to run the game.
+If you chose to run in the terminal, and your terminal window is too small, the
+program will error and tell you what is the minimum window size to run the game.
 
-The game doesn't run on Windows, because with GHC,
-<https://ghc.haskell.org/trac/ghc/ticket/7353 IO operations cannot be interrupted on Windows>.
+The game
+<https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 run :: IO ()
 run =
   if os == "mingw32"
     then
-      Prelude.putStrLn $ "Windows is not currently supported,"
-      ++ " due to this GHC bug: https://ghc.haskell.org/trac/ghc/ticket/7353."
+      putStrLn $ "Windows is not currently supported"
+      ++ " (https://ghc.haskell.org/trac/ghc/ticket/7353)."
     else
-      doRun
+      runWithArgs
 
-doRun :: IO ()
-doRun =
-  withDeltaRendering Console $ \drawEnv ->
-    void $ createState <$> initialGame
-      >>= runStateT (runReaderT loop (Env drawEnv))
+data BackendType = Console
+                 | OpenGLWindow
 
-initialGame :: IO Game
-initialGame =
-  initialGameState initialParameters
-    >>= return . Game Configure initialParameters
+runWithArgs :: IO ()
+runWithArgs =
+  join . customExecParser (prefs showHelpOnError) $
+    info (helper <*> parser)
+    (  fullDesc
+    <> header "imj-game-hamazed-exe runs the 'Hamazed' game."
+    <> progDesc "Hamazed is a game with flying numbers abd 8-bit color animations."
+    )
+ where
+  parser =
+    runWithBackend
+      <$> optional
+             (option backendArg (long "render"
+                              <> short 'r'
+                              <> help ("Use argument 'console' to play in the console. " ++
+                                        "Use 'opengl' to play in an opengl window. " ++
+                                        renderHelp)))
+      <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
 
-initialGameState :: GameParameters -> IO GameState
-initialGameState params =
-  mkInitialState params firstLevel Nothing >>= \case
-    Left err -> error err
-    Right newState -> return newState
+renderHelp :: String
+renderHelp =
+  "\nAccepted synonyms of 'console' are 'ascii', 'term', 'terminal'." ++
+  "\nAccepted synonyms of 'opengl' are 'win', 'window'."
 
-{-# INLINABLE loop #-}
-loop :: (Render e, MonadState AppState m, MonadReader e m, MonadIO m)
+backendArg :: ReadM BackendType
+backendArg =
+  str >>= \s -> case toLower $ pack s of
+    "ascii"        -> return Console
+    "console"      -> return Console
+    "term"         -> return Console
+    "terminal"     -> return Console
+    "opengl"       -> return OpenGLWindow
+    "win"          -> return OpenGLWindow
+    "window"       -> return OpenGLWindow
+    _ -> readerError $ "encountered an invalid render type:\n\t"
+                    ++ show s
+                    ++ "\nAccepted render types are 'console' and 'opengl'."
+                    ++ renderHelp
+
+userPicksBackend :: IO BackendType
+userPicksBackend = do
+  putStrLn ""
+  putStrLn " Welcome to Hamazed!"
+  putStrLn ""
+  putStrLn " - Press (1) then (Enter) to play in the console."
+  putStrLn "     An error message will inform you if your console is too small."
+  putStrLn "          [Equivalent to passing '-r console']"
+  putStrLn " - Press (2) then (Enter) to play in a separate window (enables more rendering options)."
+  putStrLn "          [Equivalent to passing '-r opengl']"
+  putStrLn ""
+  hFlush stdout -- just in case buffer mode is block
+  getLine >>= \case
+    "1" -> return Console
+    "2" -> return OpenGLWindow
+    c -> putStrLn ("invalid value : " ++ c) >> userPicksBackend
+
+runWithBackend :: Maybe BackendType -> Bool -> IO ()
+runWithBackend maybeBackend debug =
+  maybe userPicksBackend return maybeBackend >>= \case
+    Console      -> newConsoleBackend >>= runWith debug
+    OpenGLWindow -> newOpenGLBackend "Hamazed" 10 (Size 600 1400) >>= runWith debug
+
+{-# INLINABLE runWith #-}
+runWith :: (PlayerInput a, DeltaRenderBackend a)
+        => Bool -> a -> IO ()
+runWith debug backend =
+  withDefaultPolicies (\drawEnv -> do
+    sz <- getDiscreteSize backend
+    void (createState sz debug
+      >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
+
+loop :: (MonadState AppState m, MonadReader e m, Render e, PlayerInput e, MonadIO m)
      => m ()
-loop =
-  get >>= \(AppState game@(Game mode params s) _ _) ->
-    case mode of
-      Configure -> do
-        draw s
-        draw' s
-        renderToScreen
-        liftIO getKeyThenFlush >>= \case
-          AlphaNum c ->
-            if c == ' '
-              then do
-                t <- liftIO getSystemTime
-                putGame $ startGame t game
-              else do
-                let newParams = updateFromChar c params
-                newState <- liftIO $ initialGameState newParams
-                putGame $ Game Configure newParams newState
-          _ -> return ()
-        loop
-      Play ->
-        getEvent >>= \evt -> do
-          update evt
-          onEvent evt
-          when (needsRendering evt) $ -- TODO add a Render event that is pushed to a queue
-            getRenderable >>= \(gameState, evtStrs) -> do
-              draw gameState
-              zipWithM_ (\i str -> drawAt str $ Coords i 0) [0..] evtStrs
-              renderToScreen
-          case evt of
-            (Interrupt _) -> return ()
-            _ -> loop
+loop = do
+  produceEvent >>= \case
+    (Just (Interrupt _ )) -> return ()
+    mayEvt -> playerEndsProgram >>= \case
+      True -> return ()
+      _ -> onEvent mayEvt >> loop
 
-startGame :: SystemTime -> Game -> Game
-startGame t (Game _ params s) =
-  Game Play params $ startGameState t s
+-- | MonadState AppState is needed to know if the level is finished or not.
+{-# INLINABLE produceEvent #-}
+produceEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, MonadIO m)
+             => m (Maybe Event)
+produceEvent =
+  -- 'playerPriority' is bigger that every other priority so we handle non-blocking player events:
+  hasPlayerKey >>= \case
+    True -> getPlayerKey >>= eventFromKey
+    False -> do
+      let whenWaitingIsAllowed x = hasVisibleNonRenderedUpdates >>= \case
+            True ->
+              -- we can't afford waiting, we force a render
+              return Nothing
+            False ->
+              -- we can afford waiting, we execute the action
+              x
+      getLastRenderTime >>= getNextDeadline >>= maybe
+          (whenWaitingIsAllowed $ getPlayerKey >>= eventFromKey)
+          (\case
+            Overdue d -> return $ Just $ Timeout d
+            Future d@(Deadline deadlineTime _ _) ->
+              whenWaitingIsAllowed $ do
+                getPlayerKeyBefore deadlineTime >>= \case
+                  Just key -> eventFromKey key
+                  Nothing -> return $ Just $ Timeout d)

@@ -14,6 +14,7 @@ module Imj.Graphics.Render.Delta.Draw
               -- utilities
             , initializeWithContent
             , fillBackBuffer
+            , deltaForgetFrontValues
             ) where
 
 import           Imj.Prelude
@@ -25,10 +26,11 @@ import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSl
 import           Imj.Geo.Discrete
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color
-import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Types
+import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.Cell
+import           Imj.Graphics.Render.Delta.Cells
 import           Imj.Graphics.UI.RectArea
 
 
@@ -42,10 +44,9 @@ deltaDrawChar :: IORef Buffers
               -- ^ Background and foreground colors
               -> IO ()
 deltaDrawChar ref c pos colors =
-  readIORef ref
-    >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-      let size = fromIntegral $ length b
-      writeToBack back (indexFromPos size width scissor pos) (mkCell colors c)
+  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+    let size = fromIntegral $ length b
+    writeToBack back (indexFromPos size width scissor pos) (mkCell colors c)
 
 
 {-# INLINABLE deltaDrawChars #-}
@@ -63,14 +64,12 @@ deltaDrawChars :: IORef Buffers
                -- ^ Background and foreground colors
                -> IO ()
 deltaDrawChars ref count c pos colors =
-  readIORef ref
-    >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-      let cell = mkCell colors c
-          size = fromIntegral $ length b
-      mapM_
-        (\i -> writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) cell)
-        [0..pred count]
-
+  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+    let cell = mkCell colors c
+        size = fromIntegral $ length b
+    mapM_
+      (\i -> writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) cell)
+      [0..pred count]
 
 {-# INLINABLE deltaDrawStr #-}
 -- | Draw a 'String'
@@ -82,13 +81,12 @@ deltaDrawStr :: IORef Buffers
              -- ^ Background and foreground colors
              -> IO ()
 deltaDrawStr ref str pos colors =
-  readIORef ref
-    >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-      let size = fromIntegral $ length b
-      mapM_
-        (\(c, i) ->
-            writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) (mkCell colors c))
-        $ zip str [0..]
+  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+    let size = fromIntegral $ length b
+    mapM_
+      (\(c, i) ->
+          writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) (mkCell colors c))
+      $ zip str [0..]
 
 {-# INLINABLE deltaDrawTxt #-}
 -- | Draw a 'Text'
@@ -104,22 +102,21 @@ deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 -- | Fills the scissor area with a colored char.
 deltaFill :: IORef Buffers -> Char -> LayeredColor -> IO ()
 deltaFill ref c color =
-  readIORef ref
-    >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-      let height = getHeight width $ fromIntegral $ length b
-          drawableArea =
-            mkRectArea zeroCoords $ Size (fromIntegral height) $ fromIntegral width
-          region@(RectArea (Coords r1 c1) (Coords r2 c2)) =
-            intersection scissor drawableArea
-          nCells = 1 + fromIntegral (c2 - c1)
-          cell = mkCell color c
-      unless (isEmpty region) $
-        mapM_
-          (\r -> do
-            let leftMostCoords = Coords r $ assert (c1 <= c2) c1
-                idx = unsafeIndexFromPos width leftMostCoords
-            writeNToBack back idx nCells cell)
-          [r1..r2]
+  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+    let height = getHeight width $ fromIntegral $ length b
+        drawableArea =
+          mkRectArea zeroCoords $ Size (fromIntegral height) $ fromIntegral width
+        region@(RectArea (Coords r1 c1) (Coords r2 c2)) =
+          intersection scissor drawableArea
+        nCells = 1 + fromIntegral (c2 - c1)
+        cell = mkCell color c
+    unless (isEmpty region) $
+      mapM_
+        (\r -> do
+          let leftMostCoords = Coords r $ assert (c1 <= c2) c1
+              idx = unsafeIndexFromPos width leftMostCoords
+          writeNToBack back idx nCells cell)
+        [r1..r2]
 
 {-# INLINE writeToBack #-}
 writeToBack :: Buffer Back -> Maybe (Dim BufferIndex) -> Cell -> IO ()
@@ -137,9 +134,8 @@ fill :: Char
      -> LayeredColor
      -> IORef Buffers
      -> IO ()
-fill char colors ioRefBuffers =
-  readIORef ioRefBuffers
-    >>= flip fillBackBuffer (mkCell colors char)
+fill char colors ref =
+  readIORef ref >>= flip fillBackBuffer (mkCell colors char)
 
 
 fillBackBuffer :: Buffers
@@ -148,6 +144,10 @@ fillBackBuffer :: Buffers
 fillBackBuffer (Buffers (Buffer b) _ _ _ _ _) =
   set b
 
+deltaForgetFrontValues :: IORef Buffers -> IO ()
+deltaForgetFrontValues ref =
+  readIORef ref >>= \(Buffers _ (Buffer f) _ _ _ _) ->
+    set f invalidCell
 
 -- | Use if you know that the 'Coords' is inside the 'Scissor' and inside the
 -- region of the screen represented by the back buffer.

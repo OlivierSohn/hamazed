@@ -5,39 +5,80 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Event
-    ( needsRendering
-    , getEvent
+    ( isVisible
+    , isPrincipal
+    , EventGroup(..)
+    , mkEmptyGroup
+    , visible
+    , count
+    , tryGrow
     -- * Reexports
     , module Imj.Game.Hamazed.Loop.Event.Types
     ) where
 
 import           Imj.Prelude
-
-import           Control.Monad.IO.Class(MonadIO)
+import           Prelude(length)
 
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.State
-import           Imj.Timing
+import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Graphics.ParticleSystem.Design.Timing
+import           Imj.Util hiding(range)
 
 -- | Tells if after handling an 'Event' we should render or not.
-needsRendering :: Event -> Bool
-needsRendering = \case
+isVisible :: Event -> Bool
+isVisible = \case
   (Action Ship _) -> False -- When the ship accelerates, nothing changes visually
   _ -> True
 
-getEvent :: (MonadState AppState m, MonadIO m)
-         => m Event
-getEvent =
-  getEvent' >>= \case
-    Just event -> return event
-    Nothing -> getEvent
+-- | No 2 principal events can be part of the same 'EventGroup'.
+-- It allows to separate important game action on different rendered frames.
+isPrincipal :: Event -> Bool
+isPrincipal = \case
+  (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
+  (Timeout (Deadline _ _ DisplayContinueMessage)) -> False
+  (Timeout (Deadline _ _ AnimateUI)) -> False
+  _ -> True
 
-getEvent' :: (MonadState AppState m, MonadIO m)
-          => m (Maybe Event)
-getEvent' = do
-  t <- liftIO getSystemTime
-  deadline <- getNextDeadline t
-  getEventForMaybeDeadline deadline t
+data EventGroup = EventGroup {
+    events :: ![Event]
+  , _eventGroupHasPrincipal :: !Bool
+  , _eventGroupUpdateDuration :: !(Time Duration System)
+  , _eventGroupVisibleTimeRange :: !(Maybe (Range (Time Point System)))
+  -- ^ Range of /visible/ events deadlines
+}
+
+mkEmptyGroup :: EventGroup
+mkEmptyGroup = EventGroup [] False zeroDuration Nothing
+
+visible :: EventGroup -> Bool
+visible (EventGroup _ _ _ Nothing) = False
+visible _ = True
+
+count :: EventGroup -> Int
+count (EventGroup l _ _ _) = length l
+
+tryGrow :: Maybe Event -> EventGroup -> IO (Maybe EventGroup)
+tryGrow Nothing group
+ | null $ events group = return $ Just group -- Keep the group opened to NOT do a render
+ | otherwise = return Nothing -- to do a render
+tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
+ | hasPrincipal && principal = return Nothing -- we don't allow two principal events in the same group
+ | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
+ | isVisible e = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> do
+    let -- so that no 2 updates of the same particle system are done in the same group:
+        maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
+        diam = (...) `onBounds` range'
+    if diam > maxDiameter
+      then
+        --putStrLn (show (diam, maxDiameter)) >>
+        return Nothing
+      else
+        return $ withEvent $ Just range'
+ | otherwise = return $ withEvent range
+ where
+  !principal = isPrincipal e
+  withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime
+  time = case e of
+    (Timeout (Deadline t _ _)) -> return t
+    _ -> getSystemTime

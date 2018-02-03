@@ -2,12 +2,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- Initially I needed this custom Prelude to hide putStr and putChar,
--- since I provide equivalent functions that should be used instead to
--- render the game.
---
--- I find it also usefull to default-import functions that I use a lot.
-
 module Imj.Prelude
           ( module Prelude
           , module Control.Applicative
@@ -23,11 +17,14 @@ module Imj.Prelude
           , module Data.String
           , module Data.Text
           , module Data.Word
+          , module GHC.Generics
+          , module System.IO
+          , module Text.Show.Pretty
           ) where
 
 import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
-                        , Functor
-                        , Bool(..), Char, Float, IO, Int, Maybe(..), Either(..), Ordering(..)
+                        , Functor, Read, Applicative
+                        , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
                         , either, maybe
                         , sum, map, concatMap, concat, filter, mapM, mapM_
                         , all, any, notElem, null, minimum, maximum
@@ -44,12 +41,14 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , (!!)
                         )
 
-import           Control.Applicative((<|>))
+import           GHC.Generics(Generic)
+import           Control.Applicative((<|>), pure)
 import           Control.Arrow((>>>))
-import           Control.Monad(when, unless, void, (<=<), Monad, zipWithM_)
+import           Control.Exception(assert)
+import           Control.Monad(sequence, when, unless, void, (<=<), (>=>), Monad, zipWithM_, forever
+                              , replicateM)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
-import           Control.Exception(assert)
 import           Data.List(intercalate, cycle, repeat, words, unwords)
 import           Data.Maybe(listToMaybe, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Monoid((<>))
@@ -57,3 +56,6 @@ import           Data.Ratio((%))
 import           Data.String(String)
 import           Data.Text(Text)
 import           Data.Word(Word8)
+import           System.IO(putStrLn)
+
+import           Text.Show.Pretty(PrettyVal(..))

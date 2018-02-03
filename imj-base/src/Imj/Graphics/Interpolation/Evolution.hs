@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.Interpolation.Evolution
          (
@@ -43,26 +45,28 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.DiscreteMorphing
 import           Imj.Graphics.Math.Ease
 import           Imj.Iteration
+import           Imj.Timing
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
 -- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.
 mkEvolutionEaseQuart :: DiscreteDistance v
                      => Successive v
                      -- ^ 'DiscreteDistance's through which the evolution will pass.
-                     -> Float
-                     -- ^ Duration in seconds
+                     -> Time Duration System
+                     -- ^ Duration
                      -> Evolution v
-mkEvolutionEaseQuart = mkEvolution invQuartEaseInOut
+mkEvolutionEaseQuart =
+  mkEvolution invQuartEaseInOut
 
 -- | An evolution between n 'DiscreteDistance's. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}
 mkEvolution :: DiscreteDistance v
-            => (Float -> Float)
+            => (Double -> Double)
             -- ^ Inverse continuous ease function
             -> Successive v
             -- ^ 'DiscreteDistance's through which the evolution will pass.
-            -> Float
-            -- ^ Duration in seconds
+            -> Time Duration System
+            -- ^ Duration
             -> Evolution v
 mkEvolution ease s duration =
   let nSteps = distanceSuccessive s
@@ -70,19 +74,22 @@ mkEvolution ease s duration =
   in Evolution s lastFrame duration (discreteAdaptor ease nSteps)
 
 -- | Used to synchronize multiple 'Evolution's.
-newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show)
-newtype NotWaypoint = NotWaypoint () deriving(Show)
+newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show, Generic, PrettyVal)
+newtype NotWaypoint = NotWaypoint () deriving(Show, Generic)
+
+instance PrettyVal NotWaypoint where
+  prettyVal _ = prettyVal "NotWaypoint"
 
 -- | To make sure that we never use distance on an 'EaseClock'.
 instance DiscreteDistance NotWaypoint where
   distance = error "don't use distance on NotWaypoint"
 
 -- | Constructor of 'EaseClock'
-mkEaseClock :: Float
-            -- ^ Duration in seconds
+mkEaseClock :: Time Duration System
+            -- ^ Duration
             -> Frame
             -- ^ Last frame
-            -> (Float -> Float)
+            -> (Double -> Double)
             -- ^ Inverse ease function (value -> time, both between 0 and 1)
             -> EaseClock
 mkEaseClock duration lastFrame ease =
@@ -99,14 +106,17 @@ data Evolution v = Evolution {
   -- ^ 'Successive' 'DiscreteDistance's.
   , _evolutionLastFrame :: !Frame
   -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
-  , _evolutionDuration :: Float
-  -- ^ Duration of the interpolation in seconds.
-  , _evolutionInverseEase :: Float -> Float
+  , _evolutionDuration :: !(Time Duration System)
+  -- ^ Duration of the interpolation
+  , _evolutionInverseEase :: !(Double -> Double)
   -- ^ Inverse ease function.
-}
+} deriving (Generic)
 
 instance (Show v) => Show (Evolution v) where
   showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
+
+instance (PrettyVal v) => PrettyVal (Evolution v) where
+  prettyVal (Evolution a b c _) = prettyVal (a,b,c)
 
 instance Functor Evolution where
   fmap f (Evolution s a b c) = Evolution (fmap f s) a b c
@@ -114,18 +124,17 @@ instance Functor Evolution where
 -- | Computes the time increment between the input 'Frame' and the next.
 getDeltaTimeToNextFrame :: Evolution v
                         -> Frame
-                        -> Maybe Float
+                        -> Maybe (Time Duration System)
                         -- ^ If evolution is still ongoing, returns the time interval
                         --      between the input 'Frame' and the next.
 getDeltaTimeToNextFrame (Evolution _ lastFrame@(Frame lastStep) duration easeValToTime) frame@(Frame step)
   | frame < 0          = error "negative frame"
   | frame >= lastFrame = Nothing
-  | otherwise          = Just dt
+  | otherwise          = Just $ (easeValToTime targetValue - easeValToTime thisValue) .* duration
   where
     nextStep = succ step
     thisValue = fromIntegral step / fromIntegral lastStep
     targetValue = fromIntegral nextStep / fromIntegral lastStep
-    dt = duration * (easeValToTime targetValue - easeValToTime thisValue)
 
 
 {-# INLINABLE getValueAt #-}

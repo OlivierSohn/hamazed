@@ -48,11 +48,11 @@ library
                      , Imj.Game.Hamazed.Loop.Update
                      , Imj.Game.Hamazed.Parameters
                      , Imj.Game.Hamazed.State
+                     , Imj.Game.Hamazed.State.Types
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
-                     , Imj.Game.Hamazed.World.InTerminal
                      , Imj.Game.Hamazed.World.Number
                      , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size
@@ -70,7 +70,8 @@ library
                      , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
-
+                     , optparse-applicative == 0.14.*
+                     , pretty-show ==1.6.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010

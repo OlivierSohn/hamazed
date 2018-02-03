@@ -1,94 +1,178 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
--- | This modules exports types and functions related to timing.
+{- | This module exports types and functions related to /monotonic/ timing.
 
+Some functions are /unsafe/-prefixed. You should use them only to implement
+conversion between different time-spaces (time-space = first phantom type of 'Time').
+Otherwise, these functions are too
+low-level for your usage and may lead to mistakes because you'll convert from one
+time-space to another wihtout noticing it.
+-}
 module Imj.Timing
-    ( -- * KeyTime
-    {- | A wrapper type on 'SystemTime' -}
-      KeyTime(..)
+    ( -- * Time
+      Time
+    , System
+    , Point
+    , Duration
+    -- * Translate a time point
     , addDuration
-    -- * SystemTime / DiffTime utilities
-    , addToSystemTime
-    , diffSystemTime
-    , diffTimeSecToMicros
-    , floatSecondsToDiffTime
-    -- * Reexports
-    , SystemTime(..)
-    , DiffTime
+    -- * Produce durations
+    , (...)
+    -- * Scale, add, substract durations
+    , (.*)
+    , (|-|)
+    , (|+|)
+    -- * Convert durations between time spaces
+    , Multiplicator(..)
+    , fromSystemDuration
+    , toSystemDuration
+    -- * Convert system durations from / to seconds
+    , fromSecs
+    , unsafeToSecs
+    -- * Utilities
     , getSystemTime
+    , getDurationFromNowTo
+    , showTime
+    , toMicros
+    , strictlyNegative
+    , zeroDuration
+    , unsafeGetTimeSpec
+    , unsafeFromTimeSpec
+    -- * Reexports
+    , Int64
     ) where
 
 import           Imj.Prelude
-import           Prelude(Integer)
+import           Prelude(length)
 
 import           Data.Int(Int64)
-import           Data.Time(DiffTime, diffTimeToPicoseconds,
-                           secondsToDiffTime, picosecondsToDiffTime)
-import           Data.Time.Clock.System
-                          (getSystemTime, SystemTime(..) )
+import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
--- | Adds a 'DiffTime' to a 'SystemTime'
-addToSystemTime :: DiffTime -> SystemTime -> SystemTime
-addToSystemTime diff t =
-  let d = diffTimeToSystemTime diff
-  in sumSystemTimes d t
+{- | Represents a time.
 
--- | Returns t1-t2
-diffSystemTime :: SystemTime
-               -- ^ t1
-               -> SystemTime
-               -- ^ t2
-               -> DiffTime
-diffSystemTime (MkSystemTime s1 ns1) (MkSystemTime s2 ns2) =
-  let -- ns1 and ns2 are Word32, which is an unsigned type.
-      -- To avoid underflowing Word32, to compute their difference, we use
-      -- the next bigger signed type : Int64.
-      ns1', ns2' :: Int64
-      ns1' = fromIntegral ns1
-      ns2' = fromIntegral ns2
-      nsDiff = ns1' - ns2'
-  in secondsToDiffTime (fromIntegral $ s1 - s2) +
-     picosecondsToDiffTime (fromIntegral nsDiff * 1000)
+The phantom type 'a' represents the time space. It could be 'System'
+ or another phantom type.
 
-sumSystemTimes :: SystemTime -> SystemTime -> SystemTime
-sumSystemTimes (MkSystemTime s1 ns1) (MkSystemTime s2 ns2) =
-  let s = s1 + s2
-      ns = ns1 + ns2 -- no overflow, even if both contain leap seconds because 2^32 > 4 * 1000000000
-      (addS, nanoseconds) = ns `quotRem` 1000000000
-  in MkSystemTime (s + fromIntegral addS) nanoseconds
+ The phantom type 'b' specifies the nature of the time (a point on the timeline
+ or a duration)-}
+newtype Time a b = Time TimeSpec deriving(Eq, Ord, Show, Generic)
+
+instance PrettyVal (Time Point b) where
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:", s, n)
+instance PrettyVal (Time Duration b) where
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:", s, n)
+
+{- | A location on a timeline.
+
+Note that summing 'Time' 'Point' has no meaning, and substracting them is achieved
+using '...' -}
+data Point deriving(Generic)
+
+{- | A difference between two locations of the same time space.
+
+See 'Multiplicator', 'fromSystemDuration' and 'toSystemDuration' to convert
+a 'Duration' of a given time space from / to the 'SystemTime' time space.
+
+'|-|' and '|+|' are available to add or substract durations.
+A 'Num' instance is /not/ provided, as it would lead to more
+ambiguous code, as explained <https://github.com/corsis/clock/issues/49 here>. -}
+data Duration deriving(Generic)
+
+-- | The system time (see 'getSystemTime')
+data System deriving(Generic)
+
+-- | 'Multiplicator', multiplied with a 'System' duration produces a duration in
+-- another time space specified by the phantom type 'a'.
+newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, PrettyVal)
 
 
-picoToNano :: Integer -> Integer
-picoToNano i = quot i 1000
+{-# INLINE fromSystemDuration #-}
+fromSystemDuration :: Multiplicator a -> Time Duration System -> Time Duration a
+fromSystemDuration (Multiplicator m) = unsafeFromTimeSpec . unsafeGetTimeSpec . ((.*) m)
 
-diffTimeToSystemTime :: DiffTime -> SystemTime
-diffTimeToSystemTime diff =
-  let nanoDiff :: Integer
-      nanoDiff = picoToNano $ diffTimeToPicoseconds diff
-      -- using divMod with a positive divisor,
-      -- nanoseconds is guaranteed to be positive, seconds may be negative
-      (seconds, nanoseconds) = nanoDiff `divMod` 1000000000
-  in MkSystemTime (fromIntegral seconds) (fromIntegral nanoseconds)
+{-# INLINE toSystemDuration #-}
+toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
+toSystemDuration (Multiplicator m) = ((.*) $ recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
 
--- | Represents deadlines and event times.
-newtype KeyTime = KeyTime SystemTime deriving(Eq, Ord, Show)
 
--- | Convert a 'DiffTime' to a number of microseconds.
-diffTimeSecToMicros :: DiffTime -> Int
-diffTimeSecToMicros t = floor (t * 10^(6 :: Int))
+{- | Substraction for 'Time' 'Duration' -}
+(|-|) :: Time Duration a -> Time Duration a -> Time Duration a
+Time a |-| Time b = Time $ a-b
+{- | Addition for 'Time' 'Duration' -}
+(|+|) :: Time Duration a -> Time Duration a -> Time Duration a
+Time a |+| Time b = Time $ a+b
+{- | Scalar multiplication for 'Time' 'Duration' -}
+(.*) :: Double -> Time Duration a -> Time Duration a
+scale .* t =
+  fromSecs $ scale * unsafeToSecs t
+{-# INLINE (.*) #-}
+{-# INLINE (|-|) #-}
+{-# INLINE (|+|) #-}
 
-microSecondsPerSecond :: Integer
-microSecondsPerSecond = 1000000
+-- | Produce a duration between two points.
+{-# INLINE (...) #-}
+(...) :: Time Point b
+      -- ^ t1
+      -> Time Point b
+      -- ^ t2
+      -> Time Duration b
+      -- ^ = t2 - t1
+Time a ... Time b = Time $ b - a
 
--- | Converts a duration expressed in seconds using a 'Float' to a 'DiffTime'
---  which has picosecond resolution.
-floatSecondsToDiffTime :: Float -> DiffTime
-floatSecondsToDiffTime f = microsecondsToDiffTime $ floor (f*fromIntegral microSecondsPerSecond)
+-- | Adds seconds to a 'Point'.
+{-# INLINE addDuration #-}
+addDuration :: Time Duration b -> Time Point b -> Time Point b
+addDuration (Time dt) (Time t) =
+  Time $ t + dt
 
-microsecondsToDiffTime :: Integer -> DiffTime
-microsecondsToDiffTime x = fromRational (x % fromIntegral microSecondsPerSecond)
+{-# INLINE toMicros #-}
+-- | Only provide this function for 'System' time durations, to call 'timeout'.
+toMicros :: Time Duration System -> Int64
+toMicros (Time (TimeSpec seconds nanos)) =
+  10^(6::Int) * seconds + quot nanos (10^(3::Int))
 
--- | Adds a 'DiffTime' to a 'KeyTime'.
-addDuration :: DiffTime -> KeyTime -> KeyTime
-addDuration durationSeconds (KeyTime t) =
-  KeyTime $ addToSystemTime durationSeconds t
+{-# INLINE unsafeToSecs #-}
+unsafeToSecs :: Time Duration a -> Double
+unsafeToSecs (Time (TimeSpec seconds nanos)) =
+  fromIntegral seconds + fromIntegral nanos / fromIntegral (10^(9::Int) :: Int)
+
+-- | Converts a duration expressed in seconds using a 'Double' to a 'TimeSpec'
+fromSecs :: Double -> Time Duration b
+fromSecs f =
+  Time $ fromIntegral $ (floor $ f * 10^(9::Int) :: Int64)
+
+-- | Returns the time as seen by a monotonic clock.
+{-# INLINE getSystemTime #-}
+getSystemTime :: IO (Time Point System)
+getSystemTime =
+  Time <$> getTime Monotonic
+
+getDurationFromNowTo :: Time Point System
+                     -> IO (Time Duration System)
+getDurationFromNowTo t =
+  getSystemTime >>= \now -> return $ now ... t
+
+showTime :: Time Duration a -> String
+showTime (Time x) =
+  rJustify $ show $ quot (toNanoSecs x) 1000
+  where
+    rJustify txt = replicate (5-length txt) ' ' ++ txt
+
+{-# INLINE zeroDuration #-}
+zeroDuration :: Time Duration b
+zeroDuration = Time $ TimeSpec 0 0
+
+{-# INLINE unsafeGetTimeSpec #-}
+unsafeGetTimeSpec :: Time a b -> TimeSpec
+unsafeGetTimeSpec (Time t) = t
+
+{-# INLINE unsafeFromTimeSpec #-}
+unsafeFromTimeSpec :: TimeSpec -> Time a b
+unsafeFromTimeSpec = Time
+
+{-# INLINE strictlyNegative #-}
+strictlyNegative :: Time Duration a -> Bool
+strictlyNegative (Time t) = t < 0

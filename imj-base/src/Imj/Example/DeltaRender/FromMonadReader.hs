@@ -7,7 +7,7 @@ module Imj.Example.DeltaRender.FromMonadReader
   ( main
   ) where
 
-import Control.Monad.Reader(runReaderT)
+import Control.Monad.Reader(runReaderT, void)
 
 import Imj.Graphics.Color
 import Imj.Graphics.Render.FromMonadReader(drawStr, renderToScreen)
@@ -16,9 +16,9 @@ import Imj.Graphics.Render.Delta
 helloWorld :: (Render e, MonadReader e m, MonadIO m) => m ()
 helloWorld = do
   drawStr "Hello World" (Coords 10 10) (onBlack green)
-  renderToScreen
+  void renderToScreen
 
 
 main :: IO ()
 main =
-  withDeltaRendering Console (runReaderT helloWorld)
+  newConsoleBackend >>= withDefaultPolicies (runReaderT helloWorld)

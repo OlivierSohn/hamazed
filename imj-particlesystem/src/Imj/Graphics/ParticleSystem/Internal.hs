@@ -1,7 +1,6 @@
 module Imj.Graphics.ParticleSystem.Internal
         ( -- * ParticleSystem timing
           particleSystemPeriod
-        , particleSystemUpdateMargin
           -- * ParticleSystem colors
         , colorFromFrame
         ) where

@@ -5,7 +5,6 @@
 
 module Imj.Graphics.Render.Delta.Env
     ( DeltaEnv
-    , newDefaultEnv
     , newEnv
     , ResizePolicy(..)
     , defaultResizePolicy
@@ -15,14 +14,18 @@ module Imj.Graphics.Render.Delta.Env
     , setClearPolicy
     , defaultClearColor
     , setClearColor
+    , DeltaRenderBackend(..)
+    , Size(..)
     ) where
 
 import           Imj.Prelude
 
+import           Control.Exception(finally)
 import           Control.Monad.IO.Class(liftIO)
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
 
+import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.Delta.Buffers
@@ -33,18 +36,21 @@ import           Imj.Graphics.Render.Delta.Types
 
 data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
-  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO ())
+  , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
+  , _deltaEnvTargetSize :: !(IO (Maybe Size))
+  , _deltaEnvCycleRenderingOptions :: !(IO ())
 }
 
 -- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
-  fill'          (DeltaEnv a _) b c     = liftIO $ deltaFill a b c
-  setScissor     (DeltaEnv a _) b       = liftIO $ deltaSetScissor a b
-  getScissor'    (DeltaEnv a _)         = liftIO $ deltaGetScissor a
-  drawChar'      (DeltaEnv a _) b c d   = liftIO $ deltaDrawChar  a b c d
-  drawChars'     (DeltaEnv a _) b c d e = liftIO $ deltaDrawChars a b c d e
-  drawTxt'       (DeltaEnv a _) b c d   = liftIO $ deltaDrawTxt   a b c d
-  drawStr'       (DeltaEnv a _) b c d   = liftIO $ deltaDrawStr   a b c d
+  fill'          (DeltaEnv a _ _ _) b c     = liftIO $ deltaFill a b c
+  setScissor     (DeltaEnv a _ _ _) b       = liftIO $ deltaSetScissor a b
+  getScissor'    (DeltaEnv a _ _ _)         = liftIO $ deltaGetScissor a
+  drawChar'      (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
+  drawChars'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
+  drawTxt'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
+  drawStr'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
+  changeFont'    (DeltaEnv a _ _ f)         = liftIO $ f >> deltaForgetFrontValues a
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
@@ -52,26 +58,52 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
+  {-# INLINABLE changeFont' #-}
+
+instance Canvas DeltaEnv where
+  getTargetSize' (DeltaEnv _ _ s _)         = liftIO s
+  {-# INLINABLE getTargetSize' #-}
+
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
-  renderToScreen' (DeltaEnv a b)         = liftIO $ deltaFlush     a b
+  renderToScreen' (DeltaEnv a b c _)         = liftIO $ deltaFlush     a b c
   {-# INLINABLE renderToScreen' #-}
 
 
--- | Creates an environment using default policies.
-newDefaultEnv :: (Delta -> Dim Width -> IO ())
-              -> IO DeltaEnv
-newDefaultEnv renderFunc =
-  newEnv renderFunc Nothing Nothing Nothing
+class DeltaRenderBackend a where
+    -- | returns (duration to issue commands, duration to flush)
+    render :: a -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
+    cleanup :: a -> IO ()
+    getDiscreteSize :: a -> IO (Maybe Size)
+    cycleRenderingOption :: a -> IO ()
+
+    withPolicies :: Maybe ResizePolicy
+                 -> Maybe ClearPolicy
+                 -> Maybe (Color8 Background)
+                 -- ^ Color to clear with
+                 -> (DeltaEnv -> IO ())
+                 -> a
+                 -> IO ()
+    withPolicies p1 p2 p3 action ctxt = do
+      newEnv ctxt p1 p2 p3 >>= action
+      `finally`
+      (cleanup ctxt)
+
+    withDefaultPolicies :: (DeltaEnv -> IO ()) -> a -> IO ()
+    withDefaultPolicies =
+      withPolicies Nothing Nothing Nothing
+
 
 -- | Creates an environment with policies.
-newEnv :: (Delta -> Dim Width -> IO ())
+newEnv :: (DeltaRenderBackend a)
+       => a
        -> Maybe ResizePolicy
        -> Maybe ClearPolicy
        -> Maybe (Color8 Background)
        -> IO DeltaEnv
-newEnv renderFunc a b c =
-  (`DeltaEnv` renderFunc) <$> newContext a b c
+newEnv backend a b c = do
+  ctxt <- newContext a b c (getDiscreteSize backend)
+  return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend) (cycleRenderingOption backend)
 
 
 -- | Sets the 'ResizePolicy' for back and front buffers.
@@ -79,7 +111,7 @@ newEnv renderFunc a b c =
 setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
                 -> IO ()
-setResizePolicy mayResizePolicy (DeltaEnv ref _) =
+setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies _ f g)) -> do
       let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
@@ -91,7 +123,7 @@ setResizePolicy mayResizePolicy (DeltaEnv ref _) =
 setClearPolicy :: Maybe ClearPolicy
                -> DeltaEnv
                -> IO ()
-setClearPolicy mayClearPolicy (DeltaEnv ref _) =
+setClearPolicy mayClearPolicy (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
       let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
@@ -103,7 +135,7 @@ setClearPolicy mayClearPolicy (DeltaEnv ref _) =
 setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv
               -> IO ()
-setClearColor mayClearColor (DeltaEnv ref _) =
+setClearColor mayClearColor (DeltaEnv ref _ _ _) =
   readIORef ref
     >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
       let clearColor = fromMaybe defaultClearColor mayClearColor

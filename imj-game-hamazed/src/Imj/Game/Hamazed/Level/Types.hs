@@ -27,7 +27,7 @@ data Level = Level {
 data LevelFinished = LevelFinished {
     _levelFinishedResult :: !GameStops
     -- ^ Lost or won
-  , _levelFinishedWhen :: !SystemTime
+  , _levelFinishedWhen :: !(Time Point System)
   , _levelFinishedCurrentMessage :: !MessageState
 }
 

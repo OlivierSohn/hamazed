@@ -1,5 +1,7 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 {- |
 = Examples
@@ -50,6 +52,7 @@ import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
+import           Imj.Timing
 
 
 -- | One anchor per String
@@ -70,7 +73,7 @@ data TextAnimation a = TextAnimation {
  maximum number of characters in a 'ColorString' of the given 'Evolution' 'ColorString'. -}
  , _textAnimationClock :: !EaseClock
  -- ^ Schedules the animation.
-} deriving(Show)
+} deriving(Show, PrettyVal, Generic)
 
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
@@ -155,8 +158,8 @@ Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
  -}
 mkSequentialTextTranslationsCharAnchored :: [(Successive ColorString, Coords Pos, Coords Pos)]
                                          -- ^ List of (texts, from anchor, to anchor)
-                                         -> Float
-                                         -- ^ duration in seconds
+                                         -> Time Duration System
+                                         -- ^ duration
                                          -> TextAnimation AnchorChars
 mkSequentialTextTranslationsCharAnchored l =
   let (from_,to_) =
@@ -175,8 +178,8 @@ Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
  -}
 mkSequentialTextTranslationsStringAnchored :: [(Successive ColorString, Coords Pos, Coords Pos)]
                                            -- ^ List of (texts, from anchor, to anchor)
-                                           -> Float
-                                           -- ^ Duration in seconds
+                                           -> Time Duration System
+                                           -- ^ Duration
                                            -> TextAnimation AnchorStrings
 mkSequentialTextTranslationsStringAnchored l =
   let (txts, from_,to_) = unzip3 l
@@ -194,8 +197,8 @@ mkSequentialTextTranslationsAnchored :: [Successive ColorString]
                                      -- ^ /From/ anchors
                                      -> [Coords Pos]
                                      -- ^ /To/ anchors
-                                     -> Float
-                                     -- ^ Duration in seconds
+                                     -> Time Duration System
+                                     -- ^ Duration
                                      -> TextAnimation a
 mkSequentialTextTranslationsAnchored txts from_ to_ duration =
   let strsEv = map (`mkEvolutionEaseQuart` duration) txts
@@ -209,8 +212,8 @@ mkSequentialTextTranslationsAnchored txts from_ to_ duration =
 
 -- | Translates a 'ColorString' between two anchors.
 mkTextTranslation :: ColorString
-                  -> Float
-                  -- ^ Duration in seconds
+                  -> Time Duration System
+                  -- ^ Duration
                   -> Coords Pos
                   -- ^ Left anchor at the beginning
                   -> Coords Pos

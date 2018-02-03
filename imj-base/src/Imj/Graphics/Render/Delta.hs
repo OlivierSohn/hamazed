@@ -80,14 +80,12 @@ module Imj.Graphics.Render.Delta
 -- 'DeltaEnv'.
   DeltaEnv
 -- * Delta-rendering backends
+, DeltaRenderBackend(..)
 {- | Two backends are available: -}
-, DeltaRendering(..)
-{- | 'withDeltaRendering' lets you chose the backend, and run an action using the
-delta rendering environment.
-
-'withDeltaRendering'' also lets you specify the policies of the delta-rendering environment.-}
-, withDeltaRendering
-, withDeltaRendering'
+, newConsoleBackend
+, ConsoleBackend
+, newOpenGLBackend
+, OpenGLBackend
 -- * Policies
 -- ** Resize
 , ResizePolicy(..)
@@ -212,5 +210,6 @@ and are sorted by increasing position, which is exactly what we want to implemen
 
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta.Types
-import           Imj.Graphics.Render.Delta.Backend
+import           Imj.Graphics.Render.Delta.Backend.Console
+import           Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Graphics.Render.Delta.Env

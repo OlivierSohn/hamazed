@@ -4,8 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Parameters
-      ( updateFromChar
-      , draw'
+      ( draw'
       ) where
 
 import           Imj.Prelude
@@ -21,19 +20,6 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
-
-
-updateFromChar :: Char -> GameParameters -> GameParameters
-updateFromChar c p@(GameParameters shape wallType mode) =
-  case c of
-    '1' -> GameParameters Square wallType mode
-    '2' -> GameParameters Rectangle2x1 wallType mode
-    'e' -> GameParameters shape None mode
-    'r' -> GameParameters shape Deterministic mode
-    't' -> GameParameters shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent) mode
-    'd' -> GameParameters shape wallType CenterSpace
-    'f' -> GameParameters shape wallType CenterShip
-    _ -> p
 
 
 {-# INLINABLE dText #-}
@@ -62,25 +48,28 @@ dTextAl_ a b = void $ dTextAl a b
 
 {-# INLINABLE draw' #-}
 draw' :: (Render e, MonadReader e m, MonadIO m)
-      => GameState
+      => RectContainer
       -> m ()
-draw' (GameState _ _ (World _ _ _ _ (InTerminal _ _ sz)) _ _ _) = do
+draw' cont = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
-        getSideCenters $ mkRectContainerWithTotalArea sz
+        getSideCenters cont
       left = move 12 LEFT (Coords r c)
 
-  dTextAl "Game configuration" (mkCentered $ translateInDir Down topMiddle)
+  dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"
-  dTextAl_ "Hit 'Space' to start game" (mkCentered $ translateInDir Up bottomCenter)
+  dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
-  translateInDir Down <$> dText "- World shape" (move 5 Up left)
-    >>= dText "'1' -> width = height"
-    >>= dText_ "'2' -> width = 2 x height"
-  translateInDir Down <$> dText "- World walls" left
-    >>= dText "'e' -> No walls"
-    >>= dText "'r' -> Deterministic walls"
-    >>= dText "'t' -> Random walls"
+  translateInDir Down <$> dText "* World shape" (move 5 Up left)
+    >>= dText "'1' : width is height"
+    >>= dText_ "'2' : width is 2 x height"
+  translateInDir Down <$> dText "* World walls" left
+    >>= dText "'e' : No walls"
+    >>= dText "'r' : Deterministic walls"
+    >>= dText "'t' : Random walls"
     >>= return . translateInDir Down
-    >>= dText "- Center view on:"
-    >>= dText "'d' -> Space"
-    >>= dText_ "'f' -> Ship"
+    >>= dText "* Center view on:"
+    >>= dText "'d' : Space"
+    >>= dText "'f' : Ship"
+    >>= return . translateInDir Down
+    >>= dText "* Rendering:"
+    >>= dText_ "'y' : Change rendering mode (OpenGL only)"

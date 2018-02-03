@@ -3,8 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Graphics.ParticleSystem.Design.Update
-    ( shouldUpdate
-    , updateParticleSystem
+    ( updateParticleSystem
     , getDeadline
     ) where
 
@@ -18,35 +17,24 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Iteration
 import           Imj.Timing
 
-
-{- | Returns 'True' if the 'KeyTime' is beyond the 'ParticleSystem' deadline or if the
-time difference is within 'particleSystemUpdateMargin'. -}
-shouldUpdate :: ParticleSystem
-             -> KeyTime
-             -- ^ The current 'KeyTime'
-             -> Bool
-shouldUpdate a (KeyTime k) =
-  let (KeyTime k') = getDeadline a
-  in diffSystemTime k' k < particleSystemUpdateMargin
-
-updateParticleSystem :: ParticleSystem
+-- TODO monitor the drift between current time and deadline time.
+-- | We chose not to base the next deadline time on the time of the previous deadline,
+-- so as to leave the liberty to the user of the library to adjust timing.
+updateParticleSystem :: Time Point ParticleSyst
+                     -- ^ Time from which we should base the next deadline on.
+                     -- In most cases, this should be the current time.
+                     -> ParticleSystem
                      -> Maybe ParticleSystem
-                     -- ^ Nothing if all contained 'Particle's are inactive.
-updateParticleSystem
- (ParticleSystem points update interaction (UpdateSpec k it@(Iteration _ frame))) =
+                     -- ^ Nothing if every contained 'Particle' is inactive.
+updateParticleSystem t
+ (ParticleSystem points update interaction (UpdateSpec _ it@(Iteration _ frame))) =
   let newPoints = update interaction frame points
-      newUpdateSpec = UpdateSpec (addDuration particleSystemPeriod k) (nextIteration it)
-      newAnim = ParticleSystem newPoints update interaction newUpdateSpec
-  in if isActive newAnim
+  in if hasActiveParticles newPoints
        then
-         Just newAnim
+         Just $ ParticleSystem newPoints update interaction
+              $ UpdateSpec (addDuration particleSystemPeriod t) (nextIteration it)
        else
          Nothing
-
-isActive :: ParticleSystem
-         -> Bool
-isActive (ParticleSystem points _ _ _) =
-  hasActiveParticles points
 
 hasActiveParticles :: ParticleTree -> Bool
 hasActiveParticles (ParticleTree Nothing _ _)         = False
@@ -56,6 +44,6 @@ hasActiveParticles (ParticleTree (Just branches) _ _) =
       childrenActive = map hasActiveParticles children
   in (not . null) activeCoordinates || or childrenActive
 
--- | Returns the time at which an 'ParticleSystem' should be updated.
-getDeadline :: ParticleSystem -> KeyTime
+-- | Returns the time at which a 'ParticleSystem' should be updated.
+getDeadline :: ParticleSystem -> Time Point ParticleSyst
 getDeadline (ParticleSystem _ _ _ (UpdateSpec k _)) = k

@@ -2,25 +2,45 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
--- | This modules handle time constants of the game logic.
+-- | This module handles time constants of the game logic.
 
 module Imj.Game.Hamazed.Loop.Timing
         ( gameMotionPeriod
+        , particleSystemDurationToSystemDuration
+        , particleSystemTimePointToSystemTimePoint
+        , systemTimePointToParticleSystemTimePoint
+        , GameTime
+        , initalGameMultiplicator
+        -- reexport
         , module Imj.Timing
         ) where
 
 import           Imj.Prelude
 
+import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Timing
 
-gameMotionPeriod :: DiffTime
-gameMotionPeriod =
-  fromIntegral gameMotionPeriodMicros / 1000000
+{-# INLINE gameMotionPeriod #-}
+-- | Nominal game period when the associated 'Multiplicator' is 1.
+gameMotionPeriod :: Time Duration GameTime
+gameMotionPeriod = fromSecs 0.16
 
--- using the "delta" render backend, there is no flicker
--- using the "naive" render backend, flicker starts at 40
-gameMotionPeriodMicros :: Int
-gameMotionPeriodMicros =
-  millis * 1000
- where
-  millis = 160 -- 20 seems to match screen refresh frequency
+data GameTime
+
+initalGameMultiplicator :: Multiplicator GameTime
+initalGameMultiplicator = gameTimeMultiplicator 1
+
+gameTimeMultiplicator :: Double -> Multiplicator GameTime
+gameTimeMultiplicator = Multiplicator
+
+{-# INLINE particleSystemDurationToSystemDuration #-}
+particleSystemDurationToSystemDuration :: Time Duration ParticleSyst -> Time Duration System
+particleSystemDurationToSystemDuration = unsafeFromTimeSpec . unsafeGetTimeSpec
+
+{-# INLINE particleSystemTimePointToSystemTimePoint #-}
+particleSystemTimePointToSystemTimePoint :: Time Point ParticleSyst -> Time Point System
+particleSystemTimePointToSystemTimePoint = unsafeFromTimeSpec . unsafeGetTimeSpec
+
+{-# INLINE systemTimePointToParticleSystemTimePoint #-}
+systemTimePointToParticleSystemTimePoint :: Time Point System -> Time Point ParticleSyst
+systemTimePointToParticleSystemTimePoint = unsafeFromTimeSpec . unsafeGetTimeSpec

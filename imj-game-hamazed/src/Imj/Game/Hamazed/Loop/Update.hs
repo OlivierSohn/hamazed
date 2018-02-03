@@ -6,228 +6,182 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Update
-      ( update
+      ( updateAppState
       ) where
 
 import           Imj.Prelude
 
-import           Data.Maybe( catMaybes, isNothing )
+import           Data.Maybe(isNothing)
 
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.State
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World
-import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.GameItem.Weapon.Laser
-import           Imj.Geo.Continuous
-import           Imj.Geo.Discrete
-import           Imj.Physics.Discrete.Collision
-import           Imj.Graphics.ParticleSystem.Design.Types
-import           Imj.Graphics.ParticleSystem.Design.Update
-import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
+{-# INLINABLE updateAppState #-}
+updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, MonadIO m)
+               => Event
+               -- ^ The 'Event' that should be handled here.
+               -> m ()
+updateAppState = \case
+  Configuration char   -> updateGameParamsFromChar char
+  StartGame            -> putUserIntent Play >> updateAppState (StartLevel firstLevel)
+  EndGame              -> onEndGame
+  StartLevel nextLevel -> onStartLevel nextLevel
+  CycleRenderingOptions -> changeFont
+  (Action target dir)  -> onAction target dir
+  (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
+  (Timeout (Deadline _ _ MoveFlyingItems)) -> onMove
+  (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
+  (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
+  evt -> error $ "The caller should handle :" ++ show evt
 
--- | Updates the state. It needs IO just to generate random numbers in case
--- 'Event' is 'StartLevel'
-{-# INLINABLE update #-}
-update :: (MonadState AppState m, MonadIO m)
-       => Event
-       -- ^ The 'Event' that should be handled here.
-       -> m ()
-update evt =
-  getGame >>= updateGame >>= putGameState
+onStartLevel :: (MonadState AppState m, MonadIO m)
+             => Int -> m ()
+onStartLevel n =
+  getGame >>= \(Game _ params state@(GameState _ _ _ _ _ _ _ (Screen sz _))) ->
+    mkInitialState params sz n (Just state) >>= putGameState
+
+onEndGame :: (MonadState AppState m, Canvas e, MonadReader e m, MonadIO m) => m ()
+onEndGame =
+  getGameParameters >>= \params -> do
+    getTargetSize
+      >>= liftIO . initialGameState params
+      >>= putGame . Game Configure params
+    return ()
+
+updateGameParamsFromChar :: (MonadState AppState m, MonadIO m)
+                         => Char
+                         -> m ()
+updateGameParamsFromChar char =
+ getGameParameters >>= \(GameParameters shape wallType mode) -> case char of
+  '1' -> go Square wallType mode
+  '2' -> go Rectangle2x1 wallType mode
+  'e' -> go shape None mode
+  'r' -> go shape Deterministic mode
+  't' -> go shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent) mode
+  'd' -> go shape wallType CenterSpace
+  'f' -> go shape wallType CenterShip
+  _ -> return ()
  where
-   updateGame
-    (Game _ params
-     state@(GameState b world@(World c d space systems e) futWorld f h@(Level level target mayLevelFinished) anim)) =
-    case evt of
-      StartLevel nextLevel ->
-        mkInitialState params nextLevel (Just state) >>= \case
-          Left err -> error err
-          Right s -> return s
-      (Timeout (Deadline gt AnimateUI)) -> do
-        let s@(GameState _ _ _ _ _ anims) = updateAnim gt state
-        if isFinished anims
-          then flip startGameState s <$> liftIO getSystemTime
-          else return s
-      (Timeout (Deadline _ DisplayContinueMessage)) ->
-        return $ case mayLevelFinished of
-          Just (LevelFinished stop finishTime _) ->
-            let newLevel = Level level target (Just $ LevelFinished stop finishTime ContinueMessage)
-            in GameState b world futWorld f newLevel anim
-          Nothing -> state
-      (Timeout (Deadline k AnimateParticleSystems)) -> do
-        let newSystems = mapMaybe (\a -> if shouldUpdate a k
-                                            then updateParticleSystem a
-                                            else Just a) systems
-        return $ GameState b (World c d space newSystems e) futWorld f h anim
-      (Timeout (Deadline gt MoveFlyingItems)) -> do
-        let movedState = GameState (Just $ addDuration gameMotionPeriod gt) (moveWorld gt world) futWorld f h anim
-        return $ onHasMoved movedState gt
-      Action Laser dir ->
-        if isFinished anim
-          then
-            onLaser state dir <$> liftIO getSystemTime
-          else
-            return state
-      Action Ship dir ->
-        return $ accelerateShip' dir state
-      (Interrupt _) -> return state
-      ToggleEventRecording -> return state
-      EndGame -> -- TODO instead, go back to game configuration ?
-        return state
+  go a b c = putGameParameters (GameParameters a b c) >> onStartLevel 1
 
-onLaser :: GameState
-        -> Direction
-        -> SystemTime
-        -> GameState
-onLaser
-  (GameState b world@(World _ (BattleShip posspeed ammo safeTime collisions)
-                     space systems e@(InTerminal _ viewMode view))
-             futureWorld g level@(Level i target finished)
-             (UIAnimation (UIEvolutions j upDown left) k l))
-  dir t =
-  let (remainingBalls, destroyedBalls, maybeLaserRay, newAmmo) =
-        laserEventAction dir world
-      outerSpaceParticleSystems_ =
-         if null destroyedBalls
-           then
-             maybe [] (outerSpaceParticleSystems t world) maybeLaserRay
-           else
-            []
-      newSystems =
-        destroyedNumbersParticleSystems (Left t) dir world destroyedBalls
-        ++ maybe [] (`laserParticleSystems` t) maybeLaserRay
-        ++ outerSpaceParticleSystems_
+onContinueMessage :: (MonadState AppState m)
+                  => m ()
+onContinueMessage =
+  getGameState >>= \(GameState a t b c d (Level n target mayFinished) e f) -> do
+    case mayFinished of
+      Just (LevelFinished stop finishTime _) -> do
+        let newLevel = Level n target (Just $ LevelFinished stop finishTime ContinueMessage)
+        putGameState $ GameState a t b c d newLevel e f
+      Nothing -> return ()
 
-      newWorld = World remainingBalls (BattleShip posspeed newAmmo safeTime collisions)
-                       space (newSystems ++ systems) e
-      destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-      allShotNumbers = g ++ destroyedNumbers
-      newLeft =
-        if null destroyedNumbers && ammo == newAmmo
-          then
-            left
-          else
-            let frameSpace = mkRectContainerWithTotalArea view
-                infos = mkLeftInfo Normal newAmmo allShotNumbers level
-                (horizontalDist, verticalDist) = computeViewDistances viewMode
-                (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-            in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 0 -- 0 duration, since animation is over anyway
-      newFinished = finished <|> checkTargetAndAmmo newAmmo (sum allShotNumbers) target t
-      newLevel = Level i target newFinished
-      newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
-  in assert (isFinished newAnim) $ GameState b newWorld futureWorld allShotNumbers newLevel newAnim
+startGameState :: (MonadState AppState m)
+               => Time Point System
+               -> m ()
+startGameState t =
+  getGameState >>= \(GameState _ m world world' b d e f) ->
+    putGameState
+      $ GameState (Just t) m (startWorld t world) (startWorld t world') b d e f
 
--- | The world has moved, so we update it.
-onHasMoved :: GameState
-           -> KeyTime
-           -> GameState
-onHasMoved
-  (GameState b world@(World balls ship@(BattleShip _ _ safeTime collisions) space systems e)
-             futureWorld shotNums (Level i target finished) anim)
-  keyTime@(KeyTime t) =
-  let newSystems = shipParticleSystems world keyTime
-      remainingBalls =
-        if isNothing safeTime
-          then
-            filter (`notElem` collisions) balls
-          else
-            balls
-      newWorld = World remainingBalls ship space (newSystems ++ systems) e
-      finishIfShipCollides =
-        maybe
-          (case map (\(Number _ n) -> n) collisions of
-            [] -> Nothing
-            l  -> Just $ LevelFinished (Lost $ "collision with " <> showListOrSingleton l) t InfoMessage )
-          (const Nothing)
-            safeTime
-      newLevel = Level i target (finished <|> finishIfShipCollides)
-  in assert (isFinished anim) $ GameState b newWorld futureWorld shotNums newLevel anim
+onAction :: (MonadState AppState m, MonadIO m)
+         => ActionTarget
+         -> Direction
+         -> m ()
+onAction target dir = getGameState >>= \(GameState _ _ _ _ _ _ anim _) ->
+  when (isFinished anim) $ case target of
+    Laser -> liftIO getSystemTime >>= \t -> laserEventAction dir t >>= onDestroyedNumbers t
+    Ship  -> accelerateShip' dir
 
-outerSpaceParticleSystems :: SystemTime
-                          -> World
-                          -> LaserRay Actual
-                          -> [ParticleSystem]
-outerSpaceParticleSystems t world@(World _ _ space _ _) ray@(LaserRay dir _ _) =
-  let laserTarget = afterEnd ray
-      char = materialChar Wall
-  in  case location laserTarget space of
-        InsideWorld -> []
-        OutsideWorld ->
-          if distanceToSpace laserTarget space > 0
+{-# INLINABLE onDestroyedNumbers #-}
+onDestroyedNumbers :: (MonadState AppState m)
+                   => Time Point System
+                   -> [Number]
+                   -> m ()
+onDestroyedNumbers t destroyedBalls =
+  getGameState >>= \(GameState b m world@(World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
+                               futureWorld g level@(Level i target finished)
+                   (UIAnimation (UIEvolutions j upDown _) k l) s) -> do
+    (Screen _ center) <- getCurScreen
+    mode <- getMode
+    let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
+        allShotNumbers = g ++ destroyedNumbers
+        newLeft =
+          let frameSpace = mkRectContainerWithCenterAndInnerSize center sz
+              (horizontalDist, verticalDist) = computeViewDistances mode
+              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
+              infos = mkLeftInfo Normal ammo allShotNumbers level
+          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
+        newMultiplicator
+          | null destroyedBalls = m
+          | otherwise = initalGameMultiplicator
+        newFinished = finished <|> checkTargetAndAmmo ammo (sum allShotNumbers) target t
+        newLevel = Level i target newFinished
+        newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
+    putGameState
+      $ assert (isFinished newAnim)
+      $ GameState b newMultiplicator world futureWorld allShotNumbers newLevel newAnim s
+
+{-# INLINABLE onMove #-}
+onMove :: (MonadState AppState m, MonadIO m) => m ()
+onMove = getGameState >>= \(GameState _ m@(Multiplicator mv) world a b c d e) ->
+  liftIO getSystemTime >>= \t -> do
+    let nextTime = addDuration (toSystemDuration m gameMotionPeriod) t
+    putGameState $ GameState (Just nextTime) (Multiplicator (mv + 0.01)) (moveWorld t world) a b c d e
+    onHasMoved t
+
+{-# INLINABLE onHasMoved #-}
+onHasMoved :: (MonadState AppState m)
+           => Time Point System
+           -> m ()
+onHasMoved t = do
+  shipParticleSystems t >>= addParticleSystems >> getGameState
+    >>= \(GameState b m (World balls ship@(BattleShip _ _ safeTime collisions) space systems)
+                    futureWorld shotNums (Level i target finished) anim s) -> do
+    let remainingBalls =
+          if isNothing safeTime
             then
-              let color _fragment _level _frame =
-                    if 0 == _fragment `mod` 2
-                      then
-                        cycleOuterColors1 $ quot _frame 4
-                      else
-                        cycleOuterColors2 $ quot _frame 4
-                  pos = translateInDir dir laserTarget
-                  (speedAttenuation, nRebounds) = (0.3, 3)
-              in case scopedLocation world NegativeWorldContainer pos of
-                  InsideWorld -> outerSpaceParticleSystems' world NegativeWorldContainer pos
-                                  dir speedAttenuation nRebounds color char t
-                  OutsideWorld -> []
+              filter (`notElem` collisions) balls
             else
-              let color _fragment _level _frame =
-                    if 0 == _fragment `mod` 3
-                      then
-                        cycleWallColors1 $ quot _frame 4
-                      else
-                        cycleWallColors2 $ quot _frame 4
-                  (speedAttenuation, nRebounds) = (0.4, 5)
-              in outerSpaceParticleSystems' world (WorldScope Wall) laserTarget
-                   dir speedAttenuation nRebounds color char t
+              balls
+        newWorld = World remainingBalls ship space systems
+        finishIfShipCollides =
+          maybe
+            (case map (\(Number _ n) -> n) collisions of
+              [] -> Nothing
+              l  -> Just $ LevelFinished (Lost $ "collision with " <> showListOrSingleton l) t InfoMessage )
+            (const Nothing)
+              safeTime
+        newLevel = Level i target (finished <|> finishIfShipCollides)
+    putGameState $ assert (isFinished anim) $ GameState b m newWorld futureWorld shotNums newLevel anim s
 
-outerSpaceParticleSystems' :: World
-                           -> Scope
-                           -> Coords Pos
-                           -> Direction
-                           -> Float
-                           -> Int
-                           -> (Int -> Int -> Frame -> LayeredColor)
-                           -> Char
-                           -> SystemTime
-                           -> [ParticleSystem]
-outerSpaceParticleSystems' world scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t =
-  let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
-      envFuncs = envFunctions world scope
-  in  fragmentsFreeFallWithReboundsThenExplode
-        speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
-        (Speed 1) envFuncs (Left t)
+{-# INLINABLE accelerateShip' #-}
+accelerateShip' :: (MonadState AppState m)
+                => Direction -> m ()
+accelerateShip' dir =
+  getWorld >>= \(World a ship b c) ->
+    putWorld $ World a (accelerateShip dir ship) b c
 
-
-laserParticleSystems :: LaserRay Actual
-                     -> SystemTime
-                     -> [ParticleSystem]
-laserParticleSystems ray t =
-  catMaybes [laserShot ray cycleLaserColors (Left t)]
-
-
-accelerateShip' :: Direction -> GameState -> GameState
-accelerateShip' dir (GameState c (World wa ship wc wd we) b f g h) =
-  let newShip = accelerateShip dir ship
-      world = World wa newShip wc wd we
-  in GameState c world b f g h
-
-updateAnim :: KeyTime -> GameState -> GameState
-updateAnim kt (GameState _ curWorld futWorld j k (UIAnimation evolutions _ it)) =
-  let nextIt@(Iteration _ nextFrame) = nextIteration it
-      (world, worldAnimDeadline) =
-        maybe
-          (futWorld, Nothing)
-          (\dt ->
-           (curWorld, Just $ addDuration (floatSecondsToDiffTime dt) kt))
-          $ getDeltaTime evolutions nextFrame
-      wa = UIAnimation evolutions worldAnimDeadline nextIt
-  in GameState Nothing world futWorld j k wa
+{-# INLINABLE updateUIAnim #-}
+updateUIAnim :: (MonadState AppState m)
+             => Time Point System -> m()
+updateUIAnim t =
+  getGameState >>= \(GameState _ m curWorld futWorld j k (UIAnimation evolutions _ it) s) -> do
+    let nextIt@(Iteration _ nextFrame) = nextIteration it
+        (world, worldAnimDeadline) =
+          maybe
+            (futWorld, Nothing)
+            (\dt ->
+             (curWorld, Just $ addDuration dt t))
+            $ getDeltaTime evolutions nextFrame
+        anims = UIAnimation evolutions worldAnimDeadline nextIt
+    putGameState $ GameState Nothing m world futWorld j k anims s
+    when (isFinished anims) $ startGameState t

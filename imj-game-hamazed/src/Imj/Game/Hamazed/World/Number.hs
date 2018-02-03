@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.World.Number(
     getColliding
@@ -11,37 +12,39 @@ module Imj.Game.Hamazed.World.Number(
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
-
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.ParticleSystem.Design.Timing
 
 
-getColliding :: Coords Pos -> [Number] -> [Number]
-getColliding pos =
-  filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
-
-destroyedNumbersParticleSystems :: Either SystemTime KeyTime
+destroyedNumbersParticleSystems :: (MonadState AppState m)
+                                => Time Point ParticleSyst
                                 -> Direction -- ^ 'Direction' of the laser shot
-                                -> World -- ^ the 'World' the 'Number's live in
                                 -> [Number]
-                                -> [ParticleSystem]
-destroyedNumbersParticleSystems keyTime dir world =
+                                -> m [Prioritized ParticleSystem]
+destroyedNumbersParticleSystems keyTime dir nums = do
   let laserSpeed = speed2vec $ coordsForDirection dir
-  in concatMap (destroyedNumberParticleSystems keyTime laserSpeed world)
+  ps <- mapM (destroyedNumberParticleSystems keyTime laserSpeed) nums
+  return $ concat ps
 
-destroyedNumberParticleSystems :: Either SystemTime KeyTime
+destroyedNumberParticleSystems :: (MonadState AppState m)
+                               => Time Point ParticleSyst
                                -> Vec2 Vel
-                               -> World
                                -> Number
-                               -> [ParticleSystem]
-destroyedNumberParticleSystems k laserSpeed world (Number (PosSpeed pos _) n) =
-  let envFuncs = envFunctions world (WorldScope Air)
-  in catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
+                               -> m [Prioritized ParticleSystem]
+destroyedNumberParticleSystems k laserSpeed (Number (PosSpeed pos _) n) = do
+  envFuncs <- envFunctions (WorldScope Air)
+  return
+    $ map (Prioritized particleSystDefaultPriority)
+    $ catMaybes [expandShrinkPolygon n pos cycleWallColors2 (Speed 1) envFuncs k]
      ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos
           (\i -> if even i
                   then cycleOuterColors1

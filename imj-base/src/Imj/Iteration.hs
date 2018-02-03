@@ -4,7 +4,9 @@
 --
 -- Iterations are used for animations ("Imj.Graphics.ParticleSystem.Design") and
 -- evolutions ("Imj.Graphics.Interpolation.Evolution").
-{-# LANGUAGE GeneralizedNewtypeDeriving, NoImplicitPrelude #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Iteration
            ( Iteration(..)
@@ -19,13 +21,16 @@ module Imj.Iteration
 import           Imj.Prelude
 
 -- | An 'Iteration' has a 'Speed' and an iterator: 'Frame'
-data Iteration = Iteration !Speed !Frame deriving(Show)
+data Iteration = Iteration !Speed !Frame deriving(Show, Generic)
+instance PrettyVal Iteration where
+  prettyVal (Iteration a b) = prettyVal ("Iteration:",a,b)
 
 -- | The 'Speed' at which the iteration occurs (if speed > 1, some 'Frame's are skipped).
-newtype Speed = Speed Int deriving(Eq, Show, Num, Integral, Real, Enum, Ord)
+newtype Speed = Speed Int
+  deriving(Eq, Show, Num, Integral, Real, Enum, Ord, PrettyVal, Generic)
 
 -- | Iterator of 'Iteration'
-newtype Frame = Frame Int deriving(Eq, Show, Num, Integral, Real, Enum, Ord)
+newtype Frame = Frame Int deriving(Eq, Show, Num, Integral, Real, Enum, Ord, PrettyVal, Generic)
 
 
 zeroIteration :: Speed -> Iteration

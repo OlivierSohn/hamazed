@@ -1,44 +1,98 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Imj.Graphics.Render.Delta.Backend.Console
-    ( deltaRenderConsole
-    , mkConsoleBackend
+    ( ConsoleBackend
+    , newConsoleBackend
     ) where
 
 import           Imj.Prelude
 import qualified Prelude(putStr, putChar)
 
-import           System.Console.Terminal.Size( size , Window(..))
+import           Control.Concurrent.STM
+                  (TQueue, isEmptyTQueue,
+                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue)
+import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor )
 import           System.IO( hSetBuffering
                           , hGetBuffering
                           , hSetEcho
+                          , hFlush
                           , BufferMode(..)
                           , stdin
                           , stdout )
+import           System.Timeout( timeout )
 
 import           Data.Vector.Unboxed.Mutable(read)
-
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, unstableSort, accessUnderlying, length)
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
-import           Imj.Graphics.Render.Delta.Backend.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
+import           Imj.Input.Types
+import           Imj.Input.Blocking
+import           Imj.Input.NonBlocking
 
 
-mkConsoleBackend :: Maybe BufferMode
-                 -- ^ Preferred stdout 'BufferMode'.
-                 -> Backend
-mkConsoleBackend maybeStdoutBufferMode =
-  let stdoutBufMode = fromMaybe defaultStdoutMode maybeStdoutBufferMode
-  in Backend
-      (configureConsoleFor Gaming stdoutBufMode)
-      deltaRenderConsole
-      (configureConsoleFor Editing LineBuffering)
+data ConsoleBackend = ConsoleBackend !(TQueue Key)
+
+instance DeltaRenderBackend ConsoleBackend where
+  render _ = deltaRenderConsole
+  cleanup _ = configureConsoleFor Editing LineBuffering
+  cycleRenderingOption _ = return ()
+  getDiscreteSize _ = do
+    sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
+    return $ maybe (Nothing) (\(Terminal.Window h w)
+                -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
+
+instance PlayerInput ConsoleBackend where
+  getKey (ConsoleBackend queue) =
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO getKeyThenFlush)
+      return
+
+  getKeyBefore (ConsoleBackend queue) t =
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO (getDurationFromNowTo t) >>= \allowed ->
+        if strictlyNegative allowed
+           then
+             return Nothing
+           else
+             liftIO $ timeout (fromIntegral $ toMicros allowed) getKeyThenFlush)
+      (return . Just)
+
+  tryGetKey (ConsoleBackend queue) = do
+    liftIO (atomically $ tryReadTQueue queue) >>= maybe
+      (liftIO tryGetKeyThenFlush)
+      (return . Just)
+
+  someInputIsAvailable (ConsoleBackend queue) = do
+    liftIO (atomically $ not <$> isEmptyTQueue queue) >>= \case
+      True -> return True
+      False -> liftIO stdinIsReady
+
+  unGetKey (ConsoleBackend queue) k =
+    liftIO (atomically $ unGetTQueue queue k)
+
+  programShouldEnd _ =
+    return False
+
+  {-# INLINABLE programShouldEnd #-}
+  {-# INLINABLE getKey #-}
+  {-# INLINABLE getKeyBefore #-}
+  {-# INLINABLE tryGetKey #-}
+  {-# INLINABLE someInputIsAvailable #-}
+
+newConsoleBackend :: IO ConsoleBackend
+newConsoleBackend = do
+  configureConsoleFor Gaming defaultStdoutMode
+  ConsoleBackend <$> newTQueueIO
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode
@@ -72,10 +126,13 @@ configureConsoleFor config stdoutMode =
       showCursor
       -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
       setSGR []
-      size >>= maybe (return ()) (\(Window x _) -> setCursorPosition (pred x) 0)
+      Terminal.size
+        >>= maybe
+              (return ())
+              (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
-deltaRenderConsole :: Delta -> Dim Width -> IO ()
+deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -85,8 +142,13 @@ deltaRenderConsole :: Delta -> Dim Width -> IO ()
   -- In 'Cell', color is encoded in higher bits than position, so this sort
   -- sorts by color first, then by position, which is what we want.
 deltaRenderConsole (Delta delta) w = do
+  t1 <- getSystemTime
   Dyn.unstableSort delta
   renderDelta delta w
+  t2 <- getSystemTime
+  hFlush stdout -- TODO is flush blocking? slow? could it be async?
+  t3 <- getSystemTime
+  return (t1...t2, t2...t3)
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width
@@ -175,12 +237,6 @@ csi :: [Int]
     -> String
     -> String
 csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
-
-
-{-# INLINE xyFromIndex #-}
-xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
-xyFromIndex w idx =
-  getRowCol idx w
 
 -- TODO use this formalism
 {-

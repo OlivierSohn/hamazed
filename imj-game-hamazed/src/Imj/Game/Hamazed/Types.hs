@@ -4,9 +4,9 @@
 
 module Imj.Game.Hamazed.Types
     ( Game(..)
+    , GameTime
     , UserIntent(..)
     , GameState(..)
-    , startGameState
     , GameParameters(..)
     , initialParameters
     , minRandomBlockSize
@@ -43,11 +43,12 @@ data GameParameters = GameParameters {
 we draw the /old/ 'World' while using the /new/ 'World' 's
 dimensions to animate the UI accordingly. -}
 data GameState = GameState {
-    _gameStateNextMotionStep :: !(Maybe KeyTime)
-    -- ^ When the next 'World' motion update should happen,
+    _gameStateNextMotionStep :: !(Maybe (Time Point System))
+    -- ^ When the next 'World' motion update should happen
+  , _gameStateTimeMultiplicator :: !(Multiplicator GameTime)
   , _gameStatePreviousWorld :: !World
     -- ^ The previous 'World'
-  , _gameStateCurrentWorld :: !World
+  , gameStateCurrentWorld :: !World
     -- ^ The current 'World'
   , _gameStateShotNumbers :: ![Int]
     -- ^ Which 'Number's were shot
@@ -55,12 +56,8 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , _gameStateUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
+  , _gameStateScreen :: !Screen
 }
-
-
-startGameState :: SystemTime -> GameState -> GameState
-startGameState t (GameState _ world world' b d e) =
-  GameState (Just $ KeyTime t) (startWorld t world) (startWorld t world') b d e
 
 
 minRandomBlockSize :: Int

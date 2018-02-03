@@ -6,6 +6,7 @@
 module Imj.Input.NonBlocking
     ( -- * Non-blocking read
       tryGetKeyThenFlush
+    , stdinIsReady
     ) where
 
 import           Imj.Prelude
@@ -22,8 +23,11 @@ callIf call condition =
     True  -> Just <$> call
     False -> return Nothing
 
+stdinIsReady :: IO Bool
+stdinIsReady =
+  hReady stdin
+
 -- | Tries to read a key from stdin. If it succeeds, it flushes stdin.
 tryGetKeyThenFlush :: IO (Maybe Key)
-tryGetKeyThenFlush = getKeyThenFlush `callIf` someInputIsAvailable
-  where
-    someInputIsAvailable = hReady stdin
+tryGetKeyThenFlush =
+  getKeyThenFlush `callIf` stdinIsReady

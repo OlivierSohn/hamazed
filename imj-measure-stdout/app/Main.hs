@@ -3,6 +3,8 @@ module Main where
 import           Imj.Prelude
 
 import           Options.Applicative
+                  (Parser, progDesc, fullDesc, info, customExecParser, (<**>), prefs, helper
+                  , metavar, help, showHelpOnError, short, long, option , auto, switch)
 
 import           Imj.Measure.Stdout
 

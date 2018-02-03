@@ -30,7 +30,8 @@ main = do
   testInterpolation
 
   clearScreen -- to not overwrite current terminal content.
-  runReaderT (testICS >>
-              renderToScreen
-              ) NaiveDraw
+  _ <- runReaderT (testICS >>
+                   renderToScreen
+                   ) NaiveDraw
   --testEase
+  return ()

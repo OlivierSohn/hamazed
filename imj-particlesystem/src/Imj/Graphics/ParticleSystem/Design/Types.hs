@@ -12,6 +12,7 @@ module Imj.Graphics.ParticleSystem.Design.Types
           , CanInteract(..)
           , InteractionResult(..)
           -- Reexports
+          , ParticleSyst
           , VecPosSpeed
           , LayeredColor
           ) where
@@ -22,6 +23,7 @@ import           GHC.Show(showString)
 
 import           Imj.Iteration
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Geo.Discrete.Types
 import           Imj.Physics.Continuous.Types
 import           Imj.Timing
@@ -74,7 +76,7 @@ instance Show ParticleSystem where
 
 
 data UpdateSpec = UpdateSpec {
-    _updateSpecTime :: !KeyTime
+    _updateSpecTime :: !(Time Point ParticleSyst)
     -- ^ The time at which the update should happen.
   , _updateSpecIteration :: !Iteration
     -- ^ The iteration that will be used in the update.

@@ -26,20 +26,13 @@ module Imj.Game.Hamazed
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 
-        * 'getNextDeadline'
+        * 'produceEvent'
 
-            * \(deadline\) = the next foreseen 'Deadline'.
+            * creates the next \(event\) to handle.
 
-        * 'getEventForMaybeDeadline'
+        * 'updateAppState'
 
-            * \(event\) =
-
-                * a key-press occuring /before/ \(deadline\) expires
-                * or the \(deadline\) event
-
-        * 'update'
-
-            * Update 'GameState' according to \(event\)
+            * Update according to \(event\)
 
         * Draw and render using "Imj.Graphics.Render.Delta" to avoid
         <https://en.wikipedia.org/wiki/Screen_tearing screen tearing:
@@ -47,11 +40,42 @@ module Imj.Game.Hamazed
             * 'draw' : draws the game elements.
             * 'renderToScreen' : renders what was drawn to the screen.
         -}
-      , getNextDeadline
-      , getEventForMaybeDeadline
-      , update
+      , produceEvent
+      , updateAppState
       , draw
         -- * Deadlines
+        {-| Deadlines are ordered on a timeline, and are associated to events.
+
+        [visibility]
+        A /visible/ deadline may produce a visible effect when its associated event is used to update the game.
+        Hence, when a visible deadline is addressed, we want to render as soon as possible
+        to keep the rendering responsive w.r.t the game state. But if we do a render for every
+        visible deadline, under heavy conditions, when many visible deadlines are very close to one another
+        (e.g. many heavy particle systems are running at the same time),
+        we won't have enough CPU / GPU resources to ensure that the game and animations runs at the normal speed.
+        To address this:
+
+        * We introduce the notion of priority : /non-important/ deadlines can be ignored
+        when more important deadlines need to be handled. Hence,
+        particle systems could seem to be slower than usual when a lot of them are running,
+        but the game itself will always run at the same speed.
+        * Some overdue deadlines are grouped and addressed in the same loop,
+        so that only one render is needed to reflect the change induced by all of them.
+        The followings constraints apply:
+
+          * To keep a good time-detail of game updates, deadlines that produce visible
+          /game/ changes are placed in distinct groups:
+          for example, a player induced laser shot and a game step
+          won't be in the same group, but a game step and many particle systems updates can
+          be in the same group.
+
+          * To keep a stable render rate, we limit the duration used to update grouped deadlines to 10 ms.
+
+          * We ensure that no 2 visible deadlines that are separated by more than the period of
+          particle system animation are in the same group. This ensures than every update
+          of a given particle system happens in a distinct group.
+
+        -}
       , Deadline(..)
       , DeadlineType(..)
         -- * Events
@@ -60,12 +84,10 @@ module Imj.Game.Hamazed
       , MetaAction(..)
         -- * GameState
       , GameState(..)
-        -- * Environment
-        {- | -}
-      , module Imj.Game.Hamazed.Env
         -- * Keyboard layout
       , eventFromKey
         -- * Reexport
+      , module Imj.Game.Hamazed.Env
       , module Imj.Game.Hamazed.World
       , UIAnimation(..)
       ) where
@@ -75,10 +97,8 @@ import           Imj.Prelude
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Draw
-import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Run
 import           Imj.Game.Hamazed.Loop.Timing

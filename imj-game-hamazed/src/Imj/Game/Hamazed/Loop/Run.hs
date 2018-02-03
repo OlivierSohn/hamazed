@@ -127,14 +127,15 @@ runWith :: (PlayerInput a, DeltaRenderBackend a)
 runWith debug backend =
   withDefaultPolicies (\drawEnv -> do
     sz <- getDiscreteSize backend
-    void (createState sz debug
+    sid <- mkShipId
+    void (createState sz debug [sid]
       >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
 
 loop :: (MonadState AppState m, MonadReader e m, Render e, PlayerInput e, MonadIO m)
      => m ()
 loop = do
   produceEvent >>= \case
-    (Just (Interrupt _ )) -> return ()
+    (Just (Left (Interrupt _ ))) -> return ()
     mayEvt -> playerEndsProgram >>= \case
       True -> return ()
       _ -> onEvent mayEvt >> loop
@@ -142,7 +143,7 @@ loop = do
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, MonadIO m)
-             => m (Maybe Event)
+             => m (Maybe (Either Event ClientEvent))
 produceEvent =
   -- 'playerPriority' is bigger that every other priority so we handle non-blocking player events:
   hasPlayerKey >>= \case
@@ -158,9 +159,9 @@ produceEvent =
       getLastRenderTime >>= getNextDeadline >>= maybe
           (whenWaitingIsAllowed $ getPlayerKey >>= eventFromKey)
           (\case
-            Overdue d -> return $ Just $ Timeout d
+            Overdue d -> return $ Just $ Left $ Timeout d
             Future d@(Deadline deadlineTime _ _) ->
               whenWaitingIsAllowed $ do
                 getPlayerKeyBefore deadlineTime >>= \case
                   Just key -> eventFromKey key
-                  Nothing -> return $ Just $ Timeout d)
+                  Nothing -> return $ Just $ Left $ Timeout d)

@@ -5,8 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Event
-    ( isVisible
-    , isPrincipal
+    ( isPrincipal
     , EventGroup(..)
     , mkEmptyGroup
     , visible
@@ -24,12 +23,6 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Util hiding(range)
-
--- | Tells if after handling an 'Event' we should render or not.
-isVisible :: Event -> Bool
-isVisible = \case
-  (Action Ship _) -> False -- When the ship accelerates, nothing changes visually
-  _ -> True
 
 -- | No 2 principal events can be part of the same 'EventGroup'.
 -- It allows to separate important game action on different rendered frames.
@@ -65,7 +58,7 @@ tryGrow Nothing group
 tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
  | hasPrincipal && principal = return Nothing -- we don't allow two principal events in the same group
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
- | isVisible e = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> do
+ | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> do
     let -- so that no 2 updates of the same particle system are done in the same group:
         maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
         diam = (...) `onBounds` range'
@@ -75,7 +68,6 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
         return Nothing
       else
         return $ withEvent $ Just range'
- | otherwise = return $ withEvent range
  where
   !principal = isPrincipal e
   withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime

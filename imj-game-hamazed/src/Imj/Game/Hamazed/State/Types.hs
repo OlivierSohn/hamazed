@@ -77,7 +77,7 @@ data OccurencesHist = OccurencesHist {
 }
 
 data EventRepr = Laser'
-               | Ship'
+               | PeriodicMotion'
                | MoveFlyingItems'
                | AnimateParticleSystem'
                | DisplayContinueMessage'

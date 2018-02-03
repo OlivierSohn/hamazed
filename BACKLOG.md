@@ -1,3 +1,20 @@
+- create a queue to receive server events. read that queue in produceEvent.
+- fork a thread that periodically writes a server event to the queue (TODO and sends one to other clients)
+, and whose activity can be controlled.
+- for a thread that receives server events
+
+- a client with ip "IPC" creates the world, publishes it as multiplayable.
+other clients can connect to "IPC" enter it. then the game is started when all players agree to start.
+When all players have finished animating the transition, the server starts it.
+
+On every level, The client that created the world creates the next world, publishes it
+(world + positions) then the server starts the transition, then when all players
+have finished animating the transition, the server starts it.
+
+- ship safe until is managed by the server, else results can differ between clients!
+
+- continue the level until all ships are destroyed
+
 - multiplayer mode where two ships (one cannot collide the other) work on the same sum.
 If one ship collides, the other can continue.
   - the other ship can double numbers (think of levels where we need to double
@@ -14,6 +31,7 @@ If one ship collides, the other can continue.
   compare using :
   - http://haskell-distributed.github.io/
   - https://hackage.haskell.org/package/network-multicast
+  - https://wiki.haskell.org/Implement_a_chat_server
 
 - make font characters more square
 

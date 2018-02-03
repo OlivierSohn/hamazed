@@ -87,19 +87,8 @@ getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _ _) =
     (catMaybes
       [ uiAnimationDeadline s
       , messageDeadline level
-      , getMoveFlyingItemsDeadline s
       ]
     ) ++ getParticleSystemsDeadlines s
-
-getMoveFlyingItemsDeadline :: GameState -> Maybe Deadline
-getMoveFlyingItemsDeadline (GameState nextGameStep _ _ _ _ (Level _ _ levelFinished) _ _) =
-  maybe
-    (maybe
-      Nothing
-      (\s -> Just $ Deadline s moveItemsPriority MoveFlyingItems)
-        nextGameStep)
-    (const Nothing)
-      levelFinished
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
 getParticleSystemsDeadlines (GameState _ _ (World _ _ _ animations) _ _ _ _ _) =

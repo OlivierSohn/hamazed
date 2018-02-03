@@ -6,6 +6,7 @@ module Imj.Game.Hamazed.World.Create
         ( mkWorld
         , updateMovableItem
         , validateScreen
+        , createShipPos
         ) where
 
 import           Imj.Prelude
@@ -26,17 +27,14 @@ mkWorld :: (MonadIO m)
         -- ^ How the 'Wall's should be constructed
         -> [Int]
         -- ^ The numbers for which we will create 'Number's.
-        -> Int
-        -- ^ Ammunition : how many laser shots are available.
         -> m World
-mkWorld s walltype nums ammo = do
+mkWorld s walltype nums = do
   space <- case walltype of
     None          -> return $ mkEmptySpace s
     Deterministic -> return $ mkDeterministicallyFilledSpace s
     Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
   balls <- mapM (createRandomNumber space) nums
-  ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space empty
+  return $ World balls [] space empty
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
@@ -82,15 +80,14 @@ createRandomNumber space i = do
   return $ Number ps i
 
 
-createShipPos :: Space -> [Number] -> IO PosSpeed
-createShipPos space numbers = do
-  let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
+createShipPos :: Space -> [Coords Pos] -> IO PosSpeed
+createShipPos space numPositions = do
   candidate@(PosSpeed pos _) <- createRandomNonCollidingPosSpeed space
   if pos `notElem` numPositions
     then
       return candidate
     else
-      createShipPos space numbers
+      createShipPos space numPositions
 
 validateScreen :: Screen -> IO ()
 validateScreen (Screen sz _) =

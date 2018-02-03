@@ -91,10 +91,6 @@ module Imj.Game.Hamazed.World
     , updateMovableItem
       -- ** BattleShip
     , BattleShip(..)
-    -- *** Accelerate BattleShip
-    -- | The 'BattleShip' is controlled in (discrete) acceleration by the player
-    -- using the keyboard.
-    , accelerateShip
     -- ** Number
     -- | 'Number's can be shot by the 'BattleShip' to finish the 'Level'.
     --
@@ -129,6 +125,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
+import           Data.List( find )
 import           Data.Text( pack )
 
 import           Imj.Game.Hamazed.Color
@@ -153,43 +150,46 @@ import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
 
 
--- | Note that the position of the 'BattleShip' remains unchanged.
-accelerateShip :: Direction -> BattleShip -> BattleShip
-accelerateShip dir (BattleShip (PosSpeed pos speed) ba bb bc) =
-  let newSpeed = translateInDir dir speed
-  in BattleShip (PosSpeed pos newSpeed) ba bb bc
-
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
 moveWorld :: Time Point System
           -- ^ The current time
+          -> [(ShipId, Coords Vel)]
           -> World
           -> World
-moveWorld curTime (World balls (BattleShip shipPosSpeed ammo safeTime _) size anims) =
-  let newSafeTime = case safeTime of
-        (Just t) -> if curTime > t
-                      then
-                        Nothing
-                      else
-                        safeTime
-        _        -> Nothing
-      newBalls = map (\(Number ps n) -> Number (updateMovableItem size ps) n) balls
-      newPosSpeed@(PosSpeed pos _) = updateMovableItem size shipPosSpeed
-      collisions = getColliding pos newBalls
-      newShip = BattleShip newPosSpeed ammo newSafeTime collisions
-  in World newBalls newShip size anims
+moveWorld curTime accelerations (World balls ships size anims) =
+  let newBalls = map (\(Number ps n) -> Number (updateMovableItem size ps) n) balls
+      moveShip ship@(BattleShip sid (PosSpeed _ oldSpeed) ammo safeTime _) =
+        let newSafeTime = case safeTime of
+              (Just t) -> if curTime > t
+                            then
+                              Nothing
+                            else
+                              safeTime
+              _        -> Nothing
+        in maybe
+            ship
+            (\(accId,acc) ->
+              let newPosSpeed@(PosSpeed pos _) = updateMovableItem size $ PosSpeed pos $ sumCoords acc oldSpeed
+                  collisions = getColliding pos newBalls
+              in BattleShip accId newPosSpeed ammo newSafeTime collisions)
+            -- induces a square complexity, but if the number of ships is small it's ok.
+            $ find (\(accID,_) -> accID == sid) accelerations
+  in World newBalls (map moveShip ships) size anims
 
 -- | Computes the effect of an laser shot on the 'World'.
 laserEventAction :: (MonadState AppState m)
-                 => Direction
+                 => ShipId
+                 -> Direction
                  -- ^ The direction of the laser shot
                  -> Time Point System
                  -> m [Number]
                  -- ^ 'Number's destroyed
-laserEventAction dir t =
-  getWorld >>= \(World balls (BattleShip shipPS@(PosSpeed shipCoords _) ammo a b) space d) -> do
-    let (maybeLaserRayTheoretical, newAmmo) =
+laserEventAction ship dir t =
+  getWorld >>= \(World balls ships space d) -> do
+    let ((BattleShip _ shipPS@(PosSpeed shipCoords _) ammo a b), otherShips) = partitionShips ship ships
+        (maybeLaserRayTheoretical, newAmmo) =
           if ammo > 0
             then
               (Just $ shootLaserWithOffset shipCoords dir Infinite (`location` space)
@@ -204,7 +204,7 @@ laserEventAction dir t =
              (\r -> fmap Just
                     $ computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
                maybeLaserRayTheoretical
-    putWorld $ World remainingBalls (BattleShip shipPS newAmmo a b) space d
+    putWorld $ World remainingBalls ((BattleShip ship shipPS newAmmo a b):otherShips) space d
 
     let tps = systemTimePointToParticleSystemTimePoint t
     outerSpaceParticleSystems_ <-

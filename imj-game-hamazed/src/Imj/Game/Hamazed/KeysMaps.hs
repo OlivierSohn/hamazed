@@ -19,35 +19,35 @@ import           Imj.Input.Types
 
 -- | Maps a 'Key' (pressed by the player) to an 'Event'.
 eventFromKey :: (MonadState AppState m)
-             => Key -> m (Maybe Event)
+             => Key -> m (Maybe (Either Event ClientEvent))
 eventFromKey k = do
   intent <- getUserIntent
   case k of
-    Escape      -> return $ Just $ Interrupt Quit
-    StopProgram -> return $ Just $ Interrupt Quit
-    AlphaNum 'y' -> return $ Just CycleRenderingOptions
+    Escape      -> return $ Just $ Left $ Interrupt Quit
+    StopProgram -> return $ Just $ Left $ Interrupt Quit
+    AlphaNum 'y' -> return $ Just $ Left CycleRenderingOptions
     _ -> case intent of
       Configure -> return $ case k of
-        AlphaNum ' ' -> Just $ StartGame
-        AlphaNum c -> Just $ Configuration c
+        AlphaNum ' ' -> Just $ Left $ StartGame
+        AlphaNum c -> Just $ Left $ Configuration c
         _ -> Nothing
       Play ->
         getGameState >>= \(GameState _ _ _ _ _ (Level n _ finished) _ _) ->
           case finished of
             Nothing -> return $ case k of
               AlphaNum c -> case c of
-                'k' -> Just $ Action Laser Down
-                'i' -> Just $ Action Laser Up
-                'j' -> Just $ Action Laser LEFT
-                'l' -> Just $ Action Laser RIGHT
-                'd' -> Just $ Action Ship Down
-                'e' -> Just $ Action Ship Up
-                's' -> Just $ Action Ship LEFT
-                'f' -> Just $ Action Ship RIGHT
-                'r'-> Just ToggleEventRecording
+                'k' -> Just $ Right $ Action Laser Down
+                'i' -> Just $ Right $ Action Laser Up
+                'j' -> Just $ Right $ Action Laser LEFT
+                'l' -> Just $ Right $ Action Laser RIGHT
+                'd' -> Just $ Right $ Action Ship Down
+                'e' -> Just $ Right $ Action Ship Up
+                's' -> Just $ Right $ Action Ship LEFT
+                'f' -> Just $ Right $ Action Ship RIGHT
+                'r'-> Just $ Left ToggleEventRecording
                 _   -> Nothing
               _ -> Nothing
-            Just (LevelFinished stop _ ContinueMessage) -> return $ Just $
+            Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Left $
               case stop of
                 Won -> if n < lastLevel
                          then

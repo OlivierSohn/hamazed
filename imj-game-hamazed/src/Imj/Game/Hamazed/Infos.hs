@@ -57,12 +57,15 @@ mkShotNumbersCS _ nums =
 
   in Successive [middle <> last_]
 
-mkLeftInfo :: InfoType -> Int -> [Int] -> Level -> [Successive ColorString]
-mkLeftInfo t ammo shotNums (Level level target _)=
+mkLeftInfo :: InfoType -> [Int] -> [Int] -> Level -> [Successive ColorString]
+mkLeftInfo t ammos shotNums (Level level target _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
-  , mkAmmoCS t ammo
-  , mkLevelCS t level
+  ]
+  ++
+  map (mkAmmoCS t) ammos
+  ++
+  [ mkLevelCS t level
   ]
 
 mkUpDownInfo :: (Successive ColorString, Successive ColorString)
@@ -70,9 +73,9 @@ mkUpDownInfo =
   (Successive [],Successive [])
 
 mkInfos :: InfoType
-        -> Int
+        -> [Int]
         -> [Int]
         -> Level
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
-mkInfos t ammo shotNums level =
-  (mkUpDownInfo, mkLeftInfo t ammo shotNums level)
+mkInfos t ammos shotNums level =
+  (mkUpDownInfo, mkLeftInfo t ammos shotNums level)

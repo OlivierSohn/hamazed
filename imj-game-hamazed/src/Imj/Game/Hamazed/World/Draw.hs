@@ -26,19 +26,22 @@ drawWorld :: (Draw e, MonadReader e m, MonadIO m)
             => World
             -> Coords Pos
             -> m ()
-drawWorld (World balls (BattleShip (PosSpeed shipCoords _) _ safeTime collisions)
-                   space _) s  = do
+drawWorld (World balls ships space _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (\b -> drawNumber b space s) balls
-  when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
-    let colors =
-          if isNothing safeTime
-            then
-              shipColors
-            else
-              shipColorsSafe
-    drawChar '+' (sumCoords shipCoords s) colors
+  let drawShip (BattleShip shipId (PosSpeed shipCoords _) _ safeTime collisions) =
+        when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
+          let colors =
+                if isNothing safeTime
+                  then
+                    shipColors
+                  else
+                    shipColorsSafe
+          drawChar (shipChar shipId) (sumCoords shipCoords s) colors
+  mapM_ drawShip ships
 
+shipChar :: ShipId -> Char
+shipChar _ = '+' -- TODO change drawing char based on id
 
 {-# INLINABLE drawNumber #-}
 drawNumber :: (Draw e, MonadReader e m, MonadIO m)

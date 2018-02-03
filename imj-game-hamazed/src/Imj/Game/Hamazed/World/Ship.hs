@@ -33,22 +33,26 @@ shipParticleSystems :: (MonadState AppState m)
                     => Time Point System
                     -> m [Prioritized ParticleSystem]
 shipParticleSystems k =
-  getWorld >>= \(World _ (BattleShip (PosSpeed shipCoords shipSpeed) _ safeTime collisions) _ _) ->
-    if not (null collisions) && isNothing safeTime
-      then do
-        -- when number and ship explode, they exchange speeds
-        let collidingNumbersAvgSpeed = foldl' sumCoords zeroCoords $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
-            numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
-            shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
-            (Number _ n) = head collisions
-            color i = if even i
-                        then cycleOuterColors1
-                        else cycleWallColors2
-            k' = systemTimePointToParticleSystemTimePoint k
-        envFuncs <- envFunctions $ WorldScope Air
-        return
-          $ map (Prioritized particleSystDefaultPriority)
-          $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
-            fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
-      else
-        return []
+  getWorld >>= \(World _ ships _ _) -> do
+    envFuncs <- envFunctions $ WorldScope Air
+    let color i = if even i
+                    then cycleOuterColors1
+                    else cycleWallColors2
+        sps (BattleShip _ (PosSpeed shipCoords shipSpeed) _ safeTime collisions) =
+          if not (null collisions) && isNothing safeTime
+            then do
+              -- when number and ship explode, they exchange speeds
+              let collidingNumbersAvgSpeed =
+                    foldl' sumCoords zeroCoords
+                    $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
+                  numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
+                  shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
+                  (Number _ n) = head collisions
+                  k' = systemTimePointToParticleSystemTimePoint k
+              return
+                $ map (Prioritized particleSystDefaultPriority)
+                $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
+                  fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
+            else
+              return []
+    concat <$> mapM sps ships

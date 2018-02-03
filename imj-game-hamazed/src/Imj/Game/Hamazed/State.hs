@@ -48,9 +48,8 @@ representation EndGame          = EndGame'
 representation StartGame        = StartGame'
 representation (StartLevel _)   = StartLevel'
 representation (Interrupt _)    = Interrupt'
-representation (Action Laser _) = Laser'
-representation (Action Ship _)  = Ship'
-representation (Timeout (Deadline _ _ MoveFlyingItems))        = MoveFlyingItems'
+representation (ServerEvent (LaserShot _ _)) = Laser'
+representation (ServerEvent (PeriodicMotion _)) = PeriodicMotion'
 representation (Timeout (Deadline _ _ (AnimateParticleSystem _))) = AnimateParticleSystem'
 representation (Timeout (Deadline _ _ DisplayContinueMessage)) = DisplayContinueMessage'
 representation (Timeout (Deadline _ _ AnimateUI))              = AnimateUI'
@@ -65,7 +64,7 @@ reprToCS Configuration' = colored "C" yellow
 reprToCS CycleRenderingOptions' = colored "R" yellow
 reprToCS Interrupt'  = colored "I" yellow
 reprToCS Laser'      = colored "L" cyan
-reprToCS Ship'       = colored "S" blue
+reprToCS PeriodicMotion' = colored "S" blue
 reprToCS MoveFlyingItems'        = colored "M" green
 reprToCS AnimateParticleSystem' = colored "P" blue
 reprToCS DisplayContinueMessage' = colored "C" white
@@ -74,9 +73,10 @@ reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
-        => Maybe Event -> m ()
-onEvent (Just ToggleEventRecording) = state toggleRecordEvent
-onEvent (Just evt) = do
+        => Maybe (Either Event ClientEvent) -> m ()
+onEvent (Just (Right _)) = undefined
+onEvent (Just (Left ToggleEventRecording)) = state toggleRecordEvent
+onEvent (Just (Left evt)) = do
       getRecording >>= \case
         Record -> state (addEvent evt)
         DontRecord -> return ()
@@ -200,9 +200,9 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Maybe Size -> Bool -> IO AppState
-createState ms dbg = do
-  game <- initialGame ms
+createState :: Maybe Size -> Bool -> [ShipId] -> IO AppState
+createState ms dbg shipIds = do
+  game <- initialGame ms shipIds
   t <- getSystemTime
   return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 

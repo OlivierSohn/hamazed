@@ -71,5 +71,5 @@ draw' cont = do
     >>= dText "'d' : Space"
     >>= dText "'f' : Ship"
     >>= return . translateInDir Down
-    >>= dText "* Rendering:"
-    >>= dText_ "'y' : Change rendering mode (OpenGL only)"
+    >>= dText "* Rendering (OpenGL only):"
+    >>= dText_ "'y' : Toggle numbers as square quarters"

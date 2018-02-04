@@ -14,6 +14,11 @@ module Imj.Game.Hamazed.Loop.Run
 import           Imj.Prelude
 import           Prelude (putStrLn, getLine)
 
+import           Control.Distributed.Process.Internal.Types
+import           Control.Distributed.Process.Lifted.Class(MonadProcess)
+import           Control.Distributed.Process.Node(runProcess, initRemoteTable, newLocalNode)
+import           Control.Distributed.Process(newChan)
+import           Control.Exception(throwIO)
 import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -21,6 +26,8 @@ import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(runStateT)
 import           Data.Text(pack, toLower)
+import           Network.Transport(address)
+import           Network.Transport.TCP(defaultTCPParameters, createTransport)
 import           Options.Applicative
                   (progDesc, fullDesc, info, header, customExecParser, prefs, helper
                   , showHelpOnError, short, long, option, str, help, optional
@@ -32,6 +39,7 @@ import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Server
 import           Imj.Game.Hamazed.State
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render
@@ -125,13 +133,20 @@ runWithBackend maybeBackend debug =
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool -> a -> IO ()
 runWith debug backend =
-  withDefaultPolicies (\drawEnv -> do
-    sz <- getDiscreteSize backend
-    sid <- mkShipId
-    void (createState sz debug [sid]
-      >>= runStateT (runReaderT loop (Env drawEnv backend)))) backend
+  flip withDefaultPolicies backend (\drawEnv -> do
+    let host = "127.0.0.1"
+    createTransport host "10501" (\sn -> (host, sn)) defaultTCPParameters >>= either
+      throwIO
+      (\t -> newLocalNode t initRemoteTable >>= \ln -> runProcess ln (do
+        --liftIO $ putStrLn $ "Echo server started at " ++ show (address $ localEndPoint ln)
+        (s,r) <- newChan
+        let env = Env drawEnv backend $ ServerEvtChan s r
+        sz <- getDiscreteSize backend
+        state <- liftIO $ createState sz debug
+        let actState = void (runStateT (runReaderT loop env) state)
+        runReaderT actState env)))
 
-loop :: (MonadState AppState m, MonadReader e m, Render e, PlayerInput e, MonadIO m)
+loop :: (MonadState AppState m, MonadProcess m, MonadReader e m, ClientNode e, Render e, PlayerInput e)
      => m ()
 loop = do
   produceEvent >>= \case

@@ -44,6 +44,8 @@ import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic)
+
+-- we can't use the Generic one because of missing instance for 'Text'
 instance PrettyVal ColorString where
   prettyVal c = prettyVal $ map fst $ simplify c
 

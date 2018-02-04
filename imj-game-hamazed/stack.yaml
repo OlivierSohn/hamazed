@@ -9,7 +9,9 @@ packages:
 - '../imj-particlesystem'
 
 
-extra-deps: []
+extra-deps:
+- distributed-process-lifted-0.3.0.0
+- distributed-process-monad-control-0.5.1.3
 
 flags: {}
 

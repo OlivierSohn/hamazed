@@ -21,6 +21,7 @@ library
   other-modules:
   exposed-modules:     Imj.Prelude
   build-depends:       base >= 4.8 && < 4.11
+                     , binary == 0.8.*
                      , mtl >= 2.2.1 && < 2.3
                      , text ==1.2.*
                      , pretty-show ==1.6.*

@@ -20,7 +20,7 @@ import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(state, get, put)
-import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.IO.Class(MonadIO)
 
 import           Data.Text(pack)
@@ -31,6 +31,7 @@ import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Parameters
+import           Imj.Game.Hamazed.Server
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
@@ -41,19 +42,22 @@ import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-representation :: Event -> EventRepr
-representation CycleRenderingOptions = CycleRenderingOptions'
-representation (Configuration _)  = Configuration'
-representation EndGame          = EndGame'
-representation StartGame        = StartGame'
-representation (StartLevel _)   = StartLevel'
-representation (Interrupt _)    = Interrupt'
-representation (ServerEvent (LaserShot _ _)) = Laser'
-representation (ServerEvent (PeriodicMotion _)) = PeriodicMotion'
-representation (Timeout (Deadline _ _ (AnimateParticleSystem _))) = AnimateParticleSystem'
-representation (Timeout (Deadline _ _ DisplayContinueMessage)) = DisplayContinueMessage'
-representation (Timeout (Deadline _ _ AnimateUI))              = AnimateUI'
-representation ToggleEventRecording = ToggleEventRecording'
+representation :: UpdateEvent -> EventRepr
+representation (Left (ServerEvent e)) = case e of
+  (LaserShot _ _) -> Laser'
+  (PeriodicMotion _) -> PeriodicMotion'
+representation (Right e) = case e of
+  CycleRenderingOptions -> CycleRenderingOptions'
+  (Configuration _) -> Configuration'
+  EndGame -> EndGame'
+  StartGame -> StartGame'
+  (StartLevel _) -> StartLevel'
+  (Interrupt _) -> Interrupt'
+  (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> AnimateParticleSystem'
+  (Timeout (Deadline _ _ DisplayContinueMessage)) -> DisplayContinueMessage'
+  (Timeout (Deadline _ _ AnimateUI)) -> AnimateUI'
+  ToggleEventRecording -> ToggleEventRecording'
+
 
 reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
@@ -72,20 +76,22 @@ reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
-onEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+onEvent :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadProcess m)
         => Maybe (Either Event ClientEvent) -> m ()
-onEvent (Just (Right _)) = undefined
+onEvent (Just (Right evt)) = do
+  s <- asks send
+  s evt
 onEvent (Just (Left ToggleEventRecording)) = state toggleRecordEvent
 onEvent (Just (Left evt)) = do
       getRecording >>= \case
-        Record -> state (addEvent evt)
+        Record -> state (addEvent $ Right evt)
         DontRecord -> return ()
-      handleEvent (Just evt)
+      handleEvent (Just $ Right evt)
 onEvent Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
-            => Maybe Event -> m ()
+            => Maybe UpdateEvent -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
@@ -106,7 +112,7 @@ addUpdateTime add =
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
-                                          => Maybe Event -> m ()
+                                          => Maybe UpdateEvent -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt = do
   get >>= \(AppState prevTime game prevGroup b c d e) -> do
     let onRender = do
@@ -166,7 +172,7 @@ getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: Event -> AppState -> ((), AppState)
+addEvent :: UpdateEvent -> AppState -> ((), AppState)
 addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (representation e) es
   in ((), AppState t g evts es' r b d)
@@ -200,12 +206,12 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Maybe Size -> Bool -> [ShipId] -> IO AppState
-createState ms dbg shipIds = do
-  game <- initialGame ms shipIds
+createState :: Maybe Size -> Bool -> IO AppState
+createState ms dbg = do
+  sid <- mkShipId
+  game <- initialGame ms [sid]
   t <- getSystemTime
   return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
-
 
 {-# INLINABLE debug #-}
 debug :: MonadState AppState m => m Bool

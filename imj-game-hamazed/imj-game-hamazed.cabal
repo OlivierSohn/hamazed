@@ -49,6 +49,7 @@ library
                      , Imj.Game.Hamazed.Parameters
                      , Imj.Game.Hamazed.State
                      , Imj.Game.Hamazed.State.Types
+                     , Imj.Game.Hamazed.Server
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -61,8 +62,12 @@ library
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
                      , containers >= 0.5.9.2
+                     , distributed-process ==0.7.*
+                     , distributed-process-lifted ==0.3.*
                      , matrix >= 0.3.5.0
                      , mtl >= 2.2.1 && < 2.3
+                     , network-transport ==0.5.*
+                     , network-transport-tcp ==0.6.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
                      , vector >= 0.12.0.1 && < 0.12.1

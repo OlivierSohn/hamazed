@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.World.Types
@@ -114,7 +115,7 @@ data BattleShip = BattleShip {
   -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
 } deriving(Show)
 
-newtype ShipId = ShipId Int64 deriving(Eq, Show)
+newtype ShipId = ShipId Int64 deriving(Generic, Binary, Eq, Show)
 
 -- This is good enough for now.
 mkShipId :: IO ShipId

@@ -21,6 +21,8 @@ packages:
 
 extra-deps:
 - FTGL-2.1
+- distributed-process-lifted-0.3.0.0
+- distributed-process-monad-control-0.5.1.3
 
 flags: {}
 

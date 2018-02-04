@@ -6,7 +6,6 @@
 
 module Imj.Game.Hamazed.Loop.Event
     ( isPrincipal
-    , EventGroup(..)
     , mkEmptyGroup
     , visible
     , count
@@ -26,20 +25,13 @@ import           Imj.Util hiding(range)
 
 -- | No 2 principal events can be part of the same 'EventGroup'.
 -- It allows to separate important game action on different rendered frames.
-isPrincipal :: Event -> Bool
-isPrincipal = \case
+isPrincipal :: UpdateEvent -> Bool
+isPrincipal (Right e) = case e of
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> False
   (Timeout (Deadline _ _ AnimateUI)) -> False
   _ -> True
-
-data EventGroup = EventGroup {
-    events :: ![Event]
-  , _eventGroupHasPrincipal :: !Bool
-  , _eventGroupUpdateDuration :: !(Time Duration System)
-  , _eventGroupVisibleTimeRange :: !(Maybe (Range (Time Point System)))
-  -- ^ Range of /visible/ events deadlines
-}
+isPrincipal (Left _) = True
 
 mkEmptyGroup :: EventGroup
 mkEmptyGroup = EventGroup [] False zeroDuration Nothing
@@ -51,7 +43,7 @@ visible _ = True
 count :: EventGroup -> Int
 count (EventGroup l _ _ _) = length l
 
-tryGrow :: Maybe Event -> EventGroup -> IO (Maybe EventGroup)
+tryGrow :: Maybe UpdateEvent -> EventGroup -> IO (Maybe EventGroup)
 tryGrow Nothing group
  | null $ events group = return $ Just group -- Keep the group opened to NOT do a render
  | otherwise = return Nothing -- to do a render
@@ -72,5 +64,5 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
   !principal = isPrincipal e
   withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime
   time = case e of
-    (Timeout (Deadline t _ _)) -> return t
+    Right (Timeout (Deadline t _ _)) -> return t
     _ -> getSystemTime

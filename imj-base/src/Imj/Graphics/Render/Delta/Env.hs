@@ -20,7 +20,6 @@ module Imj.Graphics.Render.Delta.Env
 
 import           Imj.Prelude
 
-import           Control.Exception(finally)
 import           Control.Monad.IO.Class(liftIO)
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
@@ -72,37 +71,37 @@ instance Render DeltaEnv where
 
 class DeltaRenderBackend a where
     -- | returns (duration to issue commands, duration to flush)
-    render :: a -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
-    cleanup :: a -> IO ()
-    getDiscreteSize :: a -> IO (Maybe Size)
-    cycleRenderingOption :: a -> IO ()
+    render :: (MonadIO m) => a -> Delta -> Dim Width -> m (Time Duration System, Time Duration System)
+    cleanup :: (MonadIO m) => a -> m ()
+    getDiscreteSize :: (MonadIO m) => a -> m (Maybe Size)
+    cycleRenderingOption :: (MonadIO m) => a -> m ()
 
-    withPolicies :: Maybe ResizePolicy
+    withPolicies :: (MonadIO m)
+                 => Maybe ResizePolicy
                  -> Maybe ClearPolicy
                  -> Maybe (Color8 Background)
                  -- ^ Color to clear with
-                 -> (DeltaEnv -> IO ())
+                 -> (DeltaEnv -> m ())
                  -> a
-                 -> IO ()
+                 -> m ()
     withPolicies p1 p2 p3 action ctxt = do
       newEnv ctxt p1 p2 p3 >>= action
-      `finally`
-      (cleanup ctxt)
+      cleanup ctxt -- TODO use http://zguide.zeromq.org/hs:interrupt to make sure this will be called
 
-    withDefaultPolicies :: (DeltaEnv -> IO ()) -> a -> IO ()
+    withDefaultPolicies :: (MonadIO m) => (DeltaEnv -> m ()) -> a -> m ()
     withDefaultPolicies =
       withPolicies Nothing Nothing Nothing
 
 
 -- | Creates an environment with policies.
-newEnv :: (DeltaRenderBackend a)
+newEnv :: (MonadIO m, DeltaRenderBackend a)
        => a
        -> Maybe ResizePolicy
        -> Maybe ClearPolicy
        -> Maybe (Color8 Background)
-       -> IO DeltaEnv
+       -> m DeltaEnv
 newEnv backend a b c = do
-  ctxt <- newContext a b c (getDiscreteSize backend)
+  ctxt <- liftIO $ newContext a b c (getDiscreteSize backend)
   return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend) (cycleRenderingOption backend)
 
 

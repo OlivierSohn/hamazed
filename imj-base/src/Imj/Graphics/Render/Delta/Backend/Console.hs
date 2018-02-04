@@ -12,7 +12,7 @@ import qualified Prelude(putStr, putChar)
 
 import           Control.Concurrent.STM
                   (TQueue, isEmptyTQueue,
-                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue)
+                  atomically, newTQueueIO, tryReadTQueue)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor )
@@ -43,11 +43,11 @@ import           Imj.Input.NonBlocking
 data ConsoleBackend = ConsoleBackend !(TQueue Key)
 
 instance DeltaRenderBackend ConsoleBackend where
-  render _ = deltaRenderConsole
-  cleanup _ = configureConsoleFor Editing LineBuffering
+  render _ a b = liftIO $ deltaRenderConsole a b
+  cleanup _ = liftIO $ configureConsoleFor Editing LineBuffering
   cycleRenderingOption _ = return ()
   getDiscreteSize _ = do
-    sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
+    sz <- liftIO (Terminal.size :: IO (Maybe (Terminal.Window Int)))
     return $ maybe (Nothing) (\(Terminal.Window h w)
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
 
@@ -76,9 +76,6 @@ instance PlayerInput ConsoleBackend where
     liftIO (atomically $ not <$> isEmptyTQueue queue) >>= \case
       True -> return True
       False -> liftIO stdinIsReady
-
-  unGetKey (ConsoleBackend queue) k =
-    liftIO (atomically $ unGetTQueue queue k)
 
   programShouldEnd _ =
     return False

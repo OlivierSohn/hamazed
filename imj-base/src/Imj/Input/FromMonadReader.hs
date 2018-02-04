@@ -8,7 +8,6 @@ module Imj.Input.FromMonadReader
        , getPlayerKeyBefore
        , tryGetPlayerKey
        , hasPlayerKey
-       , unGetPlayerKey
        , playerEndsProgram
        -- * Reexports
        , MonadReader, MonadIO, Int64
@@ -28,14 +27,6 @@ getPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
              => m Key
 getPlayerKey = do
   join(asks getKey)
-
-{-# INLINABLE unGetPlayerKey #-}
-unGetPlayerKey :: (PlayerInput i, MonadReader i m, MonadIO m)
-               => Key
-               -> m ()
-unGetPlayerKey k = do
-  d <- asks unGetKey
-  d k
 
 {-# INLINABLE getPlayerKeyBefore #-}
 getPlayerKeyBefore :: (PlayerInput i, MonadReader i m, MonadIO m)

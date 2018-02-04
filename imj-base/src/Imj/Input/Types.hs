@@ -38,13 +38,6 @@ class PlayerInput a where
          => a
          -> m Key
 
-  -- | Call this function to undo a getKey : it will fill a queue that is read
-  -- before getting actual player input.
-  unGetKey :: (MonadIO m)
-           => a
-           -> Key
-           -> m ()
-
   getKeyBefore :: (MonadIO m)
                => a
                -> Time Point System

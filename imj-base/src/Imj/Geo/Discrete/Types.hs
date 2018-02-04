@@ -44,19 +44,15 @@ import           Imj.Util
 
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show, Generic)
-instance PrettyVal Direction where
-  prettyVal Up = prettyVal "Up"
-  prettyVal Down = prettyVal "Down"
-  prettyVal LEFT = prettyVal "LEFT"
-  prettyVal RIGHT = prettyVal "RIGHT"
+instance PrettyVal Direction
+instance Binary Direction
 
 -- | One-dimensional discrete coordinate. We use phantom types 'Row', 'Col'
 -- to distinguish between rows and columns.
 newtype Coord a = Coord Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Generic)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Binary, Generic)
 
-instance PrettyVal (Coord a) where
-  prettyVal (Coord x) = prettyVal x
+instance PrettyVal (Coord a)
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteInterpolation (Coords Pos) where
@@ -88,8 +84,9 @@ data Coords a = Coords {
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
 } deriving (Eq, Show, Ord, Generic)
 
-instance PrettyVal (Coords a) where
-  prettyVal (Coords x y) = prettyVal ("Coords:",x,y)
+instance Binary (Coords a)
+
+instance PrettyVal (Coords a)
 
 -- | Discrete length
 newtype Length a = Length Int
@@ -105,8 +102,7 @@ data Size = Size {
   , _sizeX :: {-# UNPACK #-} !(Length Width)
 } deriving (Eq, Show, Generic)
 
-instance PrettyVal Size where
-  prettyVal (Size x y) = prettyVal ("Size:",x,y)
+instance PrettyVal Size
 
 -- | Width and Height to Coords
 {-# INLINE toCoords #-}
@@ -128,7 +124,7 @@ data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
              -- ^ Vertical segment
              | Oblique    !(Coords Pos) !(Coords Pos) !Word32
              -- ^ Oblique segment
-             deriving(Show)
+             deriving(Generic, Show)
 
 mkSegment :: Coords Pos
           -- ^ Segment start

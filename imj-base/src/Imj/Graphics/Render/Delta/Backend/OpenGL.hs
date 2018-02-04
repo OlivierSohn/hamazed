@@ -79,13 +79,13 @@ data RenderingStyle = AllFont
 
 instance DeltaRenderBackend OpenGLBackend where
     render (OpenGLBackend win _ ppu size mFont) d w =
-      readMVar mFont >>= \(RenderingOptions _ rs font) ->
+      liftIO $ readMVar mFont >>= \(RenderingOptions _ rs font) ->
         deltaRenderOpenGL win ppu size font rs d w
 
-    cleanup (OpenGLBackend win _ _ _ _) = destroyWindow win
+    cleanup (OpenGLBackend win _ _ _ _) = liftIO $ destroyWindow win
 
     cycleRenderingOption (OpenGLBackend _ _ ppu _ mRO) =
-      void( readMVar mRO >>= cycleRenderingOptions ppu >>= swapMVar mRO )
+      liftIO $ void( readMVar mRO >>= cycleRenderingOptions ppu >>= swapMVar mRO )
 
     getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w) _) =
       return $ Just $ Size (fromIntegral $ quot (fromIntegral h) pixelPerUnit)
@@ -136,9 +136,6 @@ instance PlayerInput OpenGLBackend where
     tryReadQueue >>= maybe
       (tryFillQueue >> tryReadQueue)
       (return . Just)
-
-  unGetKey (OpenGLBackend _ keyQueue _ _ _) k =
-    liftIO $ atomically $ unGetTQueue keyQueue $ mkKeyPress k
 
   -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
   someInputIsAvailable (OpenGLBackend _ keyQueue _ _ _) = do

@@ -10,6 +10,7 @@ module Imj.Prelude
           , module Control.Monad
           , module Control.Monad.IO.Class
           , module Control.Monad.Reader
+          , module Data.Binary
           , module Data.List
           , module Data.Maybe
           , module Data.Monoid
@@ -49,6 +50,7 @@ import           Control.Monad(sequence, when, unless, void, (<=<), (>=>), Monad
                               , replicateM)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
+import           Data.Binary(Binary)
 import           Data.List(intercalate, cycle, repeat, words, unwords)
 import           Data.Maybe(listToMaybe, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Monoid((<>))

@@ -28,21 +28,22 @@ import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, MonadIO m)
-               => Event
+               => UpdateEvent
                -- ^ The 'Event' that should be handled here.
                -> m ()
-updateAppState = \case
+updateAppState (Right evt) = case evt of
   Configuration char   -> updateGameParamsFromChar char
-  StartGame            -> putUserIntent Play >> updateAppState (StartLevel firstLevel)
+  StartGame            -> putUserIntent Play >> updateAppState (Right $ StartLevel firstLevel)
   EndGame              -> onEndGame
   StartLevel nextLevel -> onStartLevel nextLevel
   CycleRenderingOptions -> changeFont
-  ServerEvent (PeriodicMotion accelerations) -> onMove accelerations
-  ServerEvent (LaserShot shipId dir) -> onLaser shipId dir
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
-  evt -> error $ "The caller should handle :" ++ show evt
+  e -> error $ "The caller should handle :" ++ show e
+updateAppState (Left evt) = case evt of
+  ServerEvent (PeriodicMotion accelerations) -> onMove accelerations
+  ServerEvent (LaserShot shipId dir) -> onLaser shipId dir
 
 onStartLevel :: (MonadState AppState m, MonadIO m)
              => Int -> m ()

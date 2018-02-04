@@ -1,9 +1,14 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+--{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.Loop.Event.Types
         ( Event(..)
+        , UpdateEvent
+        , EventGroup(..)
         , Deadline(..)
         , ActionTarget(..)
         , DeadlineType(..)
@@ -13,6 +18,7 @@ module Imj.Game.Hamazed.Loop.Event.Types
         , ServerStepIdx(..)
         , ClientState(..)
         , ClientEvent(..)
+        , ServerEvent(..)
         , GameStep(..)
         , ShipId(..)
         -- * Reexports (for haddock hyperlinks)
@@ -27,6 +33,7 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Timing
+import           Imj.Util hiding(range)
 
 -- | A foreseen game or animation update.
 data Deadline = Deadline {
@@ -36,6 +43,17 @@ data Deadline = Deadline {
   , _deadlineType :: !DeadlineType
 } deriving(Eq, Show)
 
+
+
+data EventGroup = EventGroup {
+    events :: ![UpdateEvent]
+  , _eventGroupHasPrincipal :: !Bool
+  , _eventGroupUpdateDuration :: !(Time Duration System)
+  , _eventGroupVisibleTimeRange :: !(Maybe (Range (Time Point System)))
+  -- ^ Range of /visible/ events deadlines
+}
+
+type UpdateEvent = Either ServerEvent Event
 
 --------------------------------------------------------------------------------
 newtype ServerStepIdx = ServerStepIdx Int
@@ -98,13 +116,16 @@ data ClientActionResult = ClientActionResult {
   -- ^ This index should be stored by the client and sent along with
 } deriving(Eq, Show)
 
+-- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep = PeriodicMotion {
   _shipsAccelerations :: ![(ShipId, Coords Vel)]
   -- ^ The sum of player-induced accelerations
 }
--- ^ Numbers accelerations are omitted because they are 0.
               | LaserShot !ShipId !Direction
-              deriving(Eq, Show)
+              deriving(Generic, Eq, Show, Binary)
+
+newtype ServerEvent = ServerEvent GameStep
+  deriving(Generic, Show, Binary)
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -120,7 +141,7 @@ data DeadlineType = AnimateParticleSystem ParticleSystemKey
 data Event = Configuration !Char
            -- ^ Configures game parameters
            | CycleRenderingOptions
-           -- ^ CHages the font used to render
+           -- ^ Changes the font used to render
            | StartGame
            -- ^ To transition from configuration mode to play mode.
            | Timeout !Deadline
@@ -132,7 +153,6 @@ data Event = Configuration !Char
            | Interrupt !MetaAction
            -- ^ A game interruption.
            | ToggleEventRecording
-           | ServerEvent !GameStep
            deriving(Eq, Show)
 
 data MetaAction = Quit

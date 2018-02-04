@@ -1,7 +1,13 @@
-- create a queue to receive server events. read that queue in produceEvent.
-- fork a thread that periodically writes a server event to the queue (TODO and sends one to other clients)
-, and whose activity can be controlled.
-- for a thread that receives server events
+- to receive server data : use a thread that writes into a Tqueue from websocket.
+- to send server data: send synchronously
+
+- if I run server + client in the same thread, can I use a typed channel?
+
+- spawnChannelLocal
+- create server and channel in it for clients, before creating env.
+then pass send of server to env, and pass receive of env channel to server.
+- fork a thread that periodically (activity can be controlled) sends a server event to self and other clients.
+- create a typed channel to receive server events. use receiveChanTimeout 0 in produceEvent.
 
 - a client with ip "IPC" creates the world, publishes it as multiplayable.
 other clients can connect to "IPC" enter it. then the game is started when all players agree to start.
@@ -30,6 +36,7 @@ If one ship collides, the other can continue.
   1st step: find a way to communicate between client and server.
   compare using :
   - http://haskell-distributed.github.io/
+  - http://haskell-distributed.github.io/tutorials/tutorial-NT2.html
   - https://hackage.haskell.org/package/network-multicast
   - https://wiki.haskell.org/Implement_a_chat_server
 

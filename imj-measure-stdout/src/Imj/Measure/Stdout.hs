@@ -23,7 +23,7 @@ cursorForward = "\ESC[C"
 cursorBackward = "\ESC[D"
 noop = cursorForward ++ cursorBackward
 
--- | Creates a string of given length, whith one visible character,
+-- | Creates a string of given length, with one visible character,
 -- a very big number of no-op escape sequences (cursor forward, cursor backward)
 -- and spaces to pad the string to the desired length.
 mkSmartStringToExactlyFillBufferOfSize :: Char

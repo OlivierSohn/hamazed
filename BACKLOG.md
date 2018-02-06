@@ -1,9 +1,6 @@
 - when hitting Esc in the console, we need to hit enter after to stop the program.
 investigate...
 
-tryReadPlayer , poll, try again.
-should console replace forkIO by poll? pros / cons?
-
 - pass a command line arg to say if we are the server or if we connect to a distant
 server. pass a command line arg for player name
 

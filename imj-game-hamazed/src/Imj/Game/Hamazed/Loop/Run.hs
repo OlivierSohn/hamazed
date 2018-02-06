@@ -15,9 +15,8 @@ import           Imj.Prelude
 import           Prelude (putStrLn, getLine)
 
 import           Control.Concurrent(threadDelay)
-import           Control.Concurrent.Async(withAsync, wait, poll, race)
+import           Control.Concurrent.Async(withAsync, wait, race)
 import           Control.Concurrent.STM(check, atomically, readTQueue, readTVar, registerDelay)
-import           Control.Exception(throwIO)
 import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
@@ -212,14 +211,15 @@ produceEvent = do
 
                   withAsync x $ \res -> do
                     let go = do
-                          -- using 100 micros as minimum interval between consecutive 'pollPlayerEvents'
-                          -- seems to be a good trade-off between CPU usage while waiting
-                          -- and reactivity.
-                          -- We could know exactly when res is set but that is costly CPU-wise,
-                          -- using
                           case qt of
                             AutomaticFeed -> wait res -- 0% CPU usage while waiting
                             PollOrWaitOnEvents ->
+                          -- Using 100 microseconds as minimum interval between consecutive 'pollPlayerEvents'
+                          -- seems to be a good trade-off between CPU usage while waiting
+                          -- and reactivity.
+                          -- There are 3 alternatives hereunder, each of them has a different CPU cost.
+                          -- I chose the one that is both reasonnably economical and allows to
+                          -- save up-to 100 micro seconds latency.
                             --{-
                             -- 20.3% CPU while waiting
                               race (wait res) (threadDelay 100) >>= either return (\_ -> pollK >> go)

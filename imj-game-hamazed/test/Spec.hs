@@ -12,6 +12,7 @@ main = do
   putStrLn "" -- for readablilty
 
   newConsoleBackend >>= \backend -> withDefaultPolicies (\deltaEnv -> do
+    env <- Env deltaEnv backend <$> mkQueues
     _ <- runReaderT (testSpace >> -- this is it visible in the logs, not in the console
-                renderToScreen) (Env deltaEnv backend)
+                renderToScreen) env
     return ()) backend

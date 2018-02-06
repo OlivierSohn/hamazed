@@ -4,20 +4,25 @@
 
 module Imj.Game.Hamazed.Server
       ( ClientNode(..)
-      , ServerEvtChan(..)
-      -- * reexports
-      , MonadProcess
+      , send
       ) where
 
-import           Imj.Prelude
-import           Control.Distributed.Process.Lifted(SendPort, ReceivePort)
-import           Control.Distributed.Process.Lifted.Class(MonadProcess)
+import           Control.Concurrent.STM(TQueue)
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 
 -- | A 'ClientNode' sends 'ClientEvent's and receives 'ServerEvent's.
 class ClientNode a where
-  send :: (MonadProcess m) => a -> ClientEvent -> m ()
-  tryReceive :: (MonadProcess m) => a -> m (Maybe ServerEvent)
+  send' :: (MonadIO m) => a -> ClientEvent -> m ()
+  serverQueue :: a -> TQueue ServerEvent
 
-data ServerEvtChan = ServerEvtChan !(SendPort ServerEvent) !(ReceivePort ServerEvent)
+
+{-# INLINABLE send #-}
+send :: (ClientNode i, MonadReader i m, MonadIO m)
+     => ClientEvent
+     -> m ()
+send e = do
+  s <- asks send'
+  s e

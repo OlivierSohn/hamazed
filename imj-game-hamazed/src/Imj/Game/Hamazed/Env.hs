@@ -5,24 +5,39 @@
 
 module Imj.Game.Hamazed.Env
       ( Env(..)
+      , mkQueues
       ) where
 
-import           Control.Distributed.Process.Lifted(receiveChanTimeout)
+import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
+import           Control.Monad.IO.Class(liftIO)
 
+import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.Server
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw(Draw(..))
 import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Input.Types
-import           Imj.Game.Hamazed.Server
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
 data Env a = Env {
     _envDeltaEnv :: !DeltaEnv
   , _envPlayerInput :: !a
-  , getServerEvtChan :: !ServerEvtChan
+  , _envQueues :: !Queues
 }
 
+data Queues = Queues {
+    getInputQueue :: !(TQueue ServerEvent)
+  , getOutputQueue :: !(TQueue ClientEvent)
+}
+
+mkQueues :: IO Queues
+mkQueues = do
+  i <- newTQueueIO
+  o <- newTQueueIO
+  return $ Queues i o
+  -- TODO try:
+  -- Queues <$> newTQueueIO <$> newTQueueIO
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
 instance Draw (Env x) where
@@ -54,20 +69,19 @@ instance Render (Env x) where
   {-# INLINE renderToScreen' #-}
 
 instance ClientNode (Env x) where
-  send _ _ = undefined
-  tryReceive (Env _ _ (ServerEvtChan _ rcvPort)) =
-    receiveChanTimeout 0 rcvPort
-  {-# INLINABLE send #-}
-  {-# INLINABLE tryReceive #-}
+  send' (Env _ _ q) = liftIO . atomically . writeTQueue (getOutputQueue q)
+  serverQueue (Env _ _ q) = getInputQueue q
+  {-# INLINABLE send' #-}
+  {-# INLINABLE serverQueue #-}
 
 instance PlayerInput x => PlayerInput (Env x) where
-  getKey (Env _ a _) = getKey a
-  getKeyBefore (Env _ a _) = getKeyBefore a
-  tryGetKey (Env _ a _) = tryGetKey a
-  someInputIsAvailable (Env _ a _) = someInputIsAvailable a
+  keysQueue (Env _ a _) = keysQueue a
   programShouldEnd (Env _ a _) = programShouldEnd a
-  {-# INLINE getKey #-}
-  {-# INLINE getKeyBefore #-}
-  {-# INLINE tryGetKey #-}
-  {-# INLINE someInputIsAvailable #-}
+  pollKeys (Env _ a _) = pollKeys a
+  queueType (Env _ a _) = queueType a
+  waitKeysTimeout (Env _ a _) = waitKeysTimeout a
+  {-# INLINE keysQueue #-}
   {-# INLINE programShouldEnd #-}
+  {-# INLINE pollKeys #-}
+  {-# INLINE queueType #-}
+  {-# INLINE waitKeysTimeout #-}

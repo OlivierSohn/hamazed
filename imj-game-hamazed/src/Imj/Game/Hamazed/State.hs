@@ -20,7 +20,7 @@ import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(state, get, put)
-import           Control.Monad.Reader.Class(MonadReader, asks)
+import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.IO.Class(MonadIO)
 
 import           Data.Text(pack)
@@ -76,18 +76,22 @@ reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
-onEvent :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadProcess m)
-        => Maybe (Either Event ClientEvent) -> m ()
-onEvent (Just (Right evt)) = do
-  s <- asks send
-  s evt
-onEvent (Just (Left ToggleEventRecording)) = state toggleRecordEvent
-onEvent (Just (Left evt)) = do
-      getRecording >>= \case
-        Record -> state (addEvent $ Right evt)
-        DontRecord -> return ()
-      handleEvent (Just $ Right evt)
+onEvent :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)
+        => Maybe GenEvent -> m ()
 onEvent Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
+onEvent (Just (CliEvt clientEvt)) = send clientEvt
+onEvent (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
+onEvent (Just (Evt    evt)) = onUpdateEvent $ Right evt
+onEvent (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
+
+{-# INLINABLE onUpdateEvent #-}
+onUpdateEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+              => UpdateEvent -> m ()
+onUpdateEvent e = do
+  getRecording >>= \case
+    Record -> state $ addEvent e
+    DontRecord -> return ()
+  handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)

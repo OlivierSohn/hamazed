@@ -1,5 +1,27 @@
-- to receive server data : use a thread that writes into a Tqueue from websocket.
-- to send server data: send synchronously
+- when hitting Esc in the console, we need to hit enter after to stop the program.
+investigate...
+
+tryReadPlayer , poll, try again.
+should console replace forkIO by poll? pros / cons?
+
+- pass a command line arg to say if we are the server or if we connect to a distant
+server. pass a command line arg for player name
+
+- to accept clients and send data to clients :
+when iAmServer $
+  runServer ...
+ https://github.com/jaspervdj/websockets/blob/ef2ed9196be529874b1fc58cdb18ae02f1116203/example/server.lhs
+ (for now, periodically send fake game events).
+ TODO receive client data, interpret it
+- receive server data to a queue and send client data from a queue:
+ queue <- newTQueueIO :: IO (TQueue ServerEvent)
+ queue' <- newTQueueIO :: IO (TQueue ClientEvent)
+ forkIO $ runClient hostFromCLI portFromCLI "/" $ \connection ->
+    forkIO $ forever $ receiveData connection >>= atomically (writeTQueue queue)
+    forever $ atomically (readTQueue queue') >>= flip sendBinaryData connection
+then in produceEvent, tryRead from queue before trying player event.
+- to send data to server :
+
 
 - if I run server + client in the same thread, can I use a typed channel?
 

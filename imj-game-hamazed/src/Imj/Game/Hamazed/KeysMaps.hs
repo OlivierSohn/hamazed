@@ -19,35 +19,36 @@ import           Imj.Input.Types
 
 -- | Maps a 'Key' (pressed by the player) to an 'Event'.
 eventFromKey :: (MonadState AppState m)
-             => Key -> m (Maybe (Either Event ClientEvent))
+             => Key
+             -> m (Maybe GenEvent)
 eventFromKey k = do
   intent <- getUserIntent
   case k of
-    Escape      -> return $ Just $ Left $ Interrupt Quit
-    StopProgram -> return $ Just $ Left $ Interrupt Quit
-    AlphaNum 'y' -> return $ Just $ Left CycleRenderingOptions
+    Escape      -> return $ Just $ Evt $ Interrupt Quit
+    StopProgram -> return $ Just $ Evt $ Interrupt Quit
+    AlphaNum 'y' -> return $ Just $ Evt CycleRenderingOptions
     _ -> case intent of
       Configure -> return $ case k of
-        AlphaNum ' ' -> Just $ Left $ StartGame
-        AlphaNum c -> Just $ Left $ Configuration c
+        AlphaNum ' ' -> Just $ Evt $ StartGame
+        AlphaNum c -> Just $ Evt $ Configuration c
         _ -> Nothing
       Play ->
         getGameState >>= \(GameState _ _ _ _ _ (Level n _ finished) _ _) ->
           case finished of
             Nothing -> return $ case k of
               AlphaNum c -> case c of
-                'k' -> Just $ Right $ Action Laser Down
-                'i' -> Just $ Right $ Action Laser Up
-                'j' -> Just $ Right $ Action Laser LEFT
-                'l' -> Just $ Right $ Action Laser RIGHT
-                'd' -> Just $ Right $ Action Ship Down
-                'e' -> Just $ Right $ Action Ship Up
-                's' -> Just $ Right $ Action Ship LEFT
-                'f' -> Just $ Right $ Action Ship RIGHT
-                'r'-> Just $ Left ToggleEventRecording
+                'k' -> Just $ CliEvt $ Action Laser Down
+                'i' -> Just $ CliEvt $ Action Laser Up
+                'j' -> Just $ CliEvt $ Action Laser LEFT
+                'l' -> Just $ CliEvt $ Action Laser RIGHT
+                'd' -> Just $ CliEvt $ Action Ship Down
+                'e' -> Just $ CliEvt $ Action Ship Up
+                's' -> Just $ CliEvt $ Action Ship LEFT
+                'f' -> Just $ CliEvt $ Action Ship RIGHT
+                'r'-> Just $ Evt ToggleEventRecording
                 _   -> Nothing
               _ -> Nothing
-            Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Left $
+            Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Evt $
               case stop of
                 Won -> if n < lastLevel
                          then

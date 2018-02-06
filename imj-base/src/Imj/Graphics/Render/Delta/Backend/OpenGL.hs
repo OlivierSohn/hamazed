@@ -15,13 +15,10 @@ import           Prelude(putStrLn, length)
 
 import           System.IO.Temp(withSystemTempDirectory)
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
-import           Control.Concurrent.STM
-                  (TQueue,
-                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue, writeTQueue)
+import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Char(ord, chr, isHexDigit, digitToInt)
 import           Data.ByteString(writeFile)
-import           Data.Maybe(isJust)
 import           Foreign.Ptr(nullPtr)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
@@ -40,25 +37,19 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 
-data EventKey = EventKey !Key !Int !GLFW.KeyState !GLFW.ModifierKeys
+keyCallback :: TQueue Key -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
+keyCallback q _ k _ GLFW.KeyState'Pressed _ = case glfwKeyToKey k of
+  Unknown -> return ()
+  key -> atomically $ writeTQueue q key
+keyCallback _ _ _ _ _ _ = return ()
 
-keyCallback :: TQueue EventKey -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
-keyCallback tc _ k sc ka mk =
-  atomically $ writeTQueue tc $ EventKey
-    (glfwKeyToKey k) sc ka mk
-
-windowCloseCallback :: TQueue EventKey -> GLFW.Window -> IO ()
+windowCloseCallback :: TQueue Key -> GLFW.Window -> IO ()
 windowCloseCallback keyQueue _ =
-  atomically $ writeTQueue keyQueue $ mkKeyPress StopProgram
-
-{-# INLINE mkKeyPress #-}
-mkKeyPress :: Key -> EventKey
-mkKeyPress k =
-  EventKey k 0 GLFW.KeyState'Pressed $ GLFW.ModifierKeys False False False False
+  atomically $ writeTQueue keyQueue StopProgram
 
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: !GLFW.Window
-  , _glfwKeyEvts :: !(TQueue EventKey)
+  , _glfwKeyEvts :: !(TQueue Key)
   , _ppu :: !Int
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: !Size
@@ -94,12 +85,20 @@ instance DeltaRenderBackend OpenGLBackend where
     {-# INLINABLE cleanup #-}
     {-# INLINABLE getDiscreteSize #-}
 
--- | First, we try to read from the queue. Then, we 'GLFW.pollEvents',
--- 'GLFW.waitEvents' or 'GLFW.waitEventsTimeout' (depending on the function)
--- and try to read again from the queue.
---
--- If no key press was found, in 'getKey' we recurse.
 instance PlayerInput OpenGLBackend where
+  programShouldEnd (OpenGLBackend win _ _ _ _) = liftIO $ GLFW.windowShouldClose win
+  keysQueue (OpenGLBackend _ q _ _ _) = q
+  pollKeys _ = liftIO GLFW.pollEvents
+  waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
+  queueType _ = PollOrWaitOnEvents
+
+  {-# INLINABLE programShouldEnd #-}
+  {-# INLINABLE keysQueue #-}
+  {-# INLINABLE pollKeys #-}
+  {-# INLINABLE waitKeysTimeout #-}
+  {-# INLINABLE queueType #-}
+
+{-
   getKey (OpenGLBackend _ keyQueue _ _ _) = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
         fillQueue = liftIO GLFW.waitEvents
@@ -108,6 +107,21 @@ instance PlayerInput OpenGLBackend where
             Just x  -> return x
             Nothing -> fillQueue >> readQueue
     readQueue
+
+  tryGetKey (OpenGLBackend _ keyQueue _ _ _) = do
+    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
+        tryFillQueue = liftIO GLFW.pollEvents
+    tryReadQueue >>= maybe
+      (tryFillQueue >> tryReadQueue)
+      (return . Just)
+
+  -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
+  someInputIsAvailable (OpenGLBackend _ keyQueue _ _ _) = do
+    let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
+        tryFillQueue = liftIO GLFW.pollEvents
+    tryPeekQueue >>= maybe
+      (tryFillQueue >> tryPeekQueue >>= return . isJust)
+      (const $ return True)
 
   getKeyBefore b@(OpenGLBackend _ keyQueue _ _ _) t = do
     let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
@@ -130,29 +144,11 @@ instance PlayerInput OpenGLBackend where
                 getKeyBefore b t)
         (return . Just)
 
-  tryGetKey (OpenGLBackend _ keyQueue _ _ _) = do
-    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
-        tryFillQueue = liftIO GLFW.pollEvents
-    tryReadQueue >>= maybe
-      (tryFillQueue >> tryReadQueue)
-      (return . Just)
-
-  -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
-  someInputIsAvailable (OpenGLBackend _ keyQueue _ _ _) = do
-    let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
-        tryFillQueue = liftIO GLFW.pollEvents
-    tryPeekQueue >>= maybe
-      (tryFillQueue >> tryPeekQueue >>= return . isJust)
-      (const $ return True)
-
-  programShouldEnd (OpenGLBackend win _ _ _ _) =
-    liftIO $ GLFW.windowShouldClose win
 
   {-# INLINABLE tryGetKey #-}
   {-# INLINABLE someInputIsAvailable #-}
   {-# INLINABLE getKey #-}
   {-# INLINABLE getKeyBefore #-}
-  {-# INLINABLE programShouldEnd #-}
 
 {-# INLINABLE tryReadFirstKeyPress #-}
 tryReadFirstKeyPress :: TQueue EventKey
@@ -174,6 +170,7 @@ tryPeekFirstKeyPress keyQueue = do
       return $ Just key
     Just _ -> tryPeekFirstKeyPress keyQueue
 
+-}
 
 glfwKeyToKey :: GLFW.Key -> Key
 glfwKeyToKey k
@@ -197,10 +194,11 @@ newOpenGLBackend title ppu size@(Size h w) = do
     False -> error "could not initialize GLFW"
     True -> return ()
 
-  keyEventsChan <- newTQueueIO :: IO (TQueue EventKey)
+  keyEventsChan <- newTQueueIO :: IO (TQueue Key)
   win <- createWindow (fromIntegral w) (fromIntegral h) title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
+  GLFW.pollEvents -- this is necessary to show the window
   ro <- RenderingOptions 0 AllFont <$> createFont 0 ppu
   OpenGLBackend win keyEventsChan ppu size <$> newMVar ro
 

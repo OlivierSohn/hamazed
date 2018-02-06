@@ -5,13 +5,17 @@
 module Imj.Input.Types
     ( Key(..)
     , PlayerInput(..)
+    , FeedType(..)
     -- * reexports
     , MonadIO
+    , TQueue
     , module Imj.Timing
     ) where
 
 
 import           Imj.Prelude
+
+import           Control.Concurrent.STM(TQueue)
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Int(Int64)
@@ -32,28 +36,22 @@ data Key = AlphaNum Char
          -- ^ An unhandled key
          deriving(Show)
 
+data FeedType =
+    AutomaticFeed
+    -- ^ An auxiliary thread feeds the queue.
+  | PollOrWaitOnEvents
+  -- ^The queue needs to be "manually" fed by calling 'pollKeys' or 'waitKeys'
+
 class PlayerInput a where
-  -- | Blocks until a 'Key' is produced.
-  getKey :: (MonadIO m)
-         => a
-         -> m Key
 
-  getKeyBefore :: (MonadIO m)
-               => a
-               -> Time Point System
-               -- ^ The time before which we should get the key.
-               -> m (Maybe Key)
-               -- ^ Nothing when the timeout was reached.
-
-  tryGetKey :: (MonadIO m)
-            => a
-            -> m (Maybe Key)
-            -- ^ Nothing when no input is available.
-
-  someInputIsAvailable :: (MonadIO m)
-                       => a
-                       -> m Bool
-
-  -- Return 'True' when the program should end
+  -- | Return 'True' when the program should end
   programShouldEnd :: (MonadIO m)
                    => a -> m Bool
+
+  keysQueue :: a -> TQueue Key
+
+  queueType :: a -> FeedType
+  -- | Use only if 'queueType' returns PollOrWaitOnEvents.
+  pollKeys :: a -> IO ()
+  -- | Use only if 'queueType' returns PollOrWaitOnEvents.
+  waitKeysTimeout :: a -> Time Duration System -> IO ()

@@ -10,9 +10,8 @@ module Imj.Graphics.Render.Delta.Backend.Console
 import           Imj.Prelude
 import qualified Prelude(putStr, putChar)
 
-import           Control.Concurrent.STM
-                  (TQueue, isEmptyTQueue,
-                  atomically, newTQueueIO, tryReadTQueue)
+import           Control.Concurrent(forkIO)
+import           Control.Concurrent.STM(TQueue, newTQueueIO, atomically, writeTQueue)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI( clearScreen, hideCursor
                                     , setSGR, setCursorPosition, showCursor )
@@ -23,7 +22,6 @@ import           System.IO( hSetBuffering
                           , BufferMode(..)
                           , stdin
                           , stdout )
-import           System.Timeout( timeout )
 
 import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -35,9 +33,8 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
-import           Imj.Input.Types
 import           Imj.Input.Blocking
-import           Imj.Input.NonBlocking
+import           Imj.Input.Types
 
 
 data ConsoleBackend = ConsoleBackend !(TQueue Key)
@@ -52,44 +49,47 @@ instance DeltaRenderBackend ConsoleBackend where
                 -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
 
 instance PlayerInput ConsoleBackend where
-  getKey (ConsoleBackend queue) =
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO getKeyThenFlush)
-      return
-
-  getKeyBefore (ConsoleBackend queue) t =
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO (getDurationFromNowTo t) >>= \allowed ->
-        if strictlyNegative allowed
-           then
-             return Nothing
-           else
-             liftIO $ timeout (fromIntegral $ toMicros allowed) getKeyThenFlush)
-      (return . Just)
-
-  tryGetKey (ConsoleBackend queue) = do
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO tryGetKeyThenFlush)
-      (return . Just)
-
-  someInputIsAvailable (ConsoleBackend queue) = do
-    liftIO (atomically $ not <$> isEmptyTQueue queue) >>= \case
-      True -> return True
-      False -> liftIO stdinIsReady
-
-  programShouldEnd _ =
-    return False
-
+  programShouldEnd _ = return False
+  keysQueue (ConsoleBackend q) = q
+  queueType _ = AutomaticFeed
+  pollKeys _ = return ()
+  waitKeysTimeout _ _ = return ()
   {-# INLINABLE programShouldEnd #-}
+  {-# INLINABLE keysQueue #-}
+  {-# INLINABLE queueType #-}
+  {-# INLINABLE pollKeys #-}
+  {-# INLINABLE waitKeysTimeout #-}
+{-
+  someInputIsAvailable _ = liftIO stdinIsReady
+
+  getKey _ = liftIO $ getKeyThenFlush
+
+  tryGetKey _ = liftIO tryGetKeyThenFlush
+
+
+  getKeyBefore _ t =
+    liftIO (getDurationFromNowTo t) >>= \allowed ->
+      -- timeout interprets strictly negative durations as infinite time, so we
+      -- handle strictly negative durations differently:
+      if strictlyNegative allowed
+         then
+           return Nothing
+         else
+           liftIO $ timeoutGetKeyThenFlush $ fromIntegral $ toMicros allowed
+
+
   {-# INLINABLE getKey #-}
   {-# INLINABLE getKeyBefore #-}
   {-# INLINABLE tryGetKey #-}
   {-# INLINABLE someInputIsAvailable #-}
+-}
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do
   configureConsoleFor Gaming defaultStdoutMode
-  ConsoleBackend <$> newTQueueIO
+  newTQueueIO >>= \q -> do
+    _ <- forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q
+    return $ ConsoleBackend q
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode

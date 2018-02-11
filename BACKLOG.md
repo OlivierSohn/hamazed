@@ -1,14 +1,30 @@
+- when -s localhost or -s 127.0.0.1 is specified, do not instantiate local server.
+
+- investigate using higher level concepts to clarify server / client statefull interactions
+and make the implementation more robust, to be confident that all edge cases are well-handled:
+describe logic with a GRAFCET.
+
 - investigate error seen in terminal, is it when closing the app? if so, can we close more gracefully,
 else this is a bug.
 
 - build a 0-sized world when client starts to make a nice first animation.
 
-- The approach I took is:
-ServerEvent : "go to state 'X' now"
-ClientEvent : "I've finished state 'X', with these results: ..."
+- There are 2 types of interactions:
 
-Server stores game state, to know how to handle client events.
-Client also store game state, to adapt keyboard mapping and rendering.
+  - client state changes:
+ServerEvent : "go to state 'X' now"
+ClientEvent : "I've finished state 'X'"
+(client rendering and client keymaps depend on state)
+
+  - server requests:
+ServerEvent : Create a world like this
+ClientEvent : Here is the world you asked
+
+ServerEvent : Use this world now.
+ClientEvent : Ok, the world is displayed and animation between previous world
+              and this world has finished.
+
+Server stores global intent, which influences how client events are handled.
 
 Use case, client side 1:
 

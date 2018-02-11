@@ -76,7 +76,7 @@ runWithArgs =
     info (helper <*> parser)
     (  fullDesc
     <> header "imj-game-hamazed-exe runs the 'Hamazed' game."
-    <> progDesc "Hamazed is a game with flying numbers abd 8-bit color animations."
+    <> progDesc "Hamazed is a game with flying numbers and 8-bit color animations."
     )
  where
   parser =
@@ -84,24 +84,32 @@ runWithArgs =
       <$> optional
              (option backendArg (long "render"
                               <> short 'r'
-                              <> help ("Use argument 'console' to play in the console. " ++
-                                        "Use 'opengl' to play in an opengl window. " ++
-                                        renderHelp)))
+                              <> help (
+                              "Use 'console' to play in the console, " ++
+                              "use 'opengl' to play in an opengl window. " ++
+                              renderHelp
+                              )))
       <*> optional
              (option srvNameArg (long "gameHostName"
                               <> short 'n'
-                              <> help ("Specifies which game server to use. Default is \"localhost\", " ++
-                                       "i.e your own computer. ")))
+                              <> help (
+                              "Omit this option to run a game server on your machine, and connect to it. " ++
+                              "Use \"localhost\" (or 127.0.0.1) to connect to a server already running on your machine. " ++
+                              "Use the IP or DNS name of a distant server to connect to it."
+                              )))
       <*> optional
              (option srvPortArg (long "gameHostPort"
                               <> short 'p'
-                              <> help ("Specifies which game server port to use. Default is " ++
-                                       show (toInteger defaultPort) ++ ". ")))
+                              <> help (
+                              "The port number of the listening socket of the game server. " ++
+                              "Default is " ++ show (toInteger defaultPort) ++ ". "
+                              )))
       <*> optional
              (option suggestedPlayerName (long "player"
-                              <> short 'p'
-                              <> help ("The name of the player you want to use, " ++
-                                       "in a multiplayer context. Default is \"player\".")))
+                              <> help (
+                              "The name of the player you want to use, " ++
+                              "in a multiplayer context. Default is \"player\"."
+                              )))
       <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
 
 renderHelp :: String

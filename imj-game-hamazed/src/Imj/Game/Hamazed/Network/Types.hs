@@ -201,7 +201,7 @@ instance Binary NoConnectReason
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)
-getServerNameAndPort (Local p) = (ServerName "127.0.0.1", p)
+getServerNameAndPort (Local p) = (ServerName "localhost", p)
 getServerNameAndPort (Distant name p) = (name, p)
 
 newtype ServerName = ServerName String

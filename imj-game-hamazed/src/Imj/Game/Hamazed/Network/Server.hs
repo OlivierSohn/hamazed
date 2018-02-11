@@ -34,10 +34,8 @@ defaultPort = ServerPort 10051
 
 mkServer :: (Maybe ServerName) -> ServerPort -> Server
 mkServer Nothing = Local
-mkServer (Just (ServerName n)) = case map toLower n of
-  "localhost" -> Local
-  "127.0.0.1" -> Local
-  ln -> Distant (ServerName ln)
+mkServer (Just (ServerName n)) =
+  Distant $ ServerName $ map toLower n
 
 playerNameExists :: PlayerName -> Clients -> Bool
 playerNameExists name (Clients l _) =

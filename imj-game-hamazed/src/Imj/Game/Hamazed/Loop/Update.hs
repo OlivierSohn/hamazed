@@ -49,10 +49,10 @@ updateAppState (Right evt) = case evt of
     sendToServer $ ExitedState Setup
   NextLevel -> do
     getClientState >>= \case -- sanity check
-      (ClientState Ongoing Play) -> return ()
+      (ClientState Ongoing PlayLevel) -> return ()
       s -> error $ "NextLevel in " ++ show s
-    putClientState $ ClientState Done Play
-    sendToServer $ ExitedState Play -- TODO is it really necessary ? (are ExitedState events used by the server?)
+    putClientState $ ClientState Done PlayLevel
+    sendToServer $ ExitedState PlayLevel -- TODO is it really necessary ? (are ExitedState events used by the server?)
     sendToServer LevelWon
   EndGame outcome ->
     sendToServer $ GameEnded outcome
@@ -74,6 +74,11 @@ updateAppState (Left evt) = case evt of
   ConnectionAccepted name players -> do
     putGameConnection $ Connected name
     stateChat (addMessage $ ChatMessage $ welcome players)
+    getClientState >>= \case -- sanity check
+      (ClientState Ongoing Excluded) -> return ()
+      s -> error $ "ConnectionAccepted in " ++ show s
+    putClientState $ ClientState Done Excluded
+    sendToServer $ ExitedState Excluded -- TODO is it really necessary ? (are ExitedState events used by the server?)
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
   Info player notif ->
@@ -81,7 +86,8 @@ updateAppState (Left evt) = case evt of
   DisconnectionAccepted -> error "should be handled by caller"
   EnterState s -> putClientState $ ClientState Ongoing s
   ExitState s -> putClientState $ ClientState Done s
-  
+  Error txt -> error $ "[from Server:] " ++ txt
+
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char
                          -> m ()

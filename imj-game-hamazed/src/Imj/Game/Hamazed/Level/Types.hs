@@ -31,7 +31,7 @@ data LevelSpec = LevelSpec {
     -- ^ From 1 to 12
   , _levelTarget :: !Int
   , _levelFlyingNumbers :: ![Int]
-} deriving (Generic, Binary, NFData)
+} deriving (Generic, Binary, NFData, Show)
 
 mkLevelSpec :: Int -> LevelSpec
 mkLevelSpec levelNumber =
@@ -50,10 +50,11 @@ data MessageState = InfoMessage
                   | ContinueMessage
                   deriving(Generic, Binary, Eq, Show)
 
-data GameOutcome = Lost Text
-               -- ^ 'Text' is the reason why the 'Level' was lost.
-               | Won
-               deriving(Generic, Binary, Eq, Show)
+data GameOutcome =
+    Lost !Text
+   -- ^ 'Text' is the reason why the 'Level' was lost.
+  | Won
+  deriving(Generic, Binary, Eq, Show, NFData)
 
 -- | 12
 lastLevel :: Int

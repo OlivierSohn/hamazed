@@ -103,6 +103,7 @@ data EventRepr = Laser'
                | EnterState'
                | ExitState'
                | Chat'
+               | Error'
                | IgnoredOverdue
                -- ^ Represents when an overdue deadline was ignored because its priority was lower
                -- than another overdue deadline.

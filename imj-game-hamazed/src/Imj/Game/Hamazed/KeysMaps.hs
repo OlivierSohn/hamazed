@@ -36,7 +36,7 @@ eventFromKey k = do -- TODO handle chat : when pressing Enter, swap between chat
           AlphaNum ' ' -> Just $ Evt $ StartGame
           AlphaNum c -> Just $ Evt $ Configuration c
           _ -> Nothing
-        Play ->
+        PlayLevel ->
           getGameState >>= \(GameState _ _ _ (Level (LevelSpec n _ _) finished) _ _) ->
             case finished of
               Nothing -> return $ case k of

@@ -48,6 +48,7 @@ representation :: UpdateEvent -> EventRepr
 representation (Left (GameEvent e)) = case e of
   (LaserShot _ _) -> Laser'
   (PeriodicMotion _ _) -> PeriodicMotion'
+representation (Left (Error _)) = Error'
 representation (Left DisconnectionAccepted) = DisconnectionAccepted'
 representation (Left (EnterState _)) = EnterState'
 representation (Left (ExitState _)) = ExitState'
@@ -76,6 +77,7 @@ reprToCS ChangeLevel'  = colored "C" magenta
 reprToCS NextLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
 reprToCS StartGame'  = colored "S" cyan
+reprToCS Error'                 = colored "E" cyan
 reprToCS EnterState'            = colored "I" cyan
 reprToCS ExitState'             = colored "O" cyan
 reprToCS DisconnectionAccepted' = colored "D" cyan
@@ -99,7 +101,11 @@ onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e,
 onEvent mayEvt =
   playerEndsProgram >>= \case
     True -> sendToServer Disconnect
-    False -> onEvent' mayEvt
+    False -> do
+      debug >>= \case
+        True -> liftIO $ putStrLn $ show mayEvt
+        False -> return ()
+      onEvent' mayEvt
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)

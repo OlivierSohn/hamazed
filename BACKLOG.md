@@ -1,6 +1,7 @@
-- No setup is possible when launching the game: it seems there is no transition from Excluded to Setup?
 - investigate error seen in terminal, is it when closing the app? if so, can we close more gracefully,
 else this is a bug.
+
+- build a 0-sized world when client starts to make a nice first animation.
 
 - The approach I took is:
 ServerEvent : "go to state 'X' now"
@@ -36,9 +37,9 @@ receive ServerEvent $ ChangeLevel !LevelSpec !WorldEssence
 (once UI animations to transition level are done)
 send ClientEvent $ IsReady 173
 (when all clients in `curClients` sent IsReady 173)
-receive ServerEvent $ EnterState `Ongoing` `Play` (defines keyboard mapping)
+receive ServerEvent $ EnterState `Ongoing` `PlayLevel` (defines keyboard mapping)
 (when lose or win)
-send ClientEvent $ ExitedState Play (Win | Lose)
+send ClientEvent $ ExitedState PlayLevel (Win | Lose)
 (when all clients in `curClients` sent the same)
 receive ServerEvent $ EnterState ...
 
@@ -139,7 +140,7 @@ If one ship collides, the other can continue.
   - https://hackage.haskell.org/package/network-multicast
   - https://wiki.haskell.org/Implement_a_chat_server
 
-- use bitwise to optimize boolean matrix representation.
+- use bitwise package to optimize boolean matrix representation.
 
 - make font characters more square
 

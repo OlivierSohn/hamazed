@@ -65,7 +65,7 @@ data StateValue =
     -- ^ The player is not part of the game
   | Setup
   -- ^ The player is configuring the game
-  | Play
+  | PlayLevel
   -- ^ The player is playing the game
   deriving(Generic, Show, Eq)
 instance Binary StateValue
@@ -74,7 +74,7 @@ instance NFData StateValue
 data ClientId = ClientId {
     getPlayerName :: !PlayerName -- ^ primary key
   , getClientId :: !ShipId -- ^ primary key
-} deriving(Generic)
+} deriving(Generic, Show)
 instance NFData ClientId
 
 -- | Match only on 'ShipId'.
@@ -126,7 +126,9 @@ data ServerEvent =
   | ChangeLevel !LevelSpec !WorldEssence
     -- ^ Triggers a UI transition between the previous (if any) and the next level.
   | GameEvent !GameStep
-  deriving(Generic)
+  | Error !String
+  -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
+  deriving(Generic, Show)
 
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
@@ -135,7 +137,7 @@ data GameStep =
   , _shipsLostArmor :: ![ShipId]
 }
   | LaserShot !ShipId !Direction
-  deriving(Generic)
+  deriving(Generic, Show)
 
 instance Binary GameStep
 
@@ -165,15 +167,18 @@ data PlayerNotif =
     Joins
   | Leaves
   | StartsGame
+  | GameResult GameOutcome
   | Says !Text
   deriving(Generic, Show)
 
 instance Binary PlayerNotif
 
 toTxt :: PlayerNotif -> PlayerName -> Text
-toTxt Joins (PlayerName n) = "<< " <> n <> "joins the game. >>"
-toTxt Leaves (PlayerName n) = "<< " <> n <> "leaves the game. >>"
-toTxt StartsGame (PlayerName n) = "<< " <> n <> "starts the game. >>"
+toTxt Joins (PlayerName n) = "<< " <> n <> " joins the game. >>"
+toTxt Leaves (PlayerName n) = "<< " <> n <> " leaves the game. >>"
+toTxt StartsGame (PlayerName n) = "<< " <> n <> " starts the game. >>"
+toTxt (GameResult (Lost reason)) (PlayerName n) = "<< " <> n <> " lost the game : " <> reason <> ". >>"
+toTxt (GameResult Won) (PlayerName n) = "<< " <> n <> " won the game. >>"
 toTxt (Says t) (PlayerName n) = n <> " : " <> t
 
 welcome :: [PlayerName] -> Text

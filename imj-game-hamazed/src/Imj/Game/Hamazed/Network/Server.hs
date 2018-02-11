@@ -143,30 +143,66 @@ disconnect x = do
              , getPlayingClients = removeClient' x fst $ getPlayingClients s }
   chatBroadcast x Leaves
 
+error' :: Client -> String -> ServerM ()
+error' c txt = do
+  liftIO $ sendClient (Error txt) c
+  error txt -- this error may not be very readable if another thread writes to the console,
+    -- hence we sent the error to the client, so that it can error too.
+
 handleIncomingEvents :: Client -> ServerM ()
 handleIncomingEvents cl@(Client c _ conn _) =
   forever $ liftIO (receiveData conn) >>= \case
     Connect (SuggestedPlayerName sn) _ ->
-      error $ "already connected : " <> sn
+       error' cl $ "already connected : " <> sn
     Disconnect -> do
       disconnect c
       liftIO $ sendClient DisconnectionAccepted cl
     Say what ->
       chatBroadcast c $ Says what
-    (EnteredState Excluded) -> error "todo" -- TODO are "EnteredState" events are useful?
-    (EnteredState Play) -> error "todo"
-    (ExitedState Excluded) -> error "todo"
-    ExitedState Play -> return () -- don't act : another more specific event will follow:
-    GameEnded _outcome -> error "todo"
-    LevelWon -> error "todo"
+    -- TODO are "EnteredState" events are useful?
+    EnteredState Excluded -> return ()
+    EnteredState PlayLevel -> return ()
+    ExitedState Excluded -> do
+      getIntent <$> readState >>= \case
+        Intent'Setup -> do
+          -- add client to playing clients if it is not already there
+          modifyState (\s ->
+            let alreadyThere = any ((== c) . getIdentity . fst) $ getPlayingClients s
+                s' = if alreadyThere
+                        then s
+                        else s { getPlayingClients = (cl, Nothing):getPlayingClients s }
+            in return (s',s'))
+            -- request world. (-> next step when client 'IsReady')
+            >>= withUniqueWorldId . requestWorld
+        _ -> liftIO $ sendClient (EnterState Excluded) cl
+    ExitedState PlayLevel -> return ()
+    GameEnded outcome ->
+      modifyState (\s ->
+        let s' = case getIntent s of
+              Intent'PlayGame -> s { getIntent = Intent'GameEnd outcome }
+              Intent'GameEnd o ->
+                if o == outcome
+                  then
+                    s
+                  else
+                    error $ "inconsistent outcome:" ++ show (o, outcome)
+              _ -> error "logic"
+            remainPlaying = removeClient' c fst $ getPlayingClients s'
+            s'' = s' { getPlayingClients = remainPlaying }
+        in return (s'', if null remainPlaying
+                          then Just s''
+                          else Nothing))
+        >>= maybe (return ()) (\st -> do
+          mapM_ (flip chatBroadcast $ GameResult outcome) $ map (getIdentity . fst) $ getPlayingClients st
+          modifyState (\s -> let s' = s { getLevelSpec = mkLevelSpec firstLevel } in return (s',s'))
+            >>= withUniqueWorldId . requestWorld)
+    LevelWon -> error' cl "todo"
   ------------------------------------------------------------------------------
   -- Clients in 'Setup' state can configure the world.
   --
-  --   [If /any/ client is in 'Setup' state, /no/ client is in 'Play' state]
+  --   [If /any/ client is in 'Setup' state, /no/ client is in 'PlayLevel' state]
   ------------------------------------------------------------------------------
-    EnteredState Setup ->
-      modifyState_ $ \s ->
-        return s { getPlayingClients = (cl, Nothing):getPlayingClients s }
+    EnteredState Setup -> return ()
     ChangeWallDistribution t ->
       onChangeWorldParams $ changeWallDistrib t
     ChangeWorldShape s ->
@@ -176,7 +212,7 @@ handleIncomingEvents cl@(Client c _ conn _) =
         -- could perform better than this lock-based approach.
       modifyState (\s ->
         case getIntent s of
-          Setup -> return (s { getIntent = Play }, Just s)
+          Intent'Setup -> return (s { getIntent = Intent'PlayGame }, Just s)
           _ -> return(s, Nothing))
         >>= maybe (return ()) (\s' -> do
           chatBroadcast c $ StartsGame
@@ -194,6 +230,7 @@ handleIncomingEvents cl@(Client c _ conn _) =
   --   UI Animation is over (hence the level shall start, for example.):
   ------------------------------------------------------------------------------
     IsReady wid -> do
+      -- update 'WorldId' in corresponding playing clients
       (players, intent) <- modifyState $ \s@(ServerState _ playingClients _ _ _ _ intent) -> do
         let newPlaying = map (\p@(cl'@(Client c' _ _ _), _) ->
                                 if c' == c
@@ -201,11 +238,20 @@ handleIncomingEvents cl@(Client c _ conn _) =
                                   else p) playingClients
         return (s { getPlayingClients = newPlaying }, (newPlaying, intent) )
       let ready (_,wid') = Just wid == wid'
-      when (intent == Play && all ready players) $ broadcast $ EnterState Play
+      case intent of
+        Intent'PlayGame ->
+          -- start the game when all players have the right world
+          when (all ready players) $ broadcast $ EnterState PlayLevel
+        Intent'Setup -> do
+          -- (follow-up from 'ExitedState Excluded')
+          -- Allow the client to setup the world, now that the world contains its ship.
+          liftIO $ sendClient (EnterState Setup) cl
+        Intent'GameEnd _ -> return ()
+
   ------------------------------------------------------------------------------
-  -- Clients in 'Play' state can play the game.
+  -- Clients in 'PlayLevel' state can play the game.
   --
-  --   [If /any/ client is in 'Play' state, /no/ client is in 'Setup' state]
+  --   [If /any/ client is in 'PlayLevel' state, /no/ client is in 'Setup' state]
   ------------------------------------------------------------------------------
     Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
 
@@ -255,26 +301,4 @@ onMove accelerations shipsLosingArmor = getGameState >>= \(GameState _ m@(Multip
     let nextTime = addDuration (toSystemDuration m gameMotionPeriod) t
     putGameState $ GameState (Just nextTime) (Multiplicator (mv + 0.01)) (moveWorld accelerations shipsLosingArmor world) a b c d e
     onHasMoved t
--}
-
--- state transitions
-{-
-(in Update)
-  StartGame            -> putUserIntent Play >> updateAppState (Right $ NextLevel firstLevel)
-
-onStartLevel :: (MonadState AppState m, MonadIO m)
-             => Int -> m ()
-onStartLevel n =
-  getGame >>= \(Game _ params state@(GameState _ _ (World _ ships _ _) _ _ _ _ (Screen sz _)) _ _ _ _) ->
-    mkInitialState params sz n (map getShipId ships) (Just state) >>= putGameState
-
-onEndGame :: (MonadState AppState m, Canvas e, MonadReader e m, MonadIO m) => m ()
-onEndGame = do
-  putUserIntent Configure
-  getGameParameters >>= \params -> do
-    getWorld >>= \(World _ ships _ _) -> do
-      getTargetSize
-        >>= liftIO . initialGameState params (map getShipId ships)
-        >>= putGameState
-      return ()
 -}

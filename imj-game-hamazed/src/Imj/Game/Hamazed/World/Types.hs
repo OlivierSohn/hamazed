@@ -65,7 +65,7 @@ import           Imj.Timing
 data WorldParameters = WorldParameters {
     getWorldShape :: !WorldShape
   , getWallDistrib :: !WallDistribution
-} deriving(Generic)
+} deriving(Generic, Show)
 
 instance Binary WorldParameters
 instance NFData WorldParameters
@@ -96,7 +96,7 @@ data WorldSpec = WorldSpec {
   , getShipIds :: ![ShipId]
   , getWorldParams :: !WorldParameters
   , getWorldId' :: !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
-} deriving(Generic)
+} deriving(Generic, Show)
 instance Binary WorldSpec
 
 data WorldEssence = WorldEssence {

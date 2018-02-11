@@ -7,6 +7,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
       , Clients(..)
+      , Intent(..)
       , mkClient
       , newServerState
     ) where
@@ -29,9 +30,16 @@ data ServerState = ServerState {
   , getWorldParameters :: !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
   , getLastRequestedWorldId :: !(Maybe WorldId)
-  , getIntent :: !StateValue
+  , getIntent :: !Intent
 } deriving(Generic)
 instance NFData ServerState
+
+data Intent =
+    Intent'Setup
+  | Intent'PlayGame
+  | Intent'GameEnd !GameOutcome
+  deriving(Generic, Show, Eq)
+instance NFData Intent
 
 data Clients = Clients {
     getClients' :: ![Client]
@@ -54,7 +62,8 @@ mkClients = Clients [] (ShipId 0)
 
 newServerState :: ServerState
 newServerState =
-  ServerState mkClients [] mkGameTiming (mkLevelSpec firstLevel) initialParameters Nothing Setup
+  ServerState mkClients [] mkGameTiming (mkLevelSpec firstLevel)
+              initialParameters Nothing Intent'Setup
 
 data Client = Client {
     getIdentity :: !ClientId

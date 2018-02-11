@@ -24,16 +24,13 @@ import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.UI.Colored
 import           Imj.Timing
 
-messageDeadline :: Level -> Maybe Deadline
-messageDeadline (Level _ _ mayLevelFinished) =
-  maybe Nothing
-  (\(LevelFinished _ timeFinished messageType) ->
-    case messageType of
-      InfoMessage ->
-        let nextMessageStep = addDuration (fromSecs 2) timeFinished
-        in  Just $ Deadline nextMessageStep continueMsgPriority DisplayContinueMessage
-      ContinueMessage -> Nothing)
-  mayLevelFinished
+messageDeadline :: LevelFinished -> Maybe Deadline
+messageDeadline (LevelFinished _ timeFinished messageType) =
+  case messageType of
+    InfoMessage ->
+      let nextMessageStep = addDuration (fromSecs 2) timeFinished
+      in  Just $ Deadline nextMessageStep continueMsgPriority DisplayContinueMessage
+    ContinueMessage -> Nothing
 
 {-# INLINABLE drawLevelState #-}
 drawLevelState :: (Draw e, MonadReader e m, MonadIO m)
@@ -64,5 +61,5 @@ drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
                  => Level
                  -> Coords Pos
                  -> m ()
-drawLevelMessage (Level level _ levelState) ref =
+drawLevelMessage (Level (LevelSpec level _ _) levelState) ref =
   mapM_ (drawLevelState ref level) levelState

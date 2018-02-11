@@ -10,4 +10,4 @@ testSpace :: (MonadReader e m, Draw e, MonadIO m) => m ()
 testSpace = do
   let blocksSize = 6
   s <- liftIO $ mkRandomlyFilledSpace (RandomParameters blocksSize StrictlyOneComponent) (Size 36 72)
-  void (drawSpace s (Coords 0 0))
+  void (drawSpace (mkRenderedSpace s) (Coords 0 0))

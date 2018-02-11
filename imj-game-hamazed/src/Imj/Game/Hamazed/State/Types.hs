@@ -14,10 +14,11 @@ module Imj.Game.Hamazed.State.Types
       -- * Access
       , getGame
       , getGameState
-      , getGameParameters
+      , getMyShipId
+      , getGameConnection
+      , getViewMode
       , getWorld
-      , getUserIntent
-      , getMode
+      , getClientState
       , getCurScreen
       , getLastRenderTime
       , hasVisibleNonRenderedUpdates
@@ -25,9 +26,11 @@ module Imj.Game.Hamazed.State.Types
       -- * Modify
       , putGame
       , putGameState
-      , putGameParameters
+      , putViewMode
+      , putGameConnection
       , putWorld
-      , putUserIntent
+      , putClientState
+      , stateChat
       , addParticleSystems
       , updateOneParticleSystem
       -- * reexports
@@ -41,11 +44,14 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(get, put)
 import           Data.Map.Strict(fromList, union, updateWithKey)
 
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
+
+import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.Text.ColorString
 
@@ -82,13 +88,21 @@ data EventRepr = Laser'
                | AnimateParticleSystem'
                | DisplayContinueMessage'
                | AnimateUI'
-               | StartLevel'
+               | WorldRequest'
+               | ChangeLevel'
+               | NextLevel'
                | Configuration'
                | CycleRenderingOptions'
                | StartGame'
                | EndGame'
                | Interrupt'
                | ToggleEventRecording'
+               | ConnectionAccepted'
+               | DisconnectionAccepted'
+               | ConnectionRefused'
+               | EnterState'
+               | ExitState'
+               | Chat'
                | IgnoredOverdue
                -- ^ Represents when an overdue deadline was ignored because its priority was lower
                -- than another overdue deadline.
@@ -101,30 +115,24 @@ getGame = get >>= \(AppState _ g _ _ _ _ _) -> return g
 
 {-# INLINABLE getGameState #-}
 getGameState :: MonadState AppState m => m GameState
-getGameState = getGame >>= \(Game _ _ s) -> return s
+getGameState = getGameState' <$> getGame
 
-{-# INLINABLE getGameParameters #-}
-getGameParameters :: MonadState AppState m => m GameParameters
-getGameParameters = getGame >>= \(Game _ p _) -> return p
+{-# INLINABLE getViewMode #-}
+getViewMode :: MonadState AppState m => m ViewMode
+getViewMode = getViewMode' <$> getGame
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
-getWorld = getGameState >>= \(GameState _ _ w _ _ _ _ _) -> return w
+getWorld = getGameState >>= return . getPreviousWorld
 
-{-# INLINABLE getMode #-}
-getMode :: MonadState AppState m => m ViewMode
-getMode =
-  getGame >>= \(Game _ (GameParameters _ _ mode) _) -> return mode
-
-{-# INLINABLE getUserIntent #-}
-getUserIntent :: MonadState AppState m => m UserIntent
-getUserIntent =
-  getGame >>= \(Game i _ _) -> return i
+{-# INLINABLE getClientState #-}
+getClientState :: MonadState AppState m => m ClientState
+getClientState = getClientState' <$> getGame
 
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
 getCurScreen =
-  getGame >>= \(Game _ _ (GameState _ _ _ _ _ _ _ screen)) -> return screen
+  getGameState >>= return . getScreen
 
 {-# INLINABLE getLastRenderTime #-}
 getLastRenderTime :: MonadState AppState m => m (Time Point System)
@@ -137,18 +145,35 @@ putGame g = get >>= \(AppState a _ e r h d f) ->
 
 {-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
-putGameState s = getGame >>= \(Game a b _) ->
-  putGame $ Game a b s
+putGameState s =
+  getGame >>= \g -> putGame $ g {getGameState' = s}
 
-{-# INLINABLE putGameParameters #-}
-putGameParameters :: MonadState AppState m => GameParameters -> m ()
-putGameParameters p = getGame >>= \(Game a _ b) ->
-  putGame $ Game a p b
+{-# INLINABLE putGameConnection #-}
+putGameConnection :: MonadState AppState m => ConnectionStatus -> m ()
+putGameConnection c =
+  getGame >>= \g -> putGame $ g {connection = c}
+
+{-# INLINABLE getGameConnection #-}
+getGameConnection :: MonadState AppState m => m ConnectionStatus
+getGameConnection =
+  getGame >>= return . connection
+
+{-# INLINABLE getMyShipId #-}
+getMyShipId :: MonadState AppState m => m (Maybe ShipId)
+getMyShipId =
+  (\case
+    Connected myId -> Just $ getClientId myId
+    _ -> Nothing) <$> getGameConnection
+
+{-# INLINABLE putViewMode #-}
+putViewMode :: MonadState AppState m => ViewMode -> m ()
+putViewMode p =
+  getGame >>= \g -> putGame $ g {getViewMode' = p}
 
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState AppState m => World -> m ()
-putWorld w = getGameState >>= \(GameState a t _ c d e f g) ->
-  putGameState $ GameState a t w c d e f g
+putWorld w = getGameState >>= \g ->
+  putGameState g {getPreviousWorld = w}
 
 {-# INLINABLE takeKeys #-}
 takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]
@@ -167,8 +192,7 @@ addParticleSystems :: MonadState AppState m
 addParticleSystems l = do
   keys <- takeKeys $ length l
   let ps2 = fromList $ zip keys l
-  getGameState >>= \(GameState a t (World b c d ps) e f g h i) ->
-    putGameState $ GameState a t (World b c d (union ps ps2)) e f g h i
+  getWorld >>= \w -> putWorld $ w {getParticleSystems = union (getParticleSystems w) ps2}
 
 {-# INLINABLE updateOneParticleSystem #-}
 updateOneParticleSystem :: MonadState AppState m
@@ -176,18 +200,22 @@ updateOneParticleSystem :: MonadState AppState m
                         -> Time Point System
                         -> m ()
 updateOneParticleSystem key t =
-  getWorld >>= \(World a b c systems) -> do
+  getWorld >>= \w -> do
     let tps = systemTimePointToParticleSystemTimePoint t
         newSystems =
           updateWithKey
             (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
-            key systems
-    putWorld $ (World a b c newSystems)
+            key $ getParticleSystems w
+    putWorld $ w {getParticleSystems = newSystems}
 
-{-# INLINABLE putUserIntent #-}
-putUserIntent :: MonadState AppState m => UserIntent -> m ()
-putUserIntent i =
-  getGame >>= \(Game _ a b) -> putGame $ Game i a b
+{-# INLINABLE putClientState #-}
+putClientState :: MonadState AppState m => ClientState -> m ()
+putClientState i =
+  getGame >>= \g -> putGame $ g { getClientState' = i}
+
+stateChat :: MonadState AppState m => (Chat -> Chat) -> m ()
+stateChat f =
+  getGame >>= \g -> putGame $ g { chat = f $ chat g }
 
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool
@@ -200,6 +228,6 @@ envFunctions :: (MonadState AppState m)
              => Scope -> m EnvFunctions
 envFunctions scope = do
   world <- getWorld
-  mode <- getMode
+  mode <- getViewMode
   screen <- getCurScreen
   return $ EnvFunctions (environmentInteraction world mode screen scope) envDistance

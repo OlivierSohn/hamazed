@@ -31,6 +31,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Game.Hamazed
+                     , Imj.Game.Hamazed.Chat
                      , Imj.Game.Hamazed.Color
                      , Imj.Game.Hamazed.Env
                      , Imj.Game.Hamazed.Infos
@@ -46,10 +47,15 @@ library
                      , Imj.Game.Hamazed.Loop.Run
                      , Imj.Game.Hamazed.Loop.Timing
                      , Imj.Game.Hamazed.Loop.Update
+                     , Imj.Game.Hamazed.Network.Class.ClientNode
+                     , Imj.Game.Hamazed.Network.Client
+                     , Imj.Game.Hamazed.Network.GameNode
+                     , Imj.Game.Hamazed.Network.Internal.Types
+                     , Imj.Game.Hamazed.Network.Server
+                     , Imj.Game.Hamazed.Network.Types
                      , Imj.Game.Hamazed.Parameters
                      , Imj.Game.Hamazed.State
                      , Imj.Game.Hamazed.State.Types
-                     , Imj.Game.Hamazed.Server
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -62,7 +68,9 @@ library
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
                      , async ==2.1.*
+                     , binary ==0.8.*
                      , containers >= 0.5.9.2
+                     , deepseq ==1.4.*
                      , distributed-process ==0.7.*
                      , distributed-process-lifted ==0.3.*
                      , imj-particlesystem ==0.1.*
@@ -71,14 +79,18 @@ library
                      , imj-prelude ==0.1.*
                      , matrix >= 0.3.5.0
                      , mtl >= 2.2.1 && < 2.3
+                     , network ==2.6.*
                      , network-transport ==0.5.*
                      , network-transport-tcp ==0.6.*
+                     , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text ==1.2.*
+                     , unliftio ==0.2.*
                      , vector >= 0.12.0.1 && < 0.12.1
                      , optparse-applicative == 0.14.*
                      , pretty-show ==1.6.*
                      , stm ==2.4.*
+                     , websockets ==0.12.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010

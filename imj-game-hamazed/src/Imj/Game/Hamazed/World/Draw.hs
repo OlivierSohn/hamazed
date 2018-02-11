@@ -10,7 +10,6 @@ module Imj.Game.Hamazed.World.Draw
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
-import           Data.Maybe( isNothing, isJust )
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
@@ -26,18 +25,17 @@ drawWorld :: (Draw e, MonadReader e m, MonadIO m)
             => World
             -> Coords Pos
             -> m ()
-drawWorld (World balls ships space _) s  = do
+drawWorld (World balls ships space _ _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (\b -> drawNumber b space s) balls
-  let drawShip (BattleShip shipId (PosSpeed shipCoords _) _ safeTime collisions) =
-        when ((null collisions || isJust safeTime) && (InsideWorld == location shipCoords space)) $ do
-          let colors =
-                if isNothing safeTime
-                  then
-                    shipColors
-                  else
-                    shipColorsSafe
-          drawChar (shipChar shipId) (sumCoords shipCoords s) colors
+  let drawShip (BattleShip shipId (PosSpeed shipCoords _) _ safe collisions) =
+        when ((null collisions || safe) && (InsideWorld == location shipCoords space)) $
+          drawChar (shipChar shipId) (sumCoords shipCoords s) $
+            if safe
+              then
+                shipColorsSafe
+              else
+                shipColors
   mapM_ drawShip ships
 
 shipChar :: ShipId -> Char

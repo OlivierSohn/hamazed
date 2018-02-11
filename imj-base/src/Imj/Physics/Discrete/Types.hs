@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Physics.Discrete.Types
     ( PosSpeed(..)
@@ -14,4 +16,4 @@ import           Imj.Geo.Discrete.Types
 data PosSpeed = PosSpeed {
     _posSpeedPos :: !(Coords Pos)
   , _posSpeedSpeed :: !(Coords Vel)
-} deriving (Eq, Show)
+} deriving (Generic, Eq, Show, Binary)

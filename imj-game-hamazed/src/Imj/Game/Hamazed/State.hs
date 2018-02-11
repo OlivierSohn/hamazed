@@ -20,38 +20,48 @@ import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(state, get, put)
-import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.IO.Class(MonadIO)
 
 import           Data.Text(pack)
 
+import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.Input.Types
+
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Parameters
-import           Imj.Game.Hamazed.Server
-import           Imj.Game.Hamazed.State.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Timing
+import           Imj.Input.FromMonadReader
 
 representation :: UpdateEvent -> EventRepr
-representation (Left (ServerEvent e)) = case e of
+representation (Left (GameEvent e)) = case e of
   (LaserShot _ _) -> Laser'
-  (PeriodicMotion _) -> PeriodicMotion'
+  (PeriodicMotion _ _) -> PeriodicMotion'
+representation (Left DisconnectionAccepted) = DisconnectionAccepted'
+representation (Left (EnterState _)) = EnterState'
+representation (Left (ExitState _)) = ExitState'
+representation (Left (WorldRequest _)) = WorldRequest'
+representation (Left (ChangeLevel _ _)) = ChangeLevel'
+representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
+representation (Left (ConnectionRefused _)) = ConnectionRefused'
+representation (Left (Info _ _)) = Chat'
 representation (Right e) = case e of
   CycleRenderingOptions -> CycleRenderingOptions'
   (Configuration _) -> Configuration'
-  EndGame -> EndGame'
+  EndGame _ -> EndGame'
   StartGame -> StartGame'
-  (StartLevel _) -> StartLevel'
+  NextLevel -> NextLevel'
   (Interrupt _) -> Interrupt'
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> AnimateParticleSystem'
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> DisplayContinueMessage'
@@ -61,31 +71,47 @@ representation (Right e) = case e of
 
 reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
-reprToCS StartLevel' = colored "l" cyan
+reprToCS WorldRequest' = colored "R" magenta
+reprToCS ChangeLevel'  = colored "C" magenta
+reprToCS NextLevel' = colored "l" cyan
 reprToCS EndGame'    = colored "E" cyan
 reprToCS StartGame'  = colored "S" cyan
-reprToCS Configuration' = colored "C" yellow
+reprToCS EnterState'            = colored "I" cyan
+reprToCS ExitState'             = colored "O" cyan
+reprToCS DisconnectionAccepted' = colored "D" cyan
+reprToCS ConnectionAccepted'    = colored "A" cyan
+reprToCS ConnectionRefused'     = colored "R" cyan
+reprToCS Chat'                  = colored "C" cyan
+reprToCS Configuration'         = colored "C" yellow
 reprToCS CycleRenderingOptions' = colored "R" yellow
-reprToCS Interrupt'  = colored "I" yellow
-reprToCS Laser'      = colored "L" cyan
+reprToCS Interrupt'      = colored "I" yellow
+reprToCS Laser'          = colored "L" cyan
 reprToCS PeriodicMotion' = colored "S" blue
 reprToCS MoveFlyingItems'        = colored "M" green
-reprToCS AnimateParticleSystem' = colored "P" blue
+reprToCS AnimateParticleSystem'  = colored "P" blue
 reprToCS DisplayContinueMessage' = colored "C" white
 reprToCS AnimateUI'              = colored "U" magenta
 reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
-onEvent :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)
+onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, Render e, MonadIO m)
         => Maybe GenEvent -> m ()
-onEvent Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
-onEvent (Just (CliEvt clientEvt)) = send clientEvt
-onEvent (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
-onEvent (Just (Evt    evt)) = onUpdateEvent $ Right evt
-onEvent (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
+onEvent mayEvt =
+  playerEndsProgram >>= \case
+    True -> sendToServer Disconnect
+    False -> onEvent' mayEvt
+
+{-# INLINABLE onEvent' #-}
+onEvent' :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)
+         => Maybe GenEvent -> m ()
+onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
+onEvent' (Just (CliEvt clientEvt)) = sendToServer clientEvt
+onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
+onEvent' (Just (Evt    evt)) = onUpdateEvent $ Right evt
+onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
-onUpdateEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+onUpdateEvent :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
               => UpdateEvent -> m ()
 onUpdateEvent e = do
   getRecording >>= \case
@@ -94,7 +120,7 @@ onUpdateEvent e = do
   handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
-handleEvent :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+handleEvent :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
             => Maybe UpdateEvent -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
@@ -144,11 +170,10 @@ renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
 renderAll = do
   t1 <- liftIO getSystemTime
   draw
-  getUserIntent >>= \case
-    Configure -> do
+  getClientState >>= \case
+    (ClientState _ Setup) -> do -- TODO display "Please wait ..." when _ == 'Done'
       (Screen _ center) <- getCurScreen
-      getGameState >>= \(GameState _ _ (World _ _ (Space _ sz _) _) _ _ _ _ _) ->
-        draw' $ mkRectContainerWithCenterAndInnerSize center sz
+      getWorld >>= draw' . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace
     _ -> return ()
   t2 <- liftIO getSystemTime
   getEvtStrs >>= zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..]
@@ -210,10 +235,14 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Maybe Size -> Bool -> IO AppState
-createState ms dbg = do
-  sid <- mkShipId
-  game <- initialGame ms [sid]
+createState :: Maybe Size
+            -> Bool
+            -> SuggestedPlayerName
+            -> Server
+            -> ConnectionStatus
+            -> IO AppState
+createState ms dbg a b c = do
+  game <- initialGame ms a b c
   t <- getSystemTime
   return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 

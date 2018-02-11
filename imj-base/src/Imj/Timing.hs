@@ -47,7 +47,7 @@ module Imj.Timing
 
 import           Imj.Prelude
 import           Prelude(length)
-
+import           Control.DeepSeq(NFData(..))
 import           Data.Int(Int64)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
@@ -58,7 +58,10 @@ The phantom type 'a' represents the time space. It could be 'System'
 
  The phantom type 'b' specifies the nature of the time (a point on the timeline
  or a duration)-}
-newtype Time a b = Time TimeSpec deriving(Eq, Ord, Show, Generic)
+newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord, Show)
+instance NFData (Time a b) where
+  rnf _ = () -- TimeSpec has unboxed fields so they are already in nf
+
 
 instance PrettyVal (Time Point b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:", s, n)
@@ -69,7 +72,7 @@ instance PrettyVal (Time Duration b) where
 
 Note that summing 'Time' 'Point' has no meaning, and substracting them is achieved
 using '...' -}
-data Point deriving(Generic)
+data Point deriving(Generic) -- do not serialize time points as it doesn't make much sense.
 
 {- | A difference between two locations of the same time space.
 
@@ -79,14 +82,14 @@ a 'Duration' of a given time space from / to the 'SystemTime' time space.
 '|-|' and '|+|' are available to add or substract durations.
 A 'Num' instance is /not/ provided, as it would lead to more
 ambiguous code, as explained <https://github.com/corsis/clock/issues/49 here>. -}
-data Duration deriving(Generic)
+data Duration deriving(Generic, Binary)
 
 -- | The system time (see 'getSystemTime')
-data System deriving(Generic)
+data System deriving(Generic, Binary)
 
 -- | 'Multiplicator', multiplied with a 'System' duration produces a duration in
 -- another time space specified by the phantom type 'a'.
-newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, PrettyVal)
+newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, PrettyVal, NFData)
 
 
 {-# INLINE fromSystemDuration #-}

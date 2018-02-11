@@ -12,7 +12,7 @@ module Imj.Game.Hamazed.Loop.Run
       ) where
 
 import           Imj.Prelude
-import           Prelude (putStrLn, getLine)
+import           Prelude (putStrLn, getLine, toInteger)
 
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.Async(withAsync, wait, race)
@@ -23,25 +23,30 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State(runStateT)
-import           Data.Text(pack, toLower)
+import           Data.Char(toLower)
 import           Options.Applicative
                   (progDesc, fullDesc, info, header, customExecParser, prefs, helper
                   , showHelpOnError, short, long, option, str, help, optional
                   , ReadM, readerError, (<*>), switch)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
+import           Text.Read(readMaybe)
+
+import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Geo.Discrete.Types
+import           Imj.Input.Types
 
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Server
+import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Game.Hamazed.Network.GameNode
+import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.State
-import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
-import           Imj.Input.Types
-import           Imj.Input.FromMonadReader
 
 {- | Runs the Hamazed game.
 
@@ -60,8 +65,10 @@ run =
     else
       runWithArgs
 
-data BackendType = Console
-                 | OpenGLWindow
+data BackendType =
+    Console
+  | OpenGLWindow
+  deriving (Show)
 
 runWithArgs :: IO ()
 runWithArgs =
@@ -80,6 +87,21 @@ runWithArgs =
                               <> help ("Use argument 'console' to play in the console. " ++
                                         "Use 'opengl' to play in an opengl window. " ++
                                         renderHelp)))
+      <*> optional
+             (option srvNameArg (long "gameHostName"
+                              <> short 'n'
+                              <> help ("Specifies which game server to use. Default is \"localhost\", " ++
+                                       "i.e your own computer. ")))
+      <*> optional
+             (option srvPortArg (long "gameHostPort"
+                              <> short 'p'
+                              <> help ("Specifies which game server port to use. Default is " ++
+                                       show (toInteger defaultPort) ++ ". ")))
+      <*> optional
+             (option suggestedPlayerName (long "player"
+                              <> short 'p'
+                              <> help ("The name of the player you want to use, " ++
+                                       "in a multiplayer context. Default is \"player\".")))
       <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
 
 renderHelp :: String
@@ -89,7 +111,7 @@ renderHelp =
 
 backendArg :: ReadM BackendType
 backendArg =
-  str >>= \s -> case toLower $ pack s of
+  str >>= \s -> case map toLower s of
     "ascii"        -> return Console
     "console"      -> return Console
     "term"         -> return Console
@@ -97,10 +119,35 @@ backendArg =
     "opengl"       -> return OpenGLWindow
     "win"          -> return OpenGLWindow
     "window"       -> return OpenGLWindow
-    _ -> readerError $ "encountered an invalid render type:\n\t"
-                    ++ show s
+    st -> readerError $ "Encountered an invalid render type:\n\t"
+                    ++ show st
                     ++ "\nAccepted render types are 'console' and 'opengl'."
                     ++ renderHelp
+
+srvNameArg :: ReadM ServerName
+srvNameArg =
+  str >>= \s -> case map toLower s of
+    [] -> readerError $ "Encountered an empty servername. Accepted names are ip address or domain name."
+                     ++ renderHelp
+    name -> return $ ServerName name
+
+srvPortArg :: ReadM ServerPort
+srvPortArg =
+  str >>= \s -> case map toLower s of
+    [] -> readerError $ "Encountered an empty serverport."
+                     ++ renderHelp
+    name ->
+      maybe
+        (error $ "invalid number : " ++ show name)
+        (return . ServerPort)
+          (readMaybe name)
+
+suggestedPlayerName :: ReadM SuggestedPlayerName
+suggestedPlayerName =
+  str >>= \case
+    [] -> readerError $ "Encountered an empty player name."
+                     ++ renderHelp
+    name -> return $ SuggestedPlayerName name
 
 userPicksBackend :: IO BackendType
 userPicksBackend = do
@@ -113,28 +160,50 @@ userPicksBackend = do
   putStrLn " - Press (2) then (Enter) to play in a separate window (enables more rendering options)."
   putStrLn "          [Equivalent to passing '-r opengl']"
   putStrLn ""
-  hFlush stdout -- just in case buffer mode is block
+  hFlush stdout -- just in case stdout BufferMode is "block"
   getLine >>= \case
     "1" -> return Console
     "2" -> return OpenGLWindow
     c -> putStrLn ("invalid value : " ++ c) >> userPicksBackend
 
-runWithBackend :: Maybe BackendType -> Bool -> IO ()
-runWithBackend maybeBackend debug =
+runWithBackend :: Maybe BackendType
+               -> Maybe ServerName
+               -> Maybe ServerPort
+               -> Maybe SuggestedPlayerName
+               -> Bool
+               -> IO ()
+runWithBackend maybeBackend maySrvName maySrvPort mayPlayerName debug = do
+  putStrLn $ " ------------- --------------------------"
+  putStrLn $ "| Backend     : " ++ show maybeBackend
+  putStrLn $ "| Server name : " ++ show maySrvName
+  putStrLn $ "| Server port : " ++ show maySrvPort
+  putStrLn $ "| Debug       : " ++ show debug
+  putStrLn $ " ------------- --------------------------"
+
+  let srvPort = fromMaybe defaultPort maySrvPort
+      srv = mkServer maySrvName srvPort
+      spn = fromMaybe "player" $ mayPlayerName
   maybe userPicksBackend return maybeBackend >>= \case
-    Console      -> newConsoleBackend >>= runWith debug
-    OpenGLWindow -> newOpenGLBackend "Hamazed" 10 (Size 600 1400) >>= runWith debug
+    Console      -> newConsoleBackend
+      >>= runWith debug srv spn
+    OpenGLWindow -> newOpenGLBackend "Hamazed" 10 (Size 600 1400)
+      >>= runWith debug srv spn
+
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
-        => Bool -> a -> IO ()
-runWith debug backend =
+        => Bool
+        -> Server
+        -> SuggestedPlayerName
+        -> a
+        -> IO ()
+runWith debug srv player backend =
   flip withDefaultPolicies backend $ \drawEnv -> do
-    env <- Env drawEnv backend <$> mkQueues
+    env <- Env drawEnv backend <$> startNetworking player srv
     sz <- getDiscreteSize backend
-    state <- liftIO $ createState sz debug
-    let actState = void (runStateT (runReaderT loop env) state)
-    runReaderT actState env
+    _ <- createState sz debug player srv NotConnected >>=
+      runStateT (runReaderT loop env)
+    return ()
 
 loop :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e, Render e, PlayerInput e)
      => m ()
@@ -148,10 +217,10 @@ loop = do
               (return . Just))
             (return . Just))
   prod >>= \case
-    (Just (Evt (Interrupt _ ))) -> return ()
-    mayEvt -> playerEndsProgram >>= \case
-      True -> return ()
-      _ -> onEvent mayEvt >> loop -- Maybe (Either (Either ServerEvent Event) ClientEvent)
+    (Just (SrvEvt DisconnectionAccepted)) -> return ()
+    x -> do
+      onEvent x
+      loop
 
 
 -- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':

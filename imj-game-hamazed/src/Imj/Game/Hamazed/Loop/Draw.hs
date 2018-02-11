@@ -25,14 +25,15 @@ import           Imj.Graphics.ParticleSystem.Design.Draw
 draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      => m ()
 draw =
-  getGame >>= \(Game _ (GameParameters _ _ mode)
-                       (GameState _ _ world@(World _ _ space animations) _ _ level wa (Screen _ screenCenter))) -> do
+  getGame >>= \(Game _ mode
+                     (GameState world@(World _ _ _ renderedSpace animations _) _ _ level wa (Screen _ screenCenter))
+                     _ _ _ _) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
     -- draw the walls outside the matrix:
     fill (materialChar Wall) outerWallsColors
     -- draw the matrix:
-    drawSpace space worldCorner
+    drawSpace renderedSpace worldCorner
     mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
     drawWorld world worldCorner
     drawUIAnimation offset wa -- draw it after the world so that when it morphs

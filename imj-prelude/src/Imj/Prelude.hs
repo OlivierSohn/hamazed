@@ -43,7 +43,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         )
 
 import           GHC.Generics(Generic)
-import           Control.Applicative((<|>), pure)
+import           Control.Applicative((<|>), pure, (<*>))
 import           Control.Arrow((>>>))
 import           Control.Exception(assert)
 import           Control.Monad(sequence, when, unless, void, (<=<), (>=>), Monad, zipWithM_, forever

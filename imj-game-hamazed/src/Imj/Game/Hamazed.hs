@@ -22,7 +22,8 @@ module Imj.Game.Hamazed
       * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
       * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
        -}
-      , GameParameters(..)
+      , WorldParameters(..)
+      , ViewMode(..)
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 

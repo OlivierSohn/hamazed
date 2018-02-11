@@ -5,14 +5,10 @@
 
 module Imj.Game.Hamazed.Env
       ( Env(..)
-      , mkQueues
       ) where
 
-import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
-import           Control.Monad.IO.Class(liftIO)
-
-import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Server
+import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Game.Hamazed.Network.Types
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw(Draw(..))
 import           Imj.Graphics.Class.Render(Render(..))
@@ -23,21 +19,8 @@ import           Imj.Input.Types
 data Env a = Env {
     _envDeltaEnv :: !DeltaEnv
   , _envPlayerInput :: !a
-  , _envQueues :: !Queues
+  , _envClientQueues :: !ClientQueues
 }
-
-data Queues = Queues {
-    getInputQueue :: !(TQueue ServerEvent)
-  , getOutputQueue :: !(TQueue ClientEvent)
-}
-
-mkQueues :: IO Queues
-mkQueues = do
-  i <- newTQueueIO
-  o <- newTQueueIO
-  return $ Queues i o
-  -- TODO try:
-  -- Queues <$> newTQueueIO <$> newTQueueIO
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
 instance Draw (Env x) where
@@ -69,9 +52,9 @@ instance Render (Env x) where
   {-# INLINE renderToScreen' #-}
 
 instance ClientNode (Env x) where
-  send' (Env _ _ q) = liftIO . atomically . writeTQueue (getOutputQueue q)
-  serverQueue (Env _ _ q) = getInputQueue q
-  {-# INLINABLE send' #-}
+  sendToServer' (Env _ _ q) = sendToServer' q
+  serverQueue (Env _ _ q) = serverQueue q
+  {-# INLINABLE sendToServer' #-}
   {-# INLINABLE serverQueue #-}
 
 instance PlayerInput x => PlayerInput (Env x) where

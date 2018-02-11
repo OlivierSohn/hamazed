@@ -1,32 +1,112 @@
+- No setup is possible when launching the game: it seems there is no transition from Excluded to Setup?
+- investigate error seen in terminal, is it when closing the app? if so, can we close more gracefully,
+else this is a bug.
+
+- The approach I took is:
+ServerEvent : "go to state 'X' now"
+ClientEvent : "I've finished state 'X', with these results: ..."
+
+Server stores game state, to know how to handle client events.
+Client also store game state, to adapt keyboard mapping and rendering.
+
+Use case, client side 1:
+
+(program start)
+(once no other client is playing anymore)
+receive ServerEvent $ EnterState Setup -> state = `Ongoing` `Setup` (defines keyboard mapping)
+(when player changes a parameter)
+send ClientEvent $ ChangeWallDistribution ... -> server broadcasts "clientX changed world parameter"
+                                               , puts /last world request/ to "172"
+                                                then asks world creator to build a world for Level1, and passes 172,
+                                                which will be included in the response to be able to tell if the world corresponds.
+                                                , once server received world 172:
+receive ServerEvent $ ChangeLevel LevelSpec WorldEssence -> displays the world
+send ClientEvent $ IsReady 172
+(when player hits space)
+send ClientEvent $ ExitedState Setup -> state = `Done` `Setup`
+                                       , server broadcasts EnterState `Done` `Setup`
+                                          because we don't want other players to change the world
+                                       , server broadcasts 'player' started the game
+                                          to inform other players of what happened
+                                       , server puts /last world request/ to "173"
+                                        then asks world creator to build a world for Level1, and passes 173,
+                                        which will be included in the response to be able to tell if the world corresponds.
+                                       , once server received world 173:
+receive ServerEvent $ ChangeLevel !LevelSpec !WorldEssence
+(once UI animations to transition level are done)
+send ClientEvent $ IsReady 173
+(when all clients in `curClients` sent IsReady 173)
+receive ServerEvent $ EnterState `Ongoing` `Play` (defines keyboard mapping)
+(when lose or win)
+send ClientEvent $ ExitedState Play (Win | Lose)
+(when all clients in `curClients` sent the same)
+receive ServerEvent $ EnterState ...
+
+Use case, client side 2:
+(program start)
+(once no other client is playing anymore)
+receive ServerEvent $ EnterState Setup -> state = `Ongoing` `Setup` (defines keyboard mapping)
+receive ServerEvent $ EnterState `Done` `Setup` -> state = `Done` `Setup`
+
+-
+`curClients` = group of clients that were in "Setup" when one client hit space.
+
+              user sees "a game is in progress, please wait..."
+              and can communicate with the chat.
+              |
+            WaitingForServer
+                   |
+                   | [if all clients are in Setup]
+                   |
+                   |   .----------------------------------------<  Lost level
+                   |   |   --------- > -----------                  ^
+                   v   v /                         \                |
+                   Setup -> Computing World -> Changing Level -> Playing level
+                    |  ^        ^                   ^               v
+display which players  |        .-------------------.-----------<  Won Level
+would be in the game   |                                            v
+if we hit space        .----------------------------------------<  Won Game
+
+When a client enters "Setup", it is added to `curClients`.
+
+on Level lose, Level win, wait for other clients to reach the same result before triggering
+the next transition.
+
+
+- broadcast every player state change, to have the following UI:
+                                                            Player1 [Level 3 running]
+                                                            Player2 [Level 3 won]
+                                                            Player3 [Waiting]
+
+                                                        (Player 1) Hello !
+                                                        (Player 2) Salut
+                                                        <Player 3 joined>
+                                                        (Player 2 typing...)
+                                                        > Comm|
+
+
+- I dropped the changes in time period (accelerating during game, resetting on collision
+  with initalGameMultiplicator). Should we use it?
+
+- now that we have multiple threads, revise number of capabilities
+
+- do not crash client when server dies without disconnecting clients.
+- when quitting program, we should stop the server gracefully to avoid exceptions
+in distant clients.
+- when exiting the program, should the client close the connection:
+sendClose conn ("Bye!" :: Text)
+then wait one second?
+- if the server closes the connection, the next send from client should fail :
+can we automatically reconnect in that case? All peers should store their last GameStepIdx
+to know which was more advanced, and start from that state.
+- on connection, if server is not found, retry every 3 seconds.
+
+- the server creates the shipids.
+
+- when talking, animate text.
+
 - when hitting Esc in the console, we need to hit enter after to stop the program.
 investigate...
-
-- pass a command line arg to say if we are the server or if we connect to a distant
-server. pass a command line arg for player name
-
-- to accept clients and send data to clients :
-when iAmServer $
-  runServer ...
- https://github.com/jaspervdj/websockets/blob/ef2ed9196be529874b1fc58cdb18ae02f1116203/example/server.lhs
- (for now, periodically send fake game events).
- TODO receive client data, interpret it
-- receive server data to a queue and send client data from a queue:
- queue <- newTQueueIO :: IO (TQueue ServerEvent)
- queue' <- newTQueueIO :: IO (TQueue ClientEvent)
- forkIO $ runClient hostFromCLI portFromCLI "/" $ \connection ->
-    forkIO $ forever $ receiveData connection >>= atomically (writeTQueue queue)
-    forever $ atomically (readTQueue queue') >>= flip sendBinaryData connection
-then in produceEvent, tryRead from queue before trying player event.
-- to send data to server :
-
-
-- if I run server + client in the same thread, can I use a typed channel?
-
-- spawnChannelLocal
-- create server and channel in it for clients, before creating env.
-then pass send of server to env, and pass receive of env channel to server.
-- fork a thread that periodically (activity can be controlled) sends a server event to self and other clients.
-- create a typed channel to receive server events. use receiveChanTimeout 0 in produceEvent.
 
 - a client with ip "IPC" creates the world, publishes it as multiplayable.
 other clients can connect to "IPC" enter it. then the game is started when all players agree to start.
@@ -36,7 +116,7 @@ On every level, The client that created the world creates the next world, publis
 (world + positions) then the server starts the transition, then when all players
 have finished animating the transition, the server starts it.
 
-- ship safe until is managed by the server, else results can differ between clients!
+- "ship safe until" is managed by the server, else results can differ between clients!
 
 - continue the level until all ships are destroyed
 
@@ -58,6 +138,8 @@ If one ship collides, the other can continue.
   - http://haskell-distributed.github.io/tutorials/tutorial-NT2.html
   - https://hackage.haskell.org/package/network-multicast
   - https://wiki.haskell.org/Implement_a_chat_server
+
+- use bitwise to optimize boolean matrix representation.
 
 - make font characters more square
 

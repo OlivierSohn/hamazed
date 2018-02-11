@@ -1,40 +1,63 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World.Create
-        ( mkWorld
+        ( mkWorldEssence
+        , mkSpace
         , updateMovableItem
         , validateScreen
         , createShipPos
         ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Data.Map.Strict(empty)
+
+import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 
-mkWorld :: (MonadIO m)
+
+mkWorldEssence :: WorldSpec -> IO WorldEssence
+mkWorldEssence (WorldSpec levelNum shipIds (WorldParameters shape wallDistrib) wid) = do
+  let (LevelSpec _ _ numbers) = mkLevelSpec levelNum
+      size = worldSizeFromLevel levelNum shape
+      nShips = length shipIds
+  space <- mkSpace size wallDistrib
+  balls <- mapM (createRandomNumber space) numbers
+  posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
+  let ships = map
+        (\(sid,posSpeed@(PosSpeed pos _)) -> BattleShip sid posSpeed initialLaserAmmo True (getColliding pos balls))
+        $ zip shipIds posSpeeds
+  return $ WorldEssence balls ships (toListOfLists space) wid
+
+initialLaserAmmo :: Int
+initialLaserAmmo = 10
+
+-- | Ships positions will not be colliding with numbers and with each other.
+createShipPosSpeeds :: Int -> Space -> [Coords Pos] -> [PosSpeed] -> IO [PosSpeed]
+createShipPosSpeeds 0 _ _ res = return res
+createShipPosSpeeds n space obstacles cur =
+  createShipPos space obstacles >>= \posSpeed@(PosSpeed pos _) ->
+    createShipPosSpeeds (pred n) space (pos:obstacles) (posSpeed:cur)
+
+mkSpace :: (MonadIO m)
         => Size
         -- ^ The dimensions
         -> WallDistribution
         -- ^ How the 'Wall's should be constructed
-        -> [Int]
-        -- ^ The numbers for which we will create 'Number's.
-        -> m World
-mkWorld s walltype nums = do
-  space <- case walltype of
-    None          -> return $ mkEmptySpace s
-    Deterministic -> return $ mkDeterministicallyFilledSpace s
-    Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
-  balls <- mapM (createRandomNumber space) nums
-  return $ World balls [] space empty
+        -> m Space
+mkSpace s = \case
+  None          -> return $ mkEmptySpace s
+  Deterministic -> return $ mkDeterministicallyFilledSpace s
+  Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

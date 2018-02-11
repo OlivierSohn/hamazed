@@ -1,9 +1,13 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
+    , RenderedSpace(..)
+    , getSize
     , Material(..)
     , RandomParameters(..)
     , Strategy(..)
@@ -14,9 +18,8 @@ module Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Prelude
 
-import           Data.Matrix( Matrix )
-
-import           Foreign.C.Types( CInt(..) )
+import           Control.DeepSeq(NFData)
+import           Data.Matrix( Matrix, ncols, nrows )
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
@@ -26,6 +29,8 @@ data Strategy = StrictlyOneComponent
               --
               -- This way, the ship can reach any allowed location without having to go
               -- through 'Wall's.
+              deriving(Generic, Binary, Show, NFData)
+
 
 -- TODO support a world / air ratio (today it is 50 50)
 -- | Parameters for random walls creation.
@@ -37,7 +42,7 @@ data RandomParameters = RandomParameters {
     -- a random world with a single component of air.
   , _randomWallsStrategy :: !Strategy
     -- ^ Space characteristics (only /one connected component/ is available for the moment)
-}
+} deriving(Generic, Binary, Show, NFData)
 
 data DrawGroup = DrawGroup {
     _drawGroupCoords :: !(Coords Pos)
@@ -47,19 +52,28 @@ data DrawGroup = DrawGroup {
 }
 
 data Space = Space {
-    _space :: !(Matrix CInt)
+    _space :: !(Matrix Material)
     -- ^ The material matrix.
-  , _spaceSize :: !Size
-    -- ^ The AABB of the space, excluding the outer border
-  , _spaceDraw :: ![DrawGroup]
-    -- ^ How to draw the space.
 }
+
+-- | How to draw the space.
+data RenderedSpace = RenderedSpace {
+  _spaceDraw :: ![DrawGroup] -- TODO use an array to have better memory layout
+}
+
+{-# INLINE getSize #-}
+getSize :: Space -> Size
+getSize = getSize' . _space
+
+{-# INLINE getSize' #-}
+getSize' :: Matrix a -> Size
+getSize' m = Size (Length $ nrows m) (Length $ ncols m)
 
 data Material = Air
               -- ^ In it, ship and numbers can move.
               | Wall
               -- ^ Ship and numbers rebound on 'Wall's.
-              deriving(Eq, Show)
+              deriving(Generic, Eq, Show, Binary)
 
 data Scope = WorldScope !Material
            -- ^ A given 'Material' of the world.

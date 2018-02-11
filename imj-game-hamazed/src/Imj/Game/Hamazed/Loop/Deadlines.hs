@@ -14,6 +14,7 @@ import           Imj.Prelude
 import           Data.List( minimumBy, sortBy)
 import           Data.Map (toList)
 import           Data.Maybe( catMaybes )
+import           Control.Monad(join)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Level
@@ -81,25 +82,25 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 
 getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ _ _ level _ _) =
+getDeadlinesByDecreasingPriority s@(GameState _ _ _ (Level _ level) _ _) =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     (catMaybes
       [ uiAnimationDeadline s
-      , messageDeadline level
+      , join $ fmap messageDeadline level
       ]
     ) ++ getParticleSystemsDeadlines s
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
-getParticleSystemsDeadlines (GameState _ _ (World _ _ _ animations) _ _ _ _ _) =
+getParticleSystemsDeadlines (GameState world _ _ _ _ _) =
   map (\(key, (Prioritized p a)) ->
         Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
           $ AnimateParticleSystem key)
-    $ toList animations
+    $ toList $ getParticleSystems world
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
-uiAnimationDeadline (GameState _ _ _ _ _ _ uianim _) =
+uiAnimationDeadline =
   maybe
     Nothing
     (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)
-    $ getUIAnimationDeadline uianim
+    . getUIAnimationDeadline . getUIAnimation

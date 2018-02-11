@@ -187,7 +187,7 @@ glfwKeyToKey _ = Unknown
 newOpenGLBackend :: String -> Int -> Size -> IO OpenGLBackend
 newOpenGLBackend title ppu size@(Size h w) = do
   let simpleErrorCallback e s =
-        putStrLn $ unwords [show e, show s]
+        putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show s]
   GLFW.setErrorCallback $ Just simpleErrorCallback
 
   GLFW.init >>= \case

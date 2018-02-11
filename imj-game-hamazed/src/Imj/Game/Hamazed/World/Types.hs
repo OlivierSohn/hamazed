@@ -6,9 +6,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.World.Types
-        ( World(..)
+        ( WorldId(..)
+        , WorldSpec(..)
+        , WorldEssence(..)
+        , World(..)
         , ParticleSystemKey(..)
-        , startWorld
+        , WorldParameters(..)
         , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
@@ -40,7 +43,7 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
-
+import           Control.DeepSeq(NFData)
 import           Data.List(find, partition)
 import           Data.Map.Strict(Map)
 
@@ -59,10 +62,22 @@ import           Imj.Physics.Discrete.Types
 import           Imj.Timing
 
 
+data WorldParameters = WorldParameters {
+    getWorldShape :: !WorldShape
+  , getWallDistrib :: !WallDistribution
+} deriving(Generic)
+
+instance Binary WorldParameters
+instance NFData WorldParameters
+
 data WorldShape = Square
                 -- ^ Width = Height
                 | Rectangle2x1
                 -- ^ Width = 2 * Height
+                deriving(Generic, Show)
+
+instance Binary WorldShape
+instance NFData WorldShape
 
 -- | How should walls be created?
 data WallDistribution = None
@@ -71,25 +86,44 @@ data WallDistribution = None
                       -- ^ A Rectangular 'Wall' in the middle of the level.
                       | Random !RandomParameters
                       -- ^ 'Wall's are created with an algorithm involving random numbers.
+                      deriving(Generic, Show)
+
+instance Binary WallDistribution
+instance NFData WallDistribution
+
+data WorldSpec = WorldSpec {
+    getLevelNumber :: !Int
+  , getShipIds :: ![ShipId]
+  , getWorldParams :: !WorldParameters
+  , getWorldId' :: !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
+} deriving(Generic)
+instance Binary WorldSpec
+
+data WorldEssence = WorldEssence {
+    getNumbers :: ![Number]
+  , getShips :: ![BattleShip]
+  , getSpaceMatrix :: ![[Material]] -- TODO ByteString would use 3 * 64 times less memory
+  , getWorldId :: !(Maybe WorldId)
+} deriving(Generic, Show)
+instance Binary WorldEssence
+
+newtype WorldId = WorldId Int64
+  deriving(Generic, Show, Binary, Enum, Eq, NFData)
 
 data World = World {
-    _worldNumbers :: ![Number]
+    getWorldNumbers :: ![Number]
     -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
-  , _worldShips :: ![BattleShip]
-  , _worldSpace :: !Space
+  , getWorldShips :: ![BattleShip]
+  , getWorldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , _worldParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
+  , getWorldRenderedSpace :: !RenderedSpace
+  , getParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
     -- ^ Animated particle systems, illustrating player actions and important game events.
-}
+  , getId :: !(Maybe WorldId)
+} deriving (Generic)
 
 newtype ParticleSystemKey = ParticleSystemKey Int
   deriving (Eq, Ord, Enum, Show, Num)
-
-startWorld :: Time Point System -> World -> World
-startWorld t (World a ships b c) =
-  let setSafeTime (BattleShip sid ship ammo _ col) = BattleShip sid ship ammo (Just $ addDuration (fromSecs 5) t) col
-  in World a (map setSafeTime ships) b c
-
 
 data ViewMode = CenterShip ShipId
               -- ^ the 'BattleShip' position is fixed w.r.t the screen.
@@ -108,14 +142,14 @@ data BattleShip = BattleShip {
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
   -- ^ How many laser shots are left.
-  , _shipSafeUntil :: !(Maybe (Time Point System))
-  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
-  -- for a given time. This field holds the time at which the immunity ends.
+  , _shipArmor :: !Bool
+  -- ^ True if ship has an armor protecting it.
   , getCollisions :: ![Number]
   -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
-} deriving(Show)
+} deriving(Generic, Show)
+instance Binary BattleShip
 
-newtype ShipId = ShipId Int64 deriving(Generic, Binary, Eq, Show)
+newtype ShipId = ShipId Int64 deriving(Generic, Binary, Eq, Show, Enum, NFData)
 
 -- This is good enough for now.
 mkShipId :: IO ShipId
@@ -126,8 +160,9 @@ data Number = Number {
   -- ^ Discrete position and speed.
   , getNumber :: !Int
   -- ^ Which number it represents (1 to 16).
-} deriving(Eq, Show)
+} deriving(Generic, Eq, Show)
 
+instance Binary Number
 
 getColliding :: Coords Pos -> [Number] -> [Number]
 getColliding pos =
@@ -142,17 +177,19 @@ envDistance (Vec2 x y) =
       DistanceOK
 
 getWorldOffset :: ViewMode -> World -> Coords Pos
-getWorldOffset mode (World _ ships (Space _ (Size h w) _) _) =
+getWorldOffset mode (World _ ships space _ _ _) =
   case mode of
     CenterSpace -> zeroCoords
     CenterShip myId ->
       let worldCenter = Coords (fromIntegral $ quot h 2) (fromIntegral $ quot w 2)
+          (Size h w) = getSize space
           (BattleShip _ (PosSpeed shipPos _) _ _ _) = findShip myId ships
       in diffCoords worldCenter shipPos
 
 getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
-getWorldCorner (World _ _ (Space _ (Size h w) _) _) screenCenter offset =
+getWorldCorner world screenCenter offset =
   let (h',w') = (quot h 2, quot w 2)
+      (Size h w) = getSize $ getWorldSpace $ world
   in sumCoords offset $ translate' (-h') (-w') screenCenter
 
 
@@ -176,7 +213,7 @@ scopedLocation :: World
                -> Coords Pos
                -- ^ The coordinates to test
                -> Location
-scopedLocation world@(World _ _ space@(Space _ sz _) _) mode (Screen mayTermSize screenCenter) scope pos =
+scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCenter) scope pos =
   let termContains (Size h w) =
         let corner = getWorldCorner world screenCenter $ getWorldOffset mode world
             (Coords r c) = sumCoords pos corner
@@ -201,7 +238,7 @@ scopedLocation world@(World _ _ space@(Space _ sz _) _) mode (Screen mayTermSize
                                           OutsideWorld)
                                       mayTermSize
  where
-  worldArea = mkRectArea zeroCoords sz
+  worldArea = mkRectArea zeroCoords $ getSize space
   worldViewArea = growRectArea 1 worldArea
 
 

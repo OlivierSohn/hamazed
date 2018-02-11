@@ -5,12 +5,15 @@
 
 module Imj.Game.Hamazed.World.Space
     ( Space
+    , toListOfLists
+    , fromListOfLists
     , Material(..)
     , materialColor
     , materialChar
     , mkEmptySpace
     , mkDeterministicallyFilledSpace
     , mkRandomlyFilledSpace
+    , mkRenderedSpace
     , RandomParameters(..)
     , Strategy(..)
     , location
@@ -36,9 +39,8 @@ import           Data.Matrix( getElem
                             , fromLists
                             , getMatrixAsVector
                             , Matrix
-                            , nrows, ncols )
+                            , nrows, ncols, toLists )
 import           Data.Vector(Vector, slice, (!))
-import           Foreign.C.Types( CInt(..) )
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
@@ -46,6 +48,12 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
+
+toListOfLists :: Space -> [[Material]]
+toListOfLists (Space mat) = toLists mat
+
+fromListOfLists :: [[Material]] -> Space
+fromListOfLists = Space . fromLists
 
 -- | Creates a 'PosSpeed' such that its position is not colliding,
 -- and moves to precollision and mirrors speed if a collision is detected for
@@ -67,8 +75,8 @@ randomSpeed :: IO Int
 randomSpeed = oneRandom (-1) 1
 
 randomNonCollidingPos :: Space -> IO (Coords Pos)
-randomNonCollidingPos space@(Space _ worldSize _) = do
-  coords <- randomCoords worldSize
+randomNonCollidingPos space = do
+  coords <- randomCoords $ getSize space
   case getMaterial coords space of
     Wall -> randomNonCollidingPos space
     Air -> return coords
@@ -78,52 +86,35 @@ randomInt sz =
   oneRandom 0 (sz-1)
 
 randomCoords :: Size -> IO (Coords Pos)
-randomCoords (Size rs cs) = do
-  r <- randomCoord $ fromIntegral rs
-  c <- randomCoord $ fromIntegral cs
-  return $ Coords r c
+randomCoords (Size rs cs) =
+  Coords <$> (randomCoord $ fromIntegral rs)
+         <*> (randomCoord $ fromIntegral cs)
 
 randomCoord :: Coord a -> IO (Coord a)
 randomCoord (Coord sz) =
   Coord <$> randomInt sz
 
-forEachRowPure :: Matrix CInt -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
+forEachRowPure :: Matrix Material -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
 forEachRowPure mat (Size nRows nColumns) f =
   let rowIndexes = [0..fromIntegral $ nRows-1] -- index of inner row
       matAsOneVector = flatten mat -- this is O(1)
   in map (\rowIdx -> do
     let startIdx = fromIntegral rowIdx * fromIntegral nColumns :: Int
         row = slice startIdx (fromIntegral nColumns) matAsOneVector
-    f rowIdx (\c -> mapInt $ row ! fromIntegral c)) rowIndexes
-
--- unfortunately I didn't find a Matrix implementation that supports arbitrary types
--- so I need to map my type on a CInt
-{-# INLINE mapMaterial #-}
-mapMaterial :: Material -> CInt
-mapMaterial Air  = 0
-mapMaterial Wall = 1
-
-{-# INLINE mapInt #-}
-mapInt :: CInt -> Material
-mapInt 0 = Air
-mapInt 1 = Wall
-mapInt _ = error "mapInt arg out of bounds"
+    f rowIdx (\c -> row ! fromIntegral c)) rowIndexes
 
 -- | Creates a rectangular empty space of size specified in parameters.
 mkEmptySpace :: Size -> Space
 mkEmptySpace s =
-  mkSpaceFromMat s [[mapMaterial Air]]
+  mkSpaceFromMat s [[Air]]
 
 -- | Creates a rectangular deterministic space of size specified in parameters.
 mkDeterministicallyFilledSpace :: Size -> Space
 mkDeterministicallyFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
-  let wall = mapMaterial Wall
-      air  = mapMaterial Air
-
-      w = fromIntegral widthEmptySpace
+  let w = fromIntegral widthEmptySpace
       h = fromIntegral heightEmptySpace
-      middleRow = replicate w air
-      collisionRow = replicate 2 air ++ replicate (w-4) wall ++ replicate 2 air
+      middleRow = replicate w Air
+      collisionRow = replicate 2 Air ++ replicate (w-4) Wall ++ replicate 2 Air
       ncolls = 8 :: Int
       nEmpty = h - ncolls
       n1 = quot nEmpty 2
@@ -137,7 +128,8 @@ mkRandomlyFilledSpace :: RandomParameters -> Size -> IO Space
 mkRandomlyFilledSpace (RandomParameters blockSize strategy) s = do
   smallWorldMat <- mkSmallWorld s blockSize strategy
 
-  let innerMat = replicateElements blockSize $ map (replicateElements blockSize) smallWorldMat
+  let replicateElems = replicateElements blockSize
+      innerMat = replicateElems $ map replicateElems smallWorldMat
   return $ mkSpaceFromMat s innerMat
 
 --  TODO We could measure, on average, how many tries it takes to generate a graph
@@ -157,22 +149,22 @@ mkSmallWorld :: Size
              -> Int
              -- ^ Pixel width (if 1, the small world will have the same size as the big one)
              -> Strategy
-             -> IO [[CInt]]
+             -> IO [[Material]]
              -- ^ the "small world"
 mkSmallWorld s@(Size heightEmptySpace widthEmptySpace) multFactor strategy = do
   let nCols = quot widthEmptySpace $ fromIntegral multFactor
       nRows = quot heightEmptySpace $ fromIntegral multFactor
-      mkRandomRow _ = take (fromIntegral nCols) <$> rands -- TODO use a Matrix directly
+      mkRandomRow _ = take (fromIntegral nCols) . map intToMat <$> rands -- TODO use a Matrix directly
   smallMat <- mapM mkRandomRow [0..nRows-1]
 
   let mat = fromLists smallMat
-      graph = graphOfIndex (mapMaterial Air) mat
+      graph = graphOfIndex Air mat
   case strategy of
     StrictlyOneComponent -> case components graph of
       [_] -> return smallMat
       _   -> mkSmallWorld s multFactor strategy
 
-graphOfIndex :: CInt -> Matrix CInt -> Graph
+graphOfIndex :: Material -> Matrix Material -> Graph
 graphOfIndex matchIdx mat =
   let sz@(nRows,nCols) = size mat
       coords = [Coords (Coord r) (Coord c) | c <-[0..nCols-1], r <- [0..nRows-1], mat `at` (r, c) == matchIdx]
@@ -191,21 +183,24 @@ at :: Matrix a -> (Int, Int) -> a
 at mat (i, j) =
   getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
 
-connectedNeighbours :: CInt -> Coords Pos -> Matrix CInt -> (Int, Int) -> [Coords Pos]
-connectedNeighbours matchIdx coords mat (nRows,nCols) =
+connectedNeighbours :: Material -> Coords Pos -> Matrix Material -> (Int, Int) -> [Coords Pos]
+connectedNeighbours match coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
   in mapMaybe (\other@(Coords (Coord r) (Coord c)) ->
-        if r < 0 || c < 0 || r >= nRows || c >= nCols || mat `at` (r, c) /= matchIdx
+        if r < 0 || c < 0 || r >= nRows || c >= nCols || mat `at` (r, c) /= match
           then
             Nothing
           else
             Just other) neighbours
 
-mkSpaceFromMat :: Size -> [[CInt]] -> Space
+mkSpaceFromMat :: Size -> [[Material]] -> Space
 mkSpaceFromMat s matMaybeSmaller =
   let ext = extend s matMaybeSmaller
       mat = fromLists ext
-  in Space mat s $ matToDrawGroups mat s
+  in Space mat
+
+mkRenderedSpace :: Space -> RenderedSpace
+mkRenderedSpace s@(Space mat) = RenderedSpace $ matToDrawGroups mat $ getSize s
 
 extend :: Size -> [[a]] -> [[a]]
 extend (Size rs cs) mat =
@@ -220,8 +215,13 @@ extend' sz l@(_:_) =
       addsRight = addsTotal - addsLeft
   in replicate addsLeft (head l) ++ l ++ replicate addsRight (last l)
 
-rands :: IO [CInt]
+rands :: IO [Int]
 rands = randomRsIO 0 1
+
+intToMat :: Int -> Material
+intToMat 0 = Wall
+intToMat 1 = Air
+intToMat _ = error "unexpected"
 
 {-# INLINE materialColor #-}
 materialColor :: Material -> LayeredColor
@@ -235,7 +235,7 @@ materialChar = \case
   Wall -> 'Z'
   Air  -> ' '
 
-matToDrawGroups :: Matrix CInt -> Size -> [DrawGroup]
+matToDrawGroups :: Matrix Material -> Size -> [DrawGroup]
 matToDrawGroups mat s@(Size _ cs) =
   concat $
     forEachRowPure mat s $
@@ -248,23 +248,26 @@ matToDrawGroups mat s@(Size _ cs) =
                   (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
 unsafeGetMaterial :: Coords Pos -> Space -> Material
-unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat _ _) =
-  mapInt $ mat `at` (r, c)
+unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat) =
+  mat `at` (r, c)
 
 -- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix
 getMaterial :: Coords Pos -> Space -> Material
-getMaterial coords@(Coords r c) space@(Space _ (Size rs cs) _)
+getMaterial coords@(Coords r c) space
   | r < 0 || c < 0 = Wall
-  | r > fromIntegral(rs-1) || c > fromIntegral(cs-1) = Wall
+  | r >= fromIntegral rs || c >= fromIntegral cs = Wall
   | otherwise = unsafeGetMaterial coords space
+  where
+    (Size rs cs) = getSize space
 
 -- | If 'Coords' is inside 'Space', returns 0. Else returns
 -- the manhattan distance to the space border.
 distanceToSpace :: Coords Pos -> Space -> Int
-distanceToSpace (Coords r c) (Space _ (Size rs cs) _) =
+distanceToSpace (Coords r c) space =
     dist r (rs-1) + dist c (cs-1)
   where
+    (Size rs cs) = getSize space
     dist x b
       | x < 0 = fromIntegral $ - x
       | x > fromIntegral b = fromIntegral x - fromIntegral b
@@ -282,11 +285,11 @@ location c s =
 
 {-# INLINABLE drawSpace #-}
 drawSpace :: (Draw e, MonadReader e m, MonadIO m)
-          => Space
+          => RenderedSpace
           -> Coords Pos
           -- ^ World upper left coordinates w.r.t terminal frame.
           -> m ()
-drawSpace (Space _ _ drawGroups) upperLeft =
+drawSpace (RenderedSpace drawGroups) upperLeft =
   mapM_ (drawGroup upperLeft) drawGroups
 
 {-# INLINABLE drawGroup #-}

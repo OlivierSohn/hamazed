@@ -98,7 +98,6 @@ appSrv' pending = do
   conn <- liftIO $ acceptRequest pending
   liftIO $ forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
   msg <- liftIO $ receiveData conn
-  clients <- getClients <$> readState
   case msg of
     Connect sn@(SuggestedPlayerName suggestedName) cliType -> case suggestedName of
       _ | any ($ suggestedName)
@@ -109,30 +108,28 @@ appSrv' pending = do
               InvalidName sn ("Name cannot " <>
                 "contain punctuation or whitespace, and " <>
                 "cannot be empty" :: Text)
-        | playerNameExists (PlayerName $ pack suggestedName) clients -> -- TODO change name
-            liftIO $ sendBinaryData conn $ ConnectionRefused $
-              InvalidName sn ("Player already exists" :: Text)
         | otherwise -> do
-            shipId <- modifyState $ \s -> do
+            client@(Client clId _ _ _) <- modifyState $ \s -> do
                 let c@(Clients _ sid) = getClients s
-                return (s { getClients = c { getNextShipId = succ sid } }, sid)
-            let playerId = ClientId (PlayerName $ pack suggestedName) shipId
-            let client = mkClient conn cliType playerId
-            flip finally (disconnect playerId) $ do
-              registerClient client
-              -- don't request a new world as a game may be in progress.
-              chatBroadcast playerId Joins
-              handleIncomingEvents client
+                    makeUniqueName mayI =
+                      let proposal = PlayerName $ pack $ maybe suggestedName ((++) suggestedName . show) mayI
+                      in if playerNameExists proposal c
+                          then
+                            makeUniqueName $ Just $ maybe (2::Int) succ mayI
+                          else
+                            proposal
+                    name = makeUniqueName Nothing
+                    cId = ClientId name sid
+                    client = mkClient conn cliType cId
+                    newClients = addClient client c
+                    s' = s { getClients = newClients { getNextShipId = succ sid } }
+                flip sendClient client
+                  (ConnectionAccepted cId $ map (getPlayerName . getIdentity) $ getClients' $ newClients)
+                mapM_ (sendClient (Info name Joins)) $ getClients' $ newClients
+                return (s', client)
+            flip finally (disconnect clId) $ handleIncomingEvents client
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
-registerClient :: Client -> ServerM ()
-registerClient client = do
-  modifyState_ $ \s -> do
-    let newClients@(Clients l _) = addClient client $ getClients s
-        s' = s { getClients = newClients }
-    flip sendClient client $
-      ConnectionAccepted (getIdentity client) $ map (getPlayerName . getIdentity) l
-    return s'
 
 disconnect :: ClientId -> ServerM ()
 disconnect x = do

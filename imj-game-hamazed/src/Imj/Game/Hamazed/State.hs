@@ -19,7 +19,7 @@ import           Imj.Prelude
 import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(state, get, put)
+import           Control.Monad.State.Strict(state, get, put)
 import           Control.Monad.IO.Class(MonadIO)
 
 import           Data.Text(pack)
@@ -56,7 +56,8 @@ representation (Left (WorldRequest _)) = WorldRequest'
 representation (Left (ChangeLevel _ _)) = ChangeLevel'
 representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
 representation (Left (ConnectionRefused _)) = ConnectionRefused'
-representation (Left (Info _ _)) = Chat'
+representation (Left (PlayerInfo _ _)) = Chat'
+representation (Left (GameInfo _)) = Chat'
 representation (Right e) = case e of
   CycleRenderingOptions -> CycleRenderingOptions'
   (Configuration _) -> Configuration'

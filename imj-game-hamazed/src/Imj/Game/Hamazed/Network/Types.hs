@@ -22,8 +22,10 @@ module Imj.Game.Hamazed.Network.Types
       , ServerName(..)
       , getServerNameAndPort
       , PlayerNotif(..)
+      , GameNotif(..)
       , GameStep(..)
       , toTxt
+      , toTxt'
       , welcome
       ) where
 
@@ -120,7 +122,8 @@ data ServerEvent =
   | DisconnectionAccepted
   | EnterState !StateValue
   | ExitState !StateValue
-  | Info !PlayerName !PlayerNotif
+  | PlayerInfo !PlayerName !PlayerNotif
+  | GameInfo !GameNotif
   | WorldRequest !WorldSpec
   -- ^ Sent to 'WorldCreator's, which should respond with a 'WorldProposal'.
   | ChangeLevel !LevelSpec !WorldEssence
@@ -167,19 +170,24 @@ data PlayerNotif =
     Joins
   | Leaves
   | StartsGame
-  | GameResult GameOutcome
   | Says !Text
   deriving(Generic, Show)
-
 instance Binary PlayerNotif
+
+data GameNotif =
+    GameResult !GameOutcome
+  deriving(Generic, Show)
+instance Binary GameNotif
 
 toTxt :: PlayerNotif -> PlayerName -> Text
 toTxt Joins (PlayerName n) = "<< " <> n <> " joins the game. >>"
 toTxt Leaves (PlayerName n) = "<< " <> n <> " leaves the game. >>"
 toTxt StartsGame (PlayerName n) = "<< " <> n <> " starts the game. >>"
-toTxt (GameResult (Lost reason)) (PlayerName n) = "<< " <> n <> " lost the game : " <> reason <> ". >>"
-toTxt (GameResult Won) (PlayerName n) = "<< " <> n <> " won the game. >>"
 toTxt (Says t) (PlayerName n) = n <> " : " <> t
+
+toTxt' :: GameNotif -> Text
+toTxt' (GameResult (Lost reason)) = "<< The game was lost : " <> reason <> ". >>"
+toTxt' (GameResult Won) = "<< The game was won! >>"
 
 welcome :: [PlayerName] -> Text
 welcome l = "Welcome! Users: " <> intercalate ", " (map (\(PlayerName n) -> n) l)

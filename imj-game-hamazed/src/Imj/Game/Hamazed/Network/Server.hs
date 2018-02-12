@@ -14,14 +14,17 @@ module Imj.Game.Hamazed.Network.Server
 
 import           Imj.Prelude hiding (drop, intercalate)
 
-import           Control.Concurrent.MVar (MVar, modifyMVar_, modifyMVar, readMVar)
-import           UnliftIO.Exception (finally)
+import           Control.Concurrent.MVar (MVar, modifyMVar_, modifyMVar)
 import           Control.Monad (forever)
 import           Control.Monad.Reader(runReaderT, ask)
+import           Control.Monad.State.Strict(runStateT, StateT, modify, get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Text(Text, pack)
+import           Data.Tuple(swap)
 import           Network.WebSockets
-                  (ServerApp, PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread)
+                  (ServerApp, PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread
+                  , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage)
+import           UnliftIO.Exception (finally)
 
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -37,19 +40,11 @@ mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
 
-playerNameExists :: PlayerName -> Clients -> Bool
-playerNameExists name (Clients l _) =
-  any ((== name) . getPlayerName . getIdentity ) l
-
 worldBuilders :: [Client] -> [Client]
 worldBuilders = filter ((== WorldCreator) . getClientType)
 
 shipIds :: [Client] -> [ShipId]
 shipIds = map (getClientId . getIdentity)
-
-addClient :: Client -> Clients -> Clients
-addClient client c@(Clients clients _) =
-  c { getClients' = client : clients }
 
 removeClient :: ClientId -> Clients -> Clients
 removeClient id' c =
@@ -59,31 +54,34 @@ removeClient' :: ClientId -> (a -> Client) -> [a] -> [a]
 removeClient' id' f =
   filter ((/= id') . getIdentity . f)
 
-chatBroadcast :: ClientId -> PlayerNotif -> ServerM ()
+chatBroadcast :: ClientId -> PlayerNotif -> [Client] -> IO ()
 chatBroadcast (ClientId player _) n =
-  broadcastAll (Info player n)
+  sendClients (PlayerInfo player n)
 
-broadcastAll :: ServerEvent -> ServerM ()
-broadcastAll evt =
-  readState >>= mapM_ (liftIO . sendClient evt) . getClients' . getClients
-
--- only to playing clients
-broadcast :: ServerEvent -> ServerM ()
-broadcast evt =
-  readState >>= mapM_ (liftIO . sendClient evt . fst) . getPlayingClients
+{-# INLINABLE sendNBinaryData #-}
+sendNBinaryData :: WebSocketsData a => [Connection] -> a -> IO ()
+sendNBinaryData conns a =
+  let serialized = Binary $ toLazyByteString a
+  in mapM_ (flip sendDataMessage serialized) conns
 
 sendClient :: ServerEvent -> Client -> IO ()
 sendClient evt = flip sendBinaryData evt . getConnection
 
+sendClients :: ServerEvent -> [Client] -> IO ()
+sendClients evt = flip sendNBinaryData evt . map getConnection
+
+sendPlayers :: ServerEvent -> StateT ServerState IO ()
+sendPlayers evt =
+  fmap (map fst) getPlayers >>= liftIO . sendClients evt
+
 sendFirstWorldBuilder :: ServerEvent -> Clients -> IO ()
 sendFirstWorldBuilder evt =
-  mapM_ (sendClient evt) . take 1 . worldBuilders . getClients'
+  sendClients evt . take 1 . worldBuilders . getClients'
 
 appSrv :: MVar ServerState -> ServerApp
-appSrv state pending = runReaderT (appSrv' pending) state
+appSrv s pending = runReaderT (appSrv' pending) s
 
-readState :: ServerM ServerState
-readState = ask >>= liftIO . readMVar
+type ServerM = ReaderT (MVar ServerState) IO
 
 modifyState :: (ServerState -> IO (ServerState, a))
             -> ServerM a
@@ -99,182 +97,210 @@ appSrv' pending = do
   liftIO $ forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
   msg <- liftIO $ receiveData conn
   case msg of
-    Connect sn@(SuggestedPlayerName suggestedName) cliType -> case suggestedName of
-      _ | any ($ suggestedName)
+    Connect sn@(SuggestedPlayerName suggestedName) cliType -> do
+      let nameError =
+           any ($ suggestedName)
             [ null
             , any isPunctuation
-            , any isSpace] ->
-            liftIO $ sendBinaryData conn $ ConnectionRefused $
-              InvalidName sn ("Name cannot " <>
-                "contain punctuation or whitespace, and " <>
-                "cannot be empty" :: Text)
-        | otherwise -> do
-            client@(Client clId _ _ _) <- modifyState $ \s -> do
-                let c@(Clients _ sid) = getClients s
-                    makeUniqueName mayI =
-                      let proposal = PlayerName $ pack $ maybe suggestedName ((++) suggestedName . show) mayI
-                      in if playerNameExists proposal c
-                          then
-                            makeUniqueName $ Just $ maybe (2::Int) succ mayI
-                          else
-                            proposal
-                    name = makeUniqueName Nothing
-                    cId = ClientId name sid
-                    client = mkClient conn cliType cId
-                    newClients = addClient client c
-                    s' = s { getClients = newClients { getNextShipId = succ sid } }
-                flip sendClient client
-                  (ConnectionAccepted cId $ map (getPlayerName . getIdentity) $ getClients' $ newClients)
-                mapM_ (sendClient (Info name Joins)) $ getClients' $ newClients
-                return (s', client)
-            flip finally (disconnect clId) $ handleIncomingEvents client
+            , any isSpace]
+      if nameError
+        then
+          liftIO $ sendBinaryData conn $ ConnectionRefused $
+            InvalidName sn ("Name cannot " <>
+              "contain punctuation or whitespace, and " <>
+              "cannot be empty" :: Text)
+        else do
+          client@(Client clId _ _ _) <-
+            modifyState $ \s -> swap <$> runStateT (makeClient conn sn cliType) s
+          flip finally
+            (modifyState_ $ \s -> snd <$> runStateT (disconnect clId) s) $
+            forever $
+              liftIO (receiveData conn) >>= \evt ->
+                modifyState_ $ \s -> snd <$> runStateT (handleIncomingEvent client evt) s
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
+takeShipId :: StateT ServerState IO ShipId
+takeShipId =
+  state $ \s ->
+    let newShipId = succ $ getNextShipId $ getClients s
+    in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
 
-disconnect :: ClientId -> ServerM ()
+addClient :: Client -> StateT ServerState IO ()
+addClient c =
+  modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _) ->
+    s { getClients = cls { getClients' = c : clients } }
+
+makeClient :: Connection -> SuggestedPlayerName -> ClientType -> StateT ServerState IO Client
+makeClient conn sn cliType =
+  takeShipId >>= \sid ->
+    makePlayerName sn >>= \name -> do
+      let cId = ClientId name sid
+          client = mkClient conn cliType cId
+      addClient client
+      allClients >>= \clients ->
+        liftIO $ do
+          flip sendClient client
+            (ConnectionAccepted cId $ map (getPlayerName . getIdentity) clients)
+          sendClients (PlayerInfo name Joins) clients
+      return client
+
+makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
+makePlayerName (SuggestedPlayerName sn) = do
+  let go mayI = do
+        let proposal = PlayerName $ pack $ maybe sn ((++) sn . show) mayI
+        playerNameExists proposal >>= \case
+          True -> go $ Just $ maybe (2::Int) succ mayI
+          False -> return proposal
+  go Nothing
+
+disconnect :: ClientId -> StateT ServerState IO ()
 disconnect x = do
-  modifyState_ $ \s ->
-    return s { getClients        = removeClient x $ getClients s
-             , getPlayingClients = removeClient' x fst $ getPlayingClients s }
-  chatBroadcast x Leaves
+  modify $ \s ->
+    s { getClients        = removeClient x $ getClients s
+      , getPlayingClients = removeClient' x fst $ getPlayingClients s
+      }
+  allClients >>= liftIO . chatBroadcast x Leaves
 
-error' :: Client -> String -> ServerM ()
+allClients :: StateT ServerState IO [Client]
+allClients = getClients' . getClients <$> get
+
+getIntent :: StateT ServerState IO Intent
+getIntent = getIntent' <$> get
+
+getPlayers :: StateT ServerState IO [Player]
+getPlayers = getPlayingClients <$> get
+
+error' :: Client -> String -> StateT ServerState IO ()
 error' c txt = do
   liftIO $ sendClient (Error txt) c
   error txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can error too.
 
-handleIncomingEvents :: Client -> ServerM ()
-handleIncomingEvents cl@(Client c _ conn _) =
-  forever $ liftIO (receiveData conn) >>= \case
-    Connect (SuggestedPlayerName sn) _ ->
-       error' cl $ "already connected : " <> sn
-    Disconnect -> do
-      disconnect c
-      liftIO $ sendClient DisconnectionAccepted cl
-    Say what ->
-      chatBroadcast c $ Says what
-    -- TODO are "EnteredState" events are useful?
-    EnteredState Excluded -> return ()
-    EnteredState PlayLevel -> return ()
-    ExitedState Excluded -> do
-      getIntent <$> readState >>= \case
-        Intent'Setup -> do
-          -- add client to playing clients if it is not already there
-          modifyState (\s ->
-            let alreadyThere = any ((== c) . getIdentity . fst) $ getPlayingClients s
-                s' = if alreadyThere
-                        then s
-                        else s { getPlayingClients = (cl, Nothing):getPlayingClients s }
-            in return (s',s'))
+handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
+handleIncomingEvent cl@(Client c _ _ _) = \case
+  Connect (SuggestedPlayerName sn) _ ->
+     error' cl $ "already connected : " <> sn
+  Disconnect -> do
+    disconnect c
+    liftIO $ sendClient DisconnectionAccepted cl
+  Say what ->
+    allClients >>= liftIO . chatBroadcast c (Says what)
+  -- TODO are "EnteredState" events are useful?
+  EnteredState Excluded -> return ()
+  EnteredState PlayLevel -> return ()
+  ExitedState Excluded -> do
+    getIntent >>= \case
+      Intent'Setup ->
+        getPlayers >>= \players -> do
+          -- add client to playing clients if it is not already a player
+          let isPlayer = any ((== c) . getIdentity . fst) players
+          unless isPlayer $ modify $ \s ->
+            s { getPlayingClients = (cl, Nothing):getPlayingClients s }
             -- request world. (-> next step when client 'IsReady')
-            >>= withUniqueWorldId . requestWorld
-        _ -> liftIO $ sendClient (EnterState Excluded) cl
-    ExitedState PlayLevel -> return ()
-    GameEnded outcome ->
-      modifyState (\s ->
-        let s' = case getIntent s of
-              Intent'PlayGame -> s { getIntent = Intent'GameEnd outcome }
-              Intent'GameEnd o ->
-                if o == outcome
-                  then
-                    s
-                  else
-                    error $ "inconsistent outcome:" ++ show (o, outcome)
-              _ -> error "logic"
-            remainPlaying = removeClient' c fst $ getPlayingClients s'
-            s'' = s' { getPlayingClients = remainPlaying }
-        in return (s'', if null remainPlaying
-                          then Just s''
-                          else Nothing))
-        >>= maybe (return ()) (\st -> do
-          mapM_ (flip chatBroadcast $ GameResult outcome) $ map (getIdentity . fst) $ getPlayingClients st
-          modifyState (\s -> let s' = s { getLevelSpec = mkLevelSpec firstLevel } in return (s',s'))
-            >>= withUniqueWorldId . requestWorld)
-    LevelWon -> error' cl "todo"
-  ------------------------------------------------------------------------------
-  -- Clients in 'Setup' state can configure the world.
-  --
-  --   [If /any/ client is in 'Setup' state, /no/ client is in 'PlayLevel' state]
-  ------------------------------------------------------------------------------
-    EnteredState Setup -> return ()
-    ChangeWallDistribution t ->
-      onChangeWorldParams $ changeWallDistrib t
-    ChangeWorldShape s ->
-      onChangeWorldParams $ changeWorldShape s
-    ExitedState Setup ->
-        -- TODO Under contention, an optimistic concurrency approach (TMVar + STM)
-        -- could perform better than this lock-based approach.
-      modifyState (\s ->
-        case getIntent s of
-          Intent'Setup -> return (s { getIntent = Intent'PlayGame }, Just s)
-          _ -> return(s, Nothing))
-        >>= maybe (return ()) (\s' -> do
-          chatBroadcast c $ StartsGame
-          broadcast $ ExitState Setup -- prevent other playing clients from modifying the world parameters
-          withUniqueWorldId $ requestWorld s')
-  ------------------------------------------------------------------------------
-  -- A 'WorldCreator' client may be requested to propose a world:
-  ------------------------------------------------------------------------------
-    (WorldProposal essence) -> readState >>= \s -> do
+          requestWorld
+      _ -> liftIO $ sendClient (EnterState Excluded) cl
+  ExitedState PlayLevel -> return ()
+  GameEnded outcome -> do
+    getIntent >>= \case
+      Intent'PlayGame ->
+        modify $ \s -> s { getIntent' = Intent'GameEnd outcome }
+      Intent'GameEnd o ->
+        if o == outcome
+          then
+            return ()
+          else
+            error $ "inconsistent outcomes:" ++ show (o, outcome)
+      _ -> error "logic"
+    modify $ \s ->
+      let remainPlaying = removeClient' c fst $ getPlayingClients s
+      in s { getPlayingClients = remainPlaying }
+    getPlayers >>= \players ->
+      when (null players) $ do
+        modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel }
+        requestWorld
+        allClients >>= liftIO . sendClients (GameInfo $ GameResult outcome)
+  LevelWon -> error' cl "todo"
+------------------------------------------------------------------------------
+-- Clients in 'Setup' state can configure the world.
+--
+--   [If /any/ client is in 'Setup' state, /no/ client is in 'PlayLevel' state]
+------------------------------------------------------------------------------
+  EnteredState Setup -> return ()
+  ChangeWallDistribution t ->
+    onChangeWorldParams $ changeWallDistrib t
+  ChangeWorldShape s ->
+    onChangeWorldParams $ changeWorldShape s
+  ExitedState Setup ->
+    getIntent >>= \case
+      Intent'Setup -> do
+        modify $ \s -> s { getIntent' = Intent'PlayGame }
+        allClients >>= liftIO . chatBroadcast c StartsGame
+        sendPlayers $ ExitState Setup -- prevent other playing clients from modifying the world parameters
+        requestWorld
+      _ -> return ()
+------------------------------------------------------------------------------
+-- A 'WorldCreator' client may be requested to propose a world:
+------------------------------------------------------------------------------
+  (WorldProposal essence) ->
+    get >>= \s -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
       when (getLastRequestedWorldId s == Just wid) $ do
-        broadcast $ flip ChangeLevel essence $ getLevelSpec s
-  ------------------------------------------------------------------------------
-  -- Clients notify when they have received a given world, and the corresponding
-  --   UI Animation is over (hence the level shall start, for example.):
-  ------------------------------------------------------------------------------
-    IsReady wid -> do
-      -- update 'WorldId' in corresponding playing clients
-      (players, intent) <- modifyState $ \s@(ServerState _ playingClients _ _ _ _ intent) -> do
-        let newPlaying = map (\p@(cl'@(Client c' _ _ _), _) ->
-                                if c' == c
-                                  then (cl', Just wid)
-                                  else p) playingClients
-        return (s { getPlayingClients = newPlaying }, (newPlaying, intent) )
-      let ready (_,wid') = Just wid == wid'
-      case intent of
-        Intent'PlayGame ->
-          -- start the game when all players have the right world
-          when (all ready players) $ broadcast $ EnterState PlayLevel
-        Intent'Setup -> do
-          -- (follow-up from 'ExitedState Excluded')
-          -- Allow the client to setup the world, now that the world contains its ship.
-          liftIO $ sendClient (EnterState Setup) cl
-        Intent'GameEnd _ -> return ()
+        sendPlayers $ ChangeLevel (getLevelSpec s) essence
+------------------------------------------------------------------------------
+-- Clients notify when they have received a given world, and the corresponding
+--   UI Animation is over (hence the level shall start, for example.):
+------------------------------------------------------------------------------
+  IsReady wid -> do
+    -- update 'WorldId' in corresponding playing clients
+    modify $ \s@(ServerState _ playingClients _ _ _ _ _) ->
+      let newPlaying = map (\p@(cl'@(Client c' _ _ _), _) ->
+                              if c' == c
+                                then (cl', Just wid)
+                                else p)
+                            playingClients
+      in s { getPlayingClients = newPlaying }
+    getIntent >>= \case
+      Intent'PlayGame -> getPlayers >>= \players -> do
+        -- start the game when all players have the right world
+        let ready (_,wid') = Just wid == wid'
+        when (all ready players) $ sendPlayers $ EnterState PlayLevel
+      Intent'Setup -> do
+        -- (follow-up from 'ExitedState Excluded')
+        -- Allow the client to setup the world, now that the world contains its ship.
+        liftIO $ sendClient (EnterState Setup) cl
+      Intent'GameEnd _ -> return ()
+------------------------------------------------------------------------------
+-- Clients in 'PlayLevel' state can play the game.
+--
+--   [If /any/ client is in 'PlayLevel' state, /no/ client is in 'Setup' state]
+------------------------------------------------------------------------------
+  Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
 
-  ------------------------------------------------------------------------------
-  -- Clients in 'PlayLevel' state can play the game.
-  --
-  --   [If /any/ client is in 'PlayLevel' state, /no/ client is in 'Setup' state]
-  ------------------------------------------------------------------------------
-    Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
+requestWorld :: StateT ServerState IO ()
+requestWorld = do
+  nextWorldId
+  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _) ->
+    liftIO $ flip sendFirstWorldBuilder clients $
+      WorldRequest $ WorldSpec level (shipIds $ map fst playing) params wid
 
-requestWorld :: ServerState -> WorldId -> IO ()
-requestWorld (ServerState clients playing _ (LevelSpec level _ _) params _ _) =
-  flip sendFirstWorldBuilder clients .
-    WorldRequest . WorldSpec level (shipIds $ map fst playing) params . Just
-
-nextWorldId :: ServerM WorldId
+nextWorldId :: StateT ServerState IO ()
 nextWorldId =
-  modifyState (\s@(ServerState _ _ _ _ _ prevWid _) -> do
-    let wid = maybe (WorldId 0) succ prevWid
-    return (s { getLastRequestedWorldId = Just wid }, wid))
+  modify $ \s ->
+    let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId s
+    in s { getLastRequestedWorldId = Just wid }
 
-type ServerM = ReaderT (MVar ServerState) IO
+playerNameExists :: PlayerName -> StateT ServerState IO Bool
+playerNameExists name =
+  allClients >>= \l ->
+    return $ any ((== name) . getPlayerName . getIdentity ) l
 
-withUniqueWorldId :: (WorldId -> IO ())
-                  -> ServerM ()
-withUniqueWorldId act =
-  nextWorldId >>= liftIO . act
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)
-                    -> ServerM ()
+                    -> StateT ServerState IO ()
 onChangeWorldParams f = do
-  modifyState (\s ->
-    let s' = s { getWorldParameters = f $ getWorldParameters s }
-    in return (s',s'))
-    >>= withUniqueWorldId . requestWorld
+  modify $ \s ->
+    s { getWorldParameters = f $ getWorldParameters s }
+  requestWorld
 
 changeWallDistrib :: WallDistribution -> WorldParameters -> WorldParameters
 changeWallDistrib d p = p { getWallDistrib = d }

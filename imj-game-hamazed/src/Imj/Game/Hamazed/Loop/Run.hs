@@ -22,7 +22,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(runStateT)
+import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
 import           Options.Applicative
                   (progDesc, fullDesc, info, header, customExecParser, prefs, helper

@@ -41,7 +41,7 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State(get, put)
+import           Control.Monad.State.Strict(get, put)
 import           Data.Map.Strict(fromList, union, updateWithKey)
 
 import           Imj.Graphics.ParticleSystem.Design.Types

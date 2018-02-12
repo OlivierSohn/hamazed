@@ -6,6 +6,7 @@
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
+      , Player
       , Clients(..)
       , Intent(..)
       , mkClient
@@ -21,16 +22,18 @@ import           Imj.Game.Hamazed.Network.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
 
+type Player = (Client, Maybe WorldId)
+
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
     getClients :: !Clients
-  , getPlayingClients :: ![(Client, Maybe WorldId)]
+  , getPlayingClients :: ![Player]
   , _gameTiming :: !GameTiming
   , getLevelSpec :: !LevelSpec
   , getWorldParameters :: !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
   , getLastRequestedWorldId :: !(Maybe WorldId)
-  , getIntent :: !Intent
+  , getIntent' :: !Intent
 } deriving(Generic)
 instance NFData ServerState
 

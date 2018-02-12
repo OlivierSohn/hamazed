@@ -81,8 +81,10 @@ updateAppState (Left evt) = case evt of
     sendToServer $ ExitedState Excluded -- TODO is it really necessary ? (are ExitedState events used by the server?)
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  Info player notif ->
+  PlayerInfo player notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt notif player
+  GameInfo notif ->
+    stateChat $ addMessage $ ChatMessage $ toTxt' notif
   DisconnectionAccepted -> error "should be handled by caller"
   EnterState s -> putClientState $ ClientState Ongoing s
   ExitState s -> putClientState $ ClientState Done s

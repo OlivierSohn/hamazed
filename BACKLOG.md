@@ -1,5 +1,26 @@
-- adjust time allocated to do ui animations:
-it looks as if we handle future deadlines too soon!
+- when changing view center, the text on the left does not change position, it
+changes only on the next world change.
+
+- handle exceptions of receiveDataMessage:
+
+-- | Receive an application message. Automatically respond to control messages.
+--
+-- When the peer sends a close control message, an exception of type 'CloseRequest'
+-- is thrown.  The peer can send a close control message either to initiate a
+-- close or in response to a close message we have sent to the peer.  In either
+-- case the 'CloseRequest' exception will be thrown.  The RFC specifies that
+-- the server is responsible for closing the TCP connection, which should happen
+-- after receiving the 'CloseRequest' exception from this function.
+--
+-- This will throw 'ConnectionClosed' if the TCP connection dies unexpectedly.
+receiveDataMessage :: Connection -> IO DataMessage
+
+- replace DisconnectionAccepted by using 'sendClose' to close connections:
+
+sendClose :: WebSocketsData a => Connection -> a -> IO () Source#
+
+Send a friendly close message. Note that after sending this message, you should still continue calling receiveDataMessage to process any in-flight messages. The peer will eventually respond with a close control message of its own which will cause receiveDataMessage to throw the CloseRequest exception. This exception is when you can finally consider the connection closed.
+
 
 - investigate using higher level concepts to clarify server / client statefull interactions
 and make the implementation more robust, to be confident that all edge cases are well-handled:
@@ -7,8 +28,6 @@ describe logic with a GRAFCET.
 
 - investigate error seen in terminal, is it when closing the app? if so, can we close more gracefully,
 else this is a bug.
-
-- build a 0-sized world when client starts to make a nice first animation.
 
 - There are 2 types of interactions:
 
@@ -27,7 +46,7 @@ ClientEvent : Ok, the world is displayed and animation between previous world
 
 Server stores global intent, which influences how client events are handled.
 
-Use case, client side 1:
+Use-case, client side 1:
 
 (program start)
 (once no other client is playing anymore)
@@ -60,7 +79,7 @@ send ClientEvent $ ExitedState PlayLevel (Win | Lose)
 (when all clients in `curClients` sent the same)
 receive ServerEvent $ EnterState ...
 
-Use case, client side 2:
+Use-case, client side 2:
 (program start)
 (once no other client is playing anymore)
 receive ServerEvent $ EnterState Setup -> state = `Ongoing` `Setup` (defines keyboard mapping)
@@ -111,6 +130,7 @@ the next transition.
 - do not crash client when server dies without disconnecting clients.
 - when quitting program, we should stop the server gracefully to avoid exceptions
 in distant clients.
+see https://github.com/jaspervdj/websockets/issues/135 on how to handle exceptions on the client.
 - when exiting the program, should the client close the connection:
 sendClose conn ("Bye!" :: Text)
 then wait one second?

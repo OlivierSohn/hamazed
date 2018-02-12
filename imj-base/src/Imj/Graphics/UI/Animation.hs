@@ -117,17 +117,20 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive Co
               -> Time Point System
               -- ^ Time at which the animation starts
               -> UIAnimation
-mkUIAnimation (from@(Colored _ fromR), ((f1,f2),f3))
-              (to@(Colored _ toR), ((t1,t2),t3))
+mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f3))
+              (to@(Colored _ toR@(RectContainer (Size th tw) _)), ((t1,t2),t3))
               horizontalDistance verticalDistance time =
   UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
  where
-  frameE = mkEvolutionEaseQuart (Successive [from, to]) (fromSecs 1)
+  dx = max (abs $ fromIntegral fw - fromIntegral tw)
+           (abs $ fromIntegral fh - fromIntegral th)
+  duration = fromSecs $ 1 + (max 0 (dx - 2)) / 80 -- slow down if distances are bigger
+  frameE = mkEvolutionEaseQuart (Successive [from, to]) duration
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
                                                 concatSuccessive f2 t2,
                                                 zipWith concatSuccessive f3 t3)
-                                     horizontalDistance verticalDistance (fromSecs 1)
+                                     horizontalDistance verticalDistance duration
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
     maybe

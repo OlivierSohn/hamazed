@@ -1,4 +1,5 @@
-- when -s localhost or -s 127.0.0.1 is specified, do not instantiate local server.
+- adjust time allocated to do ui animations:
+it looks as if we handle future deadlines too soon!
 
 - investigate using higher level concepts to clarify server / client statefull interactions
 and make the implementation more robust, to be confident that all edge cases are well-handled:

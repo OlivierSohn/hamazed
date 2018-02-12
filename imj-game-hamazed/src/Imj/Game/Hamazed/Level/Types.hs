@@ -8,6 +8,7 @@ module Imj.Game.Hamazed.Level.Types
     ( Level(..)
     , LevelSpec(..)
     , mkLevelSpec
+    , mkEmptyLevelSpec
     , LevelFinished(..)
     , MessageState(..)
     , GameOutcome(..)
@@ -32,6 +33,9 @@ data LevelSpec = LevelSpec {
   , _levelTarget :: !Int
   , _levelFlyingNumbers :: ![Int]
 } deriving (Generic, Binary, NFData, Show)
+
+mkEmptyLevelSpec :: LevelSpec
+mkEmptyLevelSpec = LevelSpec 0 0 []
 
 mkLevelSpec :: Int -> LevelSpec
 mkLevelSpec levelNumber =

@@ -5,6 +5,7 @@
 
 module Imj.Game.Hamazed.World.Create
         ( mkWorldEssence
+        , mkMinimalWorldEssence
         , mkSpace
         , updateMovableItem
         , validateScreen
@@ -37,6 +38,9 @@ mkWorldEssence (WorldSpec levelNum shipIds (WorldParameters shape wallDistrib) w
         (\(sid,posSpeed@(PosSpeed pos _)) -> BattleShip sid posSpeed initialLaserAmmo True (getColliding pos balls))
         $ zip shipIds posSpeeds
   return $ WorldEssence balls ships (toListOfLists space) wid
+
+mkMinimalWorldEssence :: WorldEssence
+mkMinimalWorldEssence = WorldEssence [] [] [[]] Nothing
 
 initialLaserAmmo :: Int
 initialLaserAmmo = 10

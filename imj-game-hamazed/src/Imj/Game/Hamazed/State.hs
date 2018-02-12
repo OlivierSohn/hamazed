@@ -103,7 +103,7 @@ onEvent mayEvt =
     True -> sendToServer Disconnect
     False -> do
       debug >>= \case
-        True -> liftIO $ putStrLn $ show mayEvt
+        True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
         False -> return ()
       onEvent' mayEvt
 

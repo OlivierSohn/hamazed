@@ -39,10 +39,8 @@ initialGame ms suggPlayerName server connectionStatus = do
     return $ Game (ClientState Ongoing Excluded) viewMode s suggPlayerName server connectionStatus mkChat
 
 initialGameState :: WorldParameters -> ViewMode -> Maybe Size -> IO GameState
-initialGameState params mode ms = do
-  let levelNum = firstLevel
-  mkWorldEssence (WorldSpec levelNum [] params Nothing) >>= \essence ->
-    mkInitialState (mkLevelSpec levelNum) essence mode ms Nothing
+initialGameState _ mode ms =
+  mkInitialState mkEmptyLevelSpec mkMinimalWorldEssence mode ms Nothing
 
 mkInitialState :: (MonadIO m)
                => LevelSpec

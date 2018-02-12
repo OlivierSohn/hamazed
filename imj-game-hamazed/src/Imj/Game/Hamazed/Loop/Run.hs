@@ -296,15 +296,16 @@ produceEvent = do
                           -- and reactivity.
                           -- There are 3 alternatives hereunder, each of them has a different CPU cost.
                           -- I chose the one that is both reasonnably economical and allows to
-                          -- save up-to 100 micro seconds latency.
+                          -- save up-to 100 micro seconds latency. I left the other alternatives commented out
+                          -- with measured CPU usage for reference.
                             --{-
-                            -- 20.3% CPU while waiting
+                            -- [alternative 1] 20.3% CPU while waiting
                               race (wait res) (threadDelay 100) >>= either return (\_ -> pollK >> go)
                             --}
                             {-
                               poll res >>= maybe
-                                (do --waitKT (fromSecs 0.0001) -- 55% CPU while waiting
-                                    threadDelay 100 >> pollK -- 15 % CPU while waiting
+                                (do --waitKT (fromSecs 0.0001) -- [alternative 2] 55% CPU while waiting
+                                    threadDelay 100 >> pollK -- [alternative 3] 15 % CPU while waiting
                                     go)
                                 (\case
                                     Left e -> throwIO e
@@ -312,14 +313,13 @@ produceEvent = do
                             -}
                     go
 
-      getLastRenderTime >>= getNextDeadline >>= maybe
+      liftIO getSystemTime >>= getNextDeadline >>= maybe
         (whenWaitingIsAllowed Nothing)
         (\case
-          Overdue d -> return $ Just $ Right $ Evt $ Timeout d
-          Future d@(Deadline deadlineTime _ _) ->
-            whenWaitingIsAllowed (Just deadlineTime) >>= \case
-              Just x -> return $ Just x
-              Nothing -> return $ Just $ Right $ Evt $ Timeout d)
+          Overdue d ->
+            return $ Just $ Right $ Evt $ Timeout d
+          Future (Deadline deadlineTime _ _) ->
+            whenWaitingIsAllowed (Just deadlineTime))
 
 -- | First tries to get pending 'ServerEvent' then tries to get pending player input
 tryGetInputEvent :: TQueue ServerEvent

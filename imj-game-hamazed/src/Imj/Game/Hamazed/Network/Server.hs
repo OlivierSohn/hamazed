@@ -54,29 +54,29 @@ removeClient' :: ClientId -> (a -> Client) -> [a] -> [a]
 removeClient' id' f =
   filter ((/= id') . getIdentity . f)
 
-chatBroadcast :: ClientId -> PlayerNotif -> [Client] -> IO ()
-chatBroadcast (ClientId player _) n =
-  sendClients (PlayerInfo player n)
-
 {-# INLINABLE sendNBinaryData #-}
 sendNBinaryData :: WebSocketsData a => [Connection] -> a -> IO ()
 sendNBinaryData conns a =
   let serialized = Binary $ toLazyByteString a
   in mapM_ (flip sendDataMessage serialized) conns
 
-sendClient :: ServerEvent -> Client -> IO ()
-sendClient evt = flip sendBinaryData evt . getConnection
+send :: Client -> ServerEvent -> StateT ServerState IO ()
+send client evt = liftIO $ sendBinaryData (getConnection client) evt
 
-sendClients :: ServerEvent -> [Client] -> IO ()
-sendClients evt = flip sendNBinaryData evt . map getConnection
+sendClients' :: ServerEvent -> [Client] -> IO ()
+sendClients' evt = flip sendNBinaryData evt . map getConnection
+
+sendClients :: ServerEvent -> StateT ServerState IO ()
+sendClients evt =
+  liftIO . sendClients' evt =<< allClients
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  fmap (map fst) getPlayers >>= liftIO . sendClients evt
+  liftIO . sendClients' evt =<< fmap (map fst) getPlayers
 
 sendFirstWorldBuilder :: ServerEvent -> Clients -> IO ()
 sendFirstWorldBuilder evt =
-  sendClients evt . take 1 . worldBuilders . getClients'
+  sendClients' evt . take 1 . worldBuilders . getClients'
 
 appSrv :: MVar ServerState -> ServerApp
 appSrv s pending = runReaderT (appSrv' pending) s
@@ -138,10 +138,8 @@ makeClient conn sn cliType =
           client = mkClient conn cliType cId
       addClient client
       allClients >>= \clients ->
-        liftIO $ do
-          flip sendClient client
-            (ConnectionAccepted cId $ map (getPlayerName . getIdentity) clients)
-          sendClients (PlayerInfo name Joins) clients
+        send client $ ConnectionAccepted cId $ map (getPlayerName . getIdentity) clients
+      sendClients $ PlayerInfo cId Joins
       return client
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
@@ -159,7 +157,7 @@ disconnect x = do
     s { getClients        = removeClient x $ getClients s
       , getPlayingClients = removeClient' x fst $ getPlayingClients s
       }
-  allClients >>= liftIO . chatBroadcast x Leaves
+  sendClients $ PlayerInfo x Leaves
 
 allClients :: StateT ServerState IO [Client]
 allClients = getClients' . getClients <$> get
@@ -171,34 +169,33 @@ getPlayers :: StateT ServerState IO [Player]
 getPlayers = getPlayingClients <$> get
 
 error' :: Client -> String -> StateT ServerState IO ()
-error' c txt = do
-  liftIO $ sendClient (Error txt) c
+error' client txt = do
+  send client $ Error txt
   error txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent cl@(Client c _ _ _) = \case
+handleIncomingEvent client@(Client c _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
-     error' cl $ "already connected : " <> sn
+     error' client $ "already connected : " <> sn
   Disconnect -> do
     disconnect c
-    liftIO $ sendClient DisconnectionAccepted cl
+    send client DisconnectionAccepted
   Say what ->
-    allClients >>= liftIO . chatBroadcast c (Says what)
+    sendClients $ PlayerInfo c $ Says what
   -- TODO are "EnteredState" events are useful?
   EnteredState Excluded -> return ()
   EnteredState PlayLevel -> return ()
-  ExitedState Excluded -> do
-    getIntent >>= \case
-      Intent'Setup ->
-        getPlayers >>= \players -> do
-          -- add client to playing clients if it is not already a player
-          let isPlayer = any ((== c) . getIdentity . fst) players
-          unless isPlayer $ modify $ \s ->
-            s { getPlayingClients = (cl, Nothing):getPlayingClients s }
-            -- request world. (-> next step when client 'IsReady')
-          requestWorld
-      _ -> liftIO $ sendClient (EnterState Excluded) cl
+  ExitedState Excluded -> getIntent >>= \case
+    Intent'Setup ->
+      getPlayers >>= \players -> do
+        -- add client to playing clients if it is not already a player
+        let isPlayer = any ((== c) . getIdentity . fst) players
+        unless isPlayer $ modify $ \s ->
+          s { getPlayingClients = (client, Nothing):getPlayingClients s }
+          -- request world. (-> next step when client 'IsReady')
+        requestWorld
+    _ -> send client $ EnterState Excluded
   ExitedState PlayLevel -> return ()
   GameEnded outcome -> do
     getIntent >>= \case
@@ -218,8 +215,8 @@ handleIncomingEvent cl@(Client c _ _ _) = \case
       when (null players) $ do
         modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel }
         requestWorld
-        allClients >>= liftIO . sendClients (GameInfo $ GameResult outcome)
-  LevelWon -> error' cl "todo"
+        sendClients $ GameInfo $ GameResult outcome
+  LevelWon -> error' client "todo"
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
 --
@@ -234,7 +231,7 @@ handleIncomingEvent cl@(Client c _ _ _) = \case
     getIntent >>= \case
       Intent'Setup -> do
         modify $ \s -> s { getIntent' = Intent'PlayGame }
-        allClients >>= liftIO . chatBroadcast c StartsGame
+        sendClients $ PlayerInfo c StartsGame
         sendPlayers $ ExitState Setup -- prevent other playing clients from modifying the world parameters
         requestWorld
       _ -> return ()
@@ -264,10 +261,10 @@ handleIncomingEvent cl@(Client c _ _ _) = \case
         -- start the game when all players have the right world
         let ready (_,wid') = Just wid == wid'
         when (all ready players) $ sendPlayers $ EnterState PlayLevel
-      Intent'Setup -> do
+      Intent'Setup ->
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
-        liftIO $ sendClient (EnterState Setup) cl
+        send client $ EnterState Setup
       Intent'GameEnd _ -> return ()
 ------------------------------------------------------------------------------
 -- Clients in 'PlayLevel' state can play the game.

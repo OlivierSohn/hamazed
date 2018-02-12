@@ -81,7 +81,7 @@ updateAppState (Left evt) = case evt of
     sendToServer $ ExitedState Excluded -- TODO is it really necessary ? (are ExitedState events used by the server?)
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  PlayerInfo player notif ->
+  PlayerInfo (ClientId player _) notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt notif player
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif

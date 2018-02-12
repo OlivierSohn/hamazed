@@ -122,7 +122,7 @@ data ServerEvent =
   | DisconnectionAccepted
   | EnterState !StateValue
   | ExitState !StateValue
-  | PlayerInfo !PlayerName !PlayerNotif
+  | PlayerInfo !ClientId !PlayerNotif
   | GameInfo !GameNotif
   | WorldRequest !WorldSpec
   -- ^ Sent to 'WorldCreator's, which should respond with a 'WorldProposal'.

@@ -49,10 +49,8 @@ data Event = Configuration !Char
            -- ^ To transition from configuration mode to play mode.
            | Timeout !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
-           | NextLevel
-           -- ^ New level.
-           | EndGame !GameOutcome
-           -- ^ End of game.
+           | EndLevel !LevelOutcome
+           -- ^ End of level.
            | Interrupt !MetaAction
            -- ^ A game interruption.
            | ToggleEventRecording

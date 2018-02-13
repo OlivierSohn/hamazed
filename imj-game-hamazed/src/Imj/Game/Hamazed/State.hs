@@ -61,9 +61,8 @@ representation (Left (GameInfo _)) = Chat'
 representation (Right e) = case e of
   CycleRenderingOptions -> CycleRenderingOptions'
   (Configuration _) -> Configuration'
-  EndGame _ -> EndGame'
+  EndLevel _ -> EndLevel'
   StartGame -> StartGame'
-  NextLevel -> NextLevel'
   (Interrupt _) -> Interrupt'
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> AnimateParticleSystem'
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> DisplayContinueMessage'
@@ -75,8 +74,7 @@ reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
 reprToCS WorldRequest' = colored "R" magenta
 reprToCS ChangeLevel'  = colored "C" magenta
-reprToCS NextLevel' = colored "l" cyan
-reprToCS EndGame'    = colored "E" cyan
+reprToCS EndLevel'  = colored "E" cyan
 reprToCS StartGame'  = colored "S" cyan
 reprToCS Error'                 = colored "E" cyan
 reprToCS EnterState'            = colored "I" cyan

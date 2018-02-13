@@ -20,14 +20,13 @@ import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar
                                         , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
 import           Control.Monad (forever)
-import           Control.Monad.Reader(runReaderT, ask)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, StateT, modify, get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Maybe(isJust)
-import           Data.Text(Text, pack)
+import           Data.Text(pack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
-                  (ServerApp, PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread
+                  (PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread
                   , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage)
 import           UnliftIO.Exception (finally)
 
@@ -48,13 +47,15 @@ mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
 
-removeClient :: ClientId -> Clients -> Clients
-removeClient id' c =
-  c { getClients' = removeClient' id' id $ getClients' c }
+removeClient :: Client -> Clients -> Clients
+removeClient c clients =
+  clients { getClients' = removeClient' c id $ getClients' clients }
 
-removeClient' :: ClientId -> (a -> Client) -> [a] -> [a]
-removeClient' id' f =
+removeClient' :: Client -> (a -> Client) -> [a] -> [a]
+removeClient' c f =
   filter ((/= id') . getIdentity . f)
+ where
+  id' = getIdentity c
 
 {-# INLINABLE sendNBinaryData #-}
 sendNBinaryData :: WebSocketsData a => [Connection] -> a -> IO ()
@@ -76,45 +77,23 @@ sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
   liftIO . sendClients' evt =<< onlyPlayers
 
-appSrv :: MVar ServerState -> ServerApp
-appSrv s pending = runReaderT (appSrv' pending) s
-
-type ServerM = ReaderT (MVar ServerState) IO
-
-modifyState :: (ServerState -> IO (ServerState, a))
-            -> ServerM a
-modifyState modAction = ask >>= liftIO . (flip modifyMVar) modAction
-
-modifyState_ :: (ServerState -> IO (ServerState))
-            -> ServerM ()
-modifyState_ modAction = ask >>= liftIO . (flip modifyMVar_) modAction
-
-appSrv' :: PendingConnection -> ServerM ()
-appSrv' pending = do
-  conn <- liftIO $ acceptRequest pending
-  liftIO $ forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
-  msg <- liftIO $ receiveData conn
+appSrv :: MVar ServerState -> PendingConnection -> IO ()
+appSrv st pending = do
+  conn <- acceptRequest pending
+  forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
+  msg <- receiveData conn
   case msg of
-    Connect sn@(SuggestedPlayerName suggestedName) cliType -> do
-      let nameError =
-           any ($ suggestedName)
-            [ null
-            , any isPunctuation
-            , any isSpace]
-      if nameError
+    Connect sn@(SuggestedPlayerName suggestedName) cliType ->
+      if any ($ suggestedName) [ null, any isPunctuation, any isSpace]
         then
-          liftIO $ sendBinaryData conn $ ConnectionRefused $
-            InvalidName sn ("Name cannot " <>
-              "contain punctuation or whitespace, and " <>
-              "cannot be empty" :: Text)
-        else do
-          client <-
-            modifyState $ \s -> swap <$> runStateT (makeClient conn sn cliType) s
-          flip finally
-            (modifyState_ $ execStateT $ disconnect $ getIdentity client) $
-            forever $
-              liftIO (receiveData conn) >>= \evt ->
-                modifyState_ $ execStateT $ handleIncomingEvent client evt
+          sendBinaryData conn $ ConnectionRefused $ InvalidName sn $
+            "Name cannot contain punctuation or whitespace, and cannot be empty"
+        else
+          modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType)) >>= \client ->
+            flip finally
+              (modifyMVar_ st $ execStateT $ disconnect client)
+              $ forever $
+                receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
 
@@ -137,7 +116,6 @@ makeClient conn sn cliType = do
       in s { getClients = clients { getClients' = c : getClients' clients } }
 
 
-
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
@@ -150,10 +128,10 @@ makePlayerName (SuggestedPlayerName sn) = do
   playerNameIsAlreadyTaken name =
     return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
 
-disconnect :: ClientId -> StateT ServerState IO ()
-disconnect x = do
-  modify $ \s -> s { getClients = removeClient x $ getClients s }
-  sendClients $ PlayerInfo x Leaves
+disconnect :: Client -> StateT ServerState IO ()
+disconnect client = do
+  modify $ \s -> s { getClients = removeClient client $ getClients s }
+  sendClients $ PlayerInfo (getIdentity client) Leaves
 
 allClients :: StateT ServerState IO [Client]
 allClients = getClients' . getClients <$> get
@@ -181,11 +159,11 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
   Disconnect -> do
-    disconnect cId
+    disconnect client
     send client DisconnectionAccepted
   Say what ->
     sendClients $ PlayerInfo cId $ Says what
-  -- TODO are "EnteredState" events are useful?
+  -- TODO are "EnteredState" events useful?
   EnteredState Excluded -> return ()
   EnteredState PlayLevel -> return ()
   ExitedState Excluded -> getIntent >>= \case
@@ -197,33 +175,42 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
       -- next step when client 'IsReady'
     _ -> send client $ EnterState Excluded
   ExitedState PlayLevel -> return ()
-  GameEnded outcome -> do
+  LevelEnded outcome -> do
     getIntent >>= \case
       Intent'PlayGame ->
-        modify $ \s -> s { getIntent' = Intent'GameEnd outcome }
-      Intent'GameEnd o ->
+        modify $ \s -> s { getIntent' = Intent'LevelEnd outcome }
+      Intent'LevelEnd o ->
         if o == outcome
           then
             return ()
           else
             error $ "inconsistent outcomes:" ++ show (o, outcome)
-      _ -> error "logic"
+      Intent'Setup -> error "logic"
     modifyClient cId $ \c -> c { getState = Just Finished }
-    allClients >>= \clients -> do
-      let playersAllFinished = all (finishedOrNothing . getState) clients
-          finishedOrNothing Nothing = True
-          finishedOrNothing (Just Finished) = True
-          finishedOrNothing (Just InGame) = False
+    send client $ ExitState PlayLevel
+    onlyPlayers >>= \players -> do
+      let playersAllFinished = all (finished . getState) players
+          finished Nothing = error "should not happen"
+          finished (Just Finished) = True
+          finished (Just InGame) = False
       when playersAllFinished $ do
-        sendClients $ GameInfo $ GameResult outcome
         void $ getSchedulerSignal <$> get >>= liftIO . takeMVar
-        modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
-                         , getIntent' = Intent'Setup
-                         }
-        modifyClients $ \c -> c { getState = Just Finished } -- fresh clients join
-        sendClients $ EnterState Setup
+        n <- getLevelNumber' . getLevelSpec <$> get
+        sendClients $ GameInfo $ LevelResult n outcome
+        when (outcome == Won && n == lastLevel) $
+          sendClients $ GameInfo GameWon
+
+        if outcome == Won && n < lastLevel
+           then
+             modify $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
+                              , getIntent' = Intent'PlayGame
+                              }
+           else do
+             modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
+                              , getIntent' = Intent'Setup
+                              }
+             modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players
         requestWorld
-  LevelWon -> error' client "todo"
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
 --
@@ -257,6 +244,10 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   IsReady wid -> do
     modifyClient cId $ \c -> c { getCurrentWorld = Just wid }
     getIntent >>= \case
+      Intent'Setup ->
+        -- (follow-up from 'ExitedState Excluded')
+        -- Allow the client to setup the world, now that the world contains its ship.
+        send client $ EnterState Setup
       Intent'PlayGame ->
         allClients >>= \clients ->
           getLastRequestedWorldId >>= maybe
@@ -276,11 +267,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
                                         else c
                 sendPlayers $ EnterState PlayLevel
                 getSchedulerSignal <$> get >>= liftIO . flip putMVar lastWId)
-      Intent'Setup ->
-        -- (follow-up from 'ExitedState Excluded')
-        -- Allow the client to setup the world, now that the world contains its ship.
-        send client $ EnterState Setup
-      Intent'GameEnd _ -> return ()
+      Intent'LevelEnd _ -> return ()
 ------------------------------------------------------------------------------
 -- Clients in 'PlayLevel' state can play the game.
 --

@@ -47,15 +47,13 @@ updateAppState (Right evt) = case evt of
       s -> error $ "StartGame in " ++ show s
     putClientState $ ClientState Done Setup
     sendToServer $ ExitedState Setup
-  NextLevel -> do
+  EndLevel outcome -> do
     getClientState >>= \case -- sanity check
       (ClientState Ongoing PlayLevel) -> return ()
-      s -> error $ "NextLevel in " ++ show s
+      s -> error $ "EndLevel in " ++ show s
     putClientState $ ClientState Done PlayLevel
     sendToServer $ ExitedState PlayLevel -- TODO is it really necessary ? (are ExitedState events used by the server?)
-    sendToServer LevelWon
-  EndGame outcome ->
-    sendToServer $ GameEnded outcome
+    sendToServer $ LevelEnded outcome
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage

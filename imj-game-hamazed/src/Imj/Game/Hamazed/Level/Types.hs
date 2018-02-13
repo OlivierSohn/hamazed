@@ -11,7 +11,7 @@ module Imj.Game.Hamazed.Level.Types
     , mkEmptyLevelSpec
     , LevelFinished(..)
     , MessageState(..)
-    , GameOutcome(..)
+    , LevelOutcome(..)
     , firstLevel
     , lastLevel
     ) where
@@ -28,7 +28,7 @@ data Level = Level {
 } deriving (Generic)
 
 data LevelSpec = LevelSpec {
-    _levelNumber :: !Int
+    getLevelNumber' :: !Int
     -- ^ From 1 to 12
   , _levelTarget :: !Int
   , _levelFlyingNumbers :: ![Int]
@@ -44,7 +44,7 @@ mkLevelSpec levelNumber =
   in LevelSpec levelNumber target numbers
 
 data LevelFinished = LevelFinished {
-    _levelFinishedResult :: !GameOutcome
+    _levelFinishedResult :: !LevelOutcome
     -- ^ Lost or won
   , _levelFinishedWhen :: !(Time Point System)
   , _levelFinishedCurrentMessage :: !MessageState
@@ -54,7 +54,7 @@ data MessageState = InfoMessage
                   | ContinueMessage
                   deriving(Generic, Binary, Eq, Show)
 
-data GameOutcome =
+data LevelOutcome =
     Lost !Text
    -- ^ 'Text' is the reason why the 'Level' was lost.
   | Won

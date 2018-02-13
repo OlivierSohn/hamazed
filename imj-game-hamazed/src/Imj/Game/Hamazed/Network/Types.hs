@@ -34,7 +34,7 @@ import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.String(IsString)
-import           Data.Text(intercalate)
+import           Data.Text(intercalate, pack)
 import           Data.Text.Lazy(unpack)
 import           Data.Text.Lazy.Encoding(decodeUtf8)
 import           Network.WebSockets(WebSocketsData(..), DataMessage(..))
@@ -110,8 +110,7 @@ data ClientEvent =
   -- ^ When the level's UI transition is finished.
   | Action !ActionTarget !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
-  | GameEnded !GameOutcome
-  | LevelWon
+  | LevelEnded !LevelOutcome
   | Say !Text
   deriving(Generic, Show)
 
@@ -174,7 +173,8 @@ data PlayerNotif =
 instance Binary PlayerNotif
 
 data GameNotif =
-    GameResult !GameOutcome
+    LevelResult !Int !LevelOutcome
+  | GameWon
   deriving(Generic, Show)
 instance Binary GameNotif
 
@@ -185,8 +185,12 @@ toTxt StartsGame (PlayerName n) = "<< " <> n <> " starts the game. >>"
 toTxt (Says t) (PlayerName n) = n <> " : " <> t
 
 toTxt' :: GameNotif -> Text
-toTxt' (GameResult (Lost reason)) = "<< The game was lost : " <> reason <> ". >>"
-toTxt' (GameResult Won) = "<< The game was won! >>"
+toTxt' (LevelResult n (Lost reason)) =
+  "<< Level " <> pack (show n) <> " was lost : " <> reason <> ". >>"
+toTxt' (LevelResult n Won) =
+  "<< Level " <> pack (show n) <> " was won! >>"
+toTxt' GameWon =
+  "<< The game was won! Congratulations! "
 
 welcome :: [PlayerName] -> Text
 welcome l = "Welcome! Users: " <> intercalate ", " (map (\(PlayerName n) -> n) l)

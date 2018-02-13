@@ -62,7 +62,7 @@ instance NFData ServerState
 data Intent =
     Intent'Setup
   | Intent'PlayGame
-  | Intent'GameEnd !GameOutcome
+  | Intent'LevelEnd !LevelOutcome
   deriving(Generic, Show, Eq)
 instance NFData Intent
 

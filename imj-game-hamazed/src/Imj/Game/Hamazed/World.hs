@@ -3,8 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.World
-    (
-      -- * Level
+    ( -- * Level
       {-| There are 12 levels in Hamazed, numbered from 1 to 12.
       -}
       Level(..)
@@ -111,7 +110,7 @@ module Imj.Game.Hamazed.World
     -- * Secondary types
     , WallDistribution(..), WorldShape(..), ViewMode(..)
     , LevelFinished(..)
-    , GameOutcome(..)
+    , LevelOutcome(..)
     -- * Reexports
     , module Imj.Graphics.Render
     ) where

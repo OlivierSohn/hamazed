@@ -37,7 +37,7 @@ eventFromKey k = do -- TODO handle chat : when pressing Enter, swap between chat
           AlphaNum c -> Just $ Evt $ Configuration c
           _ -> Nothing
         PlayLevel ->
-          getGameState >>= \(GameState _ _ _ (Level (LevelSpec n _ _) finished) _ _) ->
+          getGameState >>= \(GameState _ _ _ (Level _ finished) _ _) ->
             case finished of
               Nothing -> return $ case k of
                 AlphaNum c -> case c of
@@ -52,12 +52,5 @@ eventFromKey k = do -- TODO handle chat : when pressing Enter, swap between chat
                   'r'-> Just $ Evt ToggleEventRecording
                   _   -> Nothing
                 _ -> Nothing
-              Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Evt $
-                case stop of
-                  Won -> if n < lastLevel
-                           then
-                             NextLevel
-                           else
-                             EndGame Won
-                  lose@(Lost _) -> EndGame lose
+              Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Evt $ EndLevel stop
               _ -> return $ Nothing -- between level end and proposal to continue

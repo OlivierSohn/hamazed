@@ -87,7 +87,7 @@ ammoColor = gray 14
 bracketsColor :: Color8 Foreground
 bracketsColor = worldFrameFgColor
 
-messageColor :: GameOutcome -> LayeredColor
+messageColor :: LevelOutcome -> LayeredColor
 messageColor Won      = onBlack $ rgb 4 3 1
 messageColor (Lost _) = onBlack $ gray 6
 

@@ -48,7 +48,7 @@ start n = case n of
     listenSock <- flip onException failure $
       makeListenSocket host port -- TODO should we close it, and when?
     success
-    state <- newMVar newServerState
+    state <- newMVar =<< newServerState
     -- 1 thread to listen for incomming connections, n thread to handle clients
     _ <- forkIO $ runServer' listenSock $ appSrv state
     -- 1 thread to periodically send game events

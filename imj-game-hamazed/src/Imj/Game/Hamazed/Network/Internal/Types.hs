@@ -17,7 +17,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Prelude hiding(intercalate)
 import           Control.DeepSeq(NFData(..))
 import           Network.WebSockets(Connection)
-
+import           Control.Concurrent.MVar(MVar, newEmptyMVar)
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 
@@ -59,6 +59,7 @@ data ServerState = ServerState {
   -- ^ The actual 'World' is stored on the 'Clients'
   , getLastRequestedWorldId' :: !(Maybe WorldId)
   , getIntent' :: !Intent
+  , getSchedulerSignal :: !(MVar WorldId)
 } deriving(Generic)
 instance NFData ServerState
 
@@ -88,7 +89,7 @@ mkGameTiming = GameTiming Nothing initalGameMultiplicator
 mkClients :: Clients
 mkClients = Clients [] (ShipId 0)
 
-newServerState :: ServerState
+newServerState :: IO ServerState
 newServerState =
   ServerState mkClients [] mkGameTiming (mkLevelSpec firstLevel)
-              initialParameters Nothing Intent'Setup
+              initialParameters Nothing Intent'Setup <$> newEmptyMVar

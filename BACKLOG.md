@@ -1,3 +1,11 @@
+- fix display of level
+
+- the info "game ended" is sent when player presses play.
+then server verifies outcome and computes next world.
+
+Instead, the info should be sent immediately so that the server can verify
+outcomes.
+
 - when server is not reachable, output an error.
 
 - when changing view center, the text on the left does not change position, it

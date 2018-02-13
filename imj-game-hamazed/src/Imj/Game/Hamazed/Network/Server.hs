@@ -15,7 +15,10 @@ module Imj.Game.Hamazed.Network.Server
 
 import           Imj.Prelude hiding (drop, intercalate)
 
-import           Control.Concurrent.MVar (MVar, modifyMVar_, modifyMVar)
+import           Control.Concurrent(threadDelay)
+import           Control.Concurrent.MVar (MVar
+                                        , modifyMVar_, modifyMVar
+                                        , readMVar, putMVar, takeMVar) -- for signaling purposes
 import           Control.Monad (forever)
 import           Control.Monad.Reader(runReaderT, ask)
 import           Control.Monad.State.Strict(runStateT, StateT, modify, get, state)
@@ -32,6 +35,8 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
+
+import           Imj.Game.Hamazed.Loop.Timing
 
 
 defaultPort :: ServerPort
@@ -129,7 +134,7 @@ makeClient conn sn cliType =
       let newShipId = succ $ getNextShipId $ getClients s
       in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
   addClient c =
-    modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _) ->
+    modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _ _) ->
       s { getClients = cls { getClients' = c : clients } }
 
 
@@ -210,9 +215,12 @@ handleIncomingEvent client@(Client cId _ _) = \case
       s { getPlayingClients = setFinished cId $ getPlayingClients s }
     getPlayers >>= \players ->
       when (all finished players) $ do
-        modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel }
-        requestWorld
         sendClients $ GameInfo $ GameResult outcome
+        void $ getSchedulerSignal <$> get >>= liftIO . takeMVar
+        modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
+                         , getIntent' = Intent'Setup
+                         }
+        requestWorld
   LevelWon -> error' client "todo"
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
@@ -257,7 +265,8 @@ handleIncomingEvent client@(Client cId _ _) = \case
               when (all ready players) $ do
                 modify $ \s ->
                   s { getPlayingClients = setStartPlay $ getPlayingClients s }
-                sendPlayers $ EnterState PlayLevel)
+                sendPlayers $ EnterState PlayLevel
+                getSchedulerSignal <$> get >>= liftIO . flip putMVar lastWId)
       Intent'Setup ->
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
@@ -277,11 +286,23 @@ handleIncomingEvent client@(Client cId _ _) = \case
   Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
 
 gameScheduler :: MVar ServerState -> IO ()
-gameScheduler _s = --forever $ do
+gameScheduler s = do
+  void $ getSchedulerSignal <$> readMVar s >>= \signal -> forever $ do
+    currentWorld <- readMVar signal
+    let mult = initalGameMultiplicator
+        go mayPrevUpdate = do
+          now <- getSystemTime
+          let baseTime = fromMaybe now mayPrevUpdate
+              update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
+          threadDelay $ fromIntegral $ toMicros $ now...update
+          readMVar signal >>= \thisWorld ->
+            when (currentWorld == thisWorld) $ do
+              let evt = GameEvent $ PeriodicMotion [] []
+              sendClients' evt . (map getClient) . getPlayingClients =<< readMVar s
+              go $ Just update
+    go Nothing
   -- on game start, initialize acceleration accumulators to 0.
-  -- pause / run
   -- every gamePeriod, send accumulators value and reset them to 0.
-  return ()
 
 setStartPlay :: [Player] -> [Player]
 setStartPlay = map (\p -> p { getState = InGame })
@@ -308,7 +329,7 @@ updatePlayerWorldId cId wid =
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _) -> do
+  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _ _) -> do
     let shipIds = map (getClientId . getIdentity . getClient) playing
     liftIO $ flip sendFirstWorldBuilder clients $
       WorldRequest $ WorldSpec level shipIds params wid

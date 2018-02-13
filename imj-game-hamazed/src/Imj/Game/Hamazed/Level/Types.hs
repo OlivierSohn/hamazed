@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.Level.Types
     , LevelSpec(..)
     , mkLevelSpec
     , mkEmptyLevelSpec
+    , initialLaserAmmo
     , LevelFinished(..)
     , MessageState(..)
     , LevelOutcome(..)
@@ -21,6 +22,9 @@ import           Imj.Prelude
 import           Control.DeepSeq(NFData)
 
 import           Imj.Timing
+
+initialLaserAmmo :: Int
+initialLaserAmmo = 10
 
 data Level = Level {
     _levelSpec :: !LevelSpec

@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.Loop.Create
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
+import           Data.Map(elems)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -63,8 +64,9 @@ mkInitialState newLevel (WorldEssence balls ships llMat wid) mode maySz mayState
         (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center)) ->
             (w, center, curLevel, curShotNums))
           mayState
-      curInfos = mkInfos Normal        (map getAmmo $ getWorldShips curWorld) shotNums    level
-      newInfos = mkInfos ColorAnimated (map getAmmo $ getWorldShips newWorld) newShotNums newLevel
+      nameAndAmmo (BattleShip name _ ammo _ _) = (name, ammo)
+      curInfos = mkInfos Normal        (map nameAndAmmo $ elems $ getWorldShips curWorld) shotNums    level
+      newInfos = mkInfos ColorAnimated (map nameAndAmmo $ elems $ getWorldShips newWorld) newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
       uiAnimation =
         mkUIAnimation

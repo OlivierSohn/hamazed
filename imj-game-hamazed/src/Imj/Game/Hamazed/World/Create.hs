@@ -16,6 +16,7 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
+import           Data.Map.Strict(empty, fromList)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Types
@@ -27,23 +28,21 @@ import           Imj.Physics.Discrete.Collision
 
 
 mkWorldEssence :: WorldSpec -> IO WorldEssence
-mkWorldEssence (WorldSpec levelNum shipIds (WorldParameters shape wallDistrib) wid) = do
+mkWorldEssence (WorldSpec levelNum clientIds (WorldParameters shape wallDistrib) wid) = do
   let (LevelSpec _ _ numbers) = mkLevelSpec levelNum
       size = worldSizeFromLevel levelNum shape
-      nShips = length shipIds
+      nShips = length clientIds
   space <- mkSpace size wallDistrib
   balls <- mapM (createRandomNumber space) numbers
   posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
-  let ships = map
-        (\(sid,posSpeed@(PosSpeed pos _)) -> BattleShip sid posSpeed initialLaserAmmo True (getColliding pos balls))
-        $ zip shipIds posSpeeds
+  let ships = fromList $ map
+        (\((ClientId playerName shipId),posSpeed@(PosSpeed pos _)) ->
+          (shipId, BattleShip playerName posSpeed initialLaserAmmo True (getColliding pos balls)))
+        $ zip clientIds posSpeeds
   return $ WorldEssence balls ships (toListOfLists space) wid
 
 mkMinimalWorldEssence :: WorldEssence
-mkMinimalWorldEssence = WorldEssence [] [] [[]] Nothing
-
-initialLaserAmmo :: Int
-initialLaserAmmo = 10
+mkMinimalWorldEssence = WorldEssence [] empty [[]] Nothing
 
 -- | Ships positions will not be colliding with numbers and with each other.
 createShipPosSpeeds :: Int -> Space -> [Coords Pos] -> [PosSpeed] -> IO [PosSpeed]

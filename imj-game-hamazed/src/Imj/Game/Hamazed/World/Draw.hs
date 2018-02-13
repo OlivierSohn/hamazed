@@ -9,7 +9,8 @@ module Imj.Game.Hamazed.World.Draw
 
 import           Imj.Prelude
 
-import           Data.Char( intToDigit )
+import           Data.Char(intToDigit)
+import           Data.Map.Strict(assocs)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
@@ -28,7 +29,7 @@ drawWorld :: (Draw e, MonadReader e m, MonadIO m)
 drawWorld (World balls ships space _ _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (\b -> drawNumber b space s) balls
-  let drawShip (BattleShip shipId (PosSpeed shipCoords _) _ safe collisions) =
+  let drawShip (shipId, (BattleShip _ (PosSpeed shipCoords _) _ safe collisions)) =
         when ((null collisions || safe) && (InsideWorld == location shipCoords space)) $
           drawChar (shipChar shipId) (sumCoords shipCoords s) $
             if safe
@@ -36,7 +37,7 @@ drawWorld (World balls ships space _ _ _) s  = do
                 shipColorsSafe
               else
                 shipColors
-  mapM_ drawShip ships
+  mapM_ drawShip $ assocs $ ships
 
 shipChar :: ShipId -> Char
 shipChar _ = '+' -- TODO change drawing char based on id

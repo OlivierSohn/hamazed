@@ -120,8 +120,9 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.List( find, elem )
-import           Data.Text( pack )
+import           Data.Map.Strict(fromAscList, assocs, insert)
+import           Data.List(find, elem)
+import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
@@ -154,7 +155,7 @@ moveWorld :: [(ShipId, Coords Vel)]
           -> World
 moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
   let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
-      moveShip (BattleShip sid (PosSpeed prevPos oldSpeed) ammo safe _) =
+      moveShip (sid, (BattleShip name (PosSpeed prevPos oldSpeed) ammo safe _)) =
         let newSafe =
               if safe
                 then
@@ -167,8 +168,10 @@ moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
               $ find ((==) sid . fst) accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
             collisions = getColliding pos newBalls
-        in BattleShip sid newPosSpeed ammo newSafe collisions
-  in World newBalls (map moveShip ships) space rs anims e
+        in (sid,BattleShip name newPosSpeed ammo newSafe collisions)
+      -- using fromAscList ecause the keys are unchanged.
+      newShips = fromAscList $ map moveShip $ assocs ships
+  in World newBalls newShips space rs anims e
 
 -- | Computes the effect of an laser shot on the 'World'.
 laserEventAction :: (MonadState AppState m)
@@ -178,9 +181,9 @@ laserEventAction :: (MonadState AppState m)
                  -> Time Point System
                  -> m [Number]
                  -- ^ 'Number's destroyed
-laserEventAction ship dir t =
+laserEventAction shipId dir t =
   getWorld >>= \(World balls ships space rs d e) -> do
-    let ((BattleShip _ shipPS@(PosSpeed shipCoords _) ammo a b), otherShips) = partitionShips ship ships
+    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo _ _) = findShip shipId ships
         (maybeLaserRayTheoretical, newAmmo) =
           if ammo > 0
             then
@@ -196,7 +199,8 @@ laserEventAction ship dir t =
              (\r -> fmap Just
                     $ computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
                maybeLaserRayTheoretical
-    putWorld $ World remainingBalls ((BattleShip ship shipPS newAmmo a b):otherShips) space rs d e
+        newShips = insert shipId (ship { getAmmo = newAmmo }) ships
+    putWorld $ World remainingBalls newShips space rs d e
 
     let tps = systemTimePointToParticleSystemTimePoint t
     outerSpaceParticleSystems_ <-

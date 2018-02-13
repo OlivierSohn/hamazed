@@ -10,19 +10,18 @@ module Imj.Game.Hamazed.World.Types
         , WorldSpec(..)
         , WorldEssence(..)
         , World(..)
+        , findShip
         , ParticleSystemKey(..)
         , WorldParameters(..)
         , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
-        , mkShipId
-        , findShip
-        , partitionShips
         , ShipId(..)
         , Number(..)
         , Scope(..)
         , ViewMode(..)
         , Screen(..)
+        , ClientId(..)
         , getColliding
         , computeViewDistances
         , getWorldCorner
@@ -44,23 +43,23 @@ import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
 import           Control.DeepSeq(NFData)
-import           Data.List(find, partition)
-import           Data.Map.Strict(Map)
+import           Data.Map.Strict(Map, lookup)
 
-import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Continuous.Types
-import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Physics.Discrete.Types
+
+import           Imj.Game.Hamazed.Chat
+import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Hamazed.World.Space
+import           Imj.Geo.Discrete
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Physics.Discrete
-import           Imj.Physics.Discrete.Types
 import           Imj.Timing
-
 
 data WorldParameters = WorldParameters {
     getWorldShape :: !WorldShape
@@ -93,15 +92,27 @@ instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
     getLevelNumber :: !Int
-  , getShipIds :: ![ShipId]
+  , getShipIds :: ![ClientId]
   , getWorldParams :: !WorldParameters
   , getWorldId' :: !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
 } deriving(Generic, Show)
 instance Binary WorldSpec
 
+data ClientId = ClientId {
+    getPlayerName :: !PlayerName -- ^ primary key
+  , getClientId :: !ShipId -- ^ primary key
+} deriving(Generic, Show)
+instance NFData ClientId
+instance Binary ClientId
+
+-- | Match only on 'ShipId'.
+instance Eq ClientId where
+  x == y = (getClientId x) == (getClientId y)
+  {-# INLINABLE (==) #-}
+
 data WorldEssence = WorldEssence {
     getNumbers :: ![Number]
-  , getShips :: ![BattleShip]
+  , getShips :: !(Map ShipId BattleShip)
   , getSpaceMatrix :: ![[Material]] -- TODO ByteString would use 3 * 64 times less memory
   , getWorldId :: !(Maybe WorldId)
 } deriving(Generic, Show)
@@ -113,7 +124,7 @@ newtype WorldId = WorldId Int64
 data World = World {
     getWorldNumbers :: ![Number]
     -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
-  , getWorldShips :: ![BattleShip]
+  , getWorldShips :: !(Map ShipId BattleShip)
   , getWorldSpace :: !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
@@ -137,7 +148,7 @@ computeViewDistances (CenterShip _) = (30, 2) -- it will overlapp for large worl
 computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
-    getShipId :: !ShipId
+    getPilotName :: !PlayerName
   , _shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
@@ -149,11 +160,8 @@ data BattleShip = BattleShip {
 } deriving(Generic, Show)
 instance Binary BattleShip
 
-newtype ShipId = ShipId Int64 deriving(Generic, Binary, Eq, Show, Enum, NFData)
-
--- This is good enough for now.
-mkShipId :: IO ShipId
-mkShipId = ShipId . toMicros . unsafeFromTimeSpec . unsafeGetTimeSpec <$> getSystemTime
+newtype ShipId = ShipId Int64
+  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)
 
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
@@ -259,15 +267,8 @@ mkScreen sz =
                   sz
   in Screen sz center
 
-findShip :: ShipId -> [BattleShip] -> BattleShip
-findShip withId =
-  fromMaybe (error $ "ship not found : " ++ show withId)
-  . find (\s -> getShipId s == withId)
-
-partitionShips :: ShipId -> [BattleShip] -> (BattleShip, [BattleShip])
-partitionShips onId ships =
-  let (l1,l2) = partition (\s -> getShipId s == onId) ships
-  in case l1 of
-      [ship] -> (ship, l2)
-      [] -> error $ "ship not found : " ++ show onId
-      _ -> error $ "ship not unique : " ++ show (onId, l1)
+{-# INLINE findShip #-}
+findShip :: ShipId -> (Map ShipId BattleShip) -> BattleShip
+findShip i =
+  fromMaybe (error $ "ship not found : " ++ show i)
+  . lookup i

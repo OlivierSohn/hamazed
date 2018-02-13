@@ -108,7 +108,7 @@ runWithArgs =
              (option suggestedPlayerName (long "player"
                               <> help (
                               "The name of the player you want to use, " ++
-                              "in a multiplayer context. Default is \"player\"."
+                              "in a multiplayer context. Default is \"Player\"."
                               )))
       <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
 
@@ -190,7 +190,7 @@ runWithBackend maybeBackend maySrvName maySrvPort mayPlayerName debug = do
 
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName srvPort
-      spn = fromMaybe "player" $ mayPlayerName
+      spn = fromMaybe "Player" $ mayPlayerName
   maybe userPicksBackend return maybeBackend >>= \case
     Console      -> newConsoleBackend
       >>= runWith debug srv spn

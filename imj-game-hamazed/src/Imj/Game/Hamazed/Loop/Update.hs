@@ -11,6 +11,8 @@ module Imj.Game.Hamazed.Loop.Update
 
 import           Imj.Prelude
 
+import           Data.Map.Strict(elems)
+
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -132,8 +134,9 @@ onDestroyedNumbers t destroyedBalls =
     mode <- getViewMode
     let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
         allShotNumbers = g ++ destroyedNumbers
-        ammos = map getAmmo ships
-        allAmmos = sum ammos
+        nameAndAmmo (BattleShip name _ ammo _ _) = (name, ammo)
+        ammos = map nameAndAmmo $ elems ships
+        allAmmos = sum $ map snd ammos
         newLeft =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode

@@ -199,7 +199,6 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
         sendClients $ GameInfo $ LevelResult n outcome
         when (outcome == Won && n == lastLevel) $
           sendClients $ GameInfo GameWon
-
         if outcome == Won && n < lastLevel
            then
              modify $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
@@ -346,7 +345,7 @@ requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
   get >>= \(ServerState (Clients clients _) _ (LevelSpec level _ _) params wid _ _) -> do
-    shipIds <- map (getClientId . getIdentity) <$> onlyPlayers
+    shipIds <- map getIdentity <$> onlyPlayers
     liftIO $ flip sendFirstWorldBuilder clients $
       WorldRequest $ WorldSpec level shipIds params wid
  where

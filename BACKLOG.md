@@ -1,6 +1,8 @@
-- fix display of level
+- use separate processes for server and client?
+Pro : garbage collection of client does not influence server garbage collection, so
+game scheduling may become more stable because on the server there is less stuff to collect.
 
-- fix order of displayed ammos changing according to last ship that fired
+- fix display of level
 
 - add player name in front of corresponding ammo
 

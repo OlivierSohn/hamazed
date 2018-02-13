@@ -15,8 +15,10 @@ import           Data.Char( intToDigit )
 import           Data.List( length, foldl' )
 import           Data.Text(pack, singleton)
 
-import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level.Types
+
+import           Imj.Game.Hamazed.Chat
+import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Text.ColorString
 
@@ -29,9 +31,11 @@ mkLevelCS t level =
     Normal -> [txt configFgColor]
     ColorAnimated -> [txt red, txt configFgColor]
 
-mkAmmoCS :: InfoType -> Int -> Successive ColorString
-mkAmmoCS _ ammo =
-  let s = colored (singleton '[') bracketsColor
+mkAmmoCS :: InfoType -> (PlayerName, Int) -> Successive ColorString
+mkAmmoCS _ (PlayerName name, ammo) =
+  let pad = initialLaserAmmo - ammo
+      s = colored ("\"" <> name <> "\"   " <> pack (replicate pad ' ')) configFgColor
+       <> colored (singleton '[') bracketsColor
        <> colored (pack $ replicate ammo '.') ammoColor
        <> colored (singleton ']') bracketsColor
    in Successive [s]
@@ -57,7 +61,7 @@ mkShotNumbersCS _ nums =
 
   in Successive [middle <> last_]
 
-mkLeftInfo :: InfoType -> [Int] -> [Int] -> LevelSpec -> [Successive ColorString]
+mkLeftInfo :: InfoType -> [(PlayerName, Int)] -> [Int] -> LevelSpec -> [Successive ColorString]
 mkLeftInfo t ammos shotNums (LevelSpec level target _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
@@ -73,7 +77,7 @@ mkUpDownInfo =
   (Successive [],Successive [])
 
 mkInfos :: InfoType
-        -> [Int]
+        -> [(PlayerName, Int)]
         -> [Int]
         -> LevelSpec
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])

@@ -9,7 +9,6 @@ module Imj.Game.Hamazed.Network.Types
       , NoConnectReason(..)
       , SuggestedPlayerName(..)
       , PlayerName(..)
-      , ClientId(..)
       , ClientType(..)
       , ClientState(..)
       , StateNature(..)
@@ -71,19 +70,6 @@ data StateValue =
   deriving(Generic, Show, Eq)
 instance Binary StateValue
 instance NFData StateValue
-
-data ClientId = ClientId {
-    getPlayerName :: !PlayerName -- ^ primary key
-  , getClientId :: !ShipId -- ^ primary key
-} deriving(Generic, Show)
-instance NFData ClientId
-
--- | Match only on 'ShipId'.
-instance Eq ClientId where
-  x == y = (getClientId x) == (getClientId y)
-  {-# INLINABLE (==) #-}
-
-instance Binary ClientId
 
 data GameNode =
     GameServer !Server

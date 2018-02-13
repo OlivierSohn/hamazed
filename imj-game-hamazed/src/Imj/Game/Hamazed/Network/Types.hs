@@ -52,7 +52,6 @@ data ClientType =
     WorldCreator
   | JustPlayer
   deriving(Generic, Show, Eq)
-
 instance Binary ClientType
 
 data ClientState = ClientState !StateNature !StateValue

@@ -154,9 +154,9 @@ onMove :: (MonadState AppState m, MonadIO m)
        => [(ShipId, Coords Vel)]
        -> [ShipId]
        -> m ()
-onMove accelerations shipsLosingArmor =
+onMove accelerations shipsLosingArmor = do
   getWorld >>= putWorld . moveWorld accelerations shipsLosingArmor
-    >> onHasMoved
+  onHasMoved
 
 {-# INLINABLE onHasMoved #-}
 onHasMoved :: (MonadState AppState m, MonadIO m)

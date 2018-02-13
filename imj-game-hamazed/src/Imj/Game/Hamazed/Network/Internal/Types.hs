@@ -6,8 +6,7 @@
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
-      , Player(..)
-      , mkPlayer
+      , mkClient
       , PlayerState(..)
       , Clients(..)
       , Intent(..)
@@ -18,41 +17,38 @@ import           Imj.Prelude hiding(intercalate)
 import           Control.DeepSeq(NFData(..))
 import           Network.WebSockets(Connection)
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
+
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 
+import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
-
-data Player = Player {
-    getClient :: !Client
-  , getCurrentWorld :: !(Maybe WorldId)
-  , getShipSafeUntil :: !(Maybe (Time Point System))
-  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
-  -- for a given time. This field holds the time at which the immunity ends.
-  , getState :: !PlayerState
-} deriving (Generic)
-instance NFData Player where
-  rnf _ = ()
-
-mkPlayer :: Client -> Player
-mkPlayer c = Player c Nothing Nothing Finished
-
-data PlayerState = InGame | Finished
-  deriving (Generic, Eq)
-instance NFData PlayerState
 
 data Client = Client {
     getIdentity :: !ClientId
   , getConnection :: !Connection
   , getClientType :: !ClientType
+  , getCurrentWorld :: !(Maybe WorldId)
+  , getShipSafeUntil :: !(Maybe (Time Point System))
+  , getShipAcceleration :: !(Coords Vel)
+  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
+  -- for a given time. This field holds the time at which the immunity ends.
+  , getState :: !(Maybe PlayerState)
+  -- ^ When 'Nothing', the client is excluded from the current game.
 } deriving(Generic)
 instance NFData Client where
   rnf _ = ()
 
+mkClient :: ClientId -> Connection -> ClientType -> Client
+mkClient a b c = Client a b c Nothing Nothing zeroCoords Nothing
+
+data PlayerState = InGame | Finished
+  deriving (Generic, Eq)
+instance NFData PlayerState
+
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
     getClients :: !Clients
-  , getPlayingClients :: ![Player]
   , _gameTiming :: !GameTiming
   , getLevelSpec :: !LevelSpec
   , getWorldParameters :: !WorldParameters
@@ -91,5 +87,5 @@ mkClients = Clients [] (ShipId 0)
 
 newServerState :: IO ServerState
 newServerState =
-  ServerState mkClients [] mkGameTiming (mkLevelSpec firstLevel)
+  ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
               initialParameters Nothing Intent'Setup <$> newEmptyMVar

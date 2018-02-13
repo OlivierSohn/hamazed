@@ -1,5 +1,12 @@
 - fix display of level
 
+- fix order of displayed ammos changing according to last ship that fired
+
+- add player name in front of corresponding ammo
+
+- when player press a key to restart: it waits for other player to also press a key to restart
+we could display "waiting for other players to press a key..."
+
 - the info "game ended" is sent when player presses play.
 then server verifies outcome and computes next world.
 

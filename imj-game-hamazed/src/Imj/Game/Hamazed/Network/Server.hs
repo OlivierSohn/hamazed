@@ -18,11 +18,12 @@ import           Imj.Prelude hiding (drop, intercalate)
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar
-                                        , readMVar, putMVar, takeMVar) -- for signaling purposes
+                                        , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
 import           Control.Monad (forever)
 import           Control.Monad.Reader(runReaderT, ask)
-import           Control.Monad.State.Strict(runStateT, StateT, modify, get, state)
+import           Control.Monad.State.Strict(StateT, runStateT, execStateT, StateT, modify, get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
+import           Data.Maybe(isJust)
 import           Data.Text(Text, pack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
@@ -37,7 +38,7 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 
 import           Imj.Game.Hamazed.Loop.Timing
-
+import           Imj.Geo.Discrete(translateInDir, zeroCoords)
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10051
@@ -73,7 +74,7 @@ sendClients evt =
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  liftIO . sendClients' evt . (map getClient) =<< getPlayers
+  liftIO . sendClients' evt =<< onlyPlayers
 
 appSrv :: MVar ServerState -> ServerApp
 appSrv s pending = runReaderT (appSrv' pending) s
@@ -110,32 +111,30 @@ appSrv' pending = do
           client <-
             modifyState $ \s -> swap <$> runStateT (makeClient conn sn cliType) s
           flip finally
-            (modifyState_ $ \s -> snd <$> runStateT (disconnect $ getIdentity client) s) $
+            (modifyState_ $ execStateT $ disconnect $ getIdentity client) $
             forever $
               liftIO (receiveData conn) >>= \evt ->
-                modifyState_ $ \s -> snd <$> runStateT (handleIncomingEvent client evt) s
+                modifyState_ $ execStateT $ handleIncomingEvent client evt
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
 
 makeClient :: Connection -> SuggestedPlayerName -> ClientType -> StateT ServerState IO Client
-makeClient conn sn cliType =
-  takeShipId >>= \sid ->
-    makePlayerName sn >>= \name -> do
-      let cId = ClientId name sid
-          client = Client cId conn cliType
-      addClient client
-      allClients >>= \clients ->
-        send client $ ConnectionAccepted cId $ map (getPlayerName . getIdentity) clients
-      sendClients $ PlayerInfo cId Joins
-      return client
+makeClient conn sn cliType = do
+  cId <- ClientId <$> makePlayerName sn <*> takeShipId
+  let client = mkClient cId conn cliType
+  addClient client
+  send client . ConnectionAccepted cId . map (getPlayerName . getIdentity) =<< allClients
+  sendClients $ PlayerInfo cId Joins
+  return client
  where
   takeShipId =
     state $ \s ->
       let newShipId = succ $ getNextShipId $ getClients s
       in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
   addClient c =
-    modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _ _) ->
-      s { getClients = cls { getClients' = c : clients } }
+    modify $ \ s ->
+      let clients = getClients s
+      in s { getClients = clients { getClients' = c : getClients' clients } }
 
 
 
@@ -153,20 +152,20 @@ makePlayerName (SuggestedPlayerName sn) = do
 
 disconnect :: ClientId -> StateT ServerState IO ()
 disconnect x = do
-  modify $ \s ->
-    s { getClients        = removeClient x $ getClients s
-      , getPlayingClients = removeClient' x getClient $ getPlayingClients s
-      }
+  modify $ \s -> s { getClients = removeClient x $ getClients s }
   sendClients $ PlayerInfo x Leaves
 
 allClients :: StateT ServerState IO [Client]
 allClients = getClients' . getClients <$> get
 
+onlyPlayers :: StateT ServerState IO [Client]
+onlyPlayers = onlyPlayers' <$> allClients
+
+onlyPlayers' :: [Client] -> [Client]
+onlyPlayers' = filter (isJust . getState)
+
 getIntent :: StateT ServerState IO Intent
 getIntent = getIntent' <$> get
-
-getPlayers :: StateT ServerState IO [Player]
-getPlayers = getPlayingClients <$> get
 
 getLastRequestedWorldId :: StateT ServerState IO (Maybe WorldId)
 getLastRequestedWorldId = getLastRequestedWorldId' <$> get
@@ -178,7 +177,7 @@ error' client txt = do
     -- hence we sent the error to the client, so that it can error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client cId _ _) = \case
+handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
   Disconnect -> do
@@ -190,14 +189,12 @@ handleIncomingEvent client@(Client cId _ _) = \case
   EnteredState Excluded -> return ()
   EnteredState PlayLevel -> return ()
   ExitedState Excluded -> getIntent >>= \case
-    Intent'Setup ->
-      getPlayers >>= \players -> do
-        -- add client to playing clients if it is not already a player
-        let isPlayer = any ((== cId) . getIdentity . getClient) players
-        unless isPlayer $ modify $ \s ->
-          s { getPlayingClients = mkPlayer client:getPlayingClients s }
-          -- request world. (-> next step when client 'IsReady')
-        requestWorld
+    Intent'Setup -> do
+      -- change client state to make it playable
+      modifyClient cId $ \c -> c { getState = Just Finished }
+      -- request world to let the client have a world
+      requestWorld
+      -- next step when client 'IsReady'
     _ -> send client $ EnterState Excluded
   ExitedState PlayLevel -> return ()
   GameEnded outcome -> do
@@ -211,15 +208,20 @@ handleIncomingEvent client@(Client cId _ _) = \case
           else
             error $ "inconsistent outcomes:" ++ show (o, outcome)
       _ -> error "logic"
-    modify $ \s ->
-      s { getPlayingClients = setFinished cId $ getPlayingClients s }
-    getPlayers >>= \players ->
-      when (all finished players) $ do
+    modifyClient cId $ \c -> c { getState = Just Finished }
+    allClients >>= \clients -> do
+      let playersAllFinished = all (finishedOrNothing . getState) clients
+          finishedOrNothing Nothing = True
+          finishedOrNothing (Just Finished) = True
+          finishedOrNothing (Just InGame) = False
+      when playersAllFinished $ do
         sendClients $ GameInfo $ GameResult outcome
         void $ getSchedulerSignal <$> get >>= liftIO . takeMVar
         modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
                          , getIntent' = Intent'Setup
                          }
+        modifyClients $ \c -> c { getState = Just Finished } -- fresh clients join
+        sendClients $ EnterState Setup
         requestWorld
   LevelWon -> error' client "todo"
 ------------------------------------------------------------------------------
@@ -253,18 +255,25 @@ handleIncomingEvent client@(Client cId _ _) = \case
 --   UI Animation is over (hence the level shall start, for example.):
 ------------------------------------------------------------------------------
   IsReady wid -> do
-    updatePlayerWorldId cId wid
+    modifyClient cId $ \c -> c { getCurrentWorld = Just wid }
     getIntent >>= \case
       Intent'PlayGame ->
-        getPlayers >>= \players ->
+        allClients >>= \clients ->
           getLastRequestedWorldId >>= maybe
             (return ())
             (\lastWId -> do
               -- start the game when all players have the right world
-              let ready = ((==) (Just lastWId)) . getCurrentWorld
-              when (all ready players) $ do
-                modify $ \s ->
-                  s { getPlayingClients = setStartPlay $ getPlayingClients s }
+              let playersAllReady =
+                    all
+                      ((== Just lastWId) . getCurrentWorld)
+                      $ filter
+                          ((== Just Finished) . getState)
+                          clients
+              when playersAllReady $ do
+                modifyClients $ \c -> if getState c == Just Finished
+                                        then c { getState = Just InGame
+                                               , getShipAcceleration = zeroCoords }
+                                        else c
                 sendPlayers $ EnterState PlayLevel
                 getSchedulerSignal <$> get >>= liftIO . flip putMVar lastWId)
       Intent'Setup ->
@@ -283,54 +292,74 @@ handleIncomingEvent client@(Client cId _ _) = \case
   -- able to integrate the latency via this visual feedback - I read somewhere that
   -- latency is not a big problem for players, provided that it is stable over time.
   Action Laser dir -> sendPlayers $ GameEvent $ LaserShot (getClientId cId) dir
-  Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
+  Action Ship dir ->
+    modifyClient cId $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
 
 gameScheduler :: MVar ServerState -> IO ()
-gameScheduler s = do
-  void $ getSchedulerSignal <$> readMVar s >>= \signal -> forever $ do
-    currentWorld <- readMVar signal
+gameScheduler st =
+  void $ forever $ do
+    currentWorld <- fmap getSchedulerSignal (readMVar st) >>= readMVar
     let mult = initalGameMultiplicator
         go mayPrevUpdate = do
           now <- getSystemTime
           let baseTime = fromMaybe now mayPrevUpdate
               update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
           threadDelay $ fromIntegral $ toMicros $ now...update
-          readMVar signal >>= \thisWorld ->
-            when (currentWorld == thisWorld) $ do
-              let evt = GameEvent $ PeriodicMotion [] []
-              sendClients' evt . (map getClient) . getPlayingClients =<< readMVar s
-              go $ Just update
+          goOn <- modifyMVar st $ \s@(ServerState (Clients clients _) _ _ _ _ _ signal) ->
+            tryReadMVar signal >>= maybe
+              (return (s, False))
+              (\thisWorld -> do
+                if currentWorld == thisWorld
+                  then do
+                    let players = onlyPlayers' clients
+                        zero = zeroCoords
+                        accs =
+                          mapMaybe
+                            (\p -> let acc = getShipAcceleration p
+                                   in if acc == zero
+                                        then Nothing
+                                        else Just (getClientId $ getIdentity p, acc))
+                            players
+                        evt = GameEvent $ PeriodicMotion accs []
+                    sendClients' evt players
+                    s' <- flip execStateT s $ modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
+                    return (s', True)
+                  else
+                    return (s, False)) -- no need to zero ships accelerations, it is done when starting the level.
+          when goOn $ go $ Just update
     go Nothing
   -- on game start, initialize acceleration accumulators to 0.
   -- every gamePeriod, send accumulators value and reset them to 0.
 
-setStartPlay :: [Player] -> [Player]
-setStartPlay = map (\p -> p { getState = InGame })
 
-finished :: Player -> Bool
-finished = ((==) Finished) . getState
-
-setFinished :: ClientId -> [Player] -> [Player]
-setFinished i = map (\p -> if (getIdentity . getClient) p == i
-                            then p { getState = Finished}
-                            else p)
-
-updatePlayerWorldId :: ClientId -> WorldId -> StateT ServerState IO ()
-updatePlayerWorldId cId wid =
+modifyClient :: ClientId -> (Client -> Client) -> StateT ServerState IO ()
+modifyClient cId f =
   modify $ \s ->
-    s { getPlayingClients =
-          map (\p ->
-                  if (cId == (getIdentity . getClient) p)
-                    then p { getCurrentWorld = Just wid }
-                    else p)
-              $ getPlayingClients s
-      }
+    let clients = getClients s
+    in s { getClients =
+            clients { getClients' =
+                        map (\c -> if cId == getIdentity c
+                                     then f c
+                                     else c)
+                          $ getClients' clients
+                    }
+          }
+
+modifyClients :: (Client -> Client) -> StateT ServerState IO ()
+modifyClients f =
+  modify $ \s ->
+    let clients = getClients s
+    in s { getClients =
+            clients { getClients' =
+                        map f $ getClients' clients
+                    }
+          }
 
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _ _) -> do
-    let shipIds = map (getClientId . getIdentity . getClient) playing
+  get >>= \(ServerState (Clients clients _) _ (LevelSpec level _ _) params wid _ _) -> do
+    shipIds <- map (getClientId . getIdentity) <$> onlyPlayers
     liftIO $ flip sendFirstWorldBuilder clients $
       WorldRequest $ WorldSpec level shipIds params wid
  where
@@ -339,7 +368,7 @@ requestWorld = do
       let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
       in s { getLastRequestedWorldId' = Just wid }
   sendFirstWorldBuilder evt =
-    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType) . getClients'
+    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType)
 
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)

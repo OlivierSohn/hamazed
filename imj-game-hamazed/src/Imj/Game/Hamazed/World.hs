@@ -155,21 +155,20 @@ moveWorld :: [(ShipId, Coords Vel)]
           -> World
 moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
   let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
-      moveShip ship@(BattleShip sid (PosSpeed _ oldSpeed) ammo safe _) =
+      moveShip (BattleShip sid (PosSpeed prevPos oldSpeed) ammo safe _) =
         let newSafe =
               if safe
                 then
                   not $ sid `elem` shipsLosingArmor
                 else
                   False
-        in maybe
-            ship
-            (\(accId,acc) ->
-              let newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed pos $ sumCoords acc oldSpeed
-                  collisions = getColliding pos newBalls
-              in BattleShip accId newPosSpeed ammo newSafe collisions)
-            -- induces a square complexity, but if the number of ships is small it's ok.
-            $ find (\(accID,_) -> accID == sid) accelerations
+            newSpeed =
+              maybe oldSpeed (\(_,acc) -> sumCoords acc oldSpeed)
+              -- induces a square complexity, but if the number of ships is small it's ok.
+              $ find ((==) sid . fst) accelerations
+            newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
+            collisions = getColliding pos newBalls
+        in BattleShip sid newPosSpeed ammo newSafe collisions
   in World newBalls (map moveShip ships) space rs anims e
 
 -- | Computes the effect of an laser shot on the 'World'.

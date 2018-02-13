@@ -1,3 +1,5 @@
+- when server is not reachable, output an error.
+
 - when changing view center, the text on the left does not change position, it
 changes only on the next world change.
 

@@ -18,7 +18,7 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.Client(appCli)
-import           Imj.Game.Hamazed.Network.Server(appSrv)
+import           Imj.Game.Hamazed.Network.Server(appSrv, gameScheduler)
 
 startNetworking :: SuggestedPlayerName -> Server -> IO ClientQueues
 startNetworking playerName srv = withSocketsDo $ do
@@ -44,38 +44,34 @@ start :: GameNode -> IO ()
 start n = case n of
   (GameServer (Distant _ _)) -> return ()
   (GameServer srv@(Local _)) -> do
-    let ok = onConnection n
-        (ServerName host, ServerPort port) = getServerNameAndPort srv
-    listenSock <- flip onException (ok False) $
+    let (ServerName host, ServerPort port) = getServerNameAndPort srv
+    listenSock <- flip onException failure $
       makeListenSocket host port -- TODO should we close it, and when?
-    ok True
+    success
     state <- newMVar newServerState
-    _ <- forkIO $
-      runServer' listenSock $
-        appSrv state
+    -- 1 thread to listen for incomming connections, n thread to handle clients
+    _ <- forkIO $ runServer' listenSock $ appSrv state
+    -- 1 thread to periodically send game events
+    _ <- forkIO $ gameScheduler state
     return ()
   (GameClient q s) -> do
     let (ServerName name, ServerPort port) = getServerNameAndPort s
-        ok = onConnection n
-    _ <- forkIO $ withSocketsDo $ flip onException (ok False) $
+    _ <- forkIO $ withSocketsDo $ flip onException failure $
       runClient name port "/" $ \x -> do
-        ok True
+        success
         appCli q x
     return ()
-
-onConnection :: GameNode -> Bool -> IO ()
-onConnection n True = putStrLn $ msg n True
-onConnection n False = putStrLn $ "Error: " ++ msg n False
-
-msg :: GameNode -> Bool -> String
-msg (GameServer s) x = "Hamazed GameServer " ++ st x ++ show s ++ ")"
  where
-  st False = "failed to start ("
-  st True = "started ("
-msg (GameClient _ s) x = "Hamazed GameClient " ++ st x ++ " to Hamazed GameServer (" ++ show s ++ ")"
- where
-  st False = "failed to connect"
-  st True = "connected"
+  success = putStrLn $ "Success: " ++ msg n True
+  failure = putStrLn $ "Error: "   ++ msg n False
+  msg (GameServer s) x = "Hamazed GameServer " ++ st x ++ show s ++ ")"
+   where
+    st False = "failed to start ("
+    st True = "started ("
+  msg (GameClient _ s) x = "Hamazed GameClient " ++ st x ++ " to Hamazed GameServer (" ++ show s ++ ")"
+   where
+    st False = "failed to connect"
+    st True = "connected"
 
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 -- (I needed to know when the listening socket was ready)

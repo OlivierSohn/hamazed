@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.Network.Server
       , Server
       , mkServer
       , appSrv
+      , gameScheduler
       , defaultPort
       ) where
 
@@ -26,6 +27,7 @@ import           Network.WebSockets
                   , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage)
 import           UnliftIO.Exception (finally)
 
+import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
@@ -39,12 +41,6 @@ mkServer :: (Maybe ServerName) -> ServerPort -> Server
 mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
-
-worldBuilders :: [Client] -> [Client]
-worldBuilders = filter ((== WorldCreator) . getClientType)
-
-shipIds :: [Client] -> [ShipId]
-shipIds = map (getClientId . getIdentity)
 
 removeClient :: ClientId -> Clients -> Clients
 removeClient id' c =
@@ -72,11 +68,7 @@ sendClients evt =
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  liftIO . sendClients' evt =<< fmap (map fst) getPlayers
-
-sendFirstWorldBuilder :: ServerEvent -> Clients -> IO ()
-sendFirstWorldBuilder evt =
-  sendClients' evt . take 1 . worldBuilders . getClients'
+  liftIO . sendClients' evt . (map getClient) =<< getPlayers
 
 appSrv :: MVar ServerState -> ServerApp
 appSrv s pending = runReaderT (appSrv' pending) s
@@ -110,52 +102,55 @@ appSrv' pending = do
               "contain punctuation or whitespace, and " <>
               "cannot be empty" :: Text)
         else do
-          client@(Client clId _ _ _) <-
+          client <-
             modifyState $ \s -> swap <$> runStateT (makeClient conn sn cliType) s
           flip finally
-            (modifyState_ $ \s -> snd <$> runStateT (disconnect clId) s) $
+            (modifyState_ $ \s -> snd <$> runStateT (disconnect $ getIdentity client) s) $
             forever $
               liftIO (receiveData conn) >>= \evt ->
                 modifyState_ $ \s -> snd <$> runStateT (handleIncomingEvent client evt) s
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
-takeShipId :: StateT ServerState IO ShipId
-takeShipId =
-  state $ \s ->
-    let newShipId = succ $ getNextShipId $ getClients s
-    in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
-
-addClient :: Client -> StateT ServerState IO ()
-addClient c =
-  modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _) ->
-    s { getClients = cls { getClients' = c : clients } }
 
 makeClient :: Connection -> SuggestedPlayerName -> ClientType -> StateT ServerState IO Client
 makeClient conn sn cliType =
   takeShipId >>= \sid ->
     makePlayerName sn >>= \name -> do
       let cId = ClientId name sid
-          client = mkClient conn cliType cId
+          client = Client cId conn cliType
       addClient client
       allClients >>= \clients ->
         send client $ ConnectionAccepted cId $ map (getPlayerName . getIdentity) clients
       sendClients $ PlayerInfo cId Joins
       return client
+ where
+  takeShipId =
+    state $ \s ->
+      let newShipId = succ $ getNextShipId $ getClients s
+      in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
+  addClient c =
+    modify $ \ s@(ServerState cls@(Clients clients _) _ _ _ _ _ _) ->
+      s { getClients = cls { getClients' = c : clients } }
+
+
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
         let proposal = PlayerName $ pack $ maybe sn ((++) sn . show) mayI
-        playerNameExists proposal >>= \case
+        playerNameIsAlreadyTaken proposal >>= \case
           True -> go $ Just $ maybe (2::Int) succ mayI
           False -> return proposal
   go Nothing
+ where
+  playerNameIsAlreadyTaken name =
+    return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
 
 disconnect :: ClientId -> StateT ServerState IO ()
 disconnect x = do
   modify $ \s ->
     s { getClients        = removeClient x $ getClients s
-      , getPlayingClients = removeClient' x fst $ getPlayingClients s
+      , getPlayingClients = removeClient' x getClient $ getPlayingClients s
       }
   sendClients $ PlayerInfo x Leaves
 
@@ -168,6 +163,9 @@ getIntent = getIntent' <$> get
 getPlayers :: StateT ServerState IO [Player]
 getPlayers = getPlayingClients <$> get
 
+getLastRequestedWorldId :: StateT ServerState IO (Maybe WorldId)
+getLastRequestedWorldId = getLastRequestedWorldId' <$> get
+
 error' :: Client -> String -> StateT ServerState IO ()
 error' client txt = do
   send client $ Error txt
@@ -175,14 +173,14 @@ error' client txt = do
     -- hence we sent the error to the client, so that it can error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client c _ _ _) = \case
+handleIncomingEvent client@(Client cId _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
   Disconnect -> do
-    disconnect c
+    disconnect cId
     send client DisconnectionAccepted
   Say what ->
-    sendClients $ PlayerInfo c $ Says what
+    sendClients $ PlayerInfo cId $ Says what
   -- TODO are "EnteredState" events are useful?
   EnteredState Excluded -> return ()
   EnteredState PlayLevel -> return ()
@@ -190,9 +188,9 @@ handleIncomingEvent client@(Client c _ _ _) = \case
     Intent'Setup ->
       getPlayers >>= \players -> do
         -- add client to playing clients if it is not already a player
-        let isPlayer = any ((== c) . getIdentity . fst) players
+        let isPlayer = any ((== cId) . getIdentity . getClient) players
         unless isPlayer $ modify $ \s ->
-          s { getPlayingClients = (client, Nothing):getPlayingClients s }
+          s { getPlayingClients = mkPlayer client:getPlayingClients s }
           -- request world. (-> next step when client 'IsReady')
         requestWorld
     _ -> send client $ EnterState Excluded
@@ -209,10 +207,9 @@ handleIncomingEvent client@(Client c _ _ _) = \case
             error $ "inconsistent outcomes:" ++ show (o, outcome)
       _ -> error "logic"
     modify $ \s ->
-      let remainPlaying = removeClient' c fst $ getPlayingClients s
-      in s { getPlayingClients = remainPlaying }
+      s { getPlayingClients = setFinished cId $ getPlayingClients s }
     getPlayers >>= \players ->
-      when (null players) $ do
+      when (all finished players) $ do
         modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel }
         requestWorld
         sendClients $ GameInfo $ GameResult outcome
@@ -231,7 +228,7 @@ handleIncomingEvent client@(Client c _ _ _) = \case
     getIntent >>= \case
       Intent'Setup -> do
         modify $ \s -> s { getIntent' = Intent'PlayGame }
-        sendClients $ PlayerInfo c StartsGame
+        sendClients $ PlayerInfo cId StartsGame
         sendPlayers $ ExitState Setup -- prevent other playing clients from modifying the world parameters
         requestWorld
       _ -> return ()
@@ -241,26 +238,26 @@ handleIncomingEvent client@(Client c _ _ _) = \case
   (WorldProposal essence) ->
     get >>= \s -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
-      when (getLastRequestedWorldId s == Just wid) $ do
+      when (getLastRequestedWorldId' s == Just wid) $ do
         sendPlayers $ ChangeLevel (getLevelSpec s) essence
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
 --   UI Animation is over (hence the level shall start, for example.):
 ------------------------------------------------------------------------------
   IsReady wid -> do
-    -- update 'WorldId' in corresponding playing clients
-    modify $ \s@(ServerState _ playingClients _ _ _ _ _) ->
-      let newPlaying = map (\p@(cl'@(Client c' _ _ _), _) ->
-                              if c' == c
-                                then (cl', Just wid)
-                                else p)
-                            playingClients
-      in s { getPlayingClients = newPlaying }
+    updatePlayerWorldId cId wid
     getIntent >>= \case
-      Intent'PlayGame -> getPlayers >>= \players -> do
-        -- start the game when all players have the right world
-        let ready (_,wid') = Just wid == wid'
-        when (all ready players) $ sendPlayers $ EnterState PlayLevel
+      Intent'PlayGame ->
+        getPlayers >>= \players ->
+          getLastRequestedWorldId >>= maybe
+            (return ())
+            (\lastWId -> do
+              -- start the game when all players have the right world
+              let ready = ((==) (Just lastWId)) . getCurrentWorld
+              when (all ready players) $ do
+                modify $ \s ->
+                  s { getPlayingClients = setStartPlay $ getPlayingClients s }
+                sendPlayers $ EnterState PlayLevel)
       Intent'Setup ->
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
@@ -271,25 +268,57 @@ handleIncomingEvent client@(Client c _ _ _) = \case
 --
 --   [If /any/ client is in 'PlayLevel' state, /no/ client is in 'Setup' state]
 ------------------------------------------------------------------------------
+  -- Due to network latency, laser shots may be applied to a world state
+  -- different from what the player saw when the shot was made.
+  -- But since the laser shot will be rendered with latency, too, the player will be
+  -- able to integrate the latency via this visual feedback - I read somewhere that
+  -- latency is not a big problem for players, provided that it is stable over time.
+  Action Laser dir -> sendPlayers $ GameEvent $ LaserShot (getClientId cId) dir
   Action _ _ -> return () -- TODO on laser event : what if the client sees the previous game step?
+
+gameScheduler :: MVar ServerState -> IO ()
+gameScheduler _s = --forever $ do
+  -- on game start, initialize acceleration accumulators to 0.
+  -- pause / run
+  -- every gamePeriod, send accumulators value and reset them to 0.
+  return ()
+
+setStartPlay :: [Player] -> [Player]
+setStartPlay = map (\p -> p { getState = InGame })
+
+finished :: Player -> Bool
+finished = ((==) Finished) . getState
+
+setFinished :: ClientId -> [Player] -> [Player]
+setFinished i = map (\p -> if (getIdentity . getClient) p == i
+                            then p { getState = Finished}
+                            else p)
+
+updatePlayerWorldId :: ClientId -> WorldId -> StateT ServerState IO ()
+updatePlayerWorldId cId wid =
+  modify $ \s ->
+    s { getPlayingClients =
+          map (\p ->
+                  if (cId == (getIdentity . getClient) p)
+                    then p { getCurrentWorld = Just wid }
+                    else p)
+              $ getPlayingClients s
+      }
 
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
-  nextWorldId
-  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _) ->
+  incrementWorldId
+  get >>= \(ServerState clients playing _ (LevelSpec level _ _) params wid _) -> do
+    let shipIds = map (getClientId . getIdentity . getClient) playing
     liftIO $ flip sendFirstWorldBuilder clients $
-      WorldRequest $ WorldSpec level (shipIds $ map fst playing) params wid
-
-nextWorldId :: StateT ServerState IO ()
-nextWorldId =
-  modify $ \s ->
-    let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId s
-    in s { getLastRequestedWorldId = Just wid }
-
-playerNameExists :: PlayerName -> StateT ServerState IO Bool
-playerNameExists name =
-  allClients >>= \l ->
-    return $ any ((== name) . getPlayerName . getIdentity ) l
+      WorldRequest $ WorldSpec level shipIds params wid
+ where
+  incrementWorldId =
+    modify $ \s ->
+      let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
+      in s { getLastRequestedWorldId' = Just wid }
+  sendFirstWorldBuilder evt =
+    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType) . getClients'
 
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)

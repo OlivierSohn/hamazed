@@ -6,10 +6,11 @@
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
-      , Player
+      , Player(..)
+      , mkPlayer
+      , PlayerState(..)
       , Clients(..)
       , Intent(..)
-      , mkClient
       , newServerState
     ) where
 
@@ -22,7 +23,31 @@ import           Imj.Game.Hamazed.Network.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
 
-type Player = (Client, Maybe WorldId)
+data Player = Player {
+    getClient :: !Client
+  , getCurrentWorld :: !(Maybe WorldId)
+  , getShipSafeUntil :: !(Maybe (Time Point System))
+  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
+  -- for a given time. This field holds the time at which the immunity ends.
+  , getState :: !PlayerState
+} deriving (Generic)
+instance NFData Player where
+  rnf _ = ()
+
+mkPlayer :: Client -> Player
+mkPlayer c = Player c Nothing Nothing Finished
+
+data PlayerState = InGame | Finished
+  deriving (Generic, Eq)
+instance NFData PlayerState
+
+data Client = Client {
+    getIdentity :: !ClientId
+  , getConnection :: !Connection
+  , getClientType :: !ClientType
+} deriving(Generic)
+instance NFData Client where
+  rnf _ = ()
 
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
@@ -32,7 +57,7 @@ data ServerState = ServerState {
   , getLevelSpec :: !LevelSpec
   , getWorldParameters :: !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
-  , getLastRequestedWorldId :: !(Maybe WorldId)
+  , getLastRequestedWorldId' :: !(Maybe WorldId)
   , getIntent' :: !Intent
 } deriving(Generic)
 instance NFData ServerState
@@ -67,17 +92,3 @@ newServerState :: ServerState
 newServerState =
   ServerState mkClients [] mkGameTiming (mkLevelSpec firstLevel)
               initialParameters Nothing Intent'Setup
-
-data Client = Client {
-    getIdentity :: !ClientId
-  , shipSafeUntil :: !(Maybe (Time Point System))
-  -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
-  -- for a given time. This field holds the time at which the immunity ends.
-  , getConnection :: !Connection
-  , getClientType :: !ClientType
-} deriving(Generic)
-instance NFData Client where
-  rnf _ = ()
-
-mkClient :: Connection -> ClientType -> ClientId -> Client
-mkClient c t i = Client i Nothing c t

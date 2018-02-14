@@ -56,7 +56,7 @@ start n = case n of
     return ()
   (GameClient q s) -> do
     let (ServerName name, ServerPort port) = getServerNameAndPort s
-    _ <- forkIO $ withSocketsDo $ flip onException failure $
+    _ <- forkIO $ withSocketsDo $ flip onException failure $ -- we should analyze sync exceptions
       runClient name port "/" $ \x -> do
         success
         appCli q x

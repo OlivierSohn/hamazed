@@ -22,6 +22,7 @@ import           Control.Concurrent.MVar (MVar
 import           Control.Monad (forever)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, StateT, modify, get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
+import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
 import           Data.Tuple(swap)
@@ -47,15 +48,9 @@ mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
 
-removeClient :: Client -> Clients -> Clients
-removeClient c clients =
-  clients { getClients' = removeClient' c id $ getClients' clients }
-
-removeClient' :: Client -> (a -> Client) -> [a] -> [a]
-removeClient' c f =
-  filter ((/= id') . getIdentity . f)
- where
-  id' = getIdentity c
+removeClient :: ShipId -> Clients -> Clients
+removeClient i clients =
+  clients { getClients' = Map.delete i $ getClients' clients }
 
 {-# INLINABLE sendNBinaryData #-}
 sendNBinaryData :: WebSocketsData a => [Connection] -> a -> IO ()
@@ -113,8 +108,10 @@ makeClient conn sn cliType = do
   addClient c =
     modify $ \ s ->
       let clients = getClients s
-      in s { getClients = clients { getClients' = c : getClients' clients } }
-
+      in s { getClients =
+              clients { getClients' =
+                Map.insert (getClientId $ getIdentity c) c
+                  $ getClients' clients } }
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
@@ -130,11 +127,14 @@ makePlayerName (SuggestedPlayerName sn) = do
 
 disconnect :: Client -> StateT ServerState IO ()
 disconnect client = do
-  modify $ \s -> s { getClients = removeClient client $ getClients s }
-  sendClients $ PlayerInfo (getIdentity client) Leaves
+  let i = getClientId $ getIdentity $ client
+  get >>= \s1 ->
+    when (Map.member i $ getClients' $ getClients s1) $ do
+      modify $ \s -> s { getClients = removeClient i $ getClients s }
+      sendClients $ PlayerInfo (getIdentity client) Leaves
 
 allClients :: StateT ServerState IO [Client]
-allClients = getClients' . getClients <$> get
+allClients = Map.elems . getClients' . getClients <$> get
 
 onlyPlayers :: StateT ServerState IO [Client]
 onlyPlayers = onlyPlayers' <$> allClients
@@ -248,17 +248,14 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         send client $ EnterState Setup
       Intent'PlayGame ->
-        allClients >>= \clients ->
           getLastRequestedWorldId >>= maybe
             (return ())
             (\lastWId -> do
               -- start the game when all players have the right world
-              let playersAllReady =
-                    all
-                      ((== Just lastWId) . getCurrentWorld)
-                      $ filter
-                          ((== Just Finished) . getState)
-                          clients
+              playersAllReady <-
+                all ((== Just lastWId) . getCurrentWorld)
+                  . filter ((== Just Finished) . getState)
+                  <$> allClients
               when playersAllReady $ do
                 modifyClients $ \c -> if getState c == Just Finished
                                         then c { getState = Just InGame
@@ -297,7 +294,7 @@ gameScheduler st =
               (\thisWorld -> do
                 if currentWorld == thisWorld
                   then do
-                    let players = onlyPlayers' clients
+                    let players = onlyPlayers' $ Map.elems clients
                         zero = zeroCoords
                         accs =
                           mapMaybe
@@ -324,10 +321,7 @@ modifyClient cId f =
     let clients = getClients s
     in s { getClients =
             clients { getClients' =
-                        map (\c -> if cId == getIdentity c
-                                     then f c
-                                     else c)
-                          $ getClients' clients
+                        Map.adjust f (getClientId cId) $ getClients' clients
                     }
           }
 
@@ -337,7 +331,7 @@ modifyClients f =
     let clients = getClients s
     in s { getClients =
             clients { getClients' =
-                        map f $ getClients' clients
+                        Map.map f $ getClients' clients
                     }
           }
 
@@ -354,7 +348,7 @@ requestWorld = do
       let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
       in s { getLastRequestedWorldId' = Just wid }
   sendFirstWorldBuilder evt =
-    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType)
+    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType) . Map.elems
 
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)

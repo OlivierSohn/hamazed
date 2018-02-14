@@ -15,6 +15,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
 
 import           Imj.Prelude hiding(intercalate)
 import           Control.DeepSeq(NFData(..))
+import           Data.Map.Strict(Map, empty)
 import           Network.WebSockets(Connection)
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
 
@@ -67,7 +68,7 @@ data Intent =
 instance NFData Intent
 
 data Clients = Clients {
-    getClients' :: ![Client]
+    getClients' :: !(Map ShipId Client)
   , getNextShipId :: !ShipId
 } deriving(Generic)
 instance NFData Clients
@@ -83,7 +84,7 @@ mkGameTiming :: GameTiming
 mkGameTiming = GameTiming Nothing initalGameMultiplicator
 
 mkClients :: Clients
-mkClients = Clients [] (ShipId 0)
+mkClients = Clients empty (ShipId 0)
 
 newServerState :: IO ServerState
 newServerState =

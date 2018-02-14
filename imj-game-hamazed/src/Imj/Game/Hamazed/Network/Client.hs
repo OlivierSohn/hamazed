@@ -18,6 +18,9 @@ import           Imj.Game.Hamazed.Network.Types
 
 appCli :: ClientQueues -> ClientApp ()
 appCli (ClientQueues fromServer toServer) conn = do
-    _ <- forkIO $
-      forever $ receiveData conn >>= liftIO . atomically . writeTQueue fromServer
-    forever $ liftIO (atomically (readTQueue toServer)) >>= sendBinaryData conn
+  -- continuously receive objects from the websocket and writes to the input queue.
+  void $ forkIO $ forever $
+    receiveData conn >>= liftIO . atomically . writeTQueue fromServer
+  -- continuously read from the output queue and send to the server.
+  forever $
+    liftIO (atomically (readTQueue toServer)) >>= sendBinaryData conn

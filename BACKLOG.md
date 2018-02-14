@@ -1,3 +1,5 @@
+- see if using port 80 to listen works.
+
 - use separate processes for server and client?
 Pro : garbage collection of client does not influence server garbage collection, so
 game scheduling may become more stable because on the server there is less stuff to collect.

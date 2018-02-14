@@ -49,13 +49,14 @@ representation (Left (GameEvent e)) = case e of
   (LaserShot _ _) -> Laser'
   (PeriodicMotion _ _) -> PeriodicMotion'
 representation (Left (Error _)) = Error'
-representation (Left DisconnectionAccepted) = DisconnectionAccepted'
+representation (Left (Disconnected _)) = Disconnected'
 representation (Left (EnterState _)) = EnterState'
 representation (Left (ExitState _)) = ExitState'
 representation (Left (WorldRequest _)) = WorldRequest'
 representation (Left (ChangeLevel _ _)) = ChangeLevel'
-representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
+representation (Left (ConnectionAccepted _)) = ConnectionAccepted'
 representation (Left (ConnectionRefused _)) = ConnectionRefused'
+representation (Left (ListPlayers _)) = Chat'
 representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _)) = Chat'
 representation (Right e) = case e of
@@ -79,7 +80,7 @@ reprToCS StartGame'  = colored "S" cyan
 reprToCS Error'                 = colored "E" cyan
 reprToCS EnterState'            = colored "I" cyan
 reprToCS ExitState'             = colored "O" cyan
-reprToCS DisconnectionAccepted' = colored "D" cyan
+reprToCS Disconnected' = colored "D" cyan
 reprToCS ConnectionAccepted'    = colored "A" cyan
 reprToCS ConnectionRefused'     = colored "R" cyan
 reprToCS Chat'                  = colored "C" cyan
@@ -97,14 +98,16 @@ reprToCS ToggleEventRecording'   = colored "T" yellow
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, Render e, MonadIO m)
         => Maybe GenEvent -> m ()
-onEvent mayEvt =
-  playerEndsProgram >>= \case
-    True -> sendToServer Disconnect
-    False -> do
-      debug >>= \case
-        True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
-        False -> return ()
-      onEvent' mayEvt
+onEvent mayEvt = do
+  checkPlayerEndsProgram
+  debug >>= \case
+    True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
+    False -> return ()
+  onEvent' mayEvt
+ where
+  checkPlayerEndsProgram =
+    playerEndsProgram >>= \end ->
+      when end $ sendToServer Disconnect -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)

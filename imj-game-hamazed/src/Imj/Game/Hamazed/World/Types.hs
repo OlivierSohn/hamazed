@@ -91,20 +91,19 @@ instance Binary WallDistribution
 instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
-    getLevelNumber :: !Int
-  , getShipIds :: ![ClientId]
-  , getWorldParams :: !WorldParameters
-  , getWorldId' :: !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
+    getLevelNumber :: {-# UNPACK #-} !Int
+  , getShipIds :: {-# UNPACK #-} ![ClientId]
+  , getWorldParams :: {-# UNPACK #-} !WorldParameters
+  , getWorldId' :: {-# UNPACK #-} !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
 } deriving(Generic, Show)
 instance Binary WorldSpec
 
 data ClientId = ClientId {
-    getPlayerName :: !PlayerName -- ^ primary key
-  , getClientId :: !ShipId -- ^ primary key
+    getPlayerName :: {-# UNPACK #-} !PlayerName -- ^ primary key
+  , getClientId :: {-# UNPACK #-} !ShipId -- ^ primary key
 } deriving(Generic, Show)
 instance NFData ClientId
 instance Binary ClientId
-
 -- | Match only on 'ShipId'.
 instance Eq ClientId where
   x == y = (getClientId x) == (getClientId y)
@@ -125,18 +124,18 @@ data World = World {
     getWorldNumbers :: ![Number]
     -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
   , getWorldShips :: !(Map ShipId BattleShip)
-  , getWorldSpace :: !Space
+  , getWorldSpace :: {-# UNPACK #-} !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , getWorldRenderedSpace :: !RenderedSpace
+  , getWorldRenderedSpace :: {-# UNPACK #-} !RenderedSpace
   , getParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
     -- ^ Animated particle systems, illustrating player actions and important game events.
-  , getId :: !(Maybe WorldId)
+  , getId :: {-# UNPACK #-} !(Maybe WorldId)
 } deriving (Generic)
 
 newtype ParticleSystemKey = ParticleSystemKey Int
   deriving (Eq, Ord, Enum, Show, Num)
 
-data ViewMode = CenterShip ShipId
+data ViewMode = CenterShip !ShipId
               -- ^ the 'BattleShip' position is fixed w.r.t the screen.
               | CenterSpace
               -- ^ the 'Space' frame is fixed w.r.t the screen.
@@ -148,7 +147,7 @@ computeViewDistances (CenterShip _) = (30, 2) -- it will overlapp for large worl
 computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
-    getPilotName :: !PlayerName
+    getPilotName :: {-# UNPACK #-} !PlayerName
   , _shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
@@ -166,7 +165,7 @@ newtype ShipId = ShipId Int64
 data Number = Number {
     _numberPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
-  , getNumber :: !Int
+  , getNumber :: {-# UNPACK #-} !Int
   -- ^ Which number it represents (1 to 16).
 } deriving(Generic, Eq, Show)
 
@@ -251,9 +250,9 @@ scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCent
 
 
 data Screen = Screen {
-    _screenSize :: !(Maybe Size)
+    _screenSize :: {-# UNPACK #-} !(Maybe Size)
   -- ^ Maybe we couldn't get the screen size.
-  , _screenCenter :: !(Coords Pos)
+  , _screenCenter :: {-# UNPACK #-} !(Coords Pos)
   -- ^ The center is deduced from screen size, if any, or guessed.
 }
 

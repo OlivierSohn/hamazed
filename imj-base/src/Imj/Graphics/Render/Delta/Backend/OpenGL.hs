@@ -48,17 +48,17 @@ windowCloseCallback keyQueue _ =
   atomically $ writeTQueue keyQueue StopProgram
 
 data OpenGLBackend = OpenGLBackend {
-    _glfwWin :: !GLFW.Window
-  , _glfwKeyEvts :: !(TQueue Key)
-  , _ppu :: !Int
+    _glfwWin :: {-# UNPACK #-} !GLFW.Window
+  , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue Key)
+  , _ppu :: {-# UNPACK #-} !Int
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
-  , _windowSize :: !Size
+  , _windowSize :: {-# UNPACK #-} !Size
   -- ^ In number of pixels.
-  , _fonts :: !(MVar RenderingOptions)
+  , _fonts :: {-# UNPACK #-} !(MVar RenderingOptions)
   -- ^ Mutable rendering options
 }
 
-data RenderingOptions = RenderingOptions !Int !RenderingStyle !FTGL.Font
+data RenderingOptions = RenderingOptions {-# UNPACK #-} !Int {-# UNPACK #-} !RenderingStyle {-# UNPACK #-} !FTGL.Font
   deriving(Generic, NFData, Show)
 
 instance PrettyVal RenderingOptions where

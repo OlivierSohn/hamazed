@@ -224,11 +224,8 @@ loop = do
               prod -- the key was unknown, retry.
               (return . Just))
             (return . Just))
-  prod >>= \case
-    (Just (SrvEvt DisconnectionAccepted)) -> return ()
-    x -> do
-      onEvent x
-      loop
+  prod >>= onEvent
+  loop
 
 
 -- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':

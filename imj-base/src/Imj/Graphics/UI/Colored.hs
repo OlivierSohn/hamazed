@@ -21,7 +21,7 @@ import           Imj.Graphics.Interpolation
 
 
 data Colored a = Colored {
-    _coloredColor :: !LayeredColor
+    _coloredColor :: {-# UNPACK #-} !LayeredColor
   , _coloredColorable :: !a
 } deriving(Generic, Show, PrettyVal)
 

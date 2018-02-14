@@ -63,15 +63,15 @@ data AnchorChars
 
 -- | Interpolates 'ColorString's and anchors.
 data TextAnimation a = TextAnimation {
-   _textAnimationEvolutions :: ![Evolution ColorString]
- , _textAnimationAnchors :: !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
+   _textAnimationEvolutions :: {-# UNPACK #-} ![Evolution ColorString]
+ , _textAnimationAnchors :: {-# UNPACK #-} !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
  {- ^ When @a =@ 'AnchorStrings', each 'Evolution' 'ColorString' has exactly one
  corresponding element in the 'SequentiallyInterpolatedList'.
 
  When @a =@ 'AnchorChars', /each/ 'Evolution' 'ColorString' has exactly @m@
  corresponding elements in the 'SequentiallyInterpolatedList', where @m@ is the
  maximum number of characters in a 'ColorString' of the given 'Evolution' 'ColorString'. -}
- , _textAnimationClock :: !EaseClock
+ , _textAnimationClock :: {-# UNPACK #-} !EaseClock
  -- ^ Schedules the animation.
 } deriving(Show, PrettyVal, Generic)
 

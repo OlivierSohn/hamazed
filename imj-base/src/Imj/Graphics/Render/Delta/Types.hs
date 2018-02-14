@@ -45,7 +45,7 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 data ResizePolicy = DynamicSize
                   -- ^ After each render, buffers are resized (if needed) to match
                   -- a size passed as argument of 'deltaFlush'.
-                  | FixedSize !(Dim Width) !(Dim Height)
+                  | FixedSize {-# UNPACK #-} !(Dim Width) {-# UNPACK #-} !(Dim Height)
                   -- ^ Buffers have a fixed size. If they are vertically
                   -- or horizontally bigger than the terminal, rendering
                   -- artefacts will be visible.
@@ -96,17 +96,17 @@ xyFromIndex w idx =
   getRowCol idx w
 
 data Buffers = Buffers {
-    _renderStateBackBuffer :: !(Buffer Back)
-  , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- We don't store the size as it is in back and front buffers
+    _renderStateBackBuffer :: {-# UNPACK #-} !(Buffer Back)
+  , _renderStateFrontBuffer :: {-# UNPACK #-} !(Buffer Front)
+  , _buffersDrawWidth :: {-# UNPACK #-} !(Dim Width) -- We don't store the size as it is in back and front buffers
   , _buffersDrawScissor :: !Scissor
   , _buffersDelta :: !Delta
   -- ^ The delta-buffer is used in renderFrame
-  , _buffersPolicies :: !Policies
+  , _buffersPolicies :: {-# UNPACK #-} !Policies
 }
 
 data Policies = Policies {
-    _policiesResizePolicy :: !ResizePolicy
-  , _policiesClearPolicy :: !ClearPolicy
-  , _policiesClearColor :: !(Color8 Background)
+    _policiesResizePolicy :: {-# UNPACK #-} !ResizePolicy
+  , _policiesClearPolicy :: {-# UNPACK #-} !ClearPolicy
+  , _policiesClearColor :: {-# UNPACK #-} !(Color8 Background)
 } deriving(Show)

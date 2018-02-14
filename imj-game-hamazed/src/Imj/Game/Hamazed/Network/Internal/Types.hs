@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
@@ -11,13 +12,16 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , Clients(..)
       , Intent(..)
       , newServerState
+      -- * Utility
+      , handleConnectionException
     ) where
 
 import           Imj.Prelude hiding(intercalate)
-import           Control.DeepSeq(NFData(..))
-import           Data.Map.Strict(Map, empty)
-import           Network.WebSockets(Connection)
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
+import           Control.DeepSeq(NFData(..))
+import           Control.Exception (try)
+import           Data.Map.Strict(Map, empty)
+import           Network.WebSockets(ConnectionException(..), Connection)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -26,15 +30,15 @@ import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
 
 data Client = Client {
-    getIdentity :: !ClientId
-  , getConnection :: !Connection
-  , getClientType :: !ClientType
-  , getCurrentWorld :: !(Maybe WorldId)
+    getIdentity :: {-# UNPACK #-} !ClientId
+  , getConnection :: {-# UNPACK #-} !Connection
+  , getClientType :: {-# UNPACK #-} !ClientType
+  , getCurrentWorld :: {-# UNPACK #-} !(Maybe WorldId)
   , getShipSafeUntil :: !(Maybe (Time Point System))
   , getShipAcceleration :: !(Coords Vel)
   -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
   -- for a given time. This field holds the time at which the immunity ends.
-  , getState :: !(Maybe PlayerState)
+  , getState :: {-# UNPACK #-} !(Maybe PlayerState)
   -- ^ When 'Nothing', the client is excluded from the current game.
 } deriving(Generic)
 instance NFData Client where
@@ -49,14 +53,15 @@ instance NFData PlayerState
 
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
-    getClients :: !Clients
-  , _gameTiming :: !GameTiming
-  , getLevelSpec :: !LevelSpec
-  , getWorldParameters :: !WorldParameters
+    getClients :: {-# UNPACK #-} !Clients
+  , _gameTiming :: {-# UNPACK #-} !GameTiming
+  , getLevelSpec :: {-# UNPACK #-} !LevelSpec
+  , getWorldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
-  , getLastRequestedWorldId' :: !(Maybe WorldId)
-  , getIntent' :: !Intent
-  , getSchedulerSignal :: !(MVar WorldId)
+  , getLastRequestedWorldId' :: {-# UNPACK #-} !(Maybe WorldId)
+  , getIntent' :: {-# UNPACK #-} !Intent
+  -- ^ Influences the control flow (how 'ClientEvent's are handled).
+  , getSchedulerSignal :: {-# UNPACK #-} !(MVar WorldId)
 } deriving(Generic)
 instance NFData ServerState
 
@@ -90,3 +95,9 @@ newServerState :: IO ServerState
 newServerState =
   ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
               initialParameters Nothing Intent'Setup <$> newEmptyMVar
+
+handleConnectionException :: String -> IO () -> IO ()
+handleConnectionException name x =
+  try x >>= either
+    (\(e :: ConnectionException) -> putStrLn $ "Info|" ++ name ++ " disconnection|" ++ show e)
+    return

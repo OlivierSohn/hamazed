@@ -9,6 +9,7 @@ module Imj.Graphics.UI.Animation
              UIEvolutions(..)
            , mkUIAnimation
            , UIAnimation(..)
+           , UIAnimProgress(..)
            , getDeltaTime
            , getUIAnimationDeadline
            , drawUIAnimation
@@ -34,34 +35,38 @@ import           Imj.Timing
 
 -- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {
-    _uiAnimationEvs :: !UIEvolutions
-  , _uiAnimationDeadline :: !(Maybe (Time Point System))
-  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
-  , _uiAnimationProgress :: !Iteration
+    _uiAnimationEvs :: {-# UNPACK #-} !UIEvolutions
+  , getProgress :: !UIAnimProgress
   -- ^ Current 'Iteration'.
 } deriving(Show, Generic, PrettyVal)
 
+data UIAnimProgress = UIAnimProgress {
+    _deadline :: {-# UNPACK #-} !(Maybe (Time Point System))
+  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
+  , _progress :: {-# UNPACK #-} !Iteration
+  -- ^ Current 'Iteration'.
+} deriving(Show, Generic, PrettyVal)
 
 -- TODO generalize as an Evolution (text-decorated RectContainer)
 -- | Used when transitionning between two levels to smoothly transform the aspect
 -- of the 'RectContainer', as well as textual information around it.
 data UIEvolutions = UIEvolutions {
-    _uiEvolutionContainer :: !(Evolution (Colored RectContainer))
+    _uiEvolutionContainer :: {-# UNPACK #-} !(Evolution (Colored RectContainer))
     -- ^ The transformation of the 'RectContainer'.
-  , _uiEvolutionsUpDown :: !(TextAnimation AnchorChars)
+  , _uiEvolutionsUpDown :: {-# UNPACK #-} !(TextAnimation AnchorChars)
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
-  , _uiEvolutionLeft    :: !(TextAnimation AnchorStrings)
+  , _uiEvolutionLeft    :: {-# UNPACK #-} !(TextAnimation AnchorStrings)
     -- ^ The transformation of colored text left and right of the 'RectContainer'.
 } deriving(Show, PrettyVal, Generic)
 
 
 getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
-getUIAnimationDeadline (UIAnimation _ mayDeadline _) =
+getUIAnimationDeadline (UIAnimation _ (UIAnimProgress mayDeadline _)) =
   mayDeadline
 
 -- | Is the 'UIAnimation' finished?
 isFinished :: UIAnimation -> Bool
-isFinished (UIAnimation _ Nothing _) = True
+isFinished (UIAnimation _ (UIAnimProgress Nothing _)) = True
 isFinished _ = False
 
 {-# INLINABLE drawUIAnimation #-}
@@ -71,7 +76,7 @@ drawUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
                   -> UIAnimation
                   -> m ()
 drawUIAnimation containerOffset
- (UIAnimation we@(UIEvolutions containerEvolution upDown left) _ (Iteration _ frame)) = do
+ (UIAnimation we@(UIEvolutions containerEvolution upDown left) (UIAnimProgress _ (Iteration _ frame))) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
   drawMorphingAt (moveContainerEvolution containerEvolution containerOffset) relFrameFrameE
   drawAnimatedTextCharAnchored upDown relFrameUD
@@ -120,7 +125,7 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive Co
 mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f3))
               (to@(Colored _ toR@(RectContainer (Size th tw) _)), ((t1,t2),t3))
               horizontalDistance verticalDistance time =
-  UIAnimation evolutions deadline (Iteration (Speed 1) zeroFrame)
+  UIAnimation evolutions $ UIAnimProgress deadline (Iteration (Speed 1) zeroFrame)
  where
   dx = max (abs $ fromIntegral fw - fromIntegral tw)
            (abs $ fromIntegral fh - fromIntegral th)

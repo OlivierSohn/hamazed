@@ -118,11 +118,11 @@ maxLength (Size (Length h) (Length w)) =
 -- | A segment is a line betwen two discrete coordinates.
 --
 -- It can be materialized as a list of 'Coords' using 'bresenham'
-data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
+data Segment = Horizontal {-# UNPACK #-} !(Coord Row) {-# UNPACK #-} !(Coord Col) {-# UNPACK #-} !(Coord Col)
              -- ^ Horizontal segment
-             | Vertical   !(Coord Col) !(Coord Row) !(Coord Row)
+             | Vertical   {-# UNPACK #-} !(Coord Col) {-# UNPACK #-} !(Coord Row) {-# UNPACK #-} !(Coord Row)
              -- ^ Vertical segment
-             | Oblique    !(Coords Pos) !(Coords Pos) !Word32
+             | Oblique    {-# UNPACK #-} !(Coords Pos) {-# UNPACK #-} !(Coords Pos) {-# UNPACK #-} !Word32
              -- ^ Oblique segment
              deriving(Generic, Show)
 

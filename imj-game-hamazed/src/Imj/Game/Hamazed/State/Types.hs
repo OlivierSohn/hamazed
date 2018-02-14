@@ -69,7 +69,7 @@ data AppState  = AppState {
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
   , _nextParticleSystemKey :: !ParticleSystemKey
-  , _appStateDebug :: !Bool
+  , _appStateDebug :: {-# UNPACK #-} !Bool
   -- ^ Print times and group information in the terminal.
 }
 
@@ -97,7 +97,7 @@ data EventRepr = Laser'
                | Interrupt'
                | ToggleEventRecording'
                | ConnectionAccepted'
-               | DisconnectionAccepted'
+               | Disconnected'
                | ConnectionRefused'
                | EnterState'
                | ExitState'

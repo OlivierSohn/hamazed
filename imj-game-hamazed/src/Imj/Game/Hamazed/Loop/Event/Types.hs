@@ -26,14 +26,14 @@ import           Imj.Timing
 
 -- | A foreseen game or animation update.
 data Deadline = Deadline {
-    _deadlineTime :: !(Time Point System)
+    _deadlineTime :: {-# UNPACK #-} !(Time Point System)
     -- ^ At which time should the update become visible to the user.
-  , _deadlinePriority :: !Int
-  , _deadlineType :: !DeadlineType
+  , _deadlinePriority :: {-# UNPACK #-} !Int
+  , _deadlineType :: {-# UNPACK #-} !DeadlineType
 } deriving(Eq, Show)
 
 
-data DeadlineType = AnimateParticleSystem ParticleSystemKey
+data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ Update one or more 'ParticleSystem's.
                   | DisplayContinueMessage
                   -- ^ Show the /Hit a key to continue/ message

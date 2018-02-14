@@ -27,7 +27,9 @@ mkChat = Chat [] mempty []
 newtype PlayerName = PlayerName Text
   deriving(Generic, Show, Binary, Eq, NFData)
 
-newtype ChatMessage = ChatMessage Text
+data ChatMessage =
+    ChatMessage !Text
+  | DisconnectionReason !String
 
 addMessage :: ChatMessage -> Chat -> Chat
 addMessage msg c = c { chatMessages = msg:(chatMessages c) }

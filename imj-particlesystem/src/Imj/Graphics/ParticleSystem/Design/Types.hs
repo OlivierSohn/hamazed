@@ -19,8 +19,6 @@ module Imj.Graphics.ParticleSystem.Design.Types
 
 import           Imj.Prelude
 
-import           GHC.Show(showString)
-
 import           Imj.Iteration
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Timing
@@ -31,17 +29,17 @@ import           Imj.Timing
 
 data ParticleSystem = ParticleSystem {
     _particleSystemPoints :: !ParticleTree
-  , _particleSystemUpdate :: !(EnvFunctions
-                          -> Frame
-                          -> ParticleTree
-                          -> ParticleTree)
-  , _particleSystemEnvFunctions :: !EnvFunctions
+  , _particleSystemUpdate :: {-# UNPACK #-} !(EnvFunctions
+                                              -> Frame
+                                              -> ParticleTree
+                                              -> ParticleTree)
+  , _particleSystemEnvFunctions :: {-# UNPACK #-} !EnvFunctions
   , _particleSystemNextUpdateSpec :: !UpdateSpec
 }
 
 -- | Functions to interact with the environment
 data EnvFunctions = EnvFunctions {
-    _envFunctionsInteract :: !(Coords Pos -> InteractionResult)
+    _envFunctionsInteract :: {-# UNPACK #-} !(Coords Pos -> InteractionResult)
     {- ^ /Interaction/ function.
 
     During update, 'Particle's for which this returns 'Mutation' can mutate
@@ -50,7 +48,7 @@ data EnvFunctions = EnvFunctions {
     During draw, 'Particle's for which this
     function returns 'Stable' are drawn. Others are
     not drawn because they would overlap with the environment. -}
-  , _envFunctionsDistance :: !(Vec2 Pos -> Distance)
+  , _envFunctionsDistance :: {-# UNPACK #-} !(Vec2 Pos -> Distance)
     {- ^ /Distance/ function.
 
     During update, 'Particle's which 'CanInteract' with the environment, and
@@ -71,14 +69,13 @@ data Distance = DistanceOK
 
 
 instance Show ParticleSystem where
-  showsPrec _ (ParticleSystem a _ _ b) =
-    showString $ "ParticleSystem{" ++ show (a,b) ++ "}"
+  show (ParticleSystem a _ _ b) = "ParticleSystem{" ++ show (a,b) ++ "}"
 
 
 data UpdateSpec = UpdateSpec {
-    _updateSpecTime :: !(Time Point ParticleSyst)
+    _updateSpecTime :: {-# UNPACK #-} !(Time Point ParticleSyst)
     -- ^ The time at which the update should happen.
-  , _updateSpecIteration :: !Iteration
+  , _updateSpecIteration :: {-# UNPACK #-} !Iteration
     -- ^ The iteration that will be used in the update.
 } deriving(Show)
 
@@ -88,21 +85,21 @@ data ParticleTree = ParticleTree {
     -- ^ The children. A child can be 'Right' 'Particle' or 'Left' 'ParticleTree'.
     --
     --  When a 'Right' 'Particle' mutates, it is converted to an empty 'Left' 'ParticleTree'
-  , _particleTreeCenter :: !VecPosSpeed
+  , _particleTreeCenter :: {-# UNPACK #-} !VecPosSpeed
     -- ^ The center, aka the position and speed of the 'Particle', w.r.t the particle system reference frame,
     -- that gave birth to this 'ParticleTree'.
-  , _particleTreeFrame :: !Frame
+  , _particleTreeFrame :: {-# UNPACK #-} !Frame
     -- ^ The frame at which this 'ParticleTree' was created, relatively to the parent, if any.
 } deriving (Show)
 
 data Particle = Particle {
-    _particleCanInteract :: !CanInteract
+    _particleCanInteract :: {-# UNPACK #-} !CanInteract
     -- ^ Can the particle interact with the environment?
   , _particleVecPosSpeed :: {-# UNPACK #-} !VecPosSpeed
     -- ^ Continuous location and speed, w.r.t the particle system reference frame.
-  , _particleDrawnWith :: !Char
+  , _particleDrawnWith :: {-# UNPACK #-} !Char
     -- ^ The char used to draw the particle.
-  , _particleColor :: !LayeredColor
+  , _particleColor :: {-# UNPACK #-} !LayeredColor
   -- ^ The color used to draw the particle.
 } deriving (Show)
 

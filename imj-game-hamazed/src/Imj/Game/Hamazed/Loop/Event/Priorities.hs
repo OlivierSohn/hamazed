@@ -29,6 +29,6 @@ moveItemsPriority           = 40
 particleSystDefaultPriority = 30
 
 data Prioritized a = Prioritized {
-    _prioritizedPriority :: !Int
+    _prioritizedPriority :: {-# UNPACK #-} !Int
   , _prioritizedItem :: !a
 }

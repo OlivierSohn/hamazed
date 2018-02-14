@@ -50,9 +50,9 @@ data AlignmentKind = Centered
 -}
 
 data Alignment = Alignment {
-    _alignmentKing :: !AlignmentKind
+    _alignmentKind :: {-# UNPACK #-} !AlignmentKind
     -- ^ The kind of alignment.
-  , _alignmentRef :: !(Coords Pos)
+  , _alignmentRef :: {-# UNPACK #-} !(Coords Pos)
     -- ^ The reference coordinates.
 }
 

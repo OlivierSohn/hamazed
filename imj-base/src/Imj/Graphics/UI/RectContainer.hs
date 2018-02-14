@@ -46,9 +46,9 @@ l = RectContainer's lower left corner, at (5,4)
 @
 -}
 data RectContainer = RectContainer {
-    _rectFrameContentSize :: !Size
+    _rectFrameContentSize :: {-# UNPACK #-} !Size
     -- ^ /Content/ size.
-  , _rectFrameUpperLeft :: !(Coords Pos)
+  , _rectFrameUpperLeft :: {-# UNPACK #-} !(Coords Pos)
     -- ^ Upper left corner.
 } deriving(Eq, Show, Generic, PrettyVal)
 

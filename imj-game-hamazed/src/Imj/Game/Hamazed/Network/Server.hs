@@ -28,7 +28,7 @@ import           Data.Text(pack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread
-                  , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage)
+                  , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage, sendClose)
 import           UnliftIO.Exception (finally)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -41,7 +41,7 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Discrete(translateInDir, zeroCoords)
 
 defaultPort :: ServerPort
-defaultPort = ServerPort 10051
+defaultPort = ServerPort 10052
 
 mkServer :: (Maybe ServerName) -> ServerPort -> Server
 mkServer Nothing = Local
@@ -73,8 +73,11 @@ sendPlayers evt =
   liftIO . sendClients' evt =<< onlyPlayers
 
 appSrv :: MVar ServerState -> PendingConnection -> IO ()
-appSrv st pending = do
-  conn <- acceptRequest pending
+appSrv st pending =
+  acceptRequest pending >>= appSrv' st
+
+appSrv' :: MVar ServerState -> Connection -> IO ()
+appSrv' st conn = do
   forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
   msg <- receiveData conn
   case msg of
@@ -83,11 +86,12 @@ appSrv st pending = do
         then
           sendBinaryData conn $ ConnectionRefused $ InvalidName sn $
             "Name cannot contain punctuation or whitespace, and cannot be empty"
-        else
-          modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType)) >>= \client ->
-            flip finally
-              (modifyMVar_ st $ execStateT $ disconnect client)
-              $ forever $
+        else do
+          client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
+          flip finally
+            (modifyMVar_ st $ execStateT $ disconnect ByServer client) $ do
+              sendBinaryData conn $ ConnectionAccepted $ getIdentity client
+              forever $
                 receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
     _ -> error $ "first received msg is not Connect : " ++ show msg
 
@@ -97,8 +101,6 @@ makeClient conn sn cliType = do
   cId <- ClientId <$> makePlayerName sn <*> takeShipId
   let client = mkClient cId conn cliType
   addClient client
-  send client . ConnectionAccepted cId . map (getPlayerName . getIdentity) =<< allClients
-  sendClients $ PlayerInfo cId Joins
   return client
  where
   takeShipId =
@@ -125,13 +127,37 @@ makePlayerName (SuggestedPlayerName sn) = do
   playerNameIsAlreadyTaken name =
     return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
 
-disconnect :: Client -> StateT ServerState IO ()
-disconnect client = do
-  let i = getClientId $ getIdentity $ client
-  get >>= \s1 ->
-    when (Map.member i $ getClients' $ getClients s1) $ do
-      modify $ \s -> s { getClients = removeClient i $ getClients s }
-      sendClients $ PlayerInfo (getIdentity client) Leaves
+disconnect :: By -> Client -> StateT ServerState IO ()
+disconnect initiatedBy client@(Client i _ (ClientType _ ownership) _ _ _ _) = do
+  get >>= \s -> do
+    let clients = getClients' $ getClients s
+    -- If the client is not in the client map, we don't do anything.
+    when (Map.member (getClientId i) clients) $ do
+      -- If the client initiated its own disconnection, we broadcast the
+      -- information.
+      case initiatedBy of
+        ByClient initiator ->
+          when (initiator == i) $ sendClients $ PlayerInfo i Leaves
+        _ -> return ()
+      -- If the client owns the server, we shutdown connections to /other/ clients first.
+      when (ownership == ClientOwnsServer) $
+        mapM_
+          (\client'@(Client j _ _ _ _ _ _) ->
+              unless (i == j) $ disconnectAtomic ByServer client')
+          clients
+      -- Shutdown the client connection.
+      disconnectAtomic initiatedBy client
+
+disconnectAtomic :: By -> Client -> StateT ServerState IO ()
+disconnectAtomic by client@(Client (ClientId (PlayerName name) i) conn _ _ _ _ _) = do
+  modify $ \s -> s { getClients = removeClient i $ getClients s }
+  send client $ Disconnected by
+  liftIO $ sendClose conn msg
+ where
+  msg = "Graceful disconnection of '" <> name <> "', initiated by " <> showInitiator by <> "."
+  showInitiator ByServer = "Server"
+  showInitiator (ByClient (ClientId (PlayerName n) _)) = "'" <> n <> "'"
+
 
 allClients :: StateT ServerState IO [Client]
 allClients = Map.elems . getClients' . getClients <$> get
@@ -150,30 +176,32 @@ getLastRequestedWorldId = getLastRequestedWorldId' <$> get
 
 error' :: Client -> String -> StateT ServerState IO ()
 error' client txt = do
-  send client $ Error txt
-  error txt -- this error may not be very readable if another thread writes to the console,
+  send client $ Error $ "*** error from Server: " ++ txt
+  error $ "error in Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
 handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
-  Disconnect -> do
-    disconnect client
-    send client DisconnectionAccepted
+  Disconnect ->
+    disconnect (ByClient cId) client
   Say what ->
     sendClients $ PlayerInfo cId $ Says what
   -- TODO are "EnteredState" events useful?
   EnteredState Excluded -> return ()
   EnteredState PlayLevel -> return ()
-  ExitedState Excluded -> getIntent >>= \case
-    Intent'Setup -> do
-      -- change client state to make it playable
-      modifyClient cId $ \c -> c { getState = Just Finished }
-      -- request world to let the client have a world
-      requestWorld
-      -- next step when client 'IsReady'
-    _ -> send client $ EnterState Excluded
+  ExitedState Excluded -> do
+    send client . ListPlayers . map (getPlayerName . getIdentity) =<< allClients
+    sendClients $ PlayerInfo cId Joins
+    getIntent >>= \case
+      Intent'Setup -> do
+        -- change client state to make it playable
+        modifyClient cId $ \c -> c { getState = Just Finished }
+        -- request world to let the client have a world
+        requestWorld
+        -- next step when client 'IsReady'
+      _ -> send client $ EnterState Excluded
   ExitedState PlayLevel -> return ()
   LevelEnded outcome -> do
     getIntent >>= \case
@@ -348,7 +376,7 @@ requestWorld = do
       let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
       in s { getLastRequestedWorldId' = Just wid }
   sendFirstWorldBuilder evt =
-    sendClients' evt . take 1 . filter ((== WorldCreator) . getClientType) . Map.elems
+    sendClients' evt . take 1 . filter ((== WorldCreator) . getCapability . getClientType) . Map.elems
 
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)

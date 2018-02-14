@@ -35,39 +35,30 @@ data Strategy = StrictlyOneComponent
 -- TODO support a world / air ratio (today it is 50 50)
 -- | Parameters for random walls creation.
 data RandomParameters = RandomParameters {
-    _randomWallsBlockSize :: !Int
+    _randomWallsBlockSize :: {-# UNPACK #-} !Int
     -- ^ The size of a square wall block.
     --
     -- Note that the smaller the block size, the harder it will be for the algorithm to find
     -- a random world with a single component of air.
-  , _randomWallsStrategy :: !Strategy
+  , _randomWallsStrategy :: {-# UNPACK #-} !Strategy
     -- ^ Space characteristics (only /one connected component/ is available for the moment)
 } deriving(Generic, Binary, Show, NFData)
 
 data DrawGroup = DrawGroup {
-    _drawGroupCoords :: !(Coords Pos)
-  , _drawGroupColors :: !LayeredColor
-  , _drawGroupChar :: !Char
-  , _drawGroupCount :: !Int
+    _drawGroupCoords :: {-# UNPACK #-} !(Coords Pos)
+  , _drawGroupColors :: {-# UNPACK #-} !LayeredColor
+  , _drawGroupChar :: {-# UNPACK #-} !Char
+  , _drawGroupCount :: {-# UNPACK #-} !Int
 }
 
-data Space = Space {
-    _space :: !(Matrix Material)
-    -- ^ The material matrix.
-}
+newtype Space = Space (Matrix Material)
 
 -- | How to draw the space.
-data RenderedSpace = RenderedSpace {
-  _spaceDraw :: ![DrawGroup] -- TODO use an array to have better memory layout
-}
+newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an array to have better memory layout
 
 {-# INLINE getSize #-}
 getSize :: Space -> Size
-getSize = getSize' . _space
-
-{-# INLINE getSize' #-}
-getSize' :: Matrix a -> Size
-getSize' m = Size (Length $ nrows m) (Length $ ncols m)
+getSize (Space m) = Size (Length $ nrows m) (Length $ ncols m)
 
 data Material = Air
               -- ^ In it, ship and numbers can move.

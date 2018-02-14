@@ -11,6 +11,8 @@ module Imj.Game.Hamazed.Loop.Update
 
 import           Imj.Prelude
 
+import           Control.Exception.Base(throwIO)
+
 import           Data.Map.Strict(elems)
 
 import           Imj.Game.Hamazed.World.Space.Types
@@ -71,9 +73,8 @@ updateAppState (Left evt) = case evt of
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot shipId dir) ->
     onLaser shipId dir
-  ConnectionAccepted name players -> do
+  ConnectionAccepted name -> do
     putGameConnection $ Connected name
-    stateChat (addMessage $ ChatMessage $ welcome players)
     getClientState >>= \case -- sanity check
       (ClientState Ongoing Excluded) -> return ()
       s -> error $ "ConnectionAccepted in " ++ show s
@@ -81,14 +82,17 @@ updateAppState (Left evt) = case evt of
     sendToServer $ ExitedState Excluded -- TODO is it really necessary ? (are ExitedState events used by the server?)
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
+  ListPlayers players ->
+    stateChat $ addMessage $ ChatMessage $ welcome players
   PlayerInfo (ClientId player _) notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt notif player
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
-  DisconnectionAccepted -> error "should be handled by caller"
   EnterState s -> putClientState $ ClientState Ongoing s
-  ExitState s -> putClientState $ ClientState Done s
-  Error txt -> error $ "[from Server:] " ++ txt
+  ExitState s  -> putClientState $ ClientState Done s
+  Disconnected (ByClient _) -> liftIO $ throwIO GracefulProgramEnd
+  Disconnected ByServer     -> liftIO $ throwIO $ UnexpectedProgramEnd "Disconnected by Server"
+  Error txt                 -> liftIO $ throwIO $ ErrorFromServer txt
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char
@@ -129,7 +133,7 @@ onDestroyedNumbers :: (MonadState AppState m)
 onDestroyedNumbers t destroyedBalls =
   getGameState >>= \(GameState world@(World _ ships space _ _ _)
                                futureWorld g (Level level@(LevelSpec _ target _) finished)
-                   (UIAnimation (UIEvolutions j upDown _) k l) s) -> do
+                   (UIAnimation (UIEvolutions j upDown _) p) s) -> do
     (Screen _ center) <- getCurScreen
     mode <- getViewMode
     let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
@@ -145,7 +149,7 @@ onDestroyedNumbers t destroyedBalls =
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
         newFinished = finished <|> checkTargetAndAmmo allAmmos (sum allShotNumbers) target t
         newLevel = Level level newFinished
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
+        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p
     putGameState
       $ assert (isFinished newAnim)
       $ GameState world futureWorld allShotNumbers newLevel newAnim s
@@ -187,7 +191,7 @@ onHasMoved =
 updateUIAnim :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
              => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState curWorld futWorld j k (UIAnimation evolutions _ it) s) -> do
+  getGameState >>= \(GameState curWorld futWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) s) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, worldAnimDeadline) =
           maybe
@@ -195,7 +199,7 @@ updateUIAnim t =
             (\dt ->
              (curWorld, Just $ addDuration dt t))
             $ getDeltaTime evolutions nextFrame
-        anims = UIAnimation evolutions worldAnimDeadline nextIt
+        anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
     putGameState $ GameState world futWorld j k anims s
     when (isFinished anims) $
       maybe (return ()) (sendToServer . IsReady) $ getId world

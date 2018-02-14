@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.GameNode
       ( startNetworking
@@ -6,11 +7,11 @@ module Imj.Game.Hamazed.Network.GameNode
 
 import           Imj.Prelude
 import           Control.Concurrent.STM(newTQueueIO)
-import           Control.Concurrent (forkIO, newMVar, forkIOWithUnmask)
-import           Control.Exception (onException, finally, bracket, allowInterrupt, mask_)
+import           Control.Concurrent (forkIO, newMVar)
+import           Control.Exception (onException, finally, bracket)
 import           Network.Socket(withSocketsDo, Socket, close, accept)
-import           Network.WebSockets(defaultConnectionOptions, makeListenSocket, makePendingConnection,
-                    ServerApp, ConnectionOptions, runClient)
+import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnectionOptions,
+                    makeListenSocket, makePendingConnection, runClient)
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 
@@ -32,8 +33,8 @@ startNetworking playerName srv = withSocketsDo $ do
   sendToServer' qs $
     Connect playerName $
       case srv of
-        (Local _) -> WorldCreator
-        _ -> JustPlayer
+        Local _     -> ClientType WorldCreator ClientOwnsServer
+        Distant _ _ -> ClientType JustPlayer   FreeServer
   return qs
 
 mkQueues :: IO ClientQueues
@@ -56,14 +57,14 @@ start n = case n of
     return ()
   (GameClient q s) -> do
     let (ServerName name, ServerPort port) = getServerNameAndPort s
-    _ <- forkIO $ withSocketsDo $ flip onException failure $ -- we should analyze sync exceptions
+    _ <- forkIO $ withSocketsDo $
       runClient name port "/" $ \x -> do
-        success
+        success -- there is no corresponding failure, we will see the exception in the console.
         appCli q x
     return ()
  where
-  success = putStrLn $ "Success: " ++ msg n True
-  failure = putStrLn $ "Error: "   ++ msg n False
+  success = putStrLn $ "Info|" ++ msg n True
+  failure = putStrLn $ "ERROR|"   ++ msg n False
   msg (GameServer s) x = "Hamazed GameServer " ++ st x ++ show s ++ ")"
    where
     st False = "failed to start ("
@@ -85,11 +86,12 @@ runServer' listeningSocket app =
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()
 runServerWith' listeningSock opts app =
-  mask_ $ forever $ do
-    allowInterrupt
+  forever $ do
     (conn, _) <- accept listeningSock
-    void $ forkIOWithUnmask $ \unmask ->
-      flip finally (close conn) (unmask $ runApp conn opts app)
+    void $ forkIO $ handleConnectionException "Server" $
+      flip finally
+        (close conn)
+        $ runApp conn opts app
 
 -- Copied from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 runApp :: Socket

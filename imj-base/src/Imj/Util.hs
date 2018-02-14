@@ -132,8 +132,8 @@ clamp !n min_ max_
   | otherwise = n
 
 data Range a = Range {
-    _rangeMin :: !a
-  , _rangeMax :: !a
+    _rangeMin :: {-# UNPACK #-} !a
+  , _rangeMax :: {-# UNPACK #-} !a
 }
 
 {-# INLINE onBounds #-}

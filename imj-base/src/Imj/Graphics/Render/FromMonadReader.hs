@@ -73,7 +73,7 @@ drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
                  -- ^ Maximum line size.
                  -> m ()
 drawMultiLineStr str ref' color nChars = do
-  let strs = multiLine str nChars
+  let strs = multiLine nChars str
       -- center vertically
       ref = move (quot (Prelude.length strs) 2) Up ref'
   zipWithM_

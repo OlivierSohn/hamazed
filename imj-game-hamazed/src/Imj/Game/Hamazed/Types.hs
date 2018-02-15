@@ -75,9 +75,8 @@ data Game = Game {
   , getServer :: {-# UNPACK #-} !Server
   -- ^ The server that runs the game
   , connection :: {-# UNPACK #-} !ConnectionStatus
-  , chat :: !Chat
+  , getChat :: !Chat
 }
-
 
 {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
 we draw the /old/ 'World' while using the /new/ 'World' 's

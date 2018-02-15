@@ -199,7 +199,7 @@ getEvtStrs :: MonadState AppState m
 getEvtStrs =
   get >>= \(AppState _ _ _ h r _ _) ->
     return $ case r of
-      Record -> toColorStr h `multiLine` 150 -- TODO screen width should be dynamic
+      Record -> multiLine 150 $ toColorStr h -- TODO screen width should be dynamic
       DontRecord -> []
 
 {-# INLINABLE getRecording #-}

@@ -11,18 +11,31 @@ module Imj.Game.Hamazed.Chat
 
 import           Imj.Prelude
 import           Control.DeepSeq(NFData)
-import           Data.Text(Text)
+import           Data.Text(Text, pack)
+
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Color
+import           Imj.Graphics.Text.ColorString hiding (take)
+import           Imj.Graphics.UI.TextBox
+import           Imj.Geo.Discrete
 
 data Chat = Chat {
-    chatMessages :: ![ChatMessage]
-  , _pendingMessage :: !Text
+    _pendingMessage :: !Text
   -- ^ The message that is being typed
   , _otherPlayersTyping :: ![PlayerName]
   -- ^ Players currently having a pending (unsent) message.
+  , _renderedChat :: !(TextBox ColorString)
 }
+instance Positionable Chat where
+  drawAt (Chat _ _ box) coords = do
+    drawAt box coords
+    -- TODO draw pending, and others
+  width (Chat _ _ box) = width box
+  {-# INLINABLE width #-}
+  {-# INLINABLE drawAt #-}
 
 mkChat :: Chat
-mkChat = Chat [] mempty []
+mkChat = Chat mempty [] (mkTextBox $ Size 10 30)
 
 newtype PlayerName = PlayerName Text
   deriving(Generic, Show, Binary, Eq, NFData)
@@ -31,5 +44,10 @@ data ChatMessage =
     ChatMessage !Text
   | DisconnectionReason !String
 
+toColorStr :: ChatMessage -> ColorString
+toColorStr (ChatMessage s) = colored s yellow
+toColorStr (DisconnectionReason s) = colored (pack s) red
+
 addMessage :: ChatMessage -> Chat -> Chat
-addMessage msg c = c { chatMessages = msg:(chatMessages c) }
+addMessage msg (Chat p o box) =
+  Chat p o $ addText (toColorStr msg) box

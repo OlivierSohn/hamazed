@@ -213,9 +213,10 @@ putClientState :: MonadState AppState m => ClientState -> m ()
 putClientState i =
   getGame >>= \g -> putGame $ g { getClientState' = i}
 
+{-# INLINABLE stateChat #-}
 stateChat :: MonadState AppState m => (Chat -> Chat) -> m ()
 stateChat f =
-  getGame >>= \g -> putGame $ g { chat = f $ chat g }
+  getGame >>= \g -> putGame $ g { getChat = f $ getChat g }
 
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool

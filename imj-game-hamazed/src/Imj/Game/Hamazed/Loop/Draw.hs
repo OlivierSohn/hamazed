@@ -9,13 +9,15 @@ module Imj.Game.Hamazed.Loop.Draw
 
 import           Imj.Prelude
 
+import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.World.Space.Types
+
+import           Imj.Graphics.Class.Positionable
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
 import           Imj.Graphics.ParticleSystem.Design.Draw
@@ -27,7 +29,7 @@ draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
 draw =
   getGame >>= \(Game _ mode
                      (GameState world@(World _ _ _ renderedSpace animations _) _ _ level wa (Screen _ screenCenter))
-                     _ _ _ _) -> do
+                     _ _ _ chat) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
     -- draw the walls outside the matrix:
@@ -39,4 +41,5 @@ draw =
     drawUIAnimation offset wa -- draw it after the world so that when it morphs
                               -- it goes over numbers and ship
     -- draw last so that the message is clearly visible:
+    drawAt chat (Coords 30 10)
     drawLevelMessage level screenCenter

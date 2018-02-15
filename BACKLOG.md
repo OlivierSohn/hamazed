@@ -1,4 +1,8 @@
-- implement the chat, at the bottom of the screen.
+- graceful shutdown with "Ctrl + C" :
+http://zguide.zeromq.org/hs:interrupt
+also see https://github.com/jaspervdj/websockets/issues/135 (last comment)
+
+should fix : when player 2 connects, then ctrl c then connects, it exits with "disconnected by Server"
 
 - fix UI: the name of players is far away to the left, not very visible is window is not big enough.
 - fix display of level (when a player joins)
@@ -17,10 +21,6 @@
   and the player should be able to use the chat.
 - when in Setup intent, the server should send updates of a list "which players would be in the
 game, should you hit Space now" to the clients
-
-- graceful shutdown with "Ctrl + C" :
-http://zguide.zeromq.org/hs:interrupt
-also see https://github.com/jaspervdj/websockets/issues/135 (last comment)
 
 - client-less server mode
 Pro : garbage collection of client does not influence server garbage collection, so

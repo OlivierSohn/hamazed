@@ -31,11 +31,11 @@ class Words a where
   -- | Splits a 'Words' in multiple lines, respecting the words integrity
   -- when words are smaller than the line length.
   {-# INLINABLE multiLine #-}
-  multiLine :: a
-            -> Int
+  multiLine :: Int
             -- ^ Line length.
+            -> a
             -> [a]
-  multiLine str maxLineSize =
+  multiLine maxLineSize str  =
     map (unwords . reverse) $ reverse $ toMultiLine' (words str) 0 [] []
    where
     toMultiLine' :: (Words a)

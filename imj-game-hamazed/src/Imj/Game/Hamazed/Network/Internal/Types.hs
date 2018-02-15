@@ -61,7 +61,9 @@ data ServerState = ServerState {
   , getLastRequestedWorldId' :: {-# UNPACK #-} !(Maybe WorldId)
   , getIntent' :: {-# UNPACK #-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
+  , getShouldTerminate :: {-# UNPACK #-} !Bool
   , getSchedulerSignal :: {-# UNPACK #-} !(MVar WorldId)
+  -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
 instance NFData ServerState
 
@@ -94,7 +96,7 @@ mkClients = Clients empty (ShipId 0)
 newServerState :: IO ServerState
 newServerState =
   ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
-              initialParameters Nothing Intent'Setup <$> newEmptyMVar
+              initialParameters Nothing Intent'Setup False <$> newEmptyMVar
 
 handleConnectionException :: String -> IO () -> IO ()
 handleConnectionException name x =

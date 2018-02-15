@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Network.GameNode
       ( startNetworking
@@ -7,19 +8,21 @@ module Imj.Game.Hamazed.Network.GameNode
 
 import           Imj.Prelude
 import           Control.Concurrent.STM(newTQueueIO)
-import           Control.Concurrent (forkIO, newMVar)
+import           Control.Concurrent (MVar, forkIO, newMVar, modifyMVar_)
 import           Control.Exception (onException, finally, bracket)
+import           Control.Monad.State.Strict(execStateT)
 import           Network.Socket(withSocketsDo, Socket, close, accept)
 import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnectionOptions,
                     makeListenSocket, makePendingConnection, runClient)
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
+import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.Client(appCli)
-import           Imj.Game.Hamazed.Network.Server(appSrv, gameScheduler)
+import           Imj.Game.Hamazed.Network.Server(appSrv, gameScheduler, shutdown)
 
 startNetworking :: SuggestedPlayerName -> Server -> IO ClientQueues
 startNetworking playerName srv = withSocketsDo $ do
@@ -50,6 +53,9 @@ start n = case n of
       makeListenSocket host port -- TODO should we close it, and when?
     success
     state <- newMVar =<< newServerState
+    void $ installHandler sigINT  (Catch $ handleTermination "sigINT"  state) Nothing
+    void $ installHandler sigTERM (Catch $ handleTermination "sigTERM" state) Nothing
+
     -- 1 thread to listen for incomming connections, n thread to handle clients
     _ <- forkIO $ runServer' listenSock $ appSrv state
     -- 1 thread to periodically send game events
@@ -73,6 +79,9 @@ start n = case n of
    where
     st False = "failed to connect"
     st True = "connected"
+  handleTermination :: Text -> MVar ServerState -> IO ()
+  handleTermination sig = flip modifyMVar_ (execStateT $ shutdown $ "received " <> sig)
+
 
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 -- (I needed to know when the listening socket was ready)
@@ -81,7 +90,6 @@ runServer' :: Socket -- ^ Listening socket
            -> IO ()      -- ^ Never returns
 runServer' listeningSocket app =
   runServerWith' listeningSocket defaultConnectionOptions app
-
 
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()

@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Types
     ( ProgramEnd(..)
@@ -23,6 +24,7 @@ module Imj.Game.Hamazed.Types
 
 import           Imj.Prelude
 import           Control.Exception.Base(Exception(..))
+import           Data.Text(unpack)
 
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Level.Types
@@ -37,12 +39,12 @@ import           Imj.Util
 
 data ProgramEnd =
     GracefulProgramEnd
-  | UnexpectedProgramEnd !String
+  | UnexpectedProgramEnd !Text
   | ErrorFromServer !String
 instance Exception ProgramEnd
 instance Show ProgramEnd where
   show GracefulProgramEnd = "Thanks for playing!"
-  show (UnexpectedProgramEnd s) = "Program ended: " ++ s
+  show (UnexpectedProgramEnd s) = unpack $ "Program ended: " <> s
   show (ErrorFromServer s) = "An error occured in the Server: " ++ s
 
 

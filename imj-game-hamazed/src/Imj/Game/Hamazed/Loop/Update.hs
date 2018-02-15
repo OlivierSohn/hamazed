@@ -90,9 +90,13 @@ updateAppState (Left evt) = case evt of
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
   EnterState s -> putClientState $ ClientState Ongoing s
   ExitState s  -> putClientState $ ClientState Done s
-  Disconnected (ByClient _) -> liftIO $ throwIO GracefulProgramEnd
-  Disconnected ByServer     -> liftIO $ throwIO $ UnexpectedProgramEnd "Disconnected by Server"
-  Error txt                 -> liftIO $ throwIO $ ErrorFromServer txt
+  Disconnected reason -> onDisconnection reason
+  Error txt ->
+    liftIO $ throwIO $ ErrorFromServer txt
+ where
+  onDisconnection ClientShutdown     = liftIO $ throwIO GracefulProgramEnd
+  onDisconnection (BrokenClient t)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> t
+  onDisconnection (ServerShutdown t) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server : " <> t
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char

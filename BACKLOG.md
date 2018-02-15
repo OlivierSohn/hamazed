@@ -1,21 +1,18 @@
-
-- graceful shutdown with "Ctrl + C" :
-http://zguide.zeromq.org/hs:interrupt
-also see https://github.com/jaspervdj/websockets/issues/135 (last comment)
-
-should fix : when player 2 connects, then ctrl c then connects, it exits with "disconnected by Server"
+- graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
 
 - fix UI: the name of players is far away to the left, not very visible is window is not big enough.
 - fix display of level (when a player joins)
 
-- recoverability:
+- recover:
     on disconnections (intentional or not):
       server-side:
-        pause game when a client is not reachable, and broadcast:
-          "Playerx is not reachable, retrying in 3 seconds"
+        if a playing client is not reachable, pause game and broadcast:
+          "Lost connection to player x, please wait..."
+          The client can reconnect (the server stores its IP and when we detect it is back,
+           we can re-integrate it in the game by sending the world state from another playing client.
       client-side:
         when server connection vanishes, client could say:
-          "Server is not reachable, retrying in 3 seconds"
+          "Server is not reachable, please wait..."
 
 - when Excluded, the client should display :
   "A game is in progress on this server, you will join once the game ends. Please wait..."
@@ -27,7 +24,9 @@ game, should you hit Space now" to the clients
 Pro : garbage collection of client does not influence server garbage collection, so
 game scheduling may become more stable because on the server there is less stuff to collect.
 (provided that if 2 haskell processes run on the same system, they don't share the runtime)
-Also, it allows to have a dedicated game server.
+Pro : it allows to have a dedicated game server.
+Pro : we can install a signal handler on the client (the one installed today is dedicated to the server)
+Cons : when running the game we need to start the server, then start the client.
 
 - using port 80 to listen is not allowed?
 

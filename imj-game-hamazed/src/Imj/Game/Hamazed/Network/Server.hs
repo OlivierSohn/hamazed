@@ -9,6 +9,7 @@
 module Imj.Game.Hamazed.Network.Server
       ( ClientNode(..)
       , Server
+      , shutdown
       , mkServer
       , appSrv
       , gameScheduler
@@ -22,7 +23,7 @@ import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar
                                         , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
 import           Control.Monad (forever)
-import           Control.Monad.State.Strict(StateT, runStateT, execStateT, StateT, modify, get, state)
+import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify, get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member)
 import           Data.Maybe(isJust)
@@ -83,23 +84,14 @@ sendNBinaryData :: WebSocketsData a
                 => a
                 -> [Client]
                 -> StateT ServerState IO ()
-sendNBinaryData a clients = do
+sendNBinaryData a clients =
   let !msg = Binary $ toLazyByteString a
-      sendAndHandleExceptions x = do
-        liftIO (try (sendDataMessage (getConnection x) msg)) >>= either
-          (\(e :: SomeException) -> onBrokenClient e x)
-          return
-  mapM_ sendAndHandleExceptions clients
-
-onBrokenClient :: SomeException -> Client -> StateT ServerState IO ()
-onBrokenClient e (Client cid@(ClientId _ i) _ _ _ _ _ _) = do
-  -- Remove the client from the Map so that we don't send data to it anymore.
-  -- Doing this /before/ calling sendClients avoids infinite recursion.
-  modify $ \s -> s { getClients = removeClient i $ getClients s }
-  sendClients $ PlayerInfo cid $ Leaves $ ConnectionError $ pack $ show e
-  -- TODO if the client was playing, pause the game and say "lost connection to ... please wait ..."
-  -- and allow the client to reconnect (we can store its IP and when we detect it's back,
-  -- we can re-integrate it in the game by sending the world state from another playing client)
+  in mapM_ (sendAndHandleExceptions msg) clients
+ where
+  sendAndHandleExceptions m x = do
+    liftIO (try (sendDataMessage (getConnection x) m)) >>= either
+      (\(e :: SomeException) -> onBrokenClient e x)
+      return
 
 appSrv :: MVar ServerState -> PendingConnection -> IO ()
 appSrv st pending =
@@ -157,31 +149,63 @@ makePlayerName (SuggestedPlayerName sn) = do
   playerNameIsAlreadyTaken name =
     return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
 
-disconnect :: Client -> StateT ServerState IO ()
-disconnect client@(Client i _ (ClientType _ ownership) _ _ _ _) = do
+shutdown :: Text -> StateT ServerState IO ()
+shutdown reason = do
+  modify $ \s -> s { getShouldTerminate = True }
+  allClients >>= mapM_ (disconnect $ ServerShutdown reason)
+
+-- It's important that this function doesn't throw any exception.
+onBrokenClient :: SomeException -> Client -> StateT ServerState IO ()
+onBrokenClient e =
+  disconnect (BrokenClient $ pack $ show e)
+
+disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
+disconnect r c@(Client i _ (ClientType _ ownership) _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
     when (Map.member (getClientId i) clients) $ do
-      sendClients $ PlayerInfo i $ Leaves Intentional
       -- If the client owns the server, we shutdown connections to /other/ clients first.
       when (ownership == ClientOwnsServer) $
         mapM_
           (\client'@(Client j _ _ _ _ _ _) ->
-              unless (i == j) $ disconnectAtomic ByServer client')
+              unless (i == j) $
+                let msg = "Client " <> pack (show i) <>
+                      " hosts the Game Server and was disconnected:" <> pack (show r)
+                in disconnectClient (ServerShutdown msg) client')
           clients
       -- Finally, shutdown the client connection.
-      disconnectAtomic (ByClient i) client
-
-disconnectAtomic :: By -> Client -> StateT ServerState IO ()
-disconnectAtomic by client@(Client (ClientId (PlayerName name) i) conn _ _ _ _ _) = do
-  modify $ \s -> s { getClients = removeClient i $ getClients s }
-  send client $ Disconnected by
-  liftIO $ sendClose conn msg
+      disconnectClient r c
  where
-  msg = "Graceful disconnection of '" <> name <> "', initiated by " <> showInitiator by <> "."
-  showInitiator ByServer = "Server"
-  showInitiator (ByClient (ClientId (PlayerName n) _)) = "'" <> n <> "'"
+  disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
+  disconnectClient reason client@(Client cId@(ClientId (PlayerName name) x) conn _ _ _ _ _) = do
+    -- Remove the client from the registered clients Map
+    modify $ \s -> s { getClients = removeClient x $ getClients s }
+    -- If possible, notify the client about the disconnection
+    case reason of
+      BrokenClient _ ->
+        -- we can't use the client connection anymore.
+        -- on its side, the client will probably receive an exception when reading or sending data.
+        return ()
+      _ -> do
+        send client $ Disconnected reason
+        liftIO $ sendClose conn msg
+       where
+        msg = "Graceful disconnection of '" <> name <> "' due to " <> showInitiator reason
+        showInitiator (ServerShutdown t) = "Game Server shutdown : " <> t
+        showInitiator ClientShutdown   = "Game Client shutdown"
+        showInitiator (BrokenClient _) = "Game Client broken"
+
+    -- notify other clients about the disconnection of client
+    case reason of
+      ServerShutdown _ ->
+        -- no need to notify other clients, as they will be diconnected too, thus
+        -- they will receive a server shutdown notification.
+        return ()
+      ClientShutdown ->
+        sendClients $ PlayerInfo cId $ Leaves Intentional
+      BrokenClient e ->
+        sendClients $ PlayerInfo cId $ Leaves $ ConnectionError e
 
 allClients :: StateT ServerState IO [Client]
 allClients =
@@ -208,7 +232,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
   Disconnect ->
-    disconnect client
+    disconnect ClientShutdown client
   Say what ->
     sendClients $ PlayerInfo cId $ Says what
   -- TODO are "EnteredState" events useful?
@@ -331,39 +355,47 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =
-  void $ forever $ do
-    currentWorld <- fmap getSchedulerSignal (readMVar st) >>= readMVar
-    let mult = initalGameMultiplicator
-        go mayPrevUpdate = do
-          now <- getSystemTime
-          let baseTime = fromMaybe now mayPrevUpdate
-              update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
-          threadDelay $ fromIntegral $ toMicros $ now...update
-          goOn <- modifyMVar st (fmap swap . runStateT (stepWorld currentWorld))
-          when goOn $ go $ Just update
-    go Nothing
+  readMVar st >>= \(ServerState _ _ _ _ _ _ terminate mayWorld) ->
+    if terminate
+      then return ()
+      else
+        -- block until 'getSchedulerSignal' contains a 'WorldId'
+        readMVar mayWorld >>= \currentWorld -> do
+          let mult = initalGameMultiplicator
+              go mayPrevUpdate = do
+                now <- getSystemTime
+                let baseTime = fromMaybe now mayPrevUpdate
+                    update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
+                threadDelay $ fromIntegral $ toMicros $ now...update
+                goOn <- modifyMVar st (fmap swap . runStateT (stepWorld currentWorld))
+                when goOn $ go $ Just update
+          go Nothing
+          gameScheduler st
  where
   -- Returns True if world can go-on
   stepWorld :: WorldId -> StateT ServerState IO Bool
-  stepWorld wid = get >>= \(ServerState _ _ _ _ _ _ mayWorld) ->
-    -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
-    liftIO (tryReadMVar mayWorld) >>= maybe
-      (return False)
-      (\curWid -> do
-        if wid /= curWid
-          then
-            return False -- the world has changed
-          else do
-            let !zero = zeroCoords
-            accs <- mapMaybe
-              (\p -> let !acc = getShipAcceleration p
-                     in if acc == zero
-                          then Nothing
-                          else Just (getClientId $ getIdentity p, acc))
-              <$> onlyPlayers
-            sendPlayers $ GameEvent $ PeriodicMotion accs []
-            modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
-            return True)
+  stepWorld wid = get >>= \(ServerState _ _ _ _ _ _ terminate mayWorld) ->
+    if terminate
+      then return False
+      else
+        -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
+        liftIO (tryReadMVar mayWorld) >>= maybe
+          (return False)
+          (\curWid -> do
+            if wid /= curWid
+              then
+                return False -- the world has changed
+              else do
+                let !zero = zeroCoords
+                accs <- mapMaybe
+                  (\p -> let !acc = getShipAcceleration p
+                         in if acc == zero
+                              then Nothing
+                              else Just (getClientId $ getIdentity p, acc))
+                  <$> onlyPlayers
+                sendPlayers $ GameEvent $ PeriodicMotion accs []
+                modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
+                return True)
 
 modifyClient :: ClientId -> (Client -> Client) -> StateT ServerState IO ()
 modifyClient cId f =
@@ -388,7 +420,7 @@ modifyClients f =
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState _ _ (LevelSpec level _ _) params wid _ _) -> do
+  get >>= \(ServerState _ _ (LevelSpec level _ _) params wid _ _ _) -> do
     shipIds <- map getIdentity <$> onlyPlayers
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where

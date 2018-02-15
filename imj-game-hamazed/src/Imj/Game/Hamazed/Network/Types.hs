@@ -7,6 +7,7 @@ module Imj.Game.Hamazed.Network.Types
       ( GameNode(..)
       , ConnectionStatus(..)
       , NoConnectReason(..)
+      , DisconnectReason(..)
       , SuggestedPlayerName(..)
       , PlayerName(..)
       , ClientType(..)
@@ -18,7 +19,6 @@ module Imj.Game.Hamazed.Network.Types
       , ClientEvent(..)
       , ServerEvent(..)
       , ClientQueues(..)
-      , By(..)
       , Server(..)
       , ServerPort(..)
       , ServerName(..)
@@ -129,7 +129,7 @@ data ServerEvent =
     ConnectionAccepted {-# UNPACK #-} !ClientId
   | ListPlayers ![PlayerName]
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
-  | Disconnected {-# UNPACK #-} !By
+  | Disconnected {-# UNPACK #-} !DisconnectReason
   | EnterState {-# UNPACK #-} !StateValue
   | ExitState {-# UNPACK #-} !StateValue
   | PlayerInfo {-# UNPACK #-} !ClientId {-# UNPACK #-} !PlayerNotif
@@ -142,12 +142,6 @@ data ServerEvent =
   | Error {-# UNPACK #-} !String
   -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
   deriving(Generic, Show)
-
-data By =
-    ByServer
-  | ByClient {-# UNPACK #-} !ClientId
-  deriving(Generic, Show)
-instance Binary By
 
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
@@ -180,6 +174,27 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
+
+
+data ConnectionStatus =
+    NotConnected
+  | Connected {-# UNPACK #-} !ClientId
+  | ConnectionFailed {-# UNPACK #-} !NoConnectReason
+
+data NoConnectReason =
+    InvalidName {-# UNPACK #-} !SuggestedPlayerName {-# UNPACK #-} !Text
+  deriving(Generic, Show)
+instance Binary NoConnectReason
+
+data DisconnectReason =
+    BrokenClient {-# UNPACK #-} !Text
+    -- ^ One client is disconnected because its connection is unusable.
+  | ClientShutdown
+    -- ^ One client is disconnected because it decided so.
+  | ServerShutdown {-# UNPACK #-} !Text
+  -- ^ All clients are disconnected.
+  deriving(Generic, Show)
+instance Binary DisconnectReason
 
 data PlayerNotif =
     Joins
@@ -221,18 +236,6 @@ welcome l = "Welcome! Users: " <> intercalate ", " (map (\(PlayerName n) -> n) l
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)
-
-
-data ConnectionStatus =
-    NotConnected
-  | Connected {-# UNPACK #-} !ClientId
-  | ConnectionFailed {-# UNPACK #-} !NoConnectReason
-
-data NoConnectReason =
-    InvalidName {-# UNPACK #-} !SuggestedPlayerName {-# UNPACK #-} !Text
-  deriving(Generic, Show)
-
-instance Binary NoConnectReason
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)

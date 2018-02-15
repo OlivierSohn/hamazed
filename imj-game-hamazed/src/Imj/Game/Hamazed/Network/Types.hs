@@ -25,6 +25,7 @@ module Imj.Game.Hamazed.Network.Types
       , getServerNameAndPort
       , PlayerNotif(..)
       , GameNotif(..)
+      , LeaveReason(..)
       , GameStep(..)
       , toTxt
       , toTxt'
@@ -182,11 +183,17 @@ instance WebSocketsData ServerEvent where
 
 data PlayerNotif =
     Joins
-  | Leaves
+  | Leaves {-# UNPACK #-} !LeaveReason
   | StartsGame
   | Says {-# UNPACK #-} !Text
   deriving(Generic, Show)
 instance Binary PlayerNotif
+
+data LeaveReason =
+    ConnectionError !Text
+  | Intentional
+  deriving(Generic, Show)
+instance Binary LeaveReason
 
 data GameNotif =
     LevelResult {-# UNPACK #-} !Int {-# UNPACK #-} !LevelOutcome
@@ -195,18 +202,19 @@ data GameNotif =
 instance Binary GameNotif
 
 toTxt :: PlayerNotif -> PlayerName -> Text
-toTxt Joins (PlayerName n) = "<< " <> n <> " joins the game. >>"
-toTxt Leaves (PlayerName n) = "<< " <> n <> " leaves the game. >>"
-toTxt StartsGame (PlayerName n) = "<< " <> n <> " starts the game. >>"
+toTxt Joins (PlayerName n) = n <> " joins the game."
+toTxt (Leaves Intentional) (PlayerName n)     = n <> " leaves the game."
+toTxt (Leaves (ConnectionError t)) (PlayerName n) = n <> ": connection error : " <> t
+toTxt StartsGame (PlayerName n) = n <> " starts the game."
 toTxt (Says t) (PlayerName n) = n <> " : " <> t
 
 toTxt' :: GameNotif -> Text
 toTxt' (LevelResult n (Lost reason)) =
-  "<< Level " <> pack (show n) <> " was lost : " <> reason <> ". >>"
+  "- Level " <> pack (show n) <> " was lost : " <> reason <> "."
 toTxt' (LevelResult n Won) =
-  "<< Level " <> pack (show n) <> " was won! >>"
+  "- Level " <> pack (show n) <> " was won!"
 toTxt' GameWon =
-  "<< The game was won! Congratulations! "
+  "- The game was won! Congratulations! "
 
 welcome :: [PlayerName] -> Text
 welcome l = "Welcome! Users: " <> intercalate ", " (map (\(PlayerName n) -> n) l)

@@ -88,7 +88,7 @@ runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()
 runServerWith' listeningSock opts app =
   forever $ do
     (conn, _) <- accept listeningSock
-    void $ forkIO $ handleConnectionException "Server" $
+    void $ forkIO $
       flip finally
         (close conn)
         $ runApp conn opts app

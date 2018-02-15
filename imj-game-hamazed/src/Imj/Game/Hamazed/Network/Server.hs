@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.Server
       ( ClientNode(..)
@@ -27,9 +29,12 @@ import           Data.Maybe(isJust)
 import           Data.Text(pack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
-                  (PendingConnection, sendBinaryData, receiveData, acceptRequest, forkPingThread
-                  , WebSocketsData(..), Connection, DataMessage(..), sendDataMessage, sendClose)
-import           UnliftIO.Exception (finally)
+                  (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
+                  -- the functions on the mext line throw(IO), hence we catch exceptions
+                  -- to remove the client from the map when needed.
+                   acceptRequest, sendBinaryData, sendDataMessage, sendClose, receiveData,
+                   forkPingThread)
+import           UnliftIO.Exception (SomeException(..), try)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
@@ -52,25 +57,49 @@ removeClient :: ShipId -> Clients -> Clients
 removeClient i clients =
   clients { getClients' = Map.delete i $ getClients' clients }
 
-{-# INLINABLE sendNBinaryData #-}
-sendNBinaryData :: WebSocketsData a => [Connection] -> a -> IO ()
-sendNBinaryData conns a =
-  let serialized = Binary $ toLazyByteString a
-  in mapM_ (flip sendDataMessage serialized) conns
-
 send :: Client -> ServerEvent -> StateT ServerState IO ()
-send client evt = liftIO $ sendBinaryData (getConnection client) evt
-
-sendClients' :: ServerEvent -> [Client] -> IO ()
-sendClients' evt = flip sendNBinaryData evt . map getConnection
+send client evt =
+  sendNBinaryData evt [client]
 
 sendClients :: ServerEvent -> StateT ServerState IO ()
 sendClients evt =
-  liftIO . sendClients' evt =<< allClients
+  sendNBinaryData evt =<< allClients
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  liftIO . sendClients' evt =<< onlyPlayers
+  sendNBinaryData evt =<< onlyPlayers
+
+sendFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
+sendFirstWorldBuilder evt =
+  sendNBinaryData evt . take 1 . filter ((== WorldCreator) . getCapability . getClientType) =<< allClients
+
+{-# INLINABLE sendNBinaryData #-}
+-- | Uses sendDataMessage which is at a lower-level than sendBinaryData
+-- to factorize serialization.
+--
+-- In case some connections are closed, the corresponding clients are silently removed
+-- from the Map, and we continue the processing.
+sendNBinaryData :: WebSocketsData a
+                => a
+                -> [Client]
+                -> StateT ServerState IO ()
+sendNBinaryData a clients = do
+  let !msg = Binary $ toLazyByteString a
+      sendAndHandleExceptions x = do
+        liftIO (try (sendDataMessage (getConnection x) msg)) >>= either
+          (\(e :: SomeException) -> onBrokenClient e x)
+          return
+  mapM_ sendAndHandleExceptions clients
+
+onBrokenClient :: SomeException -> Client -> StateT ServerState IO ()
+onBrokenClient e (Client cid@(ClientId _ i) _ _ _ _ _ _) = do
+  -- Remove the client from the Map so that we don't send data to it anymore.
+  -- Doing this /before/ calling sendClients avoids infinite recursion.
+  modify $ \s -> s { getClients = removeClient i $ getClients s }
+  sendClients $ PlayerInfo cid $ Leaves $ ConnectionError $ pack $ show e
+  -- TODO if the client was playing, pause the game and say "lost connection to ... please wait ..."
+  -- and allow the client to reconnect (we can store its IP and when we detect it's back,
+  -- we can re-integrate it in the game by sending the world state from another playing client)
 
 appSrv :: MVar ServerState -> PendingConnection -> IO ()
 appSrv st pending =
@@ -79,8 +108,7 @@ appSrv st pending =
 appSrv' :: MVar ServerState -> Connection -> IO ()
 appSrv' st conn = do
   forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
-  msg <- receiveData conn
-  case msg of
+  receiveData conn >>= \case
     Connect sn@(SuggestedPlayerName suggestedName) cliType ->
       if any ($ suggestedName) [ null, any isPunctuation, any isSpace]
         then
@@ -88,12 +116,14 @@ appSrv' st conn = do
             "Name cannot contain punctuation or whitespace, and cannot be empty"
         else do
           client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
-          flip finally
-            (modifyMVar_ st $ execStateT $ disconnect ByServer client) $ do
+          try
+            (do
               sendBinaryData conn $ ConnectionAccepted $ getIdentity client
               forever $
-                receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
-    _ -> error $ "first received msg is not Connect : " ++ show msg
+                receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client) >>= either
+            (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
+            return
+    msg -> error $ "first received msg is not Connect : " ++ show msg
 
 
 makeClient :: Connection -> SuggestedPlayerName -> ClientType -> StateT ServerState IO Client
@@ -127,26 +157,21 @@ makePlayerName (SuggestedPlayerName sn) = do
   playerNameIsAlreadyTaken name =
     return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
 
-disconnect :: By -> Client -> StateT ServerState IO ()
-disconnect initiatedBy client@(Client i _ (ClientType _ ownership) _ _ _ _) = do
+disconnect :: Client -> StateT ServerState IO ()
+disconnect client@(Client i _ (ClientType _ ownership) _ _ _ _) = do
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
     when (Map.member (getClientId i) clients) $ do
-      -- If the client initiated its own disconnection, we broadcast the
-      -- information.
-      case initiatedBy of
-        ByClient initiator ->
-          when (initiator == i) $ sendClients $ PlayerInfo i Leaves
-        _ -> return ()
+      sendClients $ PlayerInfo i $ Leaves Intentional
       -- If the client owns the server, we shutdown connections to /other/ clients first.
       when (ownership == ClientOwnsServer) $
         mapM_
           (\client'@(Client j _ _ _ _ _ _) ->
               unless (i == j) $ disconnectAtomic ByServer client')
           clients
-      -- Shutdown the client connection.
-      disconnectAtomic initiatedBy client
+      -- Finally, shutdown the client connection.
+      disconnectAtomic (ByClient i) client
 
 disconnectAtomic :: By -> Client -> StateT ServerState IO ()
 disconnectAtomic by client@(Client (ClientId (PlayerName name) i) conn _ _ _ _ _) = do
@@ -158,15 +183,13 @@ disconnectAtomic by client@(Client (ClientId (PlayerName name) i) conn _ _ _ _ _
   showInitiator ByServer = "Server"
   showInitiator (ByClient (ClientId (PlayerName n) _)) = "'" <> n <> "'"
 
-
 allClients :: StateT ServerState IO [Client]
-allClients = Map.elems . getClients' . getClients <$> get
+allClients =
+  Map.elems . getClients' . getClients <$> get
 
 onlyPlayers :: StateT ServerState IO [Client]
-onlyPlayers = onlyPlayers' <$> allClients
-
-onlyPlayers' :: [Client] -> [Client]
-onlyPlayers' = filter (isJust . getState)
+onlyPlayers =
+  filter (isJust . getState) <$> allClients
 
 getIntent :: StateT ServerState IO Intent
 getIntent = getIntent' <$> get
@@ -185,7 +208,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
      error' client $ "already connected : " <> sn
   Disconnect ->
-    disconnect (ByClient cId) client
+    disconnect client
   Say what ->
     sendClients $ PlayerInfo cId $ Says what
   -- TODO are "EnteredState" events useful?
@@ -316,32 +339,31 @@ gameScheduler st =
           let baseTime = fromMaybe now mayPrevUpdate
               update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
           threadDelay $ fromIntegral $ toMicros $ now...update
-          goOn <- modifyMVar st $ \s@(ServerState (Clients clients _) _ _ _ _ _ signal) ->
-            tryReadMVar signal >>= maybe
-              (return (s, False))
-              (\thisWorld -> do
-                if currentWorld == thisWorld
-                  then do
-                    let players = onlyPlayers' $ Map.elems clients
-                        zero = zeroCoords
-                        accs =
-                          mapMaybe
-                            (\p -> let acc = getShipAcceleration p
-                                   in if acc == zero
-                                        then Nothing
-                                        else Just (getClientId $ getIdentity p, acc))
-                            players
-                        evt = GameEvent $ PeriodicMotion accs []
-                    sendClients' evt players
-                    s' <- flip execStateT s $ modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
-                    return (s', True)
-                  else
-                    return (s, False)) -- no need to zero ships accelerations, it is done when starting the level.
+          goOn <- modifyMVar st (fmap swap . runStateT (stepWorld currentWorld))
           when goOn $ go $ Just update
     go Nothing
-  -- on game start, initialize acceleration accumulators to 0.
-  -- every gamePeriod, send accumulators value and reset them to 0.
-
+ where
+  -- Returns True if world can go-on
+  stepWorld :: WorldId -> StateT ServerState IO Bool
+  stepWorld wid = get >>= \(ServerState _ _ _ _ _ _ mayWorld) ->
+    -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
+    liftIO (tryReadMVar mayWorld) >>= maybe
+      (return False)
+      (\curWid -> do
+        if wid /= curWid
+          then
+            return False -- the world has changed
+          else do
+            let !zero = zeroCoords
+            accs <- mapMaybe
+              (\p -> let !acc = getShipAcceleration p
+                     in if acc == zero
+                          then Nothing
+                          else Just (getClientId $ getIdentity p, acc))
+              <$> onlyPlayers
+            sendPlayers $ GameEvent $ PeriodicMotion accs []
+            modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
+            return True)
 
 modifyClient :: ClientId -> (Client -> Client) -> StateT ServerState IO ()
 modifyClient cId f =
@@ -366,17 +388,14 @@ modifyClients f =
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState (Clients clients _) _ (LevelSpec level _ _) params wid _ _) -> do
+  get >>= \(ServerState _ _ (LevelSpec level _ _) params wid _ _) -> do
     shipIds <- map getIdentity <$> onlyPlayers
-    liftIO $ flip sendFirstWorldBuilder clients $
-      WorldRequest $ WorldSpec level shipIds params wid
+    sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where
   incrementWorldId =
     modify $ \s ->
       let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
       in s { getLastRequestedWorldId' = Just wid }
-  sendFirstWorldBuilder evt =
-    sendClients' evt . take 1 . filter ((== WorldCreator) . getCapability . getClientType) . Map.elems
 
 
 onChangeWorldParams :: (WorldParameters -> WorldParameters)

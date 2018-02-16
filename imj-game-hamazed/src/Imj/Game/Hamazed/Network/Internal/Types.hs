@@ -12,14 +12,11 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , Clients(..)
       , Intent(..)
       , newServerState
-      -- * Utility
-      , handleConnectionException
     ) where
 
 import           Imj.Prelude hiding(intercalate)
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
 import           Control.DeepSeq(NFData(..))
-import           Control.Exception (try)
 import           Data.Map.Strict(Map, empty)
 import           Network.WebSockets(ConnectionException(..), Connection)
 
@@ -97,9 +94,3 @@ newServerState :: IO ServerState
 newServerState =
   ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
               initialParameters Nothing Intent'Setup False <$> newEmptyMVar
-
-handleConnectionException :: String -> IO () -> IO ()
-handleConnectionException name x =
-  try x >>= either
-    (\(e :: ConnectionException) -> putStrLn $ "Info|" ++ name ++ " disconnection|" ++ show e)
-    return

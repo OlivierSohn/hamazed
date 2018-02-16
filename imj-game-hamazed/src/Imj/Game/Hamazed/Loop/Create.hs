@@ -64,9 +64,8 @@ mkInitialState newLevel (WorldEssence balls ships llMat wid) mode maySz mayState
         (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center)) ->
             (w, center, curLevel, curShotNums))
           mayState
-      nameAndAmmo (BattleShip name _ ammo _ _) = (name, ammo)
-      curInfos = mkInfos Normal        (map nameAndAmmo $ elems $ getWorldShips curWorld) shotNums    level
-      newInfos = mkInfos ColorAnimated (map nameAndAmmo $ elems $ getWorldShips newWorld) newShotNums newLevel
+      curInfos = mkInfos Normal        (elems $ getWorldShips curWorld) shotNums    level
+      newInfos = mkInfos ColorAnimated (elems $ getWorldShips newWorld) newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
       uiAnimation =
         mkUIAnimation

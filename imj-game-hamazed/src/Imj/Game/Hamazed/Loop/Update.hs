@@ -14,7 +14,7 @@ import           Imj.Prelude
 import           Control.Exception.Base(throwIO)
 
 import           Data.Map.Strict(elems)
-
+import           Data.Text(pack)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -95,8 +95,8 @@ updateAppState (Left evt) = case evt of
     liftIO $ throwIO $ ErrorFromServer txt
  where
   onDisconnection ClientShutdown     = liftIO $ throwIO GracefulClientEnd
-  onDisconnection (BrokenClient t)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> t
-  onDisconnection (ServerShutdown t) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server : " <> t
+  onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
+  onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char
@@ -121,6 +121,7 @@ onContinueMessage =
         putGameState $ GameState b c d newLevel e f
       Nothing -> return ()
 
+{-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m, MonadIO m)
         => ShipId
         -> Direction
@@ -135,28 +136,31 @@ onDestroyedNumbers :: (MonadState AppState m)
                    -> [Number]
                    -> m ()
 onDestroyedNumbers t destroyedBalls =
-  getGameState >>= \(GameState world@(World _ ships space _ _ _)
-                               futureWorld g (Level level@(LevelSpec _ target _) finished)
-                   (UIAnimation (UIEvolutions j upDown _) p) s) -> do
-    (Screen _ center) <- getCurScreen
+  getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelSpec _ target _) finished) a s) -> do
+    let allShotNumbers = g ++ map (\(Number _ n) -> n) destroyedBalls
+        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (sum allShotNumbers) target t
+    putGameState $ GameState w f allShotNumbers newLevel a s
+    updateShipsText
+
+{-# INLINABLE updateShipsText #-}
+updateShipsText :: (MonadState AppState m)
+                => m ()
+updateShipsText =
+  getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
+                               (UIAnimation (UIEvolutions j upDown _) p) _) -> do
     mode <- getViewMode
-    let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-        allShotNumbers = g ++ destroyedNumbers
-        nameAndAmmo (BattleShip name _ ammo _ _) = (name, ammo)
-        ammos = map nameAndAmmo $ elems ships
-        allAmmos = sum $ map snd ammos
-        newLeft =
+    (Screen _ center) <- getCurScreen
+    let newLeft =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode
               (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-              infos = mkLeftInfo Normal ammos allShotNumbers level
-          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
-        newFinished = finished <|> checkTargetAndAmmo allAmmos (sum allShotNumbers) target t
-        newLevel = Level level newFinished
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p
-    putGameState
+              infos = mkLeftInfo Normal (elems ships) shotNumbers level
+          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
+        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
+    putAnimation
       $ assert (isFinished newAnim)
-      $ GameState world futureWorld allShotNumbers newLevel newAnim s
+      $ newAnim
+
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m)
@@ -172,8 +176,9 @@ onHasMoved :: (MonadState AppState m, MonadIO m)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= \t -> shipParticleSystems t >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) futureWorld shotNums (Level lt finished) anim s) -> do
-    let allCollisions =
+    >>= \(GameState world@(World balls ships _ _ _ _) futureWorld shotNums (Level level@(LevelSpec _ target _) finished) anim s) -> do
+    let oneShipAlive = any (shipIsAlive . getShipStatus) ships
+        allCollisions =
           concatMap
           (\(BattleShip _ _ _ status collisions) ->
             case status of
@@ -182,14 +187,19 @@ onHasMoved =
           ships
         remainingBalls = filter (`notElem` allCollisions) balls
         newWorld = world { getWorldNumbers = remainingBalls }
-        finishIfOneShipCollides =
-          case allCollisions of
-            [] -> Nothing
-            _  ->
-              let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
-              in Just $ LevelFinished (Lost msg) t InfoMessage
-        newLevel = Level lt (finished <|> finishIfOneShipCollides)
+        finishIfAllShipsDestroyed =
+          if oneShipAlive
+            then Nothing
+            else
+              case allCollisions of
+                [] -> Nothing
+                _  ->
+                  let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
+                  in Just $ LevelFinished (Lost msg) t InfoMessage
+        finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (sum shotNums) target t
+        newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
     putGameState $ assert (isFinished anim) $ GameState newWorld futureWorld shotNums newLevel anim s
+    updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
 updateUIAnim :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)

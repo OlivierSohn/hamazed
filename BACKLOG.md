@@ -1,11 +1,8 @@
-- continue game if one ship is alive, but another one collided?
-
-- do not draw ship if it collided.
+- fix display of level (when a player joins)
+- write (disconnected) next to a player's name that was disconnected.
+- fix UI: the name of players is far away to the left, not very visible is window is not big enough.
 
 - graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
-
-- fix UI: the name of players is far away to the left, not very visible is window is not big enough.
-- fix display of level (when a player joins)
 
 - recover:
     on disconnections (intentional or not):

@@ -18,6 +18,7 @@ module Imj.Game.Hamazed.World.Types
         , BattleShip(..)
         , ShipId(..)
         , ShipStatus(..)
+        , shipIsAlive
         , Number(..)
         , Scope(..)
         , ViewMode(..)
@@ -165,6 +166,12 @@ data ShipStatus =
   | Destroyed
   deriving(Generic, Show)
 instance Binary ShipStatus
+
+{-# INLINE shipIsAlive #-}
+shipIsAlive :: ShipStatus -> Bool
+shipIsAlive Destroyed = False
+shipIsAlive Unarmored = True
+shipIsAlive Armored = True
 
 newtype ShipId = ShipId Int64
   deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)

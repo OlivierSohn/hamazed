@@ -13,7 +13,8 @@ import           Imj.Prelude hiding (drop, null, intercalate)
 
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM(atomically, writeTQueue, readTQueue)
-import           Network.WebSockets(ClientApp, receiveData, sendBinaryData)
+import           Control.Exception (try)
+import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
@@ -29,4 +30,9 @@ appCli (ClientQueues fromServer toServer) conn = do
     liftIO (atomically (readTQueue toServer))
       >>= sendBinaryData conn
  where
-  safeForever = handleConnectionException "Client" . forever
+  safeForever = handleConnectionException . forever
+  handleConnectionException :: IO () -> IO ()
+  handleConnectionException x =
+    try x >>= either
+      (\(e :: ConnectionException) -> putStrLn $ "Info|Client disconnection due to:" ++ show e)
+      return

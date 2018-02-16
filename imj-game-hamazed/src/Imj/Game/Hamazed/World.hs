@@ -157,9 +157,11 @@ moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
   let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
       moveShip (sid, (BattleShip name (PosSpeed prevPos oldSpeed) ammo status _)) =
         let collisions =
-              case status of
-                Destroyed -> []
-                _ -> getColliding pos newBalls
+              if shipIsAlive status
+                then
+                  getColliding pos newBalls
+                else
+                  []
             destroyedOr x =
               if null collisions
                 then x
@@ -184,7 +186,7 @@ moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
       newShips = fromAscList $ map moveShip $ assocs ships
   in World newBalls newShips space rs anims e
 
--- | Computes the effect of an laser shot on the 'World'.
+-- | Computes the effect of a laser shot on the 'World'.
 laserEventAction :: (MonadState AppState m)
                  => ShipId
                  -> Direction
@@ -194,9 +196,9 @@ laserEventAction :: (MonadState AppState m)
                  -- ^ 'Number's destroyed
 laserEventAction shipId dir t =
   getWorld >>= \(World balls ships space rs d e) -> do
-    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo _ _) = findShip shipId ships
+    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo status _) = findShip shipId ships
         (maybeLaserRayTheoretical, newAmmo) =
-          if ammo > 0
+          if ammo > 0 && shipIsAlive status
             then
               (Just $ shootLaserWithOffset shipCoords dir Infinite (`location` space)
              , pred ammo)

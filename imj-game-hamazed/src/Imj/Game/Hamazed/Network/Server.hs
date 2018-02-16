@@ -160,7 +160,7 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client i _ (ClientType ownership) _ _ _ _) =
+disconnect r c@(Client i@(ClientId (PlayerName name) _) _ (ClientType ownership) _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
@@ -170,8 +170,7 @@ disconnect r c@(Client i _ (ClientType ownership) _ _ _ _) =
         mapM_
           (\client'@(Client j _ _ _ _ _ _) ->
               unless (i == j) $
-                let msg = "Client " <> pack (show i) <>
-                      " hosts the Game Server and was disconnected:" <> pack (show r)
+                let msg = "[" <> name <> "] disconnection (hosts the Server) << " <> pack (show r)
                 in disconnectClient (ServerShutdown msg) client')
           clients
       -- Finally, shutdown the client connection.
@@ -191,10 +190,7 @@ disconnect r c@(Client i _ (ClientType ownership) _ _ _ _) =
         send client $ Disconnected reason
         liftIO $ sendClose conn msg
        where
-        msg = "Graceful disconnection of '" <> name <> "' due to " <> showInitiator reason
-        showInitiator (ServerShutdown t) = "Game Server shutdown : " <> t
-        showInitiator ClientShutdown   = "Game Client shutdown"
-        showInitiator (BrokenClient _) = "Game Client broken"
+        msg = "[" <> name <> "] disconnection << " <> pack (show reason)
 
     -- notify other clients about the disconnection of client
     case reason of
@@ -224,13 +220,13 @@ getLastRequestedWorldId = getLastRequestedWorldId' <$> get
 error' :: Client -> String -> StateT ServerState IO ()
 error' client txt = do
   send client $ Error $ "*** error from Server: " ++ txt
-  error $ "error in Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
-    -- hence we sent the error to the client, so that it can error too.
+  error $ "error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
+    -- hence we sent the error to the client, so that it can report the error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
 handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
-     error' client $ "already connected : " <> sn
+    error' client $ "already connected : " <> sn
   Disconnect ->
     disconnect ClientShutdown client
   Say what ->

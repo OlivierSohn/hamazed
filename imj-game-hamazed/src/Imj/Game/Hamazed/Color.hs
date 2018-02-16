@@ -22,6 +22,7 @@ module Imj.Game.Hamazed.Color (
   -- ** Text colors
   , configColors
   , configFgColor
+  , darkConfigFgColor
   , messageColor
   , neutralMessageColor
   -- ** Cyclic colors
@@ -64,6 +65,9 @@ cycleLaserColors (Frame frame) =
 
 configFgColor :: Color8 Foreground
 configFgColor = gray 8
+
+darkConfigFgColor :: Color8 Foreground
+darkConfigFgColor = gray 4
 
 configColors :: LayeredColor
 configColors = LayeredColor (gray 0) configFgColor

@@ -157,13 +157,13 @@ createUITextAnimations :: RectContainer
                        -> Time Duration System
                        -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDistance duration =
-    let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
-          getSideCenters $ mkRectContainerAtDistance from horizontalDistance verticalDistance
-        (centerUpTo, centerDownTo, leftMiddleTo, _) =
-          getSideCenters $ mkRectContainerAtDistance to horizontalDistance verticalDistance
-        ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
-        ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts 1 duration
-    in (ta1, ta2)
+  let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
+        getSideCenters $ mkRectContainerAtDistance from horizontalDistance verticalDistance
+      (centerUpTo, centerDownTo, leftMiddleTo, _) =
+        getSideCenters $ mkRectContainerAtDistance to horizontalDistance verticalDistance
+      ta1 = mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (ups, downs) duration
+      ta2 = mkTextAnimRightAligned leftMiddleFrom leftMiddleTo lefts 1 duration
+  in (ta1, ta2)
 
 -- | Creates the 'TextAnimation' to animate the texts that appears left of the main
 -- 'RectContainer'.

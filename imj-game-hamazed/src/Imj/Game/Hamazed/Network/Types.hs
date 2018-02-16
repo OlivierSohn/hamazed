@@ -36,9 +36,9 @@ import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.String(IsString)
-import           Data.Text(intercalate, pack)
-import           Data.Text.Lazy(unpack)
-import           Data.Text.Lazy.Encoding(decodeUtf8)
+import           Data.Text(intercalate, pack, unpack)
+import qualified Data.Text.Lazy as Lazy(unpack)
+import           Data.Text.Lazy.Encoding as LazyE(decodeUtf8)
 import           Network.WebSockets(WebSocketsData(..), DataMessage(..))
 
 import           Imj.Game.Hamazed.Chat
@@ -150,7 +150,7 @@ instance Binary ServerEvent
 
 instance WebSocketsData ClientEvent where
   fromDataMessage (Text t _) =
-    error $ "Text was received for ClientEvent : " ++ unpack (decodeUtf8 t)
+    error $ "Text was received for ClientEvent : " ++ Lazy.unpack (LazyE.decodeUtf8 t)
   fromDataMessage (Binary bytes) = Bin.decode bytes
   fromLazyByteString = Bin.decode
   toLazyByteString = Bin.encode
@@ -159,7 +159,7 @@ instance WebSocketsData ClientEvent where
   {-# INLINABLE toLazyByteString #-}
 instance WebSocketsData ServerEvent where
   fromDataMessage (Text t _) =
-    error $ "Text was received for ServerEvent : " ++ unpack (decodeUtf8 t)
+    error $ "Text was received for ServerEvent : " ++ Lazy.unpack (LazyE.decodeUtf8 t)
   fromDataMessage (Binary bytes) = Bin.decode bytes
   fromLazyByteString = Bin.decode
   toLazyByteString = Bin.encode
@@ -185,8 +185,12 @@ data DisconnectReason =
     -- ^ One client is disconnected because it decided so.
   | ServerShutdown {-# UNPACK #-} !Text
   -- ^ All clients are disconnected.
-  deriving(Generic, Show)
+  deriving(Generic)
 instance Binary DisconnectReason
+instance Show DisconnectReason where
+  show (ServerShutdown t) = unpack $ "Server shutdown << " <> t
+  show ClientShutdown   = "Client shutdown"
+  show (BrokenClient t) = unpack $ "Broken client << " <> t
 
 data PlayerNotif =
     Joins

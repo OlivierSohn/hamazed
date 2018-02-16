@@ -5,6 +5,7 @@
 
 module Imj.Game.Hamazed.World.Ship
         ( shipParticleSystems
+        , countAmmo
         ) where
 
 import           Imj.Prelude
@@ -54,3 +55,12 @@ shipParticleSystems k =
             $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
               fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
     concat <$> mapM sps (getWorldShips w)
+
+countAmmo :: [BattleShip] -> Int
+countAmmo =
+  foldl' (\s (BattleShip _ _ ammo status _) ->
+            if shipIsAlive status
+              then
+                s + ammo
+              else
+                s) 0

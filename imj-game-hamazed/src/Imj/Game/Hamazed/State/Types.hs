@@ -29,6 +29,7 @@ module Imj.Game.Hamazed.State.Types
       , putViewMode
       , putGameConnection
       , putWorld
+      , putAnimation
       , putClientState
       , stateChat
       , addParticleSystems
@@ -147,6 +148,11 @@ putGame g = get >>= \(AppState a _ e r h d f) ->
 putGameState :: MonadState AppState m => GameState -> m ()
 putGameState s =
   getGame >>= \g -> putGame $ g {getGameState' = s}
+
+{-# INLINABLE putAnimation #-}
+putAnimation :: MonadState AppState m => UIAnimation -> m ()
+putAnimation a =
+  getGameState >>= \s -> putGameState $ s {getUIAnimation = a}
 
 {-# INLINABLE putGameConnection #-}
 putGameConnection :: MonadState AppState m => ConnectionStatus -> m ()

@@ -19,6 +19,7 @@ import           Imj.Game.Hamazed.Level.Types
 
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Text.ColorString
 
@@ -31,12 +32,17 @@ mkLevelCS t level =
     Normal -> [txt configFgColor]
     ColorAnimated -> [txt red, txt configFgColor]
 
-mkAmmoCS :: InfoType -> (PlayerName, Int) -> Successive ColorString
-mkAmmoCS _ (PlayerName name, ammo) =
+mkShipCS :: InfoType -> BattleShip -> Successive ColorString
+mkShipCS _ (BattleShip (PlayerName name) _ ammo status _) =
   let pad = initialLaserAmmo - ammo
-      s = colored ("\"" <> name <> "\"   " <> pack (replicate pad ' ')) configFgColor
+      shipNameColor Destroyed = darkConfigFgColor
+      shipNameColor _   = configFgColor
+      ammoColor' Destroyed = darkConfigFgColor
+      ammoColor' _   = ammoColor
+
+      s = colored ("\"" <> name <> "\"   " <> pack (replicate pad ' ')) (shipNameColor status)
        <> colored (singleton '[') bracketsColor
-       <> colored (pack $ replicate ammo '.') ammoColor
+       <> colored (pack $ replicate ammo '.') (ammoColor' status)
        <> colored (singleton ']') bracketsColor
    in Successive [s]
 
@@ -61,13 +67,13 @@ mkShotNumbersCS _ nums =
 
   in Successive [middle <> last_]
 
-mkLeftInfo :: InfoType -> [(PlayerName, Int)] -> [Int] -> LevelSpec -> [Successive ColorString]
-mkLeftInfo t ammos shotNums (LevelSpec level target _)=
+mkLeftInfo :: InfoType -> [BattleShip] -> [Int] -> LevelSpec -> [Successive ColorString]
+mkLeftInfo t ships shotNums (LevelSpec level target _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
   ]
   ++
-  map (mkAmmoCS t) ammos
+  map (mkShipCS t) ships
   ++
   [ mkLevelCS t level
   ]
@@ -77,9 +83,9 @@ mkUpDownInfo =
   (Successive [],Successive [])
 
 mkInfos :: InfoType
-        -> [(PlayerName, Int)]
+        -> [BattleShip]
         -> [Int]
         -> LevelSpec
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
-mkInfos t ammos shotNums level =
-  (mkUpDownInfo, mkLeftInfo t ammos shotNums level)
+mkInfos t ships shotNums level =
+  (mkUpDownInfo, mkLeftInfo t ships shotNums level)

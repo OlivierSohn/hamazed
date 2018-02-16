@@ -38,12 +38,14 @@ import           Imj.Util
 
 
 data ProgramEnd =
-    GracefulProgramEnd
+    GracefulClientEnd
+  | GracefulServerEnd
   | UnexpectedProgramEnd !Text
   | ErrorFromServer !String
 instance Exception ProgramEnd
 instance Show ProgramEnd where
-  show GracefulProgramEnd = "Thanks for playing!"
+  show GracefulClientEnd = "Thanks for playing!"
+  show GracefulServerEnd = "Server has shutdown."
   show (UnexpectedProgramEnd s) = unpack $ "Program ended: " <> s
   show (ErrorFromServer s) = "An error occured in the Server: " ++ s
 

@@ -12,7 +12,6 @@ module Imj.Game.Hamazed.Network.Types
       , PlayerName(..)
       , ClientType(..)
       , ServerOwnership(..)
-      , WorldCreation(..)
       , ClientState(..)
       , StateNature(..)
       , StateValue(..)
@@ -54,17 +53,10 @@ data Server = Distant ServerName ServerPort
 
 -- | a Client, seen from a Server's perspective
 data ClientType = ClientType {
-    getCapability :: {-# UNPACK #-} !WorldCreation
-  , getOwnership :: {-# UNPACK #-} !ServerOwnership
+    getOwnership :: {-# UNPACK #-} !ServerOwnership
 }
   deriving(Generic, Show, Eq)
 instance Binary ClientType
-
-data WorldCreation =
-    WorldCreator
-  | JustPlayer
-  deriving(Generic, Show, Eq)
-instance Binary WorldCreation
 
 data ServerOwnership =
     ClientOwnsServer

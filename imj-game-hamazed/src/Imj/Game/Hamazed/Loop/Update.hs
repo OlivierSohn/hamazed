@@ -94,7 +94,7 @@ updateAppState (Left evt) = case evt of
   Error txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
-  onDisconnection ClientShutdown     = liftIO $ throwIO GracefulProgramEnd
+  onDisconnection ClientShutdown     = liftIO $ throwIO GracefulClientEnd
   onDisconnection (BrokenClient t)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> t
   onDisconnection (ServerShutdown t) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server : " <> t
 

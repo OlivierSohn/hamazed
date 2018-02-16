@@ -21,11 +21,13 @@
 game, should you hit Space now" to the clients
 
 - client-less server mode
+(verify that ctrl c terminates the process gracefully)
 Pro : garbage collection of client does not influence server garbage collection, so
 game scheduling may become more stable because on the server there is less stuff to collect.
 (provided that if 2 haskell processes run on the same system, they don't share the runtime)
 Pro : it allows to have a dedicated game server.
 Pro : we can install a signal handler on the client (the one installed today is dedicated to the server)
+Pro : we can play in the terminal, and log in the console for the server.
 Cons : when running the game we need to start the server, then start the client.
 
 - using port 80 to listen is not allowed?

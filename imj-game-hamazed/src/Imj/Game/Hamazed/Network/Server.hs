@@ -72,7 +72,7 @@ sendPlayers evt =
 
 sendFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
 sendFirstWorldBuilder evt =
-  sendNBinaryData evt . take 1 . filter ((== WorldCreator) . getCapability . getClientType) =<< allClients
+  sendNBinaryData evt . take 1 =<< allClients
 
 {-# INLINABLE sendNBinaryData #-}
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
@@ -160,7 +160,7 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client i _ (ClientType _ ownership) _ _ _ _) =
+disconnect r c@(Client i _ (ClientType ownership) _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
@@ -306,7 +306,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
 ------------------------------------------------------------------------------
 -- A 'WorldCreator' client may be requested to propose a world:
 ------------------------------------------------------------------------------
-  (WorldProposal essence) ->
+  WorldProposal essence ->
     get >>= \s -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
       when (getLastRequestedWorldId' s == Just wid) $ do
@@ -349,7 +349,8 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   -- But since the laser shot will be rendered with latency, too, the player will be
   -- able to integrate the latency via this visual feedback - I read somewhere that
   -- latency is not a big problem for players, provided that it is stable over time.
-  Action Laser dir -> sendPlayers $ GameEvent $ LaserShot (getClientId cId) dir
+  Action Laser dir ->
+    sendPlayers $ GameEvent $ LaserShot (getClientId cId) dir
   Action Ship dir ->
     modifyClient cId $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
 

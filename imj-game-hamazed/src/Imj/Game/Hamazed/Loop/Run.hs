@@ -14,7 +14,7 @@ module Imj.Game.Hamazed.Loop.Run
 import           Imj.Prelude
 import           Prelude (putStrLn, getLine, toInteger)
 
-import           Control.Concurrent(threadDelay)
+import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync, wait, race)
 import           Control.Concurrent.STM(check, atomically, readTQueue, readTVar, registerDelay)
 import           Control.Monad(join)
@@ -24,6 +24,8 @@ import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
+import           Data.Maybe(isJust)
+import           Network.Socket(withSocketsDo)
 import           Options.Applicative
                   (progDesc, fullDesc, info, header, customExecParser, prefs, helper
                   , showHelpOnError, short, long, option, str, help, optional
@@ -57,7 +59,7 @@ The game
 <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 run :: IO ()
-run =
+run = withSocketsDo $
   if os == "mingw32"
     then
       putStrLn $ "Windows is not currently supported"
@@ -75,42 +77,62 @@ runWithArgs =
   join . customExecParser (prefs showHelpOnError) $
     info (helper <*> parser)
     (  fullDesc
-    <> header "imj-game-hamazed-exe runs the 'Hamazed' game."
-    <> progDesc "Hamazed is a game with flying numbers and 8-bit color animations."
+    <> header "imj-game-hamazed-exe runs the 'Hamazed' multiplayer game."
+    <> progDesc ("'Hamazed' is a multiplayer game where each player uses a different client. " ++
+                 "Each client is connected to a unique server whose responsability is to " ++
+                 "centralize player actions, dispatch events accordingly and schedule the game execution. " ++
+                 "By passing different command line arguments to this executable, you can: " ++
+                 "(1) start a server and a client, " ++
+                 "(2) start a client and connect to an existing server (using --serverName and --serverPort), " ++
+                 "(3) start a server but no client (--serverOnly).")
     )
  where
   parser =
     runWithBackend
-      <$> optional
-             (option backendArg (long "render"
-                              <> short 'r'
-                              <> help (
-                              "Use 'console' to play in the console, " ++
-                              "use 'opengl' to play in an opengl window. " ++
-                              renderHelp
-                              )))
+      <$> switch
+          (  long "serverOnly"
+          <> short 's'
+          <> help (
+          "Use this flag to create only the server. Incompatible with --serverName.")
+          )
       <*> optional
-             (option srvNameArg (long "gameHostName"
-                              <> short 'n'
-                              <> help (
-                              "Omit this option to run a game server on your machine, and connect to it. " ++
-                              "Use \"localhost\" (or 127.0.0.1) to connect to a server already running on your machine. " ++
-                              "Use the IP or DNS name of a distant server to connect to it."
-                              )))
+            (option srvNameArg
+               (  long "serverName"
+               <> short 'n'
+               <> help (
+               "Connect to an already running server " ++
+               "(use \"localhost\" to target your machine). Incompatible with --serverOnly."
+               )))
       <*> optional
-             (option srvPortArg (long "gameHostPort"
-                              <> short 'p'
-                              <> help (
-                              "The port number of the listening socket of the game server. " ++
-                              "Default is " ++ show (toInteger defaultPort) ++ ". "
-                              )))
+            (option srvPortArg
+               (  long "serverPort"
+               <> short 'p'
+               <> help (
+               "Port number of the server. " ++
+               "Default is " ++ show (toInteger defaultPort) ++ ".")
+               ))
       <*> optional
-             (option suggestedPlayerName (long "player"
-                              <> help (
-                              "The name of the player you want to use, " ++
-                              "in a multiplayer context. Default is \"Player\"."
-                              )))
-      <*> switch ( long "debug" <> short 'd' <> help "Print debug infos in the terminal." )
+            (option backendArg
+              (  long "render"
+              <> short 'r'
+              <> help (
+              "[Client] use 'console' to play in the console, " ++
+              "'opengl' to play in an opengl window. When omitted, the player " ++
+              "will be asked to chose interactively." ++
+              renderHelp)
+              ))
+      <*> optional
+            (option suggestedPlayerName
+              (  long "playerName"
+              <> help (
+              "[Client] the name of the player you want to use. " ++
+              "Default is \"Player\".")
+              ))
+      <*> switch
+            (  long "debug"
+            <> short 'd'
+            <> help "[Client] print debug infos in the terminal."
+            )
 
 renderHelp :: String
 renderHelp =
@@ -174,44 +196,57 @@ userPicksBackend = do
     "2" -> return OpenGLWindow
     c -> putStrLn ("invalid value : " ++ c) >> userPicksBackend
 
-runWithBackend :: Maybe BackendType
+runWithBackend :: Bool
                -> Maybe ServerName
                -> Maybe ServerPort
+               -> Maybe BackendType
                -> Maybe SuggestedPlayerName
                -> Bool
                -> IO ()
-runWithBackend maybeBackend maySrvName maySrvPort mayPlayerName debug = do
-  putStrLn $ " ------------- --------------------------"
-  putStrLn $ "| Backend     : " ++ show maybeBackend
-  putStrLn $ "| Server name : " ++ show maySrvName
-  putStrLn $ "| Server port : " ++ show maySrvPort
-  putStrLn $ "| Debug       : " ++ show debug
-  putStrLn $ " ------------- --------------------------"
+runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug = do
+  let printServerArgs = do
+        putStrLn $ "| Server name : " ++ show maySrvName
+        putStrLn $ "| Server port : " ++ show maySrvPort
+        putStrLn $ "| Server-only : " ++ show serverOnly
+      printClientArgs = do
+        putStrLn $ "| Client Rendering : " ++ show maybeBackend
+        putStrLn $ "| Client Debug     : " ++ show debug
+      printBar =
+        putStrLn $ " ------------- --------------------------"
+  printBar >> printServerArgs >> printBar
+
+  when (isJust maySrvName && serverOnly) $
+    error $ "'--serverOnly' conflicts with '--serverName' : these options are mutually exclusive."
 
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName srvPort
-      spn = fromMaybe "Player" $ mayPlayerName
-  maybe userPicksBackend return maybeBackend >>= \case
-    Console      -> newConsoleBackend
-      >>= runWith debug srv spn
-    OpenGLWindow -> newOpenGLBackend "Hamazed" 10 (Size 600 1400)
-      >>= runWith debug srv spn
-
+      player = fromMaybe "Player" $ mayPlayerName
+  newEmptyMVar >>= \ready ->
+    if serverOnly
+      then
+        startServerIfLocal srv ready
+      else do
+        printClientArgs >> printBar
+        void $ forkIO $ startServerIfLocal srv ready
+        readMVar ready -- wait until listening socket is available.
+        queues <- startClient player srv
+        maybe userPicksBackend return maybeBackend >>= \case
+          Console ->      runWith debug queues srv player =<< newConsoleBackend
+          OpenGLWindow -> runWith debug queues srv player =<< newOpenGLBackend "Hamazed" 10 (Size 600 1400)
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool
+        -> ClientQueues
         -> Server
         -> SuggestedPlayerName
         -> a
         -> IO ()
-runWith debug srv player backend =
+runWith debug queues srv player backend =
   flip withDefaultPolicies backend $ \drawEnv -> do
-    env <- Env drawEnv backend <$> startNetworking player srv
     sz <- getDiscreteSize backend
-    _ <- createState sz debug player srv NotConnected >>=
-      runStateT (runReaderT loop env)
-    return ()
+    void $ createState sz debug player srv NotConnected >>=
+      runStateT (runReaderT loop $ Env drawEnv backend queues)
 
 loop :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e, Render e, PlayerInput e)
      => m ()

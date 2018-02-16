@@ -63,7 +63,7 @@ data AnchorChars
 
 -- | Interpolates 'ColorString's and anchors.
 data TextAnimation a = TextAnimation {
-   _textAnimationEvolutions :: {-# UNPACK #-} ![Evolution ColorString]
+   _textAnimationEvolutions :: ![Evolution ColorString]
  , _textAnimationAnchors :: {-# UNPACK #-} !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
  {- ^ When @a =@ 'AnchorStrings', each 'Evolution' 'ColorString' has exactly one
  corresponding element in the 'SequentiallyInterpolatedList'.

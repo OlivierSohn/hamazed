@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE BangPatterns #-}
 
 {- | This module exports types and functions related to /monotonic/ timing.
 
@@ -17,6 +18,11 @@ module Imj.Timing
     , System
     , Point
     , Duration
+    -- ** Time TimeRange
+    , TimeRange
+    , mkRangeSingleton
+    , extendRange
+    , timeSpan
     -- * Translate a time point
     , addDuration
     -- * Produce durations
@@ -179,3 +185,24 @@ unsafeFromTimeSpec = Time
 {-# INLINE strictlyNegative #-}
 strictlyNegative :: Time Duration a -> Bool
 strictlyNegative (Time t) = t < 0
+
+
+data TimeRange a = TimeRange {
+    _rangeMin :: {-# UNPACK #-} !(Time Point a)
+  , _rangeMax :: {-# UNPACK #-} !(Time Point a)
+}
+
+{-# INLINE mkRangeSingleton #-}
+mkRangeSingleton :: Time Point a -> TimeRange a
+mkRangeSingleton v = TimeRange v v
+
+{-# INLINABLE timeSpan #-}
+timeSpan :: TimeRange a -> Time Duration a
+timeSpan (TimeRange v1 v2) = v1...v2
+
+{-# INLINABLE extendRange #-}
+extendRange :: Time Point a -> TimeRange a -> TimeRange a
+extendRange !v r@(TimeRange v1 v2)
+  | v < v1 = TimeRange v v2
+  | v > v2 = TimeRange v1 v
+  | otherwise = r

@@ -29,17 +29,17 @@ import           Imj.Timing
 
 data ParticleSystem = ParticleSystem {
     _particleSystemPoints :: !ParticleTree
-  , _particleSystemUpdate :: {-# UNPACK #-} !(EnvFunctions
-                                              -> Frame
-                                              -> ParticleTree
-                                              -> ParticleTree)
+  , _particleSystemUpdate :: !(EnvFunctions
+                            -> Frame
+                            -> ParticleTree
+                            -> ParticleTree)
   , _particleSystemEnvFunctions :: {-# UNPACK #-} !EnvFunctions
   , _particleSystemNextUpdateSpec :: !UpdateSpec
 }
 
 -- | Functions to interact with the environment
 data EnvFunctions = EnvFunctions {
-    _envFunctionsInteract :: {-# UNPACK #-} !(Coords Pos -> InteractionResult)
+    _envFunctionsInteract :: !(Coords Pos -> InteractionResult)
     {- ^ /Interaction/ function.
 
     During update, 'Particle's for which this returns 'Mutation' can mutate
@@ -48,7 +48,7 @@ data EnvFunctions = EnvFunctions {
     During draw, 'Particle's for which this
     function returns 'Stable' are drawn. Others are
     not drawn because they would overlap with the environment. -}
-  , _envFunctionsDistance :: {-# UNPACK #-} !(Vec2 Pos -> Distance)
+  , _envFunctionsDistance :: !(Vec2 Pos -> Distance)
     {- ^ /Distance/ function.
 
     During update, 'Particle's which 'CanInteract' with the environment, and
@@ -93,7 +93,7 @@ data ParticleTree = ParticleTree {
 } deriving (Show)
 
 data Particle = Particle {
-    _particleCanInteract :: {-# UNPACK #-} !CanInteract
+    _particleCanInteract :: {-unpack sum-} !CanInteract
     -- ^ Can the particle interact with the environment?
   , _particleVecPosSpeed :: {-# UNPACK #-} !VecPosSpeed
     -- ^ Continuous location and speed, w.r.t the particle system reference frame.

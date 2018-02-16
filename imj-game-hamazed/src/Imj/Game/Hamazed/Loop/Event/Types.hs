@@ -29,7 +29,7 @@ data Deadline = Deadline {
     _deadlineTime :: {-# UNPACK #-} !(Time Point System)
     -- ^ At which time should the update become visible to the user.
   , _deadlinePriority :: {-# UNPACK #-} !Int
-  , _deadlineType :: {-# UNPACK #-} !DeadlineType
+  , _deadlineType :: {-unpack sum-} !DeadlineType
 } deriving(Eq, Show)
 
 

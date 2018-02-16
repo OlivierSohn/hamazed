@@ -70,7 +70,7 @@ data AppState  = AppState {
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
   , _nextParticleSystemKey :: !ParticleSystemKey
-  , _appStateDebug :: {-# UNPACK #-} !Bool
+  , _appStateDebug :: {-unpack sum-} !Bool
   -- ^ Print times and group information in the terminal.
 }
 

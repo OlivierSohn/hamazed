@@ -17,7 +17,6 @@ import           Control.Exception (try)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Internal.Types
 
 
 appCli :: ClientQueues -> ClientApp ()

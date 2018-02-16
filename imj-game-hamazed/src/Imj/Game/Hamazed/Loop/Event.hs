@@ -21,7 +21,6 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.ParticleSystem.Design.Timing
-import           Imj.Util hiding(range)
 
 -- | No 2 principal events can be part of the same 'EventGroup'.
 -- It allows to separate important game action on different rendered frames.
@@ -53,8 +52,7 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
  | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> do
     let -- so that no 2 updates of the same particle system are done in the same group:
         maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
-        diam = (...) `onBounds` range'
-    if diam > maxDiameter
+    if timeSpan range' > maxDiameter
       then
         --putStrLn (show (diam, maxDiameter)) >>
         return Nothing

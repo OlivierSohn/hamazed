@@ -106,7 +106,7 @@ data Buffers = Buffers {
 }
 
 data Policies = Policies {
-    _policiesResizePolicy :: {-# UNPACK #-} !ResizePolicy
-  , _policiesClearPolicy :: {-# UNPACK #-} !ClearPolicy
+    _policiesResizePolicy :: {-unpack sum-} !ResizePolicy
+  , _policiesClearPolicy :: {-unpack sum-} !ClearPolicy
   , _policiesClearColor :: {-# UNPACK #-} !(Color8 Background)
 } deriving(Show)

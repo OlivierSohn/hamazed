@@ -177,9 +177,9 @@ disconnect r c@(Client i@(ClientId (PlayerName name) _) _ (ClientType ownership)
       disconnectClient r c
  where
   disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
-  disconnectClient reason client@(Client cId@(ClientId (PlayerName name) x) conn _ _ _ _ _) = do
+  disconnectClient reason client@(Client cId@(ClientId (PlayerName playerName) shipId) conn _ _ _ _ _) = do
     -- Remove the client from the registered clients Map
-    modify' $ \s -> s { getClients = removeClient x $ getClients s }
+    modify' $ \s -> s { getClients = removeClient shipId $ getClients s }
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -190,7 +190,7 @@ disconnect r c@(Client i@(ClientId (PlayerName name) _) _ (ClientType ownership)
         send client $ Disconnected reason
         liftIO $ sendClose conn msg
        where
-        msg = "[" <> name <> "] disconnection << " <> pack (show reason)
+        msg = "[" <> playerName <> "] disconnection << " <> pack (show reason)
 
     -- notify other clients about the disconnection of client
     case reason of

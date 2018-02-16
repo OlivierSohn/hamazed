@@ -20,7 +20,6 @@ import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Text.ColorString
 
 data InfoType = Normal | ColorAnimated

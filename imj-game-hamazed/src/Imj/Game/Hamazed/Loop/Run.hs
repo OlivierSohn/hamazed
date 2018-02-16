@@ -136,8 +136,9 @@ runWithArgs =
       <*> switch
             (  long "debug"
             <> short 'd'
-            <> help "[Client] print debug infos in the terminal."
-            )
+            <> help (
+            "[Client] print debug infos in the terminal."
+            ))
 
 renderHelp :: String
 renderHelp =
@@ -221,7 +222,7 @@ runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug
   printBar >> printServerArgs >> printBar
 
   when (isJust maySrvName && serverOnly) $
-    error $ "'--serverOnly' conflicts with '--serverName' : these options are mutually exclusive."
+    error $ "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
 
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName srvPort

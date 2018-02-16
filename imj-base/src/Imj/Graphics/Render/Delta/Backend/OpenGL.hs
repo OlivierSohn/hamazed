@@ -58,7 +58,10 @@ data OpenGLBackend = OpenGLBackend {
   -- ^ Mutable rendering options
 }
 
-data RenderingOptions = RenderingOptions {-# UNPACK #-} !Int {-# UNPACK #-} !RenderingStyle {-# UNPACK #-} !FTGL.Font
+data RenderingOptions = RenderingOptions
+  {-# UNPACK #-} !Int
+  {-unpack sum-} !RenderingStyle
+  {-# UNPACK #-} !FTGL.Font
   deriving(Generic, NFData, Show)
 
 instance PrettyVal RenderingOptions where

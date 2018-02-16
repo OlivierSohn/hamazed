@@ -94,9 +94,9 @@ instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
     getLevelNumber :: {-# UNPACK #-} !Int
-  , getShipIds :: {-# UNPACK #-} ![ClientId]
+  , getShipIds :: {-unpack sum-} ![ClientId]
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
-  , getWorldId' :: {-# UNPACK #-} !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
+  , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
 } deriving(Generic, Show)
 instance Binary WorldSpec
 
@@ -128,10 +128,10 @@ data World = World {
   , getWorldShips :: !(Map ShipId BattleShip)
   , getWorldSpace :: {-# UNPACK #-} !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
-  , getWorldRenderedSpace :: {-# UNPACK #-} !RenderedSpace
+  , getWorldRenderedSpace :: !RenderedSpace
   , getParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
     -- ^ Animated particle systems, illustrating player actions and important game events.
-  , getId :: {-# UNPACK #-} !(Maybe WorldId)
+  , getId :: {-unpack sum-} !(Maybe WorldId)
 } deriving (Generic)
 
 newtype ParticleSystemKey = ParticleSystemKey Int
@@ -154,7 +154,7 @@ data BattleShip = BattleShip {
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
   -- ^ How many laser shots are left.
-  , getShipStatus :: {-# UNPACK #-} !ShipStatus
+  , getShipStatus :: {-unpack sum-} !ShipStatus
   , getCollisions :: ![Number]
   -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
 } deriving(Generic, Show)
@@ -264,7 +264,7 @@ scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCent
 
 
 data Screen = Screen {
-    _screenSize :: {-# UNPACK #-} !(Maybe Size)
+    _screenSize :: {-unpack sum-} !(Maybe Size)
   -- ^ Maybe we couldn't get the screen size.
   , _screenCenter :: {-# UNPACK #-} !(Coords Pos)
   -- ^ The center is deduced from screen size, if any, or guessed.

@@ -41,7 +41,7 @@ data UIAnimation = UIAnimation {
 } deriving(Show, Generic, PrettyVal)
 
 data UIAnimProgress = UIAnimProgress {
-    _deadline :: {-# UNPACK #-} !(Maybe (Time Point System))
+    _deadline :: {-unpack sum-} !(Maybe (Time Point System))
   -- ^ Time at which the 'UIEvolutions' should be rendered and updated
   , _progress :: {-# UNPACK #-} !Iteration
   -- ^ Current 'Iteration'.

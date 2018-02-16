@@ -28,7 +28,7 @@ initialLaserAmmo = 10
 
 data Level = Level {
     _levelSpec :: {-# UNPACK #-} !LevelSpec
-  , _levelStatus :: {-# UNPACK #-} !(Maybe LevelFinished)
+  , _levelStatus :: {-unpack sum-} !(Maybe LevelFinished)
 } deriving (Generic)
 
 data LevelSpec = LevelSpec {
@@ -48,10 +48,10 @@ mkLevelSpec levelNumber =
   in LevelSpec levelNumber target numbers
 
 data LevelFinished = LevelFinished {
-    _levelFinishedResult :: {-# UNPACK #-} !LevelOutcome
+    _levelFinishedResult :: {-unpack sum-} !LevelOutcome
     -- ^ Lost or won
   , _levelFinishedWhen :: {-# UNPACK #-} !(Time Point System)
-  , _levelFinishedCurrentMessage :: {-# UNPACK #-} !MessageState
+  , _levelFinishedCurrentMessage :: {-unpack sum-} !MessageState
 } deriving (Generic)
 
 data MessageState = InfoMessage

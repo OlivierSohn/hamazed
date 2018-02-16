@@ -18,7 +18,7 @@ import           Imj.Prelude hiding(intercalate)
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
 import           Control.DeepSeq(NFData(..))
 import           Data.Map.Strict(Map, empty)
-import           Network.WebSockets(ConnectionException(..), Connection)
+import           Network.WebSockets(Connection)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -30,12 +30,12 @@ data Client = Client {
     getIdentity :: {-# UNPACK #-} !ClientId
   , getConnection :: {-# UNPACK #-} !Connection
   , getClientType :: {-# UNPACK #-} !ClientType
-  , getCurrentWorld :: {-# UNPACK #-} !(Maybe WorldId)
-  , getShipSafeUntil :: !(Maybe (Time Point System))
+  , getCurrentWorld :: {-unpack sum-} !(Maybe WorldId)
+  , getShipSafeUntil :: {-unpack sum-} !(Maybe (Time Point System))
   , getShipAcceleration :: !(Coords Vel)
   -- ^ At the beginning of each level, the ship is immune to collisions with 'Number's
   -- for a given time. This field holds the time at which the immunity ends.
-  , getState :: {-# UNPACK #-} !(Maybe PlayerState)
+  , getState :: {-unpack sum-} !(Maybe PlayerState)
   -- ^ When 'Nothing', the client is excluded from the current game.
 } deriving(Generic)
 instance NFData Client where
@@ -55,10 +55,10 @@ data ServerState = ServerState {
   , getLevelSpec :: {-# UNPACK #-} !LevelSpec
   , getWorldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
-  , getLastRequestedWorldId' :: {-# UNPACK #-} !(Maybe WorldId)
-  , getIntent' :: {-# UNPACK #-} !Intent
+  , getLastRequestedWorldId' :: {-unpack sum-} !(Maybe WorldId)
+  , getIntent' :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
-  , getShouldTerminate :: {-# UNPACK #-} !Bool
+  , getShouldTerminate :: {-unpack sum-} !Bool
   , getSchedulerSignal :: {-# UNPACK #-} !(MVar WorldId)
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)

@@ -102,13 +102,13 @@ mkEaseClock duration lastFrame ease =
 -- then do a binary search
 -- | Defines an evolution (interpolation or morphing) between 'Successive' 'DiscreteDistance's.
 data Evolution v = Evolution {
-    _evolutionSuccessive :: {-# UNPACK #-} !(Successive v)
+    _evolutionSuccessive :: !(Successive v)
   -- ^ 'Successive' 'DiscreteDistance's.
   , _evolutionLastFrame :: {-# UNPACK #-} !Frame
   -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
   , _evolutionDuration :: {-# UNPACK #-} !(Time Duration System)
   -- ^ Duration of the interpolation
-  , _evolutionInverseEase :: {-# UNPACK #-} !(Double -> Double)
+  , _evolutionInverseEase :: !(Double -> Double)
   -- ^ Inverse ease function.
 } deriving (Generic)
 

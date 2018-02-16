@@ -1,3 +1,4 @@
+
 -- | This module exports functions and types related to text alignemnt.
 
 module Imj.Graphics.Text.Alignment
@@ -50,7 +51,7 @@ data AlignmentKind = Centered
 -}
 
 data Alignment = Alignment {
-    _alignmentKind :: {-# UNPACK #-} !AlignmentKind
+    _alignmentKind :: {-unpack sum-} !AlignmentKind
     -- ^ The kind of alignment.
   , _alignmentRef :: {-# UNPACK #-} !(Coords Pos)
     -- ^ The reference coordinates.

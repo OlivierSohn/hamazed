@@ -77,15 +77,20 @@ runWithArgs =
   join . customExecParser (prefs showHelpOnError) $
     info (helper <*> parser)
     (  fullDesc
-    <> header "imj-game-hamazed-exe runs the 'Hamazed' multiplayer game."
-    <> progDesc ("'Hamazed' is a multiplayer game where each player uses a different client. " ++
-                 "Each client is connected to a unique server whose responsability is to " ++
-                 "centralize player actions, dispatch events accordingly and schedule the game execution. " ++
-                 "By passing different command line arguments to this executable, you can: " ++
-                 "(1) start a server and a client, " ++
-                 "(2) start a client and connect to an existing server (using --serverName and --serverPort), " ++
-                 "(3) start a server but no client (--serverOnly).")
-    )
+    <> header (
+       "**** imj-game-hamazed-exe runs the 'Hamazed' multiplayer game. " ++
+       "Each client (player) is connected to a unique light-weight server " ++
+       "centralizing player actions " ++
+       "and scheduling game execution. "
+      )
+    <> progDesc (
+       "This executable can be used to: " ++
+       "(1) create a server and a client, " ++
+       "(2) create a client, connect to an existing server with [--serverName] and [--serverPort], " ++
+       "(3) create a server [--serverOnly]. " ++
+       "The client can render the game in the terminal (--render term) or " ++
+       "in a separate opengl window (--render win). "
+       ))
  where
   parser =
     runWithBackend

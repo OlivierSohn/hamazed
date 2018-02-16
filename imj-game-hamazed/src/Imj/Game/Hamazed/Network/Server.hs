@@ -23,9 +23,9 @@ import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar
                                         , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
 import           Control.Monad (forever)
-import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify, get, state)
+import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
-import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member)
+import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member, mapAccum)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
 import           Data.Tuple(swap)
@@ -130,7 +130,7 @@ makeClient conn sn cliType = do
       let newShipId = succ $ getNextShipId $ getClients s
       in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
   addClient c =
-    modify $ \ s ->
+    modify' $ \ s ->
       let clients = getClients s
       in s { getClients =
               clients { getClients' =
@@ -151,7 +151,7 @@ makePlayerName (SuggestedPlayerName sn) = do
 
 shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
-  modify $ \s -> s { getShouldTerminate = True }
+  modify' $ \s -> s { getShouldTerminate = True }
   allClients >>= mapM_ (disconnect $ ServerShutdown reason)
 
 -- It's important that this function doesn't throw any exception.
@@ -180,7 +180,7 @@ disconnect r c@(Client i _ (ClientType ownership) _ _ _ _) =
   disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
   disconnectClient reason client@(Client cId@(ClientId (PlayerName name) x) conn _ _ _ _ _) = do
     -- Remove the client from the registered clients Map
-    modify $ \s -> s { getClients = removeClient x $ getClients s }
+    modify' $ \s -> s { getClients = removeClient x $ getClients s }
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -253,7 +253,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   LevelEnded outcome -> do
     getIntent >>= \case
       Intent'PlayGame ->
-        modify $ \s -> s { getIntent' = Intent'LevelEnd outcome }
+        modify' $ \s -> s { getIntent' = Intent'LevelEnd outcome }
       Intent'LevelEnd o ->
         if o == outcome
           then
@@ -276,11 +276,11 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
           sendClients $ GameInfo GameWon
         if outcome == Won && n < lastLevel
            then
-             modify $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
+             modify' $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
                               , getIntent' = Intent'PlayGame
                               }
            else do
-             modify $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
+             modify' $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
                               , getIntent' = Intent'Setup
                               }
              modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players
@@ -298,7 +298,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   ExitedState Setup ->
     getIntent >>= \case
       Intent'Setup -> do
-        modify $ \s -> s { getIntent' = Intent'PlayGame }
+        modify' $ \s -> s { getIntent' = Intent'PlayGame }
         sendClients $ PlayerInfo cId StartsGame
         sendPlayers $ ExitState Setup -- prevent other playing clients from modifying the world parameters
         requestWorld
@@ -362,20 +362,51 @@ gameScheduler st =
       else
         -- block until 'getSchedulerSignal' contains a 'WorldId'
         readMVar mayWorld >>= \currentWorld -> do
+          startTime <- getSystemTime
+          ok <- modifyMVar st (fmap swap . runStateT ((whenCanContinue currentWorld) (initializePlayers startTime)))
           let mult = initalGameMultiplicator
               go mayPrevUpdate = do
                 now <- getSystemTime
                 let baseTime = fromMaybe now mayPrevUpdate
                     update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
                 threadDelay $ fromIntegral $ toMicros $ now...update
-                goOn <- modifyMVar st (fmap swap . runStateT (stepWorld currentWorld))
+                goOn <- modifyMVar st (fmap swap . runStateT ((whenCanContinue currentWorld) (stepWorld now)))
                 when goOn $ go $ Just update
-          go Nothing
+          when ok $ go Nothing
           gameScheduler st
  where
-  -- Returns True if world can go-on
-  stepWorld :: WorldId -> StateT ServerState IO Bool
-  stepWorld wid = get >>= \(ServerState _ _ _ _ _ _ terminate mayWorld) ->
+  initializePlayers :: Time Point System -> StateT ServerState IO ()
+  initializePlayers start =
+    modifyClients $ \c -> c { getShipSafeUntil = Just $ addDuration (fromSecs 5) start }
+  stepWorld :: Time Point System -> StateT ServerState IO ()
+  stepWorld now = do
+    let !zero = zeroCoords
+    accs <- mapMaybe
+      (\p -> let !acc = getShipAcceleration p
+             in if acc == zero
+                  then Nothing
+                  else Just (getClientId $ getIdentity p, acc))
+      <$> onlyPlayers
+    becameSafe <- updateSafeShips
+    sendPlayers $ GameEvent $ PeriodicMotion accs $ map (getClientId . getIdentity) becameSafe
+    modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
+   where
+    updateSafeShips =
+      state $ \s ->
+        let clients = getClients s
+            (clientsMadeSafe, c') = Map.mapAccum (\shipsMadeSafe client ->
+                              maybe
+                                (shipsMadeSafe, client)
+                                (\shipUnsafeAt ->
+                                    if shipUnsafeAt < now
+                                      then (client:shipsMadeSafe, client { getShipSafeUntil = Nothing } )
+                                      else (shipsMadeSafe, client))
+                                $ getShipSafeUntil client) [] (getClients' clients)
+        -- mapAccum :: (a -> b -> (a, c)) -> a -> Map k b -> (a, Map k c)
+        in (clientsMadeSafe, s { getClients = clients { getClients' = c' } })
+
+  whenCanContinue :: WorldId -> StateT ServerState IO () -> StateT ServerState IO Bool
+  whenCanContinue wid act = get >>= \(ServerState _ _ _ _ _ _ terminate mayWorld) ->
     if terminate
       then return False
       else
@@ -387,20 +418,12 @@ gameScheduler st =
               then
                 return False -- the world has changed
               else do
-                let !zero = zeroCoords
-                accs <- mapMaybe
-                  (\p -> let !acc = getShipAcceleration p
-                         in if acc == zero
-                              then Nothing
-                              else Just (getClientId $ getIdentity p, acc))
-                  <$> onlyPlayers
-                sendPlayers $ GameEvent $ PeriodicMotion accs []
-                modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
+                act
                 return True)
 
 modifyClient :: ClientId -> (Client -> Client) -> StateT ServerState IO ()
 modifyClient cId f =
-  modify $ \s ->
+  modify' $ \s ->
     let clients = getClients s
     in s { getClients =
             clients { getClients' =
@@ -410,7 +433,7 @@ modifyClient cId f =
 
 modifyClients :: (Client -> Client) -> StateT ServerState IO ()
 modifyClients f =
-  modify $ \s ->
+  modify' $ \s ->
     let clients = getClients s
     in s { getClients =
             clients { getClients' =
@@ -426,7 +449,7 @@ requestWorld = do
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where
   incrementWorldId =
-    modify $ \s ->
+    modify' $ \s ->
       let wid = maybe (WorldId 0) succ $ getLastRequestedWorldId' s
       in s { getLastRequestedWorldId' = Just wid }
 
@@ -434,7 +457,7 @@ requestWorld = do
 onChangeWorldParams :: (WorldParameters -> WorldParameters)
                     -> StateT ServerState IO ()
 onChangeWorldParams f = do
-  modify $ \s ->
+  modify' $ \s ->
     s { getWorldParameters = f $ getWorldParameters s }
   requestWorld
 

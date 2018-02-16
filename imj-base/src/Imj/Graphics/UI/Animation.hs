@@ -134,7 +134,9 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
                                                 concatSuccessive f2 t2,
-                                                zipWith concatSuccessive f3 t3)
+                                                zipWith concatSuccessive
+                                                  (f3 ++ repeat (Successive []))
+                                                  t3)
                                      horizontalDistance verticalDistance duration
   evolutions = UIEvolutions frameE ta1 ta2
   deadline =
@@ -142,7 +144,6 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
       Nothing
       (\dt -> Just $ addDuration dt time)
       $ getDeltaTime evolutions zeroFrame
-
 
 createUITextAnimations :: RectContainer
                        -- ^ From

@@ -155,20 +155,31 @@ moveWorld :: [(ShipId, Coords Vel)]
           -> World
 moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
   let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
-      moveShip (sid, (BattleShip name (PosSpeed prevPos oldSpeed) ammo safe _)) =
-        let newSafe =
-              if safe
-                then
-                  not $ sid `elem` shipsLosingArmor
-                else
-                  False
+      moveShip (sid, (BattleShip name (PosSpeed prevPos oldSpeed) ammo status _)) =
+        let collisions =
+              case status of
+                Destroyed -> []
+                _ -> getColliding pos newBalls
+            destroyedOr x =
+              if null collisions
+                then x
+                else Destroyed
+            newStatus =
+              case status of
+                Destroyed -> Destroyed
+                Armored ->
+                  if sid `elem` shipsLosingArmor
+                    then
+                      destroyedOr Unarmored
+                    else
+                      Armored
+                Unarmored -> destroyedOr Unarmored
             newSpeed =
               maybe oldSpeed (\(_,acc) -> sumCoords acc oldSpeed)
               -- induces a square complexity, but if the number of ships is small it's ok.
               $ find ((==) sid . fst) accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
-            collisions = getColliding pos newBalls
-        in (sid,BattleShip name newPosSpeed ammo newSafe collisions)
+        in (sid,BattleShip name newPosSpeed ammo newStatus collisions)
       -- using fromAscList ecause the keys are unchanged.
       newShips = fromAscList $ map moveShip $ assocs ships
   in World newBalls newShips space rs anims e

@@ -37,7 +37,7 @@ mkWorldEssence (WorldSpec levelNum clientIds (WorldParameters shape wallDistrib)
   posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
   let ships = fromList $ map
         (\((ClientId playerName shipId),posSpeed@(PosSpeed pos _)) ->
-          (shipId, BattleShip playerName posSpeed initialLaserAmmo True (getColliding pos balls)))
+          (shipId, BattleShip playerName posSpeed initialLaserAmmo Armored (getColliding pos balls)))
         $ zip clientIds posSpeeds
   return $ WorldEssence balls ships (toListOfLists space) wid
 

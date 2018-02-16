@@ -37,19 +37,20 @@ shipParticleSystems k =
     let color i = if even i
                     then cycleOuterColors1
                     else cycleWallColors2
-        sps (BattleShip _ (PosSpeed shipCoords shipSpeed) _ safe collisions)
-          | null collisions || safe = return []
-          | otherwise = do
-            -- when number and ship explode, they exchange speeds
-            let collidingNumbersAvgSpeed =
-                  foldl' sumCoords zeroCoords
-                  $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
-                numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
-                shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
-                (Number _ n) = head collisions
-                k' = systemTimePointToParticleSystemTimePoint k
-            return
-              $ map (Prioritized particleSystDefaultPriority)
-              $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
-                fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
+        sps (BattleShip _ _ _ Armored _) = return []
+        sps (BattleShip _ _ _ Unarmored _) = return []
+        sps (BattleShip _ _ _ Destroyed []) = return []
+        sps (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions) = do
+          -- when number and ship explode, they exchange speeds
+          let collidingNumbersAvgSpeed =
+                foldl' sumCoords zeroCoords
+                $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
+              numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
+              shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
+              (Number _ n) = head collisions
+              k' = systemTimePointToParticleSystemTimePoint k
+          return
+            $ map (Prioritized particleSystDefaultPriority)
+            $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
+              fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
     concat <$> mapM sps (getWorldShips w)

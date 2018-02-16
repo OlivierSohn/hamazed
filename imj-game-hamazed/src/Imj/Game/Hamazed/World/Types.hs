@@ -17,6 +17,7 @@ module Imj.Game.Hamazed.World.Types
         , WorldShape(..)
         , BattleShip(..)
         , ShipId(..)
+        , ShipStatus(..)
         , Number(..)
         , Scope(..)
         , ViewMode(..)
@@ -152,12 +153,18 @@ data BattleShip = BattleShip {
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
   -- ^ How many laser shots are left.
-  , _shipArmor :: !Bool
-  -- ^ True if ship has an armor protecting it.
+  , getShipStatus :: {-# UNPACK #-} !ShipStatus
   , getCollisions :: ![Number]
   -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
 } deriving(Generic, Show)
 instance Binary BattleShip
+
+data ShipStatus =
+    Armored
+  | Unarmored
+  | Destroyed
+  deriving(Generic, Show)
+instance Binary ShipStatus
 
 newtype ShipId = ShipId Int64
   deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)

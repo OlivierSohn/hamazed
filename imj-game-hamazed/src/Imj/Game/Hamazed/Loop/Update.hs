@@ -175,10 +175,10 @@ onHasMoved =
     >>= \(GameState world@(World balls ships _ _ _ _) futureWorld shotNums (Level lt finished) anim s) -> do
     let allCollisions =
           concatMap
-          (\(BattleShip _ _ _ safe collisions) ->
-            if safe
-              then []
-              else collisions)
+          (\(BattleShip _ _ _ status collisions) ->
+            case status of
+              Armored -> []
+              _ -> collisions)
           ships
         remainingBalls = filter (`notElem` allCollisions) balls
         newWorld = world { getWorldNumbers = remainingBalls }

@@ -47,7 +47,7 @@ import           Imj.Geo.Discrete(translateInDir, zeroCoords)
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: (Maybe ServerName) -> ServerPort -> Server
+mkServer :: Maybe ServerName -> ServerPort -> Server
 mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
@@ -109,7 +109,7 @@ appSrv' st conn =
                 (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
                 return
           -- To detect disconnections when communication is idle:
-          forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
+          void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
           disconnectOnException $ do
             sendBinaryData conn $ ConnectionAccepted $ getIdentity client
             forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
@@ -245,7 +245,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
     send client . ListPlayers . map (getPlayerName . getIdentity) =<< allClients
     sendClients $ PlayerInfo cId Joins
     getIntent >>= \case
-      Intent'Setup -> do
+      IntentSetup -> do
         -- change client state to make it playable
         modifyClient cId $ \c -> c { getState = Just Finished }
         -- request world to let the client have a world
@@ -255,15 +255,15 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   ExitedState PlayLevel -> return ()
   LevelEnded outcome -> do
     getIntent >>= \case
-      Intent'PlayGame ->
-        modify' $ \s -> s { getIntent' = Intent'LevelEnd outcome }
-      Intent'LevelEnd o ->
+      IntentPlayGame ->
+        modify' $ \s -> s { getIntent' = IntentLevelEnd outcome }
+      IntentLevelEnd o ->
         if o == outcome
           then
             return ()
           else
             error $ "inconsistent outcomes:" ++ show (o, outcome)
-      Intent'Setup -> error "logic"
+      IntentSetup -> error "logic"
     modifyClient cId $ \c -> c { getState = Just Finished }
     send client $ ExitState PlayLevel
     onlyPlayers >>= \players -> do
@@ -280,11 +280,11 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
         if outcome == Won && n < lastLevel
            then
              modify' $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
-                              , getIntent' = Intent'PlayGame
+                              , getIntent' = IntentPlayGame
                               }
            else do
              modify' $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
-                              , getIntent' = Intent'Setup
+                              , getIntent' = IntentSetup
                               }
              modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players
         requestWorld
@@ -300,8 +300,8 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
     onChangeWorldParams $ changeWorldShape s
   ExitedState Setup ->
     getIntent >>= \case
-      Intent'Setup -> do
-        modify' $ \s -> s { getIntent' = Intent'PlayGame }
+      IntentSetup -> do
+        modify' $ \s -> s { getIntent' = IntentPlayGame }
         sendClients $ PlayerInfo cId StartsGame
         sendPlayers $ ExitState Setup -- prevent other playing clients from modifying the world parameters
         requestWorld
@@ -312,7 +312,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   WorldProposal essence ->
     get >>= \s -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
-      when (getLastRequestedWorldId' s == Just wid) $ do
+      when (getLastRequestedWorldId' s == Just wid) $
         sendPlayers $ ChangeLevel (getLevelSpec s) essence
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
@@ -321,11 +321,11 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
   IsReady wid -> do
     modifyClient cId $ \c -> c { getCurrentWorld = Just wid }
     getIntent >>= \case
-      Intent'Setup ->
+      IntentSetup ->
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
         send client $ EnterState Setup
-      Intent'PlayGame ->
+      IntentPlayGame ->
           getLastRequestedWorldId >>= maybe
             (return ())
             (\lastWId -> do
@@ -341,7 +341,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
                                         else c
                 sendPlayers $ EnterState PlayLevel
                 getSchedulerSignal <$> get >>= liftIO . flip putMVar lastWId)
-      Intent'LevelEnd _ -> return ()
+      IntentLevelEnd _ -> return ()
 ------------------------------------------------------------------------------
 -- Clients in 'PlayLevel' state can play the game.
 --
@@ -366,14 +366,14 @@ gameScheduler st =
         -- block until 'getSchedulerSignal' contains a 'WorldId'
         readMVar mayWorld >>= \currentWorld -> do
           startTime <- getSystemTime
-          ok <- modifyMVar st (fmap swap . runStateT ((whenCanContinue currentWorld) (initializePlayers startTime)))
+          ok <- modifyMVar st (fmap swap . runStateT (whenCanContinue currentWorld (initializePlayers startTime)))
           let mult = initalGameMultiplicator
               go mayPrevUpdate = do
                 now <- getSystemTime
                 let baseTime = fromMaybe now mayPrevUpdate
                     update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
                 threadDelay $ fromIntegral $ toMicros $ now...update
-                goOn <- modifyMVar st (fmap swap . runStateT ((whenCanContinue currentWorld) (stepWorld now)))
+                goOn <- modifyMVar st (fmap swap . runStateT (whenCanContinue currentWorld (stepWorld now)))
                 when goOn $ go $ Just update
           when ok $ go Nothing
           gameScheduler st
@@ -416,7 +416,7 @@ gameScheduler st =
         -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
         liftIO (tryReadMVar mayWorld) >>= maybe
           (return False)
-          (\curWid -> do
+          (\curWid ->
             if wid /= curWid
               then
                 return False -- the world has changed

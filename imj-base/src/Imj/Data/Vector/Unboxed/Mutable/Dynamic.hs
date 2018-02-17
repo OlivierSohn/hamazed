@@ -85,7 +85,7 @@ length :: PrimMonad m
        => MVector (PrimState m) a
        -> m Int
 length (MVector v) =
-  readMutVar v >>= return . size
+  size <$> readMutVar v
 {-# INLINABLE length #-}
 
 -- | Number of elements that the vector currently has reserved space for.
@@ -93,7 +93,7 @@ capacity :: (PrimMonad m, V.Unbox a)
          => MVector (PrimState m) a
          -> m Int
 capacity (MVector v) =
-  readMutVar v >>= return . MV.length . buffer
+  MV.length . buffer <$> readMutVar v
 {-# INLINABLE capacity #-}
 
 -- | Create a vector with a given capacity.
@@ -101,7 +101,7 @@ new :: (PrimMonad m, V.Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
 new i =
-    MV.new i >>= (fmap MVector) . newMutVar . (MVectorData 0)
+    MV.new i >>= fmap MVector . newMutVar . MVectorData 0
 {-# INLINABLE new #-}
 
 -- | Read by index. Performs bounds checking.
@@ -133,7 +133,7 @@ clear :: PrimMonad m
       => MVector (PrimState m) a
       -> m ()
 clear (MVector v) =
-  readMutVar v >>= writeMutVar v . (MVectorData 0) . buffer
+  readMutVar v >>= writeMutVar v . MVectorData 0 . buffer
 {-# INLINABLE clear #-}
 
 -- | Increment the size of the vector and write a value to the back.

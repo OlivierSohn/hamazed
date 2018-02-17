@@ -1,7 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.Internal.Types
@@ -14,7 +12,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , newServerState
     ) where
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 import           Control.Concurrent.MVar(MVar, newEmptyMVar)
 import           Control.DeepSeq(NFData(..))
 import           Data.Map.Strict(Map, empty)
@@ -65,9 +63,9 @@ data ServerState = ServerState {
 instance NFData ServerState
 
 data Intent =
-    Intent'Setup
-  | Intent'PlayGame
-  | Intent'LevelEnd !LevelOutcome
+    IntentSetup
+  | IntentPlayGame
+  | IntentLevelEnd !LevelOutcome
   deriving(Generic, Show, Eq)
 instance NFData Intent
 
@@ -93,4 +91,4 @@ mkClients = Clients empty (ShipId 0)
 newServerState :: IO ServerState
 newServerState =
   ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
-              initialParameters Nothing Intent'Setup False <$> newEmptyMVar
+              initialParameters Nothing IntentSetup False <$> newEmptyMVar

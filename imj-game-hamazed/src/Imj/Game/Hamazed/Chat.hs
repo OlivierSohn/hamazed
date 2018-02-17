@@ -15,7 +15,7 @@ import           Data.Text(Text, pack)
 
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color
-import           Imj.Graphics.Text.ColorString hiding (take)
+import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.TextBox
 import           Imj.Geo.Discrete
 
@@ -27,8 +27,7 @@ data Chat = Chat {
   , _renderedChat :: !(TextBox ColorString)
 }
 instance Positionable Chat where
-  drawAt (Chat _ _ box) coords = do
-    drawAt box coords
+  drawAt (Chat _ _ box) = drawAt box
     -- TODO draw pending, and others
   width (Chat _ _ box) = width box
   {-# INLINABLE width #-}

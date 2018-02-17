@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.KeysMaps
@@ -33,7 +32,7 @@ eventFromKey k = do -- TODO handle chat : when pressing Enter, swap between chat
       Ongoing -> case state of
         Excluded -> return Nothing
         Setup -> return $ case k of
-          AlphaNum ' ' -> Just $ Evt $ StartGame
+          AlphaNum ' ' -> Just $ Evt StartGame
           AlphaNum c -> Just $ Evt $ Configuration c
           _ -> Nothing
         PlayLevel ->
@@ -53,4 +52,4 @@ eventFromKey k = do -- TODO handle chat : when pressing Enter, swap between chat
                   _   -> Nothing
                 _ -> Nothing
               Just (LevelFinished stop _ ContinueMessage) -> return $ Just $ Evt $ EndLevel stop
-              _ -> return $ Nothing -- between level end and proposal to continue
+              _ -> return Nothing -- between level end and proposal to continue

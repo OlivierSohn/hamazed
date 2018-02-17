@@ -155,7 +155,7 @@ moveWorld :: [(ShipId, Coords Vel)]
           -> World
 moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
   let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
-      moveShip (sid, (BattleShip name (PosSpeed prevPos oldSpeed) ammo status _)) =
+      moveShip (sid, BattleShip name (PosSpeed prevPos oldSpeed) ammo status _) =
         let collisions =
               if shipIsAlive status
                 then
@@ -209,8 +209,8 @@ laserEventAction shipId dir t =
         ((remainingBalls, destroyedBalls), maybeLaserRay) =
            maybe
              ((balls,[]), Nothing)
-             (\r -> fmap Just
-                    $ computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos) r DestroyFirstObstacle)
+             (\r -> Just <$> computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos)
+                                                    r DestroyFirstObstacle)
                maybeLaserRayTheoretical
         newShips = insert shipId (ship { getAmmo = newAmmo }) ships
     putWorld $ World remainingBalls newShips space rs d e
@@ -293,8 +293,7 @@ laserParticleSystems :: (MonadState AppState m)
                      -> m [Prioritized ParticleSystem]
 laserParticleSystems ray t =
   return $ catMaybes
-    [fmap (Prioritized particleSystLaserPriority)
-    $ laserShot ray cycleLaserColors t]
+    [Prioritized particleSystLaserPriority <$> laserShot ray cycleLaserColors t]
 
 
 checkTargetAndAmmo :: Int

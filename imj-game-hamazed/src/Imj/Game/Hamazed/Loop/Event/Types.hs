@@ -3,7 +3,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Loop.Event.Types
         ( Event(..)
@@ -17,7 +16,7 @@ module Imj.Game.Hamazed.Loop.Event.Types
         , module Imj.Graphics.ParticleSystem.Design.Create
         ) where
 
-import           Imj.Prelude hiding (intercalate)
+import           Imj.Prelude
 
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types

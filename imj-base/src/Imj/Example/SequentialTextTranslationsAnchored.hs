@@ -61,7 +61,7 @@ cellWidth = 30
 upperLeft :: Coords Pos
 upperLeft = Coords 4 50
 
-data Examples = Examples ![Example]
+newtype Examples = Examples [Example]
 
 data Example = Example {
     _exampleInputData :: ![(Successive ColorString, Coords Pos, Coords Pos)]

@@ -58,9 +58,7 @@ fromString =
 -- | returns when stdin is empty, or when the timeout was hit for the first character read.
 timeoutGetAllChars :: Int -> IO (Maybe String)
 timeoutGetAllChars dt =
-  getKey' "" >>= return . maybe
-    Nothing
-    (Just . reverse)
+  fmap reverse <$> getKey' ""
  where
   getKey' chars =
     -- timeout only applies to the first character read:

@@ -100,11 +100,13 @@ newtype Multiplicator a = Multiplicator Double deriving(Eq, Show, Generic, Prett
 
 {-# INLINE fromSystemDuration #-}
 fromSystemDuration :: Multiplicator a -> Time Duration System -> Time Duration a
-fromSystemDuration (Multiplicator m) = unsafeFromTimeSpec . unsafeGetTimeSpec . ((.*) m)
+fromSystemDuration (Multiplicator m) =
+  unsafeFromTimeSpec . unsafeGetTimeSpec . (.*) m
 
 {-# INLINE toSystemDuration #-}
 toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
-toSystemDuration (Multiplicator m) = ((.*) $ recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
+toSystemDuration (Multiplicator m) =
+  (.*) (recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
 
 
 {- | Substraction for 'Time' 'Duration' -}
@@ -151,7 +153,7 @@ unsafeToSecs (Time (TimeSpec seconds nanos)) =
 -- | Converts a duration expressed in seconds using a 'Double' to a 'TimeSpec'
 fromSecs :: Double -> Time Duration b
 fromSecs f =
-  Time $ fromIntegral $ (floor $ f * 10^(9::Int) :: Int64)
+  Time $ fromIntegral (floor $ f * 10^(9::Int) :: Int64)
 
 -- | Returns the time as seen by a monotonic clock.
 {-# INLINE getSystemTime #-}

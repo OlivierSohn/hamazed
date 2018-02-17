@@ -4,7 +4,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
@@ -97,8 +96,8 @@ runWithArgs =
       <$> switch
           (  long "serverOnly"
           <> short 's'
-          <> help (
-          "Use this flag to create only the server. Incompatible with --serverName.")
+          <> help
+          "Use this flag to create only the server. Incompatible with --serverName."
           )
       <*> optional
             (option srvNameArg
@@ -136,9 +135,9 @@ runWithArgs =
       <*> switch
             (  long "debug"
             <> short 'd'
-            <> help (
+            <> help
             "[Client] print debug infos in the terminal."
-            ))
+            )
 
 renderHelp :: String
 renderHelp =
@@ -218,15 +217,15 @@ runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug
         putStrLn $ "| Client Rendering : " ++ show maybeBackend
         putStrLn $ "| Client Debug     : " ++ show debug
       printBar =
-        putStrLn $ " ------------- --------------------------"
+        putStrLn   " ------------- --------------------------"
   printBar >> printServerArgs >> printBar
 
   when (isJust maySrvName && serverOnly) $
-    error $ "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
+    error "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
 
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName srvPort
-      player = fromMaybe "Player" $ mayPlayerName
+      player = fromMaybe "Player" mayPlayerName
   newEmptyMVar >>= \ready ->
     if serverOnly
       then
@@ -315,7 +314,7 @@ produceEvent = do
               then
                 -- we can't afford waiting, we force a render
                 return Nothing
-              else do
+              else
                 --waitKT <- asks waitKeysTimeout
 
                 liftIO $ do
@@ -325,7 +324,7 @@ produceEvent = do
                           mayTimeLimit
 
                   withAsync x $ \res -> do
-                    let go = do
+                    let go =
                           case qt of
                             AutomaticFeed -> wait res -- 0% CPU usage while waiting
                             PollOrWaitOnEvents ->
@@ -363,7 +362,7 @@ produceEvent = do
 tryGetInputEvent :: TQueue ServerEvent
                  -> TQueue Key
                  -> IO (Maybe (Either Key GenEvent))
-tryGetInputEvent a b = do
+tryGetInputEvent a b =
   atomically $ fmap (Just . Right . SrvEvt)  (readTQueue a)
            <|> fmap (Just . Left) (readTQueue b)
            <|> return Nothing
@@ -371,7 +370,7 @@ tryGetInputEvent a b = do
 getInputEvent :: TQueue ServerEvent
               -> TQueue Key
               -> IO (Either Key GenEvent)
-getInputEvent a b = do
+getInputEvent a b =
   atomically $ fmap (Right . SrvEvt) (readTQueue a)
            <|> fmap Left (readTQueue b)
 
@@ -384,7 +383,7 @@ getInputEventBefore t a b =
     if strictlyNegative allowed
       then
         return Nothing
-      else do
+      else
         registerDelay (fromIntegral $ toMicros allowed) >>= \timeout ->
           atomically $ fmap (Just . Right . SrvEvt) (readTQueue a)
                    <|> fmap (Just . Left)  (readTQueue b)

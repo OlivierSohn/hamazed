@@ -151,7 +151,7 @@ addUpdateTime add =
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
                                           => Maybe UpdateEvent -> m ()
-addToCurrentGroupOrRenderAndStartNewGroup evt = do
+addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime game prevGroup b c d e) -> do
     let onRender = do
           debug >>= \case
@@ -170,7 +170,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt = do
 groupStats :: EventGroup -> String
 groupStats (EventGroup l _ t _) =
   replicate (pred $ length l) ' ' ++ "|" ++
-    replicate (10 - (length l)) ' ' ++ " u " ++ showTime t
+    replicate (10 - length l) ' ' ++ " u " ++ showTime t
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)

@@ -87,8 +87,8 @@ randomInt sz =
 
 randomCoords :: Size -> IO (Coords Pos)
 randomCoords (Size rs cs) =
-  Coords <$> (randomCoord $ fromIntegral rs)
-         <*> (randomCoord $ fromIntegral cs)
+  Coords <$> randomCoord (fromIntegral rs)
+         <*> randomCoord (fromIntegral cs)
 
 randomCoord :: Coord a -> IO (Coord a)
 randomCoord (Coord sz) =

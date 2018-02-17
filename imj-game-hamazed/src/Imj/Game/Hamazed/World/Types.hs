@@ -108,7 +108,7 @@ instance NFData ClientId
 instance Binary ClientId
 -- | Match only on 'ShipId'.
 instance Eq ClientId where
-  x == y = (getClientId x) == (getClientId y)
+  x == y = getClientId x == getClientId y
   {-# INLINABLE (==) #-}
 
 data WorldEssence = WorldEssence {
@@ -210,7 +210,7 @@ getWorldOffset mode (World _ ships space _ _ _) =
 getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
 getWorldCorner world screenCenter offset =
   let (h',w') = (quot h 2, quot w 2)
-      (Size h w) = getSize $ getWorldSpace $ world
+      (Size h w) = getSize $ getWorldSpace world
   in sumCoords offset $ translate' (-h') (-w') screenCenter
 
 
@@ -281,7 +281,7 @@ mkScreen sz =
   in Screen sz center
 
 {-# INLINE findShip #-}
-findShip :: ShipId -> (Map ShipId BattleShip) -> BattleShip
+findShip :: ShipId -> Map ShipId BattleShip -> BattleShip
 findShip i =
   fromMaybe (error $ "ship not found : " ++ show i)
   . lookup i

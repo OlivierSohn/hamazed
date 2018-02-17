@@ -2,7 +2,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Loop.Deadlines
     ( getNextDeadline
@@ -85,15 +84,15 @@ getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
 getDeadlinesByDecreasingPriority s@(GameState _ _ _ (Level _ level) _ _) =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
-    (catMaybes
+    catMaybes
       [ uiAnimationDeadline s
       , join $ fmap messageDeadline level
       ]
-    ) ++ getParticleSystemsDeadlines s
+     ++ getParticleSystemsDeadlines s
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
 getParticleSystemsDeadlines (GameState world _ _ _ _ _) =
-  map (\(key, (Prioritized p a)) ->
+  map (\(key, Prioritized p a) ->
         Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
           $ AnimateParticleSystem key)
     $ toList $ getParticleSystems world

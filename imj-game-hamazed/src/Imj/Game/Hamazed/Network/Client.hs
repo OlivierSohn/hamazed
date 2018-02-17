@@ -1,15 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.Client
       ( appCli
       ) where
 
-import           Imj.Prelude hiding (drop, null, intercalate)
+import           Imj.Prelude
 
 import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM(atomically, writeTQueue, readTQueue)

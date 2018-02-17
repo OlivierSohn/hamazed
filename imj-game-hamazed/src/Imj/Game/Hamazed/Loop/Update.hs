@@ -114,7 +114,7 @@ updateGameParamsFromChar = \case
 onContinueMessage :: (MonadState AppState m)
                   => m ()
 onContinueMessage =
-  getGameState >>= \(GameState b c d (Level n mayFinished) e f) -> do
+  getGameState >>= \(GameState b c d (Level n mayFinished) e f) ->
     case mayFinished of
       Just (LevelFinished stop finishTime _) -> do
         let newLevel = Level n (Just $ LevelFinished stop finishTime ContinueMessage)
@@ -157,9 +157,7 @@ updateShipsText =
               infos = mkLeftInfo Normal (elems ships) shotNumbers level
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
-    putAnimation
-      $ assert (isFinished newAnim)
-      $ newAnim
+    putAnimation $ assert (isFinished newAnim) newAnim
 
 
 {-# INLINABLE onMove #-}

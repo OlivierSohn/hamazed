@@ -29,7 +29,7 @@ import           Imj.Game.Hamazed.Loop.Timing
 data Client = Client {
     getIdentity :: {-# UNPACK #-} !ClientId
   , getConnection :: {-# UNPACK #-} !Connection
-  , getClientType :: {-# UNPACK #-} !ClientType
+  , getClientType :: {-unpack sum-} !ServerOwnership
   , getCurrentWorld :: {-unpack sum-} !(Maybe WorldId)
   , getShipSafeUntil :: {-unpack sum-} !(Maybe (Time Point System))
   , getShipAcceleration :: !(Coords Vel)
@@ -41,7 +41,7 @@ data Client = Client {
 instance NFData Client where
   rnf _ = ()
 
-mkClient :: ClientId -> Connection -> ClientType -> Client
+mkClient :: ClientId -> Connection -> ServerOwnership -> Client
 mkClient a b c = Client a b c Nothing Nothing zeroCoords Nothing
 
 data PlayerState = InGame | Finished

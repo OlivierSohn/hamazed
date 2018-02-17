@@ -129,7 +129,7 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
  where
   dx = max (abs $ fromIntegral fw - fromIntegral tw)
            (abs $ fromIntegral fh - fromIntegral th)
-  duration = fromSecs $ 1 + (max 0 (dx - 2)) / 80 -- slow down if distances are bigger
+  duration = fromSecs $ 1 + max 0 (dx - 2) / 80 -- slow down if distances are bigger
   frameE = mkEvolutionEaseQuart (Successive [from, to]) duration
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,

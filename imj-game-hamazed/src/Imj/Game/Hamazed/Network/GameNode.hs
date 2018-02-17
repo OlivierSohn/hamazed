@@ -13,7 +13,7 @@ import           Control.Concurrent (MVar, ThreadId, forkIO, newMVar, putMVar, m
 import           Control.Exception (onException, finally, bracket)
 import           Control.Monad.State.Strict(execStateT)
 import           Foreign.C.Types(CInt)
-import           Network.Socket(Socket, close, accept)
+import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
 import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnectionOptions,
                     makeListenSocket, makePendingConnection, runClient)
 import           Network.WebSockets.Connection(PendingConnection(..))
@@ -32,10 +32,10 @@ startServerIfLocal :: Server
                    -> MVar ()
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal (Distant _ _) v = putMVar v () >> return () -- TODO we could ping the ip?
+startServerIfLocal (Distant _ _) v = putMVar v ()
 startServerIfLocal srv@(Local _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
-  listen <- makeListenSocket host port `onException` (putStrLn $ failure msg)
+  listen <- makeListenSocket host port `onException` putStrLn (failure msg)
   putMVar v () -- now that the listen socket is created, signal it.
   putStrLn $ success msg
   newServerState >>= newMVar >>= \state -> do
@@ -60,15 +60,16 @@ startClient playerName srv = do
   -- start client
   let (ServerName name, ServerPort port) = getServerNameAndPort srv
   _ <- forkIO $
+    -- runClient sets the NO_DELAY socket option to 1, so we don't need to do it.
     runClient name port "/" $ \x -> do
-      putStrLn $ success msg-- there is no corresponding 'failure', we will see the exception in the console.
+      putStrLn $ success msg
       appCli qs x
   -- initialize the game connection
   sendToServer' qs $
     Connect playerName $
       case srv of
-        Local _     -> ClientType ClientOwnsServer
-        Distant _ _ -> ClientType FreeServer
+        Local _     -> ClientOwnsServer
+        Distant _ _ -> ClientDoesntOwnServer
   return qs
  where
   msg x = "Hamazed GameClient " ++ st x ++ " to Hamazed GameServer (" ++ show srv ++ ")"
@@ -101,8 +102,8 @@ installOneHandler state serverThreadId (sig,sigName) =
 runServer' :: Socket -- ^ Listening socket
            -> ServerApp  -- ^ Application
            -> IO ()
-runServer' listeningSocket app =
-  runServerWith' listeningSocket defaultConnectionOptions app
+runServer' listeningSocket =
+  runServerWith' listeningSocket defaultConnectionOptions
 
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()
@@ -114,9 +115,12 @@ runServerWith' listeningSock opts app =
         (close conn)
         $ runApp conn opts app
 
--- Copied from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
+-- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
 runApp :: Socket -> ConnectionOptions -> ServerApp -> IO ()
-runApp socket opts =
+runApp sock opts app = do
+  -- send the data as soon as it's available, to reduce latency.
+  setSocketOption sock NoDelay 1
   bracket
-    (makePendingConnection socket opts)
+    (makePendingConnection sock opts)
     (Stream.close . pendingStream)
+    app

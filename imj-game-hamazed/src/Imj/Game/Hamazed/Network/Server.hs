@@ -1,7 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,9 +15,9 @@ module Imj.Game.Hamazed.Network.Server
       , defaultPort
       ) where
 
-import           Imj.Prelude hiding (drop, intercalate)
+import           Imj.Prelude
 
-import           Control.Concurrent(threadDelay)
+import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar
                                         , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
@@ -33,8 +32,7 @@ import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
                   -- the functions on the mext line throw(IO), hence we catch exceptions
                   -- to remove the client from the map when needed.
-                   acceptRequest, sendBinaryData, sendDataMessage, sendClose, receiveData,
-                   forkPingThread)
+                   acceptRequest, sendBinaryData, sendDataMessage, sendClose, sendPing, receiveData)
 import           UnliftIO.Exception (SomeException(..), try)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -88,7 +86,7 @@ sendNBinaryData a clients =
   let !msg = Binary $ toLazyByteString a
   in mapM_ (sendAndHandleExceptions msg) clients
  where
-  sendAndHandleExceptions m x = do
+  sendAndHandleExceptions m x =
     liftIO (try (sendDataMessage (getConnection x) m)) >>= either
       (\(e :: SomeException) -> onBrokenClient e x)
       return
@@ -98,27 +96,36 @@ appSrv st pending =
   acceptRequest pending >>= appSrv' st
 
 appSrv' :: MVar ServerState -> Connection -> IO ()
-appSrv' st conn = do
-  forkPingThread conn 30 -- to keep the connection alive (TODO should we use keepalive socket property instead?)
+appSrv' st conn =
   receiveData conn >>= \case
     Connect sn@(SuggestedPlayerName suggestedName) cliType ->
       if any ($ suggestedName) [ null, any isPunctuation, any isSpace]
         then
-          sendBinaryData conn $ ConnectionRefused $ InvalidName sn $
+          sendBinaryData conn $ ConnectionRefused $ InvalidName sn
             "Name cannot contain punctuation or whitespace, and cannot be empty"
         else do
           client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
-          try
-            (do
-              sendBinaryData conn $ ConnectionAccepted $ getIdentity client
-              forever $
-                receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client) >>= either
-            (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
-            return
-    msg -> error $ "first received msg is not Connect : " ++ show msg
+          let disconnectOnException action = try action >>= either
+                (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
+                return
+          -- To detect disconnections when communication is idle:
+          forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
+          disconnectOnException $ do
+            sendBinaryData conn $ ConnectionAccepted $ getIdentity client
+            forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
+    msg -> error $ "first sent message should be 'Connect'. " ++ show msg
 
+pingPong :: Connection -> Time Duration System -> IO ()
+pingPong conn dt =
+  go 0
+ where
+  go :: Int -> IO ()
+  go i = do
+    threadDelay $ fromIntegral $ toMicros dt
+    sendPing conn $ pack $ show i
+    go $ succ i
 
-makeClient :: Connection -> SuggestedPlayerName -> ClientType -> StateT ServerState IO Client
+makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT ServerState IO Client
 makeClient conn sn cliType = do
   cId <- ClientId <$> makePlayerName sn <*> takeShipId
   let client = mkClient cId conn cliType
@@ -147,7 +154,7 @@ makePlayerName (SuggestedPlayerName sn) = do
   go Nothing
  where
   playerNameIsAlreadyTaken name =
-    return . any ((== name) . getPlayerName . getIdentity ) =<< allClients
+    any ((== name) . getPlayerName . getIdentity ) <$> allClients
 
 shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
@@ -160,7 +167,7 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client i@(ClientId (PlayerName name) _) _ (ClientType ownership) _ _ _ _) =
+disconnect r c@(Client i@(ClientId (PlayerName name) _) _ ownership _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.

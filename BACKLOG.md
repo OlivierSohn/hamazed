@@ -1,19 +1,29 @@
-- fix display of level (when a player joins)
-- write (disconnected) next to a player's name that was disconnected.
-- fix UI: the name of players is far away to the left, not very visible is window is not big enough.
-
-- graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
-
 - recover:
     on disconnections (intentional or not):
       server-side:
-        if a playing client is not reachable, pause game and broadcast:
-          "Lost connection to player x, please wait..."
+        if a playing client is not reachable, broadcast :
+          pause game due to disconnection of client x.
+            Then client displays "Game paused due to lost connection to player x, please wait..."
           The client can reconnect (the server stores its IP and when we detect it is back,
            we can re-integrate it in the game by sending the world state from another playing client.
+          Then broadcast "resume game"
       client-side:
         when server connection vanishes, client could say:
           "Server is not reachable, please wait..."
+
+If we detect that the connection is ko (either while sending a game update or while reading or in the pingpong thread)
+, when connection is re-established, one client should transmit the full state of the world.
+ (worldessence). To do that we should refactor and have a single world in the state.
+ 
+- What if the connection just becomes extremely slow? At what point should we consider that the player can't play anymore?
+Display roundtrip times below player names.
+Client could have an endpoint and thread dedicated to responding to ping.
+
+- During the game, write (disconnected) next to a player's name that was disconnected.
+  Then when back to setup, do not mention the disconnected player.
+- fix UI: the name of players is far away to the left, not very visible is window is not big enough.
+
+- graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
 
 - when Excluded, the client should display :
   "A game is in progress on this server, you will join once the game ends. Please wait..."

@@ -24,6 +24,7 @@ module Imj.Game.Hamazed.Network.Types
       , GameNotif(..)
       , LeaveReason(..)
       , GameStep(..)
+      , GameStatus(..)
       , toTxt
       , toTxt'
       , welcome
@@ -33,6 +34,7 @@ import           Imj.Prelude hiding(intercalate)
 import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
 import qualified Data.Binary as Bin(encode, decode)
+import           Data.Set(Set)
 import           Data.String(IsString)
 import           Data.Text(intercalate, pack, unpack)
 import qualified Data.Text.Lazy as Lazy(unpack)
@@ -57,10 +59,10 @@ data ServerOwnership =
 instance Binary ServerOwnership
 
 data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !StateValue
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq)
 
 data StateNature = Ongoing | Done
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq)
 instance Binary StateNature
 
 data StateValue =
@@ -68,7 +70,7 @@ data StateValue =
     -- ^ The player is not part of the game
   | Setup
   -- ^ The player is configuring the game
-  | PlayLevel
+  | PlayLevel !GameStatus
   -- ^ The player is playing the game
   deriving(Generic, Show, Eq)
 instance Binary StateValue
@@ -89,7 +91,6 @@ data ClientEvent =
   | Disconnect
   -- ^ The client is shutting down. Note that for clients that are 'ClientOwnsServer',
   -- this also gracefully shutdowns the server.
-  | EnteredState {-unpack sum-} !StateValue
   | ExitedState {-unpack sum-} !StateValue
   | WorldProposal {-# UNPACK #-} !WorldEssence
     -- ^ In response to 'WorldRequest'
@@ -102,6 +103,7 @@ data ClientEvent =
   | LevelEnded {-unpack sum-} !LevelOutcome
   | Say {-# UNPACK #-} !Text
   deriving(Generic, Show)
+instance Binary ClientEvent
 
 data ServerEvent =
     ConnectionAccepted {-# UNPACK #-} !ClientId
@@ -115,11 +117,12 @@ data ServerEvent =
   | WorldRequest {-# UNPACK #-} !WorldSpec
   -- ^ Sent to 'WorldCreator's, which should respond with a 'WorldProposal'.
   | ChangeLevel {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !WorldEssence
-    -- ^ Triggers a UI transition between the previous (if any) and the next level.
+  -- ^ Triggers a UI transition between the previous (if any) and the next level.
   | GameEvent {-unpack sum-} !GameStep
   | Error !String
   -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
   deriving(Generic, Show)
+instance Binary ServerEvent
 
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
@@ -131,8 +134,14 @@ data GameStep =
   deriving(Generic, Show)
 instance Binary GameStep
 
-instance Binary ClientEvent
-instance Binary ServerEvent
+data GameStatus =
+    New
+  | Running
+  | Paused !(Set ShipId)
+  -- ^ with the list of disconnected clients
+  deriving(Generic, Show, Eq)
+instance Binary GameStatus
+instance NFData GameStatus
 
 instance WebSocketsData ClientEvent where
   fromDataMessage (Text t _) =

@@ -7,11 +7,13 @@
 
 module Imj.Game.Hamazed.Loop.Update
       ( updateAppState
+      , sendToServer
       ) where
 
 import           Imj.Prelude
 
 import           Control.Exception.Base(throwIO)
+import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Map.Strict(elems)
 import           Data.Text(pack)
@@ -45,18 +47,8 @@ updateAppState (Right evt) = case evt of
     updateGameParamsFromChar char
   CycleRenderingOptions ->
     changeFont
-  StartGame -> do
-    getClientState >>= \case -- sanity check
-      (ClientState Ongoing Setup) -> return ()
-      s -> error $ "StartGame in " ++ show s
-    putClientState $ ClientState Done Setup
-    sendToServer $ ExitedState Setup
   EndLevel outcome -> do
-    getClientState >>= \case -- sanity check
-      (ClientState Ongoing PlayLevel) -> return ()
-      s -> error $ "EndLevel in " ++ show s
-    putClientState $ ClientState Done PlayLevel
-    sendToServer $ ExitedState PlayLevel -- TODO is it really necessary ? (are ExitedState events used by the server?)
+    sendToServer $ ExitedState $ PlayLevel Running
     sendToServer $ LevelEnded outcome
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
@@ -75,11 +67,7 @@ updateAppState (Left evt) = case evt of
     onLaser shipId dir
   ConnectionAccepted name -> do
     putGameConnection $ Connected name
-    getClientState >>= \case -- sanity check
-      (ClientState Ongoing Excluded) -> return ()
-      s -> error $ "ConnectionAccepted in " ++ show s
-    putClientState $ ClientState Done Excluded
-    sendToServer $ ExitedState Excluded -- TODO is it really necessary ? (are ExitedState events used by the server?)
+    sendToServer $ ExitedState Excluded
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
   ListPlayers players ->
@@ -97,6 +85,21 @@ updateAppState (Left evt) = case evt of
   onDisconnection ClientShutdown     = liftIO $ throwIO GracefulClientEnd
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
+
+
+{-# INLINABLE sendToServer #-}
+sendToServer :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
+             => ClientEvent
+             -> m ()
+sendToServer e = do
+  case e of
+    ExitedState state -> do
+      getClientState >>= \cur ->
+        when (cur /= ClientState Ongoing state) $
+          error $ "ExitedState " ++ show state ++ " in " ++ show cur  -- sanity check
+      putClientState $ ClientState Done state
+    _ -> return ()
+  asks sendToServer' >>= \f -> f e
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char
@@ -174,30 +177,30 @@ onHasMoved :: (MonadState AppState m, MonadIO m)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= \t -> shipParticleSystems t >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) futureWorld shotNums (Level level@(LevelSpec _ target _) finished) anim s) -> do
-    let oneShipAlive = any (shipIsAlive . getShipStatus) ships
-        allCollisions =
-          concatMap
-          (\(BattleShip _ _ _ status collisions) ->
-            case status of
-              Armored -> []
-              _ -> collisions)
-          ships
-        remainingBalls = filter (`notElem` allCollisions) balls
-        newWorld = world { getWorldNumbers = remainingBalls }
-        finishIfAllShipsDestroyed =
-          if oneShipAlive
-            then Nothing
-            else
-              case allCollisions of
-                [] -> Nothing
-                _  ->
-                  let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
-                  in Just $ LevelFinished (Lost msg) t InfoMessage
-        finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (sum shotNums) target t
-        newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
-    putGameState $ assert (isFinished anim) $ GameState newWorld futureWorld shotNums newLevel anim s
-    updateShipsText
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelSpec _ target _) finished) anim s) -> do
+      let oneShipAlive = any (shipIsAlive . getShipStatus) ships
+          allCollisions =
+            concatMap
+            (\(BattleShip _ _ _ shipStatus collisions) ->
+              case shipStatus of
+                Armored -> []
+                _ -> collisions)
+            ships
+          remainingBalls = filter (`notElem` allCollisions) balls
+          newWorld = world { getWorldNumbers = remainingBalls }
+          finishIfAllShipsDestroyed =
+            if oneShipAlive
+              then Nothing
+              else
+                case allCollisions of
+                  [] -> Nothing
+                  _  ->
+                    let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
+                    in Just $ LevelFinished (Lost msg) t InfoMessage
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (sum shotNums) target t
+          newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
+      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s
+      updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
 updateUIAnim :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
@@ -207,9 +210,8 @@ updateUIAnim t =
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, worldAnimDeadline) =
           maybe
-            (futWorld, Nothing)
-            (\dt ->
-             (curWorld, Just $ addDuration dt t))
+            (futWorld, Nothing) -- to copy the future world to the current world
+            (\dt -> (curWorld, Just $ addDuration dt t))
             $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
     putGameState $ GameState world futWorld j k anims s

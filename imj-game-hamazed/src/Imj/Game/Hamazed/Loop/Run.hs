@@ -232,10 +232,14 @@ runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug
         startServerIfLocal srv ready
       else do
         printClientArgs >> printBar
+        -- userPicksBackend must run before 'startServerIfLocal' where we install the termination handlers,
+        -- because we want the user to be able to stop the program now.
+        backend <- maybe userPicksBackend return maybeBackend
+
         void $ forkIO $ startServerIfLocal srv ready
         readMVar ready -- wait until listening socket is available.
         queues <- startClient player srv
-        maybe userPicksBackend return maybeBackend >>= \case
+        case backend of
           Console ->      runWith debug queues srv player =<< newConsoleBackend
           OpenGLWindow -> runWith debug queues srv player =<< newOpenGLBackend "Hamazed" 10 (Size 600 1400)
 

@@ -35,19 +35,17 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
-import           Imj.Game.Hamazed.Parameters
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
-import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.FromMonadReader
 
 representation :: UpdateEvent -> EventRepr
 representation (Left (GameEvent e)) = case e of
-  (LaserShot _ _) -> Laser'
-  (PeriodicMotion _ _) -> PeriodicMotion'
+  LaserShot _ _ -> Laser'
+  PeriodicMotion _ _ -> PeriodicMotion'
 representation (Left (Error _)) = Error'
 representation (Left (Disconnected _)) = Disconnected'
 representation (Left (EnterState _)) = EnterState'
@@ -63,7 +61,6 @@ representation (Right e) = case e of
   CycleRenderingOptions -> CycleRenderingOptions'
   (Configuration _) -> Configuration'
   EndLevel _ -> EndLevel'
-  StartGame -> StartGame'
   (Interrupt _) -> Interrupt'
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> AnimateParticleSystem'
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> DisplayContinueMessage'
@@ -73,27 +70,26 @@ representation (Right e) = case e of
 
 reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
-reprToCS WorldRequest' = colored "R" magenta
 reprToCS ChangeLevel'  = colored "C" magenta
-reprToCS EndLevel'  = colored "E" cyan
-reprToCS StartGame'  = colored "S" cyan
-reprToCS Error'                 = colored "E" cyan
-reprToCS EnterState'            = colored "I" cyan
-reprToCS ExitState'             = colored "O" cyan
-reprToCS Disconnected' = colored "D" cyan
+reprToCS WorldRequest' = colored "R" magenta
+reprToCS AnimateUI'    = colored "U" magenta
 reprToCS ConnectionAccepted'    = colored "A" cyan
-reprToCS ConnectionRefused'     = colored "R" cyan
 reprToCS Chat'                  = colored "C" cyan
+reprToCS Disconnected'          = colored "D" cyan
+reprToCS EndLevel'              = colored "E" cyan
+reprToCS EnterState'            = colored "I" cyan
+reprToCS Laser'                 = colored "L" cyan
+reprToCS ExitState'             = colored "O" cyan
+reprToCS ConnectionRefused'     = colored "R" cyan
+reprToCS Error'                 = colored "X" cyan
 reprToCS Configuration'         = colored "C" yellow
+reprToCS Interrupt'             = colored "I" yellow
 reprToCS CycleRenderingOptions' = colored "R" yellow
-reprToCS Interrupt'      = colored "I" yellow
-reprToCS Laser'          = colored "L" cyan
-reprToCS PeriodicMotion' = colored "S" blue
-reprToCS MoveFlyingItems'        = colored "M" green
-reprToCS AnimateParticleSystem'  = colored "P" blue
+reprToCS ToggleEventRecording'  = colored "T" yellow
+reprToCS MoveFlyingItems' = colored "M" green
+reprToCS AnimateParticleSystem' = colored "P" blue
+reprToCS PeriodicMotion'        = colored "S" blue
 reprToCS DisplayContinueMessage' = colored "C" white
-reprToCS AnimateUI'              = colored "U" magenta
-reprToCS ToggleEventRecording'   = colored "T" yellow
 
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, Render e, MonadIO m)
@@ -178,11 +174,6 @@ renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
 renderAll = do
   t1 <- liftIO getSystemTime
   draw
-  getClientState >>= \case
-    (ClientState _ Setup) -> do -- TODO display "Please wait ..." when _ == 'Done'
-      (Screen _ center) <- getCurScreen
-      getWorld >>= draw' . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace
-    _ -> return ()
   t2 <- liftIO getSystemTime
   getEvtStrs >>= zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..]
   (dtDelta, dtCmds, dtFlush) <- renderToScreen

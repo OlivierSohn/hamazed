@@ -44,8 +44,6 @@ data Event = Configuration !Char
            -- ^ Configures game parameters
            | CycleRenderingOptions
            -- ^ Changes the font used to render
-           | StartGame
-           -- ^ To transition from configuration mode to play mode.
            | Timeout !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
            | EndLevel !LevelOutcome

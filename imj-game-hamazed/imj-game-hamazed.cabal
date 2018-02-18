@@ -53,7 +53,6 @@ library
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server
                      , Imj.Game.Hamazed.Network.Types
-                     , Imj.Game.Hamazed.Parameters
                      , Imj.Game.Hamazed.State
                      , Imj.Game.Hamazed.State.Types
                      , Imj.Game.Hamazed.Types
@@ -110,7 +109,7 @@ executable imj-game-hamazed-exe
 test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       
+  other-modules:
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , imj-base ==0.1.*

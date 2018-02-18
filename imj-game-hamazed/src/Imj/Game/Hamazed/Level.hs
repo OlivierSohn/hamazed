@@ -13,9 +13,10 @@ module Imj.Game.Hamazed.Level
 import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Loop.Event.Types
+
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render
@@ -30,6 +31,14 @@ messageDeadline (LevelFinished _ timeFinished messageType) =
       let nextMessageStep = addDuration (fromSecs 2) timeFinished
       in  Just $ Deadline nextMessageStep continueMsgPriority DisplayContinueMessage
     ContinueMessage -> Nothing
+
+{-# INLINABLE drawLevelMessage #-}
+drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
+                 => Level
+                 -> Coords Pos
+                 -> m ()
+drawLevelMessage (Level (LevelSpec level _ _) levelState) ref =
+  mapM_ (drawLevelState ref level) levelState
 
 {-# INLINABLE drawLevelState #-}
 drawLevelState :: (Draw e, MonadReader e m, MonadIO m)
@@ -53,12 +62,3 @@ drawLevelState centerRef level (LevelFinished stop _ messageState) = do
                             Won      -> "continue"
           in "Press a key to " <> action <> " ..." :: Text)
            (mkCentered $ move 2 Down centerRef)
-
-
-{-# INLINABLE drawLevelMessage #-}
-drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
-                 => Level
-                 -> Coords Pos
-                 -> m ()
-drawLevelMessage (Level (LevelSpec level _ _) levelState) ref =
-  mapM_ (drawLevelState ref level) levelState

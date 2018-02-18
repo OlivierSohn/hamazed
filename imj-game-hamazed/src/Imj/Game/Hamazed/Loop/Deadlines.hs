@@ -16,11 +16,12 @@ import           Data.Maybe( catMaybes )
 import           Control.Monad(join)
 
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.State.Types
+
+import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.State.Types
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.ParticleSystem.Design.Update
 
@@ -91,11 +92,11 @@ getDeadlinesByDecreasingPriority s@(GameState _ _ _ (Level _ level) _ _) =
      ++ getParticleSystemsDeadlines s
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
-getParticleSystemsDeadlines (GameState world _ _ _ _ _) =
+getParticleSystemsDeadlines =
   map (\(key, Prioritized p a) ->
         Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
           $ AnimateParticleSystem key)
-    $ toList $ getParticleSystems world
+    . toList . getParticleSystems . getPreviousWorld
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
 uiAnimationDeadline =

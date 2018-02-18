@@ -2,14 +2,12 @@
 
 module Imj.Game.Hamazed.Network.Class.ClientNode
     ( ClientNode(..)
-    , sendToServer
     ) where
 
 import           Imj.Prelude
 
 import           Control.Concurrent.STM(TQueue, atomically, writeTQueue)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Imj.Game.Hamazed.Network.Types
 
@@ -23,7 +21,3 @@ instance ClientNode ClientQueues where
   serverQueue = getInputQueue
   {-# INLINABLE sendToServer' #-}
   {-# INLINABLE serverQueue #-}
-
-{-# INLINABLE sendToServer #-}
-sendToServer :: (MonadReader e m, ClientNode e, MonadIO m) => ClientEvent -> m ()
-sendToServer e = asks sendToServer' >>= \f -> f e

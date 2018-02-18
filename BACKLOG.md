@@ -14,7 +14,7 @@
 If we detect that the connection is ko (either while sending a game update or while reading or in the pingpong thread)
 , when connection is re-established, one client should transmit the full state of the world.
  (worldessence). To do that we should refactor and have a single world in the state.
- 
+
 - What if the connection just becomes extremely slow? At what point should we consider that the player can't play anymore?
 Display roundtrip times below player names.
 Client could have an endpoint and thread dedicated to responding to ping.

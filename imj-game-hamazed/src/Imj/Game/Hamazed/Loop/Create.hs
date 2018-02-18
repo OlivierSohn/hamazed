@@ -4,8 +4,10 @@
 
 module Imj.Game.Hamazed.Loop.Create
         ( mkInitialState
+        , mkIntermediateState
         , initialGameState
         , initialGame
+        , mkGameStateEssence
         ) where
 
 import           Imj.Prelude
@@ -49,12 +51,19 @@ mkInitialState :: (MonadIO m)
                -> Maybe Size
                -> Maybe GameState
                -> m GameState
-mkInitialState newLevel (WorldEssence balls ships llMat wid) mode maySz mayState = do
-  let space = fromListOfLists llMat
-      renderedSpace = mkRenderedSpace space
-      newShotNums = []
-      screen@(Screen _ newScreenCenter) = mkScreen maySz
-      newWorld = World balls ships space renderedSpace mempty wid
+mkInitialState = mkIntermediateState []
+
+mkIntermediateState :: (MonadIO m)
+                    => [Int]
+                    -> LevelSpec
+                    -> WorldEssence
+                    -> ViewMode
+                    -> Maybe Size
+                    -> Maybe GameState
+                    -> m GameState
+mkIntermediateState newShotNums newLevel essence mode maySz mayState = do
+  let screen@(Screen _ newScreenCenter) = mkScreen maySz
+      newWorld@(World _ _ space _ _ _) = mkWorld essence
   kt <- liftIO getSystemTime
   liftIO $ validateScreen screen
   let (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums) =
@@ -73,4 +82,21 @@ mkInitialState newLevel (WorldEssence balls ships llMat wid) mode maySz mayState
           (Colored worldFrameColors
           $ mkRectContainerWithCenterAndInnerSize newScreenCenter (getSize space), newInfos)
           horizontalDist verticalDist kt
-  return $ GameState curWorld newWorld newShotNums (Level newLevel Nothing) uiAnimation screen
+          -- only when UIAnimation is over, curWorld will be replaced by newWorld.
+          -- during UIAnimation, we need the two worlds.
+  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation screen
+
+
+mkGameStateEssence :: GameState -> GameStateEssence
+mkGameStateEssence (GameState curWorld mayNewWorld shotNums _ _ _) =
+  GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums
+
+mkWorld :: WorldEssence -> World
+mkWorld (WorldEssence balls ships llMat wid) =
+  let space = fromListOfLists llMat
+      renderedSpace = mkRenderedSpace space
+  in World balls ships space renderedSpace mempty wid
+
+worldToEssence :: World -> WorldEssence
+worldToEssence (World balls ships space _ _ wid) =
+  WorldEssence balls ships (toListOfLists space) wid

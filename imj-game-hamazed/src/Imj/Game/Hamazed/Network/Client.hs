@@ -31,5 +31,5 @@ appCli (ClientQueues fromServer toServer) conn = do
   handleConnectionException :: IO () -> IO ()
   handleConnectionException x =
     try x >>= either
-      (\(e :: ConnectionException) -> putStrLn $ "Info|Client disconnection due to:" ++ show e)
+      (\(e :: ConnectionException) -> putStrLn $ "Info|Client disconnects:" ++ show e)
       return

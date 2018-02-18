@@ -57,9 +57,15 @@ updateAppState (Right evt) = case evt of
 updateAppState (Left evt) = case evt of
   WorldRequest spec ->
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
+  CurrentGameStateRequest ->
+    sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
   ChangeLevel levelSpec worldEssence ->
     getGame >>= \(Game _ viewMode state@(GameState _ _ _ _ _ (Screen sz _)) _ _ _ _) ->
       mkInitialState levelSpec worldEssence viewMode sz (Just state)
+        >>= putGameState
+  PutGameState levelSpec (GameStateEssence worldEssence shotNums) ->
+    getGame >>= \(Game _ viewMode state@(GameState _ _ _ _ _ (Screen sz _)) _ _ _ _) ->
+      mkIntermediateState shotNums levelSpec worldEssence viewMode sz (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
@@ -206,13 +212,16 @@ onHasMoved =
 updateUIAnim :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
              => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState curWorld futWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) s) -> do
+  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) s) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
-        (world, worldAnimDeadline) =
-          maybe
-            (futWorld, Nothing) -- to copy the future world to the current world
-            (\dt -> (curWorld, Just $ addDuration dt t))
-            $ getDeltaTime evolutions nextFrame
+        (world, futWorld, worldAnimDeadline) = maybe
+          (fromMaybe
+            (error "ongoing UIAnimation with no future world")
+            mayFutWorld
+          , Nothing
+          , Nothing)
+          (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
+          $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
     putGameState $ GameState world futWorld j k anims s
     when (isFinished anims) $

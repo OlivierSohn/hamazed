@@ -84,10 +84,10 @@ data Game = Game {
 we draw the /old/ 'World' while using the /new/ 'World' 's
 dimensions to animate the UI accordingly. -}
 data GameState = GameState {
-    getPreviousWorld :: !World
-    -- ^ The previous 'World'
-  , gameStateCurrentWorld :: !World
-    -- ^ The current 'World'
+    currentWorld :: !World
+  , mayFutureWorld :: !(Maybe World)
+    -- ^ Maybe the world that we transition to (when a level is over).
+    -- Once the transition is over, we replace 'currentWorld' with this 'Just' value.
   , _gameStateShotNumbers :: ![Int]
     -- ^ Which 'Number's were shot
   , _gameStateLevel :: !Level
@@ -96,7 +96,6 @@ data GameState = GameState {
     -- ^ Inter-level animation.
   , getScreen :: {-# UNPACK #-} !Screen
 }
-
 
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)

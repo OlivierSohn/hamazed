@@ -122,7 +122,7 @@ getViewMode = getViewMode' <$> getGame
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
-getWorld = getGameState >>= return . getPreviousWorld
+getWorld = getGameState >>= return . currentWorld
 
 {-# INLINABLE getClientState #-}
 getClientState :: MonadState AppState m => m ClientState
@@ -177,7 +177,7 @@ putViewMode p =
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState AppState m => World -> m ()
 putWorld w = getGameState >>= \g ->
-  putGameState g {getPreviousWorld = w}
+  putGameState g {currentWorld = w}
 
 {-# INLINABLE takeKeys #-}
 takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]

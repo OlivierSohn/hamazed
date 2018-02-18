@@ -1,3 +1,18 @@
+- "Please Wait" after level finished can be long if other player doesn't press the key,
+we could inform by state: GameState WaitingAcknowledgement [ShipId]
+- battle mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
+maybe in a finite time, with new numbers appearing regularily.
+
+- ranking :
+high scores of a user can be stored locally, and sent to other clients when connecting to a server.
+How to prevent fraud?
+
+- in case All players were disconnected from the server, we would need the clients to say
+"I have a game state of ..." and if other players agree with the Id/state we can continue the game.
+
+- when a client connects we could first ask the gamestate and its shipId :
+  the client responds Nothing if worldId is Nothing.
+
 - recover:
     on disconnections (intentional or not):
       server-side:

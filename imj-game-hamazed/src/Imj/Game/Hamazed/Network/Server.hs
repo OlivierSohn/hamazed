@@ -20,15 +20,15 @@ import           Imj.Prelude
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar, swapMVar
-                                        , readMVar, tryReadMVar, putMVar, takeMVar) -- for signaling purposes
-import           Control.Monad (forever)
+                                        , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
+import           Control.Monad (forever, join)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
-import           Data.Map.Strict(Map)
+import           Data.Map.Strict(Map, (!?))
 import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member, mapAccum
                                       , foldMapWithKey, restrictKeys)
 import           Data.Set (Set)
-import qualified Data.Set as Set (difference, fromAscList)
+import qualified Data.Set as Set (difference, intersection, fromAscList, lookupMin)
 import           Data.Maybe(isJust, maybeToList)
 import           Data.Text(pack)
 import           Data.Tuple(swap)
@@ -62,31 +62,31 @@ removeClient i clients =
 
 send :: Client -> ServerEvent -> StateT ServerState IO ()
 send client evt =
-  sendNBinaryData evt [client]
+  sendN evt [client]
 
 sendClients :: ServerEvent -> StateT ServerState IO ()
 sendClients evt =
-  sendNBinaryData evt =<< allClients
+  sendN evt =<< allClients
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  sendNBinaryData evt =<< onlyPlayers
+  sendN evt =<< onlyPlayers
 
 sendFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
 sendFirstWorldBuilder evt =
-  sendNBinaryData evt . take 1 =<< allClients
+  sendN evt . take 1 =<< allClients
 
-{-# INLINABLE sendNBinaryData #-}
+{-# INLINABLE sendN #-}
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
 -- to factorize serialization.
 --
 -- In case some connections are closed, the corresponding clients are silently removed
 -- from the Map, and we continue the processing.
-sendNBinaryData :: WebSocketsData a
+sendN :: WebSocketsData a
                 => a
                 -> [Client]
                 -> StateT ServerState IO ()
-sendNBinaryData a clients =
+sendN a clients =
   let !msg = Binary $ toLazyByteString a
   in mapM_ (sendAndHandleExceptions msg) clients
  where
@@ -136,10 +136,43 @@ makeClient conn sn cliType = do
   addClient client
   return client
  where
+  takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)
+  takeDisconnectedShipId =
+    get >>= \(ServerState (Clients clients _) _ _ _ _ _ terminate game) ->
+      if terminate
+        then
+          return Nothing
+        else
+          maybe
+            Nothing
+            (\(CurrentGame _ gamePlayers status) -> case status of
+                (Paused _) ->
+                -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
+                -- - the game scheduler thread updates it every second only -
+                -- so we recompute the difference:
+                  let connectedPlayerKeys = getPlayersKeys clients
+                      mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
+                      -- gamePlayers /should be/ included in connectedPlayerKeys, but just to be sure,
+                      -- we do the intersection.
+                      mayConnectedPlayerKey = Set.lookupMin $ Set.intersection gamePlayers connectedPlayerKeys
+                      mayConnectedPlayer = join $ fmap (clients !?) mayConnectedPlayerKey
+                  in maybe
+                        Nothing
+                        (\disconnectedPlayerKey -> Just (mayConnectedPlayer, disconnectedPlayerKey))
+                        mayDisconnectedPlayerKey
+                _ -> Nothing)
+            <$> liftIO (tryReadMVar game)
   takeShipId =
-    state $ \s ->
-      let newShipId = succ $ getNextShipId $ getClients s
-      in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } )
+    takeDisconnectedShipId >>= maybe
+      (state $ \s ->
+        let newShipId = succ $ getNextShipId $ getClients s
+        in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } ))
+      (\(mayConnected, disconnected) -> do
+        maybe
+          (serverError "the current game has no connected player") -- TODO support that
+          (`send` CurrentGameStateRequest)
+          mayConnected
+        return disconnected)
   addClient c =
     modify' $ \ s ->
       let clients = getClients s
@@ -181,7 +214,7 @@ disconnect r c@(Client i@(ClientId (PlayerName name) _) _ ownership _ _ _ _) =
         mapM_
           (\client'@(Client j _ _ _ _ _ _) ->
               unless (i == j) $
-                let msg = "[" <> name <> "] disconnection (hosts the Server) << " <> pack (show r)
+                let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
                 in disconnectClient (ServerShutdown msg) client')
           clients
       -- Finally, shutdown the client connection.
@@ -201,7 +234,7 @@ disconnect r c@(Client i@(ClientId (PlayerName name) _) _ ownership _ _ _ _) =
         send client $ Disconnected reason
         liftIO $ sendClose conn msg
        where
-        msg = "[" <> playerName <> "] disconnection << " <> pack (show reason)
+        msg = "[" <> playerName <> "] disconnection < " <> pack (show reason)
 
     -- notify other clients about the disconnection of client
     case reason of
@@ -225,9 +258,6 @@ onlyPlayers =
 getIntent :: StateT ServerState IO Intent
 getIntent = getIntent' <$> get
 
-getLastRequestedWorldId :: StateT ServerState IO (Maybe WorldId)
-getLastRequestedWorldId = getLastRequestedWorldId' <$> get
-
 error' :: Client -> String -> StateT ServerState IO ()
 error' client txt = do
   send client $ Error $ "*** error from Server: " ++ txt
@@ -237,6 +267,12 @@ error' client txt = do
 gameError :: String -> StateT ServerState IO ()
 gameError txt = do
   sendPlayers $ Error $ "*** game error from Server: " ++ txt
+  error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
+    -- hence we sent the error to the client, so that it can report the error too.
+
+serverError :: String -> StateT ServerState IO ()
+serverError txt = do
+  sendClients $ Error $ "*** server error from Server: " ++ txt
   error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
@@ -260,8 +296,8 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
         -- next step when client 'IsReady'
       _ -> send client $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
-  LevelEnded outcome -> do
-    getIntent >>= \case
+  LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _ _) _ _ intent _ game) -> do
+    case intent of
       IntentPlayGame ->
         modify' $ \s -> s { getIntent' = IntentLevelEnd outcome }
       IntentLevelEnd o ->
@@ -279,26 +315,23 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
           finished (Just Finished) = True
           finished (Just InGame) = False
       when playersAllFinished $ do
-        void $ getScheduledGame <$> get >>= liftIO . takeMVar
-        n <- getLevelNumber' . getLevelSpec <$> get
-        sendClients $ GameInfo $ LevelResult n outcome
-        when (outcome == Won && n == lastLevel) $
+        void $ liftIO $ takeMVar game
+        sendClients $ GameInfo $ LevelResult levelN outcome
+        when (outcome == Won && levelN == lastLevel) $
           sendClients $ GameInfo GameWon
-        if outcome == Won && n < lastLevel
+        if outcome == Won && levelN < lastLevel
            then
-             modify' $ \s -> s { getLevelSpec = mkLevelSpec $ succ n
-                              , getIntent' = IntentPlayGame
-                              }
+             modify' $ \s -> s { getLevelSpec = mkLevelSpec $ succ levelN
+                               , getIntent' = IntentPlayGame
+                               }
            else do
              modify' $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
-                              , getIntent' = IntentSetup
-                              }
+                               , getIntent' = IntentSetup
+                               }
              modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players
         requestWorld
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
---
---   [If /any/ client is in 'Setup' state, /no/ client is in 'PlayLevel' state]
 ------------------------------------------------------------------------------
   ChangeWallDistribution t ->
     onChangeWorldParams $ changeWallDistrib t
@@ -311,14 +344,19 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
       sendPlayers $ ExitState Setup
       requestWorld
     _ -> return ()
-------------------------------------------------------------------------------
--- A 'WorldCreator' client may be requested to propose a world:
-------------------------------------------------------------------------------
   WorldProposal essence ->
-    get >>= \s -> do
+    get >>= \(ServerState _ _ levelSpec _ lastWid _ _ _) -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
-      when (getLastRequestedWorldId' s == Just wid) $
-        sendPlayers $ ChangeLevel (getLevelSpec s) essence
+      when (lastWid == Just wid) $
+        sendPlayers $ ChangeLevel levelSpec essence
+  CurrentGameState gameStateEssence ->
+    get >>= \(ServerState (Clients clients _) _ levelSpec _ _ _ _ game) ->
+      liftIO (tryReadMVar game) >>= \case
+        (Just (CurrentGame _ gamePlayers (Paused _))) -> do
+          let disconnectedPlayerKeys = Set.difference gamePlayers $ getPlayersKeys clients
+              disconnectedClients = Map.elems $ Map.restrictKeys clients disconnectedPlayerKeys
+          sendN (PutGameState levelSpec gameStateEssence) disconnectedClients
+        invalid -> serverError $ "CurrentGameState sent while game is " ++ show invalid
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
 --   UI Animation is over (hence the level shall start, for example.):
@@ -331,26 +369,32 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         send client $ EnterState Setup
       IntentPlayGame ->
-          getLastRequestedWorldId >>= maybe
+        get >>= \(ServerState (Clients clients _) _ _ _ mayLastWId _ _ game) -> maybe
             (return ())
             (\lastWId -> do
+              modifyClient cId $ \c -> c { getState = Just Finished }
               -- start the game when all players have the right world
-              mapClients <- getClients' . getClients <$> get
-              let playersKeys = getPlayersKeys mapClients
+              let playersKeys = getPlayersKeys clients
                   playersAllReady =
                     all ((== Just lastWId) . getCurrentWorld) $
-                      Map.restrictKeys mapClients playersKeys
+                      Map.restrictKeys clients playersKeys
               when playersAllReady $ do
                 modifyClients $ \c -> if getState c == Just Finished
                                         then c { getState = Just InGame
                                                , getShipAcceleration = zeroCoords }
                                         else c
-                getScheduledGame <$> get >>= liftIO . flip putMVar (mkCurrentGame lastWId playersKeys))
+                liftIO (tryReadMVar game) >>= maybe
+                  -- non blocking because all game changes are done inside a modifyMVar
+                  -- of 'ServerState' and we are inside one.
+                  (void $ liftIO $ putMVar game $ mkCurrentGame lastWId playersKeys)
+                  (\(CurrentGame wid' _ _) -> -- reconnection scenario
+                      when (wid' /= lastWId) $
+                        serverError $ "reconnection failed " ++ show (wid', lastWId)))
+            mayLastWId
+
       IntentLevelEnd _ -> return ()
 ------------------------------------------------------------------------------
 -- Clients in 'PlayLevel' state can play the game.
---
---   [If /any/ client is in 'PlayLevel' state, /no/ client is in 'Setup' state]
 ------------------------------------------------------------------------------
   -- Due to network latency, laser shots may be applied to a world state
   -- different from what the player saw when the shot was made.
@@ -444,8 +488,7 @@ gameScheduler st =
               then
                 return NotExecutedGameCanceled -- the world has changed
               else do
-                let currentPlayers = getPlayersKeys clients
-                    missingPlayers = Set.difference gamePlayers currentPlayers
+                let missingPlayers = Set.difference gamePlayers $ getPlayersKeys clients
                     newStatus =
                       if null missingPlayers
                         then
@@ -455,9 +498,10 @@ gameScheduler st =
                 if status /= newStatus
                   then do
                     -- mayWorld can be concurrently modified from client handler threads, but only from
-                    -- inside a modifyMVar of ServerState. Since we are ourselves inside
+                    -- inside a 'modifyMVar' of ServerState. Since we are ourselves inside
                     -- a modifyMVar of ServerState, we guarantee that the 'takeMVar' inside
-                    -- 'swapMVar' won't block:
+                    -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
+                    -- returned a 'Just'.
                     liftIO $ void $ swapMVar mayWorld $ CurrentGame curWid gamePlayers newStatus
                     sendPlayers $ EnterState $ PlayLevel newStatus
                     return NotExecutedTryAgainLater

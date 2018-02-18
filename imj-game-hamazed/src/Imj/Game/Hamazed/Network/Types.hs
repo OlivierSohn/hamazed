@@ -25,6 +25,7 @@ module Imj.Game.Hamazed.Network.Types
       , LeaveReason(..)
       , GameStep(..)
       , GameStatus(..)
+      , GameStateEssence(..)
       , toTxt
       , toTxt'
       , welcome
@@ -94,6 +95,8 @@ data ClientEvent =
   | ExitedState {-unpack sum-} !StateValue
   | WorldProposal {-# UNPACK #-} !WorldEssence
     -- ^ In response to 'WorldRequest'
+  | CurrentGameState {-# UNPACK #-} !GameStateEssence
+    -- ^ In response to ' CurrentGameStateRequest'
   | ChangeWallDistribution {-unpack sum-} !WallDistribution
   | ChangeWorldShape {-unpack sum-} !WorldShape
   | IsReady {-# UNPACK #-} !WorldId
@@ -104,7 +107,6 @@ data ClientEvent =
   | Say {-# UNPACK #-} !Text
   deriving(Generic, Show)
 instance Binary ClientEvent
-
 data ServerEvent =
     ConnectionAccepted {-# UNPACK #-} !ClientId
   | ListPlayers ![PlayerName]
@@ -115,34 +117,18 @@ data ServerEvent =
   | PlayerInfo {-# UNPACK #-} !ClientId {-unpack sum-} !PlayerNotif
   | GameInfo {-unpack sum-} !GameNotif
   | WorldRequest {-# UNPACK #-} !WorldSpec
-  -- ^ Sent to 'WorldCreator's, which should respond with a 'WorldProposal'.
+  -- ^ Upon reception, the client should respond with a 'WorldProposal'.
   | ChangeLevel {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !WorldEssence
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
+  | CurrentGameStateRequest
+  -- ^ (reconnection scenario) Upon reception, the client should respond with a 'CurrentGameState'.
+  | PutGameState {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !GameStateEssence
+  -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
   | Error !String
   -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
   deriving(Generic, Show)
 instance Binary ServerEvent
-
--- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
-data GameStep =
-    PeriodicMotion {
-    _shipsAccelerations :: ![(ShipId, Coords Vel)]
-  , _shipsLostArmor :: ![ShipId]
-}
-  | LaserShot {-# UNPACK #-} !ShipId {-unpack sum-} !Direction
-  deriving(Generic, Show)
-instance Binary GameStep
-
-data GameStatus =
-    New
-  | Running
-  | Paused !(Set ShipId)
-  -- ^ with the list of disconnected clients
-  deriving(Generic, Show, Eq)
-instance Binary GameStatus
-instance NFData GameStatus
-
 instance WebSocketsData ClientEvent where
   fromDataMessage (Text t _) =
     error $ "Text was received for ClientEvent : " ++ Lazy.unpack (LazyE.decodeUtf8 t)
@@ -162,6 +148,31 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
 
+
+data GameStateEssence = GameStateEssence {
+    _essence :: {-# UNPACK #-} !WorldEssence
+  , _shotNumbers :: ![Int]
+} deriving(Generic, Show)
+instance Binary GameStateEssence
+
+-- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
+data GameStep =
+    PeriodicMotion {
+    _shipsAccelerations :: ![(ShipId, Coords Vel)]
+  , _shipsLostArmor :: ![ShipId]
+}
+  | LaserShot {-# UNPACK #-} !ShipId {-unpack sum-} !Direction
+  deriving(Generic, Show)
+instance Binary GameStep
+
+data GameStatus =
+    New
+  | Running
+  | Paused !(Set ShipId)
+  -- ^ with the list of disconnected clients
+  deriving(Generic, Show, Eq)
+instance Binary GameStatus
+instance NFData GameStatus
 
 data ConnectionStatus =
     NotConnected
@@ -183,9 +194,9 @@ data DisconnectReason =
   deriving(Generic)
 instance Binary DisconnectReason
 instance Show DisconnectReason where
-  show (ServerShutdown t) = unpack $ "Server shutdown << " <> t
+  show (ServerShutdown t) = unpack $ "Server shutdown < " <> t
   show ClientShutdown   = "Client shutdown"
-  show (BrokenClient t) = unpack $ "Broken client << " <> t
+  show (BrokenClient t) = unpack $ "Broken client < " <> t
 
 data PlayerNotif =
     Joins

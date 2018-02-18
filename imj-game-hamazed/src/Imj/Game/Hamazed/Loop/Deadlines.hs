@@ -96,7 +96,7 @@ getParticleSystemsDeadlines =
   map (\(key, Prioritized p a) ->
         Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
           $ AnimateParticleSystem key)
-    . toList . getParticleSystems . getPreviousWorld
+    . toList . getParticleSystems . currentWorld
 
 uiAnimationDeadline :: GameState -> Maybe Deadline
 uiAnimationDeadline =

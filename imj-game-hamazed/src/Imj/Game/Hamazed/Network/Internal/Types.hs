@@ -11,7 +11,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , Intent(..)
       , CurrentGame(..)
       , mkCurrentGame
-      , GameStatus(..)
       , newServerState
     ) where
 
@@ -72,7 +71,7 @@ data CurrentGame = CurrentGame {
     getGameWorld :: {-# UNPACK #-} !WorldId
   , getGamePlayers :: !(Set ShipId)
   , getGameStatus :: {-unpack sum-} !GameStatus
-}
+} deriving(Generic, Show)
 
 mkCurrentGame :: WorldId -> Set ShipId -> CurrentGame
 mkCurrentGame w s = CurrentGame w s New

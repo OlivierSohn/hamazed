@@ -6,6 +6,7 @@
 
 module Imj.Game.Hamazed.Level.Types
     ( Level(..)
+    , mkLevel
     , LevelSpec(..)
     , mkLevelSpec
     , mkEmptyLevelSpec
@@ -30,6 +31,9 @@ data Level = Level {
     _levelSpec :: {-# UNPACK #-} !LevelSpec
   , _levelStatus :: {-unpack sum-} !(Maybe LevelFinished)
 } deriving (Generic)
+
+mkLevel :: LevelSpec -> Level
+mkLevel = flip Level Nothing
 
 data LevelSpec = LevelSpec {
     getLevelNumber' :: {-# UNPACK #-} !Int

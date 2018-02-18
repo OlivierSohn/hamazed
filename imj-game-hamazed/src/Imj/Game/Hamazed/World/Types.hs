@@ -111,6 +111,8 @@ instance Eq ClientId where
   x == y = getClientId x == getClientId y
   {-# INLINABLE (==) #-}
 
+-- | Contains the minimal information needed to describe all parameters of the 'World'
+-- that matter to the game (i.e we ignore particle system animations and objects used to optimize rendering)
 data WorldEssence = WorldEssence {
     getNumbers :: ![Number]
   , getShips :: !(Map ShipId BattleShip)

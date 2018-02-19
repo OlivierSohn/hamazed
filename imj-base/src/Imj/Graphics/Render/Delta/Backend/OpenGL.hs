@@ -17,7 +17,7 @@ import           System.IO.Temp(withSystemTempDirectory)
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
 import           Control.DeepSeq(NFData)
-import           Data.Char(ord, chr, isHexDigit, digitToInt)
+import           Data.Char(isHexDigit, digitToInt)
 import           Data.ByteString(writeFile)
 import           Foreign.Ptr(nullPtr)
 import qualified Graphics.Rendering.FTGL as FTGL
@@ -36,6 +36,9 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
+
+charCallback :: TQueue Key -> GLFW.Window -> Char -> IO ()
+charCallback q _ c = atomically $ writeTQueue q $ AlphaNum c
 
 keyCallback :: TQueue Key -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
 keyCallback q _ k _ GLFW.KeyState'Pressed _ = case glfwKeyToKey k of
@@ -102,10 +105,6 @@ instance PlayerInput OpenGLBackend where
   {-# INLINABLE queueType #-}
 
 glfwKeyToKey :: GLFW.Key -> Key
-glfwKeyToKey k
-  | k >= GLFW.Key'0 && k <= GLFW.Key'9 = AlphaNum $ chr $ ord '0' + length [GLFW.Key'0 .. pred k]
-  | k >= GLFW.Key'A && k <= GLFW.Key'Z = AlphaNum $ chr $ ord 'a' + length [GLFW.Key'A .. pred k]
-glfwKeyToKey GLFW.Key'Space = AlphaNum ' '
 glfwKeyToKey GLFW.Key'Enter  = Enter
 glfwKeyToKey GLFW.Key'Escape = Escape
 glfwKeyToKey GLFW.Key'Tab    = Tab
@@ -130,6 +129,7 @@ newOpenGLBackend title ppu size@(Size h w) = do
   keyEventsChan <- newTQueueIO :: IO (TQueue Key)
   win <- createWindow (fromIntegral w) (fromIntegral h) title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
+  GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
   GLFW.pollEvents -- this is necessary to show the window
   ro <- RenderingOptions 0 AllFont <$> createFont 0 ppu

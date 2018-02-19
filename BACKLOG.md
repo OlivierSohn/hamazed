@@ -1,4 +1,4 @@
-- make ç work in chat
+- make ç work in OpenGL
 - change player name using chat : /name:Olivier
 - change ship name using chat : /ship
 - draw chat right middle.

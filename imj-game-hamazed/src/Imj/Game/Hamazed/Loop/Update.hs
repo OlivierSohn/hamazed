@@ -16,7 +16,7 @@ import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Map.Strict(elems)
-import           Data.Text(pack, null)
+import           Data.Text(pack, null, strip)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -111,7 +111,7 @@ sendToServer e = do
 onSendChatMessage :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                   => m ()
 onSendChatMessage = do
-  msg <- stateChat takeMessage
+  msg <- strip <$> stateChat takeMessage
   unless (null msg) $ sendToServer $ Say msg
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)

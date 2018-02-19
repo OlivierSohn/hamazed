@@ -19,6 +19,9 @@ module Imj.Game.Hamazed.Color (
   , worldFrameColors
   , ammoColor
   , bracketsColor
+  , pendingTextColors
+  , pendingTextColorsInactive
+  , pendingTextColorsEdited
   -- ** Text colors
   , configColors
   , configFgColor
@@ -94,6 +97,15 @@ bracketsColor = worldFrameFgColor
 messageColor :: LevelOutcome -> LayeredColor
 messageColor Won      = onBlack $ rgb 4 3 1
 messageColor (Lost _) = onBlack $ gray 6
+
+pendingTextColors :: LayeredColor
+pendingTextColors = onBlack $ gray 12
+
+pendingTextColorsInactive :: LayeredColor
+pendingTextColorsInactive = pendingTextColors
+
+pendingTextColorsEdited :: LayeredColor
+pendingTextColorsEdited = LayeredColor (gray 5) $ gray 12
 
 shipColors :: LayeredColor
 shipColors = LayeredColor shipBgColor shipColor

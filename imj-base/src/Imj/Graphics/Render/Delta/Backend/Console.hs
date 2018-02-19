@@ -59,30 +59,6 @@ instance PlayerInput ConsoleBackend where
   {-# INLINABLE queueType #-}
   {-# INLINABLE pollKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
-{-
-  someInputIsAvailable _ = liftIO stdinIsReady
-
-  getKey _ = liftIO $ getKeyThenFlush
-
-  tryGetKey _ = liftIO tryGetKeyThenFlush
-
-
-  getKeyBefore _ t =
-    liftIO (getDurationFromNowTo t) >>= \allowed ->
-      -- timeout interprets strictly negative durations as infinite time, so we
-      -- handle strictly negative durations differently:
-      if strictlyNegative allowed
-         then
-           return Nothing
-         else
-           liftIO $ timeoutGetKeyThenFlush $ fromIntegral $ toMicros allowed
-
-
-  {-# INLINABLE getKey #-}
-  {-# INLINABLE getKeyBefore #-}
-  {-# INLINABLE tryGetKey #-}
-  {-# INLINABLE someInputIsAvailable #-}
--}
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do

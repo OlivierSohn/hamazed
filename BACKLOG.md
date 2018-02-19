@@ -1,12 +1,21 @@
+- make ç work in chat
+- change player name using chat : /name:Olivier
+- change ship name using chat : /ship
+- draw chat right middle.
+
+- multiline algo of ColorString doesn't work with colored space.
+- multiline algo should have an option to keep multiple spaces.
+
+- use up arrow to edit last message.
+- autocompletion based on beginning of string, right arrow to validate
+- distinguish ships, use colors for player names that are the same as ship.
+- Press H to show help / press H to hide help (write on the right of the game)
+
+- Specialized mode where one has + the other has -. to compute the target we do a random operation
+on existing numbers with + and -. Use big numbers
 - Duel mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
 maybe in a finite time, with new numbers appearing regularily.
-- distinguish ships, use colors for player names that are the same as ship.
-- change player name using chat : /name:Olivier
-- Press H to show help / press H to hide help (write on the right of the game)
-- enable user messages in chat. Use Tab to switch from current key board layout to chat layout.
-- fix chat colors
 - try opengl rectangular rendering.
-- draw chat at a well-defined place to not overlap with game.
 
 - When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
 - Message displayed when server is unreachable is wrong (a game is currently running on the server)

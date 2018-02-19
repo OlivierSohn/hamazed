@@ -19,7 +19,6 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Timing

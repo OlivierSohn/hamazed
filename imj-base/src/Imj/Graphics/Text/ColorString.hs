@@ -33,7 +33,7 @@ import           Imj.Prelude hiding(take)
 
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
-import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt)
+import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
 import qualified Data.List as List(length)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
@@ -149,10 +149,11 @@ instance Monoid ColorString where
 
 instance Words ColorString where
   length = countChars
+  empty (ColorString x) = null x || all (Text.null . fst) x
 
-  splitAt idx (SingleWord (ColorString l)) =
-    (SingleWord $ ColorString $ reverse left
-   , SingleWord $ ColorString $ reverse right)
+  splitAt idx (ColorString l) =
+    (ColorString $ reverse left
+   , ColorString $ reverse right)
     where
       (left, right) = split' idx l ([],[])
       split' :: Int

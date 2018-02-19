@@ -24,16 +24,16 @@ class UncoloredTextual a where
 
 instance UncoloredTextual Char where
   drawTextual = drawChar
-  {-# INLINABLE drawTextual #-}
   textLength _ = 1
+  {-# INLINABLE drawTextual #-}
   {-# INLINABLE textLength #-}
 instance UncoloredTextual ([] Char) where
   drawTextual = drawStr
-  {-# INLINABLE drawTextual #-}
   textLength = fromIntegral . Prelude.length
+  {-# INLINABLE drawTextual #-}
   {-# INLINABLE textLength #-}
 instance UncoloredTextual Text where
   drawTextual = drawTxt
-  {-# INLINABLE drawTextual #-}
   textLength = fromIntegral . Text.length
+  {-# INLINABLE drawTextual #-}
   {-# INLINABLE textLength #-}

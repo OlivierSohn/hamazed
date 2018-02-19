@@ -39,26 +39,37 @@ fromString :: String -> Key
 fromString =
   \case
     [] -> error "should not be empty"
-    [c] -> case ord c of
-             27 {-ESC-} -> Escape
-             _          -> AlphaNum c
+    [c] -> case ord c of -- according to http://www.asciitable.com/
+      8   -> BackSpace
+      9   -> Tab
+      10  -> Enter -- TODO 13 is carriage return, should we handle it?
+      27  -> Escape
+      127 -> BackSpace
+      o ->
+        if o >= 32 && o <= 126
+          then
+            AlphaNum c
+          else
+            Unknown
     c:l -> case ord c of
-             27 {-ESC-} -> case l of
-                         a:b:_ -> case a of
-                                    '[' -> case b of
-                                             'A' -> Arrow Up
-                                             'B' -> Arrow Down
-                                             'C' -> Arrow RIGHT
-                                             'D' -> Arrow LEFT
-                                             _ -> Unknown
-                                    _ -> Unknown
-                         _ -> Unknown
-             _ -> AlphaNum c
+      27 {-ESC-} -> case l of
+        a:b:_ -> case a of
+          '[' -> case b of
+            'A' -> Arrow Up
+            'B' -> Arrow Down
+            'C' -> Arrow RIGHT
+            'D' -> Arrow LEFT
+            _   -> Unknown
+          _ -> Unknown
+        _ -> Unknown
+      _ -> AlphaNum c -- TODO we ignore the rest, should we use it in case of complex characters?
 
 -- | returns when stdin is empty, or when the timeout was hit for the first character read.
 timeoutGetAllChars :: Int -> IO (Maybe String)
-timeoutGetAllChars dt =
-  fmap reverse <$> getKey' ""
+timeoutGetAllChars dt = do
+  res <- fmap reverse <$> getKey' ""
+  --putStrLn $ show res
+  return res
  where
   getKey' chars =
     -- timeout only applies to the first character read:

@@ -239,12 +239,12 @@ drawActions :: (Render e, MonadReader e m, MonadIO m)
             -> [Frame]
             -> m ()
 drawActions listActions frames =
-  mapM_ (\(frame, (lastFrame, action, Example _ height startHeight _ _, wIdx)) -> do
-            let r = RectContainer (Size (height-2) (cellWidth-3)) (translate (Coords (-2) (-2)) ref)
+  mapM_ (\(frame, (lastFrame, action, Example _ h startHeight _ _, wIdx)) -> do
+            let r = RectContainer (Size (h-2) (cellWidth-3)) (translate (Coords (-2) (-2)) ref)
                 ref = move (wIdx * fromIntegral cellWidth) RIGHT (getRef startHeight)
             drawUsingColor r myDarkGray
             action frame
-            drawAt (progress frame lastFrame) (translate ref $ Coords (fromIntegral height - 4) 0)
+            drawAt (progress frame lastFrame) (translate ref $ Coords (fromIntegral h - 4) 0)
             ) $ zip frames listActions
 
 drawExamples :: (Render e, MonadReader e m, MonadIO m)

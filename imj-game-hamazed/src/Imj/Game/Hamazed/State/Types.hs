@@ -13,8 +13,10 @@ module Imj.Game.Hamazed.State.Types
       -- * Access
       , getGame
       , getGameState
+      , getChatMode
       , getMyShipId
       , getGameConnection
+      , getChat
       , getViewMode
       , getWorld
       , getClientState
@@ -48,7 +50,6 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
@@ -119,6 +120,14 @@ getGameState = getGameState' <$> getGame
 {-# INLINABLE getViewMode #-}
 getViewMode :: MonadState AppState m => m ViewMode
 getViewMode = getViewMode' <$> getGame
+
+{-# INLINABLE getChatMode #-}
+getChatMode :: MonadState AppState m => m IsEditing
+getChatMode = getIsEditing <$> getChat
+
+{-# INLINABLE getChat #-}
+getChat :: MonadState AppState m => m Chat
+getChat = getChat' <$> getGame
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
@@ -218,9 +227,12 @@ putClientState i =
   getGame >>= \g -> putGame $ g { getClientState' = i}
 
 {-# INLINABLE stateChat #-}
-stateChat :: MonadState AppState m => (Chat -> Chat) -> m ()
+stateChat :: MonadState AppState m => (Chat -> (Chat, a)) -> m a
 stateChat f =
-  getGame >>= \g -> putGame $ g { getChat = f $ getChat g }
+  getGame >>= \g -> do
+    let (newChat, v) = f $ getChat' g
+    putGame $ g { getChat' = newChat }
+    return v
 
 {-# INLINABLE hasVisibleNonRenderedUpdates #-}
 hasVisibleNonRenderedUpdates :: MonadState AppState m => m Bool

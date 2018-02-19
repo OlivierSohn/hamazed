@@ -16,6 +16,7 @@ module Imj.Game.Hamazed.Types
     , initialViewMode
     , minRandomBlockSize
     -- * Reexports
+    , module Imj.Game.Hamazed.Chat
     , module Imj.Game.Hamazed.Level.Types
     , module Imj.Game.Hamazed.World.Types
     , UIAnimation
@@ -77,7 +78,7 @@ data Game = Game {
   , getServer :: {-unpack sum-} !Server
   -- ^ The server that runs the game
   , connection :: {-unpack sum-} !ConnectionStatus
-  , getChat :: !Chat
+  , getChat' :: !Chat
 }
 
 {-| 'GameState' has two fields of type 'World' : during 'Level' transitions,

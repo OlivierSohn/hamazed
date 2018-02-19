@@ -30,10 +30,11 @@ instance Functor Colored where
 
 instance (UncoloredTextual t) => Positionable (Colored t) where
   drawAt (Colored color txt) pos = drawTextual txt pos color
-  {-# INLINABLE drawAt #-}
-
   width (Colored _ txt) = textLength txt
+  height _ = 1
+  {-# INLINABLE drawAt #-}
   {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
 
 instance HasLayeredColor (Colored a) where
   getColor (Colored color _) = color

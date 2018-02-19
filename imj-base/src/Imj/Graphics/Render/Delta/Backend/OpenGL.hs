@@ -10,7 +10,7 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     , windowCloseCallback -- for doc
     ) where
 
-import           Imj.Prelude hiding((<>))
+import           Imj.Prelude
 import           Prelude(putStrLn, length)
 
 import           System.IO.Temp(withSystemTempDirectory)
@@ -101,86 +101,16 @@ instance PlayerInput OpenGLBackend where
   {-# INLINABLE waitKeysTimeout #-}
   {-# INLINABLE queueType #-}
 
-{-
-  getKey (OpenGLBackend _ keyQueue _ _ _) = do
-    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
-        fillQueue = liftIO GLFW.waitEvents
-        readQueue =
-          tryReadQueue >>= \case
-            Just x  -> return x
-            Nothing -> fillQueue >> readQueue
-    readQueue
-
-  tryGetKey (OpenGLBackend _ keyQueue _ _ _) = do
-    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
-        tryFillQueue = liftIO GLFW.pollEvents
-    tryReadQueue >>= maybe
-      (tryFillQueue >> tryReadQueue)
-      (return . Just)
-
-  -- we don't return the peeked value, because we are unable to peek stdin and want a common interface.
-  someInputIsAvailable (OpenGLBackend _ keyQueue _ _ _) = do
-    let tryPeekQueue = liftIO $ tryPeekFirstKeyPress keyQueue
-        tryFillQueue = liftIO GLFW.pollEvents
-    tryPeekQueue >>= maybe
-      (tryFillQueue >> tryPeekQueue >>= return . isJust)
-      (const $ return True)
-
-  getKeyBefore b@(OpenGLBackend _ keyQueue _ _ _) t = do
-    let tryReadQueue = liftIO $ tryReadFirstKeyPress keyQueue
-        -- Note that 'GLFW.waitEventsTimeout' returns when /any/ event occured. If
-        -- the event is not a keypress, we need to recurse and adapt the timeout accordingly.
-        tryFillQueue x = liftIO $ GLFW.waitEventsTimeout $ unsafeToSecs x
-
-    liftIO (getDurationFromNowTo t) >>= \allowed -> do
-      tryReadQueue >>= maybe
-        (if strictlyNegative allowed
-          then
-            return Nothing
-          else
-            tryFillQueue allowed >> tryReadQueue >>= \case
-              Just k -> return $ Just k
-              Nothing -> do
-                -- Either there was nothing in the queue (hence, we hit the timeout
-                -- or the glfw event was not a key event) or there was a key repeat or key release
-                -- event in the queue.
-                getKeyBefore b t)
-        (return . Just)
-
-
-  {-# INLINABLE tryGetKey #-}
-  {-# INLINABLE someInputIsAvailable #-}
-  {-# INLINABLE getKey #-}
-  {-# INLINABLE getKeyBefore #-}
-
-{-# INLINABLE tryReadFirstKeyPress #-}
-tryReadFirstKeyPress :: TQueue EventKey
-                     -> IO (Maybe Key)
-tryReadFirstKeyPress keyQueue = do
-  (liftIO $ atomically $ tryReadTQueue keyQueue) >>= \case
-    Nothing -> return Nothing
-    Just (EventKey key _ GLFW.KeyState'Pressed _) -> return $ Just key
-    Just _ -> tryReadFirstKeyPress keyQueue
-
-{-# INLINABLE tryPeekFirstKeyPress #-}
-tryPeekFirstKeyPress :: TQueue EventKey
-                     -> IO (Maybe Key)
-tryPeekFirstKeyPress keyQueue = do
-  (liftIO $ atomically $ tryReadTQueue keyQueue) >>= \case
-    Nothing -> return Nothing
-    Just e@(EventKey key _ GLFW.KeyState'Pressed _) -> do
-      liftIO (atomically $ unGetTQueue keyQueue e)
-      return $ Just key
-    Just _ -> tryPeekFirstKeyPress keyQueue
-
--}
-
 glfwKeyToKey :: GLFW.Key -> Key
 glfwKeyToKey k
-  | k >= GLFW.Key'0 && k <= GLFW.Key'9 = AlphaNum $ chr $ (ord '0') + (length [GLFW.Key'0 .. pred k])
-  | k >= GLFW.Key'A && k <= GLFW.Key'Z = AlphaNum $ chr $ (ord 'a') + (length [GLFW.Key'A .. pred k])
+  | k >= GLFW.Key'0 && k <= GLFW.Key'9 = AlphaNum $ chr $ ord '0' + length [GLFW.Key'0 .. pred k]
+  | k >= GLFW.Key'A && k <= GLFW.Key'Z = AlphaNum $ chr $ ord 'a' + length [GLFW.Key'A .. pred k]
 glfwKeyToKey GLFW.Key'Space = AlphaNum ' '
+glfwKeyToKey GLFW.Key'Enter  = Enter
 glfwKeyToKey GLFW.Key'Escape = Escape
+glfwKeyToKey GLFW.Key'Tab    = Tab
+glfwKeyToKey GLFW.Key'Delete = Delete
+glfwKeyToKey GLFW.Key'Backspace = BackSpace
 glfwKeyToKey GLFW.Key'Right = Arrow RIGHT
 glfwKeyToKey GLFW.Key'Left  = Arrow LEFT
 glfwKeyToKey GLFW.Key'Down  = Arrow Down

@@ -2,17 +2,21 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
-
+{-# LANGUAGE FlexibleContexts #-}
 module Imj.Graphics.Class.Words
             ( Words(..)
             , SingleWord(..)
+            , multiLineTrivial
             ) where
 
 import qualified Prelude(splitAt, length)
 
 import           Imj.Prelude hiding(unwords, words)
 import qualified Data.String as String(words, unwords)
-import qualified Data.Text as Text(length, splitAt, words, unwords)
+import qualified Data.Text as Text(length, splitAt, words, unwords, null)
+
+import           Imj.Geo.Discrete.Types
+
 
 newtype SingleWord a = SingleWord a
 
@@ -24,9 +28,9 @@ class Words a where
   unwords :: [SingleWord a] -> a
   -- | Return the number of characters in a 'Words'.
   length :: a -> Int
-  -- | Split a 'SingleWord' in two (necessary for example when doing multiline layout, if
-  -- a single word is bigger than the line, so that we can split it in multiple parts).
-  splitAt :: Int -> SingleWord a -> (SingleWord a,SingleWord a)
+  empty :: a -> Bool
+
+  splitAt :: Int -> a -> (a, a)
 
   -- | Splits a 'Words' in multiple lines, respecting the words integrity
   -- when words are smaller than the line length.
@@ -50,19 +54,33 @@ class Words a where
             if curLineSize == 0
               then
                 -- split the word
-                let (cur,next) = splitAt maxLineSize x
-                in toMultiLine' (next:xs) 0 [] ([cur] : curLines)
+                let (cur,next) = splitAt maxLineSize w
+                in toMultiLine' (SingleWord next:xs) 0 [] ([SingleWord cur] : curLines)
               else
                 toMultiLine' a 0 [] (curLine : curLines)
           else
             toMultiLine' xs sz (x:curLine) curLines
 
+{-# INLINABLE multiLineTrivial #-}
+multiLineTrivial :: (Words a)
+                 => Length Width
+                 -- ^ Line length.
+                 -> a
+                 -> [a]
+multiLineTrivial n alltxt =
+  let go l txt =
+        let (oneLine, theRest) = splitAt (fromIntegral n) txt
+        in if empty oneLine
+              then l
+              else go (oneLine:l) theRest
+  in reverse $ go [] alltxt
+
 instance Words ([] Char) where
   words = map SingleWord . String.words
   unwords = String.unwords . map (\(SingleWord w) -> w)
   length = Prelude.length
-  splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
-    where (w1,w2) = Prelude.splitAt n w
+  empty = null
+  splitAt = Prelude.splitAt
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
   {-# INLINABLE length #-}
@@ -72,8 +90,8 @@ instance Words Text where
   words = map SingleWord . Text.words
   unwords = Text.unwords . map (\(SingleWord w) -> w)
   length = Text.length
-  splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
-    where (w1,w2) = Text.splitAt n w
+  empty = Text.null
+  splitAt = Text.splitAt
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
   {-# INLINABLE length #-}

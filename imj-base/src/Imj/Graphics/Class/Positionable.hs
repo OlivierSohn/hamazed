@@ -23,6 +23,7 @@ class Positionable a where
   -- | Return the width of the 'Positionable',
   -- it is used by 'drawAligned'.
   width :: a -> Length Width
+  height :: a -> Length Height
 
   {-# INLINABLE drawAligned #-}
   -- | Draw 'Positionable' aligned w.r.t alignment and reference coordinates.
@@ -47,6 +48,8 @@ class Positionable a where
 -- Due to a cyclic dependency, this instance cannot be in ColorString module.
 instance Positionable ColorString where
   drawAt = drawColorStr
-  {-# INLINABLE drawAt #-}
   width = fromIntegral . countChars
+  height _ = 1
+  {-# INLINABLE drawAt #-}
   {-# INLINABLE width #-}
+  {-# INLINABLE height #-}

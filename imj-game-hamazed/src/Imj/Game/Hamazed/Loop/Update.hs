@@ -10,19 +10,18 @@ module Imj.Game.Hamazed.Loop.Update
       , sendToServer
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(null)
 
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Map.Strict(elems)
-import           Data.Text(pack)
+import           Data.Text(pack, null)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
@@ -53,6 +52,8 @@ updateAppState (Right evt) = case evt of
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
+  ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
+  SendChatMessage -> onSendChatMessage
   ToggleEventRecording -> error "should be handled by caller"
 updateAppState (Left evt) = case evt of
   WorldRequest spec ->
@@ -106,6 +107,12 @@ sendToServer e = do
       putClientState $ ClientState Done state
     _ -> return ()
   asks sendToServer' >>= \f -> f e
+
+onSendChatMessage :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
+                  => m ()
+onSendChatMessage = do
+  msg <- stateChat takeMessage
+  unless (null msg) $ sendToServer $ Say msg
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char

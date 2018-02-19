@@ -23,13 +23,21 @@ import           Data.Int(Int64)
 import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
 
--- | Represents a key-press, read from stdin.
+-- | Represents the key pressed by a player.
 data Key = AlphaNum Char
-         -- ^ An alphanumeric key
+         -- ^ An alphanumeric key (includes punctuation characters)
          | Arrow Direction
          -- ^ One of the four direction arrows
+         | Enter
+         -- ^ The Enter key
          | Escape
          -- ^ The escape key
+         | Tab
+         -- ^ The tab key
+         | BackSpace
+         -- ^ Remove char LEFT of the edit point
+         | Delete
+         -- ^ Remove char at the edit point
          | StopProgram
          -- ^ To be interpreted as "the program should stop now".
          | Unknown

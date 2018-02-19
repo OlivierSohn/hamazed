@@ -1,48 +1,43 @@
+- Duel mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
+maybe in a finite time, with new numbers appearing regularily.
+- distinguish ships, use colors for player names that are the same as ship.
+- change player name using chat : /name:Olivier
+- Press H to show help / press H to hide help (write on the right of the game)
+- enable user messages in chat. Use Tab to switch from current key board layout to chat layout.
+- fix chat colors
+- try opengl rectangular rendering.
+- draw chat at a well-defined place to not overlap with game.
+
+- When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
+- Message displayed when server is unreachable is wrong (a game is currently running on the server)
 - "Please Wait" after level finished can be long if other player doesn't press the key,
 we could inform by state: GameState WaitingAcknowledgement [ShipId]
-- battle mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
-maybe in a finite time, with new numbers appearing regularily.
 
 - ranking :
 high scores of a user can be stored locally, and sent to other clients when connecting to a server.
 How to prevent fraud?
 
-- in case All players were disconnected from the server, we would need the clients to say
-"I have a game state of ..." and if other players agree with the Id/state we can continue the game.
-
-- when a client connects we could first ask the gamestate and its shipId :
-  the client responds Nothing if worldId is Nothing.
+- identify clients to match on reconnect (ip + player name ?)
 
 - recover:
     on disconnections (intentional or not):
-      server-side:
-        if a playing client is not reachable, broadcast :
-          pause game due to disconnection of client x.
-            Then client displays "Game paused due to lost connection to player x, please wait..."
-          The client can reconnect (the server stores its IP and when we detect it is back,
-           we can re-integrate it in the game by sending the world state from another playing client.
-          Then broadcast "resume game"
       client-side:
         when server connection vanishes, client could say:
           "Server is not reachable, please wait..."
+        Then, when server is up again, (client trying every second),
+        the client sends, along with the Connection request, its GameStateEssence + Level
+        so that the server creates the corresponding CurrentGame, and ServerState.
 
-If we detect that the connection is ko (either while sending a game update or while reading or in the pingpong thread)
-, when connection is re-established, one client should transmit the full state of the world.
- (worldessence). To do that we should refactor and have a single world in the state.
+- server transfer:
+  During the game, we could transfer the server (either because the game server died,
+    or because it's fun to do). To do that, each client needs all the info
+    to create an accurate game state.
+  When the server shutdowns, we could let the clients live, so that they can keep the game state.
 
-- What if the connection just becomes extremely slow? At what point should we consider that the player can't play anymore?
-Display roundtrip times below player names.
-Client could have an endpoint and thread dedicated to responding to ping.
-
-- During the game, write (disconnected) next to a player's name that was disconnected.
-  Then when back to setup, do not mention the disconnected player.
 - fix UI: the name of players is far away to the left, not very visible is window is not big enough.
 
 - graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
 
-- when Excluded, the client should display :
-  "A game is in progress on this server, you will join once the game ends. Please wait..."
-  and the player should be able to use the chat.
 - when in Setup intent, the server should send updates of a list "which players would be in the
 game, should you hit Space now" to the clients
 

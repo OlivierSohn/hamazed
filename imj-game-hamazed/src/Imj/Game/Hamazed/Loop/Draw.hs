@@ -40,8 +40,8 @@ import           Imj.Graphics.UI.RectContainer
 draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      => m ()
 draw =
-  getGame >>= \(Game status mode
-                     (GameState world@(World _ _ _ renderedSpace animations _) _ _ level wa (Screen _ screenCenter))
+  getGame >>= \(Game status
+                     (GameState world@(World _ _ _ renderedSpace animations _) _ _ level wa (Screen _ screenCenter) mode _)
                      _ _ _ chat) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
@@ -65,11 +65,11 @@ drawStatus :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
            -> ClientState
            -> m ()
 drawStatus level ref = \case
-  ClientState Done (PlayLevel _) ->
+  ClientState Over (PlayLevel _) ->
     inform "Please wait..."
-  ClientState Done Setup ->
+  ClientState Over Setup ->
     inform "..."
-  ClientState Done Excluded ->
+  ClientState Over Excluded ->
     inform "Now joining!"
   ClientState Ongoing s -> case s of
     Excluded ->

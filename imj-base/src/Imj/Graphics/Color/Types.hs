@@ -109,6 +109,7 @@ data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
 newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum, Generic)
 instance PrettyVal (Color8 a)
+instance Binary (Color8 a)
 
 -- | Using bresenham 3D algorithm in RGB space.
 instance DiscreteDistance (Color8 a) where

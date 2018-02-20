@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Network.Types
       ( ConnectionStatus(..)
@@ -15,6 +16,7 @@ module Imj.Game.Hamazed.Network.Types
       , StateValue(..)
       , ClientEvent(..)
       , ServerEvent(..)
+      , Command(..)
       , ClientQueues(..)
       , Server(..)
       , ServerPort(..)
@@ -34,6 +36,7 @@ module Imj.Game.Hamazed.Network.Types
 import           Imj.Prelude hiding(intercalate)
 import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
+import           Data.Map.Strict(Map)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.Set(Set)
 import           Data.String(IsString)
@@ -46,6 +49,7 @@ import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Color.Types
 
 -- | a Server, seen from a Client's perspective
 data Server = Distant ServerName ServerPort
@@ -62,7 +66,7 @@ instance Binary ServerOwnership
 data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !StateValue
   deriving(Generic, Show, Eq)
 
-data StateNature = Ongoing | Done
+data StateNature = Ongoing | Over
   deriving(Generic, Show, Eq)
 instance Binary StateNature
 
@@ -104,12 +108,14 @@ data ClientEvent =
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
-  | Say {-# UNPACK #-} !Text
+  | RequestCommand {-unpack sum-} !Command
+  -- ^ A Client wants to run a command, in response the server either sends 'CommandError'
+  -- or 'RunCommand'
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
     ConnectionAccepted {-# UNPACK #-} !ClientId
-  | ListPlayers ![PlayerName]
+  | ListPlayers {-# UNPACK #-} !(Map ShipId PlayerName)
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
@@ -125,6 +131,10 @@ data ServerEvent =
   | PutGameState {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !GameStateEssence
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
+  | CommandError {-unpack sum-} !Command {-# UNPACK #-} !Text
+  -- ^ The command cannot be run, with a reason.
+  | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !Command
+  -- ^ The server validated the use of the command, now it must be executed.
   | Error !String
   -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
   deriving(Generic, Show)
@@ -148,6 +158,12 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
 
+data Command =
+    PutPlayerName {-# UNPACK #-} !PlayerName
+  | PutShipColor {-# UNPACK #-} !(Color8 Foreground)
+  | Says {-# UNPACK #-} !Text
+  deriving(Generic, Show)
+instance Binary Command
 
 data GameStateEssence = GameStateEssence {
     _essence :: {-# UNPACK #-} !WorldEssence
@@ -200,9 +216,9 @@ instance Show DisconnectReason where
 
 data PlayerNotif =
     Joins
+  | WaitsToJoin
   | Leaves {-unpack sum-} !LeaveReason
   | StartsGame
-  | Says {-# UNPACK #-} !Text
   deriving(Generic, Show)
 instance Binary PlayerNotif
 
@@ -218,12 +234,13 @@ data GameNotif =
   deriving(Generic, Show)
 instance Binary GameNotif
 
-toTxt :: PlayerNotif -> PlayerName -> Text
-toTxt Joins (PlayerName n) = n <> " joins the game."
-toTxt (Leaves Intentional) (PlayerName n)     = n <> " leaves the game."
-toTxt (Leaves (ConnectionError t)) (PlayerName n) = n <> ": connection error : " <> t
-toTxt StartsGame (PlayerName n) = n <> " starts the game."
-toTxt (Says t) (PlayerName n) = n <> " : " <> t
+toTxt :: PlayerName -> PlayerNotif -> Text
+toTxt (PlayerName n) = \case
+  Joins       -> n <> " joins the game."
+  WaitsToJoin -> n <> " is waiting to join the game."
+  StartsGame  -> n <> " starts the game."
+  Leaves Intentional         -> n <> " leaves the game."
+  Leaves (ConnectionError t) -> n <> ": connection error : " <> t
 
 toTxt' :: GameNotif -> Text
 toTxt' (LevelResult n (Lost reason)) =

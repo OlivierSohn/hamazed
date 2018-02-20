@@ -10,19 +10,20 @@ module Imj.Game.Hamazed.Loop.Update
       , sendToServer
       ) where
 
-import           Imj.Prelude hiding(null)
-
+import           Imj.Prelude
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
+import           Data.Attoparsec.Text(parseOnly)
 import           Data.Map.Strict(elems)
-import           Data.Text(pack, null, strip)
+import           Data.Text(pack, strip)
+
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Infos
+import           Imj.Game.Hamazed.Command
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Timing
@@ -31,7 +32,6 @@ import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
@@ -42,8 +42,8 @@ updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, ClientNode e,
 updateAppState (Right evt) = case evt of
   (Interrupt Quit) -> sendToServer Disconnect
   (Interrupt Help) -> error "not implemented"
-  Configuration char ->
-    updateGameParamsFromChar char
+  Configuration c ->
+    updateGameParamsFromChar c
   CycleRenderingOptions ->
     changeFont
   EndLevel outcome -> do
@@ -56,17 +56,19 @@ updateAppState (Right evt) = case evt of
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording -> error "should be handled by caller"
 updateAppState (Left evt) = case evt of
+  RunCommand sid cmd -> runCommand sid cmd
+  CommandError cmd err -> stateChat $ addMessage $ Warning $ "The command " <> pack (show cmd) <> " failed:" <> pack (show err)
   WorldRequest spec ->
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
   CurrentGameStateRequest ->
     sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
   ChangeLevel levelSpec worldEssence ->
-    getGame >>= \(Game _ viewMode state@(GameState _ _ _ _ _ (Screen sz _)) _ _ _ _) ->
-      mkInitialState levelSpec worldEssence viewMode sz (Just state)
+    getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
+      mkInitialState levelSpec worldEssence names viewMode sz (Just state)
         >>= putGameState
   PutGameState levelSpec (GameStateEssence worldEssence shotNums) ->
-    getGame >>= \(Game _ viewMode state@(GameState _ _ _ _ _ (Screen sz _)) _ _ _ _) ->
-      mkIntermediateState shotNums levelSpec worldEssence viewMode sz (Just state)
+    getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
+      mkIntermediateState shotNums levelSpec worldEssence names viewMode sz (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
@@ -77,14 +79,15 @@ updateAppState (Left evt) = case evt of
     sendToServer $ ExitedState Excluded
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  ListPlayers players ->
-    stateChat $ addMessage $ ChatMessage $ welcome players
+  ListPlayers players -> do
+    putPlayerNames players
+    stateChat $ addMessage $ ChatMessage $ welcome $ elems players
   PlayerInfo (ClientId player _) notif ->
-    stateChat $ addMessage $ ChatMessage $ toTxt notif player
+    stateChat $ addMessage $ ChatMessage $ toTxt player notif
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
   EnterState s -> putClientState $ ClientState Ongoing s
-  ExitState s  -> putClientState $ ClientState Done s
+  ExitState s  -> putClientState $ ClientState Over s
   Disconnected reason -> onDisconnection reason
   Error txt ->
     liftIO $ throwIO $ ErrorFromServer txt
@@ -104,7 +107,7 @@ sendToServer e = do
       getClientState >>= \cur ->
         when (cur /= ClientState Ongoing state) $
           error $ "ExitedState " ++ show state ++ " in " ++ show cur  -- sanity check
-      putClientState $ ClientState Done state
+      putClientState $ ClientState Over state
     _ -> return ()
   asks sendToServer' >>= \f -> f e
 
@@ -112,7 +115,10 @@ onSendChatMessage :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientN
                   => m ()
 onSendChatMessage = do
   msg <- strip <$> stateChat takeMessage
-  unless (null msg) $ sendToServer $ Say msg
+  either
+    (stateChat . addMessage . Warning . (<>) ("Error while parsing: " <> msg <> " : ") . pack)
+    (sendToServer . RequestCommand)
+    $ parseOnly command msg
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char
@@ -130,12 +136,10 @@ updateGameParamsFromChar = \case
 onContinueMessage :: (MonadState AppState m)
                   => m ()
 onContinueMessage =
-  getGameState >>= \(GameState b c d (Level n mayFinished) e f) ->
-    case mayFinished of
-      Just (LevelFinished stop finishTime _) -> do
-        let newLevel = Level n (Just $ LevelFinished stop finishTime ContinueMessage)
-        putGameState $ GameState b c d newLevel e f
-      Nothing -> return ()
+  getLevelStatus >>= maybe
+    (return ())
+    (\(LevelFinished stop finishTime _) ->
+        putLevelStatus $ Just $ LevelFinished stop finishTime ContinueMessage)
 
 {-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m, MonadIO m)
@@ -152,29 +156,10 @@ onDestroyedNumbers :: (MonadState AppState m)
                    -> [Number]
                    -> m ()
 onDestroyedNumbers t destroyedBalls =
-  getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelSpec _ target _) finished) a s) -> do
+  getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelSpec _ target _) finished) a s m na) -> do
     let allShotNumbers = g ++ map (\(Number _ n) -> n) destroyedBalls
         newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (sum allShotNumbers) target t
-    putGameState $ GameState w f allShotNumbers newLevel a s
-    updateShipsText
-
-{-# INLINABLE updateShipsText #-}
-updateShipsText :: (MonadState AppState m)
-                => m ()
-updateShipsText =
-  getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
-                               (UIAnimation (UIEvolutions j upDown _) p) _) -> do
-    mode <- getViewMode
-    (Screen _ center) <- getCurScreen
-    let newLeft =
-          let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
-              (horizontalDist, verticalDist) = computeViewDistances mode
-              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-              infos = mkLeftInfo Normal (elems ships) shotNumbers level
-          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
-    putAnimation $ assert (isFinished newAnim) newAnim
-
+    putGameState $ GameState w f allShotNumbers newLevel a s m na
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m)
@@ -190,7 +175,7 @@ onHasMoved :: (MonadState AppState m, MonadIO m)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= \t -> shipParticleSystems t >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelSpec _ target _) finished) anim s) -> do
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelSpec _ target _) finished) anim s m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions =
             concatMap
@@ -212,14 +197,14 @@ onHasMoved =
                     in Just $ LevelFinished (Lost msg) t InfoMessage
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (sum shotNums) target t
           newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
-      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s
+      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s m n
       updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
 updateUIAnim :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
              => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) s) -> do
+  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) s m names) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, futWorld, worldAnimDeadline) = maybe
           (fromMaybe
@@ -230,6 +215,6 @@ updateUIAnim t =
           (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
           $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-    putGameState $ GameState world futWorld j k anims s
+    putGameState $ GameState world futWorld j k anims s m names
     when (isFinished anims) $
       maybe (return ()) (sendToServer . IsReady) $ getId world

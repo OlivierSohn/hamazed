@@ -6,22 +6,28 @@
 module Imj.Game.Hamazed.World.Ship
         ( shipParticleSystems
         , countAmmo
+        , updateShipsText
         ) where
 
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.List( foldl' )
+import           Data.Map.Strict( elems )
+
+import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.State.Types
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.RectContainer
 
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
@@ -64,3 +70,18 @@ countAmmo =
                 s + ammo
               else
                 s) 0
+
+{-# INLINABLE updateShipsText #-}
+updateShipsText :: (MonadState AppState m)
+                => m ()
+updateShipsText =
+  getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
+                               (UIAnimation (UIEvolutions j upDown _) p) (Screen _ center) mode names) -> do
+    let newLeft =
+          let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
+              (horizontalDist, verticalDist) = computeViewDistances mode
+              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
+              infos = mkLeftInfo Normal (elems ships) names shotNumbers level
+          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
+        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
+    putAnimation newAnim

@@ -1,14 +1,21 @@
-- make ç work in OpenGL
-- change player name using chat : /name:Olivier
-- change ship name using chat : /ship
-- draw chat right middle.
+- TextBox should take newlines into account, to make messages like:
+While parsing:
+  stringparsed
+Error:
+  ...
+
+- draw chat to the right in the middle.
+
+- notify on successful commands: "'Player' changed its name to 'Me'"
 
 - multiline algo of ColorString doesn't work with colored space.
 - multiline algo should have an option to keep multiple spaces.
 
-- use up arrow to edit last message.
+- use up/down arrow to recall last message? -> shift up shift down to change cursor position.
 - autocompletion based on beginning of string, right arrow to validate
-- distinguish ships, use colors for player names that are the same as ship.
+- distinguish ships by colors. In chat and in ammo, colors of player names are the same as the ship.
+we could have one color for chat (dim), one color for ship (bright)
+
 - Press H to show help / press H to hide help (write on the right of the game)
 
 - Specialized mode where one has + the other has -. to compute the target we do a random operation

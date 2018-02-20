@@ -13,6 +13,9 @@ module Imj.Game.Hamazed.State.Types
       -- * Access
       , getGame
       , getGameState
+      , getPlayerNames
+      , getLevel
+      , getLevelStatus
       , getChatMode
       , getMyShipId
       , getGameConnection
@@ -27,6 +30,10 @@ module Imj.Game.Hamazed.State.Types
       -- * Modify
       , putGame
       , putGameState
+      , putPlayerName
+      , putPlayerNames
+      , putLevel
+      , putLevelStatus
       , putViewMode
       , putGameConnection
       , putWorld
@@ -44,9 +51,10 @@ import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(get, put)
-import           Data.Map.Strict(fromList, union, updateWithKey)
+import           Data.Map.Strict(fromList, union, updateWithKey, insert)
 
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.UI.Animation
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
@@ -62,8 +70,8 @@ data Occurences a = Occurences {
 }
 
 data AppState  = AppState {
-    _appStateTimeAfterRender :: !(Time Point System)
-  , _appStateGame :: !Game
+    getTimeAfterRender :: !(Time Point System)
+  , getAppGame :: !Game
   , _appStateEvents :: !EventGroup
   , _appStateEventHistory :: !OccurencesHist
   -- ^ Can record which events where handled.
@@ -119,7 +127,7 @@ getGameState = getGameState' <$> getGame
 
 {-# INLINABLE getViewMode #-}
 getViewMode :: MonadState AppState m => m ViewMode
-getViewMode = getViewMode' <$> getGame
+getViewMode = getViewMode' <$> getGameState
 
 {-# INLINABLE getChatMode #-}
 getChatMode :: MonadState AppState m => m IsEditing
@@ -131,7 +139,7 @@ getChat = getChat' <$> getGame
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
-getWorld = getGameState >>= return . currentWorld
+getWorld = currentWorld <$> getGameState
 
 {-# INLINABLE getClientState #-}
 getClientState :: MonadState AppState m => m ClientState
@@ -139,17 +147,31 @@ getClientState = getClientState' <$> getGame
 
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
-getCurScreen =
-  getGameState >>= return . getScreen
+getCurScreen = getScreen <$> getGameState
+
+{-# INLINABLE getLevel #-}
+getLevel :: MonadState AppState m => m Level
+getLevel = getGameLevel <$> getGameState
+
+{-# INLINABLE putLevel #-}
+putLevel :: MonadState AppState m => Level -> m ()
+putLevel l = getGameState >>= \s -> putGameState s { getGameLevel = l }
+
+{-# INLINABLE getLevelStatus #-}
+getLevelStatus :: MonadState AppState m => m (Maybe LevelFinished)
+getLevelStatus = getLevelStatus' <$> getLevel
+
+{-# INLINABLE putLevelStatus #-}
+putLevelStatus :: MonadState AppState m => Maybe LevelFinished -> m ()
+putLevelStatus l = getLevel >>= \s -> putLevel s { getLevelStatus' = l }
 
 {-# INLINABLE getLastRenderTime #-}
 getLastRenderTime :: MonadState AppState m => m (Time Point System)
-getLastRenderTime = get >>= \(AppState t _ _ _ _ _ _) -> return t
+getLastRenderTime = getTimeAfterRender <$> get
 
 {-# INLINABLE putGame #-}
 putGame :: MonadState AppState m => Game -> m ()
-putGame g = get >>= \(AppState a _ e r h d f) ->
-  put $ AppState a g e r h d f
+putGame g = get >>= \s -> put s { getAppGame = g }
 
 {-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
@@ -168,8 +190,7 @@ putGameConnection c =
 
 {-# INLINABLE getGameConnection #-}
 getGameConnection :: MonadState AppState m => m ConnectionStatus
-getGameConnection =
-  getGame >>= return . connection
+getGameConnection = connection <$> getGame
 
 {-# INLINABLE getMyShipId #-}
 getMyShipId :: MonadState AppState m => m (Maybe ShipId)
@@ -181,12 +202,23 @@ getMyShipId =
 {-# INLINABLE putViewMode #-}
 putViewMode :: MonadState AppState m => ViewMode -> m ()
 putViewMode p =
-  getGame >>= \g -> putGame $ g {getViewMode' = p}
+  getGameState >>= \g -> putGameState $ g {getViewMode' = p}
 
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState AppState m => World -> m ()
-putWorld w = getGameState >>= \g ->
-  putGameState g {currentWorld = w}
+putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
+
+{-# INLINABLE getPlayerNames #-}
+getPlayerNames :: MonadState AppState m => m (Map ShipId PlayerName)
+getPlayerNames = playerNames <$> getGameState
+
+{-# INLINABLE putPlayerNames #-}
+putPlayerNames :: MonadState AppState m => Map ShipId PlayerName -> m ()
+putPlayerNames m = getGameState >>= \g -> putGameState g {playerNames = m}
+
+{-# INLINABLE putPlayerName #-}
+putPlayerName :: MonadState AppState m => ShipId -> PlayerName -> m ()
+putPlayerName sid name = getPlayerNames >>= \names -> putPlayerNames $ insert sid name names
 
 {-# INLINABLE takeKeys #-}
 takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]

@@ -42,10 +42,11 @@ instance Positionable Chat where
     drawAt box pos
     let txtPos = translate (Coords (pred $ fromIntegral $ height box) 0) pos
         doc' = case edit of
-          NotEditing -> [ "[Press Tab to chat]"
+          NotEditing -> [ "[Press 'Tab' to chat]"
                         ]
-          Editing -> [ "[Press Enter to send]"
-                     , "[Press Tab to quit chat]"
+          Editing -> [ "[Press 'Enter' to send]"
+                     , "[Use '/' to issue a command]"
+                     , "[Press 'Tab' to quit]"
                      ]
         doc = map (`colored'` pendingTextColors) doc'
         str = editableTxtToColorStr edit pending
@@ -111,9 +112,11 @@ newtype PlayerName = PlayerName Text
 
 data ChatMessage =
     ChatMessage !Text
+  | Warning !Text
   | DisconnectionReason !String
 
 toColorStr :: ChatMessage -> ColorString
+toColorStr (Warning s) = colored s red
 toColorStr (ChatMessage s) = colored s yellow
 toColorStr (DisconnectionReason s) = colored (pack s) red
 

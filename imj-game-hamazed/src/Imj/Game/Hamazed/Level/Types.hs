@@ -29,7 +29,7 @@ initialLaserAmmo = 10
 
 data Level = Level {
     _levelSpec :: {-# UNPACK #-} !LevelSpec
-  , _levelStatus :: {-unpack sum-} !(Maybe LevelFinished)
+  , getLevelStatus' :: {-unpack sum-} !(Maybe LevelFinished)
 } deriving (Generic)
 
 mkLevel :: LevelSpec -> Level

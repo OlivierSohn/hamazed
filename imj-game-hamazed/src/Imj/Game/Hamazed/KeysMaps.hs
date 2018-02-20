@@ -38,31 +38,31 @@ eventFromKey k = case k of -- TODO handle chat : when pressing Enter, swap betwe
       _ -> do
         (ClientState activity state) <- getClientState
         case activity of
-          Done -> return Nothing
+          Over -> return Nothing
           Ongoing -> case state of
             Excluded -> return Nothing
             Setup -> return $ case k of
               AlphaNum ' ' -> Just $ CliEvt $ ExitedState Setup
               AlphaNum c   -> Just $ Evt $ Configuration c
               _ -> Nothing
-            PlayLevel status ->
-              getGameState >>= \(GameState _ _ _ (Level _ finished) _ _) -> return $ case status of
-                New -> Nothing
-                Running ->
-                  case finished of
-                    Nothing -> case k of
-                      AlphaNum c -> case c of
-                        'k' -> Just $ CliEvt $ Action Laser Down
-                        'i' -> Just $ CliEvt $ Action Laser Up
-                        'j' -> Just $ CliEvt $ Action Laser LEFT
-                        'l' -> Just $ CliEvt $ Action Laser RIGHT
-                        'd' -> Just $ CliEvt $ Action Ship Down
-                        'e' -> Just $ CliEvt $ Action Ship Up
-                        's' -> Just $ CliEvt $ Action Ship LEFT
-                        'f' -> Just $ CliEvt $ Action Ship RIGHT
-                        'r'-> Just $ Evt ToggleEventRecording
-                        _   -> Nothing
-                      _ -> Nothing
-                    Just (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
-                    _ -> Nothing -- between level end and proposal to continue
-                Paused _ -> Nothing
+            PlayLevel status -> case status of
+              New -> return Nothing
+              Running -> maybe
+                (case k of
+                  AlphaNum c -> case c of
+                    'k' -> Just $ CliEvt $ Action Laser Down
+                    'i' -> Just $ CliEvt $ Action Laser Up
+                    'j' -> Just $ CliEvt $ Action Laser LEFT
+                    'l' -> Just $ CliEvt $ Action Laser RIGHT
+                    'd' -> Just $ CliEvt $ Action Ship Down
+                    'e' -> Just $ CliEvt $ Action Ship Up
+                    's' -> Just $ CliEvt $ Action Ship LEFT
+                    'f' -> Just $ CliEvt $ Action Ship RIGHT
+                    'r'-> Just $ Evt ToggleEventRecording
+                    _   -> Nothing
+                  _ -> Nothing)
+                (\case
+                  (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
+                  _ -> Nothing) -- between level end and proposal to continue
+                  <$> getLevelStatus
+              Paused _ -> return Nothing

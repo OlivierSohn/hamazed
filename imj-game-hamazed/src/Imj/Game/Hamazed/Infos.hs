@@ -13,6 +13,7 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.List( length, foldl' )
+import           Data.Map.Strict((!?))
 import           Data.Text(pack, singleton)
 
 import           Imj.Game.Hamazed.Level.Types
@@ -31,9 +32,15 @@ mkLevelCS t level =
     Normal -> [txt configFgColor]
     ColorAnimated -> [txt red, txt configFgColor]
 
-mkShipCS :: InfoType -> BattleShip -> Successive ColorString
-mkShipCS _ (BattleShip (PlayerName name) _ ammo status _) =
-  let pad = initialLaserAmmo - ammo
+mkShipCS :: InfoType
+         -> Map ShipId PlayerName
+         -> BattleShip
+         -> Successive ColorString
+mkShipCS _ names (BattleShip sid _ ammo status _) =
+  let (PlayerName name) =
+        fromMaybe (error $ "ship id not found " ++ show sid)
+          $ names !? sid
+      pad = initialLaserAmmo - ammo
       shipNameColor Destroyed = darkConfigFgColor
       shipNameColor _   = configFgColor
       ammoColor' Destroyed = darkConfigFgColor
@@ -66,13 +73,18 @@ mkShotNumbersCS _ nums =
 
   in Successive [middle <> last_]
 
-mkLeftInfo :: InfoType -> [BattleShip] -> [Int] -> LevelSpec -> [Successive ColorString]
-mkLeftInfo t ships shotNums (LevelSpec level target _)=
+mkLeftInfo :: InfoType
+           -> [BattleShip]
+           -> Map ShipId PlayerName
+           -> [Int]
+           -> LevelSpec
+           -> [Successive ColorString]
+mkLeftInfo t ships names shotNums (LevelSpec level target _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
   ]
   ++
-  map (mkShipCS t) ships
+  map (mkShipCS t names) ships
   ++
   [ mkLevelCS t level
   ]
@@ -83,8 +95,9 @@ mkUpDownInfo =
 
 mkInfos :: InfoType
         -> [BattleShip]
+        -> Map ShipId PlayerName
         -> [Int]
         -> LevelSpec
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
-mkInfos t ships shotNums level =
-  (mkUpDownInfo, mkLeftInfo t ships shotNums level)
+mkInfos t ships names shotNums level =
+  (mkUpDownInfo, mkLeftInfo t ships names shotNums level)

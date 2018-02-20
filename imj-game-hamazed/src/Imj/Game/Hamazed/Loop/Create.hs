@@ -34,18 +34,21 @@ initialGame :: Maybe Size
             -> Server
             -> ConnectionStatus
             -> IO Game
-initialGame ms suggPlayerName server connectionStatus = do
-  let viewMode = initialViewMode
-  initialGameState initialParameters viewMode ms >>= \s ->
-    return $ Game (ClientState Ongoing Excluded) viewMode s suggPlayerName server connectionStatus mkChat
+initialGame ms suggPlayerName server connectionStatus =
+  initialGameState initialParameters initialViewMode ms >>= \s ->
+    return $ Game (ClientState Ongoing Excluded) s suggPlayerName server connectionStatus mkChat
 
-initialGameState :: WorldParameters -> ViewMode -> Maybe Size -> IO GameState
+initialGameState :: WorldParameters
+                 -> ViewMode
+                 -> Maybe Size
+                 -> IO GameState
 initialGameState _ mode ms =
-  mkInitialState mkEmptyLevelSpec mkMinimalWorldEssence mode ms Nothing
+  mkInitialState mkEmptyLevelSpec mkMinimalWorldEssence mempty mode ms Nothing
 
 mkInitialState :: (MonadIO m)
                => LevelSpec
                -> WorldEssence
+               -> Map ShipId PlayerName
                -> ViewMode
                -> Maybe Size
                -> Maybe GameState
@@ -56,11 +59,12 @@ mkIntermediateState :: (MonadIO m)
                     => [Int]
                     -> LevelSpec
                     -> WorldEssence
+                    -> Map ShipId PlayerName
                     -> ViewMode
                     -> Maybe Size
                     -> Maybe GameState
                     -> m GameState
-mkIntermediateState newShotNums newLevel essence mode maySz mayState = do
+mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
   let screen@(Screen _ newScreenCenter) = mkScreen maySz
       newWorld@(World _ _ space _ _ _) = mkWorld essence
   kt <- liftIO getSystemTime
@@ -68,11 +72,11 @@ mkIntermediateState newShotNums newLevel essence mode maySz mayState = do
   let (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums) =
         maybe
         (newWorld, newScreenCenter, newLevel, [])
-        (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center)) ->
+        (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center) _ _) ->
             (w, center, curLevel, curShotNums))
           mayState
-      curInfos = mkInfos Normal        (elems $ getWorldShips curWorld) shotNums    level
-      newInfos = mkInfos ColorAnimated (elems $ getWorldShips newWorld) newShotNums newLevel
+      curInfos = mkInfos Normal        (elems $ getWorldShips curWorld) names shotNums    level
+      newInfos = mkInfos ColorAnimated (elems $ getWorldShips newWorld) names newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
       uiAnimation =
         mkUIAnimation
@@ -83,11 +87,11 @@ mkIntermediateState newShotNums newLevel essence mode maySz mayState = do
           horizontalDist verticalDist kt
           -- only when UIAnimation is over, curWorld will be replaced by newWorld.
           -- during UIAnimation, we need the two worlds.
-  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation screen
+  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation screen mode names
 
 
 mkGameStateEssence :: GameState -> GameStateEssence
-mkGameStateEssence (GameState curWorld mayNewWorld shotNums _ _ _) =
+mkGameStateEssence (GameState curWorld mayNewWorld shotNums _ _ _ _ _) =
   GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums
 
 mkWorld :: WorldEssence -> World

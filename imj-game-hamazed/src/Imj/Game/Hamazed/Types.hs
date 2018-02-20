@@ -24,6 +24,7 @@ module Imj.Game.Hamazed.Types
 
 import           Imj.Prelude
 import           Control.Exception.Base(Exception(..))
+import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 
 import           Imj.Game.Hamazed.Chat
@@ -72,7 +73,6 @@ data GenEvent =
 
 data Game = Game {
     getClientState' :: {-# UNPACK #-} !ClientState
-  , getViewMode' :: {-unpack sum-} !ViewMode
   , getGameState' :: !GameState
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
   , getServer :: {-unpack sum-} !Server
@@ -91,11 +91,13 @@ data GameState = GameState {
     -- Once the transition is over, we replace 'currentWorld' with this 'Just' value.
   , _gameStateShotNumbers :: ![Int]
     -- ^ Which 'Number's were shot
-  , _gameStateLevel :: !Level
+  , getGameLevel :: !Level
     -- ^ The current 'Level'
   , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
   , getScreen :: {-# UNPACK #-} !Screen
+  , getViewMode' :: {-unpack sum-} !ViewMode
+  , playerNames :: !(Map ShipId PlayerName)
 }
 
 minRandomBlockSize :: Int

@@ -39,6 +39,7 @@ module Imj.Game.Hamazed.World.Types
         , Terminal.Window
         , RectContainer(..)
         , RectArea, Filter, Positive
+        , Map
         ) where
 
 import           Imj.Prelude
@@ -94,7 +95,7 @@ instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
     getLevelNumber :: {-# UNPACK #-} !Int
-  , getShipIds :: {-unpack sum-} ![ClientId]
+  , getShipIds :: ![ShipId]
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
   , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
 } deriving(Generic, Show)
@@ -151,7 +152,7 @@ computeViewDistances (CenterShip _) = (30, 2) -- it will overlapp for large worl
 computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
-    getPilotName :: {-# UNPACK #-} !PlayerName
+    getPilotId :: {-# UNPACK #-} !ShipId
   , _shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getAmmo :: !Int

@@ -46,10 +46,12 @@ representation :: UpdateEvent -> EventRepr
 representation (Left (GameEvent e)) = case e of
   LaserShot _ _ -> Laser'
   PeriodicMotion _ _ -> PeriodicMotion'
-representation (Left (Error _)) = Error'
+representation (Left (CommandError _ _)) = Error'
+representation (Left (Error _))          = Error'
 representation (Left (Disconnected _)) = Disconnected'
 representation (Left (EnterState _)) = EnterState'
 representation (Left (ExitState _)) = ExitState'
+representation (Left (RunCommand _ _))        = WorldRequest'
 representation (Left (WorldRequest _))        = WorldRequest'
 representation (Left CurrentGameStateRequest) = WorldRequest'
 representation (Left (ChangeLevel _ _))  = ChangeLevel'

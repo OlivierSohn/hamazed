@@ -30,7 +30,7 @@ import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, memb
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, intersection, fromAscList, lookupMin)
 import           Data.Maybe(isJust, maybeToList)
-import           Data.Text(pack)
+import           Data.Text(pack, unpack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
@@ -102,22 +102,28 @@ appSrv st pending =
 appSrv' :: MVar ServerState -> Connection -> IO ()
 appSrv' st conn =
   receiveData conn >>= \case
-    Connect sn@(SuggestedPlayerName suggestedName) cliType ->
-      if any ($ suggestedName) [ null, any isPunctuation, any isSpace]
-        then
-          sendBinaryData conn $ ConnectionRefused $ InvalidName sn
-            "Name cannot contain punctuation or whitespace, and cannot be empty"
-        else do
-          client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
-          let disconnectOnException action = try action >>= either
-                (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
-                return
-          -- To detect disconnections when communication is idle:
-          void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
-          disconnectOnException $ do
-            sendBinaryData conn $ ConnectionAccepted $ getIdentity client
-            forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
+    Connect sn@(SuggestedPlayerName suggestedName) cliType -> either
+      (sendBinaryData conn . ConnectionRefused . InvalidName sn)
+      (\_ -> do
+        client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
+        let disconnectOnException action = try action >>= either
+              (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
+              return
+        -- To detect disconnections when communication is idle:
+        void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
+        disconnectOnException $ do
+          sendBinaryData conn $ ConnectionAccepted $ getIdentity client
+          forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
+      ) $ checkName $ PlayerName $ pack suggestedName
     msg -> error $ "first sent message should be 'Connect'. " ++ show msg
+
+checkName :: PlayerName -> Either Text ()
+checkName (PlayerName name) =
+  if any ($ unpack name) [ null, any isPunctuation, any isSpace]
+    then
+      Left "Name cannot contain punctuation or whitespace, and cannot be empty"
+    else
+      Right ()
 
 pingPong :: Connection -> Time Duration System -> IO ()
 pingPong conn dt =
@@ -131,9 +137,12 @@ pingPong conn dt =
 
 makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT ServerState IO Client
 makeClient conn sn cliType = do
-  cId <- ClientId <$> makePlayerName sn <*> takeShipId
-  let client = mkClient cId conn cliType
+  i <- takeShipId
+  name <- makePlayerName sn
+  let client = mkClient (ClientId name i) conn cliType
   addClient client
+  sendClients $ RunCommand i $ PutPlayerName name
+  send client . ListPlayers . Map.map (getPlayerName . getIdentity) =<< clientsMap
   return client
  where
   takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)
@@ -185,13 +194,16 @@ makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
         let proposal = PlayerName $ pack $ maybe sn ((++) sn . show) mayI
-        playerNameIsAlreadyTaken proposal >>= \case
-          True -> go $ Just $ maybe (2::Int) succ mayI
-          False -> return proposal
+        checkNameAvailability proposal >>= either
+          (\_ -> go $ Just $ maybe (2::Int) succ mayI)
+          (\_ -> return proposal)
   go Nothing
- where
-  playerNameIsAlreadyTaken name =
-    any ((== name) . getPlayerName . getIdentity ) <$> allClients
+
+checkNameAvailability :: PlayerName -> StateT ServerState IO (Either Text ())
+checkNameAvailability name =
+  any ((== name) . getPlayerName . getIdentity ) <$> allClients >>= \case
+    True  -> return $ Left "Name is already taken"
+    False -> return $ Right ()
 
 shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
@@ -251,6 +263,10 @@ allClients :: StateT ServerState IO [Client]
 allClients =
   Map.elems . getClients' . getClients <$> get
 
+clientsMap :: StateT ServerState IO (Map ShipId Client)
+clientsMap =
+  getClients' . getClients <$> get
+
 onlyPlayers :: StateT ServerState IO [Client]
 onlyPlayers =
   filter (isJust . getState) <$> allClients
@@ -277,24 +293,33 @@ serverError txt = do
     -- hence we sent the error to the client, so that it can report the error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
+handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
     error' client $ "already connected : " <> sn
   Disconnect ->
     disconnect ClientShutdown client
-  Say what ->
-    sendClients $ PlayerInfo cId $ Says what
-  ExitedState Excluded -> do
-    send client . ListPlayers . map (getPlayerName . getIdentity) =<< allClients
-    sendClients $ PlayerInfo cId Joins
+  RequestCommand cmd@(PutPlayerName name) -> either
+    (send client . CommandError cmd)
+    (\_ -> checkNameAvailability name >>= either
+      (send client . CommandError cmd)
+      (\_ -> do
+        modifyClient cId $ \c -> c { getIdentity = cId { getPlayerName = name } }
+        sendClients $ RunCommand i cmd)
+    ) $ checkName name
+  RequestCommand cmd@(PutShipColor _) -> sendClients $ RunCommand i cmd
+  RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
+  ExitedState Excluded ->
     getIntent >>= \case
       IntentSetup -> do
+        sendClients $ PlayerInfo cId Joins
         -- change client state to make it playable
         modifyClient cId $ \c -> c { getState = Just Finished }
         -- request world to let the client have a world
         requestWorld
         -- next step when client 'IsReady'
-      _ -> send client $ EnterState Excluded
+      _ -> do
+        sendClients $ PlayerInfo cId WaitsToJoin
+        send client $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _ _) _ _ intent _ game) -> do
     case intent of
@@ -328,7 +353,7 @@ handleIncomingEvent client@(Client cId _ _ _ _ _ _) = \case
              modify' $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
                                , getIntent' = IntentSetup
                                }
-             modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players
+             modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players. TODO notify via chat of players that actually joined
         requestWorld
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
@@ -555,7 +580,7 @@ requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
   get >>= \(ServerState _ _ (LevelSpec level _ _) params wid _ _ _) -> do
-    shipIds <- map getIdentity <$> onlyPlayers
+    shipIds <- map (getClientId . getIdentity) <$> onlyPlayers
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where
   incrementWorldId =

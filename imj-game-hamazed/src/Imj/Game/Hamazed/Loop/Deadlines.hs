@@ -82,12 +82,12 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 
 getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
-getDeadlinesByDecreasingPriority s@(GameState _ _ _ (Level _ level) _ _) =
+getDeadlinesByDecreasingPriority s =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     catMaybes
       [ uiAnimationDeadline s
-      , join $ fmap messageDeadline level
+      , join $ fmap messageDeadline $ getLevelStatus' $ getGameLevel s
       ]
      ++ getParticleSystemsDeadlines s
 

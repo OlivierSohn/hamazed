@@ -115,7 +115,7 @@ data ClientEvent =
 instance Binary ClientEvent
 data ServerEvent =
     ConnectionAccepted {-# UNPACK #-} !ClientId
-  | ListPlayers {-# UNPACK #-} !(Map ShipId PlayerName)
+  | ListPlayers !(Map ShipId PlayerName)
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue

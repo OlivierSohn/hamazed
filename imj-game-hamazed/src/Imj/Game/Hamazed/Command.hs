@@ -9,12 +9,15 @@ module Imj.Game.Hamazed.Command
       ( Command(..)
       , command
       , runCommand
+      , maxOneSpace
       ) where
 
 import           Imj.Prelude
 
 import           Data.Attoparsec.Text(Parser, takeText, endOfInput, string, char, peekChar', skipSpace, space)
+import           Data.Char(isSpace)
 import           Data.Map.Strict((!?))
+import           Data.Text(pack, unsnoc)
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -32,18 +35,35 @@ runCommand _ (PutShipColor _) = undefined
 runCommand sid (Says what) = getPlayerNames >>= \names ->
   stateChat $ addMessage $ ChatMessage $ maybe "?" (\(PlayerName x) -> x) (names !? sid) <> ":" <> what
 
+maxOneSpace :: Text -> Text
+maxOneSpace t = go t False []
+ where
+  go txt prevSpace res =
+    case unsnoc txt of
+      Nothing -> pack res
+      Just (rest, c) ->
+        if isSpace c
+          then
+            go rest (not $ null res) res
+          else
+            go rest False $
+              if prevSpace
+                then c:' ':res
+                else c:res
+
+
 command :: Parser Command
 command = do
   skipSpace
   peekChar' >>= \case
-    '/' -> do
+    '/' ->
       char '/' *> do
         skipSpace
         cmdType <- string "name" <|> string "color"
         void $ char ':' <|> space
         skipSpace
         case cmdType of
-          "name" -> PutPlayerName . PlayerName <$> takeText <* endOfInput
+          "name" -> PutPlayerName . PlayerName . maxOneSpace <$> takeText <* endOfInput
           "color" -> undefined
           _ -> error "logic"
-    _ -> Says <$> (takeText <* endOfInput)
+    _ -> Says . maxOneSpace <$> (takeText <* endOfInput)

@@ -23,6 +23,7 @@ extra-deps:
 - FTGL-2.1
 - distributed-process-lifted-0.3.0.0
 - distributed-process-monad-control-0.5.1.3
+- text-1.2.3.0
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

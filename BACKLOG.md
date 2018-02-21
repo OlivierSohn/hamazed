@@ -4,9 +4,11 @@ While parsing:
 Error:
   ...
 
-- draw chat to the right in the middle.
+- alternate background colors in chat to separate messages.
 
 - notify on successful commands: "'Player' changed its name to 'Me'"
+
+- draw chat to the right in the middle.
 
 - multiline algo of ColorString doesn't work with colored space.
 - multiline algo should have an option to keep multiple spaces.

@@ -162,7 +162,7 @@ data Command =
     PutPlayerName {-# UNPACK #-} !PlayerName
   | PutShipColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq)
 instance Binary Command
 
 data GameStateEssence = GameStateEssence {

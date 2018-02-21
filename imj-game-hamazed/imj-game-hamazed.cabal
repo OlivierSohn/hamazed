@@ -85,7 +85,7 @@ library
                      , network-transport-tcp ==0.6.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
-                     , text ==1.2.*
+                     , text >=1.2.3 && < 1.3
                      , unix ==2.7.*
                      , unliftio ==0.2.*
                      , vector >= 0.12.0.1 && < 0.12.1
@@ -111,13 +111,14 @@ executable imj-game-hamazed-exe
 test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:
+  other-modules:       Test.Imj.ParseCommand
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
+                     , attoparsec ==0.13.*
                      , imj-base ==0.1.*
                      , imj-game-hamazed
                      , mtl >= 2.2.1 && < 2.3
-                     , text ==1.2.*
+                     , text >=1.2.3 && < 1.3
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -threaded -rtsopts -with-rtsopts=-maxN4
                      -fexcess-precision -optc-ffast-math

@@ -37,7 +37,7 @@ drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
                  => Level
                  -> Coords Pos
                  -> m ()
-drawLevelMessage (Level (LevelSpec level _ _) levelState) ref =
+drawLevelMessage (Level (LevelEssence level _ _) levelState) ref =
   mapM_ (drawLevelState ref level) levelState
 
 {-# INLINABLE drawLevelState #-}

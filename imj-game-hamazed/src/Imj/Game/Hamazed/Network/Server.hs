@@ -321,7 +321,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
         sendClients $ PlayerInfo cId WaitsToJoin
         send client $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
-  LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _ _) _ _ intent _ game) -> do
+  LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _) _ _ intent _ game) -> do
     case intent of
       IntentPlayGame ->
         modify' $ \s -> s { getIntent' = IntentLevelEnd outcome }
@@ -346,13 +346,15 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
           sendClients $ GameInfo GameWon
         if outcome == Won && levelN < lastLevel
            then
-             modify' $ \s -> s { getLevelSpec = mkLevelSpec $ succ levelN
-                               , getIntent' = IntentPlayGame
-                               }
+             modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
+                             in s { getLevelSpec' = LevelSpec (succ levelN) constraint
+                                  , getIntent' = IntentPlayGame
+                                  }
            else do
-             modify' $ \s -> s { getLevelSpec = mkLevelSpec firstLevel
-                               , getIntent' = IntentSetup
-                               }
+             modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
+                             in s { getLevelSpec' = LevelSpec firstLevel constraint
+                                  , getIntent' = IntentSetup
+                                  }
              modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players. TODO notify via chat of players that actually joined
         requestWorld
 ------------------------------------------------------------------------------
@@ -373,14 +375,14 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
     get >>= \(ServerState _ _ levelSpec _ lastWid _ _ _) -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
       when (lastWid == Just wid) $
-        sendPlayers $ ChangeLevel levelSpec essence
+        sendPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
   CurrentGameState gameStateEssence ->
-    get >>= \(ServerState (Clients clients _) _ levelSpec _ _ _ _ game) ->
+    get >>= \(ServerState (Clients clients _) _ _ _ _ _ _ game) ->
       liftIO (tryReadMVar game) >>= \case
         (Just (CurrentGame _ gamePlayers (Paused _))) -> do
           let disconnectedPlayerKeys = Set.difference gamePlayers $ getPlayersKeys clients
               disconnectedClients = Map.elems $ Map.restrictKeys clients disconnectedPlayerKeys
-          sendN (PutGameState levelSpec gameStateEssence) disconnectedClients
+          sendN (PutGameState gameStateEssence) disconnectedClients
         invalid -> serverError $ "CurrentGameState sent while game is " ++ show invalid
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
@@ -579,7 +581,7 @@ modifyClients f =
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState _ _ (LevelSpec level _ _) params wid _ _ _) -> do
+  get >>= \(ServerState _ _ level params wid _ _ _) -> do
     shipIds <- map (getClientId . getIdentity) <$> onlyPlayers
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where

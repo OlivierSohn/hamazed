@@ -300,20 +300,22 @@ checkTargetAndAmmo :: Int
                    -- ^ Remaining ammo
                    -> Int
                    -- ^ The current sum of all shot 'Numbers'
-                   -> Int
+                   -> LevelTarget
                    -- ^ The 'Level' 's target number.
                    -> Time Point System
                    -- ^ The current time
                    -> Maybe LevelFinished
-checkTargetAndAmmo ammo sumNumbers target t =
+checkTargetAndAmmo ammo currentNumber (LevelTarget goal constraint) t =
     maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
   where
     allChecks = checkSum <|> checkAmmo
 
-    checkSum = case compare sumNumbers target of
-      LT -> Nothing
+    checkSum = case compare currentNumber goal of
       EQ -> Just Won
-      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target -- TODO change if substraction is authorized
+      LT -> Nothing
+      GT -> case constraint of
+        CanOvershoot -> Nothing
+        CannotOvershoot -> Just $ Lost $ pack $ show currentNumber ++ " is bigger than " ++ show goal
     checkAmmo
       | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing

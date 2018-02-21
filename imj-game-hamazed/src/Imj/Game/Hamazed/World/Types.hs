@@ -49,6 +49,7 @@ import           Control.DeepSeq(NFData)
 import           Data.Map.Strict(Map, lookup)
 
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.Level.Types
 import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
@@ -94,10 +95,10 @@ instance Binary WallDistribution
 instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
-    getLevelNumber :: {-# UNPACK #-} !Int
+    getLevelSpec :: {-unpack sum-} !LevelSpec
   , getShipIds :: ![ShipId]
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
-  , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- Maybe because some 'WorldSpec' are created by the client, for initialization
+  , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.
 } deriving(Generic, Show)
 instance Binary WorldSpec
 

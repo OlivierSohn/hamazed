@@ -43,10 +43,10 @@ initialGameState :: WorldParameters
                  -> Maybe Size
                  -> IO GameState
 initialGameState _ mode ms =
-  mkInitialState mkEmptyLevelSpec mkMinimalWorldEssence mempty mode ms Nothing
+  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence mempty mode ms Nothing
 
 mkInitialState :: (MonadIO m)
-               => LevelSpec
+               => LevelEssence
                -> WorldEssence
                -> Map ShipId PlayerName
                -> ViewMode
@@ -57,7 +57,7 @@ mkInitialState = mkIntermediateState []
 
 mkIntermediateState :: (MonadIO m)
                     => [ShotNumber]
-                    -> LevelSpec
+                    -> LevelEssence
                     -> WorldEssence
                     -> Map ShipId PlayerName
                     -> ViewMode
@@ -91,8 +91,8 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
 
 
 mkGameStateEssence :: GameState -> GameStateEssence
-mkGameStateEssence (GameState curWorld mayNewWorld shotNums _ _ _ _ _) =
-  GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums
+mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _) =
+  GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums levelEssence
 
 mkWorld :: WorldEssence -> World
 mkWorld (WorldEssence balls ships llMat wid) =

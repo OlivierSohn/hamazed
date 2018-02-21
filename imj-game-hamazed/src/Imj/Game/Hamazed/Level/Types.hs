@@ -5,11 +5,14 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Game.Hamazed.Level.Types
-    ( Level(..)
+    ( LevelSpec(..)
+    , LevelEssence(..)
+    , mkLevelEssence
+    , mkEmptyLevelEssence
+    , Level(..)
     , mkLevel
-    , LevelSpec(..)
-    , mkLevelSpec
-    , mkEmptyLevelSpec
+    , LevelTarget(..)
+    , TargetConstraint(..)
     , initialLaserAmmo
     , LevelFinished(..)
     , MessageState(..)
@@ -28,28 +31,42 @@ initialLaserAmmo :: Int
 initialLaserAmmo = 10
 
 data Level = Level {
-    _levelSpec :: {-# UNPACK #-} !LevelSpec
+    _levelSpec :: {-# UNPACK #-} !LevelEssence
   , getLevelStatus' :: {-unpack sum-} !(Maybe LevelFinished)
 } deriving (Generic)
 
-mkLevel :: LevelSpec -> Level
+mkLevel :: LevelEssence -> Level
 mkLevel = flip Level Nothing
 
-data LevelSpec = LevelSpec {
+data LevelEssence = LevelEssence {
     getLevelNumber' :: {-# UNPACK #-} !Int
     -- ^ From 1 to 12
-  , _levelTarget :: {-# UNPACK #-} !Int
+  , _levelTarget :: {-unpack sum-} !LevelTarget
   , _levelFlyingNumbers :: ![Int]
 } deriving (Generic, Binary, NFData, Show)
 
-mkEmptyLevelSpec :: LevelSpec
-mkEmptyLevelSpec = LevelSpec 0 0 []
+data LevelTarget = LevelTarget {-# UNPACK #-} !Int {-unpack sum-} !TargetConstraint
+  deriving (Generic, Binary, NFData, Show)
 
-mkLevelSpec :: Int -> LevelSpec
-mkLevelSpec levelNumber =
+data TargetConstraint =
+    CanOvershoot
+  | CannotOvershoot
+  deriving (Generic, Binary, NFData, Show)
+
+data LevelSpec = LevelSpec {
+    _levelNum :: {-# UNPACK #-} !Int
+  , _targetConstraint :: {-unpack sum-} !TargetConstraint
+} deriving(Generic, Show, NFData, Binary)
+
+
+mkEmptyLevelEssence :: LevelEssence
+mkEmptyLevelEssence = LevelEssence 0 (LevelTarget 0 CannotOvershoot) []
+
+mkLevelEssence :: LevelSpec -> LevelEssence
+mkLevelEssence (LevelSpec levelNumber co) =
   let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
-  in LevelSpec levelNumber target numbers
+  in LevelEssence levelNumber (LevelTarget target co) numbers
 
 data LevelFinished = LevelFinished {
     _levelFinishedResult :: {-unpack sum-} !LevelOutcome

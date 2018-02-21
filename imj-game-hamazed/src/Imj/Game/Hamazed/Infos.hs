@@ -83,9 +83,9 @@ mkLeftInfo :: InfoType
            -> [BattleShip]
            -> Map ShipId PlayerName
            -> [ShotNumber]
-           -> LevelSpec
+           -> LevelEssence
            -> [Successive ColorString]
-mkLeftInfo t ships names shotNums (LevelSpec level target _)=
+mkLeftInfo t ships names shotNums (LevelEssence level (LevelTarget target _) _)=
   [ mkObjectiveCS t target
   , mkShotNumbersCS t shotNums
   ]
@@ -103,7 +103,7 @@ mkInfos :: InfoType
         -> [BattleShip]
         -> Map ShipId PlayerName
         -> [ShotNumber]
-        -> LevelSpec
+        -> LevelEssence
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
 mkInfos t ships names shotNums level =
   (mkUpDownInfo, mkLeftInfo t ships names shotNums level)

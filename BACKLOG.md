@@ -1,3 +1,38 @@
+- one component per player.
+a player sees only the numbers of its own component.
+
+- ships replaced by humans
+
+- when making level essence, we should know the number of players.
+
+- where one has + other has - :
+  to win the level, we need to reach a (positive) number, then come back to 0.
+
+- Duel mode where the one that has the max sum wins.
+(There is no target number. How do we know if we won the level?)
+
+Note that the start location matters a lot in that case. Think of a way to place ships in a fair way,
+with the notion of "manhattan collision free distance" to number,
+
+- (mkLevelEssence) Specialized mode where one has + the other has -.
+To make players engage, they need to feel that they are both important to win
+the level. Using big flying numbers and small goal number is a way to reach this.
+To compensate for the small numbers of shots needed to finish a level,
+we can have a list of goal numbers (3).
+
+to compute the target we do a random operation
+on existing numbers with + and -. Use big numbers.
+Show minus numbers in blue
+
+Single player where + and - alternate at every shot number
+
+Laser color changes : red = plus
+
+- the other ship can double numbers (make levels where we need to double
+    some numbers in order to reach the sum)
+- the other ship can multiply
+
+
 - during setup, when a client disconnects, it is notified in the chat but the player name still appears on the left, maybe we should not draw the left side during setup?
 
 - TextBox should take newlines into account, to make messages like:
@@ -6,26 +41,22 @@ While parsing:
 Error:
   ...
 
-- alternate background colors in chat to separate messages.
-
 - notify on successful commands: "'Player' changed its name to 'Me'"
 
-- multiline algo of ColorString doesn't work with colored space.
 - multiline algo should have an option to keep multiple spaces.
 
 - use up/down arrow to recall last message? -> shift up shift down to change cursor position.
-- autocompletion based on beginning of string, right arrow to validate
+
+- autocompletion based on beginning of string, right arrow to validate.
+if input is a /, write all commands in help
+
 - distinguish ships by colors. In chat and in ammo, colors of player names are the same as the ship.
 we could have one color for chat (dim), one color for ship (bright)
 
 - Press H to show help / press H to hide help (write on the right of the game)
 
-- Specialized mode where one has + the other has -. to compute the target we do a random operation
-on existing numbers with + and -. Use big numbers.
-Show minus numbers in blue
-- Duel mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
-maybe in a finite time, with new numbers appearing regularily.
 - try opengl rectangular rendering.
+- or make font characters more square
 
 - When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
 - Message displayed when server is unreachable is wrong (a game is currently running on the server)
@@ -38,14 +69,12 @@ How to prevent fraud?
 
 - identify clients to match on reconnect (ip + player name ?)
 
-- recover:
-    on disconnections (intentional or not):
-      client-side:
-        when server connection vanishes, client could say:
-          "Server is not reachable, please wait..."
-        Then, when server is up again, (client trying every second),
-        the client sends, along with the Connection request, its GameStateEssence + Level
-        so that the server creates the corresponding CurrentGame, and ServerState.
+- recover on disconnections (intentional or not), client-side:
+    when server connection vanishes, client could say:
+      "Server is not reachable, please wait..."
+    Then, when server is up again, (client trying every second),
+    the client sends, along with the Connection request, its GameStateEssence + Level
+    so that the server creates the corresponding CurrentGame, and ServerState.
 
 - server transfer:
   During the game, we could transfer the server (either because the game server died,
@@ -117,32 +146,11 @@ to know which was more advanced, and start from that state.
 
 - when talking, animate text.
 
-- multiplayer mode where two ships (one cannot collide the other) work on the same sum.
-If one ship collides, the other can continue.
-  - the other ship can double numbers (think of levels where we need to double
-    some numbers in order to reach the sum)
-  - the other ship can multiply
-
 - use bitwise package to optimize boolean matrix representation.
-
-- make font characters more square
-
-- make distance between world and text depend on unit width
 
 - try round instead of square for walls.
 
 - go back and forth in time.
-
-- add state transitions:
-
-  - hitting escape:
-
-  play -> quit the current game? yes / no -> configuration -> quit ? yes / no
-
-  - hitting space : play -> paused -> play
-
-should animations continue or should we pause them?
-if yes we should have a time offset in the state.
 
 - display debug infos in a nice way when using the terminal :
 overlay,
@@ -153,10 +161,7 @@ overlay,
   more time to update / game moved takes longer if there is a collision / laser shot
   takes longer if there is a collision
 
-- try glfw on windows, if it works, disable limitation
-
-- use http://book.realworldhaskell.org/read/monad-transformers.html
-to simplify if needed
+- try glfw on windows, if it works, disable limitation and force the use of glfw on windows
 
 - a game where we need to escape a randomly generated maze.
 

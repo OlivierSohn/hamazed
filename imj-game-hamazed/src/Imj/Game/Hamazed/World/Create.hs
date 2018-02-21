@@ -28,8 +28,8 @@ import           Imj.Physics.Discrete.Collision
 
 
 mkWorldEssence :: WorldSpec -> IO WorldEssence
-mkWorldEssence (WorldSpec levelNum clientIds (WorldParameters shape wallDistrib) wid) = do
-  let (LevelSpec _ _ numbers) = mkLevelSpec levelNum
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) clientIds (WorldParameters shape wallDistrib) wid) = do
+  let (LevelEssence _ _ numbers) = mkLevelEssence s
       size = worldSizeFromLevel levelNum shape
       nShips = length clientIds
   space <- mkSpace size wallDistrib

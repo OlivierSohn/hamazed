@@ -128,11 +128,11 @@ data ServerEvent =
   | GameInfo {-unpack sum-} !GameNotif
   | WorldRequest {-# UNPACK #-} !WorldSpec
   -- ^ Upon reception, the client should respond with a 'WorldProposal'.
-  | ChangeLevel {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !WorldEssence
+  | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
   | CurrentGameStateRequest
   -- ^ (reconnection scenario) Upon reception, the client should respond with a 'CurrentGameState'.
-  | PutGameState {-# UNPACK #-} !LevelSpec {-# UNPACK #-} !GameStateEssence
+  | PutGameState {-# UNPACK #-} !GameStateEssence
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
   | CommandError {-unpack sum-} !Command {-# UNPACK #-} !Text
@@ -172,6 +172,7 @@ instance Binary Command
 data GameStateEssence = GameStateEssence {
     _essence :: {-# UNPACK #-} !WorldEssence
   , _shotNumbers :: ![ShotNumber]
+  , _levelEssence :: {-unpack sum-} !LevelEssence
 } deriving(Generic, Show)
 instance Binary GameStateEssence
 

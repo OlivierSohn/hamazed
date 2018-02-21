@@ -62,13 +62,13 @@ updateAppState (Left evt) = case evt of
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
   CurrentGameStateRequest ->
     sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
-  ChangeLevel levelSpec worldEssence ->
+  ChangeLevel levelEssence worldEssence ->
     getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
-      mkInitialState levelSpec worldEssence names viewMode sz (Just state)
+      mkInitialState levelEssence worldEssence names viewMode sz (Just state)
         >>= putGameState
-  PutGameState levelSpec (GameStateEssence worldEssence shotNums) ->
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
     getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
-      mkIntermediateState shotNums levelSpec worldEssence names viewMode sz (Just state)
+      mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
@@ -158,7 +158,7 @@ onDestroyedNumbers :: (MonadState AppState m)
                    -> [Number]
                    -> m ()
 onDestroyedNumbers t op destroyedBalls =
-  getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelSpec _ target _) finished) a s m na) -> do
+  getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s m na) -> do
     let allShotNumbers = g ++ map (\(Number _ n) -> ShotNumber n op) destroyedBalls
         newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (applyOperations $ reverse allShotNumbers) target t
     putGameState $ GameState w f allShotNumbers newLevel a s m na
@@ -177,7 +177,7 @@ onHasMoved :: (MonadState AppState m, MonadIO m)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= \t -> shipParticleSystems t >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelSpec _ target _) finished) anim s m n) -> do
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim s m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions =
             concatMap

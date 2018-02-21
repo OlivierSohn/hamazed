@@ -54,7 +54,7 @@ instance NFData PlayerState
 data ServerState = ServerState {
     getClients :: {-# UNPACK #-} !Clients
   , _gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
-  , getLevelSpec :: {-# UNPACK #-} !LevelSpec
+  , getLevelSpec' :: {-# UNPACK #-} !LevelSpec
   , getWorldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
   , getLastRequestedWorldId' :: {-unpack sum-} !(Maybe WorldId)
@@ -104,5 +104,5 @@ mkClients = Clients empty (ShipId 0)
 
 newServerState :: IO ServerState
 newServerState =
-  ServerState mkClients mkGameTiming (mkLevelSpec firstLevel)
+  ServerState mkClients mkGameTiming (LevelSpec firstLevel CannotOvershoot)
               initialParameters Nothing IntentSetup False <$> newEmptyMVar

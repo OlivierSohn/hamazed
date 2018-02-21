@@ -103,7 +103,7 @@ deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 deltaFill :: IORef Buffers -> Char -> LayeredColor -> IO ()
 deltaFill ref c color =
   readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-    let height = getHeight width $ fromIntegral $ length b
+    let height = getBufferHeight width $ fromIntegral $ length b
         drawableArea =
           mkRectArea zeroCoords $ Size (fromIntegral height) $ fromIntegral width
         region@(RectArea (Coords r1 c1) (Coords r2 c2)) =
@@ -172,7 +172,7 @@ indexFromPos size width scissor coords@(Coords y x)
         then Just $ fromIntegral idx
         else Nothing
  where
-  height = getHeight width size
+  height = getBufferHeight width size
 
 -- | Copy the backbuffer content of the first 'Buffers' back buffer to the other
 -- 'Buffers' back /and/ front buffers

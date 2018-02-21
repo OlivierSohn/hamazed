@@ -15,7 +15,6 @@ module Imj.Graphics.Render.Delta.Types
             , BufferSize
             , BufferIndex
             , getRowCol
-            , getHeight
             , xyFromIndex
             -- ** Reexported types
             , Delta
@@ -30,8 +29,6 @@ module Imj.Graphics.Render.Delta.Types
             ) where
 
 import           Imj.Prelude
-
-import           Control.Exception(assert)
 
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
@@ -75,12 +72,6 @@ newtype Dim a = Dim Word16 deriving(Num, Eq, Ord, Show, Real, Enum, Integral)
 data BufferSize
 -- | Buffer element index
 data BufferIndex
-
-{-# INLINE getHeight #-}
-getHeight :: Dim Width -> Dim BufferSize -> Dim Height
-getHeight (Dim w) (Dim sz) =
-  let h = quot sz w
-  in Dim $ assert (h * w == sz) h
 
 {-# INLINE getRowCol #-}
 getRowCol :: Dim BufferIndex -> Dim Width -> (Dim Col, Dim Row)

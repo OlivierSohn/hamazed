@@ -56,7 +56,7 @@ instance Positionable Chat where
         --editBox = addText str $ mkAdjustableHeightTextBox w
         multi = reverse . Words.multiLineTrivial w
         allLines = concatMap multi $ reverse $ str : doc
-        editBox = TextBox (Size (fromIntegral $ P.length allLines) w) allLines Adjust
+        editBox = TextBox (Size (fromIntegral $ P.length allLines) w) [allLines] Adjust NoColor
     drawAt editBox txtPos
     -- TODO draw others
   width (Chat _ _ _ box) = width box
@@ -102,7 +102,7 @@ data ChatCommand =
   deriving(Eq, Show)
 
 mkChat :: Chat
-mkChat = Chat mkEditableText NotEditing [] (mkTextBox $ Size 10 30)
+mkChat = Chat mkEditableText NotEditing [] (mkTextBox (Size 10 30) $ Alternate False)
 
 mkEditableText :: EditableText
 mkEditableText = EditableText mempty 0
@@ -117,7 +117,7 @@ data ChatMessage =
 
 toColorStr :: ChatMessage -> ColorString
 toColorStr (Warning s) = colored s red
-toColorStr (ChatMessage s) = colored s yellow
+toColorStr (ChatMessage s) = colored s $ gray 10
 toColorStr (DisconnectionReason s) = colored (pack s) red
 
 addMessage :: ChatMessage -> Chat -> (Chat, ())

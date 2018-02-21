@@ -47,7 +47,7 @@ import           Control.Applicative((<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow((>>>))
 import           Control.Exception(assert)
 import           Control.Monad(sequence, when, unless, void, (<=<), (>=>), Monad, zipWithM_, forever
-                              , replicateM)
+                              , replicateM, foldM, foldM_)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Data.Binary(Binary)

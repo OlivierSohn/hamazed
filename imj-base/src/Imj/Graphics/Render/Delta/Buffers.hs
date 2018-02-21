@@ -9,11 +9,13 @@ module Imj.Graphics.Render.Delta.Buffers
           , shouldAdjustSize
           , getBufferDimensions
           , createBuffers
+          , getBufferHeight
           ) where
 
 import           Imj.Prelude hiding(replicate)
 import           Prelude hiding (replicate, unzip, length)
 
+import           Control.Exception(assert)
 import           Data.IORef( IORef , newIORef )
 import           Data.Maybe( fromMaybe )
 import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
@@ -67,7 +69,14 @@ mkBuffers width' height' backBufferCell = do
 
 getBufferDimensions :: Buffers -> (Dim Width, Dim Height)
 getBufferDimensions (Buffers (Buffer back) _ width _ _ _) =
-  (width, getHeight width $ fromIntegral $ length back)
+  (width, getBufferHeight width $ fromIntegral $ length back)
+
+
+{-# INLINE getBufferHeight #-}
+getBufferHeight :: Dim Width -> Dim BufferSize -> Dim Height
+getBufferHeight (Dim w) (Dim sz) =
+  let h = quot sz w
+  in Dim $ assert (h * w == sz) h
 
 shouldAdjustSize :: Buffers -> IO (Maybe Size) -> IO (Maybe (Dim Width, Dim Height))
 shouldAdjustSize b@(Buffers _ _ _ _ _ (Policies resizePolicy _ _)) sizeFunc =

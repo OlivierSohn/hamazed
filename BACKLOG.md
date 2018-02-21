@@ -1,3 +1,5 @@
+- during setup, when a client disconnects, it is notified in the chat but the player name still appears on the left, maybe we should not draw the left side during setup?
+
 - TextBox should take newlines into account, to make messages like:
 While parsing:
   stringparsed
@@ -7,8 +9,6 @@ Error:
 - alternate background colors in chat to separate messages.
 
 - notify on successful commands: "'Player' changed its name to 'Me'"
-
-- draw chat to the right in the middle.
 
 - multiline algo of ColorString doesn't work with colored space.
 - multiline algo should have an option to keep multiple spaces.
@@ -21,7 +21,8 @@ we could have one color for chat (dim), one color for ship (bright)
 - Press H to show help / press H to hide help (write on the right of the game)
 
 - Specialized mode where one has + the other has -. to compute the target we do a random operation
-on existing numbers with + and -. Use big numbers
+on existing numbers with + and -. Use big numbers.
+Show minus numbers in blue
 - Duel mode where one has + other has -, and the goal is to have a final sum of the sign of the ship.
 maybe in a finite time, with new numbers appearing regularily.
 - try opengl rectangular rendering.

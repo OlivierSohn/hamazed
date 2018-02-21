@@ -41,7 +41,7 @@ draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      => m ()
 draw =
   getGame >>= \(Game status
-                     (GameState world@(World _ _ _ renderedSpace animations _) _ _ level wa (Screen _ screenCenter) mode _)
+                     (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld _ level wa (Screen _ screenCenter@(Coords rowCenter _)) mode _)
                      _ _ _ chat) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
@@ -54,7 +54,13 @@ draw =
     drawUIAnimation offset wa -- draw it after the world so that when it morphs
                               -- it goes over numbers and ship
     -- draw last so that the message is clearly visible:
-    drawAt chat (Coords 30 10)
+    let w = fromMaybe world mayFutWorld
+        offset' = getWorldOffset mode w
+        worldCorner'@(Coords _ col) = getWorldCorner w screenCenter offset'
+        chatUpperLeft =
+          Coords (rowCenter - fromIntegral (quot (height chat) 2))
+            $ col + 4 + 2 + fromIntegral (getWidth (getSize $ getWorldSpace w))
+    drawAt chat chatUpperLeft
     drawStatus level screenCenter status
 
 

@@ -71,10 +71,10 @@ isFinished _ = False
 
 {-# INLINABLE drawUIAnimation #-}
 drawUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
-                  => Coords Pos
-                  -- ^ Offset for container
-                  -> UIAnimation
-                  -> m ()
+                => Coords Pos
+                -- ^ Offset for container
+                -> UIAnimation
+                -> m ()
 drawUIAnimation containerOffset
  (UIAnimation we@(UIEvolutions containerEvolution upDown left) (UIAnimProgress _ (Iteration _ frame))) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame

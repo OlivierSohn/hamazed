@@ -14,7 +14,6 @@ module Imj.Graphics.Class.Draw
 
 import           Imj.Prelude
 
-import           Control.Monad(foldM_)
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text, length)
 
@@ -70,15 +69,16 @@ class (Canvas e) => Draw e where
   usingScissor' :: (MonadIO m, HasRectArea v)
                 => e
                 -> v
-                -> m ()
+                -> m a
                 -- ^ Actions
-                -> m ()
+                -> m a
   usingScissor' env current action = do
     -- we need getScissor' to be in IO to be sure that it is executed before the rest:
     previous <- getScissor' env
     setScissor env (getRectArea current)
-    action
+    res <- action
     setScissor env previous
+    return res
 
   -- | Draw a 'ColorString'.
   {-# INLINABLE drawColorStr' #-}

@@ -30,7 +30,7 @@ runCommand :: (MonadState AppState m)
            => ShipId
            -> Command
            -> m ()
-runCommand sid (PutPlayerName name) = putPlayerName sid name >> updateShipsText
+runCommand sid (AssignName name) = putPlayerName sid name >> updateShipsText
 runCommand _ (PutShipColor _) = undefined
 runCommand sid (Says what) = getPlayerNames >>= \names ->
   stateChat $ addMessage $ ChatMessage $ maybe "?" (\(PlayerName x) -> x) (names !? sid) <> ":" <> what
@@ -63,7 +63,7 @@ command = do
         void $ char ':' <|> space
         skipSpace
         case cmdType of
-          "name" -> PutPlayerName . PlayerName . maxOneSpace <$> takeText <* endOfInput
+          "name" -> AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
           "color" -> undefined
           _ -> error "logic"
     _ -> Says . maxOneSpace <$> (takeText <* endOfInput)

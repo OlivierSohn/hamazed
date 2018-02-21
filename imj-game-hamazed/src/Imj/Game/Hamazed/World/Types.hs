@@ -243,24 +243,26 @@ scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCent
             (Coords r c) = sumCoords pos corner
         in r < fromIntegral h && c >= 0 && c < fromIntegral w
   in case scope of
-    WorldScope mat -> if worldArea `contains` pos && mat == unsafeGetMaterial pos space
-                        then
-                          InsideWorld
-                        else
-                          OutsideWorld
-    NegativeWorldContainer -> if worldViewArea `contains` pos
-                                then
-                                  OutsideWorld
-                                else
-                                  maybe
-                                    InsideWorld
-                                    (\szTerm ->
-                                      if termContains szTerm
-                                        then
-                                          InsideWorld
-                                        else
-                                          OutsideWorld)
-                                      mayTermSize
+    WorldScope mat ->
+      if worldArea `contains` pos && mat == unsafeGetMaterial pos space
+        then
+          InsideWorld
+        else
+          OutsideWorld
+    NegativeWorldContainer ->
+      if worldViewArea `contains` pos
+        then
+          OutsideWorld
+        else
+          maybe
+            InsideWorld
+            (\szTerm ->
+              if termContains szTerm
+                then
+                  InsideWorld
+                else
+                  OutsideWorld)
+              mayTermSize
  where
   worldArea = mkRectArea zeroCoords $ getSize space
   worldViewArea = growRectArea 1 worldArea

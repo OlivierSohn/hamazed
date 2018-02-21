@@ -22,6 +22,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
  -}
             , colored
             , colored'
+            , replaceBackground
             -- * Utilities
             , countChars
             , take
@@ -94,6 +95,10 @@ instance DiscreteInterpolation ColorString where
           else
             interpolateColors c1' c2' (negate remaining)
 
+
+replaceBackground :: Color8 Background -> ColorString -> ColorString
+replaceBackground bg (ColorString l) =
+  ColorString $ map (\(t, LayeredColor _ fg) -> (t, LayeredColor bg fg)) l
 
 interpolateColors :: [(Char, LayeredColor)]
                   -- ^ from

@@ -159,7 +159,7 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE toLazyByteString #-}
 
 data Command =
-    PutPlayerName {-# UNPACK #-} !PlayerName
+    AssignName {-# UNPACK #-} !PlayerName
   | PutShipColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   deriving(Generic, Show, Eq)

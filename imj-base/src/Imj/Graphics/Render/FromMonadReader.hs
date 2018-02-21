@@ -40,7 +40,7 @@ import           Imj.Graphics.Text.ColorString
 -- | Executes actions in context of a given 'Scissor'.
 {-# INLINABLE usingScissor #-}
 usingScissor :: (Draw e, MonadReader e m, MonadIO m)
-              => Scissor -> m () -> m ()
+              => Scissor -> m a -> m a
 usingScissor v actions = do
   d <- asks usingScissor'
   d v actions

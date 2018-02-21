@@ -141,7 +141,7 @@ makeClient conn sn cliType = do
   name <- makePlayerName sn
   let client = mkClient (ClientId name i) conn cliType
   addClient client
-  sendClients $ RunCommand i $ PutPlayerName name
+  sendClients $ RunCommand i $ AssignName name
   send client . ListPlayers . Map.map (getPlayerName . getIdentity) =<< clientsMap
   return client
  where
@@ -298,7 +298,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
     error' client $ "already connected : " <> sn
   Disconnect ->
     disconnect ClientShutdown client
-  RequestCommand cmd@(PutPlayerName name) -> either
+  RequestCommand cmd@(AssignName name) -> either
     (send client . CommandError cmd)
     (\_ -> checkNameAvailability name >>= either
       (send client . CommandError cmd)

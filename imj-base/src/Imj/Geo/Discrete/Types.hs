@@ -98,8 +98,8 @@ data Width
 data Height
 -- | Represents a discrete size (width and height)
 data Size = Size {
-    _sizeY :: {-# UNPACK #-} !(Length Height)
-  , _sizeX :: {-# UNPACK #-} !(Length Width)
+    getHeight :: {-# UNPACK #-} !(Length Height)
+  , getWidth :: {-# UNPACK #-} !(Length Width)
 } deriving (Eq, Show, Generic)
 
 instance PrettyVal Size

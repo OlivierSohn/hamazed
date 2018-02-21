@@ -28,10 +28,10 @@ testParseCommand = do
   parse "a  a" `shouldBe` (Right $ Says "a a")
 
   parse "/a" `shouldBe` (Left "string")
-  parse "/name Newname" `shouldBe` (Right $ PutPlayerName $ PlayerName "Newname")
-  parse "/name:Newname" `shouldBe` (Right $ PutPlayerName $ PlayerName "Newname")
-  parse "/name:  Newname  " `shouldBe` (Right $ PutPlayerName $ PlayerName "Newname")
-  parse "    /name:  Newname  " `shouldBe` (Right $ PutPlayerName $ PlayerName "Newname")
+  parse "/name Newname" `shouldBe` (Right $ AssignName $ PlayerName "Newname")
+  parse "/name:Newname" `shouldBe` (Right $ AssignName $ PlayerName "Newname")
+  parse "/name:  Newname  " `shouldBe` (Right $ AssignName $ PlayerName "Newname")
+  parse "    /name:  Newname  " `shouldBe` (Right $ AssignName $ PlayerName "Newname")
  where
   parse = parseOnly command
 

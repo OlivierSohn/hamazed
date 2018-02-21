@@ -89,7 +89,7 @@ data GameState = GameState {
   , mayFutureWorld :: !(Maybe World)
     -- ^ Maybe the world that we transition to (when a level is over).
     -- Once the transition is over, we replace 'currentWorld' with this 'Just' value.
-  , _gameStateShotNumbers :: ![Int]
+  , _gameStateShotNumbers :: ![ShotNumber]
     -- ^ Which 'Number's were shot
   , getGameLevel :: !Level
     -- ^ The current 'Level'

@@ -73,7 +73,7 @@ updateAppState (Left evt) = case evt of
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot shipId dir) ->
-    onLaser shipId dir
+    onLaser shipId dir Add
   ConnectionAccepted name -> do
     putGameConnection $ Connected name
     sendToServer $ ExitedState Excluded
@@ -145,20 +145,22 @@ onContinueMessage =
 onLaser :: (MonadState AppState m, MonadIO m)
         => ShipId
         -> Direction
+        -> Operation
         -> m ()
-onLaser ship dir =
+onLaser ship dir op =
   liftIO getSystemTime >>= \t ->
-    laserEventAction ship dir t >>= onDestroyedNumbers t
+    laserEventAction ship dir t >>= onDestroyedNumbers t op
 
 {-# INLINABLE onDestroyedNumbers #-}
 onDestroyedNumbers :: (MonadState AppState m)
                    => Time Point System
+                   -> Operation
                    -> [Number]
                    -> m ()
-onDestroyedNumbers t destroyedBalls =
+onDestroyedNumbers t op destroyedBalls =
   getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelSpec _ target _) finished) a s m na) -> do
-    let allShotNumbers = g ++ map (\(Number _ n) -> n) destroyedBalls
-        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (sum allShotNumbers) target t
+    let allShotNumbers = g ++ map (\(Number _ n) -> ShotNumber n op) destroyedBalls
+        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (applyOperations $ reverse allShotNumbers) target t
     putGameState $ GameState w f allShotNumbers newLevel a s m na
 
 {-# INLINABLE onMove #-}
@@ -195,7 +197,7 @@ onHasMoved =
                   _  ->
                     let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
                     in Just $ LevelFinished (Lost msg) t InfoMessage
-          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (sum shotNums) target t
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (applyOperations $ reverse shotNums) target t
           newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
       putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s m n
       updateShipsText

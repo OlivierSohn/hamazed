@@ -56,7 +56,7 @@ mkInitialState :: (MonadIO m)
 mkInitialState = mkIntermediateState []
 
 mkIntermediateState :: (MonadIO m)
-                    => [Int]
+                    => [ShotNumber]
                     -> LevelSpec
                     -> WorldEssence
                     -> Map ShipId PlayerName

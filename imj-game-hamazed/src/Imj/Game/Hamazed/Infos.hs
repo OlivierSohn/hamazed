@@ -16,11 +16,10 @@ import           Data.List( length, foldl' )
 import           Data.Map.Strict((!?))
 import           Data.Text(pack, singleton)
 
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Text.ColorString
 
 data InfoType = Normal | ColorAnimated
@@ -60,23 +59,30 @@ mkObjectiveCS t target =
     ColorAnimated -> [txt red, txt white]
 
 
-mkShotNumbersCS :: InfoType -> [Int] -> Successive ColorString
+mkShotNumbersCS :: InfoType -> [ShotNumber] -> Successive ColorString
 mkShotNumbersCS _ nums =
   let lastIndex = length nums - 1
       first = colored (singleton '[') bracketsColor
       last_ = colored (singleton ']') bracketsColor
-      middle = snd $ foldl' (\(i,s) n -> let num = intToDigit n
-                                             t = case i of
-                                                  0 -> singleton num
-                                                  _ -> pack [num, ' ']
-                                         in (i-1, s <> colored' t (numberColor n))) (lastIndex, first) nums
+      middle =
+        snd
+        $ foldl'
+        (\(i,s) (ShotNumber n op) ->
+            let num = intToDigit n
+                opStr = case op of
+                  Add -> ""
+                  Substract -> "-"
+                t = opStr <> case i of
+                      0 -> singleton num
+                      _ -> pack [num, ' ']
+            in (i-1, s <> colored' t (numberColor n))) (lastIndex, first) nums
 
   in Successive [middle <> last_]
 
 mkLeftInfo :: InfoType
            -> [BattleShip]
            -> Map ShipId PlayerName
-           -> [Int]
+           -> [ShotNumber]
            -> LevelSpec
            -> [Successive ColorString]
 mkLeftInfo t ships names shotNums (LevelSpec level target _)=
@@ -96,7 +102,7 @@ mkUpDownInfo =
 mkInfos :: InfoType
         -> [BattleShip]
         -> Map ShipId PlayerName
-        -> [Int]
+        -> [ShotNumber]
         -> LevelSpec
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])
 mkInfos t ships names shotNums level =

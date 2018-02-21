@@ -28,6 +28,9 @@ module Imj.Game.Hamazed.Network.Types
       , GameStep(..)
       , GameStatus(..)
       , GameStateEssence(..)
+      , ShotNumber(..)
+      , Operation(..)
+      , applyOperations
       , toTxt
       , toTxt'
       , welcome
@@ -38,6 +41,7 @@ import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Map.Strict(Map)
 import qualified Data.Binary as Bin(encode, decode)
+import           Data.List(foldl')
 import           Data.Set(Set)
 import           Data.String(IsString)
 import           Data.Text(intercalate, pack, unpack)
@@ -167,10 +171,28 @@ instance Binary Command
 
 data GameStateEssence = GameStateEssence {
     _essence :: {-# UNPACK #-} !WorldEssence
-  , _shotNumbers :: ![Int]
+  , _shotNumbers :: ![ShotNumber]
 } deriving(Generic, Show)
 instance Binary GameStateEssence
 
+data ShotNumber = ShotNumber {
+    _value :: {-# UNPACK #-} !Int
+    -- ^ The numeric value
+  , getOperation :: !Operation
+  -- ^ How this number influences the current sum.
+} deriving (Generic, Show)
+instance Binary ShotNumber
+
+data Operation = Add | Substract
+  deriving (Generic, Show)
+instance Binary Operation
+
+applyOperations :: [ShotNumber] -> Int
+applyOperations =
+  foldl' (\v (ShotNumber n op) ->
+            case op of
+              Add -> v + n
+              Substract -> v - n) 0
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
     PeriodicMotion {

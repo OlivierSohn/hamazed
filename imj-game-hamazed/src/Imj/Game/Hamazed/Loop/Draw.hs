@@ -56,7 +56,7 @@ draw =
     -- draw last so that the message is clearly visible:
     let w = fromMaybe world mayFutWorld
         offset' = getWorldOffset mode w
-        worldCorner'@(Coords _ col) = getWorldCorner w screenCenter offset'
+        (Coords _ col) = getWorldCorner w screenCenter offset'
         chatUpperLeft =
           Coords (rowCenter - fromIntegral (quot (height chat) 2))
             $ col + 4 + 2 + fromIntegral (getWidth (getSize $ getWorldSpace w))
@@ -76,7 +76,7 @@ drawStatus level ref = \case
   ClientState Over Setup ->
     inform "..."
   ClientState Over Excluded ->
-    inform "Now joining!"
+    inform "Joining..."
   ClientState Ongoing s -> case s of
     Excluded ->
       inform "A game is currently running on the server, please wait..."

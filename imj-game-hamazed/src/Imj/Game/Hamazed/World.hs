@@ -313,7 +313,7 @@ checkTargetAndAmmo ammo sumNumbers target t =
     checkSum = case compare sumNumbers target of
       LT -> Nothing
       EQ -> Just Won
-      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target
+      GT -> Just $ Lost $ pack $ show sumNumbers ++ " is bigger than " ++ show target -- TODO change if substraction is authorized
     checkAmmo
       | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing

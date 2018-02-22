@@ -4,7 +4,7 @@ validated. But the problem is that we don't know if another client in-between ca
 the state.
 
 - merge ListPlayers and ConnectionAccepted
-- fix "ship id not found" on reconnect when more that 1 client has disconnected.
+- (during setup) when a client disconnects, the name on the left should change (postfix with disconnected)
 
 - make stats of world dismissals visible to the user
 
@@ -44,8 +44,6 @@ Laser color changes : red = plus
 - the other ship can double numbers (make levels where we need to double
     some numbers in order to reach the sum)
 - the other ship can multiply
-
-- during setup, when a client disconnects, the name on the left should change (postfix with disconnected)
 
 - TextBox should take newlines into account, to make messages like:
 While parsing:

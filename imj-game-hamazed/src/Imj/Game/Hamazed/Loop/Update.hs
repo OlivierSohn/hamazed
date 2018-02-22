@@ -92,7 +92,7 @@ updateAppState (Left evt) = case evt of
   Error txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
-  onDisconnection ClientShutdown     = liftIO $ throwIO GracefulClientEnd
+  onDisconnection ClientShutdown       = liftIO $ throwIO GracefulClientEnd
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 

@@ -37,7 +37,10 @@ mkShipCS :: InfoType
          -> Successive ColorString
 mkShipCS _ names (BattleShip sid _ ammo status _) =
   let (PlayerName name) =
-        fromMaybe (error $ "ship id not found " ++ show sid)
+        fromMaybe
+          -- happens when 2 players disconnect while playing: the first one to reconnect will not
+          -- know about the name of the other disconnected player.
+          (PlayerName "not found")
           $ names !? sid
       pad = initialLaserAmmo - ammo
       shipNameColor Destroyed = darkConfigFgColor

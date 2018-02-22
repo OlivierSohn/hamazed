@@ -108,7 +108,7 @@ onEvent mayEvt = do
  where
   checkPlayerEndsProgram =
     playerEndsProgram >>= \end ->
-      when end $ sendToServer Disconnect -- Note that it is safe to send this several times
+      when end $ sendToServer $ RequestCommand $ Leaves Intentional -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)

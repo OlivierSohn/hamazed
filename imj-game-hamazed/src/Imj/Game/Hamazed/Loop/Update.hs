@@ -15,7 +15,7 @@ import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Attoparsec.Text(parseOnly)
-import           Data.Map.Strict(elems)
+import qualified Data.Map.Strict as Map (elems, map)
 import           Data.Text(pack, strip)
 
 import           Imj.Game.Hamazed.World.Space.Types
@@ -40,7 +40,7 @@ updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, ClientNode e,
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  (Interrupt Quit) -> sendToServer Disconnect
+  (Interrupt Quit) -> sendToServer $ RequestCommand $ Leaves Intentional
   (Interrupt Help) -> error "not implemented"
   Configuration c ->
     updateGameParamsFromChar c
@@ -77,8 +77,8 @@ updateAppState (Left evt) = case evt of
   ConnectionAccepted i players -> do
     sendToServer $ ExitedState Excluded
     putGameConnection $ Connected i
-    putPlayerNames players
-    stateChat $ addMessage $ ChatMessage $ welcome $ elems players
+    putPlayers $ Map.map (flip Player Present) players
+    stateChat $ addMessage $ ChatMessage $ welcome $ Map.elems players
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
   PlayerInfo (ClientId player _) notif ->
@@ -158,7 +158,7 @@ onDestroyedNumbers :: (MonadState AppState m)
 onDestroyedNumbers t op destroyedBalls =
   getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s m na) -> do
     let allShotNumbers = g ++ map (\(Number _ n) -> ShotNumber n op) destroyedBalls
-        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ elems ships) (applyOperations $ reverse allShotNumbers) target t
+        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target t
     putGameState $ GameState w f allShotNumbers newLevel a s m na
 
 {-# INLINABLE onMove #-}
@@ -195,7 +195,7 @@ onHasMoved =
                   _  ->
                     let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
                     in Just $ LevelFinished (Lost msg) t InfoMessage
-          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ elems ships) (applyOperations $ reverse shotNums) target t
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse shotNums) target t
           newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
       putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s m n
       updateShipsText

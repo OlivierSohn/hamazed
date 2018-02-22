@@ -13,7 +13,8 @@ module Imj.Game.Hamazed.State.Types
       -- * Access
       , getGame
       , getGameState
-      , getPlayerNames
+      , getPlayers
+      , getPlayer
       , getLevel
       , getLevelStatus
       , getChatMode
@@ -30,8 +31,8 @@ module Imj.Game.Hamazed.State.Types
       -- * Modify
       , putGame
       , putGameState
-      , putPlayerName
-      , putPlayerNames
+      , putPlayer
+      , putPlayers
       , putLevel
       , putLevelStatus
       , putViewMode
@@ -51,7 +52,7 @@ import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(get, put)
-import           Data.Map.Strict(fromList, union, updateWithKey, insert)
+import           Data.Map.Strict(fromList, union, updateWithKey, insert, (!?))
 
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.UI.Animation
@@ -208,17 +209,21 @@ putViewMode p =
 putWorld :: MonadState AppState m => World -> m ()
 putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 
-{-# INLINABLE getPlayerNames #-}
-getPlayerNames :: MonadState AppState m => m (Map ShipId PlayerName)
-getPlayerNames = playerNames <$> getGameState
+{-# INLINABLE getPlayers #-}
+getPlayers :: MonadState AppState m => m (Map ShipId Player)
+getPlayers = playerNames <$> getGameState
 
-{-# INLINABLE putPlayerNames #-}
-putPlayerNames :: MonadState AppState m => Map ShipId PlayerName -> m ()
-putPlayerNames m = getGameState >>= \g -> putGameState g {playerNames = m}
+{-# INLINABLE getPlayer #-}
+getPlayer :: MonadState AppState m => ShipId -> m (Maybe Player)
+getPlayer i = flip (!?) i <$> getPlayers
 
-{-# INLINABLE putPlayerName #-}
-putPlayerName :: MonadState AppState m => ShipId -> PlayerName -> m ()
-putPlayerName sid name = getPlayerNames >>= \names -> putPlayerNames $ insert sid name names
+{-# INLINABLE putPlayers #-}
+putPlayers :: MonadState AppState m => Map ShipId Player -> m ()
+putPlayers m = getGameState >>= \g -> putGameState g {playerNames = m}
+
+{-# INLINABLE putPlayer #-}
+putPlayer :: MonadState AppState m => ShipId -> Player -> m ()
+putPlayer sid player = getPlayers >>= \names -> putPlayers $ insert sid player names
 
 {-# INLINABLE takeKeys #-}
 takeKeys :: MonadState AppState m => Int -> m [ParticleSystemKey]

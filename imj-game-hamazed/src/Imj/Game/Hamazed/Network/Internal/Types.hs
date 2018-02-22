@@ -38,7 +38,7 @@ data Client = Client {
   -- for a given time. This is the time at which the immunity ends. 'Nothing' values
   -- mean that there is no immunity.
   , getShipAcceleration :: !(Coords Vel)
-  , getState :: {-unpack sum-} !(Maybe PlayerState)
+  , getState :: {-unpack sum-} !(Maybe PlayerState) -- TODO should we add Disconnected, and leave disconnected clients in the map?
   -- ^ When 'Nothing', the client is excluded from the current game.
 } deriving(Generic)
 instance NFData Client where
@@ -86,6 +86,7 @@ instance NFData Intent
 
 data Clients = Clients {
     getClients' :: !(Map ShipId Client)
+    -- once a client is disconnected, it is removed from the map.
   , getNextShipId :: !ShipId
 } deriving(Generic)
 instance NFData Clients

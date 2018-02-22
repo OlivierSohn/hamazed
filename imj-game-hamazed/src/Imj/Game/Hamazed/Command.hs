@@ -16,7 +16,6 @@ import           Imj.Prelude
 
 import           Data.Attoparsec.Text(Parser, takeText, endOfInput, string, char, peekChar', skipSpace, space)
 import           Data.Char(isSpace)
-import           Data.Map.Strict((!?))
 import           Data.Text(pack, unsnoc)
 
 import           Imj.Game.Hamazed.Network.Types
@@ -30,10 +29,22 @@ runCommand :: (MonadState AppState m)
            => ShipId
            -> Command
            -> m ()
-runCommand sid (AssignName name) = putPlayerName sid name >> updateShipsText
+runCommand sid (AssignName name) = do
+  putPlayer sid (Player name Present)
+  updateShipsText
 runCommand _ (PutShipColor _) = undefined
-runCommand sid (Says what) = getPlayerNames >>= \names ->
-  stateChat $ addMessage $ ChatMessage $ maybe "?" (\(PlayerName x) -> x) (names !? sid) <> ":" <> what
+runCommand sid (Says what) = getPlayer sid >>= \n ->
+  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> ":" <> what
+runCommand sid (Leaves detail) = getPlayer sid >>= \n -> do
+  maybe
+    (return ())
+    (\(Player a _) -> putPlayer sid $ Player a Absent)
+      n
+  updateShipsText
+  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> " " <>
+    case detail of
+      Intentional -> "leaves the game intentionally."
+      ConnectionError t -> "leaves the game due to a connection error : " <> t
 
 maxOneSpace :: Text -> Text
 maxOneSpace t = go t False []

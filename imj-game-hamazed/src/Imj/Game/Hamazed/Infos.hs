@@ -32,16 +32,11 @@ mkLevelCS t level =
     ColorAnimated -> [txt red, txt configFgColor]
 
 mkShipCS :: InfoType
-         -> Map ShipId PlayerName
+         -> Map ShipId Player -- TODO use the AppState monad instead of passing this ?
          -> BattleShip
          -> Successive ColorString
 mkShipCS _ names (BattleShip sid _ ammo status _) =
-  let (PlayerName name) =
-        fromMaybe
-          -- happens when 2 players disconnect while playing: the first one to reconnect will not
-          -- know about the name of the other disconnected player.
-          (PlayerName "not found")
-          $ names !? sid
+  let name = getPlayerUIName $ names !? sid
       pad = initialLaserAmmo - ammo
       shipNameColor Destroyed = darkConfigFgColor
       shipNameColor _   = configFgColor
@@ -84,7 +79,7 @@ mkShotNumbersCS _ nums =
 
 mkLeftInfo :: InfoType
            -> [BattleShip]
-           -> Map ShipId PlayerName
+           -> Map ShipId Player
            -> [ShotNumber]
            -> LevelEssence
            -> [Successive ColorString]
@@ -104,7 +99,7 @@ mkUpDownInfo =
 
 mkInfos :: InfoType
         -> [BattleShip]
-        -> Map ShipId PlayerName
+        -> Map ShipId Player
         -> [ShotNumber]
         -> LevelEssence
         -> ((Successive ColorString, Successive ColorString), [Successive ColorString])

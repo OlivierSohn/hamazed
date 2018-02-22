@@ -12,6 +12,9 @@ module Imj.Game.Hamazed.Types
     , UpdateEvent
     , EventGroup(..)
     , GenEvent(..)
+    , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
+    , Player(..)
+    , getPlayerUIName
     , initialParameters
     , initialViewMode
     , minRandomBlockSize
@@ -97,8 +100,18 @@ data GameState = GameState {
     -- ^ Inter-level animation.
   , getScreen :: {-# UNPACK #-} !Screen
   , getViewMode' :: {-unpack sum-} !ViewMode
-  , playerNames :: !(Map ShipId PlayerName)
+  , playerNames :: !(Map ShipId Player)
 }
+
+data PlayerStatus = Present | Absent
+data Player = Player {-# UNPACK #-} !PlayerName {-unpack sum-} !PlayerStatus
+
+getPlayerUIName :: Maybe Player -> Text
+-- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
+-- know about the name of the other disconnected player.
+getPlayerUIName Nothing = "? (away)"
+getPlayerUIName (Just (Player (PlayerName n) Present)) = n
+getPlayerUIName (Just (Player (PlayerName n) Absent)) = n <> " (away)"
 
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)

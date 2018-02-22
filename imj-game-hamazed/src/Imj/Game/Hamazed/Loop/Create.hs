@@ -48,7 +48,7 @@ initialGameState _ mode ms =
 mkInitialState :: (MonadIO m)
                => LevelEssence
                -> WorldEssence
-               -> Map ShipId PlayerName
+               -> Map ShipId Player
                -> ViewMode
                -> Maybe Size
                -> Maybe GameState
@@ -59,7 +59,7 @@ mkIntermediateState :: (MonadIO m)
                     => [ShotNumber]
                     -> LevelEssence
                     -> WorldEssence
-                    -> Map ShipId PlayerName
+                    -> Map ShipId Player
                     -> ViewMode
                     -> Maybe Size
                     -> Maybe GameState

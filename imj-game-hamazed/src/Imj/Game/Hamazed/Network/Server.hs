@@ -103,6 +103,10 @@ appSrv st pending =
 -- inside so that a broken connection of another client while broadcasting a message doesn't impact this client.
 appSrv' :: MVar ServerState -> Connection -> IO ()
 appSrv' st conn =
+  -- Currently, we cannot have a 'Client' in a disconnected state, this is why
+  -- we do a special case for Connect. But ideally we should be abble to disconnect a client.
+  -- and reconnect it in the loop. To do that, when we disconnect a client, it will not
+  -- be removed from the map, instead its state will be Disconnected. (TODO)
   receiveData conn >>= \case
     Connect sn@(SuggestedPlayerName suggestedName) cliType -> either
       (sendBinaryData conn . ConnectionRefused . InvalidName sn)
@@ -218,26 +222,26 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client i@(ClientId (PlayerName name) _) _ ownership _ _ _ _) =
+disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
-    when (Map.member (getClientId i) clients) $ do
+    when (Map.member i clients) $ do
       -- If the client owns the server, we shutdown connections to /other/ clients first.
       when (ownership == ClientOwnsServer) $
         mapM_
-          (\client'@(Client j _ _ _ _ _ _) ->
-              unless (i == j) $
+          (\client'@(Client (ClientId _ j) _ _ _ _ _ _) ->
+              unless (i == j) $ do
                 let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
-                in disconnectClient (ServerShutdown msg) client')
+                disconnectClient (ServerShutdown msg) client')
           clients
       -- Finally, shutdown the client connection.
       disconnectClient r c
  where
   disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
-  disconnectClient reason client@(Client cId@(ClientId (PlayerName playerName) shipId) conn _ _ _ _ _) = do
+  disconnectClient reason client@(Client (ClientId (PlayerName playerName) cid) conn _ _ _ _ _) = do
     -- Remove the client from the registered clients Map
-    modify' $ \s -> s { getClients = removeClient shipId $ getClients s }
+    modify' $ \s -> s { getClients = removeClient cid $ getClients s }
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -257,9 +261,9 @@ disconnect r c@(Client i@(ClientId (PlayerName name) _) _ ownership _ _ _ _) =
         -- they will receive a server shutdown notification.
         return ()
       ClientShutdown ->
-        sendClients $ PlayerInfo cId $ Leaves Intentional
+        sendClients $ RunCommand cid $ Leaves Intentional
       BrokenClient e ->
-        sendClients $ PlayerInfo cId $ Leaves $ ConnectionError e
+        sendClients $ RunCommand cid $ Leaves $ ConnectionError e
 
 allClients :: StateT ServerState IO [Client]
 allClients =
@@ -298,8 +302,6 @@ handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
 handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
     error' client $ "already connected : " <> sn
-  Disconnect ->
-    disconnect ClientShutdown client
   RequestCommand cmd@(AssignName name) -> either
     (send client . CommandError cmd)
     (\_ -> checkNameAvailability name >>= either
@@ -310,6 +312,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
     ) $ checkName name
   RequestCommand cmd@(PutShipColor _) -> sendClients $ RunCommand i cmd
   RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
+  RequestCommand (Leaves _) -> disconnect ClientShutdown client -- will do the corresponding 'sendClients $ RunCommand'
   ExitedState Excluded ->
     getIntent >>= \case
       IntentSetup -> do

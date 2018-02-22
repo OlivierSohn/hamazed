@@ -9,7 +9,6 @@ module Imj.Game.Hamazed.World.Create
         , mkSpace
         , updateMovableItem
         , validateScreen
-        , createShipPos
         ) where
 
 import           Imj.Prelude
@@ -25,42 +24,50 @@ import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
+import           Imj.Util
 
 
 mkWorldEssence :: WorldSpec -> IO WorldEssence
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) clientIds (WorldParameters shape wallDistrib) wid) = do
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistrib) wid) = do
   let (LevelEssence _ _ numbers) = mkLevelEssence s
       size = worldSizeFromLevel levelNum shape
-      nShips = length clientIds
-  space <- mkSpace size wallDistrib
-  balls <- mapM (createRandomNumber space) numbers
-  posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
-  let ships = fromList $ map
-        (\(shipId,posSpeed@(PosSpeed pos _)) ->
-          (shipId, BattleShip shipId posSpeed initialLaserAmmo Armored (getColliding pos balls)))
-        $ zip clientIds posSpeeds
-  return $ WorldEssence balls ships (toListOfLists space) wid
+      nShips = length shipIds
+  (space, topology) <- mkSpace size nShips wallDistrib
+  let groups = zip shipIds $ mkGroups nShips numbers -- TODO shuffle numbers ?
+  -- TODO make groups such that a single player cannot finish the level without the help of others.
+  shipsAndNums <- mapM
+    (\((shipId, nums), componentIdx) -> do
+      -- TODO shuffle this, as it is ordered due to the use of a Set inside.
+       positions <- randomCCCoords (1 + length nums) componentIdx topology NoOverlap
+       (shipPosSpeed:numPosSpeeds) <- mapM (mkRandomPosSpeed space) positions
+       let ship = BattleShip shipId shipPosSpeed initialLaserAmmo Armored [] -- no collision because we passed 'NoOverlap' to randomCCCoords
+           ns = map (\(n,posSpeed) -> Number posSpeed n) $ zip nums numPosSpeeds
+       return ((shipId, ship), ns)
+    ) $ zip groups $ cycle $ getComponentIndices topology
+  let (ships, balls) = unzip shipsAndNums
+
+  --balls <- mapM (createRandomNumber space) numbers
+  --posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
+  --let ships = fromList $ map
+  --      (\(shipId,posSpeed@(PosSpeed pos _)) ->
+  --        (shipId, BattleShip shipId posSpeed initialLaserAmmo Armored (getColliding pos balls)))
+  --      $ zip clientIds posSpeeds
+  return $ WorldEssence (concat balls) (fromList ships) (toListOfLists space) wid
 
 mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence [] empty [[]] Nothing
 
--- | Ships positions will not be colliding with numbers and with each other.
-createShipPosSpeeds :: Int -> Space -> [Coords Pos] -> [PosSpeed] -> IO [PosSpeed]
-createShipPosSpeeds 0 _ _ res = return res
-createShipPosSpeeds n space obstacles cur =
-  createShipPos space obstacles >>= \posSpeed@(PosSpeed pos _) ->
-    createShipPosSpeeds (pred n) space (pos:obstacles) (posSpeed:cur)
-
 mkSpace :: (MonadIO m)
         => Size
         -- ^ The dimensions
+        -> Int
+        -- ^ Number of connex components
         -> WallDistribution
         -- ^ How the 'Wall's should be constructed
-        -> m Space
-mkSpace s = \case
-  None          -> return $ mkEmptySpace s
-  Deterministic -> return $ mkDeterministicallyFilledSpace s
-  Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
+        -> m (Space, BigWorldTopology)
+mkSpace s n = \case
+  None -> return $ mkEmptySpace s
+  Random params -> liftIO $ mkRandomlyFilledSpace params s n
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
@@ -95,25 +102,6 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
   let trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
-
-
-createRandomNumber :: (MonadIO m)
-                   => Space
-                   -> Int
-                   -> m Number
-createRandomNumber space i = do
-  ps <- liftIO $ createRandomNonCollidingPosSpeed space
-  return $ Number ps i
-
-
-createShipPos :: Space -> [Coords Pos] -> IO PosSpeed
-createShipPos space numPositions = do
-  candidate@(PosSpeed pos _) <- createRandomNonCollidingPosSpeed space
-  if pos `notElem` numPositions
-    then
-      return candidate
-    else
-      createShipPos space numPositions
 
 validateScreen :: Screen -> IO ()
 validateScreen (Screen sz _) =

@@ -20,6 +20,7 @@ module Imj.Geo.Discrete
            , translate'
            , translateInDir
            , countInDir
+           , multiply
            -- * Discrete algorithms
            -- ** Bresenham
            {- | The 2d version, 'bresenham', allows to

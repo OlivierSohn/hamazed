@@ -129,7 +129,6 @@ library
                      , temporary ==1.2.*
                      , terminal-size >= 0.3.2.1 && < 0.3.3
                      , text >=1.2.3 && < 1.3
-
                      , transformers == 0.5.*
                      , vector >= 0.12.0.1 && < 0.12.1
                      , vector-algorithms >= 0.7.0.1 && < 0.8
@@ -164,6 +163,7 @@ test-suite imj-base-test
                      , Test.Imj.Resample
                      , Test.Imj.Segment
                      , Test.Imj.Timing
+                     , Test.Imj.Util
                      , Test.Imj.Vector
                      , Test.Imj.ZigZag
   main-is:             Spec.hs

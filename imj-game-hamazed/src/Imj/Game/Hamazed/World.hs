@@ -51,7 +51,6 @@ module Imj.Game.Hamazed.World
     , Material(..)
       -- ** Simple creation
     , mkEmptySpace
-    , mkDeterministicallyFilledSpace
       -- ** Randomized creation
       {-| 'mkRandomlyFilledSpace' places 'Wall's at random and discards resulting
       'Space's which have more than one 'Air' connected component.

@@ -13,6 +13,7 @@ import           Test.Imj.RectArea
 import           Test.Imj.Resample
 import           Test.Imj.Segment
 import           Test.Imj.Timing
+import           Test.Imj.Util
 import           Test.Imj.Vector
 import           Test.Imj.ZigZag
 
@@ -28,6 +29,7 @@ main = do
   testVector >>= print
   testZigZag >>= print
   testInterpolation
+  testUtils
 
   clearScreen -- to not overwrite current terminal content.
   _ <- runReaderT (testICS >>

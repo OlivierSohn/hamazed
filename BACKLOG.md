@@ -1,18 +1,21 @@
-- one component per player.
-a player sees only the numbers of its own component.
+- verify the game can be finished, have fallback strategies when there is not enough
+space for all ships / numbers / components.
 
-- ships replaced by humans
+- 3 players : 2 do the 2 expressions,
+one does the operation : * or +
+
+- the number of numbers per connected component should be proportional to
+the cc size.
+
+- ships replaced by humans walking, jumping, climbing
 
 - when making level essence, we should know the number of players.
 
-- where one has + other has - :
-  to win the level, we need to reach a (positive) number, then come back to 0.
-
-- Duel mode where the one that has the max sum wins.
-(There is no target number. How do we know if we won the level?)
+- Duel mode with one component, the one that has the max sum wins the level number.
+levels go on until 12.
 
 Note that the start location matters a lot in that case. Think of a way to place ships in a fair way,
-with the notion of "manhattan collision free distance" to number,
+with the notion of "manhattan collision free distance" to number.
 
 - (mkLevelEssence) Specialized mode where one has + the other has -.
 To make players engage, they need to feel that they are both important to win
@@ -32,8 +35,7 @@ Laser color changes : red = plus
     some numbers in order to reach the sum)
 - the other ship can multiply
 
-
-- during setup, when a client disconnects, it is notified in the chat but the player name still appears on the left, maybe we should not draw the left side during setup?
+- during setup, when a client disconnects, the name on the left should change (postfix with disconnected)
 
 - TextBox should take newlines into account, to make messages like:
 While parsing:

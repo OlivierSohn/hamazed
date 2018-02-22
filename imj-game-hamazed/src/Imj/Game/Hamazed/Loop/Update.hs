@@ -127,8 +127,7 @@ updateGameParamsFromChar = \case
   '1' -> sendToServer $ ChangeWorldShape Square
   '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
   'e' -> sendToServer $ ChangeWallDistribution None
-  'r' -> sendToServer $ ChangeWallDistribution Deterministic
-  't' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize StrictlyOneComponent
+  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize OneComponentPerShip
   'd' -> putViewMode CenterSpace -- TODO force a redraw?
   'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
   _ -> return ()

@@ -12,7 +12,7 @@ module Imj.Graphics.Render.Delta.Buffers
           , getBufferHeight
           ) where
 
-import           Imj.Prelude hiding(replicate)
+import           Imj.Prelude hiding(replicate, unzip)
 import           Prelude hiding (replicate, unzip, length)
 
 import           Control.Exception(assert)

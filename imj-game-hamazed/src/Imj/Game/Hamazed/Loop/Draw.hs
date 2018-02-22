@@ -11,6 +11,7 @@ module Imj.Game.Hamazed.Loop.Draw
       ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -110,20 +111,27 @@ drawSetup cont = do
     >>= dTextAl_ "------------------"
   dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
-  translateInDir Down <$> dText "* World shape" (move 5 Up left)
-    >>= dText "'1' : width is height"
-    >>= dText_ "'2' : width is 2 x height"
-  translateInDir Down <$> dText "* World walls" left
-    >>= dText "'e' : No walls"
-    >>= dText "'r' : Deterministic walls"
-    >>= dText "'t' : Random walls"
-    >>= return . translateInDir Down
-    >>= dText "* Center view on:"
-    >>= dText "'d' : Space"
-    >>= dText "'f' : Ship"
-    >>= return . translateInDir Down
-    >>= dText "* Rendering (OpenGL only):"
-    >>= dText_ "'y' : Toggle numbers as square quarters"
+  void $ section "World shape"
+      [ "'1' : width is height"
+      , "'2' : width is 2 x height"
+      ] (move 5 Up left)
+    >>= section "World walls"
+      [ "'e' : No walls"
+      , "'r' : Random walls"
+      ]
+    >>= section "Center view"
+      [ "'d' : On space"
+      , "'f' : On ship"
+      ]
+    >>= section "Rendering"
+      [ "'y' : Toggle numbers as square quarters (OpenGL only)"
+      ]
+ where
+  section title elts pos = do
+    dText_ ("[" <> title <> "]") pos
+    foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts
+    return $ move (2 + length elts) Down pos
+
 
 {-# INLINABLE dText #-}
 dText :: (Draw e, MonadReader e m, MonadIO m)

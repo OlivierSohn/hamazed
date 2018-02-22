@@ -85,8 +85,6 @@ instance NFData WorldShape
 -- | How should walls be created?
 data WallDistribution = None
                       -- ^ No 'Wall's.
-                      | Deterministic
-                      -- ^ A Rectangular 'Wall' in the middle of the level.
                       | Random !RandomParameters
                       -- ^ 'Wall's are created with an algorithm involving random numbers.
                       deriving(Generic, Show)

@@ -111,4 +111,4 @@ initialViewMode :: ViewMode
 initialViewMode = CenterSpace
 
 defaultRandom :: RandomParameters
-defaultRandom = RandomParameters minRandomBlockSize StrictlyOneComponent
+defaultRandom = RandomParameters minRandomBlockSize OneComponentPerShip

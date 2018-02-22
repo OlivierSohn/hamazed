@@ -5,6 +5,7 @@ module Imj.Util
     ( -- * List utilities
       showListOrSingleton
     , replicateElements
+    , mkGroups
     , range
     , takeWhileInclusive
       -- * String utilities
@@ -21,7 +22,7 @@ module Imj.Util
 import           Imj.Prelude
 
 import           Data.Int(Int64)
-import           Data.List(reverse)
+import           Data.List(reverse, length, splitAt, foldl')
 import           Data.Text(Text, pack)
 
 import           Control.Arrow( first )
@@ -41,6 +42,32 @@ showListOrSingleton l   = pack $ show l
 -- | Replicates each list element n times and concatenates the result.
 replicateElements :: Int -> [a] -> [a]
 replicateElements n = concatMap (replicate n)
+
+-- | Divides a list in n lists of sizes s or s+1. Bigger lists are placed at the
+-- beginning.
+--
+-- Elements order is maintained, i.e for every n>0 and input :
+--
+-- @ input == concat $ mkGroups n input @
+{-# INLINABLE mkGroups #-}
+mkGroups :: Int
+         -- ^ number of groups, must be > 0
+         -> [a]
+         -> [[a]]
+mkGroups n elts
+  | n <= 0 = error $ "negative group count " ++ show n
+  | otherwise = reverse $ assert (null remainingElts) groups
+  where
+    l = length elts
+    (minGroupSize,remain) = quotRem l n
+    sizes = replicate remain (succ minGroupSize) ++ replicate (n-remain) minGroupSize
+    (remainingElts, groups) =
+      foldl'
+        (\(rElts,res) sz ->
+          let (a,rest) = splitAt sz rElts
+          in (rest,a:res))
+        (elts, [])
+        sizes
 
 -- | Takes elements, until (inclusively) a condition is met.
 takeWhileInclusive :: (a -> Bool) -> [a] -> [a]

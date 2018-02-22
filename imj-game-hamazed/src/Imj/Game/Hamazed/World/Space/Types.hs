@@ -24,11 +24,8 @@ import           Data.Matrix( Matrix, ncols, nrows )
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
-data Strategy = StrictlyOneComponent
-              -- ^ There should be a single connected component of air.
-              --
-              -- This way, the ship can reach any allowed location without having to go
-              -- through 'Wall's.
+data Strategy = OneComponentPerShip
+              -- ^ There should be one 'Air' connected component per ship.
               deriving(Generic, Binary, Show, NFData)
 
 

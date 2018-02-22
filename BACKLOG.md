@@ -1,9 +1,3 @@
-- in case of exception within modifyMVar, server-side, the modification is canceled.
-Hence we should probably delay sending the commands after the modification has been
-validated. But the problem is that we don't know if another client in-between can have changed
-the state.
-
-- merge ListPlayers and ConnectionAccepted
 - (during setup) when a client disconnects, the name on the left should change (postfix with disconnected)
 
 - make stats of world dismissals visible to the user

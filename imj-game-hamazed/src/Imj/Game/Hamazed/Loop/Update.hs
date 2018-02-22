@@ -74,14 +74,13 @@ updateAppState (Left evt) = case evt of
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot shipId dir) ->
     onLaser shipId dir Add
-  ConnectionAccepted name -> do
-    putGameConnection $ Connected name
+  ConnectionAccepted i players -> do
     sendToServer $ ExitedState Excluded
-  ConnectionRefused reason ->
-    putGameConnection $ ConnectionFailed reason
-  ListPlayers players -> do
+    putGameConnection $ Connected i
     putPlayerNames players
     stateChat $ addMessage $ ChatMessage $ welcome $ elems players
+  ConnectionRefused reason ->
+    putGameConnection $ ConnectionFailed reason
   PlayerInfo (ClientId player _) notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt player notif
   GameInfo notif ->

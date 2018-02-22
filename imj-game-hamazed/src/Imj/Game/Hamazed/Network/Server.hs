@@ -99,6 +99,8 @@ appSrv :: MVar ServerState -> PendingConnection -> IO ()
 appSrv st pending =
   acceptRequest pending >>= appSrv' st
 
+-- We handle all "normal" exceptions (which happen due to network failures or players disconnections)
+-- inside so that a broken connection of another client while broadcasting a message doesn't impact this client.
 appSrv' :: MVar ServerState -> Connection -> IO ()
 appSrv' st conn =
   receiveData conn >>= \case
@@ -138,12 +140,11 @@ makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT Ser
 makeClient conn sn cliType = do
   i <- takeShipId
   name <- makePlayerName sn
+  -- this call is /before/ addClient to avoid redundant info for client.
+  sendClients $ RunCommand i $ AssignName name
   let client = mkClient (ClientId name i) conn cliType
   addClient client
-  send client $ ConnectionAccepted i
-  -- order is important, first send the list of all players, then update the name.
-  send client . ListPlayers . Map.map (getPlayerName . getIdentity) =<< clientsMap
-  sendClients $ RunCommand i $ AssignName name -- note that this is redundant for client.
+  send client . ConnectionAccepted i . Map.map (getPlayerName . getIdentity) =<< clientsMap
   return client
  where
   takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)

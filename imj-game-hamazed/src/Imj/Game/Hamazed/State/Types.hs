@@ -196,7 +196,7 @@ getGameConnection = connection <$> getGame
 getMyShipId :: MonadState AppState m => m (Maybe ShipId)
 getMyShipId =
   (\case
-    Connected myId -> Just $ getClientId myId
+    Connected myId -> Just myId
     _ -> Nothing) <$> getGameConnection
 
 {-# INLINABLE putViewMode #-}

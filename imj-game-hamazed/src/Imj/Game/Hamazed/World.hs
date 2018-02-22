@@ -75,8 +75,6 @@ module Imj.Game.Hamazed.World
     , location
     , scopedLocation
     , Scope(..)
-      -- ** Collision detection utilities
-    , createRandomNonCollidingPosSpeed
       -- ** Draw
     , drawSpace
       -- * Movable items

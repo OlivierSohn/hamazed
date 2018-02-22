@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , CurrentGame(..)
       , mkCurrentGame
       , newServerState
+      , firstServerLevel
     ) where
 
 import           Imj.Prelude
@@ -102,7 +103,10 @@ mkGameTiming = GameTiming Nothing initalGameMultiplicator
 mkClients :: Clients
 mkClients = Clients empty (ShipId 0)
 
+firstServerLevel :: Int
+firstServerLevel = firstLevel
+
 newServerState :: IO ServerState
 newServerState =
-  ServerState mkClients mkGameTiming (LevelSpec firstLevel CannotOvershoot)
+  ServerState mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
               initialParameters Nothing IntentSetup False <$> newEmptyMVar

@@ -1,5 +1,15 @@
-- verify the game can be finished, have fallback strategies when there is not enough
-space for all ships / numbers / components.
+- in case of exception within modifyMVar, server-side, the modification is canceled.
+Hence we should probably delay sending the commands after the modification has been
+validated. But the problem is that we don't know if another client in-between can have changed
+the state.
+
+- merge ListPlayers and ConnectionAccepted
+- fix "ship id not found" on reconnect when more that 1 client has disconnected.
+
+- make stats of world dismissals visible to the user
+
+- make world end when no reachable number is available. (i.e some numbers are alive
+  but in another component)
 
 - 3 players : 2 do the 2 expressions,
 one does the operation : * or +

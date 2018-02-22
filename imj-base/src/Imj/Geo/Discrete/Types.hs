@@ -22,6 +22,7 @@ module Imj.Geo.Discrete.Types
     , Height
     , toCoords
     , maxLength
+    , area
     -- ** Segment
     , Segment(..)
     , mkSegment
@@ -103,6 +104,10 @@ data Size = Size {
 } deriving (Eq, Show, Generic)
 
 instance PrettyVal Size
+
+{-# INLINE area #-}
+area :: Size -> Int
+area (Size (Length h) (Length w)) = h * w
 
 -- | Width and Height to Coords
 {-# INLINE toCoords #-}

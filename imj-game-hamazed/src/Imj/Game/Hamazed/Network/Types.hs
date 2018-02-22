@@ -118,7 +118,7 @@ data ClientEvent =
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
-    ConnectionAccepted {-# UNPACK #-} !ClientId
+    ConnectionAccepted {-# UNPACK #-} !ShipId
   | ListPlayers !(Map ShipId PlayerName)
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
@@ -215,7 +215,7 @@ instance NFData GameStatus
 
 data ConnectionStatus =
     NotConnected
-  | Connected {-# UNPACK #-} !ClientId
+  | Connected {-# UNPACK #-} !ShipId
   | ConnectionFailed {-# UNPACK #-} !NoConnectReason
 
 data NoConnectReason =

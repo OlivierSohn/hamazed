@@ -111,8 +111,7 @@ appSrv' st conn =
               return
         -- To detect disconnections when communication is idle:
         void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
-        disconnectOnException $ do
-          sendBinaryData conn $ ConnectionAccepted $ getIdentity client
+        disconnectOnException $
           forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
       ) $ checkName $ PlayerName $ pack suggestedName
     msg -> error $ "first sent message should be 'Connect'. " ++ show msg
@@ -141,8 +140,10 @@ makeClient conn sn cliType = do
   name <- makePlayerName sn
   let client = mkClient (ClientId name i) conn cliType
   addClient client
-  sendClients $ RunCommand i $ AssignName name
+  send client $ ConnectionAccepted i
+  -- order is important, first send the list of all players, then update the name.
   send client . ListPlayers . Map.map (getPlayerName . getIdentity) =<< clientsMap
+  sendClients $ RunCommand i $ AssignName name -- note that this is redundant for client.
   return client
  where
   takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)
@@ -352,7 +353,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
                                   }
            else do
              modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
-                             in s { getLevelSpec' = LevelSpec firstLevel constraint
+                             in s { getLevelSpec' = LevelSpec firstServerLevel constraint
                                   , getIntent' = IntentSetup
                                   }
              modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players. TODO notify via chat of players that actually joined

@@ -23,7 +23,6 @@ module Imj.Game.Hamazed.World.Space
     , distanceToSpace
     , Scope(..)
     , drawSpace
-    , createRandomNonCollidingPosSpeed -- TODO remove
     , mkRandomPosSpeed
     , unsafeGetMaterial
     , getBigCoords
@@ -40,7 +39,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import qualified Data.Vector.Unboxed as UnboxV (Vector, fromList, length, (!))
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
-import           Data.List(length, group, concat, mapAccumL, sortOn)
+import           Data.List(elem, length, group, concat, mapAccumL, sortOn)
 import           Data.Maybe(mapMaybe)
 import           Data.Matrix(Matrix, getElem, fromLists, getMatrixAsVector, nrows, ncols, toLists)
 import qualified Data.Set as Set(size, fromList, toList, union)
@@ -60,20 +59,13 @@ toListOfLists (Space mat) = toLists mat
 fromListOfLists :: [[Material]] -> Space
 fromListOfLists = Space . fromLists
 
--- | Creates a 'PosSpeed' such that its position is not colliding,
--- and moves to precollision and mirrors speed if a collision is detected for
+-- | Creates a 'PosSpeed' from a position,
+-- moves to precollision and mirrors speed if a collision is detected for
 -- the next step (see 'mirrorSpeedAndMoveToPrecollisionIfNeeded').
-createRandomNonCollidingPosSpeed :: Space -> IO PosSpeed
-createRandomNonCollidingPosSpeed space = do
-  pos <- randomNonCollidingPos space
-  fst
-    . mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space)
-    . PosSpeed pos <$> randomSpeed
-
--- | Creates a 'PosSpeed' such that its position is not colliding,
--- and moves to precollision and mirrors speed if a collision is detected for
--- the next step (see 'mirrorSpeedAndMoveToPrecollisionIfNeeded').
-mkRandomPosSpeed :: Space -> Coords Pos -> IO PosSpeed
+mkRandomPosSpeed :: Space
+                 -> Coords Pos
+                 -- ^ Precondition : is not colliding
+                 -> IO PosSpeed
 mkRandomPosSpeed space pos =
   fst
     . mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space)
@@ -98,7 +90,7 @@ instance Ord IndexedCoords where
   compare (IndexedCoords _ a) (IndexedCoords _ b) = compare a b
   {-# INLINABLE compare #-}
 
-randomCCCoords :: Int -> ComponentIdx -> BigWorldTopology -> OverlapKind -> IO [Coords Pos] -- TODO make BigWorldTopology Monad
+randomCCCoords :: Int -> ComponentIdx -> BigWorldTopology -> OverlapKind -> IO [Coords Pos]
 randomCCCoords nPositions idxCC topo = \case
   CanOverlap -> map getValue . snd <$> genRandomCoords nPositions 0
   NoOverlap -> do
@@ -127,29 +119,9 @@ randomSpeed = do
   where
     rnd = oneRandom (-1) 1
 
-randomNonCollidingPos :: Space -> IO (Coords Pos)
-randomNonCollidingPos space = do
-  coords <- randomCoords $ getSize space
-  case getMaterial coords space of
-    Wall -> randomNonCollidingPos space
-    Air -> return coords
-
-randomInt :: Int -> IO Int
-randomInt =
-  oneRandom 0 . pred
-
 randomInts :: Int -> IO [Int]
 randomInts =
   randomRsIO 0 . pred
-
-randomCoords :: Size -> IO (Coords Pos)
-randomCoords (Size rs cs) =
-  Coords <$> randomCoord (fromIntegral rs)
-         <*> randomCoord (fromIntegral cs)
-
-randomCoord :: Coord a -> IO (Coord a)
-randomCoord (Coord sz) =
-  Coord <$> randomInt sz
 
 forEachRowPure :: Matrix Material -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
 forEachRowPure mat (Size nRows nColumns) f =
@@ -206,29 +178,35 @@ mkSmallWorld :: Size
              -> Int
              -> IO ([[Material]], SmallWorldTopology)
              -- ^ the "small world"
-mkSmallWorld (Size nRows nCols) strategy nComponents = do
-  when (nComponents == 0) $ error "should be handled by caller"
+mkSmallWorld s@(Size nRows nCols) strategy nComponents' = do
+  when (nComponents' == 0) $ error "should be handled by caller"
   go
  where
+  nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
+  maxNComp = succ $ quot (pred $ area s) 2 -- for checkerboard-like layout
   go = do
-    let mkRandomRow _ = take (fromIntegral nCols) . map intToMat <$> rands -- TODO use a Matrix directly
-    smallMat <- mapM mkRandomRow [0..nRows-1]
+    smallMat <- mkSmallMat
     let (graph, vtxToCoords', _) = graphOfIndex Air $ fromLists smallMat
         vtxToCoords vtx = a where (a,_,_) = vtxToCoords' vtx
     case strategy of
       OneComponentPerShip -> do
         let comps = map mkConnectedComponent $ components graph
-        if nComponents == length comps
-          then do
-            let lengths = map countSmallCCElts comps
-                wellDistributed = maximum lengths < 2 * minimum lengths
-            if wellDistributed
-              then
-                return (smallMat, SmallWorldTopology comps vtxToCoords)
-              else
-                go
+        if nComponents == length comps && wellDistributed comps
+          then
+            return (smallMat, SmallWorldTopology comps vtxToCoords)
           else
             go
+  mkSmallMat = mapM mkRandomRow [0..nRows-1] >>= \smallMat ->
+    if all (elem Air) $ fronteers smallMat
+      then
+        return smallMat
+      else
+        mkSmallMat
+  mkRandomRow _ = take (fromIntegral nCols) <$> randMaterial -- TODO use a Matrix directly
+  fronteers mat = [head mat, last mat, map head mat, map last mat]
+  wellDistributed comps =
+    maximum lengths < 2 * minimum lengths
+   where lengths = map countSmallCCElts comps
 
 data BigWorldTopology = BigWorldTopology {
     countComponents :: !Int
@@ -271,10 +249,10 @@ getSmallCoords smallIndex resolver c@(ConnectedComponent v)
   | otherwise = resolver $ v UnboxV.! smallIndex
 
 mkEmptyBigWorldTopology :: Size -> BigWorldTopology
-mkEmptyBigWorldTopology (Size nRows nCols) =
+mkEmptyBigWorldTopology s@(Size nRows _) =
   BigWorldTopology 1 sz coords
  where
-  sz (ComponentIdx 0) = fromIntegral nRows * fromIntegral nCols
+  sz (ComponentIdx 0) = area s
   sz i = error $ "index out of range " ++ show i
   coords i eltIdx
     | eltIdx < 0 || eltIdx >= sz i = error $ "out of range " ++ show (i, eltIdx)
@@ -378,8 +356,8 @@ extend'' final initial =
       addsRight = addsTotal - addsLeft
   in (addsLeft, addsRight)
 
-rands :: IO [Int]
-rands = randomRsIO 0 1
+randMaterial :: IO [Material]
+randMaterial = map intToMat <$> randomRsIO 0 1
 
 intToMat :: Int -> Material
 intToMat 0 = Wall

@@ -14,7 +14,7 @@ module Imj.Game.Hamazed.Command
 
 import           Imj.Prelude
 
-import           Data.Attoparsec.Text(Parser, takeText, endOfInput, string, char, peekChar', skipSpace, space)
+import           Data.Attoparsec.Text(Parser, takeText, decimal, endOfInput, string, char, peekChar', skipSpace, space)
 import           Data.Char(isSpace)
 import           Data.Text(pack, unsnoc)
 
@@ -23,28 +23,34 @@ import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 
 import           Imj.Game.Hamazed.World.Ship
---import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Color.Types
 
 runCommand :: (MonadState AppState m)
            => ShipId
            -> Command
            -> m ()
-runCommand sid (AssignName name) = do
-  putPlayer sid (Player name Present)
+runCommand sid (AssignName name) = getPlayer sid >>= \p -> do
+  let color = maybe chatMsgColor getPlayerColor p
+  putPlayer sid $ Player name Present color
   updateShipsText
-runCommand _ (PutShipColor _) = undefined
+runCommand sid (AssignColor color) = getPlayer sid >>= \p -> do
+  let name = maybe (PlayerName "no name") getPlayerName p
+  putPlayer sid $ Player name Present color
+  updateShipsText
 runCommand sid (Says what) = getPlayer sid >>= \n ->
-  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> ":" <> what
+  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> colored (":" <> what) chatMsgColor
 runCommand sid (Leaves detail) = getPlayer sid >>= \n -> do
   maybe
     (return ())
-    (\(Player a _) -> putPlayer sid $ Player a Absent)
+    (\p -> putPlayer sid $ p { getPlayerStatus = Absent })
       n
   updateShipsText
-  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> " " <>
+  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n
+    <> colored (" " <>
     case detail of
       Intentional -> "leaves the game intentionally."
-      ConnectionError t -> "leaves the game due to a connection error : " <> t
+      ConnectionError t -> "leaves the game due to a connection error : " <> t) chatMsgColor
 
 maxOneSpace :: Text -> Text
 maxOneSpace t = go t False []
@@ -63,7 +69,7 @@ maxOneSpace t = go t False []
                 else c:res
 
 
-command :: Parser Command
+command :: Parser (Either Text Command)
 command = do
   skipSpace
   peekChar' >>= \case
@@ -74,7 +80,14 @@ command = do
         void $ char ':' <|> space
         skipSpace
         case cmdType of
-          "name" -> AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
-          "color" -> undefined
+          "name" -> Right . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
+          "color" -> do
+            skipSpace
+            r <- decimal
+            skipSpace
+            g <- decimal
+            skipSpace
+            b <- decimal
+            return $ AssignColor <$> userRgb r g b
           _ -> error "logic"
-    _ -> Says . maxOneSpace <$> (takeText <* endOfInput)
+    _ -> Right . Says . maxOneSpace <$> (takeText <* endOfInput)

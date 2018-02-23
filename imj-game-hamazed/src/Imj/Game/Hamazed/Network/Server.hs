@@ -144,11 +144,16 @@ makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT Ser
 makeClient conn sn cliType = do
   i <- takeShipId
   name <- makePlayerName sn
-  -- this call is /before/ addClient to avoid redundant info for client.
+  let client@(Client _ _ _ _ _ _ _ c) = mkClient (ClientId name i) conn cliType
+  -- these calls are /before/ addClient to avoid sending redundant info to client.
   sendClients $ RunCommand i $ AssignName name
-  let client = mkClient (ClientId name i) conn cliType
+  sendClients $ RunCommand i $ AssignColor c
+  -- order matters, see comment above.
   addClient client
-  send client . ConnectionAccepted i . Map.map (getPlayerName . getIdentity) =<< clientsMap
+  send client . ConnectionAccepted i . Map.map
+    (\(Client (ClientId n _) _ _ _ _ _ _ color) ->
+        Player n Present color)
+    =<< clientsMap
   return client
  where
   takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)
@@ -207,7 +212,7 @@ makePlayerName (SuggestedPlayerName sn) = do
 
 checkNameAvailability :: PlayerName -> StateT ServerState IO (Either Text ())
 checkNameAvailability name =
-  any ((== name) . getPlayerName . getIdentity ) <$> allClients >>= \case
+  any ((== name) . getPlayerName' . getIdentity ) <$> allClients >>= \case
     True  -> return $ Left "Name is already taken"
     False -> return $ Right ()
 
@@ -222,7 +227,7 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _) =
+disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
@@ -230,7 +235,7 @@ disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _) =
       -- If the client owns the server, we shutdown connections to /other/ clients first.
       when (ownership == ClientOwnsServer) $
         mapM_
-          (\client'@(Client (ClientId _ j) _ _ _ _ _ _) ->
+          (\client'@(Client (ClientId _ j) _ _ _ _ _ _ _) ->
               unless (i == j) $ do
                 let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
                 disconnectClient (ServerShutdown msg) client')
@@ -239,7 +244,7 @@ disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _) =
       disconnectClient r c
  where
   disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
-  disconnectClient reason client@(Client (ClientId (PlayerName playerName) cid) conn _ _ _ _ _) = do
+  disconnectClient reason client@(Client (ClientId (PlayerName playerName) cid) conn _ _ _ _ _ _) = do
     -- Remove the client from the registered clients Map
     modify' $ \s -> s { getClients = removeClient cid $ getClients s }
     -- If possible, notify the client about the disconnection
@@ -299,7 +304,7 @@ serverError txt = do
     -- hence we sent the error to the client, so that it can report the error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
+handleIncomingEvent client@(Client (ClientId _ i) _ _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
     error' client $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
@@ -307,23 +312,23 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
     (\_ -> checkNameAvailability name >>= either
       (send client . CommandError cmd)
       (\_ -> do
-        modifyClient cId $ \c -> c { getIdentity = cId { getPlayerName = name } }
+        modifyClient i $ \c -> c { getIdentity = (getIdentity c) { getPlayerName' = name } }
         sendClients $ RunCommand i cmd)
     ) $ checkName name
-  RequestCommand cmd@(PutShipColor _) -> sendClients $ RunCommand i cmd
+  RequestCommand cmd@(AssignColor _) -> sendClients $ RunCommand i cmd
   RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
   RequestCommand (Leaves _) -> disconnect ClientShutdown client -- will do the corresponding 'sendClients $ RunCommand'
   ExitedState Excluded ->
     getIntent >>= \case
       IntentSetup -> do
-        sendClients $ PlayerInfo cId Joins
+        sendClients $ PlayerInfo i Joins
         -- change client state to make it playable
-        modifyClient cId $ \c -> c { getState = Just Finished }
+        modifyClient i $ \c -> c { getState = Just Finished }
         -- request world to let the client have a world
         requestWorld
         -- next step when client 'IsReady'
       _ -> do
-        sendClients $ PlayerInfo cId WaitsToJoin
+        sendClients $ PlayerInfo i WaitsToJoin
         send client $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _) _ _ intent _ game) -> do
@@ -338,7 +343,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
             gameError $ "inconsistent outcomes:" ++ show (o, outcome)
       IntentSetup ->
         gameError "LevelEnded received while in IntentSetup"
-    modifyClient cId $ \c -> c { getState = Just Finished }
+    modifyClient i $ \c -> c { getState = Just Finished }
     onlyPlayers >>= \players -> do
       let playersAllFinished = all (finished . getState) players
           finished Nothing = error "should not happen"
@@ -372,7 +377,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
   ExitedState Setup -> getIntent >>= \case
     IntentSetup -> do
       modify' $ \s -> s { getIntent' = IntentPlayGame }
-      sendClients $ PlayerInfo cId StartsGame
+      sendClients $ PlayerInfo i StartsGame
       sendPlayers $ ExitState Setup
       requestWorld
     _ -> return ()
@@ -394,7 +399,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
 --   UI Animation is over (hence the level shall start, for example.):
 ------------------------------------------------------------------------------
   IsReady wid -> do
-    modifyClient cId $ \c -> c { getCurrentWorld = Just wid }
+    modifyClient i $ \c -> c { getCurrentWorld = Just wid }
     getIntent >>= \case
       IntentSetup ->
         -- (follow-up from 'ExitedState Excluded')
@@ -404,7 +409,7 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
         get >>= \(ServerState (Clients clients _) _ _ _ mayLastWId _ _ game) -> maybe
             (return ())
             (\lastWId -> do
-              modifyClient cId $ \c -> c { getState = Just Finished }
+              modifyClient i $ \c -> c { getState = Just Finished }
               -- start the game when all players have the right world
               let playersKeys = getPlayersKeys clients
                   playersAllReady =
@@ -434,9 +439,9 @@ handleIncomingEvent client@(Client cId@(ClientId _ i) _ _ _ _ _ _) = \case
   -- able to integrate the latency via this visual feedback - I read somewhere that
   -- latency is not a big problem for players, provided that it is stable over time.
   Action Laser dir ->
-    sendPlayers $ GameEvent $ LaserShot (getClientId cId) dir
+    sendPlayers $ GameEvent $ LaserShot i dir
   Action Ship dir ->
-    modifyClient cId $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
+    modifyClient i $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =
@@ -563,13 +568,13 @@ getPlayersKeys =
           else
             Nothing)
 
-modifyClient :: ClientId -> (Client -> Client) -> StateT ServerState IO ()
-modifyClient cId f =
+modifyClient :: ShipId -> (Client -> Client) -> StateT ServerState IO ()
+modifyClient i f =
   modify' $ \s ->
     let clients = getClients s
     in s { getClients =
             clients { getClients' =
-                        Map.adjust f (getClientId cId) $ getClients' clients
+                        Map.adjust f i $ getClients' clients
                     }
           }
 

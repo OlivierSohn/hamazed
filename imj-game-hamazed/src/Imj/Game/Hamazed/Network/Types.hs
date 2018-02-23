@@ -2,7 +2,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Network.Types
       ( ConnectionStatus(..)
@@ -10,6 +9,9 @@ module Imj.Game.Hamazed.Network.Types
       , DisconnectReason(..)
       , SuggestedPlayerName(..)
       , PlayerName(..)
+      , Player(..)
+      , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
+      , getPlayerUIName
       , ServerOwnership(..)
       , ClientState(..)
       , StateNature(..)
@@ -31,20 +33,18 @@ module Imj.Game.Hamazed.Network.Types
       , ShotNumber(..)
       , Operation(..)
       , applyOperations
-      , toTxt
-      , toTxt'
       , welcome
       ) where
 
 import           Imj.Prelude hiding(intercalate)
 import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
-import           Data.Map.Strict(Map)
+import           Data.Map.Strict(Map, elems)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.List(foldl')
 import           Data.Set(Set)
 import           Data.String(IsString)
-import           Data.Text(intercalate, pack, unpack)
+import           Data.Text(unpack)
 import qualified Data.Text.Lazy as Lazy(unpack)
 import           Data.Text.Lazy.Encoding as LazyE(decodeUtf8)
 import           Network.WebSockets(WebSocketsData(..), DataMessage(..))
@@ -54,6 +54,7 @@ import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Text.ColorString
 
 -- | a Server, seen from a Client's perspective
 data Server = Distant ServerName ServerPort
@@ -115,12 +116,12 @@ data ClientEvent =
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
-    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId PlayerName)
+    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId Player)
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
   | ExitState {-unpack sum-} !StateValue
-  | PlayerInfo {-# UNPACK #-} !ClientId {-unpack sum-} !PlayerNotif
+  | PlayerInfo {-# UNPACK #-} !ShipId {-unpack sum-} !PlayerNotif
   | GameInfo {-unpack sum-} !GameNotif
   | WorldRequest {-# UNPACK #-} !WorldSpec
   -- ^ Upon reception, the client should respond with a 'WorldProposal'.
@@ -158,9 +159,27 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
 
+data PlayerStatus = Present | Absent
+  deriving(Generic, Show)
+instance Binary PlayerStatus
+
+data Player = Player {
+    getPlayerName :: {-# UNPACK #-} !PlayerName
+  , getPlayerStatus :: {-unpack sum-} !PlayerStatus
+  , getPlayerColor :: {-# UNPACK #-} !(Color8 Foreground)
+} deriving(Generic, Show)
+instance Binary Player
+
+getPlayerUIName :: Maybe Player -> ColorString
+-- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
+-- know about the name of the other disconnected player.
+getPlayerUIName Nothing = "? (away)"
+getPlayerUIName (Just (Player (PlayerName n) Present c)) = colored n c
+getPlayerUIName (Just (Player (PlayerName n) Absent c)) = colored n c <> colored " (away)" chatMsgColor
+
 data Command =
     AssignName {-# UNPACK #-} !PlayerName
-  | PutShipColor {-# UNPACK #-} !(Color8 Foreground)
+  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !LeaveReason
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
@@ -255,22 +274,12 @@ data GameNotif =
   deriving(Generic, Show)
 instance Binary GameNotif
 
-toTxt :: PlayerName -> PlayerNotif -> Text
-toTxt (PlayerName n) = \case
-  Joins       -> n <> " joins the game."
-  WaitsToJoin -> n <> " is waiting to join the game."
-  StartsGame  -> n <> " starts the game."
-
-toTxt' :: GameNotif -> Text
-toTxt' (LevelResult n (Lost reason)) =
-  "- Level " <> pack (show n) <> " was lost : " <> reason <> "."
-toTxt' (LevelResult n Won) =
-  "- Level " <> pack (show n) <> " was won!"
-toTxt' GameWon =
-  "- The game was won! Congratulations! "
-
-welcome :: [PlayerName] -> Text
-welcome l = "Welcome! Users: " <> intercalate ", " (map (\(PlayerName n) -> n) l)
+welcome :: Map ShipId Player -> ColorString
+welcome l =
+  colored "Welcome! Players are: " chatMsgColor
+  <> intercalate
+      (colored ", " chatMsgColor)
+      (map (getPlayerUIName . Just) $ elems l)
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)

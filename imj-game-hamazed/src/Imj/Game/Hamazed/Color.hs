@@ -5,8 +5,9 @@
 module Imj.Game.Hamazed.Color (
   -- * Ship colors
     shipColor
+  , shipBgColorSafe
+  , shipBgColor
   , shipColors
-  , shipColorSafe
   , shipColorsSafe
   -- * Numbers colors
   , numberColor
@@ -111,13 +112,10 @@ shipColors :: LayeredColor
 shipColors = LayeredColor shipBgColor shipColor
 
 shipColorsSafe :: LayeredColor
-shipColorsSafe = LayeredColor shipBgColorSafe shipColorSafe
+shipColorsSafe = LayeredColor shipBgColorSafe shipColor
 
 shipColor :: Color8 Foreground
 shipColor = rgb 5 4 4
-
-shipColorSafe :: Color8 Foreground
-shipColorSafe = rgb 5 4 4
 
 shipBgColor :: Color8 Background
 shipBgColor = black

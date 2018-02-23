@@ -7,6 +7,8 @@ module Imj.Game.Hamazed.Chat
   ( Chat(..)
   , mkChat
   , takeMessage
+  , chatMsgColor
+  , chatWinColor
   , IsEditing(..)
   , EditableText(..)
   , ChatMessage(..)
@@ -111,13 +113,19 @@ newtype PlayerName = PlayerName Text
   deriving(Generic, Show, Binary, Eq, NFData)
 
 data ChatMessage =
-    ChatMessage !Text
+    ChatMessage !ColorString
   | Warning !Text
   | DisconnectionReason !String
 
+chatMsgColor :: Color8 Foreground
+chatMsgColor = gray 10
+
+chatWinColor :: Color8 Foreground
+chatWinColor = gray 14
+
 toColorStr :: ChatMessage -> ColorString
 toColorStr (Warning s) = colored s red
-toColorStr (ChatMessage s) = colored s $ gray 10
+toColorStr (ChatMessage c) = c
 toColorStr (DisconnectionReason s) = colored (pack s) red
 
 addMessage :: ChatMessage -> Chat -> (Chat, ())

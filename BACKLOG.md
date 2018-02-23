@@ -1,8 +1,11 @@
-- (during setup) when a client disconnects, the name on the left should change (postfix with disconnected)
+- adapt laser and animation colors to ship colors.
+
+- try opengl rectangular rendering.
+- or make font characters more square
 
 - make stats of world dismissals visible to the user
 
-- make world end when no reachable number is available. (i.e some numbers are alive
+- make world end when no reachable number is available. (i.e some numbers are alive,
   but in another component)
 
 - 3 players : 2 do the 2 expressions,
@@ -54,13 +57,7 @@ Error:
 - autocompletion based on beginning of string, right arrow to validate.
 if input is a /, write all commands in help
 
-- distinguish ships by colors. In chat and in ammo, colors of player names are the same as the ship.
-we could have one color for chat (dim), one color for ship (bright)
-
 - Press H to show help / press H to hide help (write on the right of the game)
-
-- try opengl rectangular rendering.
-- or make font characters more square
 
 - When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
 - Message displayed when server is unreachable is wrong (a game is currently running on the server)

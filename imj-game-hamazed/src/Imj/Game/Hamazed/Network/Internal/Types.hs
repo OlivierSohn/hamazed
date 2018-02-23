@@ -24,6 +24,7 @@ import           Network.WebSockets(Connection)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Graphics.Color.Types
 
 import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
@@ -40,12 +41,26 @@ data Client = Client {
   , getShipAcceleration :: !(Coords Vel)
   , getState :: {-unpack sum-} !(Maybe PlayerState) -- TODO should we add Disconnected, and leave disconnected clients in the map?
   -- ^ When 'Nothing', the client is excluded from the current game.
+  , getColor :: {-# UNPACK #-} !(Color8 Foreground)
 } deriving(Generic)
 instance NFData Client where
   rnf _ = ()
 
 mkClient :: ClientId -> Connection -> ServerOwnership -> Client
-mkClient a b c = Client a b c Nothing Nothing zeroCoords Nothing
+mkClient a@(ClientId _ i) b c =
+  Client a b c Nothing Nothing zeroCoords Nothing (defaultPlayerColor i)
+
+defaultPlayerColor :: ShipId -> Color8 Foreground
+defaultPlayerColor (ShipId i) =
+  let r = c (i + 0)
+      g = c (i + 1)
+      b = min 5 $ c (i + 2)
+      c x = case x `mod` 3 of
+        0 -> 3
+        1 -> 2
+        2 -> 1
+        _ -> 2
+  in rgb r g b
 
 data PlayerState = InGame | Finished
   deriving (Generic, Eq)

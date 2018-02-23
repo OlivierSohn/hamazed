@@ -42,8 +42,10 @@ mkShipCS _ names (BattleShip sid _ ammo status _) =
       shipNameColor _   = configFgColor
       ammoColor' Destroyed = darkConfigFgColor
       ammoColor' _   = ammoColor
+      c = shipNameColor status
 
-      s = colored ("\"" <> name <> "\"   " <> pack (replicate pad ' ')) (shipNameColor status)
+      s = name
+       <> colored ("   " <> pack (replicate pad ' ')) c
        <> colored (singleton '[') bracketsColor
        <> colored (pack $ replicate ammo '.') (ammoColor' status)
        <> colored (singleton ']') bracketsColor

@@ -101,7 +101,7 @@ data WorldSpec = WorldSpec {
 instance Binary WorldSpec
 
 data ClientId = ClientId {
-    getPlayerName :: {-# UNPACK #-} !PlayerName -- ^ primary key
+    getPlayerName' :: {-# UNPACK #-} !PlayerName -- ^ primary key
   , getClientId :: {-# UNPACK #-} !ShipId -- ^ primary key
 } deriving(Generic, Show)
 instance NFData ClientId

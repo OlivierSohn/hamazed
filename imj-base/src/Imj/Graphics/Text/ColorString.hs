@@ -22,6 +22,8 @@ str = colored \"Hello\" white <> colored \" World\" yellow
  -}
             , colored
             , colored'
+            , concat
+            , intercalate
             , replaceBackground
             -- * Utilities
             , countChars
@@ -30,12 +32,12 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             , LayeredColor(..)
             ) where
 
-import           Imj.Prelude hiding(take)
+import           Imj.Prelude hiding(take, concat, intercalate)
 
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
-import qualified Data.List as List(length)
+import qualified Data.List as List(length, concat)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.Words
@@ -94,6 +96,23 @@ instance DiscreteInterpolation ColorString where
             c1'
           else
             interpolateColors c1' c2' (negate remaining)
+
+{-# INLINE concat #-}
+concat :: [ColorString] -> ColorString
+concat = ColorString . concatMap (\(ColorString s) -> s)
+
+intercalate :: ColorString -> [ColorString] -> ColorString
+intercalate (ColorString i) =
+  ColorString . List.concat . intersperse' i . map (\(ColorString s) -> s)
+
+-- from https://hackage.haskell.org/package/text-1.2.3.0
+intersperse' :: a -> [a] -> [a]
+intersperse' _   []     = []
+intersperse' sep (x:xs) = x : go xs
+  where
+    go []     = []
+    go (y:ys) = sep : y: go ys
+{-# INLINE intersperse' #-}
 
 
 replaceBackground :: Color8 Background -> ColorString -> ColorString

@@ -1,4 +1,5 @@
 {-# OPTIONS_HADDOCK hide #-}
+-- | Contains types that the game server doesn't need to know about.
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -12,9 +13,6 @@ module Imj.Game.Hamazed.Types
     , UpdateEvent
     , EventGroup(..)
     , GenEvent(..)
-    , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
-    , Player(..)
-    , getPlayerUIName
     , initialParameters
     , initialViewMode
     , minRandomBlockSize
@@ -30,13 +28,14 @@ import           Control.Exception.Base(Exception(..))
 import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
+
+import           Imj.Game.Hamazed.Chat
+import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.UI.Animation
 
 
@@ -102,16 +101,6 @@ data GameState = GameState {
   , getViewMode' :: {-unpack sum-} !ViewMode
   , playerNames :: !(Map ShipId Player)
 }
-
-data PlayerStatus = Present | Absent
-data Player = Player {-# UNPACK #-} !PlayerName {-unpack sum-} !PlayerStatus
-
-getPlayerUIName :: Maybe Player -> Text
--- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
--- know about the name of the other disconnected player.
-getPlayerUIName Nothing = "? (away)"
-getPlayerUIName (Just (Player (PlayerName n) Present)) = n
-getPlayerUIName (Just (Player (PlayerName n) Absent)) = n <> " (away)"
 
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)

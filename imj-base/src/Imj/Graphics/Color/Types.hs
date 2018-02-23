@@ -4,6 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Graphics.Color.Types
           ( Color8 -- constructor is intentionaly not exposed.
@@ -18,7 +19,9 @@ module Imj.Graphics.Color.Types
           , bresenhamColor8
           , bresenhamColor8Length
           , rgb
+          , userRgb
           , gray
+          , userGray
           , grayToRGB
           , color8ToUnitRGB
           , Xterm256Color(..)
@@ -32,6 +35,7 @@ module Imj.Graphics.Color.Types
 import           Imj.Prelude
 
 import           Data.Bits(shiftL, (.|.))
+import           Data.Text(pack)
 import           Data.Word (Word8, Word16)
 
 import           Imj.Geo.Discrete.Bresenham3
@@ -79,7 +83,8 @@ encodeColors (LayeredColor (Color8 bg') (Color8 fg')) =
 -- | Creates a rgb 'Color8' as defined in
 -- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
--- Input components are expected to be in range [0..5]
+-- Input components are expected to be in range [0..5].
+-- See 'userRgb' for a version that returns an error when the input is out of range.
 rgb :: Word8
     -- ^ red component in [0..5]
     -> Word8
@@ -89,7 +94,29 @@ rgb :: Word8
     -> Color8 a
 rgb r g b
   | r >= 6 || g >= 6 || b >= 6 = error "out of range"
-  | otherwise = Color8 $ fromIntegral $ 16 + 36 * r + 6 * g + b
+  | otherwise = unsafeRgb r g b
+
+-- | Same as 'rgb', but returns an error if the input value is not in the admissible range.
+userRgb :: Word8 -> Word8 -> Word8 -> Either Text (Color8 a)
+userRgb r g b =
+  maybe
+    (Right $ unsafeRgb r g b)
+    Left
+    $ check r <|> check g <|> check b
+ where
+  check x
+   | x > 5 = Just $ "rgb color components must be in the [0,5] range. '" <> pack (show x) <> "' is out of range."
+   | otherwise = Nothing
+
+{-# INLINE unsafeRgb #-}
+unsafeRgb :: Word8
+          -- ^ red component in [0..5]
+          -> Word8
+          -- ^ green component in [0..5]
+          -> Word8
+          -- ^ blue component in [0..5]
+          -> Color8 a
+unsafeRgb r g b = Color8 $ fromIntegral $ 16 + 36 * r + 6 * g + b
 
 
 -- | Creates a gray 'Color8' as defined in
@@ -101,7 +128,20 @@ gray :: Word8
      -> Color8 a
 gray i
   | i >= 24 = error "out of range gray"
-  | otherwise      = Color8 $ fromIntegral (i + 232)
+  | otherwise      = unsafeGray i
+
+userGray :: Word8
+         -- ^ gray value in [0..23]
+         -> Either Text (Color8 a)
+userGray i
+  | i >= 24   = Left $ "gray color must be in the [0,23] range. '" <> pack (show i) <> "' is out of range."
+  | otherwise = Right $ unsafeGray i
+
+{-# INLINE unsafeGray #-}
+unsafeGray :: Word8
+           -- ^ gray value in [0..23]
+           -> Color8 a
+unsafeGray i = Color8 $ fromIntegral (i + 232)
 
 
 data Foreground

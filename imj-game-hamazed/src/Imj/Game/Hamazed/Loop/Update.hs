@@ -15,7 +15,7 @@ import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Attoparsec.Text(parseOnly)
-import qualified Data.Map.Strict as Map (elems, map)
+import qualified Data.Map.Strict as Map (elems)
 import           Data.Text(pack, strip)
 
 import           Imj.Game.Hamazed.World.Space.Types
@@ -32,6 +32,7 @@ import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Render.FromMonadReader
+import           Imj.Graphics.Text.ColorString
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
@@ -77,12 +78,12 @@ updateAppState (Left evt) = case evt of
   ConnectionAccepted i players -> do
     sendToServer $ ExitedState Excluded
     putGameConnection $ Connected i
-    putPlayers $ Map.map (flip Player Present) players
-    stateChat $ addMessage $ ChatMessage $ welcome $ Map.elems players
+    putPlayers players
+    stateChat $ addMessage $ ChatMessage $ welcome players
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  PlayerInfo (ClientId player _) notif ->
-    stateChat $ addMessage $ ChatMessage $ toTxt player notif
+  PlayerInfo i notif ->
+    stateChat . addMessage . ChatMessage =<< toTxt i notif
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
   EnterState s -> putClientState $ ClientState Ongoing s
@@ -95,6 +96,17 @@ updateAppState (Left evt) = case evt of
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
+  toTxt i notif = getPlayerUIName <$> getPlayer i >>= \n -> return $ case notif of
+    Joins       -> n <> colored " joins the game." chatMsgColor
+    WaitsToJoin -> n <> colored " is waiting to join the game." chatMsgColor
+    StartsGame  -> n <> colored " starts the game." chatMsgColor
+
+  toTxt' (LevelResult n (Lost reason)) =
+    colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
+  toTxt' (LevelResult n Won) =
+    colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
+  toTxt' GameWon =
+    colored "- The game was won! Congratulations!" chatWinColor
 
 {-# INLINABLE sendToServer #-}
 sendToServer :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
@@ -112,12 +124,16 @@ sendToServer e = do
 
 onSendChatMessage :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                   => m ()
-onSendChatMessage = do
-  msg <- strip <$> stateChat takeMessage
-  either
-    (stateChat . addMessage . Warning . (<>) ("Error while parsing: " <> msg <> " : ") . pack)
-    (sendToServer . RequestCommand)
-    $ parseOnly command msg
+onSendChatMessage =
+  strip <$> stateChat takeMessage >>= \msg -> do
+    let left = stateChat . addMessage . Warning . (<>) ("Error while parsing: " <> msg <> " : ")
+        p = parseOnly command msg
+    either
+      (left . pack)
+      (either
+        left
+        (sendToServer . RequestCommand))
+      p
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                          => Char

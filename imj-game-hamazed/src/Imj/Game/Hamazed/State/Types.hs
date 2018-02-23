@@ -68,7 +68,7 @@ import           Imj.Graphics.Text.ColorString
 
 data Occurences a = Occurences {
     _occurencesCount :: {-# UNPACK #-} !Int
-  , _occurencesItem :: {-# UNPACK #-} !EventRepr
+  , _occurencesItem :: {-unpack sum-} !EventRepr
 } deriving(Generic, Show)
 
 data AppState  = AppState {

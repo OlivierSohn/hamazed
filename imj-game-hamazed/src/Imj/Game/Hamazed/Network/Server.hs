@@ -144,14 +144,14 @@ makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT Ser
 makeClient conn sn cliType = do
   i <- takeShipId
   name <- makePlayerName sn
-  let client@(Client _ _ _ _ _ _ _ c) = mkClient (ClientId name i) conn cliType
+  let client@(Client _ _ _ _ _ _ _ _ c) = mkClient name i conn cliType
   -- these calls are /before/ addClient to avoid sending redundant info to client.
   sendClients $ RunCommand i $ AssignName name
   sendClients $ RunCommand i $ AssignColor c
   -- order matters, see comment above.
   addClient client
   send client . ConnectionAccepted i . Map.map
-    (\(Client (ClientId n _) _ _ _ _ _ _ color) ->
+    (\(Client _ n  _ _ _ _ _ _ color) ->
         Player n Present color)
     =<< clientsMap
   return client
@@ -198,7 +198,7 @@ makeClient conn sn cliType = do
       let clients = getClients s
       in s { getClients =
               clients { getClients' =
-                Map.insert (getClientId $ getIdentity c) c
+                Map.insert (getIdentity c) c
                   $ getClients' clients } }
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
@@ -212,7 +212,7 @@ makePlayerName (SuggestedPlayerName sn) = do
 
 checkNameAvailability :: PlayerName -> StateT ServerState IO (Either Text ())
 checkNameAvailability name =
-  any ((== name) . getPlayerName' . getIdentity ) <$> allClients >>= \case
+  any ((== name) . getName) <$> allClients >>= \case
     True  -> return $ Left "Name is already taken"
     False -> return $ Right ()
 
@@ -227,7 +227,7 @@ onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
 disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _ _) =
+disconnect r c@(Client i (PlayerName name) _ ownership _ _ _ _ _) =
   get >>= \s -> do
     let clients = getClients' $ getClients s
     -- If the client is not in the client map, we don't do anything.
@@ -235,7 +235,7 @@ disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _ _) =
       -- If the client owns the server, we shutdown connections to /other/ clients first.
       when (ownership == ClientOwnsServer) $
         mapM_
-          (\client'@(Client (ClientId _ j) _ _ _ _ _ _ _) ->
+          (\client'@(Client j _ _ _ _ _ _ _ _) ->
               unless (i == j) $ do
                 let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
                 disconnectClient (ServerShutdown msg) client')
@@ -244,7 +244,7 @@ disconnect r c@(Client (ClientId (PlayerName name) i) _ ownership _ _ _ _ _) =
       disconnectClient r c
  where
   disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
-  disconnectClient reason client@(Client (ClientId (PlayerName playerName) cid) conn _ _ _ _ _ _) = do
+  disconnectClient reason client@(Client cid (PlayerName playerName) conn _ _ _ _ _ _) = do
     -- Remove the client from the registered clients Map
     modify' $ \s -> s { getClients = removeClient cid $ getClients s }
     -- If possible, notify the client about the disconnection
@@ -304,7 +304,7 @@ serverError txt = do
     -- hence we sent the error to the client, so that it can report the error too.
 
 handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client (ClientId _ i) _ _ _ _ _ _ _) = \case
+handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
   Connect (SuggestedPlayerName sn) _ ->
     error' client $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
@@ -312,10 +312,12 @@ handleIncomingEvent client@(Client (ClientId _ i) _ _ _ _ _ _ _) = \case
     (\_ -> checkNameAvailability name >>= either
       (send client . CommandError cmd)
       (\_ -> do
-        modifyClient i $ \c -> c { getIdentity = (getIdentity c) { getPlayerName' = name } }
+        modifyClient i $ \c -> c { getName = name }
         sendClients $ RunCommand i cmd)
     ) $ checkName name
-  RequestCommand cmd@(AssignColor _) -> sendClients $ RunCommand i cmd
+  RequestCommand cmd@(AssignColor color) -> do
+    modifyClient i $ \c -> c { getColor = color }
+    sendClients $ RunCommand i cmd
   RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
   RequestCommand (Leaves _) -> disconnect ClientShutdown client -- will do the corresponding 'sendClients $ RunCommand'
   ExitedState Excluded ->
@@ -486,10 +488,10 @@ gameScheduler st =
       (\p -> let !acc = getShipAcceleration p
              in if acc == zero
                   then Nothing
-                  else Just (getClientId $ getIdentity p, acc))
+                  else Just (getIdentity p, acc))
       <$> onlyPlayers
     becameSafe <- updateSafeShips
-    sendPlayers $ GameEvent $ PeriodicMotion accs $ map (getClientId . getIdentity) becameSafe
+    sendPlayers $ GameEvent $ PeriodicMotion accs $ map getIdentity becameSafe
     modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
    where
     updateSafeShips =
@@ -592,7 +594,7 @@ requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
   get >>= \(ServerState _ _ level params wid _ _ _) -> do
-    shipIds <- map (getClientId . getIdentity) <$> onlyPlayers
+    shipIds <- map getIdentity <$> onlyPlayers
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where
   incrementWorldId =

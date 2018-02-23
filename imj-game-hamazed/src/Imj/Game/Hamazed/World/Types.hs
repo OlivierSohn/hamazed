@@ -23,7 +23,6 @@ module Imj.Game.Hamazed.World.Types
         , Scope(..)
         , ViewMode(..)
         , Screen(..)
-        , ClientId(..)
         , getColliding
         , computeViewDistances
         , getWorldCorner
@@ -54,7 +53,6 @@ import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
 
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete
@@ -99,17 +97,6 @@ data WorldSpec = WorldSpec {
   , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.
 } deriving(Generic, Show)
 instance Binary WorldSpec
-
-data ClientId = ClientId {
-    getPlayerName' :: {-# UNPACK #-} !PlayerName -- ^ primary key
-  , getClientId :: {-# UNPACK #-} !ShipId -- ^ primary key
-} deriving(Generic, Show)
-instance NFData ClientId
-instance Binary ClientId
--- | Match only on 'ShipId'.
-instance Eq ClientId where
-  x == y = getClientId x == getClientId y
-  {-# INLINABLE (==) #-}
 
 -- | Contains the minimal information needed to describe all parameters of the 'World'
 -- that matter to the game (i.e we ignore particle system animations and objects used to optimize rendering)

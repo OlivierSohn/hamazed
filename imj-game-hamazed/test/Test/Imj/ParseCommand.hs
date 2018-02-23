@@ -21,17 +21,17 @@ testMaxOneSpace = do
 
 testParseCommand :: IO ()
 testParseCommand = do
-  parse "Hello!" `shouldBe` (Right $ Says "Hello!")
-  parse "  a" `shouldBe` (Right $ Says "a")
-  parse "a  " `shouldBe` (Right $ Says "a")
-  parse "a a" `shouldBe` (Right $ Says "a a")
-  parse "a  a" `shouldBe` (Right $ Says "a a")
+  parse "Hello!" `shouldBe` (Right $ Right $ Says "Hello!")
+  parse "  a" `shouldBe` (Right $ Right $ Says "a")
+  parse "a  " `shouldBe` (Right $ Right $ Says "a")
+  parse "a a" `shouldBe` (Right $ Right $ Says "a a")
+  parse "a  a" `shouldBe` (Right $ Right $ Says "a a")
 
   parse "/a" `shouldBe` (Left "string")
-  parse "/name Newname" `shouldBe` (Right $ AssignName $ PlayerName "Newname")
-  parse "/name:Newname" `shouldBe` (Right $ AssignName $ PlayerName "Newname")
-  parse "/name:  Newname  " `shouldBe` (Right $ AssignName $ PlayerName "Newname")
-  parse "    /name:  Newname  " `shouldBe` (Right $ AssignName $ PlayerName "Newname")
+  parse "/name Newname" `shouldBe` (Right $ Right $ AssignName $ PlayerName "Newname")
+  parse "/name:Newname" `shouldBe` (Right $ Right $ AssignName $ PlayerName "Newname")
+  parse "/name:  Newname  " `shouldBe` (Right $ Right $ AssignName $ PlayerName "Newname")
+  parse "    /name:  Newname  " `shouldBe` (Right $ Right $ AssignName $ PlayerName "Newname")
  where
   parse = parseOnly command
 

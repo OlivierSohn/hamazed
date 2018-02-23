@@ -30,7 +30,8 @@ import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
 
 data Client = Client {
-    getIdentity :: {-# UNPACK #-} !ClientId
+    getIdentity :: {-# UNPACK #-} !ShipId
+  , getName :: {-# UNPACK #-} !PlayerName
   , getConnection :: {-# UNPACK #-} !Connection
   , getServerOwnership :: {-unpack sum-} !ServerOwnership
   , getCurrentWorld :: {-unpack sum-} !(Maybe WorldId)
@@ -46,9 +47,9 @@ data Client = Client {
 instance NFData Client where
   rnf _ = ()
 
-mkClient :: ClientId -> Connection -> ServerOwnership -> Client
-mkClient a@(ClientId _ i) b c =
-  Client a b c Nothing Nothing zeroCoords Nothing (defaultPlayerColor i)
+mkClient :: PlayerName -> ShipId -> Connection -> ServerOwnership -> Client
+mkClient a i b c =
+  Client i a b c Nothing Nothing zeroCoords Nothing (defaultPlayerColor i)
 
 defaultPlayerColor :: ShipId -> Color8 Foreground
 defaultPlayerColor (ShipId i) =

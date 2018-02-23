@@ -61,3 +61,14 @@ import           Data.Word(Word8)
 import           System.IO(putStrLn)
 
 import           Text.Show.Pretty(PrettyVal(..))
+
+{-
+-- | A replacement for 'Prelude.!!', that helps debugging.
+(!!) :: (Integral n, Num n, Show a, Show n) => [a] -> n -> a
+(!!) l i = go l i
+  where
+    go [] n = error $ "empty list" ++ show (l,i)
+    go (x:xs) n | n == 0 = x
+                | n < 0 = error $ "negative index" ++ show (x:xs, l, i)
+                | otherwise = go xs (n-1)
+-}

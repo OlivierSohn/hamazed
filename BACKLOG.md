@@ -1,9 +1,3 @@
-- bug : disconnect / reconnect : !! index too large
-both terminal rendering ko
-client opengl, server term: KO
-client term,   server opengl ok
-both opengl ok
-
 - adapt laser and animation colors to ship colors.
 
 - try opengl rectangular rendering.

@@ -227,6 +227,7 @@ data SmallWorldTopology = SmallWorldTopology {
 }
 
 newtype ConnectedComponent = ConnectedComponent (UnboxV.Vector Vertex)
+  deriving(Generic, Show)
 
 
 {-# INLINE countSmallCCElts #-}

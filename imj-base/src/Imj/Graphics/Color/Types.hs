@@ -1,5 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
@@ -45,9 +46,9 @@ import           Imj.Util
 
 -- | Components are expected to be between 0 and 5 included.
 data RGB = RGB {
-    _rgbR :: {-# UNPACK #-} !Word8
-  , _rgbG :: {-# UNPACK #-} !Word8
-  , _rgbB :: {-# UNPACK #-} !Word8
+    _rgbR :: {-# UNPACK #-} !Int
+  , _rgbG :: {-# UNPACK #-} !Int
+  , _rgbB :: {-# UNPACK #-} !Int
 } deriving(Eq, Show, Read, PrettyVal, Generic)
 
 -- | A background and a foreground 'Color8'.
@@ -85,19 +86,20 @@ encodeColors (LayeredColor (Color8 bg') (Color8 fg')) =
 --
 -- Input components are expected to be in range [0..5].
 -- See 'userRgb' for a version that returns an error when the input is out of range.
-rgb :: Word8
+rgb :: Int
     -- ^ red component in [0..5]
-    -> Word8
+    -> Int
     -- ^ green component in [0..5]
-    -> Word8
+    -> Int
     -- ^ blue component in [0..5]
     -> Color8 a
 rgb r g b
-  | r >= 6 || g >= 6 || b >= 6 = error "out of range"
-  | otherwise = unsafeRgb r g b
+  | check r && check g && check b = unsafeRgb r g b
+  | otherwise = error "out of range"
+  where check x = x >= 0 && x <= 5
 
 -- | Same as 'rgb', but returns an error if the input value is not in the admissible range.
-userRgb :: Word8 -> Word8 -> Word8 -> Either Text (Color8 a)
+userRgb :: Int -> Int -> Int -> Either Text (Color8 a)
 userRgb r g b =
   maybe
     (Right $ unsafeRgb r g b)
@@ -105,15 +107,16 @@ userRgb r g b =
     $ check r <|> check g <|> check b
  where
   check x
-   | x > 5 = Just $ "rgb color components must be in the [0,5] range. '" <> pack (show x) <> "' is out of range."
-   | otherwise = Nothing
+   | x >= 0 && x <= 5 = Nothing
+   | otherwise = Just $ "rgb color components must be in the [0,5] range. '"
+                      <> pack (show x) <> "' is out of range."
 
 {-# INLINE unsafeRgb #-}
-unsafeRgb :: Word8
+unsafeRgb :: Int
           -- ^ red component in [0..5]
-          -> Word8
+          -> Int
           -- ^ green component in [0..5]
-          -> Word8
+          -> Int
           -- ^ blue component in [0..5]
           -> Color8 a
 unsafeRgb r g b = Color8 $ fromIntegral $ 16 + 36 * r + 6 * g + b
@@ -123,14 +126,14 @@ unsafeRgb r g b = Color8 $ fromIntegral $ 16 + 36 * r + 6 * g + b
 -- <https://en.wikipedia.org/wiki/ANSI_escape_code#8-bit ANSI 8-bit colors>
 --
 -- Input is expected to be in the range [0..23] (from darkest to lightest)
-gray :: Word8
+gray :: Int
      -- ^ gray value in [0..23]
      -> Color8 a
 gray i
   | i >= 24 = error "out of range gray"
   | otherwise      = unsafeGray i
 
-userGray :: Word8
+userGray :: Int
          -- ^ gray value in [0..23]
          -> Either Text (Color8 a)
 userGray i
@@ -138,7 +141,7 @@ userGray i
   | otherwise = Right $ unsafeGray i
 
 {-# INLINE unsafeGray #-}
-unsafeGray :: Word8
+unsafeGray :: Int
            -- ^ gray value in [0..23]
            -> Color8 a
 unsafeGray i = Color8 $ fromIntegral (i + 232)
@@ -229,8 +232,8 @@ bresenhamRGB (RGB r g b) (RGB r' g' b') =
 color8CodeToXterm256 :: Color8 a -> Xterm256Color a
 color8CodeToXterm256 (Color8 c)
   | c < 16    = error "interpolating 4-bit system colors is not supported" -- 4-bit ANSI color
-  | c < 232   = RGBColor $ asRGB (c - 16)   -- interpreted as 8-bit rgb
-  | otherwise = GrayColor (c - 232)         -- interpreted as 8-bit grayscale
+  | c < 232   = RGBColor $ asRGB $ fromIntegral c - 16   -- interpreted as 8-bit rgb
+  | otherwise = GrayColor $ fromIntegral c - 232         -- interpreted as 8-bit grayscale
  where
   asRGB i = let -- we know that i = 36 × r + 6 × g + b and (0 ≤ r, g, b ≤ 5)
                 -- (cf. comment on top) so we can deduce the unique set of
@@ -248,13 +251,13 @@ xterm256ColorToCode :: Xterm256Color a -> Color8 a
 xterm256ColorToCode (RGBColor (RGB r' g' b'))
   = Color8 (16 + 36 * r + 6 * g + b)
   where
-    clamp' x = clamp x 0 5
+    clamp' x = clamp (fromIntegral x) 0 5
     r = clamp' r'
     g = clamp' g'
     b = clamp' b'
 -- 8-bit grayscale colors are represented by code: 232 + g (g in [0..23]) (see
 -- link to spec above)
-xterm256ColorToCode (GrayColor y) = Color8 (232 + clamp y 0 23)
+xterm256ColorToCode (GrayColor y) = Color8 (232 + clamp (fromIntegral y) 0 23)
 
 -- | Represents the rgb and grayscale xterm 256 colors
 --
@@ -265,7 +268,7 @@ data Xterm256Color a = RGBColor !RGB
                      --
                      -- - [0x10-0xE7]:  6 × 6 × 6 cube (216 colors):
                      --             16 + 36 × r + 6 × g + b (0 ≤ r, g, b ≤ 5)
-                     | GrayColor !Word8
+                     | GrayColor !Int
                      -- ^ corresponding ANSI range:
                      --
                      -- - [0xE8-0xFF]:  grayscale from dark gray to near white in 24 steps
@@ -278,30 +281,30 @@ color8ToUnitRGB c =
     RGBColor (RGB r g b) -> (rgbToUnit r,rgbToUnit g,rgbToUnit b)
     GrayColor g -> let v = grayToUnit g in (v,v,v)
   where
-    rgbToUnit :: Word8 -> Float
+    rgbToUnit :: Int -> Float
     rgbToUnit x = fromIntegral (xtermMapRGB8bitComponent x) / 255
-    grayToUnit :: Word8 -> Float
+    grayToUnit :: Int -> Float
     grayToUnit gr = fromIntegral (xtermMapGray8bitComponent gr) / 255
 
 
 -- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)
-xtermMapRGB8bitComponent :: Word8
+xtermMapRGB8bitComponent :: Int
                          -- ^ input values are in range [0..5]
                          -- (the admissible range for rgb components of 8 bit
                          -- rgb ANSI colors, cf.
                          -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
-                         -> Word8
+                         -> Int
                          -- ^ output is in range [0..255]
 xtermMapRGB8bitComponent 0 = 0
 xtermMapRGB8bitComponent n = 55 + n * 40
 
 -- | how xterm interprets 8bit grayscale colors (deduced from https://jonasjacek.github.io/colors/)
-xtermMapGray8bitComponent :: Word8
+xtermMapGray8bitComponent :: Int
                          -- ^ input values are in range [0..23]
                          -- (the admissible range for gray component of 8 bit
                          -- grayscale ANSI colors, cf.
                          -- https://en.wikipedia.org/wiki/ANSI_escape_code#Colors)
-                          -> Word8
+                          -> Int
                           -- ^ output is in range [0..255]
 xtermMapGray8bitComponent v = 8 + 10 * v
 
@@ -331,7 +334,7 @@ black   = rgb 0 0 0
 -- to know in which way to approximate.
 grayToRGB :: RGB
           -- ^ We'll round the resulting r,g,b components towards this color
-          -> Word8
+          -> Int
           -- ^ The gray component
           -> RGB
 grayToRGB (RGB r g b) grayComponent =
@@ -340,11 +343,11 @@ grayToRGB (RGB r g b) grayComponent =
       (approximateGrayComponentAsRGBComponent b grayComponent)
 
 
-approximateGrayComponentAsRGBComponent :: Word8
+approximateGrayComponentAsRGBComponent :: Int
                                        -- ^ rgb target component to know in which way to appoximate
-                                       -> Word8
+                                       -> Int
                                        -- ^ gray component
-                                       -> Word8
+                                       -> Int
                                        -- ^ rgb component
 approximateGrayComponentAsRGBComponent _ 0 = 0
 approximateGrayComponentAsRGBComponent _ 1 = 0
@@ -373,9 +376,9 @@ gray val:   8 18.. 88 98.. 128 138.. 168 178.. 208 218.. 238
 
 Note that no 2 color values match between rgb and gray.
 -}
-grayComponentToFollowingRGBComponent :: Word8
+grayComponentToFollowingRGBComponent :: Int
                                       -- ^ gray component
-                                      -> Word8
+                                      -> Int
                                       -- ^ rgb component
 grayComponentToFollowingRGBComponent g
   | g > 20 = 5

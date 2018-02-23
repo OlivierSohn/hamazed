@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Game.Hamazed.State.Types
       (
@@ -66,9 +67,9 @@ import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.Text.ColorString
 
 data Occurences a = Occurences {
-    _occurencesCount :: !Int
-  , _occurencesItem :: !EventRepr
-}
+    _occurencesCount :: {-# UNPACK #-} !Int
+  , _occurencesItem :: {-# UNPACK #-} !EventRepr
+} deriving(Generic, Show)
 
 data AppState  = AppState {
     getTimeAfterRender :: !(Time Point System)
@@ -90,7 +91,7 @@ data RecordMode = Record
 data OccurencesHist = OccurencesHist {
     _occurencesHistList :: ![Occurences EventRepr]
   , _occurencesHistTailStr :: !ColorString
-}
+} deriving(Generic, Show)
 
 data EventRepr = Laser'
                | PeriodicMotion'

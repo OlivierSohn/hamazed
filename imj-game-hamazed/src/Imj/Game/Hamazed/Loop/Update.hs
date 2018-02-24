@@ -179,8 +179,8 @@ onDestroyedNumbers t op destroyedBalls =
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m)
-       => [(ShipId, Coords Vel)]
-       -> [ShipId]
+       => Map ShipId (Coords Vel)
+       -> Set ShipId
        -> m ()
 onMove accelerations shipsLosingArmor = do
   getWorld >>= putWorld . moveWorld accelerations shipsLosingArmor

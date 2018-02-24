@@ -15,7 +15,8 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Data.Map.Strict(empty, fromList)
+import qualified Data.Map.Strict as Map(empty, fromList)
+import qualified Data.Set as Set(size, toList)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Types
@@ -26,24 +27,32 @@ import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 import           Imj.Util
 
+data Association = Association {
+    _shipId :: {-# UNPACK #-} !ShipId
+  , _numbers :: [Int]
+  , _componentIdx :: {-# UNPACK #-} !ComponentIdx
+} deriving(Show)
 
 mkWorldEssence :: WorldSpec -> IO WorldEssence
 mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistrib) wid) = do
   let (LevelEssence _ _ numbers) = mkLevelEssence s
       size = worldSizeFromLevel levelNum shape
-      nShips = length shipIds
+      nShips = Set.size shipIds
   (space, topology) <- mkSpace size nShips wallDistrib
-  let groups = zip shipIds $ mkGroups nShips numbers -- TODO shuffle numbers ?
+  let associations = map (\(a,b,c) -> Association a b c) $ zip3
+        (Set.toList shipIds)
+        (mkGroups nShips numbers) -- TODO shuffle numbers ?
+        $ cycle $ getComponentIndices topology
   -- TODO make groups such that a single player cannot finish the level without the help of others.
   shipsAndNums <- mapM
-    (\((shipId, nums), componentIdx) -> do
+    (\(Association shipId nums componentIdx) -> do
       -- TODO shuffle this, as it is ordered due to the use of a Set inside.
        positions <- randomCCCoords (1 + length nums) componentIdx topology NoOverlap
        (shipPosSpeed:numPosSpeeds) <- mapM (mkRandomPosSpeed space) positions
        let ship = BattleShip shipId shipPosSpeed initialLaserAmmo Armored [] -- no collision because we passed 'NoOverlap' to randomCCCoords
            ns = map (\(n,posSpeed) -> Number posSpeed n) $ zip nums numPosSpeeds
        return ((shipId, ship), ns)
-    ) $ zip groups $ cycle $ getComponentIndices topology
+    ) associations
   let (ships, balls) = unzip shipsAndNums
 
   --balls <- mapM (createRandomNumber space) numbers
@@ -52,10 +61,10 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
   --      (\(shipId,posSpeed@(PosSpeed pos _)) ->
   --        (shipId, BattleShip shipId posSpeed initialLaserAmmo Armored (getColliding pos balls)))
   --      $ zip clientIds posSpeeds
-  return $ WorldEssence (concat balls) (fromList ships) (toListOfLists space) wid
+  return $ WorldEssence (concat balls) (Map.fromList ships) (toListOfLists space) wid
 
 mkMinimalWorldEssence :: WorldEssence
-mkMinimalWorldEssence = WorldEssence [] empty [[]] Nothing
+mkMinimalWorldEssence = WorldEssence [] Map.empty [[]] Nothing
 
 mkSpace :: (MonadIO m)
         => Size

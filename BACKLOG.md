@@ -1,13 +1,23 @@
-- inject player color gray in cycle colors.
+- add server logs
 
-- use 'sameIntensityHues' where appropriate.
+- inject player color /gray/ component in cycle colors.
 
 - when cycling between two colors, we cycle on a bresenham straight line.
 Instead, to have richer color variations we could understand the two extremities as
 the poles of a sphere (approximated by a cube?), and cycle on all colors in great circles
 alternating the great circles at each interpolation of the sphere. Or spiraling on the sphere / cube.
 
-- send many messages at once.
+- Use
+ClientHandler = ReaderT (shipId, Connection)
+
+
+- ShipId and Connection are very close.
+ShipId has the interesting property that it is an Int that increases over time, so we can
+deduce colors from that. Should we merge the 2 notions? and ignore the Connection
+in the Ord instance to have faster lookups?
+try that...
+
+- use 'sameIntensityHues' where appropriate.
 
 - try opengl rectangular rendering.
 - or make font characters more square

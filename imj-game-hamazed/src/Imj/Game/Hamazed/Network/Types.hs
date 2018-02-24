@@ -177,7 +177,7 @@ data PlayerColors = PlayerColors {
     -- ^ color of player name and ship.
   , getColorCycles :: {-# UNPACK #-} !ColorCycles
     -- ^ colors for particle systems
-} deriving(Generic, Show)
+} deriving(Generic, Show, Eq)
 instance Binary PlayerColors
 
 mkPlayerColors :: Color8 Foreground -> PlayerColors
@@ -199,7 +199,7 @@ data Command =
   | Leaves {-unpack sum-} !LeaveReason
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary Command
 
 data GameStateEssence = GameStateEssence {
@@ -230,8 +230,8 @@ applyOperations =
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
     PeriodicMotion {
-    _shipsAccelerations :: ![(ShipId, Coords Vel)]
-  , _shipsLostArmor :: ![ShipId]
+    _shipsAccelerations :: !(Map ShipId (Coords Vel))
+  , _shipsLostArmor :: !(Set ShipId)
 }
   | LaserShot {-# UNPACK #-} !ShipId {-unpack sum-} !Direction
   deriving(Generic, Show)

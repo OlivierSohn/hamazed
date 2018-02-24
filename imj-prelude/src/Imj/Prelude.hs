@@ -30,7 +30,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , sum, map, concatMap, concat, filter, mapM, mapM_
                         , all, any, notElem, null, minimum, maximum
                         , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate, unwords
-                        , zip, unzip, zipWith, fst, snd
+                        , zip, zip3, unzip, zipWith, fst, snd
                         , fmap, (.), (=<<), ($), (<$>), const, id, flip, curry, uncurry
                         , compare, not, or, (||), (&&), otherwise
                         , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)

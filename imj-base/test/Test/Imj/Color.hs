@@ -49,7 +49,7 @@ testRotateColorsWithHue = do
 testRotateColorsWithoutHue :: IO ()
 testRotateColorsWithoutHue =
   mapM_
-    (\(c, dh) -> rotateHue c dh `shouldBe` c)
+    (\(c, dh) -> rotateHue dh c `shouldBe` c)
     [(c, dh) | c <- colorsWithoutHues
              , dh <- someHues]
  where

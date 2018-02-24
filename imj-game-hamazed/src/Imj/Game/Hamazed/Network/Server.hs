@@ -23,12 +23,13 @@ import           Control.Concurrent.MVar (MVar
                                         , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
-import           Data.Map.Strict(Map, (!?))
-import qualified Data.Map.Strict as Map(map, mapMaybe, union, elems, keys, adjust, insert, delete, member, mapAccum
-                                      , foldMapWithKey, restrictKeys)
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elems, keys, adjust, keysSet
+                                      , insert, null, empty, mapAccumWithKey, updateLookupWithKey
+                                      , restrictKeys, traverseWithKey)
 import           Data.Set (Set)
-import qualified Data.Set as Set (difference, intersection, fromAscList, lookupMin)
-import           Data.Maybe(isJust, maybeToList)
+import qualified Data.Set as Set (difference, lookupMin, empty, insert)
+import           Data.Maybe(isJust)
 import           Data.Text(pack, unpack)
 import           Data.Tuple(swap)
 import           Network.WebSockets
@@ -56,29 +57,21 @@ mkServer Nothing = Local
 mkServer (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
 
-removeClient :: ShipId -> Clients -> Clients
-removeClient i clients =
-  clients { getClients' = Map.delete i $ getClients' clients }
-
-send :: Client -> ServerEvent -> StateT ServerState IO ()
-send client evt =
-  sendN [evt] [client]
-
-sendClients :: ServerEvent -> StateT ServerState IO ()
+sendClients :: ServerEvent -> StateT ServerState IO () -- TODO rename sendEveryone
 sendClients evt =
-  sendN [evt] =<< allClients
+  sendN [evt] =<< clientsMap
 
 sendClientsN :: [ServerEvent] -> StateT ServerState IO ()
 sendClientsN evts =
-  sendN evts =<< allClients
+  sendN evts =<< clientsMap
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  sendN [evt] =<< onlyPlayers
+  sendN [evt] =<< onlyPlayersMap
 
 sendFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
 sendFirstWorldBuilder evt =
-  sendN [evt] . take 1 =<< allClients
+  sendN [evt] . Map.take 1 =<< clientsMap
 
 {-# INLINABLE sendN #-}
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
@@ -87,17 +80,22 @@ sendFirstWorldBuilder evt =
 -- In case some connections are closed, the corresponding clients are silently removed
 -- from the Map, and we continue the processing.
 sendN :: WebSocketsData a
-                => [a]
-                -> [Client]
-                -> StateT ServerState IO ()
+      => [a]
+      -> Map ShipId Client
+      -> StateT ServerState IO ()
 sendN a clients =
   let !msgs = map (Binary . toLazyByteString) a
-  in mapM_ (sendAndHandleExceptions msgs) clients
- where
-  sendAndHandleExceptions m x =
-    liftIO (try (sendDataMessages (getConnection x) m)) >>= either
-      (\(e :: SomeException) -> onBrokenClient e x)
-      return
+  in void $ Map.traverseWithKey (\i client -> sendAndHandleExceptions msgs (getConnection client) i) clients
+
+send :: Connection -> ShipId -> ServerEvent -> StateT ServerState IO ()
+send conn sid evt =
+  sendAndHandleExceptions (map (Binary . toLazyByteString) [evt]) conn sid
+
+sendAndHandleExceptions :: [DataMessage] -> Connection -> ShipId -> StateT ServerState IO ()
+sendAndHandleExceptions m conn i =
+  liftIO (try (sendDataMessages conn m)) >>= either
+    (\(e :: SomeException) -> onBrokenClient e i)
+    return
 
 appSrv :: MVar ServerState -> PendingConnection -> IO ()
 appSrv st pending =
@@ -115,14 +113,15 @@ appSrv' st conn =
     Connect sn@(SuggestedPlayerName suggestedName) cliType -> either
       (sendBinaryData conn . ConnectionRefused . InvalidName sn)
       (\_ -> do
-        client <- modifyMVar st (fmap swap . runStateT (makeClient conn sn cliType))
+        i <- modifyMVar st (fmap swap . runStateT takeShipId)
         let disconnectOnException action = try action >>= either
-              (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e client)
+              (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e i)
               return
         -- To detect disconnections when communication is idle:
         void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
-        disconnectOnException $
-          forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent client
+        disconnectOnException $ do
+          modifyMVar_ st (execStateT (addClient i conn sn cliType))
+          forever $ receiveData conn >>= modifyMVar_ st . execStateT . handleIncomingEvent conn i
       ) $ checkName $ PlayerName $ pack suggestedName
     msg -> error $ "first sent message should be 'Connect'. " ++ show msg
 
@@ -144,65 +143,64 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ succ i
 
-makeClient :: Connection -> SuggestedPlayerName -> ServerOwnership -> StateT ServerState IO Client
-makeClient conn sn cliType = do
-  i <- takeShipId
-  name <- makePlayerName sn
-  let client@(Client _ _ _ _ _ _ _ _ c) = mkClient name i conn cliType
-  -- this call is /before/ addClient to avoid sending redundant info to client.
-  sendClientsN $ map (RunCommand i) [AssignName name, AssignColors c]
-  -- order matters, see comment above.
-  addClient client
-  send client . ConnectionAccepted i . Map.map
-    (\(Client _ n  _ _ _ _ _ _ color) ->
-        Player n Present color)
-    =<< clientsMap
-  return client
+takeShipId :: StateT ServerState IO ShipId
+takeShipId =
+  takeDisconnectedShipId >>= maybe
+    (state $ \s ->
+      let newShipId = succ $ getNextShipId $ getClients s
+      in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } ))
+    (\(gameConnectedPlayers, disconnected) -> do
+      if Map.null gameConnectedPlayers
+        then
+          serverError "the current game has no connected player" -- TODO support that
+        else
+          sendN [CurrentGameStateRequest] (Map.take 1 gameConnectedPlayers)
+      return disconnected)
  where
-  takeDisconnectedShipId :: StateT ServerState IO (Maybe (Maybe Client, ShipId)) -- (connected, disconnected)
+  takeDisconnectedShipId :: StateT ServerState IO (Maybe (Map ShipId Client, ShipId)) -- (connected, disconnected)
   takeDisconnectedShipId =
-    get >>= \(ServerState (Clients clients _) _ _ _ _ _ terminate game) ->
+    get >>= \(ServerState _ _ _ _ _ _ terminate game) ->
       if terminate
         then
           return Nothing
         else
-          maybe
-            Nothing
+          liftIO (tryReadMVar game) >>= maybe
+            (return Nothing)
             (\(CurrentGame _ gamePlayers status) -> case status of
-                (Paused _) ->
+                (Paused _) -> do
                 -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
                 -- - the game scheduler thread updates it every second only -
                 -- so we recompute the difference:
-                  let connectedPlayerKeys = getPlayersKeys clients
+                  connectedPlayers <- onlyPlayersMap
+                  let connectedPlayerKeys = Map.keysSet connectedPlayers
                       mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
-                      -- gamePlayers /should be/ included in connectedPlayerKeys, but just to be sure,
-                      -- we do the intersection.
-                      mayConnectedPlayerKey = Set.lookupMin $ Set.intersection gamePlayers connectedPlayerKeys
-                      mayConnectedPlayer = join $ fmap (clients !?) mayConnectedPlayerKey
-                  in maybe
-                        Nothing
-                        (\disconnectedPlayerKey -> Just (mayConnectedPlayer, disconnectedPlayerKey))
-                        mayDisconnectedPlayerKey
-                _ -> Nothing)
-            <$> liftIO (tryReadMVar game)
-  takeShipId =
-    takeDisconnectedShipId >>= maybe
-      (state $ \s ->
-        let newShipId = succ $ getNextShipId $ getClients s
-        in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } ))
-      (\(mayConnected, disconnected) -> do
-        maybe
-          (serverError "the current game has no connected player") -- TODO support that
-          (`send` CurrentGameStateRequest)
-          mayConnected
-        return disconnected)
-  addClient c =
+                      gameConnectedPlayers = Map.restrictKeys connectedPlayers gamePlayers
+                  return $ maybe
+                    Nothing
+                    (\disconnectedPlayerKey -> Just (gameConnectedPlayers, disconnectedPlayerKey))
+                    mayDisconnectedPlayerKey
+                _ -> return Nothing)
+
+
+addClient :: ShipId -> Connection -> SuggestedPlayerName -> ServerOwnership -> StateT ServerState IO ()
+addClient i conn sn cliType = do
+  name <- makePlayerName sn
+  let client@(Client _ _ _ _ _ _ _ c) = mkClient name i conn cliType
+  -- this call is /before/ addClient to avoid sending redundant info to client.
+  sendClientsN $ map (RunCommand i) [AssignName name, AssignColors c]
+  -- order matters, see comment above.
+  addClient' client
+  send conn i . ConnectionAccepted i . Map.map
+    (\(Client n _ _ _ _ _ _ color) ->
+        Player n Present color)
+    =<< clientsMap
+ where
+  addClient' c =
     modify' $ \ s ->
       let clients = getClients s
       in s { getClients =
               clients { getClients' =
-                Map.insert (getIdentity c) c
-                  $ getClients' clients } }
+                Map.insert i c $ getClients' clients } }
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
@@ -222,34 +220,33 @@ checkNameAvailability name =
 shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
   modify' $ \s -> s { getShouldTerminate = True }
-  mapM_ (disconnect $ ServerShutdown reason) =<< allClients
+  mapM_ (disconnect $ ServerShutdown reason) =<< allClientsIds
 
 -- It's important that this function doesn't throw any exception.
-onBrokenClient :: SomeException -> Client -> StateT ServerState IO ()
+onBrokenClient :: SomeException -> ShipId -> StateT ServerState IO ()
 onBrokenClient e =
   disconnect (BrokenClient $ pack $ show e)
 
-disconnect :: DisconnectReason -> Client -> StateT ServerState IO ()
-disconnect r c@(Client i (PlayerName name) _ ownership _ _ _ _ _) =
-  get >>= \s -> do
-    let clients = getClients' $ getClients s
-    -- If the client is not in the client map, we don't do anything.
-    when (Map.member i clients) $ do
-      -- If the client owns the server, we shutdown connections to /other/ clients first.
-      when (ownership == ClientOwnsServer) $
-        mapM_
-          (\client'@(Client j _ _ _ _ _ _ _ _) ->
-              unless (i == j) $ do
+disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
+disconnect r i =
+  tryRemoveClient >>= maybe
+    (return ()) -- the client was not in the client map, we don't do anything.
+    (\c@(Client (PlayerName name) _ ownership _ _ _ _ _) -> do
+        -- If the client owns the server, we shutdown connections to /other/ clients first.
+        when (ownership == ClientOwnsServer) $ do
+          clientsMap >>= void . Map.traverseWithKey
+            (\j client' -> do
                 let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
-                disconnectClient (ServerShutdown msg) client')
-          clients
-      -- Finally, shutdown the client connection.
-      disconnectClient r c
+                -- Because we pass a 'ServerShutdown', 'disconnectClient' won't
+                -- use the clients map so it's safe to just clear the client map
+                -- /after/ the entire traversal was done, we won't have infinite recursion.
+                disconnectClient (ServerShutdown msg) j client')
+          removeAllClients
+        -- Finally, shutdown the client connection.
+        disconnectClient r i c)
  where
-  disconnectClient :: DisconnectReason -> Client -> StateT ServerState IO ()
-  disconnectClient reason client@(Client cid (PlayerName playerName) conn _ _ _ _ _ _) = do
-    -- Remove the client from the registered clients Map
-    modify' $ \s -> s { getClients = removeClient cid $ getClients s }
+  disconnectClient :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
+  disconnectClient reason cid (Client (PlayerName playerName) conn _ _ _ _ _ _) = do
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -257,17 +254,25 @@ disconnect r c@(Client i (PlayerName name) _ ownership _ _ _ _ _) =
         -- on its side, the client will probably receive an exception when reading or sending data.
         return ()
       _ -> do
-        send client $ Disconnected reason
-        liftIO $ sendClose conn msg
-       where
-        msg = "[" <> playerName <> "] disconnection < " <> pack (show reason)
-
+        send conn cid $ Disconnected reason
+        liftIO $ sendClose conn $
+          "[" <> playerName <> "] disconnection < " <> pack (show reason)
     -- notify other clients about the disconnection of client
     case reason of
       BrokenClient e -> sendClients $ RunCommand cid $ Leaves $ ConnectionError e
       ClientShutdown -> sendClients $ RunCommand cid $ Leaves Intentional
       ServerShutdown _ -> return () -- no need to notify other clients, as they will be diconnected too,
                                     -- hence they will receive a server shutdown notification.
+  tryRemoveClient = state $ \s ->
+    let clients = getClients s
+        (mayClient, newClients) =
+          Map.updateLookupWithKey
+            (\_ _ -> Nothing)
+            i
+            $ getClients' clients
+    in (mayClient, s { getClients = clients { getClients' = newClients } })
+  removeAllClients = modify' $ \s ->
+    s { getClients = (getClients s) { getClients' = Map.empty } }
 
 allClients :: StateT ServerState IO [Client]
 allClients =
@@ -277,16 +282,30 @@ clientsMap :: StateT ServerState IO (Map ShipId Client)
 clientsMap =
   getClients' . getClients <$> get
 
+allClientsIds :: StateT ServerState IO [ShipId]
+allClientsIds = Map.keys <$> clientsMap
+
+onlyPlayersMap :: StateT ServerState IO (Map ShipId Client)
+onlyPlayersMap = Map.filter (isJust . getState) <$> clientsMap
+
 onlyPlayers :: StateT ServerState IO [Client]
 onlyPlayers =
   filter (isJust . getState) <$> allClients
 
+onlyPlayersIds :: StateT ServerState IO (Set ShipId)
+onlyPlayersIds =
+  Map.keysSet <$> onlyPlayersMap
+
+getPlayersKeys :: StateT ServerState IO (Set ShipId)
+getPlayersKeys =
+  Map.keysSet <$> onlyPlayersMap
+
 getIntent :: StateT ServerState IO Intent
 getIntent = getIntent' <$> get
 
-error' :: Client -> String -> StateT ServerState IO ()
-error' client txt = do
-  send client $ Error $ "*** error from Server: " ++ txt
+error' :: Connection -> ShipId -> String -> StateT ServerState IO ()
+error' conn i txt = do
+  send conn i $ Error $ "*** error from Server: " ++ txt
   error $ "error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
@@ -302,14 +321,14 @@ serverError txt = do
   error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
-handleIncomingEvent :: Client -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
+handleIncomingEvent :: Connection -> ShipId -> ClientEvent -> StateT ServerState IO ()
+handleIncomingEvent conn i = \case
   Connect (SuggestedPlayerName sn) _ ->
-    error' client $ "already connected : " <> sn
+    errorPriviledged $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
-    (send client . CommandError cmd)
+    (sendPriviledged . CommandError cmd)
     (\_ -> checkNameAvailability name >>= either
-      (send client . CommandError cmd)
+      (sendPriviledged . CommandError cmd)
       (\_ -> do
         modifyClient i $ \c -> c { getName = name }
         sendClients $ RunCommand i cmd)
@@ -318,7 +337,7 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
     modifyClient i $ \c -> c { getColors = colors }
     sendClients $ RunCommand i cmd
   RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
-  RequestCommand (Leaves _) -> disconnect ClientShutdown client -- will do the corresponding 'sendClients $ RunCommand'
+  RequestCommand (Leaves _) -> disconnect ClientShutdown i -- will do the corresponding 'sendClients $ RunCommand'
   ExitedState Excluded ->
     getIntent >>= \case
       IntentSetup -> do
@@ -330,7 +349,7 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
         -- next step when client 'IsReady'
       _ -> do
         sendClients $ PlayerInfo WaitsToJoin i
-        send client $ EnterState Excluded
+        sendPriviledged $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _) _ _ intent _ game) -> do
     case intent of
@@ -371,8 +390,6 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
                 (Just $ c { getState = Just Finished })
                 (const Nothing)
                 $ getState c) >>= sendClientsN . map (PlayerInfo Joins)
-
-
         requestWorld
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
@@ -394,12 +411,11 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
       when (lastWid == Just wid) $
         sendPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
   CurrentGameState gameStateEssence ->
-    get >>= \(ServerState (Clients clients _) _ _ _ _ _ _ game) ->
+    get >>= \(ServerState _ _ _ _ _ _ _ game) ->
       liftIO (tryReadMVar game) >>= \case
         (Just (CurrentGame _ gamePlayers (Paused _))) -> do
-          let disconnectedPlayerKeys = Set.difference gamePlayers $ getPlayersKeys clients
-              disconnectedClients = Map.elems $ Map.restrictKeys clients disconnectedPlayerKeys
-          sendN [PutGameState gameStateEssence] disconnectedClients
+          disconnectedPlayerKeys <- Set.difference gamePlayers <$> onlyPlayersIds
+          sendN [PutGameState gameStateEssence] . flip Map.restrictKeys disconnectedPlayerKeys =<< clientsMap
         invalid -> serverError $ "CurrentGameState sent while game is " ++ show invalid
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
@@ -411,17 +427,16 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
       IntentSetup ->
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
-        send client $ EnterState Setup
+        sendPriviledged $ EnterState Setup
       IntentPlayGame ->
         get >>= \(ServerState (Clients clients _) _ _ _ mayLastWId _ _ game) -> maybe
             (return ())
             (\lastWId -> do
               modifyClient i $ \c -> c { getState = Just Finished }
               -- start the game when all players have the right world
-              let playersKeys = getPlayersKeys clients
-                  playersAllReady =
-                    all ((== Just lastWId) . getCurrentWorld) $
-                      Map.restrictKeys clients playersKeys
+              playersKeys <- getPlayersKeys
+              let playersAllReady =
+                    all ((== Just lastWId) . getCurrentWorld) $ Map.restrictKeys clients playersKeys
               when playersAllReady $ do
                 modifyClients $ \c -> if getState c == Just Finished
                                         then c { getState = Just InGame
@@ -449,6 +464,9 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
     sendPlayers $ GameEvent $ LaserShot i dir
   Action Ship dir ->
     modifyClient i $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
+ where
+  sendPriviledged = send conn i
+  errorPriviledged = error' conn i
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =
@@ -489,37 +507,38 @@ gameScheduler st =
   stepWorld :: Time Point System -> StateT ServerState IO ()
   stepWorld now = do
     let !zero = zeroCoords
-    accs <- mapMaybe
-      (\p -> let !acc = getShipAcceleration p
-             in if acc == zero
-                  then Nothing
-                  else Just (getIdentity p, acc))
-      <$> onlyPlayers
+    accs <- Map.mapMaybe
+      (\p ->
+          let !acc = getShipAcceleration p
+            in if acc == zero
+              then Nothing
+              else Just acc)
+      <$> onlyPlayersMap
     becameSafe <- updateSafeShips
-    sendPlayers $ GameEvent $ PeriodicMotion accs $ map getIdentity becameSafe
+    sendPlayers $ GameEvent $ PeriodicMotion accs becameSafe
     modifyClients $ \p -> p { getShipAcceleration = zeroCoords }
    where
     updateSafeShips =
       state $ \s ->
         let clients = getClients s
             (clientsMadeSafe, c') =
-              Map.mapAccum
-                (\shipsMadeSafe client -> maybe
+              Map.mapAccumWithKey
+                (\shipsMadeSafe sid client -> maybe
                   (shipsMadeSafe, client)
                   (\shipUnsafeAt ->
                       if shipUnsafeAt < now
                         then
-                          (client:shipsMadeSafe, client { getShipSafeUntil = Nothing } )
+                          (Set.insert sid shipsMadeSafe, client { getShipSafeUntil = Nothing } )
                         else
                           (shipsMadeSafe, client))
                   $ getShipSafeUntil client)
-                [] $ getClients' clients
+                Set.empty $ getClients' clients
         in (clientsMadeSafe, s { getClients = clients { getClients' = c' } })
 
   -- run the action if the world matches the current world and the game was
   -- not terminated
   run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
-  run' refWid act = get >>= \(ServerState (Clients clients _) _ _ _ _ _ terminate mayWorld) ->
+  run' refWid act = get >>= \(ServerState _ _ _ _ _ _ terminate mayWorld) ->
     if terminate
       then
         return NotExecutedGameCanceled
@@ -532,8 +551,8 @@ gameScheduler st =
               then
                 return NotExecutedGameCanceled -- the world has changed
               else do
-                let missingPlayers = Set.difference gamePlayers $ getPlayersKeys clients
-                    newStatus =
+                missingPlayers <- Set.difference gamePlayers <$> getPlayersKeys
+                let newStatus =
                       if null missingPlayers
                         then
                           Running
@@ -564,16 +583,6 @@ data RunResult =
     NotExecutedGameCanceled
   | NotExecutedTryAgainLater
   | Executed
-
-getPlayersKeys :: Map ShipId Client -> Set ShipId
-getPlayersKeys =
-  Set.fromAscList . Map.foldMapWithKey
-    (\cid client -> maybeToList $
-        if isJust $ getState client
-          then
-            Just cid
-          else
-            Nothing)
 
 modifyClient :: ShipId -> (Client -> Client) -> StateT ServerState IO ()
 modifyClient i f =
@@ -609,7 +618,7 @@ requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
   get >>= \(ServerState _ _ level params wid _ _ _) -> do
-    shipIds <- map getIdentity <$> onlyPlayers
+    shipIds <- onlyPlayersIds
     sendFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where
   incrementWorldId =
@@ -635,7 +644,7 @@ changeWorldShape d p = p { getWorldShape = d }
 {-
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m)
-       => [(ShipId, Coords Vel)]
+       => Map ShipId (Coords Vel)
        -> [ShipId]
        -> m ()
 onMove accelerations shipsLosingArmor = getGameState >>= \(GameState _ m@(Multiplicator mv) world a b c d e) ->

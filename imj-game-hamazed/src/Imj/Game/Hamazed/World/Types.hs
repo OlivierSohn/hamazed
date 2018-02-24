@@ -39,6 +39,7 @@ module Imj.Game.Hamazed.World.Types
         , RectContainer(..)
         , RectArea, Filter, Positive
         , Map
+        , Set
         ) where
 
 import           Imj.Prelude
@@ -46,6 +47,7 @@ import           Imj.Prelude
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
 import           Control.DeepSeq(NFData)
 import           Data.Map.Strict(Map, lookup)
+import           Data.Set(Set)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
@@ -92,7 +94,7 @@ instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
     getLevelSpec :: {-unpack sum-} !LevelSpec
-  , getShipIds :: ![ShipId]
+  , getShipIds :: !(Set ShipId)
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
   , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.
 } deriving(Generic, Show)

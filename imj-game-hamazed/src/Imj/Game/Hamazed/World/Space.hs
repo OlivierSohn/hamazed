@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.World.Space
     , toListOfLists
     , fromListOfLists
     , BigWorldTopology(..)
+    , ComponentIdx
     , getComponentIndices
     , Material(..)
     , materialColor

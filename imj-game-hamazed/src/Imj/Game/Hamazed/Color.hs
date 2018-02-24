@@ -49,12 +49,12 @@ import           Imj.Graphics.Color
 import           Imj.Iteration
 
 data ColorCycle a = ColorCycle {-# UNPACK #-} !(Color8 a) {-# UNPACK #-} !(Color8 a)
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq)
 instance Binary (ColorCycle a)
 
 data ColorCycles = ColorCycles {
     outer1, outer2, wall1, wall2, laser :: {-# UNPACK #-} !(ColorCycle Foreground)
-} deriving(Generic, Show)
+} deriving(Generic, Show, Eq)
 instance Binary ColorCycles
 
 mkColorCycles :: Color8 Foreground -> ColorCycles

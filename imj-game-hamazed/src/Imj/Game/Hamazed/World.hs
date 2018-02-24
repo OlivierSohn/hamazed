@@ -117,8 +117,8 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Map.Strict(fromAscList, assocs, insert)
-import           Data.List(find, elem)
+import           Data.Map.Strict(fromAscList, assocs, insert, lookup)
+import           Data.List(elem)
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Level.Types
@@ -148,8 +148,8 @@ import           Imj.Physics.Discrete.Collision
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
-moveWorld :: [(ShipId, Coords Vel)]
-          -> [ShipId]
+moveWorld :: Map ShipId (Coords Vel)
+          -> Set ShipId
           -> World
           -> World
 moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
@@ -176,9 +176,7 @@ moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
                       Armored
                 Unarmored -> destroyedOr Unarmored
             newSpeed =
-              maybe oldSpeed (\(_,acc) -> sumCoords acc oldSpeed)
-              -- induces a square complexity, but if the number of ships is small it's ok.
-              $ find ((==) sid . fst) accelerations
+              maybe oldSpeed (sumCoords oldSpeed) $ lookup sid accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
         in (sid,BattleShip name newPosSpeed ammo newStatus collisions)
       -- using fromAscList ecause the keys are unchanged.

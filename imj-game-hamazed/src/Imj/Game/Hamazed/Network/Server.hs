@@ -35,7 +35,8 @@ import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
                   -- the functions on the mext line throw(IO), hence we catch exceptions
                   -- to remove the client from the map when needed.
-                   acceptRequest, sendBinaryData, sendDataMessage, sendClose, sendPing, receiveData)
+                   acceptRequest, sendBinaryData, sendClose, sendPing, receiveData)
+import           Network.WebSockets.Connection(sendDataMessages)
 import           UnliftIO.Exception (SomeException(..), try)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -61,19 +62,23 @@ removeClient i clients =
 
 send :: Client -> ServerEvent -> StateT ServerState IO ()
 send client evt =
-  sendN evt [client]
+  sendN [evt] [client]
 
 sendClients :: ServerEvent -> StateT ServerState IO ()
 sendClients evt =
-  sendN evt =<< allClients
+  sendN [evt] =<< allClients
+
+sendClientsN :: [ServerEvent] -> StateT ServerState IO ()
+sendClientsN evts =
+  sendN evts =<< allClients
 
 sendPlayers :: ServerEvent -> StateT ServerState IO ()
 sendPlayers evt =
-  sendN evt =<< onlyPlayers
+  sendN [evt] =<< onlyPlayers
 
 sendFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
 sendFirstWorldBuilder evt =
-  sendN evt . take 1 =<< allClients
+  sendN [evt] . take 1 =<< allClients
 
 {-# INLINABLE sendN #-}
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
@@ -82,15 +87,15 @@ sendFirstWorldBuilder evt =
 -- In case some connections are closed, the corresponding clients are silently removed
 -- from the Map, and we continue the processing.
 sendN :: WebSocketsData a
-                => a
+                => [a]
                 -> [Client]
                 -> StateT ServerState IO ()
 sendN a clients =
-  let !msg = Binary $ toLazyByteString a
-  in mapM_ (sendAndHandleExceptions msg) clients
+  let !msgs = map (Binary . toLazyByteString) a
+  in mapM_ (sendAndHandleExceptions msgs) clients
  where
   sendAndHandleExceptions m x =
-    liftIO (try (sendDataMessage (getConnection x) m)) >>= either
+    liftIO (try (sendDataMessages (getConnection x) m)) >>= either
       (\(e :: SomeException) -> onBrokenClient e x)
       return
 
@@ -144,9 +149,8 @@ makeClient conn sn cliType = do
   i <- takeShipId
   name <- makePlayerName sn
   let client@(Client _ _ _ _ _ _ _ _ c) = mkClient name i conn cliType
-  -- these calls are /before/ addClient to avoid sending redundant info to client.
-  sendClients $ RunCommand i $ AssignName name
-  sendClients $ RunCommand i $ AssignColors c
+  -- this call is /before/ addClient to avoid sending redundant info to client.
+  sendClientsN $ map (RunCommand i) [AssignName name, AssignColors c]
   -- order matters, see comment above.
   addClient client
   send client . ConnectionAccepted i . Map.map
@@ -260,14 +264,10 @@ disconnect r c@(Client i (PlayerName name) _ ownership _ _ _ _ _) =
 
     -- notify other clients about the disconnection of client
     case reason of
-      ServerShutdown _ ->
-        -- no need to notify other clients, as they will be diconnected too, thus
-        -- they will receive a server shutdown notification.
-        return ()
-      ClientShutdown ->
-        sendClients $ RunCommand cid $ Leaves Intentional
-      BrokenClient e ->
-        sendClients $ RunCommand cid $ Leaves $ ConnectionError e
+      BrokenClient e -> sendClients $ RunCommand cid $ Leaves $ ConnectionError e
+      ClientShutdown -> sendClients $ RunCommand cid $ Leaves Intentional
+      ServerShutdown _ -> return () -- no need to notify other clients, as they will be diconnected too,
+                                    -- hence they will receive a server shutdown notification.
 
 allClients :: StateT ServerState IO [Client]
 allClients =
@@ -352,9 +352,8 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
           finished (Just InGame) = False
       when playersAllFinished $ do
         void $ liftIO $ takeMVar game
-        sendClients $ GameInfo $ LevelResult levelN outcome
-        when (outcome == Won && levelN == lastLevel) $
-          sendClients $ GameInfo GameWon
+        sendClientsN $ (GameInfo $ LevelResult levelN outcome):
+                       [GameInfo GameWon | outcome == Won && levelN == lastLevel]
         if outcome == Won && levelN < lastLevel
            then
              modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
@@ -393,7 +392,7 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
         (Just (CurrentGame _ gamePlayers (Paused _))) -> do
           let disconnectedPlayerKeys = Set.difference gamePlayers $ getPlayersKeys clients
               disconnectedClients = Map.elems $ Map.restrictKeys clients disconnectedPlayerKeys
-          sendN (PutGameState gameStateEssence) disconnectedClients
+          sendN [PutGameState gameStateEssence] disconnectedClients
         invalid -> serverError $ "CurrentGameState sent while game is " ++ show invalid
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
@@ -536,8 +535,8 @@ gameScheduler st =
                 if status /= newStatus
                   then do
                     -- mayWorld can be concurrently modified from client handler threads, but only from
-                    -- inside a 'modifyMVar' of ServerState. Since we are ourselves inside
-                    -- a modifyMVar of ServerState, we guarantee that the 'takeMVar' inside
+                    -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
+                    -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
                     -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
                     -- returned a 'Just'.
                     liftIO $ void $ swapMVar mayWorld $ CurrentGame curWid gamePlayers newStatus
@@ -614,8 +613,6 @@ changeWallDistrib d p = p { getWallDistrib = d }
 
 changeWorldShape :: WorldShape -> WorldParameters -> WorldParameters
 changeWorldShape d p = p { getWorldShape = d }
--- TODOs:
--- ship safe : on level start : addDuration (fromSecs 5) t
 
 -- Game Timing:
 {-

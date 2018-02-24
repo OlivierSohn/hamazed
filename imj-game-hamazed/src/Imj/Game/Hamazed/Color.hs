@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | This module defines colors of Hamazed game elements.
 
@@ -30,11 +31,12 @@ module Imj.Game.Hamazed.Color (
   , messageColor
   , neutralMessageColor
   -- ** Cyclic colors
-  , cycleOuterColors1
-  , cycleOuterColors2
-  , cycleWallColors1
-  , cycleWallColors2
-  , cycleLaserColors
+  , ColorCycle
+  , ColorCycles(..)
+  , mkColorCycles
+  , rotateHues
+  , cycleColors
+  , refShipColor
   -- * Reexports
   , module Imj.Graphics.Color
   ) where
@@ -46,26 +48,46 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color
 import           Imj.Iteration
 
+data ColorCycle a = ColorCycle {-# UNPACK #-} !(Color8 a) {-# UNPACK #-} !(Color8 a)
+  deriving(Generic, Show)
+instance Binary (ColorCycle a)
 
-cycleOuterColors1 :: Frame -> LayeredColor
-cycleOuterColors1 (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic (rgb 5 2 4) (rgb 1 1 2) frame
+data ColorCycles = ColorCycles {
+    outer1, outer2, wall1, wall2, laser :: {-# UNPACK #-} !(ColorCycle Foreground)
+} deriving(Generic, Show)
+instance Binary ColorCycles
 
-cycleOuterColors2 :: Frame -> LayeredColor
-cycleOuterColors2 (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic (rgb 4 2 1) (rgb 3 1 0) frame
+mkColorCycles :: Color8 Foreground -> ColorCycles
+mkColorCycles c =
+  ColorCycles (r outer1ColorCycle) (r outer2ColorCycle) (r wall1ColorCycle) (r wall2ColorCycle) (r laserColorCycle)
+ where
+  refHue = fromMaybe (error "unexpected") $ hue refShipColor
+  thisHue = fromMaybe refHue $ hue c -- gray ships are assimilated to refShipColor
+  r = rotateHues $ thisHue - refHue
 
-cycleWallColors1 :: Frame -> LayeredColor
-cycleWallColors1 (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic (rgb 3 2 2) (rgb 3 1 0) frame
+rotateHues :: Float -> ColorCycle a -> ColorCycle a
+rotateHues dh (ColorCycle a b) =
+  ColorCycle (rotateHue dh a) (rotateHue dh b)
 
-cycleWallColors2 :: Frame -> LayeredColor
-cycleWallColors2 (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic (rgb 4 2 1) (rgb 3 2 2) frame
+cycleColors :: ColorCycle Foreground -> Frame -> LayeredColor
+cycleColors (ColorCycle from to) (Frame frame) =
+  LayeredColor (gray 0) $ interpolateCyclic from to frame
 
-cycleLaserColors :: Frame -> LayeredColor
-cycleLaserColors (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic (rgb 3 2 4) (rgb 3 2 2) frame
+-- | We consider that 'ColorCycle' values in this module were hand-tuned in the context
+-- of this reference ship color.
+--
+-- To adapt a 'ColorCycle' value for another ship color, we compute the 'hue' difference between
+-- this 'refShipColor' and the other ship color, and apply the hue difference to 'ColorCycle' values
+-- using 'rotateHues'.
+refShipColor :: Color8 Foreground
+refShipColor = rgb 4 2 1
+
+outer1ColorCycle, outer2ColorCycle, wall1ColorCycle, wall2ColorCycle, laserColorCycle :: ColorCycle Foreground
+outer1ColorCycle = ColorCycle (rgb 5 2 4) (rgb 1 1 2)
+outer2ColorCycle = ColorCycle (rgb 4 2 1) (rgb 3 1 0)
+wall1ColorCycle  = ColorCycle (rgb 3 2 2) (rgb 3 1 0)
+wall2ColorCycle  = ColorCycle (rgb 4 2 1) (rgb 3 2 2)
+laserColorCycle  = ColorCycle (rgb 3 2 4) (rgb 3 2 2)
 
 configFgColor :: Color8 Foreground
 configFgColor = gray 8

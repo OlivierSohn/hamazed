@@ -36,7 +36,7 @@ drawWorld (World balls ships space _ _ _) s  = do
   let drawShip (i, BattleShip _ (PosSpeed shipCoords _) _ status _) = do
         let absPos = sumCoords shipCoords s
             inWorld = InsideWorld == location shipCoords space
-            go bg = when inWorld $ maybe shipColor getPlayerColor <$> getPlayer i >>=
+            go bg = when inWorld $ maybe shipColor (getPlayerColor . getPlayerColors) <$> getPlayer i >>=
               drawChar '+' absPos . LayeredColor bg
         case status of
           Armored   -> go shipBgColorSafe

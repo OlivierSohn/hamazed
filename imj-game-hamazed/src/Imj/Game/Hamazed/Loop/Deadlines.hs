@@ -13,7 +13,6 @@ import           Imj.Prelude
 import           Data.List( minimumBy, sortBy)
 import           Data.Map (toList)
 import           Data.Maybe( catMaybes )
-import           Control.Monad(join)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Event.Types

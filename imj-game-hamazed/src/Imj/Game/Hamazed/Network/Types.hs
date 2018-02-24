@@ -11,6 +11,8 @@ module Imj.Game.Hamazed.Network.Types
       , PlayerName(..)
       , Player(..)
       , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
+      , PlayerColors(..)
+      , mkPlayerColors
       , getPlayerUIName
       , ServerOwnership(..)
       , ClientState(..)
@@ -50,10 +52,10 @@ import           Data.Text.Lazy.Encoding as LazyE(decodeUtf8)
 import           Network.WebSockets(WebSocketsData(..), DataMessage(..))
 
 import           Imj.Game.Hamazed.Chat
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString
 
 -- | a Server, seen from a Client's perspective
@@ -166,25 +168,38 @@ instance Binary PlayerStatus
 data Player = Player {
     getPlayerName :: {-# UNPACK #-} !PlayerName
   , getPlayerStatus :: {-unpack sum-} !PlayerStatus
-  , getPlayerColor :: {-# UNPACK #-} !(Color8 Foreground)
+  , getPlayerColors :: {-# UNPACK #-} !PlayerColors
 } deriving(Generic, Show)
 instance Binary Player
+
+data PlayerColors = PlayerColors {
+    getPlayerColor :: {-# UNPACK #-} !(Color8 Foreground)
+    -- ^ color of player name and ship.
+  , getColorCycles :: {-# UNPACK #-} !ColorCycles
+    -- ^ colors for particle systems
+} deriving(Generic, Show)
+instance Binary PlayerColors
+
+mkPlayerColors :: Color8 Foreground -> PlayerColors
+mkPlayerColors c = PlayerColors c $ mkColorCycles c
 
 getPlayerUIName :: Maybe Player -> ColorString
 -- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
 -- know about the name of the other disconnected player.
 getPlayerUIName Nothing = "? (away)"
-getPlayerUIName (Just (Player (PlayerName n) Present c)) = colored n c
-getPlayerUIName (Just (Player (PlayerName n) Absent c)) = colored n c <> colored " (away)" chatMsgColor
+getPlayerUIName (Just (Player (PlayerName n) status (PlayerColors c _))) =
+  case status of
+    Present -> colored n c
+    Absent -> colored n c <> colored " (away)" chatMsgColor
 
 data Command =
     AssignName {-# UNPACK #-} !PlayerName
-  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
+  | AssignColors {-# UNPACK #-} !PlayerColors
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !LeaveReason
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
-  deriving(Generic, Show, Eq)
+  deriving(Generic, Show)
 instance Binary Command
 
 data GameStateEssence = GameStateEssence {

@@ -27,6 +27,7 @@ module Imj.Graphics.Color.Types
           , color8ToUnitRGB
           , Xterm256Color(..)
           , color8CodeToXterm256
+          , xterm256ColorToCode
           , onBlack
           , whiteOnBlack
           , white, black, red, green, magenta, cyan, yellow, blue
@@ -95,7 +96,7 @@ rgb :: Int
     -> Color8 a
 rgb r g b
   | check r && check g && check b = unsafeRgb r g b
-  | otherwise = error "out of range"
+  | otherwise = error $ "out of range:" ++ show (r,g,b)
   where check x = x >= 0 && x <= 5
 
 -- | Same as 'rgb', but returns an error if the input value is not in the admissible range.
@@ -150,7 +151,10 @@ unsafeGray i = Color8 $ fromIntegral (i + 232)
 data Foreground
 data Background
 -- | ANSI allows for a palette of up to 256 8-bit colors.
-newtype Color8 a = Color8 Word8 deriving (Eq, Show, Read, Enum, Generic)
+newtype Color8 a = Color8 Word8 -- it's ok to use an unsigned type as we won't need
+                                -- to substract two Color8, hence we won't encouter
+                                -- the underflow problem of unsigned types.
+  deriving (Generic, Ord, Eq, Show, Read, Enum)
 instance PrettyVal (Color8 a)
 instance Binary (Color8 a)
 
@@ -327,8 +331,6 @@ magenta = rgb 5 0 5
 cyan    = rgb 0 5 5
 white   = rgb 5 5 5
 black   = rgb 0 0 0
-
-
 
 -- | converts a GrayColor to the closest RGBColor, using another RGBColor
 -- to know in which way to approximate.

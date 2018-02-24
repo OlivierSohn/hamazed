@@ -21,22 +21,23 @@ import           Data.Text(pack, unsnoc)
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.Graphics.Color.Types
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Text.ColorString
-import           Imj.Graphics.Color.Types
 
 runCommand :: (MonadState AppState m)
            => ShipId
            -> Command
            -> m ()
 runCommand sid (AssignName name) = getPlayer sid >>= \p -> do
-  let color = maybe chatMsgColor getPlayerColor p
-  putPlayer sid $ Player name Present color
+  let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
+  putPlayer sid $ Player name Present colors
   updateShipsText
-runCommand sid (AssignColor color) = getPlayer sid >>= \p -> do
+runCommand sid (AssignColors colors) = getPlayer sid >>= \p -> do
   let name = maybe (PlayerName "no name") getPlayerName p
-  putPlayer sid $ Player name Present color
+  putPlayer sid $ Player name Present colors
   updateShipsText
 runCommand sid (Says what) = getPlayer sid >>= \n ->
   stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> colored (":" <> what) chatMsgColor
@@ -88,6 +89,6 @@ command = do
             g <- decimal
             skipSpace
             b <- decimal
-            return $ AssignColor <$> userRgb r g b
+            return $ AssignColors . mkPlayerColors <$> userRgb r g b
           _ -> error "logic"
     _ -> Right . Says . maxOneSpace <$> (takeText <* endOfInput)

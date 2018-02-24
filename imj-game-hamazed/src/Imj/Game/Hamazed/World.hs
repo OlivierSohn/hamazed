@@ -121,12 +121,15 @@ import           Data.Map.Strict(fromAscList, assocs, insert)
 import           Data.List(find, elem)
 import           Data.Text(pack)
 
+import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.State.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
+
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.Level.Types
-import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Number
@@ -136,7 +139,6 @@ import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Render
-import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
@@ -216,11 +218,11 @@ laserEventAction shipId dir t =
     outerSpaceParticleSystems_ <-
       if null destroyedBalls
         then
-          maybe (return []) (outerSpaceParticleSystems tps) maybeLaserRay
+          maybe (return []) (outerSpaceParticleSystems tps shipId) maybeLaserRay
         else
           return []
-    newSystems <- destroyedNumbersParticleSystems tps dir destroyedBalls
-    laserSystems <- maybe (return []) (`laserParticleSystems` tps) maybeLaserRay
+    newSystems <- destroyedNumbersParticleSystems tps shipId dir destroyedBalls
+    laserSystems <- maybe (return []) (laserParticleSystems tps shipId) maybeLaserRay
     addParticleSystems $ concat [newSystems, laserSystems, outerSpaceParticleSystems_]
 
     return destroyedBalls
@@ -228,42 +230,45 @@ laserEventAction shipId dir t =
 
 outerSpaceParticleSystems :: (MonadState AppState m)
                           => Time Point ParticleSyst
+                          -> ShipId
                           -> LaserRay Actual
                           -> m [Prioritized ParticleSystem]
-outerSpaceParticleSystems t ray@(LaserRay dir _ _) = do
-  world <- getWorld
-  let space = getWorldSpace world
-      laserTarget = afterEnd ray
-      char = materialChar Wall
-  case location laserTarget space of
-        InsideWorld -> return []
-        OutsideWorld ->
-          if distanceToSpace laserTarget space > 0
-            then do
-              let color _fragment _level _frame =
-                    if 0 == _fragment `mod` 2
-                      then
-                        cycleOuterColors1 $ quot _frame 4
-                      else
-                        cycleOuterColors2 $ quot _frame 4
-                  pos = translateInDir dir laserTarget
-                  (speedAttenuation, nRebounds) = (0.3, 3)
-              mode <- getViewMode
-              screen <- getCurScreen
-              case scopedLocation world mode screen NegativeWorldContainer pos of
-                  InsideWorld -> outerSpaceParticleSystems' NegativeWorldContainer pos
-                                  dir speedAttenuation nRebounds color char t
-                  OutsideWorld -> return []
-            else do
-              let color _fragment _level _frame =
-                    if 0 == _fragment `mod` 3
-                      then
-                        cycleWallColors1 $ quot _frame 4
-                      else
-                        cycleWallColors2 $ quot _frame 4
-                  (speedAttenuation, nRebounds) = (0.4, 5)
-              outerSpaceParticleSystems' (WorldScope Wall) laserTarget
-                   dir speedAttenuation nRebounds color char t
+outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>= maybe
+  (return [])
+  (\(Player _ _ (PlayerColors _ cycles)) -> do
+    world <- getWorld
+    let space = getWorldSpace world
+        laserTarget = afterEnd ray
+        char = materialChar Wall
+    case location laserTarget space of
+          InsideWorld -> return []
+          OutsideWorld ->
+            if distanceToSpace laserTarget space > 0
+              then do
+                let color _fragment _level _frame =
+                      if 0 == _fragment `mod` 2
+                        then
+                          cycleColors (outer1 cycles) $ quot _frame 4
+                        else
+                          cycleColors (outer2 cycles) $ quot _frame 4
+                    pos = translateInDir dir laserTarget
+                    (speedAttenuation, nRebounds) = (0.3, 3)
+                mode <- getViewMode
+                screen <- getCurScreen
+                case scopedLocation world mode screen NegativeWorldContainer pos of
+                    InsideWorld -> outerSpaceParticleSystems' NegativeWorldContainer pos
+                                    dir speedAttenuation nRebounds color char t
+                    OutsideWorld -> return []
+              else do
+                let color _fragment _level _frame =
+                      if 0 == _fragment `mod` 3
+                        then
+                          cycleColors (wall1 cycles) $ quot _frame 4
+                        else
+                          cycleColors (wall2 cycles) $ quot _frame 4
+                    (speedAttenuation, nRebounds) = (0.4, 5)
+                outerSpaceParticleSystems' (WorldScope Wall) laserTarget
+                     dir speedAttenuation nRebounds color char t)
 
 outerSpaceParticleSystems' :: (MonadState AppState m)
                            => Scope
@@ -285,12 +290,15 @@ outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nReboun
       (Speed 1) envFuncs t
 
 laserParticleSystems :: (MonadState AppState m)
-                     => LaserRay Actual
-                     -> Time Point ParticleSyst
+                     => Time Point ParticleSyst
+                     -> ShipId
+                     -> LaserRay Actual
                      -> m [Prioritized ParticleSystem]
-laserParticleSystems ray t =
-  return $ catMaybes
-    [Prioritized particleSystLaserPriority <$> laserShot ray cycleLaserColors t]
+laserParticleSystems t shipId ray = getPlayer shipId >>= maybe
+  (return [])
+  (\(Player _ _ (PlayerColors _ cycles)) ->
+    return $ catMaybes
+      [Prioritized particleSystLaserPriority <$> laserShot ray (cycleColors $ laser cycles) t])
 
 
 checkTargetAndAmmo :: Int

@@ -20,6 +20,10 @@ module Imj.Graphics.Color
     -- ** Create a single color
   , rgb
   , gray
+  -- ** Get / modify hue
+  , hue
+  , countHuesOfSameIntensity
+  , rotateHue
     -- ** Create a LayeredColor
   , LayeredColor(..)
   , Background
@@ -32,6 +36,7 @@ module Imj.Graphics.Color
 
 
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Color.Hue
 
 -- For reference:
 {-

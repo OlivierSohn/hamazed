@@ -34,7 +34,7 @@ import           Prelude( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord,
                         , fmap, (.), (=<<), ($), (<$>), const, id, flip, curry, uncurry
                         , compare, not, or, (||), (&&), otherwise
                         , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)
-                        , realToFrac, fromIntegral, fromRational, recip, signum, pred, succ
+                        , realToFrac, fromIntegral, recip, signum, pred, succ
                         , sin, cos, pi
                         , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
                         , negate, div, divMod, quot, quotRem, even, odd
@@ -47,7 +47,7 @@ import           Control.Applicative((<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow((>>>))
 import           Control.Exception(assert)
 import           Control.Monad(sequence, when, unless, void, (<=<), (>=>), Monad, zipWithM_, forever
-                              , replicateM, foldM, foldM_)
+                              , replicateM, foldM, foldM_, join)
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.Reader(ReaderT)
 import           Data.Binary(Binary)

@@ -1,4 +1,13 @@
-- adapt laser and animation colors to ship colors.
+- inject player color gray in cycle colors.
+
+- use 'sameIntensityHues' where appropriate.
+
+- when cycling between two colors, we cycle on a bresenham straight line.
+Instead, to have richer color variations we could understand the two extremities as
+the poles of a sphere (approximated by a cube?), and cycle on all colors in great circles
+alternating the great circles at each interpolation of the sphere. Or spiraling on the sphere / cube.
+
+- send many messages at once.
 
 - try opengl rectangular rendering.
 - or make font characters more square

@@ -13,9 +13,10 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.List( foldl' )
-import           Data.Map.Strict( elems )
+import           Data.Map.Strict(elems, traverseWithKey)
 
 import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 
@@ -41,26 +42,30 @@ shipParticleSystems :: (MonadState AppState m)
 shipParticleSystems k =
   getWorld >>= \w -> do
     envFuncs <- envFunctions $ WorldScope Air
-    let color i = if even i
-                    then cycleOuterColors1
-                    else cycleWallColors2
-        sps (BattleShip _ _ _ Armored _) = return []
-        sps (BattleShip _ _ _ Unarmored _) = return []
-        sps (BattleShip _ _ _ Destroyed []) = return []
-        sps (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions) = do
-          -- when number and ship explode, they exchange speeds
-          let collidingNumbersAvgSpeed =
-                foldl' sumCoords zeroCoords
-                $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
-              numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
-              shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
-              (Number _ n) = head collisions
-              k' = systemTimePointToParticleSystemTimePoint k
-          return
-            $ map (Prioritized particleSystDefaultPriority)
-            $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
-              fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k'
-    concat <$> mapM sps (getWorldShips w)
+    let sps _ (BattleShip _ _ _ Armored _) = return []
+        sps _ (BattleShip _ _ _ Unarmored _) = return []
+        sps _ (BattleShip _ _ _ Destroyed []) = return []
+        sps shipId (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions) = getPlayer shipId >>= maybe
+          (return [])
+          (\(Player _ _ (PlayerColors _ cycles)) -> do
+            -- when number and ship explode, they exchange speeds
+            let collidingNumbersAvgSpeed =
+                  foldl' sumCoords zeroCoords
+                  $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
+                numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
+                shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
+                (Number _ n) = head collisions
+                k' = systemTimePointToParticleSystemTimePoint k
+            let color i =
+                  cycleColors $
+                    if even i
+                      then outer1 cycles
+                      else wall2 cycles
+            return
+              $ map (Prioritized particleSystDefaultPriority)
+              $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
+                fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k')
+    concat <$> traverseWithKey sps (getWorldShips w)
 
 countAmmo :: [BattleShip] -> Int
 countAmmo =

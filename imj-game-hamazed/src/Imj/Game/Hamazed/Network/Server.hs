@@ -21,7 +21,6 @@ import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar, swapMVar
                                         , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
-import           Control.Monad (forever, join)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Map.Strict(Map, (!?))
@@ -147,7 +146,7 @@ makeClient conn sn cliType = do
   let client@(Client _ _ _ _ _ _ _ _ c) = mkClient name i conn cliType
   -- these calls are /before/ addClient to avoid sending redundant info to client.
   sendClients $ RunCommand i $ AssignName name
-  sendClients $ RunCommand i $ AssignColor c
+  sendClients $ RunCommand i $ AssignColors c
   -- order matters, see comment above.
   addClient client
   send client . ConnectionAccepted i . Map.map
@@ -315,8 +314,8 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
         modifyClient i $ \c -> c { getName = name }
         sendClients $ RunCommand i cmd)
     ) $ checkName name
-  RequestCommand cmd@(AssignColor color) -> do
-    modifyClient i $ \c -> c { getColor = color }
+  RequestCommand cmd@(AssignColors colors) -> do
+    modifyClient i $ \c -> c { getColors = colors }
     sendClients $ RunCommand i cmd
   RequestCommand cmd@(Says _) -> sendClients $ RunCommand i cmd
   RequestCommand (Leaves _) -> disconnect ClientShutdown client -- will do the corresponding 'sendClients $ RunCommand'

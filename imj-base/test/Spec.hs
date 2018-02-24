@@ -6,6 +6,7 @@ import           Imj.Graphics.Render.Naive
 
 import           Test.Imj.Bresenham2
 import           Test.Imj.Bresenham3
+import           Test.Imj.Color
 --import           Test.Imj.Ease
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
@@ -30,6 +31,7 @@ main = do
   testZigZag >>= print
   testInterpolation
   testUtils
+  testColor
 
   clearScreen -- to not overwrite current terminal content.
   _ <- runReaderT (testICS >>

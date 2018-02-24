@@ -11,7 +11,6 @@ module Imj.Input.FromMonadReader
 
 import           Imj.Prelude
 
-import           Control.Monad(join)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 

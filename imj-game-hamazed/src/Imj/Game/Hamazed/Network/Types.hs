@@ -123,7 +123,7 @@ data ServerEvent =
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
   | ExitState {-unpack sum-} !StateValue
-  | PlayerInfo {-# UNPACK #-} !ShipId {-unpack sum-} !PlayerNotif
+  | PlayerInfo {-unpack sum-} !PlayerNotif {-# UNPACK #-} !ShipId
   | GameInfo {-unpack sum-} !GameNotif
   | WorldRequest {-# UNPACK #-} !WorldSpec
   -- ^ Upon reception, the client should respond with a 'WorldProposal'.

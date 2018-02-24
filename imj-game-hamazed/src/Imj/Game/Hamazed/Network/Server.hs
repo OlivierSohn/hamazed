@@ -24,7 +24,7 @@ import           Control.Concurrent.MVar (MVar
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Map.Strict(Map, (!?))
-import qualified Data.Map.Strict as Map(map, elems, adjust, insert, delete, member, mapAccum
+import qualified Data.Map.Strict as Map(map, mapMaybe, union, elems, keys, adjust, insert, delete, member, mapAccum
                                       , foldMapWithKey, restrictKeys)
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, intersection, fromAscList, lookupMin)
@@ -322,14 +322,14 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
   ExitedState Excluded ->
     getIntent >>= \case
       IntentSetup -> do
-        sendClients $ PlayerInfo i Joins
+        sendClients $ PlayerInfo Joins i
         -- change client state to make it playable
         modifyClient i $ \c -> c { getState = Just Finished }
         -- request world to let the client have a world
         requestWorld
         -- next step when client 'IsReady'
       _ -> do
-        sendClients $ PlayerInfo i WaitsToJoin
+        sendClients $ PlayerInfo WaitsToJoin i
         send client $ EnterState Excluded
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> get >>= \(ServerState _ _ (LevelSpec levelN _) _ _ intent _ game) -> do
@@ -355,17 +355,24 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
         sendClientsN $ (GameInfo $ LevelResult levelN outcome):
                        [GameInfo GameWon | outcome == Won && levelN == lastLevel]
         if outcome == Won && levelN < lastLevel
-           then
-             modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
-                             in s { getLevelSpec' = LevelSpec (succ levelN) constraint
-                                  , getIntent' = IntentPlayGame
-                                  }
-           else do
-             modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
-                             in s { getLevelSpec' = LevelSpec firstServerLevel constraint
-                                  , getIntent' = IntentSetup
-                                  }
-             modifyClients $ \c -> c { getState = Just Finished } -- so that fresh clients become players. TODO notify via chat of players that actually joined
+          then
+            modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
+                            in s { getLevelSpec' = LevelSpec (succ levelN) constraint
+                                 , getIntent' = IntentPlayGame
+                                 }
+          else do
+            modify' $ \s -> let (LevelSpec _ constraint) = getLevelSpec' s
+                            in s { getLevelSpec' = LevelSpec firstServerLevel constraint
+                                 , getIntent' = IntentSetup
+                                 }
+            -- allow fresh clients to become players
+            modifyClients' (\c ->
+              maybe
+                (Just $ c { getState = Just Finished })
+                (const Nothing)
+                $ getState c) >>= sendClientsN . map (PlayerInfo Joins)
+
+
         requestWorld
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
@@ -377,7 +384,7 @@ handleIncomingEvent client@(Client i _ _ _ _ _ _ _ _) = \case
   ExitedState Setup -> getIntent >>= \case
     IntentSetup -> do
       modify' $ \s -> s { getIntent' = IntentPlayGame }
-      sendClients $ PlayerInfo i StartsGame
+      sendClients $ PlayerInfo StartsGame i
       sendPlayers $ ExitState Setup
       requestWorld
     _ -> return ()
@@ -587,6 +594,16 @@ modifyClients f =
                         Map.map f $ getClients' clients
                     }
           }
+
+modifyClients' :: (Client -> Maybe Client) -> StateT ServerState IO [ShipId]
+modifyClients' f =
+  state $ \s ->
+    let clients = getClients s
+        m = getClients' clients
+        changed = Map.mapMaybe f m
+        newM = Map.union changed m -- left biased, so new elements will delete old ones.
+    in (Map.keys changed
+      , s { getClients = clients { getClients' = newM } })
 
 requestWorld :: StateT ServerState IO ()
 requestWorld = do

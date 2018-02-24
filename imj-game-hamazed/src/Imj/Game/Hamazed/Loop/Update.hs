@@ -82,7 +82,7 @@ updateAppState (Left evt) = case evt of
     stateChat $ addMessage $ ChatMessage $ welcome players
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  PlayerInfo i notif ->
+  PlayerInfo notif i ->
     stateChat . addMessage . ChatMessage =<< toTxt i notif
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif

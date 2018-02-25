@@ -31,6 +31,7 @@ import           Data.Set (Set)
 import qualified Data.Set as Set (difference, lookupMin, empty, insert)
 import           Data.Maybe(isJust)
 import           Data.Text(pack, unpack)
+--import           Data.Text.IO(putStrLn)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
@@ -48,6 +49,9 @@ import           Imj.Game.Hamazed.Network.Class.ClientNode
 
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Discrete(translateInDir, zeroCoords)
+
+log :: Text -> StateT ServerState IO ()
+log = (\_ -> return ()) -- liftIO . putStrLn -- TODO make configurable (file output / console output / no output)
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
@@ -92,6 +96,7 @@ send conn sid evt =
   sendAndHandleExceptions (map (Binary . toLazyByteString) [evt]) conn sid
 
 sendAndHandleExceptions :: [DataMessage] -> Connection -> ShipId -> StateT ServerState IO ()
+sendAndHandleExceptions [] _ _ = return () -- sendDataMessages throws on empty list
 sendAndHandleExceptions m conn i =
   liftIO (try (sendDataMessages conn m)) >>= either
     (\(e :: SomeException) -> onBrokenClient e i)
@@ -224,8 +229,9 @@ shutdown reason = do
 
 -- It's important that this function doesn't throw any exception.
 onBrokenClient :: SomeException -> ShipId -> StateT ServerState IO ()
-onBrokenClient e =
-  disconnect (BrokenClient $ pack $ show e)
+onBrokenClient e i = do
+  log $ "onBrokenClient " <> pack (show (i, e))
+  disconnect (BrokenClient $ pack $ show e) i
 
 disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
 disconnect r i =
@@ -305,24 +311,33 @@ getIntent = getIntent' <$> get
 
 error' :: Connection -> ShipId -> String -> StateT ServerState IO ()
 error' conn i txt = do
+  log $ "!!! error from Server: " <> pack txt
   send conn i $ Error $ "*** error from Server: " ++ txt
   error $ "error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
 gameError :: String -> StateT ServerState IO ()
 gameError txt = do
+  log $ "!!! game error from Server: " <> pack txt
   sendPlayers $ Error $ "*** game error from Server: " ++ txt
   error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
 serverError :: String -> StateT ServerState IO ()
 serverError txt = do
+  log $ "!!! server error from Server: " <> pack txt
   sendClients $ Error $ "*** server error from Server: " ++ txt
-  error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
+  error $ "server error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
     -- hence we sent the error to the client, so that it can report the error too.
 
 handleIncomingEvent :: Connection -> ShipId -> ClientEvent -> StateT ServerState IO ()
-handleIncomingEvent conn i = \case
+handleIncomingEvent conn i evt = do
+  log $ "handleIncomingEvent " <> pack (take 40 $ show (i,evt))
+  handleIncomingEvent' conn i evt
+  log $ "handled " <> pack (show i)
+
+handleIncomingEvent' :: Connection -> ShipId -> ClientEvent -> StateT ServerState IO ()
+handleIncomingEvent' conn i = \case
   Connect (SuggestedPlayerName sn) _ ->
     errorPriviledged $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
@@ -389,7 +404,8 @@ handleIncomingEvent conn i = \case
               maybe
                 (Just $ c { getState = Just Finished })
                 (const Nothing)
-                $ getState c) >>= sendClientsN . map (PlayerInfo Joins)
+                $ getState c)
+                >>= sendClientsN . map (PlayerInfo Joins)
         requestWorld
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.

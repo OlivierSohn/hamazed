@@ -1,11 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
       , mkClient
+      , defaultPlayerColor
       , PlayerState(..)
       , Clients(..)
       , Intent(..)
@@ -46,15 +48,19 @@ data Client = Client {
 instance NFData Client where
   rnf _ = ()
 
-mkClient :: PlayerName -> ShipId -> Connection -> ServerOwnership -> Client
-mkClient a i b c =
-  Client a b c Nothing Nothing zeroCoords Nothing $ mkPlayerColors $ defaultPlayerColor i
+mkClient :: PlayerName -> Color8 Foreground -> Connection -> ServerOwnership -> Client
+mkClient a color b c =
+  Client a b c Nothing Nothing zeroCoords Nothing $ mkPlayerColors color
 
-defaultPlayerColor :: ShipId -> Color8 Foreground
-defaultPlayerColor (ShipId i) =
-  let ref = rgb 3 2 1
+refPlayerColor :: Color8 Foreground
+refPlayerColor = rgb 3 2 0
+
+defaultPlayerColor :: Int -> ShipId -> Color8 Foreground
+defaultPlayerColor t (ShipId i) =
+  let !ref = refPlayerColor
       nColors = countHuesOfSameIntensity ref
-  in rotateHue (fromIntegral (i-3) / fromIntegral nColors) ref
+      n = (t + fromIntegral i) `mod` nColors
+  in rotateHue (fromIntegral n / fromIntegral nColors) ref
 
 data PlayerState = InGame | Finished
   deriving (Generic, Eq)
@@ -63,16 +69,18 @@ instance NFData PlayerState
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
     getClients :: {-# UNPACK #-} !Clients
-  , _gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
-  , getLevelSpec' :: {-# UNPACK #-} !LevelSpec
-  , getWorldParameters :: {-# UNPACK #-} !WorldParameters
+  , gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
+  , levelSpecification :: {-# UNPACK #-} !LevelSpec
+  , worldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
-  , getLastRequestedWorldId' :: {-unpack sum-} !(Maybe WorldId)
-  , getIntent' :: {-unpack sum-} !Intent
+  , lastRequestedWorldId :: {-unpack sum-} !(Maybe WorldId)
+  , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
-  , getShouldTerminate :: {-unpack sum-} !Bool
+  , startSecond :: {-# UNPACK #-} !Int
+  -- ^ The second at which the 'ServerState' was created
+  , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
-  , getScheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
+  , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
 instance NFData ServerState
@@ -117,6 +125,7 @@ firstServerLevel :: Int
 firstServerLevel = firstLevel
 
 newServerState :: IO ServerState
-newServerState =
+newServerState = do
+  t <- getCurrentSecond
   ServerState mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
-              initialParameters Nothing IntentSetup False <$> newEmptyMVar
+              initialParameters Nothing IntentSetup t False <$> newEmptyMVar

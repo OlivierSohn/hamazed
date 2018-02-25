@@ -66,8 +66,8 @@ import           Imj.Physics.Discrete
 import           Imj.Timing
 
 data WorldParameters = WorldParameters {
-    getWorldShape :: !WorldShape
-  , getWallDistrib :: !WallDistribution
+    worldShape :: !WorldShape
+  , wallDistrib :: !WallDistribution
 } deriving(Generic, Show)
 
 instance Binary WorldParameters
@@ -93,7 +93,7 @@ instance Binary WallDistribution
 instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
-    getLevelSpec :: {-unpack sum-} !LevelSpec
+    getLevelSpec' :: {-unpack sum-} !LevelSpec
   , getShipIds :: !(Set ShipId)
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
   , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.

@@ -54,7 +54,7 @@ data TargetConstraint =
   deriving (Generic, Binary, NFData, Show)
 
 data LevelSpec = LevelSpec {
-    _levelNum :: {-# UNPACK #-} !Int
+    levelNumber :: {-# UNPACK #-} !Int
   , _targetConstraint :: {-unpack sum-} !TargetConstraint
 } deriving(Generic, Show, NFData, Binary)
 
@@ -63,10 +63,10 @@ mkEmptyLevelEssence :: LevelEssence
 mkEmptyLevelEssence = LevelEssence 0 (LevelTarget 0 CannotOvershoot) []
 
 mkLevelEssence :: LevelSpec -> LevelEssence
-mkLevelEssence (LevelSpec levelNumber co) =
-  let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
+mkLevelEssence (LevelSpec n co) =
+  let numbers = [1..(3+n)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
-  in LevelEssence levelNumber (LevelTarget target co) numbers
+  in LevelEssence n (LevelTarget target co) numbers
 
 data LevelFinished = LevelFinished {
     _levelFinishedResult :: {-unpack sum-} !LevelOutcome

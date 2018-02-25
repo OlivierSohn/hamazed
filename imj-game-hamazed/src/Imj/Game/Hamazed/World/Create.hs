@@ -34,11 +34,11 @@ data Association = Association {
 } deriving(Show)
 
 mkWorldEssence :: WorldSpec -> IO WorldEssence
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistrib) wid) = do
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution) wid) = do
   let (LevelEssence _ _ numbers) = mkLevelEssence s
       size = worldSizeFromLevel levelNum shape
       nShips = Set.size shipIds
-  (space, topology) <- mkSpace size nShips wallDistrib
+  (space, topology) <- mkSpace size nShips wallDistribution
   let associations = map (\(a,b,c) -> Association a b c) $ zip3
         (Set.toList shipIds)
         (mkGroups nShips numbers) -- TODO shuffle numbers ?

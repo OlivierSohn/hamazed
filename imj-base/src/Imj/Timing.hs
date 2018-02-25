@@ -40,6 +40,7 @@ module Imj.Timing
     , unsafeToSecs
     -- * Utilities
     , getSystemTime
+    , getCurrentSecond
     , getDurationFromNowTo
     , showTime
     , toMicros
@@ -52,7 +53,7 @@ module Imj.Timing
     ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+import           Prelude(length, fromInteger)
 import           Control.DeepSeq(NFData(..))
 import           Data.Int(Int64)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
@@ -208,3 +209,6 @@ extendRange !v r@(TimeRange v1 v2)
   | v < v1 = TimeRange v v2
   | v > v2 = TimeRange v1 v
   | otherwise = r
+
+getCurrentSecond :: IO Int
+getCurrentSecond = getSystemTime >>= return . fromInteger . (`quot` (10^(9::Int))) . toNanoSecs . unsafeGetTimeSpec

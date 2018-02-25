@@ -19,7 +19,6 @@ module Imj.Prelude
           , module Data.Text
           , module Data.Word
           , module GHC.Generics
-          , module System.IO
           , module Text.Show.Pretty
           ) where
 
@@ -58,7 +57,6 @@ import           Data.Ratio((%))
 import           Data.String(String)
 import           Data.Text(Text)
 import           Data.Word(Word8)
-import           System.IO(putStrLn)
 
 import           Text.Show.Pretty(PrettyVal(..))
 

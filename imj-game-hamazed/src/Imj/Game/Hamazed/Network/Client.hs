@@ -13,6 +13,7 @@ import           Control.Concurrent (forkIO)
 import           Control.Concurrent.STM(atomically, writeTQueue, readTQueue)
 import           Control.Exception (try)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
+import           System.IO(putStrLn)
 
 import           Imj.Game.Hamazed.Network.Types
 

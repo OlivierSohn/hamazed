@@ -37,6 +37,10 @@ module Imj.Game.Hamazed.Color (
   , rotateHues
   , cycleColors
   , refShipColor
+  -- ** Combining functions
+  , sumFrameParticleIndex
+  , onlyFrame
+  , onlyParticleIndex
   -- * Reexports
   , module Imj.Graphics.Color
   ) where
@@ -44,6 +48,8 @@ module Imj.Game.Hamazed.Color (
 import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
+
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color
 import           Imj.Iteration
@@ -69,9 +75,20 @@ rotateHues :: Float -> ColorCycle a -> ColorCycle a
 rotateHues dh (ColorCycle a b) =
   ColorCycle (rotateHue dh a) (rotateHue dh b)
 
-cycleColors :: ColorCycle Foreground -> Frame -> LayeredColor
-cycleColors (ColorCycle from to) (Frame frame) =
-  LayeredColor (gray 0) $ interpolateCyclic from to frame
+onlyFrame :: Frame -> ParticleIndex -> Int
+onlyFrame (Frame f) _ = f
+
+onlyParticleIndex :: Frame -> ParticleIndex -> Int
+onlyParticleIndex _ (ParticleIndex i) = i
+
+sumFrameParticleIndex :: Frame -> ParticleIndex -> Int
+sumFrameParticleIndex (Frame f) (ParticleIndex i) = f + i
+
+cycleColors :: (Frame -> ParticleIndex -> Int)
+            -> ColorCycle Foreground
+            -> Colorization
+cycleColors combine (ColorCycle from to) f i =
+  LayeredColor (gray 0) $ interpolateCyclic from to $ combine f i
 
 -- | We consider that 'ColorCycle' values in this module were hand-tuned in the context
 -- of this reference ship color.

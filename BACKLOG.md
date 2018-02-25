@@ -1,15 +1,39 @@
-- add server logs
+- randomize start color at each server start
 
-- inject player color /gray/ component in cycle colors.
+- Use
+ClientHandler = ReaderT (shipId, Connection)
+
+so that when we pass a shipId to a function, we know if it's the current handler or not.
+
+- add server logs
+in the logs, say:
+"Handler #1|..."
+
+- chat : make it easier to use
+- in AppState we could have arrays of random numbers, and a particle system would pass
+the index of the animated point.
+
+Hence, either the color could rely on the random part or on the frame or both.
+
+We need n arrays of random numbers, to avoid correlations between particles of the same particle system.
+A good first driver would be to emulate the randomness of fire: With an interpolation between red and yellow,
+we could use random only (not frame) to define at which frame (in the interpolation / in the cube) we are.
+
+- use location of particlesystem point to define color.
 
 - when cycling between two colors, we cycle on a bresenham straight line.
 Instead, to have richer color variations we could understand the two extremities as
 the poles of a sphere (approximated by a cube?), and cycle on all colors in great circles
 alternating the great circles at each interpolation of the sphere. Or spiraling on the sphere / cube.
 
-- Use
-ClientHandler = ReaderT (shipId, Connection)
+so we need to define interpolations between 3d points: Line
 
+- random distribution of colors : center / radius
+
+- inject player color /gray/ component in cycle colors:
+
+first step:
+  the hardcoded colors will only be used for their hue.
 
 - ShipId and Connection are very close.
 ShipId has the interesting property that it is an Int that increases over time, so we can

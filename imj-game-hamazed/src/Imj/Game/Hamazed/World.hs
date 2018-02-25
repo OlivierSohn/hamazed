@@ -246,9 +246,9 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                 let color _fragment _level _frame =
                       if 0 == _fragment `mod` 2
                         then
-                          cycleColors (outer1 cycles) $ quot _frame 4
+                          cycleColors sumFrameParticleIndex (outer1 cycles) $ quot _frame 4
                         else
-                          cycleColors (outer2 cycles) $ quot _frame 4
+                          cycleColors sumFrameParticleIndex (outer2 cycles) $ quot _frame 4
                     pos = translateInDir dir laserTarget
                     (speedAttenuation, nRebounds) = (0.3, 3)
                 mode <- getViewMode
@@ -261,9 +261,9 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                 let color _fragment _level _frame =
                       if 0 == _fragment `mod` 3
                         then
-                          cycleColors (wall1 cycles) $ quot _frame 4
+                          cycleColors sumFrameParticleIndex (wall1 cycles) $ quot _frame 4
                         else
-                          cycleColors (wall2 cycles) $ quot _frame 4
+                          cycleColors sumFrameParticleIndex (wall2 cycles) $ quot _frame 4
                     (speedAttenuation, nRebounds) = (0.4, 5)
                 outerSpaceParticleSystems' (WorldScope Wall) laserTarget
                      dir speedAttenuation nRebounds color char t)
@@ -274,7 +274,7 @@ outerSpaceParticleSystems' :: (MonadState AppState m)
                            -> Direction
                            -> Float
                            -> Int
-                           -> (Int -> Int -> Frame -> LayeredColor)
+                           -> (Int -> Int -> Colorization)
                            -> Char
                            -> Time Point ParticleSyst
                            -> m [Prioritized ParticleSystem]
@@ -296,7 +296,7 @@ laserParticleSystems t shipId ray = getPlayer shipId >>= maybe
   (return [])
   (\(Player _ _ (PlayerColors _ cycles)) ->
     return $ catMaybes
-      [Prioritized particleSystLaserPriority <$> laserShot ray (cycleColors $ laser cycles) t])
+      [Prioritized particleSystLaserPriority <$> laserShot ray (cycleColors onlyFrame $ laser cycles) t])
 
 
 checkTargetAndAmmo :: Int

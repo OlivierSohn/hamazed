@@ -57,7 +57,7 @@ shipParticleSystems k =
                 (Number _ n) = head collisions
                 k' = systemTimePointToParticleSystemTimePoint k
             let color i =
-                  cycleColors $
+                  cycleColors sumFrameParticleIndex $
                     if even i
                       then outer1 cycles
                       else wall2 cycles

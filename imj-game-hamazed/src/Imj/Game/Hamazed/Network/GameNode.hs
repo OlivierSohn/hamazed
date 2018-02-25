@@ -18,6 +18,7 @@ import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnect
                     makeListenSocket, makePendingConnection, runClient)
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
+import           System.IO(putStrLn)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
 import           Imj.Game.Hamazed.Network.Internal.Types

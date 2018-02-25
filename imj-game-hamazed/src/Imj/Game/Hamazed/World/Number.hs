@@ -49,11 +49,11 @@ destroyedNumberParticleSystems k shipId laserSpeed (Number (PosSpeed pos _) n) =
   (return [])
   (\(Player _ _ (PlayerColors _ cycles)) -> do
     envFuncs <- envFunctions (WorldScope Air)
-    let color i = cycleColors $
+    let color i = cycleColors sumFrameParticleIndex $
                     if even i
                       then outer1 cycles
                       else wall2 cycles
-        color' = cycleColors $ wall2 cycles
+        color' = cycleColors sumFrameParticleIndex $ wall2 cycles
     return
       $ map (Prioritized particleSystDefaultPriority)
       $ catMaybes [expandShrinkPolygon n pos color' (Speed 1) envFuncs k]

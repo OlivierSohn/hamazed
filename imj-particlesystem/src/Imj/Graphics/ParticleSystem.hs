@@ -93,13 +93,13 @@ import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 import           Imj.Timing
 
-defaultColors :: Frame -> LayeredColor
-defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
+defaultColors :: Colorization
+defaultColors frame index = onBlack $ colorFromFrame (rgb 4 0 0) frame index
 
 -- | Creates a 'ParticleSystem' representing a laser ray with a fade-out effect.
 laserShot :: LaserRay Actual
           -- ^ The laser ray
-          -> (Frame -> LayeredColor)
+          -> Colorization
           -> Time Point ParticleSyst
           -> Maybe ParticleSystem
 laserShot ray@(LaserRay _ start len) colors keyTime
@@ -140,7 +140,7 @@ expandShrinkPolygon :: Int
                     -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                     -> Coords Pos
                     -- ^ Center of the polygon (or circle)
-                    -> (Frame -> LayeredColor)
+                    -> Colorization
                     -> Speed
                     -> EnvFunctions
                     -- ^ ParticleSystem speed
@@ -207,7 +207,7 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -- ^ Rebound speed attenuation factor, expected to be strictly positive.
                                          -> Int
                                          -- ^ Number of rebounds
-                                         -> (Int -> Int -> Frame -> LayeredColor)
+                                         -> (Int -> Int -> Colorization)
                                          -- ^ fragment index -> particle function level -> relative frame -> color
                                          -> Char
                                          -- ^ Character used when drawing the 'Particle'.
@@ -261,7 +261,7 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- ^ Velocity attenuation factor on rebound, expected to be strictly positive.
                                 -> Int
                                 -- ^ Number of rebounds
-                                -> (Int -> Frame -> LayeredColor)
+                                -> (Int -> Colorization)
                                 -- ^ (particle function level -> relative frame -> color)
                                 -> Char
                                 -- ^ Character used when drawing the 'Particle'.
@@ -291,7 +291,7 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
                              -> Coords Pos
                              -- ^ Initial position
-                             -> (Int -> Frame -> LayeredColor)
+                             -> (Int -> Colorization)
                              -- ^ First argument of the function is the fragment index.
                              -> Char
                              -- ^ Character used when drawing the 'Particle'.
@@ -322,7 +322,7 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
                     -> Coords Pos
                     -- ^ Initial position
-                    -> (Frame -> LayeredColor)
+                    -> Colorization
                     -> Char
                     -- ^ Character used when drawing the 'Particle'.
                     -> Speed

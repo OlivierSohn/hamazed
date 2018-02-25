@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Graphics.ParticleSystem.Design.Types
           ( ParticleSystem(..)
@@ -9,6 +11,8 @@ module Imj.Graphics.ParticleSystem.Design.Types
           , UpdateSpec(..)
           , ParticleTree(..)
           , Particle(..)
+          , Colorization
+          , ParticleIndex(..)
           , CanInteract(..)
           , InteractionResult(..)
           -- Reexports
@@ -102,6 +106,12 @@ data Particle = Particle {
   , _particleColor :: {-# UNPACK #-} !LayeredColor
   -- ^ The color used to draw the particle.
 } deriving (Show)
+
+-- | Type for functions defining the color of a 'Particle' during an update.
+type Colorization = Frame -> ParticleIndex -> LayeredColor
+
+newtype ParticleIndex = ParticleIndex Int
+  deriving(Generic, Show, Num, Enum)
 
 data CanInteract = DontInteract
                  {- ^ The 'Particle' can't interact with the environment.

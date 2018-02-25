@@ -22,15 +22,16 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Imj.GameItem.Weapon.Laser.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Physics.Continuous.Types
+
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Iteration
-import           Imj.Physics.Continuous.Types
 
 -- | Note that the 'VecPosSpeed' parameter is unused.
 particlesLaser :: LaserRay Actual
-               -> (Frame -> LayeredColor)
+               -> Colorization
                -> VecPosSpeed
                -- ^ Unused, because the 'LaserRay' encodes the origin already
                -> Frame
@@ -58,14 +59,15 @@ particlesLaser (LaserRay dir start len) color _ frame@(Frame i)
                    else
                      map (\n -> move n dir start) [0..fromIntegral $ pred len]
     in map
-        (\p -> Particle DontInteract (mkStaticVecPosSpeed $ pos2vec p) char (color frame))
-        points
+        (\(particleIndex,p) ->
+          Particle DontInteract (mkStaticVecPosSpeed $ pos2vec p) char (color frame particleIndex))
+        $ zip [0..] points
 
 -- | Gravity free-fall
 particlesFreefall :: Float
                   -> CanInteract
                   -> Char
-                  -> (Frame -> LayeredColor)
+                  -> Colorization
                   -> VecPosSpeed
                   -- ^ Initial position and speed
                   -> Frame
@@ -82,16 +84,17 @@ particles :: (VecPosSpeed -> [VecPosSpeed])
           -- ^ Integrates the motion of a particle
           -> CanInteract
           -> Char
-          -> (Frame -> LayeredColor)
+          -> Colorization
           -> VecPosSpeed
           -- ^ The seed particle
           -> Frame
           -> [Particle]
 particles producePs moveP canInteract char color seedP frame =
   map
-    (\p -> let newP = moveP frame p
-           in Particle canInteract newP char (color frame))
-    $ producePs seedP
+    (\(particleIndex,p) ->
+        let newP = moveP frame p
+        in Particle canInteract newP char (color frame particleIndex))
+    $ zip [0..] $ producePs seedP
 
 -- | Integrates the motion according to
 -- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
@@ -162,7 +165,7 @@ particlesExplosion :: Int
                    -- ^ Angle of the first particle.
                    -> CanInteract
                    -> Char
-                   -> (Frame -> LayeredColor)
+                   -> Colorization
                    -> VecPosSpeed
                    -- ^ Center
                    -> Frame
@@ -178,7 +181,7 @@ gravityExplosionGeo :: Int
                     -- ^ First angle
                     -> CanInteract
                     -> Char
-                    -> (Frame -> LayeredColor)
+                    -> Colorization
                     -> VecPosSpeed
                     -- ^ Center
                     -> Frame
@@ -189,7 +192,7 @@ gravityExplosionGeo resolution angle =
 -- | Expanding then shrinking geometric figure.
 particlesPolygonExpandShrink :: Int
                              -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                             -> (Frame -> LayeredColor)
+                             -> Colorization
                              -> VecPosSpeed
                              -- ^ Center
                              -> Frame
@@ -204,9 +207,10 @@ particlesPolygonExpandShrink n colorFunc c@(VecPosSpeed center _) (Frame i) =
        else
          case n of
             1 -> particlesExplosion 32 0 DontInteract '1' colorFunc c frame'
-            _ -> map (\p' -> let p = mkStaticVecPosSpeed $ pos2vec p'
-                             in Particle DontInteract p (intToDigit n) (colorFunc frame') )
-                    $ polygon n r center
+            _ -> map (\(particleIndex,p') ->
+                        let p = mkStaticVecPosSpeed $ pos2vec p'
+                        in Particle DontInteract p (intToDigit n) (colorFunc frame' particleIndex) )
+                    $ zip [0..] $ polygon n r center
 
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation

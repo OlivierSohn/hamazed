@@ -7,7 +7,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
       , Client(..)
       , mkClient
-      , defaultPlayerColor
       , PlayerState(..)
       , Clients(..)
       , Intent(..)
@@ -26,7 +25,7 @@ import           Network.WebSockets(Connection)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Graphics.Color
+import           Imj.Graphics.Color.Types
 
 import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
@@ -51,16 +50,6 @@ instance NFData Client where
 mkClient :: PlayerName -> Color8 Foreground -> Connection -> ServerOwnership -> Client
 mkClient a color b c =
   Client a b c Nothing Nothing zeroCoords Nothing $ mkPlayerColors color
-
-refPlayerColor :: Color8 Foreground
-refPlayerColor = rgb 3 2 0
-
-defaultPlayerColor :: Int -> ShipId -> Color8 Foreground
-defaultPlayerColor t (ShipId i) =
-  let !ref = refPlayerColor
-      nColors = countHuesOfSameIntensity ref
-      n = (t + fromIntegral i) `mod` nColors
-  in rotateHue (fromIntegral n / fromIntegral nColors) ref
 
 data PlayerState = InGame | Finished
   deriving (Generic, Eq)

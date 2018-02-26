@@ -1,7 +1,9 @@
-- Use
-ClientHandler = ReaderT (shipId, Connection)
+- merge shipId and connection in the key
 
-so that when we pass a shipId to a function, we know if it's the current handler or not.
+- add server logs
+in the logs, say:
+"Handler #1|..."
+
 
 - pass cli arg for color theme (if no arg is passed, default to red).
 all ships will be on a perimeter, next to one another. The center of the ships colors will be the theme color.
@@ -9,10 +11,6 @@ chat command /color changes the theme at runtime using
 
 - change colors of external frame at each shot number : this allows to become aware of when a number is shot.
 (the color change could be smooth)
-
-- add server logs
-in the logs, say:
-"Handler #1|..."
 
 - chat : make it easier to use
 - in AppState we could have arrays of random numbers, and a particle system would pass

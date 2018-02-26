@@ -233,7 +233,7 @@ data GameStep =
     _shipsAccelerations :: !(Map ShipId (Coords Vel))
   , _shipsLostArmor :: !(Set ShipId)
 }
-  | LaserShot {-# UNPACK #-} !ShipId {-unpack sum-} !Direction
+  | LaserShot {-unpack sum-} !Direction {-# UNPACK #-} !ShipId
   deriving(Generic, Show)
 instance Binary GameStep
 

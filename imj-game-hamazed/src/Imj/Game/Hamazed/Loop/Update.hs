@@ -73,7 +73,7 @@ updateAppState (Left evt) = case evt of
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
-  GameEvent (LaserShot shipId dir) ->
+  GameEvent (LaserShot dir shipId) ->
     onLaser shipId dir Add
   ConnectionAccepted i players -> do
     sendToServer $ ExitedState Excluded

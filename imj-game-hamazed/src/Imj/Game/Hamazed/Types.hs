@@ -79,7 +79,7 @@ data Game = Game {
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
   , getServer :: {-unpack sum-} !Server
   -- ^ The server that runs the game
-  , connection :: {-unpack sum-} !ConnectionStatus
+  , connection' :: {-unpack sum-} !ConnectionStatus
   , getChat' :: !Chat
 }
 

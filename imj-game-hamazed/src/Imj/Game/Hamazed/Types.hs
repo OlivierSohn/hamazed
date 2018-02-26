@@ -47,7 +47,7 @@ data ProgramEnd =
 instance Exception ProgramEnd
 instance Show ProgramEnd where
   show GracefulClientEnd        = withNewline "Thanks for playing!"
-  show GracefulServerEnd        = withNewline "Server has shutdown."
+  show GracefulServerEnd        = withNewline "Server has shut down."
   show (UnexpectedProgramEnd s) = withNewline $ unpack $ "Program ended: " <> s
   show (ErrorFromServer s)      = withNewline $ "An error occured in the Server: " ++ s
 

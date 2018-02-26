@@ -251,7 +251,6 @@ addClient sn cliType = do
   presentClients <- lift $ do
     name <- makePlayerName sn
     let client@(Client _ _ _ _ _ _ _ c) = mkClient name playerColor conn cliType
-    serverLog $ pure $ colored "Adding client " green <> showClient client
     -- this call is /before/ addClient to avoid sending redundant info to client.
     notifyEveryoneN $ map (RunCommand i) [AssignName name, AssignColors c]
     -- order matters, see comment above.
@@ -260,6 +259,7 @@ addClient sn cliType = do
       in s { getClients =
               clients { getClients' =
                 Map.insert i client $ getClients' clients } }
+    serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient client) <$> showId i
     gets clientsMap
   notifyClient $ ConnectionAccepted i $
     Map.map
@@ -291,6 +291,7 @@ checkNameAvailability name =
 
 shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
+  serverLog $ pure $ colored "Server shutdown" red <> "|" <> colored reason (rgb 4 1 1)
   modify' $ \s -> s { shouldTerminate = True }
   mapM_ (disconnect $ ServerShutdown reason) =<< gets allClientsIds
 
@@ -310,7 +311,7 @@ onBrokenClient threadCategory infos e i = do
   log' = serverLog $
     showId i >>= \strId -> pure $ firstLine strId <> logDetailedException infos e
   firstLine s = intercalate "|"
-    [ colored "BrokenClient" red
+    [ colored "BrokenClient" (rgb 5 0 1)
     , colored (justifyRight 10 '.' threadCategory) yellow
     , s
     ]
@@ -323,7 +324,7 @@ disconnectClient = do
 disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
 disconnect r i =
   tryRemoveClient >>= maybe
-    (do serverLog $ (\s -> "The client " <> s <> " was already removed.") <$> showId i
+    (do serverLog $ (<> " was already removed.") <$> showId i
         return ())
     (\c@(Client (PlayerName name) _ ownership _ _ _ _ _) -> do
         -- If the client owns the server, we shutdown connections to /other/ clients first.
@@ -340,8 +341,13 @@ disconnect r i =
         closeConnection r i c)
  where
   closeConnection :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
-  closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ _) = do
-    serverLog $ pure $ colored "Closing connection of " yellow <> showClient c
+  closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ (PlayerColors color _)) = do
+    serverLog $ pure $
+      colored "Close connection" yellow <>
+      "|" <>
+      colored (pack $ show cid) color <>
+      "|" <>
+      showClient c
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->

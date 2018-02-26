@@ -34,12 +34,12 @@ startServerIfLocal :: Server
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
 startServerIfLocal (Distant _ _) v = putMVar v ()
-startServerIfLocal srv@(Local _) v = do
+startServerIfLocal srv@(Local logs _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putStrLn (failure msg)
   putMVar v () -- now that the listen socket is created, signal it.
   putStrLn $ success msg
-  newServerState >>= newMVar >>= \state -> do
+  newServerState logs >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")
@@ -69,7 +69,7 @@ startClient playerName srv = do
   sendToServer' qs $
     Connect playerName $
       case srv of
-        Local _     -> ClientOwnsServer
+        Local _ _   -> ClientOwnsServer
         Distant _ _ -> ClientDoesntOwnServer
   return qs
  where

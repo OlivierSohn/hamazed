@@ -1,16 +1,12 @@
-- merge shipId and connection in the key
-
-- add server logs
-in the logs, say:
-"Handler #1|..."
-
-
-- pass cli arg for color theme (if no arg is passed, default to red).
+- pass cli arg for color theme :
++ default to red
++ primary color names accepted
++ time will chose based on whatever time the server was started
 all ships will be on a perimeter, next to one another. The center of the ships colors will be the theme color.
-chat command /color changes the theme at runtime using
+chat command "/color" changes the theme at runtime.
 
-- change colors of external frame at each shot number : this allows to become aware of when a number is shot.
-(the color change could be smooth)
+- animate color of external frame at each shot number (fast change to another color then slow change back to normal)
+: this allows to become aware of when a number is shot.
 
 - chat : make it easier to use
 - in AppState we could have arrays of random numbers, and a particle system would pass
@@ -37,12 +33,6 @@ so we need to define interpolations between 3d points: Line
 
 first step:
   the hardcoded colors will only be used for their hue.
-
-- ShipId and Connection are very close.
-ShipId has the interesting property that it is an Int that increases over time, so we can
-deduce colors from that. Should we merge the 2 notions? and ignore the Connection
-in the Ord instance to have faster lookups?
-try that...
 
 - use 'sameIntensityHues' where appropriate.
 

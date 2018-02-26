@@ -46,18 +46,21 @@ data Client = Client {
 } deriving(Generic)
 instance NFData Client where
   rnf _ = ()
+instance Show Client where
+  show (Client a _ c d e f g h) = show (a,c,d,e,f,g,h)
 
 mkClient :: PlayerName -> Color8 Foreground -> Connection -> ServerOwnership -> Client
 mkClient a color b c =
   Client a b c Nothing Nothing zeroCoords Nothing $ mkPlayerColors color
 
 data PlayerState = InGame | Finished
-  deriving (Generic, Eq)
+  deriving (Generic, Eq, Show)
 instance NFData PlayerState
 
 -- | A 'Server' handles one game only (for now).
 data ServerState = ServerState {
-    getClients :: {-# UNPACK #-} !Clients
+    serverLogs :: {-unpack sum-} !ServerLogs
+  , getClients :: {-# UNPACK #-} !Clients
   , gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
   , levelSpecification :: {-# UNPACK #-} !LevelSpec
   , worldParameters :: {-# UNPACK #-} !WorldParameters
@@ -113,8 +116,8 @@ mkClients = Clients empty (ShipId 0)
 firstServerLevel :: Int
 firstServerLevel = firstLevel
 
-newServerState :: IO ServerState
-newServerState = do
+newServerState :: ServerLogs -> IO ServerState
+newServerState logs = do
   t <- getCurrentSecond
-  ServerState mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
+  ServerState logs mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
               initialParameters Nothing IntentSetup t False <$> newEmptyMVar

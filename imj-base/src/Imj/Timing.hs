@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {- | This module exports types and functions related to /monotonic/ timing.
 
@@ -15,6 +16,8 @@ time-space to another wihtout noticing it.
 module Imj.Timing
     ( -- * Time
       Time
+    , prettyShowTime
+    , showTime
     , System
     , Point
     , Duration
@@ -42,7 +45,6 @@ module Imj.Timing
     , getSystemTime
     , getCurrentSecond
     , getDurationFromNowTo
-    , showTime
     , toMicros
     , strictlyNegative
     , zeroDuration
@@ -52,10 +54,11 @@ module Imj.Timing
     , Int64
     ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(intercalate)
 import           Prelude(length, fromInteger)
 import           Control.DeepSeq(NFData(..))
 import           Data.Int(Int64)
+import           Data.Text(pack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
 {- | Represents a time.
@@ -71,9 +74,9 @@ instance NFData (Time a b) where
 
 
 instance PrettyVal (Time Point b) where
-  prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:", s, n)
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:" :: String, s, n)
 instance PrettyVal (Time Duration b) where
-  prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:", s, n)
+  prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:" :: String, s, n)
 
 {- | A location on a timeline.
 
@@ -212,3 +215,18 @@ extendRange !v r@(TimeRange v1 v2)
 
 getCurrentSecond :: IO Int
 getCurrentSecond = getSystemTime >>= return . fromInteger . (`quot` (10^(9::Int))) . toNanoSecs . unsafeGetTimeSpec
+
+-- | Prints the time from machine boot. Doesn't print days.
+prettyShowTime :: Time Point System -> Text
+prettyShowTime (Time (TimeSpec seconds' ns)) =
+  intercalate ":" $
+    map (justifyRight 2 '0' . pack . show)
+      [ hours
+      , minutes
+      , seconds
+      ]
+    ++ [justifyRight 9 '0' (pack $ show ns)]
+ where
+  (minutes', seconds) = seconds' `quotRem` 60
+  (hours'  , minutes) = minutes' `quotRem` 60
+  (_       , hours)   = hours'   `quotRem` 24

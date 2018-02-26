@@ -77,17 +77,14 @@ runWithArgs =
     (  fullDesc
     <> header (
        "**** imj-game-hamazed-exe runs the 'Hamazed' multiplayer game. " ++
-       "Each client (player) is connected to a unique light-weight server " ++
-       "centralizing player actions " ++
-       "and scheduling game execution. "
+       "Each client (player) is connected to a unique lightweight server " ++
+       "scheduling game execution."
       )
     <> progDesc (
-       "This executable can be used to: " ++
-       "(1) create a server and a client, " ++
-       "(2) create a client, connect to an existing server with [--serverName] and [--serverPort], " ++
-       "(3) create a server [--serverOnly]. " ++
-       "The client can render the game in the terminal (--render term) or " ++
-       "in a separate opengl window (--render win). "
+       "If you want to: " ++
+       "(1) Create just a server, use [--serverOnly] and optionally [--serverPort]. " ++
+       "(2) Create just a client connected to an existing server, use [--serverName] and optionally [--serverPort]. " ++
+       "(3) Create both a server and a client connected to it, use optionally [--serverPort]."
        ))
  where
   parser =
@@ -96,14 +93,14 @@ runWithArgs =
           (  long "serverOnly"
           <> short 's'
           <> help
-          "Use this flag to create only the server. Incompatible with --serverName."
+          "Create - only - the server (no client). Incompatible with --serverName."
           )
       <*> optional
             (option srvNameArg
                (  long "serverName"
                <> short 'n'
                <> help (
-               "Connect to an already running server " ++
+               "Connect to a server " ++
                "(use \"localhost\" to target your machine). Incompatible with --serverOnly."
                )))
       <*> optional
@@ -111,9 +108,17 @@ runWithArgs =
                (  long "serverPort"
                <> short 'p'
                <> help (
-               "Port number of the server. " ++
+               "Listening port number of the server to connect to, or to create. " ++
                "Default is " ++ show (toInteger defaultPort) ++ ".")
                ))
+      <*> optional
+            (option srvLogsArg
+               (  long "serverLogs"
+               <> short 'l'
+               <> help (
+               "'none': no server logs. 'console': server logs in the console. " ++ -- TODO merge with -d
+               "Default is 'none'. Incompatible with --serverName."
+               )))
       <*> optional
             (option backendArg
               (  long "render"
@@ -142,6 +147,15 @@ renderHelp :: String
 renderHelp =
   "\nAccepted synonyms of 'console' are 'ascii', 'term', 'terminal'." ++
   "\nAccepted synonyms of 'opengl' are 'win', 'window'."
+
+srvLogsArg :: ReadM ServerLogs
+srvLogsArg =
+  str >>= \s -> case map toLower s of
+    "none"    -> return NoLogs
+    "console" -> return ConsoleLogs
+    st -> readerError $ "Encountered an invalid server log type:\n\t"
+                    ++ show st
+                    ++ "\nAccepted render types are 'none' and 'console'."
 
 backendArg :: ReadM BackendType
 backendArg =
@@ -203,14 +217,16 @@ userPicksBackend = do
 runWithBackend :: Bool
                -> Maybe ServerName
                -> Maybe ServerPort
+               -> Maybe ServerLogs
                -> Maybe BackendType
                -> Maybe SuggestedPlayerName
                -> Bool
                -> IO ()
-runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug = do
+runWithBackend serverOnly maySrvName maySrvPort maySrvLogs maybeBackend mayPlayerName debug = do
   let printServerArgs = do
         putStrLn $ "| Server name : " ++ show maySrvName
         putStrLn $ "| Server port : " ++ show maySrvPort
+        putStrLn $ "| Server logs : " ++ show maySrvLogs
         putStrLn $ "| Server-only : " ++ show serverOnly
       printClientArgs = do
         putStrLn $ "| Client Rendering : " ++ show maybeBackend
@@ -223,7 +239,7 @@ runWithBackend serverOnly maySrvName maySrvPort maybeBackend mayPlayerName debug
     error "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
 
   let srvPort = fromMaybe defaultPort maySrvPort
-      srv = mkServer maySrvName srvPort
+      srv = mkServer maySrvLogs maySrvName srvPort
       player = fromMaybe "Player" mayPlayerName
   newEmptyMVar >>= \ready ->
     if serverOnly

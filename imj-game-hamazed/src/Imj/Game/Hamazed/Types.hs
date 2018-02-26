@@ -46,10 +46,13 @@ data ProgramEnd =
   | ErrorFromServer !String
 instance Exception ProgramEnd
 instance Show ProgramEnd where
-  show GracefulClientEnd = "Thanks for playing!"
-  show GracefulServerEnd = "Server has shutdown."
-  show (UnexpectedProgramEnd s) = unpack $ "Program ended: " <> s
-  show (ErrorFromServer s) = "An error occured in the Server: " ++ s
+  show GracefulClientEnd        = withNewline "Thanks for playing!"
+  show GracefulServerEnd        = withNewline "Server has shutdown."
+  show (UnexpectedProgramEnd s) = withNewline $ unpack $ "Program ended: " <> s
+  show (ErrorFromServer s)      = withNewline $ "An error occured in the Server: " ++ s
+
+withNewline :: String -> String
+withNewline = flip (++) "\n"
 
 
 data EventGroup = EventGroup {

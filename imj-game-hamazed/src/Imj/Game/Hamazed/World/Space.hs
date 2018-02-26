@@ -54,11 +54,11 @@ import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
 
-toListOfLists :: Space -> [[Material]]
-toListOfLists (Space mat) = toLists mat
+toListOfLists :: Space -> MaterialMatrix
+toListOfLists (Space mat) = MaterialMatrix $ toLists mat
 
-fromListOfLists :: [[Material]] -> Space
-fromListOfLists = Space . fromLists
+fromListOfLists :: MaterialMatrix -> Space
+fromListOfLists (MaterialMatrix m) = Space $ fromLists m
 
 -- | Creates a 'PosSpeed' from a position,
 -- moves to precollision and mirrors speed if a collision is detected for
@@ -136,24 +136,24 @@ forEachRowPure mat (Size nRows nColumns) f =
 -- | Creates a rectangular empty space of size specified in parameters.
 mkEmptySpace :: Size -> (Space, BigWorldTopology)
 mkEmptySpace s =
-  (mkSpaceFromMat s [[Air]], mkEmptyBigWorldTopology s)
+  (mkSpaceFromMat s $ MaterialMatrix [[Air]], mkEmptyBigWorldTopology s)
 
 mkFilledSpace :: Size -> (Space, BigWorldTopology)
 mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
   let w = fromIntegral widthEmptySpace
       h = fromIntegral heightEmptySpace
       l = replicate h $ replicate w Wall
-  in (mkSpaceFromMat s l, mkFilledBigWorldTopology s)
+  in (mkSpaceFromMat s $ MaterialMatrix l, mkFilledBigWorldTopology s)
 
 -- | Creates a rectangular random space of size specified in parameters.
 -- 'IO' is used for random numbers generation.
 mkRandomlyFilledSpace :: RandomParameters -> Size -> Int -> IO (Space, BigWorldTopology)
 mkRandomlyFilledSpace _ s 0 = return $ mkFilledSpace s
 mkRandomlyFilledSpace (RandomParameters blockSize strategy) s nComponents = do
-  (smallWorldMat, smallTopo) <- mkSmallWorld (bigToSmall s blockSize) strategy nComponents
+  (MaterialMatrix smallWorldMat, smallTopo) <- mkSmallWorld (bigToSmall s blockSize) strategy nComponents
   let replicateElems = replicateElements blockSize
       innerMat = replicateElems $ map replicateElems smallWorldMat
-  return (mkSpaceFromMat s innerMat, smallToBig blockSize s smallTopo)
+  return (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo)
 
 bigToSmall :: Size -> Int -> Size
 bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
@@ -177,7 +177,7 @@ mkSmallWorld :: Size
              -- ^ Size of the small world
              -> Strategy
              -> Int
-             -> IO ([[Material]], SmallWorldTopology)
+             -> IO (MaterialMatrix, SmallWorldTopology)
              -- ^ the "small world"
 mkSmallWorld s@(Size nRows nCols) strategy nComponents' = do
   when (nComponents' == 0) $ error "should be handled by caller"
@@ -194,7 +194,7 @@ mkSmallWorld s@(Size nRows nCols) strategy nComponents' = do
         let comps = map mkConnectedComponent $ components graph
         if nComponents == length comps && wellDistributed comps
           then
-            return (smallMat, SmallWorldTopology comps vtxToCoords)
+            return (MaterialMatrix smallMat, SmallWorldTopology comps vtxToCoords)
           else
             go
   mkSmallMat = mapM mkRandomRow [0..nRows-1] >>= \smallMat ->
@@ -329,8 +329,8 @@ connectedNeighbours match coords mat (nRows,nCols) =
             Just other)
       neighbours
 
-mkSpaceFromMat :: Size -> [[Material]] -> Space
-mkSpaceFromMat s matMaybeSmaller =
+mkSpaceFromMat :: Size -> MaterialMatrix -> Space
+mkSpaceFromMat s (MaterialMatrix matMaybeSmaller) =
   let ext = extend s matMaybeSmaller
       mat = fromLists ext
   in Space mat

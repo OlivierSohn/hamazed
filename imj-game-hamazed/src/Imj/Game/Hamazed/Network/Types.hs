@@ -23,6 +23,7 @@ module Imj.Game.Hamazed.Network.Types
       , Command(..)
       , ClientQueues(..)
       , Server(..)
+      , ServerLogs(..)
       , ServerPort(..)
       , ServerName(..)
       , getServerNameAndPort
@@ -59,9 +60,13 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Text.ColorString
 
 -- | a Server, seen from a Client's perspective
-data Server = Distant ServerName ServerPort
-            | Local ServerPort
+data Server = Distant !ServerName !ServerPort
+            | Local !ServerLogs !ServerPort
   deriving(Generic, Show)
+
+data ServerLogs = NoLogs | ConsoleLogs
+  deriving(Generic, Show)
+instance NFData ServerLogs
 
 data ServerOwnership =
     ClientOwnsServer
@@ -301,7 +306,7 @@ newtype SuggestedPlayerName = SuggestedPlayerName String
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)
-getServerNameAndPort (Local p) = (ServerName "localhost", p)
+getServerNameAndPort (Local _ p) = (ServerName "localhost", p)
 getServerNameAndPort (Distant name p) = (name, p)
 
 newtype ServerName = ServerName String

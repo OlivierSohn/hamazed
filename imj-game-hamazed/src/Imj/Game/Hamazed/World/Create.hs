@@ -20,6 +20,7 @@ import qualified Data.Set as Set(size, toList)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
@@ -64,7 +65,7 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
   return $ WorldEssence (concat balls) (Map.fromList ships) (toListOfLists space) wid
 
 mkMinimalWorldEssence :: WorldEssence
-mkMinimalWorldEssence = WorldEssence [] Map.empty [[]] Nothing
+mkMinimalWorldEssence = WorldEssence [] Map.empty (MaterialMatrix [[]]) Nothing
 
 mkSpace :: (MonadIO m)
         => Size

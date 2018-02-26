@@ -15,15 +15,16 @@ module Imj.Game.Hamazed.Network.Server
       , defaultPort
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(intercalate, concat)
 
-import           Control.Concurrent(threadDelay, forkIO)
+import           Control.Concurrent(threadDelay, forkIO, myThreadId)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar, swapMVar
                                         , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
 import           Control.Monad.Reader(runReaderT, lift, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, gets, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
+import           Data.List(length, lines)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elems, keys, adjust, keysSet
                                       , insert, null, empty, mapAccumWithKey, updateLookupWithKey
@@ -31,8 +32,8 @@ import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elem
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, lookupMin, empty, insert)
 import           Data.Maybe(isJust)
-import           Data.Text(pack, unpack)
---import           Data.Text.IO(putStrLn)
+import           Data.Text(pack, unpack, justifyRight, intercalate, dropEnd)
+import           Data.Text.IO(putStrLn)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
@@ -61,18 +62,45 @@ data ConstClient = ConstClient {
 }
 
 log :: Text -> ClientHandlerIO ()
-log = \_ -> return () -- liftIO . putStrLn -- TODO make configurable (file output / console output / no output)
+log msg = gets serverLogs >>= \case
+  NoLogs -> return ()
+  ConsoleLogs -> do
+    i <- asks shipId
+    liftIO $ baseLog $ intercalate "|"
+      [ pack $ show i
+      , msg
+      ]
 
 serverLog :: Text -> StateT ServerState IO ()
-serverLog = \_ -> return () -- liftIO . putStrLn -- TODO make configurable (file output / console output / no output)
+serverLog msg = gets serverLogs >>= \case
+  NoLogs -> return ()
+  ConsoleLogs ->
+    liftIO $ baseLog msg
+
+baseLog :: Text -> IO ()
+baseLog msg = do
+  i <- myThreadId
+  t <- getSystemTime
+  putStrLn $ intercalate "|"
+    [
+    -- up to microseconds
+    dropEnd 3 $ prettyShowTime t
+  -- justify to avoid having big thread ids offset the logs alignment.
+  -- drop 9 to skip 'ThreadId '
+    , justifyRight 6 ' ' $ pack $ drop 9 $ show i
+    , msg
+    ]
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: Maybe ServerName -> ServerPort -> Server
-mkServer Nothing = Local
-mkServer (Just (ServerName n)) =
+mkServer :: Maybe ServerLogs -> Maybe ServerName -> ServerPort -> Server
+mkServer logs Nothing =
+  Local (fromMaybe NoLogs logs)
+mkServer Nothing (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
+mkServer (Just _) (Just _) =
+  error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
 
 notifyEveryone :: ServerEvent -> StateT ServerState IO ()
 notifyEveryone evt =
@@ -96,17 +124,16 @@ notifyFirstWorldBuilder evt =
 --
 -- In case some connections are closed, the corresponding clients are silently removed
 -- from the Map, and we continue the processing.
-notifyN :: WebSocketsData a
-      => [a]
-      -> Map ShipId Client
-      -> StateT ServerState IO ()
-notifyN a clients =
-  let !msgs = map (Binary . toLazyByteString) a
-  in void $ Map.traverseWithKey (\i client -> sendAndHandleExceptions msgs (getConnection client) i) clients
+notifyN :: [ServerEvent]
+        -> Map ShipId Client
+        -> StateT ServerState IO ()
+notifyN evts =
+  void . Map.traverseWithKey
+    (\i client -> sendAndHandleExceptions evts (getConnection client) i)
 
 notify :: Connection -> ShipId -> ServerEvent -> StateT ServerState IO ()
 notify conn sid evt =
-  sendAndHandleExceptions (map (Binary . toLazyByteString) [evt]) conn sid
+  sendAndHandleExceptions [evt] conn sid
 
 notifyClient :: ServerEvent -> ClientHandlerIO ()
 notifyClient evt = do
@@ -114,12 +141,14 @@ notifyClient evt = do
   sid <- asks shipId
   lift $ notify conn sid evt
 
-sendAndHandleExceptions :: [DataMessage] -> Connection -> ShipId -> StateT ServerState IO ()
+sendAndHandleExceptions :: [ServerEvent] -> Connection -> ShipId -> StateT ServerState IO ()
 sendAndHandleExceptions [] _ _ = return () -- sendDataMessages throws on empty list
-sendAndHandleExceptions m conn i =
-  liftIO (try (sendDataMessages conn m)) >>= either
-    (\(e :: SomeException) -> onBrokenClient e i)
+sendAndHandleExceptions evts conn i =
+  liftIO (try $ sendDataMessages conn msgs) >>= either
+    (\(e :: SomeException) -> onBrokenClient "" (Just ("sending", "ServerEvent", evts)) e i)
     return
+ where
+  !msgs = map (Binary . toLazyByteString) evts
 
 appSrv :: MVar ServerState -> PendingConnection -> IO ()
 appSrv st pending =
@@ -139,19 +168,21 @@ appSrv' st conn =
       (\_ -> do
         i <- modifyMVar st (fmap swap . runStateT takeShipId)
         let env = ConstClient i conn
-        let disconnectOnException action = try action >>= either
-              (\(e :: SomeException) -> modifyMVar_ st $ execStateT $ onBrokenClient e i)
+            disconnectOnException name action = try action >>= either
+              (\(e :: SomeException) ->
+                  modifyMVar_ st $ execStateT $
+                    onBrokenClient name (Nothing :: Maybe (Text, Text, [Text])) e i)
               return
         -- To detect disconnections when communication is idle:
-        void $ forkIO $ disconnectOnException $ pingPong conn $ fromSecs 1
-        disconnectOnException $ do
+        void $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
+        disconnectOnException "Handler" $ do
           modifyMVar_ st $ execStateT $ flip runReaderT env $ addClient sn cliType
           forever $ receiveData conn >>=
             modifyMVar_ st . execStateT . flip runReaderT env . handleIncomingEvent
             -- hereabove I runReaderT within execStateT.
             -- TODO runReaderT globally, from the moment we have i and conn.
       ) $ checkName $ PlayerName $ pack suggestedName
-    msg -> error $ "first sent message should be 'Connect'. " ++ show msg
+    msg -> error $ "First sent message should be 'Connect'. " ++ show msg
 
 checkName :: PlayerName -> Either Text ()
 checkName (PlayerName name) =
@@ -181,19 +212,20 @@ takeShipId =
       if Map.null gameConnectedPlayers
         then
           serverError "the current game has no connected player" -- TODO support that
-        else
+        else do
+          serverLog $ "Reconnecting using " <> pack (show disconnected)
           notifyN [CurrentGameStateRequest] (Map.take 1 gameConnectedPlayers)
       return disconnected)
  where
   takeDisconnectedShipId :: StateT ServerState IO (Maybe (Map ShipId Client, ShipId)) -- (connected, disconnected)
   takeDisconnectedShipId =
-    get >>= \(ServerState _ _ _ _ _ _ _ terminate game) ->
+    get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
       if terminate
         then
           return Nothing
         else
           liftIO (tryReadMVar game) >>= maybe
-            (return Nothing)
+            (serverLog "No game is running" >> return Nothing)
             (\(CurrentGame _ gamePlayers status) -> case status of
                 (Paused _) -> do
                 -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
@@ -203,11 +235,15 @@ takeShipId =
                   let connectedPlayerKeys = Map.keysSet connectedPlayers
                       mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
                       gameConnectedPlayers = Map.restrictKeys connectedPlayers gamePlayers
-                  return $ maybe
-                    Nothing
-                    (\disconnectedPlayerKey -> Just (gameConnectedPlayers, disconnectedPlayerKey))
+                  maybe
+                    (do serverLog "A paused game exists, but has no disconnected player."
+                        return Nothing)
+                    (\disconnected -> do
+                        serverLog $ "A paused game exists, " <> pack (show disconnected) <> " is disconnected."
+                        return $ Just (gameConnectedPlayers, disconnected))
                     mayDisconnectedPlayerKey
-                _ -> return Nothing)
+                _ -> do serverLog "A game is in progress."
+                        return Nothing)
 
 
 addClient :: SuggestedPlayerName -> ServerOwnership -> ClientHandlerIO ()
@@ -218,6 +254,7 @@ addClient sn cliType = do
   presentClients <- lift $ do
     name <- makePlayerName sn
     let client@(Client _ _ _ _ _ _ _ c) = mkClient name playerColor conn cliType
+    serverLog $ "Adding client " <> pack (show client)
     -- this call is /before/ addClient to avoid sending redundant info to client.
     notifyEveryoneN $ map (RunCommand i) [AssignName name, AssignColors c]
     -- order matters, see comment above.
@@ -261,10 +298,41 @@ shutdown reason = do
   mapM_ (disconnect $ ServerShutdown reason) =<< gets allClientsIds
 
 -- It's important that this function doesn't throw any exception.
-onBrokenClient :: SomeException -> ShipId -> StateT ServerState IO ()
-onBrokenClient e i = do
-  serverLog $ "onBrokenClient " <> pack (show (i, e))
+onBrokenClient :: (Show a)
+               => Text
+               -- ^ Describes the type of thread in which the exception was raised
+               -> Maybe (Text, Text, [a])
+               -- ^ A list of values that will be added to the log.
+               -> SomeException
+               -> ShipId
+               -> StateT ServerState IO ()
+onBrokenClient threadCategory infos e i = do
+  log'
   disconnect (BrokenClient $ pack $ show e) i
+ where
+  log' = serverLog $
+    firstLine <>
+    if null exceptionLines
+      then
+        mempty
+      else
+        contd <> intercalate contd exceptionLines
+  firstLine = intercalate "|"
+    [ "BrokenClient"
+    , justifyRight 10 '.' threadCategory
+    , pack $ show i
+    ]
+  exceptionLines =
+    maybe
+      []
+      (\(actionDesc, itemDesc, values) ->
+        ("Exception while " <> actionDesc <> " " <> pack (show $ length values) <> " " <> itemDesc <> "(s):") :
+        map
+          (\(idx, v) -> " - " <> itemDesc <> " " <> pack (show idx) <> ":" <> pack (keepExtremities $ show v))
+          (zip [0::Int ..] values))
+      infos ++
+    "Exception message:" : map ((<>) " | " . pack) (lines $ show e)
+  contd = "\n (contd) "
 
 disconnectClient :: ClientHandlerIO ()
 disconnectClient = do
@@ -274,7 +342,8 @@ disconnectClient = do
 disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
 disconnect r i =
   tryRemoveClient >>= maybe
-    (return ()) -- the client was not in the client map, we don't do anything.
+    (do serverLog $ "The client " <> pack (show i) <> " was already removed."
+        return ())
     (\c@(Client (PlayerName name) _ ownership _ _ _ _ _) -> do
         -- If the client owns the server, we shutdown connections to /other/ clients first.
         when (ownership == ClientOwnsServer) $ do
@@ -290,7 +359,8 @@ disconnect r i =
         closeConnection r i c)
  where
   closeConnection :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
-  closeConnection reason cid (Client (PlayerName playerName) conn _ _ _ _ _ _) = do
+  closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ _) = do
+    serverLog $ "Closing connection of " <> pack (show c)
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -352,33 +422,52 @@ error' txt = do
 
 gameError :: String -> ClientHandlerIO ()
 gameError txt = do
-  log $ "!!! game error from Server: " <> pack txt
+  log $ "Game error from Server|" <> pack txt
   lift $ notifyPlayers $ Error $ "*** game error from Server: " ++ txt
-  error $ "game error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
-    -- hence we sent the error to the client, so that it can report the error too.
+  error $ "game error from Server: " ++ txt
 
 schedulerError :: String -> StateT ServerState IO ()
 schedulerError = serverError . ("sched : " ++)
 
 serverError :: String -> StateT ServerState IO ()
 serverError txt = do
-  serverLog $ "!!! server error from Server: " <> pack txt
+  serverLog $ "Server error from Server|" <> pack txt
   notifyEveryone $ Error $ "*** server error from Server: " ++ txt
-  error $ "server error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
-    -- hence we sent the error to the client, so that it can report the error too.
+  error $ "server error from Server: " ++ txt
 
 handlerError :: String -> ClientHandlerIO ()
 handlerError txt = do
-  log $ "!!! handler error from Server: " <> pack txt
+  log $ "Handler error from Server|" <> pack txt
   lift $ notifyEveryone $ Error $ "*** handler error from Server: " ++ txt
-  error $ "handler error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
-    -- hence we sent the error to the client, so that it can report the error too.
+  error $ "handler error from Server: " ++ txt
+
+keepExtremities :: String -> String
+keepExtremities msg =
+  if l <= sz
+    then
+      msg
+    else
+      msg1 ++ " *** truncated (" ++ show l ++ ") *** " ++ msg2
+ where
+  sz = 100
+  !l = length msg
+  sizeStart = quot sz 2
+  sizeEnd = sz - sizeStart
+  msg1 = take sizeStart msg
+  msg2 = reverse $ take sizeEnd $ reverse msg
 
 handleIncomingEvent :: ClientEvent -> ClientHandlerIO ()
-handleIncomingEvent evt = do
-  log $ "handleIncomingEvent " <> pack (take 40 $ show evt)
-  handleIncomingEvent' evt
-  log $ "handled"
+handleIncomingEvent =
+  withArgLogged handleIncomingEvent'
+
+
+{-# INLINABLE withArgLogged #-}
+withArgLogged :: (Show a) => (a -> ClientHandlerIO b) -> a ->  ClientHandlerIO b
+withArgLogged act arg = do
+  log $ " >> " <> pack (keepExtremities $ show arg)
+  res <- act arg
+  log " <<"
+  return res
 
 handleIncomingEvent' :: ClientEvent -> ClientHandlerIO ()
 handleIncomingEvent' = \case
@@ -470,7 +559,7 @@ handleIncomingEvent' = \case
         requestWorld
     _ -> return ()
   WorldProposal essence ->
-    get >>= \(ServerState _ _ levelSpec _ lastWid _ _ _ _) -> do
+    get >>= \(ServerState _ _ _ levelSpec _ lastWid _ _ _ _) -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
       when (lastWid == Just wid) $
         lift $ notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
@@ -493,7 +582,7 @@ handleIncomingEvent' = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient $ EnterState Setup
       IntentPlayGame ->
-        get >>= \(ServerState (Clients clients _) _ _ _ mayLastWId _ _ _ game) -> maybe
+        get >>= \(ServerState _ (Clients clients _) _ _ _ mayLastWId _ _ _ game) -> maybe
             (return ())
             (\lastWId -> do
               adjustClient $ \c -> c { getState = Just Finished }
@@ -534,7 +623,7 @@ handleIncomingEvent' = \case
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ _ _ _ _ _ terminate mayGame) ->
+  readMVar st >>= \(ServerState _ _ _ _ _ _ _ _ terminate mayGame) ->
     if terminate
       then return ()
       else
@@ -602,7 +691,7 @@ gameScheduler st =
   -- run the action if the world matches the current world and the game was
   -- not terminated
   run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
-  run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ terminate mayWorld) ->
+  run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate mayWorld) ->
     if terminate
       then
         return NotExecutedGameCanceled
@@ -682,7 +771,7 @@ adjustAll' f =
 requestWorld :: StateT ServerState IO ()
 requestWorld = do
   incrementWorldId
-  get >>= \(ServerState _ _ level params wid _ _ _ _) -> do
+  get >>= \(ServerState _ _ _ level params wid _ _ _ _) -> do
     shipIds <- gets onlyPlayersIds
     notifyFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
  where

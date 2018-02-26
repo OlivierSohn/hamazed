@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , RenderedSpace(..)
     , getSize
     , Material(..)
+    , MaterialMatrix(..)
     , RandomParameters(..)
     , Strategy(..)
     , DrawGroup(..)
@@ -56,6 +57,9 @@ newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an array to have b
 {-# INLINE getSize #-}
 getSize :: Space -> Size
 getSize (Space m) = Size (Length $ nrows m) (Length $ ncols m)
+
+newtype MaterialMatrix = MaterialMatrix [[Material]] -- TODO ByteString would use 3 * 64 times less memory
+  deriving(Generic, Show, Binary)
 
 data Material = Air
               -- ^ In it, ship and numbers can move.

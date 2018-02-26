@@ -105,7 +105,7 @@ instance Binary WorldSpec
 data WorldEssence = WorldEssence {
     getNumbers :: ![Number]
   , getShips :: !(Map ShipId BattleShip)
-  , getSpaceMatrix :: ![[Material]] -- TODO ByteString would use 3 * 64 times less memory
+  , getSpaceMatrix :: !MaterialMatrix
   , getWorldId :: !(Maybe WorldId)
 } deriving(Generic, Show)
 instance Binary WorldEssence

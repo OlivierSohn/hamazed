@@ -9,7 +9,6 @@ import           Control.Monad.Reader(liftIO)
 
 import           System.IO(hFlush, stdout)
 import           System.Console.ANSI(setCursorPosition, clearFromCursorToScreenEnd)
-import           System.Console.ANSI.Codes(csi)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Canvas
@@ -32,13 +31,10 @@ data NaiveDraw = NaiveDraw
 
 move' :: Coords Pos -> IO ()
 move' (Coords (Coord y) (Coord x)) =
-  setCursorPosition y x
+  setCursorPosition y x -- with redundancy, as we don't keep track of the current position.
 
 color :: LayeredColor -> IO ()
-color (LayeredColor bg fg) = do
-  let bgCodes = color8BgSGRToCode bg
-      fgCodes = color8FgSGRToCode fg
-  putStr $ csi (bgCodes ++ fgCodes) "m"
+color = putStr . colorChange Nothing -- with redundancy, as we don't keep track of the current color.
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
 -- and creates heavy screen tearing.

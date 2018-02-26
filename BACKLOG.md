@@ -1,3 +1,7 @@
+- nice ship colors :
+0 3 5 (blue)
+1 0 3 (dark violet)
+
 - pass cli arg for color theme :
 + default to red
 + primary color names accepted

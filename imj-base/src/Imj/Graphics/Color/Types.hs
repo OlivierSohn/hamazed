@@ -16,6 +16,8 @@ module Imj.Graphics.Color.Types
           , encodeColors
           , color8BgSGRToCode
           , color8FgSGRToCode
+          , csi
+          , colorChange
           , Word8
           , bresenhamColor8
           , bresenhamColor8Length
@@ -175,17 +177,40 @@ instance DiscreteInterpolation (Color8 a) where
 mkColor8 :: Word8 -> Color8 a
 mkColor8 = Color8
 
+colorChange :: Maybe LayeredColor -> LayeredColor -> String
+colorChange prevColor (LayeredColor bg fg) =
+  if null codes
+    then mempty
+    else csi codes "m"
+ where
+  codes = maybe
+    (bgCodes ++ fgCodes)
+    (\(LayeredColor prevBg prevFg) -> concat $
+      [bgCodes | prevBg /= bg] ++
+      [fgCodes | prevFg /= fg])
+    prevColor
+  bgCodes = color8BgSGRToCode bg
+  fgCodes = color8FgSGRToCode fg
+
 -- | Converts a 'Color8' 'Foreground' to corresponding
 -- <https://vt100.net/docs/vt510-rm/SGR.html SGR codes>.
+{-# INLINE color8FgSGRToCode #-}
 color8FgSGRToCode :: Color8 Foreground -> [Int]
 color8FgSGRToCode (Color8 c) =
   [38, 5, fromIntegral c]
 
 -- | Converts a 'Color8' 'Background' to corresponding
 -- <https://vt100.net/docs/vt510-rm/SGR.html SGR codes>.
+{-# INLINE color8BgSGRToCode #-}
 color8BgSGRToCode :: Color8 Background -> [Int]
 color8BgSGRToCode (Color8 c) =
   [48, 5, fromIntegral c]
+
+{-# INLINE csi #-}
+csi :: [Int]
+    -> String
+    -> String
+csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
 
 -- | Computes the bresenham length between two colors. If both are 'gray', the
 -- interpolation happens in grayscale space.

@@ -28,6 +28,8 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * Utilities
             , countChars
             , take
+            -- * Convert to colored Text
+            , buildTxt
             -- * Reexports
             , LayeredColor(..)
             ) where
@@ -37,6 +39,8 @@ import           Imj.Prelude hiding(take, concat, intercalate)
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
+import           Data.Text.Lazy.Builder(Builder)
+import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
 import qualified Data.List as List(length, concat)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
@@ -96,6 +100,25 @@ instance DiscreteInterpolation ColorString where
             c1'
           else
             interpolateColors c1' c2' (negate remaining)
+
+-- | Converts to 'Data.Text.Lazy.Builder' with a minimum amount of foreground and background
+-- color change control characters.
+buildTxt :: Maybe LayeredColor
+         -- ^ When this is a 'Just', assume that if no change control character is emitted,
+         -- the string will be rendered in this color.
+         -> ColorString
+         -- ^ the string to convert
+         -> (Builder, Maybe LayeredColor)
+         -- ^ Returns the converted string and the current color, if any.
+buildTxt prev (ColorString l') =
+  go l' prev mempty
+ where
+  go [] c b = (b, c)
+  go ((txt,color):rest) c b =
+    go rest (Just color) $
+      b <>
+      Builder.fromString (colorChange c color) <>
+      Builder.fromText txt
 
 {-# INLINE concat #-}
 concat :: [ColorString] -> ColorString

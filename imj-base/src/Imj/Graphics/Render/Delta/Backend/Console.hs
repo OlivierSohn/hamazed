@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module Imj.Graphics.Render.Delta.Backend.Console
@@ -106,6 +105,8 @@ configureConsoleFor config stdoutMode =
       hSetBuffering stdout LineBuffering
 
 deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
+deltaRenderConsole (Delta delta) w = do
+  t1 <- getSystemTime
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -114,8 +115,6 @@ deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Durat
   -- the number of position changes.
   -- In 'Cell', color is encoded in higher bits than position, so this sort
   -- sorts by color first, then by position, which is what we want.
-deltaRenderConsole (Delta delta) w = do
-  t1 <- getSystemTime
   Dyn.unstableSort delta
   renderDelta delta w
   t2 <- getSystemTime
@@ -204,12 +203,6 @@ renderCell bg fg char maybeCurrentConsoleColor = do
     else
       Prelude.putChar char
   return $ LayeredColor bg usedFg
-
-
-csi :: [Int]
-    -> String
-    -> String
-csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
 
 -- TODO use this formalism
 {-

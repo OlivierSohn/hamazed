@@ -16,24 +16,23 @@ module Imj.Game.Hamazed.Network.Server
       ) where
 
 import           Imj.Prelude hiding(intercalate, concat)
+import qualified Imj.Prelude as Prel (intercalate)
 
-import           Control.Concurrent(threadDelay, forkIO, myThreadId)
+import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar (MVar
                                         , modifyMVar_, modifyMVar, swapMVar
                                         , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
 import           Control.Monad.Reader(runReaderT, lift, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, gets, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
-import           Data.List(length, lines)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elems, keys, adjust, keysSet
                                       , insert, null, empty, mapAccumWithKey, updateLookupWithKey
-                                      , restrictKeys, traverseWithKey)
+                                      , restrictKeys, traverseWithKey, lookup)
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, lookupMin, empty, insert)
 import           Data.Maybe(isJust)
-import           Data.Text(pack, unpack, justifyRight, intercalate, dropEnd)
-import           Data.Text.IO(putStrLn)
+import           Data.Text(pack, unpack, justifyRight)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
@@ -51,7 +50,9 @@ import           Imj.Game.Hamazed.Network.Class.ClientNode
 
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Discrete(translateInDir, zeroCoords)
+import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored)
 import           Imj.Graphics.Color
+import           Imj.Log
 
 type ClientHandlerIO = ReaderT ConstClient (StateT ServerState IO)
 
@@ -61,35 +62,31 @@ data ConstClient = ConstClient {
   , connection :: {-# UNPACK #-} !Connection -- TODO remove from 'Client', and use ConstClient as key in Map
 }
 
-log :: Text -> ClientHandlerIO ()
+log :: ColorString -> ClientHandlerIO ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
     i <- asks shipId
+    idStr <- lift $ showId i
     liftIO $ baseLog $ intercalate "|"
-      [ pack $ show i
+      [ idStr
       , msg
       ]
 
-serverLog :: Text -> StateT ServerState IO ()
+showId :: ShipId -> StateT ServerState IO ColorString
+showId i = do
+  color <- fromMaybe white <$> gets (clientColor i)
+  return $ colored (pack $ show i) color
+
+showClient :: Client -> ColorString
+showClient c = colored (pack $ show c) $ gray 16
+
+serverLog :: StateT ServerState IO ColorString
+          -> StateT ServerState IO ()
 serverLog msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs ->
-    liftIO $ baseLog msg
-
-baseLog :: Text -> IO ()
-baseLog msg = do
-  i <- myThreadId
-  t <- getSystemTime
-  putStrLn $ intercalate "|"
-    [
-    -- up to microseconds
-    dropEnd 3 $ prettyShowTime t
-  -- justify to avoid having big thread ids offset the logs alignment.
-  -- drop 9 to skip 'ThreadId '
-    , justifyRight 6 ' ' $ pack $ drop 9 $ show i
-    , msg
-    ]
+    msg >>= liftIO . baseLog
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
@@ -213,7 +210,7 @@ takeShipId =
         then
           serverError "the current game has no connected player" -- TODO support that
         else do
-          serverLog $ "Reconnecting using " <> pack (show disconnected)
+          serverLog $ ("Reconnecting using " <>) <$> showId disconnected
           notifyN [CurrentGameStateRequest] (Map.take 1 gameConnectedPlayers)
       return disconnected)
  where
@@ -225,7 +222,8 @@ takeShipId =
           return Nothing
         else
           liftIO (tryReadMVar game) >>= maybe
-            (serverLog "No game is running" >> return Nothing)
+            (do serverLog $ pure "No game is running"
+                return Nothing)
             (\(CurrentGame _ gamePlayers status) -> case status of
                 (Paused _) -> do
                 -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
@@ -236,15 +234,14 @@ takeShipId =
                       mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
                       gameConnectedPlayers = Map.restrictKeys connectedPlayers gamePlayers
                   maybe
-                    (do serverLog "A paused game exists, but has no disconnected player."
+                    (do serverLog $ pure "A paused game exists, but has no disconnected player."
                         return Nothing)
                     (\disconnected -> do
-                        serverLog $ "A paused game exists, " <> pack (show disconnected) <> " is disconnected."
+                        serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
                         return $ Just (gameConnectedPlayers, disconnected))
                     mayDisconnectedPlayerKey
-                _ -> do serverLog "A game is in progress."
+                _ -> do serverLog $ pure "A game is in progress."
                         return Nothing)
-
 
 addClient :: SuggestedPlayerName -> ServerOwnership -> ClientHandlerIO ()
 addClient sn cliType = do
@@ -254,7 +251,7 @@ addClient sn cliType = do
   presentClients <- lift $ do
     name <- makePlayerName sn
     let client@(Client _ _ _ _ _ _ _ c) = mkClient name playerColor conn cliType
-    serverLog $ "Adding client " <> pack (show client)
+    serverLog $ pure $ colored "Adding client " green <> showClient client
     -- this call is /before/ addClient to avoid sending redundant info to client.
     notifyEveryoneN $ map (RunCommand i) [AssignName name, AssignColors c]
     -- order matters, see comment above.
@@ -311,28 +308,12 @@ onBrokenClient threadCategory infos e i = do
   disconnect (BrokenClient $ pack $ show e) i
  where
   log' = serverLog $
-    firstLine <>
-    if null exceptionLines
-      then
-        mempty
-      else
-        contd <> intercalate contd exceptionLines
-  firstLine = intercalate "|"
-    [ "BrokenClient"
-    , justifyRight 10 '.' threadCategory
-    , pack $ show i
+    showId i >>= \strId -> pure $ firstLine strId <> logDetailedException infos e
+  firstLine s = intercalate "|"
+    [ colored "BrokenClient" red
+    , colored (justifyRight 10 '.' threadCategory) yellow
+    , s
     ]
-  exceptionLines =
-    maybe
-      []
-      (\(actionDesc, itemDesc, values) ->
-        ("Exception while " <> actionDesc <> " " <> pack (show $ length values) <> " " <> itemDesc <> "(s):") :
-        map
-          (\(idx, v) -> " - " <> itemDesc <> " " <> pack (show idx) <> ":" <> pack (keepExtremities $ show v))
-          (zip [0::Int ..] values))
-      infos ++
-    "Exception message:" : map ((<>) " | " . pack) (lines $ show e)
-  contd = "\n (contd) "
 
 disconnectClient :: ClientHandlerIO ()
 disconnectClient = do
@@ -342,7 +323,7 @@ disconnectClient = do
 disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
 disconnect r i =
   tryRemoveClient >>= maybe
-    (do serverLog $ "The client " <> pack (show i) <> " was already removed."
+    (do serverLog $ (\s -> "The client " <> s <> " was already removed.") <$> showId i
         return ())
     (\c@(Client (PlayerName name) _ ownership _ _ _ _ _) -> do
         -- If the client owns the server, we shutdown connections to /other/ clients first.
@@ -360,7 +341,7 @@ disconnect r i =
  where
   closeConnection :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
   closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ _) = do
-    serverLog $ "Closing connection of " <> pack (show c)
+    serverLog $ pure $ colored "Closing connection of " yellow <> showClient c
     -- If possible, notify the client about the disconnection
     case reason of
       BrokenClient _ ->
@@ -409,70 +390,50 @@ onlyPlayersIds :: ServerState -> Set ShipId
 onlyPlayersIds =
   Map.keysSet . onlyPlayersMap
 
-getPlayersKeys :: ServerState -> Set ShipId -- TODO remove (duplicate)
-getPlayersKeys =
-  Map.keysSet . onlyPlayersMap
+findClient :: ShipId -> ServerState -> Maybe Client
+findClient i = Map.lookup i . clientsMap
 
-error' :: String -> ClientHandlerIO ()
-error' txt = do
-  log $ "!!! error from Server: " <> pack txt
-  notifyClient $ Error $ "*** error from Server: " ++ txt
-  error $ "error from Server: " ++ txt -- this error may not be very readable if another thread writes to the console,
-    -- hence we sent the error to the client, so that it can report the error too.
+clientColor :: ShipId -> ServerState -> Maybe (Color8 Foreground)
+clientColor i = fmap (getPlayerColor . getColors) . findClient i
 
 gameError :: String -> ClientHandlerIO ()
-gameError txt = do
-  log $ "Game error from Server|" <> pack txt
-  lift $ notifyPlayers $ Error $ "*** game error from Server: " ++ txt
-  error $ "game error from Server: " ++ txt
-
-schedulerError :: String -> StateT ServerState IO ()
-schedulerError = serverError . ("sched : " ++)
-
-serverError :: String -> StateT ServerState IO ()
-serverError txt = do
-  serverLog $ "Server error from Server|" <> pack txt
-  notifyEveryone $ Error $ "*** server error from Server: " ++ txt
-  error $ "server error from Server: " ++ txt
+gameError = error' "Game"
 
 handlerError :: String -> ClientHandlerIO ()
-handlerError txt = do
-  log $ "Handler error from Server|" <> pack txt
-  lift $ notifyEveryone $ Error $ "*** handler error from Server: " ++ txt
-  error $ "handler error from Server: " ++ txt
+handlerError = error' "Handler"
 
-keepExtremities :: String -> String
-keepExtremities msg =
-  if l <= sz
-    then
-      msg
-    else
-      msg1 ++ " *** truncated (" ++ show l ++ ") *** " ++ msg2
+error' :: String -> String -> ClientHandlerIO ()
+error' from msg = do
+  log $ colored (pack txt) red
+  notifyClient $ Error txt
+  error txt
  where
-  sz = 100
-  !l = length msg
-  sizeStart = quot sz 2
-  sizeEnd = sz - sizeStart
-  msg1 = take sizeStart msg
-  msg2 = reverse $ take sizeEnd $ reverse msg
+  txt = Prel.intercalate "|" [from, "error from Server", msg]
+
+serverError :: String -> StateT ServerState IO ()
+serverError msg = do
+  serverLog $ pure $ colored (pack txt) red
+  notifyEveryone $ Error txt
+  error txt
+ where
+  txt = Prel.intercalate "|" ["Server error from Server", msg]
 
 handleIncomingEvent :: ClientEvent -> ClientHandlerIO ()
 handleIncomingEvent =
   withArgLogged handleIncomingEvent'
 
-
 {-# INLINABLE withArgLogged #-}
-withArgLogged :: (Show a) => (a -> ClientHandlerIO b) -> a ->  ClientHandlerIO b
+withArgLogged :: (Show a) => (a -> ClientHandlerIO b) -> a -> ClientHandlerIO b
 withArgLogged act arg = do
-  log $ " >> " <> pack (keepExtremities $ show arg)
+  log $ colored " >> " (gray 18) <> keepExtremities (show arg)
   res <- act arg
-  log " <<"
+  log $ colored " <<" (gray 18)
   return res
 
 handleIncomingEvent' :: ClientEvent -> ClientHandlerIO ()
 handleIncomingEvent' = \case
   Connect (SuggestedPlayerName sn) _ ->
-    error' $ "already connected : " <> sn
+    handlerError $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
     (notifyClient . CommandError cmd)
     (\_ -> lift (checkNameAvailability name) >>= either
@@ -587,7 +548,7 @@ handleIncomingEvent' = \case
             (\lastWId -> do
               adjustClient $ \c -> c { getState = Just Finished }
               -- start the game when all players have the right world
-              playersKeys <- gets getPlayersKeys
+              playersKeys <- gets onlyPlayersIds
               let playersAllReady =
                     all ((== Just lastWId) . getCurrentWorld) $ Map.restrictKeys clients playersKeys
               when playersAllReady $ do
@@ -704,7 +665,7 @@ gameScheduler st =
               then
                 return NotExecutedGameCanceled -- the world has changed
               else do
-                missingPlayers <- Set.difference gamePlayers <$> gets getPlayersKeys
+                missingPlayers <- Set.difference gamePlayers <$> gets onlyPlayersIds
                 let newStatus =
                       if null missingPlayers
                         then
@@ -724,7 +685,7 @@ gameScheduler st =
                   else
                     case newStatus of
                       New -> do
-                        schedulerError "logic : newStatus == New"
+                        serverError "logic : newStatus == New"
                         return NotExecutedTryAgainLater
                       Paused _ ->
                         return NotExecutedTryAgainLater

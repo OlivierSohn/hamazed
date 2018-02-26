@@ -41,7 +41,7 @@ import           Imj.Graphics.UI.RectContainer
 draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      => m ()
 draw =
-  getGame >>= \(Game status
+  gets game >>= \(Game status
                      (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld _ level wa (Screen _ screenCenter@(Coords rowCenter _)) mode _)
                      _ _ _ chat) -> do
     let offset = getWorldOffset mode world

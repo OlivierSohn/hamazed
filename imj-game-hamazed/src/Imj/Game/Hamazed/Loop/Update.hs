@@ -64,11 +64,11 @@ updateAppState (Left evt) = case evt of
   CurrentGameStateRequest ->
     sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
   ChangeLevel levelEssence worldEssence ->
-    getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
+    getGameState >>= \state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) ->
       mkInitialState levelEssence worldEssence names viewMode sz (Just state)
         >>= putGameState
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
-    getGame >>= \(Game _ state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) _ _ _ _) ->
+    getGameState >>= \state@(GameState _ _ _ _ _ (Screen sz _) viewMode names) ->
       mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->

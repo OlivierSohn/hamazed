@@ -153,7 +153,7 @@ addUpdateTime add =
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
                                           => Maybe UpdateEvent -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
-  get >>= \(AppState prevTime game prevGroup b c d e) -> do
+  get >>= \(AppState prevTime a prevGroup b c d e) -> do
     let onRender = do
           debug >>= \case
             True -> liftIO $ putStr $ groupStats prevGroup
@@ -165,7 +165,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
     liftIO (tryGrow evt prevGroup) >>= maybe
       (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
       (return . (,) prevTime)
-    >>= \(t,g) -> put $ AppState t game g b c d e
+    >>= \(t,g) -> put $ AppState t a g b c d e
 
 
 groupStats :: EventGroup -> String
@@ -246,9 +246,9 @@ createState :: Maybe Size
             -> ConnectionStatus
             -> IO AppState
 createState ms dbg a b c = do
-  game <- initialGame ms a b c
+  g <- initialGame ms a b c
   t <- getSystemTime
-  return $ AppState t game mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
+  return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 
 {-# INLINABLE debug #-}
 debug :: MonadState AppState m => m Bool

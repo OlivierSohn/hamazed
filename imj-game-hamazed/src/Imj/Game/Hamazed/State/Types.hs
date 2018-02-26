@@ -12,7 +12,6 @@ module Imj.Game.Hamazed.State.Types
       , Occurences(..)
       , EventRepr(..)
       -- * Access
-      , getGame
       , getGameState
       , getPlayers
       , getPlayer
@@ -46,6 +45,7 @@ module Imj.Game.Hamazed.State.Types
       , updateOneParticleSystem
       -- * reexports
       , MonadState
+      , gets
       ) where
 
 import           Imj.Prelude
@@ -73,7 +73,7 @@ data Occurences a = Occurences {
 
 data AppState  = AppState {
     timeAfterRender :: !(Time Point System)
-  , getAppGame :: !Game
+  , game :: !Game
   , eventsGroup :: !EventGroup
   , _appStateEventHistory :: !OccurencesHist
   -- ^ Can record which events where handled.
@@ -119,13 +119,9 @@ data EventRepr = Laser'
                deriving(Eq, Show)
 
 
-{-# INLINABLE getGame #-}
-getGame :: MonadState AppState m => m Game
-getGame = gets getAppGame
-
 {-# INLINABLE getGameState #-}
 getGameState :: MonadState AppState m => m GameState
-getGameState = getGameState' <$> getGame
+getGameState = getGameState' <$> gets game
 
 {-# INLINABLE getViewMode #-}
 getViewMode :: MonadState AppState m => m ViewMode
@@ -137,7 +133,7 @@ getChatMode = getIsEditing <$> getChat
 
 {-# INLINABLE getChat #-}
 getChat :: MonadState AppState m => m Chat
-getChat = getChat' <$> getGame
+getChat = getChat' <$> gets game
 
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
@@ -145,7 +141,7 @@ getWorld = currentWorld <$> getGameState
 
 {-# INLINABLE getClientState #-}
 getClientState :: MonadState AppState m => m ClientState
-getClientState = getClientState' <$> getGame
+getClientState = getClientState' <$> gets game
 
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
@@ -173,12 +169,12 @@ getLastRenderTime = gets timeAfterRender
 
 {-# INLINABLE putGame #-}
 putGame :: MonadState AppState m => Game -> m ()
-putGame g = modify' $ \s -> s { getAppGame = g }
+putGame g = modify' $ \s -> s { game = g }
 
 {-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
 putGameState s =
-  getGame >>= \g -> putGame $ g {getGameState' = s}
+  gets game >>= \g -> putGame $ g {getGameState' = s}
 
 {-# INLINABLE putAnimation #-}
 putAnimation :: MonadState AppState m => UIAnimation -> m ()
@@ -188,11 +184,11 @@ putAnimation a =
 {-# INLINABLE putGameConnection #-}
 putGameConnection :: MonadState AppState m => ConnectionStatus -> m ()
 putGameConnection c =
-  getGame >>= \g -> putGame $ g {connection' = c}
+  gets game >>= \g -> putGame $ g {connection' = c}
 
 {-# INLINABLE getGameConnection #-}
 getGameConnection :: MonadState AppState m => m ConnectionStatus
-getGameConnection = connection' <$> getGame
+getGameConnection = connection' <$> gets game
 
 {-# INLINABLE getMyShipId #-}
 getMyShipId :: MonadState AppState m => m (Maybe ShipId)
@@ -262,12 +258,12 @@ updateOneParticleSystem key t =
 {-# INLINABLE putClientState #-}
 putClientState :: MonadState AppState m => ClientState -> m ()
 putClientState i =
-  getGame >>= \g -> putGame $ g { getClientState' = i}
+  gets game >>= \g -> putGame $ g { getClientState' = i}
 
 {-# INLINABLE stateChat #-}
 stateChat :: MonadState AppState m => (Chat -> (Chat, a)) -> m a
 stateChat f =
-  getGame >>= \g -> do
+  gets game >>= \g -> do
     let (newChat, v) = f $ getChat' g
     putGame $ g { getChat' = newChat }
     return v

@@ -25,9 +25,12 @@ import           Data.Char(toLower)
 import           Data.Maybe(isJust)
 import           Network.Socket(withSocketsDo)
 import           Options.Applicative
-                  (progDesc, fullDesc, info, header, customExecParser, prefs, helper
+                  (ParserHelp(..), progDesc, fullDesc, info, header, execParserPure, prefs, helper
                   , showHelpOnError, short, long, option, str, help, optional
                   , ReadM, readerError, (<*>), switch)
+import           Options.Applicative.Extra(handleParseResult, overFailure)
+import qualified Options.Applicative.Help as Appli (red)
+import           System.Environment(getArgs)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
 import           Text.Read(readMaybe)
@@ -73,7 +76,10 @@ data BackendType =
 
 runWithArgs :: IO ()
 runWithArgs =
-  join . customExecParser (prefs showHelpOnError) $
+  join $ execParserPure (prefs showHelpOnError) parserInfo <$> getArgs >>=
+    handleParseResult . overFailure (\ph -> ph {helpError = (fmap Appli.red) $ helpError ph})
+ where
+  parserInfo =
     info (helper <*> parser)
     (  fullDesc
     <> header (
@@ -87,7 +93,6 @@ runWithArgs =
        "(2) Create just a client connected to an existing server, use [--serverName] and optionally [--serverPort]. " ++
        "(3) Create both a server and a client connected to it, use optionally [--serverPort]."
        ))
- where
   parser =
     runWithBackend
       <$> switch

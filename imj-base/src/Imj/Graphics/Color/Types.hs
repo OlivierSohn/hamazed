@@ -2,7 +2,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -38,6 +37,7 @@ module Imj.Graphics.Color.Types
 
 import           Imj.Prelude
 
+import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, (.|.))
 import           Data.Text(pack)
 import           Data.Word (Word8, Word16)
@@ -156,7 +156,7 @@ data Background
 newtype Color8 a = Color8 Word8 -- it's ok to use an unsigned type as we won't need
                                 -- to substract two Color8, hence we won't encouter
                                 -- the underflow problem of unsigned types.
-  deriving (Generic, Ord, Eq, Show, Read, Enum)
+  deriving (Generic, Ord, Eq, Show, Read, NFData)
 instance PrettyVal (Color8 a)
 instance Binary (Color8 a)
 

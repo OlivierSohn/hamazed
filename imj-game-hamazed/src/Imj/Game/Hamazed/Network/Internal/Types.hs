@@ -1,7 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
@@ -29,6 +28,7 @@ import           Imj.Graphics.Color.Types
 
 import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Graphics.Color
 
 data Client = Client {
     getName :: {-# UNPACK #-} !PlayerName
@@ -42,7 +42,8 @@ data Client = Client {
   , getShipAcceleration :: !(Coords Vel)
   , getState :: {-unpack sum-} !(Maybe PlayerState) -- TODO should we add Disconnected, and leave disconnected clients in the map?
   -- ^ When 'Nothing', the client is excluded from the current game.
-  , getColors :: {-# UNPACK #-} !PlayerColors
+  , getColor :: {-# UNPACK #-} !(Color8 Foreground)
+  -- ^ Ship color, deduced from the 'centerColor' of the 'ServerState'
 } deriving(Generic)
 instance NFData Client where
   rnf _ = ()
@@ -51,7 +52,7 @@ instance Show Client where
 
 mkClient :: PlayerName -> Color8 Foreground -> Connection -> ServerOwnership -> Client
 mkClient a color b c =
-  Client a b c Nothing Nothing zeroCoords Nothing $ mkPlayerColors color
+  Client a b c Nothing Nothing zeroCoords Nothing color
 
 data PlayerState = InGame | Finished
   deriving (Generic, Eq, Show)
@@ -68,7 +69,7 @@ data ServerState = ServerState {
   , lastRequestedWorldId :: {-unpack sum-} !(Maybe WorldId)
   , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
-  , startSecond :: {-# UNPACK #-} !Int
+  , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
   -- ^ The second at which the 'ServerState' was created
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
@@ -116,8 +117,17 @@ mkClients = Clients empty (ShipId 0)
 firstServerLevel :: Int
 firstServerLevel = firstLevel
 
-newServerState :: ServerLogs -> IO ServerState
-newServerState logs = do
-  t <- getCurrentSecond
+newServerState :: ServerLogs -> ColorScheme -> IO ServerState
+newServerState logs colorScheme = do
+  c <- mkCenterColor colorScheme
   ServerState logs mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
-              initialParameters Nothing IntentSetup t False <$> newEmptyMVar
+              initialParameters Nothing IntentSetup c False <$> newEmptyMVar
+
+mkCenterColor :: ColorScheme -> IO (Color8 Foreground)
+mkCenterColor (ColorScheme c) = return c
+mkCenterColor UseServerStartTime = do
+  t <- getCurrentSecond
+  let !ref = rgb 3 2 0
+      nColors = countHuesOfSameIntensity ref
+      n = t `mod` nColors
+  return $ rotateHue (fromIntegral n / fromIntegral nColors) ref

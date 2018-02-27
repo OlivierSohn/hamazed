@@ -15,7 +15,7 @@ import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Attoparsec.Text(parseOnly)
-import qualified Data.Map.Strict as Map (elems)
+import qualified Data.Map.Strict as Map (elems, map)
 import           Data.Text(pack, strip)
 
 import           Imj.Game.Hamazed.World.Space.Types
@@ -75,11 +75,12 @@ updateAppState (Left evt) = case evt of
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) ->
     onLaser shipId dir Add
-  ConnectionAccepted i players -> do
+  ConnectionAccepted i eplayers -> do
     sendToServer $ ExitedState Excluded
     putGameConnection $ Connected i
-    putPlayers players
-    stateChat $ addMessage $ ChatMessage $ welcome players
+    let p = Map.map mkPlayer eplayers
+    putPlayers p
+    stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
   PlayerInfo notif i ->

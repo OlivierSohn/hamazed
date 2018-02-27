@@ -31,27 +31,35 @@ runCommand :: (MonadState AppState m)
            => ShipId
            -> Command
            -> m ()
-runCommand sid (AssignName name) = getPlayer sid >>= \p -> do
-  let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
-  putPlayer sid $ Player name Present colors
-  updateShipsText
-runCommand sid (AssignColors colors) = getPlayer sid >>= \p -> do
-  let name = maybe (PlayerName "no name") getPlayerName p
-  putPlayer sid $ Player name Present colors
-  updateShipsText
-runCommand sid (Says what) = getPlayer sid >>= \n ->
-  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n <> colored (":" <> what) chatMsgColor
-runCommand sid (Leaves detail) = getPlayer sid >>= \n -> do
-  maybe
-    (return ())
-    (\p -> putPlayer sid $ p { getPlayerStatus = Absent })
-      n
-  updateShipsText
-  stateChat $ addMessage $ ChatMessage $ getPlayerUIName n
-    <> colored (" " <>
-    case detail of
-      Intentional -> "leaves the game intentionally."
-      ConnectionError t -> "leaves the game due to a connection error : " <> t) chatMsgColor
+runCommand sid cmd = getPlayer sid >>= \p -> do
+  let name = getPlayerUIName p
+  case cmd of
+    AssignName name' -> do
+      let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
+      putPlayer sid $ Player name' Present colors
+      updateShipsText
+    AssignColor color -> do
+      let n = maybe (PlayerName "no name") getPlayerName p
+      putPlayer sid $ Player n Present $ mkPlayerColors color
+      updateShipsText
+    SetColorSchemeCenter color ->
+      stateChat $ addMessage $ ChatMessage $
+        name <> colored (" changed the color scheme : " <> pack (show $ color8CodeToXterm256 color)) chatMsgColor
+    Says what ->
+      stateChat $ addMessage $ ChatMessage $
+        name <> colored (":" <> what) chatMsgColor
+    Leaves detail -> do
+      maybe
+        (return ())
+        (\n -> putPlayer sid $ n { getPlayerStatus = Absent })
+          p
+      updateShipsText
+      stateChat $ addMessage $ ChatMessage $
+        name <> colored (" " <>
+        case detail of
+          Intentional -> "leaves the game intentionally."
+          ConnectionError t -> "leaves the game due to a connection error : " <> t) chatMsgColor
+
 
 maxOneSpace :: Text -> Text
 maxOneSpace t = go t False []
@@ -89,6 +97,6 @@ command = do
             g <- decimal
             skipSpace
             b <- decimal
-            return $ AssignColors . mkPlayerColors <$> userRgb r g b
+            return $ SetColorSchemeCenter <$> userRgb r g b
           _ -> error "logic"
     _ -> Right . Says . maxOneSpace <$> (takeText <* endOfInput)

@@ -35,6 +35,7 @@ import           Text.Read(readMaybe)
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Color.Types
 import           Imj.Input.Types
 
 import           Imj.Game.Hamazed.Env
@@ -120,6 +121,17 @@ runWithArgs =
                "Default is 'none'. Incompatible with --serverName."
                )))
       <*> optional
+            (option srvColorSchemeArg
+               (  long "colorScheme"
+               <> short 'c'
+               <> help (
+               "Defines the colors of ships. " ++
+               "'none': the colorscheme will be chosen based on server start time. " ++
+               "'rgb', where r,g,b are one of 0,1,2,3,4,5: specifies an rgb colorscheme. " ++
+               "This is equivalent to running command '/color r g b' in the chat window. " ++
+               "Default is '320'. Incompatible with --serverName."
+               )))
+      <*> optional
             (option backendArg
               (  long "render"
               <> short 'r'
@@ -156,6 +168,20 @@ srvLogsArg =
     st -> readerError $ "Encountered an invalid server log type:\n\t"
                     ++ show st
                     ++ "\nAccepted render types are 'none' and 'console'."
+
+srvColorSchemeArg :: ReadM ColorScheme
+srvColorSchemeArg =
+  str >>= \s -> do
+    let err = readerError $
+         "Encountered an invalid color scheme:\n\t" ++
+         show s ++
+         "\nAccepted values are 'none' and 'rgb' where r,g,b are one of 0,1,2,3,4,5 (for example '513'). "
+    case map toLower s of
+      "none" -> return UseServerStartTime
+      l@[_,_,_] -> case catMaybes $ map (readMaybe . (:[])) l of
+        [r,g,b] -> either (const err) (return . ColorScheme) $ userRgb r g b
+        _ -> err
+      _ -> err
 
 backendArg :: ReadM BackendType
 backendArg =
@@ -218,16 +244,18 @@ runWithBackend :: Bool
                -> Maybe ServerName
                -> Maybe ServerPort
                -> Maybe ServerLogs
+               -> Maybe ColorScheme
                -> Maybe BackendType
                -> Maybe SuggestedPlayerName
                -> Bool
                -> IO ()
-runWithBackend serverOnly maySrvName maySrvPort maySrvLogs maybeBackend mayPlayerName debug = do
+runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeBackend mayPlayerName debug = do
   let printServerArgs = do
+        putStrLn $ "| Server-only : " ++ show serverOnly
         putStrLn $ "| Server name : " ++ show maySrvName
         putStrLn $ "| Server port : " ++ show maySrvPort
         putStrLn $ "| Server logs : " ++ show maySrvLogs
-        putStrLn $ "| Server-only : " ++ show serverOnly
+        putStrLn $ "| Colorscheme : " ++ show mayColorScheme
       printClientArgs = do
         putStrLn $ "| Client Rendering : " ++ show maybeBackend
         putStrLn $ "| Client Debug     : " ++ show debug
@@ -239,7 +267,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs maybeBackend mayPlaye
     error "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
 
   let srvPort = fromMaybe defaultPort maySrvPort
-      srv = mkServer maySrvLogs maySrvName srvPort
+      srv = mkServer mayColorScheme maySrvLogs maySrvName srvPort
       player = fromMaybe "Player" mayPlayerName
   newEmptyMVar >>= \ready ->
     if serverOnly

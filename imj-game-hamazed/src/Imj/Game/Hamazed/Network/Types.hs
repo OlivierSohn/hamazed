@@ -10,10 +10,13 @@ module Imj.Game.Hamazed.Network.Types
       , SuggestedPlayerName(..)
       , PlayerName(..)
       , Player(..)
+      , PlayerEssence(..)
+      , mkPlayer
       , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
       , PlayerColors(..)
       , mkPlayerColors
       , getPlayerUIName
+      , ColorScheme(..)
       , ServerOwnership(..)
       , ClientState(..)
       , StateNature(..)
@@ -61,12 +64,21 @@ import           Imj.Graphics.Text.ColorString
 
 -- | a Server, seen from a Client's perspective
 data Server = Distant !ServerName !ServerPort
-            | Local !ServerLogs !ServerPort
+            | Local !ServerLogs !ColorScheme !ServerPort
   deriving(Generic, Show)
 
-data ServerLogs = NoLogs | ConsoleLogs
+data ServerLogs =
+    NoLogs
+  | ConsoleLogs
   deriving(Generic, Show)
 instance NFData ServerLogs
+
+data ColorScheme =
+    UseServerStartTime
+  | ColorScheme {-# UNPACK #-} !(Color8 Foreground)
+  deriving(Generic, Show)
+instance NFData ColorScheme
+
 
 data ServerOwnership =
     ClientOwnsServer
@@ -123,7 +135,7 @@ data ClientEvent =
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
-    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId Player)
+    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId PlayerEssence)
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
@@ -177,6 +189,17 @@ data Player = Player {
 } deriving(Generic, Show)
 instance Binary Player
 
+data PlayerEssence = PlayerEssence {
+    playerEssenceName :: {-# UNPACK #-} !PlayerName
+  , playerEssenceStatus :: {-unpack sum-} !PlayerStatus
+  , playerEssenceColor :: {-# UNPACK #-} !(Color8 Foreground)
+} deriving(Generic, Show)
+instance Binary PlayerEssence
+
+mkPlayer :: PlayerEssence -> Player
+mkPlayer (PlayerEssence a b color) =
+  Player a b $ mkPlayerColors color
+
 data PlayerColors = PlayerColors {
     getPlayerColor :: {-# UNPACK #-} !(Color8 Foreground)
     -- ^ color of player name and ship.
@@ -199,7 +222,8 @@ getPlayerUIName (Just (Player (PlayerName n) status (PlayerColors c _))) =
 
 data Command =
     AssignName {-# UNPACK #-} !PlayerName
-  | AssignColors {-# UNPACK #-} !PlayerColors
+  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
+  | SetColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !LeaveReason
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
@@ -306,7 +330,7 @@ newtype SuggestedPlayerName = SuggestedPlayerName String
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)
-getServerNameAndPort (Local _ p) = (ServerName "localhost", p)
+getServerNameAndPort (Local _ _ p) = (ServerName "localhost", p)
 getServerNameAndPort (Distant name p) = (name, p)
 
 newtype ServerName = ServerName String

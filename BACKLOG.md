@@ -1,13 +1,16 @@
 - nice ship colors :
 0 3 5 (blue)
 1 0 3 (dark violet)
+4 2 1 (orange / yellow)
 
 - pass cli arg for color theme :
 + default to red
 + primary color names accepted
 + time will chose based on whatever time the server was started
 all ships will be on a perimeter, next to one another. The center of the ships colors will be the theme color.
-chat command "/color" changes the theme at runtime.
+chat command "/color" changes the theme at runtime (not just the ship color).
+
+we should be able to print the theme color in chat, for example on /color
 
 - animate color of external frame at each shot number (fast change to another color then slow change back to normal)
 : this allows to become aware of when a number is shot.
@@ -51,7 +54,7 @@ first step:
 - 3 players : 2 do the 2 expressions,
 one does the operation : * or +
 
-- the number of numbers per connected component should be proportional to
+- the count of flying items per connected component should be proportional to
 the cc size.
 
 - ships replaced by humans walking, jumping, climbing

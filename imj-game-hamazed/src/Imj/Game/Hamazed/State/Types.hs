@@ -208,7 +208,7 @@ putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState AppState m => m (Map ShipId Player)
-getPlayers = playerNames <$> getGameState
+getPlayers = players <$> getGameState
 
 {-# INLINABLE getPlayer #-}
 getPlayer :: MonadState AppState m => ShipId -> m (Maybe Player)
@@ -216,7 +216,7 @@ getPlayer i = flip (!?) i <$> getPlayers
 
 {-# INLINABLE putPlayers #-}
 putPlayers :: MonadState AppState m => Map ShipId Player -> m ()
-putPlayers m = getGameState >>= \g -> putGameState g {playerNames = m}
+putPlayers m = getGameState >>= \g -> putGameState g {players = m}
 
 {-# INLINABLE putPlayer #-}
 putPlayer :: MonadState AppState m => ShipId -> Player -> m ()

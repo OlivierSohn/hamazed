@@ -28,7 +28,7 @@ import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elems, keys, adjust, keysSet
                                       , insert, null, empty, mapAccumWithKey, updateLookupWithKey
-                                      , restrictKeys, traverseWithKey, lookup)
+                                      , restrictKeys, traverseWithKey, lookup, toList)
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, lookupMin, empty, insert)
 import           Data.Maybe(isJust)
@@ -91,13 +91,15 @@ serverLog msg = gets serverLogs >>= \case
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: Maybe ServerLogs -> Maybe ServerName -> ServerPort -> Server
-mkServer logs Nothing =
-  Local (fromMaybe NoLogs logs)
-mkServer Nothing (Just (ServerName n)) =
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerPort -> Server
+mkServer color logs Nothing =
+  Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 4 1 0) color)
+mkServer Nothing Nothing (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
-mkServer (Just _) (Just _) =
+mkServer _ (Just _) (Just _) =
   error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
+mkServer (Just _) _ (Just _) =
+  error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
 
 notifyEveryone :: ServerEvent -> StateT ServerState IO ()
 notifyEveryone evt =
@@ -203,8 +205,8 @@ takeShipId :: StateT ServerState IO ShipId
 takeShipId =
   takeDisconnectedShipId >>= maybe
     (state $ \s ->
-      let newShipId = succ $ getNextShipId $ getClients s
-      in ( newShipId, s { getClients = (getClients s) { getNextShipId = newShipId } } ))
+      let newShipId = getNextShipId $ getClients s
+      in (newShipId, s { getClients = (getClients s) { getNextShipId = succ newShipId } } ))
     (\(gameConnectedPlayers, disconnected) -> do
       if Map.null gameConnectedPlayers
         then
@@ -247,12 +249,12 @@ addClient :: SuggestedPlayerName -> ServerOwnership -> ClientHandlerIO ()
 addClient sn cliType = do
   conn <- asks connection
   i <- asks shipId
-  playerColor <- mkColor
+  playerColor <- lift $ mkClientColor i
   presentClients <- lift $ do
     name <- makePlayerName sn
     let client@(Client _ _ _ _ _ _ _ c) = mkClient name playerColor conn cliType
     -- this call is /before/ addClient to avoid sending redundant info to client.
-    notifyEveryoneN $ map (RunCommand i) [AssignName name, AssignColors c]
+    notifyEveryoneN $ map (RunCommand i) [AssignName name, AssignColor c]
     -- order matters, see comment above.
     modify' $ \ s ->
       let clients = getClients s
@@ -263,16 +265,24 @@ addClient sn cliType = do
     gets clientsMap
   notifyClient $ ConnectionAccepted i $
     Map.map
-      (\(Client n _ _ _ _ _ _ color) -> Player n Present color)
+      (\(Client n _ _ _ _ _ _ color) -> PlayerEssence n Present color)
       presentClients
- where
-  mkColor = do
-    t <- gets startSecond
-    (ShipId i) <- asks shipId
-    let !ref = rgb 3 2 0
-        nColors = countHuesOfSameIntensity ref
-        n = (t + fromIntegral i) `mod` nColors
-    return $ rotateHue (fromIntegral n / fromIntegral nColors) ref
+
+mkClientColor :: ShipId -> StateT ServerState IO (Color8 Foreground)
+mkClientColor (ShipId i) = do
+  ref <- gets centerColor
+  let nColors = countHuesOfSameIntensity ref
+      -- we want the following mapping:
+      -- 0 -> 0
+      -- 1 -> 1
+      -- 2 -> -1
+      -- 3 -> 2
+      -- 4 -> -2
+      -- ...
+      dist = quot (succ i) 2
+      n' = fromIntegral dist `mod` nColors
+      n = if odd i then n' else -n'
+  return $ rotateHue (fromIntegral n / fromIntegral nColors) ref
 
 makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
@@ -341,7 +351,7 @@ disconnect r i =
         closeConnection r i c)
  where
   closeConnection :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
-  closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ (PlayerColors color _)) = do
+  closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ color) = do
     serverLog $ pure $
       colored "Close connection" yellow <>
       "|" <>
@@ -400,7 +410,7 @@ findClient :: ShipId -> ServerState -> Maybe Client
 findClient i = Map.lookup i . clientsMap
 
 clientColor :: ShipId -> ServerState -> Maybe (Color8 Foreground)
-clientColor i = fmap (getPlayerColor . getColors) . findClient i
+clientColor i = fmap getColor <$> findClient i
 
 gameError :: String -> ClientHandlerIO ()
 gameError = error' "Game"
@@ -448,9 +458,19 @@ handleIncomingEvent' = \case
         adjustClient $ \c -> c { getName = name }
         acceptCmd cmd)
     ) $ checkName name
-  RequestCommand cmd@(AssignColors colors) -> do
-    adjustClient $ \c -> c { getColors = colors }
+  RequestCommand cmd@(AssignColor _) ->
+    notifyClient $ CommandError cmd "use SetColorSchemeCenter instead"
+  RequestCommand cmd@(SetColorSchemeCenter color) -> do
+    lift $ modify' $ \s -> s { centerColor = color }
     acceptCmd cmd
+    lift $ gets clientsMap >>= Map.traverseWithKey (\i c -> do
+      col <- mkClientColor i
+      return c { getColor = col })
+        >>= \newClients -> do
+          setClients newClients
+          notifyEveryoneN $
+            map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
+            Map.toList newClients
   RequestCommand cmd@(Says _) ->
     acceptCmd cmd
   RequestCommand (Leaves _) ->
@@ -482,8 +502,8 @@ handleIncomingEvent' = \case
             gameError $ "inconsistent outcomes:" ++ show (o, outcome)
       IntentSetup ->
         gameError "LevelEnded received while in IntentSetup"
-    lift $ gets onlyPlayers >>= \players -> do
-      let playersAllFinished = all (finished . getState) players
+    lift $ gets onlyPlayers >>= \players' -> do
+      let playersAllFinished = all (finished . getState) players'
           finished Nothing = error "should not happen"
           finished (Just Finished) = True
           finished (Just InGame) = False
@@ -722,6 +742,15 @@ adjustAll f =
     in s { getClients =
             clients { getClients' =
                         Map.map f $ getClients' clients
+                    }
+          }
+
+setClients :: Map ShipId Client -> StateT ServerState IO ()
+setClients newClients =
+  modify' $ \s ->
+    let clients = getClients s
+    in s { getClients =
+            clients { getClients' = newClients
                     }
           }
 

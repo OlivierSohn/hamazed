@@ -102,7 +102,7 @@ data GameState = GameState {
     -- ^ Inter-level animation.
   , getScreen :: {-# UNPACK #-} !Screen
   , getViewMode' :: {-unpack sum-} !ViewMode
-  , playerNames :: !(Map ShipId Player)
+  , players :: !(Map ShipId Player)
 }
 
 minRandomBlockSize :: Int

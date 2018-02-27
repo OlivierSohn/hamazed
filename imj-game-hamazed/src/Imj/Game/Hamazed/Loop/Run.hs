@@ -23,6 +23,8 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
 import           Data.Maybe(isJust)
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map(fromList, lookup, keys)
 import           Network.Socket(withSocketsDo)
 import           Options.Applicative
                   (ParserHelp(..), progDesc, fullDesc, info, header, execParserPure, prefs, helper
@@ -77,7 +79,7 @@ data BackendType =
 runWithArgs :: IO ()
 runWithArgs =
   join $ execParserPure (prefs showHelpOnError) parserInfo <$> getArgs >>=
-    handleParseResult . overFailure (\ph -> ph {helpError = (fmap Appli.red) $ helpError ph})
+    handleParseResult . overFailure (\ph -> ph {helpError = fmap Appli.red $ helpError ph})
  where
   parserInfo =
     info (helper <*> parser)
@@ -130,10 +132,9 @@ runWithArgs =
                (  long "colorScheme"
                <> short 'c'
                <> help (
-               "Defines the colors of ships. " ++
-               "'none': the colorscheme will be chosen based on server start time. " ++
-               "'rgb', where r,g,b are one of 0,1,2,3,4,5: specifies an rgb colorscheme. " ++
-               "This is equivalent to running command '/color r g b' in the chat window. " ++
+               "Defines the colors of ships. Possible values are: " ++ descPredefinedColors ++ ", " ++
+               "'rgb' where r,g,b are one of 0,1,2,3,4,5 (this is equivalent to running command '/color r g b' in the chat window), " ++
+               "or 'time' to chose colors based on server start time. " ++
                "Default is '322'. Incompatible with --serverName."
                )))
       <*> optional
@@ -165,6 +166,27 @@ renderHelp =
   "\nAccepted synonyms of 'console' are 'ascii', 'term', 'terminal'." ++
   "\nAccepted synonyms of 'opengl' are 'win', 'window'."
 
+predefinedColor :: String -> Maybe (Color8 Foreground)
+predefinedColor = flip Map.lookup predefinedColors
+
+descPredefinedColors :: String
+descPredefinedColors =
+  "{'" ++
+  intercalate "','" listPredefinedColors ++
+  "'}"
+
+listPredefinedColors :: [String]
+listPredefinedColors = Map.keys predefinedColors
+
+predefinedColors :: Map String (Color8 Foreground)
+predefinedColors = Map.fromList
+  [ ("blue",     rgb 0 3 5)
+  , ("violet",   rgb 1 0 3)
+  , ("orange" ,  rgb 4 2 1)
+  , ("olive"  ,  rgb 3 3 0)
+  , ("reddish" , rgb 3 2 2)
+  ]
+
 srvLogsArg :: ReadM ServerLogs
 srvLogsArg =
   str >>= \s -> case map toLower s of
@@ -180,13 +202,17 @@ srvColorSchemeArg =
     let err = readerError $
          "Encountered an invalid color scheme:\n\t" ++
          show s ++
-         "\nAccepted values are 'none' and 'rgb' where r,g,b are one of 0,1,2,3,4,5 (for example '513'). "
-    case map toLower s of
-      "none" -> return UseServerStartTime
-      l@[_,_,_] -> case catMaybes $ map (readMaybe . (:[])) l of
-        [r,g,b] -> either (const err) (return . ColorScheme) $ userRgb r g b
+         "\nAccepted values are 'time', 'rgb' where r,g,b are one of 0,1,2,3,4,5 (for example '513') and " ++
+         descPredefinedColors ++ "."
+        value = map toLower s
+    maybe (
+      case map toLower s of
+        "time" -> return UseServerStartTime
+        l@[_,_,_] -> case catMaybes $ map (readMaybe . (:[])) l of
+          [r,g,b] -> either (const err) (return . ColorScheme) $ userRgb r g b
+          _ -> err
         _ -> err
-      _ -> err
+      ) (return . ColorScheme) $ predefinedColor value
 
 backendArg :: ReadM BackendType
 backendArg =

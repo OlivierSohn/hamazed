@@ -2,6 +2,7 @@
 0 3 5 (blue)
 1 0 3 (dark violet)
 4 2 1 (orange / yellow)
+3 3 0 (olive)
 
 - pass cli arg for color theme :
 + default to red

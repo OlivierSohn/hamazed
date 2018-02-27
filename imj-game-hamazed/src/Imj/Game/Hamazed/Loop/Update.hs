@@ -57,8 +57,16 @@ updateAppState (Right evt) = case evt of
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording -> error "should be handled by caller"
 updateAppState (Left evt) = case evt of
-  RunCommand sid cmd -> runCommand sid cmd
-  CommandError cmd err -> stateChat $ addMessage $ Warning $ "The command " <> pack (show cmd) <> " failed:" <> pack (show err)
+  RunCommand i cmd -> runClientCommand i cmd
+  CommandError cmd err ->
+    stateChat $ addMessage $ Warning $
+      pack (show cmd) <> " failed:" <> err
+  Reporting cmd res ->
+    stateChat $ addMessage $ Info $
+      pack (show cmd) <> " is:" <> res
+  Done cmd res i -> getPlayerUIName <$> getPlayer i >>= \n ->
+    stateChat $ addMessage $ ChatMessage $
+      n <> colored (" initiated " <> pack (show cmd) <> " resulting in:" <> res) chatMsgColor
   WorldRequest spec ->
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
   CurrentGameStateRequest ->
@@ -133,7 +141,10 @@ onSendChatMessage =
       (left . pack)
       (either
         left
-        (sendToServer . RequestCommand))
+        (\case
+            ServerRep rep -> sendToServer $ Report rep
+            ServerCmd cmd -> sendToServer $ Do cmd
+            ClientCmd cmd -> sendToServer $ RequestCommand cmd))
       p
 
 updateGameParamsFromChar :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)

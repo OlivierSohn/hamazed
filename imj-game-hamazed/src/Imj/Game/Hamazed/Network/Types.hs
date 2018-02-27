@@ -23,7 +23,10 @@ module Imj.Game.Hamazed.Network.Types
       , StateValue(..)
       , ClientEvent(..)
       , ServerEvent(..)
+      , ServerReport(..)
       , Command(..)
+      , ClientCommand(..)
+      , ServerCommand(..)
       , ClientQueues(..)
       , Server(..)
       , ServerLogs(..)
@@ -129,9 +132,14 @@ data ClientEvent =
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
-  | RequestCommand {-unpack sum-} !Command
+  | RequestCommand {-unpack sum-} !ClientCommand
   -- ^ A Client wants to run a command, in response the server either sends 'CommandError'
   -- or 'RunCommand'
+  | Do {-unpack sum-} !ServerCommand
+  -- ^ A Client asks the server to do a task which can't fail.
+  | Report !ServerReport
+  -- ^ A client want to know an information on the server state. The server will answer by
+  -- sending a 'Report'.
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
@@ -151,12 +159,17 @@ data ServerEvent =
   | PutGameState {-# UNPACK #-} !GameStateEssence
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
-  | CommandError {-unpack sum-} !Command {-# UNPACK #-} !Text
+  | CommandError {-unpack sum-} !ClientCommand {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
-  | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !Command
+  | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !ClientCommand
   -- ^ The server validated the use of the command, now it must be executed.
+  | Done {-unpack sum-} !ServerCommand {-# UNPACK #-} !Text {-# UNPACK #-} !ShipId
+  -- ^ The server notifies whenever a 'Do' task is finished. Contains Text info that can be printed in the chat
+  -- to inform the players (that didn't trigger the 'Do' task) of the task's execution.
+  | Reporting {-unpack sum-} !ServerReport !Text
+  -- ^ Response to a 'Report'.
   | Error !String
-  -- ^ to have readable errors, we send errors to the client, so that 'error' can be executed in the client
+  -- ^ A non-recoverable error occured in the server. Before crashing, the server sends the error to its clients.
   deriving(Generic, Show)
 instance Binary ServerEvent
 instance WebSocketsData ClientEvent where
@@ -221,15 +234,35 @@ getPlayerUIName (Just (Player (PlayerName n) status (PlayerColors c _))) =
     Absent -> colored n c <> colored " (away)" chatMsgColor
 
 data Command =
+    ClientCmd !ClientCommand
+  | ServerCmd !ServerCommand
+  | ServerRep !ServerReport
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary Command
+
+-- | Describes what the client wants to know about the server.
+data ServerReport =
+    TellColorSchemeCenter
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary ServerReport
+
+-- | Commands initiated by a client, executed by the server.
+data ServerCommand =
+    SetColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary ServerCommand
+
+-- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
+--  then executed (for the final part) by /every/ client.
+data ClientCommand =
     AssignName {-# UNPACK #-} !PlayerName
   | AssignColor {-# UNPACK #-} !(Color8 Foreground)
-  | SetColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !LeaveReason
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary Command
+instance Binary ClientCommand
 
 data GameStateEssence = GameStateEssence {
     _essence :: {-# UNPACK #-} !WorldEssence

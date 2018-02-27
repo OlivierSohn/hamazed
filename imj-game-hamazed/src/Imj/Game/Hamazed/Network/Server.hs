@@ -47,6 +47,7 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Discrete(translateInDir, zeroCoords)
@@ -460,17 +461,20 @@ handleIncomingEvent' = \case
     ) $ checkName name
   RequestCommand cmd@(AssignColor _) ->
     notifyClient $ CommandError cmd "use SetColorSchemeCenter instead"
-  RequestCommand cmd@(SetColorSchemeCenter color) -> do
-    lift $ modify' $ \s -> s { centerColor = color }
-    acceptCmd cmd
-    lift $ gets clientsMap >>= Map.traverseWithKey (\i c -> do
-      col <- mkClientColor i
-      return c { getColor = col })
-        >>= \newClients -> do
-          setClients newClients
-          notifyEveryoneN $
-            map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
-            Map.toList newClients
+  Report TellColorSchemeCenter ->
+    colorSchemeCenterStr >>= notifyClient . Reporting TellColorSchemeCenter
+  Do cmd@(SetColorSchemeCenter color) -> do
+    lift $ do
+      modify' $ \s -> s { centerColor = color }
+      gets clientsMap >>= Map.traverseWithKey (\i c -> do
+        col <- mkClientColor i
+        return c { getColor = col })
+          >>= \newClients -> do
+            setClients newClients
+            notifyEveryoneN $
+              map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
+              Map.toList newClients
+    colorSchemeCenterStr >>= doneCmd cmd
   RequestCommand cmd@(Says _) ->
     acceptCmd cmd
   RequestCommand (Leaves _) ->
@@ -607,6 +611,9 @@ handleIncomingEvent' = \case
     adjustClient $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
  where
   acceptCmd cmd = asks shipId >>= lift . notifyEveryone . flip RunCommand cmd
+  doneCmd cmd res = asks shipId >>= lift . notifyEveryone . Done cmd res
+  colorSchemeCenterStr = ("Color scheme center is:" <>) . pack . show . color8CodeToXterm256 <$> gets centerColor
+
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =

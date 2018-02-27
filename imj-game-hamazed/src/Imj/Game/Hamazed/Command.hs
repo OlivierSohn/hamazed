@@ -8,13 +8,14 @@
 module Imj.Game.Hamazed.Command
       ( Command(..)
       , command
-      , runCommand
+      , runClientCommand
       , maxOneSpace
       ) where
 
 import           Imj.Prelude
 
-import           Data.Attoparsec.Text(Parser, takeText, decimal, endOfInput, string, char, peekChar', skipSpace, space)
+import           Data.Attoparsec.Text(Parser, takeText, decimal, endOfInput, string, char
+                                    , peekChar', skipSpace, space)
 import           Data.Char(isSpace)
 import           Data.Text(pack, unsnoc)
 
@@ -27,11 +28,11 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Text.ColorString
 
-runCommand :: (MonadState AppState m)
+runClientCommand :: (MonadState AppState m)
            => ShipId
-           -> Command
+           -> ClientCommand
            -> m ()
-runCommand sid cmd = getPlayer sid >>= \p -> do
+runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName p
   case cmd of
     AssignName name' -> do
@@ -42,9 +43,6 @@ runCommand sid cmd = getPlayer sid >>= \p -> do
       let n = maybe (PlayerName "no name") getPlayerName p
       putPlayer sid $ Player n Present $ mkPlayerColors color
       updateShipsText
-    SetColorSchemeCenter color ->
-      stateChat $ addMessage $ ChatMessage $
-        name <> colored (" changed the color scheme : " <> pack (show $ color8CodeToXterm256 color)) chatMsgColor
     Says what ->
       stateChat $ addMessage $ ChatMessage $
         name <> colored (":" <> what) chatMsgColor
@@ -85,18 +83,24 @@ command = do
     '/' ->
       char '/' *> do
         skipSpace
-        cmdType <- string "name" <|> string "color"
-        void $ char ':' <|> space
-        skipSpace
-        case cmdType of
-          "name" -> Right . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
-          "color" -> do
-            skipSpace
-            r <- decimal
-            skipSpace
-            g <- decimal
-            skipSpace
-            b <- decimal
-            return $ SetColorSchemeCenter <$> userRgb r g b
-          _ -> error "logic"
-    _ -> Right . Says . maxOneSpace <$> (takeText <* endOfInput)
+        reportColorScheme <|> do
+          cmdType <- string "name" <|> string "color"
+          void $ char ':' <|> space
+          skipSpace
+          case cmdType of
+            "name" -> Right . ClientCmd . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
+            "color" -> setColorScheme
+            _ -> error "logic"
+       where
+        reportColorScheme =
+          do void $ string "color" <* endOfInput
+             return $ Right $ ServerRep TellColorSchemeCenter
+        setColorScheme = do
+          skipSpace
+          r <- decimal
+          skipSpace
+          g <- decimal
+          skipSpace
+          b <- decimal
+          return $ ServerCmd . SetColorSchemeCenter <$> userRgb r g b
+    _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)

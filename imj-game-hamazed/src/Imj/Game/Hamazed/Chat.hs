@@ -114,6 +114,7 @@ newtype PlayerName = PlayerName Text
 
 data ChatMessage =
     ChatMessage !ColorString
+  | Info !Text
   | Warning !Text
   | DisconnectionReason !String
 
@@ -124,6 +125,7 @@ chatWinColor :: Color8 Foreground
 chatWinColor = gray 14
 
 toColorStr :: ChatMessage -> ColorString
+toColorStr (Info s) = colored s yellow
 toColorStr (Warning s) = colored s red
 toColorStr (ChatMessage c) = c
 toColorStr (DisconnectionReason s) = colored (pack s) red

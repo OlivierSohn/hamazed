@@ -93,7 +93,7 @@ defaultPort = ServerPort 10052
 
 mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerPort -> Server
 mkServer color logs Nothing =
-  Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 4 1 0) color)
+  Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color)
 mkServer Nothing Nothing (Just (ServerName n)) =
   Distant $ ServerName $ map toLower n
 mkServer _ (Just _) (Just _) =
@@ -321,7 +321,7 @@ onBrokenClient threadCategory infos e i = do
   log' = serverLog $
     showId i >>= \strId -> pure $ firstLine strId <> logDetailedException infos e
   firstLine s = intercalate "|"
-    [ colored "BrokenClient" (rgb 5 0 1)
+    [ colored "Exception" (rgb 4 2 0)
     , colored (justifyRight 10 '.' threadCategory) yellow
     , s
     ]

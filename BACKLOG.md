@@ -3,15 +3,13 @@
 1 0 3 (dark violet)
 4 2 1 (orange / yellow)
 3 3 0 (olive)
+3 2 2 (soft red)
 
 - pass cli arg for color theme :
-+ default to red
 + primary color names accepted
-+ time will chose based on whatever time the server was started
-all ships will be on a perimeter, next to one another. The center of the ships colors will be the theme color.
-chat command "/color" changes the theme at runtime (not just the ship color).
 
-we should be able to print the theme color in chat, for example on /color
+- print the theme color in chat, for example on /color
+- print theme color when joining
 
 - animate color of external frame at each shot number (fast change to another color then slow change back to normal)
 : this allows to become aware of when a number is shot.

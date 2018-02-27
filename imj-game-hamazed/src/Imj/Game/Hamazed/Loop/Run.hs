@@ -134,7 +134,7 @@ runWithArgs =
                "'none': the colorscheme will be chosen based on server start time. " ++
                "'rgb', where r,g,b are one of 0,1,2,3,4,5: specifies an rgb colorscheme. " ++
                "This is equivalent to running command '/color r g b' in the chat window. " ++
-               "Default is '320'. Incompatible with --serverName."
+               "Default is '322'. Incompatible with --serverName."
                )))
       <*> optional
             (option backendArg

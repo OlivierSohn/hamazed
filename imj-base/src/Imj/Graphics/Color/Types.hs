@@ -48,11 +48,8 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Components are expected to be between 0 and 5 included.
-data RGB = RGB {
-    _rgbR :: {-# UNPACK #-} !Int
-  , _rgbG :: {-# UNPACK #-} !Int
-  , _rgbB :: {-# UNPACK #-} !Int
-} deriving(Eq, Show, Read, PrettyVal, Generic)
+data RGB = RGB  {-# UNPACK #-} !Int {-# UNPACK #-} !Int {-# UNPACK #-} !Int
+  deriving(Eq, Show, Read, PrettyVal, Generic)
 
 -- | A background and a foreground 'Color8'.
 data LayeredColor = LayeredColor {

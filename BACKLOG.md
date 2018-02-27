@@ -1,3 +1,5 @@
+- replace unboxed by Storable?
+
 - do a single putStr per frame in delta renderer, use either a text builder or a Char buffer.
 It may improve the performances when multiple clients run on the same machine.
 

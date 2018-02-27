@@ -10,6 +10,7 @@ import           Test.Imj.Color
 --import           Test.Imj.Ease
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
+import           Test.Imj.StdoutBuffer
 import           Test.Imj.RectArea
 import           Test.Imj.Resample
 import           Test.Imj.Segment
@@ -38,4 +39,5 @@ main = do
                    renderToScreen
                    ) NaiveDraw
   --testEase
+  testMutableBytestring
   return ()

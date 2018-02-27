@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Data.Vector.Unboxed.Mutable.Dynamic
+  exposed-modules:     Imj.Data.StdoutBuffer
+                     , Imj.Data.Vector.Unboxed.Mutable.Dynamic
                      , Imj.Example.DeltaRender.FromMonadIO
                      , Imj.Example.DeltaRender.FromMonadReader
                      , Imj.Example.SequentialTextTranslationsAnchored
@@ -134,6 +135,7 @@ library
                      , text >=1.2.3 && < 1.3
                      , transformers == 0.5.*
                      , unliftio ==0.2.*
+                     , utf8-string ==1.0.*
                      , vector >= 0.12.0.1 && < 0.12.1
                      , vector-algorithms >= 0.7.0.1 && < 0.8
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
@@ -164,6 +166,7 @@ test-suite imj-base-test
                      , Test.Imj.Ease
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
+                     , Test.Imj.StdoutBuffer
                      , Test.Imj.RectArea
                      , Test.Imj.Resample
                      , Test.Imj.Segment
@@ -174,13 +177,17 @@ test-suite imj-base-test
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
+                     , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers >= 0.5.9.2
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , pretty-show ==1.6.*
+                     , primitive ==0.6.*
                      , text >=1.2.3 && < 1.3
+                     , utf8-string ==1.0.*
+                     , vector >= 0.12.0.1 && < 0.12.1
 
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
                      -fexcess-precision -optc-ffast-math

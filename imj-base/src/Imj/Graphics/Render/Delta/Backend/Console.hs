@@ -129,11 +129,11 @@ renderDelta delta' w = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
-  let renderDelta' :: Dim BufferIndex
-                   -> Maybe LayeredColor
-                   -> Maybe (Dim BufferIndex)
-                   -> IO LayeredColor
-      renderDelta' index prevColors prevIndex
+  let go :: Dim BufferIndex
+         -> Maybe LayeredColor
+         -> Maybe (Dim BufferIndex)
+         -> IO LayeredColor
+      go index prevColors prevIndex
        | fromIntegral sz == index =
           return whiteOnBlack -- this value is not used
        | otherwise = do
@@ -142,8 +142,8 @@ renderDelta delta' w = do
               prevRendered = (== Just (pred idx)) prevIndex
           setCursorPositionIfNeeded w idx prevRendered
           usedColor <- renderCell bg fg char prevColors
-          renderDelta' (succ index) (Just usedColor) (Just idx)
-  void (renderDelta' 0 Nothing Nothing)
+          go (succ index) (Just usedColor) (Just idx)
+  void $ go 0 Nothing Nothing
 
 -- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size

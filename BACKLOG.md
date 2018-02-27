@@ -1,12 +1,13 @@
-- nice ship colors :
+- do a single putStr per frame in delta renderer, use either a text builder or a Char buffer.
+It may improve the performances when multiple clients run on the same machine.
+
+- pass color theme by name:
 0 3 5 (blue)
 1 0 3 (dark violet)
 4 2 1 (orange / yellow)
 3 3 0 (olive)
 3 2 2 (soft red)
-
-- pass cli arg for color theme :
-+ primary color names accepted
+- one-click "increment / decrement r,g or b (maybe use r,g,b keys)
 
 - animate color of external frame at each shot number (fast change to another color then slow change back to normal)
 : this allows to become aware of when a number is shot.

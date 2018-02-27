@@ -8,9 +8,6 @@
 - pass cli arg for color theme :
 + primary color names accepted
 
-- print the theme color in chat, for example on /color
-- print theme color when joining
-
 - animate color of external frame at each shot number (fast change to another color then slow change back to normal)
 : this allows to become aware of when a number is shot.
 

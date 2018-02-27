@@ -687,7 +687,8 @@ gameScheduler st =
   run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
   run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate mayWorld) ->
     if terminate
-      then
+      then do
+        serverLog $ pure $ colored "Terminating game" yellow
         return NotExecutedGameCanceled
       else
         -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
@@ -695,7 +696,8 @@ gameScheduler st =
           (return NotExecutedGameCanceled)
           (\(CurrentGame curWid gamePlayers status) ->
             if refWid /= curWid
-              then
+              then do
+                serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
                 return NotExecutedGameCanceled -- the world has changed
               else do
                 missingPlayers <- Set.difference gamePlayers <$> gets onlyPlayersIds
@@ -707,6 +709,7 @@ gameScheduler st =
                           Paused missingPlayers
                 if status /= newStatus
                   then do
+                    serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
                     -- mayWorld can be concurrently modified from client handler threads, but only from
                     -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
                     -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside

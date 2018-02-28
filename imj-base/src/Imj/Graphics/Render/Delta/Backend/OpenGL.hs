@@ -53,7 +53,7 @@ windowCloseCallback keyQueue _ =
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: {-# UNPACK #-} !GLFW.Window
   , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue Key)
-  , _ppu :: {-# UNPACK #-} !Int
+  , _ppu :: {-# UNPACK #-} !PPU
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: {-# UNPACK #-} !Size
   -- ^ In number of pixels.
@@ -61,11 +61,26 @@ data OpenGLBackend = OpenGLBackend {
   -- ^ Mutable rendering options
 }
 
-data RenderingOptions = RenderingOptions
-  {-# UNPACK #-} !Int
-  {-unpack sum-} !RenderingStyle
-  {-# UNPACK #-} !FTGL.Font
-  deriving(Generic, NFData, Show)
+-- | Pixels per units, in vertical and horizontal directions.
+-- Both should be even, because we divide them by 2
+-- to draw numbers in binary representation.
+type PPU = Coords Pos
+
+{-# INLINE half #-}
+half :: PPU -> PPU
+half (Coords h w) = Coords (quot h 2) (quot w 2)
+
+
+data RenderingOptions = RenderingOptions {
+    _cycleIndex :: {-# UNPACK #-} !Int
+  , _style :: {-unpack sum-} !RenderingStyle
+  , _font :: !Font
+} deriving(Generic, Show, NFData)
+
+data Font = Font {
+    _ftglFont :: {-# UNPACK #-} !FTGL.Font
+  , _offset :: {-# UNPACK #-} !(Coords Pos)
+} deriving(Generic, Show, NFData)
 
 instance PrettyVal RenderingOptions where
   prettyVal opt = prettyVal ("RenderingOptions:", show opt)
@@ -84,9 +99,9 @@ instance DeltaRenderBackend OpenGLBackend where
     cycleRenderingOption (OpenGLBackend _ _ ppu _ mRO) =
       liftIO $ void( readMVar mRO >>= cycleRenderingOptions ppu >>= swapMVar mRO )
 
-    getDiscreteSize (OpenGLBackend _ _ pixelPerUnit (Size h w) _) =
-      return $ Just $ Size (fromIntegral $ quot (fromIntegral h) pixelPerUnit)
-                           (fromIntegral $ quot (fromIntegral w) pixelPerUnit)
+    getDiscreteSize (OpenGLBackend _ _ (Coords ppuH ppuW) (Size h w) _) =
+      return $ Just $ Size (fromIntegral $ quot (fromIntegral h) ppuH)
+                           (fromIntegral $ quot (fromIntegral w) ppuW)
     {-# INLINABLE render #-}
     {-# INLINABLE cleanup #-}
     {-# INLINABLE getDiscreteSize #-}
@@ -116,10 +131,17 @@ glfwKeyToKey GLFW.Key'Down  = Arrow Down
 glfwKeyToKey GLFW.Key'Up    = Arrow Up
 glfwKeyToKey _ = Unknown
 
-newOpenGLBackend :: String -> Int -> Size -> IO OpenGLBackend
-newOpenGLBackend title ppu size@(Size h w) = do
-  let simpleErrorCallback e s =
-        putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show s]
+floorToPPUMultiple :: Size -> PPU -> Size
+floorToPPUMultiple (Size (Length h) (Length w)) (Coords (Coord ppuH) (Coord ppuW)) =
+  Size (fromIntegral $ f ppuH h)
+       (fromIntegral $ f ppuW w)
+ where
+  f ppu l = ppu * quot l ppu
+
+newOpenGLBackend :: String -> PPU -> Size -> IO OpenGLBackend
+newOpenGLBackend title ppu s = do
+  let simpleErrorCallback e x =
+        putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
   GLFW.setErrorCallback $ Just simpleErrorCallback
 
   GLFW.init >>= \case
@@ -127,7 +149,8 @@ newOpenGLBackend title ppu size@(Size h w) = do
     True -> return ()
 
   keyEventsChan <- newTQueueIO :: IO (TQueue Key)
-  win <- createWindow (fromIntegral w) (fromIntegral h) title
+  let size = floorToPPUMultiple s ppu
+  win <- createWindow size title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
@@ -135,7 +158,7 @@ newOpenGLBackend title ppu size@(Size h w) = do
   ro <- RenderingOptions 0 AllFont <$> createFont 0 ppu
   OpenGLBackend win keyEventsChan ppu size <$> newMVar ro
 
-cycleRenderingOptions :: Int -> RenderingOptions -> IO RenderingOptions
+cycleRenderingOptions :: PPU -> RenderingOptions -> IO RenderingOptions
 cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
   let newRo = case rs of
         AllFont -> HexDigitAsBits
@@ -156,8 +179,8 @@ withTempFontFile fontIdx act =
     writeFile filePath (fontFiles!!fontIdx)
     act filePath
 
-createFont :: Int -> Int -> IO FTGL.Font
-createFont idx ppu =
+createFont :: Int -> PPU -> IO Font
+createFont idx ppu@(Coords ppuH _) =
   withTempFontFile idx $ \filePath -> do
     --font <- FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
     font <- FTGL.createPixmapFont filePath
@@ -169,14 +192,76 @@ createFont idx ppu =
     --font <- FTGL.createTextureFont filePath
     --font <- FTGL.createExtrudeFont filePath
 
-    when (font == nullPtr) $ error $ "error loading font : " ++ filePath
-    FTGL.setFontFaceSize font ppu 72 >>= \case
-      -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
-      1 -> return font
-      err -> error $ "failed to set font size : " ++ show err
+    when (font == nullPtr) $
+      error $ "error loading font : " ++ filePath
+    FTGL.setFontFaceSize font (fromIntegral ppuH) 72 >>= \err ->
+      if err == 1 -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
+        then
+          Font font <$> fontOffset font ppu
+        else
+          error $ "setFontFaceSize failed: " ++ show (ppuH, err)
 
-createWindow :: Int -> Int -> String -> IO GLFW.Window
-createWindow width height title = do
+-- |
+-- @
+-- .----------------.
+-- |                |
+-- |   .--------.   |  < glyph y max
+-- |   |=======,|   |
+-- |   |     // |   |
+-- |   |   //   |   |
+-- |   | //     |   |
+-- |   |/=======|   |
+-- |   .--------.   |  < glyph y min
+-- |  R             |  < glyph y ref = 0
+-- .----------------.
+--    ^ ^       ^
+--    | |       glyph x max
+--    | glyph x min
+--    glyph x ref = 0
+--
+-- /outer/ rectangle = unit rectangle
+-- /inner/ rectangle = glyph aabb
+-- @
+--
+-- In the drawing above, @R@ represents the glyph ref position.
+--
+-- We want to determine the position of @R@, relatively to the unit rectangle,
+-- such that 'Z' is centered in the unit rectangle:
+--
+-- @
+-- ppuW - (Rx + glyphXMax) = Rx + glyphXMin  -- centered horizontally
+-- ppuH - (Ry + glyphYMax) = Ry + glyphYMin  -- centered vertically
+-- @
+--
+-- Hence,
+--
+-- @
+-- Rx = (ppuW - glyphXMax - glyphXMin) / 2
+-- Ry = (ppuH - glyphYMax - glyphYMin) / 2
+-- @
+--
+-- where values on the right of @=@ are known:
+--
+-- * ppuH, ppuW are specified by command line arguments,
+-- * glyph{X|Y}{Min|Max} are retrieved using @FTGL.getFontBBox@.
+--
+-- Note that we use the /same/ offset for every character, to preserve font aspect.
+fontOffset :: FTGL.Font -> PPU -> IO (Coords Pos)
+fontOffset font (Coords ppuH ppuW) =
+  -- Ideally, (TODO) we should use the max of the bounding box of all characters in the font,
+  -- to compute glyph{X|Y}{Min|Max}. If we use just the bounding box of 'Z' for example, 'a' pixels
+  -- may overlapp with the lower adjacent unit rectangle (in the font I use, 'a' goes lower than 'Z').
+  FTGL.getFontBBox font "Z" >>= \case
+    [xmin,ymin,_,xmax,ymax,_] -> -- TODO verify that the bboxes don't exceed ppu, if it is the case, reduce the font size and retry (binary search)
+      return $ Coords (round y) (round x)
+      where
+        x = (fromIntegral ppuW - xmax - xmin) / 2
+        y = (fromIntegral ppuH - ymax - ymin) / 2
+    other -> error $ "invalid font bbox:" ++ show other
+
+
+createWindow :: Size -> String -> IO GLFW.Window
+createWindow (Size (Length height) (Length width)) title = do
   GLFW.windowHint $ GLFW.WindowHint'Resizable False
   -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
@@ -188,13 +273,11 @@ createWindow width height title = do
   GL.clearColor GL.$= GL.Color4 0 0 0 1
   GL.clear [GL.ColorBuffer, GL.DepthBuffer]
   GL.finish
-
   --GL.position (GL.Light 0) GL.$= GL.Vertex4 5 5 10 0 -- light position
   --GL.light    (GL.Light 0) GL.$= GL.Enabled          -- enable light
   --GL.lighting   GL.$= GL.Enabled
   --GL.cullFace   GL.$= Just GL.Back
   --GL.depthFunc  GL.$= Just GL.Less
-
   return win
 
 destroyWindow :: GLFW.Window -> IO ()
@@ -203,9 +286,9 @@ destroyWindow win = do
   GLFW.terminate
 
 deltaRenderOpenGL :: GLFW.Window
-                  -> Int
+                  -> PPU
                   -> Size
-                  -> FTGL.Font
+                  -> Font
                   -> RenderingStyle
                   -> Delta
                   -> Dim Width
@@ -220,9 +303,9 @@ deltaRenderOpenGL _ ppu size font rs (Delta delta) w = do
   t3 <- getSystemTime
   return (t1...t2,t2...t3)
 
-renderDelta :: Int
+renderDelta :: PPU
             -> Size
-            -> FTGL.Font
+            -> Font
             -> RenderingStyle
             -> Dyn.IOVector Cell
             -> Dim Width
@@ -242,11 +325,12 @@ renderDelta ppu size font rs delta' w = do
           renderDelta' $ succ index
   void (renderDelta' 0)
 
-draw :: Int
+draw :: PPU
      -> Size
-     -> FTGL.Font
+     -> Font
      -> RenderingStyle
-     -> Dim Col -> Dim Row
+     -> Dim Col
+     -> Dim Row
      -> Char
      -> Color8 Background -> Color8 Foreground -> IO ()
 draw ppu size font rs col row char bg fg
@@ -264,8 +348,8 @@ draw ppu size font rs col row char bg fg
         let color
               | bit == 0 = colorOff
               | otherwise = colorOn
-        drawSquare (quot ppu 2) size (2 * fromIntegral col + dx)
-                                     (2 * fromIntegral row + dy) color)
+        drawSquare (half ppu) size (2 * fromIntegral col + dx)
+                                   (2 * fromIntegral row + dy) color)
       $ zip locations bits
   | otherwise = do
       drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 bR bG (bB :: GL.GLfloat)
@@ -275,32 +359,69 @@ draw ppu size font rs col row char bg fg
    (fR,fG,fB) = color8ToUnitRGB fg
 
 
-renderChar :: FTGL.Font -> Int -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
-renderChar font ppu (Size winHeight winWidth) col row c color = do
-  let unit x = 2 * recip (fromIntegral $ quot x ppu)
-      totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
+renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
+renderChar (Font font (Coords offsetRow offsetCol)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
+  let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
+      totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
       -- with 6,5 there are leftovers on top of pipe, with 4 it's below.
-      unitRow x = -1 + (4/fromIntegral winHeight) + unit (fromIntegral winHeight) * (totalH - x)
-      unitCol x = -1 + (4/fromIntegral winWidth) + unit (fromIntegral winWidth) * x
+      unitRow x = -1 + fromIntegral offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)
+      unitCol x = -1 + fromIntegral offsetCol * 2 / fromIntegral winWidth  + unit (fromIntegral winWidth)  ppuW * x
   -- The present raster color is locked by the use glRasterPos*()
   -- <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>
   --
   -- Hence, we set the color /before/ raster pos:
   GL.color color
-  GL.rasterPos $ GL.Vertex2 (unitCol (fromIntegral col :: Float) :: GL.GLfloat)
-                            (unitRow (fromIntegral (succ row) :: Float))
-  FTGL.renderFont font [c] FTGL.Front --FTGL.Side
 
-drawSquare :: Int -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
-drawSquare ppu (Size winHeight winWidth) c' r' color = do
+  -- opengl coords interval [-1, 1] represent winLength pixels, hence:
+  --   pixelLength = 2 / winlength
+  --
+  -- R = 'font offset' * pixelLength
+  --
+  -- with nUnits = quot winLength ppu:
+  --
+  -- c,r are in [0..pred nUnits]
+  -- 1+r is in [1..nUnits]
+  --
+  -- unitCol c     = -1 + R + 2 * (            c / nUnits) : is in [-1 + R, -1 + R + 2 * (1-1/nUnits)]
+  --                                                             = [-1 + R,  1 + R - 2/nUnits        ]
+  --
+  -- unitRow (1+r) = -1 + R + 2 * (nUnits-(1+r)) / nUnits
+  --               = -1 + R + 2 * (1 - (1+r)/nUnits)       : is in [-1 + R, -1 + R + 2 * (1 - 1/nUnits)]
+  --                                                             = [-1 + R,  1 + R - 2/nUnits          ]
+  --
+  -- Hence, the raster position is put at unit rectangle corners, offset by a number of pixels
+  -- both in horizontal and vertical directions.
+
+  GL.rasterPos $ GL.Vertex2 (unitCol (fromIntegral c :: Float) :: GL.GLfloat)
+                            (unitRow (fromIntegral (succ r) :: Float))
+  FTGL.renderFont font [char] FTGL.Front --FTGL.Side
+
+drawSquare :: PPU -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
+drawSquare (Coords ppuH ppuW) (Size winHeight winWidth) c r color = do
   let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
-      unit x = 2 * recip (fromIntegral $ quot x ppu)
-      totalH = fromIntegral $ quot (fromIntegral winHeight) ppu
-      unitRow x = -1 + unit (fromIntegral winHeight) * (totalH - x)
-      unitCol x = -1 + unit (fromIntegral winWidth) * x
+      unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
+      totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
+      unitRow x = -1 + unit (fromIntegral winHeight) ppuH * (totalH - x)
+      unitCol x = -1 + unit (fromIntegral winWidth)  ppuW * x
 
-      (r1,r2) = (unitRow r', unitRow (1 + r'))
-      (c1,c2) = (unitCol c', unitCol (1 + c'))
+      -- with nUnits = quot winLength ppu:
+      --
+      -- c,r are in [0..pred nUnits]
+      -- 1+c,1+r are in [1..nUnits]
+      --
+      -- They /represent/ corners of unit rectangles paving the screen.
+      --
+      -- unitCol c = -1 + 2 * (           c / nUnits)    : is in [-1         , -1 + 2 * (1-1/nUnits)]
+      --                                                       = [-1         , 1 - 2/nUnits         ]
+      -- unitCol (1+c)                                   : is in [-1+2/nUnits, 1                    ]
+
+      -- unitRow r = -1 + 2 * ((nUnits - r) / nUnits)    : is in [-1+2/nUnits, 1           ]
+      -- unitRow (1+r)                                   : is in [-1         , 1 - 2/nUnits]
+      --
+      -- Hence, the screen is paved from -1-1 to 1 1 with rectangles, and coordinates
+      -- passed to vertex3f are at pixel /corners/, which is what we want.
+      (r1,r2) = (unitRow r, unitRow (1 + r))
+      (c1,c2) = (unitCol c, unitCol (1 + c))
   GL.renderPrimitive GL.TriangleFan $ do
     GL.color color
     vertex3f c2 r1 0

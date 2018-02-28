@@ -1,3 +1,22 @@
+- reconnection of single player : server should forget about the in-progress game once all players
+are disconected (TODO or keep a state of the game on the server?)
+
+- command line arg for screen size
+
+- compute bbox of all font's characters and deduce offset from that.
+If bbox is too big for ppu, reduce the size of the font and retry.
+
+analyze which is the biggest glyph and see if it should be reshaped.
+  - see if + can be centered
+
+- if player uses name j, then changes to f, a residual pixel is seen on the lower part of j.
+Maybe, in delta rendering, we should force rendering surrounding locations if we suspect the character
+overlaps. Note that this could lead to duplicates in the "vector of stuff to render" so maybe we need to sort/unique
+it, before sending it (today it's sorted in console backend only, and that doesn't remove duplicates I think).
+
+And in opengl rendering we should render all backgrounds first, then all foregrounds to avoid cases where a background
+erases a too large glyph.
+
 - replace unboxed by Storable?
 
 - one-click "increment / decrement r,g or b (maybe use r,g,b keys)
@@ -32,9 +51,6 @@ first step:
   the hardcoded colors will only be used for their hue.
 
 - use 'sameIntensityHues' where appropriate.
-
-- try opengl rectangular rendering.
-- or make font characters more square
 
 - make stats of world dismissals visible to the user
 

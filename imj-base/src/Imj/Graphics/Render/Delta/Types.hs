@@ -14,7 +14,6 @@ module Imj.Graphics.Render.Delta.Types
             , Dim(..)
             , BufferSize
             , BufferIndex
-            , getRowCol
             , xyFromIndex
             -- ** Reexported types
             , Delta
@@ -73,18 +72,10 @@ data BufferSize
 -- | Buffer element index
 data BufferIndex
 
-{-# INLINE getRowCol #-}
-getRowCol :: Dim BufferIndex -> Dim Width -> (Dim Col, Dim Row)
-getRowCol (Dim idx) (Dim w) =
-      (Dim x, Dim y)
-    where
-      y = idx `div` w
-      x = idx - y * w
-
 {-# INLINE xyFromIndex #-}
 xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
-xyFromIndex w idx =
-  getRowCol idx w
+-- 'Dim' is unsigned, the values are always >= 0 so 'quotRem' is the way to go.
+xyFromIndex (Dim w) (Dim idx) = (Dim x, Dim y) where (y,x) = idx `quotRem` w
 
 data Buffers = Buffers {
     _renderStateBackBuffer :: {-# UNPACK #-} !(Buffer Back)

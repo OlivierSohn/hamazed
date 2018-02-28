@@ -36,6 +36,7 @@ module Imj.Geo.Discrete.Types
 
 import           Imj.Prelude
 
+import           Control.DeepSeq(NFData)
 import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Bresenham
@@ -51,8 +52,7 @@ instance Binary Direction
 -- | One-dimensional discrete coordinate. We use phantom types 'Row', 'Col'
 -- to distinguish between rows and columns.
 newtype Coord a = Coord Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Binary, Generic)
-
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Binary, NFData, Generic)
 instance PrettyVal (Coord a)
 
 -- | Using bresenham 2d line algorithm.
@@ -84,9 +84,8 @@ data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
 } deriving (Eq, Show, Ord, Generic)
-
+instance NFData (Coords a)
 instance Binary (Coords a)
-
 instance PrettyVal (Coords a)
 
 -- | Discrete length
@@ -102,7 +101,6 @@ data Size = Size {
     getHeight :: {-# UNPACK #-} !(Length Height)
   , getWidth :: {-# UNPACK #-} !(Length Width)
 } deriving (Eq, Show, Generic)
-
 instance PrettyVal Size
 
 {-# INLINE area #-}

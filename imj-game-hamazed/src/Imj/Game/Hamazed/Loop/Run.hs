@@ -314,8 +314,13 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
         readMVar ready -- wait until listening socket is available.
         queues <- startClient player srv
         case backend of
-          Console ->      runWith debug queues srv player =<< newConsoleBackend
-          OpenGLWindow -> runWith debug queues srv player =<< newOpenGLBackend "Hamazed" 10 (Size 600 1400)
+          Console ->
+            newConsoleBackend >>= runWith debug queues srv player
+          OpenGLWindow ->
+            newOpenGLBackend "Hamazed"
+              (Coords 12 8) -- will be a command line arg when we have automatic font adaptation
+              (Size 600 1400) -- TODO command line arg FullScreen / fixed size
+              >>= runWith debug queues srv player
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)

@@ -19,9 +19,7 @@ import           Imj.Prelude hiding(intercalate, concat)
 import qualified Imj.Prelude as Prel (intercalate)
 
 import           Control.Concurrent(threadDelay, forkIO)
-import           Control.Concurrent.MVar (MVar
-                                        , modifyMVar_, modifyMVar, swapMVar
-                                        , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
+import           Control.Monad.IO.Unlift(MonadUnliftIO, MonadIO)
 import           Control.Monad.Reader(runReaderT, lift, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', get, gets, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
@@ -41,6 +39,9 @@ import           Network.WebSockets
                    acceptRequest, sendBinaryData, sendClose, sendPing, receiveData)
 import           Network.WebSockets.Connection(sendDataMessages)
 import           UnliftIO.Exception (SomeException(..), try)
+import           UnliftIO.MVar (MVar
+                                , modifyMVar_, modifyMVar, swapMVar
+                                , readMVar, tryReadMVar, takeMVar, putMVar) -- to communicate between client handlers and game scheduler
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
@@ -55,12 +56,12 @@ import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored
 import           Imj.Graphics.Color
 import           Imj.Log
 
-type ClientHandlerIO = ReaderT ConstClient (StateT ServerState IO)
+type ClientHandlerIO = StateT ServerState (ReaderT ConstClient IO)
 
 -- | Data of a 'Client' that will never change.
 data ConstClient = ConstClient {
     shipId :: {-# UNPACK #-} !ShipId
-  , connection :: {-# UNPACK #-} !Connection -- TODO remove from 'Client', and use ConstClient as key in Map
+  , connection :: {-# UNPACK #-} !Connection
 }
 
 log :: ColorString -> ClientHandlerIO ()
@@ -68,13 +69,13 @@ log msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
     i <- asks shipId
-    idStr <- lift $ showId i
+    idStr <- showId i
     liftIO $ baseLog $ intercalate "|"
       [ idStr
       , msg
       ]
 
-showId :: ShipId -> StateT ServerState IO ColorString
+showId :: (MonadIO m) => ShipId -> StateT ServerState m ColorString
 showId i = do
   color <- fromMaybe white <$> gets (clientColor i)
   return $ colored (pack $ show i) color
@@ -82,12 +83,13 @@ showId i = do
 showClient :: Client -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
-serverLog :: StateT ServerState IO ColorString
-          -> StateT ServerState IO ()
+serverLog :: (MonadIO m)
+          => StateT ServerState m ColorString
+          -> StateT ServerState m ()
 serverLog msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs ->
-    msg >>= liftIO . baseLog
+    msg >>= lift . baseLog
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
@@ -102,19 +104,22 @@ mkServer _ (Just _) (Just _) =
 mkServer (Just _) _ (Just _) =
   error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
 
-notifyEveryone :: ServerEvent -> StateT ServerState IO ()
+{-# INLINABLE notifyEveryone #-}
+notifyEveryone :: (MonadIO m) => ServerEvent -> StateT ServerState m ()
 notifyEveryone evt =
   notifyN [evt] =<< gets clientsMap
 
-notifyEveryoneN :: [ServerEvent] -> StateT ServerState IO ()
+{-# INLINABLE notifyEveryoneN #-}
+notifyEveryoneN :: (MonadIO m) => [ServerEvent] -> StateT ServerState m ()
 notifyEveryoneN evts =
   notifyN evts =<< gets clientsMap
 
-notifyPlayers :: ServerEvent -> StateT ServerState IO ()
+{-# INLINABLE notifyPlayers #-}
+notifyPlayers :: (MonadIO m) => ServerEvent -> StateT ServerState m ()
 notifyPlayers evt =
   notifyN [evt] =<< gets onlyPlayersMap
 
-notifyFirstWorldBuilder :: ServerEvent -> StateT ServerState IO ()
+notifyFirstWorldBuilder :: (MonadIO m) => ServerEvent -> StateT ServerState m ()
 notifyFirstWorldBuilder evt =
   notifyN [evt] . Map.take 1 =<< gets clientsMap
 
@@ -124,14 +129,16 @@ notifyFirstWorldBuilder evt =
 --
 -- In case some connections are closed, the corresponding clients are silently removed
 -- from the Map, and we continue the processing.
-notifyN :: [ServerEvent]
+notifyN :: (MonadIO m)
+        => [ServerEvent]
         -> Map ShipId Client
-        -> StateT ServerState IO ()
+        -> StateT ServerState m ()
 notifyN evts =
   void . Map.traverseWithKey
     (\i client -> sendAndHandleExceptions evts (getConnection client) i)
 
-notify :: Connection -> ShipId -> ServerEvent -> StateT ServerState IO ()
+{-# INLINABLE notify #-}
+notify :: (MonadIO m) => Connection -> ShipId -> ServerEvent -> StateT ServerState m ()
 notify conn sid evt =
   sendAndHandleExceptions [evt] conn sid
 
@@ -139,9 +146,10 @@ notifyClient :: ServerEvent -> ClientHandlerIO ()
 notifyClient evt = do
   conn <- asks connection
   sid <- asks shipId
-  lift $ notify conn sid evt
+  notify conn sid evt
 
-sendAndHandleExceptions :: [ServerEvent] -> Connection -> ShipId -> StateT ServerState IO ()
+{-# INLINABLE sendAndHandleExceptions #-}
+sendAndHandleExceptions :: (MonadIO m) => [ServerEvent] -> Connection -> ShipId -> StateT ServerState m ()
 sendAndHandleExceptions [] _ _ = return () -- sendDataMessages throws on empty list
 sendAndHandleExceptions evts conn i =
   liftIO (try $ sendDataMessages conn msgs) >>= either
@@ -165,24 +173,28 @@ appSrv' st conn =
   receiveData conn >>= \case
     Connect sn@(SuggestedPlayerName suggestedName) cliType -> either
       (sendBinaryData conn . ConnectionRefused . InvalidName sn)
-      (\_ -> do
-        i <- modifyMVar st (fmap swap . runStateT takeShipId)
-        let env = ConstClient i conn
-            disconnectOnException name action = try action >>= either
-              (\(e :: SomeException) ->
-                  modifyMVar_ st $ execStateT $
-                    onBrokenClient name (Nothing :: Maybe (Text, Text, [Text])) e i)
-              return
-        -- To detect disconnections when communication is idle:
-        void $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
-        disconnectOnException "Handler" $ do
-          modifyMVar_ st $ execStateT $ flip runReaderT env $ addClient sn cliType
-          forever $ receiveData conn >>=
-            modifyMVar_ st . execStateT . flip runReaderT env . handleIncomingEvent
-            -- hereabove I runReaderT within execStateT.
-            -- TODO runReaderT globally, from the moment we have i and conn.
-      ) $ checkName $ PlayerName $ pack suggestedName
+      (\_ ->
+        modifyMVar st (fmap swap . runStateT takeShipId) >>=
+          runReaderT (handleClient st sn cliType) . flip ConstClient conn)
+      $ checkName $ PlayerName $ pack suggestedName
     msg -> error $ "First sent message should be 'Connect'. " ++ show msg
+
+handleClient :: MVar ServerState -> SuggestedPlayerName -> ServerOwnership -> ReaderT ConstClient IO ()
+handleClient st sn cliType = do
+  i <- asks shipId
+  let disconnectOnException :: (MonadUnliftIO m) => Text -> m () -> m ()
+      disconnectOnException name action = try action >>= either
+        (\(e :: SomeException) ->
+            liftIO $ modifyMVar_ st $ execStateT $
+              onBrokenClient name (Nothing :: Maybe (Text, Text, [Text])) e i)
+        return
+  conn <- asks connection
+  -- To detect disconnections when communication is idle:
+  void $ liftIO $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
+  disconnectOnException "Handler" $ do
+    modifyMVar_ st $ execStateT $ addClient sn cliType
+    forever $ liftIO (receiveData conn) >>=
+      modifyMVar_ st . execStateT . handleIncomingEvent
 
 checkName :: PlayerName -> Either Text ()
 checkName (PlayerName name) =
@@ -250,8 +262,8 @@ addClient :: SuggestedPlayerName -> ServerOwnership -> ClientHandlerIO ()
 addClient sn cliType = do
   conn <- asks connection
   i <- asks shipId
-  playerColor <- lift $ mkClientColor i
-  presentClients <- lift $ do
+  playerColor <- mkClientColor i
+  presentClients <- do
     name <- makePlayerName sn
     let client@(Client _ _ _ _ _ _ _ c) = mkClient name playerColor conn cliType
     -- this call is /before/ addClient to avoid sending redundant info to client.
@@ -269,7 +281,7 @@ addClient sn cliType = do
       (\(Client n _ _ _ _ _ _ color) -> PlayerEssence n Present color)
       presentClients
 
-mkClientColor :: ShipId -> StateT ServerState IO (Color8 Foreground)
+mkClientColor :: (MonadIO m) => ShipId -> StateT ServerState m (Color8 Foreground)
 mkClientColor (ShipId i) = do
   ref <- gets centerColor
   let nColors = countHuesOfSameIntensity ref
@@ -285,7 +297,7 @@ mkClientColor (ShipId i) = do
       n = if odd i then n' else -n'
   return $ rotateHue (fromIntegral n / fromIntegral nColors) ref
 
-makePlayerName :: SuggestedPlayerName -> StateT ServerState IO PlayerName
+makePlayerName :: (MonadIO m) => SuggestedPlayerName -> StateT ServerState m PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
         let proposal = PlayerName $ pack $ maybe sn ((++) sn . show) mayI
@@ -294,7 +306,7 @@ makePlayerName (SuggestedPlayerName sn) = do
           (\_ -> return proposal)
   go Nothing
 
-checkNameAvailability :: PlayerName -> StateT ServerState IO (Either Text ())
+checkNameAvailability :: (MonadIO m) => PlayerName -> StateT ServerState m (Either Text ())
 checkNameAvailability name =
   any ((== name) . getName) <$> gets allClients >>= \case
     True  -> return $ Left "Name is already taken"
@@ -307,14 +319,14 @@ shutdown reason = do
   mapM_ (disconnect $ ServerShutdown reason) =<< gets allClientsIds
 
 -- It's important that this function doesn't throw any exception.
-onBrokenClient :: (Show a)
+onBrokenClient :: (Show a, MonadIO m)
                => Text
                -- ^ Describes the type of thread in which the exception was raised
                -> Maybe (Text, Text, [a])
                -- ^ A list of values that will be added to the log.
                -> SomeException
                -> ShipId
-               -> StateT ServerState IO ()
+               -> StateT ServerState m ()
 onBrokenClient threadCategory infos e i = do
   log'
   disconnect (BrokenClient $ pack $ show e) i
@@ -330,9 +342,9 @@ onBrokenClient threadCategory infos e i = do
 disconnectClient :: ClientHandlerIO ()
 disconnectClient = do
   sid <- asks shipId
-  lift $ disconnect ClientShutdown sid
+  disconnect ClientShutdown sid
 
-disconnect :: DisconnectReason -> ShipId -> StateT ServerState IO ()
+disconnect :: (MonadIO m) => DisconnectReason -> ShipId -> StateT ServerState m ()
 disconnect r i =
   tryRemoveClient >>= maybe
     (do serverLog $ (<> " was already removed.") <$> showId i
@@ -351,7 +363,7 @@ disconnect r i =
         -- Finally, shutdown the client connection.
         closeConnection r i c)
  where
-  closeConnection :: DisconnectReason -> ShipId -> Client -> StateT ServerState IO ()
+  closeConnection :: (MonadIO m) => DisconnectReason -> ShipId -> Client -> StateT ServerState m ()
   closeConnection reason cid c@(Client (PlayerName playerName) conn _ _ _ _ _ color) = do
     serverLog $ pure $
       colored "Close connection" yellow <>
@@ -453,7 +465,7 @@ handleIncomingEvent' = \case
     handlerError $ "already connected : " <> sn
   RequestCommand cmd@(AssignName name) -> either
     (notifyClient . CommandError cmd)
-    (\_ -> lift (checkNameAvailability name) >>= either
+    (\_ -> checkNameAvailability name >>= either
       (notifyClient . CommandError cmd)
       (\_ -> do
         adjustClient $ \c -> c { getName = name }
@@ -464,34 +476,32 @@ handleIncomingEvent' = \case
   Report TellColorSchemeCenter ->
     colorSchemeCenterStr >>= notifyClient . Reporting TellColorSchemeCenter
   Do cmd@(SetColorSchemeCenter color) -> do
-    lift $ do
-      modify' $ \s -> s { centerColor = color }
-      gets clientsMap >>= Map.traverseWithKey (\i c -> do
-        col <- mkClientColor i
-        return c { getColor = col })
-          >>= \newClients -> do
-            setClients newClients
-            notifyEveryoneN $
-              map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
-              Map.toList newClients
+    modify' $ \s -> s { centerColor = color }
+    gets clientsMap >>= Map.traverseWithKey (\i c -> do
+      col <- mkClientColor i
+      return c { getColor = col })
+        >>= \newClients -> do
+          setClients newClients
+          notifyEveryoneN $
+            map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
+            Map.toList newClients
     colorSchemeCenterStr >>= doneCmd cmd
   RequestCommand cmd@(Says _) ->
     acceptCmd cmd
   RequestCommand (Leaves _) ->
     disconnectClient -- will do the corresponding 'notifyEveryone $ RunCommand'
-  ExitedState Excluded ->
-    gets intent >>= \case
-      IntentSetup -> do
-        -- change client state to make it playable
-        adjustClient $ \c -> c { getState = Just Finished }
-        asks shipId >>= \i -> lift $ do
-          notifyEveryone $ PlayerInfo Joins i
-          -- request world to let the client have a world
-          requestWorld
-          -- next step when client 'IsReady'
-      _ -> do
-        notifyClient $ EnterState Excluded
-        asks shipId >>= lift . notifyEveryone . PlayerInfo WaitsToJoin
+  ExitedState Excluded -> gets intent >>= \case
+    IntentSetup -> do
+      -- change client state to make it playable
+      adjustClient $ \c -> c { getState = Just Finished }
+      lift (asks shipId) >>= \i -> do
+        notifyEveryone $ PlayerInfo Joins i
+        -- request world to let the client have a world
+        requestWorld
+        -- next step when client 'IsReady'
+    _ -> do
+      notifyClient $ EnterState Excluded
+      lift (asks shipId) >>= notifyEveryone . PlayerInfo WaitsToJoin
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> do
     adjustClient $ \c -> c { getState = Just Finished }
@@ -506,7 +516,7 @@ handleIncomingEvent' = \case
             gameError $ "inconsistent outcomes:" ++ show (o, outcome)
       IntentSetup ->
         gameError "LevelEnded received while in IntentSetup"
-    lift $ gets onlyPlayers >>= \players' -> do
+    gets onlyPlayers >>= \players' -> do
       let playersAllFinished = all (finished . getState) players'
           finished Nothing = error "should not happen"
           finished (Just Finished) = True
@@ -537,29 +547,28 @@ handleIncomingEvent' = \case
 -- Clients in 'Setup' state can configure the world.
 ------------------------------------------------------------------------------
   ChangeWallDistribution t ->
-    lift $ onChangeWorldParams $ changeWallDistrib t
+    onChangeWorldParams $ changeWallDistrib t
   ChangeWorldShape s ->
-    lift $ onChangeWorldParams $ changeWorldShape s
+    onChangeWorldParams $ changeWorldShape s
   ExitedState Setup -> gets intent >>= \case
     IntentSetup -> do
       modify' $ \s -> s { intent = IntentPlayGame }
-      i <- asks shipId
-      lift $ do
-        notifyEveryone $ PlayerInfo StartsGame i
-        notifyPlayers $ ExitState Setup
-        requestWorld
+      i <- lift $ asks shipId
+      notifyEveryone $ PlayerInfo StartsGame i
+      notifyPlayers $ ExitState Setup
+      requestWorld
     _ -> return ()
   WorldProposal essence ->
     get >>= \(ServerState _ _ _ levelSpec _ lastWid _ _ _ _) -> do
       let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
       when (lastWid == Just wid) $
-        lift $ notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
+        notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
   CurrentGameState gameStateEssence ->
     gets scheduledGame >>= liftIO . tryReadMVar >>= \case
       (Just (CurrentGame _ gamePlayers (Paused _))) -> do
         disconnectedPlayerKeys <- Set.difference gamePlayers <$> gets onlyPlayersIds
         flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
-          lift . notifyN [PutGameState gameStateEssence]
+          notifyN [PutGameState gameStateEssence]
       invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid
 ------------------------------------------------------------------------------
 -- Clients notify when they have received a given world, and the corresponding
@@ -582,7 +591,7 @@ handleIncomingEvent' = \case
               let playersAllReady =
                     all ((== Just lastWId) . getCurrentWorld) $ Map.restrictKeys clients playersKeys
               when playersAllReady $ do
-                lift $ adjustAll $ \c ->
+                adjustAll $ \c ->
                   if getState c == Just Finished
                     then c { getState = Just InGame
                            , getShipAcceleration = zeroCoords }
@@ -606,12 +615,12 @@ handleIncomingEvent' = \case
   -- able to integrate the latency via this visual feedback - I read somewhere that
   -- latency is not a big problem for players, provided that it is stable over time.
   Action Laser dir ->
-    asks shipId >>= lift . notifyPlayers . GameEvent . LaserShot dir
+    lift (asks shipId) >>= notifyPlayers . GameEvent . LaserShot dir
   Action Ship dir ->
     adjustClient $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
  where
-  acceptCmd cmd = asks shipId >>= lift . notifyEveryone . flip RunCommand cmd
-  doneCmd cmd res = asks shipId >>= lift . notifyEveryone . Done cmd res
+  acceptCmd cmd = lift (asks shipId) >>= notifyEveryone . flip RunCommand cmd
+  doneCmd cmd res = lift (asks shipId) >>= notifyEveryone . Done cmd res
   colorSchemeCenterStr = ("Color scheme center is:" <>) . pack . show . color8CodeToXterm256 <$> gets centerColor
 
 
@@ -736,7 +745,7 @@ data RunResult =
 
 adjustClient :: (Client -> Client) -> ClientHandlerIO ()
 adjustClient f = do
-  i <- asks shipId
+  i <- lift $ asks shipId
   modify' $ \s ->
     let clients = getClients s
     in s { getClients =
@@ -745,7 +754,8 @@ adjustClient f = do
                     }
           }
 
-adjustAll :: (Client -> Client) -> StateT ServerState IO ()
+{-# INLINABLE adjustAll #-}
+adjustAll :: (MonadIO m) => (Client -> Client) -> StateT ServerState m ()
 adjustAll f =
   modify' $ \s ->
     let clients = getClients s
@@ -755,7 +765,7 @@ adjustAll f =
                     }
           }
 
-setClients :: Map ShipId Client -> StateT ServerState IO ()
+setClients :: (MonadIO m) => Map ShipId Client -> StateT ServerState m ()
 setClients newClients =
   modify' $ \s ->
     let clients = getClients s
@@ -764,7 +774,7 @@ setClients newClients =
                     }
           }
 
-adjustAll' :: (Client -> Maybe Client) -> StateT ServerState IO [ShipId]
+adjustAll' :: (MonadIO m) => (Client -> Maybe Client) -> StateT ServerState m [ShipId]
 adjustAll' f =
   state $ \s ->
     let clients = getClients s
@@ -774,7 +784,7 @@ adjustAll' f =
     in (Map.keys changed
       , s { getClients = clients { getClients' = newM } })
 
-requestWorld :: StateT ServerState IO ()
+requestWorld :: (MonadIO m) => StateT ServerState m ()
 requestWorld = do
   incrementWorldId
   get >>= \(ServerState _ _ _ level params wid _ _ _ _) -> do
@@ -787,8 +797,9 @@ requestWorld = do
       in s { lastRequestedWorldId = Just wid }
 
 
-onChangeWorldParams :: (WorldParameters -> WorldParameters)
-                    -> StateT ServerState IO ()
+onChangeWorldParams :: (MonadIO m)
+                    => (WorldParameters -> WorldParameters)
+                    -> StateT ServerState m ()
 onChangeWorldParams f = do
   modify' $ \s ->
     s { worldParameters = f $ worldParameters s }

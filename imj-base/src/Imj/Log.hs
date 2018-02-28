@@ -11,6 +11,7 @@ module Imj.Log
 import           Imj.Prelude hiding(intercalate)
 
 import           Control.Concurrent(myThreadId)
+import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(length, lines)
 import           Data.Text(pack, justifyRight, dropEnd)
 import qualified Data.Text.Lazy.Builder as Builder(fromString)
@@ -28,8 +29,8 @@ import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored
 structure :: Text -> ColorString
 structure = flip colored (gray 8)
 
-baseLog :: ColorString -> IO ()
-baseLog msg = do
+baseLog :: (MonadIO m) => ColorString -> m ()
+baseLog msg = liftIO $ do
   tid <- myThreadId
   t <- getSystemTime
   putStrLn $ toStrict $ toLazyText $ safeBuildTxt $

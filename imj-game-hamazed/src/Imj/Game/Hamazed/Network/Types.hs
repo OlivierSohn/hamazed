@@ -304,6 +304,7 @@ data GameStatus =
   | Running
   | Paused !(Set ShipId)
   -- ^ with the list of disconnected clients
+  | CancelledNoConnectedPlayer
   deriving(Generic, Show, Eq)
 instance Binary GameStatus
 instance NFData GameStatus

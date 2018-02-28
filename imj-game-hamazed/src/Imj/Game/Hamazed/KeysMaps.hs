@@ -31,7 +31,7 @@ eventFromKey k = case k of -- TODO handle chat : when pressing Enter, swap betwe
       BackSpace  -> Just $ Evt $ ChatCmd DeleteBeforeEditingPosition
       AlphaNum c -> Just $ Evt $ ChatCmd $ Insert c
       Arrow dir  -> Just $ Evt $ ChatCmd $ Navigate dir
-      Enter      -> Just $ Evt $ SendChatMessage
+      Enter      -> Just $ Evt SendChatMessage
       _ -> Nothing
     NotEditing -> case k of
       AlphaNum 'y' -> return $ Just $ Evt CycleRenderingOptions
@@ -66,3 +66,4 @@ eventFromKey k = case k of -- TODO handle chat : when pressing Enter, swap betwe
                   _ -> Nothing) -- between level end and proposal to continue
                   <$> getLevelStatus
               Paused _ -> return Nothing
+              CancelledNoConnectedPlayer -> return Nothing

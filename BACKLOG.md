@@ -1,6 +1,3 @@
-- reconnection of single player : server should forget about the in-progress game once all players
-are disconected (TODO or keep a state of the game on the server?)
-
 - command line arg for screen size
 
 - compute bbox of all font's characters and deduce offset from that.

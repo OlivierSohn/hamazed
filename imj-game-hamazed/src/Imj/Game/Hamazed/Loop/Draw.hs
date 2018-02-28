@@ -87,6 +87,8 @@ drawStatus level ref = \case
     PlayLevel status -> case status of
       New ->
         inform "Waiting for game start..."
+      CancelledNoConnectedPlayer ->
+        inform "Game cancelled, all players left."
       Paused disconnectedPlayers ->
         inform $ pack $
           "Game paused, waiting for [" ++

@@ -320,7 +320,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
             newOpenGLBackend "Hamazed"
               (Coords 12 8) -- will be a command line arg when we have automatic font adaptation
               (Size 600 1400) -- TODO command line arg FullScreen / fixed size
-              >>= either error $ runWith debug queues srv player
+              >>= either error (runWith debug queues srv player)
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)

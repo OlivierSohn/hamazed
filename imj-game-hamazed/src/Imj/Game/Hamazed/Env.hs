@@ -31,7 +31,6 @@ instance Draw (Env x) where
   drawChars'     (Env a _ _) = drawChars'     a
   drawTxt'       (Env a _ _) = drawTxt'       a
   drawStr'       (Env a _ _) = drawStr'       a
-  changeFont'    (Env a _ _) = changeFont'       a
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE fill' #-}
@@ -39,7 +38,6 @@ instance Draw (Env x) where
   {-# INLINE drawChars' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
-  {-# INLINE changeFont' #-}
 
 -- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
 instance Canvas (Env x) where
@@ -48,12 +46,14 @@ instance Canvas (Env x) where
 
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
 instance Render (Env x) where
-  renderToScreen' (Env a _ _) = renderToScreen' a
+  renderToScreen'        (Env a _ _) = renderToScreen' a
+  cycleRenderingOptions' (Env a _ _) = cycleRenderingOptions' a
   {-# INLINE renderToScreen' #-}
+  {-# INLINE cycleRenderingOptions' #-}
 
 instance ClientNode (Env x) where
   sendToServer' (Env _ _ q) = sendToServer' q
-  serverQueue (Env _ _ q) = serverQueue q
+  serverQueue   (Env _ _ q) = serverQueue q
   {-# INLINABLE sendToServer' #-}
   {-# INLINABLE serverQueue #-}
 

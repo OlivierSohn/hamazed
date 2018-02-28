@@ -61,7 +61,6 @@ instance Draw NaiveDraw where
     drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
-    changeFont' _ = return () -- not supported
     {-# INLINABLE drawChar' #-}
     {-# INLINABLE drawChars' #-}
     {-# INLINABLE drawTxt' #-}
@@ -69,7 +68,6 @@ instance Draw NaiveDraw where
     {-# INLINABLE getScissor' #-}
     {-# INLINABLE setScissor #-}
     {-# INLINABLE fill' #-}
-    {-# INLINABLE changeFont' #-}
 
 instance Canvas NaiveDraw where
     getTargetSize' _         = return Nothing
@@ -82,4 +80,6 @@ instance Render NaiveDraw where
                                         >> setCursorPosition 0 0
                                         >> clearFromCursorToScreenEnd
                                         >> return (zeroDuration, zeroDuration, zeroDuration)
+    cycleRenderingOptions' _ = return () -- not supported
     {-# INLINABLE renderToScreen' #-}
+    {-# INLINABLE cycleRenderingOptions' #-}

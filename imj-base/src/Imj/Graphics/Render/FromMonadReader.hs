@@ -11,7 +11,7 @@ module Imj.Graphics.Render.FromMonadReader
        , drawStr
        , drawColorStr
        , drawMultiLineStr
-       , changeFont
+       , cycleRenderingOptions
        , getTargetSize
        , renderToScreen
        -- * Reexports
@@ -126,10 +126,10 @@ drawChar c co la = do
   d c co la
 
 
-{-# INLINABLE changeFont #-}
-changeFont :: (Draw e, MonadReader e m, MonadIO m) => m ()
-changeFont =
-  join $ asks changeFont'
+{-# INLINABLE cycleRenderingOptions #-}
+cycleRenderingOptions :: (Render e, MonadReader e m, MonadIO m) => m ()
+cycleRenderingOptions =
+  join $ asks cycleRenderingOptions'
 
 
 {-# INLINABLE getTargetSize #-}

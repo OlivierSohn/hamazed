@@ -36,7 +36,7 @@ import           Imj.Graphics.Text.ColorString
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
-updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, ClientNode e, MonadIO m)
+updateAppState :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
                => UpdateEvent
                -- ^ The 'Event' that should be handled here.
                -> m ()
@@ -46,7 +46,7 @@ updateAppState (Right evt) = case evt of
   Configuration c ->
     updateGameParamsFromChar c
   CycleRenderingOptions ->
-    changeFont
+    cycleRenderingOptions
   EndLevel outcome -> do
     sendToServer $ ExitedState $ PlayLevel Running
     sendToServer $ LevelEnded outcome

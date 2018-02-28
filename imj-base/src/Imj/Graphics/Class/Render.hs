@@ -20,6 +20,9 @@ screen.
 It is left to the implementation to decide wether to clear the screen or not (after a
 'renderToScreen' for example), and with which color. -}
 class (Draw e) => Render e where
+  -- | Change the font used to render text.
+  cycleRenderingOptions' :: (MonadIO m) => e -> m ()
+
   -- | Render to the screen.
   --
   -- Returns:

@@ -48,7 +48,6 @@ instance Draw DeltaEnv where
   drawChars'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
-  changeFont'    (DeltaEnv a _ _ f)         = liftIO $ f >> deltaForgetFrontValues a
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
@@ -56,7 +55,6 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawChars' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
-  {-# INLINABLE changeFont' #-}
 
 instance Canvas DeltaEnv where
   getTargetSize' (DeltaEnv _ _ s _)         = liftIO s
@@ -64,8 +62,10 @@ instance Canvas DeltaEnv where
 
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
-  renderToScreen' (DeltaEnv a b c _)         = liftIO $ deltaFlush     a b c
+  renderToScreen' (DeltaEnv a b c _)        = liftIO $ deltaFlush     a b c
+  cycleRenderingOptions' (DeltaEnv a _ _ f) = liftIO $ f >> deltaForgetFrontValues a
   {-# INLINABLE renderToScreen' #-}
+  {-# INLINABLE cycleRenderingOptions' #-}
 
 
 class DeltaRenderBackend a where

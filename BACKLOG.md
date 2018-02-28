@@ -1,18 +1,19 @@
+- Use 2 fonts, one (bigger) for game UI (ships, numbers, walls, frame)
+and one for text messages (player names, chat)
+
+the difference in the 2 is the number of chars we use to compute the bounding box:
+for the game font, we just pass the chars used to draw game elements ( _ | - = + 0-9 a-f Z T )
+  maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
+  maybe we need to move + and - to make them be in the center.
+  maybe we need 2 different fonts (not only size) altogether : _ will look strange in messages ?
+for text messages, we pass all chars of the font, so that users can use any char of the font.
+
+add a notion of "Game element" / "Text" to a drawn cell, to know which font to use.
+Use the high bits of characters which are unicode points, and max at OX10FFFF (11 high bits are available)
+
 - command line arg for screen size
-
-- compute bbox of all font's characters and deduce offset from that.
-If bbox is too big for ppu, reduce the size of the font and retry.
-
-analyze which is the biggest glyph and see if it should be reshaped.
-  - see if + can be centered
-
-- if player uses name j, then changes to f, a residual pixel is seen on the lower part of j.
-Maybe, in delta rendering, we should force rendering surrounding locations if we suspect the character
-overlaps. Note that this could lead to duplicates in the "vector of stuff to render" so maybe we need to sort/unique
-it, before sending it (today it's sorted in console backend only, and that doesn't remove duplicates I think).
-
-And in opengl rendering we should render all backgrounds first, then all foregrounds to avoid cases where a background
-erases a too large glyph.
+ for full screen, we will need to adapt the logic because we can't guarantee that the screen size
+ will be a multiple of unit size.
 
 - replace unboxed by Storable?
 

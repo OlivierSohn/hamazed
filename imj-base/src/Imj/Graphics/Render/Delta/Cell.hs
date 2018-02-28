@@ -72,12 +72,13 @@ expandIndexed w =
   ,getIndex w
   ,getCharacter w)
 
--- The memory layout is such that when sorted with 'compare', the order of
--- importance of fields is (by decreasing importance) :
+-- The memory layout is such that when sorted with 'compare', the cells will be ordered
+-- according to fields (listed by decreasing precedence):
 --     backgroundColor (8 bits)
 --     foregroundColor (8 bits)
 --     index in buffer (16 bits)
---     character       (32 bits)
+--     character       (32 bits) (note that due to unicode code range, the max is OX10FFFF.
+--                               (the 11 high bits are then free for future use)
 {-# INLINE mkIndexedCell #-}
 mkIndexedCell :: Cell -> Dim BufferIndex -> Cell
 mkIndexedCell cell idx' =

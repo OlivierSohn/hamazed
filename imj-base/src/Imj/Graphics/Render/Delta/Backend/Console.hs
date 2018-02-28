@@ -40,7 +40,7 @@ instance DeltaRenderBackend ConsoleBackend where
   cleanup _ =
     liftIO $ configureConsoleFor Editing LineBuffering
   cycleRenderingOption _ =
-    return ()
+    return $ Right ()
   getDiscreteSize _ =
     liftIO $
       maybe

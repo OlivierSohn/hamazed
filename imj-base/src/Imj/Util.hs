@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Util
     ( -- * List utilities
@@ -15,6 +16,7 @@ module Imj.Util
     , randomRsIO
     , clamp
     , zigzag
+    , lastAbove
     -- * Reexports
     , Int64
     ) where
@@ -151,3 +153,46 @@ clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
+
+
+{- | Given :
+
+* a discrete input interval @[i,j]@
+* a /decreasing/ monadic function @f :: (Ord y) => Int -> m y@
+* an output value @y@
+
+finds @x@ in @[i,j]@ such that :
+
+* @f(x) > y@
+* @y >= f(x+1)@ or @x == j@
+
+The time complexity is O(log(j-i)).
+-}
+lastAbove :: (Monad m, Ord y)
+          => y
+          -- ^ Output value
+          -> (Int -> m y)
+          -- ^ Decreasing function
+          -> Int
+          -- ^ Inclusive min bound
+          -> Int
+          -- ^ Inclusive max bound
+          -> m (Maybe Int)
+lastAbove threshold f minIdx maxIdx =
+  go (pred minIdx) (succ maxIdx) Nothing -- TODO refactor to first test extremities?
+ where
+  go tooLow tooHigh res
+    -- stop when the admissible range is empty:
+    | tooLow >= pred tooHigh = return res
+    | otherwise = f x >>= \middleValue ->
+        if middleValue > threshold
+          then
+            -- adjust the "best" index found, adjust the lower bound to that index and continue the search.
+            go x tooHigh $ Just $ maybe x (max x) res
+          else
+            -- adjust the upper bound to that index (we assume that
+            -- if 'condition i' is not satisfied, then for every j > i, condition j is not satisfied)
+            -- and continue the search.
+            go tooLow x res
+      where
+        x = quot (tooLow + tooHigh) 2

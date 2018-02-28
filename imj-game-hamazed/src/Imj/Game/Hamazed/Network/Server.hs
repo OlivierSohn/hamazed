@@ -15,7 +15,7 @@ module Imj.Game.Hamazed.Network.Server
       , defaultPort
       ) where
 
-import           Imj.Prelude hiding(intercalate, concat)
+import           Imj.Prelude hiding(intercalate)
 import qualified Imj.Prelude as Prel (intercalate)
 
 import           Control.Concurrent(threadDelay, forkIO)

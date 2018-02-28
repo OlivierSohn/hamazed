@@ -36,7 +36,7 @@ data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
   , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
   , _deltaEnvTargetSize :: !(IO (Maybe Size))
-  , _deltaEnvCycleRenderingOptions :: !(IO ())
+  , _deltaEnvCycleRenderingOptions :: !(IO (Either String ()))
 }
 
 -- | Draws using the delta rendering engine.
@@ -73,7 +73,7 @@ class DeltaRenderBackend a where
     render :: (MonadIO m) => a -> Delta -> Dim Width -> m (Time Duration System, Time Duration System)
     cleanup :: (MonadIO m) => a -> m ()
     getDiscreteSize :: (MonadIO m) => a -> m (Maybe Size)
-    cycleRenderingOption :: (MonadIO m) => a -> m ()
+    cycleRenderingOption :: (MonadIO m) => a -> m (Either String ())
 
     withPolicies :: (MonadIO m)
                  => Maybe ResizePolicy

@@ -28,6 +28,7 @@ import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, accessUnderlying, length)
 
+import           Imj.Geo.Continuous.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font
@@ -36,6 +37,7 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
+import           Imj.Util
 
 charCallback :: TQueue Key -> GLFW.Window -> Char -> IO ()
 charCallback q _ c = atomically $ writeTQueue q $ AlphaNum c
@@ -79,7 +81,7 @@ data RenderingOptions = RenderingOptions {
 
 data Font = Font {
     _ftglFont :: {-# UNPACK #-} !FTGL.Font
-  , _offset :: {-# UNPACK #-} !(Coords Pos)
+  , _offset :: {-# UNPACK #-} !(Vec2 Pos)
 } deriving(Generic, Show, NFData)
 
 instance PrettyVal RenderingOptions where
@@ -97,7 +99,12 @@ instance DeltaRenderBackend OpenGLBackend where
     cleanup (OpenGLBackend win _ _ _ _) = liftIO $ destroyWindow win
 
     cycleRenderingOption (OpenGLBackend _ _ ppu _ mRO) =
-      liftIO $ void( readMVar mRO >>= cycleRenderingOptions ppu >>= swapMVar mRO )
+      liftIO $
+        readMVar mRO >>= cycleRenderingOptions ppu >>= either
+          (return . Left)
+          (\v -> do
+              void $ swapMVar mRO v
+              return $ Right ())
 
     getDiscreteSize (OpenGLBackend _ _ (Coords ppuH ppuW) (Size h w) _) =
       return $ Just $ Size (fromIntegral $ quot (fromIntegral h) ppuH)
@@ -138,7 +145,7 @@ floorToPPUMultiple (Size (Length h) (Length w)) (Coords (Coord ppuH) (Coord ppuW
  where
   f ppu l = ppu * quot l ppu
 
-newOpenGLBackend :: String -> PPU -> Size -> IO OpenGLBackend
+newOpenGLBackend :: String -> PPU -> Size -> IO (Either String OpenGLBackend)
 newOpenGLBackend title ppu s = do
   let simpleErrorCallback e x =
         putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
@@ -155,21 +162,26 @@ newOpenGLBackend title ppu s = do
   GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
   GLFW.pollEvents -- this is necessary to show the window
-  ro <- RenderingOptions 0 AllFont <$> createFont 0 ppu
-  OpenGLBackend win keyEventsChan ppu size <$> newMVar ro
+  createFont 0 ppu >>= either
+    (return . Left)
+    (\font -> Right . OpenGLBackend win keyEventsChan ppu size <$>
+        newMVar (RenderingOptions 0 AllFont font))
 
-cycleRenderingOptions :: PPU -> RenderingOptions -> IO RenderingOptions
+
+cycleRenderingOptions :: PPU -> RenderingOptions -> IO (Either String RenderingOptions)
 cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
   let newRo = case rs of
         AllFont -> HexDigitAsBits
         HexDigitAsBits -> AllFont
       newIdx = succ idx
       (q,r) = quotRem newIdx 2
-      l = length fontFiles
-  RenderingOptions newIdx newRo
-    <$> if 0 == r && l > 1
-          then createFont (q `mod` l) ppu
-          else return font
+      nFonts = length fontFiles
+  fmap (RenderingOptions newIdx newRo)
+    <$> if 0 == r && nFonts > 1
+          then
+            createFont (q `mod` nFonts) ppu
+          else
+            return $ Right font
 
 withTempFontFile :: Int -> (String -> IO a) -> IO a
 withTempFontFile fontIdx act =
@@ -179,27 +191,50 @@ withTempFontFile fontIdx act =
     writeFile filePath (fontFiles!!fontIdx)
     act filePath
 
-createFont :: Int -> PPU -> IO Font
-createFont idx ppu@(Coords ppuH _) =
-  withTempFontFile idx $ \filePath -> do
-    --font <- FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
-    font <- FTGL.createPixmapFont filePath
-    -- the creation methods that "don't work" (i.e need to use matrix positionning?)
-    --font <- FTGL.createTextureFont filePath
-    --font <- FTGL.createBufferFont filePath
-    --font <- FTGL.createOutlineFont filePath
-    --font <- FTGL.createPolygonFont filePath
-    --font <- FTGL.createTextureFont filePath
-    --font <- FTGL.createExtrudeFont filePath
+createFont :: Int -> PPU -> IO (Either String Font)
+createFont i ppu@(Coords ppuH _) =
+  loadFont i >>= \font ->
+  if font == nullPtr
+    then
+      return $ Left "nullPtr"
+  else do
+    let maxFontSize = 2 * fromIntegral ppuH
+        minFontSize = 4 -- else we can't distinguish characters? (TODO fine tune)
+        setSize x =
+          FTGL.setFontFaceSize font x 72 >>= \err -> do
+            when (err /= 1) $ -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
+              error $ "setFontFaceSize failed: " ++ show (x, err)
+            -- verify that we can reliably use 'FTGL.getFontFaceSize' as indicator of the last set size:
+            s <- FTGL.getFontFaceSize font
+            when (s /= x) $
+              error $ "Font sizes mismatch: " ++ show (s, x)
+        condition x = do
+          setSize x
+          fontOffset font ppu >>= \(Vec2 rowOffset colOffset) ->
+            return $ rowOffset > -0.25 && colOffset > -0.25 -- TODO why is -0.5 not working? it should take rasterization into account
 
-    when (font == nullPtr) $
-      error $ "error loading font : " ++ filePath
-    FTGL.setFontFaceSize font (fromIntegral ppuH) 72 >>= \err ->
-      if err == 1 -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
-        then
-          Font font <$> fontOffset font ppu
-        else
-          error $ "setFontFaceSize failed: " ++ show (ppuH, err)
+    -- find the max font size such that the 'Z' glyph will be strictly contained
+    -- in a unit rectangle.
+    lastAbove False condition minFontSize maxFontSize >>= maybe
+      (return $ Left $ "ppu is probably too small:" ++ show ppu)
+      (\optimalSize -> do
+          FTGL.getFontFaceSize font >>= \curSize ->
+            -- maybe 'optimalSize' was not the last condition checked, in that case we set it again:
+            when (curSize /= optimalSize) $ setSize optimalSize
+          Right . Font font <$> fontOffset font ppu)
+
+
+loadFont :: Int -> IO FTGL.Font
+loadFont i = withTempFontFile i $ \filePath ->
+    --FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
+    FTGL.createPixmapFont filePath
+    -- the creation methods that "don't work" (i.e need to use matrix positionning?)
+    --FTGL.createTextureFont filePath
+    --FTGL.createBufferFont filePath
+    --FTGL.createOutlineFont filePath
+    --FTGL.createPolygonFont filePath
+    --FTGL.createTextureFont filePath
+    --FTGL.createExtrudeFont filePath
 
 -- |
 -- @
@@ -246,14 +281,11 @@ createFont idx ppu@(Coords ppuH _) =
 -- * glyph{X|Y}{Min|Max} are retrieved using @FTGL.getFontBBox@.
 --
 -- Note that we use the /same/ offset for every character, to preserve font aspect.
-fontOffset :: FTGL.Font -> PPU -> IO (Coords Pos)
+fontOffset :: FTGL.Font -> PPU -> IO (Vec2 Pos)
 fontOffset font (Coords ppuH ppuW) =
-  -- Ideally, (TODO) we should use the max of the bounding box of all characters in the font,
-  -- to compute glyph{X|Y}{Min|Max}. If we use just the bounding box of 'Z' for example, 'a' pixels
-  -- may overlapp with the lower adjacent unit rectangle (in the font I use, 'a' goes lower than 'Z').
   FTGL.getFontBBox font "Z" >>= \case
-    [xmin,ymin,_,xmax,ymax,_] -> -- TODO verify that the bboxes don't exceed ppu, if it is the case, reduce the font size and retry (binary search)
-      return $ Coords (round y) (round x)
+    [xmin,ymin,_,xmax,ymax,_] ->
+      return $ Vec2 y x
       where
         x = (fromIntegral ppuW - xmax - xmin) / 2
         y = (fromIntegral ppuH - ymax - ymin) / 2
@@ -360,12 +392,12 @@ draw ppu size font rs col row char bg fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
-renderChar (Font font (Coords offsetRow offsetCol)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
+renderChar (Font font (Vec2 offsetRow offsetCol)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
   let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
       -- with 6,5 there are leftovers on top of pipe, with 4 it's below.
-      unitRow x = -1 + fromIntegral offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)
-      unitCol x = -1 + fromIntegral offsetCol * 2 / fromIntegral winWidth  + unit (fromIntegral winWidth)  ppuW * x
+      unitRow x = -1 + offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)
+      unitCol x = -1 + offsetCol * 2 / fromIntegral winWidth  + unit (fromIntegral winWidth)  ppuW * x
   -- The present raster color is locked by the use glRasterPos*()
   -- <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>
   --

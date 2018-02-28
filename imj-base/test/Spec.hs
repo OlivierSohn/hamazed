@@ -40,4 +40,5 @@ main = do
                    ) NaiveDraw
   --testEase
   testMutableBytestring
+  testLastAbove
   return ()

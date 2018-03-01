@@ -8,6 +8,7 @@ import           Test.Imj.Bresenham2
 import           Test.Imj.Bresenham3
 import           Test.Imj.Color
 --import           Test.Imj.Ease
+import           Test.Imj.Font
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
 import           Test.Imj.StdoutBuffer
@@ -41,4 +42,5 @@ main = do
   --testEase
   testMutableBytestring
   testLastAbove
+  testFont
   return ()

@@ -164,6 +164,7 @@ test-suite imj-base-test
                      , Test.Imj.Bresenham3
                      , Test.Imj.Color
                      , Test.Imj.Ease
+                     , Test.Imj.Font
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
                      , Test.Imj.StdoutBuffer
@@ -180,6 +181,7 @@ test-suite imj-base-test
                      , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers >= 0.5.9.2
+                     , FTGL ==2.1.*
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3

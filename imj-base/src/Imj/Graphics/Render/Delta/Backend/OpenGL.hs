@@ -13,13 +13,10 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Prelude
 import           Prelude(putStrLn, length)
 
-import           System.IO.Temp(withSystemTempDirectory)
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Char(isHexDigit, digitToInt)
-import           Data.ByteString(writeFile)
-import           Foreign.Ptr(nullPtr)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
@@ -37,7 +34,6 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
-import           Imj.Util
 
 charCallback :: TQueue Key -> GLFW.Window -> Char -> IO ()
 charCallback q _ c = atomically $ writeTQueue q $ AlphaNum c
@@ -62,16 +58,6 @@ data OpenGLBackend = OpenGLBackend {
   , _fonts :: {-# UNPACK #-} !(MVar RenderingOptions)
   -- ^ Mutable rendering options
 }
-
--- | Pixels per units, in vertical and horizontal directions.
--- Both should be even, because we divide them by 2
--- to draw numbers in binary representation.
-type PPU = Coords Pos
-
-{-# INLINE half #-}
-half :: PPU -> PPU
-half (Coords h w) = Coords (quot h 2) (quot w 2)
-
 
 data RenderingOptions = RenderingOptions {
     _cycleIndex :: {-# UNPACK #-} !Int
@@ -132,13 +118,6 @@ glfwKeyToKey GLFW.Key'Down  = Arrow Down
 glfwKeyToKey GLFW.Key'Up    = Arrow Up
 glfwKeyToKey _ = Unknown
 
-floorToPPUMultiple :: Size -> PPU -> Size
-floorToPPUMultiple (Size (Length h) (Length w)) (Coords (Coord ppuH) (Coord ppuW)) =
-  Size (fromIntegral $ f ppuH h)
-       (fromIntegral $ f ppuW w)
- where
-  f ppu l = ppu * quot l ppu
-
 newOpenGLBackend :: String -> PPU -> Size -> IO (Either String OpenGLBackend)
 newOpenGLBackend title ppu s = do
   let simpleErrorCallback e x =
@@ -156,10 +135,10 @@ newOpenGLBackend title ppu s = do
   GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
   GLFW.pollEvents -- this is necessary to show the window
-  createFont 0 ppu >>= either
+  createFonts 0 ppu >>= either
     (return . Left)
-    (\font -> Right . OpenGLBackend win keyEventsChan ppu size <$>
-        newMVar (RenderingOptions 0 AllFont $ mkFonts font))
+    (\fonts -> Right . OpenGLBackend win keyEventsChan ppu size <$>
+        newMVar (RenderingOptions 0 AllFont fonts))
 
 
 cycleRenderingOptions :: PPU -> RenderingOptions -> IO (Either String RenderingOptions)
@@ -173,118 +152,9 @@ cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
   fmap (RenderingOptions newIdx newRo)
     <$> if 0 == r && nFonts > 1
           then
-            fmap mkFonts <$> createFont (q `mod` nFonts) ppu
+            createFonts (q `mod` nFonts) ppu
           else
             return $ Right fonts
-
-withTempFontFile :: Int -> (String -> IO a) -> IO a
-withTempFontFile fontIdx act =
-  withSystemTempDirectory "fontDir" $ \tmpDir -> do
-    let filePath = tmpDir ++ "/font" ++ show fontIdx ++ ".ttf"
-    -- we don't bother closing the file, it will be done by withSystemTempDirectory
-    writeFile filePath (fontFiles!!fontIdx)
-    act filePath
-
-createFont :: Int -> PPU -> IO (Either String Font)
-createFont i ppu@(Coords ppuH _) =
-  loadFont i >>= \font ->
-  if font == nullPtr
-    then
-      return $ Left "nullPtr"
-  else do
-    let maxFontSize = 2 * fromIntegral ppuH
-        minFontSize = 4 -- else we can't distinguish characters? (TODO fine tune)
-        setSize x =
-          FTGL.setFontFaceSize font x 72 >>= \err -> do
-            when (err /= 1) $ -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
-              error $ "setFontFaceSize failed: " ++ show (x, err)
-            -- verify that we can reliably use 'FTGL.getFontFaceSize' as indicator of the last set size:
-            s <- FTGL.getFontFaceSize font
-            when (s /= x) $
-              error $ "Font sizes mismatch: " ++ show (s, x)
-        condition x = do
-          setSize x
-          fontOffset font ppu >>= \(Vec2 rowOffset colOffset) ->
-            return $ rowOffset > -0.25 && colOffset > -0.25 -- TODO why is -0.5 not working? it should take rasterization into account
-
-    -- find the max font size such that the 'Z' glyph will be strictly contained
-    -- in a unit rectangle.
-    lastAbove False condition minFontSize maxFontSize >>= maybe
-      (return $ Left $ "ppu is probably too small:" ++ show ppu)
-      (\optimalSize -> do
-          FTGL.getFontFaceSize font >>= \curSize ->
-            -- maybe 'optimalSize' was not the last condition checked, in that case we set it again:
-            when (curSize /= optimalSize) $ setSize optimalSize
-          Right . Font font <$> fontOffset font ppu)
-
-
-loadFont :: Int -> IO FTGL.Font
-loadFont i = withTempFontFile i $ \filePath ->
-    --FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
-    FTGL.createPixmapFont filePath
-    -- the creation methods that "don't work" (i.e need to use matrix positionning?)
-    --FTGL.createTextureFont filePath
-    --FTGL.createBufferFont filePath
-    --FTGL.createOutlineFont filePath
-    --FTGL.createPolygonFont filePath
-    --FTGL.createTextureFont filePath
-    --FTGL.createExtrudeFont filePath
-
--- |
--- @
--- .----------------.
--- |                |
--- |   .--------.   |  < glyph y max
--- |   |=======,|   |
--- |   |     // |   |
--- |   |   //   |   |
--- |   | //     |   |
--- |   |/=======|   |
--- |   .--------.   |  < glyph y min
--- |  R             |  < glyph y ref = 0
--- .----------------.
---    ^ ^       ^
---    | |       glyph x max
---    | glyph x min
---    glyph x ref = 0
---
--- /outer/ rectangle = unit rectangle
--- /inner/ rectangle = glyph aabb
--- @
---
--- In the drawing above, @R@ represents the glyph ref position.
---
--- We want to determine the position of @R@, relatively to the unit rectangle,
--- such that 'Z' is centered in the unit rectangle:
---
--- @
--- ppuW - (Rx + glyphXMax) = Rx + glyphXMin  -- centered horizontally
--- ppuH - (Ry + glyphYMax) = Ry + glyphYMin  -- centered vertically
--- @
---
--- Hence,
---
--- @
--- Rx = (ppuW - glyphXMax - glyphXMin) / 2
--- Ry = (ppuH - glyphYMax - glyphYMin) / 2
--- @
---
--- where values on the right of @=@ are known:
---
--- * ppuH, ppuW are specified by command line arguments,
--- * glyph{X|Y}{Min|Max} are retrieved using @FTGL.getFontBBox@.
---
--- Note that we use the /same/ offset for every character, to preserve font aspect.
-fontOffset :: FTGL.Font -> PPU -> IO (Vec2 Pos)
-fontOffset font (Coords ppuH ppuW) =
-  FTGL.getFontBBox font "Z" >>= \case
-    [xmin,ymin,_,xmax,ymax,_] ->
-      return $ Vec2 y x
-      where
-        x = (fromIntegral ppuW - xmax - xmin) / 2
-        y = (fromIntegral ppuH - ymax - ymin) / 2
-    other -> error $ "invalid font bbox:" ++ show other
-
 
 createWindow :: Size -> String -> IO GLFW.Window
 createWindow (Size (Length height) (Length width)) title = do
@@ -388,7 +258,7 @@ draw ppu size font rs col row char bg fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
-renderChar (Font font (Vec2 offsetRow offsetCol)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
+renderChar (Font font (Vec2 offsetCol offsetRow)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
   let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
       -- with 6,5 there are leftovers on top of pipe, with 4 it's below.

@@ -1,3 +1,6 @@
+- In infos, the shot numbers and objective number should be printed using game glyphs, to be bigger.
+  so we need Glyphs in ColorString.
+
 - if performance matters here,
 put Glyph in Number and Ship.
 maybe in ColorString, too? (instead of Text)

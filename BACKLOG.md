@@ -1,5 +1,5 @@
 - In infos, the shot numbers and objective number should be printed using game glyphs, to be bigger.
-  so we need Glyphs in ColorString.
+  so we need Glyphs in ColorString. note that cell has color info, and glyph info : it might be what we need.
 
 - if performance matters here,
 put Glyph in Number and Ship.

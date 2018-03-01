@@ -24,6 +24,7 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.ParticleSystem.Design.Timing
 
@@ -57,4 +58,4 @@ destroyedNumberParticleSystems k shipId laserSpeed (Number (PosSpeed pos _) n) =
     return
       $ map (Prioritized particleSystDefaultPriority)
       $ catMaybes [expandShrinkPolygon n pos color' (Speed 1) envFuncs k]
-       ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos color (intToDigit n) (Speed 2) envFuncs k)
+       ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos color (gameGlyph $ intToDigit n) (Speed 2) envFuncs k)

@@ -76,14 +76,8 @@ half (Coords h w) = Coords (quot h 2) (quot w 2)
 data RenderingOptions = RenderingOptions {
     _cycleIndex :: {-# UNPACK #-} !Int
   , _style :: {-unpack sum-} !RenderingStyle
-  , _font :: !Font
+  , _getFonts :: !Fonts
 } deriving(Generic, Show, NFData)
-
-data Font = Font {
-    _ftglFont :: {-# UNPACK #-} !FTGL.Font
-  , _offset :: {-# UNPACK #-} !(Vec2 Pos)
-} deriving(Generic, Show, NFData)
-
 instance PrettyVal RenderingOptions where
   prettyVal opt = prettyVal ("RenderingOptions:", show opt)
 
@@ -93,8 +87,8 @@ data RenderingStyle = AllFont
 
 instance DeltaRenderBackend OpenGLBackend where
     render (OpenGLBackend win _ ppu size mFont) d w =
-      liftIO $ readMVar mFont >>= \(RenderingOptions _ rs font) ->
-        deltaRenderOpenGL win ppu size font rs d w
+      liftIO $ readMVar mFont >>= \(RenderingOptions _ rs fonts) ->
+        deltaRenderOpenGL win ppu size fonts rs d w
 
     cleanup (OpenGLBackend win _ _ _ _) = liftIO $ destroyWindow win
 
@@ -165,11 +159,11 @@ newOpenGLBackend title ppu s = do
   createFont 0 ppu >>= either
     (return . Left)
     (\font -> Right . OpenGLBackend win keyEventsChan ppu size <$>
-        newMVar (RenderingOptions 0 AllFont font))
+        newMVar (RenderingOptions 0 AllFont $ mkFonts font))
 
 
 cycleRenderingOptions :: PPU -> RenderingOptions -> IO (Either String RenderingOptions)
-cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
+cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
   let newRo = case rs of
         AllFont -> HexDigitAsBits
         HexDigitAsBits -> AllFont
@@ -179,9 +173,9 @@ cycleRenderingOptions ppu (RenderingOptions idx rs font) = do
   fmap (RenderingOptions newIdx newRo)
     <$> if 0 == r && nFonts > 1
           then
-            createFont (q `mod` nFonts) ppu
+            fmap mkFonts <$> createFont (q `mod` nFonts) ppu
           else
-            return $ Right font
+            return $ Right fonts
 
 withTempFontFile :: Int -> (String -> IO a) -> IO a
 withTempFontFile fontIdx act =
@@ -320,14 +314,14 @@ destroyWindow win = do
 deltaRenderOpenGL :: GLFW.Window
                   -> PPU
                   -> Size
-                  -> Font
+                  -> Fonts
                   -> RenderingStyle
                   -> Delta
                   -> Dim Width
                   -> IO (Time Duration System, Time Duration System)
-deltaRenderOpenGL _ ppu size font rs (Delta delta) w = do
+deltaRenderOpenGL _ ppu size fonts rs (Delta delta) w = do
   t1 <- getSystemTime
-  renderDelta ppu size font rs delta w
+  renderDelta ppu size fonts rs delta w
   t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
@@ -337,12 +331,12 @@ deltaRenderOpenGL _ ppu size font rs (Delta delta) w = do
 
 renderDelta :: PPU
             -> Size
-            -> Font
+            -> Fonts
             -> RenderingStyle
             -> Dyn.IOVector Cell
             -> Dim Width
             -> IO ()
-renderDelta ppu size font rs delta' w = do
+renderDelta ppu size fonts rs delta' w = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
@@ -351,7 +345,9 @@ renderDelta ppu size font rs delta' w = do
        | fromIntegral sz == index = return ()
        | otherwise = do
           c <- read delta $ fromIntegral index
-          let (bg, fg, idx, char) = expandIndexed c
+          let (bg, fg, idx, glyph) = expandIndexed c
+              (char,fontIndex) = decodeGlyph glyph
+              font = lookupFont fontIndex fonts
               (x,y) = xyFromIndex w idx
           draw ppu size font rs x y char bg fg
           renderDelta' $ succ index

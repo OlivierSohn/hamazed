@@ -13,6 +13,7 @@ import qualified Prelude(length)
 import qualified Data.Text as Text(length)
 
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Render.FromMonadReader
 
@@ -22,8 +23,8 @@ class UncoloredTextual a where
               => a -> Coords Pos -> LayeredColor -> m ()
   textLength :: a -> Length Width
 
-instance UncoloredTextual Char where
-  drawTextual = drawChar
+instance UncoloredTextual Glyph where
+  drawTextual = drawGlyph
   textLength _ = 1
   {-# INLINABLE drawTextual #-}
   {-# INLINABLE textLength #-}

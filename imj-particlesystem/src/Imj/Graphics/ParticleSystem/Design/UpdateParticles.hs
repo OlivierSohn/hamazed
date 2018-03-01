@@ -17,6 +17,7 @@ import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Iteration
 import           Imj.Physics.Discrete.Collision
 import           Imj.Physics.Continuous.Types
@@ -80,8 +81,9 @@ updatePointsAndMutateIfNeeded
         mkParticles
           (assert (interaction (vec2pos rootPos) == Stable || error (show rootPos)) root)
           frame
+      space = textGlyph ' '
       defaultState = map (\(Particle canInteract _ _ _) ->
-                            Right $ Particle canInteract root ' ' whiteOnBlack)
+                            Right $ Particle canInteract root space whiteOnBlack)
                         particles
       previousState = fromMaybe defaultState branches
       -- if previousState contains only Left(s), the animation does not need to be computed.

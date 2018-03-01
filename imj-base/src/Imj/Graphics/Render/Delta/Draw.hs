@@ -26,6 +26,7 @@ import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSl
 import           Imj.Geo.Discrete
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Buffers
@@ -37,16 +38,16 @@ import           Imj.Graphics.UI.RectArea
 {-# INLINABLE deltaDrawChar #-}
 -- | Draw a 'Char'
 deltaDrawChar :: IORef Buffers
-              -> Char
+              -> Glyph
               -> Coords Pos
               -- ^ Location
               -> LayeredColor
               -- ^ Background and foreground colors
               -> IO ()
-deltaDrawChar ref c pos colors =
+deltaDrawChar ref glyph pos colors =
   readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
     let size = fromIntegral $ length b
-    writeToBack back (indexFromPos size width scissor pos) (mkCell colors c)
+    writeToBack back (indexFromPos size width scissor pos) (mkCell colors glyph)
 
 
 {-# INLINABLE deltaDrawChars #-}
@@ -57,15 +58,15 @@ deltaDrawChar ref c pos colors =
 deltaDrawChars :: IORef Buffers
                -> Int
                -- ^ Number of chars to draw
-               -> Char
+               -> Glyph
                -> Coords Pos
                -- ^ Location of left-most 'Char'
                -> LayeredColor
                -- ^ Background and foreground colors
                -> IO ()
-deltaDrawChars ref count c pos colors =
+deltaDrawChars ref count glyph pos colors =
   readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-    let cell = mkCell colors c
+    let cell = mkCell colors glyph
         size = fromIntegral $ length b
     mapM_
       (\i -> writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) cell)
@@ -85,7 +86,7 @@ deltaDrawStr ref str pos colors =
     let size = fromIntegral $ length b
     mapM_
       (\(c, i) ->
-          writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) (mkCell colors c))
+          writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) (mkCell colors $ textGlyph c)) -- TODO look at core and see if the colors is encoded n (or 1) times
       $ zip str [0..]
 
 {-# INLINABLE deltaDrawTxt #-}
@@ -100,8 +101,8 @@ deltaDrawTxt :: IORef Buffers
 deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 
 -- | Fills the scissor area with a colored char.
-deltaFill :: IORef Buffers -> Char -> LayeredColor -> IO ()
-deltaFill ref c color =
+deltaFill :: IORef Buffers -> Glyph -> LayeredColor -> IO ()
+deltaFill ref glyph color =
   readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
     let height = getBufferHeight width $ fromIntegral $ length b
         drawableArea =
@@ -109,7 +110,7 @@ deltaFill ref c color =
         region@(RectArea (Coords r1 c1) (Coords r2 c2)) =
           intersection scissor drawableArea
         nCells = 1 + fromIntegral (c2 - c1)
-        cell = mkCell color c
+        cell = mkCell color glyph
     unless (isEmpty region) $
       mapM_
         (\r -> do
@@ -130,12 +131,12 @@ writeNToBack (Buffer b) pos n cell = do
   mapM_ (\i -> unsafeWrite b i cell) [startIdx..startIdx+n-1]
 
 -- | Fills the entire area with a colored char, doesn't take 'Scissor' into account.
-fill :: Char
+fill :: Glyph
      -> LayeredColor
      -> IORef Buffers
      -> IO ()
-fill char colors ref =
-  readIORef ref >>= flip fillBackBuffer (mkCell colors char)
+fill glyph colors ref =
+  readIORef ref >>= flip fillBackBuffer (mkCell colors glyph)
 
 
 fillBackBuffer :: Buffers

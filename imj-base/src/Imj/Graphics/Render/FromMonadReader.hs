@@ -5,8 +5,8 @@
 module Imj.Graphics.Render.FromMonadReader
        ( usingScissor
        , fill
-       , drawChar
-       , drawChars
+       , drawGlyph
+       , drawGlyphs
        , drawTxt
        , drawStr
        , drawColorStr
@@ -49,10 +49,10 @@ usingScissor v actions = do
 -- is in active at the moment.
 {-# INLINABLE fill #-}
 fill :: (Draw e, MonadReader e m, MonadIO m)
-     => Char -> LayeredColor -> m ()
-fill char col= do
+     => Glyph -> LayeredColor -> m ()
+fill g col= do
   d <- asks fill'
-  d char col
+  d g col
 
 -- | Draw a 'ColorString'.
 {-# INLINABLE drawColorStr #-}
@@ -104,26 +104,26 @@ drawStr str co la = do
 
 -- | Draws a 'Char' multiple times, starting at the given coordinates and then
 -- moving to the right.
-{-# INLINABLE drawChars #-}
-drawChars :: (Draw e, MonadReader e m, MonadIO m)
+{-# INLINABLE drawGlyphs #-}
+drawGlyphs :: (Draw e, MonadReader e m, MonadIO m)
           => Int
-          -> Char
+          -> Glyph
           -> Coords Pos
           -> LayeredColor
           -> m ()
-drawChars i c co la = do
-  d <- asks drawChars'
-  d i c co la
+drawGlyphs i g co la = do
+  d <- asks drawGlyphs'
+  d i g co la
 
-{-# INLINABLE drawChar #-}
-drawChar :: (Draw e, MonadReader e m, MonadIO m)
-         => Char
+{-# INLINABLE drawGlyph #-}
+drawGlyph :: (Draw e, MonadReader e m, MonadIO m)
+         => Glyph
          -> Coords Pos
          -> LayeredColor
          -> m ()
-drawChar c co la = do
-  d <- asks drawChar'
-  d c co la
+drawGlyph g co la = do
+  d <- asks drawGlyph'
+  d g co la
 
 
 {-# INLINABLE cycleRenderingOptions #-}

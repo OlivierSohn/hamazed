@@ -7,7 +7,7 @@ module Imj.Graphics.Class.Draw
     , Scissor
     , Canvas
       -- * Reexports
-    , Coords, Pos, LayeredColor
+    , Coords, Pos, LayeredColor, Glyph
     , MonadIO
     , HasRectArea
     ) where
@@ -22,17 +22,18 @@ import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.HasRectArea
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString
 
 
 type Scissor = RectArea (Filter Positive)
 
---'drawChars'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
---of 'drawChar', but the implementation would have been suboptimal in most cases.
+--'drawGlyphs'', 'drawTxt'' and 'drawStr'' could have been default-implemented in terms
+--of 'drawGlyph', but the implementation would have been suboptimal in most cases.
 {- | 'Draw' describes the ability to:
 
-* draw colored 'Char's, 'String's, 'Text's,
-* fill with a 'LayeredColor' and a 'Char',
+* draw colored 'Glyph's, 'String's, 'Text's,
+* fill with a 'LayeredColor' and a 'Glyph',
 * filter drawn locations using a 'Scissor'. -}
 class (Canvas e) => Draw e where
   -- | Sets the area defining where to draw.
@@ -47,12 +48,12 @@ class (Canvas e) => Draw e where
 
   -- | Fills the back buffer with the 'LayeredColor' (taking 'Scissor' into
   -- account if one is active)
-  fill' :: (MonadIO m) => e -> Char -> LayeredColor -> m ()
+  fill' :: (MonadIO m) => e -> Glyph -> LayeredColor -> m ()
 
-  -- | Draw a 'Char'.
-  drawChar' :: (MonadIO m) => e -> Char -> Coords Pos -> LayeredColor -> m ()
+  -- | Draw a 'Glyph'.
+  drawGlyph' :: (MonadIO m) => e -> Glyph -> Coords Pos -> LayeredColor -> m ()
   -- | Draw repeated chars.
-  drawChars' :: (MonadIO m) => e -> Int -> Char -> Coords Pos -> LayeredColor -> m ()
+  drawGlyphs' :: (MonadIO m) => e -> Int -> Glyph -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'Text'.
   drawTxt' :: (MonadIO m) => e -> Text -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'String'.

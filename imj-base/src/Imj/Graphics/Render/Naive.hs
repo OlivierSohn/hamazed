@@ -15,6 +15,7 @@ import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.UI.RectArea
 
 {- | FOR TESTS ONLY. For production, please use "Imj.Graphics.Render.Delta".
@@ -57,12 +58,12 @@ instance Draw NaiveDraw where
     fill'           _ _ c    = liftIO $ color c
                                       >> setCursorPosition 0 0
                                       >> clearFromCursorToScreenEnd
-    drawChar'      _ b c d   = liftIO $ move' c >> color d >> putChar b
-    drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
+    drawGlyph'      _ b c d   = liftIO $ move' c >> color d >> putChar (fst $ decodeGlyph b)
+    drawGlyphs'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b $ fst $ decodeGlyph c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
-    {-# INLINABLE drawChar' #-}
-    {-# INLINABLE drawChars' #-}
+    {-# INLINABLE drawGlyph' #-}
+    {-# INLINABLE drawGlyphs' #-}
     {-# INLINABLE drawTxt' #-}
     {-# INLINABLE drawStr' #-}
     {-# INLINABLE getScissor' #-}

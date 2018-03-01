@@ -87,6 +87,7 @@ computeDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _) 
       let i = fromIntegral idx
       valueToDisplay <- read backBuf i
       valueCurrentlyDisplayed <- read frontBuf i
+      -- TODO skip 2 space characters with the same background colors.
       when (valueToDisplay /= valueCurrentlyDisplayed) $ do
           write frontBuf i valueToDisplay
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx

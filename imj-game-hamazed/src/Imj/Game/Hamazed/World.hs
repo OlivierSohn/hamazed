@@ -138,6 +138,7 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation
@@ -237,7 +238,7 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
     world <- getWorld
     let space = getWorldSpace world
         laserTarget = afterEnd ray
-        char = materialChar Wall
+        glyph = materialGlyph Wall
     case location laserTarget space of
           InsideWorld -> return []
           OutsideWorld ->
@@ -255,7 +256,7 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                 screen <- getCurScreen
                 case scopedLocation world mode screen NegativeWorldContainer pos of
                     InsideWorld -> outerSpaceParticleSystems' NegativeWorldContainer pos
-                                    dir speedAttenuation nRebounds color char t
+                                    dir speedAttenuation nRebounds color glyph t
                     OutsideWorld -> return []
               else do
                 let color _fragment _level _frame =
@@ -266,7 +267,7 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                           cycleColors sumFrameParticleIndex (wall2 cycles) $ quot _frame 4
                     (speedAttenuation, nRebounds) = (0.4, 5)
                 outerSpaceParticleSystems' (WorldScope Wall) laserTarget
-                     dir speedAttenuation nRebounds color char t)
+                     dir speedAttenuation nRebounds color glyph t)
 
 outerSpaceParticleSystems' :: (MonadState AppState m)
                            => Scope
@@ -275,16 +276,16 @@ outerSpaceParticleSystems' :: (MonadState AppState m)
                            -> Float
                            -> Int
                            -> (Int -> Int -> Colorization)
-                           -> Char
+                           -> Glyph
                            -> Time Point ParticleSyst
                            -> m [Prioritized ParticleSystem]
-outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs char t = do
+outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nRebounds colorFuncs glyph t = do
   envFuncs <- envFunctions scope
   let speed = scalarProd 0.8 $ speed2vec $ coordsForDirection dir
   return
     $ map (Prioritized particleSystDefaultPriority)
     $ fragmentsFreeFallWithReboundsThenExplode
-      speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs char
+      speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs glyph
       (Speed 1) envFuncs t
 
 laserParticleSystems :: (MonadState AppState m)

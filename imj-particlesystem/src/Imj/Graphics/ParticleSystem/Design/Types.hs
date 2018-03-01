@@ -25,6 +25,7 @@ import           Imj.Prelude
 
 import           Imj.Iteration
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Geo.Discrete.Types
 import           Imj.Physics.Continuous.Types
@@ -101,7 +102,7 @@ data Particle = Particle {
     -- ^ Can the particle interact with the environment?
   , _particleVecPosSpeed :: {-# UNPACK #-} !VecPosSpeed
     -- ^ Continuous location and speed, w.r.t the particle system reference frame.
-  , _particleDrawnWith :: {-# UNPACK #-} !Char
+  , _particleDrawnWith :: {-# UNPACK #-} !Glyph
     -- ^ The char used to draw the particle.
   , _particleColor :: {-# UNPACK #-} !LayeredColor
   -- ^ The color used to draw the particle.

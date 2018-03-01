@@ -24,6 +24,7 @@ import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, unstableSort, accessUnderlying, length)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
@@ -143,10 +144,10 @@ renderDelta delta' w b = do
           return whiteOnBlack -- this value is not used
        | otherwise = do
           c <- read delta $ fromIntegral index
-          let (bg, fg, idx, char) = expandIndexed c
+          let (bg, fg, idx, glyph) = expandIndexed c
               prevRendered = (== Just (pred idx)) prevIndex
           setCursorPositionIfNeeded w idx prevRendered b
-          usedColor <- renderCell bg fg char prevColors b
+          usedColor <- renderCell bg fg glyph prevColors b
           go (succ index) (Just usedColor) (Just idx)
   void $ go 0 Nothing Nothing
 
@@ -184,12 +185,13 @@ setCursorPositionCode n m = csi [n + 1, m + 1] "H"
 {-# INLINE renderCell #-}
 renderCell :: Color8 Background
            -> Color8 Foreground
-           -> Char
+           -> Glyph
            -> Maybe LayeredColor
            -> Stdout
            -> IO LayeredColor
-renderCell bg fg char maybeCurrentConsoleColor b = do
-  let (bgChange, fgChange, usedFg) =
+renderCell bg fg glyph maybeCurrentConsoleColor b = do
+  let (char, _) = decodeGlyph glyph -- Do not take font into account for console rendering
+      (bgChange, fgChange, usedFg) =
         maybe
           (True, True, fg)
           (\(LayeredColor bg' fg') ->

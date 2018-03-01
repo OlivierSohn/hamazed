@@ -44,15 +44,15 @@ instance Draw DeltaEnv where
   fill'          (DeltaEnv a _ _ _) b c     = liftIO $ deltaFill a b c
   setScissor     (DeltaEnv a _ _ _) b       = liftIO $ deltaSetScissor a b
   getScissor'    (DeltaEnv a _ _ _)         = liftIO $ deltaGetScissor a
-  drawChar'      (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
-  drawChars'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
+  drawGlyph'      (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
+  drawGlyphs'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
   drawTxt'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
-  {-# INLINABLE drawChar' #-}
-  {-# INLINABLE drawChars' #-}
+  {-# INLINABLE drawGlyph' #-}
+  {-# INLINABLE drawGlyphs' #-}
   {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
 

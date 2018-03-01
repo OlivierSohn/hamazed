@@ -53,6 +53,6 @@ draw'
       relFrame = parentFrame - childFrame
   mapM_ (\(Particle _ (VecPosSpeed vc _) char color) -> do
             let c = vec2pos vc
-            drawChar char (sumCoords c r) color)
+            drawGlyph char (sumCoords c r) color)
         $ selectDrawnCoordinates aliveCoordinates
   mapM_ (\child -> draw' relFrame child interaction r) children

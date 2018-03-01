@@ -50,6 +50,7 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.ColorString
 import           Imj.Timing
@@ -139,7 +140,7 @@ drawColorStringAt l@(_:_) rs = do
   let (txt, color) = head l
       len = length txt
       (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char coord -> drawChar char coord color) (unpack txt) headRs
+  zipWithM_ (\char coord -> drawGlyph (textGlyph char) coord color) (unpack txt) headRs
   drawColorStringAt (tail l) tailRs
 
 getAnimatedTextAnchors :: Evolution (SequentiallyInterpolatedList (Coords Pos))

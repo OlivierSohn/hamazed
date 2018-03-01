@@ -13,7 +13,7 @@ import           Imj.Prelude
 import           Data.Word(Word8)
 
 -- | Returns one of the characters that /look good/ for explosive particle systems.
-niceChar :: Word8
+niceChar :: Word8 -- TODO should we retun 'Glyph's ?
          -- ^ We take the modulo of that value
          -> Char
 niceChar i'

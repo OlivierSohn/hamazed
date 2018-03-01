@@ -26,6 +26,7 @@ import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
+import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
@@ -63,8 +64,8 @@ shipParticleSystems k =
                       else wall2 cycles
             return
               $ map (Prioritized particleSystDefaultPriority)
-              $ fragmentsFreeFallThenExplode numSpeed shipCoords color '|' (Speed 1) envFuncs k' ++
-                fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (intToDigit n) (Speed 1) envFuncs k')
+              $ fragmentsFreeFallThenExplode numSpeed shipCoords color (gameGlyph '|') (Speed 1) envFuncs k' ++
+                fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (gameGlyph $ intToDigit n) (Speed 1) envFuncs k')
     concat <$> traverseWithKey sps (getWorldShips w)
 
 countAmmo :: [BattleShip] -> Int

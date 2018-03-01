@@ -25,6 +25,8 @@ module Imj.Graphics.Render.Delta.Types
             , Col
             , IORef
             , Color8
+            , Glyph
+            , FontSpec
             ) where
 
 import           Imj.Prelude
@@ -35,6 +37,7 @@ import           Data.Word(Word16)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Internal.Types
 
 -- | When and how to resize buffers.

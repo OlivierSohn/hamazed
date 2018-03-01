@@ -27,15 +27,15 @@ instance Draw (Env x) where
   setScissor     (Env a _ _) = setScissor     a
   getScissor'    (Env a _ _) = getScissor'    a
   fill'          (Env a _ _) = fill'          a
-  drawChar'      (Env a _ _) = drawChar'      a
-  drawChars'     (Env a _ _) = drawChars'     a
+  drawGlyph'      (Env a _ _) = drawGlyph'      a
+  drawGlyphs'     (Env a _ _) = drawGlyphs'     a
   drawTxt'       (Env a _ _) = drawTxt'       a
   drawStr'       (Env a _ _) = drawStr'       a
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE fill' #-}
-  {-# INLINE drawChar' #-}
-  {-# INLINE drawChars' #-}
+  {-# INLINE drawGlyph' #-}
+  {-# INLINE drawGlyphs' #-}
   {-# INLINE drawTxt' #-}
   {-# INLINE drawStr' #-}
 

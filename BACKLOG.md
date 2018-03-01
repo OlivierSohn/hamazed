@@ -1,3 +1,10 @@
+- if performance matters here,
+put Glyph in Number and Ship.
+maybe in ColorString, too? (instead of Text)
+maybe in UIRectangle, too?
+
+- Look at core, see if color is encoded n times or 1 only. (delta Draw)
+
 - Add a notion of Font to Cell, in high bits of characters
 (max unicode point is at OX10FFFF, 11 high bits are available)
 

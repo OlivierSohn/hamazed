@@ -22,6 +22,7 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Color
 import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.Font
 import           Imj.Physics.Discrete.Collision
 
 
@@ -37,7 +38,7 @@ drawWorld (World balls ships space _ _ _) s  = do
         let absPos = sumCoords shipCoords s
             inWorld = InsideWorld == location shipCoords space
             go bg = when inWorld $ maybe shipColor (getPlayerColor . getPlayerColors) <$> getPlayer i >>=
-              drawChar '+' absPos . LayeredColor bg
+              drawGlyph (gameGlyph '+') absPos . LayeredColor bg
         case status of
           Armored   -> go shipBgColorSafe
           Unarmored -> go shipBgColor
@@ -46,10 +47,10 @@ drawWorld (World balls ships space _ _ _) s  = do
 
 {-# INLINABLE drawNumber #-}
 drawNumber :: (Draw e, MonadReader e m, MonadIO m)
-             => Number
-             -> Space
-             -> Coords Pos
-             -> m ()
+           => Number
+           -> Space
+           -> Coords Pos
+           -> m ()
 drawNumber (Number (PosSpeed pos _) i) space b =
   when (location pos space == InsideWorld) $
-    drawChar (intToDigit i) (sumCoords pos b) (numberColor i)
+    drawGlyph (gameGlyph $ intToDigit i) (sumCoords pos b) (numberColor i)

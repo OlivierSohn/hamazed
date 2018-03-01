@@ -47,7 +47,7 @@ draw =
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
     -- draw the walls outside the matrix:
-    fill (materialChar Wall) outerWallsColors
+    fill (materialGlyph Wall) outerWallsColors
     -- draw the matrix:
     drawSpace renderedSpace worldCorner
     mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations

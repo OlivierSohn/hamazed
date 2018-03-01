@@ -19,6 +19,7 @@ import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(take)
 import           Imj.Graphics.UI.RectArea
@@ -39,7 +40,8 @@ instance Positionable (TextBox ColorString) where
     let upperLeftContent = translate coords $ Coords 1 1
         lowerLeftContent = translate coords $ Coords (fromIntegral h) 1
         contentArea = mkRectArea upperLeftContent sizeContent
-    usingScissor contentArea $ fill ' ' whiteOnBlack
+        space = textGlyph ' '
+    usingScissor contentArea $ fill space whiteOnBlack
     foldM_
       (\lineStart (c, str) -> do
         let nLines = Prelude.length str
@@ -51,7 +53,7 @@ instance Positionable (TextBox ColorString) where
             Alternate False -> return id
             Alternate True -> do
               let bg = gray 0
-              fill ' ' $ LayeredColor bg white
+              fill space $ LayeredColor bg white
               return $ replaceBackground bg
           foldM
             (\pos s-> do

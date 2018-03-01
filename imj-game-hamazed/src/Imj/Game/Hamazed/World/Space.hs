@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.World.Space
     , getComponentIndices
     , Material(..)
     , materialColor
-    , materialChar
+    , materialGlyph
     , mkEmptySpace
     , mkFilledSpace
     , mkRandomlyFilledSpace
@@ -50,6 +50,7 @@ import           Data.Vector(slice, (!))
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Geo.Discrete
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
 import           Imj.Util
@@ -124,7 +125,10 @@ randomInts :: Int -> IO [Int]
 randomInts =
   randomRsIO 0 . pred
 
-forEachRowPure :: Matrix Material -> Size -> (Coord Row -> (Coord Col -> Material) -> b) -> [b]
+forEachRowPure :: Matrix Material
+               -> Size
+               -> (Coord Row -> (Coord Col -> Material) -> b)
+               -> [b]
 forEachRowPure mat (Size nRows nColumns) f =
   let rowIndexes = [0..fromIntegral $ nRows-1] -- index of inner row
       matAsOneVector = getMatrixAsVector mat -- this is O(1)
@@ -372,11 +376,11 @@ materialColor = \case
   Wall -> wallColors
   Air  -> airColors
 
-{-# INLINE materialChar #-}
-materialChar :: Material -> Char
-materialChar = \case
+{-# INLINE materialGlyph #-}
+materialGlyph :: Material -> Glyph
+materialGlyph = gameGlyph . (\case
   Wall -> 'Z'
-  Air  -> ' '
+  Air  -> ' ')
 
 matToDrawGroups :: Matrix Material -> Size -> [DrawGroup]
 matToDrawGroups mat s@(Size _ cs) =
@@ -387,7 +391,7 @@ matToDrawGroups mat s@(Size _ cs) =
                   (\col listMaterials@(material:_) ->
                      let count = length listMaterials
                      in (col + fromIntegral count,
-                         DrawGroup (Coords row col) (materialColor material) (materialChar material) count))
+                         DrawGroup (Coords row col) (materialColor material) (materialGlyph material) count))
                   (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
 unsafeGetMaterial :: Coords Pos -> Space -> Material
@@ -440,5 +444,5 @@ drawGroup :: (Draw e, MonadReader e m, MonadIO m)
           => Coords Pos
           -> DrawGroup
           -> m ()
-drawGroup worldCoords (DrawGroup pos colors char count) =
-  drawChars count char (sumCoords pos worldCoords) colors
+drawGroup worldCoords (DrawGroup pos colors glyph count) =
+  drawGlyphs count glyph (sumCoords pos worldCoords) colors

@@ -14,16 +14,20 @@ module Imj.Game.Hamazed.World.Space.Types
     , Strategy(..)
     , DrawGroup(..)
     , Scope(..)
+    -- reexports
+    , Glyph
     , module Imj.Geo.Discrete.Types
     ) where
 
 import           Imj.Prelude
 
 import           Control.DeepSeq(NFData)
-import           Data.Matrix( Matrix, ncols, nrows )
+import           Data.Matrix(Matrix, ncols, nrows)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+
+import           Imj.Graphics.Font
 
 data Strategy = OneComponentPerShip
               -- ^ There should be one 'Air' connected component per ship.
@@ -45,7 +49,7 @@ data RandomParameters = RandomParameters {
 data DrawGroup = DrawGroup {
     _drawGroupCoords :: {-# UNPACK #-} !(Coords Pos)
   , _drawGroupColors :: {-# UNPACK #-} !LayeredColor
-  , _drawGroupChar :: {-# UNPACK #-} !Char
+  , _drawGroupGlyph :: {-# UNPACK #-} !Glyph
   , _drawGroupCount :: {-# UNPACK #-} !Int
 }
 

@@ -42,8 +42,8 @@ follows this pattern. -}
   , usingScissor
   -- * Draw colored chars
   , fill
-  , drawChar
-  , drawChars
+  , drawGlyph
+  , drawGlyphs
   , drawTxt
   , drawStr
   , drawMultiLineStr

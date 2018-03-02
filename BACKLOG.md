@@ -1,9 +1,9 @@
-- when leaving the terminal game, restore console config.
-
 - command line arg for rectangle unit size (Client - OpenGL)
 - command line arg for screen size
 - command line arg for full screen -> adapt the logic because we can't guarantee that the screen size
  will be a multiple of unit size.
+
+- remove 'Info|' logs when running in the terminal?
 
 - Today all ' ' are (background) colored.
 We need 'transparentSpace':

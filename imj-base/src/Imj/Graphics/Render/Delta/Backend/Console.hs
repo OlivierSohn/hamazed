@@ -98,9 +98,13 @@ configureConsoleFor config stdoutMode =
                ++ " instead it is now "
                ++ show ib
     Editing -> do
-      hSetEcho stdin True
       showCursor
+
       -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
+
+      -- do not 'hSetEcho stdin True', as the program will terminate only after
+      --   the user presses a key (at least in the Terminal of OSX).
+      --   'setSGR []' below seems to reset the stdin echo, with correct program termination.
       setSGR []
       Terminal.size
         >>= maybe

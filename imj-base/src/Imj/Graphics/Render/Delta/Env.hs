@@ -20,8 +20,10 @@ module Imj.Graphics.Render.Delta.Env
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(liftIO)
+import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Data.IORef( IORef, readIORef, writeIORef )
 import           Data.Maybe( fromMaybe )
+import           UnliftIO.Exception(finally)
 
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
@@ -75,7 +77,7 @@ class DeltaRenderBackend a where
     getDiscreteSize :: (MonadIO m) => a -> m (Maybe Size)
     cycleRenderingOption :: (MonadIO m) => a -> m (Either String ())
 
-    withPolicies :: (MonadIO m)
+    withPolicies :: (MonadUnliftIO m)
                  => Maybe ResizePolicy
                  -> Maybe ClearPolicy
                  -> Maybe (Color8 Background)
@@ -83,11 +85,11 @@ class DeltaRenderBackend a where
                  -> (DeltaEnv -> m ())
                  -> a
                  -> m ()
-    withPolicies p1 p2 p3 action ctxt = do
-      newEnv ctxt p1 p2 p3 >>= action
-      cleanup ctxt -- TODO use http://zguide.zeromq.org/hs:interrupt to make sure this will be called
+    withPolicies p1 p2 p3 action ctxt =
+      flip finally (cleanup ctxt)
+        $ newEnv ctxt p1 p2 p3 >>= action
 
-    withDefaultPolicies :: (MonadIO m) => (DeltaEnv -> m ()) -> a -> m ()
+    withDefaultPolicies :: (MonadUnliftIO m) => (DeltaEnv -> m ()) -> a -> m ()
     withDefaultPolicies =
       withPolicies Nothing Nothing Nothing
 

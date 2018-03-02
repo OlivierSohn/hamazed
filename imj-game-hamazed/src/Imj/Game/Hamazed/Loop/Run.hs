@@ -414,8 +414,7 @@ produceEvent = do
                             AutomaticFeed -> wait res -- 0% CPU usage while waiting
                             PollOrWaitOnEvents ->
                           -- Using 100 microseconds as minimum interval between consecutive 'pollPlayerEvents'
-                          -- seems to be a good trade-off between CPU usage while waiting
-                          -- and reactivity.
+                          -- seems to be a good trade-off between "CPU usage while waiting" and reactivity.
                           -- There are 3 alternatives hereunder, each of them has a different CPU cost.
                           -- I chose the one that is both reasonnably economical and allows to
                           -- save up-to 100 micro seconds latency. I left the other alternatives commented out

@@ -86,7 +86,7 @@ instance DeltaRenderBackend OpenGLBackend where
               void $ swapMVar mRO v
               return $ Right ())
 
-    getDiscreteSize (OpenGLBackend _ _ (Coords ppuH ppuW) (Size h w) _) =
+    getDiscreteSize (OpenGLBackend _ _ (Size ppuH ppuW) (Size h w) _) =
       return $ Just $ Size (fromIntegral $ quot (fromIntegral h) ppuH)
                            (fromIntegral $ quot (fromIntegral w) ppuW)
     {-# INLINABLE render #-}
@@ -258,7 +258,7 @@ draw ppu size font rs col row char bg fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
-renderChar (Font font (Vec2 offsetCol offsetRow)) (Coords ppuH ppuW) (Size winHeight winWidth) c r char color = do
+renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeight winWidth) c r char color = do
   let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
       -- with 6,5 there are leftovers on top of pipe, with 4 it's below.
@@ -295,7 +295,7 @@ renderChar (Font font (Vec2 offsetCol offsetRow)) (Coords ppuH ppuW) (Size winHe
   FTGL.renderFont font [char] FTGL.Front --FTGL.Side
 
 drawSquare :: PPU -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
-drawSquare (Coords ppuH ppuW) (Size winHeight winWidth) c r color = do
+drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
   let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
       unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH

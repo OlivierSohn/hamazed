@@ -241,7 +241,7 @@ ppuArg = map toLower <$> str >>= \lowercase -> do
     _ -> err Nothing
 
 defaultPPU :: PPU
-defaultPPU = Coords 12 8
+defaultPPU = Size 12 8
 
 backendArg :: ReadM BackendType
 backendArg =

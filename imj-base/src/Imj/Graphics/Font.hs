@@ -106,25 +106,24 @@ decodeGlyph (Glyph w) =
 -- | Pixels per units, in vertical and horizontal directions.
 -- Both should be even, because we divide them by 2
 -- to draw numbers in binary representation.
-type PPU = Coords Pos
+type PPU = Size
 
 mkUserPPU :: Length Width -> Length Height -> Either String PPU
 mkUserPPU w h
   | w < 4 || h < 4 = Left $ "PPU values should be >= 4. At least one of them is too small:" ++ show (w,h)
   | odd w || odd h = Left $ "PPU values should be even. At least one of them is odd:" ++ show (w,h)
-  | otherwise = Right $ Coords (fromIntegral h) (fromIntegral w)
+  | otherwise = Right $ Size h w
 
 {-# INLINE half #-}
 half :: PPU -> PPU
-half (Coords h w) = assert (even h && even w) $ Coords (quot h 2) (quot w 2)
+half (Size h w) = assert (even h && even w) $ Size (quot h 2) (quot w 2)
 
 floorToPPUMultiple :: Size -> PPU -> Size
-floorToPPUMultiple (Size (Length h) (Length w)) (Coords (Coord ppuH) (Coord ppuW)) =
+floorToPPUMultiple (Size (Length h) (Length w)) (Size (Length ppuH) (Length ppuW)) =
   Size (fromIntegral $ f ppuH h)
        (fromIntegral $ f ppuW w)
  where
   f ppu l = ppu * quot l ppu
-
 
 withTempFontFile :: Int -> (String -> IO a) -> IO a
 withTempFontFile fontIdx act =
@@ -157,13 +156,13 @@ newtype CharSet a = CharSet String
   deriving(Generic, Show)
 
 createFont :: CharSet ForOffset -> Int -> PPU -> IO (Either String Font)
-createFont charset i ppu@(Coords ppuH _) =
+createFont charset i ppu@(Size ppuH _) =
   loadFont i >>= \font ->
   if font == nullPtr
     then
       return $ Left "nullPtr"
   else do
-    let maxFontSize = 4 * fromIntegral ppuH
+    let maxFontSize = 2 * fromIntegral ppuH
         minFontSize = 1
         !rectAABB = unitRectangleAABB ppu
         setSize x =
@@ -290,7 +289,7 @@ glyphBBox font c =
 offsetToCenterAABB :: AABB FontCoordinates
                    -> PPU
                    -> (Vec2 Pos, AABB UnitRectangleCoordinates)
-offsetToCenterAABB a@(AABB (Vec2 xmin ymin) (Vec2 xmax ymax)) (Coords ppuH ppuW) =
+offsetToCenterAABB a@(AABB (Vec2 xmin ymin) (Vec2 xmax ymax)) (Size ppuH ppuW) =
   (offset, applyOffset offset a)
  where
   x = (fromIntegral ppuW - xmax - xmin) / 2
@@ -302,5 +301,5 @@ applyOffset v (AABB vmin vmax) =
   AABB (sumVec2d vmin v) (sumVec2d vmax v)
 
 unitRectangleAABB :: PPU -> AABB UnitRectangleCoordinates
-unitRectangleAABB (Coords ppuH ppuW) =
+unitRectangleAABB (Size ppuH ppuW) =
   AABB (Vec2 0 0) $ Vec2 (fromIntegral ppuW) (fromIntegral ppuH)

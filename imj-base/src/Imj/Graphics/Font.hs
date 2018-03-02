@@ -17,6 +17,7 @@ module Imj.Graphics.Font
     , gameGlyph
     , FontSpec(..)
     , PPU
+    , mkUserPPU
     , half
     , floorToPPUMultiple
     , loadFont
@@ -107,6 +108,12 @@ decodeGlyph (Glyph w) =
 -- to draw numbers in binary representation.
 type PPU = Coords Pos
 
+mkUserPPU :: Length Width -> Length Height -> Either String PPU
+mkUserPPU w h
+  | w < 4 || h < 4 = Left $ "PPU values should be >= 4. At least one of them is too small:" ++ show (w,h)
+  | odd w || odd h = Left $ "PPU values should be even. At least one of them is odd:" ++ show (w,h)
+  | otherwise = Right $ Coords (fromIntegral h) (fromIntegral w)
+
 {-# INLINE half #-}
 half :: PPU -> PPU
 half (Coords h w) = assert (even h && even w) $ Coords (quot h 2) (quot w 2)
@@ -157,7 +164,7 @@ createFont charset i ppu@(Coords ppuH _) =
       return $ Left "nullPtr"
   else do
     let maxFontSize = 4 * fromIntegral ppuH
-        minFontSize = 4 -- else we can't distinguish characters? (TODO fine tune)
+        minFontSize = 1
         !rectAABB = unitRectangleAABB ppu
         setSize x =
           FTGL.setFontFaceSize font x 72 >>= \err -> do

@@ -51,6 +51,7 @@ import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.State
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 
@@ -147,6 +148,14 @@ runWithArgs =
               renderHelp)
               ))
       <*> optional
+            (option ppuArg
+              (  long "ppu"
+              <> help (
+              "[Client OpenGL] The size of a game element, in pixels. " ++
+              "'\"x y\"' where x,y are even and >= 4. Default: \"12 8\". "
+              )
+              ))
+      <*> optional
             (option suggestedPlayerName
               (  long "playerName"
               <> help (
@@ -216,6 +225,24 @@ srvColorSchemeArg = map toLower <$> str >>= \lowercase -> do
     (return . ColorScheme)
     $ predefinedColor lowercase
 
+ppuArg :: ReadM PPU
+ppuArg = map toLower <$> str >>= \lowercase -> do
+  let err msg = readerError $
+       "Encountered an invalid ppu:\n\t" ++
+       lowercase ++
+       maybe [] (\txt -> "\n" ++ txt) msg ++
+       "\nAccepted values are:" ++
+       "\n - '\"x y\"' where x,y are even integers >= 4 (for example \"12 8\")"
+      asPPU l = case catMaybes $ map readMaybe l of
+        [x,y] -> either (err . Just) return $ mkUserPPU (fromIntegral (x::Int)) (fromIntegral y)
+        _ -> err Nothing
+  case words lowercase of
+    [x, y] -> asPPU [x,y]
+    _ -> err Nothing
+
+defaultPPU :: PPU
+defaultPPU = Coords 12 8
+
 backendArg :: ReadM BackendType
 backendArg =
   str >>= \s -> case map toLower s of
@@ -279,10 +306,11 @@ runWithBackend :: Bool
                -> Maybe ServerLogs
                -> Maybe ColorScheme
                -> Maybe BackendType
+               -> Maybe PPU
                -> Maybe SuggestedPlayerName
                -> Bool
                -> IO ()
-runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeBackend mayPlayerName debug = do
+runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeBackend mayPPU mayPlayerName debug = do
   let printServerArgs = do
         putStrLn $ "| Server-only : " ++ show serverOnly
         putStrLn $ "| Server name : " ++ show maySrvName
@@ -291,13 +319,20 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
         putStrLn $ "| Colorscheme : " ++ show mayColorScheme
       printClientArgs = do
         putStrLn $ "| Client Rendering : " ++ show maybeBackend
+        putStrLn $ "| PPU              : " ++ show mayPPU
+        putStrLn $ "| Player name      : " ++ show mayPlayerName
         putStrLn $ "| Client Debug     : " ++ show debug
       printBar =
         putStrLn   " ------------- --------------------------"
   printBar >> printServerArgs >> printBar
 
-  when (isJust maySrvName && serverOnly) $
-    error "'--serverOnly' conflicts with '--serverName' (these options are mutually exclusive)."
+  when serverOnly $ do
+    let conflict x = error $ "'--serverOnly' conflicts with '" ++
+                          x ++ "' (these options are mutually exclusive)."
+    when (isJust maySrvName)    $ conflict "--serverName"
+    when (isJust mayPPU)        $ conflict "--ppu"
+    when (isJust mayPlayerName) $ conflict "--playerName"
+    when (isJust maybeBackend)  $ conflict "--render"
 
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer mayColorScheme maySrvLogs maySrvName srvPort
@@ -311,6 +346,11 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
         -- userPicksBackend must run before 'startServerIfLocal' where we install the termination handlers,
         -- because we want the user to be able to stop the program now.
         backend <- maybe userPicksBackend return maybeBackend
+        case backend of
+          Console -> when (isJust mayPPU) $
+            error $ "Cannot use --ppu with the console backend. " ++
+              "Please use the opengl backend instead, or remove --ppu from the command line."
+          _ -> return ()
 
         void $ forkIO $ startServerIfLocal srv ready
         readMVar ready -- wait until listening socket is available.
@@ -320,7 +360,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
             newConsoleBackend >>= runWith debug queues srv player
           OpenGLWindow ->
             newOpenGLBackend "Hamazed"
-              (Coords 12 8) -- will be a command line arg when we have automatic font adaptation
+              (fromMaybe defaultPPU mayPPU)
               (Size 600 1400) -- TODO command line arg FullScreen / fixed size
               >>= either error (runWith debug queues srv player)
 

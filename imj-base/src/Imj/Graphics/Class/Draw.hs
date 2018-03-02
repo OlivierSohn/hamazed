@@ -15,7 +15,7 @@ module Imj.Graphics.Class.Draw
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Text(Text, length)
+import           Data.Text(Text)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.UI.RectArea
@@ -23,7 +23,6 @@ import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.HasRectArea
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font
-import           Imj.Graphics.Text.ColorString
 
 
 type Scissor = RectArea (Filter Positive)
@@ -77,14 +76,3 @@ class (Canvas e) => Draw e where
     res <- action
     setScissor env previous
     return res
-
-  -- | Draw a 'ColorString'.
-  {-# INLINABLE drawColorStr' #-}
-  drawColorStr' :: (MonadIO m) => e -> ColorString -> Coords Pos -> m ()
-  drawColorStr' env (ColorString cs) pos =
-    foldM_
-      (\count (txt, color) -> do
-        let l = length txt
-        drawTxt' env txt (move count RIGHT pos) color
-        return $ count + l
-      ) 0 cs

@@ -25,10 +25,12 @@ import           Data.List(length)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.DiscreteInterpolation
+import           Imj.Graphics.Class.Words(Characters)
+import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
 import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.Animation
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
@@ -53,9 +55,9 @@ data UIAnimProgress = UIAnimProgress {
 data UIEvolutions = UIEvolutions {
     _uiEvolutionContainer :: {-# UNPACK #-} !(Evolution (Colored RectContainer))
     -- ^ The transformation of the 'RectContainer'.
-  , _uiEvolutionsUpDown :: {-# UNPACK #-} !(TextAnimation AnchorChars)
+  , _uiEvolutionsUpDown :: {-# UNPACK #-} !(TextAnimation ColoredGlyphList AnchorChars)
     -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
-  , _uiEvolutionLeft    :: {-# UNPACK #-} !(TextAnimation AnchorStrings)
+  , _uiEvolutionLeft    :: {-# UNPACK #-} !(TextAnimation ColoredGlyphList AnchorStrings)
     -- ^ The transformation of colored text left and right of the 'RectContainer'.
 } deriving(Show, PrettyVal, Generic)
 
@@ -113,9 +115,9 @@ getRelativeFrames
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
 
-mkUIAnimation :: (Colored RectContainer, ((Successive ColorString, Successive ColorString), [Successive ColorString]))
+mkUIAnimation :: (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
               -- ^ From
-              -> (Colored RectContainer, ((Successive ColorString, Successive ColorString), [Successive ColorString]))
+              -> (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
               -- ^ To
               -> Length Width
               -> Length Height
@@ -145,18 +147,20 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
       (\dt -> Just $ addDuration dt time)
       $ getDeltaTime evolutions zeroFrame
 
-createUITextAnimations :: RectContainer
+createUITextAnimations :: (Characters a, DiscreteDistance a)
+                       => RectContainer
                        -- ^ From
                        -> RectContainer
                        -- ^ To
-                       -> (Successive ColorString,
-                           Successive ColorString,
-                           [Successive ColorString])
+                       -> (Successive a,
+                           Successive a,
+                           [Successive a])
                        -- ^ Upper text, Lower text, Left texts
                        -> Length Width
                        -> Length Height
                        -> Time Duration System
-                       -> (TextAnimation AnchorChars, TextAnimation AnchorStrings)
+                       -> (TextAnimation a AnchorChars,
+                           TextAnimation a AnchorStrings)
 createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDistance duration =
   let (centerUpFrom, centerDownFrom, leftMiddleFrom, _) =
         getSideCenters $ mkRectContainerAtDistance from horizontalDistance verticalDistance
@@ -171,18 +175,19 @@ createUITextAnimations from to (ups, downs, lefts) horizontalDistance verticalDi
 --
 -- Text will be horizontally right-aligned and vertically centered according to
 -- alignment coordinates.
-mkTextAnimRightAligned :: Coords Pos
+mkTextAnimRightAligned :: (Characters a, DiscreteDistance a)
+                       => Coords Pos
                        -- ^ Alignment ref /from/.
                        -> Coords Pos
                        -- ^ Alignment ref /to/ Text will be vertically centered
                        -- according to it.
-                       -> [Successive ColorString]
+                       -> [Successive a]
                        -- ^ Each 'Successive' is expected to be of length 1 or more.
                        -> Int
                        -- ^ Interline spaces
                        -> Time Duration System
                        -- ^ The duration of the animation
-                       -> TextAnimation AnchorStrings
+                       -> TextAnimation a AnchorStrings
 mkTextAnimRightAligned refFrom refTo listTxts interline duration =
   let dy = 1+interline -- move that amount for a new line
       nTxtLines = length listTxts
@@ -201,12 +206,13 @@ mkTextAnimRightAligned refFrom refTo listTxts interline duration =
                   [0..] listTxts
   in  mkSequentialTextTranslationsStringAnchored l duration
 
-mkTextAnimCenteredUpDown :: (Coords Pos, Coords Pos)
+mkTextAnimCenteredUpDown :: (Characters a, DiscreteDistance a)
+                         => (Coords Pos, Coords Pos)
                          -> (Coords Pos, Coords Pos)
-                         -> (Successive ColorString, Successive ColorString)
+                         -> (Successive a, Successive a)
                          -- ^ If one 'Successive' has a 0 length, the animation will be empty.
                          -> Time Duration System
-                         -> TextAnimation AnchorChars
+                         -> TextAnimation a AnchorChars
 mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo)
   (sUp@(Successive txtUppers), sLow@(Successive txtLowers))
                  duration =
@@ -226,6 +232,6 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
                (sLow, centerDownFromAligned, centerDownToAligned)]
               duration
 
-alignTxt :: Alignment -> ColorString  -> Coords Pos
+alignTxt :: (Characters a) => Alignment -> a -> Coords Pos
 alignTxt (Alignment al pos) txt =
-  uncurry move (align al $ fromIntegral $ countChars txt) pos
+  uncurry move (align al $ fromIntegral $ Words.length txt) pos

@@ -53,4 +53,4 @@ drawNumber :: (Draw e, MonadReader e m, MonadIO m)
            -> m ()
 drawNumber (Number (PosSpeed pos _) i) space b =
   when (location pos space == InsideWorld) $
-    drawGlyph (gameGlyph $ intToDigit i) (sumCoords pos b) (numberColor i)
+    drawGlyph (gameGlyph $ intToDigit i) (sumCoords pos b) $ onBlack $ numberColor i

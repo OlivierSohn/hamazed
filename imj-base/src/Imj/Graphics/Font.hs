@@ -61,12 +61,6 @@ data Fonts = Fonts {
   , getFont1 :: {-# UNPACK #-} !Font
 } deriving (Generic, Show, NFData)
 
-lookupFont :: FontSpec -> Fonts -> Font
-lookupFont (FontSpec 0) = getFont0
-lookupFont (FontSpec 1) = getFont1
-lookupFont (FontSpec n) = error $ "font index out of range : " ++ show n
-
-
 data Font = Font {
     _ftglFont :: {-# UNPACK #-} !FTGL.Font
   , _offset :: {-# UNPACK #-} !(Vec2 Pos)
@@ -78,8 +72,13 @@ showDetailed ft@(Font f _) = do
   details <- FTGL.getFontFaceSize f
   return $ show (ft, "size:", details)
 
+lookupFont :: FontSpec -> Fonts -> Font
+lookupFont (FontSpec 0) = getFont0
+lookupFont (FontSpec 1) = getFont1
+lookupFont (FontSpec n) = error $ "font index out of range : " ++ show n
+
 newtype Glyph = Glyph Word32
-  deriving(Generic, Show)
+  deriving(Generic, Show, Eq)
 newtype FontSpec = FontSpec Word8
   deriving(Generic, Show)
 
@@ -89,6 +88,8 @@ gameGlyph c = encodeGlyph c $ FontSpec 0
 textGlyph :: Char -> Glyph
 textGlyph c = encodeGlyph c $ FontSpec 1
 
+-- unicode max code is OX10FFFF. Glyph being a 32-bit type, we have 11 high bits
+-- to store font and metadata.
 encodeGlyph :: Char -> FontSpec -> Glyph
 encodeGlyph char (FontSpec s) =
   Glyph $ fromIntegral (ord char) .|. (fromIntegral s `shiftL` 24)

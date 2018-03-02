@@ -47,12 +47,11 @@ follows this pattern. -}
   , drawTxt
   , drawStr
   , drawMultiLineStr
-  , drawColorStr
   -- ** Render to the physical device
   , renderToScreen
   -- * Reexports
   , LayeredColor(..), Coords(..), Pos
-  , Alignment(..), ColorString, Text, Char, String
+  , Alignment(..), Text, Char, String
   , MonadReader, MonadIO
   ) where
 

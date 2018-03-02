@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Imj.Graphics.Class.Positionable
             ( Positionable(..)
@@ -8,10 +9,15 @@ module Imj.Graphics.Class.Positionable
 
 import           Imj.Prelude
 
+import           Control.Monad.Reader.Class(MonadReader, asks)
+import qualified Data.Text as Text(length)
+import qualified Data.List as List(length)
+
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Text.Alignment
-import           Imj.Graphics.Text.ColorString
-import           Imj.Graphics.Render.FromMonadReader
 
 -- | A 'Positionable' is a graphical element that knows how to draw itself
 -- except for its positions.
@@ -45,10 +51,41 @@ class Positionable a where
   drawAligned_ p al =
     void $ drawAligned p al
 
--- Due to a cyclic dependency, this instance cannot be in ColorString module.
-instance Positionable ColorString where
-  drawAt = drawColorStr
-  width = fromIntegral . countChars
+instance Positionable Text where
+  drawAt txt pos = do
+    d <- asks drawTxt'
+    d txt pos whiteOnBlack
+  width = fromIntegral . Text.length
+  height _ = 1
+  {-# INLINABLE drawAt #-}
+  {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
+
+instance Positionable ([] Char) where
+  drawAt txt pos = do
+    d <- asks drawStr'
+    d txt pos whiteOnBlack
+  width = fromIntegral . List.length
+  height _ = 1
+  {-# INLINABLE drawAt #-}
+  {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
+
+instance Positionable Char where
+  drawAt c pos = do
+    d <- asks drawGlyph'
+    d (textGlyph c) pos whiteOnBlack
+  width _ = 1
+  height _ = 1
+  {-# INLINABLE drawAt #-}
+  {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
+
+instance Positionable Glyph where
+  drawAt g pos = do
+    d <- asks drawGlyph'
+    d g pos whiteOnBlack
+  width _ = 1
   height _ = 1
   {-# INLINABLE drawAt #-}
   {-# INLINABLE width #-}

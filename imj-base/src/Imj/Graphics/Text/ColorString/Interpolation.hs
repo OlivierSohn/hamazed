@@ -6,6 +6,7 @@
 module Imj.Graphics.Text.ColorString.Interpolation
             ( -- * Interpolation
               interpolateChars
+            , interpolateColors
               -- * Helpers
             , insertionColor
             ) where
@@ -18,14 +19,15 @@ import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color.Types
 import           Imj.Util
 
-
-interpolateChars :: [(Char, LayeredColor)]
+{-# INLINABLE interpolateChars #-}
+interpolateChars :: (Eq a)
+                 => [(a, LayeredColor)]
                  -- ^ from
-                 ->[(Char, LayeredColor)]
+                 ->[(a, LayeredColor)]
                  -- ^ to
                  -> Int
                  -- ^ progress
-                 -> ([(Char, LayeredColor)], Int)
+                 -> ([(a, LayeredColor)], Int)
                  -- ^ (result,nSteps)
                  --             | >=0 : "remaining until completion"
                  --             | <0  : "completed since" (using abolute value))
@@ -33,9 +35,8 @@ interpolateChars s1 s2 i =
   let n1 = length s1
       n2 = length s2
 
-      toString = map fst
-      str1 = toString s1
-      str2 = toString s2
+      str1 = map fst s1
+      str2 = map fst s2
       lPref = length $ commonPrefix str1 str2
       lSuff = length $ commonSuffix (drop lPref str1) (drop lPref str2)
 
@@ -110,3 +111,14 @@ insertionColor insertionBounds n total =
           frame = round (fromIntegral ((n+1) * pred dist) / fromIntegral (total+1) :: Float)
       in Just $ interpolate colorFrom colorTo frame
     _ -> error "insertionBounds has at more than 2 elements"
+
+interpolateColors :: [(a, LayeredColor)]
+                  -- ^ from
+                  ->[(a, LayeredColor)]
+                  -- ^ to
+                  -> Int
+                  -- ^ progress
+                  -> [(a, LayeredColor)]
+interpolateColors c1 c2 i =
+  let z (_, color) (char, color') = (char, interpolate color color' i)
+  in  zipWith z c1 c2

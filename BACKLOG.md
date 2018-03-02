@@ -1,5 +1,12 @@
-- In infos, the shot numbers and objective number should be printed using game glyphs, to be bigger.
-  so we need Glyphs in ColorString. note that cell has color info, and glyph info : it might be what we need.
+- Today all ' ' are (background) colored.
+We need 'transparentSpace':
+  transparency (or alpha) could be encoded
+    in the glyph metadata or
+    in the color, and filtered by the delta renderer
+    of in the type : we could have [Either Invisible (Glyph, LayeredColor)],
+      drawing functions would filter Invisible, interpolations would need to handle Invisible too...
+
+Then, use it between player name and ammo.
 
 - if performance matters here,
 put Glyph in Number and Ship.

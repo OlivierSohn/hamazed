@@ -30,6 +30,7 @@ module Imj.Game.Hamazed.Color (
   , darkConfigFgColor
   , messageColor
   , neutralMessageColor
+  , neutralMessageColorFg
   -- ** Cyclic colors
   , ColorCycle
   , ColorCycles(..)
@@ -106,11 +107,15 @@ wall1ColorCycle  = ColorCycle (rgb 3 2 2) (rgb 3 1 0)
 wall2ColorCycle  = ColorCycle (rgb 4 2 1) (rgb 3 2 2)
 laserColorCycle  = ColorCycle (rgb 3 2 4) (rgb 3 2 2)
 
-configFgColor :: Color8 Foreground
-configFgColor = gray 8
-
-darkConfigFgColor :: Color8 Foreground
+darkConfigFgColor, configFgColor, neutralMessageColorFg, ammoColor :: Color8 Foreground
 darkConfigFgColor = gray 4
+configFgColor = gray 8
+neutralMessageColorFg = gray 10
+ammoColor = gray 14
+
+neutralMessageColor :: LayeredColor
+neutralMessageColor = onBlack neutralMessageColorFg
+
 
 configColors :: LayeredColor
 configColors = LayeredColor (gray 0) configFgColor
@@ -124,12 +129,6 @@ outerWallsColors = LayeredColor (rgb 0 0 0) (gray 1)
 
 airColors :: LayeredColor
 airColors = LayeredColor black black
-
-neutralMessageColor :: LayeredColor
-neutralMessageColor = onBlack $ gray 10
-
-ammoColor :: Color8 Foreground
-ammoColor = gray 14
 
 bracketsColor :: Color8 Foreground
 bracketsColor = worldFrameFgColor
@@ -164,12 +163,13 @@ shipBgColorSafe = gray 3
 
 -- | Cycles through the 6 colors of the cube delimited in RGB space by
 -- (5,4,1) and (5,5,3).
-numberColor :: Int -> LayeredColor
-numberColor i = onBlack $ rgb r g b
-  where
-    r = 5
-    g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
-    b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
+numberColor :: Int -> Color8 Foreground
+numberColor i =
+  rgb r g b
+ where
+  r = 5
+  g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes
+  b = fromIntegral $ 1 + (0 + quot i 1) `mod` 3 -- [0..2] , 2x faster changes
 
 worldFrameFgColor :: Color8 Foreground
 worldFrameFgColor = rgb 2 1 1

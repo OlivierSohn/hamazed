@@ -1,15 +1,14 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Util
     ( -- * List utilities
       showListOrSingleton
     , replicateElements
+    , intersperse'
     , mkGroups
     , range
     , takeWhileInclusive
-      -- * String utilities
     , commonPrefix
     , commonSuffix
       -- * Math utilities
@@ -131,13 +130,25 @@ randomRsIO :: Random a
 randomRsIO from to =
   getStdRandom $ split >>> first (randomRs (from, to))
 
-commonPrefix :: String -> String -> String
+{-# INLINABLE commonPrefix #-}
+commonPrefix :: (Eq a) => [a] -> [a] -> [a]
 commonPrefix (x:xs) (y:ys)
     | x == y    = x : commonPrefix xs ys
 commonPrefix _ _ = []
 
-commonSuffix :: String -> String -> String
+{-# INLINABLE commonSuffix #-}
+commonSuffix :: (Eq a) => [a] -> [a] -> [a]
 commonSuffix s s' = reverse $ commonPrefix (reverse s) (reverse s')
+
+
+-- from https://hackage.haskell.org/package/text-1.2.3.0
+intersperse' :: a -> [a] -> [a]
+intersperse' _   []     = []
+intersperse' sep (x:xs) = x : go xs
+  where
+    go []     = []
+    go (y:ys) = sep : y: go ys
+{-# INLINE intersperse' #-}
 
 -- | Expects the bounds to be in the right order.
 {-# INLINABLE clamp #-}

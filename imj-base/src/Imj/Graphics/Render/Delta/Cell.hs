@@ -78,7 +78,7 @@ expandIndexed w =
 --     foregroundColor (8 bits)
 --     index in buffer (16 bits)
 --     character       (32 bits) (note that due to unicode code range, the max is OX10FFFF.
---                               (the 11 high bits are then free for future use)
+--                                the 11 high bits are used to store metadata)
 {-# INLINE mkIndexedCell #-}
 mkIndexedCell :: Cell -> Dim BufferIndex -> Cell
 mkIndexedCell cell idx' =

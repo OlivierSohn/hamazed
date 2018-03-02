@@ -15,7 +15,8 @@ module Imj.Game.Hamazed.Network.Types
       , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
       , PlayerColors(..)
       , mkPlayerColors
-      , getPlayerUIName
+      , getPlayerUIName'
+      , getPlayerUIName''
       , ColorScheme(..)
       , ServerOwnership(..)
       , ClientState(..)
@@ -45,7 +46,7 @@ module Imj.Game.Hamazed.Network.Types
       , welcome
       ) where
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Map.Strict(Map, elems)
@@ -63,7 +64,11 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Font
+import           Imj.Graphics.Text.ColorString(ColorString)
+import qualified Imj.Graphics.Text.ColorString as ColorString(colored, intercalate)
+import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
+import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
 
 -- | a Server, seen from a Client's perspective
 data Server = Distant !ServerName !ServerPort
@@ -163,9 +168,6 @@ data ServerEvent =
   -- ^ The command cannot be run, with a reason.
   | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !ClientCommand
   -- ^ The server validated the use of the command, now it must be executed.
-  | Done {-unpack sum-} !ServerCommand {-# UNPACK #-} !Text {-# UNPACK #-} !ShipId
-  -- ^ The server notifies whenever a 'Do' task is finished. Contains Text info that can be printed in the chat
-  -- to inform the players (that didn't trigger the 'Do' task) of the task's execution.
   | Reporting {-unpack sum-} !ServerReport !Text
   -- ^ Response to a 'Report'.
   | Error !String
@@ -224,14 +226,25 @@ instance Binary PlayerColors
 mkPlayerColors :: Color8 Foreground -> PlayerColors
 mkPlayerColors c = PlayerColors c $ mkColorCycles c
 
-getPlayerUIName :: Maybe Player -> ColorString
+getPlayerUIName' :: Maybe Player -> ColorString
+getPlayerUIName' = getPlayerUIName ColorString.colored
+
+getPlayerUIName'' :: Maybe Player -> ColoredGlyphList
+getPlayerUIName'' = getPlayerUIName (ColoredGlyphList.colored . map textGlyph . unpack)
+
+getPlayerUIName :: (IsString a, Monoid a)
+                => (Text -> Color8 Foreground -> a)
+                -> Maybe Player
+                -> a
 -- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
--- know about the name of the other disconnected player.
-getPlayerUIName Nothing = "? (away)"
-getPlayerUIName (Just (Player (PlayerName n) status (PlayerColors c _))) =
+-- know about the name of the other disconnected player, until the other player reconnects (TODO is it still the case?).
+getPlayerUIName _ Nothing = "? (away)"
+getPlayerUIName f (Just (Player (PlayerName name) status (PlayerColors c _))) =
   case status of
-    Present -> colored n c
-    Absent -> colored n c <> colored " (away)" chatMsgColor
+    Present -> n
+    Absent  -> n <> f " (away)" chatMsgColor
+ where
+  n = f name c
 
 data Command =
     ClientCmd !ClientCommand
@@ -337,6 +350,9 @@ data PlayerNotif =
     Joins
   | WaitsToJoin
   | StartsGame
+  | Done {-unpack sum-} !ServerCommand {-# UNPACK #-} !Text
+    -- ^ The server notifies whenever a 'Do' task is finished. Contains Text info that can be printed in the chat
+    -- to inform every player of the task's execution.
   deriving(Generic, Show)
 instance Binary PlayerNotif
 
@@ -354,10 +370,12 @@ instance Binary GameNotif
 
 welcome :: Map ShipId Player -> ColorString
 welcome l =
-  colored "Welcome! Players are: " chatMsgColor
-  <> intercalate
-      (colored ", " chatMsgColor)
-      (map (getPlayerUIName . Just) $ elems l)
+  text "Welcome! Players are: "
+  <> ColorString.intercalate
+      (text ", ")
+      (map (getPlayerUIName' . Just) $ elems l)
+ where
+  text x = ColorString.colored x chatMsgColor
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)

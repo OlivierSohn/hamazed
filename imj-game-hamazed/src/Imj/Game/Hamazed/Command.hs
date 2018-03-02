@@ -33,7 +33,7 @@ runClientCommand :: (MonadState AppState m)
            -> ClientCommand
            -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
-  let name = getPlayerUIName p
+  let name = getPlayerUIName' p
   case cmd of
     AssignName name' -> do
       let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p

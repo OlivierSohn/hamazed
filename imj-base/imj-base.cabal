@@ -91,6 +91,7 @@ library
                      , Imj.Graphics.Text.Alignment
                      , Imj.Graphics.Text.Animation
                      , Imj.Graphics.Text.ColorString
+                     , Imj.Graphics.Text.ColoredGlyphList
                      , Imj.Graphics.Text.ColorString.Interpolation
                      , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation

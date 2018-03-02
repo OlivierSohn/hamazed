@@ -9,13 +9,12 @@ module Imj.Graphics.Render.FromMonadReader
        , drawGlyphs
        , drawTxt
        , drawStr
-       , drawColorStr
        , drawMultiLineStr
        , cycleRenderingOptions
        , getTargetSize
        , renderToScreen
        -- * Reexports
-       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString
+       , Scissor, LayeredColor, Coords, Pos, Alignment
        , Draw, Render, Canvas, MonadReader, MonadIO
        ) where
 
@@ -34,7 +33,6 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color(LayeredColor(..))
 import           Imj.Graphics.Text.Alignment
-import           Imj.Graphics.Text.ColorString
 
 
 -- | Executes actions in context of a given 'Scissor'.
@@ -53,14 +51,6 @@ fill :: (Draw e, MonadReader e m, MonadIO m)
 fill g col= do
   d <- asks fill'
   d g col
-
--- | Draw a 'ColorString'.
-{-# INLINABLE drawColorStr #-}
-drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
-             => ColorString -> Coords Pos -> m ()
-drawColorStr cs pos = do
-  d <- asks drawColorStr'
-  d cs pos
 
 -- | Draw a 'String' on multiple lines.
 drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
@@ -106,21 +96,21 @@ drawStr str co la = do
 -- moving to the right.
 {-# INLINABLE drawGlyphs #-}
 drawGlyphs :: (Draw e, MonadReader e m, MonadIO m)
-          => Int
-          -> Glyph
-          -> Coords Pos
-          -> LayeredColor
-          -> m ()
+           => Int
+           -> Glyph
+           -> Coords Pos
+           -> LayeredColor
+           -> m ()
 drawGlyphs i g co la = do
   d <- asks drawGlyphs'
   d i g co la
 
 {-# INLINABLE drawGlyph #-}
 drawGlyph :: (Draw e, MonadReader e m, MonadIO m)
-         => Glyph
-         -> Coords Pos
-         -> LayeredColor
-         -> m ()
+          => Glyph
+          -> Coords Pos
+          -> LayeredColor
+          -> m ()
 drawGlyph g co la = do
   d <- asks drawGlyph'
   d g co la

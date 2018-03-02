@@ -488,7 +488,7 @@ handleIncomingEvent' = \case
           notifyEveryoneN $
             map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
             Map.toList newClients
-    colorSchemeCenterStr >>= doneCmd cmd
+    colorSchemeCenterStr >>= publish . Done cmd
   RequestCommand cmd@(Says _) ->
     acceptCmd cmd
   RequestCommand (Leaves _) ->
@@ -497,14 +497,13 @@ handleIncomingEvent' = \case
     IntentSetup -> do
       -- change client state to make it playable
       adjustClient $ \c -> c { getState = Just Finished }
-      lift (asks shipId) >>= \i -> do
-        notifyEveryone $ PlayerInfo Joins i
-        -- request world to let the client have a world
-        requestWorld
-        -- next step when client 'IsReady'
+      publish Joins
+      -- request world to let the client have a world
+      requestWorld
+      -- next step when client 'IsReady'
     _ -> do
       notifyClient $ EnterState Excluded
-      lift (asks shipId) >>= notifyEveryone . PlayerInfo WaitsToJoin
+      publish WaitsToJoin
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> do
     adjustClient $ \c -> c { getState = Just Finished }
@@ -537,8 +536,7 @@ handleIncomingEvent' = \case
   ExitedState Setup -> gets intent >>= \case
     IntentSetup -> do
       modify' $ \s -> s { intent = IntentPlayGame }
-      i <- lift $ asks shipId
-      notifyEveryone $ PlayerInfo StartsGame i
+      publish StartsGame
       notifyPlayers $ ExitState Setup
       requestWorld
     _ -> return ()
@@ -603,8 +601,8 @@ handleIncomingEvent' = \case
   Action Ship dir ->
     adjustClient $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
  where
+  publish a = lift (asks shipId) >>= notifyEveryone . PlayerInfo a
   acceptCmd cmd = lift (asks shipId) >>= notifyEveryone . flip RunCommand cmd
-  doneCmd cmd res = lift (asks shipId) >>= notifyEveryone . Done cmd res
   colorSchemeCenterStr = ("Color scheme center is:" <>) . pack . show . color8CodeToXterm256 <$> gets centerColor
 
 

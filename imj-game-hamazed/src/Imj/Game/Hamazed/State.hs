@@ -60,7 +60,6 @@ representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
 representation (Left (ConnectionRefused _)) = ConnectionRefused'
 representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _))     = Chat'
-representation (Left (Done _ _ _))     = Chat'
 representation (Left (Reporting _ _))  = Chat'
 representation (Right e) = case e of
   CycleRenderingOptions -> CycleRenderingOptions'

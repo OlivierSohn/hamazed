@@ -64,9 +64,6 @@ updateAppState (Left evt) = case evt of
   Reporting cmd res ->
     stateChat $ addMessage $ Info $
       pack (show cmd) <> " is:" <> res
-  Done cmd res i -> getPlayerUIName <$> getPlayer i >>= \n ->
-    stateChat $ addMessage $ ChatMessage $
-      n <> colored (" initiated " <> pack (show cmd) <> " resulting in:" <> res) chatMsgColor
   WorldRequest spec ->
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
   CurrentGameStateRequest ->
@@ -105,10 +102,13 @@ updateAppState (Left evt) = case evt of
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
-  toTxt i notif = getPlayerUIName <$> getPlayer i >>= \n -> return $ case notif of
-    Joins       -> n <> colored " joins the game." chatMsgColor
-    WaitsToJoin -> n <> colored " is waiting to join the game." chatMsgColor
-    StartsGame  -> n <> colored " starts the game." chatMsgColor
+  toTxt i notif =
+    (`mappend` colored (toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i
+  toTxt'' = \case
+    Joins        -> " joins the game."
+    WaitsToJoin  -> " is waiting to join the game."
+    StartsGame   -> " starts the game."
+    Done cmd res -> " initiated " <> pack (show cmd) <> " resulting in:" <> res
 
   toTxt' (LevelResult n (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor

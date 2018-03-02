@@ -36,16 +36,22 @@ str = colored \"Hello\" white <> colored \" World\" yellow
 
 import           Imj.Prelude hiding(take, concat, intercalate)
 
+import           Control.Monad.Reader.Class(asks)
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
 import           Data.Text.Lazy.Builder(Builder)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
-import qualified Data.List as List(length, concat)
+import qualified Data.List as List(length, concat, splitAt)
 
-import           Imj.Graphics.Class.DiscreteInterpolation
-import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color.Types
+
+import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.DiscreteInterpolation
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
 
@@ -128,30 +134,10 @@ intercalate :: ColorString -> [ColorString] -> ColorString
 intercalate (ColorString i) =
   ColorString . List.concat . intersperse' i . map (\(ColorString s) -> s)
 
--- from https://hackage.haskell.org/package/text-1.2.3.0
-intersperse' :: a -> [a] -> [a]
-intersperse' _   []     = []
-intersperse' sep (x:xs) = x : go xs
-  where
-    go []     = []
-    go (y:ys) = sep : y: go ys
-{-# INLINE intersperse' #-}
-
 
 replaceBackground :: Color8 Background -> ColorString -> ColorString
 replaceBackground bg (ColorString l) =
   ColorString $ map (\(t, LayeredColor _ fg) -> (t, LayeredColor bg fg)) l
-
-interpolateColors :: [(Char, LayeredColor)]
-                  -- ^ from
-                  ->[(Char, LayeredColor)]
-                  -- ^ to
-                  -> Int
-                  -- ^ progress
-                  -> [(Char, LayeredColor)]
-interpolateColors c1 c2 i =
-  let z (_, color) (char, color') = (char, interpolate color color' i)
-  in  zipWith z c1 c2
 
 
 -- | Maps a 'ColorString' to a list of 'Char' and 'LayeredColor'.
@@ -194,7 +180,22 @@ instance Monoid ColorString where
   mempty = ColorString []
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 
-instance Words ColorString where
+instance Positionable ColorString where
+  drawAt (ColorString cs) pos = do
+    f <- asks drawTxt'
+    foldM_
+      (\count (txt, color) -> do
+        let l = length txt
+        f txt (move count RIGHT pos) color
+        return $ count + l
+      ) 0 cs
+  width = fromIntegral . countChars
+  height _ = 1
+  {-# INLINABLE drawAt #-}
+  {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
+
+instance Characters ColorString where
   length = countChars
   empty (ColorString x) = null x || all (Text.null . fst) x
 
@@ -216,6 +217,23 @@ instance Words ColorString where
           len = Text.length txt
           (tLeft,tRight) = Text.splitAt n txt
 
+  drawOnPath positions (ColorString cs) = do
+    f <- asks drawGlyph'
+    let go [] _ = return ()
+        go _ [] = return ()
+        go ps ((txt, color):rest) = do
+          let len = length txt
+              (headRs, tailRs) = List.splitAt len $ assert (List.length ps >= len) ps
+          zipWithM_ (\char coord -> f (textGlyph char) coord color) (Text.unpack txt) headRs
+          go tailRs rest
+    go positions cs
+
+  {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
+
+instance Words ColorString where
   unwords :: [SingleWord ColorString] -> ColorString
   unwords strs =
     unwords' (reverse strs) mempty
@@ -253,5 +271,3 @@ instance Words ColorString where
                 map (\aw -> [(aw, color)]) (reverse asWords) ++ cur
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
-  {-# INLINABLE length #-}
-  {-# INLINABLE splitAt #-}

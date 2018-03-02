@@ -47,8 +47,8 @@ data Key = AlphaNum Char
 data FeedType =
     AutomaticFeed
     -- ^ An auxiliary thread feeds the queue.
-  | PollOrWaitOnEvents
-  -- ^The queue needs to be "manually" fed by calling 'pollKeys' or 'waitKeys'
+  | ManualFeed
+  -- ^ The queue needs to be "manually" fed by calling 'pollKeys' or 'waitKeys'
 
 class PlayerInput a where
 
@@ -59,7 +59,7 @@ class PlayerInput a where
   keysQueue :: a -> TQueue Key
 
   queueType :: a -> FeedType
-  -- | Use only if 'queueType' returns PollOrWaitOnEvents.
+  -- | Use only if 'queueType' returns ManualFeed.
   pollKeys :: a -> IO ()
-  -- | Use only if 'queueType' returns PollOrWaitOnEvents.
+  -- | Use only if 'queueType' returns ManualFeed.
   waitKeysTimeout :: a -> Time Duration System -> IO ()

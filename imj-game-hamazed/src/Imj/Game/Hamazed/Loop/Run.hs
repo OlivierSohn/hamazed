@@ -14,8 +14,8 @@ import           Imj.Prelude
 import           Prelude (putStrLn, getLine, toInteger)
 
 import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
-import           Control.Concurrent.Async(withAsync, wait, race)
-import           Control.Concurrent.STM(check, atomically, readTQueue, readTVar, registerDelay)
+import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
+import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -376,101 +376,91 @@ loop = do
 
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
-produceEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, MonadIO m)
+produceEvent :: (MonadState AppState m, MonadIO m, MonadReader e m, PlayerInput e, ClientNode e)
              => m (Maybe (Either Key GenEvent))
 produceEvent = do
   server <- asks serverQueue
   keys <- asks keysQueue
-  -- TODO try factorizing:
---  let stmAct = fmap (Right . SrvEvt)  (readTQueue a)
---           <|> fmap (Left) (readTQueue b)
-  qt <- asks queueType
-  pollK <- asks pollKeys
-  case qt of
+
+  asks queueType >>= \case
     AutomaticFeed -> return ()
-    PollOrWaitOnEvents -> liftIO pollK
+    ManualFeed -> asks pollKeys >>= liftIO
+
+  let readInput = fmap (Right . SrvEvt) (readTQueue server)
+              <|> fmap Left (readTQueue keys)
 
   -- We handle pending input events first: they have a higher priority than any other.
-  liftIO (tryGetInputEvent server keys) >>= \case
-    Just x -> return $ Just x
-    Nothing -> do
-      let whenWaitingIsAllowed mayTimeLimit = hasVisibleNonRenderedUpdates >>= \needsRender ->
-            if needsRender
-              then
-                -- we can't afford waiting, we force a render
-                return Nothing
-              else
-                --waitKT <- asks waitKeysTimeout
+  liftIO (tryAtomically readInput) >>= maybe
+    (liftIO getSystemTime >>= getNextDeadline >>= maybe
+      (triggerRenderOr $ Just <$> atomically readInput)
+      (\case
+        Overdue d ->
+          return $ Just $ Right $ Evt $ Timeout d
+        Future (Deadline deadlineTime _ _) ->
+          triggerRenderOr $ tryAtomicallyBefore deadlineTime readInput))
+    (return . Just)
 
-                liftIO $ do
-                  let x = maybe
-                        (Just <$> getInputEvent server keys)
-                        (\t -> getInputEventBefore t server keys)
-                          mayTimeLimit
+triggerRenderOr :: (MonadState AppState m, MonadIO m, MonadReader e m
+                  , PlayerInput e)
+                => IO (Maybe (Either Key GenEvent))
+                -> m (Maybe (Either Key GenEvent))
+triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
+  if needsRender
+    then -- we can't afford to wait, we force a render
+      return Nothing
+    else
+      asks queueType >>= getWaitForResult >>= liftIO . withAsync readInput
+ where
+  getWaitForResult = \case
+    AutomaticFeed -> return wait -- 0% CPU usage while waiting
+    ManualFeed -> do
+      --waitKT <- asks waitKeysTimeout
+      polling <- asks pollKeys
+      return $ waitWithPolling polling
+     where
+      waitWithPolling polling a = go
+       where
+        go =
+      -- Using 100 microseconds as minimum interval between consecutive 'pollPlayerEvents'
+      -- seems to be a good trade-off between "CPU usage while waiting" and reactivity.
+      -- There are 3 alternatives hereunder, each of them has a different CPU cost.
+      -- I chose the one that is both reasonnably economical and allows to
+      -- save up-to 100 micro seconds latency. I left the other alternatives commented out
+      -- with measured CPU usage for reference.
+        --{-
+        -- [alternative 1] 20.3% CPU while waiting
+          race (wait a) (threadDelay 100) >>= either
+            return
+            (\_ -> polling >> go)
+        --}
+        {-
+          poll res >>= maybe
+            (do --waitKT (fromSecs 0.0001) -- [alternative 2] 55% CPU while waiting
+                threadDelay 100 >> pollK -- [alternative 3] 15 % CPU while waiting
+                go)
+            (\case
+                Left e -> throwIO e
+                Right r -> return r)
+        -}
 
-                  withAsync x $ \res -> do
-                    let go =
-                          case qt of
-                            AutomaticFeed -> wait res -- 0% CPU usage while waiting
-                            PollOrWaitOnEvents ->
-                          -- Using 100 microseconds as minimum interval between consecutive 'pollPlayerEvents'
-                          -- seems to be a good trade-off between "CPU usage while waiting" and reactivity.
-                          -- There are 3 alternatives hereunder, each of them has a different CPU cost.
-                          -- I chose the one that is both reasonnably economical and allows to
-                          -- save up-to 100 micro seconds latency. I left the other alternatives commented out
-                          -- with measured CPU usage for reference.
-                            --{-
-                            -- [alternative 1] 20.3% CPU while waiting
-                              race (wait res) (threadDelay 100) >>= either return (\_ -> pollK >> go)
-                            --}
-                            {-
-                              poll res >>= maybe
-                                (do --waitKT (fromSecs 0.0001) -- [alternative 2] 55% CPU while waiting
-                                    threadDelay 100 >> pollK -- [alternative 3] 15 % CPU while waiting
-                                    go)
-                                (\case
-                                    Left e -> throwIO e
-                                    Right r -> return r)
-                            -}
-                    go
 
-      liftIO getSystemTime >>= getNextDeadline >>= maybe
-        (whenWaitingIsAllowed Nothing)
-        (\case
-          Overdue d ->
-            return $ Just $ Right $ Evt $ Timeout d
-          Future (Deadline deadlineTime _ _) ->
-            whenWaitingIsAllowed (Just deadlineTime))
-
--- | First tries to get pending 'ServerEvent' then tries to get pending player input
-tryGetInputEvent :: TQueue ServerEvent
-                 -> TQueue Key
-                 -> IO (Maybe (Either Key GenEvent))
-tryGetInputEvent a b =
-  atomically $ fmap (Just . Right . SrvEvt)  (readTQueue a)
-           <|> fmap (Just . Left) (readTQueue b)
+tryAtomically :: STM (Either Key GenEvent)
+              -> IO (Maybe (Either Key GenEvent))
+tryAtomically a =
+  atomically $ fmap Just a
            <|> return Nothing
 
-getInputEvent :: TQueue ServerEvent
-              -> TQueue Key
-              -> IO (Either Key GenEvent)
-getInputEvent a b =
-  atomically $ fmap (Right . SrvEvt) (readTQueue a)
-           <|> fmap Left (readTQueue b)
-
-getInputEventBefore :: Time Point System
-                    -> TQueue ServerEvent
-                    -> TQueue Key
+tryAtomicallyBefore :: Time Point System
+                    -> STM (Either Key GenEvent)
                     -> IO (Maybe (Either Key GenEvent))
-getInputEventBefore t a b =
+tryAtomicallyBefore t a =
   getDurationFromNowTo t >>= \allowed ->
     if strictlyNegative allowed
       then
         return Nothing
       else
         registerDelay (fromIntegral $ toMicros allowed) >>= \timeout ->
-          atomically $ fmap (Just . Right . SrvEvt) (readTQueue a)
-                   <|> fmap (Just . Left)  (readTQueue b)
+          atomically $ fmap Just a
                    <|> (return Nothing << check =<< readTVar timeout)
 infixr 1 <<
 {-# INLINE (<<) #-}

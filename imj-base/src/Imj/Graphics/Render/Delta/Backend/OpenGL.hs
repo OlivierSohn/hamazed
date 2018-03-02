@@ -98,7 +98,7 @@ instance PlayerInput OpenGLBackend where
   keysQueue (OpenGLBackend _ q _ _ _) = q
   pollKeys _ = liftIO GLFW.pollEvents
   waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
-  queueType _ = PollOrWaitOnEvents
+  queueType _ = ManualFeed
 
   {-# INLINABLE programShouldEnd #-}
   {-# INLINABLE keysQueue #-}

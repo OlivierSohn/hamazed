@@ -17,7 +17,7 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Attoparsec.Text(parseOnly)
 import qualified Data.Map.Strict as Map (elems, map)
 import           Data.Text(pack, strip)
-
+import           System.Exit(exitSuccess)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -98,7 +98,7 @@ updateAppState (Left evt) = case evt of
   Error txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
-  onDisconnection ClientShutdown       = liftIO $ throwIO GracefulClientEnd
+  onDisconnection ClientShutdown       = liftIO $ exitSuccess
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 

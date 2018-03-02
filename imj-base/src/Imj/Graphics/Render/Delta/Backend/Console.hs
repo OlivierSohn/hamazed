@@ -17,7 +17,7 @@ import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI(clearScreen, hideCursor
                                    , setSGR, setCursorPosition, showCursor)
 import           System.IO(hSetBuffering, hGetBuffering, hSetEcho, hFlush
-                         , BufferMode(..), stdin, stdout, utf8)
+                         , BufferMode(..), stdin, stdout, utf8, putStrLn)
 
 import           Imj.Data.StdoutBuffer(Stdout, mkStdoutBuffer, addStr, addChar, flush)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -39,7 +39,13 @@ instance DeltaRenderBackend ConsoleBackend where
   render (ConsoleBackend _ buf) a b =
     liftIO $ deltaRenderConsole buf a b
   cleanup _ =
-    liftIO $ configureConsoleFor Editing LineBuffering
+    liftIO $ do
+      -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
+      configureConsoleFor Editing LineBuffering
+      Terminal.size >>= maybe
+        (return ())
+        (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
+      putStrLn "" -- so that the first typed command doesn't write on game background.
   cycleRenderingOption _ =
     return $ Right ()
   getDiscreteSize _ =
@@ -65,6 +71,8 @@ instance PlayerInput ConsoleBackend where
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do
   setLocaleEncoding utf8 -- because 'Stdout' encodes using utf8
+  clearScreen -- do not clearFromCursorToScreenEnd with 0 0, so as to keep
+              -- the current console content above the game.
   configureConsoleFor Gaming defaultStdoutMode
   newTQueueIO >>= \q -> do
     _ <- forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q
@@ -84,8 +92,6 @@ configureConsoleFor config stdoutMode =
     Gaming  -> do
       hSetEcho stdin False
       hideCursor
-      clearScreen -- do not clearFromCursorToScreenEnd with 0 0, so as to keep
-                  -- the current console content above the game.
       let requiredInputBuffering = NoBuffering
       initialIb <- hGetBuffering stdin
       hSetBuffering stdin requiredInputBuffering
@@ -99,17 +105,10 @@ configureConsoleFor config stdoutMode =
                ++ show ib
     Editing -> do
       showCursor
-
-      -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
-
       -- do not 'hSetEcho stdin True', as the program will terminate only after
       --   the user presses a key (at least in the Terminal of OSX).
       --   'setSGR []' below seems to reset the stdin echo, with correct program termination.
       setSGR []
-      Terminal.size
-        >>= maybe
-              (return ())
-              (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
 deltaRenderConsole :: Stdout -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)

@@ -39,16 +39,16 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.UI.Animation
 
 
+-- Note that we don't have GracefulClientEnd, because we use exitSuccess in that case
+-- and don't need an exception.
 data ProgramEnd =
-    GracefulClientEnd
-  | GracefulServerEnd
+    GracefulServerEnd
   | UnexpectedProgramEnd !Text
   | ErrorFromServer !String
 instance Exception ProgramEnd
 instance Show ProgramEnd where
-  show GracefulClientEnd        = withNewline "Thanks for playing!"
   show GracefulServerEnd        = withNewline "Server has shut down."
-  show (UnexpectedProgramEnd s) = withNewline $ unpack $ "Program ended: " <> s
+  show (UnexpectedProgramEnd s) = withNewline $ unpack s
   show (ErrorFromServer s)      = withNewline $ "An error occured in the Server: " ++ s
 
 withNewline :: String -> String

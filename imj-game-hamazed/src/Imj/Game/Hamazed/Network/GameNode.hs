@@ -99,14 +99,13 @@ installOneHandler state serverThreadId (sig,sigName) =
     -- will send the client a 'Disconnected' event. Handling the 'Disconnected'
     -- event will end the program by throwing an exception in the main thread.
     -- But if the client is in a bad state (infinite loop in the main thread),
-    -- the program will not terminate because the 'Disconnected' event will never be handled.
+    -- the program will /not/ terminate, because the 'Disconnected' event will never be handled.
     -- To circumvent this (TODO) we can look at the received events in the thread that
     -- puts the events in the queue, and handle 'Disconnected' from that thread,
     -- throwing an exception to the main thread like we did here. 'ServerEvent'
     -- could be 'Disconnected' | 'NormalEvent' to make it easier to code.
 
 -- Adapted from https://hackage.haskell.org/package/websockets-0.12.3.1/docs/src/Network-WebSockets-Server.html#runServer
--- (I needed to know when the listening socket was ready)
 runServer' :: Socket -- ^ Listening socket
            -> ServerApp  -- ^ Application
            -> IO ()

@@ -29,9 +29,9 @@ import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Text.ColorString
 
 runClientCommand :: (MonadState AppState m)
-           => ShipId
-           -> ClientCommand
-           -> m ()
+                 => ShipId
+                 -> ClientCommand
+                 -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
   case cmd of

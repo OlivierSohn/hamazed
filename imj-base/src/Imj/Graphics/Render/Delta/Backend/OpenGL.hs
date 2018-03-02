@@ -7,6 +7,8 @@
 module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
     , OpenGLBackend
+    , PreferredScreenSize(..)
+    , mkScreenSize
     , windowCloseCallback -- for doc
     ) where
 
@@ -118,8 +120,12 @@ glfwKeyToKey GLFW.Key'Down  = Arrow Down
 glfwKeyToKey GLFW.Key'Up    = Arrow Up
 glfwKeyToKey _ = Unknown
 
-newOpenGLBackend :: String -> PPU -> Size -> IO (Either String OpenGLBackend)
-newOpenGLBackend title ppu s = do
+-- there are 3 notions of window size here:
+-- - the preferred size
+-- - the preferred size rounded to a multiple of ppu
+-- - the actual size of the window
+newOpenGLBackend :: String -> PPU -> PreferredScreenSize -> IO (Either String OpenGLBackend)
+newOpenGLBackend title ppu (FixedScreenSize s) = do
   let simpleErrorCallback e x =
         putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
   GLFW.setErrorCallback $ Just simpleErrorCallback
@@ -129,15 +135,18 @@ newOpenGLBackend title ppu s = do
     True -> return ()
 
   keyEventsChan <- newTQueueIO :: IO (TQueue Key)
-  let size = floorToPPUMultiple s ppu
-  win <- createWindow size title
+  let roundedSize = floorToPPUMultiple s ppu
+  win <- createWindow roundedSize title
   GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
   GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
   GLFW.pollEvents -- this is necessary to show the window
+  (w,h) <- GLFW.getWindowSize win
+  let actualSize = Size (fromIntegral h) (fromIntegral w)
+  when (actualSize /= roundedSize) $ error $ "actual size is different from rounded size:" ++ show (actualSize, roundedSize)
   createFonts 0 ppu >>= either
     (return . Left)
-    (\fonts -> Right . OpenGLBackend win keyEventsChan ppu size <$>
+    (\fonts -> Right . OpenGLBackend win keyEventsChan ppu actualSize <$>
         newMVar (RenderingOptions 0 AllFont fonts))
 
 
@@ -157,12 +166,12 @@ cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
             return $ Right fonts
 
 createWindow :: Size -> String -> IO GLFW.Window
-createWindow (Size (Length height) (Length width)) title = do
+createWindow s@(Size (Length height) (Length width)) title = do
   GLFW.windowHint $ GLFW.WindowHint'Resizable False
   -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
   m <- GLFW.createWindow width height title Nothing Nothing
-  let win = fromMaybe (error "could not create GLFW window") m
+  let win = fromMaybe (error $ "could not create a GLFW window of size " ++ show s) m
   GLFW.setCursorInputMode win GLFW.CursorInputMode'Disabled
   GLFW.makeContextCurrent (Just win)
 
@@ -326,3 +335,10 @@ drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
     vertex3f c2 r2 0
     vertex3f c1 r2 0
     vertex3f c1 r1 0
+
+
+newtype PreferredScreenSize = FixedScreenSize Size
+
+mkScreenSize :: Int -> Int -> Either String PreferredScreenSize
+mkScreenSize w h =
+  Right $ FixedScreenSize $ Size (fromIntegral h) (fromIntegral w)

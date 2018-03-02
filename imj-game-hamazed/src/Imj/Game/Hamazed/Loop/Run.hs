@@ -54,6 +54,7 @@ import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
+import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkScreenSize)
 
 {- | Runs the Hamazed game.
 
@@ -138,6 +139,13 @@ runWithArgs =
                "Default is 322 / \"3 2 2\". Incompatible with --serverName."
                )))
       <*> optional
+            (option suggestedPlayerName
+              (  long "playerName"
+              <> help (
+              "[Client] the name of the player you want to use. " ++
+              "Default is \"Player\".")
+              ))
+      <*> optional
             (option backendArg
               (  long "render"
               <> short 'r'
@@ -151,16 +159,17 @@ runWithArgs =
             (option ppuArg
               (  long "ppu"
               <> help (
-              "[Client OpenGL] The size of a game element, in pixels. " ++
-              "'\"x y\"' where x,y are even and >= 4. Default: \"12 8\". "
+              "[Client OpenGL] The size of a game element, in pixels: " ++
+              "'\"w h\"' where w,h are even and >= 4. Default: \"12 8\". "
               )
               ))
       <*> optional
-            (option suggestedPlayerName
-              (  long "playerName"
+            (option screenSizeArg
+              (  long "screenSize"
               <> help (
-              "[Client] the name of the player you want to use. " ++
-              "Default is \"Player\".")
+              "[Client OpenGL] The size of the opengl window, in pixels: " ++
+              "'\"width height\"' where width,height are >= 1. Default: \"600 1400\". "
+              )
               ))
       <*> switch
             (  long "debug"
@@ -224,6 +233,19 @@ srvColorSchemeArg = map toLower <$> str >>= \lowercase -> do
       _ -> err)
     (return . ColorScheme)
     $ predefinedColor lowercase
+
+screenSizeArg :: ReadM PreferredScreenSize
+screenSizeArg = map toLower <$> str >>= \lowercase -> do
+  let err msg = readerError $
+       "Encountered an invalid screen size:\n\t" ++
+       lowercase ++
+       maybe [] (\txt -> "\n" ++ txt) msg
+      asScreenSize l = case catMaybes $ map readMaybe l of
+        [x,y] -> either (err . Just) return $ mkScreenSize (fromIntegral (x::Int)) (fromIntegral y)
+        _ -> err Nothing
+  case words lowercase of
+    [x, y] -> asScreenSize [x,y]
+    _ -> err Nothing
 
 ppuArg :: ReadM PPU
 ppuArg = map toLower <$> str >>= \lowercase -> do
@@ -305,12 +327,13 @@ runWithBackend :: Bool
                -> Maybe ServerPort
                -> Maybe ServerLogs
                -> Maybe ColorScheme
+               -> Maybe SuggestedPlayerName
                -> Maybe BackendType
                -> Maybe PPU
-               -> Maybe SuggestedPlayerName
+               -> Maybe PreferredScreenSize
                -> Bool
                -> IO ()
-runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeBackend mayPPU mayPlayerName debug = do
+runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPlayerName maybeBackend mayPPU mayScreenSize debug = do
   let printServerArgs = do
         putStrLn $ "| Server-only : " ++ show serverOnly
         putStrLn $ "| Server name : " ++ show maySrvName
@@ -347,9 +370,13 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
         -- because we want the user to be able to stop the program now.
         backend <- maybe userPicksBackend return maybeBackend
         case backend of
-          Console -> when (isJust mayPPU) $
-            error $ "Cannot use --ppu with the console backend. " ++
-              "Please use the opengl backend instead, or remove --ppu from the command line."
+          Console -> do
+            when (isJust mayPPU) $
+              error $ "Cannot use --ppu with the console backend. " ++
+                "Please use the opengl backend instead, or remove --ppu from the command line."
+            when (isJust mayScreenSize) $
+              error $ "Cannot use --screenSize with the console backend. " ++
+                "Please use the opengl backend instead, or remove --screenSize from the command line."
           _ -> return ()
 
         void $ forkIO $ startServerIfLocal srv ready
@@ -361,7 +388,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme maybeB
           OpenGLWindow ->
             newOpenGLBackend "Hamazed"
               (fromMaybe defaultPPU mayPPU)
-              (Size 600 1400) -- TODO command line arg FullScreen / fixed size
+              (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith debug queues srv player)
 
 {-# INLINABLE runWith #-}

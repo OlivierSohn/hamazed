@@ -102,8 +102,9 @@ newEnv :: (MonadIO m, DeltaRenderBackend a)
        -> Maybe (Color8 Background)
        -> m DeltaEnv
 newEnv backend a b c = do
-  ctxt <- liftIO $ newContext a b c (getDiscreteSize backend)
-  return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend) (cycleRenderingOption backend)
+  let sz = getDiscreteSize backend
+  ctxt <- liftIO $ newContext a b c sz
+  return $ DeltaEnv ctxt (render backend) sz (cycleRenderingOption backend)
 
 
 -- | Sets the 'ResizePolicy' for back and front buffers.

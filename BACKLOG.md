@@ -1,5 +1,5 @@
-- command line arg for rectangle unit size (Client - OpenGL)
-- command line arg for screen size
+- in opengl, the left-most rectangle units of the background are not drawn, maybe the scissor is not applied correctly?
+
 - command line arg for full screen -> adapt the logic because we can't guarantee that the screen size
  will be a multiple of unit size.
 

@@ -20,7 +20,7 @@ testFont = do
       (_, idxGameZ) = decodeGlyph gameZ
       (_, idxTextZ) = decodeGlyph textZ
 
-  createFonts 0 (Coords 10 10) >>= either
+  createFonts 0 (Size 10 10) >>= either
     error
     (\fonts@(Fonts font0@(Font f0 _) font1@(Font f1 _)) -> do
         print $ lookupFont idxGameZ fonts

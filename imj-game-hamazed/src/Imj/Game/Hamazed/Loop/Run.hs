@@ -86,8 +86,7 @@ runWithArgs =
     (  fullDesc
     <> header (
        "**** imj-game-hamazed-exe runs the 'Hamazed' multiplayer game. " ++
-       "Each client (player) is connected to a unique lightweight server " ++
-       "scheduling game execution."
+       "Each client (player) is connected to a server."
       )
     <> progDesc (
        "If you want to: " ++
@@ -133,17 +132,17 @@ runWithArgs =
                <> short 'c'
                <> help (
                "Defines the colors of ships. Possible values are: " ++ descPredefinedColors ++ ", " ++
-               "'rgb' where r,g,b are one of 0,1,2,3,4,5 (this is equivalent to running command '/color r g b' in the chat window), " ++
-               "or 'time' to chose colors based on server start time. " ++
-               "Default is '322'. Incompatible with --serverName."
+               "'rgb' | '\"r g b\"' where r,g,b are one of {0,1,2,3,4,5}, " ++
+               "'time' to chose colors based on server start time. " ++
+               "Default is 322 / \"3 2 2\". Incompatible with --serverName."
                )))
       <*> optional
             (option backendArg
               (  long "render"
               <> short 'r'
               <> help (
-              "[Client] use 'console' to play in the console, " ++
-              "'opengl' to play in an opengl window. When omitted, the player " ++
+              "[Client] 'console': play in the console. " ++
+              "'opengl': play in an opengl window. When omitted, the player " ++
               "will be asked to chose interactively." ++
               renderHelp)
               ))
@@ -197,22 +196,25 @@ srvLogsArg =
                     ++ "\nAccepted render types are 'none' and 'console'."
 
 srvColorSchemeArg :: ReadM ColorScheme
-srvColorSchemeArg =
-  str >>= \s -> do
-    let err = readerError $
-         "Encountered an invalid color scheme:\n\t" ++
-         show s ++
-         "\nAccepted values are 'time', 'rgb' where r,g,b are one of 0,1,2,3,4,5 (for example '513') and " ++
-         descPredefinedColors ++ "."
-        value = map toLower s
-    maybe (
-      case map toLower s of
-        "time" -> return UseServerStartTime
-        l@[_,_,_] -> case catMaybes $ map (readMaybe . (:[])) l of
-          [r,g,b] -> either (const err) (return . ColorScheme) $ userRgb r g b
-          _ -> err
+srvColorSchemeArg = map toLower <$> str >>= \lowercase -> do
+  let err = readerError $
+       "Encountered an invalid color scheme:\n\t" ++
+       lowercase ++
+       "\nAccepted values are:" ++
+       "\n - one of " ++ descPredefinedColors ++
+       "\n - 'rgb' | '\"r g b\"' where r,g,b are one of 0,1,2,3,4,5 (pure red is for example 500 / \"5 0 0\")" ++
+       "\n - 'time'"
+      asRGB l = case catMaybes $ map (readMaybe . (:[])) l of
+        [r,g,b] -> either (const err) (return . ColorScheme) $ userRgb r g b
         _ -> err
-      ) (return . ColorScheme) $ predefinedColor value
+  maybe
+    (case lowercase of
+      "time" -> return UseServerStartTime
+      l@[_ ,_ ,_]     -> asRGB l
+      [r,' ',g,' ',b] -> asRGB [r,g,b]
+      _ -> err)
+    (return . ColorScheme)
+    $ predefinedColor lowercase
 
 backendArg :: ReadM BackendType
 backendArg =

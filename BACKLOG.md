@@ -1,3 +1,8 @@
+- command line arg for rectangle unit size (Client - OpenGL)
+- command line arg for screen size
+- command line arg for full screen -> adapt the logic because we can't guarantee that the screen size
+ will be a multiple of unit size.
+
 - Today all ' ' are (background) colored.
 We need 'transparentSpace':
   transparency (or alpha) could be encoded
@@ -10,29 +15,14 @@ Then, use it between player name and ammo.
 
 - if performance matters here,
 put Glyph in Number and Ship.
-maybe in ColorString, too? (instead of Text)
 maybe in UIRectangle, too?
 
 - Look at core, see if color is encoded n times or 1 only. (delta Draw)
 
-- Add a notion of Font to Cell, in high bits of characters
-(max unicode point is at OX10FFFF, 11 high bits are available)
-
-add notion of fontIndex to 'Draw'
-
-Use 2 fonts, one (bigger) for game UI (ships, numbers, walls, frame)
-and one for text messages (player names, chat)
-
-the difference in the 2 is the number of chars we use to compute the bounding box:
-for the game font, we just pass the chars used to draw game elements ( _ | - = + 0-9 a-f Z T )
-  maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
-  maybe we need to move + and - to make them be in the center.
-  maybe we need 2 different fonts (not only size) altogether : _ will look strange in messages ?
-for text messages, we pass all chars of the font, so that users can use any char of the font.
-
-- command line arg for screen size
- for full screen, we will need to adapt the logic because we can't guarantee that the screen size
- will be a multiple of unit size.
+- for game font,
+maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
+maybe we need to move + and - to make them be in the center.
+- maybe we need 2 .ttf fonts, else modified _ would look strange in messages, and pipes too ?
 
 - replace unboxed by Storable?
 

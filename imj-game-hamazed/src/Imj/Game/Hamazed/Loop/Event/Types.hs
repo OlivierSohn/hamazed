@@ -54,6 +54,7 @@ data Event = Configuration !Char
            | Interrupt !MetaAction
            -- ^ A game interruption.
            | ToggleEventRecording
+           | Log !Text
            | ChatCmd {-unpack sum-} !ChatCommand
            | SendChatMessage
            -- ^ Send message or execute command if the message starts with a '/'

@@ -354,6 +354,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
                           x ++ "' (these options are mutually exclusive)."
     when (isJust maySrvName)    $ conflict "--serverName"
     when (isJust mayPPU)        $ conflict "--ppu"
+    when (isJust mayScreenSize) $ conflict "--screenSize"
     when (isJust mayPlayerName) $ conflict "--playerName"
     when (isJust maybeBackend)  $ conflict "--render"
 
@@ -444,17 +445,17 @@ loop = do
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadState AppState m, MonadIO m, MonadReader e m, PlayerInput e, ClientNode e)
-             => m (Maybe (Either Key GenEvent))
+             => m (Maybe (Either PlatformEvent GenEvent))
 produceEvent = do
   server <- asks serverQueue
-  keys <- asks keysQueue
+  platform <- asks plaformQueue
 
   asks queueType >>= \case
     AutomaticFeed -> return ()
     ManualFeed -> asks pollKeys >>= liftIO
 
   let readInput = fmap (Right . SrvEvt) (readTQueue server)
-              <|> fmap Left (readTQueue keys)
+              <|> fmap Left (readTQueue platform)
 
   -- We handle pending input events first: they have a higher priority than any other.
   liftIO (tryAtomically readInput) >>= maybe
@@ -469,8 +470,8 @@ produceEvent = do
 
 triggerRenderOr :: (MonadState AppState m, MonadIO m, MonadReader e m
                   , PlayerInput e)
-                => IO (Maybe (Either Key GenEvent))
-                -> m (Maybe (Either Key GenEvent))
+                => IO (Maybe (Either PlatformEvent GenEvent))
+                -> m (Maybe (Either PlatformEvent GenEvent))
 triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
@@ -511,15 +512,15 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
         -}
 
 
-tryAtomically :: STM (Either Key GenEvent)
-              -> IO (Maybe (Either Key GenEvent))
+tryAtomically :: STM (Either PlatformEvent GenEvent)
+              -> IO (Maybe (Either PlatformEvent GenEvent))
 tryAtomically a =
   atomically $ fmap Just a
            <|> return Nothing
 
 tryAtomicallyBefore :: Time Point System
-                    -> STM (Either Key GenEvent)
-                    -> IO (Maybe (Either Key GenEvent))
+                    -> STM (Either PlatformEvent GenEvent)
+                    -> IO (Maybe (Either PlatformEvent GenEvent))
 tryAtomicallyBefore t a =
   getDurationFromNowTo t >>= \allowed ->
     if strictlyNegative allowed

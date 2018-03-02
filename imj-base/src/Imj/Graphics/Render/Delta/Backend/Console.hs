@@ -33,7 +33,7 @@ import           Imj.Input.Blocking
 import           Imj.Input.Types
 
 
-data ConsoleBackend = ConsoleBackend !(TQueue Key) !Stdout
+data ConsoleBackend = ConsoleBackend !(TQueue PlatformEvent) !Stdout
 
 instance DeltaRenderBackend ConsoleBackend where
   render (ConsoleBackend _ buf) a b =
@@ -58,12 +58,12 @@ instance DeltaRenderBackend ConsoleBackend where
 
 instance PlayerInput ConsoleBackend where
   programShouldEnd _ = return False
-  keysQueue (ConsoleBackend q _) = q
+  plaformQueue (ConsoleBackend q _) = q
   queueType _ = AutomaticFeed
   pollKeys _ = return ()
   waitKeysTimeout _ _ = return ()
   {-# INLINABLE programShouldEnd #-}
-  {-# INLINABLE keysQueue #-}
+  {-# INLINABLE plaformQueue #-}
   {-# INLINABLE queueType #-}
   {-# INLINABLE pollKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
@@ -75,7 +75,7 @@ newConsoleBackend = do
               -- the current console content above the game.
   configureConsoleFor Gaming defaultStdoutMode
   newTQueueIO >>= \q -> do
-    _ <- forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q
+    _ <- forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . KeyPress
     ConsoleBackend q <$> mkStdoutBuffer 8192
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'

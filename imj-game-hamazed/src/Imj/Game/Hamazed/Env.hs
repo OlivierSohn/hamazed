@@ -58,12 +58,12 @@ instance ClientNode (Env x) where
   {-# INLINABLE serverQueue #-}
 
 instance PlayerInput x => PlayerInput (Env x) where
-  keysQueue (Env _ a _) = keysQueue a
+  plaformQueue (Env _ a _) = plaformQueue a
   programShouldEnd (Env _ a _) = programShouldEnd a
   pollKeys (Env _ a _) = pollKeys a
   queueType (Env _ a _) = queueType a
   waitKeysTimeout (Env _ a _) = waitKeysTimeout a
-  {-# INLINE keysQueue #-}
+  {-# INLINE plaformQueue #-}
   {-# INLINE programShouldEnd #-}
   {-# INLINE pollKeys #-}
   {-# INLINE queueType #-}

@@ -3,7 +3,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Input.Types
-    ( Key(..)
+    ( PlatformEvent(..)
+    , Key(..)
     , PlayerInput(..)
     , FeedType(..)
     -- * reexports
@@ -23,10 +24,15 @@ import           Data.Int(Int64)
 import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
 
+data PlatformEvent =
+    KeyPress !Key
+  | Message !Text
+  | StopProgram
+
 -- | Represents the key pressed by a player.
-data Key = AlphaNum Char
+data Key = AlphaNum !Char
          -- ^ An alphanumeric key (includes punctuation characters)
-         | Arrow Direction
+         | Arrow !Direction
          -- ^ One of the four direction arrows
          | Enter
          -- ^ The Enter key
@@ -38,8 +44,6 @@ data Key = AlphaNum Char
          -- ^ Remove char LEFT of the edit point
          | Delete
          -- ^ Remove char at the edit point
-         | StopProgram
-         -- ^ To be interpreted as "the program should stop now".
          | Unknown
          -- ^ An unhandled key
          deriving(Show)
@@ -56,7 +60,7 @@ class PlayerInput a where
   programShouldEnd :: (MonadIO m)
                    => a -> m Bool
 
-  keysQueue :: a -> TQueue Key
+  plaformQueue :: a -> TQueue PlatformEvent
 
   queueType :: a -> FeedType
   -- | Use only if 'queueType' returns ManualFeed.

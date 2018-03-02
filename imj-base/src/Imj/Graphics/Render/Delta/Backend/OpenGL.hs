@@ -3,6 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
@@ -13,15 +14,17 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     ) where
 
 import           Imj.Prelude
-import           Prelude(putStrLn, length)
+import           Prelude(length)
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
 import           Control.DeepSeq(NFData)
 import           Data.Char(isHexDigit, digitToInt)
+import           Data.Text(pack)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
+import           Foreign.Ptr(nullPtr)
 
 import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -37,22 +40,23 @@ import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
 
-charCallback :: TQueue Key -> GLFW.Window -> Char -> IO ()
-charCallback q _ c = atomically $ writeTQueue q $ AlphaNum c
+charCallback :: TQueue PlatformEvent -> GLFW.Window -> Char -> IO ()
+charCallback q _ c = atomically $ writeTQueue q $ KeyPress $ AlphaNum c
 
-keyCallback :: TQueue Key -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
-keyCallback q _ k _ GLFW.KeyState'Pressed _ = case glfwKeyToKey k of
-  Unknown -> return ()
-  key -> atomically $ writeTQueue q key
+keyCallback :: TQueue PlatformEvent -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
+keyCallback q _ k _ GLFW.KeyState'Pressed _ =
+  case glfwKeyToKey k of
+    Unknown -> return ()
+    key -> atomically $ writeTQueue q $ KeyPress key
 keyCallback _ _ _ _ _ _ = return ()
 
-windowCloseCallback :: TQueue Key -> GLFW.Window -> IO ()
+windowCloseCallback :: TQueue PlatformEvent -> GLFW.Window -> IO ()
 windowCloseCallback keyQueue _ =
   atomically $ writeTQueue keyQueue StopProgram
 
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: {-# UNPACK #-} !GLFW.Window
-  , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue Key)
+  , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue PlatformEvent)
   , _ppu :: {-# UNPACK #-} !PPU
   -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: {-# UNPACK #-} !Size
@@ -97,13 +101,13 @@ instance DeltaRenderBackend OpenGLBackend where
 
 instance PlayerInput OpenGLBackend where
   programShouldEnd (OpenGLBackend win _ _ _ _) = liftIO $ GLFW.windowShouldClose win
-  keysQueue (OpenGLBackend _ q _ _ _) = q
+  plaformQueue (OpenGLBackend _ q _ _ _) = q
   pollKeys _ = liftIO GLFW.pollEvents
   waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
   queueType _ = ManualFeed
 
   {-# INLINABLE programShouldEnd #-}
-  {-# INLINABLE keysQueue #-}
+  {-# INLINABLE plaformQueue #-}
   {-# INLINABLE pollKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
   {-# INLINABLE queueType #-}
@@ -126,27 +130,27 @@ glfwKeyToKey _ = Unknown
 -- - the actual size of the window
 newOpenGLBackend :: String -> PPU -> PreferredScreenSize -> IO (Either String OpenGLBackend)
 newOpenGLBackend title ppu (FixedScreenSize s) = do
+  q <- newTQueueIO
   let simpleErrorCallback e x =
-        putStrLn $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
+        atomically $ writeTQueue q $ Message $ pack $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
   GLFW.setErrorCallback $ Just simpleErrorCallback
 
   GLFW.init >>= \case
     False -> error "could not initialize GLFW"
     True -> return ()
 
-  keyEventsChan <- newTQueueIO :: IO (TQueue Key)
   let roundedSize = floorToPPUMultiple s ppu
   win <- createWindow roundedSize title
-  GLFW.setKeyCallback win $ Just $ keyCallback keyEventsChan
-  GLFW.setCharCallback win $ Just $ charCallback keyEventsChan
-  GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback keyEventsChan
+  GLFW.setKeyCallback win $ Just $ keyCallback q
+  GLFW.setCharCallback win $ Just $ charCallback q
+  GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback q
   GLFW.pollEvents -- this is necessary to show the window
   (w,h) <- GLFW.getWindowSize win
   let actualSize = Size (fromIntegral h) (fromIntegral w)
   when (actualSize /= roundedSize) $ error $ "actual size is different from rounded size:" ++ show (actualSize, roundedSize)
   createFonts 0 ppu >>= either
     (return . Left)
-    (\fonts -> Right . OpenGLBackend win keyEventsChan ppu actualSize <$>
+    (\fonts -> Right . OpenGLBackend win q ppu actualSize <$>
         newMVar (RenderingOptions 0 AllFont fonts))
 
 
@@ -270,15 +274,8 @@ renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.
 renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeight winWidth) c r char color = do
   let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
       totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
-      -- with 6,5 there are leftovers on top of pipe, with 4 it's below.
       unitRow x = -1 + offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)
       unitCol x = -1 + offsetCol * 2 / fromIntegral winWidth  + unit (fromIntegral winWidth)  ppuW * x
-  -- The present raster color is locked by the use glRasterPos*()
-  -- <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>
-  --
-  -- Hence, we set the color /before/ raster pos:
-  GL.color color
-
   -- opengl coords interval [-1, 1] represent winLength pixels, hence:
   --   pixelLength = 2 / winlength
   --
@@ -298,10 +295,35 @@ renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeig
   --
   -- Hence, the raster position is put at unit rectangle corners, offset by a number of pixels
   -- both in horizontal and vertical directions.
+  let x = unitCol (fromIntegral c :: Float) :: GL.GLfloat
+      y = unitRow (fromIntegral (succ r) :: Float)
+  -- From <https://www.khronos.org/opengl/wiki/Coloring_a_bitmap>:
+  -- The present raster color is locked by the use glRasterPos*()
+  --
+  -- Hence, the color must be set /before/ calling 'rasterPos':
+  GL.color color
+  rasterPos x y
 
-  GL.rasterPos $ GL.Vertex2 (unitCol (fromIntegral c :: Float) :: GL.GLfloat)
-                            (unitRow (fromIntegral (succ r) :: Float))
   FTGL.renderFont font [char] FTGL.Front --FTGL.Side
+
+{-# INLINE rasterPos #-}
+rasterPos :: GL.GLfloat -> GL.GLfloat -> IO ()
+rasterPos !x' !y' = do
+  GL.rasterPos $ GL.Vertex2 x y
+  when (dx/=0 || dy/=0) $
+    -- <https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/glBitmap.xml>
+    -- To set a valid raster position outside the viewport,
+    -- first set a valid raster position inside the viewport,
+    -- then call glBitmap with NULL as the bitmap parameter and with
+    -- xmove and ymove set to the offsets of the new raster position. This technique is useful when panning an image around the viewport.
+    GL.bitmap (GL.Size 0 0) (GL.Vertex2 0 0) (GL.Vector2 dx dy) nullPtr
+ where
+  (dx,x) = split x'
+  (dy,y) = split y'
+  split a
+    | a >  1    = (a-1, 1)
+    | a < -1    = (a+1,-1)
+    | otherwise = (  0, a)
 
 drawSquare :: PPU -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
 drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
@@ -326,7 +348,10 @@ drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
       -- unitRow (1+r)                                   : is in [-1         , 1 - 2/nUnits]
       --
       -- Hence, the screen is paved from -1-1 to 1 1 with rectangles, and coordinates
-      -- passed to vertex3f are at pixel /corners/, which is what we want.
+      -- passed to vertex3f are at pixel /corners/.
+      --
+      -- Note that when drawing a triangle, not all vertices have to be inside the viewport
+      -- so unlike in 'renderChar', we don't need to compensate for coordinates outside [-1,1].
       (r1,r2) = (unitRow r, unitRow (1 + r))
       (c1,c2) = (unitCol c, unitCol (1 + c))
   GL.renderPrimitive GL.TriangleFan $ do

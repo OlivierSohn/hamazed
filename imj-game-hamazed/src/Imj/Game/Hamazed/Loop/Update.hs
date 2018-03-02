@@ -43,6 +43,7 @@ updateAppState :: (MonadState AppState m, MonadReader e m, Render e, ClientNode 
 updateAppState (Right evt) = case evt of
   (Interrupt Quit) -> sendToServer $ RequestCommand $ Leaves Intentional
   (Interrupt Help) -> error "not implemented"
+  Log txt -> stateChat $ addMessage $ Warning txt
   Configuration c ->
     updateGameParamsFromChar c
   CycleRenderingOptions ->

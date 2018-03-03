@@ -55,7 +55,7 @@ import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
-import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkScreenSize)
+import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 import           Imj.Graphics.Text.ColorString hiding(intercalate)
 import           Imj.Log
 
@@ -170,8 +170,8 @@ runWithArgs =
             (option screenSizeArg
               (  long "screenSize"
               <> help (
-              "[Client OpenGL] The size of the opengl window, in pixels: " ++
-              "'\"width height\"' where width,height are >= 1. Default: \"600 1400\". "
+              "[Client OpenGL] The size of the opengl window. 'full': fullscreen. " ++
+              "'\"width height\"' : size in pixels. Default: \"600 1400\". "
               )
               ))
       <*> switch
@@ -241,12 +241,14 @@ screenSizeArg :: ReadM PreferredScreenSize
 screenSizeArg = map toLower <$> str >>= \lowercase -> do
   let err msg = readerError $
        "Encountered an invalid screen size:\n\t" ++
-       lowercase ++
-       maybe [] (\txt -> "\n" ++ txt) msg
+         lowercase ++
+         maybe [] ("\n" ++) msg ++
+         "\nAccepted values are : 'full', '\"width height\"'"
       asScreenSize l = case catMaybes $ map readMaybe l of
-        [x,y] -> either (err . Just) return $ mkScreenSize (fromIntegral (x::Int)) (fromIntegral y)
+        [x,y] -> either (err . Just) return $ mkFixedScreenSize (fromIntegral (x::Int)) (fromIntegral y)
         _ -> err Nothing
   case words lowercase of
+    ["full"] -> return FullScreen
     [x, y] -> asScreenSize [x,y]
     _ -> err Nothing
 

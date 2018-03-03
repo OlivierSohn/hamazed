@@ -1,10 +1,10 @@
-- When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
-- Message displayed when server is unreachable is wrong (a game is currently running on the server)
+- use another text box for networking messages, to separate concerns, to
+prevent messages from being replaced by game info.
+
+- a continuous version where motions are fluid, for opengl.
+
 - "Please Wait" after level finished can be long if other player doesn't press the key,
 we could inform by state: GameState WaitingAcknowledgement [ShipId]
-
-- command line arg for full screen -> adapt the logic because we can't guarantee that the screen size
- will be a multiple of unit size.
 
 - Today all ' ' are (background) colored.
 We need 'transparentSpace':

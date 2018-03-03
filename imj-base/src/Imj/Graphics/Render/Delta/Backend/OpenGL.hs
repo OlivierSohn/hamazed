@@ -10,7 +10,7 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
     , OpenGLBackend
     , PreferredScreenSize(..)
-    , mkScreenSize
+    , mkFixedScreenSize
     , windowCloseCallback -- for doc
     ) where
 
@@ -96,11 +96,20 @@ instance DeltaRenderBackend OpenGLBackend where
               return $ Right ())
 
     getDiscreteSize (OpenGLBackend _ _ (Size ppuH ppuW) (Size h w) _) =
-      return $ Just $ Size (fromIntegral $ quot (fromIntegral h) ppuH)
-                           (fromIntegral $ quot (fromIntegral w) ppuW)
+      return $ Just $ Size
+        (fromIntegral $ quotCeil (fromIntegral h) (fromIntegral ppuH :: Int))
+        (fromIntegral $ quotCeil (fromIntegral w) (fromIntegral ppuW :: Int))
     {-# INLINABLE render #-}
     {-# INLINABLE cleanup #-}
     {-# INLINABLE getDiscreteSize #-}
+
+{-# INLINABLE quotCeil #-}
+quotCeil :: (Integral a) => a -> a -> a
+quotCeil x y =
+  let (q,r) = quotRem x y
+  in if r == 0
+       then q
+       else q + 1
 
 instance PlayerInput OpenGLBackend where
   programShouldEnd (OpenGLBackend win _ _ _ _) = liftIO $ GLFW.windowShouldClose win
@@ -132,7 +141,7 @@ glfwKeyToKey _ = Unknown
 -- - the preferred size rounded to a multiple of ppu
 -- - the actual size of the window
 newOpenGLBackend :: String -> PPU -> PreferredScreenSize -> IO (Either String OpenGLBackend)
-newOpenGLBackend title ppu (FixedScreenSize s) = do
+newOpenGLBackend title ppu preferred = do
   q <- newTQueueIO
   let simpleErrorCallback e x =
         atomically $ writeTQueue q $ Message Warning $
@@ -143,15 +152,16 @@ newOpenGLBackend title ppu (FixedScreenSize s) = do
     False -> error "could not initialize GLFW"
     True -> return ()
 
-  let roundedSize = floorToPPUMultiple s ppu
-  win <- createWindow roundedSize title
+  let maySize = case preferred of
+        FixedScreenSize s -> Just $ floorToPPUMultiple s ppu
+        FullScreen -> Nothing
+  win <- createWindow title maySize
   GLFW.setKeyCallback win $ Just $ keyCallback q
   GLFW.setCharCallback win $ Just $ charCallback q
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback q
   GLFW.pollEvents -- this is necessary to show the window
   (w,h) <- GLFW.getWindowSize win
   let actualSize = Size (fromIntegral h) (fromIntegral w)
-  when (actualSize /= roundedSize) $ error $ "actual size is different from rounded size:" ++ show (actualSize, roundedSize)
   createFonts 0 ppu >>= either
     (return . Left)
     (\fonts -> Right . OpenGLBackend win q ppu actualSize <$>
@@ -173,12 +183,29 @@ cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
           else
             return $ Right fonts
 
-createWindow :: Size -> String -> IO GLFW.Window
-createWindow s@(Size (Length height) (Length width)) title = do
+createWindow :: String -> Maybe Size -> IO GLFW.Window
+createWindow title s = do
+  (mon, Size (Length height) (Length width)) <- maybe
+    ( -- full screen mode
+      GLFW.getPrimaryMonitor >>= maybe
+        (return (Nothing, Size 600 1200))
+        (\mon -> GLFW.getVideoMode mon >>= maybe
+          (return (Nothing, Size 600 1200))
+          (\mode -> do
+              GLFW.windowHint $ GLFW.WindowHint'RedBits     $ GLFW.videoModeRedBits mode
+              GLFW.windowHint $ GLFW.WindowHint'GreenBits   $ GLFW.videoModeGreenBits mode
+              GLFW.windowHint $ GLFW.WindowHint'BlueBits    $ GLFW.videoModeBlueBits mode
+              GLFW.windowHint $ GLFW.WindowHint'RefreshRate $ GLFW.videoModeRefreshRate mode
+              return (Just mon
+                    , Size (fromIntegral $ GLFW.videoModeHeight mode)
+                           (fromIntegral $ GLFW.videoModeWidth mode))
+              )))
+    (\s' -> return (Nothing, s'))
+    s
   GLFW.windowHint $ GLFW.WindowHint'Resizable False
   -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
-  m <- GLFW.createWindow width height title Nothing Nothing
+  m <- GLFW.createWindow width height title mon Nothing
   let win = fromMaybe (error $ "could not create a GLFW window of size " ++ show s) m
   GLFW.setCursorInputMode win GLFW.CursorInputMode'Disabled
   GLFW.makeContextCurrent (Just win)
@@ -276,8 +303,8 @@ draw ppu size font rs col row char bg fg
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
 renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeight winWidth) c r char color = do
-  let unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
-      totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
+  let unit x ppu = 2 * fromIntegral ppu / x
+      totalH = fromIntegral $ quotCeil (fromIntegral winHeight) ppuH
       unitRow x = -1 + offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)
       unitCol x = -1 + offsetCol * 2 / fromIntegral winWidth  + unit (fromIntegral winWidth)  ppuW * x
   -- opengl coords interval [-1, 1] represent winLength pixels, hence:
@@ -285,7 +312,7 @@ renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeig
   --
   -- R = 'font offset' * pixelLength
   --
-  -- with nUnits = quot winLength ppu:
+  -- with nUnits = quotCeil winLength ppu:
   --
   -- c,r are in [0..pred nUnits]
   -- 1+r is in [1..nUnits]
@@ -332,12 +359,12 @@ rasterPos !x' !y' = do
 drawSquare :: PPU -> Size -> Float -> Float -> GL.Color3 GL.GLfloat -> IO ()
 drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
   let vertex3f x y z = GL.vertex $ GL.Vertex3 x y (z :: GL.GLfloat)
-      unit x ppu = 2 * recip (fromIntegral $ quot x ppu)
-      totalH = fromIntegral $ quot (fromIntegral winHeight) ppuH
+      unit x ppu = 2 * fromIntegral ppu / x
+      totalH = fromIntegral $ quotCeil (fromIntegral winHeight) ppuH
       unitRow x = -1 + unit (fromIntegral winHeight) ppuH * (totalH - x)
       unitCol x = -1 + unit (fromIntegral winWidth)  ppuW * x
 
-      -- with nUnits = quot winLength ppu:
+      -- with nUnits = quotCeil winLength ppu:
       --
       -- c,r are in [0..pred nUnits]
       -- 1+c,1+r are in [1..nUnits]
@@ -366,8 +393,11 @@ drawSquare (Size ppuH ppuW) (Size winHeight winWidth) c r color = do
     vertex3f c1 r1 0
 
 
-newtype PreferredScreenSize = FixedScreenSize Size
+data PreferredScreenSize =
+    FixedScreenSize !Size
+  | FullScreen
+  deriving(Eq, Show)
 
-mkScreenSize :: Int -> Int -> Either String PreferredScreenSize
-mkScreenSize w h =
+mkFixedScreenSize :: Int -> Int -> Either String PreferredScreenSize
+mkFixedScreenSize w h =
   Right $ FixedScreenSize $ Size (fromIntegral h) (fromIntegral w)

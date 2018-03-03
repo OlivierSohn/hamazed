@@ -21,7 +21,7 @@ module Imj.Game.Hamazed.Chat
 import           Imj.Prelude hiding (drop, null)
 import qualified Prelude as P(length)
 import           Control.DeepSeq(NFData)
-import           Data.Text(Text, pack, snoc, length, splitAt, dropEnd, drop, null)
+import           Data.Text(Text, snoc, length, splitAt, dropEnd, drop, null)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.Positionable
@@ -29,6 +29,7 @@ import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.TextBox
 import           Imj.Geo.Discrete
+import           Imj.Log
 
 data Chat = Chat {
     editableText :: !EditableText
@@ -114,9 +115,7 @@ newtype PlayerName = PlayerName Text
 
 data ChatMessage =
     ChatMessage !ColorString
-  | Info !Text
-  | Warning !Text
-  | DisconnectionReason !String
+  | Information !MessageLevel !Text
 
 chatMsgColor :: Color8 Foreground
 chatMsgColor = gray 10
@@ -125,10 +124,10 @@ chatWinColor :: Color8 Foreground
 chatWinColor = gray 14
 
 toColorStr :: ChatMessage -> ColorString
-toColorStr (Info s) = colored s yellow
-toColorStr (Warning s) = colored s red
 toColorStr (ChatMessage c) = c
-toColorStr (DisconnectionReason s) = colored (pack s) red
+toColorStr (Information Info s) = colored s $ chartreuse `mix` chatMsgColor
+toColorStr (Information Warning s) = colored s yellow
+toColorStr (Information Error s) = colored s red
 
 addMessage :: ChatMessage -> Chat -> (Chat, ())
 addMessage msg c =

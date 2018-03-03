@@ -48,15 +48,14 @@ tryGrow Nothing group
 tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
  | hasPrincipal && principal = return Nothing -- we don't allow two principal events in the same group
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
- | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> do
+ | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> return $
     let -- so that no 2 updates of the same particle system are done in the same group:
         maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
-    if timeSpan range' > maxDiameter
+    in if timeSpan range' > maxDiameter
       then
-        --putStrLn (show (diam, maxDiameter)) >>
-        return Nothing
+        Nothing
       else
-        return $ withEvent $ Just range'
+        withEvent $ Just range'
  where
   !principal = isPrincipal e
   withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime

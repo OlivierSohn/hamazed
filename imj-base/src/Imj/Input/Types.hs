@@ -23,10 +23,11 @@ import           Data.Int(Int64)
 
 import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
+import           Imj.Log
 
 data PlatformEvent =
     KeyPress !Key
-  | Message !Text
+  | Message !MessageLevel !Text
   | StopProgram
 
 -- | Represents the key pressed by a player.

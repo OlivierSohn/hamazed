@@ -437,7 +437,7 @@ handlerError = error' "Handler"
 error' :: String -> String -> ClientHandlerIO ()
 error' from msg = do
   log $ colored (pack txt) red
-  notifyClient $ Error txt
+  notifyClient $ ServerError txt
   error txt
  where
   txt = Prel.intercalate "|" [from, "error from Server", msg]
@@ -445,7 +445,7 @@ error' from msg = do
 serverError :: String -> StateT ServerState IO ()
 serverError msg = do
   serverLog $ pure $ colored (pack txt) red
-  notifyEveryone $ Error txt
+  notifyEveryone $ ServerError txt
   error txt
  where
   txt = Prel.intercalate "|" ["Server error from Server", msg]

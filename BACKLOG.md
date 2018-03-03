@@ -1,9 +1,10 @@
-- in opengl, the left-most rectangle units of the background are not drawn, maybe the scissor is not applied correctly?
+- When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
+- Message displayed when server is unreachable is wrong (a game is currently running on the server)
+- "Please Wait" after level finished can be long if other player doesn't press the key,
+we could inform by state: GameState WaitingAcknowledgement [ShipId]
 
 - command line arg for full screen -> adapt the logic because we can't guarantee that the screen size
  will be a multiple of unit size.
-
-- remove 'Info|' logs when running in the terminal?
 
 - Today all ' ' are (background) colored.
 We need 'transparentSpace':
@@ -11,7 +12,7 @@ We need 'transparentSpace':
     in the glyph metadata or
     in the color, and filtered by the delta renderer
     of in the type : we could have [Either Invisible (Glyph, LayeredColor)],
-      drawing functions would filter Invisible, interpolations would need to handle Invisible too...
+      drawing functions would filter Invisible, interpolations would need to handle Invisible too.
 
 Then, use it between player name and ammo.
 
@@ -55,11 +56,8 @@ so we need to define interpolations between 3d points: Line
 - random distribution of colors : center / radius
 
 - inject player color /gray/ component in cycle colors:
-
 first step:
   the hardcoded colors will only be used for their hue.
-
-- use 'sameIntensityHues' where appropriate.
 
 - make stats of world dismissals visible to the user
 
@@ -73,8 +71,6 @@ one does the operation : * or +
 the cc size.
 
 - ships replaced by humans walking, jumping, climbing
-
-- when making level essence, we should know the number of players.
 
 - Duel mode with one component, the one that has the max sum wins the level number.
 levels go on until 12.
@@ -117,11 +113,6 @@ if input is a /, write all commands in help
 
 - Press H to show help / press H to hide help (write on the right of the game)
 
-- When server unreachable, sendToServer Disconnect does nothing, so Escape key doesn't work as intended.
-- Message displayed when server is unreachable is wrong (a game is currently running on the server)
-- "Please Wait" after level finished can be long if other player doesn't press the key,
-we could inform by state: GameState WaitingAcknowledgement [ShipId]
-
 - ranking :
 high scores of a user can be stored locally, and sent to other clients when connecting to a server.
 How to prevent fraud?
@@ -136,33 +127,11 @@ How to prevent fraud?
     so that the server creates the corresponding CurrentGame, and ServerState.
 
 - server transfer:
-  During the game, we could transfer the server (either because the game server died,
-    or because it's fun to do). To do that, each client needs all the info
-    to create an accurate game state.
+  During the game, we could elect a new server when the server dies.
   When the server shutdowns, we could let the clients live, so that they can keep the game state.
-
-- fix UI: the name of players is far away to the left, not very visible is window is not big enough.
-
-- graceful shutdown with "Ctrl + C" for windows : http://hope.simons-rock.edu/~pshields/cs/cmpt312/libraries/base/GHC-ConsoleHandler.html
 
 - when in Setup intent, the server should send updates of a list "which players would be in the
 game, should you hit Space now" to the clients
-
-- client-less server mode
-(verify that ctrl c terminates the process gracefully)
-Pro : garbage collection of client does not influence server garbage collection, so
-game scheduling may become more stable because on the server there is less stuff to collect.
-(provided that if 2 haskell processes run on the same system, they don't share the runtime)
-Pro : it allows to have a dedicated game server.
-Pro : we can install a signal handler on the client (the one installed today is dedicated to the server)
-Pro : we can play in the terminal, and log in the console for the server.
-Cons : when running the game we need to start the server, then start the client.
-
-- using port 80 to listen is not allowed?
-
-- when handling connection closed, we putStrLn, this is problematic when player uses terminal rendering.
-We could comment that for now, and rely on chat messages sent by the server before the disconnection
-to be aware of disconnections.
 
 - when player press a key to restart: it waits for other player to also press a key to restart
 we could display "waiting for other players to press a key..."

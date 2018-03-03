@@ -33,9 +33,7 @@ getKeyThenFlush =
 -- This way, we won't interrupt reads of escaped characters.
 timeoutGetKeyThenFlush :: Int -> IO (Maybe Key)
 timeoutGetKeyThenFlush dt =
-  timeoutGetAllChars dt >>= \mayStr -> do
-    --putStrLn $ show mayStr
-    return $ fmap fromString mayStr
+  fmap fromString <$> timeoutGetAllChars dt
 
 fromString :: String -> Key
 fromString = \case

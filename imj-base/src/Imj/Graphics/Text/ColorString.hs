@@ -111,7 +111,8 @@ instance DiscreteInterpolation ColorString where
 -- color change control characters.
 buildTxt :: Maybe LayeredColor
          -- ^ When this is a 'Just', assume that if no change control character is emitted,
-         -- the string will be rendered in this color.
+         -- the string will be rendered in this color. It is used to spare a color change
+         -- when possible.
          -> ColorString
          -- ^ the string to convert
          -> (Builder, Maybe LayeredColor)

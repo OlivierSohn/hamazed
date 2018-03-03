@@ -22,7 +22,7 @@ eventFromKey :: (MonadState AppState m)
              => PlatformEvent
              -> m (Maybe GenEvent)
 eventFromKey k = case k of
-  Message txt -> return $ Just $ Evt $ Log txt
+  Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ Evt $ Interrupt Quit
   KeyPress key -> case key of
     Escape      -> return $ Just $ Evt $ Interrupt Quit

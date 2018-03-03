@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Graphics.Render.Delta.Backend.OpenGL
     ( newOpenGLBackend
@@ -39,6 +40,7 @@ import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
 import           Imj.Input.Types
+import           Imj.Log
 
 charCallback :: TQueue PlatformEvent -> GLFW.Window -> Char -> IO ()
 charCallback q _ c = atomically $ writeTQueue q $ KeyPress $ AlphaNum c
@@ -71,7 +73,8 @@ data RenderingOptions = RenderingOptions {
   , _getFonts :: !Fonts
 } deriving(Generic, Show, NFData)
 instance PrettyVal RenderingOptions where
-  prettyVal opt = prettyVal ("RenderingOptions:", show opt)
+  prettyVal opt = prettyVal ("RenderingOptions:" :: String
+                            , show opt)
 
 data RenderingStyle = AllFont
                     | HexDigitAsBits
@@ -132,7 +135,8 @@ newOpenGLBackend :: String -> PPU -> PreferredScreenSize -> IO (Either String Op
 newOpenGLBackend title ppu (FixedScreenSize s) = do
   q <- newTQueueIO
   let simpleErrorCallback e x =
-        atomically $ writeTQueue q $ Message $ pack $ "Warning or error from glfw backend: " ++ unwords [show e, show x]
+        atomically $ writeTQueue q $ Message Warning $
+          "Warning or error from glfw backend: " <> pack (show (e,x))
   GLFW.setErrorCallback $ Just simpleErrorCallback
 
   GLFW.init >>= \case

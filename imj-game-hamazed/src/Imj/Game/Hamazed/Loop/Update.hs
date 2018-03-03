@@ -16,7 +16,7 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Attoparsec.Text(parseOnly)
 import qualified Data.Map.Strict as Map (elems, map)
-import           Data.Text(pack, strip)
+import           Data.Text(pack, unpack, strip)
 import           System.Exit(exitSuccess)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -43,7 +43,8 @@ updateAppState :: (MonadState AppState m, MonadReader e m, Render e, ClientNode 
 updateAppState (Right evt) = case evt of
   (Interrupt Quit) -> sendToServer $ RequestCommand $ Leaves Intentional
   (Interrupt Help) -> error "not implemented"
-  Log txt -> stateChat $ addMessage $ Warning txt
+  Log Error txt -> error $ unpack txt
+  Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
   Configuration c ->
     updateGameParamsFromChar c
   CycleRenderingOptions ->
@@ -60,10 +61,10 @@ updateAppState (Right evt) = case evt of
 updateAppState (Left evt) = case evt of
   RunCommand i cmd -> runClientCommand i cmd
   CommandError cmd err ->
-    stateChat $ addMessage $ Warning $
+    stateChat $ addMessage $ Information Warning $
       pack (show cmd) <> " failed:" <> err
   Reporting cmd res ->
-    stateChat $ addMessage $ Info $
+    stateChat $ addMessage $ Information Info $
       pack (show cmd) <> " is:" <> res
   WorldRequest spec ->
     liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
@@ -96,7 +97,7 @@ updateAppState (Left evt) = case evt of
   EnterState s -> putClientState $ ClientState Ongoing s
   ExitState s  -> putClientState $ ClientState Over s
   Disconnected reason -> onDisconnection reason
-  Error txt ->
+  ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
   onDisconnection ClientShutdown       = liftIO $ exitSuccess
@@ -136,7 +137,7 @@ onSendChatMessage :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientN
                   => m ()
 onSendChatMessage =
   strip <$> stateChat takeMessage >>= \msg -> do
-    let left = stateChat . addMessage . Warning . (<>) ("Error while parsing: " <> msg <> " : ")
+    let left = stateChat . addMessage . Information Warning . (<>) ("Error while parsing: " <> msg <> " : ")
         p = parseOnly command msg
     either
       (left . pack)

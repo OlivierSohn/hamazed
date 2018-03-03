@@ -25,6 +25,7 @@ import           Data.Char(toLower)
 import           Data.Maybe(isJust)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(fromList, lookup, keys)
+import           Data.Text(pack)
 import           Network.Socket(withSocketsDo)
 import           Options.Applicative
                   (ParserHelp(..), progDesc, fullDesc, info, header, execParserPure, prefs, helper
@@ -55,6 +56,8 @@ import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkScreenSize)
+import           Imj.Graphics.Text.ColorString hiding(intercalate)
+import           Imj.Log
 
 {- | Runs the Hamazed game.
 
@@ -68,7 +71,7 @@ run :: IO ()
 run = withSocketsDo $
   if os == "mingw32"
     then
-      putStrLn $ "Windows is not currently supported"
+      error $ "Windows is not currently supported"
       ++ " (https://ghc.haskell.org/trac/ghc/ticket/7353)."
     else
       runWithArgs
@@ -320,7 +323,9 @@ userPicksBackend = do
   getLine >>= \case
     "1" -> return Console
     "2" -> return OpenGLWindow
-    c -> putStrLn ("invalid value : " ++ c) >> userPicksBackend
+    c -> do
+      baseLog $ colored ("invalid value : " <> pack c) red
+      userPicksBackend
 
 runWithBackend :: Bool
                -> Maybe ServerName
@@ -381,7 +386,10 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
           _ -> return ()
 
         void $ forkIO $ startServerIfLocal srv ready
-        readMVar ready -- wait until listening socket is available.
+        readMVar ready >>= either
+          (\e -> baseLog (colored (pack e) red) >> error e)
+          (baseLog . flip colored chartreuse . pack)
+        -- the listening socket is available, we can continue.
         queues <- startClient player srv
         case backend of
           Console ->
@@ -454,7 +462,9 @@ produceEvent = do
     AutomaticFeed -> return ()
     ManualFeed -> asks pollKeys >>= liftIO
 
-  let readInput = fmap (Right . SrvEvt) (readTQueue server)
+  let dispatch (FromServer e) = SrvEvt e
+      dispatch (FromClient e) = Evt e
+      readInput = fmap (Right . dispatch) (readTQueue server)
               <|> fmap Left (readTQueue platform)
 
   -- We handle pending input events first: they have a higher priority than any other.

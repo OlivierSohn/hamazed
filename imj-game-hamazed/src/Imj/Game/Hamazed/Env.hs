@@ -53,8 +53,10 @@ instance Render (Env x) where
 
 instance ClientNode (Env x) where
   sendToServer' (Env _ _ q) = sendToServer' q
+  writeToClient' (Env _ _ q) = writeToClient' q
   serverQueue   (Env _ _ q) = serverQueue q
   {-# INLINABLE sendToServer' #-}
+  {-# INLINABLE writeToClient' #-}
   {-# INLINABLE serverQueue #-}
 
 instance PlayerInput x => PlayerInput (Env x) where

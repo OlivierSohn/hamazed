@@ -24,6 +24,7 @@ module Imj.Graphics.Color.Types
           , userRgb
           , gray
           , userGray
+          , mix
           , grayToRGB
           , color8ToUnitRGB
           , Xterm256Color(..)
@@ -31,7 +32,11 @@ module Imj.Graphics.Color.Types
           , xterm256ColorToCode
           , onBlack
           , whiteOnBlack
-          , white, black, red, green, magenta, cyan, yellow, blue
+          , red, green, blue
+          , magenta, cyan, yellow
+          , azure, violet, rose, orange, chartreuse, springGreen
+          , lime
+          , white, black
           , RGB(..)
           ) where
 
@@ -344,15 +349,32 @@ onBlack = LayeredColor (rgb 0 0 0)
 whiteOnBlack :: LayeredColor
 whiteOnBlack = onBlack white
 
-red, green, blue, yellow, magenta, cyan, white, black :: Color8 a
+red, green, blue :: Color8 a
+yellow, magenta, cyan :: Color8 a
+azure, violet, rose, orange, chartreuse, springGreen, white, black :: Color8 a
+lime :: Color8 a
+-- primary
 red     = rgb 5 0 0
 green   = rgb 0 5 0
 blue    = rgb 0 0 5
+-- secondary
 yellow  = rgb 5 5 0
 magenta = rgb 5 0 5
 cyan    = rgb 0 5 5
+-- tertiary
+azure       = rgb 0 3 5
+violet      = rgb 3 0 5
+rose        = rgb 5 0 3
+orange      = rgb 5 3 0
+chartreuse  = rgb 3 5 0
+springGreen = rgb 0 5 3
+
+-- quaternary
+lime = rgb 4 5 0
+
 white   = rgb 5 5 5
 black   = rgb 0 0 0
+
 
 -- | converts a GrayColor to the closest RGBColor, using another RGBColor
 -- to know in which way to approximate.
@@ -410,3 +432,29 @@ grayComponentToFollowingRGBComponent g
   | g > 12 = 3
   | g > 8  = 2
   | otherwise = 1
+
+mix :: Color8 a -> Color8 a -> Color8 a
+mix  = mix' 0.5
+
+interpolateComp :: Float
+                -- ^ Interpolation factor
+                -> Int
+                -- ^ Value returned when the factor is 0
+                -> Int
+                -- ^ Value returned when the factor is 1
+                -> Int
+interpolateComp f a b = round $ f' * fromIntegral a + f * fromIntegral b
+  where f' = 1 - f
+
+mix' :: Float
+     -> Color8 a
+     -> Color8 a
+     -> Color8 a
+mix' factor c c' = xterm256ColorToCode $ case (color8CodeToXterm256 c, color8CodeToXterm256 c') of
+  (GrayColor g1, GrayColor g2)   -> GrayColor $ f g1 g2
+  (RGBColor rgb1, RGBColor rgb2) -> mixRGB rgb1 rgb2
+  (RGBColor rgb1, GrayColor g2)  -> mixRGB rgb1 (grayToRGB rgb1 g2)
+  (GrayColor g1, RGBColor rgb2)  -> mixRGB (grayToRGB rgb2 g1) rgb2
+ where
+  mixRGB (RGB r g b) (RGB r' g' b') = RGBColor $ RGB (f r r') (f g g') (f b b')
+  f = interpolateComp factor

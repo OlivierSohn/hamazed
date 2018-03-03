@@ -6,6 +6,7 @@
 
 module Imj.Game.Hamazed.Loop.Event.Types
         ( Event(..)
+        , MessageLevel(..)
         , ChatCommand(..)
         , Deadline(..)
         , ActionTarget(..)
@@ -24,6 +25,7 @@ import           Imj.Game.Hamazed.Level.Types
 
 import           Imj.Game.Hamazed.Chat
 import           Imj.Graphics.ParticleSystem.Design.Create
+import           Imj.Log
 import           Imj.Timing
 
 -- | A foreseen game or animation update.
@@ -54,7 +56,7 @@ data Event = Configuration !Char
            | Interrupt !MetaAction
            -- ^ A game interruption.
            | ToggleEventRecording
-           | Log !Text
+           | Log !MessageLevel !Text
            | ChatCmd {-unpack sum-} !ChatCommand
            | SendChatMessage
            -- ^ Send message or execute command if the message starts with a '/'

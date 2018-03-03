@@ -10,17 +10,18 @@ module Imj.Game.Hamazed.Network.GameNode
 import           Imj.Prelude
 import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Concurrent (MVar, ThreadId, forkIO, newMVar, putMVar, modifyMVar_, myThreadId, throwTo)
-import           Control.Exception (onException, finally, bracket)
+import           Control.Exception (SomeException, try, onException, finally, bracket)
 import           Control.Monad.State.Strict(execStateT)
+import           Data.Text(pack)
 import           Foreign.C.Types(CInt)
 import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
 import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnectionOptions,
                     makeListenSocket, makePendingConnection, runClient)
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
-import           System.IO(putStrLn)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
+import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
@@ -30,15 +31,14 @@ import           Imj.Game.Hamazed.Network.Client(appCli)
 import           Imj.Game.Hamazed.Network.Server(appSrv, gameScheduler, shutdown)
 
 startServerIfLocal :: Server
-                   -> MVar ()
+                   -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal (Distant _ _) v = putMVar v ()
+startServerIfLocal srv@(Distant _ _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
 startServerIfLocal srv@(Local logs color _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
-  listen <- makeListenSocket host port `onException` putStrLn (failure msg)
-  putMVar v () -- now that the listen socket is created, signal it.
-  putStrLn $ success msg
+  listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
+  putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
   newServerState logs color >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
@@ -52,18 +52,25 @@ startServerIfLocal srv@(Local logs color _) v = do
   msg x = "Hamazed GameServer " ++ st x ++ show srv ++ ")"
    where
     st False = "failed to start ("
-    st True = "started ("
+    st True = "starts listening ("
 
 startClient :: SuggestedPlayerName -> Server -> IO ClientQueues
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues
+  let reportError x = try x >>= either
+        (\(e :: SomeException) ->
+          -- Maybe noone is reading at the end of the queue if the client already disconnected.
+          -- That's ok.
+          writeToClient' qs $ FromClient $ Log Error $ msg "failed to connect" <> ":" <> pack (show e))
+        return
+
   -- start client
   let (ServerName name, ServerPort port) = getServerNameAndPort srv
   _ <- forkIO $
     -- runClient sets the NO_DELAY socket option to 1, so we don't need to do it.
-    runClient name port "/" $ \x -> do
-      putStrLn $ success msg
+    reportError $ runClient name port "/" $ \x -> do
+      writeToClient' qs $ FromClient $ Log Info $ msg "connected"
       appCli qs x
   -- initialize the game connection
   sendToServer' qs $
@@ -73,14 +80,7 @@ startClient playerName srv = do
         Distant _ _ -> ClientDoesntOwnServer
   return qs
  where
-  msg x = "Hamazed GameClient " ++ st x ++ " to Hamazed GameServer (" ++ show srv ++ ")"
-   where
-    st False = "failed to connect"
-    st True = "connected"
-
-success, failure :: (Bool -> String) -> String
-success txt = "Info|"  ++ txt True
-failure txt = "ERROR|" ++ txt False
+  msg x = x <> " to server " <> pack (show srv)
 
 mkQueues :: IO ClientQueues
 mkQueues =

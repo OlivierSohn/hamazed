@@ -14,10 +14,12 @@ import           Imj.Game.Hamazed.Network.Types
 -- | A 'ClientNode' sends 'ClientEvent's and receives 'ServerEvent's.
 class ClientNode a where
   sendToServer' :: (MonadIO m) => a -> ClientEvent -> m ()
-  serverQueue :: a -> TQueue ServerEvent
+  writeToClient' :: (MonadIO m) => a -> EventsForClient -> m ()
+  serverQueue :: a -> TQueue EventsForClient
 
 instance ClientNode ClientQueues where
-  sendToServer' q = liftIO . atomically . writeTQueue (getOutputQueue q)
+  sendToServer' q = liftIO .atomically . writeTQueue (getOutputQueue q)
+  writeToClient' q = liftIO . atomically . writeTQueue (getInputQueue q)
   serverQueue = getInputQueue
   {-# INLINABLE sendToServer' #-}
   {-# INLINABLE serverQueue #-}

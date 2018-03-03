@@ -2,7 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Log
-        ( baseLog
+        ( MessageLevel(..)
+        , baseLog
         , keepExtremities
         , logDetailedException
         ) where
@@ -25,11 +26,14 @@ import           Imj.Graphics.Color.Types
 import           Imj.Timing
 import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored, buildTxt)
 
+data MessageLevel = Info | Warning | Error
+   deriving(Eq, Show)
+
 {-# INLINE structure #-}
 structure :: Text -> ColorString
 structure = flip colored (gray 8)
 
-baseLog :: (MonadIO m) => ColorString -> m ()
+baseLog :: (MonadIO m) => ColorString -> m () -- TODO use MessageLevel?
 baseLog msg = liftIO $ do
   tid <- myThreadId
   t <- getSystemTime

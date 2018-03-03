@@ -1,10 +1,10 @@
+- "Please Wait" after level finished can be long if other player doesn't press the key,
+we could inform by state: GameState WaitingAcknowledgement [ShipId]
+
 - use another text box for networking messages, to separate concerns, to
 prevent messages from being replaced by game info.
 
 - a continuous version where motions are fluid, for opengl.
-
-- "Please Wait" after level finished can be long if other player doesn't press the key,
-we could inform by state: GameState WaitingAcknowledgement [ShipId]
 
 - Today all ' ' are (background) colored.
 We need 'transparentSpace':

@@ -672,6 +672,55 @@ gameScheduler st =
             go Nothing
           gameScheduler st
  where
+    -- run the action if the world matches the current world and the game was
+    -- not terminated
+    run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
+    run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate mayWorld) ->
+      if terminate
+        then do
+          serverLog $ pure $ colored "Terminating game" yellow
+          return NotExecutedGameCanceled
+        else
+          -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
+          liftIO (tryReadMVar mayWorld) >>= maybe
+            (return NotExecutedGameCanceled)
+            (\(CurrentGame curWid gamePlayers status) ->
+              if refWid /= curWid
+                then do
+                  serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
+                  return NotExecutedGameCanceled -- the world has changed
+                else do
+                  connectedPlayers <- gets onlyPlayersIds
+                  let missingPlayers = Set.difference gamePlayers connectedPlayers
+                      newStatus
+                        | null connectedPlayers = CancelledNoConnectedPlayer
+                        | null missingPlayers = Running
+                        | otherwise = Paused missingPlayers
+                      statusChanged = status /= newStatus
+                  when statusChanged $ do
+                      serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
+
+                      -- mayWorld can be concurrently modified from client handler threads, but only from
+                      -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
+                      -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
+                      -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
+                      -- returned a 'Just'.
+                      liftIO $ void $ swapMVar mayWorld $ CurrentGame curWid gamePlayers newStatus
+                      notifyPlayers $ EnterState $ PlayLevel newStatus
+                  case newStatus of
+                    New -> serverError "logic : newStatus == New" >> return NotExecutedTryAgainLater
+                    Paused _ ->
+                      return NotExecutedTryAgainLater
+                    CancelledNoConnectedPlayer -> do
+                      onLevelOutcome $ Lost "All players left"
+                      return NotExecutedGameCanceled
+                    Running ->
+                      if statusChanged
+                        then
+                          return NotExecutedTryAgainLater
+                        else
+                          act >> return Executed)
+
   initializePlayers :: StateT ServerState IO ()
   initializePlayers = liftIO getSystemTime >>= \start ->
     -- we add one second to take into account the fact that start of game is delayed by one second.
@@ -707,55 +756,6 @@ gameScheduler st =
                   $ getShipSafeUntil client)
                 Set.empty $ getClients' clients
         in (clientsMadeSafe, s { getClients = clients { getClients' = c' } })
-
-  -- run the action if the world matches the current world and the game was
-  -- not terminated
-  run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
-  run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate mayWorld) ->
-    if terminate
-      then do
-        serverLog $ pure $ colored "Terminating game" yellow
-        return NotExecutedGameCanceled
-      else
-        -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
-        liftIO (tryReadMVar mayWorld) >>= maybe
-          (return NotExecutedGameCanceled)
-          (\(CurrentGame curWid gamePlayers status) ->
-            if refWid /= curWid
-              then do
-                serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
-                return NotExecutedGameCanceled -- the world has changed
-              else do
-                connectedPlayers <- gets onlyPlayersIds
-                let missingPlayers = Set.difference gamePlayers connectedPlayers
-                    newStatus
-                      | null connectedPlayers = CancelledNoConnectedPlayer
-                      | null missingPlayers = Running
-                      | otherwise = Paused missingPlayers
-                    statusChanged = status /= newStatus
-                when statusChanged $ do
-                    serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
-
-                    -- mayWorld can be concurrently modified from client handler threads, but only from
-                    -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
-                    -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
-                    -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
-                    -- returned a 'Just'.
-                    liftIO $ void $ swapMVar mayWorld $ CurrentGame curWid gamePlayers newStatus
-                    notifyPlayers $ EnterState $ PlayLevel newStatus
-                case newStatus of
-                  New -> serverError "logic : newStatus == New" >> return NotExecutedTryAgainLater
-                  Paused _ ->
-                    return NotExecutedTryAgainLater
-                  CancelledNoConnectedPlayer -> do
-                    onLevelOutcome $ Lost "All players left"
-                    return NotExecutedGameCanceled
-                  Running ->
-                    if statusChanged
-                      then
-                        return NotExecutedTryAgainLater
-                      else
-                        act >> return Executed)
 
 data RunResult =
     NotExecutedGameCanceled

@@ -5,7 +5,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-
 module Imj.Game.Hamazed.Loop.Draw
       ( draw
       ) where
@@ -72,12 +71,12 @@ drawStatus :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
            -> ClientState
            -> m ()
 drawStatus level ref = \case
-  ClientState Over (PlayLevel _) ->
-    inform "Please wait..."
-  ClientState Over Setup ->
-    inform "..."
   ClientState Over Excluded ->
     inform "Joining..."
+  ClientState Over Setup ->
+    inform "..."
+  ClientState Over (PlayLevel _) ->
+    inform "Please wait..."
   ClientState Ongoing s -> case s of
     Excluded ->
       inform "A game is currently running on the server, please wait..."
@@ -89,16 +88,22 @@ drawStatus level ref = \case
         inform "Waiting for game start..."
       CancelledNoConnectedPlayer ->
         inform "Game cancelled, all players left."
-      Paused disconnectedPlayers ->
-        inform $ pack $
-          "Game paused, waiting for [" ++
-          intercalate ", " (map show $ Set.toList disconnectedPlayers) ++
-          "] to reconnect..."
+      Paused disconnectedPlayers _ -> -- TODO we could draw the previous status too (stack of status)
+        intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
+          inform $ pack $ "Game paused, waiting for [" ++ them ++ "] to reconnect..."
       Running ->
         drawLevelMessage level ref
+      WaitingForOthersToSendOutcome stillPlaying ->
+        intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
+          inform $ pack $ "Waiting for [" ++ them ++ "] to press a key..."
+      OutcomeValidated outcome ->
+        inform $ "The server validated the outcome:" <> pack (show outcome)
  where
   inform (msg :: Text) =
     drawAligned_ (Colored (messageColor Won) msg) $ mkCentered ref
+  showPlayerNames = mapM showPlayerName . Set.toList
+  showPlayerName x =
+    getPlayer x >>= \n -> return $ maybe (show x) (\p -> let (PlayerName t) = getPlayerName p in show t) n
 
 {-# INLINABLE drawSetup #-}
 drawSetup :: (Draw e, MonadReader e m, MonadIO m)

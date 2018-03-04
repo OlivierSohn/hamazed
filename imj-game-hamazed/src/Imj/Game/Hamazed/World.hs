@@ -306,14 +306,10 @@ checkTargetAndAmmo :: Int
                    -- ^ The current sum of all shot 'Numbers'
                    -> LevelTarget
                    -- ^ The 'Level' 's target number.
-                   -> Time Point System
-                   -- ^ The current time
-                   -> Maybe LevelFinished
-checkTargetAndAmmo ammo currentNumber (LevelTarget goal constraint) t =
-    maybe Nothing (\stop -> Just $ LevelFinished stop t InfoMessage) allChecks
+                   -> Maybe LevelOutcome
+checkTargetAndAmmo ammo currentNumber (LevelTarget goal constraint) =
+    checkSum <|> checkAmmo <|> Nothing
   where
-    allChecks = checkSum <|> checkAmmo
-
     checkSum = case compare currentNumber goal of
       EQ -> Just Won
       LT -> Nothing

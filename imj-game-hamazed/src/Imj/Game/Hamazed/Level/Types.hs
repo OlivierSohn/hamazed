@@ -15,6 +15,7 @@ module Imj.Game.Hamazed.Level.Types
     , TargetConstraint(..)
     , initialLaserAmmo
     , LevelFinished(..)
+    , mkLevelFinished
     , MessageState(..)
     , LevelOutcome(..)
     , firstLevel
@@ -74,6 +75,9 @@ data LevelFinished = LevelFinished {
   , _levelFinishedWhen :: {-# UNPACK #-} !(Time Point System)
   , _levelFinishedCurrentMessage :: {-unpack sum-} !MessageState
 } deriving (Generic)
+
+mkLevelFinished :: Time Point System -> LevelOutcome -> LevelFinished
+mkLevelFinished t o = LevelFinished o t InfoMessage
 
 data MessageState = InfoMessage
                   | ContinueMessage

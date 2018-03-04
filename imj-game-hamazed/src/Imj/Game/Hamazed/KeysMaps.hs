@@ -10,6 +10,8 @@ module Imj.Game.Hamazed.KeysMaps
 
 import           Imj.Prelude
 
+import qualified Data.Set as Set(member)
+
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -48,7 +50,6 @@ eventFromKey k = case k of
                 AlphaNum c   -> Just $ Evt $ Configuration c
                 _ -> Nothing
               PlayLevel status -> case status of
-                New -> return Nothing
                 Running -> maybe
                   (case key of
                     AlphaNum c -> case c of
@@ -67,5 +68,21 @@ eventFromKey k = case k of
                     (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
                     _ -> Nothing) -- between level end and proposal to continue
                     <$> getLevelStatus
-                Paused _ -> return Nothing
+                New -> return Nothing
+                Paused _ _ -> return Nothing
                 CancelledNoConnectedPlayer -> return Nothing
+                WaitingForOthersToSendOutcome who ->
+                  getMyShipId >>= maybe
+                    (return Nothing)
+                    (\me ->
+                      if Set.member me who
+                        then
+                          maybe
+                            (error "game is not finished in the client")
+                            (\case
+                              (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
+                              _ -> Nothing) -- between level end and proposal to continue
+                              <$> getLevelStatus
+                        else
+                          return Nothing)
+                OutcomeValidated _ -> return Nothing

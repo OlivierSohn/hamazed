@@ -49,9 +49,7 @@ updateAppState (Right evt) = case evt of
     updateGameParamsFromChar c
   CycleRenderingOptions ->
     cycleRenderingOptions
-  EndLevel outcome -> do
-    sendToServer $ ExitedState $ PlayLevel Running
-    sendToServer $ LevelEnded outcome
+  EndLevel outcome -> sendToServer $ LevelEnded outcome
   (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
   (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
   (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
@@ -100,7 +98,7 @@ updateAppState (Left evt) = case evt of
   ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
-  onDisconnection ClientShutdown       = liftIO $ exitSuccess
+  onDisconnection ClientShutdown       = liftIO exitSuccess
   onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
@@ -188,7 +186,8 @@ onDestroyedNumbers :: (MonadState AppState m)
 onDestroyedNumbers t op destroyedBalls =
   getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s m na) -> do
     let allShotNumbers = g ++ map (\(Number _ n) -> ShotNumber n op) destroyedBalls
-        newLevel = Level level $ finished <|> checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target t
+        finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
+        newLevel = Level level $ finished <|> fmap (mkLevelFinished t) finishIfNoAmmo
     putGameState $ GameState w f allShotNumbers newLevel a s m na
 
 {-# INLINABLE onMove #-}
@@ -224,9 +223,9 @@ onHasMoved =
                   [] -> Nothing
                   _  ->
                     let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
-                    in Just $ LevelFinished (Lost msg) t InfoMessage
-          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse shotNums) target t
-          newLevel = Level level (finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo)
+                    in Just $ Lost msg
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse shotNums) target
+          newLevel = Level level (finished <|> fmap (mkLevelFinished t) (finishIfAllShipsDestroyed <|> finishIfNoAmmo))
       putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s m n
       updateShipsText
 
@@ -246,5 +245,6 @@ updateUIAnim t =
           $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
     putGameState $ GameState world futWorld j k anims s m names
-    when (isFinished anims) $
+    when (isFinished anims) $ do
       maybe (return ()) (sendToServer . IsReady) $ getId world
+      onHasMoved

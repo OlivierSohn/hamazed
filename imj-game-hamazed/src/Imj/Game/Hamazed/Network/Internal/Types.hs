@@ -54,7 +54,10 @@ mkClient :: PlayerName -> Color8 Foreground -> Connection -> ServerOwnership ->Â
 mkClient a color b c =
   Client a b c Nothing Nothing zeroCoords Nothing color
 
-data PlayerState = InGame | Finished
+data PlayerState =
+    Playing
+  | ReadyToPlay (Maybe LevelOutcome) -- TODO should this contain the world Id ?
+  -- ^ withe the outcome of the previous level, if any.
   deriving (Generic, Eq, Show)
 instance NFData PlayerState
 
@@ -79,9 +82,9 @@ data ServerState = ServerState {
 instance NFData ServerState
 
 data CurrentGame = CurrentGame {
-    getGameWorld :: {-# UNPACK #-} !WorldId
-  , getGamePlayers :: !(Set ShipId)
-  , getGameStatus :: {-unpack sum-} !GameStatus
+    gameWorld :: {-# UNPACK #-} !WorldId
+  , gamePlayers' :: !(Set ShipId)
+  , status' :: {-unpack sum-} !GameStatus
 } deriving(Generic, Show)
 
 mkCurrentGame :: WorldId -> Set ShipId -> CurrentGame
@@ -89,8 +92,7 @@ mkCurrentGame w s = CurrentGame w s New
 
 data Intent =
     IntentSetup
-  | IntentPlayGame
-  | IntentLevelEnd !LevelOutcome
+  | IntentPlayGame !(Maybe LevelOutcome)
   deriving(Generic, Show, Eq)
 instance NFData Intent
 

@@ -321,8 +321,10 @@ instance Binary GameStep
 data GameStatus =
     New
   | Running
-  | Paused !(Set ShipId)
-  -- ^ with the list of disconnected clients
+  | Paused !(Set ShipId) !GameStatus
+  -- ^ with the list of disconnected clients and status before pause.
+  | WaitingForOthersToSendOutcome !(Set ShipId)
+  | OutcomeValidated !LevelOutcome
   | CancelledNoConnectedPlayer
   deriving(Generic, Show, Eq)
 instance Binary GameStatus

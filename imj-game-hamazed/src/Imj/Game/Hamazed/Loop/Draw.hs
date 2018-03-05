@@ -88,15 +88,15 @@ drawStatus ref = \case
   statusMsg = \case
     New -> return [color "Waiting for game start..."]
     CancelledNoConnectedPlayer -> return [color "Game cancelled, all players left."]
-    Paused disconnectedPlayers _ -> -- TODO we could draw the previous status too (stack of status)
+    Paused disconnectedPlayers x -> -- TODO we could draw the previous status too (stack of status)
       intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
-        return [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]
+        flip (++) [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]  <$> statusMsg x
     Running -> return []
     WaitingForOthersToEndLevel stillPlaying ->
       intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
         return [color "Waiting for [" <> them <> color "] to finish..."]
-    Countdown n targetStatus ->
-      flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg targetStatus
+    Countdown n x ->
+      flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg x
     OutcomeValidated o -> return [colored' (case o of
       (Lost reason) -> "You Lose (" <> reason <> ")"
       Won           -> "You Win!") $ messageColor o]

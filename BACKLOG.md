@@ -1,7 +1,5 @@
 - store status in UIAnimation, and create animations in drawStatus.
 
-- let the ContinueMessage logic be handled in game scheduler.
-
 - use another text box for networking messages, to separate concerns, to
 prevent messages from being replaced by game info.
 

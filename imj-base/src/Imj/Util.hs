@@ -25,13 +25,11 @@ import           Imj.Prelude
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl')
 import           Data.Text(Text, pack)
-
 import           Control.Arrow( first )
 
 import           System.Random( Random(..)
                               , getStdRandom
                               , split )
-
 
 {-# INLINABLE showListOrSingleton #-}
 -- | If list is a singleton, show the element, else show the list.

@@ -12,6 +12,7 @@ import           Test.Imj.Font
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
 import           Test.Imj.StdoutBuffer
+import           Test.Imj.Sums
 import           Test.Imj.RectArea
 import           Test.Imj.Resample
 import           Test.Imj.Segment
@@ -43,4 +44,5 @@ main = do
   testMutableBytestring
   testLastAbove
   testFont
+  testSums
   return ()

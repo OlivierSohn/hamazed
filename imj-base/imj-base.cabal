@@ -112,13 +112,16 @@ library
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
+                     , Imj.Sums
                      , Imj.Threading
                      , Imj.Timing
+                     , Imj.Tree
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
                      , bytestring == 0.10.*
                      , clock ==0.7.*
+                     , containers >= 0.5.9.2
                      , deepseq ==1.4.*
                      , FTGL ==2.1.*
                      , file-embed ==0.0.*
@@ -173,6 +176,7 @@ test-suite imj-base-test
                      , Test.Imj.RectArea
                      , Test.Imj.Resample
                      , Test.Imj.Segment
+                     , Test.Imj.Sums
                      , Test.Imj.Timing
                      , Test.Imj.Util
                      , Test.Imj.Vector

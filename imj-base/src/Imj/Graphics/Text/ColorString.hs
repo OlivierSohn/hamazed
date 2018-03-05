@@ -30,6 +30,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             , take
             -- * Convert to colored Text
             , buildTxt
+            , safeBuildTxt
             -- * Reexports
             , LayeredColor(..)
             ) where
@@ -40,7 +41,8 @@ import           Control.Monad.Reader.Class(asks)
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
-import           Data.Text.Lazy.Builder(Builder)
+import           Data.Text.Lazy(toStrict)
+import           Data.Text.Lazy.Builder(Builder, toLazyText)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
 import qualified Data.List as List(length, concat, splitAt)
 
@@ -106,6 +108,13 @@ instance DiscreteInterpolation ColorString where
             c1'
           else
             interpolateColors c1' c2' (negate remaining)
+
+-- Restores white on black color in the end, and doesn't assume any
+-- particular console color in the beginning.
+safeBuildTxt :: ColorString -> Text
+safeBuildTxt colorStr =
+  let (builder,color) = buildTxt Nothing colorStr
+  in toStrict $ toLazyText $ builder <> Builder.fromString (colorChange color whiteOnBlack)
 
 -- | Converts to 'Data.Text.Lazy.Builder' with a minimum amount of foreground and background
 -- color change control characters.

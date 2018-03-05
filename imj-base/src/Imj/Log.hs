@@ -15,16 +15,13 @@ import           Control.Concurrent(myThreadId)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(length, lines)
 import           Data.Text(pack, justifyRight, dropEnd)
-import qualified Data.Text.Lazy.Builder as Builder(fromString)
-import           Data.Text.Lazy(toStrict)
 import           Data.Text.IO(putStrLn)
-import           Data.Text.Lazy.Builder(toLazyText)
 import           UnliftIO.Exception (SomeException(..))
 
 import           Imj.Graphics.Color.Types
 
 import           Imj.Timing
-import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored, buildTxt)
+import           Imj.Graphics.Text.ColorString hiding(take)
 
 data MessageLevel = Info | Warning | Error
    deriving(Eq, Show)
@@ -37,7 +34,7 @@ baseLog :: (MonadIO m) => ColorString -> m () -- TODO use MessageLevel?
 baseLog msg = liftIO $ do
   tid <- myThreadId
   t <- getSystemTime
-  putStrLn $ toStrict $ toLazyText $ safeBuildTxt $
+  putStrLn $ safeBuildTxt $
     intercalate (colored "|" white)
     [
     -- dropEnd 3 for microseconds precision
@@ -47,11 +44,6 @@ baseLog msg = liftIO $ do
     , colored (justifyRight 6 ' ' $ pack $ drop 9 $ show tid) white
     , msg
     ]
- where
-  -- restore white on black output in the end.
-  safeBuildTxt colorStr =
-    let (builder,color) = buildTxt Nothing colorStr
-    in builder <> Builder.fromString (colorChange color whiteOnBlack)
 
 logDetailedException :: (Show a)
                      => Maybe (Text, Text, [a])

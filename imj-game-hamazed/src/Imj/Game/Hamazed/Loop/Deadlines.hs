@@ -12,13 +12,12 @@ import           Imj.Prelude
 
 import           Data.List( minimumBy, sortBy)
 import           Data.Map (toList)
-import           Data.Maybe( catMaybes )
+import           Data.Maybe( maybeToList )
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.UI.Animation
@@ -84,10 +83,7 @@ getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
 getDeadlinesByDecreasingPriority s =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
-    catMaybes
-      [ uiAnimationDeadline s
-      , join $ fmap messageDeadline $ getLevelStatus' $ getGameLevel s
-      ]
+    maybeToList (uiAnimationDeadline s)
      ++ getParticleSystemsDeadlines s
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]

@@ -16,7 +16,7 @@ module Imj.Game.Hamazed.State.Types
       , getPlayers
       , getPlayer
       , getLevel
-      , getLevelStatus
+      , getLevelOutcome
       , getChatMode
       , getMyShipId
       , getGameConnection
@@ -34,7 +34,7 @@ module Imj.Game.Hamazed.State.Types
       , putPlayer
       , putPlayers
       , putLevel
-      , putLevelStatus
+      , putLevelOutcome
       , putViewMode
       , putGameConnection
       , putWorld
@@ -97,7 +97,6 @@ data EventRepr = Laser'
                | PeriodicMotion'
                | MoveFlyingItems'
                | AnimateParticleSystem'
-               | DisplayContinueMessage'
                | AnimateUI'
                | WorldRequest'
                | ChangeLevel'
@@ -155,13 +154,13 @@ getLevel = getGameLevel <$> getGameState
 putLevel :: MonadState AppState m => Level -> m ()
 putLevel l = getGameState >>= \s -> putGameState s { getGameLevel = l }
 
-{-# INLINABLE getLevelStatus #-}
-getLevelStatus :: MonadState AppState m => m (Maybe LevelFinished)
-getLevelStatus = getLevelStatus' <$> getLevel
+{-# INLINABLE getLevelOutcome #-}
+getLevelOutcome :: MonadState AppState m => m (Maybe LevelOutcome)
+getLevelOutcome = getLevelOutcome' <$> getLevel
 
-{-# INLINABLE putLevelStatus #-}
-putLevelStatus :: MonadState AppState m => Maybe LevelFinished -> m ()
-putLevelStatus l = getLevel >>= \s -> putLevel s { getLevelStatus' = l }
+{-# INLINABLE putLevelOutcome #-}
+putLevelOutcome :: MonadState AppState m => Maybe LevelOutcome -> m ()
+putLevelOutcome l = getLevel >>= \s -> putLevel s { getLevelOutcome' = l }
 
 {-# INLINABLE getLastRenderTime #-}
 getLastRenderTime :: MonadState AppState m => m (Time Point System)
@@ -208,7 +207,7 @@ putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState AppState m => m (Map ShipId Player)
-getPlayers = players <$> getGameState
+getPlayers = getPlayers' <$> getGameState
 
 {-# INLINABLE getPlayer #-}
 getPlayer :: MonadState AppState m => ShipId -> m (Maybe Player)
@@ -216,7 +215,7 @@ getPlayer i = flip (!?) i <$> getPlayers
 
 {-# INLINABLE putPlayers #-}
 putPlayers :: MonadState AppState m => Map ShipId Player -> m ()
-putPlayers m = getGameState >>= \g -> putGameState g {players = m}
+putPlayers m = getGameState >>= \g -> putGameState g {getPlayers' = m}
 
 {-# INLINABLE putPlayer #-}
 putPlayer :: MonadState AppState m => ShipId -> Player -> m ()

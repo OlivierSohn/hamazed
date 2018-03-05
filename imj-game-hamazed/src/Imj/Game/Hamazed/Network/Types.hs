@@ -3,6 +3,39 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+{-|
+This module exports types related to networking.
+
+Game events are sent by the clients, proccessed by the server. For example, if two players
+play the game:
+
+@
+  - Ax = acceleration of ship x
+  - Lx = laser shot of ship x
+  - .  = end of a game period
+
+        >>> time >>>
+ . . . A1 . . A1 A2 L2 L1 .
+              ^^^^^ ^^^^^
+              |     |
+              |     laser shots can't be aggregated.
+              |
+              accelerations can be aggregated, their order within a period is unimportant.
+@
+
+The order in which L1 L2 are handled by the server is the order in which they are received.
+This is /unfair/ because one player (due to network delays) could have rendered the
+last period 100ms before the other, thus having a significant advantage over the other player.
+We could be more fair by keeping track of the perceived time on the player side:
+
+in 'ClientAction' we could store the difference between the system time of the action
+and the system time at which the last motion update was presented to the player.
+
+Hence, to know how to order close laser shots, if the ships are on the same row or column,
+the server should wait a little (max. 50 ms?) to see if the other player makes a
+perceptually earlier shot.
+-}
+
 module Imj.Game.Hamazed.Network.Types
       ( ConnectionStatus(..)
       , NoConnectReason(..)
@@ -143,6 +176,7 @@ data ClientEvent =
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
+  | CanContinue {-unpack sum-} !GameStatus
   | RequestCommand {-unpack sum-} !ClientCommand
   -- ^ A Client wants to run a command, in response the server either sends 'CommandError'
   -- or 'RunCommand'
@@ -318,18 +352,6 @@ data GameStep =
   deriving(Generic, Show)
 instance Binary GameStep
 
-data GameStatus =
-    New
-  | Running
-  | Paused !(Set ShipId) !GameStatus
-  -- ^ with the list of disconnected clients and status before pause.
-  | WaitingForOthersToSendOutcome !(Set ShipId)
-  | OutcomeValidated !LevelOutcome
-  | CancelledNoConnectedPlayer
-  deriving(Generic, Show, Eq)
-instance Binary GameStatus
-instance NFData GameStatus
-
 data ConnectionStatus =
     NotConnected
   | Connected {-# UNPACK #-} !ShipId
@@ -398,35 +420,3 @@ newtype ServerName = ServerName String
 
 newtype ServerPort = ServerPort Int
   deriving (Generic, Show, Num, Integral, Real, Ord, Eq, Enum)
-
-
-{- Visual representation of client events where 2 players play on the same multiplayer game:
-
-Legend:
-------
-  - @Ax@ = acceleration of ship x
-  - @Lx@ = laser shot of ship x
-  - @.@  = end of a game period
-
-@
-        >>> time >>>
- . . . A1 . . A1 A2 L2 L1 .
-              ^^^^^ ^^^^^
-              |     |
-              |     laser shots can't be aggregated.
-              |
-              accelerations can be aggregated, their order within a period is unimportant.
-@
-
-The order in which L1 L2 are handled is the order in which they are received by the server.
-This is /unfair/ to the players because one player (due to network delays) could have rendered the
-last period 100ms before the other, thus having a noticeable advantage over the other player.
-We could be more fair by keeping track of the perceived time on the player side:
-
-in 'ClientAction' we could store the difference between the system time of the action
-and the system time at which the last motion update was presented to the player.
-
-Hence, to know how to order close laser shots, if the ships are on the same row or column,
-the server should wait a little (max. 50 ms?) to see if the other player makes a
-perceptually earlier shot.
--}

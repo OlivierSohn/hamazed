@@ -10,7 +10,7 @@ module Imj.Game.Hamazed.KeysMaps
 
 import           Imj.Prelude
 
-import qualified Data.Set as Set(member)
+import qualified Data.Map as Map(lookup)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
@@ -50,7 +50,7 @@ eventFromKey k = case k of
                 AlphaNum c   -> Just $ Evt $ Configuration c
                 _ -> Nothing
               PlayLevel status -> case status of
-                Running -> maybe
+                Running -> getLevelOutcome >>= return . maybe
                   (case key of
                     AlphaNum c -> case c of
                       'k' -> Just $ CliEvt $ Action Laser Down
@@ -64,25 +64,19 @@ eventFromKey k = case k of
                       'r'-> Just $ Evt ToggleEventRecording
                       _   -> Nothing
                     _ -> Nothing)
-                  (\case
-                    (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
-                    _ -> Nothing) -- between level end and proposal to continue
-                    <$> getLevelStatus
-                New -> return Nothing
-                Paused _ _ -> return Nothing
-                CancelledNoConnectedPlayer -> return Nothing
-                WaitingForOthersToSendOutcome who ->
+                  (const Nothing)
+                WhenAllPressedAKey _ (Just _) _ -> return Nothing
+                WhenAllPressedAKey x Nothing havePressed ->
                   getMyShipId >>= maybe
                     (return Nothing)
-                    (\me ->
-                      if Set.member me who
-                        then
-                          maybe
-                            (error "game is not finished in the client")
-                            (\case
-                              (LevelFinished stop _ ContinueMessage) -> Just $ Evt $ EndLevel stop
-                              _ -> Nothing) -- between level end and proposal to continue
-                              <$> getLevelStatus
-                        else
-                          return Nothing)
+                    (\me -> maybe (error "logic") (\iHavePressed ->
+                            if iHavePressed
+                              then return Nothing
+                              else return $ Just $ Evt $ Continue x)
+                              $ Map.lookup me havePressed)
+                New -> return Nothing
+                Paused _ _ -> return Nothing
+                Countdown _ _ -> return Nothing
                 OutcomeValidated _ -> return Nothing
+                CancelledNoConnectedPlayer -> return Nothing
+                WaitingForOthersToEndLevel _ -> return Nothing

@@ -8,6 +8,7 @@ module Imj.Game.Hamazed.Loop.Event.Types
         ( Event(..)
         , MessageLevel(..)
         , ChatCommand(..)
+        , GameStatus(..)
         , Deadline(..)
         , ActionTarget(..)
         , DeadlineType(..)
@@ -19,6 +20,7 @@ module Imj.Game.Hamazed.Loop.Event.Types
         ) where
 
 import           Imj.Prelude
+import           Control.DeepSeq(NFData(..))
 
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types
@@ -39,8 +41,6 @@ data Deadline = Deadline {
 
 data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ Update one or more 'ParticleSystem's.
-                  | DisplayContinueMessage
-                  -- ^ Show the /Hit a key to continue/ message
                   | AnimateUI
                   -- ^ Update the inter-level animation
                   deriving(Eq, Show)
@@ -51,10 +51,9 @@ data Event = Configuration !Char
            -- ^ Changes the font used to render
            | Timeout !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
-           | EndLevel !LevelOutcome
-           -- ^ End of level.
            | Interrupt !MetaAction
            -- ^ A game interruption.
+           | Continue !GameStatus
            | ToggleEventRecording
            | Log !MessageLevel !Text
            | ChatCmd {-unpack sum-} !ChatCommand
@@ -67,6 +66,27 @@ data MetaAction = Quit
                 | Help
                 -- ^ The player wants to read the help page /(Not implemented yet)/
                 deriving(Eq, Show)
+
+
+data GameStatus =
+    New
+  | Running
+  | Paused !(Set ShipId) !GameStatus
+  -- ^ with the list of disconnected clients and status before pause.
+  | WaitingForOthersToEndLevel !(Set ShipId)
+  | OutcomeValidated !LevelOutcome -- TODO remove, ThenPressAKeyToContinue + Txt is enough
+  | WhenAllPressedAKey {
+      _status :: !GameStatus
+    , countdown :: !(Maybe Int)
+    , _havePressed :: !(Map ShipId Bool) }
+  -- ^ Maybe Int is a countdown : when Nothing, the message is displayed.
+  -- A 'True' in the 'Map' means the key was pressed.
+  | Countdown !Int !GameStatus
+  -- ^ Int is in seconds
+  | CancelledNoConnectedPlayer
+  deriving(Generic, Show, Eq)
+instance Binary GameStatus
+instance NFData GameStatus
 
 data ActionTarget = Ship
                   -- ^ The player wants to accelerate the 'BattleShip'

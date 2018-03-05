@@ -26,7 +26,6 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 isPrincipal :: UpdateEvent -> Bool
 isPrincipal (Right e) = case e of
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
-  (Timeout (Deadline _ _ DisplayContinueMessage)) -> False
   (Timeout (Deadline _ _ AnimateUI)) -> False
   _ -> True
 isPrincipal (Left _) = True

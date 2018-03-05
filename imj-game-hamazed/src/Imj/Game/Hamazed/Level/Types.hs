@@ -14,9 +14,6 @@ module Imj.Game.Hamazed.Level.Types
     , LevelTarget(..)
     , TargetConstraint(..)
     , initialLaserAmmo
-    , LevelFinished(..)
-    , mkLevelFinished
-    , MessageState(..)
     , LevelOutcome(..)
     , firstLevel
     , lastLevel
@@ -26,14 +23,12 @@ module Imj.Game.Hamazed.Level.Types
 import           Imj.Prelude
 import           Control.DeepSeq(NFData)
 
-import           Imj.Timing
-
 initialLaserAmmo :: Int
 initialLaserAmmo = 10
 
 data Level = Level {
     _levelSpec :: {-# UNPACK #-} !LevelEssence
-  , getLevelStatus' :: {-unpack sum-} !(Maybe LevelFinished)
+  , getLevelOutcome' :: {-unpack sum-} !(Maybe LevelOutcome)
 } deriving (Generic)
 
 mkLevel :: LevelEssence -> Level
@@ -61,27 +56,14 @@ data LevelSpec = LevelSpec {
 
 
 mkEmptyLevelEssence :: LevelEssence
-mkEmptyLevelEssence = LevelEssence 0 (LevelTarget 0 CannotOvershoot) []
+-- we don't use 0 a target else the level would be won immediately.
+mkEmptyLevelEssence = LevelEssence 0 (LevelTarget 1 CannotOvershoot) []
 
 mkLevelEssence :: LevelSpec -> LevelEssence
 mkLevelEssence (LevelSpec n co) =
   let numbers = [1..(3+n)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
   in LevelEssence n (LevelTarget target co) numbers
-
-data LevelFinished = LevelFinished {
-    _levelFinishedResult :: {-unpack sum-} !LevelOutcome
-    -- ^ Lost or won
-  , _levelFinishedWhen :: {-# UNPACK #-} !(Time Point System)
-  , _levelFinishedCurrentMessage :: {-unpack sum-} !MessageState
-} deriving (Generic)
-
-mkLevelFinished :: Time Point System -> LevelOutcome -> LevelFinished
-mkLevelFinished t o = LevelFinished o t InfoMessage
-
-data MessageState = InfoMessage
-                  | ContinueMessage
-                  deriving(Generic, Binary, Eq, Show)
 
 data LevelOutcome =
     Lost !Text

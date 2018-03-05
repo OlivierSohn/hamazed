@@ -55,9 +55,8 @@ mkClient a color b c =
   Client a b c Nothing Nothing zeroCoords Nothing color
 
 data PlayerState =
-    Playing
-  | ReadyToPlay (Maybe LevelOutcome) -- TODO should this contain the world Id ?
-  -- ^ withe the outcome of the previous level, if any.
+    Playing {-unpack sum-} !(Maybe LevelOutcome)
+  | ReadyToPlay
   deriving (Generic, Eq, Show)
 instance NFData PlayerState
 

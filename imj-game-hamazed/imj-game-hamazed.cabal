@@ -37,7 +37,6 @@ library
                      , Imj.Game.Hamazed.Env
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.KeysMaps
-                     , Imj.Game.Hamazed.Level
                      , Imj.Game.Hamazed.Level.Types
                      , Imj.Game.Hamazed.Loop.Create
                      , Imj.Game.Hamazed.Loop.Deadlines

@@ -67,10 +67,9 @@ representation (Right e) = case e of
   SendChatMessage -> Configuration'
   Configuration _ -> Configuration'
   ChatCmd _       -> Configuration'
-  EndLevel _ -> EndLevel'
+  Continue _      -> Configuration'
   Interrupt _ -> Interrupt'
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
-  Timeout (Deadline _ _ DisplayContinueMessage) -> DisplayContinueMessage'
   Timeout (Deadline _ _ AnimateUI) -> AnimateUI'
   ToggleEventRecording -> ToggleEventRecording'
 
@@ -96,7 +95,6 @@ reprToCS ToggleEventRecording'  = colored "T" yellow
 reprToCS MoveFlyingItems' = colored "M" green
 reprToCS AnimateParticleSystem' = colored "P" blue
 reprToCS PeriodicMotion'        = colored "S" blue
-reprToCS DisplayContinueMessage' = colored "C" white
 
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, Render e, MonadIO m)

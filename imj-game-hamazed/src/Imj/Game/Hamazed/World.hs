@@ -106,7 +106,6 @@ module Imj.Game.Hamazed.World
     , module Imj.Graphics.UI.Animation
     -- * Secondary types
     , WallDistribution(..), WorldShape(..), ViewMode(..)
-    , LevelFinished(..)
     , LevelOutcome(..)
     -- * Reexports
     , module Imj.Graphics.Render

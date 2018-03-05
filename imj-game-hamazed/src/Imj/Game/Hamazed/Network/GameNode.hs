@@ -62,7 +62,7 @@ startClient playerName srv = do
         (\(e :: SomeException) ->
           -- Maybe noone is reading at the end of the queue if the client already disconnected.
           -- That's ok.
-          writeToClient' qs $ FromClient $ Log Error $ msg "failed to connect" <> ":" <> pack (show e))
+          writeToClient' qs $ FromClient $ Log Error $ msg "Failed to connect" <> ":" <> pack (show e))
         return
 
   -- start client
@@ -70,7 +70,7 @@ startClient playerName srv = do
   _ <- forkIO $
     -- runClient sets the NO_DELAY socket option to 1, so we don't need to do it.
     reportError $ runClient name port "/" $ \x -> do
-      writeToClient' qs $ FromClient $ Log Info $ msg "connected"
+      writeToClient' qs $ FromClient $ Log Info $ msg "Connected"
       appCli qs x
   -- initialize the game connection
   sendToServer' qs $

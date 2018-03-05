@@ -75,6 +75,17 @@ log msg = gets serverLogs >>= \case
       , msg
       ]
 
+warning :: Text -> ClientHandlerIO ()
+warning msg = gets serverLogs >>= \case
+  NoLogs -> return ()
+  ConsoleLogs -> do
+    i <- asks shipId
+    idStr <- showId i
+    liftIO $ baseLog $ intercalate "|"
+      [ idStr
+      , colored msg orange
+      ]
+
 showId :: (MonadIO m, MonadState ServerState m) => ShipId -> m ColorString
 showId i = do
   color <- fromMaybe white <$> gets (clientColor i)
@@ -493,7 +504,7 @@ handleIncomingEvent' = \case
   ExitedState Excluded -> gets intent >>= \case
     IntentSetup -> do
       -- change client state to make it playable
-      adjustClient $ \c -> c { getState = Just $ ReadyToPlay Nothing }
+      adjustClient $ \c -> c { getState = Just ReadyToPlay }
       publish Joins
       -- request world to let the client have a world
       requestWorld
@@ -503,7 +514,7 @@ handleIncomingEvent' = \case
       publish WaitsToJoin
   ExitedState (PlayLevel _) -> return ()
   LevelEnded outcome -> do
-    adjustClient $ \c -> c { getState = Just $ ReadyToPlay $ Just outcome }
+    adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
     gets intent >>= \case
       IntentPlayGame Nothing ->
         modify' $ \s -> s { intent = IntentPlayGame $ Just outcome }
@@ -517,19 +528,36 @@ handleIncomingEvent' = \case
         gameError "LevelEnded received while in IntentSetup"
     gets onlyPlayersMap >>= \players' -> do
       let playing Nothing = error "should not happen"
-          playing (Just (ReadyToPlay _)) = False
-          playing (Just Playing) = True
+          playing (Just ReadyToPlay) = error "should not happen"
+          playing (Just (Playing Nothing)) = True
+          playing (Just (Playing (Just _))) = False
           (playersPlaying, playersDonePlaying) = Map.partition (playing . getState) players'
           gameStatus =
             if null playersPlaying
               then
-                OutcomeValidated outcome
+                WhenAllPressedAKey (OutcomeValidated outcome) (Just 2) $ Map.map (const False) playersDonePlaying
               else
-                WaitingForOthersToSendOutcome $ Map.keysSet playersPlaying
+                WaitingForOthersToEndLevel $ Map.keysSet playersPlaying
       notifyN [EnterState $ PlayLevel gameStatus] playersDonePlaying
-      gets scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
-        (handlerError "LevelEnded sent while game is Nothing")
-        (\game -> void $ liftIO $ swapMVar g $ game { status' = gameStatus })
+      gets scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
+        (warning "LevelEnded sent while game is Nothing")
+        (\game -> void $ liftIO $ putMVar g $ game { status' = gameStatus })
+  CanContinue next ->
+    gets scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
+      (warning "CanContinue sent while game is Nothing")
+      (\game -> do
+          let curStatus = status' game
+          case curStatus of
+            WhenAllPressedAKey x Nothing havePressed -> do
+              when (x /= next) $ error $ "inconsistent:"  ++ show (x,next)
+              i <- lift $ asks shipId
+              let newHavePressed = Map.insert i True havePressed
+                  intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
+              liftIO $ void $ swapMVar g $ game { status' = intermediateStatus }
+              -- update to avoid state where the map is equal to all players:
+              void $ updateCurrentStatus $ Just curStatus
+            _ -> error $ "inconsistent:"  ++ show curStatus)
+
 ------------------------------------------------------------------------------
 -- Clients in 'Setup' state can configure the world.
 ------------------------------------------------------------------------------
@@ -567,12 +595,12 @@ handleIncomingEvent' = \case
         -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient $ EnterState Setup
-      IntentPlayGame _ ->
+      IntentPlayGame maybeOutcome ->
         get >>= \(ServerState _ (Clients clients _) _ _ _ mayLastWId _ _ _ game) -> maybe
           (return ())
           (\lastWId -> liftIO (tryReadMVar game) >>= maybe
             (do
-              adjustClient $ \c -> c { getState = Just (ReadyToPlay Nothing) }
+              adjustClient $ \c -> c { getState = Just ReadyToPlay }
               -- start the game when all players have the right world
               playersKeys <- gets onlyPlayersIds
               let playersAllReady =
@@ -580,8 +608,8 @@ handleIncomingEvent' = \case
               when playersAllReady $ do
                 adjustAll $ \c ->
                   case getState c of
-                    Just (ReadyToPlay _) ->
-                      c { getState = Just Playing
+                    Just ReadyToPlay ->
+                      c { getState = Just $ Playing Nothing
                         , getShipAcceleration = zeroCoords }
                     _ -> c
                 -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
@@ -594,7 +622,7 @@ handleIncomingEvent' = \case
                 -- make player join the current game, but do /not/ set getShipSafeUntil,
                 -- else disconnecting / reconnecting intentionally could be a way to cheat
                 -- by having more safe time.
-                adjustClient $ \c -> c { getState = Just Playing
+                adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
                                        , getShipAcceleration = zeroCoords }))
             mayLastWId
 ------------------------------------------------------------------------------
@@ -616,36 +644,101 @@ handleIncomingEvent' = \case
 
 onLevelOutcome :: (MonadIO m, MonadState ServerState m)
                => LevelOutcome -> m ()
-onLevelOutcome outcome = do
-  levelN <- levelNumber <$> gets levelSpecification
-  notifyEveryoneN $
-    (GameInfo $ LevelResult levelN outcome):
-    [GameInfo GameWon | outcome == Won && levelN == lastLevel]
-  if outcome == Won && levelN < lastLevel
-    then
-      onNextLevel levelN
-    else
-      onGameEnd
+onLevelOutcome outcome =
+  levelNumber <$> gets levelSpecification >>= \levelN -> do
+    adjustAll (\c -> case getState c of
+      Just (Playing _) -> c { getState = Just ReadyToPlay }
+      _ -> c)
+    notifyEveryoneN $
+      (GameInfo $ LevelResult levelN outcome):
+      [GameInfo GameWon | outcome == Won && levelN == lastLevel]
 
-onNextLevel :: MonadState ServerState m
-            => Int -> m ()
-onNextLevel levelN =
-  modify' $ \s -> s { levelSpecification = (levelSpecification s) { levelNumber = succ levelN }
-                  , intent = IntentPlayGame Nothing
-                  }
+    modify' $ \s ->
+     if outcome == Won && levelN < lastLevel
+      then -- next level
+        s { levelSpecification = (levelSpecification s) { levelNumber = succ levelN }
+          , intent = IntentPlayGame Nothing
+          }
+      else -- end game
+        s { levelSpecification = (levelSpecification s) { levelNumber = firstServerLevel }
+          , intent = IntentSetup
+          }
+    gets intent >>= \case
+      IntentSetup ->
+        -- make fresh clients become players
+        adjustAll' (\c -> case getState c of
+          Just (Playing _) -> error "inconsistent"
+          Just ReadyToPlay -> Nothing
+          Nothing -> Just $ c { getState = Just ReadyToPlay })
+          >>= notifyEveryoneN . map (PlayerInfo Joins)
+      _ -> return ()
 
-onGameEnd :: (MonadIO m, MonadState ServerState m)
-          => m ()
-onGameEnd = do
-  modify' $ \s -> s { levelSpecification = (levelSpecification s) { levelNumber = firstServerLevel }
-                    , intent = IntentSetup
-                    }
-  -- allow fresh clients to become players
-  adjustAll'
-    (\c -> case getState c of
-      Just (ReadyToPlay _) -> Nothing
-      _ -> Just $ c { getState = Just $ ReadyToPlay Nothing })
-      >>= notifyEveryoneN . map (PlayerInfo Joins)
+-- | To avoid deadlocks, this function should be called only from inside a
+-- transaction on ServerState.
+{-# INLINABLE updateCurrentStatus #-}
+updateCurrentStatus :: (MonadState ServerState m, MonadIO m)
+                    => Maybe GameStatus
+                    -- ^ the reference to take into account, if different from current status.
+                    -> m (Maybe GameStatus)
+updateCurrentStatus ref = gets scheduledGame >>= \game -> tryReadMVar game >>= maybe
+  (return Nothing)
+  (\(CurrentGame _ gamePlayers status) -> do
+    connectedPlayers' <- gets onlyPlayersMap
+    let connectedPlayers = Map.keysSet connectedPlayers'
+        missingPlayers = Set.difference gamePlayers connectedPlayers
+        maybeNewStatus
+          | null connectedPlayers = Just CancelledNoConnectedPlayer
+          | null missingPlayers = case status of
+              New -> Just $ Countdown 3 Running
+              Paused _ statusBeforePause -> Just statusBeforePause
+              Countdown n futureStatus -> Just $
+                if n > 0
+                  then
+                    Countdown (pred n) futureStatus
+                  else
+                    futureStatus
+              w@(WhenAllPressedAKey _ (Just n) _) ->
+                Just $ w { countdown =
+                  if n > 0
+                    then Just $ pred n
+                    else Nothing }
+              WhenAllPressedAKey x Nothing havePressed ->
+                if Map.null $ Map.filter (== False) havePressed
+                  then
+                    Just x
+                  else
+                    Nothing
+              Running -> Nothing
+              WaitingForOthersToEndLevel _ -> Nothing
+              OutcomeValidated _ -> Nothing
+              CancelledNoConnectedPlayer -> Nothing
+          | otherwise = Just $ Paused missingPlayers $
+              case status of
+                Paused _ statusBeforePause -> statusBeforePause
+                _ -> status
+        newStatus = fromMaybe status maybeNewStatus
+        oldStatus = fromMaybe status ref
+    when (newStatus /= oldStatus) $
+      onChangeStatus connectedPlayers' oldStatus newStatus
+    return $ Just newStatus)
+
+{-# INLINABLE onChangeStatus #-}
+onChangeStatus :: (MonadState ServerState m, MonadIO m)
+               => Map ShipId Client
+               -> GameStatus
+               -> GameStatus
+               -> m ()
+onChangeStatus notified status newStatus = gets scheduledGame >>= \game -> tryReadMVar game >>= maybe
+  (return ())
+  (\g -> do
+    -- mayWorld can be concurrently modified from client handler threads, but only from
+    -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
+    -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
+    -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
+    -- returned a 'Just'.
+    liftIO $ void $ swapMVar game $ g {status' = newStatus}
+    serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
+    notifyN [EnterState $ PlayLevel newStatus] notified)
 
 gameScheduler :: MVar ServerState -> IO ()
 gameScheduler st =
@@ -656,31 +749,36 @@ gameScheduler st =
         -- block until 'scheduledGame' contains a 'CurrentGame'
         readMVar mayGame >>= \(CurrentGame refWorld _ _) -> do
           let run x = modifyMVar st $ fmap swap . runStateT (run' refWorld x)
-              waitForPlayerReconnection = threadDelay $ fromIntegral $ toMicros $ fromSecs 1
-              toActOrNotToAct act continuityArg continuation = act >>= \case
-                Executed ->
-                  continuation continuityArg
-                NotExecutedTryAgainLater -> do
-                  waitForPlayerReconnection
-                  -- retry, but forget the continuityArg as here we waited for reconnection,
+              toActOrNotToAct act maybeRefTime continuation = act >>= \case
+                Executed dt ->
+                  continuation maybeRefTime dt
+                NotExecutedTryAgainLater dt -> do
+                  threadDelay $ fromIntegral $ toMicros dt
+                  -- retry, but forget maybeRefTime because we waited,
                   -- which introduced a discontinuity.
                   toActOrNotToAct act Nothing continuation
                 NotExecutedGameCanceled ->
                   void $ liftIO $ tryTakeMVar mayGame -- to stop the scheduler
-          toActOrNotToAct (run initializePlayers) Nothing $ \_ -> do
-            let mult = initalGameMultiplicator
-                go mayPrevUpdate = do
+          toActOrNotToAct (run initializePlayers) Nothing $ \_ dtInit -> do
+            let go mayPrevUpdate mayDt = do
                   now <- getSystemTime
-                  let baseTime = fromMaybe now mayPrevUpdate
-                      update = addDuration (toSystemDuration mult gameMotionPeriod) baseTime
-                  threadDelay $ fromIntegral $ toMicros $ now...update
-                  toActOrNotToAct (run (stepWorld now)) (Just update) go
-            go Nothing
+                  time <- maybe
+                    (return now)
+                    (\dt -> do
+                      let baseTime = fromMaybe now mayPrevUpdate
+                          update = addDuration dt baseTime
+                      threadDelay $ fromIntegral $ toMicros $ now...update
+                      return update)
+                    mayDt
+                  toActOrNotToAct (run $ stepWorld time) (Just time) go
+            go Nothing dtInit
           gameScheduler st
  where
   -- run the action if the world matches the current world and the game was
   -- not terminated
-  run' :: WorldId -> StateT ServerState IO () -> StateT ServerState IO RunResult
+  run' :: WorldId
+       -> StateT ServerState IO (Maybe (Time Duration System))
+       -> StateT ServerState IO RunResult
   run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
     if terminate
       then do
@@ -691,51 +789,28 @@ gameScheduler st =
         liftIO (tryReadMVar game) >>= maybe
           (do serverError "logic : mayGame is Nothing"
               return NotExecutedGameCanceled)
-          (\(CurrentGame curWid gamePlayers status) ->
+          (\(CurrentGame curWid _ _) ->
             if refWid /= curWid
               then do
                 serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
                 return NotExecutedGameCanceled -- the world has changed
-              else do
-                connectedPlayers <- gets onlyPlayersIds
-                let missingPlayers = Set.difference gamePlayers connectedPlayers
-                    newStatus
-                      | null connectedPlayers = CancelledNoConnectedPlayer
-                      | null missingPlayers = case status of
-                          New -> Running
-                          Running -> status
-                          Paused _ statusBeforePause      -> statusBeforePause
-                          WaitingForOthersToSendOutcome _ -> status
-                          OutcomeValidated _              -> status
-                          CancelledNoConnectedPlayer      -> status
-                      | otherwise = case status of
-                          Paused _ statusBeforePause -> Paused missingPlayers statusBeforePause
-                          _ -> Paused missingPlayers status
-                    statusChanged = status /= newStatus
-                when statusChanged $ do
-                    serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
-
-                    -- mayWorld can be concurrently modified from client handler threads, but only from
-                    -- inside a 'modifyMVar' on 'ServerState'. Since we are ourselves inside
-                    -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
-                    -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
-                    -- returned a 'Just'.
-                    liftIO $ void $ swapMVar game $ CurrentGame curWid gamePlayers newStatus
-                    notifyPlayers $ EnterState $ PlayLevel newStatus
-                case newStatus of
+              else
+                updateCurrentStatus Nothing >>= maybe (return NotExecutedGameCanceled) (\case
                   Paused _ _ ->
-                    return NotExecutedTryAgainLater
+                    return $ NotExecutedTryAgainLater $ fromSecs 1
                   CancelledNoConnectedPlayer -> do
                     onLevelOutcome $ Lost "All players left"
                     return NotExecutedGameCanceled
                   Running ->
-                    if statusChanged
-                      then
-                        return NotExecutedTryAgainLater
-                      else
-                        act >> return Executed
-                  WaitingForOthersToSendOutcome _ ->
-                    return NotExecutedTryAgainLater
+                    Executed <$> act
+                  WaitingForOthersToEndLevel _ ->
+                    return $ NotExecutedTryAgainLater $ fromSecs 0.1
+                  WhenAllPressedAKey _ (Just _) _ ->
+                    return $ NotExecutedTryAgainLater $ fromSecs 1 -- so that the Just corresponds to seconds
+                  WhenAllPressedAKey _ Nothing _ ->
+                    return $ NotExecutedTryAgainLater $ fromSecs 0.1
+                  Countdown _ _ ->
+                    return $ NotExecutedTryAgainLater $ fromSecs 1
                   OutcomeValidated outcome -> do
                     onLevelOutcome outcome
                     requestWorld
@@ -743,16 +818,18 @@ gameScheduler st =
                   -- these values are never supposed to be used here:
                   New -> do
                     serverError "logic : newStatus == New"
-                    return NotExecutedTryAgainLater)
+                    return NotExecutedGameCanceled))
 
-  initializePlayers :: StateT ServerState IO ()
-  initializePlayers = liftIO getSystemTime >>= \start ->
+  initializePlayers :: StateT ServerState IO (Maybe (Time Duration System))
+  initializePlayers = liftIO getSystemTime >>= \start -> do
     -- we add one second to take into account the fact that start of game is delayed by one second.
     adjustAll $ \c -> c { getShipSafeUntil = Just $ addDuration (fromSecs 6) start }
+    return Nothing
 
-  stepWorld :: Time Point System -> StateT ServerState IO ()
+  stepWorld :: Time Point System -> StateT ServerState IO (Maybe (Time Duration System))
   stepWorld now = do
     let !zero = zeroCoords
+        mult = initalGameMultiplicator
     accs <- Map.mapMaybe
       (\p ->
           let !acc = getShipAcceleration p
@@ -760,9 +837,9 @@ gameScheduler st =
               then Nothing
               else Just acc)
       <$> gets onlyPlayersMap
-    becameSafe <- updateSafeShips
-    notifyPlayers $ GameEvent $ PeriodicMotion accs becameSafe
+    updateSafeShips >>= notifyPlayers . GameEvent . PeriodicMotion accs
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
+    return $ Just $ toSystemDuration mult gameMotionPeriod
    where
     updateSafeShips =
       state $ \s ->
@@ -783,8 +860,10 @@ gameScheduler st =
 
 data RunResult =
     NotExecutedGameCanceled
-  | NotExecutedTryAgainLater
-  | Executed
+  | NotExecutedTryAgainLater !(Time Duration System)
+  -- ^ withe the duration to sleep before retrying
+  | Executed !(Maybe (Time Duration System))
+  -- ^ With an optional duration to wait before the next iteration
 
 adjustClient :: (Client -> Client) -> ClientHandlerIO ()
 adjustClient f = do

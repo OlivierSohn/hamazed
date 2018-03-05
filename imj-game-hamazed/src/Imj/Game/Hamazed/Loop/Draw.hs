@@ -5,33 +5,34 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 module Imj.Game.Hamazed.Loop.Draw
       ( draw
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding (intercalate)
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
+import qualified Data.Map as Map(lookup, filter, keysSet)
 import qualified Data.Set as Set(toList)
 import           Data.Text(pack)
 
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
@@ -41,7 +42,7 @@ draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
      => m ()
 draw =
   gets game >>= \(Game status
-                     (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld _ level wa (Screen _ screenCenter@(Coords rowCenter _)) mode _)
+                     (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld _ _ wa (Screen _ screenCenter@(Coords rowCenter _)) mode _)
                      _ _ _ chat) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
@@ -61,16 +62,15 @@ draw =
           Coords (rowCenter - fromIntegral (quot (height chat) 2))
             $ col + 4 + 2 + fromIntegral (getWidth (getSize $ getWorldSpace w))
     drawAt chat chatUpperLeft
-    drawStatus level screenCenter status
+    drawStatus screenCenter status
 
 
 {-# INLINABLE drawStatus #-}
 drawStatus :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
-           => Level
-           -> Coords Pos
+           => Coords Pos
            -> ClientState
            -> m ()
-drawStatus level ref = \case
+drawStatus ref = \case
   ClientState Over Excluded ->
     inform "Joining..."
   ClientState Over Setup ->
@@ -83,28 +83,78 @@ drawStatus level ref = \case
     Setup -> do
       (Screen _ center) <- getCurScreen
       getWorld >>= drawSetup . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace
-    PlayLevel status -> case status of
-      New ->
-        inform "Waiting for game start..."
-      CancelledNoConnectedPlayer ->
-        inform "Game cancelled, all players left."
-      Paused disconnectedPlayers _ -> -- TODO we could draw the previous status too (stack of status)
-        intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
-          inform $ pack $ "Game paused, waiting for [" ++ them ++ "] to reconnect..."
-      Running ->
-        drawLevelMessage level ref
-      WaitingForOthersToSendOutcome stillPlaying ->
-        intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
-          inform $ pack $ "Waiting for [" ++ them ++ "] to press a key..."
-      OutcomeValidated outcome ->
-        inform $ "The server validated the outcome:" <> pack (show outcome)
+    PlayLevel status -> inform' =<< statusMsg status
  where
-  inform (msg :: Text) =
-    drawAligned_ (Colored (messageColor Won) msg) $ mkCentered ref
+  statusMsg = \case
+    New -> return [color "Waiting for game start..."]
+    CancelledNoConnectedPlayer -> return [color "Game cancelled, all players left."]
+    Paused disconnectedPlayers _ -> -- TODO we could draw the previous status too (stack of status)
+      intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
+        return [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]
+    Running -> return []
+    WaitingForOthersToEndLevel stillPlaying ->
+      intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
+        return [color "Waiting for [" <> them <> color "] to finish..."]
+    Countdown n targetStatus ->
+      flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg targetStatus
+    OutcomeValidated o -> return [colored' (case o of
+      (Lost reason) -> "You Lose (" <> reason <> ")"
+      Won           -> "You Win!") $ messageColor o]
+    WhenAllPressedAKey x (Just _) _ -> statusMsg x
+    WhenAllPressedAKey x Nothing havePressed ->
+      getMyShipId >>= maybe
+        (error "todo")
+        (\me -> flip (++) <$> maybe
+          (error "logic")
+          (\iHavePressed ->
+            if iHavePressed
+              then
+                intercalate ", " <$> showPlayerNames (Map.keysSet $ Map.filter (== False) havePressed) >>= \them ->
+                  return [color "Waiting for [" <> them <> color "] to press a key..."]
+              else
+                return [colored "Press a key to continue..." neutralMessageColorFg])
+          (Map.lookup me havePressed)
+          <*> statusMsg x)
+  inform' = zipWithM_
+    (flip drawAligned_) (map (\i -> mkCentered $ move (2*i) Down ref) [0..])
+  inform m = inform' [color m]
+  color = flip colored' (messageColor Won)
   showPlayerNames = mapM showPlayerName . Set.toList
   showPlayerName x =
-    getPlayer x >>= \n -> return $ maybe (show x) (\p -> let (PlayerName t) = getPlayerName p in show t) n
+    getPlayer x >>= return . maybe
+      (colored (pack $ show x) white)
+      (\(Player (PlayerName name) _ (PlayerColors c _)) -> colored name c)
 
+{-
+{-# INLINABLE drawLevelMessage #-}
+drawLevelMessage :: (Draw e, MonadReader e m, MonadIO m)
+                 => Coords Pos
+                 -> Level
+                 -> m ()
+drawLevelMessage ref (Level (LevelEssence level _ _) mayLevelState) =
+  mapM_ (drawLevelState ref level) mayLevelState
+
+{-# INLINABLE drawLevelState #-}
+drawLevelState :: (Draw e, MonadReader e m, MonadIO m)
+               => Coords Pos
+               -> Int
+               -> LevelOutcome
+               -> m ()
+drawLevelState centerRef level stop = do
+
+  drawAligned_ (Colored (messageColor stop) stopMsg) (mkCentered centerRef)
+  when (messageState == ContinueMessage) $
+    drawAligned_ (Colored neutralMessageColor $
+      if level == lastLevel
+        then
+          "You reached the end of the game!"
+        else
+          let action = case stop of
+                            (Lost _) -> "restart"
+                            Won      -> "continue"
+          in "Press a key to " <> action <> " ..." :: Text)
+           (mkCentered $ move 2 Down centerRef)
+-}
 {-# INLINABLE drawSetup #-}
 drawSetup :: (Draw e, MonadReader e m, MonadIO m)
           => RectContainer

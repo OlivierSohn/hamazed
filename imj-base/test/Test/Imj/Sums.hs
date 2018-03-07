@@ -22,7 +22,6 @@ import qualified Imj.Tree as Tree
 testSums :: IO ()
 testSums = do
   testAsOccurences
-  testCombinations
 
   mkSums Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSums (Set.fromList [1,2,3,4,5]) 3
@@ -56,16 +55,18 @@ testSums = do
         , ((\a b -> length   $ filter      (\s -> length   s < 6) $ mkSumsArray' a b)              , "mkSumsArray' filter")
         , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsStrict a b)             , "mkSumsStrict filter'")
         , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsStrict a b), "mkSumsStrict filter")
-        , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict' filter'")
         , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict' filter")
         , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsLazy   a b)             , "mkSumsLazy filter'")
         , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsLazy   a b), "mkSumsLazy filter")
-        , ((\a b -> Set.size $ mkSums       a b)                            , "mkSums")
-        , ((\a b -> Set.size $ mkSumsArray  a b)                            , "mkSumsArray")
-        , ((\a b -> length   $ mkSumsArray' a b)                            , "mkSumsArray'")
-        , ((\a b -> length   $ Tree.toList $ mkSumsStrict a b)              , "mkSumsStrict")
-        , ((\a b -> length   $ Tree.toList $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict'")
-        , ((\a b -> length   $ Tree.toList $ mkSumsLazy   a b)              , "mkSumsLazy")
+        , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict' filter'")
+        , ((\a b -> length   $ Tree.filter (\s -> length   s < 6) $ mkSums' (Set.toList a) b)       , "mkSums' filter'")
+        , ((\a b -> Set.size $ mkSums       a b)                                    , "mkSums")
+        , ((\a b -> Set.size $ mkSumsArray  a b)                                    , "mkSumsArray")
+        , ((\a b -> Tree.countValues $ mkSumsArray' a b)                            , "mkSumsArray'")
+        , ((\a b -> Tree.countValues $ Tree.toList $ mkSumsStrict a b)              , "mkSumsStrict")
+        , ((\a b -> Tree.countValues $ Tree.toList $ mkSumsLazy   a b)              , "mkSumsLazy")
+        , ((\a b -> Tree.countValues $ Tree.toList $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict'")
+        , ((\a b -> Tree.countValues $ mkSums' (Set.toList a) b)                    , "mkSums'")
         ]
   let nTestRepeat = 100
   times <-
@@ -97,13 +98,6 @@ testAsOccurences = do
     , ValueOccurences 3 5
     , ValueOccurences 2 3
     ]
-
-testCombinations :: IO ()
-testCombinations = do
-  combinations (ValueOccurences 0 2) `shouldBe` [(0,2)]
-  combinations (ValueOccurences 1 2) `shouldBe` [(0,2),(1,2)]
-  combinations (ValueOccurences 2 2) `shouldBe` [(0,2),(1,2),(2,2)]
-  combinations (ValueOccurences 3 2) `shouldBe` [(0,2),(1,2),(2,2),(3,2)]
 
 printTimes :: [(String, Int64)] -> IO ()
 printTimes times = do

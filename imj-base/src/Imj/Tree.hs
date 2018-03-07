@@ -5,33 +5,50 @@ module Imj.Tree
     ( LazyTree(..)
     , StrictTree(..)
     , StrictNTree(..)
+    , strictNTreeFromBranches
     , Filterable(..)
     ) where
 
 import Imj.Prelude hiding(filter)
-import qualified Data.List as List(filter)
+import qualified Data.List as List(filter, length, foldl')
 
+-- | Binary strict tree where values are stored in the leaves
 data StrictTree a =
     StrictBranch !(StrictTree a) !(StrictTree a)
   | StrictLeaf !a
   | NoResult
+-- | Binary lazy tree where values are stored in the leaves
 data LazyTree a =
     LazyBranch (LazyTree a) (LazyTree a)
   | LazyLeaf a
   | NoResult'
 
+-- | List-based K-way tree (with unspecified k) where values are stored inside the tree
 data StrictNTree a =
-    StrictNBranch ![StrictNTree a]
-  | StrictNLeaf !a
+    StrictNBranch !a ![StrictNTree a]
+  | StrictNNothing
+
+{-# INLINE strictNTreeFromBranches #-}
+strictNTreeFromBranches :: [StrictNTree a] -> StrictNTree a
+strictNTreeFromBranches = go . List.filter hasValue
+ where
+  hasValue = \case
+    StrictNNothing -> False
+    StrictNBranch _ _ -> True
+  go [] = StrictNNothing
+  go (StrictNBranch v b1:rest) = StrictNBranch v $ b1 ++ rest
+  go (StrictNNothing:_) = error "logic"
 
 class Filterable a where
-  filter' :: (b -> Bool) -> a b -> [b]
   filter :: (b -> Bool) -> a b -> a b
+  countValues :: a b -> Int
+  filter' :: (b -> Bool) -> a b -> [b]
   toList :: a b -> [b]
 
 instance Filterable [] where
   filter' = List.filter
   filter = List.filter
+  countValues = List.length
   toList = id
 
 instance Filterable StrictTree where
@@ -55,6 +72,11 @@ instance Filterable StrictTree where
     where
       rightFiltered = filter p right
       leftFiltered  = filter p left
+
+  countValues NoResult = 0
+  countValues (StrictLeaf _) = 1
+  countValues (StrictBranch l r) =
+    countValues l + countValues r
 
   toList NoResult = []
   toList (StrictLeaf l) = [l]
@@ -82,6 +104,11 @@ instance Filterable LazyTree where
       rightFiltered = filter p right
       leftFiltered  = filter p left
 
+  countValues NoResult' = 0
+  countValues (LazyLeaf _) = 1
+  countValues (LazyBranch l r) =
+    countValues l + countValues r
+
   toList NoResult' = []
   toList (LazyLeaf l) = [l]
   toList (LazyBranch left right) =
@@ -89,23 +116,25 @@ instance Filterable LazyTree where
 
 
 instance Filterable StrictNTree where
-  filter' p (StrictNLeaf l)
-    | p l = [l]
-    | otherwise = []
-  filter' p (StrictNBranch l) =
-    concatMap (filter' p) l
+  filter' _ StrictNNothing = []
+  filter' p (StrictNBranch a l) =
+    a : concatMap (filter' p) l
 
-  filter p n@(StrictNLeaf l)
-    | p l = n
-    | otherwise = StrictNBranch []
-  filter p (StrictNBranch l) = -- drop empty children
-    StrictNBranch $
-      List.filter
-        (\case
-          StrictNBranch [] -> False
-          _ -> True)
-      $ map (filter p) l
+  filter _ StrictNNothing = StrictNNothing
+  filter p (StrictNBranch a l) = -- drop empty children
+    strictNTreeFromBranches $
+      if p a
+        then
+          StrictNBranch a [] : filteredChildren
+        else
+          filteredChildren
+   where
+    filteredChildren = map (filter p) l
 
-  toList (StrictNLeaf l) = [l]
-  toList (StrictNBranch l) =
-    concatMap toList l
+  countValues StrictNNothing = 0
+  countValues (StrictNBranch _ l) =
+    List.foldl' (\n b -> n + countValues b) 1 l
+
+  toList StrictNNothing = []
+  toList (StrictNBranch a l) =
+    a : concatMap toList l

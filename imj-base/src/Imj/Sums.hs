@@ -4,6 +4,7 @@
 
 module Imj.Sums -- TODO allow non unique elements
     ( mkSums
+    , mkSums'
     , mkSumsArray
     , mkSumsArray'
     , mkSumsStrict
@@ -11,17 +12,16 @@ module Imj.Sums -- TODO allow non unique elements
     , mkSumsLazy
     -- for white box testing
     , asOccurences
-    , combinations
     , ValueOccurences(..)
     ) where
 
 import           Imj.Prelude hiding(filter)
 
-import           Data.List(reverse, length, break)
+import           Data.List(reverse, length, break, null)
+import qualified Data.List as List(filter)
 import           Data.Set(Set)
 import qualified Data.Set as Set(toList, fromList)
 import qualified Data.Vector.Storable as Storable(fromList, length, unsafeIndex)
-import           Data.Word(Word32)
 
 import           Imj.Tree
 
@@ -121,7 +121,7 @@ mkSumsLazy allNumbers total =
       right = go index target curNums -- in this branch, we drop the number
 
 data ValueOccurences = ValueOccurences {
-    _countOccurences :: {-# UNPACK #-} !Word32
+    _countOccurences :: {-# UNPACK #-} !Int
   , _value :: {-# UNPACK #-} !Int
 } deriving(Generic, Show, Eq)
 
@@ -132,31 +132,39 @@ asOccurences l = go l []
   go [] occurences = occurences
   go (e:rest) occurences =
     let (sameAfter, different) = break (e /=) rest
-        thisOccurences =  ValueOccurences (fromIntegral $ succ $ length sameAfter) e
+        thisOccurences =  ValueOccurences (succ $ length sameAfter) e
     in go different $ thisOccurences : occurences
 
 -- | Same as 'mkSumsStrict' except the ascending input can contain duplicate elements,
--- and the output is a 'StrictNTree' of descending lists (because 'asOccurences' reverses the numbers).
+-- and the output is a 'StrictNTree' of descending lists ('asOccurences' reverses the numbers).
 mkSumsStrict' :: [Int] -> Int -> StrictNTree [Int]
 mkSumsStrict' allNumbers total =
-  go (asOccurences allNumbers) total []
+  go (map combinations $ asOccurences allNumbers) total []
  where
   go [] !target curNums
-    | target == 0 = StrictNLeaf curNums
-    | otherwise = StrictNBranch []
-  go (occurences:rest) !target curNums =
-      case leaves of
-        [l] -> l
-        nullOrMultiple -> StrictNBranch nullOrMultiple
+    | target == 0 = StrictNBranch (concat curNums) []
+    | otherwise = StrictNNothing
+  go (occurencesCombinations:rest) !target curNums =
+      strictNTreeFromBranches $ map oneBranch occurencesCombinations
     where
-      leaves = filter isEmpty $ map oneBranch $ combinations occurences
-      isEmpty (StrictNLeaf _) = False
-      isEmpty (StrictNBranch []) = True
-      isEmpty (StrictNBranch (_:_)) = False
-      oneBranch (n,value) =
-        go rest (target - (fromIntegral n*value)) $ replicate (fromIntegral n) value ++ curNums
+      oneBranch (values,value) =
+        go rest (target - value) $ values : curNums
+
+-- | Same as 'mkSumsStrict'' except the output is a list of lists.
+mkSums' :: [Int] -> Int -> [[Int]]
+mkSums' allNumbers total =
+  go (map combinations $ asOccurences allNumbers) total []
+ where
+  go [] !target curNums
+    | target == 0 = [concat curNums]
+    | otherwise = []
+  go (occurencesCombinations:rest) !target curNums =
+      concat $ List.filter (not . null) $ map oneBranch occurencesCombinations
+    where
+      oneBranch (values,value) =
+        go rest (target - value) $ values : curNums
 
 {-# INLINABLE combinations #-}
-combinations :: ValueOccurences -> [(Word32, Int)]
+combinations :: ValueOccurences -> [([Int], Int)]
 combinations (ValueOccurences n v) =
-  map (\i -> (i,v)) [0..n]
+  map (\i -> (replicate i v, i * v)) [0..n]

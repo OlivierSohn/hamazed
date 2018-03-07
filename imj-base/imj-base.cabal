@@ -31,6 +31,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Data.StdoutBuffer
+                     , Imj.Data.Tree
                      , Imj.Data.Vector.Unboxed.Mutable.Dynamic
                      , Imj.Example.DeltaRender.FromMonadIO
                      , Imj.Example.DeltaRender.FromMonadReader
@@ -115,7 +116,6 @@ library
                      , Imj.Sums
                      , Imj.Threading
                      , Imj.Timing
-                     , Imj.Tree
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
@@ -169,6 +169,7 @@ test-suite imj-base-test
                      , Test.Imj.Bresenham3
                      , Test.Imj.Color
                      , Test.Imj.Ease
+                     , Test.Imj.FreeType2
                      , Test.Imj.Font
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
@@ -188,6 +189,7 @@ test-suite imj-base-test
                      , clock ==0.7.*
                      , containers >= 0.5.9.2
                      , FTGL ==2.1.*
+                     , freetype2 ==0.1.*
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3

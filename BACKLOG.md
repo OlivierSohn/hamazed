@@ -1,3 +1,10 @@
+- make a bigger countdown, with zoom out on each number.
+https://www.freetype.org/freetype2/docs/tutorial/example1.c
+https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs
+https://github.com/schell/gelatin/blob/master/gelatin-freetype2/src/Gelatin/FreeType2/Utils.hs
+
+https://www.hipsthetic.com/30-best-free-pixel-fonts/
+
 - color of number explosion should be grey if number is deactivated.
 
 - store status in UIAnimation, and create animations in drawStatus.

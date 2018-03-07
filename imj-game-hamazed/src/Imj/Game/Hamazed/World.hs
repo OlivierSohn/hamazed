@@ -126,6 +126,7 @@ import           Data.List(elem, length)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
 
+import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -151,7 +152,6 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
 import           Imj.Sums
-import qualified Imj.Tree as Tree(toList)
 
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --

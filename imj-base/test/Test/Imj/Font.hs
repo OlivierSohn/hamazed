@@ -8,7 +8,6 @@ import           Imj.Prelude
 import           Prelude(print, putStrLn)
 
 import qualified Graphics.Rendering.FTGL as FTGL
-
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Font
 

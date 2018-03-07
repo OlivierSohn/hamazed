@@ -25,7 +25,7 @@ import           Data.Set(Set)
 import qualified Data.Set as Set(toList, fromList)
 import qualified Data.Vector.Storable as Storable(fromList, length, unsafeIndex)
 
-import           Imj.Tree
+import           Imj.Data.Tree
 
 -- | Assumes that the input is an /ascending/ list of /unique/ /positive/ numbers.
 -- Computes the list of lists whose elements are in the input list and whose sum

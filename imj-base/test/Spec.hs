@@ -8,6 +8,7 @@ import           Test.Imj.Bresenham2
 import           Test.Imj.Bresenham3
 import           Test.Imj.Color
 --import           Test.Imj.Ease
+import           Test.Imj.FreeType2
 import           Test.Imj.Font
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
@@ -36,13 +37,15 @@ main = do
   testUtils
   testColor
 
-  clearScreen -- to not overwrite current terminal content.
-  _ <- runReaderT (testICS >>
-                   renderToScreen
-                   ) NaiveDraw
+  clearScreen -- to /not/ overwrite current terminal content.
+  _ <- flip runReaderT NaiveDraw $ do
+    testICS
+    renderToScreen
+
   --testEase
   testMutableBytestring
   testLastAbove
   testFont
   testSums
+  testFreeType2
   return ()

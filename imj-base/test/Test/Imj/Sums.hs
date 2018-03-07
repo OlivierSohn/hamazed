@@ -13,11 +13,11 @@ import           Data.Text(pack)
 import qualified Data.Text.IO as Text (putStr)
 import           System.IO(putStr, putStrLn)
 
+import qualified Imj.Data.Tree as Tree
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString
 import           Imj.Sums
 import           Imj.Timing
-import qualified Imj.Tree as Tree
 
 testSums :: IO ()
 testSums = do

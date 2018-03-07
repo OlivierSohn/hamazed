@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveFoldable #-}
 
-module Imj.Tree
+module Imj.Data.Tree
     ( LazyTree(..)
     , StrictTree(..)
     , StrictNTree(..)
@@ -11,7 +11,7 @@ module Imj.Tree
     , Filterable(..)
     ) where
 
-import Imj.Prelude hiding(filter)
+import           Imj.Prelude hiding(filter)
 import qualified Data.List as List(filter)
 import           Data.Foldable(foldl')
 

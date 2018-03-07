@@ -8,7 +8,7 @@ module Imj.Prelude
 
 import           Prelude as Exported
   ( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
-  , Functor, Read, Applicative
+  , Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
   , sum, map, concatMap, concat, filter, mapM_

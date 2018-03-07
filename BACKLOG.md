@@ -1,11 +1,5 @@
 - color of number explosion should be grey if number is deactivated.
 
-- when the live ammo per component changes:
-  discard sums that don't match the live ammo per connex components.
-  if a number is in no sum, draw it in red.
-
-render in red the numbers that should not be shot, ie they are in no remaining sum.
-
 - store status in UIAnimation, and create animations in drawStatus.
 
 - use another text box for networking messages, to separate concerns, to

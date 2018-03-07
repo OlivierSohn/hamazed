@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.Color (
   , shipColorsSafe
   -- * Numbers colors
   , numberColor
+  , dangerousNumberColor
   , unreachableNumberColor
   -- * Materials colors
   , airColors
@@ -169,6 +170,12 @@ numberColor i =
   rgb r g b
  where
   (r,g,b) = numColor i
+
+dangerousNumberColor :: Int -> Color8 Foreground
+dangerousNumberColor i =
+  rgb r 0 b
+ where
+  (r,_,b) = numColor i
 
 unreachableNumberColor :: Int -> Color8 Foreground
 unreachableNumberColor i =

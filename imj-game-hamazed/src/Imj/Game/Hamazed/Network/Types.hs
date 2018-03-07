@@ -325,7 +325,7 @@ data GameStateEssence = GameStateEssence {
 instance Binary GameStateEssence
 
 data ShotNumber = ShotNumber {
-    _value :: {-# UNPACK #-} !Int
+    getNumberValue :: {-# UNPACK #-} !Int
     -- ^ The numeric value
   , getOperation :: !Operation
   -- ^ How this number influences the current sum.

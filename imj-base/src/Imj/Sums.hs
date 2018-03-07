@@ -4,18 +4,20 @@
 
 module Imj.Sums -- TODO allow non unique elements
     ( mkSums
-    , mkSums'
+    , mkSumsN
     , mkSumsArray
     , mkSumsArray'
     , mkSumsStrict
-    , mkSumsStrict'
+    , mkSumsStrict2
+    , mkSumsStrictN
+    , mkSumsStrictN2
     , mkSumsLazy
     -- for white box testing
     , asOccurences
     , ValueOccurences(..)
     ) where
 
-import           Imj.Prelude hiding(filter)
+import           Imj.Prelude
 
 import           Data.List(reverse, length, break, null)
 import qualified Data.List as List(filter)
@@ -94,6 +96,27 @@ mkSumsStrict allNumbers total =
       left = go index (target - n) (n:curNums) -- in this branch, we take the number
       right = go index target curNums -- in this branch, we drop the number
 
+-- A version using a strict tree as output
+mkSumsStrict2 :: Set Int -> Int -> StrictTree [Int]
+mkSumsStrict2 allNumbers total =
+  go (Set.toList allNumbers) total []
+ where
+  -- we reverse the numbers because we will iterate on the array from the last to the first element.
+  go [] !target curNums
+    | target == 0 = StrictLeaf curNums
+    | otherwise = NoResult
+  go (n:rest) !target curNums
+    | target == 0 = StrictLeaf curNums
+    | target < n = NoResult
+    | otherwise = case left of
+        NoResult -> right
+        _ -> case right of
+          NoResult -> left
+          _ -> StrictBranch left right
+    where
+      left = go rest (target - n) (n:curNums) -- in this branch, we take the number
+      right = go rest target curNums -- in this branch, we drop the number
+
 
 
 -- A version using a storable vector, and a lazy tree as output.
@@ -136,10 +159,13 @@ asOccurences l = go l []
     in go different $ thisOccurences : occurences
 
 -- | Same as 'mkSumsStrict' except the ascending input can contain duplicate elements,
--- and the output is a 'StrictNTree' of descending lists ('asOccurences' reverses the numbers).
-mkSumsStrict' :: [Int] -> Int -> StrictNTree [Int]
-mkSumsStrict' allNumbers total =
-  go (map combinations $ asOccurences allNumbers) total []
+-- and the output is a 'StrictNTree' of ascending lists.
+--
+-- It is also 4x slower than 'mkSumsStrict' / 'mkSumsStrict2' which do not offer
+-- the possibility to have duplicate elements
+mkSumsStrictN :: [Int] -> Int -> StrictNTree [Int]
+mkSumsStrictN allNumbers total =
+  go (map combinations $ reverse $ asOccurences allNumbers) total []
  where
   go [] !target curNums
     | target == 0 = StrictNBranch (concat curNums) []
@@ -147,24 +173,39 @@ mkSumsStrict' allNumbers total =
   go (occurencesCombinations:rest) !target curNums =
       strictNTreeFromBranches $ map oneBranch occurencesCombinations
     where
-      oneBranch (values,value) =
+      oneBranch (Combination values value) =
         go rest (target - value) $ values : curNums
 
--- | Same as 'mkSumsStrict'' except the output is a list of lists.
-mkSums' :: [Int] -> Int -> [[Int]]
-mkSums' allNumbers total =
-  go (map combinations $ asOccurences allNumbers) total []
+mkSumsStrictN2 :: [Int] -> Int -> StrictNTree2 [Int]
+mkSumsStrictN2 allNumbers total =
+  go (map combinations $ reverse $ asOccurences allNumbers) total []
+ where
+  go [] !target curNums
+    | target == 0 = StrictNLeaf2 $ concat curNums
+    | otherwise = StrictNBranch2 []
+  go (occurencesCombinations:rest) !target curNums =
+      strictNTree2FromBranches $ map oneBranch occurencesCombinations
+    where
+      oneBranch (Combination values value) =
+        go rest (target - value) $ values : curNums
+
+-- | Same as 'mkSumsStrictN' except the output is a list of lists.
+mkSumsN :: [Int] -> Int -> [[Int]]
+mkSumsN allNumbers total =
+  go (map combinations $ reverse $ asOccurences allNumbers) total []
  where
   go [] !target curNums
     | target == 0 = [concat curNums]
     | otherwise = []
   go (occurencesCombinations:rest) !target curNums =
+      -- filter before concat leads to better performances
       concat $ List.filter (not . null) $ map oneBranch occurencesCombinations
     where
-      oneBranch (values,value) =
+      oneBranch (Combination values value) =
         go rest (target - value) $ values : curNums
 
-{-# INLINABLE combinations #-}
-combinations :: ValueOccurences -> [([Int], Int)]
+data Combination = Combination ![Int] {-# UNPACK #-} !Int
+
+combinations :: ValueOccurences -> [Combination]
 combinations (ValueOccurences n v) =
-  map (\i -> (replicate i v, i * v)) [0..n]
+  map (\i -> Combination (replicate i v) $ i * v) [0..n]

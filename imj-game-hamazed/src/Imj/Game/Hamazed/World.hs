@@ -16,6 +16,7 @@ module Imj.Game.Hamazed.World
        A 'Level' is finished once the sum of shot 'Number's amounts to the /target number/. -}
     , checkTargetAndAmmo
     , checkAllComponentStatus
+    , checkSums
     -- * World
     {- | A 'World' brings together:
 
@@ -114,24 +115,24 @@ module Imj.Game.Hamazed.World
     ) where
 
 import           Imj.Prelude
-
+import Prelude(putStrLn)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import qualified Data.Set as Set(empty, null)
-import qualified Data.Map.Strict as Map(insert, lookup, map, empty, null, keysSet, foldl', alter
+import qualified Data.Set as Set(empty, null, member, fromList, unions, size)
+import qualified Data.Map.Strict as Map(elems, insert, lookup, map, empty, null, keysSet, foldl', alter
                                       , findWithDefault, mapAccumWithKey)
-import           Data.List(elem)
+import           Data.List(elem, length)
+import           Data.Maybe(isJust)
 import           Data.Text(pack)
 
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Create
@@ -149,6 +150,8 @@ import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
+import           Imj.Sums
+import qualified Imj.Tree as Tree(toList)
 
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
@@ -202,8 +205,8 @@ laserEventAction :: (MonadState AppState m)
                  -> Direction
                  -- ^ The direction of the laser shot
                  -> Time Point System
-                 -> m (Map NumId Number)
-                 -- ^ 'Number's destroyed
+                 -> m (Map NumId Number, Bool)
+                 -- ^ 'Number's destroyed + ammo changed
 laserEventAction shipId dir t =
   getWorld >>= \(World balls ships space rs d e) -> do
     let ship@(BattleShip _ (PosSpeed shipCoords _) ammo status _ component) = findShip shipId ships
@@ -237,8 +240,7 @@ laserEventAction shipId dir t =
     addParticleSystems $ concat [newSystems, laserSystems, outerSpaceParticleSystems_]
 
     when (countLiveAmmo newShip == 0) $ checkComponentStatus component
-
-    return destroyedBalls
+    return (destroyedBalls, isJust maybeLaserRay)
 
 checkComponentStatus :: (MonadState AppState m)
                      => ComponentIdx
@@ -282,7 +284,7 @@ countComponentAmmo i =
 
 
 countComponentsAmmo :: (MonadState AppState m)
-                     => m (Map ComponentIdx Int)
+                    => m (Map ComponentIdx Int)
 countComponentsAmmo =
   Map.foldl'
     (\m ship@(BattleShip _ _ _ _ _ idx) ->
@@ -291,6 +293,46 @@ countComponentsAmmo =
           f (Just x) = Just $ ammo + x
       in Map.alter f idx m)
     Map.empty . getWorldShips <$> getWorld
+
+-- | Discard sums that don't match the live ammo per connex components.
+-- If a reachable number is in no sum, draw it in red.
+checkSums :: (MonadState AppState m, MonadIO m)
+          => m ()
+checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
+                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _) ->
+  case constraint of
+    CanOvershoot -> return ()
+    CannotOvershoot -> do
+      let shotQty = applyOperations $ reverse shotNumbers
+          remainingQty = totalQty - shotQty
+          remainingNums = map (getNumber . getNumEssence) $ Map.elems remainingNumbers
+
+          asSet = Set.fromList remainingNums
+          allLists = if Set.size asSet == length remainingNums
+            then
+              -- there is a 4x performance benefit in using 'mkSumsStrict' when numbers are unique.
+              Tree.toList $ mkSumsStrict asSet remainingQty
+            else
+              Tree.toList $ mkSumsStrictN remainingNums remainingQty
+
+          -- TODO group numbers by cc, then check if cc has enough ammo.
+          -- (take into account that in case of multiple identical number,
+          -- the same numbers could be in multiple components)
+          possibleLists = allLists
+
+          -- lists are ascending, hence fromList(s) have a linear complexity.
+          -- Set.unions also has a linear complexity, overall we have a linear complexity here.
+          okTargets = Set.unions $ map Set.fromList possibleLists
+
+          newNumbers = Map.map (\n -> if Set.member (getNumber $ getNumEssence n) okTargets
+                                        then n
+                                        else makeDangerous n) remainingNumbers
+      liftIO $ putStrLn $ "shotQty:" ++ show shotQty
+      liftIO $ putStrLn $ "remainingQty:" ++ show remainingQty
+      liftIO $ putStrLn $ "remainingNums:" ++ show remainingNums
+      liftIO $ putStrLn $ "okTargets:" ++ show okTargets
+      putWorld $ w { getWorldNumbers = newNumbers }
+
 
 outerSpaceParticleSystems :: (MonadState AppState m)
                           => Time Point ParticleSyst

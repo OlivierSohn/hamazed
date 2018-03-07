@@ -15,6 +15,7 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
+import           Data.List(sortOn)
 import qualified Data.Map.Strict as Map(empty, fromList)
 import qualified Data.Set as Set(size, toList, empty)
 
@@ -57,7 +58,8 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
     ) associations
   let (ships, balls) = unzip shipsAndNums
   return $ WorldEssence
-    (Map.fromList $ zip (map NumId [0..]) $ concat balls)
+    -- we sort the numbers so that their order in the map matches the order of their numeric values
+    (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
     (Map.fromList ships)
     (toListOfLists space)
     wid

@@ -25,6 +25,7 @@ module Imj.Game.Hamazed.World.Types
         , NumId(..)
         , mkNumber
         , makeUnreachable
+        , makeDangerous
         , getCurrentColor
         , Scope(..)
         , ViewMode(..)
@@ -205,22 +206,30 @@ mkNumber e = Number e [] Reachable
 data NumberType =
     Reachable
   | Unreachable
+  | Dangerous
   deriving(Generic, Show)
 
 getCurrentColor :: Number -> Color8 Foreground
 getCurrentColor (Number _ (color:_) _) = color
 getCurrentColor (Number (NumberEssence _ i _) [] Reachable) = numberColor i
 getCurrentColor (Number (NumberEssence _ i _) [] Unreachable) = unreachableNumberColor i
+getCurrentColor (Number (NumberEssence _ i _) [] Dangerous) = dangerousNumberColor i
 
 makeUnreachable :: Number -> Number
 makeUnreachable n@(Number _ _ Unreachable) = n
-makeUnreachable (Number e@(NumberEssence _ i _) color Reachable) = Number e newColor Unreachable
+makeUnreachable n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Unreachable
  where
   c' = unreachableNumberColor i
-  startColor = case color of
-    [] -> numberColor i
-    c:_ -> c
+  startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
+
+makeDangerous :: Number -> Number
+makeDangerous n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor Dangerous
+ where
+  c' = dangerousNumberColor i
+  startColor = getCurrentColor n
+  newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
+makeDangerous n@(Number _ _ _) = n
 
 getColliding :: Coords Pos -> Map NumId Number -> Map NumId Number
 getColliding pos =

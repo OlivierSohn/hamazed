@@ -1,26 +1,38 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Tree
     ( LazyTree(..)
     , StrictTree(..)
+    , StrictNTree(..)
     , Filterable(..)
     ) where
 
 import Imj.Prelude hiding(filter)
+import qualified Data.List as List(filter)
 
 data StrictTree a =
     StrictBranch !(StrictTree a) !(StrictTree a)
-  | StrictLeaf a
+  | StrictLeaf !a
   | NoResult
 data LazyTree a =
     LazyBranch (LazyTree a) (LazyTree a)
   | LazyLeaf a
   | NoResult'
 
+data StrictNTree a =
+    StrictNBranch ![StrictNTree a]
+  | StrictNLeaf !a
+
 class Filterable a where
   filter' :: (b -> Bool) -> a b -> [b]
   filter :: (b -> Bool) -> a b -> a b
   toList :: a b -> [b]
+
+instance Filterable [] where
+  filter' = List.filter
+  filter = List.filter
+  toList = id
 
 instance Filterable StrictTree where
   filter' _ NoResult = []
@@ -74,3 +86,26 @@ instance Filterable LazyTree where
   toList (LazyLeaf l) = [l]
   toList (LazyBranch left right) =
     toList left ++ toList right
+
+
+instance Filterable StrictNTree where
+  filter' p (StrictNLeaf l)
+    | p l = [l]
+    | otherwise = []
+  filter' p (StrictNBranch l) =
+    concatMap (filter' p) l
+
+  filter p n@(StrictNLeaf l)
+    | p l = n
+    | otherwise = StrictNBranch []
+  filter p (StrictNBranch l) = -- drop empty children
+    StrictNBranch $
+      List.filter
+        (\case
+          StrictNBranch [] -> False
+          _ -> True)
+      $ map (filter p) l
+
+  toList (StrictNLeaf l) = [l]
+  toList (StrictNBranch l) =
+    concatMap toList l

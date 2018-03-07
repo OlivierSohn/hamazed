@@ -8,7 +8,7 @@ import           Imj.Prelude
 import           Prelude(logBase)
 import           Control.Exception (evaluate)
 import           Data.List(foldl', length)
-import qualified Data.Set as Set(fromList, empty, singleton, filter, size)
+import qualified Data.Set as Set(fromList, toList, empty, singleton, filter, size)
 import           Data.Text(pack)
 import qualified Data.Text.IO as Text (putStr)
 import           System.IO(putStr, putStrLn)
@@ -21,6 +21,9 @@ import qualified Imj.Tree as Tree
 
 testSums :: IO ()
 testSums = do
+  testAsOccurences
+  testCombinations
+
   mkSums Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSums (Set.fromList [1,2,3,4,5]) 3
    `shouldBe` Set.fromList (map Set.fromList [[3],[1,2]])
@@ -48,20 +51,63 @@ testSums = do
         time $ void $ evaluate $
           countCombinations numbers (quot (maxSum * n) n) -- trick to force a new evaluation
       tests =
-        [ ((\a b -> Set.size $ Set.filter  (\s -> Set.size s < 6) $ mkSums       a b)              , "mkSums")
-        , ((\a b -> Set.size $ Set.filter  (\s -> Set.size s < 6) $ mkSumsArray  a b)              , "mkSumsArray")
-        , ((\a b -> length   $ filter      (\s -> length   s < 6) $ mkSumsArray' a b)              , "mkSumsArray'")
+        [ ((\a b -> Set.size $ Set.filter  (\s -> Set.size s < 6) $ mkSums       a b)              , "mkSums filter")
+        , ((\a b -> Set.size $ Set.filter  (\s -> Set.size s < 6) $ mkSumsArray  a b)              , "mkSumsArray filter")
+        , ((\a b -> length   $ filter      (\s -> length   s < 6) $ mkSumsArray' a b)              , "mkSumsArray' filter")
         , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsStrict a b)             , "mkSumsStrict filter'")
         , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsStrict a b), "mkSumsStrict filter")
+        , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict' filter'")
+        , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict' filter")
         , ((\a b -> length   $ Tree.filter' (\s -> length   s < 6) $ mkSumsLazy   a b)             , "mkSumsLazy filter'")
         , ((\a b -> length   $ Tree.toList $ Tree.filter (\s -> length   s < 6) $ mkSumsLazy   a b), "mkSumsLazy filter")
+        , ((\a b -> Set.size $ mkSums       a b)                            , "mkSums")
+        , ((\a b -> Set.size $ mkSumsArray  a b)                            , "mkSumsArray")
+        , ((\a b -> length   $ mkSumsArray' a b)                            , "mkSumsArray'")
+        , ((\a b -> length   $ Tree.toList $ mkSumsStrict a b)              , "mkSumsStrict")
+        , ((\a b -> length   $ Tree.toList $ mkSumsStrict' (Set.toList a) b), "mkSumsStrict'")
+        , ((\a b -> length   $ Tree.toList $ mkSumsLazy   a b)              , "mkSumsLazy")
         ]
-  times <- mapM (\n -> mapM (measure n . fst) tests) [1..100] :: IO [[Time Duration System]]
-  printTimes $ zip (map snd tests) $ map toMicros $ foldl' (zipWith (|+|)) (replicate 10 $ fromSecs 0) times
+  let nTestRepeat = 100
+  times <-
+    mapM
+      (\n -> mapM (measure n . fst) tests)
+      [1..nTestRepeat] :: IO [[Time Duration System]]
+  printTimes $
+    zip
+      (map snd tests) $
+      map
+        (round . (/ (fromIntegral nTestRepeat :: Float)) . fromIntegral . toMicros) $
+        foldl'
+          (zipWith (|+|))
+          (repeat $ fromSecs 0)
+          times
+
+testAsOccurences :: IO ()
+testAsOccurences = do
+  asOccurences [] `shouldBe` []
+  asOccurences [3] `shouldBe` [ValueOccurences 1 3]
+  asOccurences [3,3] `shouldBe` [ValueOccurences 2 3]
+  asOccurences [3,4] `shouldBe` [ValueOccurences 1 4, ValueOccurences 1 3] -- Note : reversed
+  asOccurences [3,3,5,5,5,6,7,7,9,10]
+   `shouldBe`
+    [ ValueOccurences 1 10
+    , ValueOccurences 1 9
+    , ValueOccurences 2 7
+    , ValueOccurences 1 6
+    , ValueOccurences 3 5
+    , ValueOccurences 2 3
+    ]
+
+testCombinations :: IO ()
+testCombinations = do
+  combinations (ValueOccurences 0 2) `shouldBe` [(0,2)]
+  combinations (ValueOccurences 1 2) `shouldBe` [(0,2),(1,2)]
+  combinations (ValueOccurences 2 2) `shouldBe` [(0,2),(1,2),(2,2)]
+  combinations (ValueOccurences 3 2) `shouldBe` [(0,2),(1,2),(2,2),(3,2)]
 
 printTimes :: [(String, Int64)] -> IO ()
 printTimes times = do
-  putStrLn "(Graphical time has a logarithmic scale)"
+  putStrLn "micros|Logarithmic scale"
   mapM_ (\(desc, dt) -> do
     let n = round $ countStars dt
         s = show dt

@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.World.Number(
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
+import qualified Data.Map.Strict as Map(elems)
 
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -33,11 +34,11 @@ destroyedNumbersParticleSystems :: (MonadState AppState m)
                                 => Time Point ParticleSyst
                                 -> ShipId
                                 -> Direction -- ^ 'Direction' of the laser shot
-                                -> [Number]
+                                -> Map NumId Number
                                 -> m [Prioritized ParticleSystem]
 destroyedNumbersParticleSystems keyTime shipId dir nums = do
   let laserSpeed = speed2vec $ coordsForDirection dir
-  ps <- mapM (destroyedNumberParticleSystems keyTime shipId laserSpeed) nums
+  ps <- mapM (destroyedNumberParticleSystems keyTime shipId laserSpeed) $ Map.elems nums
   return $ concat ps
 
 destroyedNumberParticleSystems :: (MonadState AppState m)
@@ -46,7 +47,7 @@ destroyedNumberParticleSystems :: (MonadState AppState m)
                                -> Vec2 Vel
                                -> Number
                                -> m [Prioritized ParticleSystem]
-destroyedNumberParticleSystems k shipId laserSpeed (Number (PosSpeed pos _) n) = getPlayer shipId >>= maybe
+destroyedNumberParticleSystems k shipId laserSpeed (Number (NumberEssence (PosSpeed pos _) n _) _ _) = getPlayer shipId >>= maybe
   (return [])
   (\(Player _ _ (PlayerColors _ cycles)) -> do
     envFuncs <- envFunctions (WorldScope Air)

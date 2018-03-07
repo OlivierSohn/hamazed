@@ -45,7 +45,7 @@ mkShipCS :: InfoType
          -> Map ShipId Player -- TODO use the AppState monad instead of passing this ?
          -> BattleShip
          -> Successive ColoredGlyphList
-mkShipCS _ names (BattleShip sid _ ammo status _) =
+mkShipCS _ names (BattleShip sid _ ammo status _ _) =
   let name = getPlayerUIName'' $ names !? sid
       pad = initialLaserAmmo - ammo
       ammoColor' Destroyed = darkConfigFgColor

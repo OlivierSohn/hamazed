@@ -14,6 +14,6 @@ import           Imj.Geo.Discrete.Types
 
 -- | Represents a discrete position and a discrete speed.
 data PosSpeed = PosSpeed {
-    _posSpeedPos :: {-# UNPACK #-} !(Coords Pos)
-  , _posSpeedSpeed :: {-# UNPACK #-} !(Coords Vel)
+    getPos :: {-# UNPACK #-} !(Coords Pos)
+  , getSpeed :: {-# UNPACK #-} !(Coords Vel)
 } deriving (Generic, Eq, Show, Binary)

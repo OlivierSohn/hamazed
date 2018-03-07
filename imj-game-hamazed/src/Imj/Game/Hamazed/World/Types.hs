@@ -20,6 +20,12 @@ module Imj.Game.Hamazed.World.Types
         , ShipStatus(..)
         , shipIsAlive
         , Number(..)
+        , NumberEssence(..)
+        , NumberType(..)
+        , NumId(..)
+        , mkNumber
+        , makeUnreachable
+        , getCurrentColor
         , Scope(..)
         , ViewMode(..)
         , Screen(..)
@@ -46,17 +52,20 @@ import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
 import           Control.DeepSeq(NFData)
-import           Data.Map.Strict(Map, lookup)
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map(lookup, filter)
 import           Data.Set(Set)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Geo.Continuous.Types
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
 
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.Color
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
@@ -103,8 +112,8 @@ instance Binary WorldSpec
 -- | Contains the minimal information needed to describe all parameters of the 'World'
 -- that matter to the game (i.e we ignore particle system animations and objects used to optimize rendering)
 data WorldEssence = WorldEssence {
-    getNumbers :: ![Number]
-  , getShips :: !(Map ShipId BattleShip)
+    getNumbers :: !(Map NumId NumberEssence)
+  , getShips :: !(Map ShipId BattleShip) -- TODO remove ShipId from BattleShip
   , getSpaceMatrix :: !MaterialMatrix
   , getWorldId :: !(Maybe WorldId)
 } deriving(Generic, Show)
@@ -114,7 +123,7 @@ newtype WorldId = WorldId Int64
   deriving(Generic, Show, Binary, Enum, Eq, NFData)
 
 data World = World {
-    getWorldNumbers :: ![Number]
+    getWorldNumbers :: !(Map NumId Number)
     -- ^ The remaining 'Number's (shot 'Number's are removed from the list)
   , getWorldShips :: !(Map ShipId BattleShip)
   , getWorldSpace :: {-# UNPACK #-} !Space
@@ -124,6 +133,9 @@ data World = World {
     -- ^ Animated particle systems, illustrating player actions and important game events.
   , getId :: {-unpack sum-} !(Maybe WorldId)
 } deriving (Generic)
+
+newtype NumId = NumId Int
+  deriving (Generic, Ord, Eq, Binary, Show)
 
 newtype ParticleSystemKey = ParticleSystemKey Int
   deriving (Eq, Ord, Enum, Show, Num)
@@ -141,13 +153,15 @@ computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
     getPilotId :: {-# UNPACK #-} !ShipId
-  , _shipPosSpeed :: !PosSpeed
+  , shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
   -- ^ How many laser shots are left.
   , getShipStatus :: {-unpack sum-} !ShipStatus
-  , getCollisions :: ![Number]
+  , getCollisions :: !(Set NumId)
   -- ^ Which 'Number's are currently colliding with the 'BattleShip'.
+  , getShipCC:: {-# UNPACK #-} !ComponentIdx
+  -- ^ The component in which the ship is located.
 } deriving(Generic, Show)
 instance Binary BattleShip
 
@@ -167,18 +181,50 @@ shipIsAlive Armored = True
 newtype ShipId = ShipId Int64
   deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)
 
-data Number = Number {
-    _numberPosSpeed :: !PosSpeed
+data NumberEssence = NumberEssence {
+    getNumPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getNumber :: {-# UNPACK #-} !Int
   -- ^ Which number it represents (1 to 16).
-} deriving(Generic, Eq, Show)
+  , getNumberCC :: {-# UNPACK #-} !ComponentIdx
+  -- ^ The component in which the number is located.
+} deriving(Generic, Show)
+instance Binary NumberEssence
 
-instance Binary Number
+data Number = Number {
+    getNumEssence :: !NumberEssence
+  -- ^ The component in which the number is located.
+  , getNumColor :: [Color8 Foreground]
+  -- ^ Defines a sequence of colors, in time, or a single color.
+  , getNumType :: !NumberType
+} deriving(Generic, Show)
 
-getColliding :: Coords Pos -> [Number] -> [Number]
+mkNumber :: NumberEssence -> Number
+mkNumber e = Number e [] Reachable
+
+data NumberType =
+    Reachable
+  | Unreachable
+  deriving(Generic, Show)
+
+getCurrentColor :: Number -> Color8 Foreground
+getCurrentColor (Number _ (color:_) _) = color
+getCurrentColor (Number (NumberEssence _ i _) [] Reachable) = numberColor i
+getCurrentColor (Number (NumberEssence _ i _) [] Unreachable) = unreachableNumberColor i
+
+makeUnreachable :: Number -> Number
+makeUnreachable n@(Number _ _ Unreachable) = n
+makeUnreachable (Number e@(NumberEssence _ i _) color Reachable) = Number e newColor Unreachable
+ where
+  c' = unreachableNumberColor i
+  startColor = case color of
+    [] -> numberColor i
+    c:_ -> c
+  newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
+
+getColliding :: Coords Pos -> Map NumId Number -> Map NumId Number
 getColliding pos =
-  filter (\(Number (PosSpeed pos' _) _) -> pos == pos')
+  Map.filter ((pos ==) . getPos . getNumPosSpeed . getNumEssence)
 
 envDistance :: Vec2 Pos -> Distance
 envDistance (Vec2 x y) =
@@ -195,8 +241,7 @@ getWorldOffset mode (World _ ships space _ _ _) =
     CenterShip myId ->
       let worldCenter = Coords (fromIntegral $ quot h 2) (fromIntegral $ quot w 2)
           (Size h w) = getSize space
-          (BattleShip _ (PosSpeed shipPos _) _ _ _) = findShip myId ships
-      in diffCoords worldCenter shipPos
+      in diffCoords worldCenter $ getPos $ shipPosSpeed $ findShip myId ships
 
 getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
 getWorldCorner world screenCenter offset =
@@ -255,14 +300,12 @@ scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCent
   worldArea = mkRectArea zeroCoords $ getSize space
   worldViewArea = growRectArea 1 worldArea
 
-
 data Screen = Screen {
     _screenSize :: {-unpack sum-} !(Maybe Size)
   -- ^ Maybe we couldn't get the screen size.
   , _screenCenter :: {-# UNPACK #-} !(Coords Pos)
   -- ^ The center is deduced from screen size, if any, or guessed.
 }
-
 
 mkScreen :: Maybe Size -> Screen
 mkScreen sz =
@@ -277,4 +320,4 @@ mkScreen sz =
 findShip :: ShipId -> Map ShipId BattleShip -> BattleShip
 findShip i =
   fromMaybe (error $ "ship not found : " ++ show i)
-  . lookup i
+  . Map.lookup i

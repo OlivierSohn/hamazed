@@ -16,7 +16,7 @@ import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import qualified Data.Map.Strict as Map(empty, fromList)
-import qualified Data.Set as Set(size, toList)
+import qualified Data.Set as Set(size, toList, empty)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Types
@@ -49,23 +49,21 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
     (\(Association shipId nums componentIdx) -> do
       -- TODO shuffle this, as it is ordered due to the use of a Set inside.
        positions <- randomCCCoords (1 + length nums) componentIdx topology NoOverlap
-       (shipPosSpeed:numPosSpeeds) <- mapM (mkRandomPosSpeed space) positions
-       let ship = BattleShip shipId shipPosSpeed initialLaserAmmo Armored [] -- no collision because we passed 'NoOverlap' to randomCCCoords
-           ns = map (\(n,posSpeed) -> Number posSpeed n) $ zip nums numPosSpeeds
+       (shipPS:numPS) <- mapM (mkRandomPosSpeed space) positions
+       let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
+           ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
+           ns = map (\(n,posSpeed) -> NumberEssence posSpeed n componentIdx) $ zip nums numPS
        return ((shipId, ship), ns)
     ) associations
   let (ships, balls) = unzip shipsAndNums
-
-  --balls <- mapM (createRandomNumber space) numbers
-  --posSpeeds <- liftIO $ createShipPosSpeeds nShips space (map (\(Number (PosSpeed pos _) _) -> pos) balls) []
-  --let ships = fromList $ map
-  --      (\(shipId,posSpeed@(PosSpeed pos _)) ->
-  --        (shipId, BattleShip shipId posSpeed initialLaserAmmo Armored (getColliding pos balls)))
-  --      $ zip clientIds posSpeeds
-  return $ WorldEssence (concat balls) (Map.fromList ships) (toListOfLists space) wid
+  return $ WorldEssence
+    (Map.fromList $ zip (map NumId [0..]) $ concat balls)
+    (Map.fromList ships)
+    (toListOfLists space)
+    wid
 
 mkMinimalWorldEssence :: WorldEssence
-mkMinimalWorldEssence = WorldEssence [] Map.empty (MaterialMatrix [[]]) Nothing
+mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]]) Nothing
 
 mkSpace :: (MonadIO m)
         => Size

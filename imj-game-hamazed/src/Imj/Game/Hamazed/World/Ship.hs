@@ -6,6 +6,7 @@
 module Imj.Game.Hamazed.World.Ship
         ( shipParticleSystems
         , countAmmo
+        , countLiveAmmo
         , updateShipsText
         ) where
 
@@ -13,7 +14,8 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.List( foldl' )
-import           Data.Map.Strict(elems, traverseWithKey)
+import qualified Data.Map.Strict as Map(elems, traverseWithKey, restrictKeys, foldl', lookupMin)
+import qualified Data.Set as Set(null)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -43,39 +45,48 @@ shipParticleSystems :: (MonadState AppState m)
 shipParticleSystems k =
   getWorld >>= \w -> do
     envFuncs <- envFunctions $ WorldScope Air
-    let sps _ (BattleShip _ _ _ Armored _) = return []
-        sps _ (BattleShip _ _ _ Unarmored _) = return []
-        sps _ (BattleShip _ _ _ Destroyed []) = return []
-        sps shipId (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions) = getPlayer shipId >>= maybe
-          (return [])
-          (\(Player _ _ (PlayerColors _ cycles)) -> do
-            -- when number and ship explode, they exchange speeds
-            let collidingNumbersAvgSpeed =
-                  foldl' sumCoords zeroCoords
-                  $ map (\(Number (PosSpeed _ speed) _) -> speed) collisions
-                numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
-                shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
-                (Number _ n) = head collisions
-                k' = systemTimePointToParticleSystemTimePoint k
-            let color i =
-                  cycleColors sumFrameParticleIndex $
-                    if even i
-                      then outer1 cycles
-                      else wall2 cycles
-            return
-              $ map (Prioritized particleSystDefaultPriority)
-              $ fragmentsFreeFallThenExplode numSpeed shipCoords color (gameGlyph '|') (Speed 1) envFuncs k' ++
-                fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (gameGlyph $ intToDigit n) (Speed 1) envFuncs k')
-    concat <$> traverseWithKey sps (getWorldShips w)
+    let sps _ (BattleShip _ _ _ Armored   _  _) = return []
+        sps _ (BattleShip _ _ _ Unarmored _  _) = return []
+        sps shipId (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions _) =
+          if Set.null collisions
+            then
+              return []
+            else getPlayer shipId >>= maybe
+              (return [])
+              (\(Player _ _ (PlayerColors _ cycles)) -> do
+                -- when number and ship explode, they exchange speeds
+                let collidingNumbersAvgSpeed =
+                      Map.foldl'
+                        (\s -> sumCoords s . getSpeed . getNumPosSpeed . getNumEssence)
+                        zeroCoords
+                        $ Map.restrictKeys (getWorldNumbers w) collisions
+                    numSpeed = scalarProd 0.4 $ speed2vec collidingNumbersAvgSpeed
+                    shipSpeed2 = scalarProd 0.4 $ speed2vec shipSpeed
+                    k' = systemTimePointToParticleSystemTimePoint k
+                    n = maybe '?' (intToDigit . getNumber . getNumEssence)
+                      $ fmap snd $ Map.lookupMin $ Map.restrictKeys (getWorldNumbers w) collisions
+                let color i =
+                      cycleColors sumFrameParticleIndex $
+                        if even i
+                          then outer1 cycles
+                          else wall2 cycles
+                return
+                  $ map (Prioritized particleSystDefaultPriority)
+                  $ fragmentsFreeFallThenExplode numSpeed shipCoords color (gameGlyph '|') (Speed 1) envFuncs k' ++
+                    fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (gameGlyph n) (Speed 1) envFuncs k')
+    concat <$> Map.traverseWithKey sps (getWorldShips w)
 
 countAmmo :: [BattleShip] -> Int
 countAmmo =
-  foldl' (\s (BattleShip _ _ ammo status _) ->
-            if shipIsAlive status
-              then
-                s + ammo
-              else
-                s) 0
+  foldl' (\s ship -> s + countLiveAmmo ship) 0
+
+countLiveAmmo :: BattleShip -> Int
+countLiveAmmo (BattleShip _ _ ammo status _ _) =
+  if shipIsAlive status
+    then
+      ammo
+    else
+      0
 
 {-# INLINABLE updateShipsText #-}
 updateShipsText :: (MonadState AppState m)
@@ -87,7 +98,7 @@ updateShipsText =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode
               (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-              infos = mkLeftInfo Normal (elems ships) names shotNumbers level
+              infos = mkLeftInfo Normal (Map.elems ships) names shotNumbers level
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
     putAnimation newAnim

@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.Color (
   , shipColorsSafe
   -- * Numbers colors
   , numberColor
+  , unreachableNumberColor
   -- * Materials colors
   , airColors
   , wallColors
@@ -166,6 +167,17 @@ shipBgColorSafe = gray 3
 numberColor :: Int -> Color8 Foreground
 numberColor i =
   rgb r g b
+ where
+  (r,g,b) = numColor i
+
+unreachableNumberColor :: Int -> Color8 Foreground
+unreachableNumberColor i =
+  gray $ g + b
+ where
+  (_,g,b) = numColor i
+
+numColor :: Int -> (Int, Int, Int)
+numColor i = (r,g,b)
  where
   r = 5
   g = fromIntegral $ 4 + (0 + quot i 2) `mod` 2 -- [0..1] , slow changes

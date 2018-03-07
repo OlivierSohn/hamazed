@@ -11,7 +11,7 @@ module Imj.Game.Hamazed.World.Draw
 import           Imj.Prelude
 
 import           Data.Char(intToDigit)
-import           Data.Map.Strict(assocs)
+import qualified Data.Map.Strict as Map(assocs)
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -21,10 +21,9 @@ import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Geo.Discrete
-import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.Font
+import           Imj.Graphics.UI.Animation
 import           Imj.Physics.Discrete.Collision
-
 
 {-# INLINABLE drawWorld #-}
 drawWorld :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
@@ -33,8 +32,8 @@ drawWorld :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
           -> m ()
 drawWorld (World balls ships space _ _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
-  mapM_ (\b -> drawNumber b space s) balls
-  let drawShip (i, BattleShip _ (PosSpeed shipCoords _) _ status _) = do
+  mapM_ (drawNumber space s) balls
+  let drawShip (i, BattleShip _ (PosSpeed shipCoords _) _ status _ _) = do
         let absPos = sumCoords shipCoords s
             inWorld = InsideWorld == location shipCoords space
             go bg = when inWorld $ maybe shipColor (getPlayerColor . getPlayerColors) <$> getPlayer i >>=
@@ -43,14 +42,14 @@ drawWorld (World balls ships space _ _ _) s  = do
           Armored   -> go shipBgColorSafe
           Unarmored -> go shipBgColor
           Destroyed -> return ()
-  mapM_ drawShip $ assocs ships
+  mapM_ drawShip $ Map.assocs ships
 
 {-# INLINABLE drawNumber #-}
 drawNumber :: (Draw e, MonadReader e m, MonadIO m)
-           => Number
-           -> Space
+           => Space
            -> Coords Pos
+           -> Number
            -> m ()
-drawNumber (Number (PosSpeed pos _) i) space b =
+drawNumber space b n@(Number (NumberEssence (PosSpeed pos _) i _) _ _) =
   when (location pos space == InsideWorld) $
-    drawGlyph (gameGlyph $ intToDigit i) (sumCoords pos b) $ onBlack $ numberColor i
+    drawGlyph (gameGlyph $ intToDigit i) (sumCoords pos b) $ onBlack $ getCurrentColor n

@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.Loop.Create
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Map(elems)
+import qualified Data.Map as Map(elems, map)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -75,8 +75,8 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
         (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center) _ _) ->
             (w, center, curLevel, curShotNums))
           mayState
-      curInfos = mkInfos Normal        (elems $ getWorldShips curWorld) names shotNums    level
-      newInfos = mkInfos ColorAnimated (elems $ getWorldShips newWorld) names newShotNums newLevel
+      curInfos = mkInfos Normal        (Map.elems $ getWorldShips curWorld) names shotNums    level
+      newInfos = mkInfos ColorAnimated (Map.elems $ getWorldShips newWorld) names newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
       uiAnimation =
         mkUIAnimation
@@ -98,8 +98,8 @@ mkWorld :: WorldEssence -> World
 mkWorld (WorldEssence balls ships llMat wid) =
   let space = fromListOfLists llMat
       renderedSpace = mkRenderedSpace space
-  in World balls ships space renderedSpace mempty wid
+  in World (Map.map mkNumber balls) ships space renderedSpace mempty wid
 
 worldToEssence :: World -> WorldEssence
 worldToEssence (World balls ships space _ _ wid) =
-  WorldEssence balls ships (toListOfLists space) wid
+  WorldEssence (Map.map getNumEssence balls) ships (toListOfLists space) wid

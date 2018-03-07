@@ -30,7 +30,9 @@ module Imj.GameItem.Weapon.Laser
 import           Imj.Prelude
 
 import           Data.Word(Word32)
-import           Data.List( minimumBy, partition )
+import           Data.List( minimumBy )
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map(partition, elems, empty)
 import           Data.Maybe( isJust, isNothing )
 
 import           Imj.GameItem.Weapon.Laser.Types
@@ -86,24 +88,24 @@ afterEnd (LaserRay dir start len) =
 -- taking obstacles and a 'LaserPolicy' into account.
 --
 -- Returns a partition of obstacles between the remaining and the destroyed ones.
-computeActualLaserShot :: [a]
+computeActualLaserShot :: Map k v
                        -- ^ Obstacles.
-                       -> (a -> Coords Pos)
+                       -> (v -> Coords Pos)
                        -- ^ Obstacle to 'Coords' function.
                        -> LaserRay Theoretical
                        -- ^ The 'LaserRay' that doesn't take obstacles into account.
                        -> LaserPolicy
-                       -> (([a],[a]), LaserRay Actual)
+                       -> ((Map k v, Map k v), LaserRay Actual)
 computeActualLaserShot obstacles coords th@(LaserRay dir startTheoretical lenTheoretical) = \case
   DestroyAllObstacles  ->
-    ( partition (\e -> isNothing $ laserHits (coords e) th) obstacles
+    ( Map.partition (\e -> isNothing $ laserHits (coords e) th) obstacles
     , LaserRay dir startTheoretical lenTheoretical)
   DestroyFirstObstacle ->
     let (actual, mayCoord) =
-          stopRayAtFirstCollision (map coords obstacles) th
+          stopRayAtFirstCollision (map coords $ Map.elems obstacles) th
         remainingObstacles = case mayCoord of
-          Nothing -> (obstacles,[])
-          (Just pos') -> partition (\e -> coords e /= pos') obstacles
+          Nothing -> (obstacles,Map.empty)
+          (Just pos') -> Map.partition (\e -> coords e /= pos') obstacles
     in ( remainingObstacles
        , actual)
 

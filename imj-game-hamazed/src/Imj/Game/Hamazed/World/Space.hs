@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.World.Space
     ( Space
@@ -223,7 +224,7 @@ getComponentIndices :: BigWorldTopology -> [ComponentIdx]
 getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
 
 newtype ComponentIdx = ComponentIdx Int
-  deriving(Generic, Show)
+  deriving(Generic, Eq, Ord, Show, Binary)
 
 data SmallWorldTopology = SmallWorldTopology {
     _connectedComponents :: [ConnectedComponent]

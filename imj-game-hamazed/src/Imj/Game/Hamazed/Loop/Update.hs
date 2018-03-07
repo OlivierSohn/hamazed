@@ -16,7 +16,9 @@ import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
 import           Data.Attoparsec.Text(parseOnly)
-import qualified Data.Map.Strict as Map (elems, map)
+import           Data.List(foldl')
+import qualified Data.Map.Strict as Map (elems, map, filterWithKey, restrictKeys)
+import qualified Data.Set as Set (empty, union, null)
 import           Data.Text(pack, unpack, strip)
 import           System.Exit(exitSuccess)
 import           Imj.Game.Hamazed.World.Space.Types
@@ -171,11 +173,11 @@ onLaser ship dir op =
 {-# INLINABLE onDestroyedNumbers #-}
 onDestroyedNumbers :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
                    => Operation
-                   -> [Number]
+                   -> Map NumId Number
                    -> m ()
 onDestroyedNumbers op destroyedBalls =
   getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s m na) -> do
-    let allShotNumbers = g ++ map (\(Number _ n) -> ShotNumber n op) destroyedBalls
+    let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
         finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
         newFinished = finished <|> finishIfNoAmmo
         newLevel = Level level newFinished
@@ -184,6 +186,7 @@ onDestroyedNumbers op destroyedBalls =
       (when (isNothing finished) . sendToServer . LevelEnded)
       newFinished
     putGameState $ GameState w f allShotNumbers newLevel a s m na
+    updateShipsText
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
@@ -191,7 +194,7 @@ onMove :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
        -> Set ShipId
        -> m ()
 onMove accelerations shipsLosingArmor = do
-  getWorld >>= putWorld . moveWorld accelerations shipsLosingArmor
+  moveWorld accelerations shipsLosingArmor
   onHasMoved
 
 {-# INLINABLE onHasMoved #-}
@@ -199,26 +202,24 @@ onHasMoved :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim s m n) -> do
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim o m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions =
-            concatMap
-            (\(BattleShip _ _ _ shipStatus collisions) ->
+            foldl'
+            (\s (BattleShip _ _ _ shipStatus collisions _) ->
               case shipStatus of
-                Armored -> []
-                _ -> collisions)
+                Armored -> s
+                _ -> Set.union s collisions)
+            Set.empty
             ships
-          remainingBalls = filter (`notElem` allCollisions) balls
+          remainingBalls = Map.filterWithKey (\k _ -> k `notElem` allCollisions) balls
           newWorld = world { getWorldNumbers = remainingBalls }
-          finishIfAllShipsDestroyed =
-            if oneShipAlive
-              then Nothing
-              else
-                case allCollisions of
-                  [] -> Nothing
-                  _  ->
-                    let msg = "collision with " <> showListOrSingleton (map getNumber allCollisions)
-                    in Just $ Lost msg
+          finishIfAllShipsDestroyed
+            | oneShipAlive = Nothing
+            | Set.null allCollisions = Nothing
+            | otherwise =
+                let nums = map (getNumber . getNumEssence) $ Map.elems $ Map.restrictKeys balls allCollisions
+                in Just $ Lost $ "collision with " <> showListOrSingleton nums
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse shotNums) target
           newFinished = finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo
           newLevel = Level level finished
@@ -226,7 +227,7 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim s m n
+      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim o m n
       updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
@@ -245,5 +246,6 @@ updateUIAnim t =
           $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
     putGameState $ GameState world futWorld j k anims s m names
-    when (isFinished anims) $
+    when (isFinished anims) $ do
+      checkAllComponentStatus
       maybe (return ()) (sendToServer . IsReady) $ getId world

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World
     ( -- * Level
@@ -14,6 +15,7 @@ module Imj.Game.Hamazed.World
 
        A 'Level' is finished once the sum of shot 'Number's amounts to the /target number/. -}
     , checkTargetAndAmmo
+    , checkAllComponentStatus
     -- * World
     {- | A 'World' brings together:
 
@@ -116,13 +118,16 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Map.Strict(fromAscList, assocs, insert, lookup)
+import qualified Data.Set as Set(empty, null)
+import qualified Data.Map.Strict as Map(insert, lookup, map, empty, null, keysSet, foldl', alter
+                                      , findWithDefault, mapAccumWithKey)
 import           Data.List(elem)
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 
 import           Imj.Game.Hamazed.Color
@@ -132,6 +137,7 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Number
+import           Imj.Game.Hamazed.World.Ship
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
@@ -144,25 +150,31 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Physics.Discrete.Collision
 
-
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
-moveWorld :: Map ShipId (Coords Vel)
+moveWorld :: MonadState AppState m
+          => Map ShipId (Coords Vel)
           -> Set ShipId
-          -> World
-          -> World
-moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
-  let newBalls = map (\(Number ps n) -> Number (updateMovableItem space ps) n) balls
-      moveShip (sid, BattleShip name (PosSpeed prevPos oldSpeed) ammo status _) =
+          -> m ()
+moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships space rs anims f) -> do
+  let newBalls =
+        Map.map (\n@(Number e@(NumberEssence ps _ _) colors _) ->
+                            n{ getNumEssence = e{ getNumPosSpeed = updateMovableItem space ps }
+                             , getNumColor = case colors of
+                                 _:rest -> rest -- move forward in color animation
+                                 [] -> [] })
+        balls
+      moveShip comps sid (BattleShip name (PosSpeed prevPos oldSpeed) ammo status _ i) =
         let collisions =
               if shipIsAlive status
                 then
-                  getColliding pos newBalls
+                  Map.keysSet $ getColliding pos newBalls
                 else
-                  []
+                  Set.empty
+            newComps = comps ++ [ i | not $ Set.null collisions]
             destroyedOr x =
-              if null collisions
+              if Set.null collisions
                 then x
                 else Destroyed
             newStatus =
@@ -176,12 +188,13 @@ moveWorld accelerations shipsLosingArmor (World balls ships space rs anims e) =
                       Armored
                 Unarmored -> destroyedOr Unarmored
             newSpeed =
-              maybe oldSpeed (sumCoords oldSpeed) $ lookup sid accelerations
+              maybe oldSpeed (sumCoords oldSpeed) $ Map.lookup sid accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
-        in (sid,BattleShip name newPosSpeed ammo newStatus collisions)
-      -- using fromAscList ecause the keys are unchanged.
-      newShips = fromAscList $ map moveShip $ assocs ships
-  in World newBalls newShips space rs anims e
+        in (newComps, BattleShip name newPosSpeed ammo newStatus collisions i)
+      -- using fromAscList because the keys are unchanged.
+      (changedComponents, newShips) = Map.mapAccumWithKey moveShip [] ships
+  putWorld $ World newBalls newShips space rs anims f
+  mapM_ checkComponentStatus changedComponents
 
 -- | Computes the effect of a laser shot on the 'World'.
 laserEventAction :: (MonadState AppState m)
@@ -189,11 +202,11 @@ laserEventAction :: (MonadState AppState m)
                  -> Direction
                  -- ^ The direction of the laser shot
                  -> Time Point System
-                 -> m [Number]
+                 -> m (Map NumId Number)
                  -- ^ 'Number's destroyed
 laserEventAction shipId dir t =
   getWorld >>= \(World balls ships space rs d e) -> do
-    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo status _) = findShip shipId ships
+    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo status _ component) = findShip shipId ships
         (maybeLaserRayTheoretical, newAmmo) =
           if ammo > 0 && shipIsAlive status
             then
@@ -202,19 +215,19 @@ laserEventAction shipId dir t =
             else
               (Nothing
              , ammo)
-
         ((remainingBalls, destroyedBalls), maybeLaserRay) =
            maybe
-             ((balls,[]), Nothing)
-             (\r -> Just <$> computeActualLaserShot balls (\(Number (PosSpeed pos _) _) -> pos)
+             ((balls,Map.empty), Nothing)
+             (\r -> Just <$> computeActualLaserShot balls (getPos . getNumPosSpeed . getNumEssence)
                                                     r DestroyFirstObstacle)
                maybeLaserRayTheoretical
-        newShips = insert shipId (ship { getAmmo = newAmmo }) ships
+        newShip = ship { getAmmo = newAmmo }
+        newShips = Map.insert shipId newShip ships
     putWorld $ World remainingBalls newShips space rs d e
 
     let tps = systemTimePointToParticleSystemTimePoint t
     outerSpaceParticleSystems_ <-
-      if null destroyedBalls
+      if Map.null destroyedBalls
         then
           maybe (return []) (outerSpaceParticleSystems tps shipId) maybeLaserRay
         else
@@ -223,8 +236,61 @@ laserEventAction shipId dir t =
     laserSystems <- maybe (return []) (laserParticleSystems tps shipId) maybeLaserRay
     addParticleSystems $ concat [newSystems, laserSystems, outerSpaceParticleSystems_]
 
+    when (countLiveAmmo newShip == 0) $ checkComponentStatus component
+
     return destroyedBalls
 
+checkComponentStatus :: (MonadState AppState m)
+                     => ComponentIdx
+                     -> m ()
+checkComponentStatus i = countComponentAmmo i >>= \case
+    0 ->
+      getWorld >>= \w ->
+        putWorld $ w {
+          getWorldNumbers =
+            Map.map
+              (\n -> if i == getNumberCC (getNumEssence n)
+                then
+                  makeUnreachable n
+                else
+                  n
+              ) $ getWorldNumbers w }
+    _ ->
+      return ()
+
+checkAllComponentStatus :: (MonadState AppState m)
+                        => m ()
+checkAllComponentStatus = countComponentsAmmo >>= \ammos ->
+  getWorld >>= \w -> do
+    let nums = Map.map (\n -> case Map.findWithDefault 0 (getNumberCC $ getNumEssence n) ammos of
+          0 -> makeUnreachable n
+          _ -> n) $ getWorldNumbers w
+    putWorld $ w { getWorldNumbers = nums }
+
+countComponentAmmo :: (MonadState AppState m)
+                     => ComponentIdx
+                     -> m Int
+countComponentAmmo i =
+  Map.foldl'
+    (\m ship@(BattleShip _ _ _ _ _ idx) ->
+        if idx == i
+          then
+            m + countLiveAmmo ship
+          else
+            m)
+    0 . getWorldShips <$> getWorld
+
+
+countComponentsAmmo :: (MonadState AppState m)
+                     => m (Map ComponentIdx Int)
+countComponentsAmmo =
+  Map.foldl'
+    (\m ship@(BattleShip _ _ _ _ _ idx) ->
+      let ammo = countLiveAmmo ship
+          f Nothing = Just ammo
+          f (Just x) = Just $ ammo + x
+      in Map.alter f idx m)
+    Map.empty . getWorldShips <$> getWorld
 
 outerSpaceParticleSystems :: (MonadState AppState m)
                           => Time Point ParticleSyst

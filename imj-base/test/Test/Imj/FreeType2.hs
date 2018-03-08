@@ -26,6 +26,8 @@ import           Graphics.Rendering.FreeType.Internal.PrimitiveTypes(FT_ULong, f
 
 import           Data.Typeable
 
+import Imj.Graphics.Font(withTempFontFile)
+
 gray256ToChar :: Int -> Char
 gray256ToChar i = levels2 !! idx
  where
@@ -35,9 +37,11 @@ gray256ToChar i = levels2 !! idx
   levels2 = " .:-=+*#%@"
 
 testFreeType2 :: IO ()
-testFreeType2 = do
-  let path = "/Users/Olivier/Dev/hs.hamazed/imj-base/fonts/04B_30__.TTF"
-  withFreeType $ withFontFace path $ \face -> do
+testFreeType2 =
+  withTempFontFile 1 go
+ where
+  go path =
+   withFreeType $ withFontFace path $ \face -> do
     ft "Set_Pixel_Sizes" $ ft_Set_Pixel_Sizes face 10 10
     slot <- peek $ glyph face
     forCharM_ face $ \c -> do

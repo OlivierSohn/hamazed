@@ -7,6 +7,7 @@
 
 module Imj.Graphics.Font
     ( fontFiles
+    , withTempFontFile
     , Fonts(..)
     , createFonts
     , lookupFont
@@ -53,7 +54,8 @@ previous frames outside the boundaries. -}
 fontFiles :: [ByteString]
 -- Note that I don't embed the directory, I want compilation to fail if this particular file
 -- is not found.
-fontFiles = [$(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")]
+fontFiles = [$(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
+           , $(embedFile "fonts/04B_30__.TTF")]
 
 -- I want O(1) access to any font. For now this is ok, as I use 2 fonts only.
 -- in the future, maybe use an "Immutable Storable Vector".

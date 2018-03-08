@@ -10,6 +10,7 @@ module Imj.Graphics.Font
     , withTempFontFile
     , Fonts(..)
     , createFonts
+    , destroyUnusedFonts
     , lookupFont
     , Font(..)
     , Glyph(..)
@@ -26,7 +27,7 @@ module Imj.Graphics.Font
     ) where
 
 import           Imj.Prelude
-
+import Prelude(putStrLn)
 import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteString(ByteString, writeFile)
@@ -74,6 +75,11 @@ showDetailed :: Font -> IO String
 showDetailed ft@(Font f _) = do
   details <- FTGL.getFontFaceSize f
   return $ show (ft, "size:", details)
+
+destroyUnusedFonts :: Fonts -> Fonts -> IO ()
+destroyUnusedFonts (Fonts (Font f0' _) (Font f1' _)) (Fonts (Font f0 _) (Font f1 _)) = do
+  unless (f0' == f0 || f0' == f1) $ FTGL.destroyFont f0'
+  unless (f1' == f0 || f1' == f1) $ FTGL.destroyFont f1'
 
 lookupFont :: FontSpec -> Fonts -> Font
 lookupFont (FontSpec 0) = getFont0

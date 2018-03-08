@@ -70,7 +70,7 @@ data OpenGLBackend = OpenGLBackend {
 data RenderingOptions = RenderingOptions {
     _cycleIndex :: {-# UNPACK #-} !Int
   , _style :: {-unpack sum-} !RenderingStyle
-  , _getFonts :: !Fonts
+  , getFonts :: !Fonts
 } deriving(Generic, Show, NFData)
 instance PrettyVal RenderingOptions where
   prettyVal opt = prettyVal ("RenderingOptions:" :: String
@@ -91,8 +91,9 @@ instance DeltaRenderBackend OpenGLBackend where
       liftIO $
         readMVar mRO >>= cycleRenderingOptions ppu >>= either
           (return . Left)
-          (\v -> do
-              void $ swapMVar mRO v
+          (\v@(RenderingOptions _ _ fonts) -> do
+              void $ swapMVar mRO v >>= \(RenderingOptions _ _ oldFonts) ->
+                destroyUnusedFonts oldFonts fonts
               return $ Right ())
 
     getDiscreteSize (OpenGLBackend _ _ (Size ppuH ppuW) (Size h w) _) =

@@ -1,5 +1,4 @@
 - make a bigger countdown, with zoom out on each number.
-https://www.freetype.org/freetype2/docs/tutorial/example1.c
 https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs
 https://github.com/schell/gelatin/blob/master/gelatin-freetype2/src/Gelatin/FreeType2/Utils.hs
 

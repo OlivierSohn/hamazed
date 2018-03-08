@@ -56,22 +56,18 @@ previous frames outside the boundaries. -}
 fontFiles :: [ByteString]
 -- Note that I don't embed the directory, I want compilation to fail if this particular file
 -- is not found.
-fontFiles = [$(embedFile "fonts/absender1.TTF")
-           , $(embedFile "fonts/whitrabt.TTF")
-           , $(embedFile "fonts/visitor2.TTF")
-           , $(embedFile "fonts/visitor1.TTF")
-           , $(embedFile "fonts/Remington-Noiseless.TTF") -- '+ is missing, | is offset'
-           , $(embedFile "fonts/typwrng.TTF") -- '| is offset'
-           , $(embedFile "fonts/square.TTF")
-           , $(embedFile "fonts/ARCADE_N.TTF")
-           , $(embedFile "fonts/ARCADE_R.TTF")
+fontFiles = [
+             $(embedFile "fonts/VCR_OSD_MONO_1.001.TTF")
+           , $(embedFile "fonts/Pixel LCD-7.TTF")
            , $(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
            , $(embedFile "fonts/Commodore Pixelized v1.2.TTF")
-           , $(embedFile "fonts/3Dventure.TTF")
+           , $(embedFile "fonts/typwrng.TTF") -- '| is offset'
+           , $(embedFile "fonts/whitrabt.TTF") -- TODO try bigger margin
            , $(embedFile "fonts/04B_30__.TTF")
-           , $(embedFile "fonts/Extrude.TTF")
-           , $(embedFile "fonts/Pixel LCD-7.TTF")
-           , $(embedFile "fonts/VCR_OSD_MONO_1.001.TTF")
+           , $(embedFile "fonts/Extrude.TTF") -- TODO try bigger size
+           , $(embedFile "fonts/3Dventure.TTF") -- TODO try bigger size
+           , $(embedFile "fonts/ARCADE_N.TTF") -- TODO test with a bigger margin
+           , $(embedFile "fonts/ARCADE_R.TTF")
            ]
 nFonts :: Int
 nFonts = length fontFiles
@@ -320,7 +316,7 @@ offsetToCenterAABB a@(AABB (Vec2 xmin ymin) (Vec2 xmax ymax)) (Size ppuH ppuW) =
  where
   x = (fromIntegral ppuW - xmax - xmin) / 2
   y = (fromIntegral ppuH - ymax - ymin) / 2
-  -- we use full pixel translations, as we use rasterized fonts (bitmap fonts):
+  -- we use full pixel translations, as we use rasterized fonts:
   ix = round x :: Int
   iy = round y :: Int
   offset = Vec2 (fromIntegral ix) (fromIntegral iy)

@@ -27,7 +27,7 @@ module Imj.Graphics.Font
     ) where
 
 import           Imj.Prelude
-import Prelude(putStrLn)
+
 import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteString(ByteString, writeFile)

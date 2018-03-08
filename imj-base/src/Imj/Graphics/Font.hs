@@ -58,14 +58,14 @@ fontFiles :: [ByteString]
 -- is not found.
 fontFiles = [
              $(embedFile "fonts/VCR_OSD_MONO_1.001.ttf")
-           , $(embedFile "fonts/Pixel LCD-7.TTF")
+           , $(embedFile "fonts/Pixel LCD-7.ttf")
            , $(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
-           , $(embedFile "fonts/Commodore Pixelized v1.2.TTF")
-           , $(embedFile "fonts/typwrng.TTF") -- '| is offset'
-           , $(embedFile "fonts/whitrabt.TTF") -- TODO try bigger margin
+           , $(embedFile "fonts/Commodore Pixelized v1.2.ttf")
+           , $(embedFile "fonts/typwrng.ttf") -- '| is offset'
+           , $(embedFile "fonts/whitrabt.ttf") -- TODO try bigger margin
            , $(embedFile "fonts/04B_30__.TTF")
-           , $(embedFile "fonts/Extrude.TTF") -- TODO try bigger size
-           , $(embedFile "fonts/3Dventure.TTF") -- TODO try bigger size
+           , $(embedFile "fonts/Extrude.ttf") -- TODO try bigger size
+           , $(embedFile "fonts/3Dventure.ttf") -- TODO try bigger size
            , $(embedFile "fonts/ARCADE_N.TTF") -- TODO test with a bigger margin
            , $(embedFile "fonts/ARCADE_R.TTF")
            ]

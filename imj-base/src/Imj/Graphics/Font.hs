@@ -57,7 +57,7 @@ fontFiles :: [ByteString]
 -- Note that I don't embed the directory, I want compilation to fail if this particular file
 -- is not found.
 fontFiles = [
-             $(embedFile "fonts/VCR_OSD_MONO_1.001.TTF")
+             $(embedFile "fonts/VCR_OSD_MONO_1.001.ttf")
            , $(embedFile "fonts/Pixel LCD-7.TTF")
            , $(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
            , $(embedFile "fonts/Commodore Pixelized v1.2.TTF")
@@ -200,7 +200,7 @@ createFont charset i ppu@(Size ppuH _) =
           charsetAABB charset font >>= \aabb -> do
             let (_, offsetAABB) = offsetToCenterAABB aabb ppu
             -- return True if the translated bounding box of the character set is contained in the unit rectangle:
-            return $ margin offsetAABB rectAABB >= 0 -- TODO make this user configurable.
+            return $ margin offsetAABB rectAABB >= 0 -- TODO adjust per-font, adjust also ppu dynamically per font.
 
     -- find the max font size such that the charset will be strictly contained
     -- in a unit rectangle.

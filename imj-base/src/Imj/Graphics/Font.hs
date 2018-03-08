@@ -7,6 +7,7 @@
 
 module Imj.Graphics.Font
     ( fontFiles
+    , nFonts
     , withTempFontFile
     , Fonts(..)
     , createFonts
@@ -55,8 +56,25 @@ previous frames outside the boundaries. -}
 fontFiles :: [ByteString]
 -- Note that I don't embed the directory, I want compilation to fail if this particular file
 -- is not found.
-fontFiles = [$(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
-           , $(embedFile "fonts/04B_30__.TTF")]
+fontFiles = [$(embedFile "fonts/absender1.TTF")
+           , $(embedFile "fonts/whitrabt.TTF")
+           , $(embedFile "fonts/visitor2.TTF")
+           , $(embedFile "fonts/visitor1.TTF")
+           , $(embedFile "fonts/Remington-Noiseless.TTF") -- '+ is missing, | is offset'
+           , $(embedFile "fonts/typwrng.TTF") -- '| is offset'
+           , $(embedFile "fonts/square.TTF")
+           , $(embedFile "fonts/ARCADE_N.TTF")
+           , $(embedFile "fonts/ARCADE_R.TTF")
+           , $(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
+           , $(embedFile "fonts/Commodore Pixelized v1.2.TTF")
+           , $(embedFile "fonts/3Dventure.TTF")
+           , $(embedFile "fonts/04B_30__.TTF")
+           , $(embedFile "fonts/Extrude.TTF")
+           , $(embedFile "fonts/Pixel LCD-7.TTF")
+           , $(embedFile "fonts/VCR_OSD_MONO_1.001.TTF")
+           ]
+nFonts :: Int
+nFonts = length fontFiles
 
 -- I want O(1) access to any font. For now this is ok, as I use 2 fonts only.
 -- in the future, maybe use an "Immutable Storable Vector".
@@ -185,8 +203,8 @@ createFont charset i ppu@(Size ppuH _) =
           setSize x
           charsetAABB charset font >>= \aabb -> do
             let (_, offsetAABB) = offsetToCenterAABB aabb ppu
-            -- return True if the (offset) bounding box of the character set is contained in the unit rectangle:
-            return $ margin offsetAABB rectAABB > 0
+            -- return True if the translated bounding box of the character set is contained in the unit rectangle:
+            return $ margin offsetAABB rectAABB >= 0 -- TODO make this user configurable.
 
     -- find the max font size such that the charset will be strictly contained
     -- in a unit rectangle.
@@ -302,7 +320,10 @@ offsetToCenterAABB a@(AABB (Vec2 xmin ymin) (Vec2 xmax ymax)) (Size ppuH ppuW) =
  where
   x = (fromIntegral ppuW - xmax - xmin) / 2
   y = (fromIntegral ppuH - ymax - ymin) / 2
-  offset = Vec2 x y
+  -- we use full pixel translations, as we use rasterized fonts (bitmap fonts):
+  ix = round x :: Int
+  iy = round y :: Int
+  offset = Vec2 (fromIntegral ix) (fromIntegral iy)
 
 applyOffset :: Vec2 Pos -> AABB FontCoordinates -> AABB UnitRectangleCoordinates
 applyOffset v (AABB vmin vmax) =

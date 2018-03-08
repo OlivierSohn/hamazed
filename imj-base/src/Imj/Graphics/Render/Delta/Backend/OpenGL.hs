@@ -15,7 +15,6 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     ) where
 
 import           Imj.Prelude
-import           Prelude(length)
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
@@ -70,7 +69,7 @@ data OpenGLBackend = OpenGLBackend {
 data RenderingOptions = RenderingOptions {
     _cycleIndex :: {-# UNPACK #-} !Int
   , _style :: {-unpack sum-} !RenderingStyle
-  , getFonts :: !Fonts
+  , _getFonts :: !Fonts
 } deriving(Generic, Show, NFData)
 instance PrettyVal RenderingOptions where
   prettyVal opt = prettyVal ("RenderingOptions:" :: String
@@ -176,7 +175,6 @@ cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
         HexDigitAsBits -> AllFont
       newIdx = succ idx
       (q,r) = quotRem newIdx 2
-      nFonts = length fontFiles
   fmap (RenderingOptions newIdx newRo)
     <$> if 0 == r && nFonts > 1
           then

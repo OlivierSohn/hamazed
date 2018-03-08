@@ -45,7 +45,7 @@ main = do
   --testEase
   testMutableBytestring
   testLastAbove
-  testFont
   testSums
   testFreeType2
+  testFont
   return ()

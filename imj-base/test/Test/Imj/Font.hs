@@ -18,6 +18,14 @@ testFont = do
 
       (_, idxGameZ) = decodeGlyph gameZ
       (_, idxTextZ) = decodeGlyph textZ
+  void $ mapFonts $ \i ->
+    createFonts i (Size 12 8) >>= either
+      error
+      (\fonts -> do
+          putStrLn $ "font " ++ show i ++ ":"
+          print $ lookupFont idxGameZ fonts
+          --print $ lookupFont idxTextZ fonts
+          )
 
   createFonts 0 (Size 10 10) >>= either
     error
@@ -40,3 +48,6 @@ testFont = do
             print =<< FTGL.getFontBBox f1 "j"
             print =<< FTGL.getFontBBox f1 "Z"
       )
+
+mapFonts :: (Int -> IO a) -> IO [a]
+mapFonts = flip mapM [0..pred nFonts]

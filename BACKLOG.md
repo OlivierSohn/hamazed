@@ -1,3 +1,7 @@
+- use arrows to change fonts
+
+- background is not totally black under laser, but world background is black.
+
 - make a bigger countdown, with zoom out on each number.
 https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs
 https://github.com/schell/gelatin/blob/master/gelatin-freetype2/src/Gelatin/FreeType2/Utils.hs

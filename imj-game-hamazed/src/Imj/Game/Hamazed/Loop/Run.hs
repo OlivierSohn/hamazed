@@ -416,7 +416,9 @@ runWith debug queues srv player backend =
     void $ createState sz debug player srv NotConnected >>=
       runStateT (runReaderT loop $ Env drawEnv backend queues)
 
-loop :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e, Render e, PlayerInput e)
+loop :: (MonadState AppState m
+       , MonadIO m
+       , MonadReader e m, ClientNode e, Render e, PlayerInput e)
      => m ()
 loop = do
   let prod =

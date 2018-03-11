@@ -46,9 +46,9 @@ import           Data.Text.Lazy.Builder(Builder, toLazyText)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
 import qualified Data.List as List(length, concat, splitAt)
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable

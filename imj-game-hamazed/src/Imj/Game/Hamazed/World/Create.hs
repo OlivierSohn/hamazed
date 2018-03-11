@@ -113,10 +113,10 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
 
-validateScreen :: Screen -> IO ()
+validateScreen :: Screen -> IO (Either String ())
 validateScreen (Screen sz _) =
   case sz of
-    Nothing -> return ()
+    Nothing -> return $ Right () -- fullscreen
     (Just winSize@(Size h w)) -> do
       let (Size rs cs) = maxWorldSize
           heightMargin = 2 * 1 {-outer walls-}
@@ -124,10 +124,13 @@ validateScreen (Screen sz _) =
           minSize@(Size minh minw) =
             Size (fromIntegral rs + heightMargin)
                  (fromIntegral cs + widthMargin)
-      when (h < minh || w < minw) $
-        error $ "\nMinimum discrete size : " ++ show minSize
-            ++ ".\nCurrent discrete size : " ++ show winSize
-            ++ ".\nThe current discrete size doesn't match the minimum size,"
-            ++  "\nplease adjust your terminal or window size and restart the executable"
-            ++ ".\n"
-      return ()
+      return $
+        if h < minh || w < minw
+          then
+            Left $ "\nMinimum discrete size : " ++ show minSize
+              ++ ".\nCurrent discrete size : " ++ show winSize
+              ++ ".\nThe current discrete size doesn't match the minimum size,"
+              ++  "\nplease adjust your terminal or window size and restart the executable"
+              ++ ".\n"
+          else
+            Right ()

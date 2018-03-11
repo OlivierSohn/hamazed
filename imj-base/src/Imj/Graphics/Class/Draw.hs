@@ -17,7 +17,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.HasRectArea

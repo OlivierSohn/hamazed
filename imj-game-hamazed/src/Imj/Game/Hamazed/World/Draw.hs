@@ -20,7 +20,6 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Font
 import           Imj.Graphics.UI.Animation
 import           Imj.Physics.Discrete.Collision

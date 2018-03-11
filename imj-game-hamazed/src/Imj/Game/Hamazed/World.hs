@@ -115,7 +115,7 @@ module Imj.Game.Hamazed.World
     ) where
 
 import           Imj.Prelude
-import Prelude(putStrLn)
+
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
@@ -130,6 +130,7 @@ import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 
@@ -296,7 +297,7 @@ countComponentsAmmo =
 
 -- | Discard sums that don't match the live ammo per connex components.
 -- If a reachable number is in no sum, draw it in red.
-checkSums :: (MonadState AppState m, MonadIO m)
+checkSums :: (MonadState AppState m)
           => m ()
 checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
                                          (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _) ->
@@ -327,10 +328,6 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
           newNumbers = Map.map (\n -> if Set.member (getNumber $ getNumEssence n) okTargets
                                         then n
                                         else makeDangerous n) remainingNumbers
-      liftIO $ putStrLn $ "shotQty:" ++ show shotQty
-      liftIO $ putStrLn $ "remainingQty:" ++ show remainingQty
-      liftIO $ putStrLn $ "remainingNums:" ++ show remainingNums
-      liftIO $ putStrLn $ "okTargets:" ++ show okTargets
       putWorld $ w { getWorldNumbers = newNumbers }
 
 

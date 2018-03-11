@@ -24,7 +24,6 @@ import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.ParticleSystem.Design.Timing

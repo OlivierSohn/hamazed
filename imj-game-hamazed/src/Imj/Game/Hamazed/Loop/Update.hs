@@ -21,6 +21,8 @@ import qualified Data.Map.Strict as Map (size, elems, map, withoutKeys, restrict
 import qualified Data.Set as Set (empty, union, size, null)
 import           Data.Text(pack, unpack, strip)
 import           System.Exit(exitSuccess)
+import           System.IO(putStrLn)
+
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -39,22 +41,34 @@ import           Imj.Graphics.Text.ColorString
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
-updateAppState :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
+updateAppState :: (MonadState AppState m
+                 , MonadReader e m, ClientNode e, Render e
+                 , MonadIO m)
                => UpdateEvent
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  (Interrupt Quit) -> sendToServer $ RequestCommand $ Leaves Intentional
-  (Interrupt Help) -> error "not implemented"
+  Interrupt Quit -> sendToServer $ RequestCommand $ Leaves Intentional
+  Interrupt Help -> error "not implemented"
   Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
   Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
   Configuration c ->
     updateGameParamsFromChar c
-  CycleRenderingOptions ->
-    cycleRenderingOptions
-  (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
-  (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
+  CycleRenderingOptions i j -> do
+    cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
+    getTargetSize >>= maybe (return ()) onTargetSize
+  ApplyPPUDelta deltaPPU -> do
+    -- the font calculation is done according to the current screen size,
+    -- so there may be some partial unit rectangles. If we wanted to have only
+    -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
+    -- then adjust the font.
+    asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
+    getTargetSize >>= maybe (return ()) onTargetSize
+  ApplyFontMarginDelta d ->
+    asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
+  Timeout (Deadline t _ AnimateUI) -> updateUIAnim t
+  Timeout (Deadline _ _ (AnimateParticleSystem key)) -> liftIO getSystemTime >>= updateOneParticleSystem key
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording -> error "should be handled by caller"
@@ -157,8 +171,10 @@ updateGameParamsFromChar = \case
   '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
   'e' -> sendToServer $ ChangeWallDistribution None
   'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize OneComponentPerShip
+  {-
   'd' -> putViewMode CenterSpace -- TODO force a redraw?
   'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
+  -}
   _ -> return ()
 
 {-# INLINABLE onLaser #-}

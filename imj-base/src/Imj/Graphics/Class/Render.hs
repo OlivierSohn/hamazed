@@ -7,11 +7,17 @@ module Imj.Graphics.Class.Render
     -- * Reexports
     , module Imj.Graphics.Class.Draw
     , module Imj.Timing
+    , PPU
+    , FontMargin(..)
+    , CycleFont(..)
+    , CycleFontSize(..)
     ) where
 
+import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 
 import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Font
 import           Imj.Timing
 
 {- | Class describing the ability to render the result of a 'Draw' to the
@@ -21,7 +27,9 @@ It is left to the implementation to decide wether to clear the screen or not (af
 'renderToScreen' for example), and with which color. -}
 class (Draw e) => Render e where
   -- | Change the font used to render text.
-  cycleRenderingOptions' :: (MonadIO m) => e -> m ()
+  cycleRenderingOptions' :: (MonadIO m) => e -> CycleFont -> CycleFontSize -> m (Either String ())
+  applyPPUDelta :: (MonadIO m) => e -> PPU -> m (Either String ())
+  applyFontMarginDelta :: (MonadIO m) => e -> FontMargin -> m (Either String ())
 
   -- | Render to the screen.
   --
@@ -30,4 +38,4 @@ class (Draw e) => Render e where
   -- * duration to compute delta
   -- * duration to issue rendering commands
   -- * duration to flush
-  renderToScreen' :: (MonadIO m) => e -> m (Time Duration System, Time Duration System, Time Duration System)
+  renderToScreen' :: (MonadIO m) => e -> m (Either String (Time Duration System, Time Duration System, Time Duration System))

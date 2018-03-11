@@ -66,5 +66,5 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.FromMonadReader
 
 import           Imj.Graphics.Color(LayeredColor(..))
-import           Imj.Geo.Discrete(Coords(..))
-import           Imj.Graphics.Text.Alignment(Alignment(..))
+import           Imj.Geo.Discrete.Types(Coords(..))
+import           Imj.Graphics.Class.Positionable(Alignment(..))

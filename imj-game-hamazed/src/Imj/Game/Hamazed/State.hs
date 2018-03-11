@@ -62,7 +62,9 @@ representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _))     = Chat'
 representation (Left (Reporting _ _))  = Chat'
 representation (Right e) = case e of
-  CycleRenderingOptions -> CycleRenderingOptions'
+  ApplyPPUDelta _           -> CycleRenderingOptions'
+  ApplyFontMarginDelta _    -> CycleRenderingOptions'
+  CycleRenderingOptions _ _ -> CycleRenderingOptions'
   Log _ _         -> Configuration'
   SendChatMessage -> Configuration'
   Configuration _ -> Configuration'
@@ -72,7 +74,6 @@ representation (Right e) = case e of
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
   Timeout (Deadline _ _ AnimateUI) -> AnimateUI'
   ToggleEventRecording -> ToggleEventRecording'
-
 
 reprToCS :: EventRepr -> ColorString
 reprToCS IgnoredOverdue = colored "X" red
@@ -97,7 +98,9 @@ reprToCS AnimateParticleSystem' = colored "P" blue
 reprToCS PeriodicMotion'        = colored "S" blue
 
 {-# INLINABLE onEvent #-}
-onEvent :: (MonadState AppState m, MonadReader e m, PlayerInput e, ClientNode e, Render e, MonadIO m)
+onEvent :: (MonadState AppState m
+          , MonadReader e m, ClientNode e, Render e, PlayerInput e
+          , MonadIO m)
         => Maybe GenEvent -> m ()
 onEvent mayEvt = do
   checkPlayerEndsProgram
@@ -111,7 +114,9 @@ onEvent mayEvt = do
       when end $ sendToServer $ RequestCommand $ Leaves Intentional -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
-onEvent' :: (MonadState AppState m, MonadReader e m, ClientNode e, Render e, MonadIO m)
+onEvent' :: (MonadState AppState m
+           , MonadReader e m, ClientNode e, Render e
+           , MonadIO m)
          => Maybe GenEvent -> m ()
 onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
 onEvent' (Just (CliEvt clientEvt)) = sendToServer clientEvt
@@ -120,7 +125,9 @@ onEvent' (Just (Evt    evt)) = onUpdateEvent $ Right evt
 onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
-onUpdateEvent :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
+onUpdateEvent :: (MonadState AppState m
+                , MonadReader e m, ClientNode e, Render e
+                , MonadIO m)
               => UpdateEvent -> m ()
 onUpdateEvent e = do
   getRecording >>= \case
@@ -129,7 +136,9 @@ onUpdateEvent e = do
   handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
-handleEvent :: (MonadState AppState m, MonadReader e m, Render e, ClientNode e, MonadIO m)
+handleEvent :: (MonadState AppState m
+              , MonadReader e m, ClientNode e, Render e
+              , MonadIO m)
             => Maybe UpdateEvent -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
@@ -181,13 +190,17 @@ renderAll = do
   draw
   t2 <- liftIO getSystemTime
   getEvtStrs >>= zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..]
-  (dtDelta, dtCmds, dtFlush) <- renderToScreen
-  debug >>= \case
-    True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
-                              ++ " de " ++ showTime dtDelta
-                              ++ " cmd " ++ showTime dtCmds
-                              ++ " fl " ++ showTime dtFlush
-    False -> return ()
+  renderToScreen >>= either
+    (\err -> do
+      let msg = "Renderer error :" ++ err
+      drawAt msg $ Coords 0 0
+      liftIO $ putStrLn msg)
+    (\(dtDelta, dtCmds, dtFlush) -> debug >>= \case
+        True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
+                                  ++ " de " ++ showTime dtDelta
+                                  ++ " cmd " ++ showTime dtCmds
+                                  ++ " fl " ++ showTime dtFlush
+        False -> return ())
 
 {-# INLINABLE getEvtStrs #-}
 getEvtStrs :: MonadState AppState m

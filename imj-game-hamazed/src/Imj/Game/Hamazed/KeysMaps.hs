@@ -38,7 +38,16 @@ eventFromKey k = case k of
         Enter      -> Just $ Evt SendChatMessage
         _ -> Nothing
       NotEditing -> case key of
-        AlphaNum 'y' -> return $ Just $ Evt CycleRenderingOptions
+        Arrow Up    -> return $ Just $ Evt $ CycleRenderingOptions (-1) 0
+        Arrow Down  -> return $ Just $ Evt $ CycleRenderingOptions 1 0
+        Arrow LEFT  -> return $ Just $ Evt $ CycleRenderingOptions 0 (-1)
+        Arrow RIGHT -> return $ Just $ Evt $ CycleRenderingOptions 0 1
+        AlphaNum 'h' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 1 0
+        AlphaNum 'n' -> return $ Just $ Evt $ ApplyPPUDelta $ Size (-1) 0
+        AlphaNum 'b' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 (-1)
+        AlphaNum 'm' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 1
+        AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
+        AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
         _ -> do
           (ClientState activity state) <- getClientState
           case activity of

@@ -52,7 +52,7 @@ instance Positionable (TextBox ColorString) where
             NoColor -> return id
             Alternate False -> return id
             Alternate True -> do
-              let bg = gray 0
+              let bg = gray 1 -- it is intentionally not true black here, to have alternating backgrounds
               fill space $ LayeredColor bg white
               return $ replaceBackground bg
           foldM

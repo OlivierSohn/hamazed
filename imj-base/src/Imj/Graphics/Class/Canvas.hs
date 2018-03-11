@@ -13,7 +13,7 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
 
 -- | 'Canvas' describes the ability to query a rendering target characterisitics.
 class Canvas e where

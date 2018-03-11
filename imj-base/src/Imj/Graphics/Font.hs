@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE BangPatterns #-}
 
@@ -11,14 +11,27 @@ module Imj.Graphics.Font
     , withTempFontFile
     , Fonts(..)
     , createFonts
+    , createFont
     , destroyUnusedFonts
+    , applySizes
     , lookupFont
     , Font(..)
+    , FontMargin(..)
     , Glyph(..)
     , decodeGlyph
     , textGlyph
     , gameGlyph
+    , FontsVariations(..)
+    , mkFontsVariations
+    , FontVariations(..)
+    , FontVariation(..)
+    , updateVariations
+    , updateVariation
+    , getCurrentVariation
+    , getFont
     , FontSpec(..)
+    , CycleFont(..)
+    , CycleFontSize(..)
     , PPU
     , mkUserPPU
     , half
@@ -35,8 +48,10 @@ import           Data.ByteString(ByteString, writeFile)
 import           Data.Char(chr, ord)
 import           Data.Either(partitionEithers)
 import           Data.List(foldl', length)
+import           Data.Map(Map)
+import qualified Data.Map as Map(size, lookup, adjust, fromList)
 import           Data.FileEmbed(embedFile)
-import           Data.Word(Word32, Word8)
+import           Data.Word(Word32)
 import           Foreign.Ptr(nullPtr)
 import           System.IO.Temp(withSystemTempDirectory)
 
@@ -46,52 +61,155 @@ import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete.Types
 import           Imj.Util
 
-{-| This is a font based on
-<https://github.com/adobe-fonts/source-code-pro Source Code Pro Bold>,
-modified to reduce the negative height
-of the Pipe glyph used for hamazed game in animations. The reason I reduced
-this height is so that the drawn pixels are kept within the logical square reserved
-to that 'Coords', else, since I use delta rendering, there would be leftovers of
-previous frames outside the boundaries. -}
-fontFiles :: [ByteString]
--- Note that I don't embed the directory, I want compilation to fail if this particular file
--- is not found.
+{-| These fonts have sometimes been modified to reduce the negative height
+of the Pipe glyph, ascend the underline and center the '+'. -}
+fontFiles :: [(ByteString, String, [(FontMargin, PPU)])]
 fontFiles = [
-             $(embedFile "fonts/VCR_OSD_MONO_1.001.ttf")
-           , $(embedFile "fonts/Pixel LCD-7.ttf")
-           , $(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
-           , $(embedFile "fonts/Commodore Pixelized v1.2.ttf")
-           , $(embedFile "fonts/typwrng.ttf") -- '| is offset'
-           , $(embedFile "fonts/whitrabt.ttf") -- TODO try bigger margin
-           , $(embedFile "fonts/04B_30__.TTF")
-           , $(embedFile "fonts/Extrude.ttf") -- TODO try bigger size
-           , $(embedFile "fonts/3Dventure.ttf") -- TODO try bigger size
-           , $(embedFile "fonts/ARCADE_N.TTF") -- TODO test with a bigger margin
-           , $(embedFile "fonts/ARCADE_R.TTF")
+             ($(embedFile "fonts/VCR_OSD_MONO_1.001.ttf"), "VCR",
+            [(0, Size 12 8), (0, Size 13 9)])
+           , ($(embedFile "fonts/Pixel LCD-7.ttf"), "LCD",
+            [(0, Size 13 7), (0, Size 14 9), (0, Size 14 8), (0, Size 13 8), (0, Size 12 8)])
+           , ($(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf"), "SourceCodePro",
+            [(0, Size 14 8), (0, Size 12 6)])
+           , ($(embedFile "fonts/typwrng.ttf"), "Type wrong",
+            [(0, Size 12 10)]) -- '| is offset'
+           , ($(embedFile "fonts/whitrabt.ttf"), "White rabbit",
+            [(0, Size 14 8), (1, Size 14 10)])
+           , ($(embedFile "fonts/04B_30__.TTF"), "04B 30",
+            [(0, Size 11 8)])
+           , ($(embedFile "fonts/Extrude.ttf"), "Extrude",
+            [(0, Size 15 13)])
+           , ($(embedFile "fonts/3Dventure.ttf"), "3DVenture",
+            [(0, Size 12 11)])
            ]
-nFonts :: Int
-nFonts = length fontFiles
+
+mkFontsVariations :: FontsVariations
+mkFontsVariations = FontsVariations l 0
+ where
+  l = Map.fromList $
+      zip [0..] $
+      map
+        (\(content, name, variations) ->
+          FontVariations
+            name
+            content
+            (Map.fromList $ zip [0..] $ map (uncurry $ flip FontVariation) variations)
+            0)
+            fontFiles
 
 -- I want O(1) access to any font. For now this is ok, as I use 2 fonts only.
 -- in the future, maybe use an "Immutable Storable Vector".
 data Fonts = Fonts {
     getFont0 :: {-# UNPACK #-} !Font
   , getFont1 :: {-# UNPACK #-} !Font
-} deriving (Generic, Show, NFData)
+} deriving (Generic, Show)
+instance NFData Fonts
 
 data Font = Font {
-    _ftglFont :: {-# UNPACK #-} !FTGL.Font
+    getFTGLFont :: {-# UNPACK #-} !FTGL.Font
+  , _fontSize :: {-# UNPACK #-} !FontSize
+  -- ^ Should be equal to the last call to FTGL.getFontSize on this font
   , _offset :: {-# UNPACK #-} !(Vec2 Pos)
   -- ^ We use the /same/ offset for every character, to preserve font aspect.
-} deriving(Generic, Show, NFData)
+} deriving(Generic, Show)
+instance NFData Font
+
+-- | Int passed to FTGL.setFontFaceSize
+newtype FontSize = FontSize Int
+  deriving(Generic, Show, NFData, Num, Integral, Real, Ord, Eq, Enum)
+
+-- | (PPU = Pixels per unit). Defines the size of the rectangle, in pixels, allocated to a font character.
+-- Horizontal and vertical dimensions should be even, because we divide them by 2
+-- to draw numbers in binary representation.
+type PPU = Size
+
+-- | Distance between the enclosing aabb (for a given 'CharSet') and the unit rectangle (see 'PPU').
+-- When positive, the charset is contained within the unit rectangle.
+newtype FontMargin = FontMargin Float
+  deriving(Ord, Eq, Generic, Show, NFData, Num)
+
+newtype CycleFont = CycleFont Int
+  deriving(Generic, Show, Integral, Num, Real, Ord, Eq, Enum, NFData)
+newtype CycleFontSize = CycleFontSize Int
+  deriving(Generic, Show, Integral, Num, Real, Ord, Eq, Enum, NFData)
+
+data FontsVariations = FontsVariations {
+    _catalog :: !(Map CycleFont FontVariations)
+  , getCurrentFont :: !CycleFont
+} deriving(Generic, Show)
+instance NFData FontsVariations
+
+data FontVariations = FontVariations {
+    _fontName :: !String
+  , _fontContent :: !ByteString
+  , _ppuVariations :: !(Map CycleFontSize FontVariation)
+  , _currentPPUVariation :: !CycleFontSize
+} deriving(Generic, Show)
+instance NFData FontVariations
+
+data FontVariation = FontVariation {-# UNPACK #-} !PPU {-# UNPACK #-} !FontMargin
+  deriving(Generic, Show)
+instance NFData FontVariation
+
+nFonts :: FontsVariations -> Int
+nFonts (FontsVariations m _) = Map.size m
+
+getFont :: CycleFont -> FontsVariations -> (ByteString, String)
+getFont i (FontsVariations m _) = maybe
+  (error $ "font lookup failed:" ++ show i)
+  (\(FontVariations name content _ _) -> (content,name))
+  $ Map.lookup i m
+
+updateVariations :: CycleFont -> CycleFontSize -> FontsVariations -> FontsVariations
+updateVariations f s (FontsVariations l cur)
+  | sz == 0 = error "empty variations"
+  | otherwise = FontsVariations newMap fontIdx
+ where
+   !sz = Map.size l
+   fontIdx = (cur + f) `mod` fromIntegral sz
+   newMap = Map.adjust (updateVariation s) fontIdx l
+
+updateVariation :: CycleFontSize -> FontVariations -> FontVariations
+updateVariation s (FontVariations content n variations cur)
+  | sz == 0 = error "empty variation"
+  | otherwise = FontVariations content n variations newIdx
+ where
+  sz = Map.size variations
+  newIdx = (cur + s) `mod` fromIntegral sz
+
+getCurrentVariation :: FontsVariations -> FontVariation
+getCurrentVariation (FontsVariations l cur) =
+  let (FontVariations _ _ var i) = fromMaybe (error $ "variation not found" ++ show cur) $ Map.lookup cur l
+  in fromMaybe (error $ "variation not found" ++ show i) $ Map.lookup i var
+
+newtype CharSet a = CharSet String
+  deriving(Generic, Show)
+data ForOffset
+
+newtype Glyph = Glyph Word32
+  deriving(Generic, Show, Eq)
+
+-- | Defines the /kind/ of font (game font or text font)
+newtype FontSpec = FontSpec Int
+  deriving(Generic, Show)
+
+applySizes :: Fonts -> IO ()
+applySizes (Fonts f0 f1) = do
+  applySize f0
+  applySize f1
+
+applySize :: Font -> IO ()
+applySize (Font f size _) =
+  setFontSize size f
 
 showDetailed :: Font -> IO String
-showDetailed ft@(Font f _) = do
+showDetailed ft@(Font f s _) = do
   details <- FTGL.getFontFaceSize f
-  return $ show (ft, "size:", details)
+  return $ show (ft, s, "size:", details)
 
 destroyUnusedFonts :: Fonts -> Fonts -> IO ()
-destroyUnusedFonts (Fonts (Font f0' _) (Font f1' _)) (Fonts (Font f0 _) (Font f1 _)) = do
+destroyUnusedFonts (Fonts (Font f0' _ _) (Font f1' _ _))
+                   (Fonts (Font f0  _ _) (Font f1  _ _)) = do
   unless (f0' == f0 || f0' == f1) $ FTGL.destroyFont f0'
   unless (f1' == f0 || f1' == f1) $ FTGL.destroyFont f1'
 
@@ -100,10 +218,6 @@ lookupFont (FontSpec 0) = getFont0
 lookupFont (FontSpec 1) = getFont1
 lookupFont (FontSpec n) = error $ "font index out of range : " ++ show n
 
-newtype Glyph = Glyph Word32
-  deriving(Generic, Show, Eq)
-newtype FontSpec = FontSpec Word8
-  deriving(Generic, Show)
 
 gameGlyph :: Char -> Glyph
 gameGlyph c = encodeGlyph c $ FontSpec 0
@@ -124,12 +238,6 @@ decodeGlyph (Glyph w) =
   char = chr $ fromIntegral $ w .&. 0xFFFFFF
   md = FontSpec $ fromIntegral $ w `shiftR` 24
 
-
--- | Pixels per units, in vertical and horizontal directions.
--- Both should be even, because we divide them by 2
--- to draw numbers in binary representation.
-type PPU = Size
-
 mkUserPPU :: Length Width -> Length Height -> Either String PPU
 mkUserPPU w h
   | w < 4 || h < 4 = Left $ "PPU values should be >= 4. At least one of them is too small:" ++ show (w,h)
@@ -138,7 +246,7 @@ mkUserPPU w h
 
 {-# INLINE half #-}
 half :: PPU -> PPU
-half (Size h w) = assert (even h && even w) $ Size (quot h 2) (quot w 2)
+half (Size h w) = Size (quot h 2) (quot w 2)
 
 floorToPPUMultiple :: Size -> PPU -> Size
 floorToPPUMultiple (Size (Length h) (Length w)) (Size (Length ppuH) (Length ppuW)) =
@@ -147,18 +255,19 @@ floorToPPUMultiple (Size (Length h) (Length w)) (Size (Length ppuH) (Length ppuW
  where
   f ppu l = ppu * quot l ppu
 
-withTempFontFile :: Int -> (String -> IO a) -> IO a
-withTempFontFile fontIdx act =
-  withSystemTempDirectory "fontDir" $ \tmpDir -> do
-    let filePath = tmpDir ++ "/font" ++ show fontIdx ++ ".ttf"
-    -- we don't bother closing the file, it will be done by withSystemTempDirectory
-    writeFile filePath (fontFiles!!fontIdx)
+withTempFontFile :: ByteString -> String -> (String -> IO a) -> IO a
+withTempFontFile content name act =
+  withSystemTempDirectory "fontDir" $ \dir -> do
+    let filePath = dir ++ "/font" ++ name ++ ".ttf"
+    writeFile filePath content
     act filePath
+    -- we don't delete the file, it will be done by 'withSystemTempDirectory'
 
-createFonts :: Int -> PPU -> IO (Either String Fonts)
-createFonts i ppu = do
-  gameFont <- f gameCharSet
-  textFont <- f textCharSet
+createFonts :: (FontSpec -> CharSet ForOffset -> IO (Either String Font))
+            -> IO (Either String Fonts)
+createFonts mkFont = do
+  gameFont <- mkFont (FontSpec 0) gameCharSet
+  textFont <- mkFont (FontSpec 1) textCharSet
   let (errors, fonts) = partitionEithers [gameFont, textFont]
   if null errors
     then
@@ -171,15 +280,22 @@ createFonts i ppu = do
   mkFonts _ = error "logic"
   gameCharSet = CharSet $ ['0'..'9'] ++ ['a'..'f'] ++ "-=|+ZT_." -- TODO _ should be moved up for game.
   textCharSet = CharSet $ ['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z'] ++ ",.<>[](){}&|/\\$#%@?!^¨çàÀÇ"
-  f charset = createFont charset i ppu
 
-data ForOffset
-newtype CharSet a = CharSet String
-  deriving(Generic, Show)
+getFontSize :: FTGL.Font -> IO FontSize
+getFontSize = fmap FontSize . FTGL.getFontFaceSize
 
-createFont :: CharSet ForOffset -> Int -> PPU -> IO (Either String Font)
-createFont charset i ppu@(Size ppuH _) =
-  loadFont i >>= \font ->
+setFontSize :: FontSize -> FTGL.Font -> IO ()
+setFontSize x font =
+  FTGL.setFontFaceSize font (fromIntegral x) 72 >>= \err -> do
+    when (err /= 1) $ -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
+      error $ "setFontFaceSize failed: " ++ show (x, err)
+    -- verify that we can reliably use 'FTGL.getFontFaceSize' as indicator of the last set size:
+    s <- getFontSize font
+    when (s /= x) $
+      error $ "Font sizes mismatch: " ++ show (s, x)
+
+createFont :: PPU -> FontMargin -> CharSet ForOffset -> FTGL.Font -> IO (Either String Font)
+createFont ppu@(Size ppuH _) fontMargin charset font =
   if font == nullPtr
     then
       return $ Left "nullPtr"
@@ -187,34 +303,27 @@ createFont charset i ppu@(Size ppuH _) =
     let maxFontSize = 2 * fromIntegral ppuH
         minFontSize = 1
         !rectAABB = unitRectangleAABB ppu
-        setSize x =
-          FTGL.setFontFaceSize font x 72 >>= \err -> do
-            when (err /= 1) $ -- according to http://ftgl.sourceforge.net/docs/html/FTFont_8h.html#00c8f893cbeb98b663f9755647a34e8c
-              error $ "setFontFaceSize failed: " ++ show (x, err)
-            -- verify that we can reliably use 'FTGL.getFontFaceSize' as indicator of the last set size:
-            s <- FTGL.getFontFaceSize font
-            when (s /= x) $
-              error $ "Font sizes mismatch: " ++ show (s, x)
+        setSize x = setFontSize x font
         condition x = do
           setSize x
           charsetAABB charset font >>= \aabb -> do
             let (_, offsetAABB) = offsetToCenterAABB aabb ppu
             -- return True if the translated bounding box of the character set is contained in the unit rectangle:
-            return $ margin offsetAABB rectAABB >= 0 -- TODO adjust per-font, adjust also ppu dynamically per font.
+            return $ margin offsetAABB rectAABB >= fontMargin
 
     -- find the max font size such that the charset will be strictly contained
     -- in a unit rectangle.
     lastAbove False condition minFontSize maxFontSize >>= maybe
       (return $ Left $ "ppu is probably too small:" ++ show ppu)
       (\optimalSize -> do
-          FTGL.getFontFaceSize font >>= \curSize ->
+          getFontSize font >>= \curSize ->
             -- maybe 'optimalSize' was not the last condition checked, in that case we set it again:
             when (curSize /= optimalSize) $ setSize optimalSize
-          Right . Font font . fst . flip offsetToCenterAABB ppu <$> charsetAABB charset font)
+          Right . Font font (fromIntegral optimalSize) . fst . flip offsetToCenterAABB ppu <$> charsetAABB charset font)
 
 
-loadFont :: Int -> IO FTGL.Font
-loadFont i = withTempFontFile i $ \filePath ->
+loadFont :: ByteString -> String -> IO FTGL.Font
+loadFont b s = withTempFontFile b s $ \filePath ->
     --FTGL.createBitmapFont filePath -- gives brighter colors but the shape of letters is awkward.
     FTGL.createPixmapFont filePath
     -- the creation methods that "don't work" (maybe to make them work we need to use opengl matrix positionning?)
@@ -249,10 +358,10 @@ combine (AABB (Vec2 xmin  ymin ) (Vec2 xmax  ymax ))
        (Vec2 (max xmax xmax') (max ymax ymax'))
 
 -- | @a@ is strictly contained in @b@ iff @margin a b > 0@
-margin :: AABB a -> AABB a -> Float
+margin :: AABB a -> AABB a -> FontMargin
 margin (AABB (Vec2 xmin  ymin ) (Vec2 xmax  ymax ))
        (AABB (Vec2 xmin' ymin') (Vec2 xmax' ymax')) =
-  min marginMins marginMaxs
+  FontMargin $ min marginMins marginMaxs
  where
   marginMins = min (xmin - xmin') (ymin - ymin')
   marginMaxs = min (xmax' - xmax) (ymax' - ymax)

@@ -91,7 +91,7 @@ cycleColors :: (Frame -> ParticleIndex -> Int)
             -> ColorCycle Foreground
             -> Colorization
 cycleColors combine (ColorCycle from to) f i =
-  LayeredColor (gray 0) $ interpolateCyclic from to $ combine f i
+  onBlack $ interpolateCyclic from to $ combine f i
 
 -- | We consider that 'ColorCycle' values in this module were hand-tuned in the context
 -- of this reference ship color.
@@ -120,14 +120,14 @@ neutralMessageColor = onBlack neutralMessageColorFg
 
 
 configColors :: LayeredColor
-configColors = LayeredColor (gray 0) configFgColor
+configColors = LayeredColor black configFgColor
 
 wallColors :: LayeredColor
 wallColors = LayeredColor (gray 0) (gray 3)
 
 -- | Outer meaning outside the world
 outerWallsColors :: LayeredColor
-outerWallsColors = LayeredColor (rgb 0 0 0) (gray 1)
+outerWallsColors = LayeredColor black (gray 1)
 
 airColors :: LayeredColor
 airColors = LayeredColor black black

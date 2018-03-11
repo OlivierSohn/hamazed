@@ -23,8 +23,9 @@ import           Data.IORef( IORef , readIORef )
 import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSlice, unsafeCopy )
 
-import           Imj.Geo.Discrete
 import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Class.Positionable
+
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Internal.Types
@@ -45,9 +46,9 @@ deltaDrawChar :: IORef Buffers
               -- ^ Background and foreground colors
               -> IO ()
 deltaDrawChar ref glyph pos colors =
-  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+  readIORef ref >>= \(Buffers back@(Buffer b) _ w scissor _ _) -> do
     let size = fromIntegral $ length b
-    writeToBack back (indexFromPos size width scissor pos) (mkCell colors glyph)
+    writeToBack back (indexFromPos size w scissor pos) (mkCell colors glyph)
 
 
 {-# INLINABLE deltaDrawChars #-}
@@ -65,11 +66,11 @@ deltaDrawChars :: IORef Buffers
                -- ^ Background and foreground colors
                -> IO ()
 deltaDrawChars ref count glyph pos colors =
-  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+  readIORef ref >>= \(Buffers back@(Buffer b) _ w scissor _ _) -> do
     let cell = mkCell colors glyph
         size = fromIntegral $ length b
     mapM_
-      (\i -> writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) cell)
+      (\i -> writeToBack back (indexFromPos size w scissor (move i RIGHT pos)) cell)
       [0..pred count]
 
 {-# INLINABLE deltaDrawStr #-}
@@ -82,11 +83,11 @@ deltaDrawStr :: IORef Buffers
              -- ^ Background and foreground colors
              -> IO ()
 deltaDrawStr ref str pos colors =
-  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
+  readIORef ref >>= \(Buffers back@(Buffer b) _ w scissor _ _) -> do
     let size = fromIntegral $ length b
     mapM_
       (\(c, i) ->
-          writeToBack back (indexFromPos size width scissor (move i RIGHT pos)) (mkCell colors $ textGlyph c)) -- TODO look at core and see if the colors is encoded n (or 1) times
+          writeToBack back (indexFromPos size w scissor (move i RIGHT pos)) (mkCell colors $ textGlyph c)) -- TODO look at core and see if the colors is encoded n (or 1) times
       $ zip str [0..]
 
 {-# INLINABLE deltaDrawTxt #-}
@@ -103,10 +104,10 @@ deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 -- | Fills the scissor area with a colored char.
 deltaFill :: IORef Buffers -> Glyph -> LayeredColor -> IO ()
 deltaFill ref glyph color =
-  readIORef ref >>= \(Buffers back@(Buffer b) _ width scissor _ _) -> do
-    let height = getBufferHeight width $ fromIntegral $ length b
+  readIORef ref >>= \(Buffers back@(Buffer b) _ w scissor _ _) -> do
+    let h = getBufferHeight w $ fromIntegral $ length b
         drawableArea =
-          mkRectArea zeroCoords $ Size (fromIntegral height) $ fromIntegral width
+          mkRectArea zeroCoords $ Size (fromIntegral h) $ fromIntegral w
         region@(RectArea (Coords r1 c1) (Coords r2 c2)) =
           intersection scissor drawableArea
         nCells = 1 + fromIntegral (c2 - c1)
@@ -115,7 +116,7 @@ deltaFill ref glyph color =
       mapM_
         (\r -> do
           let leftMostCoords = Coords r $ assert (c1 <= c2) c1
-              idx = unsafeIndexFromPos width leftMostCoords
+              idx = unsafeIndexFromPos w leftMostCoords
           writeNToBack back idx nCells cell)
         [r1..r2]
 
@@ -155,25 +156,25 @@ deltaForgetFrontValues ref =
 --
 -- If in doubt, use 'indexFromPos'.
 unsafeIndexFromPos :: Dim Width -> Coords Pos -> Dim BufferIndex
-unsafeIndexFromPos width (Coords y x) =
-  fromIntegral y * fromIntegral width + fromIntegral x
+unsafeIndexFromPos w (Coords y x) =
+  fromIntegral y * fromIntegral w + fromIntegral x
 {-# INLINE unsafeIndexFromPos #-}
 
 -- | Returns 'Nothing' if the 'Coords' is outside the 'Scissor', or outside the region of
 -- the screen represented by the back buffer.
 indexFromPos :: Dim BufferSize -> Dim Width -> Scissor -> Coords Pos -> Maybe (Dim BufferIndex)
-indexFromPos size width scissor coords@(Coords y x)
+indexFromPos size w scissor coords@(Coords y x)
   -- is the position inside the scissor?
   | not $ scissor `contains` coords  = Nothing
   -- is the column position within the handled column indexes ?
-  | x < 0 || y < 0 || x >= fromIntegral width || y >= fromIntegral height = Nothing
+  | x < 0 || y < 0 || x >= fromIntegral w || y >= fromIntegral h = Nothing
   | otherwise =
-      let idx = unsafeIndexFromPos width coords
+      let idx = unsafeIndexFromPos w coords
       in if idx < fromIntegral size
         then Just $ fromIntegral idx
         else Nothing
  where
-  height = getBufferHeight width size
+  h = getBufferHeight w size
 
 -- | Copy the backbuffer content of the first 'Buffers' back buffer to the other
 -- 'Buffers' back /and/ front buffers

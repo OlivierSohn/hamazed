@@ -26,9 +26,9 @@ import           Control.Monad.Reader.Class(asks)
 import           Data.String(IsString(..))
 import qualified Data.List as List(length, take, splitAt, break, dropWhile, intercalate)
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable

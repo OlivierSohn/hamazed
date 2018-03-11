@@ -26,7 +26,7 @@ import           Graphics.Rendering.FreeType.Internal.PrimitiveTypes(FT_ULong, f
 
 import           Data.Typeable
 
-import Imj.Graphics.Font(withTempFontFile)
+import           Imj.Graphics.Font
 
 gray256ToChar :: Int -> Char
 gray256ToChar i = levels2 !! idx
@@ -38,8 +38,10 @@ gray256ToChar i = levels2 !! idx
 
 testFreeType2 :: IO ()
 testFreeType2 =
-  withTempFontFile 1 go
+  withTempFontFile content name go
  where
+  (content,name) = getFont 0 fonts
+  fonts = mkFontsVariations
   go path =
    withFreeType $ withFontFace path $ \face -> do
     ft "Set_Pixel_Sizes" $ ft_Set_Pixel_Sizes face 10 10

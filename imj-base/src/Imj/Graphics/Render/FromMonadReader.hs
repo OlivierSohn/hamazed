@@ -26,14 +26,13 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color(LayeredColor(..))
-import           Imj.Graphics.Text.Alignment
-
 
 -- | Executes actions in context of a given 'Scissor'.
 {-# INLINABLE usingScissor #-}
@@ -117,10 +116,11 @@ drawGlyph g co la = do
 
 
 {-# INLINABLE cycleRenderingOptions #-}
-cycleRenderingOptions :: (Render e, MonadReader e m, MonadIO m) => m ()
-cycleRenderingOptions =
-  join $ asks cycleRenderingOptions'
-
+cycleRenderingOptions :: (Render e, MonadReader e m, MonadIO m)
+                      => CycleFont -> CycleFontSize ->  m (Either String ())
+cycleRenderingOptions i j = do
+  f <- asks cycleRenderingOptions'
+  f i j
 
 {-# INLINABLE getTargetSize #-}
 getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
@@ -131,6 +131,6 @@ getTargetSize =
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m (Time Duration System, Time Duration System, Time Duration System)
+               => m (Either String (Time Duration System, Time Duration System, Time Duration System))
 renderToScreen =
   join (asks renderToScreen')

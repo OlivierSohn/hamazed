@@ -1,20 +1,16 @@
 {-# OPTIONS_HADDOCK hide #-} -- TODO refactor and doc
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.UI.Animation
-           (-- * Animated UI
-             UIEvolutions(..)
-           , mkUIAnimation
-           , UIAnimation(..)
-           , UIAnimProgress(..)
+           ( mkUIAnimation
            , getDeltaTime
            , getUIAnimationDeadline
            , drawUIAnimation
            , isFinished
            , mkTextAnimRightAligned
+           -- reexports
+           , module Imj.Graphics.UI.Animation.Types
            ) where
 
 import           Imj.Prelude
@@ -23,44 +19,19 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List(length)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.UI.Animation.Types
+
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
-import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
-
--- | Manages the progress and deadline of 'UIEvolutions'.
-data UIAnimation = UIAnimation {
-    _uiAnimationEvs :: {-# UNPACK #-} !UIEvolutions
-  , getProgress :: !UIAnimProgress
-  -- ^ Current 'Iteration'.
-} deriving(Show, Generic, PrettyVal)
-
-data UIAnimProgress = UIAnimProgress {
-    _deadline :: {-unpack sum-} !(Maybe (Time Point System))
-  -- ^ Time at which the 'UIEvolutions' should be rendered and updated
-  , _progress :: {-# UNPACK #-} !Iteration
-  -- ^ Current 'Iteration'.
-} deriving(Show, Generic, PrettyVal)
-
--- TODO generalize as an Evolution (text-decorated RectContainer)
--- | Used when transitionning between two levels to smoothly transform the aspect
--- of the 'RectContainer', as well as textual information around it.
-data UIEvolutions = UIEvolutions {
-    _uiEvolutionContainer :: {-# UNPACK #-} !(Evolution (Colored RectContainer))
-    -- ^ The transformation of the 'RectContainer'.
-  , _uiEvolutionsUpDown :: {-# UNPACK #-} !(TextAnimation ColoredGlyphList AnchorChars)
-    -- ^ The transformation of colored text at the top and at the bottom of the 'RectContainer'.
-  , _uiEvolutionLeft    :: {-# UNPACK #-} !(TextAnimation ColoredGlyphList AnchorStrings)
-    -- ^ The transformation of colored text left and right of the 'RectContainer'.
-} deriving(Show, PrettyVal, Generic)
-
 
 getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
 getUIAnimationDeadline (UIAnimation _ (UIAnimProgress mayDeadline _)) =

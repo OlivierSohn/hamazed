@@ -77,10 +77,18 @@ instance Canvas NaiveDraw where
 -- | Direct draw to stdout : don't use for production, this is for tests only
 -- and creates heavy screen tearing.
 instance Render NaiveDraw where
-    renderToScreen' _         = liftIO $ hFlush stdout
-                                        >> setCursorPosition 0 0
-                                        >> clearFromCursorToScreenEnd
-                                        >> return (zeroDuration, zeroDuration, zeroDuration)
-    cycleRenderingOptions' _ = return () -- not supported
+    renderToScreen' _         = liftIO $ do
+      hFlush stdout
+      setCursorPosition 0 0
+      clearFromCursorToScreenEnd
+      return $ Right (zeroDuration, zeroDuration, zeroDuration)
+
+    cycleRenderingOptions' _ _ _ =
+      return $ Right ()
+    applyPPUDelta _ _ =
+      return $ Right ()
+    applyFontMarginDelta _ _ =
+      return $ Right ()
+
     {-# INLINABLE renderToScreen' #-}
     {-# INLINABLE cycleRenderingOptions' #-}

@@ -1,6 +1,8 @@
-- use arrows to change fonts
+- we could do onTargetSize in terminal when size changes.
 
-- background is not totally black under laser, but world background is black.
+- draw in green the numbers that are on the shortest path to win.
+
+- remove validateScreen ?
 
 - make a bigger countdown, with zoom out on each number.
 https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs

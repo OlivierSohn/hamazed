@@ -24,8 +24,10 @@ import           Control.DeepSeq(NFData(..))
 
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types
+import           Imj.Geo.Discrete.Types
 
 import           Imj.Game.Hamazed.Chat
+import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Log
 import           Imj.Timing
@@ -45,11 +47,13 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ Update the inter-level animation
                   deriving(Eq, Show)
 
-data Event = Configuration !Char
+data Event = Configuration {-# UNPACK #-} !Char
            -- ^ Configures game parameters
-           | CycleRenderingOptions
+           | CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
            -- ^ Changes the font used to render
-           | Timeout !Deadline
+           | ApplyPPUDelta {-# UNPACK #-} !Size
+           | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin
+           | Timeout {-# UNPACK #-} !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
            | Interrupt !MetaAction
            -- ^ A game interruption.

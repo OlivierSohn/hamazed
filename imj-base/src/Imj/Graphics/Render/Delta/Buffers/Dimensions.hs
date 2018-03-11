@@ -15,13 +15,12 @@ import           Imj.Graphics.Render.Delta.Types
 
 
 getPolicyDimensions :: ResizePolicy -> IO (Maybe Size) -> IO (Dim Width, Dim Height)
-getPolicyDimensions (FixedSize w h) _  = return (w,h)
-getPolicyDimensions DynamicSize     sz =
-  sz >>= return . maybe
-          (Dim 300, Dim 90)
-          (\(Size h w) -> (fromIntegral w, fromIntegral h))
+getPolicyDimensions (FixedSize w h) = \_ -> return (w,h)
+getPolicyDimensions DynamicSize = fmap $ maybe
+  (Dim 300, Dim 90)
+  (\(Size h w) -> (fromIntegral w, fromIntegral h))
 
-bufferSizeFromWH :: Dim Width -> Dim Height -> (Dim BufferSize, Dim Width)
+bufferSizeFromWH :: Dim Width -> Dim Height -> Either String (Dim BufferSize, Dim Width)
 bufferSizeFromWH (Dim w') (Dim h') =
   let w = max 1 w'
       h = max 1 h'
@@ -29,7 +28,7 @@ bufferSizeFromWH (Dim w') (Dim h') =
   -- indexed cells use a Word16 index so we can't exceed the Word16 maxBound
   in if sz > fromIntegral (maxBound :: Word16)
        then
-         error $ "buffer size cannot be bigger than " ++ show (maxBound :: Word16) ++
+         Left $ "buffer size cannot be bigger than " ++ show (maxBound :: Word16) ++
             " : " ++ show (sz, w, h)
        else
-         (Dim $ fromIntegral sz, Dim w)
+         Right (Dim $ fromIntegral sz, Dim w)

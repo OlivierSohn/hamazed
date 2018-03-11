@@ -6,10 +6,13 @@ module Test.Imj.Font
 
 import           Imj.Prelude
 import           Prelude(print, putStrLn)
+import           Data.ByteString(ByteString)
 
 import qualified Graphics.Rendering.FTGL as FTGL
+
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Font
+import           Imj.Graphics.Render.Delta.Backend.OpenGL
 
 testFont :: IO ()
 testFont = do
@@ -18,20 +21,22 @@ testFont = do
 
       (_, idxGameZ) = decodeGlyph gameZ
       (_, idxTextZ) = decodeGlyph textZ
-  void $ mapFonts $ \i ->
-    createFonts i (Size 12 8) >>= either
+      fonts = mkFontsVariations
+  void $ mapFonts fonts $ \content name ->
+    createFonts (\_ -> withFont content name . createFont (Size 12 8) 0) >>= either
       error
-      (\fonts -> do
-          putStrLn $ "font " ++ show i ++ ":"
-          print $ lookupFont idxGameZ fonts
-          --print $ lookupFont idxTextZ fonts
+      (\fts -> do
+          putStrLn $ "font " ++ name ++ ":"
+          print $ lookupFont idxGameZ fts
+          --print $ lookupFont idxTextZ fts
           )
 
-  createFonts 0 (Size 10 10) >>= either
+  let (content,name) = getFont 0 fonts
+  createFonts (\_ -> withFont content name . createFont (Size 10 10) 0) >>= either
     error
-    (\fonts@(Fonts font0@(Font f0 _) font1@(Font f1 _)) -> do
-        print $ lookupFont idxGameZ fonts
-        print $ lookupFont idxTextZ fonts
+    (\fts@(Fonts font0@(Font f0 _ _) font1@(Font f1 _ _)) -> do
+        print $ lookupFont idxGameZ fts
+        print $ lookupFont idxTextZ fts
 
         putStrLn =<< showDetailed font0
         putStrLn =<< showDetailed font1
@@ -49,5 +54,7 @@ testFont = do
             print =<< FTGL.getFontBBox f1 "Z"
       )
 
-mapFonts :: (Int -> IO a) -> IO [a]
-mapFonts = flip mapM [0..pred nFonts]
+mapFonts :: FontsVariations -> (ByteString -> String -> IO a) -> IO [a]
+mapFonts fonts act =
+  mapM (\i -> let (content,name) = getFont i fonts
+              in act content name) [CycleFont 0..CycleFont (pred $ nFonts fonts)]

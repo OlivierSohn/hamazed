@@ -46,7 +46,7 @@ instance DeltaRenderBackend ConsoleBackend where
         (return ())
         (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       putStrLn "" -- so that the first typed command doesn't write on game background.
-  cycleRenderingOption _ =
+  cycleRenderingOption _ _ _ =
     return $ Right ()
   getDiscreteSize _ =
     liftIO $
@@ -55,6 +55,8 @@ instance DeltaRenderBackend ConsoleBackend where
         (\(Terminal.Window h w) ->
             Just $ Size (fromIntegral h) (fromIntegral w))
         <$> (Terminal.size :: IO (Maybe (Terminal.Window Int)))
+  ppuDelta _ _ = return $ Right ()
+  fontMarginDelta _ _ = return $ Right ()
 
 instance PlayerInput ConsoleBackend where
   programShouldEnd _ = return False

@@ -11,6 +11,7 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
     , OpenGLBackend
     , PreferredScreenSize(..)
     , mkFixedScreenSize
+    , withFont
     , windowCloseCallback -- for doc
     ) where
 
@@ -19,12 +20,14 @@ import           Imj.Prelude
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
 import           Control.DeepSeq(NFData)
+import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
 import           Data.Text(pack)
 import qualified Graphics.Rendering.FTGL as FTGL
 import qualified Graphics.Rendering.OpenGL as GL
 import qualified Graphics.UI.GLFW          as GLFW
 import           Foreign.Ptr(nullPtr)
+import           System.IO(print, putStrLn)
 
 import           Data.Vector.Unboxed.Mutable(read)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
@@ -52,14 +55,12 @@ keyCallback q _ k _ GLFW.KeyState'Pressed _ =
 keyCallback _ _ _ _ _ _ = return ()
 
 windowCloseCallback :: TQueue PlatformEvent -> GLFW.Window -> IO ()
-windowCloseCallback keyQueue _ =
-  atomically $ writeTQueue keyQueue StopProgram
+windowCloseCallback q _ =
+  atomically $ writeTQueue q StopProgram
 
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: {-# UNPACK #-} !GLFW.Window
   , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue PlatformEvent)
-  , _ppu :: {-# UNPACK #-} !PPU
-  -- ^ Number of pixels per discrete unit length. Keep it even for best results.
   , _windowSize :: {-# UNPACK #-} !Size
   -- ^ In number of pixels.
   , _fonts :: {-# UNPACK #-} !(MVar RenderingOptions)
@@ -67,8 +68,11 @@ data OpenGLBackend = OpenGLBackend {
 }
 
 data RenderingOptions = RenderingOptions {
-    _cycleIndex :: {-# UNPACK #-} !Int
+    _fontsVariations :: {-# UNPACK #-} !FontsVariations
   , _style :: {-unpack sum-} !RenderingStyle
+  , _ppu :: {-# UNPACK #-} !PPU
+  -- ^ Number of pixels per discrete unit length. Keep it even for best results when rendering numbers as squares.
+  , _margin :: {-# UNPACK #-} !FontMargin
   , _getFonts :: !Fonts
 } deriving(Generic, Show, NFData)
 instance PrettyVal RenderingOptions where
@@ -80,28 +84,70 @@ data RenderingStyle = AllFont
                     deriving(Generic, NFData, Eq, Show, PrettyVal)
 
 instance DeltaRenderBackend OpenGLBackend where
-    render (OpenGLBackend win _ ppu size mFont) d w =
-      liftIO $ readMVar mFont >>= \(RenderingOptions _ rs fonts) ->
-        deltaRenderOpenGL win ppu size fonts rs d w
+  render (OpenGLBackend win _ size mFont) d w =
+    liftIO $ readMVar mFont >>= \(RenderingOptions _ rs ppu _ fonts) ->
+      deltaRenderOpenGL win ppu size fonts rs d w
 
-    cleanup (OpenGLBackend win _ _ _ _) = liftIO $ destroyWindow win
+  cleanup (OpenGLBackend win _ _ _) = liftIO $ destroyWindow win
 
-    cycleRenderingOption (OpenGLBackend _ _ ppu _ mRO) =
-      liftIO $
-        readMVar mRO >>= cycleRenderingOptions ppu >>= either
-          (return . Left)
-          (\v@(RenderingOptions _ _ fonts) -> do
-              void $ swapMVar mRO v >>= \(RenderingOptions _ _ oldFonts) ->
-                destroyUnusedFonts oldFonts fonts
-              return $ Right ())
+  cycleRenderingOption (OpenGLBackend _ _ _ mRO) fontType fontSize =
+    liftIO $ readMVar mRO >>= \(RenderingOptions catalog _ _ _ fonts) -> do
+      let catalog' = updateVariations fontType fontSize catalog
+          (FontVariation ppu margin) = getCurrentVariation catalog'
+          (content, name) = getFont (getCurrentFont catalog') catalog'
+          mkNewFonts = createFonts $ \_ ->
+            withFont content name . createFont ppu margin
+      mkNewFonts >>= onNewFonts mRO fonts margin ppu catalog'
 
-    getDiscreteSize (OpenGLBackend _ _ (Size ppuH ppuW) (Size h w) _) =
+  ppuDelta (OpenGLBackend _ _ _ mRO) ppuD =
+    liftIO $ updateFont mRO (Just ppuD) Nothing
+
+  fontMarginDelta (OpenGLBackend _ _ _ mRO) fmD =
+    liftIO $ updateFont mRO Nothing (Just fmD)
+
+  getDiscreteSize (OpenGLBackend _ _ (Size h w) ro) =
+    liftIO $ readMVar ro >>= \(RenderingOptions _ _ (Size ppuH ppuW) _ _) ->
       return $ Just $ Size
         (fromIntegral $ quotCeil (fromIntegral h) (fromIntegral ppuH :: Int))
         (fromIntegral $ quotCeil (fromIntegral w) (fromIntegral ppuW :: Int))
-    {-# INLINABLE render #-}
-    {-# INLINABLE cleanup #-}
-    {-# INLINABLE getDiscreteSize #-}
+  {-# INLINABLE render #-}
+  {-# INLINABLE cleanup #-}
+  {-# INLINABLE getDiscreteSize #-}
+
+updateFont :: MVar RenderingOptions -> Maybe PPU -> Maybe FontMargin -> IO (Either String ())
+updateFont r mayDeltaPPU mayDeltaMargin =
+  readMVar r >>= \(RenderingOptions a _ oldPPU oldMargin fonts) -> do
+    let margin = maybe oldMargin (oldMargin +) mayDeltaMargin
+        ppu = maybe oldPPU (sumSizes oldPPU) mayDeltaPPU
+    createFonts
+      -- recycle current fonts:
+      (flip (createFont ppu margin) . getFTGLFont . flip lookupFont fonts)
+      >>= onNewFonts r fonts margin ppu a
+
+onNewFonts :: MVar RenderingOptions -> Fonts -> FontMargin -> PPU -> FontsVariations -> Either String Fonts -> IO (Either String ())
+onNewFonts r fonts margin ppu fontVars = either
+  (\e -> do
+    putStrLn e
+    -- restore the previous sizes
+    applySizes fonts
+    return $ Left e)
+  (\newFonts -> do
+      swapMVar r (RenderingOptions fontVars AllFont ppu margin newFonts)
+          >>= \(RenderingOptions _ _ _ _ oldFonts) -> do
+            print (ppu,margin,newFonts)
+            destroyUnusedFonts oldFonts newFonts
+      return $ Right ())
+
+-- creates a font, and deletes it in case of error.
+withFont :: (MonadIO m)
+         => ByteString
+         -> String
+         -> (FTGL.Font -> m (Either String a))
+         -> m (Either String a)
+withFont b s f =
+  liftIO (loadFont b s) >>= \font -> f font >>= either
+    (\err -> liftIO (FTGL.destroyFont font) >> return (Left err))
+    (return . Right)
 
 {-# INLINABLE quotCeil #-}
 quotCeil :: (Integral a) => a -> a -> a
@@ -112,8 +158,8 @@ quotCeil x y =
        else q + 1
 
 instance PlayerInput OpenGLBackend where
-  programShouldEnd (OpenGLBackend win _ _ _ _) = liftIO $ GLFW.windowShouldClose win
-  plaformQueue (OpenGLBackend _ q _ _ _) = q
+  programShouldEnd (OpenGLBackend win _ _ _) = liftIO $ GLFW.windowShouldClose win
+  plaformQueue (OpenGLBackend _ q _ _) = q
   pollKeys _ = liftIO GLFW.pollEvents
   waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
   queueType _ = ManualFeed
@@ -159,28 +205,18 @@ newOpenGLBackend title ppu preferred = do
   GLFW.setKeyCallback win $ Just $ keyCallback q
   GLFW.setCharCallback win $ Just $ charCallback q
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback q
+
+  -- TODO when ppu changes, use 'floorToPPUMultiple', and glfwSetWindowSize
   GLFW.pollEvents -- this is necessary to show the window
   (w,h) <- GLFW.getWindowSize win
   let actualSize = Size (fromIntegral h) (fromIntegral w)
-  createFonts 0 ppu >>= either
+      margin = FontMargin 0
+      fv = mkFontsVariations
+      (content,name) = getFont 0 fv
+  createFonts (\_ -> withFont content name . createFont ppu margin) >>= either
     (return . Left)
-    (\fonts -> Right . OpenGLBackend win q ppu actualSize <$>
-        newMVar (RenderingOptions 0 AllFont fonts))
-
-
-cycleRenderingOptions :: PPU -> RenderingOptions -> IO (Either String RenderingOptions)
-cycleRenderingOptions ppu (RenderingOptions idx rs fonts) = do
-  let newRo = case rs of
-        AllFont -> HexDigitAsBits
-        HexDigitAsBits -> AllFont
-      newIdx = succ idx
-      (q,r) = quotRem newIdx 2
-  fmap (RenderingOptions newIdx newRo)
-    <$> if 0 == r && nFonts > 1
-          then
-            createFonts (q `mod` nFonts) ppu
-          else
-            return $ Right fonts
+    (\fonts -> Right . OpenGLBackend win q actualSize <$>
+        newMVar (RenderingOptions fv AllFont ppu margin fonts))
 
 createWindow :: String -> Maybe Size -> IO GLFW.Window
 createWindow title s = do
@@ -301,7 +337,7 @@ draw ppu size font rs col row char bg fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()
-renderChar (Font font (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeight winWidth) c r char color = do
+renderChar (Font font _ (Vec2 offsetCol offsetRow)) (Size ppuH ppuW) (Size winHeight winWidth) c r char color = do
   let unit x ppu = 2 * fromIntegral ppu / x
       totalH = fromIntegral $ quotCeil (fromIntegral winHeight) ppuH
       unitRow x = -1 + offsetRow * 2 / fromIntegral winHeight + unit (fromIntegral winHeight) ppuH * (totalH - x)

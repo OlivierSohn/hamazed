@@ -48,6 +48,8 @@ instance Canvas (Env x) where
 instance Render (Env x) where
   renderToScreen'        (Env a _ _) = renderToScreen' a
   cycleRenderingOptions' (Env a _ _) = cycleRenderingOptions' a
+  applyFontMarginDelta   (Env a _ _) = applyFontMarginDelta a
+  applyPPUDelta          (Env a _ _) = applyPPUDelta a
   {-# INLINE renderToScreen' #-}
   {-# INLINE cycleRenderingOptions' #-}
 

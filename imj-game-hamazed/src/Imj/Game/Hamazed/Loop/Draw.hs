@@ -23,15 +23,13 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Class.Positionable
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
-import           Imj.Geo.Discrete
-import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Draw
-import           Imj.Graphics.Text.Alignment
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
@@ -98,8 +96,8 @@ drawStatus ref = \case
     Countdown n x ->
       flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg x
     OutcomeValidated o -> return [colored' (case o of
-      (Lost reason) -> "You Lose (" <> reason <> ")"
-      Won           -> "You Win!") $ messageColor o]
+      (Lost reason) -> "You lose (" <> reason <> ")"
+      Won           -> "You win!") $ messageColor o]
     WhenAllPressedAKey x (Just _) _ -> statusMsg x
     WhenAllPressedAKey x Nothing havePressed ->
       getMyShipId >>= maybe
@@ -176,12 +174,15 @@ drawSetup cont = do
       [ "'e' : No walls"
       , "'r' : Random walls"
       ]
+      {-
     >>= section "Center view"
       [ "'d' : On space"
       , "'f' : On ship"
       ]
-    >>= section "Rendering"
-      [ "'y' : Toggle numbers as square quarters (OpenGL only)"
+      -}
+    >>= section "OpenGL only"
+      [ "'Up' 'Down' : Change font"
+      , "'Left' 'Right' : Change font size"
       ]
  where
   section title elts pos = do

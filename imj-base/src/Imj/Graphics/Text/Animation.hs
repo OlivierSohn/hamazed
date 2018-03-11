@@ -1,7 +1,5 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 
 {- |
 = Examples
@@ -43,7 +41,9 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.List(foldl', splitAt, unzip3)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Text.Animation.Types
+
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Class.Positionable
@@ -51,30 +51,6 @@ import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
 import           Imj.Timing
-
-
--- | One anchor per String
-data AnchorStrings
--- | One anchor per Character
-data AnchorChars
-
-
-
-
--- | Interpolates 'ColorString's and anchors.
-data TextAnimation b a = TextAnimation {
-   _textAnimationEvolutions :: ![Evolution b]
- , _textAnimationAnchors :: {-# UNPACK #-} !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
- {- ^ When @a =@ 'AnchorStrings', each 'Evolution' 'ColorString' has exactly one
- corresponding element in the 'SequentiallyInterpolatedList'.
-
- When @a =@ 'AnchorChars', /each/ 'Evolution' 'ColorString' has exactly @m@
- corresponding elements in the 'SequentiallyInterpolatedList', where @m@ is the
- maximum number of characters in a 'ColorString' of the given 'Evolution' 'ColorString'. -}
- , _textAnimationClock :: {-# UNPACK #-} !EaseClock
- -- ^ Schedules the animation.
-} deriving(Show, PrettyVal, Generic)
-
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextStringAnchored #-}
@@ -95,13 +71,11 @@ drawAnimatedTextStringAnchored' :: (Positionable a, DiscreteInterpolation a
                                 -> [Coords Pos]
                                 -> Frame
                                 -> m ()
-drawAnimatedTextStringAnchored' [] _ _ = return ()
-drawAnimatedTextStringAnchored' l@(_:_) rs i = do
-  let e = head l
-      rsNow = head rs
-      colorStr = getValueAt e i
-  drawAt colorStr rsNow
-  drawAnimatedTextStringAnchored' (tail l) (tail rs) i
+drawAnimatedTextStringAnchored' (e:es) (r:rs) i = do
+  let colorStr = getValueAt e i
+  drawAt colorStr r
+  drawAnimatedTextStringAnchored' es rs i
+drawAnimatedTextStringAnchored' _ _ _ = return ()
 
 -- | Draw a char-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextCharAnchored #-}
@@ -123,14 +97,13 @@ drawAnimatedTextCharAnchored' :: (DiscreteInterpolation a, Characters a,
                               -> Frame
                               -> m ()
 drawAnimatedTextCharAnchored' [] _ _ = return ()
-drawAnimatedTextCharAnchored' l@(_:_) rs i = do
+drawAnimatedTextCharAnchored' (e@(Evolution (Successive colorStrings) _ _ _):rest) rs i = do
   -- use length of from to know how many Anchors we should take
-  let e@(Evolution (Successive colorStrings) _ _ _) = head l
-      nRS = maximum $ map Words.length colorStrings
+  let nRS = maximum $ map Words.length colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       str = getValueAt e i
   Words.drawOnPath nowRS str
-  drawAnimatedTextCharAnchored' (tail l) laterRS i
+  drawAnimatedTextCharAnchored' rest laterRS i
 
 getAnimatedTextAnchors :: Evolution (SequentiallyInterpolatedList (Coords Pos))
                        -> Frame

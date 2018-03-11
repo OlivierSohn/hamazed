@@ -10,11 +10,12 @@
 
 module Imj.Geo.Discrete.Types
     (
-    -- * Discrete geometry types
+    -- * Discrete geometry
     -- ** Direction
       Direction(..)
     -- ** Coordinates
     , Col, Row, Coord(..), Coords(..)
+    , zeroCoords, diffCoords, sumCoords, coordsForDirection, multiply
     -- ** Size
     , Size(..)
     , Length(..)
@@ -23,6 +24,7 @@ module Imj.Geo.Discrete.Types
     , toCoords
     , maxLength
     , area
+    , sumSizes
     -- ** Segment
     , Segment(..)
     , mkSegment
@@ -41,7 +43,6 @@ import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types
-import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Discrete directions.
@@ -54,18 +55,6 @@ instance Binary Direction
 newtype Coord a = Coord Int
   deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Binary, NFData, Generic)
 instance PrettyVal (Coord a)
-
--- | Using bresenham 2d line algorithm.
-instance DiscreteInterpolation (Coords Pos) where
-  interpolate c c' i
-    | c == c' = c
-    | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
-        in bresenham (mkSegment c c') !! clamp i 0 lastFrame
-
--- | Using bresenham 2d line algorithm.
-instance DiscreteDistance (Coords Pos) where
-  distance a b = fromIntegral $ bresenhamLength a b
 
 {- | Represents a row index (y).
 
@@ -88,9 +77,48 @@ instance NFData (Coords a)
 instance Binary (Coords a)
 instance PrettyVal (Coords a)
 
+-- | 'zeroCoords' = 'Coords' 0 0
+zeroCoords :: Coords a
+zeroCoords = Coords 0 0
+
+-- | Returns a - b
+{-# INLINE diffCoords #-}
+diffCoords :: Coords a
+           -- ^ a
+           -> Coords a
+           -- ^ b
+           -> Coords a
+           -- ^ a - b
+diffCoords (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 - r2) (c1 - c2)
+
+-- | Returns a + b
+{-# INLINE sumCoords #-}
+sumCoords :: Coords a
+           -- ^ a
+           -> Coords a
+           -- ^ b
+           -> Coords a
+           -- ^ a + b
+sumCoords (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 + r2) (c1 + c2)
+
+{-# INLINE multiply #-}
+multiply :: Int -> Coords a -> Coords a
+multiply n (Coords r c) =
+  Coords (r * fromIntegral n) (c * fromIntegral n)
+
+-- | Returns the coordinates that correspond to one step in the given direction.
+coordsForDirection :: Direction -> Coords a
+coordsForDirection Down  = Coords 1 0
+coordsForDirection Up    = Coords (-1) 0
+coordsForDirection LEFT  = Coords 0 (-1)
+coordsForDirection RIGHT = Coords 0 1
+
+
 -- | Discrete length
 newtype Length a = Length Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic, NFData)
 
 -- | Phantom type for width
 data Width
@@ -102,6 +130,11 @@ data Size = Size {
   , getWidth :: {-# UNPACK #-} !(Length Width)
 } deriving (Eq, Show, Generic)
 instance PrettyVal Size
+instance NFData Size
+
+{-# INLINE sumSizes #-}
+sumSizes :: Size -> Size -> Size
+sumSizes (Size a b) (Size a' b') = Size (a+a') (b+b')
 
 {-# INLINE area #-}
 area :: Size -> Int

@@ -27,12 +27,11 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Geo.Discrete
-import           Imj.Graphics.Class.Positionable
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored

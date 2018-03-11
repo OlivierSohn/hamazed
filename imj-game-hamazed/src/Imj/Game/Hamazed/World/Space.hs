@@ -50,7 +50,7 @@ import           Data.Vector(slice, (!))
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Geo.Discrete
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete

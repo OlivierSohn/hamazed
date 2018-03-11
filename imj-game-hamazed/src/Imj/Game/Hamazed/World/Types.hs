@@ -67,7 +67,6 @@ import           Imj.Physics.Discrete.Types
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.Color
-import           Imj.Geo.Discrete
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
@@ -256,7 +255,7 @@ getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
 getWorldCorner world screenCenter offset =
   let (h',w') = (quot h 2, quot w 2)
       (Size h w) = getSize $ getWorldSpace world
-  in sumCoords offset $ translate' (-h') (-w') screenCenter
+  in sumCoords offset $ sumCoords screenCenter $ toCoords (-h') (-w')
 
 
 -- | An interaction function taking into account a 'World' and 'Scope'

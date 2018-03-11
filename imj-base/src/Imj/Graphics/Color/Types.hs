@@ -48,8 +48,6 @@ import           Data.Text(pack)
 import           Data.Word (Word8, Word16)
 
 import           Imj.Geo.Discrete.Bresenham3
-import           Imj.Graphics.Class.DiscreteDistance
-import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Components are expected to be between 0 and 5 included.
@@ -61,21 +59,6 @@ data LayeredColor = LayeredColor {
     _colorsBackground :: {-# UNPACK #-} !(Color8 Background)
   , _colorsForeground :: {-# UNPACK #-} !(Color8 Foreground)
 } deriving(Eq, Show, PrettyVal, Generic)
-
--- TODO use bresenham 6 to interpolate foreground and background at the same time:
--- https://nenadsprojects.wordpress.com/2014/08/08/multi-dimensional-bresenham-line-in-c/
--- | First interpolate background color, then foreground color
-instance DiscreteDistance LayeredColor where
-  distance (LayeredColor bg fg) (LayeredColor bg' fg') =
-    succ $ pred (distance bg bg') + pred (distance fg fg')
-
--- | First interpolate background color, then foreground color
-instance DiscreteInterpolation LayeredColor where
-  interpolate (LayeredColor bg fg) (LayeredColor bg' fg') i
-    | i < lastBgFrame = LayeredColor (interpolate bg bg' i) fg
-    | otherwise       = LayeredColor bg' $ interpolate fg fg' $ i - lastBgFrame
-    where
-      lastBgFrame = pred $ distance bg bg'
 
 
 {-# INLINE encodeColors #-}
@@ -161,19 +144,6 @@ newtype Color8 a = Color8 Word8 -- it's ok to use an unsigned type as we won't n
   deriving (Generic, Ord, Eq, Show, Read, NFData)
 instance PrettyVal (Color8 a)
 instance Binary (Color8 a)
-
--- | Using bresenham 3D algorithm in RGB space.
-instance DiscreteDistance (Color8 a) where
-  distance = bresenhamColor8Length
-
--- | Using bresenham 3D algorithm in RGB space.
-instance DiscreteInterpolation (Color8 a) where
-  interpolate c c' i
-    | i >= lastFrame = c'
-    | otherwise = bresenhamColor8 c c' !! clamp i 0 lastFrame
-    where
-      !lastFrame = pred $ bresenhamColor8Length c c'
-
 
 {-# INLINE mkColor8 #-}
 mkColor8 :: Word8 -> Color8 a
@@ -342,7 +312,7 @@ xtermMapGray8bitComponent v = 8 + 10 * v
 {-# INLINE onBlack #-}
 -- | Creates a 'LayeredColor' with a black background color.
 onBlack :: Color8 Foreground -> LayeredColor
-onBlack = LayeredColor (rgb 0 0 0)
+onBlack = LayeredColor black
 
 {-# INLINE whiteOnBlack #-}
 -- | Creates a 'LayeredColor' with white foreground and black background color.
@@ -373,8 +343,15 @@ springGreen = rgb 0 5 3
 lime = rgb 4 5 0
 
 white   = rgb 5 5 5
-black   = rgb 0 0 0
-
+black   = rgb 0 0 0 -- this is true black, unlike gray 0
+{-# INLINE black #-}
+{-# INLINE white #-}
+{-# INLINE red #-}
+{-# INLINE green #-}
+{-# INLINE blue #-}
+{-# INLINE yellow #-}
+{-# INLINE magenta #-}
+{-# INLINE cyan #-}
 
 -- | converts a GrayColor to the closest RGBColor, using another RGBColor
 -- to know in which way to approximate.

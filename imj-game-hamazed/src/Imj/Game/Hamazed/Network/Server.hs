@@ -48,10 +48,10 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Geo.Discrete(translateInDir, zeroCoords)
 import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored)
 import           Imj.Graphics.Color
 import           Imj.Log
@@ -635,7 +635,7 @@ handleIncomingEvent' = \case
   Action Laser dir ->
     lift (asks shipId) >>= notifyPlayers . GameEvent . LaserShot dir
   Action Ship dir ->
-    adjustClient $ \c -> c { getShipAcceleration = translateInDir dir $ getShipAcceleration c }
+    adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
  where
   publish a = lift (asks shipId) >>= notifyEveryone . PlayerInfo a
   acceptCmd cmd = lift (asks shipId) >>= notifyEveryone . flip RunCommand cmd

@@ -11,6 +11,7 @@ module Imj.Graphics.UI.RectContainer
         , mkRectContainerWithTotalArea
         , mkRectContainerAtDistance
         , mkRectContainerWithCenterAndInnerSize
+        , upperLeftFromCenterAndSize
         , getSideCenters
           -- * Reexports
         , Colorable(..)
@@ -22,9 +23,10 @@ import           Data.List( mapAccumL, zip )
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteColorableMorphing
 import           Imj.Graphics.Class.HasRectArea
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer.MorphParallel4
 
@@ -51,8 +53,12 @@ data RectContainer = RectContainer {
   , _rectFrameUpperLeft :: {-# UNPACK #-} !(Coords Pos)
     -- ^ Upper left corner.
 } deriving(Eq, Show, Generic, PrettyVal)
-
--- TODO typeclass "continuous closed path" to gather 'ranges' and 'drawRectFrameInterpolation' logics.
+instance HasReferencePosition RectContainer where
+  getPosition (RectContainer _ ul) = ul
+  {-# INLINE getPosition #-}
+instance GeoTransform RectContainer where
+  transform f (RectContainer sz ul) = RectContainer sz (transform f ul)
+  {-# INLINE transform #-}
 
 instance Colorable RectContainer where
   drawUsingColor = drawWhole
@@ -61,7 +67,7 @@ instance Colorable RectContainer where
 -- | Returns the content area, /excluding/ the frame around it.
 instance HasRectArea RectContainer where
   getRectArea (RectContainer (Size h w) upperLeft) =
-    RectArea (translate' 1 1 upperLeft) (translate upperLeft $ toCoords h w)
+    RectArea (sumCoords upperLeft $ toCoords 1 1) (translate upperLeft $ toCoords h w)
   {-# INLINABLE getRectArea #-}
 
 -- | Smoothly transforms the 4 sides of the rectangle simultaneously, from their middle
@@ -73,7 +79,6 @@ instance DiscreteDistance RectContainer where
     | c == c'   = 1
     | otherwise = 1 + quot (1 + max (maxLength s) (maxLength s')) 2
 
-
 instance DiscreteColorableMorphing RectContainer where
   {-# INLINABLE drawMorphingUsingColor #-}
   drawMorphingUsingColor from to frame color
@@ -82,6 +87,8 @@ instance DiscreteColorableMorphing RectContainer where
     | otherwise          = drawRectFrameInterpolation from to lastFrame frame color
     where
       lastFrame = pred $ distance from to
+
+-- TODO typeclass "continuous closed path" to gather 'ranges' and 'drawRectFrameInterpolation' logics.
 
 
 translateRectContainer :: Coords Pos -> RectContainer -> RectContainer
@@ -212,7 +219,7 @@ mkRectContainerAtDistance :: RectContainer
                           -> RectContainer
 mkRectContainerAtDistance (RectContainer (Size y x) upperLeft) dx dy =
   RectContainer (Size (y+2*dy) (x + 2*dx))
-  $ translate' (fromIntegral $ -dy) (fromIntegral $ -dx) upperLeft
+  $ sumCoords upperLeft $ toCoords (-dy) (-dx)
 
 
 {- | Returns points centered on the sides of a container.
@@ -279,10 +286,10 @@ getSideCenters (RectContainer (Size rs' cs') upperLeft) =
   rHalf = quot (rs-1) 2 -- favors 'Up' 'Direction'
   rFull = rs-1
 
-  centerUp    = translate' 0     cHalf upperLeft
-  centerDown  = translate' rFull cHalf upperLeft
-  leftMiddle  = translate' rHalf 0     upperLeft
-  rightMiddle = translate' rHalf (cs-1) upperLeft
+  centerUp    = sumCoords upperLeft $ toCoords 0     cHalf
+  centerDown  = sumCoords upperLeft $ toCoords rFull cHalf
+  leftMiddle  = sumCoords upperLeft $ toCoords rHalf 0
+  rightMiddle = sumCoords upperLeft $ toCoords rHalf (cs-1)
 
 
 -- | Create a 'RectContainer' whose inner and outter /content/ matches a 'RectArea'.
@@ -293,6 +300,9 @@ mkRectContainerWithTotalArea rectArea@(RectArea upperLeft _) =
 
 -- | Create a 'RectContainer' whose inner /content/ matches a 'RectArea'.
 mkRectContainerWithCenterAndInnerSize :: Coords Pos -> Size -> RectContainer
-mkRectContainerWithCenterAndInnerSize center s@(Size h w) =
-  let ul = translate' (fromIntegral $ -1 - quot h 2) (fromIntegral $ -1 - quot w 2) center
-  in RectContainer s ul
+mkRectContainerWithCenterAndInnerSize center s =
+  RectContainer s $ upperLeftFromCenterAndSize center s
+
+upperLeftFromCenterAndSize :: Coords Pos -> Size -> Coords Pos
+upperLeftFromCenterAndSize center (Size h w) =
+  sumCoords center $ toCoords (-1 - quot h 2) (-1 - quot w 2)

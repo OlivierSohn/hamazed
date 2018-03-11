@@ -25,23 +25,23 @@ shouldBe actual expected =
 
 testLastAbove :: IO ()
 testLastAbove = do
-  lastAbove 0 (return . negate) (-100) (-50) >>= shouldBe $ Just (-50)
-  lastAbove 0 (return . negate) 0 569 >>= shouldBe Nothing
-  lastAbove 0 (return . negate) (-1) 569 >>= shouldBe $ Just (-1)
-  lastAbove 0 (return . negate) (-100) 569 >>= shouldBe $ Just (-1)
-  lastAbove (-42) (return . negate) (-100) 569 >>= shouldBe $ Just 41
+  lastAbove 0 (return . negate) (-100) (-50 :: Int) >>= shouldBe $ Just (-50)
+  lastAbove 0 (return . negate) 0 (569 :: Int) >>= shouldBe Nothing
+  lastAbove 0 (return . negate) (-1) (569 :: Int) >>= shouldBe $ Just (-1)
+  lastAbove 0 (return . negate) (-100) (569 :: Int) >>= shouldBe $ Just (-1)
+  lastAbove (-42) (return . negate) (-100) (569 :: Int) >>= shouldBe $ Just 41
 
-  lastAbove False (\v -> return $ v <= 0) 0 10 >>= shouldBe $ Just 0
-  lastAbove False (\v -> return $ v < 0) 0 10  >>= shouldBe Nothing
-  lastAbove False (\v -> return $ v < 10) 0 10 >>= shouldBe $ Just 9
-  lastAbove False (\v -> return $ v <= 10) 0 10 >>= shouldBe $ Just 10
-  lastAbove False (\v -> return $ v < 5) 0 10  >>= shouldBe $ Just 4
-  lastAbove False (\v -> return $ v < 50) 0 10 >>= shouldBe $ Just 10
+  lastAbove False (\v -> return $ v <= 0) 0 (10 :: Int) >>= shouldBe $ Just 0
+  lastAbove False (\v -> return $ v < 0) 0 (10 :: Int)  >>= shouldBe Nothing
+  lastAbove False (\v -> return $ v < 10) 0 (10 :: Int) >>= shouldBe $ Just 9
+  lastAbove False (\v -> return $ v <= 10) 0 (10 :: Int) >>= shouldBe $ Just 10
+  lastAbove False (\v -> return $ v < 5) 0 (10 :: Int)  >>= shouldBe $ Just 4
+  lastAbove False (\v -> return $ v < 50) 0 (10 :: Int) >>= shouldBe $ Just 10
 
   -- test with invalid args:
 
   -- inverted min / max bounds
-  lastAbove False (\_ -> return True) 10 0 >>= shouldBe Nothing
+  lastAbove False (\_ -> return True) 10 (0 :: Int) >>= shouldBe Nothing
 
   -- predicate not being decreasing:
-  lastAbove False (\v -> return $ v >= 10) 0 10 >>= shouldBe $ Nothing
+  lastAbove False (\v -> return $ v >= (10 :: Int)) 0 10 >>= shouldBe $ Nothing

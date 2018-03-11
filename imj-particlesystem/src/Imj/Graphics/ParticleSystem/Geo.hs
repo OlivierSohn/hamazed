@@ -22,6 +22,7 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Imj.GameItem.Weapon.Laser.Types
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Continuous.Types

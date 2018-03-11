@@ -177,16 +177,18 @@ finds @x@ in @[i,j]@ such that :
 
 The time complexity is O(log(j-i)).
 -}
-lastAbove :: (Monad m, Ord y)
+lastAbove :: (Monad m
+            , Integral x
+            , Ord y)
           => y
           -- ^ Output value
-          -> (Int -> m y)
+          -> (x -> m y)
           -- ^ Decreasing function
-          -> Int
+          -> x
           -- ^ Inclusive min bound
-          -> Int
+          -> x
           -- ^ Inclusive max bound
-          -> m (Maybe Int)
+          -> m (Maybe x)
 lastAbove threshold f minIdx maxIdx =
   go (pred minIdx) (succ maxIdx) Nothing -- TODO refactor to first test extremities?
  where

@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Imj.Graphics.Class.DiscreteInterpolation
         ( DiscreteInterpolation(..)
@@ -14,7 +15,8 @@ import           Data.List(length)
 
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Util
-
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Color.Types
 
 {- | Instances should statisfy the following constraints:
 
@@ -88,3 +90,28 @@ instance (DiscreteInterpolation a)
       => DiscreteInterpolation ([] a) where
   interpolate l l' progress =
     zipWith (\e e' -> interpolate e e' progress) l $ assert (length l == length l') l'
+
+
+-- | Using bresenham 2d line algorithm.
+instance DiscreteInterpolation (Coords Pos) where
+  interpolate c c' i
+    | c == c' = c
+    | otherwise =
+        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
+        in bresenham (mkSegment c c') !! clamp i 0 lastFrame
+
+-- | Using bresenham 3D algorithm in RGB space.
+instance DiscreteInterpolation (Color8 a) where
+  interpolate c c' i
+    | i >= lastFrame = c'
+    | otherwise = bresenhamColor8 c c' !! clamp i 0 lastFrame
+    where
+      !lastFrame = pred $ bresenhamColor8Length c c'
+
+-- | First interpolate background color, then foreground color
+instance DiscreteInterpolation LayeredColor where
+  interpolate (LayeredColor bg fg) (LayeredColor bg' fg') i
+    | i < lastBgFrame = LayeredColor (interpolate bg bg' i) fg
+    | otherwise       = LayeredColor bg' $ interpolate fg fg' $ i - lastBgFrame
+    where
+      lastBgFrame = pred $ distance bg bg'

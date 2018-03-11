@@ -26,7 +26,6 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Geo.Discrete
 import           Imj.Geo.Continuous
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem

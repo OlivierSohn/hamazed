@@ -1,14 +1,23 @@
-- we could do onTargetSize in terminal when size changes.
 
-- draw in green the numbers that are on the shortest path to win.
+- draw titles:
+type Title = [Colored BigChar]
+BigChar Int Char
 
-- remove validateScreen ?
+ Chat -> Int -> [Coords Pos]
 
 - make a bigger countdown, with zoom out on each number.
 https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs
 https://github.com/schell/gelatin/blob/master/gelatin-freetype2/src/Gelatin/FreeType2/Utils.hs
 
 https://www.hipsthetic.com/30-best-free-pixel-fonts/
+
+- optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
+  like in the resize scenario)
+
+1 : optimize arithmetic operations
+1.1 : precompute pixel values : type PixelValue = Vec2 Pos
+
+- draw in green the numbers that are on the shortest path to win.
 
 - color of number explosion should be grey if number is deactivated.
 

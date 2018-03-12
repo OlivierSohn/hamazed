@@ -18,7 +18,7 @@ module Imj.Graphics.Render.Delta.Backend.OpenGL
 import           Imj.Prelude
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
-import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue)
+import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue, tryPeekTQueue)
 import           Control.DeepSeq(NFData)
 import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
@@ -58,11 +58,21 @@ windowCloseCallback :: TQueue PlatformEvent -> GLFW.Window -> IO ()
 windowCloseCallback q _ =
   atomically $ writeTQueue q StopProgram
 
+-- When resizing a window using a mouse drag of the borders, plenty of FramebufferSizeChanges
+-- events are polled at once, at the end of the motion. Hence, to avoid slowing the app down
+-- at that moment, we dedupe.
+framebufferSizeCallback :: TQueue PlatformEvent -> GLFW.Window -> Int -> Int -> IO ()
+framebufferSizeCallback q _ _ _ = atomically $ tryPeekTQueue q >>= maybe
+  write
+  (\case
+    FramebufferSizeChanges -> return ()
+    _ -> write)
+ where
+  write = writeTQueue q FramebufferSizeChanges
+
 data OpenGLBackend = OpenGLBackend {
     _glfwWin :: {-# UNPACK #-} !GLFW.Window
   , _glfwKeyEvts :: {-# UNPACK #-} !(TQueue PlatformEvent)
-  , _windowSize :: {-# UNPACK #-} !Size
-  -- ^ In number of pixels.
   , _fonts :: {-# UNPACK #-} !(MVar RenderingOptions)
   -- ^ Mutable rendering options
 }
@@ -84,13 +94,13 @@ data RenderingStyle = AllFont
                     deriving(Generic, NFData, Eq, Show, PrettyVal)
 
 instance DeltaRenderBackend OpenGLBackend where
-  render (OpenGLBackend win _ size mFont) d w =
+  render (OpenGLBackend win _ mFont) d w =
     liftIO $ readMVar mFont >>= \(RenderingOptions _ rs ppu _ fonts) ->
-      deltaRenderOpenGL win ppu size fonts rs d w
+      deltaRenderOpenGL win ppu fonts rs d w
 
-  cleanup (OpenGLBackend win _ _ _) = liftIO $ destroyWindow win
+  cleanup (OpenGLBackend win _ _) = liftIO $ destroyWindow win
 
-  cycleRenderingOption (OpenGLBackend _ _ _ mRO) fontType fontSize =
+  cycleRenderingOption (OpenGLBackend _ _ mRO) fontType fontSize =
     liftIO $ readMVar mRO >>= \(RenderingOptions catalog _ _ _ fonts) -> do
       let catalog' = updateVariations fontType fontSize catalog
           (FontVariation ppu margin) = getCurrentVariation catalog'
@@ -99,17 +109,18 @@ instance DeltaRenderBackend OpenGLBackend where
             withFont content name . createFont ppu margin
       mkNewFonts >>= onNewFonts mRO fonts margin ppu catalog'
 
-  ppuDelta (OpenGLBackend _ _ _ mRO) ppuD =
+  ppuDelta (OpenGLBackend _ _ mRO) ppuD =
     liftIO $ updateFont mRO (Just ppuD) Nothing
 
-  fontMarginDelta (OpenGLBackend _ _ _ mRO) fmD =
+  fontMarginDelta (OpenGLBackend _ _ mRO) fmD =
     liftIO $ updateFont mRO Nothing (Just fmD)
 
-  getDiscreteSize (OpenGLBackend _ _ (Size h w) ro) =
+  getDiscreteSize (OpenGLBackend win _ ro) =
     liftIO $ readMVar ro >>= \(RenderingOptions _ _ (Size ppuH ppuW) _ _) ->
-      return $ Just $ Size
-        (fromIntegral $ quotCeil (fromIntegral h) (fromIntegral ppuH :: Int))
-        (fromIntegral $ quotCeil (fromIntegral w) (fromIntegral ppuW :: Int))
+      getFramebufferSize win >>= \(Size h w) ->
+        return $ Just $ Size
+          (quotCeil h $ fromIntegral ppuH)
+          (quotCeil w $ fromIntegral ppuW)
   {-# INLINABLE render #-}
   {-# INLINABLE cleanup #-}
   {-# INLINABLE getDiscreteSize #-}
@@ -158,8 +169,8 @@ quotCeil x y =
        else q + 1
 
 instance PlayerInput OpenGLBackend where
-  programShouldEnd (OpenGLBackend win _ _ _) = liftIO $ GLFW.windowShouldClose win
-  plaformQueue (OpenGLBackend _ q _ _) = q
+  programShouldEnd (OpenGLBackend win _ _) = liftIO $ GLFW.windowShouldClose win
+  plaformQueue (OpenGLBackend _ q _) = q
   pollKeys _ = liftIO GLFW.pollEvents
   waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
   queueType _ = ManualFeed
@@ -205,17 +216,16 @@ newOpenGLBackend title ppu preferred = do
   GLFW.setKeyCallback win $ Just $ keyCallback q
   GLFW.setCharCallback win $ Just $ charCallback q
   GLFW.setWindowCloseCallback win $ Just $ windowCloseCallback q
+  GLFW.setFramebufferSizeCallback win $ Just $ framebufferSizeCallback q
 
   -- TODO when ppu changes, use 'floorToPPUMultiple', and glfwSetWindowSize
   GLFW.pollEvents -- this is necessary to show the window
-  (w,h) <- GLFW.getWindowSize win
-  let actualSize = Size (fromIntegral h) (fromIntegral w)
-      margin = FontMargin 0
+  let margin = FontMargin 0
       fv = mkFontsVariations
       (content,name) = getFont 0 fv
   createFonts (\_ -> withFont content name . createFont ppu margin) >>= either
     (return . Left)
-    (\fonts -> Right . OpenGLBackend win q actualSize <$>
+    (\fonts -> Right . OpenGLBackend win q <$>
         newMVar (RenderingOptions fv AllFont ppu margin fonts))
 
 createWindow :: String -> Maybe Size -> IO GLFW.Window
@@ -237,12 +247,11 @@ createWindow title s = do
               )))
     (\s' -> return (Nothing, s'))
     s
-  GLFW.windowHint $ GLFW.WindowHint'Resizable False
   -- Single buffering goes well with delta-rendering, hence we use single buffering.
   GLFW.windowHint $ GLFW.WindowHint'DoubleBuffer False
   m <- GLFW.createWindow width height title mon Nothing
   let win = fromMaybe (error $ "could not create a GLFW window of size " ++ show s) m
-  GLFW.setCursorInputMode win GLFW.CursorInputMode'Disabled
+  GLFW.setCursorInputMode win GLFW.CursorInputMode'Hidden
   GLFW.makeContextCurrent (Just win)
 
   GL.clearColor GL.$= GL.Color4 0 0 0 1
@@ -260,17 +269,21 @@ destroyWindow win = do
   GLFW.destroyWindow win
   GLFW.terminate
 
+getFramebufferSize :: GLFW.Window -> IO Size
+getFramebufferSize win =
+  GLFW.getFramebufferSize win >>= \(w,h) ->
+    return $ Size (fromIntegral h) (fromIntegral w)
+
 deltaRenderOpenGL :: GLFW.Window
                   -> PPU
-                  -> Size
                   -> Fonts
                   -> RenderingStyle
                   -> Delta
                   -> Dim Width
                   -> IO (Time Duration System, Time Duration System)
-deltaRenderOpenGL _ ppu size fonts rs (Delta delta) w = do
+deltaRenderOpenGL win ppu fonts rs (Delta delta) w = do
   t1 <- getSystemTime
-  renderDelta ppu size fonts rs delta w
+  renderDelta win ppu fonts rs delta w -- TODO optimize : this is slow when we draw to the whole screen
   t2 <- getSystemTime
   -- To make sure all commands are visible on screen after this call, since we are
   -- in single-buffer mode, we use glFinish:
@@ -278,14 +291,15 @@ deltaRenderOpenGL _ ppu size fonts rs (Delta delta) w = do
   t3 <- getSystemTime
   return (t1...t2,t2...t3)
 
-renderDelta :: PPU
-            -> Size
+renderDelta :: GLFW.Window
+            -> PPU
             -> Fonts
             -> RenderingStyle
             -> Dyn.IOVector Cell
             -> Dim Width
             -> IO ()
-renderDelta ppu size fonts rs delta' w = do
+renderDelta win ppu fonts rs delta' w = do
+  fbSz <- getFramebufferSize win
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
@@ -298,9 +312,9 @@ renderDelta ppu size fonts rs delta' w = do
               (char,fontIndex) = decodeGlyph glyph
               font = lookupFont fontIndex fonts
               (x,y) = xyFromIndex w idx
-          draw ppu size font rs x y char bg fg
+          draw ppu fbSz font rs x y char bg fg
           renderDelta' $ succ index
-  void (renderDelta' 0)
+  void $ renderDelta' 0
 
 draw :: PPU
      -> Size

@@ -12,6 +12,7 @@ module Imj.Graphics.Render.FromMonadReader
        , drawMultiLineStr
        , cycleRenderingOptions
        , getTargetSize
+       , onTargetChanged
        , renderToScreen
        -- * Reexports
        , Scissor, LayeredColor, Coords, Pos, Alignment
@@ -128,9 +129,15 @@ getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
 getTargetSize =
   join (asks getTargetSize')
 
+{-# INLINABLE onTargetChanged #-}
+onTargetChanged :: (Canvas e, MonadReader e m, MonadIO m)
+                => m (Either String ())
+onTargetChanged =
+  join (asks onTargetChanged')
+
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m (Either String (Time Duration System, Time Duration System, Time Duration System))
+               => m (Maybe Size, Either String (Time Duration System, Time Duration System, Time Duration System))
 renderToScreen =
   join (asks renderToScreen')

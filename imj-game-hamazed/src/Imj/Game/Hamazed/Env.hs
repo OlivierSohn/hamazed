@@ -42,7 +42,9 @@ instance Draw (Env x) where
 -- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
 instance Canvas (Env x) where
   getTargetSize' (Env a _ _) = getTargetSize' a
+  onTargetChanged' (Env a _ _) = onTargetChanged' a
   {-# INLINE getTargetSize' #-}
+  {-# INLINE onTargetChanged' #-}
 
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
 instance Render (Env x) where

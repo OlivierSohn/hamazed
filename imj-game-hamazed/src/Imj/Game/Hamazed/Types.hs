@@ -6,7 +6,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.Types
-    ( ProgramEnd(..)
+    ( GracefulProgramEnd(..)
+    , UnexpectedProgramEnd(..)
     , Game(..)
     , GameTime
     , GameState(..)
@@ -41,13 +42,17 @@ import           Imj.Graphics.UI.Animation
 
 -- Note that we don't have GracefulClientEnd, because we use exitSuccess in that case
 -- and don't need an exception.
-data ProgramEnd =
+data GracefulProgramEnd =
     GracefulServerEnd
-  | UnexpectedProgramEnd !Text
+instance Exception GracefulProgramEnd
+instance Show GracefulProgramEnd where
+  show GracefulServerEnd        = withNewline "Graceful server shutdown."
+
+data UnexpectedProgramEnd =
+    UnexpectedProgramEnd !Text
   | ErrorFromServer !String
-instance Exception ProgramEnd
-instance Show ProgramEnd where
-  show GracefulServerEnd        = withNewline "Server has shut down."
+instance Exception UnexpectedProgramEnd
+instance Show UnexpectedProgramEnd where
   show (UnexpectedProgramEnd s) = withNewline $ unpack s
   show (ErrorFromServer s)      = withNewline $ "An error occured in the Server: " ++ s
 

@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
@@ -16,6 +17,7 @@ import           Prelude (putStrLn, getLine, toInteger)
 import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
+import           Control.Exception (try)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -387,7 +389,13 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
                 "Please use the opengl backend instead, or remove --screenSize from the command line."
           _ -> return ()
 
-        void $ forkIO $ startServerIfLocal srv ready
+        void $ forkIO $ try (startServerIfLocal srv ready) >>= \case
+          -- when exceptions propagate past forkIO, they are reported to stderr:
+          -- https://ghc.haskell.org/trac/ghc/ticket/3628
+          -- That is annoying when playing in the terminal, so we mute "normal" exceptions.
+          Left (_ :: GracefulProgramEnd) -> return ()
+          Right () -> return ()
+
         readMVar ready >>= either
           (\e -> baseLog (colored (pack e) red) >> error e)
           (baseLog . flip colored chartreuse . pack)
@@ -421,14 +429,13 @@ loop :: (MonadState AppState m
        , MonadReader e m, ClientNode e, Render e, PlayerInput e)
      => m ()
 loop = do
-  let prod =
-        produceEvent >>= maybe
-          (return Nothing) -- means we need to render now.
-          (either
-            (\k -> eventFromKey k >>= maybe
-              prod -- the key was unknown, retry.
-              (return . Just))
+  let prod = produceEvent >>= maybe
+        (return Nothing) -- means we need to render now.
+        (either
+          (\k -> translatePlatformEvent k >>= maybe
+            prod -- the event was unknown, retry.
             (return . Just))
+          (return . Just))
   prod >>= onEvent
   loop
 

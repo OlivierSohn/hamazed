@@ -53,6 +53,10 @@ data Event = Configuration {-# UNPACK #-} !Char
            -- ^ Changes the font used to render
            | ApplyPPUDelta {-# UNPACK #-} !Size
            | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin
+           | CanvasSizeChanged
+            -- ^ Produced by the delta renderer when a size change was detected upon rendering.
+           | RenderingTargetChanged
+            -- ^ Produced by the platform
            | Timeout {-# UNPACK #-} !Deadline
            -- ^ The 'Deadline' that needs to be handled immediately.
            | Interrupt !MetaAction

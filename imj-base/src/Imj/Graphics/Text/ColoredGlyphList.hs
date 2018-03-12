@@ -39,16 +39,52 @@ import           Imj.Util
 
 newtype ColoredGlyphList = ColoredGlyphList [(Glyph, LayeredColor)]
   deriving(Show, Generic)
-
 -- we can't use the Generic one because of missing instance for 'Text'
 instance PrettyVal ColoredGlyphList where
   prettyVal (ColoredGlyphList l) = prettyVal $ map (fst . decodeGlyph . fst) l
-
 instance IsString ColoredGlyphList where
   fromString str =
     let !color = whiteOnBlack
     in ColoredGlyphList $ map (\c -> (textGlyph c, color)) str
+instance Monoid ColoredGlyphList where
+  mempty = ColoredGlyphList []
+  mappend (ColoredGlyphList x) (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
+instance Characters ColoredGlyphList where
+  length (ColoredGlyphList l) = List.length l
+  empty (ColoredGlyphList l) = null l
 
+  splitAt idx (ColoredGlyphList l) =
+    (ColoredGlyphList left
+   , ColoredGlyphList right)
+    where
+      (left,right) = List.splitAt idx l
+
+  drawOnPath positions (ColoredGlyphList l) = do
+    d <- asks drawGlyph'
+    zipWithM_ (\pos (glyph, color) -> d glyph pos color) positions l
+  {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
+  {-# INLINABLE length #-}
+instance Words ColoredGlyphList where
+  unwords :: [SingleWord ColoredGlyphList] -> ColoredGlyphList
+  unwords l = intercalate (ColoredGlyphList [(sp, color)]) $ map (\(SingleWord w) -> w) l
+   where
+    !sp = textGlyph ' '
+    !color = whiteOnBlack
+
+  words :: ColoredGlyphList -> [SingleWord ColoredGlyphList]
+  words (ColoredGlyphList str) =
+    map (SingleWord . ColoredGlyphList) $ go str
+   where
+    isSpace = (' ' ==) . fst . decodeGlyph . fst
+    go s = case List.dropWhile isSpace s of
+            [] -> []
+            s' -> w : go s''
+              where
+                (w, s'') = List.break isSpace s'
+  {-# INLINABLE words #-}
+  {-# INLINABLE unwords #-}
 -- | First interpolating characters, then color.
 instance DiscreteDistance ColoredGlyphList where
   distance (ColoredGlyphList s1) (ColoredGlyphList s2) =
@@ -84,11 +120,6 @@ instance DiscreteInterpolation ColoredGlyphList where
             s1'
           else
             interpolateColors s1' s2 (negate remaining)
-
-instance Monoid ColoredGlyphList where
-  mempty = ColoredGlyphList []
-  mappend (ColoredGlyphList x) (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
-
 instance Positionable ColoredGlyphList where
   drawAt s pos =
     drawOnPath (map (\n -> move n RIGHT pos) [0..]) s
@@ -98,43 +129,6 @@ instance Positionable ColoredGlyphList where
   {-# INLINABLE width #-}
   {-# INLINABLE height #-}
 
-instance Characters ColoredGlyphList where
-  length (ColoredGlyphList l) = List.length l
-  empty (ColoredGlyphList l) = null l
-
-  splitAt idx (ColoredGlyphList l) =
-    (ColoredGlyphList left
-   , ColoredGlyphList right)
-    where
-      (left,right) = List.splitAt idx l
-
-  drawOnPath positions (ColoredGlyphList l) = do
-    d <- asks drawGlyph'
-    zipWithM_ (\pos (glyph, color) -> d glyph pos color) positions l
-  {-# INLINABLE drawOnPath #-}
-  {-# INLINABLE splitAt #-}
-  {-# INLINABLE empty #-}
-  {-# INLINABLE length #-}
-
-instance Words ColoredGlyphList where
-  unwords :: [SingleWord ColoredGlyphList] -> ColoredGlyphList
-  unwords l = intercalate (ColoredGlyphList [(sp, color)]) $ map (\(SingleWord w) -> w) l
-   where
-    !sp = textGlyph ' '
-    !color = whiteOnBlack
-
-  words :: ColoredGlyphList -> [SingleWord ColoredGlyphList]
-  words (ColoredGlyphList str) =
-    map (SingleWord . ColoredGlyphList) $ go str
-   where
-    isSpace = (' ' ==) . fst . decodeGlyph . fst
-    go s = case List.dropWhile isSpace s of
-            [] -> []
-            s' -> w : go s''
-              where
-                (w, s'') = List.break isSpace s'
-  {-# INLINABLE words #-}
-  {-# INLINABLE unwords #-}
 
 {-# INLINE concat #-}
 concat :: [ColoredGlyphList] -> ColoredGlyphList
@@ -152,5 +146,5 @@ colored :: [Glyph] -> Color8 Foreground -> ColoredGlyphList
 colored t c = colored' t $ onBlack c
 
 take :: Int -> ColoredGlyphList -> ColoredGlyphList
-take n (ColoredGlyphList l)
-  = ColoredGlyphList $ List.take n l
+take n (ColoredGlyphList l) =
+  ColoredGlyphList $ List.take n l

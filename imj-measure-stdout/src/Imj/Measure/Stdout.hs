@@ -11,6 +11,8 @@ import           Imj.Prelude
 import           Control.Concurrent
 import           System.IO
 
+import           Imj.Timing
+
 
 data Settings = LengthTest {
   _settingsLengthTestLength :: !Int
@@ -168,16 +170,14 @@ testAction action desc = do
 runActionTests :: IO () -> BufferMode -> IO ()
 runActionTests action b = do
   withBufferMode b
+  every (fromSecs 0.4) action 16
 
-  let tenthSecond = 400000
-  every tenthSecond action 16
-
-every :: Int -> IO () -> Int -> IO ()
+every :: Time Duration System -> IO () -> Int -> IO ()
 every period action remaining
   | remaining == 0 = return ()
   | otherwise = do
       action
-      threadDelay period
+      threadDelay $ fromIntegral $ toMicros period
       every period action (pred remaining)
 
 setBufferModeAndVerify :: BufferMode -> IO ()

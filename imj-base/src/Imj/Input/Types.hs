@@ -29,6 +29,7 @@ data PlatformEvent =
     KeyPress !Key
   | Message !MessageLevel !Text
   | StopProgram
+  | FramebufferSizeChanges
 
 -- | Represents the key pressed by a player.
 data Key = AlphaNum !Char

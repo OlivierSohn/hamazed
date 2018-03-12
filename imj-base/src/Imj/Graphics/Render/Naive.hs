@@ -72,6 +72,7 @@ instance Draw NaiveDraw where
 
 instance Canvas NaiveDraw where
     getTargetSize' _         = return Nothing
+    onTargetChanged' _ = return $ Left "Not implemented"
     {-# INLINABLE getTargetSize' #-}
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
@@ -81,7 +82,7 @@ instance Render NaiveDraw where
       hFlush stdout
       setCursorPosition 0 0
       clearFromCursorToScreenEnd
-      return $ Right (zeroDuration, zeroDuration, zeroDuration)
+      return (Nothing, Right (zeroDuration, zeroDuration, zeroDuration))
 
     cycleRenderingOptions' _ _ _ =
       return $ Right ()

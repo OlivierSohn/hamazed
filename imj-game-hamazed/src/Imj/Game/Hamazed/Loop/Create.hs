@@ -9,20 +9,16 @@ module Imj.Game.Hamazed.Loop.Create
         , initialGameState
         , initialGame
         , mkGameStateEssence
-        , onTargetSize
         ) where
 
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import qualified Data.Map as Map(elems, map)
-import           System.IO(putStrLn)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Class.Positionable
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
@@ -72,9 +68,7 @@ mkIntermediateState :: (MonadIO m)
 mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
   let screen@(Screen _ newScreenCenter) = mkScreen maySz
       newWorld@(World _ _ space _ _ _) = mkWorld essence
-  kt <- liftIO getSystemTime
-  liftIO $ validateScreen screen >>= either putStrLn return
-  let (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums) =
+      (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums) =
         maybe
         (newWorld, newScreenCenter, newLevel, [])
         (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center) _ _) ->
@@ -83,7 +77,8 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
       curInfos = mkInfos Normal        (Map.elems $ getWorldShips curWorld) names shotNums    level
       newInfos = mkInfos ColorAnimated (Map.elems $ getWorldShips newWorld) names newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
-      uiAnimation =
+  kt <- liftIO getSystemTime
+  let uiAnimation =
         mkUIAnimation
           (Colored worldFrameColors
           $ mkRectContainerWithCenterAndInnerSize curScreenCenter (getSize curSpace), curInfos)
@@ -93,19 +88,6 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
           -- only when UIAnimation is over, curWorld will be replaced by newWorld.
           -- during UIAnimation, we need the two worlds.
   return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation screen mode names
-
-onTargetSize :: (MonadState AppState m, MonadIO m)
-                 => Size
-                 -> m ()
-onTargetSize sz =
-  getGameState >>= \g@(GameState curWorld mayNewWorld _ _ uiAnimation _ _ _) -> do
-    let screen@(Screen _ newScreenCenter) = mkScreen $ Just sz
-        sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
-        newPosition = upperLeftFromCenterAndSize newScreenCenter sizeSpace
-        newAnim = setPosition newPosition uiAnimation
-    liftIO $ validateScreen screen >>= either putStrLn return
-    putGameState $ g { getUIAnimation = newAnim,
-                       getScreen = screen }
 
 mkGameStateEssence :: GameState -> GameStateEssence
 mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _) =

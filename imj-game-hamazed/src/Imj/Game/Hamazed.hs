@@ -12,7 +12,7 @@ module Imj.Game.Hamazed
 
         Good luck !
 
-        /Note that to adapt the keyboard layout, you can modify 'eventFromKey'./
+        /Note that to adapt the keyboard layout, you can modify 'translatePlatformEvent'./
         -}
         run
       -- * Parameters
@@ -86,7 +86,7 @@ module Imj.Game.Hamazed
         -- * GameState
       , GameState(..)
         -- * Keyboard layout
-      , eventFromKey
+      , translatePlatformEvent
         -- * Reexport
       , module Imj.Game.Hamazed.Env
       , module Imj.Game.Hamazed.World

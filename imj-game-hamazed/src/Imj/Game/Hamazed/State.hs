@@ -21,6 +21,7 @@ import           Prelude(putStr, putStrLn, length)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(state, get, put)
 import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(asks)
 
 import           Data.Text(pack)
 
@@ -65,6 +66,8 @@ representation (Right e) = case e of
   ApplyPPUDelta _           -> CycleRenderingOptions'
   ApplyFontMarginDelta _    -> CycleRenderingOptions'
   CycleRenderingOptions _ _ -> CycleRenderingOptions'
+  CanvasSizeChanged         -> CycleRenderingOptions'
+  RenderingTargetChanged    -> CycleRenderingOptions'
   Log _ _         -> Configuration'
   SendChatMessage -> Configuration'
   Configuration _ -> Configuration'
@@ -159,7 +162,9 @@ addUpdateTime add =
     put $ AppState t a (EventGroup d e (add |+| prevT) f) b c g de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
-addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
+                                            , MonadReader e m, Render e, ClientNode e
+                                            , MonadIO m)
                                           => Maybe UpdateEvent -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime a prevGroup b c d e) -> do
@@ -183,14 +188,17 @@ groupStats (EventGroup l _ t _) =
     replicate (10 - length l) ' ' ++ " u " ++ showTime t
 
 {-# INLINABLE renderAll #-}
-renderAll :: (MonadState AppState m, MonadReader e m, Render e, MonadIO m)
+renderAll :: (MonadState AppState m
+            , MonadReader e m, Render e, ClientNode e
+            , MonadIO m)
           => m ()
 renderAll = do
   t1 <- liftIO getSystemTime
   draw
   t2 <- liftIO getSystemTime
   getEvtStrs >>= zipWithM_ (\i evtStr -> drawAt evtStr $ Coords i 0) [0..]
-  renderToScreen >>= either
+  (mayNewBufferSz, res) <- renderToScreen
+  either
     (\err -> do
       let msg = "Renderer error :" ++ err
       drawAt msg $ Coords 0 0
@@ -201,6 +209,11 @@ renderAll = do
                                   ++ " cmd " ++ showTime dtCmds
                                   ++ " fl " ++ showTime dtFlush
         False -> return ())
+    res
+  maybe
+    (return ())
+    (\_ -> asks writeToClient' >>= \f -> f $ FromClient CanvasSizeChanged)
+      mayNewBufferSz
 
 {-# INLINABLE getEvtStrs #-}
 getEvtStrs :: MonadState AppState m

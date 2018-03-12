@@ -58,17 +58,102 @@ import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
 
 newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic)
-
+instance Monoid ColorString where
+  mempty = ColorString []
+  mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 -- we can't use the Generic one because of missing instance for 'Text'
 instance PrettyVal ColorString where
   prettyVal c = prettyVal $ map fst $ simplify c
-
 instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, onBlack white)]
+instance Characters ColorString where
+  length = countChars
+  empty (ColorString x) = null x || all (Text.null . fst) x
 
+  splitAt idx (ColorString l) =
+    (ColorString $ reverse left
+   , ColorString $ reverse right)
+    where
+      (left, right) = split' idx l ([],[])
+      split' :: Int
+             -> [(Text,LayeredColor)]
+             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
+             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
+      split' _ [] cur = cur
+      split' n (t@(txt,color):xs) (lefts,rights)
+        | n >= len  = split' (n-len) xs (            t:lefts,                rights)
+        | n > 0     = split' 0       xs ((tLeft,color):lefts, (tRight,color):rights)
+        | otherwise = split' 0       xs (              lefts,              t:rights)
+        where
+          len = Text.length txt
+          (tLeft,tRight) = Text.splitAt n txt
 
--- TODO maybe it would be faster to have a representation with Array (Char, LayeredColor)
---  (ie the result of simplify)
+  drawOnPath positions (ColorString cs) = do
+    f <- asks drawGlyph'
+    let go [] _ = return ()
+        go _ [] = return ()
+        go ps ((txt, color):rest) = do
+          let len = length txt
+              (headRs, tailRs) = List.splitAt len $ assert (List.length ps >= len) ps
+          zipWithM_ (\char coord -> f (textGlyph char) coord color) (Text.unpack txt) headRs
+          go tailRs rest
+    go positions cs
+  {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
+instance Words ColorString where
+  unwords :: [SingleWord ColorString] -> ColorString
+  unwords strs =
+    unwords' (reverse strs) mempty
+   where
+    unwords' [] cur = cur
+    unwords' (SingleWord x:xs) (ColorString []) =
+      unwords' xs x
+    unwords' (SingleWord (ColorString x):xs) (ColorString ((c,color):cs)) =
+      unwords' xs $ ColorString $ x ++ ((Text.cons ' ' c,color):cs)
+
+  words :: ColorString -> [SingleWord ColorString]
+  words (ColorString l) =
+    map (SingleWord . ColorString) $ reverse $ words' l False []
+   where
+    words' :: [(Text,LayeredColor)] -> Bool -> [[(Text,LayeredColor)]] -> [[(Text,LayeredColor)]]
+    words' [] _ cur = cur
+    words' ((txt,color):xs) prevShouldMergeLastWord cur =
+      case Text.words txt of
+        [] ->
+          words' xs prevShouldMergeLastWord cur
+        asWords@(firstWord:lastWords) ->
+          words' xs (not $ isSpace $ Text.last txt) cur'
+         where
+          cur' =
+            if not (isSpace $ Text.head txt) && prevShouldMergeLastWord
+              then
+                -- we merge this iteration's first word with the previous iteration's
+                -- last word.
+                case cur of
+                  [] -> error "prevShouldMergeLastWord is True, cur cannot be empty"
+                  c:cs -> map (\aw -> [(aw, color)]) (reverse lastWords)
+                          ++ ((c ++ [(firstWord, color)]) : cs)
+              else
+                -- we don't merge words
+                map (\aw -> [(aw, color)]) (reverse asWords) ++ cur
+  {-# INLINABLE words #-}
+  {-# INLINABLE unwords #-}
+instance Positionable ColorString where
+  drawAt (ColorString cs) pos = do
+    f <- asks drawTxt'
+    foldM_
+      (\count (txt, color) -> do
+        let l = length txt
+        f txt (move count RIGHT pos) color
+        return $ count + l
+      ) 0 cs
+  width = fromIntegral . countChars
+  height _ = 1
+  {-# INLINABLE drawAt #-}
+  {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
 -- | First interpolating characters, then color.
 instance DiscreteDistance ColorString where
   distance c1 c2 =
@@ -96,7 +181,6 @@ instance DiscreteDistance ColorString where
         lSuff = List.length $ commonSuffix (drop lPref str1) (drop lPref str2)
         countTextChanges = max n1 n2 - (lPref + lSuff)
     in colorDistance + countTextChanges
-
 -- | First interpolating characters, then color.
 instance DiscreteInterpolation ColorString where
   interpolate c1 c2 i =
@@ -185,99 +269,3 @@ take nChars (ColorString l)
       | n >= lr = take' (n-lr) (r:cur) rs
       | otherwise = (Text.take n txt, color):cur
       where lr = Text.length txt
-
-instance Monoid ColorString where
-  mempty = ColorString []
-  mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
-
-instance Positionable ColorString where
-  drawAt (ColorString cs) pos = do
-    f <- asks drawTxt'
-    foldM_
-      (\count (txt, color) -> do
-        let l = length txt
-        f txt (move count RIGHT pos) color
-        return $ count + l
-      ) 0 cs
-  width = fromIntegral . countChars
-  height _ = 1
-  {-# INLINABLE drawAt #-}
-  {-# INLINABLE width #-}
-  {-# INLINABLE height #-}
-
-instance Characters ColorString where
-  length = countChars
-  empty (ColorString x) = null x || all (Text.null . fst) x
-
-  splitAt idx (ColorString l) =
-    (ColorString $ reverse left
-   , ColorString $ reverse right)
-    where
-      (left, right) = split' idx l ([],[])
-      split' :: Int
-             -> [(Text,LayeredColor)]
-             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
-             -> ([(Text,LayeredColor)], [(Text,LayeredColor)])
-      split' _ [] cur = cur
-      split' n (t@(txt,color):xs) (lefts,rights)
-        | n >= len  = split' (n-len) xs (            t:lefts,                rights)
-        | n > 0     = split' 0       xs ((tLeft,color):lefts, (tRight,color):rights)
-        | otherwise = split' 0       xs (              lefts,              t:rights)
-        where
-          len = Text.length txt
-          (tLeft,tRight) = Text.splitAt n txt
-
-  drawOnPath positions (ColorString cs) = do
-    f <- asks drawGlyph'
-    let go [] _ = return ()
-        go _ [] = return ()
-        go ps ((txt, color):rest) = do
-          let len = length txt
-              (headRs, tailRs) = List.splitAt len $ assert (List.length ps >= len) ps
-          zipWithM_ (\char coord -> f (textGlyph char) coord color) (Text.unpack txt) headRs
-          go tailRs rest
-    go positions cs
-
-  {-# INLINABLE drawOnPath #-}
-  {-# INLINABLE length #-}
-  {-# INLINABLE splitAt #-}
-  {-# INLINABLE empty #-}
-
-instance Words ColorString where
-  unwords :: [SingleWord ColorString] -> ColorString
-  unwords strs =
-    unwords' (reverse strs) mempty
-   where
-    unwords' [] cur = cur
-    unwords' (SingleWord x:xs) (ColorString []) =
-      unwords' xs x
-    unwords' (SingleWord (ColorString x):xs) (ColorString ((c,color):cs)) =
-      unwords' xs $ ColorString $ x ++ ((Text.cons ' ' c,color):cs)
-
-  words :: ColorString -> [SingleWord ColorString]
-  words (ColorString l) =
-    map (SingleWord . ColorString) $ reverse $ words' l False []
-   where
-    words' :: [(Text,LayeredColor)] -> Bool -> [[(Text,LayeredColor)]] -> [[(Text,LayeredColor)]]
-    words' [] _ cur = cur
-    words' ((txt,color):xs) prevShouldMergeLastWord cur =
-      case Text.words txt of
-        [] ->
-          words' xs prevShouldMergeLastWord cur
-        asWords@(firstWord:lastWords) ->
-          words' xs (not $ isSpace $ Text.last txt) cur'
-         where
-          cur' =
-            if not (isSpace $ Text.head txt) && prevShouldMergeLastWord
-              then
-                -- we merge this iteration's first word with the previous iteration's
-                -- last word.
-                case cur of
-                  [] -> error "prevShouldMergeLastWord is True, cur cannot be empty"
-                  c:cs -> map (\aw -> [(aw, color)]) (reverse lastWords)
-                          ++ ((c ++ [(firstWord, color)]) : cs)
-              else
-                -- we don't merge words
-                map (\aw -> [(aw, color)]) (reverse asWords) ++ cur
-  {-# INLINABLE words #-}
-  {-# INLINABLE unwords #-}

@@ -5,7 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.KeysMaps
-    ( eventFromKey
+    ( translatePlatformEvent
     ) where
 
 import           Imj.Prelude
@@ -19,13 +19,13 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Input.Types
 
--- | Maps a 'Key' (pressed by the player) to an 'Event'.
-eventFromKey :: (MonadState AppState m)
-             => PlatformEvent
-             -> m (Maybe GenEvent)
-eventFromKey k = case k of
+translatePlatformEvent :: (MonadState AppState m)
+                       => PlatformEvent
+                       -> m (Maybe GenEvent)
+translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ Evt $ Interrupt Quit
+  FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
   KeyPress key -> case key of
     Escape      -> return $ Just $ Evt $ Interrupt Quit
     Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing

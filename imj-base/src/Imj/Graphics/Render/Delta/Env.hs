@@ -61,7 +61,10 @@ instance Draw DeltaEnv where
   {-# INLINABLE drawStr' #-}
 
 instance Canvas DeltaEnv where
-  getTargetSize' (DeltaEnv _ _ s _ _ _)         = liftIO s
+  getTargetSize' (DeltaEnv _ _ s _ _ _) =
+    liftIO s
+  onTargetChanged' e =
+    liftIO $ canModifyLayout e (return ())
   {-# INLINABLE getTargetSize' #-}
 
 -- | Renders using the delta rendering engine.
@@ -78,17 +81,17 @@ instance Render DeltaEnv where
   {-# INLINABLE cycleRenderingOptions' #-}
 
 canModifyLayout :: DeltaEnv -> IO () -> IO (Either String ())
-canModifyLayout (DeltaEnv b _ sz _ _ _) act =
-  sz >>= \oldSz -> act >> sz >>= maybe
+canModifyLayout (DeltaEnv b _ sz _ _ _) act = do
+  res <- sz >>= \oldSz -> act >> sz >>= maybe
     (return $ Right ())
     (\newSz ->
       if oldSz /= Just newSz
         then
           resize newSz b
         else
-          return $ Right ()) >>= \res -> do
-      deltaForgetFrontValues b -- even if the size didn't change, maybe the layout changed
-      return res
+          return $ Right ())
+  deltaForgetFrontValues b -- even if the size didn't change, maybe the layout changed
+  return res
 
 resize :: Size -> IORef Buffers -> IO (Either String ())
 resize (Size h w) b = readIORef b >>= \(Buffers _ _ _ _ _ policies) ->
@@ -97,8 +100,9 @@ resize (Size h w) b = readIORef b >>= \(Buffers _ _ _ _ _ policies) ->
     (fmap Right . writeIORef b)
 
 class DeltaRenderBackend a where
-    -- | returns (duration to issue commands, duration to flush)
-    render :: (MonadIO m) => a -> Delta -> Dim Width -> m (Time Duration System, Time Duration System)
+    render :: (MonadIO m) => a -> Delta -> Dim Width
+           -> m (Time Duration System, Time Duration System)
+           -- ^ durations to (issue commands, flush)
     cleanup :: (MonadIO m) => a -> m ()
     getDiscreteSize :: (MonadIO m) => a -> m (Maybe Size)
     cycleRenderingOption :: (MonadIO m) => a -> CycleFont -> CycleFontSize -> m (Either String ())

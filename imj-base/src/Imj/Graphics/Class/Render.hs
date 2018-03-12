@@ -16,6 +16,7 @@ module Imj.Graphics.Class.Render
 import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Font
 import           Imj.Timing
@@ -38,4 +39,5 @@ class (Draw e) => Render e where
   -- * duration to compute delta
   -- * duration to issue rendering commands
   -- * duration to flush
-  renderToScreen' :: (MonadIO m) => e -> m (Either String (Time Duration System, Time Duration System, Time Duration System))
+  -- * Maybe the new buffers size
+  renderToScreen' :: (MonadIO m) => e -> m (Maybe Size, Either String (Time Duration System, Time Duration System, Time Duration System))

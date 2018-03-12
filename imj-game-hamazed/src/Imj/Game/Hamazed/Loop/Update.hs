@@ -36,8 +36,10 @@ import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Ship
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
@@ -57,16 +59,21 @@ updateAppState (Right evt) = case evt of
     updateGameParamsFromChar c
   CycleRenderingOptions i j -> do
     cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
-    getTargetSize >>= maybe (return ()) onTargetSize
+    onTargetSize
   ApplyPPUDelta deltaPPU -> do
     -- the font calculation is done according to the current screen size,
     -- so there may be some partial unit rectangles. If we wanted to have only
     -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
     -- then adjust the font.
     asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
-    getTargetSize >>= maybe (return ()) onTargetSize
+    onTargetSize
   ApplyFontMarginDelta d ->
     asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
+  CanvasSizeChanged ->
+    onTargetSize
+  RenderingTargetChanged -> do
+    onTargetChanged >>= either (liftIO . putStrLn) return
+    onTargetSize
   Timeout (Deadline t _ AnimateUI) -> updateUIAnim t
   Timeout (Deadline _ _ (AnimateParticleSystem key)) -> liftIO getSystemTime >>= updateOneParticleSystem key
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
@@ -132,6 +139,21 @@ updateAppState (Left evt) = case evt of
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor
+
+
+{-# INLINABLE onTargetSize #-}
+onTargetSize :: (MonadState AppState m
+               , MonadReader e m, Canvas e
+               , MonadIO m)
+             => m ()
+onTargetSize = getTargetSize >>= maybe (return ()) (\sz ->
+  getGameState >>= \g@(GameState curWorld mayNewWorld _ _ uiAnimation _ _ _) -> do
+    let screen@(Screen _ newScreenCenter) = mkScreen $ Just sz
+        sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
+        newPosition = upperLeftFromCenterAndSize newScreenCenter sizeSpace
+        newAnim = setPosition newPosition uiAnimation
+    putGameState $ g { getUIAnimation = newAnim,
+                       getScreen = screen })
 
 {-# INLINABLE sendToServer #-}
 sendToServer :: (MonadState AppState m, MonadIO m, MonadReader e m, ClientNode e)

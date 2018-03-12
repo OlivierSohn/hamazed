@@ -10,7 +10,7 @@ import           Imj.Prelude
 
 import           GHC.IO.Encoding(setLocaleEncoding)
 
-import           Control.Concurrent(forkIO)
+import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.STM(TQueue, newTQueueIO, atomically, writeTQueue)
 import           Data.Vector.Unboxed.Mutable(read)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
@@ -49,12 +49,7 @@ instance DeltaRenderBackend ConsoleBackend where
   cycleRenderingOption _ _ _ =
     return $ Right ()
   getDiscreteSize _ =
-    liftIO $
-      maybe
-        Nothing
-        (\(Terminal.Window h w) ->
-            Just $ Size (fromIntegral h) (fromIntegral w))
-        <$> (Terminal.size :: IO (Maybe (Terminal.Window Int)))
+    liftIO readConsoleSize
   ppuDelta _ _ = return $ Right ()
   fontMarginDelta _ _ = return $ Right ()
 
@@ -70,6 +65,13 @@ instance PlayerInput ConsoleBackend where
   {-# INLINABLE pollKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
 
+readConsoleSize :: IO (Maybe Size)
+readConsoleSize = maybe
+  Nothing
+  (\(Terminal.Window h w) ->
+      Just $ Size (fromIntegral h) (fromIntegral w))
+  <$> (Terminal.size :: IO (Maybe (Terminal.Window Int)))
+
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do
   setLocaleEncoding utf8 -- because 'Stdout' encodes using utf8
@@ -77,8 +79,23 @@ newConsoleBackend = do
               -- the current console content above the game.
   configureConsoleFor Gaming defaultStdoutMode
   newTQueueIO >>= \q -> do
-    _ <- forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . KeyPress
+    startWriters q
     ConsoleBackend q <$> mkStdoutBuffer 8192
+
+startWriters :: TQueue PlatformEvent -> IO ()
+startWriters q = do
+  void $ forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . KeyPress
+  void $ forkIO $ pollConsoleSize Nothing
+ where
+  pollConsoleSize sz = do
+    newSz <- readConsoleSize
+    maybe
+      (return ())
+      (\s -> unless (sz == Just s) $ atomically $ writeTQueue q FramebufferSizeChanges)
+        newSz
+    threadDelay 100000 -- every tenth second
+    pollConsoleSize newSz
+
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode

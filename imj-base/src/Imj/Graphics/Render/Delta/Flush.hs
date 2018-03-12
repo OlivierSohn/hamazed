@@ -33,22 +33,23 @@ deltaFlush :: IORef Buffers
            -- ^ rendering function
            -> IO (Maybe Size)
            -- ^ get discrete size function
-           -> IO (Either String (Time Duration System, Time Duration System, Time Duration System))
+           -> IO (Maybe Size, Either String (Time Duration System, Time Duration System, Time Duration System))
 deltaFlush ref renderFunc sizeFunc =
-  readIORef ref
-  >>= \buffers@(Buffers _ _ _ _ _ policies) ->
-        shouldAdjustSize buffers sizeFunc >>= maybe
-          (Right <$> render DeltaMode renderFunc buffers)
-          -- We force to render everything when size changes because
-          -- the terminal will have moved content on resize:
-          (uncurry (createBuffers policies) >=> either
-            (\msg -> do
-              void $ render DeltaMode renderFunc buffers -- draw with previous buffers
-              return $ Left msg)
-            (\b -> do
-              writeIORef ref b
-              initializeWithContent buffers b
-              Right <$> render FullMode renderFunc b))
+  readIORef ref >>= \buffers@(Buffers _ _ _ _ _ policies) ->
+    shouldAdjustSize buffers sizeFunc >>= maybe
+      ((,) Nothing . Right <$> render DeltaMode renderFunc buffers)
+      -- We force to render everything when size changes because
+      -- the terminal will have moved content on resize:
+      (\(w,h) -> do
+        let sz = Just $ Size (fromIntegral h) (fromIntegral w)
+        createBuffers policies w h >>= either
+          (\msg -> do
+            void $ render DeltaMode renderFunc buffers -- draw with previous buffers
+            return (sz, Left msg))
+          (\b -> do
+            writeIORef ref b
+            initializeWithContent buffers b
+            (,) sz . Right <$> render FullMode renderFunc b))
 
 data RenderMode = DeltaMode | FullMode
 

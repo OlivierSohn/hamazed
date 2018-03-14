@@ -37,6 +37,7 @@ import qualified Imj.Graphics.Class.Positionable as Pos
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
+import           Imj.Util
 
 data RasterizedString = RasterizedString {
     _str :: !String
@@ -55,7 +56,7 @@ instance Pos.Positionable RasterizedString where
     fg d =
       let v = quot (d+2) 6
       --in interpolate (rgb 2 1 0) (rgb 5 4 0) v
-      in gray $ 4 + 2*v
+      in gray $ clamp (4 + 2*v) 0 23
 
 {-# INLINE dist #-}
 dist :: Coords Pos -> Int

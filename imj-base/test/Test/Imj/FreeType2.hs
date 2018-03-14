@@ -29,6 +29,7 @@ import           System.Console.ANSI(clearScreen)
 import           Imj.Geo.Discrete.Types
 
 import           Imj.Graphics.Color
+import           Imj.Graphics.Class.HasSizedFace
 import qualified Imj.Graphics.Class.Positionable as Pos
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render

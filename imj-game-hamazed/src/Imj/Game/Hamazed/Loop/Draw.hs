@@ -14,7 +14,7 @@ import           Imj.Prelude hiding (intercalate)
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.Reader.Class(MonadReader, asks)
 import qualified Data.Map as Map(lookup, filter, keysSet)
 import qualified Data.Set as Set(toList)
 import           Data.Text(pack)
@@ -23,6 +23,7 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 
 import           Imj.Game.Hamazed.Color
@@ -31,12 +32,15 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World
 import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
 -- | Draws the game content.
 {-# INLINABLE draw #-}
-draw :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
+draw :: (MonadState AppState m
+       , MonadReader e m, HasSizedFace e, Draw e
+       , MonadIO m)
      => m ()
 draw =
   gets game >>= \(Game status
@@ -64,7 +68,9 @@ draw =
 
 
 {-# INLINABLE drawStatus #-}
-drawStatus :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
+drawStatus :: (MonadState AppState m
+             , MonadReader e m, Draw e, HasSizedFace e
+             , MonadIO m)
            => Coords Pos
            -> ClientState
            -> m ()
@@ -81,6 +87,10 @@ drawStatus ref = \case
     Setup -> do
       (Screen _ center) <- getCurScreen
       getWorld >>= drawSetup . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace
+    PlayLevel (Countdown n Running) -> do
+      face <- asks getSizedFace
+      liftIO (mkRasterizedString (show n) face) >>=
+        drawVerticallyCentered ref
     PlayLevel status -> inform' =<< statusMsg status
  where
   statusMsg = \case

@@ -36,6 +36,7 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
+import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
@@ -102,7 +103,7 @@ reprToCS PeriodicMotion'        = colored "S" blue
 
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m
-          , MonadReader e m, ClientNode e, Render e, PlayerInput e
+          , MonadReader e m, ClientNode e, Render e, PlayerInput e, HasSizedFace e
           , MonadIO m)
         => Maybe GenEvent -> m ()
 onEvent mayEvt = do
@@ -118,7 +119,7 @@ onEvent mayEvt = do
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m
-           , MonadReader e m, ClientNode e, Render e
+           , MonadReader e m, ClientNode e, Render e, HasSizedFace e
            , MonadIO m)
          => Maybe GenEvent -> m ()
 onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
@@ -129,7 +130,7 @@ onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
 onUpdateEvent :: (MonadState AppState m
-                , MonadReader e m, ClientNode e, Render e
+                , MonadReader e m, ClientNode e, Render e, HasSizedFace e
                 , MonadIO m)
               => UpdateEvent -> m ()
 onUpdateEvent e = do
@@ -140,7 +141,7 @@ onUpdateEvent e = do
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (MonadState AppState m
-              , MonadReader e m, ClientNode e, Render e
+              , MonadReader e m, ClientNode e, Render e, HasSizedFace e
               , MonadIO m)
             => Maybe UpdateEvent -> m ()
 handleEvent e = do
@@ -163,7 +164,7 @@ addUpdateTime add =
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
-                                            , MonadReader e m, Render e, ClientNode e
+                                            , MonadReader e m, Render e, ClientNode e, HasSizedFace e
                                             , MonadIO m)
                                           => Maybe UpdateEvent -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
@@ -189,7 +190,7 @@ groupStats (EventGroup l _ t _) =
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m
-            , MonadReader e m, Render e, ClientNode e
+            , MonadReader e m, Render e, ClientNode e, HasSizedFace e
             , MonadIO m)
           => m ()
 renderAll = do

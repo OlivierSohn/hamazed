@@ -58,6 +58,7 @@ library
                      , Imj.Graphics.Class.Draw
                      , Imj.Graphics.Class.HasLayeredColor
                      , Imj.Graphics.Class.HasRectArea
+                     , Imj.Graphics.Class.HasSizedFace
                      , Imj.Graphics.Class.Positionable
                      , Imj.Graphics.Class.Render
                      , Imj.Graphics.Class.UncoloredTextual
@@ -94,6 +95,7 @@ library
                      , Imj.Graphics.Text.ColorString
                      , Imj.Graphics.Text.ColoredGlyphList
                      , Imj.Graphics.Text.ColorString.Interpolation
+                     , Imj.Graphics.Text.RasterizedString
                      , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Animation.Types
@@ -124,8 +126,9 @@ library
                      , clock ==0.7.*
                      , containers >= 0.5.9.2
                      , deepseq ==1.4.*
-                     , FTGL ==2.1.*
                      , file-embed ==0.0.*
+                     , freetype2 ==0.1.*
+                     , FTGL ==2.1.*
                      , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3

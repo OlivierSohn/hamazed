@@ -31,7 +31,7 @@ import           Control.Applicative as Exported((<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow as Exported((>>>))
 import           Control.Exception as Exported(assert)
 import           Control.Monad as Exported(sequence, when, unless, void, (<=<), (>=>), zipWithM_, forever
-                              , replicateM, foldM, foldM_, join)
+                              , replicateM, foldM, foldM_, forM_, forM, join)
 import           Control.Monad.IO.Class as Exported(liftIO)
 import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Binary as Exported(Binary)

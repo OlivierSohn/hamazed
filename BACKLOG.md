@@ -1,15 +1,4 @@
-
-- draw titles:
-type Title = [Colored BigChar]
-BigChar Int Char
-
- Chat -> Int -> [Coords Pos]
-
-- make a bigger countdown, with zoom out on each number.
-https://hackage.haskell.org/package/barrier-0.1.1/src/data-generator.hs
-https://github.com/schell/gelatin/blob/master/gelatin-freetype2/src/Gelatin/FreeType2/Utils.hs
-
-https://www.hipsthetic.com/30-best-free-pixel-fonts/
+- generalize rasterized string usage for you win / you lose message (if no additional status exists)
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

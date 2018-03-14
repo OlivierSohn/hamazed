@@ -80,8 +80,6 @@ instance Canvas NaiveDraw where
 instance Render NaiveDraw where
     renderToScreen' _         = liftIO $ do
       hFlush stdout
-      setCursorPosition 0 0
-      clearFromCursorToScreenEnd
       return (Nothing, Right (zeroDuration, zeroDuration, zeroDuration))
 
     cycleRenderingOptions' _ _ _ =

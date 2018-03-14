@@ -25,6 +25,7 @@ import           Test.Imj.ZigZag
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
+
   testBres2 >>= print
   testBres3 >>= print
   testRectArea >>= print
@@ -37,7 +38,7 @@ main = do
   testUtils
   testColor
 
-  clearScreen -- to /not/ overwrite current terminal content.
+  clearScreen
   _ <- flip runReaderT NaiveDraw $ do
     testICS
     renderToScreen
@@ -46,6 +47,8 @@ main = do
   testMutableBytestring
   testLastAbove
   testSums
-  testFreeType2
   testFont
+  testFreeType2
+  testFreeType2'
+  putStrLn ""
   return ()

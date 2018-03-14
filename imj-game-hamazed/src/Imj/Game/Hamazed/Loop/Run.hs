@@ -54,11 +54,13 @@ import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.State
+import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 import           Imj.Graphics.Text.ColorString hiding(intercalate)
+import           Imj.Graphics.Text.RasterizedString
 import           Imj.Log
 
 {- | Runs the Hamazed game.
@@ -419,14 +421,22 @@ runWith :: (PlayerInput a, DeltaRenderBackend a)
         -> a
         -> IO ()
 runWith debug queues srv player backend =
-  flip withDefaultPolicies backend $ \drawEnv -> do
-    sz <- getDiscreteSize backend
-    void $ createState sz debug player srv NotConnected >>=
-      runStateT (runReaderT loop $ Env drawEnv backend queues)
+  withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
+    flip withDefaultPolicies backend $ \drawEnv -> do
+      sz <- getDiscreteSize backend
+      void $ createState sz debug player srv NotConnected >>=
+        runStateT (runReaderT loop $ Env drawEnv backend queues face)
+ where
+  (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
+  look _ [] = Nothing
+  look name ((f,ftName,_):rest) =
+    if ftName == name
+      then Just (f,ftName)
+      else look name rest
 
 loop :: (MonadState AppState m
        , MonadIO m
-       , MonadReader e m, ClientNode e, Render e, PlayerInput e)
+       , MonadReader e m, ClientNode e, Render e, PlayerInput e, HasSizedFace e)
      => m ()
 loop = do
   let prod = produceEvent >>= maybe

@@ -75,8 +75,6 @@ fontFiles = [
             [(0, Size 12 10)]) -- '| is offset'
            , ($(embedFile "fonts/whitrabt.ttf"), "White rabbit",
             [(0, Size 14 8), (1, Size 14 10)])
-           , ($(embedFile "fonts/04B_30__.TTF"), "04B 30",
-            [(0, Size 11 8)])
            , ($(embedFile "fonts/Extrude.ttf"), "Extrude",
             [(0, Size 15 13)])
            , ($(embedFile "fonts/3Dventure.ttf"), "3DVenture",

@@ -82,7 +82,7 @@ data GameStatus =
   | Paused !(Set ShipId) !GameStatus
   -- ^ with the list of disconnected clients and status before pause.
   | WaitingForOthersToEndLevel !(Set ShipId)
-  | OutcomeValidated !LevelOutcome -- TODO remove, ThenPressAKeyToContinue + Txt is enough
+  | OutcomeValidated !LevelOutcome
   | WhenAllPressedAKey {
       _status :: !GameStatus
     , countdown :: !(Maybe Int)

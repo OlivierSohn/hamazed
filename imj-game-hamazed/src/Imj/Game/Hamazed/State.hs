@@ -76,7 +76,8 @@ representation (Right e) = case e of
   Continue _      -> Configuration'
   Interrupt _ -> Interrupt'
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
-  Timeout (Deadline _ _ AnimateUI) -> AnimateUI'
+  Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
+  Timeout (Deadline _ _ (RedrawStatus _)) -> AnimateUI'
   ToggleEventRecording -> ToggleEventRecording'
 
 reprToCS :: EventRepr -> ColorString
@@ -164,11 +165,11 @@ addUpdateTime add =
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
-                                            , MonadReader e m, Render e, ClientNode e, HasSizedFace e
+                                            , MonadReader e m, Render e, ClientNode e
                                             , MonadIO m)
                                           => Maybe UpdateEvent -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
-  get >>= \(AppState prevTime a prevGroup b c d e) -> do
+  get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
           debug >>= \case
             True -> liftIO $ putStr $ groupStats prevGroup
@@ -180,7 +181,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
     liftIO (tryGrow evt prevGroup) >>= maybe
       (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
       (return . (,) prevTime)
-    >>= \(t,g) -> put $ AppState t a g b c d e
+    >>= \(t,g) -> get >>= \(AppState _ a _ b c d e) -> put $ AppState t a g b c d e
 
 
 groupStats :: EventGroup -> String
@@ -190,7 +191,7 @@ groupStats (EventGroup l _ t _) =
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m
-            , MonadReader e m, Render e, ClientNode e, HasSizedFace e
+            , MonadReader e m, Render e, ClientNode e
             , MonadIO m)
           => m ()
 renderAll = do

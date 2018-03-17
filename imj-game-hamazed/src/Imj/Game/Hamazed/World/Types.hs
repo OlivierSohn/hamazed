@@ -25,6 +25,8 @@ module Imj.Game.Hamazed.World.Types
         , NumId(..)
         , mkNumber
         , makeUnreachable
+        , makeReachable
+        , makePreferred
         , makeDangerous
         , getCurrentColor
         , Scope(..)
@@ -205,6 +207,7 @@ mkNumber e = Number e [] Reachable
 data NumberType =
     Reachable
   | Unreachable
+  | Preferred
   | Dangerous
   deriving(Generic, Show)
 
@@ -213,6 +216,7 @@ getCurrentColor (Number _ (color:_) _) = color
 getCurrentColor (Number (NumberEssence _ i _) [] Reachable) = numberColor i
 getCurrentColor (Number (NumberEssence _ i _) [] Unreachable) = unreachableNumberColor i
 getCurrentColor (Number (NumberEssence _ i _) [] Dangerous) = dangerousNumberColor i
+getCurrentColor (Number (NumberEssence _ i _) [] Preferred) = preferredNumberColor i
 
 makeUnreachable :: Number -> Number
 makeUnreachable n@(Number _ _ Unreachable) = n
@@ -223,12 +227,28 @@ makeUnreachable n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Unrea
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
 
 makeDangerous :: Number -> Number
-makeDangerous n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor Dangerous
+makeDangerous n@(Number _ _ Unreachable) = n
+makeDangerous n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Dangerous
  where
   c' = dangerousNumberColor i
   startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
-makeDangerous n@(Number _ _ _) = n
+
+makePreferred :: Number -> Number
+makePreferred n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor Preferred
+ where
+  c' = preferredNumberColor i
+  startColor = getCurrentColor n
+  newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
+makePreferred n@(Number _ _ _) = n
+
+makeReachable :: Number -> Number
+makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) = Number e newColor Reachable
+ where
+  c' = numberColor i
+  startColor = getCurrentColor n
+  newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
+makeReachable n@(Number _ _ _) = n
 
 getColliding :: Coords Pos -> Map NumId Number -> Map NumId Number
 getColliding pos =

@@ -72,7 +72,7 @@ testFreeType2' =
     withFreeType $ withSizedFace path sz $ \face -> do
       clearScreen
       _ <- flip runReaderT NaiveDraw $ do
-        rstr <- liftIO $ mkRasterizedString str face
+        rstr <- liftIO $ mkRasterizedString str grayGradient face
         Pos.drawAt rstr ref
         drawVerticallyCentered center rstr
         drawGlyph (textGlyph 'C') center whiteOnBlack

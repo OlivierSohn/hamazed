@@ -120,8 +120,8 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import qualified Data.Set as Set(empty, null, member, fromList, unions, size)
-import qualified Data.Map.Strict as Map(elems, insert, lookup, map, empty, null, keysSet, foldl', alter
-                                      , findWithDefault, mapAccumWithKey)
+import qualified Data.Map.Strict as Map(elems, insert, lookup, lookupMin, map, empty, null, keysSet, foldl', alter
+                                      , findWithDefault, mapAccumWithKey, fromListWith)
 import           Data.List(elem, length)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
@@ -300,7 +300,7 @@ countComponentsAmmo =
 checkSums :: (MonadState AppState m)
           => m ()
 checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
-                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _) ->
+                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _ _) ->
   case constraint of
     CanOvershoot -> return ()
     CannotOvershoot -> do
@@ -325,9 +325,23 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
           -- Set.unions also has a linear complexity, overall we have a linear complexity here.
           okTargets = Set.unions $ map Set.fromList possibleLists
 
-          newNumbers = Map.map (\n -> if Set.member (getNumber $ getNumEssence n) okTargets
-                                        then n
-                                        else makeDangerous n) remainingNumbers
+          -- preferred numbers are on the preferred path (least length)
+          mapLengths = Map.fromListWith const (map (\l -> (length l,l)) possibleLists)
+          preferredSet = Set.fromList $ maybe [] snd $ Map.lookupMin mapLengths
+
+          newNumbers =
+            Map.map
+              (\n -> let num = getNumber $ getNumEssence n
+                in if Set.member num okTargets
+                  then
+                    if Set.member num preferredSet
+                      then
+                        makePreferred n
+                      else
+                        makeReachable n
+                  else
+                    makeDangerous n)
+            remainingNumbers
       putWorld $ w { getWorldNumbers = newNumbers }
 
 

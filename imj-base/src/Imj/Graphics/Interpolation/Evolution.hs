@@ -22,6 +22,7 @@ or rendered (for morphings), based on the current frame and the inverse ease fun
 -}
            Evolution(..)
          , mkEvolutionEaseQuart
+         , mkEvolutionEaseInQuart
          , mkEvolution
          , getDeltaTimeToNextFrame
          -- ** Getting an interpolated value
@@ -89,6 +90,18 @@ mkEvolutionEaseQuart :: DiscreteDistance v
                      -> Evolution v
 mkEvolutionEaseQuart =
   mkEvolution invQuartEaseInOut
+
+{-# INLINABLE mkEvolutionEaseInQuart #-}
+-- | An evolution between n 'DiscreteDistance's. With a 4th order ease in.
+mkEvolutionEaseInQuart :: DiscreteDistance v
+                     => Successive v
+                     -- ^ 'DiscreteDistance's through which the evolution will pass.
+                     -> Time Duration System
+                     -- ^ Duration
+                     -> Evolution v
+mkEvolutionEaseInQuart =
+  mkEvolution $ inOutToIn invQuartEaseInOut
+
 
 -- | An evolution between n 'DiscreteDistance's. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}

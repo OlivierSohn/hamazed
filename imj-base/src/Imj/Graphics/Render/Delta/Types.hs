@@ -87,7 +87,7 @@ data Buffers = Buffers {
   , _buffersDrawScissor :: !Scissor
   , _buffersDelta :: !Delta
   -- ^ The delta-buffer is used in renderFrame
-  , _buffersPolicies :: {-# UNPACK #-} !Policies
+  , getPolicies :: {-# UNPACK #-} !Policies
 }
 
 data Policies = Policies {

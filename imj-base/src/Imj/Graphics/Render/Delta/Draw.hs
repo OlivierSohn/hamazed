@@ -7,7 +7,6 @@ module Imj.Graphics.Render.Delta.Draw
             , deltaDrawChar
             , deltaDrawChars
             , deltaDrawStr
-            , deltaDrawTxt
             , module Imj.Graphics.Color
             , module Imj.Geo.Discrete.Types
             , String
@@ -20,7 +19,6 @@ module Imj.Graphics.Render.Delta.Draw
 import           Imj.Prelude
 
 import           Data.IORef( IORef , readIORef )
-import           Data.Text(Text, unpack)
 import           Data.Vector.Unboxed.Mutable( unsafeWrite, set, length, unsafeSlice, unsafeCopy )
 
 import           Imj.Geo.Discrete.Types
@@ -37,8 +35,8 @@ import           Imj.Graphics.UI.RectArea
 
 
 {-# INLINABLE deltaDrawChar #-}
--- | Draw a 'Char'
-deltaDrawChar :: IORef Buffers
+-- | Draw a 'Glyph'
+deltaDrawChar :: IORef Buffers -- TODO rename Char -> Glyph
               -> Glyph
               -> Coords Pos
               -- ^ Location
@@ -47,12 +45,13 @@ deltaDrawChar :: IORef Buffers
               -> IO ()
 deltaDrawChar ref glyph pos colors =
   readIORef ref >>= \(Buffers back@(Buffer b) _ w scissor _ _) -> do
-    let size = fromIntegral $ length b
-    writeToBack back (indexFromPos size w scissor pos) (mkCell colors glyph)
+    let cell = mkCell colors glyph
+        size = fromIntegral $ length b
+    writeToBack back (indexFromPos size w scissor pos) cell
 
 
 {-# INLINABLE deltaDrawChars #-}
--- | Draws a 'Char' multiple times, starting at the given coordinates and then moving to the right.
+-- | Draws a 'Glyph' multiple times, starting at the given coordinates and then moving to the right.
 --
 -- @deltaDrawChars n c@ should be faster than @deltaDrawStr (repeat n c)@,
 -- as the encoding of information in a 'Cell' happens once only. (TODO verify in GHC core with optimizations)
@@ -89,17 +88,6 @@ deltaDrawStr ref str pos colors =
       (\(c, i) ->
           writeToBack back (indexFromPos size w scissor (move i RIGHT pos)) (mkCell colors $ textGlyph c)) -- TODO look at core and see if the colors is encoded n (or 1) times
       $ zip str [0..]
-
-{-# INLINABLE deltaDrawTxt #-}
--- | Draw a 'Text'
-deltaDrawTxt :: IORef Buffers
-             -> Text
-             -> Coords Pos
-             -- ^ Location of first 'Char'
-             -> LayeredColor
-             -- ^ Background and foreground colors
-             -> IO ()
-deltaDrawTxt ref text = deltaDrawStr ref $ unpack text
 
 -- | Fills the scissor area with a colored char.
 deltaFill :: IORef Buffers -> Glyph -> LayeredColor -> IO ()

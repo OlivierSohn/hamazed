@@ -28,6 +28,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * Utilities
             , countChars
             , take
+            , simplify
             -- * Convert to colored Text
             , buildTxt
             , safeBuildTxt
@@ -57,7 +58,7 @@ import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString.Interpolation
 import           Imj.Util
 
-newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic)
+newtype ColorString = ColorString [(Text, LayeredColor)] deriving(Show, Generic, Eq)
 instance Monoid ColorString where
   mempty = ColorString []
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y

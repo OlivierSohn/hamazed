@@ -23,7 +23,6 @@ module Imj.Game.Hamazed.State.Types
       , getChat
       , getViewMode
       , getWorld
-      , getClientState
       , getCurScreen
       , getLastRenderTime
       , hasVisibleNonRenderedUpdates
@@ -39,7 +38,7 @@ module Imj.Game.Hamazed.State.Types
       , putGameConnection
       , putWorld
       , putAnimation
-      , putClientState
+      , putDrawnState
       , stateChat
       , addParticleSystems
       , updateOneParticleSystem
@@ -137,10 +136,6 @@ getChat = getChat' <$> gets game
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState AppState m => m World
 getWorld = currentWorld <$> getGameState
-
-{-# INLINABLE getClientState #-}
-getClientState :: MonadState AppState m => m ClientState
-getClientState = getClientState' <$> gets game
 
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState AppState m => m Screen
@@ -254,10 +249,15 @@ updateOneParticleSystem key t =
             key $ getParticleSystems w
     putWorld $ w {getParticleSystems = newSystems}
 
-{-# INLINABLE putClientState #-}
-putClientState :: MonadState AppState m => ClientState -> m ()
-putClientState i =
-  gets game >>= \g -> putGame $ g { getClientState' = i}
+{-# INLINABLE putDrawnState #-}
+putDrawnState :: (MonadState AppState m)
+              => Maybe ([ColorString]
+                      , (Evolution RecordDraw, Frame, Maybe Deadline))
+              -> m ()
+putDrawnState i =
+  gets game >>= \(Game clientState gs _ _ _ _) -> do
+    let x = maybe Nothing (\(a,b) -> Just (clientState,a,b)) i
+    putGameState $ gs { getDrawnClientState = x }
 
 {-# INLINABLE stateChat #-}
 stateChat :: MonadState AppState m => (Chat -> (Chat, a)) -> m a

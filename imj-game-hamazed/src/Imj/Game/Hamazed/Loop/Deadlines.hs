@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Game.Hamazed.Loop.Deadlines
     ( getNextDeadline
@@ -12,7 +13,7 @@ import           Imj.Prelude
 
 import           Data.List( minimumBy, sortBy)
 import           Data.Map (toList)
-import           Data.Maybe( maybeToList )
+import           Data.Maybe( catMaybes )
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -65,13 +66,14 @@ getNextDeadline t =
     let l = getDeadlinesByDecreasingPriority st
         overdues = filter (\(Deadline t' _ _) -> t' < t) l
     return $ case overdues of
-      [] ->
-        Future <$> earliestDeadline' l
-      highPriorityOverdue:_ ->
-        Just $ Overdue highPriorityOverdue
+          [] ->
+            Future <$> earliestDeadline' l
+          highPriorityOverdue:_ ->
+            Just $ Overdue highPriorityOverdue
 
 data TypedDeadline = Future {-# UNPACK #-} !Deadline
                    | Overdue {-# UNPACK #-} !Deadline
+                   deriving(Generic, Show)
 
 
 earliestDeadline' :: [Deadline] -> Maybe Deadline
@@ -83,8 +85,15 @@ getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
 getDeadlinesByDecreasingPriority s =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
-    maybeToList (uiAnimationDeadline s)
-     ++ getParticleSystemsDeadlines s
+    catMaybes [uiAnimationDeadline s, stateAnimDeadline s]
+    ++ getParticleSystemsDeadlines s
+
+stateAnimDeadline :: GameState -> Maybe Deadline
+stateAnimDeadline gs =
+  maybe
+    Nothing
+    (\(_,_,(_,_,mayD)) -> mayD)
+    $ getDrawnClientState gs
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
 getParticleSystemsDeadlines =

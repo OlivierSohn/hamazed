@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Graphics.Class.Draw
     ( Draw(..)
@@ -15,7 +16,7 @@ module Imj.Graphics.Class.Draw
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Text(Text)
+import           Data.Text(Text, unpack)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.RectArea
@@ -53,10 +54,13 @@ class (Canvas e) => Draw e where
   drawGlyph' :: (MonadIO m) => e -> Glyph -> Coords Pos -> LayeredColor -> m ()
   -- | Draw repeated chars.
   drawGlyphs' :: (MonadIO m) => e -> Int -> Glyph -> Coords Pos -> LayeredColor -> m ()
-  -- | Draw 'Text'.
-  drawTxt' :: (MonadIO m) => e -> Text -> Coords Pos -> LayeredColor -> m ()
   -- | Draw 'String'.
   drawStr' :: (MonadIO m) => e -> String -> Coords Pos -> LayeredColor -> m ()
+
+  -- | Draw 'Text'.
+  drawTxt' :: (MonadIO m) => e -> Text -> Coords Pos -> LayeredColor -> m ()
+  drawTxt' e txt = drawStr' e (unpack txt)
+  {-# INLINABLE drawTxt' #-}
 
   {- |
   1. Store the current 'Scissor'

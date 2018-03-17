@@ -519,11 +519,12 @@ handleIncomingEvent' = \case
       IntentPlayGame Nothing ->
         modify' $ \s -> s { intent = IntentPlayGame $ Just outcome }
       IntentPlayGame (Just candidate) -> -- replace this by using the outcome in client state?
-        if candidate == outcome
-          then
-            return ()
-          else
+        case candidate of
+          Won -> when (outcome /= candidate) $
             gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
+          Lost _ -> case outcome of
+            Won ->  gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
+            Lost _ -> return () -- we allow losing reasons to differ
       IntentSetup ->
         gameError "LevelEnded received while in IntentSetup"
     gets onlyPlayersMap >>= \players' -> do
@@ -680,7 +681,7 @@ updateCurrentStatus :: (MonadState ServerState m, MonadIO m)
                     => Maybe GameStatus
                     -- ^ the reference to take into account, if different from current status.
                     -> m (Maybe GameStatus)
-updateCurrentStatus ref = gets scheduledGame >>= \game -> tryReadMVar game >>= maybe
+updateCurrentStatus ref = gets scheduledGame >>= tryReadMVar >>= maybe
   (return Nothing)
   (\(CurrentGame _ gamePlayers status) -> do
     connectedPlayers' <- gets onlyPlayersMap

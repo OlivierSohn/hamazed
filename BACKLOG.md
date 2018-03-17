@@ -1,4 +1,5 @@
-- generalize rasterized string usage for you win / you lose message (if no additional status exists)
+- When there is a common prefix, use a single value in the successive,
+and start or arrive at the number corresponding to the prefix.
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

@@ -4,8 +4,11 @@
 module Imj.Graphics.Text.RasterizedString
          ( RasterizedString
          , mkRasterizedString
+         , mkRasterizedStringFromColorString
          , drawVerticallyCentered
-         -- TODO split
+         -- * Color functions
+         , grayGradient
+         -- * TODO split
          , withFreeType
          , loadChar
          , getCharIndex
@@ -37,34 +40,52 @@ import qualified Imj.Graphics.Class.Positionable as Pos
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
+import           Imj.Graphics.Text.ColorString
 import           Imj.Util
 
+type CharPosition = Int
+type ColorFunc = CharPosition -> Int -> LayeredColor
 data RasterizedString = RasterizedString {
     _str :: !String
   , _face :: !SizedFace
+  , _colorFunc :: ColorFunc
   , _srBBox :: !Size
 }
 instance Pos.Positionable RasterizedString where
-  height (RasterizedString _ _ (Size h _)) = h
-  width (RasterizedString _ _ (Size _ w)) = w
-  drawAt (RasterizedString str (SizedFace face _) (Size h _)) (Coords refY refX) =
-    rasterizeString face str 1 $ \char c@(Coords y x) value ->
+  height (RasterizedString _ _ _ (Size h _)) = h
+  width (RasterizedString _ _ _ (Size _ w)) = w
+  drawAt (RasterizedString str (SizedFace face _) color (Size h _)) (Coords refY refX) =
+    rasterizeString face str 1 $ \i char c@(Coords y x) value ->
       when (value > 0) $
-        drawGlyph (textGlyph char) (sumCoords ref $ Coords (-y) x) $ onBlack $ fg $ dist c
+        drawGlyph (textGlyph char) (sumCoords ref $ Coords (-y) x) $ color i $ dist c
    where
     ref = Coords (refY + fromIntegral h) refX
-    fg d =
-      let v = quot (d+2) 6
-      --in interpolate (rgb 2 1 0) (rgb 5 4 0) v
-      in gray $ clamp (4 + 2*v) 0 23
 
 {-# INLINE dist #-}
 dist :: Coords Pos -> Int
 dist (Coords (Coord y) (Coord x)) = x+y
 
-mkRasterizedString :: String -> SizedFace -> IO RasterizedString
-mkRasterizedString str sizedFace@(SizedFace face _) =
-  RasterizedString str sizedFace <$> getRasterizedStringSize face str 1
+mkRasterizedString :: String -> ColorFunc -> SizedFace -> IO RasterizedString
+mkRasterizedString str color sizedFace@(SizedFace face _) =
+  RasterizedString str sizedFace color <$> getRasterizedStringSize face str 1
+
+mkRasterizedStringFromColorString :: ColorString -> SizedFace -> IO RasterizedString
+mkRasterizedStringFromColorString cs face = do
+  let s = simplify cs
+      str = map fst s
+      colors = map snd s
+  mkRasterizedString str (funcFromColors colors) face
+
+grayGradient :: Int -> Int -> LayeredColor
+grayGradient _ d =
+  let v = quot (d+2) 6
+  --in interpolate (rgb 2 1 0) (rgb 5 4 0) v
+  in onBlack $ gray $ clamp (4 + 2*v) 0 23
+
+funcFromColors :: [LayeredColor] -> Int -> Int -> LayeredColor
+funcFromColors [] _ _ = error "logic" -- colorstring is supposed to have an equal number of char and colors
+funcFromColors (c:_) 0 _ = c
+funcFromColors (_:colors) charIdx i = funcFromColors colors (pred charIdx) i
 
 drawVerticallyCentered :: (Pos.Positionable a
                          , MonadIO m
@@ -110,11 +131,11 @@ rasterizeString :: (MonadIO m)
                 -- ^ The title text
                 -> Length Width
                 -- ^ The number of whitespace between letters
-                -> (Char -> Coords Pos -> Int -> m ())
+                -> (Int -> Char -> Coords Pos -> Int -> m ())
                 -> m ()
 rasterizeString face str interLetterSpaces f =
   foldM_
-    (\pos c -> do
+    (\(idx,pos) c -> do
       liftIO $ if c == ' '
               then
                 loadChar face charForSizeOfSpace
@@ -132,17 +153,16 @@ rasterizeString face str interLetterSpaces f =
           forM_
             [0..pred w :: Int]
             (\i -> do
-              let idx = i + j * w
-              signed <- fromIntegral <$> liftIO (peekElemOff buf idx)
+              signed <- fromIntegral <$> liftIO (peekElemOff buf $ i + j * w)
               let unsigned =
                     if signed < 0
                       then
                         256 + signed
                       else
                         signed :: Int
-              f c (sumCoords pos $ Coords (fromIntegral (pred h) - fromIntegral j) (fromIntegral i)) unsigned))
-      return $ Pos.move (w + fromIntegral interLetterSpaces) RIGHT pos)
-    zeroCoords str
+              f idx c (sumCoords pos $ Coords (fromIntegral (pred h) - fromIntegral j) (fromIntegral i)) unsigned))
+      return (succ idx, Pos.move (w + fromIntegral interLetterSpaces) RIGHT pos))
+    (0,zeroCoords) str
 
 ------------------------ -- TODO split
 

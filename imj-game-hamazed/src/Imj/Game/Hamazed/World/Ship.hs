@@ -92,7 +92,7 @@ updateShipsText :: (MonadState AppState m)
                 => m ()
 updateShipsText =
   getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
-                               (UIAnimation (UIEvolutions j upDown _) p) (Screen _ center) mode names) -> do
+                               (UIAnimation (UIEvolutions j upDown _) p) _ (Screen _ center) mode names) -> do
     let newLeft =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode

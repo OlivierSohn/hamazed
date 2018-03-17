@@ -49,7 +49,7 @@ translatePlatformEvent k = case k of
         AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
         AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
         _ -> do
-          (ClientState activity state) <- getClientState
+          (ClientState activity state) <- getClientState <$> gets game
           case activity of
             Over -> return Nothing
             Ongoing -> case state of

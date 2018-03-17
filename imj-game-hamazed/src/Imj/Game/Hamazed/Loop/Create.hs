@@ -68,11 +68,11 @@ mkIntermediateState :: (MonadIO m)
 mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
   let screen@(Screen _ newScreenCenter) = mkScreen maySz
       newWorld@(World _ _ space _ _ _) = mkWorld essence
-      (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums) =
+      (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums, stAnim) =
         maybe
-        (newWorld, newScreenCenter, newLevel, [])
-        (\(GameState w _ curShotNums (Level curLevel _) _ (Screen _ center) _ _) ->
-            (w, center, curLevel, curShotNums))
+        (newWorld, newScreenCenter, newLevel, [], Nothing)
+        (\(GameState w _ curShotNums (Level curLevel _) _ stateAnim (Screen _ center) _ _) ->
+            (w, center, curLevel, curShotNums, stateAnim))
           mayState
       curInfos = mkInfos Normal        (Map.elems $ getWorldShips curWorld) names shotNums    level
       newInfos = mkInfos ColorAnimated (Map.elems $ getWorldShips newWorld) names newShotNums newLevel
@@ -87,10 +87,10 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
           horizontalDist verticalDist kt
           -- only when UIAnimation is over, curWorld will be replaced by newWorld.
           -- during UIAnimation, we need the two worlds.
-  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation screen mode names
+  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation stAnim screen mode names
 
 mkGameStateEssence :: GameState -> GameStateEssence
-mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _) =
+mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _ _) =
   GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums levelEssence
 
 mkWorld :: WorldEssence -> World

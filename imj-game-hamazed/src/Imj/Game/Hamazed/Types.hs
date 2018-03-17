@@ -22,6 +22,7 @@ module Imj.Game.Hamazed.Types
     , module Imj.Game.Hamazed.Level.Types
     , module Imj.Game.Hamazed.World.Types
     , UIAnimation
+    , RecordDraw
     ) where
 
 import           Imj.Prelude
@@ -29,6 +30,7 @@ import           Control.Exception.Base(Exception(..))
 import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 
+import           Imj.Graphics.RecordDraw
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -38,6 +40,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.Text.ColorString
 
 
 -- Note that we don't have GracefulClientEnd, because we use exitSuccess in that case
@@ -82,7 +85,7 @@ data GenEvent =
     deriving(Generic, Show)
 
 data Game = Game {
-    getClientState' :: {-# UNPACK #-} !ClientState
+    getClientState :: {-# UNPACK #-} !ClientState
   , getGameState' :: !GameState
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
   , getServer :: {-unpack sum-} !Server
@@ -105,11 +108,20 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
+  , getDrawnClientState :: Maybe (ClientState -- the state it refers to
+                                , [ColorString]
+                                , (Evolution RecordDraw, Frame, Maybe Deadline))
   , getScreen :: {-# UNPACK #-} !Screen
   , getViewMode' :: {-unpack sum-} !ViewMode
   , getPlayers' :: !(Map ShipId Player)
 }
-
+{-
+data MessageLine = MessageLine {
+    getStr :: !ColorString -- ^ The raw message, just used to compare with new messages. For rendering,
+                           -- the Evolution RecordDraw hereunder is used.
+  , getRecord :: Maybe (Evolution RecordDraw, Frame, Maybe Deadline)
+}
+-}
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
                        -- 6 has always been ok

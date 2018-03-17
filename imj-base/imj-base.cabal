@@ -72,6 +72,7 @@ library
                      , Imj.Graphics.Interpolation.SequentiallyInterpolatedList
                      , Imj.Graphics.Interpolation.Evolution
                      , Imj.Graphics.Math.Ease
+                     , Imj.Graphics.RecordDraw
                      , Imj.Graphics.Render
                      , Imj.Graphics.Render.Delta
                      , Imj.Graphics.Render.Delta.Backend

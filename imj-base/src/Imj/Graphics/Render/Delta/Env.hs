@@ -21,8 +21,8 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(liftIO)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
-import           Data.IORef( IORef, readIORef, writeIORef )
-import           Data.Maybe( fromMaybe )
+import           Data.IORef(IORef, readIORef, writeIORef, modifyIORef')
+import           Data.Maybe(fromMaybe)
 import           UnliftIO.Exception(finally)
 
 import           Imj.Graphics.Class.Canvas
@@ -50,14 +50,12 @@ instance Draw DeltaEnv where
   getScissor'    (DeltaEnv a _ _ _ _ _)         = liftIO $ deltaGetScissor a
   drawGlyph'     (DeltaEnv a _ _ _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
   drawGlyphs'    (DeltaEnv a _ _ _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
-  drawTxt'       (DeltaEnv a _ _ _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
   drawStr'       (DeltaEnv a _ _ _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
   {-# INLINABLE drawGlyph' #-}
   {-# INLINABLE drawGlyphs' #-}
-  {-# INLINABLE drawTxt' #-}
   {-# INLINABLE drawStr' #-}
 
 instance Canvas DeltaEnv where
@@ -151,10 +149,9 @@ setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
                 -> IO ()
 setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies _ f g)) -> do
-      let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
-      writeIORef ref $ Buffers a b c d e (Policies resizePolicy f g)
+  modifyIORef' ref $ \b@(Buffers _ _ _ _ _ (Policies _ f g)) ->
+    let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
+    in b { getPolicies = Policies resizePolicy f g }
 
 
 -- | Sets the 'ClearPolicy'.
@@ -163,11 +160,9 @@ setClearPolicy :: Maybe ClearPolicy
                -> DeltaEnv
                -> IO ()
 setClearPolicy mayClearPolicy (DeltaEnv ref _ _ _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
-      let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
-          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
-      writeIORef ref buffers
+  modifyIORef' ref $ \b@(Buffers _ _ _ _ _ (Policies f _ clearColor)) ->
+    let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
+    in b { getPolicies = Policies f clearPolicy clearColor }
 
 -- | Sets the 'Color8' to use when clearing.
 --   Defaults to 'defaultClearColor' when Nothing is passed.
@@ -175,20 +170,16 @@ setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv
               -> IO ()
 setClearColor mayClearColor (DeltaEnv ref _ _ _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
-      let clearColor = fromMaybe defaultClearColor mayClearColor
-          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
-      writeIORef ref buffers
+  modifyIORef' ref $ \(Buffers a b c d e (Policies f clearPolicy _)) ->
+    let clearColor = fromMaybe defaultClearColor mayClearColor
+    in Buffers a b c d e (Policies f clearPolicy clearColor)
 
 
 deltaSetScissor :: IORef Buffers
                 -> Scissor
                 -> IO ()
 deltaSetScissor ref v =
-  readIORef ref
-    >>= \(Buffers a b c _ e f) ->
-          writeIORef ref (Buffers a b c v e f)
+  modifyIORef' ref $ \(Buffers a b c _ e f) -> Buffers a b c v e f
 
 deltaGetScissor :: IORef Buffers
                 -> IO Scissor

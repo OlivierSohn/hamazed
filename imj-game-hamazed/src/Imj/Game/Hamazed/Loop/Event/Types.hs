@@ -45,8 +45,8 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ Update one or more 'ParticleSystem's.
                   | AnimateUI
                   -- ^ Update the inter-level animation
-                  | RedrawStatus {-# UNPACK #-} !Frame
-                  -- ^ The status is being progressively displayed
+                  | RedrawStatus {-# UNPACK #-} !(Frame,Int)
+                  -- ^ The status is being progressively displayed, with line index.
                   deriving(Eq, Show)
 
 data Event = Configuration {-# UNPACK #-} !Char

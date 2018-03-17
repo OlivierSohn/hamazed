@@ -11,6 +11,7 @@ module Imj.Game.Hamazed.Loop.Update
       ) where
 
 import           Imj.Prelude hiding(intercalate)
+import           Prelude(length)
 
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
@@ -20,7 +21,8 @@ import           Data.Attoparsec.Text(parseOnly)
 import           Data.List(foldl')
 import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
 import qualified Data.Set as Set (empty, union, size, null, toList)
-import           Data.Text(pack, unpack, strip)
+import           Data.Text(pack, unpack, strip, uncons)
+import qualified Data.Text as Text(length)
 import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
@@ -321,47 +323,60 @@ putClientState i = do
 updateStatus :: (MonadState AppState m
                , MonadReader e m, HasSizedFace e
                , MonadIO m)
-             => Maybe Frame
+             => Maybe (Frame, Int)
              -- ^ When Nothing, the current frame should be used.
              -> Time Point System
              -> m ()
-updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnState (Screen _ ref) _ _) _ _ _ _) -> do
-  newStrs <- go state
-  -- we could have a datastructure where each line has its corresponding 'RecordDraw'
-  -- and
-  let canInterrupt = maybe
-        True
-        (\(oldState,oldStrs,_) -> oldState /= state && newStrs /= oldStrs)
-        drawnState
-  when canInterrupt $ do
-    let mayPrevRecord =
-          maybe
-            Nothing
-            (\(_,_,(Evolution (Successive s) _ _ _, _, _)) ->
-              case s of
+updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnState' (Screen _ ref) _ _) _ _ _ _) -> do
+  let drawnState = zip [0 :: Int ..] drawnState'
+  newStrs <- zip [0 :: Int ..] <$> go state
+  -- return the same evolution when the string didn't change.
+  part1 <- forM
+    (zip newStrs drawnState)
+    (\((i,newStr),(_,(curStr,curLine@(AnimatedLine (Evolution (Successive s) _ _ _) _ _)))) ->
+      if newStr == curStr
+        then
+          return (curStr,curLine)
+        else do
+          let mayPrevRecord = case s of
                 [] -> Nothing
-                _ -> Just $ last s)
-            drawnState
-    recordFromStrs ref newStrs state >>= (\newRecord -> do
-        evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
-        return $ Just ( newStrs
-                      , ( if null newStrs
-                            then
-                              mkEvolutionEaseInQuart (Successive [evolutionStart,newRecord]) $ fromSecs 0.5
-                            else
-                              mkEvolutionEaseQuart (Successive [evolutionStart,newRecord]) $ fromSecs 1
-                        , 0
-                        , Nothing)))
-      >>= putDrawnState
+                _ -> Just $ last s
+          evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
+          evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
+          let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
+          return (newStr, AnimatedLine ev 0 Nothing))
+  part2 <- forM
+    (drop (length drawnState) newStrs)
+    (\(i,newStr) -> do
+      evolutionStart <- liftIO mkZeroRecordDraw
+      evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
+      let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
+      return (newStr, AnimatedLine ev 0 Nothing))
+  part3 <- catMaybes <$> forM
+    (drop (length newStrs) drawnState)
+    (\(_,(oldStr,oldRec@(AnimatedLine (Evolution (Successive s) _ _ _) _ deadline))) ->
+      if oldStr == ""
+        then
+          return $ maybe Nothing (const $ Just (oldStr,oldRec)) deadline
+        else do
+          let mayPrevRecord = case s of
+                [] -> Nothing
+                _ -> Just $ last s
+          evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
+          evolutionEnd <- liftIO mkZeroRecordDraw
+          let ev = mkEvolutionEaseInQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 0.5
+          return $ Just ("", AnimatedLine ev 0 Nothing))
+  putDrawnState $ part1 ++ part2 ++ part3
   updateStatusDeadline
  where
-  updateStatusDeadline :: MonadState AppState m
-                       => m ()
+  updateStatusDeadline :: MonadState AppState m => m ()
   updateStatusDeadline =
-    getDrawnClientState <$> getGameState >>= maybe
-      (return ())
-      (\(_,strs,(recordEvolution, curFrame, _)) -> do
-        let frame = fromMaybe curFrame mayFrame
+    zip [0..] . getDrawnClientState <$> getGameState >>= mapM
+      (\(i, (str, AnimatedLine recordEvolution curFrame _)) -> do
+        let frame = fromMaybe curFrame $ maybe
+              Nothing
+              (\(targetFrame,j) -> if i==j then Just targetFrame else Nothing)
+              mayFrame
             minDt = fromSecs 0.015
             significantDeadline f sofar = maybe
               (succ f, sofar)
@@ -374,29 +389,20 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
                       significantDeadline (succ f) $ Just newDuration)
               $ getDeltaTimeToNextFrame recordEvolution f
             (deadlineFrame, deadlineGap) = significantDeadline frame Nothing
-            mayTime = fmap (`addDuration` t) deadlineGap
-        putDrawnState $
-          Just (strs
-              , (recordEvolution
-              , frame
-              , fmap (\d -> Deadline d redrawStatusPriority $ RedrawStatus deadlineFrame) mayTime)))
-  recordFromStrs ref [_] (ClientState Ongoing (PlayLevel (Countdown n Running))) =
-    informProgressively ref (mkRasterizedString (show n) grayGradient)
-  recordFromStrs ref [unique] _ =
-    if countChars unique < 3
-      then
-        informProgressively ref (mkRasterizedStringFromColorString unique)
-      else
-        drawStrs ref [unique]
-  recordFromStrs ref strs _ = drawStrs ref strs
-  drawStrs ref strs =
-    liftIO mkRecordDraw >>= \e -> do
-      flip runReaderT e $
-        zipWithM_
-          (flip drawAligned_)
-          (map (\i -> mkCentered $ move (2*i) Down ref) [0..])
-          strs
-      liftIO (finalizeRecord e)
+            deadline = fmap (\d -> Deadline (addDuration d t) redrawStatusPriority $ RedrawStatus (deadlineFrame,i)) deadlineGap
+        return (str, AnimatedLine recordEvolution frame deadline))
+      >>= putDrawnState
+  recordFromStrs ref (ColorString [(txt,_)])
+    | Text.length txt == 1 =
+        let (c,_) = fromMaybe (error "logic") $ uncons txt
+        in informProgressively ref $ mkRasterizedString [c] grayGradient
+  recordFromStrs ref unique
+    | countChars unique < 3 =
+        informProgressively ref $ mkRasterizedStringFromColorString unique
+    | otherwise =
+        liftIO mkRecordDraw >>= \e -> do
+          flip runReaderT e $ drawAligned_ unique $ mkCentered ref
+          liftIO (finalizeRecord e)
   informProgressively ref x = do
     face <- asks getSizedFace
     e <- liftIO mkRecordDraw

@@ -58,7 +58,7 @@ import           Imj.Timing
 data Evolution v = Evolution {
     getSuccessives :: !(Successive v)
   -- ^ 'Successive' 'DiscreteDistance's.
-  , _evolutionLastFrame :: {-# UNPACK #-} !Frame
+  , getLastFrame :: {-# UNPACK #-} !Frame
   -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
   , _evolutionDuration :: {-# UNPACK #-} !(Time Duration System)
   -- ^ Duration of the interpolation

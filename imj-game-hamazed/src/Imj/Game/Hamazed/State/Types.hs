@@ -251,13 +251,10 @@ updateOneParticleSystem key t =
 
 {-# INLINABLE putDrawnState #-}
 putDrawnState :: (MonadState AppState m)
-              => Maybe ([ColorString]
-                      , (Evolution RecordDraw, Frame, Maybe Deadline))
+              => [(ColorString, AnimatedLine)]
               -> m ()
 putDrawnState i =
-  gets game >>= \(Game clientState gs _ _ _ _) -> do
-    let x = maybe Nothing (\(a,b) -> Just (clientState,a,b)) i
-    putGameState $ gs { getDrawnClientState = x }
+  getGameState >>= \gs -> putGameState $ gs { getDrawnClientState = i }
 
 {-# INLINABLE stateChat #-}
 stateChat :: MonadState AppState m => (Chat -> (Chat, a)) -> m a

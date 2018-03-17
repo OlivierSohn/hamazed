@@ -11,6 +11,7 @@ module Imj.Game.Hamazed.Types
     , Game(..)
     , GameTime
     , GameState(..)
+    , AnimatedLine(..)
     , UpdateEvent
     , EventGroup(..)
     , GenEvent(..)
@@ -108,20 +109,20 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
-  , getDrawnClientState :: Maybe (ClientState -- the state it refers to
-                                , [ColorString]
-                                , (Evolution RecordDraw, Frame, Maybe Deadline))
+  , getDrawnClientState :: [( ColorString -- The raw message, just used to compare with new messages. For rendering,
+                                          -- AnimatedLine is used.
+                          , AnimatedLine)]
   , getScreen :: {-# UNPACK #-} !Screen
   , getViewMode' :: {-unpack sum-} !ViewMode
   , getPlayers' :: !(Map ShipId Player)
 }
-{-
-data MessageLine = MessageLine {
-    getStr :: !ColorString -- ^ The raw message, just used to compare with new messages. For rendering,
-                           -- the Evolution RecordDraw hereunder is used.
-  , getRecord :: Maybe (Evolution RecordDraw, Frame, Maybe Deadline)
-}
--}
+
+data AnimatedLine = AnimatedLine {
+    getRecordDrawEvolution :: !(Evolution RecordDraw)
+  , getALFrame :: !Frame
+  , getALDeadline :: Maybe Deadline
+} deriving(Generic, Show)
+
 minRandomBlockSize :: Int
 minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
                        -- 6 has always been ok

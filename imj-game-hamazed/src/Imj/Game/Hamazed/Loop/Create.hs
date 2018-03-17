@@ -70,7 +70,7 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
       newWorld@(World _ _ space _ _ _) = mkWorld essence
       (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums, stAnim) =
         maybe
-        (newWorld, newScreenCenter, newLevel, [], Nothing)
+        (newWorld, newScreenCenter, newLevel, [], [])
         (\(GameState w _ curShotNums (Level curLevel _) _ stateAnim (Screen _ center) _ _) ->
             (w, center, curLevel, curShotNums, stateAnim))
           mayState

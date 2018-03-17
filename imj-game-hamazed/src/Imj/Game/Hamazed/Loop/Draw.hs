@@ -73,11 +73,7 @@ drawStatus =
         getCurScreen >>= \(Screen _ center) -> getWorld >>=
           drawSetup . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace -- TODO using progressivelyInform
       _ -> return ()
-    maybe
-      (return ())
-      (\(_,_,(record,frame,_)) -> drawMorphingAt record frame)
-      (getDrawnClientState gs)
-
+    forM_ (getDrawnClientState gs) $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}
 drawSetup :: (Draw e, MonadReader e m, MonadIO m)
@@ -106,7 +102,7 @@ drawSetup cont = do
       , "'f' : On ship"
       ]
       -}
-    >>= section "OpenGL only"
+    >>= section "OpenGL rendering"
       [ "'Up' 'Down' : Change font"
       , "'Left' 'Right' : Change font size"
       ]

@@ -61,25 +61,50 @@ import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete.Types
 import           Imj.Util
 
-{-| These fonts have sometimes been modified to reduce the negative height
-of the Pipe glyph, ascend the underline and center the '+'. -}
+{-| These fonts have often been modified to :
+
+* reduce the negative height of the Pipe glyph
+* ascend the underline
+* and center '+'
+-}
 fontFiles :: [(ByteString, String, [(FontMargin, PPU)])]
-fontFiles = [
-           ($(embedFile "fonts/whitrabt.ttf"), "White rabbit",
-            [(0, Size 14 8), (1, Size 14 10)])
-           , ($(embedFile "fonts/Extrude.ttf"), "Extrude",
-            [(0, Size 15 13)])
-           , ($(embedFile "fonts/3Dventure.ttf"), "3DVenture",
-            [(0, Size 12 11)])
-           , ($(embedFile "fonts/VCR_OSD_MONO_1.001.ttf"), "VCR",
-            [(0, Size 12 8), (0, Size 13 9)])
-           , ($(embedFile "fonts/Pixel LCD-7.ttf"), "LCD",
-            [(0, Size 13 7), (0, Size 14 9), (0, Size 14 8), (0, Size 13 8), (0, Size 12 8)])
-           , ($(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf"), "SourceCodePro",
-            [(0, Size 14 8), (0, Size 12 6)])
-           , ($(embedFile "fonts/typwrng.ttf"), "Type wrong",
-            [(0, Size 12 10)]) -- '| is offset'
-           ]
+fontFiles =
+  [($(embedFile "fonts/whitrabt.ttf")
+   , "White rabbit"
+   , [ (0, Size 14 8)
+     , (1, Size 14 10)
+     ])
+ , ($(embedFile "fonts/Extrude.ttf")
+   , "Extrude"
+   , [ (0, Size 15 13)
+     ])
+ , ($(embedFile "fonts/3Dventure.ttf")
+   , "3DVenture"
+   , [ (0, Size 12 11)
+     ])
+ , ($(embedFile "fonts/VCR_OSD_MONO_1.001.ttf")
+   , "VCR"
+   , [ (0, Size 12 8)
+     , (0, Size 13 9)
+     ])
+ , ($(embedFile "fonts/Pixel LCD-7.ttf")
+   , "LCD"
+   , [ (0, Size 13 7)
+     , (0, Size 14 9)
+     , (0, Size 14 8)
+     , (0, Size 13 8)
+     , (0, Size 12 8)
+     ])
+ , ($(embedFile "fonts/SrcCodPro-Bold-PipeReduced.ttf")
+   , "SourceCodePro"
+   , [ (0, Size 14 8)
+     , (0, Size 12 6)
+     ])
+ , ($(embedFile "fonts/typwrng.ttf")
+   , "Type wrong"
+   , [ (0, Size 12 10)
+     ])
+ ]
 
 mkFontsVariations :: FontsVariations
 mkFontsVariations = FontsVariations l 0

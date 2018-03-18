@@ -119,7 +119,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import qualified Data.Set as Set(empty, null, member, fromList, unions, size)
+import qualified Data.Set as Set(empty, null, member, fromList, unions, union, size)
 import qualified Data.Map.Strict as Map(elems, insert, lookup, lookupMin, map, empty, null, keysSet, foldl', alter
                                       , findWithDefault, mapAccumWithKey, fromListWith)
 import           Data.List(elem, length)
@@ -323,11 +323,12 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
 
           -- lists are ascending, hence fromList(s) have a linear complexity.
           -- Set.unions also has a linear complexity, overall we have a linear complexity here.
-          okTargets = Set.unions $ map Set.fromList possibleLists
+          possibleSets = map Set.fromList possibleLists
+          okTargets = Set.unions possibleSets
 
           -- preferred numbers are on the preferred path (least length)
-          mapLengths = Map.fromListWith const (map (\l -> (length l,l)) possibleLists)
-          preferredSet = Set.fromList $ maybe [] snd $ Map.lookupMin mapLengths
+          mapLengths = Map.fromListWith Set.union (map (\l -> (Set.size l,l)) possibleSets)
+          preferredSet = maybe Set.empty snd $ Map.lookupMin mapLengths
 
           newNumbers =
             Map.map

@@ -103,6 +103,7 @@ import           Imj.Graphics.Text.ColorString(ColorString)
 import qualified Imj.Graphics.Text.ColorString as ColorString(colored, intercalate)
 import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
 import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
+import           Imj.Timing
 
 -- | a Server, seen from a Client's perspective
 data Server = Distant !ServerName !ServerPort
@@ -165,7 +166,7 @@ data EventsForClient =
 data ClientEvent =
     Connect !SuggestedPlayerName {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !StateValue
-  | WorldProposal {-# UNPACK #-} !WorldEssence
+  | WorldProposal !(Maybe WorldEssence) !(Maybe Statistics)
     -- ^ In response to 'WorldRequest'
   | CurrentGameState {-# UNPACK #-} !GameStateEssence
     -- ^ In response to ' CurrentGameStateRequest'
@@ -195,8 +196,9 @@ data ServerEvent =
   | ExitState {-unpack sum-} !StateValue
   | PlayerInfo {-unpack sum-} !PlayerNotif {-# UNPACK #-} !ShipId
   | GameInfo {-unpack sum-} !GameNotif
-  | WorldRequest {-# UNPACK #-} !WorldSpec
-  -- ^ Upon reception, the client should respond with a 'WorldProposal'.
+  | WorldRequest {-# UNPACK #-} !(Time Duration System) !(Maybe Statistics) {-# UNPACK #-} !WorldSpec
+  -- ^ Upon reception, the client should respond with a 'WorldProposal', within the
+  -- given duration. The 'Statistics' should be used as a starting point.
   | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
   | CurrentGameStateRequest

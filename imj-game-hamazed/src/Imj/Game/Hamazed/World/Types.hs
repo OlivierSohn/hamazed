@@ -67,7 +67,6 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
 
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea

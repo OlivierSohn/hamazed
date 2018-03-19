@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Data.StdoutBuffer
+  exposed-modules:     Imj.Data.Matrix.Unboxed
+                     , Imj.Data.StdoutBuffer
                      , Imj.Data.Tree
                      , Imj.Data.Vector.Unboxed.Mutable.Dynamic
                      , Imj.Example.DeltaRender.FromMonadIO
@@ -123,6 +124,7 @@ library
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal >= 0.6.3.1 && < 0.9
+                     , binary == 0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers >= 0.5.9.2
@@ -132,11 +134,12 @@ library
                      , FTGL ==2.1.*
                      , GLFW-b ==1.4.*
                      , imj-prelude ==0.1.*
+                     , loop ==0.3.*
+                     , matrix >= 0.3.5.0
                      , mtl >= 2.2.1 && < 2.3
                      , OpenGL ==3.0.*
                      , pretty-show ==1.6.*
                      , primitive ==0.6.*
-                     , random ==1.1.*
                      , stm ==2.4.*
                      , strict-concurrency ==0.2.*
                      , temporary ==1.2.*

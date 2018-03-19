@@ -13,6 +13,7 @@ module Imj.Game.Hamazed.Loop.Update
 import           Imj.Prelude hiding(intercalate)
 import           Prelude(length)
 
+import           Control.Concurrent(forkIO)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -96,8 +97,13 @@ updateAppState (Left evt) = case evt of
   Reporting cmd res ->
     stateChat $ addMessage $ Information Info $
       pack (show cmd) <> " is:" <> res
-  WorldRequest spec ->
-    liftIO (mkWorldEssence spec) >>= sendToServer . WorldProposal
+  WorldRequest dt stats spec -> do
+    deadline <- addDuration dt <$> liftIO getSystemTime
+    let continue = getSystemTime >>= \t -> return (t < deadline)
+    asks sendToServer' >>= \f ->
+      void $ liftIO $ forkIO $ mkWorldEssence spec continue >>= \(res, stats') -> do
+        let mergedStats = mergeMayStats stats stats'
+        f $ WorldProposal res mergedStats
   CurrentGameStateRequest ->
     sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
   ChangeLevel levelEssence worldEssence ->
@@ -203,7 +209,7 @@ updateGameParamsFromChar = \case
   '1' -> sendToServer $ ChangeWorldShape Square
   '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
   'e' -> sendToServer $ ChangeWallDistribution None
-  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize OneComponentPerShip
+  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 OneComponentPerShip
   {-
   'd' -> putViewMode CenterSpace -- TODO force a redraw?
   'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?

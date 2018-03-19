@@ -47,8 +47,8 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
-import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
@@ -507,7 +507,7 @@ handleIncomingEvent' = \case
       adjustClient $ \c -> c { getState = Just ReadyToPlay }
       publish Joins
       -- request world to let the client have a world
-      requestWorld
+      requestWorld Nothing
       -- next step when client 'IsReady'
     _ -> do
       notifyClient $ EnterState Excluded
@@ -571,13 +571,17 @@ handleIncomingEvent' = \case
       modify' $ \s -> s { intent = IntentPlayGame Nothing }
       publish StartsGame
       notifyPlayers $ ExitState Setup
-      requestWorld
+      requestWorld Nothing
     _ -> return ()
-  WorldProposal essence ->
-    get >>= \(ServerState _ _ _ levelSpec _ lastWid _ _ _ _) -> do
-      let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
-      when (lastWid == Just wid) $
-        notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence
+  WorldProposal mayEssence stats -> do
+    log $ colored (pack $ maybe "Nothing" prettyShowStats stats) white
+    maybe
+      (requestWorld stats)
+      (\essence -> get >>= \(ServerState _ _ _ levelSpec _ lastWid _ _ _ _) -> do
+          let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
+          when (lastWid == Just wid) $
+            notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence)
+      mayEssence
   CurrentGameState gameStateEssence ->
     gets scheduledGame >>= liftIO . tryReadMVar >>= \case
       Just (CurrentGame _ gamePlayers (Paused _ _)) -> do
@@ -814,7 +818,7 @@ gameScheduler st =
                     return $ NotExecutedTryAgainLater $ fromSecs 1
                   OutcomeValidated outcome -> do
                     onLevelOutcome outcome
-                    requestWorld
+                    requestWorld Nothing
                     return NotExecutedGameCanceled
                   -- these values are never supposed to be used here:
                   New -> do
@@ -907,17 +911,16 @@ adjustAll' f =
     in (Map.keys changed
       , s { getClients = clients { getClients' = newM } })
 
-requestWorld :: (MonadIO m, MonadState ServerState m) => m ()
-requestWorld = do
+requestWorld :: (MonadIO m, MonadState ServerState m) => Maybe Statistics -> m ()
+requestWorld stats = do
   incrementWorldId
   get >>= \(ServerState _ _ _ level params wid _ _ _ _) -> do
     shipIds <- gets onlyPlayersIds
-    notifyFirstWorldBuilder $ WorldRequest $ WorldSpec level shipIds params wid
+    notifyFirstWorldBuilder $ WorldRequest (fromSecs 1) stats $ WorldSpec level shipIds params wid
  where
-  incrementWorldId =
-    modify' $ \s ->
-      let wid = maybe (WorldId 0) succ $ lastRequestedWorldId s
-      in s { lastRequestedWorldId = Just wid }
+  incrementWorldId = modify' $ \s ->
+    let wid = maybe (WorldId 0) succ $ lastRequestedWorldId s
+    in s { lastRequestedWorldId = Just wid }
 
 
 onChangeWorldParams :: (MonadIO m, MonadState ServerState m)
@@ -926,7 +929,7 @@ onChangeWorldParams :: (MonadIO m, MonadState ServerState m)
 onChangeWorldParams f = do
   modify' $ \s ->
     s { worldParameters = f $ worldParameters s }
-  requestWorld
+  requestWorld Nothing
 
 changeWallDistrib :: WallDistribution -> WorldParameters -> WorldParameters
 changeWallDistrib d p = p { wallDistrib = d }

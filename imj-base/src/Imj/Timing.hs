@@ -57,6 +57,7 @@ module Imj.Timing
 import           Imj.Prelude hiding(intercalate)
 import           Prelude(length, fromInteger)
 import           Control.DeepSeq(NFData(..))
+import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
 import           Data.Text(pack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
@@ -71,7 +72,14 @@ The phantom type 'a' represents the time space. It could be 'System'
 newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord, Show)
 instance NFData (Time a b) where
   rnf _ = () -- TimeSpec has unboxed fields so they are already in nf
-
+instance Binary (Time Duration a) where
+  put (Time (TimeSpec s ns)) = do
+    Bin.put s
+    Bin.put ns
+  get = do
+    s <- Bin.get
+    ns <- Bin.get
+    return $ Time $ TimeSpec s ns
 
 instance PrettyVal (Time Point b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:" :: String, s, n)

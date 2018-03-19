@@ -133,5 +133,12 @@ initialParameters = WorldParameters Rectangle2x1 (Random defaultRandom)
 initialViewMode :: ViewMode
 initialViewMode = CenterSpace
 
-defaultRandom :: RandomParameters
-defaultRandom = RandomParameters minRandomBlockSize OneComponentPerShip
+defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more connected components.
+                                  -- 0.1 : on avg, 1 cc
+                                  -- 0.2 : on avg, 1 cc
+                                  -- 0.3 : on avg, 2 cc
+                                  -- 0.4 : on avg, 5 cc
+                                  -- 0.5 : on avg, 8 cc
+                                  -- 0.6 : on avg, 10 cc
+                                  -- above 0.6, it's difficult to have a single connected component
+defaultRandom = RandomParameters minRandomBlockSize 0.7 OneComponentPerShip

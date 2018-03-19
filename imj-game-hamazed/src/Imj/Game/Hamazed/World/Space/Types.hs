@@ -2,18 +2,34 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , RenderedSpace(..)
     , getSize
+    , getMatSize
+    , at
     , Material(..)
     , MaterialMatrix(..)
     , RandomParameters(..)
     , Strategy(..)
     , DrawGroup(..)
     , Scope(..)
+    , Statistics(..)
+    , mergeStats
+    , mergeMayStats
+    , BigWorldTopology(..)
+    , ComponentCount(..)
+    , ComponentIdx(..)
+    , getComponentIndices
+    , prettyShowStats
+    , unsafeGetMaterial
     -- reexports
     , Glyph
     , module Imj.Geo.Discrete.Types
@@ -21,20 +37,29 @@ module Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Prelude
 
+import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
-import           Data.Matrix(Matrix, ncols, nrows)
+import           Data.List(unlines)
+import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet)
+import           Data.Vector.Unboxed(Unbox)
+import           Data.Map(Map)
+import qualified Data.Map as Map(toAscList, foldl')
+import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
+import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Graphics.Font
+import           Imj.Timing
+import           Imj.Util
 
 data Strategy = OneComponentPerShip
               -- ^ There should be one 'Air' connected component per ship.
-              deriving(Generic, Binary, Show, NFData)
+              deriving(Generic, Show)
+instance Binary Strategy
+instance NFData Strategy
 
-
--- TODO support a world / air ratio (today it is 50 50)
 -- | Parameters for random walls creation.
 data RandomParameters = RandomParameters {
     _randomWallsBlockSize :: {-# UNPACK #-} !Int
@@ -42,9 +67,12 @@ data RandomParameters = RandomParameters {
     --
     -- Note that the smaller the block size, the harder it will be for the algorithm to find
     -- a random world with a single component of air.
+  , _wallProbability :: {-# UNPACK #-} !Double -- ^ 1 means only walls, 0 means no walls at all
   , _randomWallsStrategy :: {-# UNPACK #-} !Strategy
-    -- ^ Space characteristics (only /one connected component/ is available for the moment)
-} deriving(Generic, Binary, Show, NFData)
+    -- ^ Space characteristics
+} deriving(Generic, Show)
+instance Binary RandomParameters
+instance NFData RandomParameters
 
 data DrawGroup = DrawGroup {
     _drawGroupCoords :: {-# UNPACK #-} !(Coords Pos)
@@ -69,10 +97,87 @@ data Material = Air
               -- ^ In it, ship and numbers can move.
               | Wall
               -- ^ Ship and numbers rebound on 'Wall's.
-              deriving(Generic, Eq, Show, Binary)
+              deriving(Generic, Eq, Show)
+instance Binary Material
+derivingUnbox "Material"
+    [t| Material -> Bool |]
+    [| (== Wall) |]
+    [| \ i -> if i then Wall else Air|]
+
+-- these functions adapt the API of matrix to the API of hmatrix
+{-# INLINE getMatSize #-}
+getMatSize :: Matrix a -> (Int, Int)
+getMatSize mat = (nrows mat, ncols mat)
+
+{-# INLINABLE at #-}
+at :: (Unbox a) => Matrix a -> Int -> Int -> a
+at mat i j =
+  unsafeGet (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
+
+unsafeGetMaterial :: Coords Pos -> Space -> Material
+unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat) =
+  at mat r c
 
 data Scope = WorldScope !Material
            -- ^ A given 'Material' of the world.
            | NegativeWorldContainer
            -- ^ Excludes the 'World' and its outer view frame.
            deriving(Show)
+
+
+data BigWorldTopology = BigWorldTopology {
+    countComponents :: {-# UNPACK #-} !Int
+  , getComponentSize :: ComponentIdx -> Int
+  , getEltCoords :: ComponentIdx -> Int -> Coords Pos
+}
+
+getComponentIndices :: BigWorldTopology -> [ComponentIdx]
+getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
+
+newtype ComponentIdx = ComponentIdx Int
+  deriving(Generic, Eq, Ord, Show, Binary)
+
+
+newtype ComponentCount = ComponentCount Int
+  deriving(Generic, Eq, Ord, Show, Binary, Num)
+
+data Statistics = Statistics {
+    countGeneratedMatrixes :: {-# UNPACK #-} !Int
+  , countGeneratedGraphsByComponentCount :: !(Map ComponentCount Int)
+  , totalTime :: !(Time Duration System)
+} deriving(Generic,Show)
+instance Binary Statistics
+
+mergeStats :: Statistics -> Statistics -> Statistics
+mergeStats (Statistics a b c) (Statistics a' b' c') =
+  Statistics
+    (a+a')
+    (merge
+      preserveMissing
+      preserveMissing
+      (zipWithMatched $ \_ x y -> x + y)
+      b
+      b')
+    $ c |+| c'
+
+mergeMayStats :: Maybe Statistics -> Maybe Statistics -> Maybe Statistics
+mergeMayStats Nothing x = x
+mergeMayStats x Nothing = x
+mergeMayStats (Just x) (Just y) = Just $ mergeStats x y
+
+prettyShowStats :: Statistics -> String
+prettyShowStats (Statistics nMats ccm dt) = unlines $
+  "":
+  "General world generation statistics:" :
+  ("Computation time:" ++ show dt):
+  showArray
+    (Just ("Stat name","Stat value"))
+    [ ("N. generated matrices", show nMats)
+    , ("N. generated graphs", show $ Map.foldl' (+) 0 ccm)] ++
+  "":
+  "Graph generation statistics:" :
+  prettyShowCCMap ("N. components", "N. graphs") ccm
+
+prettyShowCCMap :: (String, String) -> Map ComponentCount Int -> [String]
+prettyShowCCMap header =
+  showArray (Just header) . map (show *** show) . Map.toAscList

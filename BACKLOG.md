@@ -1,5 +1,17 @@
-- When there is a common prefix, use a single value in the successive,
-and start or arrive at the number corresponding to the prefix.
+
+- bug:
+one client is computing a world,
+one client is joining, triggers the computation of a new world.
+Instead we should detect that a world is already being computed and don't need
+to trigger a new computation.
+
+- optimize world creation with .7 ratio:
+  try 02
+  use Int and bit shifts (8 bit precision to have 4 random numbers per call)
+  replace Material by Int + constants
+  parallellism: see how to set capabilities, and how to race between cores.
+  stop computing graph components once we know we have at least n+1
+  recycle random values: change origin (adapt Matrix Unboxed to simply change an offset)
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)
@@ -7,11 +19,7 @@ and start or arrive at the number corresponding to the prefix.
 1 : optimize arithmetic operations
 1.1 : precompute pixel values : type PixelValue = Vec2 Pos
 
-- draw in green the numbers that are on the shortest path to win.
-
 - color of number explosion should be grey if number is deactivated.
-
-- store status in UIAnimation, and create animations in drawStatus.
 
 - use another text box for networking messages, to separate concerns, to
 prevent messages from being replaced by game info.
@@ -71,8 +79,6 @@ so we need to define interpolations between 3d points: Line
 first step:
   the hardcoded colors will only be used for their hue.
 
-- make stats of world dismissals visible to the user
-
 - make world end when no reachable number is available. (i.e some numbers are alive,
   but in another component)
 
@@ -114,8 +120,6 @@ While parsing:
 Error:
   ...
 
-- notify on successful commands: "'Player' changed its name to 'Me'"
-
 - multiline algo should have an option to keep multiple spaces.
 
 - use up/down arrow to recall last message? -> shift up shift down to change cursor position.
@@ -145,7 +149,7 @@ How to prevent fraud?
 - when in Setup intent, the server should send updates of a list "which players would be in the
 game, should you hit Space now" to the clients
 
-- when player press a key to restart: it waits for other player to also press a key to restart
+- when player presses a key to restart: it waits for other player to also press a key to restart
 we could display "waiting for other players to press a key..."
 
 - the info "game ended" is sent when player presses play.
@@ -191,9 +195,6 @@ to know which was more advanced, and start from that state.
 - try round instead of square for walls.
 
 - go back and forth in time.
-
-- display debug infos in a nice way when using the terminal :
-overlay,
 
 - store update time in deadlines, to replace "while we are under the budget"
   by "if curTimeSpent + foreseenTimeSpent < budget then update this deadline"

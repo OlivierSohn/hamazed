@@ -12,7 +12,7 @@ module Imj.Game.Hamazed.Loop.Run
       ) where
 
 import           Imj.Prelude
-import           Prelude (putStrLn, getLine, toInteger)
+import           Prelude (putStrLn, putStr, getLine, toInteger)
 
 import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
@@ -24,6 +24,7 @@ import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
+import           Data.List(unlines)
 import           Data.Maybe(isJust)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(fromList, lookup, keys)
@@ -62,6 +63,7 @@ import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..
 import           Imj.Graphics.Text.ColorString hiding(intercalate)
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Log
+import           Imj.Util
 
 {- | Runs the Hamazed game.
 
@@ -345,21 +347,20 @@ runWithBackend :: Bool
                -> Bool
                -> IO ()
 runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPlayerName maybeBackend mayPPU mayScreenSize debug = do
-  let printServerArgs = do
-        putStrLn $ "| Server-only : " ++ show serverOnly
-        putStrLn $ "| Server name : " ++ show maySrvName
-        putStrLn $ "| Server port : " ++ show maySrvPort
-        putStrLn $ "| Server logs : " ++ show maySrvLogs
-        putStrLn $ "| Colorscheme : " ++ show mayColorScheme
-      printClientArgs = do
-        putStrLn $ "| Client Rendering : " ++ show maybeBackend
-        putStrLn $ "| PPU              : " ++ show mayPPU
-        putStrLn $ "| Player name      : " ++ show mayPlayerName
-        putStrLn $ "| Client Debug     : " ++ show debug
-      printBar =
-        putStrLn   " ------------- --------------------------"
-  printBar >> printServerArgs >> printBar
-
+  let printServerArgs = putStr $ unlines $ showArray (Just ("Server Arg", ""))
+        [ ("Server-only", show serverOnly)
+        , ("Server name", show maySrvName)
+        , ("Server port", show maySrvPort)
+        , ("Server logs", show maySrvLogs)
+        , ("Colorscheme", show mayColorScheme)
+        ]
+      printClientArgs = putStr $ unlines $ showArray (Just ("Client Arg", ""))
+        [ ("Client Rendering", show maybeBackend)
+        , ("PPU             ", show mayPPU)
+        , ("Player name     ", show mayPlayerName)
+        , ("Client Debug    ", show debug)
+        ]
+  printServerArgs
   when serverOnly $ do
     let conflict x = error $ "'--serverOnly' conflicts with '" ++
                           x ++ "' (these options are mutually exclusive)."
@@ -377,7 +378,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
       then
         startServerIfLocal srv ready
       else do
-        printClientArgs >> printBar
+        printClientArgs
         -- userPicksBackend must run before 'startServerIfLocal' where we install the termination handlers,
         -- because we want the user to be able to stop the program now.
         backend <- maybe userPicksBackend return maybeBackend

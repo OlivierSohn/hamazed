@@ -12,10 +12,11 @@ module Imj.Util
     , commonPrefix
     , commonSuffix
       -- * Math utilities
-    , randomRsIO
     , clamp
     , zigzag
     , lastAbove
+    -- * Render utilities
+    , showArray
     -- * Reexports
     , Int64
     ) where
@@ -24,12 +25,31 @@ import           Imj.Prelude
 
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl')
+import           Data.Maybe(maybeToList)
 import           Data.Text(Text, pack)
-import           Control.Arrow( first )
 
-import           System.Random( Random(..)
-                              , getStdRandom
-                              , split )
+{-# INLINE maximumMaybe #-}
+maximumMaybe :: Ord a => [a] -> Maybe a
+maximumMaybe [] = Nothing
+maximumMaybe xs = Just $ maximum xs
+
+showArray :: Maybe (String, String) -> [(String,String)] -> [String]
+showArray mayTitles body =
+  maybe [] (\titles -> bar : format [titles]) mayTitles
+  ++ [bar] ++ format body ++ [bar]
+ where
+  bar = replicate lBar '-'
+  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
+  format = map (\(a,b) -> "|" ++ justifyL a l1 ++ "|" ++ justifyR b l2 ++ "|")
+  allArray = maybeToList mayTitles ++ body
+  l1 = fromMaybe 0 $ maximumMaybe $ map (length . fst) allArray
+  l2 = fromMaybe 0 $ maximumMaybe $ map (length . snd) allArray
+  justifyR x maxL =
+    let l = length x
+    in " " ++ replicate (maxL-l) ' ' ++ x ++ " "
+  justifyL x maxL =
+    let l = length x
+    in " " ++ x ++ replicate (maxL-l) ' ' ++ " "
 
 {-# INLINABLE showListOrSingleton #-}
 -- | If list is a singleton, show the element, else show the list.
@@ -117,17 +137,6 @@ zigzag from' to' v =
               else
                 2*d - v'
 
--- | Returns a list of random values uniformly distributed in the closed interval
--- [lo,hi].
---
--- It is unspecified what happens if lo>hi
-randomRsIO :: Random a
-           => a -- ^ lo : lower bound
-           -> a -- ^ hi : upper bound
-           -> IO [a]
-randomRsIO from to =
-  getStdRandom $ split >>> first (randomRs (from, to))
-
 {-# INLINABLE commonPrefix #-}
 commonPrefix :: (Eq a) => [a] -> [a] -> [a]
 commonPrefix (x:xs) (y:ys)
@@ -168,14 +177,14 @@ clamp !n min_ max_
 
 * a discrete input interval @[i,j]@
 * a /decreasing/ monadic function @f :: (Ord y) => Int -> m y@
-* an output value @y@
+* an output /threshold/ value @y@
 
 finds @x@ in @[i,j]@ such that :
 
-* @f(x) > y@
-* @y >= f(x+1)@ or @x == j@
+* @f(x) > y@, and
+* either @y >= f(x+1)@ or @x == j@
 
-The time complexity is O(log(j-i)).
+With a time complexity of O(log(j-i)).
 -}
 lastAbove :: (Monad m
             , Integral x

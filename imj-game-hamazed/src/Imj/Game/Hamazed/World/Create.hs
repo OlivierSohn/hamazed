@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World.Create
         ( mkWorldEssence
@@ -17,6 +16,7 @@ import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(sortOn)
 import qualified Data.Map.Strict as Map(empty, fromList)
 import qualified Data.Set as Set(size, toList, empty)
+import           System.Random.MWC(GenIO, withSystemRandom, asGenIO)
 
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.World.Types
@@ -34,34 +34,43 @@ data Association = Association {
   , _componentIdx :: {-# UNPACK #-} !ComponentIdx
 } deriving(Show)
 
-mkWorldEssence :: WorldSpec -> IO WorldEssence
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution) wid) = do
+mkWorldEssence :: WorldSpec -> IO Bool -> IO (Maybe WorldEssence, Maybe Statistics)
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution) wid) continue =
+-- withSystemRandom seeds a PRNG with data from the system's fast source of pseudo-random numbers.
+-- The generator should be used from a single thread.
+ withSystemRandom . asGenIO $ \gen -> do
   let (LevelEssence _ _ numbers) = mkLevelEssence s
       size = worldSizeFromLevel levelNum shape
       nShips = Set.size shipIds
-  (space, topology) <- mkSpace size nShips wallDistribution
-  let associations = map (\(a,b,c) -> Association a b c) $ zip3
-        (Set.toList shipIds)
-        (mkGroups nShips numbers) -- TODO shuffle numbers ?
-        $ cycle $ getComponentIndices topology
-  -- TODO make groups such that a single player cannot finish the level without the help of others.
-  shipsAndNums <- mapM
-    (\(Association shipId nums componentIdx) -> do
-      -- TODO shuffle this, as it is ordered due to the use of a Set inside.
-       positions <- randomCCCoords (1 + length nums) componentIdx topology NoOverlap
-       (shipPS:numPS) <- mapM (mkRandomPosSpeed space) positions
-       let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
-           ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
-           ns = map (\(n,posSpeed) -> NumberEssence posSpeed n componentIdx) $ zip nums numPS
-       return ((shipId, ship), ns)
-    ) associations
-  let (ships, balls) = unzip shipsAndNums
-  return $ WorldEssence
-    -- we sort the numbers so that their order in the map matches the order of their numeric values
-    (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
-    (Map.fromList ships)
-    (toListOfLists space)
-    wid
+  (maySpaceTopo, stats) <- mkSpace size (fromIntegral nShips) wallDistribution continue gen
+  maybe
+    (return (Nothing, stats))
+    (\(space, topology) -> do
+      let associations = map (\(a,b,c) -> Association a b c) $ zip3
+            (Set.toList shipIds)
+            (mkGroups nShips numbers) -- TODO shuffle numbers ?
+            $ cycle $ getComponentIndices topology
+      -- TODO make groups such that a single player cannot finish the level without the help of others.
+      shipsAndNums <- mapM
+        (\(Association shipId nums componentIdx) -> do
+          -- TODO shuffle this, as it is ordered due to the use of a Set inside.
+           positions <- randomCCCoords gen (1 + length nums) componentIdx topology NoOverlap
+           (shipPS:numPS) <- mapM (mkRandomPosSpeed gen space) positions
+           let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
+               ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
+               ns = map (\(n,posSpeed) -> NumberEssence posSpeed n componentIdx) $ zip nums numPS
+           return ((shipId, ship), ns)
+        ) associations
+      let (ships, balls) = unzip shipsAndNums
+      return (Just $ WorldEssence
+                -- we sort the numbers so that their order in the map matches the order of their numeric values
+                (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
+                (Map.fromList ships)
+                (toListOfLists space)
+                wid
+              , stats))
+    maySpaceTopo
+
 
 mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]]) Nothing
@@ -69,14 +78,17 @@ mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]]) N
 mkSpace :: (MonadIO m)
         => Size
         -- ^ The dimensions
-        -> Int
+        -> ComponentCount
         -- ^ Number of connex components
         -> WallDistribution
         -- ^ How the 'Wall's should be constructed
-        -> m (Space, BigWorldTopology)
-mkSpace s n = \case
-  None -> return $ mkEmptySpace s
-  Random params -> liftIO $ mkRandomlyFilledSpace params s n
+        -> IO Bool
+        -- ^ Returns false when we should stop trying
+        -> GenIO
+        -> m (Maybe (Space, BigWorldTopology), Maybe Statistics)
+mkSpace s n dist continue gen = case dist of
+  None -> let (a,b) = mkEmptySpace s in return (Just (a,b),Nothing)
+  Random params -> liftIO $ mkRandomlyFilledSpace params s n continue gen
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

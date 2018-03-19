@@ -130,6 +130,7 @@ import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
@@ -145,8 +146,6 @@ import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
-import           Imj.Geo.Discrete
-import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.UI.Animation

@@ -3,15 +3,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Game.Hamazed.World.Space
     ( Space
     , toListOfLists
     , fromListOfLists
-    , BigWorldTopology(..)
-    , ComponentIdx
-    , getComponentIndices
     , Material(..)
     , materialColor
     , materialGlyph
@@ -31,6 +27,8 @@ module Imj.Game.Hamazed.World.Space
     , countBigCCElts
     , OverlapKind(..)
     , randomCCCoords
+    -- for tests
+    , mkSmallWorld
     -- * Reexports
     , module Imj.Graphics.Render
     ) where
@@ -41,12 +39,16 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import qualified Data.Vector.Unboxed as UnboxV (Vector, fromList, length, (!))
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
-import           Data.List(elem, length, group, concat, mapAccumL, sortOn)
+import           Data.List(length, group, concat, mapAccumL, sortOn)
 import           Data.Maybe(mapMaybe)
-import           Data.Matrix(Matrix, getElem, fromLists, getMatrixAsVector, nrows, ncols, toLists)
+import qualified Data.Map as Map(empty, alter)
 import qualified Data.Set as Set(size, fromList, toList, union)
 import           Data.Tree(Tree, flatten)
-import           Data.Vector(slice, (!))
+import           Data.Vector.Unboxed((!), foldl')
+import           System.Random.MWC(GenIO, uniform, uniformR)
+
+import           Imj.Data.Matrix.Unboxed(Matrix, getRow, getCol, nrows, ncols, fromLists, nrows, ncols, toLists)
+import qualified Imj.Data.Matrix.Unboxed as Mat(fromList)
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
@@ -54,6 +56,7 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Physics.Discrete
+import           Imj.Timing
 import           Imj.Util
 
 toListOfLists :: Space -> MaterialMatrix
@@ -65,18 +68,15 @@ fromListOfLists (MaterialMatrix m) = Space $ fromLists m
 -- | Creates a 'PosSpeed' from a position,
 -- moves to precollision and mirrors speed if a collision is detected for
 -- the next step (see 'mirrorSpeedAndMoveToPrecollisionIfNeeded').
-mkRandomPosSpeed :: Space
+mkRandomPosSpeed :: GenIO
+                 -> Space
                  -> Coords Pos
                  -- ^ Precondition : is not colliding
                  -> IO PosSpeed
-mkRandomPosSpeed space pos =
+mkRandomPosSpeed gen space pos =
   fst
     . mirrorSpeedAndMoveToPrecollisionIfNeeded (`location` space)
-    . PosSpeed pos <$> randomSpeed
-
-oneRandom :: Int -> Int -> IO Int
-oneRandom a b =
-  head <$> randomRsIO a b
+    . PosSpeed pos <$> randomSpeed gen
 
 data OverlapKind =
     NoOverlap
@@ -93,8 +93,8 @@ instance Ord IndexedCoords where
   compare (IndexedCoords _ a) (IndexedCoords _ b) = compare a b
   {-# INLINABLE compare #-}
 
-randomCCCoords :: Int -> ComponentIdx -> BigWorldTopology -> OverlapKind -> IO [Coords Pos]
-randomCCCoords nPositions idxCC topo = \case
+randomCCCoords :: GenIO -> Int -> ComponentIdx -> BigWorldTopology -> OverlapKind -> IO [Coords Pos]
+randomCCCoords gen nPositions idxCC topo = \case
   CanOverlap -> map getValue . snd <$> genRandomCoords nPositions 0
   NoOverlap -> do
     let go (nextStartIndex, set) = do
@@ -109,34 +109,29 @@ randomCCCoords nPositions idxCC topo = \case
   genRandomCoords n startIndex = do
     l <- zipWith IndexedCoords
           [startIndex..]
-          . map (getEltCoords topo idxCC) . take n <$> genRandomEltIndex
+          . map (getEltCoords topo idxCC) <$> replicateM n genRandomEltIndex
     return (startIndex + n,l)
 
-  genRandomEltIndex = randomInts $ getComponentSize topo idxCC
+  genRandomEltIndex = uniformR (0, pred $ getComponentSize topo idxCC) gen
 
-randomSpeed :: IO (Coords Vel)
-randomSpeed = do
+randomSpeed :: GenIO -> IO (Coords Vel)
+randomSpeed gen = do
     x <- rnd
     y <- rnd
     return $ Coords (Coord x) (Coord y)
   where
-    rnd = oneRandom (-1) 1
+    rnd = uniformR (-1, 1) gen
 
-randomInts :: Int -> IO [Int]
-randomInts =
-  randomRsIO 0 . pred
 
 forEachRowPure :: Matrix Material
                -> Size
                -> (Coord Row -> (Coord Col -> Material) -> b)
                -> [b]
-forEachRowPure mat (Size nRows nColumns) f =
-  let rowIndexes = [0..fromIntegral $ nRows-1] -- index of inner row
-      matAsOneVector = getMatrixAsVector mat -- this is O(1)
+forEachRowPure mat (Size nRows _) f =
+  let rowIndexes = [1..fromIntegral nRows] -- indexes start at 1 in Data.Matrix
   in map (\rowIdx -> do
-    let startIdx = fromIntegral rowIdx * fromIntegral nColumns :: Int
-        row = slice startIdx (fromIntegral nColumns) matAsOneVector
-    f rowIdx (\c -> row ! fromIntegral c)) rowIndexes
+    let row = getRow (fromIntegral rowIdx) mat -- this is O(1)
+    f (pred rowIdx) (\c -> row ! fromIntegral c)) rowIndexes
 
 -- | Creates a rectangular empty space of size specified in parameters.
 mkEmptySpace :: Size -> (Space, BigWorldTopology)
@@ -152,13 +147,26 @@ mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
 
 -- | Creates a rectangular random space of size specified in parameters.
 -- 'IO' is used for random numbers generation.
-mkRandomlyFilledSpace :: RandomParameters -> Size -> Int -> IO (Space, BigWorldTopology)
-mkRandomlyFilledSpace _ s 0 = return $ mkFilledSpace s
-mkRandomlyFilledSpace (RandomParameters blockSize strategy) s nComponents = do
-  (MaterialMatrix smallWorldMat, smallTopo) <- mkSmallWorld (bigToSmall s blockSize) strategy nComponents
-  let replicateElems = replicateElements blockSize
-      innerMat = replicateElems $ map replicateElems smallWorldMat
-  return (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo)
+mkRandomlyFilledSpace :: RandomParameters
+                      -> Size
+                      -> ComponentCount
+                      -> IO Bool
+                      -- ^ Returns false to stop
+                      -> GenIO
+                      -> IO (Maybe (Space, BigWorldTopology), Maybe Statistics)
+mkRandomlyFilledSpace _ s 0 _ _ =
+  let (a,b) = mkFilledSpace s
+  in return (Just (a,b),Nothing)
+mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio strategy) s nComponents continue gen = do
+  (mayWT, stats) <-
+    mkSmallWorld gen (bigToSmall s blockSize) strategy nComponents wallAirRatio continue
+  return (maybe
+    Nothing
+    (\(MaterialMatrix smallWorldMat, smallTopo) ->
+      let replicateElems = replicateElements blockSize
+          innerMat = replicateElems $ map replicateElems smallWorldMat
+      in Just (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo))
+    mayWT, Just stats)
 
 bigToSmall :: Size -> Int -> Size
 bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
@@ -166,10 +174,6 @@ bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
       nRows = quot heightEmptySpace $ fromIntegral blockSize
   in Size nRows nCols
 
---  TODO We could measure, on average, how many tries it takes to generate a graph
---  that meets the requirement for usual values of:
---  - probability of having air vs. a wall at any cell
---  - size of the small world
 {- | Generates a random world with the constraint that it should have
 a single "Air" connected component. The function recurses and builds a new random world
 until the constraint is met.
@@ -178,53 +182,83 @@ An interesting problem would be to compute the complexity of this function.
 To do so we need to know the probability to have a unique connected component in
 the random graph defined in the function.
 -}
-mkSmallWorld :: Size
+mkSmallWorld :: GenIO
+             -> Size
              -- ^ Size of the small world
              -> Strategy
-             -> Int
-             -> IO (MaterialMatrix, SmallWorldTopology)
+             -> ComponentCount
+             -- ^ Count connex components
+             -> Double
+             -- ^ Wall / Air ratio
+             -> IO Bool
+             -- ^ Can continue?
+             -> IO (Maybe (MaterialMatrix, SmallWorldTopology), Statistics)
              -- ^ the "small world"
-mkSmallWorld s@(Size nRows nCols) strategy nComponents' = do
+mkSmallWorld gen s strategy nComponents' wallAirRatio' continue = do
   when (nComponents' == 0) $ error "should be handled by caller"
-  go
+  t <- getSystemTime
+  go 0 Map.empty t
  where
+  !wallAirRatio = realToFrac wallAirRatio'
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
-  maxNComp = succ $ quot (pred $ area s) 2 -- for checkerboard-like layout
-  go = do
-    smallMat <- mkSmallMat
-    let (graph, vtxToCoords', _) = graphOfIndex Air $ fromLists smallMat
-        vtxToCoords vtx = a where (a,_,_) = vtxToCoords' vtx
-    case strategy of
-      OneComponentPerShip -> do
-        let comps = map mkConnectedComponent $ components graph
-        if nComponents == length comps && wellDistributed comps
-          then
-            return (MaterialMatrix smallMat, SmallWorldTopology comps vtxToCoords)
-          else
-            go
-  mkSmallMat = mapM mkRandomRow [0..nRows-1] >>= \smallMat ->
-    if all (elem Air) $ fronteers smallMat
-      then
-        return smallMat
-      else
-        mkSmallMat
-  mkRandomRow _ = take (fromIntegral nCols) <$> randMaterial -- TODO use a Matrix directly
-  fronteers mat = [head mat, last mat, map head mat, map last mat]
+  maxNComp = ComponentCount $ succ $ quot (pred $ area s) 2 -- for checkerboard-like layout
+  go i j t = do
+    (maySmallMat, nMatGenerated) <- mkSmallMatWithAirOnEveryFronteer gen wallAirRatio s continue
+    let i' = i + nMatGenerated
+    maybe
+      (do
+        t' <- getSystemTime
+        return (Nothing, Statistics i' j $ t...t'))
+      (\smallMat -> do
+        let (graph, vtxToCoords', _) = graphOfIndex Air smallMat
+            vtxToCoords vtx = a where (a,_,_) = vtxToCoords' vtx
+        case strategy of
+          OneComponentPerShip -> do
+            let gcomps = components graph
+                nComps = ComponentCount $ length gcomps
+                comps = map mkConnectedComponent $ components graph
+                j' = Map.alter (Just . succ . fromMaybe 0) nComps j
+            if nComponents == nComps && wellDistributed comps
+              then do
+                t' <- getSystemTime
+                return (Just (MaterialMatrix $ toLists smallMat -- TODO use Matrix in MaterialMatrix
+                      , SmallWorldTopology comps vtxToCoords), Statistics i' j' $ t...t')
+              else
+                go i' j' t)
+      maySmallMat
   wellDistributed comps =
     maximum lengths < 2 * minimum lengths
    where lengths = map countSmallCCElts comps
 
-data BigWorldTopology = BigWorldTopology {
-    countComponents :: !Int
-  , getComponentSize :: ComponentIdx -> Int
-  , getEltCoords :: ComponentIdx -> Int -> Coords Pos
-}
+mkSmallMatWithAirOnEveryFronteer :: GenIO -> Float -> Size -> IO Bool -> IO (Maybe (Matrix Material), Int)
+mkSmallMatWithAirOnEveryFronteer gen wallAirRatio s continue = go 0
+ where
+  go i = continue >>= \goOn -> if goOn
+    then
+      mkSmallMat gen wallAirRatio s >>= \candidate ->
+        if smallMatHasAirOnEveryFronteer candidate
+          then
+            return (Just candidate, succ i)
+          else
+            go $ succ i
+    else
+      return (Nothing, i)
 
-getComponentIndices :: BigWorldTopology -> [ComponentIdx]
-getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
+smallMatHasAirOnEveryFronteer :: Matrix Material -> Bool
+smallMatHasAirOnEveryFronteer smallMat =
+  all (foldl' (\res x -> res || (x == Air)) False) $ fronteers smallMat
+ where
+  fronteers mat = [getRow 1 mat, getCol 1 mat, getCol (ncols mat) mat, getRow (nrows mat) mat]
 
-newtype ComponentIdx = ComponentIdx Int
-  deriving(Generic, Eq, Ord, Show, Binary)
+mkSmallMat :: GenIO
+           -> Float
+           -- ^ Probability to generate a wall
+           -> Size
+           -- ^ Size of the matrix
+           -> IO (Matrix Material)
+mkSmallMat gen wallAirRatio (Size nRows nCols) =
+  Mat.fromList (fromIntegral nRows) (fromIntegral nCols) <$>
+    replicateM (fromIntegral nRows * fromIntegral nCols) (randBiasedMaterial gen wallAirRatio)
 
 data SmallWorldTopology = SmallWorldTopology {
     _connectedComponents :: [ConnectedComponent]
@@ -306,28 +340,19 @@ graphOfIndex :: Material
                             [Coords Pos]),
                  Coords Pos -> Maybe Vertex)
 graphOfIndex matchIdx mat =
-  let sz@(nRows,nCols) = size mat
-      coords = [Coords (Coord r) (Coord c) | c <- [0..nCols-1],
-                                             r <- [0..nRows-1],
-                                             mat `at` (r, c) == matchIdx]
+  let sz@(nRows,nCols) = getMatSize mat
+      coords = [Coords (Coord r) (Coord c) | c <- [0..pred nCols],
+                                             r <- [0..pred nRows],
+                                             at mat r c == matchIdx]
   in graphFromEdges $ map (\c -> (c, c, connectedNeighbours matchIdx c mat sz)) coords
 
--- these functions adapt the API of matrix to the API of hmatrix
-{-# INLINE size #-}
-size :: Matrix a -> (Int, Int)
-size mat = (nrows mat, ncols mat)
-
-{-# INLINE at #-}
-at :: Matrix a -> (Int, Int) -> a
-at mat (i, j) =
-  getElem (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
 
 connectedNeighbours :: Material -> Coords Pos -> Matrix Material -> (Int, Int) -> [Coords Pos]
 connectedNeighbours match coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
   in mapMaybe
       (\other@(Coords (Coord r) (Coord c)) ->
-        if r < 0 || c < 0 || r >= nRows || c >= nCols || mat `at` (r, c) /= match
+        if r < 0 || c < 0 || r >= nRows || c >= nCols || at mat r c /= match
           then
             Nothing
           else
@@ -363,8 +388,12 @@ extend'' final initial =
       addsRight = addsTotal - addsLeft
   in (addsLeft, addsRight)
 
-randMaterial :: IO [Material]
-randMaterial = map intToMat <$> randomRsIO 0 1
+randBiasedMaterial :: GenIO -> Float -> IO Material
+randBiasedMaterial gen r =
+  (\v ->
+    if v < r
+      then intToMat 0
+      else intToMat 1) <$> uniform gen
 
 intToMat :: Int -> Material
 intToMat 0 = Wall
@@ -385,19 +414,14 @@ materialGlyph = gameGlyph . (\case
 
 matToDrawGroups :: Matrix Material -> Size -> [DrawGroup]
 matToDrawGroups mat s@(Size _ cs) =
-  concat $
-    forEachRowPure mat s $
-      \row accessMaterial ->
-          snd $ mapAccumL
-                  (\col listMaterials@(material:_) ->
-                     let count = length listMaterials
-                     in (col + fromIntegral count,
-                         DrawGroup (Coords row col) (materialColor material) (materialGlyph material) count))
-                  (Coord 0) $ group $ map accessMaterial [0..fromIntegral $ pred cs]
-
-unsafeGetMaterial :: Coords Pos -> Space -> Material
-unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat) =
-  mat `at` (r, c)
+  concat $ forEachRowPure mat s $ \row accessMaterial ->
+    snd $ mapAccumL
+      (\col listMaterials@(material:_) ->
+         let count = length listMaterials
+         in (col + fromIntegral count,
+             DrawGroup (Coords row col) (materialColor material) (materialGlyph material) count))
+      (Coord 0)
+      $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
 -- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix

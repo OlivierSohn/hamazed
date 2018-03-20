@@ -13,8 +13,6 @@ module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , RenderedSpace(..)
     , getSize
-    , getMatSize
-    , at
     , Material(..)
     , MaterialMatrix(..)
     , RandomParameters(..)
@@ -41,7 +39,6 @@ import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.List(unlines)
 import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet)
-import           Data.Vector.Unboxed(Unbox)
 import           Data.Map(Map)
 import qualified Data.Map as Map(toAscList, foldl')
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
@@ -104,19 +101,9 @@ derivingUnbox "Material"
     [| (== Wall) |]
     [| \ i -> if i then Wall else Air|]
 
--- these functions adapt the API of matrix to the API of hmatrix
-{-# INLINE getMatSize #-}
-getMatSize :: Matrix a -> (Int, Int)
-getMatSize mat = (nrows mat, ncols mat)
-
-{-# INLINABLE at #-}
-at :: (Unbox a) => Matrix a -> Int -> Int -> a
-at mat i j =
-  unsafeGet (succ i) (succ j) mat -- indexes start at 1 in Data.Matrix
-
 unsafeGetMaterial :: Coords Pos -> Space -> Material
 unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat) =
-  at mat r c
+  unsafeGet r c mat
 
 data Scope = WorldScope !Material
            -- ^ A given 'Material' of the world.

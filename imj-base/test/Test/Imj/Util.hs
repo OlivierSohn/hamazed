@@ -1,6 +1,7 @@
 module Test.Imj.Util
          ( testUtils
          , testLastAbove
+         , testInterleaveHalves
          ) where
 
 import           Imj.Util
@@ -45,3 +46,13 @@ testLastAbove = do
 
   -- predicate not being decreasing:
   lastAbove False (\v -> return $ v >= (10 :: Int)) 0 10 >>= shouldBe $ Nothing
+
+testInterleaveHalves :: IO ()
+testInterleaveHalves = do
+  interleaveHalves [0,1,2,3::Int] `shouldBe` [2,0,3,1]
+  interleaveHalves [2,0,3,1::Int] `shouldBe` [3,2,1,0]
+
+  interleaveHalves [0,1,2,3,4::Int] `shouldBe` [4,2,0,3,1]
+  interleaveHalves [4,2,0,3,1::Int] `shouldBe` [1,0,4,3,2]
+  interleaveHalves [1,0,4,3,2::Int] `shouldBe` [2,4,1,3,0]
+  interleaveHalves [2,4,1,3,0::Int] `shouldBe` [0,1,2,3,4]

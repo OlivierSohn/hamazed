@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Data.Matrix.Unboxed
+  exposed-modules:     Imj.Data.Matrix.Cyclic
+                     , Imj.Data.Matrix.Unboxed
                      , Imj.Data.StdoutBuffer
                      , Imj.Data.Tree
                      , Imj.Data.Vector.Unboxed.Mutable.Dynamic

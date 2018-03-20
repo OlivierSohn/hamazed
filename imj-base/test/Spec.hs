@@ -46,6 +46,7 @@ main = do
   --testEase
   testMutableBytestring
   testLastAbove
+  testInterleaveHalves
   testSums
   testFont
   testFreeType2

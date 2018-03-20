@@ -11,6 +11,7 @@ module Imj.Util
     , takeWhileInclusive
     , commonPrefix
     , commonSuffix
+    , interleaveHalves
       -- * Math utilities
     , clamp
     , zigzag
@@ -216,3 +217,12 @@ lastAbove threshold f minIdx maxIdx =
             go tooLow x res
       where
         x = quot (tooLow + tooHigh) 2
+
+-- | Interleave the first half with the second half.
+interleaveHalves :: [a] -> [a]
+interleaveHalves l =
+  uncurry (++) $ go [] [] l
+ where
+  go l1 l2 []         = (   l1,l2)
+  go l1 l2 [x1]       = (x1:l1,l2)
+  go l1 l2 (x1:x2:xs) = go (x1:l1) (x2:l2) xs

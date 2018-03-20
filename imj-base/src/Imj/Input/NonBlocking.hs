@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Input.NonBlocking
     ( -- * Non-blocking read
@@ -19,10 +18,14 @@ import           Imj.Input.Blocking
 
 callIf :: IO a -> IO Bool -> IO (Maybe a)
 callIf call condition =
-  condition >>= \case
-    True  -> Just <$> call
-    False -> return Nothing
+  condition >>= \c ->
+    if c
+      then
+        Just <$> call
+      else
+        return Nothing
 
+{-# INLINE stdinIsReady #-}
 stdinIsReady :: IO Bool
 stdinIsReady =
   hReady stdin

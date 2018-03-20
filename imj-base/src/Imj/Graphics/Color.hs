@@ -20,38 +20,28 @@ module Imj.Graphics.Color
     -- ** Create a single color
   , rgb
   , gray
+  , mix
+  -- ** Get / modify hue
+  , hue
+  , countHuesOfSameIntensity
+  , rotateHue
     -- ** Create a LayeredColor
   , LayeredColor(..)
   , Background
   , Foreground
   , onBlack
   , whiteOnBlack
+    -- ** Primary colors
+  , red, green, blue
+    -- ** Secondary colors
+  , magenta, cyan, yellow
+    -- ** Tertiary colors
+  , azure, violet, rose, orange, chartreuse, springGreen
+    -- ** Quaternary colors
+  , lime
     -- ** Predefined colors
-  , white, black, red, green, magenta, cyan, yellow, blue
+  , white, black
   ) where
 
-
 import           Imj.Graphics.Color.Types
-
--- For reference:
-{-
-import           Imj.Prelude
--- | How
--- <https://jonasjacek.github.io/colors/ xterm interprets 8bit rgb colors>
-xtermMapRGB8bitComponent :: Word8
-                         -- ^ input values are in
-                         -- <https://en.wikipedia.org/wiki/ANSI_escape_code#Colors [0..5]>
-                         -> Word8
-                         -- ^ output is in range [0..255]
-xtermMapRGB8bitComponent 0 = 0
-xtermMapRGB8bitComponent n = 55 + n * 40
-
--- | How
--- <https://jonasjacek.github.io/colors/ xterm interprets 8bit grayscale colors>
-xtermMapGray8bitComponent :: Word8
-                          -- ^ input values are in
-                          -- <https://en.wikipedia.org/wiki/ANSI_escape_code#Colors [0..23]>
-                          -> Word8
-                          -- ^ output is in range [0..255]
-xtermMapGray8bitComponent v = 8 + 10 * v
--}
+import           Imj.Graphics.Color.Hue

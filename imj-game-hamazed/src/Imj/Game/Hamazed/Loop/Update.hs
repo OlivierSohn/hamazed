@@ -7,181 +7,463 @@
 
 module Imj.Game.Hamazed.Loop.Update
       ( updateAppState
+      , sendToServer
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(intercalate)
+import           Prelude(length)
 
-import           Data.Maybe(isNothing)
+import           Control.Concurrent(forkIO)
+import           Control.Exception.Base(throwIO)
+import           Control.Monad.Reader.Class(MonadReader, asks)
+import           Control.Monad.Reader(runReaderT)
 
+import           Data.Attoparsec.Text(parseOnly)
+import           Data.List(foldl')
+import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
+import qualified Data.Set as Set (empty, union, size, null, toList)
+import           Data.Text(pack, unpack, strip, uncons)
+import qualified Data.Text as Text(length)
+import           System.Exit(exitSuccess)
+import           System.IO(putStrLn)
+
+import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Infos
+
+import           Imj.Game.Hamazed.Color
+import           Imj.Game.Hamazed.Command
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.World
+import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Ship
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Class.HasSizedFace
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Render.FromMonadReader
+import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
-updateAppState :: (MonadState AppState m, MonadReader e m, Draw e, MonadIO m)
-               => Event
+updateAppState :: (MonadState AppState m
+                 , MonadReader e m, ClientNode e, Render e, HasSizedFace e
+                 , MonadIO m)
+               => UpdateEvent
                -- ^ The 'Event' that should be handled here.
                -> m ()
-updateAppState = \case
-  Configuration char   -> updateGameParamsFromChar char
-  StartGame            -> putUserIntent Play >> updateAppState (StartLevel firstLevel)
-  EndGame              -> onEndGame
-  StartLevel nextLevel -> onStartLevel nextLevel
-  CycleRenderingOptions -> changeFont
-  (Action target dir)  -> onAction target dir
-  (Timeout (Deadline t _ AnimateUI)) -> updateUIAnim t
-  (Timeout (Deadline _ _ MoveFlyingItems)) -> onMove
-  (Timeout (Deadline _ _ (AnimateParticleSystem key))) -> liftIO getSystemTime >>= updateOneParticleSystem key
-  (Timeout (Deadline _ _ DisplayContinueMessage)) -> onContinueMessage
-  evt -> error $ "The caller should handle :" ++ show evt
+updateAppState (Right evt) = case evt of
+  Interrupt Quit -> sendToServer $ RequestCommand $ Leaves Intentional
+  Interrupt Help -> error "not implemented"
+  Continue x -> sendToServer $ CanContinue x
+  Log Error txt -> error $ unpack txt
+  Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
+  Configuration c ->
+    updateGameParamsFromChar c
+  CycleRenderingOptions i j -> do
+    cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
+    onTargetSize
+  ApplyPPUDelta deltaPPU -> do
+    -- the font calculation is done according to the current screen size,
+    -- so there may be some partial unit rectangles. If we wanted to have only
+    -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
+    -- then adjust the font.
+    asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
+    onTargetSize
+  ApplyFontMarginDelta d ->
+    asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
+  CanvasSizeChanged ->
+    onTargetSize
+  RenderingTargetChanged -> do
+    onTargetChanged >>= either (liftIO . putStrLn) return
+    onTargetSize
+  Timeout (Deadline t _ AnimateUI) -> updateUIAnim t
+  Timeout (Deadline _ _ (AnimateParticleSystem key)) -> liftIO getSystemTime >>= updateOneParticleSystem key
+  Timeout (Deadline t _ (RedrawStatus f)) -> updateStatus (Just f) t
+  ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
+  SendChatMessage -> onSendChatMessage
+  ToggleEventRecording -> error "should be handled by caller"
+updateAppState (Left evt) = case evt of
+  RunCommand i cmd -> runClientCommand i cmd
+  CommandError cmd err ->
+    stateChat $ addMessage $ Information Warning $
+      pack (show cmd) <> " failed:" <> err
+  Reporting cmd res ->
+    stateChat $ addMessage $ Information Info $
+      pack (show cmd) <> " is:" <> res
+  WorldRequest dt stats spec -> do
+    deadline <- addDuration dt <$> liftIO getSystemTime
+    let continue = getSystemTime >>= \t -> return (t < deadline)
+    asks sendToServer' >>= \f ->
+      void $ liftIO $ forkIO $ mkWorldEssence spec continue >>= \(res, stats') -> do
+        let mergedStats = mergeMayStats stats stats'
+        f $ WorldProposal res mergedStats
+  CurrentGameStateRequest ->
+    sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
+  ChangeLevel levelEssence worldEssence ->
+    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+      mkInitialState levelEssence worldEssence names viewMode sz (Just state)
+        >>= putGameState
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
+    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+      mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
+        >>= putGameState
+  GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
+    onMove accelerations shipsLosingArmor
+  GameEvent (LaserShot dir shipId) ->
+    onLaser shipId dir Add
+  ConnectionAccepted i eplayers -> do
+    sendToServer $ ExitedState Excluded
+    putClientState $ ClientState Over Excluded
+    putGameConnection $ Connected i
+    let p = Map.map mkPlayer eplayers
+    putPlayers p
+    stateChat $ addMessage $ ChatMessage $ welcome p
+  ConnectionRefused reason ->
+    putGameConnection $ ConnectionFailed reason
+  PlayerInfo notif i ->
+    stateChat . addMessage . ChatMessage =<< toTxt i notif
+  GameInfo notif ->
+    stateChat $ addMessage $ ChatMessage $ toTxt' notif
+  EnterState s ->
+    putClientState $ ClientState Ongoing s
+  ExitState s  ->
+    putClientState $ ClientState Over s
+  Disconnected reason -> onDisconnection reason
+  ServerError txt ->
+    liftIO $ throwIO $ ErrorFromServer txt
+ where
+  onDisconnection ClientShutdown       = liftIO exitSuccess
+  onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
+  onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
-onStartLevel :: (MonadState AppState m, MonadIO m)
-             => Int -> m ()
-onStartLevel n =
-  getGame >>= \(Game _ params state@(GameState _ _ _ _ _ _ _ (Screen sz _))) ->
-    mkInitialState params sz n (Just state) >>= putGameState
+  toTxt i notif =
+    (`mappend` colored (toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i
+  toTxt'' = \case
+    Joins        -> " joins the game."
+    WaitsToJoin  -> " is waiting to join the game."
+    StartsGame   -> " starts the game."
+    Done cmd res -> " initiated " <> pack (show cmd) <> " resulting in:" <> res
 
-onEndGame :: (MonadState AppState m, Canvas e, MonadReader e m, MonadIO m) => m ()
-onEndGame =
-  getGameParameters >>= \params -> do
-    getTargetSize
-      >>= liftIO . initialGameState params
-      >>= putGame . Game Configure params
-    return ()
+  toTxt' (LevelResult n (Lost reason)) =
+    colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
+  toTxt' (LevelResult n Won) =
+    colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
+  toTxt' GameWon =
+    colored "- The game was won! Congratulations!" chatWinColor
 
-updateGameParamsFromChar :: (MonadState AppState m, MonadIO m)
+
+{-# INLINABLE onTargetSize #-}
+onTargetSize :: (MonadState AppState m
+               , MonadReader e m, Canvas e
+               , MonadIO m)
+             => m ()
+onTargetSize = getTargetSize >>= maybe (return ()) (\sz ->
+  getGameState >>= \g@(GameState curWorld mayNewWorld _ _ uiAnimation _ _ _ _) -> do
+    let screen@(Screen _ newScreenCenter) = mkScreen $ Just sz
+        sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
+        newPosition = upperLeftFromCenterAndSize newScreenCenter sizeSpace
+        newAnim = setPosition newPosition uiAnimation
+    putGameState $ g { getUIAnimation = newAnim,
+                       getScreen = screen })
+
+{-# INLINABLE sendToServer #-}
+sendToServer :: (MonadState AppState m
+               , MonadReader e m, ClientNode e
+               , MonadIO m)
+             => ClientEvent
+             -> m ()
+sendToServer e =
+  asks sendToServer' >>= \f -> f e
+
+onSendChatMessage :: (MonadState AppState m
+                    , MonadReader e m, ClientNode e
+                    , MonadIO m)
+                  => m ()
+onSendChatMessage =
+  strip <$> stateChat takeMessage >>= \msg -> do
+    let left = stateChat . addMessage . Information Warning . (<>) ("Error while parsing: " <> msg <> " : ")
+        p = parseOnly command msg
+    either
+      (left . pack)
+      (either
+        left
+        (\case
+            ServerRep rep -> sendToServer $ Report rep
+            ServerCmd cmd -> sendToServer $ Do cmd
+            ClientCmd cmd -> sendToServer $ RequestCommand cmd))
+      p
+
+updateGameParamsFromChar :: (MonadState AppState m
+                           , MonadReader e m, ClientNode e
+                           , MonadIO m)
                          => Char
                          -> m ()
-updateGameParamsFromChar char =
- getGameParameters >>= \(GameParameters shape wallType mode) -> case char of
-  '1' -> go Square wallType mode
-  '2' -> go Rectangle2x1 wallType mode
-  'e' -> go shape None mode
-  'r' -> go shape Deterministic mode
-  't' -> go shape (Random $ RandomParameters minRandomBlockSize StrictlyOneComponent) mode
-  'd' -> go shape wallType CenterSpace
-  'f' -> go shape wallType CenterShip
+updateGameParamsFromChar = \case
+  '1' -> sendToServer $ ChangeWorldShape Square
+  '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
+  'e' -> sendToServer $ ChangeWallDistribution None
+  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 OneComponentPerShip
+  {-
+  'd' -> putViewMode CenterSpace -- TODO force a redraw?
+  'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
+  -}
   _ -> return ()
+
+{-# INLINABLE onLaser #-}
+onLaser :: (MonadState AppState m
+          , MonadReader e m, ClientNode e
+          , MonadIO m)
+        => ShipId
+        -> Direction
+        -> Operation
+        -> m ()
+onLaser ship dir op =
+  (liftIO getSystemTime >>= laserEventAction ship dir) >>= onDestroyedNumbers
  where
-  go a b c = putGameParameters (GameParameters a b c) >> onStartLevel 1
+  onDestroyedNumbers (destroyedBalls, ammoChanged) =
+    getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s b m na) -> do
+      let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
+          newFinished = finished <|> finishIfNoAmmo
+          newLevel = Level level newFinished
+      maybe
+        (return ())
+        (when (isNothing finished) . sendToServer . LevelEnded)
+        newFinished
+      putGameState $ GameState w f allShotNumbers newLevel a s b m na
+      updateShipsText
+      when ammoChanged checkSums
 
-onContinueMessage :: (MonadState AppState m)
-                  => m ()
-onContinueMessage =
-  getGameState >>= \(GameState a t b c d (Level n target mayFinished) e f) -> do
-    case mayFinished of
-      Just (LevelFinished stop finishTime _) -> do
-        let newLevel = Level n target (Just $ LevelFinished stop finishTime ContinueMessage)
-        putGameState $ GameState a t b c d newLevel e f
-      Nothing -> return ()
-
-startGameState :: (MonadState AppState m)
-               => Time Point System
-               -> m ()
-startGameState t =
-  getGameState >>= \(GameState _ m world world' b d e f) ->
-    putGameState
-      $ GameState (Just t) m (startWorld t world) (startWorld t world') b d e f
-
-onAction :: (MonadState AppState m, MonadIO m)
-         => ActionTarget
-         -> Direction
-         -> m ()
-onAction target dir = getGameState >>= \(GameState _ _ _ _ _ _ anim _) ->
-  when (isFinished anim) $ case target of
-    Laser -> liftIO getSystemTime >>= \t -> laserEventAction dir t >>= onDestroyedNumbers t
-    Ship  -> accelerateShip' dir
-
-{-# INLINABLE onDestroyedNumbers #-}
-onDestroyedNumbers :: (MonadState AppState m)
-                   => Time Point System
-                   -> [Number]
-                   -> m ()
-onDestroyedNumbers t destroyedBalls =
-  getGameState >>= \(GameState b m world@(World _ (BattleShip _ ammo _ _) (Space _ sz _) _)
-                               futureWorld g level@(Level i target finished)
-                   (UIAnimation (UIEvolutions j upDown _) k l) s) -> do
-    (Screen _ center) <- getCurScreen
-    mode <- getMode
-    let destroyedNumbers = map (\(Number _ n) -> n) destroyedBalls
-        allShotNumbers = g ++ destroyedNumbers
-        newLeft =
-          let frameSpace = mkRectContainerWithCenterAndInnerSize center sz
-              (horizontalDist, verticalDist) = computeViewDistances mode
-              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-              infos = mkLeftInfo Normal ammo allShotNumbers level
-          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 0) -- 0 duration, since animation is over anyway
-        newMultiplicator
-          | null destroyedBalls = m
-          | otherwise = initalGameMultiplicator
-        newFinished = finished <|> checkTargetAndAmmo ammo (sum allShotNumbers) target t
-        newLevel = Level i target newFinished
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) k l
-    putGameState
-      $ assert (isFinished newAnim)
-      $ GameState b newMultiplicator world futureWorld allShotNumbers newLevel newAnim s
 
 {-# INLINABLE onMove #-}
-onMove :: (MonadState AppState m, MonadIO m) => m ()
-onMove = getGameState >>= \(GameState _ m@(Multiplicator mv) world a b c d e) ->
-  liftIO getSystemTime >>= \t -> do
-    let nextTime = addDuration (toSystemDuration m gameMotionPeriod) t
-    putGameState $ GameState (Just nextTime) (Multiplicator (mv + 0.01)) (moveWorld t world) a b c d e
-    onHasMoved t
+onMove :: (MonadState AppState m
+         , MonadReader e m, ClientNode e
+         , MonadIO m)
+       => Map ShipId (Coords Vel)
+       -> Set ShipId
+       -> m ()
+onMove accelerations shipsLosingArmor = do
+  moveWorld accelerations shipsLosingArmor
+  onHasMoved
 
 {-# INLINABLE onHasMoved #-}
-onHasMoved :: (MonadState AppState m)
-           => Time Point System
-           -> m ()
-onHasMoved t = do
-  shipParticleSystems t >>= addParticleSystems >> getGameState
-    >>= \(GameState b m (World balls ship@(BattleShip _ _ safeTime collisions) space systems)
-                    futureWorld shotNums (Level i target finished) anim s) -> do
-    let remainingBalls =
-          if isNothing safeTime
-            then
-              filter (`notElem` collisions) balls
-            else
-              balls
-        newWorld = World remainingBalls ship space systems
-        finishIfShipCollides =
-          maybe
-            (case map (\(Number _ n) -> n) collisions of
-              [] -> Nothing
-              l  -> Just $ LevelFinished (Lost $ "collision with " <> showListOrSingleton l) t InfoMessage )
-            (const Nothing)
-              safeTime
-        newLevel = Level i target (finished <|> finishIfShipCollides)
-    putGameState $ assert (isFinished anim) $ GameState b m newWorld futureWorld shotNums newLevel anim s
-
-{-# INLINABLE accelerateShip' #-}
-accelerateShip' :: (MonadState AppState m)
-                => Direction -> m ()
-accelerateShip' dir =
-  getWorld >>= \(World a ship b c) ->
-    putWorld $ World a (accelerateShip dir ship) b c
+onHasMoved :: (MonadState AppState m
+             , MonadReader e m, ClientNode e
+             , MonadIO m)
+           => m ()
+onHasMoved =
+  liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim b o m n) -> do
+      let oneShipAlive = any (shipIsAlive . getShipStatus) ships
+          allCollisions =
+            foldl'
+            (\s (BattleShip _ _ _ shipStatus collisions _) ->
+              case shipStatus of
+                Armored -> s
+                _ -> Set.union s collisions)
+            Set.empty
+            ships
+          remainingBalls = Map.withoutKeys balls allCollisions
+          numbersChanged =
+            assert (Set.size allCollisions + Map.size remainingBalls == Map.size balls)
+              $ not $ Set.null allCollisions
+          newWorld = world { getWorldNumbers = remainingBalls }
+          finishIfAllShipsDestroyed
+            | oneShipAlive = Nothing
+            | Set.null allCollisions = Nothing
+            | otherwise =
+                let nums = map (getNumber . getNumEssence) $ Map.elems $ Map.restrictKeys balls allCollisions
+                in Just $ Lost $ "collision with " <> showListOrSingleton nums
+          finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse shotNums) target
+          newFinished = finished <|> finishIfAllShipsDestroyed <|> finishIfNoAmmo
+          newLevel = Level level finished
+      maybe
+        (return ())
+        (when (isNothing finished) . sendToServer . LevelEnded)
+        newFinished
+      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim b o m n
+      when numbersChanged checkSums
+      updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
-updateUIAnim :: (MonadState AppState m)
-             => Time Point System -> m()
+updateUIAnim :: (MonadState AppState m
+               , MonadReader e m, ClientNode e
+               , MonadIO m)
+             => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState _ m curWorld futWorld j k (UIAnimation evolutions _ it) s) -> do
+  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) b s m names) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
-        (world, worldAnimDeadline) =
-          maybe
-            (futWorld, Nothing)
-            (\dt ->
-             (curWorld, Just $ addDuration dt t))
-            $ getDeltaTime evolutions nextFrame
-        anims = UIAnimation evolutions worldAnimDeadline nextIt
-    putGameState $ GameState Nothing m world futWorld j k anims s
-    when (isFinished anims) $ startGameState t
+        (world, futWorld, worldAnimDeadline) = maybe
+          (fromMaybe
+            (error "ongoing UIAnimation with no future world")
+            mayFutWorld
+          , Nothing
+          , Nothing)
+          (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
+          $ getDeltaTime evolutions nextFrame
+        anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
+    putGameState $ GameState world futWorld j k anims b s m names
+    when (isFinished anims) $ do
+      checkAllComponentStatus
+      checkSums
+      maybe (return ()) (sendToServer . IsReady) $ getId world
+
+{-# INLINABLE putClientState #-}
+putClientState :: (MonadState AppState m
+                 , MonadReader e m, HasSizedFace e
+                 , MonadIO m)
+               => ClientState
+               -> m ()
+putClientState i = do
+  gets game >>= \g -> putGame $ g { getClientState = i}
+  liftIO getSystemTime >>= updateStatus Nothing
+
+{-# INLINABLE updateStatus #-}
+updateStatus :: (MonadState AppState m
+               , MonadReader e m, HasSizedFace e
+               , MonadIO m)
+             => Maybe (Frame, Int)
+             -- ^ When Nothing, the current frame should be used.
+             -> Time Point System
+             -> m ()
+updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnState' (Screen _ ref) _ _) _ _ _ _) -> do
+  let drawnState = zip [0 :: Int ..] drawnState'
+  newStrs <- zip [0 :: Int ..] <$> go state
+  -- return the same evolution when the string didn't change.
+  part1 <- forM
+    (zip newStrs drawnState)
+    (\((i,newStr),(_,(curStr,curLine@(AnimatedLine (Evolution (Successive s) _ _ _) _ _)))) ->
+      if newStr == curStr
+        then
+          return (curStr,curLine)
+        else do
+          let mayPrevRecord = case s of
+                [] -> Nothing
+                _ -> Just $ last s
+          evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
+          evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
+          let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
+          return (newStr, AnimatedLine ev 0 Nothing))
+  part2 <- forM
+    (drop (length drawnState) newStrs)
+    (\(i,newStr) -> do
+      evolutionStart <- liftIO mkZeroRecordDraw
+      evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
+      let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
+      return (newStr, AnimatedLine ev 0 Nothing))
+  part3 <- catMaybes <$> forM
+    (drop (length newStrs) drawnState)
+    (\(_,(oldStr,oldRec@(AnimatedLine (Evolution (Successive s) _ _ _) _ deadline))) ->
+      if oldStr == ""
+        then
+          return $ maybe Nothing (const $ Just (oldStr,oldRec)) deadline
+        else do
+          let mayPrevRecord = case s of
+                [] -> Nothing
+                _ -> Just $ last s
+          evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
+          evolutionEnd <- liftIO mkZeroRecordDraw
+          let ev = mkEvolutionEaseInQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 0.5
+          return $ Just ("", AnimatedLine ev 0 Nothing))
+  putDrawnState $ part1 ++ part2 ++ part3
+  updateStatusDeadline
+ where
+  updateStatusDeadline :: MonadState AppState m => m ()
+  updateStatusDeadline =
+    zip [0..] . getDrawnClientState <$> getGameState >>= mapM
+      (\(i, (str, AnimatedLine recordEvolution curFrame _)) -> do
+        let frame = fromMaybe curFrame $ maybe
+              Nothing
+              (\(targetFrame,j) -> if i==j then Just targetFrame else Nothing)
+              mayFrame
+            minDt = fromSecs 0.015
+            significantDeadline f sofar = maybe
+              (succ f, sofar)
+              (\dt ->
+                let newDuration = dt |+| fromMaybe (fromSecs 0) sofar
+                in if newDuration > minDt
+                    then
+                      (succ f, Just newDuration)
+                    else
+                      significantDeadline (succ f) $ Just newDuration)
+              $ getDeltaTimeToNextFrame recordEvolution f
+            (deadlineFrame, deadlineGap) = significantDeadline frame Nothing
+            deadline = fmap (\d -> Deadline (addDuration d t) redrawStatusPriority $ RedrawStatus (deadlineFrame,i)) deadlineGap
+        return (str, AnimatedLine recordEvolution frame deadline))
+      >>= putDrawnState
+  recordFromStrs ref (ColorString [(txt,_)])
+    | Text.length txt == 1 =
+        let (c,_) = fromMaybe (error "logic") $ uncons txt
+        in informProgressively ref $ mkRasterizedString [c] grayGradient
+  recordFromStrs ref unique
+    | countChars unique < 3 =
+        informProgressively ref $ mkRasterizedStringFromColorString unique
+    | otherwise =
+        liftIO mkRecordDraw >>= \e -> do
+          flip runReaderT e $ drawAligned_ unique $ mkCentered ref
+          liftIO (finalizeRecord e)
+  informProgressively ref x = do
+    face <- asks getSizedFace
+    e <- liftIO mkRecordDraw
+    liftIO (x face) >>= flip runReaderT e . drawVerticallyCentered ref
+    liftIO $ finalizeRecord e
+  go = \case
+    ClientState Over Excluded ->
+      inform "Joining..."
+    ClientState Over Setup ->
+      inform "..."
+    ClientState Over (PlayLevel _) ->
+      inform "Please wait..."
+    ClientState Ongoing s -> case s of
+      Excluded ->
+        inform "A game is currently running on the server, please wait..."
+      Setup ->
+        return []
+      PlayLevel (Countdown n Running) ->
+        inform $ pack $ show n
+      PlayLevel status ->
+        statusMsg status
+  statusMsg = \case
+    New -> return [color "Waiting for game start..."]
+    CancelledNoConnectedPlayer -> return [color "Game cancelled, all players left."]
+    Paused disconnectedPlayers x -> -- TODO we could draw the previous status too (stack of status)
+      intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
+        flip (++) [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]  <$> statusMsg x
+    Running -> return []
+    WaitingForOthersToEndLevel stillPlaying ->
+      intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
+        return [color "Waiting for [" <> them <> color "] to finish..."]
+    Countdown n x ->
+      flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg x
+    OutcomeValidated o -> return $ map (flip colored' $ messageColor o) $ case o of
+      (Lost reason) -> ["You lose", "(" <> reason <> ")"]
+      Won           -> ["You win!"]
+    WhenAllPressedAKey x (Just _) _ -> statusMsg x
+    WhenAllPressedAKey x Nothing havePressed ->
+      getMyShipId >>= maybe
+        (error "todo")
+        (\me -> flip (++) <$> maybe
+          (error "logic")
+          (\iHavePressed ->
+            if iHavePressed
+              then
+                intercalate ", " <$> showPlayerNames (Map.keysSet $ Map.filter (== False) havePressed) >>= \them ->
+                  return [color "Waiting for [" <> them <> color "] to press a key..."]
+              else
+                return [colored "Press a key to continue..." neutralMessageColorFg])
+          (Map.lookup me havePressed)
+          <*> statusMsg x)
+  inform m = return [color m]
+  color = flip colored' (messageColor Won)
+  showPlayerNames = mapM showPlayerName . Set.toList
+  showPlayerName x = maybe
+    (colored (pack $ show x) white)
+    (\(Player (PlayerName name) _ (PlayerColors c _)) -> colored name c)
+    <$> getPlayer x

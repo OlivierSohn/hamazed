@@ -10,11 +10,12 @@
 
 module Imj.Geo.Discrete.Types
     (
-    -- * Discrete geometry types
+    -- * Discrete geometry
     -- ** Direction
       Direction(..)
     -- ** Coordinates
     , Col, Row, Coord(..), Coords(..)
+    , zeroCoords, diffCoords, sumCoords, coordsForDirection, multiply
     -- ** Size
     , Size(..)
     , Length(..)
@@ -22,6 +23,8 @@ module Imj.Geo.Discrete.Types
     , Height
     , toCoords
     , maxLength
+    , area
+    , sumSizes
     -- ** Segment
     , Segment(..)
     , mkSegment
@@ -35,40 +38,23 @@ module Imj.Geo.Discrete.Types
 
 import           Imj.Prelude
 
+import           Control.DeepSeq(NFData)
 import           Data.Word(Word32)
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types
-import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Util
 
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show, Generic)
-instance PrettyVal Direction where
-  prettyVal Up = prettyVal "Up"
-  prettyVal Down = prettyVal "Down"
-  prettyVal LEFT = prettyVal "LEFT"
-  prettyVal RIGHT = prettyVal "RIGHT"
+instance PrettyVal Direction
+instance Binary Direction
 
 -- | One-dimensional discrete coordinate. We use phantom types 'Row', 'Col'
 -- to distinguish between rows and columns.
 newtype Coord a = Coord Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Generic)
-
-instance PrettyVal (Coord a) where
-  prettyVal (Coord x) = prettyVal x
-
--- | Using bresenham 2d line algorithm.
-instance DiscreteInterpolation (Coords Pos) where
-  interpolate c c' i
-    | c == c' = c
-    | otherwise =
-        let lastFrame = pred $ fromIntegral $ bresenhamLength c c'
-        in bresenham (mkSegment c c') !! clamp i 0 lastFrame
-
--- | Using bresenham 2d line algorithm.
-instance DiscreteDistance (Coords Pos) where
-  distance a b = fromIntegral $ bresenhamLength a b
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, Bounded, Binary, NFData, Generic)
+instance PrettyVal (Coord a)
 
 {- | Represents a row index (y).
 
@@ -87,13 +73,52 @@ data Coords a = Coords {
     _coordsY :: {-# UNPACK #-} !(Coord Row)
   , _coordsX :: {-# UNPACK #-} !(Coord Col)
 } deriving (Eq, Show, Ord, Generic)
+instance NFData (Coords a)
+instance Binary (Coords a)
+instance PrettyVal (Coords a)
 
-instance PrettyVal (Coords a) where
-  prettyVal (Coords x y) = prettyVal ("Coords:",x,y)
+-- | 'zeroCoords' = 'Coords' 0 0
+zeroCoords :: Coords a
+zeroCoords = Coords 0 0
+
+-- | Returns a - b
+{-# INLINE diffCoords #-}
+diffCoords :: Coords a
+           -- ^ a
+           -> Coords a
+           -- ^ b
+           -> Coords a
+           -- ^ a - b
+diffCoords (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 - r2) (c1 - c2)
+
+-- | Returns a + b
+{-# INLINE sumCoords #-}
+sumCoords :: Coords a
+           -- ^ a
+           -> Coords a
+           -- ^ b
+           -> Coords a
+           -- ^ a + b
+sumCoords (Coords r1 c1) (Coords r2 c2) =
+  Coords (r1 + r2) (c1 + c2)
+
+{-# INLINE multiply #-}
+multiply :: Int -> Coords a -> Coords a
+multiply n (Coords r c) =
+  Coords (r * fromIntegral n) (c * fromIntegral n)
+
+-- | Returns the coordinates that correspond to one step in the given direction.
+coordsForDirection :: Direction -> Coords a
+coordsForDirection Down  = Coords 1 0
+coordsForDirection Up    = Coords (-1) 0
+coordsForDirection LEFT  = Coords 0 (-1)
+coordsForDirection RIGHT = Coords 0 1
+
 
 -- | Discrete length
 newtype Length a = Length Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic, NFData)
 
 -- | Phantom type for width
 data Width
@@ -101,12 +126,19 @@ data Width
 data Height
 -- | Represents a discrete size (width and height)
 data Size = Size {
-    _sizeY :: {-# UNPACK #-} !(Length Height)
-  , _sizeX :: {-# UNPACK #-} !(Length Width)
+    getHeight :: {-# UNPACK #-} !(Length Height)
+  , getWidth :: {-# UNPACK #-} !(Length Width)
 } deriving (Eq, Show, Generic)
+instance PrettyVal Size
+instance NFData Size
 
-instance PrettyVal Size where
-  prettyVal (Size x y) = prettyVal ("Size:",x,y)
+{-# INLINE sumSizes #-}
+sumSizes :: Size -> Size -> Size
+sumSizes (Size a b) (Size a' b') = Size (a+a') (b+b')
+
+{-# INLINE area #-}
+area :: Size -> Int
+area (Size (Length h) (Length w)) = h * w
 
 -- | Width and Height to Coords
 {-# INLINE toCoords #-}
@@ -122,13 +154,13 @@ maxLength (Size (Length h) (Length w)) =
 -- | A segment is a line betwen two discrete coordinates.
 --
 -- It can be materialized as a list of 'Coords' using 'bresenham'
-data Segment = Horizontal !(Coord Row) !(Coord Col) !(Coord Col)
+data Segment = Horizontal {-# UNPACK #-} !(Coord Row) {-# UNPACK #-} !(Coord Col) {-# UNPACK #-} !(Coord Col)
              -- ^ Horizontal segment
-             | Vertical   !(Coord Col) !(Coord Row) !(Coord Row)
+             | Vertical   {-# UNPACK #-} !(Coord Col) {-# UNPACK #-} !(Coord Row) {-# UNPACK #-} !(Coord Row)
              -- ^ Vertical segment
-             | Oblique    !(Coords Pos) !(Coords Pos) !Word32
+             | Oblique    {-# UNPACK #-} !(Coords Pos) {-# UNPACK #-} !(Coords Pos) {-# UNPACK #-} !Word32
              -- ^ Oblique segment
-             deriving(Show)
+             deriving(Generic, Show)
 
 mkSegment :: Coords Pos
           -- ^ Segment start

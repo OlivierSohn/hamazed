@@ -1,6 +1,8 @@
 {-#  OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Geo.Continuous.Types
     ( Vec2(..)
@@ -9,6 +11,7 @@ module Imj.Geo.Continuous.Types
     ) where
 
 import           Imj.Prelude
+import           Control.DeepSeq(NFData)
 
 import           Imj.Geo.Types
 
@@ -21,4 +24,4 @@ import           Imj.Geo.Types
 data Vec2 a = Vec2 {
     _vec2X :: {-# UNPACK #-} !Float
   , _vec2Y :: {-# UNPACK #-} !Float
-} deriving(Eq, Show, Ord)
+} deriving(Eq, Show, Ord, Generic, NFData)

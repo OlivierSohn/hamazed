@@ -3,40 +3,92 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Game.Hamazed.World.Create
-        ( mkWorld
+        ( mkWorldEssence
+        , mkMinimalWorldEssence
+        , mkSpace
         , updateMovableItem
-        , validateScreen
         ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Data.Map.Strict(empty)
+import           Data.List(sortOn)
+import qualified Data.Map.Strict as Map(empty, fromList)
+import qualified Data.Set as Set(size, toList, empty)
+import           System.Random.MWC(GenIO, withSystemRandom, asGenIO)
+
+import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
+import           Imj.Util
 
-mkWorld :: (MonadIO m)
+data Association = Association {
+    _shipId :: {-# UNPACK #-} !ShipId
+  , _numbers :: [Int]
+  , _componentIdx :: {-# UNPACK #-} !ComponentIdx
+} deriving(Show)
+
+mkWorldEssence :: WorldSpec -> IO Bool -> IO (Maybe WorldEssence, Maybe Statistics)
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution) wid) continue =
+-- withSystemRandom seeds a PRNG with data from the system's fast source of pseudo-random numbers.
+-- The generator should be used from a single thread.
+ withSystemRandom . asGenIO $ \gen -> do
+  let (LevelEssence _ _ numbers) = mkLevelEssence s
+      size = worldSizeFromLevel levelNum shape
+      nShips = Set.size shipIds
+  (maySpaceTopo, stats) <- mkSpace size (fromIntegral nShips) wallDistribution continue gen
+  maybe
+    (return (Nothing, stats))
+    (\(space, topology) -> do
+      let associations = map (\(a,b,c) -> Association a b c) $ zip3
+            (Set.toList shipIds)
+            (mkGroups nShips numbers) -- TODO shuffle numbers ?
+            $ cycle $ getComponentIndices topology
+      -- TODO make groups such that a single player cannot finish the level without the help of others.
+      shipsAndNums <- mapM
+        (\(Association shipId nums componentIdx) -> do
+          -- TODO shuffle this, as it is ordered due to the use of a Set inside.
+           positions <- randomCCCoords gen (1 + length nums) componentIdx topology NoOverlap
+           (shipPS:numPS) <- mapM (mkRandomPosSpeed gen space) positions
+           let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
+               ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
+               ns = map (\(n,posSpeed) -> NumberEssence posSpeed n componentIdx) $ zip nums numPS
+           return ((shipId, ship), ns)
+        ) associations
+      let (ships, balls) = unzip shipsAndNums
+      return (Just $ WorldEssence
+                -- we sort the numbers so that their order in the map matches the order of their numeric values
+                (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
+                (Map.fromList ships)
+                (toListOfLists space)
+                wid
+              , stats))
+    maySpaceTopo
+
+
+mkMinimalWorldEssence :: WorldEssence
+mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]]) Nothing
+
+mkSpace :: (MonadIO m)
         => Size
         -- ^ The dimensions
+        -> ComponentCount
+        -- ^ Number of connex components
         -> WallDistribution
         -- ^ How the 'Wall's should be constructed
-        -> [Int]
-        -- ^ The numbers for which we will create 'Number's.
-        -> Int
-        -- ^ Ammunition : how many laser shots are available.
-        -> m World
-mkWorld s walltype nums ammo = do
-  space <- case walltype of
-    None          -> return $ mkEmptySpace s
-    Deterministic -> return $ mkDeterministicallyFilledSpace s
-    Random rParams    -> liftIO $ mkRandomlyFilledSpace rParams s
-  balls <- mapM (createRandomNumber space) nums
-  ship@(PosSpeed pos _) <- liftIO $ createShipPos space balls
-  return $ World balls (BattleShip ship ammo Nothing (getColliding pos balls)) space empty
+        -> IO Bool
+        -- ^ Returns false when we should stop trying
+        -> GenIO
+        -> m (Maybe (Space, BigWorldTopology), Maybe Statistics)
+mkSpace s n dist continue gen = case dist of
+  None -> let (a,b) = mkEmptySpace s in return (Just (a,b),Nothing)
+  Random params -> liftIO $ mkRandomlyFilledSpace params s n continue gen
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space
@@ -71,42 +123,3 @@ doBallMotionUntilCollision space (PosSpeed pos speed) =
   let trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
       newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
   in PosSpeed newPos speed
-
-
-createRandomNumber :: (MonadIO m)
-                   => Space
-                   -> Int
-                   -> m Number
-createRandomNumber space i = do
-  ps <- liftIO $ createRandomNonCollidingPosSpeed space
-  return $ Number ps i
-
-
-createShipPos :: Space -> [Number] -> IO PosSpeed
-createShipPos space numbers = do
-  let numPositions = map (\(Number (PosSpeed pos _) _) -> pos) numbers
-  candidate@(PosSpeed pos _) <- createRandomNonCollidingPosSpeed space
-  if pos `notElem` numPositions
-    then
-      return candidate
-    else
-      createShipPos space numbers
-
-validateScreen :: Screen -> IO ()
-validateScreen (Screen sz _) =
-  case sz of
-    Nothing -> return ()
-    (Just winSize@(Size h w)) -> do
-      let (Size rs cs) = maxWorldSize
-          heightMargin = 2 * 1 {-outer walls-}
-          widthMargin = 2 * (1 {-outer walls-} + 4 {-brackets, spaces-} + (9 + 6 * 2) {-display all numbers-})
-          minSize@(Size minh minw) =
-            Size (fromIntegral rs + heightMargin)
-                 (fromIntegral cs + widthMargin)
-      when (h < minh || w < minw) $
-        error $ "\nMinimum discrete size : " ++ show minSize
-            ++ ".\nCurrent discrete size : " ++ show winSize
-            ++ ".\nThe current discrete size doesn't match the minimum size,"
-            ++  "\nplease adjust your terminal or window size and restart the executable"
-            ++ ".\n"
-      return ()

@@ -89,17 +89,18 @@ import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.ParticleSystem.Geo
 import           Imj.Graphics.ParticleSystem.Internal
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Iteration
 import           Imj.Physics.Continuous.Types
 import           Imj.Timing
 
-defaultColors :: Frame -> LayeredColor
-defaultColors = onBlack . colorFromFrame (rgb 4 0 0)
+defaultColors :: Colorization
+defaultColors frame index = onBlack $ colorFromFrame (rgb 4 0 0) frame index
 
 -- | Creates a 'ParticleSystem' representing a laser ray with a fade-out effect.
 laserShot :: LaserRay Actual
           -- ^ The laser ray
-          -> (Frame -> LayeredColor)
+          -> Colorization
           -> Time Point ParticleSyst
           -> Maybe ParticleSystem
 laserShot ray@(LaserRay _ start len) colors keyTime
@@ -116,8 +117,8 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -- ^ Number of particles in the first explosion
                                          -> Coords Pos
                                          -- ^ Center of the first explosion
-                                         -> Char
-                                         -- ^ Character used when drawing the 'Particle'.
+                                         -> Glyph
+                                         -- ^ Glyph used when drawing the 'Particle'.
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
@@ -126,10 +127,10 @@ quantitativeExplosionThenSimpleExplosion :: Int
                                          -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> Maybe ParticleSystem
-quantitativeExplosionThenSimpleExplosion num pos char =
+quantitativeExplosionThenSimpleExplosion num pos glyph =
   let firstAngle = 2*pi / 5
-      funcs = [ particles (explosion num firstAngle) zeroForceMotion Interact char defaultColors
-              , particles (explosion 32 0) zeroForceMotion Interact char defaultColors]
+      funcs = [ particles (explosion num firstAngle) zeroForceMotion Interact glyph defaultColors
+              , particles (explosion 32 0) zeroForceMotion Interact glyph defaultColors]
        -- speed doesn't matter to 'particlesExplosionByCircle' and 'particlesExplosionByQuartArcs':
       posspeed = mkStaticVecPosSpeed $ pos2vec pos
   in mkSystem posspeed funcs
@@ -140,7 +141,7 @@ expandShrinkPolygon :: Int
                     -- ^ If n==1, the geometric figure is a circle, else if n>1, a n-sided polygon
                     -> Coords Pos
                     -- ^ Center of the polygon (or circle)
-                    -> (Frame -> LayeredColor)
+                    -> Colorization
                     -> Speed
                     -> EnvFunctions
                     -- ^ ParticleSystem speed
@@ -161,8 +162,8 @@ simpleExplosion :: Int
                 -- ^ Number of particles in the explosion
                 -> Coords Pos
                 -- ^ Center of the explosion
-                -> Char
-                -- ^ Character used when drawing the 'Particle'.
+                -> Glyph
+                -- ^ Glyph used when drawing the 'Particle'.
                 -> Speed
                 -- ^ ParticleSystem speed
                 -> EnvFunctions
@@ -171,12 +172,12 @@ simpleExplosion :: Int
                 -- that triggered this call, or 'Left' 'TimeSpec'
                 -- of the current time if a player action triggered this call
                 -> Maybe ParticleSystem
-simpleExplosion resolution pos char =
+simpleExplosion resolution pos glyph =
   mkSystem posspeed funcs
  where
   -- speed doesn't matter to 'simpleExplosion'
   posspeed = mkStaticVecPosSpeed $ pos2vec pos
-  funcs = [particles (explosion resolution 0) zeroForceMotion Interact char defaultColors]
+  funcs = [particles (explosion resolution 0) zeroForceMotion Interact glyph defaultColors]
 
 -- | ParticleSystem representing an object with an initial velocity disintegrating in
 -- 4 different parts.
@@ -184,8 +185,8 @@ fragmentsFreeFall :: Vec2 Vel
                   -- ^ Initial speed
                   -> Coords Pos
                   -- ^ Initial position
-                  -> Char
-                  -- ^ Character used when drawing the 'Particle'.
+                  -> Glyph
+                  -- ^ Glyph used when drawing the 'Particle'.
                   -> Speed
                   -- ^ ParticleSystem speed
                   -> EnvFunctions
@@ -194,8 +195,8 @@ fragmentsFreeFall :: Vec2 Vel
                   -- that triggered this call, or 'Left' 'TimeSpec'
                   -- of the current time if a player action triggered this call
                   -> [ParticleSystem]
-fragmentsFreeFall speed pos char animSpeed envFuncs keyTime =
-  mapMaybe (\sp -> freeFall sp pos char animSpeed envFuncs keyTime) $ variations speed
+fragmentsFreeFall speed pos glyph animSpeed envFuncs keyTime =
+  mapMaybe (\sp -> freeFall sp pos glyph animSpeed envFuncs keyTime) $ variations speed
 
 -- | ParticleSystem representing an object with an initial velocity disintegrating in
 -- 4 different parts and rebounding several times until it explodes.
@@ -207,10 +208,10 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -- ^ Rebound speed attenuation factor, expected to be strictly positive.
                                          -> Int
                                          -- ^ Number of rebounds
-                                         -> (Int -> Int -> Frame -> LayeredColor)
+                                         -> (Int -> Int -> Colorization)
                                          -- ^ fragment index -> particle function level -> relative frame -> color
-                                         -> Char
-                                         -- ^ Character used when drawing the 'Particle'.
+                                         -> Glyph
+                                         -- ^ Glyph used when drawing the 'Particle'.
                                          -> Speed
                                          -- ^ ParticleSystem speed
                                          -> EnvFunctions
@@ -219,7 +220,7 @@ fragmentsFreeFallWithReboundsThenExplode :: Vec2 Vel
                                          -- that triggered this call, or 'Left' 'TimeSpec'
                                          -- of the current time if a player action triggered this call
                                          -> [ParticleSystem]
-fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char animSpeed envFuncs keyTime =
+fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs glyph animSpeed envFuncs keyTime =
   if velAtt <= 0
     then
       error "velocity attenuation should be > 0"
@@ -227,7 +228,7 @@ fragmentsFreeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs c
       mapMaybe
         (\(idx,sp) ->
             freeFallWithReboundsThenExplode
-              sp pos velAtt nRebounds (colorFuncs idx) char animSpeed envFuncs keyTime)
+              sp pos velAtt nRebounds (colorFuncs idx) glyph animSpeed envFuncs keyTime)
         $ zip [0..] $ variations speed
 
 -- | Creates a 'ParticleSystem' simulating a gravity-based free-falling 'Particle'.
@@ -235,8 +236,8 @@ freeFall :: Vec2 Vel
          -- ^ Initial speed
          -> Coords Pos
          -- ^ Initial position
-         -> Char
-         -- ^ Character used when drawing the 'Particle'.
+         -> Glyph
+         -- ^ Glyph used when drawing the 'Particle'.
          -> Speed
          -- ^ ParticleSystem speed
          -> EnvFunctions
@@ -245,11 +246,11 @@ freeFall :: Vec2 Vel
          -- that triggered this call, or 'Left' 'TimeSpec'
          -- of the current time if a player action triggered this call
          -> Maybe ParticleSystem
-freeFall speed pos char =
+freeFall speed pos glyph =
   mkSystem posspeed funcs
  where
   posspeed = VecPosSpeed (pos2vec pos) speed
-  funcs = [particlesFreefall 1 Interact char defaultColors]
+  funcs = [particlesFreefall 1 Interact glyph defaultColors]
 
 -- | Same as 'freeFall', with several rebounds and a final
 -- explosion.
@@ -261,10 +262,10 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- ^ Velocity attenuation factor on rebound, expected to be strictly positive.
                                 -> Int
                                 -- ^ Number of rebounds
-                                -> (Int -> Frame -> LayeredColor)
+                                -> (Int -> Colorization)
                                 -- ^ (particle function level -> relative frame -> color)
-                                -> Char
-                                -- ^ Character used when drawing the 'Particle'.
+                                -> Glyph
+                                -- ^ Glyph used when drawing the 'Particle'.
                                 -> Speed
                                 -- ^ ParticleSystem speed
                                 -> EnvFunctions
@@ -273,7 +274,7 @@ freeFallWithReboundsThenExplode :: Vec2 Vel
                                 -- that triggered this call, or 'Left' 'TimeSpec'
                                 -- of the current time if a player action triggered this call
                                 -> Maybe ParticleSystem
-freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char =
+freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs glyph =
   if velAtt <= 0
     then
       error "velocity attenuation should be > 0"
@@ -282,8 +283,8 @@ freeFallWithReboundsThenExplode speed pos velAtt nRebounds colorFuncs char =
  where
   posspeed = VecPosSpeed (pos2vec pos) $ scalarProd (recip velAtt) speed
   nFragments = 16
-  funcs = map (particlesFreefall velAtt Interact char . colorFuncs) [0..pred nRebounds]
-          ++ [particles (explosion nFragments (pi/16)) gravityMotion Interact char (colorFuncs nRebounds)]
+  funcs = map (particlesFreefall velAtt Interact glyph . colorFuncs) [0..pred nRebounds]
+          ++ [particles (explosion nFragments (pi/16)) gravityMotion Interact glyph (colorFuncs nRebounds)]
 
 -- | Creates a 'ParticleSystem' representing an object with an initial velocity disintegrating in
 -- 4 different 'Particle's free-falling and then exploding.
@@ -291,10 +292,10 @@ fragmentsFreeFallThenExplode :: Vec2 Vel
                              -- ^ Initial speed
                              -> Coords Pos
                              -- ^ Initial position
-                             -> (Int -> Frame -> LayeredColor)
+                             -> (Int -> Colorization)
                              -- ^ First argument of the function is the fragment index.
-                             -> Char
-                             -- ^ Character used when drawing the 'Particle'.
+                             -> Glyph
+                             -- ^ Glyph used when drawing the 'Particle'.
                              -> Speed
                              -- ^ ParticleSystem speed
                              -> EnvFunctions
@@ -322,9 +323,9 @@ freeFallThenExplode :: Vec2 Vel
                     -- ^ Initial speed
                     -> Coords Pos
                     -- ^ Initial position
-                    -> (Frame -> LayeredColor)
-                    -> Char
-                    -- ^ Character used when drawing the 'Particle'.
+                    -> Colorization
+                    -> Glyph
+                    -- ^ 'Glyph' used when drawing the 'Particle'.
                     -> Speed
                     -- ^ ParticleSystem speed
                     -> EnvFunctions
@@ -333,7 +334,7 @@ freeFallThenExplode :: Vec2 Vel
                     -- that triggered this call, or 'Left' 'TimeSpec'
                     -- of the current time if a player action triggered this call
                     -> Maybe ParticleSystem
-freeFallThenExplode speed pos colors char =
-  let funcs = [ particlesFreefall 1.0 Interact char colors
-              , particles (explosion 32 0) zeroForceMotion Interact char colors]
+freeFallThenExplode speed pos colors glyph =
+  let funcs = [ particlesFreefall 1.0 Interact glyph colors
+              , particles (explosion 32 0) zeroForceMotion Interact glyph colors]
   in mkSystem (VecPosSpeed (pos2vec pos) speed) funcs

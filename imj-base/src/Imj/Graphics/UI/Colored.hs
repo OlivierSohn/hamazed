@@ -21,19 +21,25 @@ import           Imj.Graphics.Interpolation
 
 
 data Colored a = Colored {
-    _coloredColor :: !LayeredColor
+    _coloredColor :: {-# UNPACK #-} !LayeredColor
   , _coloredColorable :: !a
 } deriving(Generic, Show, PrettyVal)
-
 instance Functor Colored where
   fmap f (Colored color a) = Colored color $ f a
-
+instance (HasReferencePosition a) => HasReferencePosition (Colored a) where
+  getPosition (Colored _ a) = getPosition a
+  {-# INLINE getPosition #-}
+instance (GeoTransform a) => GeoTransform (Colored a) where
+  transform f = fmap (transform f)
+  {-# INLINE transform #-}
+  
 instance (UncoloredTextual t) => Positionable (Colored t) where
   drawAt (Colored color txt) pos = drawTextual txt pos color
-  {-# INLINABLE drawAt #-}
-
   width (Colored _ txt) = textLength txt
+  height _ = 1
+  {-# INLINABLE drawAt #-}
   {-# INLINABLE width #-}
+  {-# INLINABLE height #-}
 
 instance HasLayeredColor (Colored a) where
   getColor (Colored color _) = color

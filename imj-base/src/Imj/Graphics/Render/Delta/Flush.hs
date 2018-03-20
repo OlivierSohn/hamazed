@@ -33,21 +33,23 @@ deltaFlush :: IORef Buffers
            -- ^ rendering function
            -> IO (Maybe Size)
            -- ^ get discrete size function
-           -> IO (Time Duration System, Time Duration System, Time Duration System)
+           -> IO (Maybe Size, Either String (Time Duration System, Time Duration System, Time Duration System))
 deltaFlush ref renderFunc sizeFunc =
-  readIORef ref
-  >>= \buffers@(Buffers _ _ _ _ _ policies) -> do
-        maySize <- shouldAdjustSize buffers sizeFunc
-        maybe
-          (render DeltaMode renderFunc buffers)
-          -- We force to render everything when size changes because
-          -- the terminal will have moved content on resize:
-          (\sz -> do
-            b <- uncurry (createBuffers policies) sz
+  readIORef ref >>= \buffers@(Buffers _ _ _ _ _ policies) ->
+    shouldAdjustSize buffers sizeFunc >>= maybe
+      ((,) Nothing . Right <$> render DeltaMode renderFunc buffers)
+      -- We force to render everything when size changes because
+      -- the terminal will have moved content on resize:
+      (\(w,h) -> do
+        let sz = Just $ Size (fromIntegral h) (fromIntegral w)
+        createBuffers policies w h >>= either
+          (\msg -> do
+            void $ render DeltaMode renderFunc buffers -- draw with previous buffers
+            return (sz, Left msg))
+          (\b -> do
             writeIORef ref b
             initializeWithContent buffers b
-            render FullMode renderFunc b)
-            maySize
+            (,) sz . Right <$> render FullMode renderFunc b))
 
 data RenderMode = DeltaMode | FullMode
 
@@ -87,6 +89,7 @@ computeDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _) 
       let i = fromIntegral idx
       valueToDisplay <- read backBuf i
       valueCurrentlyDisplayed <- read frontBuf i
+      -- TODO skip 2 space characters with the same background colors.
       when (valueToDisplay /= valueCurrentlyDisplayed) $ do
           write frontBuf i valueToDisplay
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx

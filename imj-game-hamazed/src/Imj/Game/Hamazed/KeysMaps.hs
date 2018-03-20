@@ -1,58 +1,91 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.KeysMaps
-    ( eventFromKey
+    ( translatePlatformEvent
     ) where
 
 import           Imj.Prelude
 
+import qualified Data.Map as Map(lookup)
+
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Input.Types
 
-
--- | Maps a 'Key' (pressed by the player) to an 'Event'.
-eventFromKey :: (MonadState AppState m)
-             => Key -> m (Maybe Event)
-eventFromKey k = do
-  intent <- getUserIntent
-  case k of
-    Escape      -> return $ Just $ Interrupt Quit
-    StopProgram -> return $ Just $ Interrupt Quit
-    AlphaNum 'y' -> return $ Just CycleRenderingOptions
-    _ -> case intent of
-      Configure -> return $ case k of
-        AlphaNum ' ' -> Just $ StartGame
-        AlphaNum c -> Just $ Configuration c
+translatePlatformEvent :: (MonadState AppState m)
+                       => PlatformEvent
+                       -> m (Maybe GenEvent)
+translatePlatformEvent k = case k of
+  Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
+  StopProgram -> return $ Just $ Evt $ Interrupt Quit
+  FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
+  KeyPress key -> case key of
+    Escape      -> return $ Just $ Evt $ Interrupt Quit
+    Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
+    _ -> getChatMode >>= \case
+      Editing -> return $ case key of
+        Delete     -> Just $ Evt $ ChatCmd DeleteAtEditingPosition
+        BackSpace  -> Just $ Evt $ ChatCmd DeleteBeforeEditingPosition
+        AlphaNum c -> Just $ Evt $ ChatCmd $ Insert c
+        Arrow dir  -> Just $ Evt $ ChatCmd $ Navigate dir
+        Enter      -> Just $ Evt SendChatMessage
         _ -> Nothing
-      Play ->
-        getGameState >>= \(GameState _ _ _ _ _ (Level n _ finished) _ _) ->
-          case finished of
-            Nothing -> return $ case k of
-              AlphaNum c -> case c of
-                'k' -> Just $ Action Laser Down
-                'i' -> Just $ Action Laser Up
-                'j' -> Just $ Action Laser LEFT
-                'l' -> Just $ Action Laser RIGHT
-                'd' -> Just $ Action Ship Down
-                'e' -> Just $ Action Ship Up
-                's' -> Just $ Action Ship LEFT
-                'f' -> Just $ Action Ship RIGHT
-                'r'-> Just ToggleEventRecording
-                _   -> Nothing
-              _ -> Nothing
-            Just (LevelFinished stop _ ContinueMessage) -> return $ Just $
-              case stop of
-                Won -> if n < lastLevel
-                         then
-                           StartLevel (succ n)
-                         else
-                           EndGame
-                (Lost _) -> StartLevel firstLevel
-            _ -> return $ Nothing -- between level end and proposal to continue
+      NotEditing -> case key of
+        Arrow Up    -> return $ Just $ Evt $ CycleRenderingOptions (-1) 0
+        Arrow Down  -> return $ Just $ Evt $ CycleRenderingOptions 1 0
+        Arrow LEFT  -> return $ Just $ Evt $ CycleRenderingOptions 0 (-1)
+        Arrow RIGHT -> return $ Just $ Evt $ CycleRenderingOptions 0 1
+        AlphaNum 'h' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 1 0
+        AlphaNum 'n' -> return $ Just $ Evt $ ApplyPPUDelta $ Size (-1) 0
+        AlphaNum 'b' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 (-1)
+        AlphaNum 'm' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 1
+        AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
+        AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
+        _ -> do
+          (ClientState activity state) <- getClientState <$> gets game
+          case activity of
+            Over -> return Nothing
+            Ongoing -> case state of
+              Excluded -> return Nothing
+              Setup -> return $ case key of
+                AlphaNum ' ' -> Just $ CliEvt $ ExitedState Setup
+                AlphaNum c   -> Just $ Evt $ Configuration c
+                _ -> Nothing
+              PlayLevel status -> case status of
+                Running -> getLevelOutcome >>= return . maybe
+                  (case key of
+                    AlphaNum c -> case c of
+                      'k' -> Just $ CliEvt $ Action Laser Down
+                      'i' -> Just $ CliEvt $ Action Laser Up
+                      'j' -> Just $ CliEvt $ Action Laser LEFT
+                      'l' -> Just $ CliEvt $ Action Laser RIGHT
+                      'd' -> Just $ CliEvt $ Action Ship Down
+                      'e' -> Just $ CliEvt $ Action Ship Up
+                      's' -> Just $ CliEvt $ Action Ship LEFT
+                      'f' -> Just $ CliEvt $ Action Ship RIGHT
+                      'r'-> Just $ Evt ToggleEventRecording
+                      _   -> Nothing
+                    _ -> Nothing)
+                  (const Nothing)
+                WhenAllPressedAKey _ (Just _) _ -> return Nothing
+                WhenAllPressedAKey x Nothing havePressed ->
+                  getMyShipId >>= maybe
+                    (return Nothing)
+                    (\me -> maybe (error "logic") (\iHavePressed ->
+                            if iHavePressed
+                              then return Nothing
+                              else return $ Just $ Evt $ Continue x)
+                              $ Map.lookup me havePressed)
+                New -> return Nothing
+                Paused _ _ -> return Nothing
+                Countdown _ _ -> return Nothing
+                OutcomeValidated _ -> return Nothing
+                CancelledNoConnectedPlayer -> return Nothing
+                WaitingForOthersToEndLevel _ -> return Nothing

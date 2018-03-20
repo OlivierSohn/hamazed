@@ -32,7 +32,7 @@ The world is configurable (square or rectangle, with or without random walls)
 
 ![Configuration snapshot](images/config.png?raw=true "Configuration")
 
-You can define your own keyboard mapping by modifying the 'eventFromKey' function
+You can define your own keyboard mapping by modifying the 'translatePlatformEvent' function
 defined
 [here](https://github.com/OlivierSohn/hamazed/blob/3821705b036f1c5234a913c7675da1484739f1ed/imj-game-hamazed/src/Imj/Game/Hamazed/KeysMaps.hs)
 , the default mapping being:

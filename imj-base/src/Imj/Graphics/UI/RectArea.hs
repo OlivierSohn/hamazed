@@ -22,8 +22,7 @@ module Imj.Graphics.UI.RectArea
 
 import           Imj.Prelude
 
-import           Imj.Geo.Discrete
-
+import           Imj.Geo.Discrete.Types
 
 -- | Defines a 2d rectangular area, with inclusive bounds.
 --
@@ -67,17 +66,17 @@ contains a@(RectArea (Coords r1 c1) (Coords r2 c2)) (Coords r c)
 rectAreaCenter :: RectArea a -> Coords Pos
 rectAreaCenter (RectArea from to) =
   let (Coords h w) = diffCoords to from
-  in translate from $ Coords (quot h 2) (quot w 2)
+  in sumCoords from $ Coords (quot h 2) (quot w 2)
 
 mkRectArea :: Coords Pos -> Size -> RectArea a
 mkRectArea upperLeft (Size h w) =
-  let lowerRight = translate' (fromIntegral $ pred h) (fromIntegral $ pred w) upperLeft
+  let lowerRight = sumCoords upperLeft $ toCoords (pred h) (pred w)
   in RectArea upperLeft lowerRight
 
 growRectArea :: Int -> RectArea a -> RectArea a
 growRectArea i' (RectArea from to) =
-  RectArea (translate' (-i) (fromIntegral $ -i) from)
-           (translate' i    (fromIntegral i)    to)
+  RectArea (sumCoords from $ Coords (-i) (fromIntegral $ -i))
+           (sumCoords to $ Coords i (fromIntegral i))
  where
   !i = fromIntegral i'
 

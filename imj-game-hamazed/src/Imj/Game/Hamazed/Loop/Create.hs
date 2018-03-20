@@ -1,71 +1,104 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Hamazed.Loop.Create
         ( mkInitialState
+        , mkIntermediateState
         , initialGameState
         , initialGame
+        , mkGameStateEssence
         ) where
 
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
+import qualified Data.Map as Map(elems, map)
+
+import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Create
-import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
 
-initialGame :: Maybe Size -> IO Game
-initialGame ms =
-  initialGameState initialParameters ms
-    >>= return . Game Configure initialParameters
+initialGame :: Maybe Size
+            -> SuggestedPlayerName
+            -> Server
+            -> ConnectionStatus
+            -> IO Game
+initialGame ms suggPlayerName server connectionStatus =
+  initialGameState initialParameters initialViewMode ms >>= \s ->
+    return $ Game (ClientState Ongoing Excluded) s suggPlayerName server connectionStatus mkChat
 
-initialGameState :: GameParameters -> Maybe Size -> IO GameState
-initialGameState params ms =
-  mkInitialState params ms firstLevel Nothing
+initialGameState :: WorldParameters
+                 -> ViewMode
+                 -> Maybe Size
+                 -> IO GameState
+initialGameState _ mode ms =
+  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence mempty mode ms Nothing
 
 mkInitialState :: (MonadIO m)
-               => GameParameters
+               => LevelEssence
+               -> WorldEssence
+               -> Map ShipId Player
+               -> ViewMode
                -> Maybe Size
-               -> Int
                -> Maybe GameState
                -> m GameState
-mkInitialState (GameParameters shape wallType mode) maySz levelNumber mayState = do
-  let numbers = [1..(3+levelNumber)] -- more and more numbers as level increases
-      target = sum numbers `quot` 2
-      newLevel = Level levelNumber target Nothing
-      newSize = worldSizeFromLevel levelNumber shape
-      newAmmo = 10
-      newShotNums = []
-      screen@(Screen _ newScreenCenter) = mkScreen maySz
-  newWorld <- mkWorld newSize wallType numbers newAmmo
-  kt <- liftIO getSystemTime
-  liftIO $ validateScreen screen
-  let (curWorld@(World _ _ (Space _ curSz _) _), curScreenCenter, level, ammo, shotNums) =
+mkInitialState = mkIntermediateState []
+
+mkIntermediateState :: (MonadIO m)
+                    => [ShotNumber]
+                    -> LevelEssence
+                    -> WorldEssence
+                    -> Map ShipId Player
+                    -> ViewMode
+                    -> Maybe Size
+                    -> Maybe GameState
+                    -> m GameState
+mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
+  let screen@(Screen _ newScreenCenter) = mkScreen maySz
+      newWorld@(World _ _ space _ _ _) = mkWorld essence
+      (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums, stAnim) =
         maybe
-        (newWorld, newScreenCenter, newLevel, 0, [])
-        (\(GameState _ _ w@(World _ (BattleShip _ curAmmo _ _) _ _)
-                     _ curShotNums curLevel _ (Screen _ center)) ->
-            (w, center, curLevel, curAmmo, curShotNums))
+        (newWorld, newScreenCenter, newLevel, [], [])
+        (\(GameState w _ curShotNums (Level curLevel _) _ stateAnim (Screen _ center) _ _) ->
+            (w, center, curLevel, curShotNums, stateAnim))
           mayState
-      curInfos = mkInfos Normal ammo shotNums level
-      newInfos = mkInfos ColorAnimated newAmmo newShotNums newLevel
+      curInfos = mkInfos Normal        (Map.elems $ getWorldShips curWorld) names shotNums    level
+      newInfos = mkInfos ColorAnimated (Map.elems $ getWorldShips newWorld) names newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
-      uiAnimation =
+  kt <- liftIO getSystemTime
+  let uiAnimation =
         mkUIAnimation
           (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize curScreenCenter curSz, curInfos)
+          $ mkRectContainerWithCenterAndInnerSize curScreenCenter (getSize curSpace), curInfos)
           (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize newScreenCenter newSize, newInfos)
+          $ mkRectContainerWithCenterAndInnerSize newScreenCenter (getSize space), newInfos)
           horizontalDist verticalDist kt
-  return $ GameState Nothing initalGameMultiplicator curWorld newWorld newShotNums newLevel uiAnimation screen
+          -- only when UIAnimation is over, curWorld will be replaced by newWorld.
+          -- during UIAnimation, we need the two worlds.
+  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation stAnim screen mode names
+
+mkGameStateEssence :: GameState -> GameStateEssence
+mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _ _) =
+  GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums levelEssence
+
+mkWorld :: WorldEssence -> World
+mkWorld (WorldEssence balls ships llMat wid) =
+  let space = fromListOfLists llMat
+      renderedSpace = mkRenderedSpace space
+  in World (Map.map mkNumber balls) ships space renderedSpace mempty wid
+
+worldToEssence :: World -> WorldEssence
+worldToEssence (World balls ships space _ _ wid) =
+  WorldEssence (Map.map getNumEssence balls) ships (toListOfLists space) wid

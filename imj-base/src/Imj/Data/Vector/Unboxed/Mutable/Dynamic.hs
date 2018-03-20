@@ -60,28 +60,24 @@ type IOVector = MVector RealWorld
 type STVector = MVector
 
 data MVectorData s a = MVectorData {
-    _mVectorDatasize   ::  {-# UNPACK #-} !Int,
-    _mVectorDataBuffer ::                 !(MV.MVector s a)}
-    deriving (Typeable)
+    size   ::  {-# UNPACK #-} !Int,
+    buffer ::                 !(MV.MVector s a)
+} deriving (Typeable)
 
 -- | O(1) access to the underlying vector
 {-# INLINABLE accessUnderlying #-}
 accessUnderlying :: (PrimMonad m, V.Unbox a)
                  => MVector (PrimState m) a
                  -> m (MV.MVector (PrimState m) a)
-accessUnderlying (MVector v') =
-  readMutVar v'
-    >>=
-      \(MVectorData sz v) -> return $ MV.take sz v
-
+accessUnderlying (MVector v') = readMutVar v' >>= \(MVectorData sz v) ->
+  return $ MV.take sz v
 
 -- | O(N*log(N)) unstable sort.
 unstableSort :: (PrimMonad m, V.Unbox a, Ord a)
              => MVector (PrimState m) a
              -> m ()
 unstableSort v =
-  accessUnderlying v
-    >>= sort
+  accessUnderlying v >>= sort
 {-# INLINABLE unstableSort #-}
 
 -- | Number of elements in the vector.
@@ -89,8 +85,7 @@ length :: PrimMonad m
        => MVector (PrimState m) a
        -> m Int
 length (MVector v) =
-  readMutVar v
-    >>= \(MVectorData sz _) -> return sz
+  size <$> readMutVar v
 {-# INLINABLE length #-}
 
 -- | Number of elements that the vector currently has reserved space for.
@@ -98,8 +93,7 @@ capacity :: (PrimMonad m, V.Unbox a)
          => MVector (PrimState m) a
          -> m Int
 capacity (MVector v) =
-  readMutVar v
-    >>= \(MVectorData _ d) -> return $ MV.length d
+  MV.length . buffer <$> readMutVar v
 {-# INLINABLE capacity #-}
 
 -- | Create a vector with a given capacity.
@@ -107,9 +101,7 @@ new :: (PrimMonad m, V.Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
 new i =
-    MV.new i
-      >>=
-        \v -> MVector <$> newMutVar (MVectorData 0 v)
+    MV.new i >>= fmap MVector . newMutVar . MVectorData 0
 {-# INLINABLE new #-}
 
 -- | Read by index. Performs bounds checking.
@@ -117,15 +109,12 @@ read :: (PrimMonad m, V.Unbox a)
      => MVector (PrimState m) a
      -> Int
      -> m a
-read (MVector v') i =
-  readMutVar v'
-    >>=
-      \(MVectorData s v) ->
-          if i >= s || i < 0
-            then
-              error "Data.Vector.Mutable.Dynamic: read: index out of bounds"
-            else
-              MV.unsafeRead v i
+read (MVector v') i = readMutVar v' >>= \(MVectorData sz buf) ->
+  if i >= sz || i < 0
+    then
+      error "Data.Vector.Mutable.Dynamic: read: index out of bounds"
+    else
+      MV.unsafeRead buf i
 {-# INLINABLE read #-}
 
 -- | Read by index without bounds checking.
@@ -134,9 +123,7 @@ unsafeRead :: (PrimMonad m, V.Unbox a)
            -> Int
            -> m a
 unsafeRead (MVector v) i =
-  readMutVar v
-    >>=
-      \(MVectorData _ d) -> d `MV.unsafeRead` i
+  readMutVar v >>= flip MV.unsafeRead i . buffer
 {-# INLINABLE unsafeRead #-}
 
 -- | Clear the vector, set length to 0.
@@ -146,9 +133,7 @@ clear :: PrimMonad m
       => MVector (PrimState m) a
       -> m ()
 clear (MVector v) =
-  readMutVar v
-    >>=
-      \(MVectorData _ d) -> writeMutVar v (MVectorData 0 d)
+  readMutVar v >>= writeMutVar v . MVectorData 0 . buffer
 {-# INLINABLE clear #-}
 
 -- | Increment the size of the vector and write a value to the back.
@@ -156,17 +141,14 @@ pushBack :: (PrimMonad m, V.Unbox a)
          => MVector (PrimState m) a
          -> a
          -> m ()
-pushBack (MVector v) a =
-  readMutVar v
-    >>=
-      \(MVectorData s v') ->
-          if s == MV.length v'
-            then do
-              -- nearly double size each time.
-              v'' <- MV.unsafeGrow v' (s + 1)
-              MV.unsafeWrite v'' s a
-              writeMutVar v (MVectorData (s + 1) v'')
-            else do
-              MV.unsafeWrite v' s a
-              writeMutVar v (MVectorData (s + 1) v')
+pushBack (MVector v) a = readMutVar v >>= \(MVectorData sz buf) ->
+  if sz == MV.length buf
+    then do
+      -- nearly double size each time.
+      buf' <- MV.unsafeGrow buf (sz + 1)
+      MV.unsafeWrite buf' sz a
+      writeMutVar v $ MVectorData (sz + 1) buf'
+    else do
+      MV.unsafeWrite buf sz a
+      writeMutVar v $ MVectorData (sz + 1) buf
 {-# INLINABLE pushBack #-}

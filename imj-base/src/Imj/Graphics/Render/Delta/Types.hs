@@ -14,8 +14,6 @@ module Imj.Graphics.Render.Delta.Types
             , Dim(..)
             , BufferSize
             , BufferIndex
-            , getRowCol
-            , getHeight
             , xyFromIndex
             -- ** Reexported types
             , Delta
@@ -27,11 +25,11 @@ module Imj.Graphics.Render.Delta.Types
             , Col
             , IORef
             , Color8
+            , Glyph
+            , FontSpec
             ) where
 
 import           Imj.Prelude
-
-import           Control.Exception(assert)
 
 import           Data.IORef(IORef)
 import           Data.Word(Word16)
@@ -39,13 +37,14 @@ import           Data.Word(Word16)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Internal.Types
 
 -- | When and how to resize buffers.
 data ResizePolicy = DynamicSize
                   -- ^ After each render, buffers are resized (if needed) to match
                   -- a size passed as argument of 'deltaFlush'.
-                  | FixedSize !(Dim Width) !(Dim Height)
+                  | FixedSize {-# UNPACK #-} !(Dim Width) {-# UNPACK #-} !(Dim Height)
                   -- ^ Buffers have a fixed size. If they are vertically
                   -- or horizontally bigger than the terminal, rendering
                   -- artefacts will be visible.
@@ -76,37 +75,23 @@ data BufferSize
 -- | Buffer element index
 data BufferIndex
 
-{-# INLINE getHeight #-}
-getHeight :: Dim Width -> Dim BufferSize -> Dim Height
-getHeight (Dim w) (Dim sz) =
-  let h = quot sz w
-  in Dim $ assert (h * w == sz) h
-
-{-# INLINE getRowCol #-}
-getRowCol :: Dim BufferIndex -> Dim Width -> (Dim Col, Dim Row)
-getRowCol (Dim idx) (Dim w) =
-      (Dim x, Dim y)
-    where
-      y = idx `div` w
-      x = idx - y * w
-
 {-# INLINE xyFromIndex #-}
 xyFromIndex :: Dim Width -> Dim BufferIndex -> (Dim Col, Dim Row)
-xyFromIndex w idx =
-  getRowCol idx w
+-- 'Dim' is unsigned, the values are always >= 0 so 'quotRem' is the way to go.
+xyFromIndex (Dim w) (Dim idx) = (Dim x, Dim y) where (y,x) = idx `quotRem` w
 
 data Buffers = Buffers {
-    _renderStateBackBuffer :: !(Buffer Back)
-  , _renderStateFrontBuffer :: !(Buffer Front)
-  , _buffersDrawWidth :: !(Dim Width) -- We don't store the size as it is in back and front buffers
+    _renderStateBackBuffer :: {-# UNPACK #-} !(Buffer Back)
+  , _renderStateFrontBuffer :: {-# UNPACK #-} !(Buffer Front)
+  , _buffersDrawWidth :: {-# UNPACK #-} !(Dim Width) -- We don't store the size as it is in back and front buffers
   , _buffersDrawScissor :: !Scissor
   , _buffersDelta :: !Delta
   -- ^ The delta-buffer is used in renderFrame
-  , _buffersPolicies :: !Policies
+  , getPolicies :: {-# UNPACK #-} !Policies
 }
 
 data Policies = Policies {
-    _policiesResizePolicy :: !ResizePolicy
-  , _policiesClearPolicy :: !ClearPolicy
-  , _policiesClearColor :: !(Color8 Background)
+    _policiesResizePolicy :: {-unpack sum-} !ResizePolicy
+  , _policiesClearPolicy :: {-unpack sum-} !ClearPolicy
+  , _policiesClearColor :: {-# UNPACK #-} !(Color8 Background)
 } deriving(Show)

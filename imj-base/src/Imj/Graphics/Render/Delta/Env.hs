@@ -1,7 +1,6 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.Render.Delta.Env
     ( DeltaEnv
@@ -20,10 +19,11 @@ module Imj.Graphics.Render.Delta.Env
 
 import           Imj.Prelude
 
-import           Control.Exception(finally)
 import           Control.Monad.IO.Class(liftIO)
-import           Data.IORef( IORef, readIORef, writeIORef )
-import           Data.Maybe( fromMaybe )
+import           Control.Monad.IO.Unlift(MonadUnliftIO)
+import           Data.IORef(IORef, readIORef, writeIORef, modifyIORef')
+import           Data.Maybe(fromMaybe)
+import           UnliftIO.Exception(finally)
 
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
@@ -38,72 +38,109 @@ data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)
   , _deltaEnvRenderFunction :: !(Delta -> Dim Width -> IO (Time Duration System, Time Duration System))
   , _deltaEnvTargetSize :: !(IO (Maybe Size))
-  , _deltaEnvCycleRenderingOptions :: !(IO ())
+  , _deltaEnvCycleRenderingOptions :: !(CycleFont -> CycleFontSize -> IO (Either String ()))
+  , _deltaEnvApplyPPUDelta :: !(PPU -> IO (Either String ()))
+  , _deltaEnvApplyFontMarginDelta :: !(FontMargin -> IO (Either String ()))
 }
 
 -- | Draws using the delta rendering engine.
 instance Draw DeltaEnv where
-  fill'          (DeltaEnv a _ _ _) b c     = liftIO $ deltaFill a b c
-  setScissor     (DeltaEnv a _ _ _) b       = liftIO $ deltaSetScissor a b
-  getScissor'    (DeltaEnv a _ _ _)         = liftIO $ deltaGetScissor a
-  drawChar'      (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
-  drawChars'     (DeltaEnv a _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
-  drawTxt'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawTxt   a b c d
-  drawStr'       (DeltaEnv a _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
-  changeFont'    (DeltaEnv a _ _ f)         = liftIO $ f >> deltaForgetFrontValues a
+  fill'          (DeltaEnv a _ _ _ _ _) b c     = liftIO $ deltaFill a b c
+  setScissor     (DeltaEnv a _ _ _ _ _) b       = liftIO $ deltaSetScissor a b
+  getScissor'    (DeltaEnv a _ _ _ _ _)         = liftIO $ deltaGetScissor a
+  drawGlyph'     (DeltaEnv a _ _ _ _ _) b c d   = liftIO $ deltaDrawChar  a b c d
+  drawGlyphs'    (DeltaEnv a _ _ _ _ _) b c d e = liftIO $ deltaDrawChars a b c d e
+  drawStr'       (DeltaEnv a _ _ _ _ _) b c d   = liftIO $ deltaDrawStr   a b c d
   {-# INLINABLE fill' #-}
   {-# INLINABLE setScissor #-}
   {-# INLINABLE getScissor' #-}
-  {-# INLINABLE drawChar' #-}
-  {-# INLINABLE drawChars' #-}
-  {-# INLINABLE drawTxt' #-}
+  {-# INLINABLE drawGlyph' #-}
+  {-# INLINABLE drawGlyphs' #-}
   {-# INLINABLE drawStr' #-}
-  {-# INLINABLE changeFont' #-}
 
 instance Canvas DeltaEnv where
-  getTargetSize' (DeltaEnv _ _ s _)         = liftIO s
+  getTargetSize' (DeltaEnv _ _ s _ _ _) =
+    liftIO s
+  onTargetChanged' e =
+    liftIO $ canModifyLayout e (return ())
   {-# INLINABLE getTargetSize' #-}
 
 -- | Renders using the delta rendering engine.
 instance Render DeltaEnv where
-  renderToScreen' (DeltaEnv a b c _)         = liftIO $ deltaFlush     a b c
+  renderToScreen' (DeltaEnv a b c _ _ _) =
+    liftIO $ deltaFlush a b c
+  cycleRenderingOptions' e@(DeltaEnv _ _ _ f _ _) i j =
+    liftIO $ canModifyLayout e $ void $ f i j
+  applyPPUDelta e@(DeltaEnv _ _ _ _ f _) d =
+    liftIO $ canModifyLayout e $ void $ f d
+  applyFontMarginDelta e@(DeltaEnv _ _ _ _ _ f) marginDelta =
+    liftIO $ canModifyLayout e $ void $ f marginDelta
   {-# INLINABLE renderToScreen' #-}
+  {-# INLINABLE cycleRenderingOptions' #-}
 
+canModifyLayout :: DeltaEnv -> IO () -> IO (Either String ())
+canModifyLayout (DeltaEnv b _ sz _ _ _) act = do
+  res <- sz >>= \oldSz -> act >> sz >>= maybe
+    (return $ Right ())
+    (\newSz ->
+      if oldSz /= Just newSz
+        then
+          resize newSz b
+        else
+          return $ Right ())
+  deltaForgetFrontValues b -- even if the size didn't change, maybe the layout changed
+  return res
+
+resize :: Size -> IORef Buffers -> IO (Either String ())
+resize (Size h w) b = readIORef b >>= \(Buffers _ _ _ _ _ policies) ->
+  createBuffers policies (fromIntegral w) (fromIntegral h) >>= either
+    (return . Left)
+    (fmap Right . writeIORef b)
 
 class DeltaRenderBackend a where
-    -- | returns (duration to issue commands, duration to flush)
-    render :: a -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
-    cleanup :: a -> IO ()
-    getDiscreteSize :: a -> IO (Maybe Size)
-    cycleRenderingOption :: a -> IO ()
+    render :: (MonadIO m) => a -> Delta -> Dim Width
+           -> m (Time Duration System, Time Duration System)
+           -- ^ durations to (issue commands, flush)
+    cleanup :: (MonadIO m) => a -> m ()
+    getDiscreteSize :: (MonadIO m) => a -> m (Maybe Size)
+    cycleRenderingOption :: (MonadIO m) => a -> CycleFont -> CycleFontSize -> m (Either String ())
+    ppuDelta :: (MonadIO m) => a -> PPU -> m (Either String ())
+    fontMarginDelta :: (MonadIO m) => a -> FontMargin -> m (Either String ())
 
-    withPolicies :: Maybe ResizePolicy
+    withPolicies :: (MonadUnliftIO m)
+                 => Maybe ResizePolicy
                  -> Maybe ClearPolicy
                  -> Maybe (Color8 Background)
                  -- ^ Color to clear with
-                 -> (DeltaEnv -> IO ())
+                 -> (DeltaEnv -> m ())
                  -> a
-                 -> IO ()
-    withPolicies p1 p2 p3 action ctxt = do
-      newEnv ctxt p1 p2 p3 >>= action
-      `finally`
-      (cleanup ctxt)
+                 -> m (Either String ())
+    withPolicies p1 p2 p3 action ctxt =
+      flip finally (cleanup ctxt)
+        $ newEnv ctxt p1 p2 p3 >>= either (return . Left) (fmap Right . action)
 
-    withDefaultPolicies :: (DeltaEnv -> IO ()) -> a -> IO ()
-    withDefaultPolicies =
-      withPolicies Nothing Nothing Nothing
+    withDefaultPolicies :: (MonadUnliftIO m) => (DeltaEnv -> m ()) -> a -> m ()
+    withDefaultPolicies a b = withPolicies Nothing Nothing Nothing a b >>= either error return
 
 
 -- | Creates an environment with policies.
-newEnv :: (DeltaRenderBackend a)
+newEnv :: (MonadIO m, DeltaRenderBackend a)
        => a
        -> Maybe ResizePolicy
        -> Maybe ClearPolicy
        -> Maybe (Color8 Background)
-       -> IO DeltaEnv
+       -> m (Either String DeltaEnv)
 newEnv backend a b c = do
-  ctxt <- newContext a b c (getDiscreteSize backend)
-  return $ DeltaEnv ctxt (render backend) (getDiscreteSize backend) (cycleRenderingOption backend)
+  let sz = getDiscreteSize backend
+  liftIO $ newContext a b c sz >>= either
+    (return . Left)
+    (\ctxt -> return $ Right $ DeltaEnv
+      ctxt
+      (render backend)
+      sz
+      (cycleRenderingOption backend)
+      (ppuDelta backend)
+      (fontMarginDelta backend))
 
 
 -- | Sets the 'ResizePolicy' for back and front buffers.
@@ -111,11 +148,10 @@ newEnv backend a b c = do
 setResizePolicy :: Maybe ResizePolicy
                 -> DeltaEnv
                 -> IO ()
-setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies _ f g)) -> do
-      let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
-      writeIORef ref $ Buffers a b c d e (Policies resizePolicy f g)
+setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _ _ _) =
+  modifyIORef' ref $ \b@(Buffers _ _ _ _ _ (Policies _ f g)) ->
+    let resizePolicy = fromMaybe defaultResizePolicy mayResizePolicy
+    in b { getPolicies = Policies resizePolicy f g }
 
 
 -- | Sets the 'ClearPolicy'.
@@ -123,33 +159,27 @@ setResizePolicy mayResizePolicy (DeltaEnv ref _ _ _) =
 setClearPolicy :: Maybe ClearPolicy
                -> DeltaEnv
                -> IO ()
-setClearPolicy mayClearPolicy (DeltaEnv ref _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies f _ clearColor)) -> do
-      let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
-          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
-      writeIORef ref buffers
+setClearPolicy mayClearPolicy (DeltaEnv ref _ _ _ _ _) =
+  modifyIORef' ref $ \b@(Buffers _ _ _ _ _ (Policies f _ clearColor)) ->
+    let clearPolicy = fromMaybe defaultClearPolicy mayClearPolicy
+    in b { getPolicies = Policies f clearPolicy clearColor }
 
 -- | Sets the 'Color8' to use when clearing.
 --   Defaults to 'defaultClearColor' when Nothing is passed.
 setClearColor :: Maybe (Color8 Background)
               -> DeltaEnv
               -> IO ()
-setClearColor mayClearColor (DeltaEnv ref _ _ _) =
-  readIORef ref
-    >>= \(Buffers a b c d e (Policies f clearPolicy _)) -> do
-      let clearColor = fromMaybe defaultClearColor mayClearColor
-          buffers = Buffers a b c d e (Policies f clearPolicy clearColor)
-      writeIORef ref buffers
+setClearColor mayClearColor (DeltaEnv ref _ _ _ _ _) =
+  modifyIORef' ref $ \(Buffers a b c d e (Policies f clearPolicy _)) ->
+    let clearColor = fromMaybe defaultClearColor mayClearColor
+    in Buffers a b c d e (Policies f clearPolicy clearColor)
 
 
 deltaSetScissor :: IORef Buffers
                 -> Scissor
                 -> IO ()
 deltaSetScissor ref v =
-  readIORef ref
-    >>= \(Buffers a b c _ e f) ->
-          writeIORef ref (Buffers a b c v e f)
+  modifyIORef' ref $ \(Buffers a b c _ e f) -> Buffers a b c v e f
 
 deltaGetScissor :: IORef Buffers
                 -> IO Scissor

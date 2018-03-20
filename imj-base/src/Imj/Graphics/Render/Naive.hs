@@ -9,13 +9,13 @@ import           Control.Monad.Reader(liftIO)
 
 import           System.IO(hFlush, stdout)
 import           System.Console.ANSI(setCursorPosition, clearFromCursorToScreenEnd)
-import           System.Console.ANSI.Codes(csi)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.UI.RectArea
 
 {- | FOR TESTS ONLY. For production, please use "Imj.Graphics.Render.Delta".
@@ -32,13 +32,10 @@ data NaiveDraw = NaiveDraw
 
 move' :: Coords Pos -> IO ()
 move' (Coords (Coord y) (Coord x)) =
-  setCursorPosition y x
+  setCursorPosition y x -- with redundancy, as we don't keep track of the current position.
 
 color :: LayeredColor -> IO ()
-color (LayeredColor bg fg) = do
-  let bgCodes = color8BgSGRToCode bg
-      fgCodes = color8FgSGRToCode fg
-  putStr $ csi (bgCodes ++ fgCodes) "m"
+color = putStr . colorChange Nothing -- with redundancy, as we don't keep track of the current color.
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
 -- and creates heavy screen tearing.
@@ -61,29 +58,36 @@ instance Draw NaiveDraw where
     fill'           _ _ c    = liftIO $ color c
                                       >> setCursorPosition 0 0
                                       >> clearFromCursorToScreenEnd
-    drawChar'      _ b c d   = liftIO $ move' c >> color d >> putChar b
-    drawChars'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b c)
+    drawGlyph'      _ b c d   = liftIO $ move' c >> color d >> putChar (fst $ decodeGlyph b)
+    drawGlyphs'     _ b c d e = liftIO $ move' d >> color e >> putStr (replicate b $ fst $ decodeGlyph c)
     drawTxt'       _ b c d   = liftIO $ move' c >> color d >> putStr (unpack b)
     drawStr'       _ b c d   = liftIO $ move' c >> color d >> putStr b
-    changeFont' _ = return () -- not supported
-    {-# INLINABLE drawChar' #-}
-    {-# INLINABLE drawChars' #-}
+    {-# INLINABLE drawGlyph' #-}
+    {-# INLINABLE drawGlyphs' #-}
     {-# INLINABLE drawTxt' #-}
     {-# INLINABLE drawStr' #-}
     {-# INLINABLE getScissor' #-}
     {-# INLINABLE setScissor #-}
     {-# INLINABLE fill' #-}
-    {-# INLINABLE changeFont' #-}
 
 instance Canvas NaiveDraw where
     getTargetSize' _         = return Nothing
+    onTargetChanged' _ = return $ Left "Not implemented"
     {-# INLINABLE getTargetSize' #-}
 
 -- | Direct draw to stdout : don't use for production, this is for tests only
 -- and creates heavy screen tearing.
 instance Render NaiveDraw where
-    renderToScreen' _         = liftIO $ hFlush stdout
-                                        >> setCursorPosition 0 0
-                                        >> clearFromCursorToScreenEnd
-                                        >> return (zeroDuration, zeroDuration, zeroDuration)
+    renderToScreen' _         = liftIO $ do
+      hFlush stdout
+      return (Nothing, Right (zeroDuration, zeroDuration, zeroDuration))
+
+    cycleRenderingOptions' _ _ _ =
+      return $ Right ()
+    applyPPUDelta _ _ =
+      return $ Right ()
+    applyFontMarginDelta _ _ =
+      return $ Right ()
+
     {-# INLINABLE renderToScreen' #-}
+    {-# INLINABLE cycleRenderingOptions' #-}

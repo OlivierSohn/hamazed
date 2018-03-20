@@ -14,10 +14,10 @@ module Imj.Graphics.Render.Delta.Cell
 import           Imj.Prelude
 
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
-import           Data.Char( chr, ord )
 import           Data.Word( Word64, Word32, Word16, Word8 )
 
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Types
 
@@ -46,9 +46,9 @@ getForegroundColor w = mkColor8 $ secondWord8 w
 getBackgroundColor :: Cell -> Color8 Background
 getBackgroundColor w = mkColor8 $ firstWord8 w
 
-{-# INLINE getCharacter #-}
-getCharacter :: Cell -> Char
-getCharacter w = chr $ fromIntegral $ secondWord32 w
+{-# INLINE getGlyph #-}
+getGlyph :: Cell -> Glyph
+getGlyph w = Glyph $ secondWord32 w
 
 -- Works only if the 'Cell' was created using mkIndexedCell,
 -- else 0 is returned.
@@ -58,26 +58,27 @@ getIndex w = fromIntegral $ secondWord16 w
 
 {-# INLINE expand #-}
 expand :: Cell
-       -> (Color8 Background, Color8 Foreground, Char)
+       -> (Color8 Background, Color8 Foreground, Glyph)
 expand w = (getBackgroundColor w
            ,getForegroundColor w
-           ,getCharacter w)
+           ,getGlyph w)
 
 {-# INLINE expandIndexed #-}
 expandIndexed :: Cell
-              -> (Color8 Background, Color8 Foreground, Dim BufferIndex, Char)
+              -> (Color8 Background, Color8 Foreground, Dim BufferIndex, Glyph)
 expandIndexed w =
   (getBackgroundColor w
   ,getForegroundColor w
   ,getIndex w
-  ,getCharacter w)
+  ,getGlyph w)
 
--- The memory layout is such that when sorted with 'compare', the order of
--- importance of fields is (by decreasing importance) :
+-- The memory layout is such that when sorted with 'compare', the cells will be ordered
+-- according to fields (listed by decreasing precedence):
 --     backgroundColor (8 bits)
 --     foregroundColor (8 bits)
 --     index in buffer (16 bits)
---     character       (32 bits)
+--     character       (32 bits) (note that due to unicode code range, the max is OX10FFFF.
+--                                the 11 high bits are used to store metadata)
 {-# INLINE mkIndexedCell #-}
 mkIndexedCell :: Cell -> Dim BufferIndex -> Cell
 mkIndexedCell cell idx' =
@@ -86,8 +87,7 @@ mkIndexedCell cell idx' =
   idx = fromIntegral idx'
 
 {-# INLINE mkCell #-}
-mkCell :: LayeredColor -> Char -> Cell
-mkCell colors char' =
+mkCell :: LayeredColor -> Glyph -> Cell
+mkCell colors (Glyph g) =
   let color = fromIntegral $ encodeColors colors
-      char = fromIntegral $ ord char'
-  in (color `shiftL` 48) .|. char
+  in (color `shiftL` 48) .|. fromIntegral g

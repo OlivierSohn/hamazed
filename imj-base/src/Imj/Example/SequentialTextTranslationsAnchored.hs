@@ -27,12 +27,11 @@ import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Geo.Discrete
-import           Imj.Graphics.Class.Positionable
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.Alignment
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored
@@ -61,7 +60,7 @@ cellWidth = 30
 upperLeft :: Coords Pos
 upperLeft = Coords 4 50
 
-data Examples = Examples ![Example]
+newtype Examples = Examples [Example]
 
 data Example = Example {
     _exampleInputData :: ![(Successive ColorString, Coords Pos, Coords Pos)]
@@ -239,12 +238,12 @@ drawActions :: (Render e, MonadReader e m, MonadIO m)
             -> [Frame]
             -> m ()
 drawActions listActions frames =
-  mapM_ (\(frame, (lastFrame, action, Example _ height startHeight _ _, wIdx)) -> do
-            let r = RectContainer (Size (height-2) (cellWidth-3)) (translate (Coords (-2) (-2)) ref)
+  mapM_ (\(frame, (lastFrame, action, Example _ h startHeight _ _, wIdx)) -> do
+            let r = RectContainer (Size (h-2) (cellWidth-3)) (translate (Coords (-2) (-2)) ref)
                 ref = move (wIdx * fromIntegral cellWidth) RIGHT (getRef startHeight)
             drawUsingColor r myDarkGray
             action frame
-            drawAt (progress frame lastFrame) (translate ref $ Coords (fromIntegral height - 4) 0)
+            drawAt (progress frame lastFrame) (translate ref $ Coords (fromIntegral h - 4) 0)
             ) $ zip frames listActions
 
 drawExamples :: (Render e, MonadReader e m, MonadIO m)

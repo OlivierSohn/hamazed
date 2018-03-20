@@ -1,7 +1,5 @@
 {-# OPTIONS_HADDOCK prune #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 
 {- |
 = Examples
@@ -37,49 +35,28 @@ Anchors interpolation can occur :
          ) where
 
 import           Imj.Prelude
-import qualified Prelude(length)
 
-import           Control.Monad( zipWithM_ )
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Data.Text( unpack, length )
 import           Data.List(foldl', splitAt, unzip3)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Text.Animation.Types
+
 import           Imj.Graphics.Math.Ease
 import           Imj.Graphics.Interpolation
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.Words(Characters)
+import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
-import           Imj.Graphics.Text.ColorString
 import           Imj.Timing
-
-
--- | One anchor per String
-data AnchorStrings
--- | One anchor per Character
-data AnchorChars
-
-
--- | Interpolates 'ColorString's and anchors.
-data TextAnimation a = TextAnimation {
-   _textAnimationEvolutions :: ![Evolution ColorString]
- , _textAnimationAnchors :: !(Evolution (SequentiallyInterpolatedList (Coords Pos)))
- {- ^ When @a =@ 'AnchorStrings', each 'Evolution' 'ColorString' has exactly one
- corresponding element in the 'SequentiallyInterpolatedList'.
-
- When @a =@ 'AnchorChars', /each/ 'Evolution' 'ColorString' has exactly @m@
- corresponding elements in the 'SequentiallyInterpolatedList', where @m@ is the
- maximum number of characters in a 'ColorString' of the given 'Evolution' 'ColorString'. -}
- , _textAnimationClock :: !EaseClock
- -- ^ Schedules the animation.
-} deriving(Show, PrettyVal, Generic)
-
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextStringAnchored #-}
-drawAnimatedTextStringAnchored :: (Draw e, MonadReader e m, MonadIO m)
-                               => TextAnimation AnchorStrings
+drawAnimatedTextStringAnchored :: (Positionable a, DiscreteInterpolation a
+                                  , Draw e, MonadReader e m, MonadIO m)
+                               => TextAnimation a AnchorStrings
                                -> Frame
                                -> m ()
 drawAnimatedTextStringAnchored (TextAnimation fromToStrs anchorsEvolution _) i = do
@@ -88,23 +65,23 @@ drawAnimatedTextStringAnchored (TextAnimation fromToStrs anchorsEvolution _) i =
 
 
 {-# INLINABLE drawAnimatedTextStringAnchored' #-}
-drawAnimatedTextStringAnchored' :: (Draw e, MonadReader e m, MonadIO m)
-                                => [Evolution ColorString]
+drawAnimatedTextStringAnchored' :: (Positionable a, DiscreteInterpolation a
+                                   , Draw e, MonadReader e m, MonadIO m)
+                                => [Evolution a]
                                 -> [Coords Pos]
                                 -> Frame
                                 -> m ()
-drawAnimatedTextStringAnchored' [] _ _ = return ()
-drawAnimatedTextStringAnchored' l@(_:_) rs i = do
-  let e = head l
-      rsNow = head rs
-      colorStr = getValueAt e i
-  drawAt colorStr rsNow
-  drawAnimatedTextStringAnchored' (tail l) (tail rs) i
+drawAnimatedTextStringAnchored' (e:es) (r:rs) i = do
+  let colorStr = getValueAt e i
+  drawAt colorStr r
+  drawAnimatedTextStringAnchored' es rs i
+drawAnimatedTextStringAnchored' _ _ _ = return ()
 
 -- | Draw a char-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextCharAnchored #-}
-drawAnimatedTextCharAnchored :: (Draw e, MonadReader e m, MonadIO m)
-                             => TextAnimation AnchorChars
+drawAnimatedTextCharAnchored :: (DiscreteInterpolation a, Characters a,
+                                 Draw e, MonadReader e m, MonadIO m)
+                             => TextAnimation a AnchorChars
                              -> Frame
                              -> m ()
 drawAnimatedTextCharAnchored (TextAnimation fromToStrs anchorsEvolution _) i = do
@@ -113,34 +90,20 @@ drawAnimatedTextCharAnchored (TextAnimation fromToStrs anchorsEvolution _) i = d
 
 
 {-# INLINABLE drawAnimatedTextCharAnchored' #-}
-drawAnimatedTextCharAnchored' :: (Draw e, MonadReader e m, MonadIO m)
-                              => [Evolution ColorString]
+drawAnimatedTextCharAnchored' :: (DiscreteInterpolation a, Characters a,
+                                  Draw e, MonadReader e m, MonadIO m)
+                              => [Evolution a]
                               -> [Coords Pos]
                               -> Frame
                               -> m ()
 drawAnimatedTextCharAnchored' [] _ _ = return ()
-drawAnimatedTextCharAnchored' l@(_:_) rs i = do
+drawAnimatedTextCharAnchored' (e@(Evolution (Successive colorStrings) _ _ _):rest) rs i = do
   -- use length of from to know how many Anchors we should take
-  let e@(Evolution (Successive colorStrings) _ _ _) = head l
-      nRS = maximum $ map countChars colorStrings
+  let nRS = maximum $ map Words.length colorStrings
       (nowRS, laterRS) = splitAt nRS rs
-      (ColorString colorStr) = getValueAt e i
-  drawColorStringAt colorStr nowRS
-  drawAnimatedTextCharAnchored' (tail l) laterRS i
-
-
-{-# INLINABLE drawColorStringAt #-}
-drawColorStringAt :: (Draw e, MonadReader e m, MonadIO m)
-                  => [(Text, LayeredColor)]
-                  -> [Coords Pos]
-                  -> m ()
-drawColorStringAt [] _ = return ()
-drawColorStringAt l@(_:_) rs = do
-  let (txt, color) = head l
-      len = length txt
-      (headRs, tailRs) = splitAt len $ assert (Prelude.length rs >= len) rs
-  zipWithM_ (\char coord -> drawChar char coord color) (unpack txt) headRs
-  drawColorStringAt (tail l) tailRs
+      str = getValueAt e i
+  Words.drawOnPath nowRS str
+  drawAnimatedTextCharAnchored' rest laterRS i
 
 getAnimatedTextAnchors :: Evolution (SequentiallyInterpolatedList (Coords Pos))
                        -> Frame
@@ -156,16 +119,17 @@ build x sz = map (\i -> move i RIGHT x)  [0..pred sz]
 
 Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
  -}
-mkSequentialTextTranslationsCharAnchored :: [(Successive ColorString, Coords Pos, Coords Pos)]
+mkSequentialTextTranslationsCharAnchored :: (DiscreteDistance a, Characters a)
+                                         => [(Successive a, Coords Pos, Coords Pos)]
                                          -- ^ List of (texts, from anchor, to anchor)
                                          -> Time Duration System
                                          -- ^ duration
-                                         -> TextAnimation AnchorChars
+                                         -> TextAnimation a AnchorChars
 mkSequentialTextTranslationsCharAnchored l =
   let (from_,to_) =
         foldl'
-          (\(froms, tos) (Successive colorStrs, from, to) ->
-            let sz = maximum $ map countChars colorStrs
+          (\(froms, tos) (Successive a, from, to) ->
+            let sz = maximum $ map Words.length a
             in (froms ++ build from sz, tos ++ build to sz))
           ([], [])
           l
@@ -176,11 +140,12 @@ mkSequentialTextTranslationsCharAnchored l =
 
 Examples are given in "Imj.Example.SequentialTextTranslationsAnchored".
  -}
-mkSequentialTextTranslationsStringAnchored :: [(Successive ColorString, Coords Pos, Coords Pos)]
+mkSequentialTextTranslationsStringAnchored :: (DiscreteDistance a)
+                                           => [(Successive a, Coords Pos, Coords Pos)]
                                            -- ^ List of (texts, from anchor, to anchor)
                                            -> Time Duration System
                                            -- ^ Duration
-                                           -> TextAnimation AnchorStrings
+                                           -> TextAnimation a AnchorStrings
 mkSequentialTextTranslationsStringAnchored l =
   let (txts, from_,to_) = unzip3 l
   in mkSequentialTextTranslationsAnchored txts from_ to_
@@ -191,7 +156,8 @@ are expected to contain one element per 'Successive' 'ColorString'.
 When producing a 'TextAnimation' 'AnchoChars' , /from/ and /to/ anchors
 are expected to contain one element per 'Char' in the biggest 'ColorString'
 of 'Successive' 'ColorString'. -}
-mkSequentialTextTranslationsAnchored :: [Successive ColorString]
+mkSequentialTextTranslationsAnchored :: (DiscreteDistance a)
+                                     => [Successive a]
                                      -- ^ List of texts
                                      -> [Coords Pos]
                                      -- ^ /From/ anchors
@@ -199,7 +165,7 @@ mkSequentialTextTranslationsAnchored :: [Successive ColorString]
                                      -- ^ /To/ anchors
                                      -> Time Duration System
                                      -- ^ Duration
-                                     -> TextAnimation a
+                                     -> TextAnimation a b
 mkSequentialTextTranslationsAnchored txts from_ to_ duration =
   let strsEv = map (`mkEvolutionEaseQuart` duration) txts
       fromTosLastFrame = maximum $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
@@ -211,16 +177,17 @@ mkSequentialTextTranslationsAnchored txts from_ to_ duration =
 
 
 -- | Translates a 'ColorString' between two anchors.
-mkTextTranslation :: ColorString
+mkTextTranslation :: (DiscreteDistance a, Characters a)
+                  => a
                   -> Time Duration System
                   -- ^ Duration
                   -> Coords Pos
                   -- ^ Left anchor at the beginning
                   -> Coords Pos
                   -- ^ Left anchor at the end
-                  -> TextAnimation AnchorChars
+                  -> TextAnimation a AnchorChars
 mkTextTranslation text duration from to =
-  let sz = countChars text
+  let sz = Words.length text
       strEv@(Evolution _ fromToLF _ _) = mkEvolutionEaseQuart (Successive [text]) duration
       from_ = build from sz
       to_ = build to sz

@@ -8,6 +8,7 @@ packages:
 - './imj-benchmark'
 - './imj-particlesystem'
 - './imj-game-hamazed'
+- './imj-profile'
 - './imj-measure-stdout'
 
 - location:
@@ -21,6 +22,14 @@ packages:
 
 extra-deps:
 - FTGL-2.1
+- text-1.2.3.0
+# to build ghc-mod:
+#- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
+#- cabal-helper-0.8.0.0
+#- extra-1.5.3
+#- monad-journal-0.7.2
+#- either-4.4.1.1
+#allow-newer: true # for optparse-applicative, due to ghc-mod
 
 flags: {}
 

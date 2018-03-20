@@ -1,5 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module Imj.Graphics.Render.Delta.Backend.Console
@@ -8,91 +7,95 @@ module Imj.Graphics.Render.Delta.Backend.Console
     ) where
 
 import           Imj.Prelude
-import qualified Prelude(putStr, putChar)
 
-import           Control.Concurrent.STM
-                  (TQueue, isEmptyTQueue,
-                  atomically, newTQueueIO, tryReadTQueue, unGetTQueue)
-import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
-import           System.Console.ANSI( clearScreen, hideCursor
-                                    , setSGR, setCursorPosition, showCursor )
-import           System.IO( hSetBuffering
-                          , hGetBuffering
-                          , hSetEcho
-                          , hFlush
-                          , BufferMode(..)
-                          , stdin
-                          , stdout )
-import           System.Timeout( timeout )
+import           GHC.IO.Encoding(setLocaleEncoding)
 
+import           Control.Concurrent(forkIO, threadDelay)
+import           Control.Concurrent.STM(TQueue, newTQueueIO, atomically, writeTQueue)
 import           Data.Vector.Unboxed.Mutable(read)
+import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
+import           System.Console.ANSI(clearScreen, hideCursor
+                                   , setSGR, setCursorPosition, showCursor)
+import           System.IO(hSetBuffering, hGetBuffering, hSetEcho, hFlush
+                         , BufferMode(..), stdin, stdout, utf8, putStrLn)
+
+import           Imj.Data.StdoutBuffer(Stdout, mkStdoutBuffer, addStr, addChar, flush)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, unstableSort, accessUnderlying, length)
-
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Env
 import           Imj.Graphics.Render.Delta.Types
 import           Imj.Graphics.Render.Delta.Internal.Types
 import           Imj.Graphics.Render.Delta.Cell
-import           Imj.Input.Types
 import           Imj.Input.Blocking
-import           Imj.Input.NonBlocking
+import           Imj.Input.Types
 
 
-data ConsoleBackend = ConsoleBackend !(TQueue Key)
+data ConsoleBackend = ConsoleBackend !(TQueue PlatformEvent) !Stdout
 
 instance DeltaRenderBackend ConsoleBackend where
-  render _ = deltaRenderConsole
-  cleanup _ = configureConsoleFor Editing LineBuffering
-  cycleRenderingOption _ = return ()
-  getDiscreteSize _ = do
-    sz <- Terminal.size :: IO (Maybe (Terminal.Window Int))
-    return $ maybe (Nothing) (\(Terminal.Window h w)
-                -> Just $ Size (fromIntegral h) (fromIntegral w)) sz
+  render (ConsoleBackend _ buf) a b =
+    liftIO $ deltaRenderConsole buf a b
+  cleanup _ =
+    liftIO $ do
+      -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
+      configureConsoleFor Editing LineBuffering
+      Terminal.size >>= maybe
+        (return ())
+        (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
+      putStrLn "" -- so that the first typed command doesn't write on game background.
+  cycleRenderingOption _ _ _ =
+    return $ Right ()
+  getDiscreteSize _ =
+    liftIO readConsoleSize
+  ppuDelta _ _ = return $ Right ()
+  fontMarginDelta _ _ = return $ Right ()
 
 instance PlayerInput ConsoleBackend where
-  getKey (ConsoleBackend queue) =
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO getKeyThenFlush)
-      return
-
-  getKeyBefore (ConsoleBackend queue) t =
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO (getDurationFromNowTo t) >>= \allowed ->
-        if strictlyNegative allowed
-           then
-             return Nothing
-           else
-             liftIO $ timeout (fromIntegral $ toMicros allowed) getKeyThenFlush)
-      (return . Just)
-
-  tryGetKey (ConsoleBackend queue) = do
-    liftIO (atomically $ tryReadTQueue queue) >>= maybe
-      (liftIO tryGetKeyThenFlush)
-      (return . Just)
-
-  someInputIsAvailable (ConsoleBackend queue) = do
-    liftIO (atomically $ not <$> isEmptyTQueue queue) >>= \case
-      True -> return True
-      False -> liftIO stdinIsReady
-
-  unGetKey (ConsoleBackend queue) k =
-    liftIO (atomically $ unGetTQueue queue k)
-
-  programShouldEnd _ =
-    return False
-
+  programShouldEnd _ = return False
+  plaformQueue (ConsoleBackend q _) = q
+  queueType _ = AutomaticFeed
+  pollKeys _ = return ()
+  waitKeysTimeout _ _ = return ()
   {-# INLINABLE programShouldEnd #-}
-  {-# INLINABLE getKey #-}
-  {-# INLINABLE getKeyBefore #-}
-  {-# INLINABLE tryGetKey #-}
-  {-# INLINABLE someInputIsAvailable #-}
+  {-# INLINABLE plaformQueue #-}
+  {-# INLINABLE queueType #-}
+  {-# INLINABLE pollKeys #-}
+  {-# INLINABLE waitKeysTimeout #-}
+
+readConsoleSize :: IO (Maybe Size)
+readConsoleSize = maybe
+  Nothing
+  (\(Terminal.Window h w) ->
+      Just $ Size (fromIntegral h) (fromIntegral w))
+  <$> (Terminal.size :: IO (Maybe (Terminal.Window Int)))
 
 newConsoleBackend :: IO ConsoleBackend
 newConsoleBackend = do
+  setLocaleEncoding utf8 -- because 'Stdout' encodes using utf8
+  clearScreen -- do not clearFromCursorToScreenEnd with 0 0, so as to keep
+              -- the current console content above the game.
   configureConsoleFor Gaming defaultStdoutMode
-  ConsoleBackend <$> newTQueueIO
+  newTQueueIO >>= \q -> do
+    startWriters q
+    ConsoleBackend q <$> mkStdoutBuffer 8192
+
+startWriters :: TQueue PlatformEvent -> IO ()
+startWriters q = do
+  void $ forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . KeyPress
+  void $ forkIO $ pollConsoleSize Nothing
+ where
+  pollConsoleSize sz = do
+    newSz <- readConsoleSize
+    maybe
+      (return ())
+      (\s -> unless (sz == Just s) $ atomically $ writeTQueue q FramebufferSizeChanges)
+        newSz
+    threadDelay 100000 -- every tenth second
+    pollConsoleSize newSz
+
 
 -- | @=@ 'BlockBuffering' $ 'Just' 'maxBound'
 defaultStdoutMode :: BufferMode
@@ -108,8 +111,6 @@ configureConsoleFor config stdoutMode =
     Gaming  -> do
       hSetEcho stdin False
       hideCursor
-      clearScreen -- do not clearFromCursorToScreenEnd with 0 0, so as to keep
-                  -- the current console content above the game.
       let requiredInputBuffering = NoBuffering
       initialIb <- hGetBuffering stdin
       hSetBuffering stdin requiredInputBuffering
@@ -122,17 +123,16 @@ configureConsoleFor config stdoutMode =
                ++ " instead it is now "
                ++ show ib
     Editing -> do
-      hSetEcho stdin True
       showCursor
-      -- do not clearFromCursorToScreenEnd, to retain a potential printed exception
+      -- do not 'hSetEcho stdin True', as the program will terminate only after
+      --   the user presses a key (at least in the Terminal of OSX).
+      --   'setSGR []' below seems to reset the stdin echo, with correct program termination.
       setSGR []
-      Terminal.size
-        >>= maybe
-              (return ())
-              (\(Terminal.Window x _) -> setCursorPosition (pred x) 0)
       hSetBuffering stdout LineBuffering
 
-deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
+deltaRenderConsole :: Stdout -> Delta -> Dim Width -> IO (Time Duration System, Time Duration System)
+deltaRenderConsole b (Delta delta) w = do
+  t1 <- getSystemTime
   -- On average, foreground and background color change command is 20 bytes :
   --   "\ESC[48;5;167;38;5;255m"
   -- On average, position change command is 9 bytes :
@@ -141,37 +141,37 @@ deltaRenderConsole :: Delta -> Dim Width -> IO (Time Duration System, Time Durat
   -- the number of position changes.
   -- In 'Cell', color is encoded in higher bits than position, so this sort
   -- sorts by color first, then by position, which is what we want.
-deltaRenderConsole (Delta delta) w = do
-  t1 <- getSystemTime
   Dyn.unstableSort delta
-  renderDelta delta w
+  renderDelta delta w b
   t2 <- getSystemTime
-  hFlush stdout -- TODO is flush blocking? slow? could it be async?
+  flush b
+  liftIO $ hFlush stdout -- TODO is flush blocking? slow? could it be async?
   t3 <- getSystemTime
   return (t1...t2, t2...t3)
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width
+            -> Stdout
             -> IO ()
-renderDelta delta' w = do
+renderDelta delta' w b = do
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector
-  let renderDelta' :: Dim BufferIndex
-                   -> Maybe LayeredColor
-                   -> Maybe (Dim BufferIndex)
-                   -> IO LayeredColor
-      renderDelta' index prevColors prevIndex
+  let go :: Dim BufferIndex
+         -> Maybe LayeredColor
+         -> Maybe (Dim BufferIndex)
+         -> IO LayeredColor
+      go index prevColors prevIndex
        | fromIntegral sz == index =
           return whiteOnBlack -- this value is not used
        | otherwise = do
           c <- read delta $ fromIntegral index
-          let (bg, fg, idx, char) = expandIndexed c
+          let (bg, fg, idx, glyph) = expandIndexed c
               prevRendered = (== Just (pred idx)) prevIndex
-          setCursorPositionIfNeeded w idx prevRendered
-          usedColor <- renderCell bg fg char prevColors
-          renderDelta' (succ index) (Just usedColor) (Just idx)
-  void (renderDelta' 0 Nothing Nothing)
+          setCursorPositionIfNeeded w idx prevRendered b
+          usedColor <- renderCell bg fg glyph prevColors b
+          go (succ index) (Just usedColor) (Just idx)
+  void $ go 0 Nothing Nothing
 
 -- | The command to set the cursor position to 123,45 is "\ESC[123;45H",
 -- its size is 9 bytes : one order of magnitude more than the size
@@ -182,8 +182,9 @@ setCursorPositionIfNeeded :: Dim Width
                           -- ^ the buffer index
                           -> Bool
                           -- ^ True if a char was rendered at the previous buffer index
+                          -> Stdout
                           -> IO ()
-setCursorPositionIfNeeded w idx predPosRendered = do
+setCursorPositionIfNeeded w idx predPosRendered b = do
   let (colIdx, rowIdx) = xyFromIndex w idx
       shouldSetCursorPosition =
       -- We assume that the buffer width is not equal to terminal width,
@@ -195,8 +196,9 @@ setCursorPositionIfNeeded w idx predPosRendered = do
       -- the next line if it was the last terminal column).
         || not predPosRendered
   when shouldSetCursorPosition
-    $ Prelude.putStr $ setCursorPositionCode (fromIntegral rowIdx) (fromIntegral colIdx)
+    $ addStr (setCursorPositionCode (fromIntegral rowIdx) (fromIntegral colIdx)) b
 
+{-# INLINE setCursorPositionCode #-}
 setCursorPositionCode :: Int -- ^ 0-based row to move to
                       -> Int -- ^ 0-based column to move to
                       -> String
@@ -205,11 +207,13 @@ setCursorPositionCode n m = csi [n + 1, m + 1] "H"
 {-# INLINE renderCell #-}
 renderCell :: Color8 Background
            -> Color8 Foreground
-           -> Char
+           -> Glyph
            -> Maybe LayeredColor
+           -> Stdout
            -> IO LayeredColor
-renderCell bg fg char maybeCurrentConsoleColor = do
-  let (bgChange, fgChange, usedFg) =
+renderCell bg fg glyph maybeCurrentConsoleColor b = do
+  let (char, _) = decodeGlyph glyph -- Do not take font into account for console rendering
+      (bgChange, fgChange, usedFg) =
         maybe
           (True, True, fg)
           (\(LayeredColor bg' fg') ->
@@ -227,16 +231,10 @@ renderCell bg fg char maybeCurrentConsoleColor = do
 
   if bgChange || fgChange
     then
-      Prelude.putStr $ csi sgrs "m" ++ [char]
+      addStr (csi sgrs "m" ++ [char]) b
     else
-      Prelude.putChar char
+      addChar char b
   return $ LayeredColor bg usedFg
-
-
-csi :: [Int]
-    -> String
-    -> String
-csi args code = "\ESC[" ++ intercalate ";" (map show args) ++ code
 
 -- TODO use this formalism
 {-

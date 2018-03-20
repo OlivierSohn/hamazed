@@ -2,40 +2,54 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
-
+{-# LANGUAGE FlexibleContexts #-}
 module Imj.Graphics.Class.Words
             ( Words(..)
+            , Characters(..)
             , SingleWord(..)
+            , multiLineTrivial
             ) where
 
 import qualified Prelude(splitAt, length)
 
 import           Imj.Prelude hiding(unwords, words)
+
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader, asks)
+import           Control.Monad( zipWithM_ )
 import qualified Data.String as String(words, unwords)
-import qualified Data.Text as Text(length, splitAt, words, unwords)
+import qualified Data.Text as Text(length, splitAt, words, unwords, null, unpack)
+
+import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Class.Draw
+import           Imj.Graphics.Color
+import           Imj.Graphics.Font
+
 
 newtype SingleWord a = SingleWord a
 
--- | A 'Words' is a 'String'-like that can be split in words.
-class Words a where
+class Characters a where
+  length :: a -> Int
+  empty :: a -> Bool
+  splitAt :: Int -> a -> (a, a)
+  drawOnPath :: (MonadIO m, MonadReader e m, Draw e)
+             => [Coords Pos] -> a -> m ()
+
+-- | A 'Words' is a 'Characters' that can be split in words.
+class (Characters a) => Words a where
   -- | Produce a list of words from a 'Words'.
   words :: a -> [SingleWord a]
   -- | Consume a list of words to produce a 'Words'.
   unwords :: [SingleWord a] -> a
-  -- | Return the number of characters in a 'Words'.
-  length :: a -> Int
-  -- | Split a 'SingleWord' in two (necessary for example when doing multiline layout, if
-  -- a single word is bigger than the line, so that we can split it in multiple parts).
-  splitAt :: Int -> SingleWord a -> (SingleWord a,SingleWord a)
 
   -- | Splits a 'Words' in multiple lines, respecting the words integrity
   -- when words are smaller than the line length.
   {-# INLINABLE multiLine #-}
-  multiLine :: a
-            -> Int
+  multiLine :: Int
             -- ^ Line length.
+            -> a
             -> [a]
-  multiLine str maxLineSize =
+  multiLine maxLineSize str  =
     map (unwords . reverse) $ reverse $ toMultiLine' (words str) 0 [] []
    where
     toMultiLine' :: (Words a)
@@ -50,31 +64,57 @@ class Words a where
             if curLineSize == 0
               then
                 -- split the word
-                let (cur,next) = splitAt maxLineSize x
-                in toMultiLine' (next:xs) 0 [] ([cur] : curLines)
+                let (cur,next) = splitAt maxLineSize w
+                in toMultiLine' (SingleWord next:xs) 0 [] ([SingleWord cur] : curLines)
               else
                 toMultiLine' a 0 [] (curLine : curLines)
           else
             toMultiLine' xs sz (x:curLine) curLines
 
+{-# INLINABLE multiLineTrivial #-}
+multiLineTrivial :: (Words a)
+                 => Length Width
+                 -- ^ Line length.
+                 -> a
+                 -> [a]
+multiLineTrivial n alltxt =
+  let go l txt =
+        let (oneLine, theRest) = splitAt (fromIntegral n) txt
+        in if empty oneLine
+              then l
+              else go (oneLine:l) theRest
+  in reverse $ go [] alltxt
+
+instance Characters ([] Char) where
+  length = Prelude.length
+  empty = null
+  splitAt = Prelude.splitAt
+  drawOnPath positions str = do
+    d <- asks drawGlyph'
+    zipWithM_ (\pos char -> d (textGlyph char) pos whiteOnBlack) positions str
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
+  {-# INLINABLE drawOnPath #-}
+
 instance Words ([] Char) where
   words = map SingleWord . String.words
   unwords = String.unwords . map (\(SingleWord w) -> w)
-  length = Prelude.length
-  splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
-    where (w1,w2) = Prelude.splitAt n w
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
+
+instance Characters Text where
+  length = Text.length
+  empty = Text.null
+  splitAt = Text.splitAt
+  drawOnPath positions txt = drawOnPath positions (Text.unpack txt)
   {-# INLINABLE length #-}
   {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
+  {-# INLINABLE drawOnPath #-}
 
 instance Words Text where
   words = map SingleWord . Text.words
   unwords = Text.unwords . map (\(SingleWord w) -> w)
-  length = Text.length
-  splitAt n (SingleWord w) = (SingleWord w1, SingleWord w2)
-    where (w1,w2) = Text.splitAt n w
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
-  {-# INLINABLE length #-}
-  {-# INLINABLE splitAt #-}

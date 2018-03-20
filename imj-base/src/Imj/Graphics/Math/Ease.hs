@@ -22,6 +22,8 @@ module Imj.Graphics.Math.Ease
       -- | Using 'discreteAdaptor' on 'invQuartEaseInOut' we can make
       -- 'discreteInvQuartEaseInOut' :
       , discreteInvQuartEaseInOut
+      -- * Adaptors
+      , inOutToIn
       ) where
 
 import           Imj.Prelude
@@ -81,6 +83,9 @@ invQuartEaseInOut y =
       (y / 8.0) ** (1.0/4.0)
     else
       1.0 - ((1.0 - y) / 8.0) ** (1.0/4.0)
+
+inOutToIn :: (Double -> Double) -> Double -> Double
+inOutToIn f i = 2 * f (i/2)
 
 -- | Adapts continuous inout ease functions to the discrete case.
 discreteAdaptor :: (Double -> Double)

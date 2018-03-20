@@ -5,17 +5,17 @@
 module Imj.Graphics.Render.FromMonadReader
        ( usingScissor
        , fill
-       , drawChar
-       , drawChars
+       , drawGlyph
+       , drawGlyphs
        , drawTxt
        , drawStr
-       , drawColorStr
        , drawMultiLineStr
-       , changeFont
+       , cycleRenderingOptions
        , getTargetSize
+       , onTargetChanged
        , renderToScreen
        -- * Reexports
-       , Scissor, LayeredColor, Coords, Pos, Alignment, ColorString
+       , Scissor, LayeredColor, Coords, Pos, Alignment
        , Draw, Render, Canvas, MonadReader, MonadIO
        ) where
 
@@ -27,20 +27,18 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color(LayeredColor(..))
-import           Imj.Graphics.Text.Alignment
-import           Imj.Graphics.Text.ColorString
-
 
 -- | Executes actions in context of a given 'Scissor'.
 {-# INLINABLE usingScissor #-}
 usingScissor :: (Draw e, MonadReader e m, MonadIO m)
-              => Scissor -> m () -> m ()
+              => Scissor -> m a -> m a
 usingScissor v actions = do
   d <- asks usingScissor'
   d v actions
@@ -49,18 +47,10 @@ usingScissor v actions = do
 -- is in active at the moment.
 {-# INLINABLE fill #-}
 fill :: (Draw e, MonadReader e m, MonadIO m)
-     => Char -> LayeredColor -> m ()
-fill char col= do
+     => Glyph -> LayeredColor -> m ()
+fill g col= do
   d <- asks fill'
-  d char col
-
--- | Draw a 'ColorString'.
-{-# INLINABLE drawColorStr #-}
-drawColorStr :: (Draw e, MonadReader e m, MonadIO m)
-             => ColorString -> Coords Pos -> m ()
-drawColorStr cs pos = do
-  d <- asks drawColorStr'
-  d cs pos
+  d g col
 
 -- | Draw a 'String' on multiple lines.
 drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
@@ -73,7 +63,7 @@ drawMultiLineStr :: (Render e, MonadReader e m, MonadIO m)
                  -- ^ Maximum line size.
                  -> m ()
 drawMultiLineStr str ref' color nChars = do
-  let strs = multiLine str nChars
+  let strs = multiLine nChars str
       -- center vertically
       ref = move (quot (Prelude.length strs) 2) Up ref'
   zipWithM_
@@ -104,33 +94,34 @@ drawStr str co la = do
 
 -- | Draws a 'Char' multiple times, starting at the given coordinates and then
 -- moving to the right.
-{-# INLINABLE drawChars #-}
-drawChars :: (Draw e, MonadReader e m, MonadIO m)
-          => Int
-          -> Char
+{-# INLINABLE drawGlyphs #-}
+drawGlyphs :: (Draw e, MonadReader e m, MonadIO m)
+           => Int
+           -> Glyph
+           -> Coords Pos
+           -> LayeredColor
+           -> m ()
+drawGlyphs i g co la = do
+  d <- asks drawGlyphs'
+  d i g co la
+
+{-# INLINABLE drawGlyph #-}
+drawGlyph :: (Draw e, MonadReader e m, MonadIO m)
+          => Glyph
           -> Coords Pos
           -> LayeredColor
           -> m ()
-drawChars i c co la = do
-  d <- asks drawChars'
-  d i c co la
-
-{-# INLINABLE drawChar #-}
-drawChar :: (Draw e, MonadReader e m, MonadIO m)
-         => Char
-         -> Coords Pos
-         -> LayeredColor
-         -> m ()
-drawChar c co la = do
-  d <- asks drawChar'
-  d c co la
+drawGlyph g co la = do
+  d <- asks drawGlyph'
+  d g co la
 
 
-{-# INLINABLE changeFont #-}
-changeFont :: (Draw e, MonadReader e m, MonadIO m) => m ()
-changeFont =
-  join $ asks changeFont'
-
+{-# INLINABLE cycleRenderingOptions #-}
+cycleRenderingOptions :: (Render e, MonadReader e m, MonadIO m)
+                      => CycleFont -> CycleFontSize ->  m (Either String ())
+cycleRenderingOptions i j = do
+  f <- asks cycleRenderingOptions'
+  f i j
 
 {-# INLINABLE getTargetSize #-}
 getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
@@ -138,9 +129,15 @@ getTargetSize :: (Canvas e, MonadReader e m, MonadIO m)
 getTargetSize =
   join (asks getTargetSize')
 
+{-# INLINABLE onTargetChanged #-}
+onTargetChanged :: (Canvas e, MonadReader e m, MonadIO m)
+                => m (Either String ())
+onTargetChanged =
+  join (asks onTargetChanged')
+
 -- | Render the drawing.
 {-# INLINABLE renderToScreen #-}
 renderToScreen :: (Render e, MonadReader e m, MonadIO m)
-               => m (Time Duration System, Time Duration System, Time Duration System)
+               => m (Maybe Size, Either String (Time Duration System, Time Duration System, Time Duration System))
 renderToScreen =
   join (asks renderToScreen')

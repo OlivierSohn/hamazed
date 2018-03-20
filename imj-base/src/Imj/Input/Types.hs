@@ -3,64 +3,69 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Input.Types
-    ( Key(..)
+    ( PlatformEvent(..)
+    , Key(..)
     , PlayerInput(..)
+    , FeedType(..)
     -- * reexports
     , MonadIO
+    , TQueue
     , module Imj.Timing
     ) where
 
 
 import           Imj.Prelude
 
+import           Control.Concurrent.STM(TQueue)
+
 import           Control.Monad.IO.Class(MonadIO)
 import           Data.Int(Int64)
 
 import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
+import           Imj.Log
 
--- | Represents a key-press, read from stdin.
-data Key = AlphaNum Char
-         -- ^ An alphanumeric key
-         | Arrow Direction
+data PlatformEvent =
+    KeyPress !Key
+  | Message !MessageLevel !Text
+  | StopProgram
+  | FramebufferSizeChanges
+
+-- | Represents the key pressed by a player.
+data Key = AlphaNum !Char
+         -- ^ An alphanumeric key (includes punctuation characters)
+         | Arrow !Direction
          -- ^ One of the four direction arrows
+         | Enter
+         -- ^ The Enter key
          | Escape
          -- ^ The escape key
-         | StopProgram
-         -- ^ To be interpreted as "the program should stop now".
+         | Tab
+         -- ^ The tab key
+         | BackSpace
+         -- ^ Remove char LEFT of the edit point
+         | Delete
+         -- ^ Remove char at the edit point
          | Unknown
          -- ^ An unhandled key
          deriving(Show)
 
+data FeedType =
+    AutomaticFeed
+    -- ^ An auxiliary thread feeds the queue.
+  | ManualFeed
+  -- ^ The queue needs to be "manually" fed by calling 'pollKeys' or 'waitKeys'
+
 class PlayerInput a where
-  -- | Blocks until a 'Key' is produced.
-  getKey :: (MonadIO m)
-         => a
-         -> m Key
 
-  -- | Call this function to undo a getKey : it will fill a queue that is read
-  -- before getting actual player input.
-  unGetKey :: (MonadIO m)
-           => a
-           -> Key
-           -> m ()
-
-  getKeyBefore :: (MonadIO m)
-               => a
-               -> Time Point System
-               -- ^ The time before which we should get the key.
-               -> m (Maybe Key)
-               -- ^ Nothing when the timeout was reached.
-
-  tryGetKey :: (MonadIO m)
-            => a
-            -> m (Maybe Key)
-            -- ^ Nothing when no input is available.
-
-  someInputIsAvailable :: (MonadIO m)
-                       => a
-                       -> m Bool
-
-  -- Return 'True' when the program should end
+  -- | Return 'True' when the program should end
   programShouldEnd :: (MonadIO m)
                    => a -> m Bool
+
+  plaformQueue :: a -> TQueue PlatformEvent
+
+  queueType :: a -> FeedType
+  -- | Use only if 'queueType' returns ManualFeed.
+  pollKeys :: a -> IO ()
+  -- | Use only if 'queueType' returns ManualFeed.
+  waitKeysTimeout :: a -> Time Duration System -> IO ()

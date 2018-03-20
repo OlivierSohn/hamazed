@@ -22,6 +22,7 @@ or rendered (for morphings), based on the current frame and the inverse ease fun
 -}
            Evolution(..)
          , mkEvolutionEaseQuart
+         , mkEvolutionEaseInQuart
          , mkEvolution
          , getDeltaTimeToNextFrame
          -- ** Getting an interpolated value
@@ -43,9 +44,41 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.DiscreteMorphing
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Math.Ease
 import           Imj.Iteration
 import           Imj.Timing
+
+
+-- TODO we could optimize by precomputing the lastframes of each individual segment,
+-- and select the interval without having to recompute every distance.
+-- We could change the Successive type to store the cumulated distance,
+-- then do a binary search
+-- | Defines an evolution (interpolation or morphing) between 'Successive' 'DiscreteDistance's.
+data Evolution v = Evolution {
+    getSuccessives :: !(Successive v)
+  -- ^ 'Successive' 'DiscreteDistance's.
+  , getLastFrame :: {-# UNPACK #-} !Frame
+  -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
+  , _evolutionDuration :: {-# UNPACK #-} !(Time Duration System)
+  -- ^ Duration of the interpolation
+  , _evolutionInverseEase :: !(Double -> Double)
+  -- ^ Inverse ease function.
+} deriving (Generic)
+instance Functor Evolution where
+  fmap f (Evolution s a b c) = Evolution (fmap f s) a b c
+  {-# INLINE fmap #-}
+instance (HasReferencePosition a) => HasReferencePosition (Evolution a) where
+  getPosition (Evolution x _ _ _) = getPosition x
+  {-# INLINE getPosition #-}
+instance (GeoTransform a) => GeoTransform (Evolution a) where
+  transform f = fmap (transform f)
+  {-# INLINE transform #-}
+instance (Show v) => Show (Evolution v) where
+  showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
+instance (PrettyVal v) => PrettyVal (Evolution v) where
+  prettyVal (Evolution a b c _) = prettyVal (a,b,c)
+
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
 -- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.
@@ -57,6 +90,18 @@ mkEvolutionEaseQuart :: DiscreteDistance v
                      -> Evolution v
 mkEvolutionEaseQuart =
   mkEvolution invQuartEaseInOut
+
+{-# INLINABLE mkEvolutionEaseInQuart #-}
+-- | An evolution between n 'DiscreteDistance's. With a 4th order ease in.
+mkEvolutionEaseInQuart :: DiscreteDistance v
+                     => Successive v
+                     -- ^ 'DiscreteDistance's through which the evolution will pass.
+                     -> Time Duration System
+                     -- ^ Duration
+                     -> Evolution v
+mkEvolutionEaseInQuart =
+  mkEvolution $ inOutToIn invQuartEaseInOut
+
 
 -- | An evolution between n 'DiscreteDistance's. With a user-specified (inverse) ease function.
 {-# INLINABLE mkEvolution #-}
@@ -75,11 +120,10 @@ mkEvolution ease s duration =
 
 -- | Used to synchronize multiple 'Evolution's.
 newtype EaseClock = EaseClock (Evolution NotWaypoint) deriving (Show, Generic, PrettyVal)
-newtype NotWaypoint = NotWaypoint () deriving(Show, Generic)
 
+newtype NotWaypoint = NotWaypoint () deriving(Show, Generic)
 instance PrettyVal NotWaypoint where
   prettyVal _ = prettyVal "NotWaypoint"
-
 -- | To make sure that we never use distance on an 'EaseClock'.
 instance DiscreteDistance NotWaypoint where
   distance = error "don't use distance on NotWaypoint"
@@ -95,31 +139,6 @@ mkEaseClock :: Time Duration System
 mkEaseClock duration lastFrame ease =
   let nSteps = fromIntegral $ succ lastFrame
   in EaseClock $ Evolution (Successive []) lastFrame duration (discreteAdaptor ease nSteps)
-
--- TODO we could optimize by precomputing the lastframes of each individual segment,
--- and select the interval without having to recompute every distance.
--- We could change the Successive type to store the cumulated distance,
--- then do a binary search
--- | Defines an evolution (interpolation or morphing) between 'Successive' 'DiscreteDistance's.
-data Evolution v = Evolution {
-    _evolutionSuccessive :: !(Successive v)
-  -- ^ 'Successive' 'DiscreteDistance's.
-  , _evolutionLastFrame :: !Frame
-  -- ^ The frame at which the 'Evolution' value is equal to the last 'Successive' value.
-  , _evolutionDuration :: !(Time Duration System)
-  -- ^ Duration of the interpolation
-  , _evolutionInverseEase :: !(Double -> Double)
-  -- ^ Inverse ease function.
-} deriving (Generic)
-
-instance (Show v) => Show (Evolution v) where
-  showsPrec _ (Evolution a b c _) = showString $ "Evolution{" ++ show a ++ show b ++ show c ++ "}"
-
-instance (PrettyVal v) => PrettyVal (Evolution v) where
-  prettyVal (Evolution a b c _) = prettyVal (a,b,c)
-
-instance Functor Evolution where
-  fmap f (Evolution s a b c) = Evolution (fmap f s) a b c
 
 -- | Computes the time increment between the input 'Frame' and the next.
 getDeltaTimeToNextFrame :: Evolution v

@@ -8,8 +8,9 @@ module Imj.Graphics.ParticleSystem.Design.Color
 
 import           Imj.Prelude
 
-import           Imj.Graphics.Color
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.ParticleSystem.Design.Types
+
 import           Imj.Iteration
 
 -- | Returns the color used to draw a 'Particle', based on the frame number
@@ -17,8 +18,9 @@ import           Imj.Iteration
 colorFromFrame :: Color8 Foreground
                -- ^ Base color, expected to be an rgb with r <= 6, g <= 5, b <= 4.
                -> Frame
+               -> ParticleIndex
                -> Color8 Foreground
-colorFromFrame fgBase (Frame f) =
+colorFromFrame fgBase (Frame f) _ =
   case color8CodeToXterm256 fgBase of
     RGBColor (RGB r' g' b') -> assert (f >= 0) $ rgb r g b
       where

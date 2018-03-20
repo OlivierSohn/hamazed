@@ -22,15 +22,18 @@ import           Data.Char( intToDigit )
 import           Data.List( length )
 
 import           Imj.GameItem.Weapon.Laser.Types
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Font
+import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Physics.Continuous.Types
+
 import           Imj.Geo.Continuous
 import           Imj.Geo.Discrete
-import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Iteration
-import           Imj.Physics.Continuous.Types
 
 -- | Note that the 'VecPosSpeed' parameter is unused.
 particlesLaser :: LaserRay Actual
-               -> (Frame -> LayeredColor)
+               -> Colorization
                -> VecPosSpeed
                -- ^ Unused, because the 'LaserRay' encodes the origin already
                -> Frame
@@ -47,25 +50,27 @@ particlesLaser (LaserRay dir start len) color _ frame@(Frame i)
               ('=','-')
             else
               ('|','.')
-        char = if i >= 2
-                  then
-                    replacementChar
-                  else
-                    originalChar
+        glyph = gameGlyph $
+          if i >= 2
+            then
+              replacementChar
+            else
+              originalChar
         points = if i >= 4
                    then
                      []
                    else
                      map (\n -> move n dir start) [0..fromIntegral $ pred len]
     in map
-        (\p -> Particle DontInteract (mkStaticVecPosSpeed $ pos2vec p) char (color frame))
-        points
+        (\(particleIndex,p) ->
+          Particle DontInteract (mkStaticVecPosSpeed $ pos2vec p) glyph (color frame particleIndex))
+        $ zip [0..] points
 
 -- | Gravity free-fall
 particlesFreefall :: Float
                   -> CanInteract
-                  -> Char
-                  -> (Frame -> LayeredColor)
+                  -> Glyph
+                  -> Colorization
                   -> VecPosSpeed
                   -- ^ Initial position and speed
                   -> Frame
@@ -81,17 +86,18 @@ particles :: (VecPosSpeed -> [VecPosSpeed])
           -> (Frame -> VecPosSpeed -> VecPosSpeed)
           -- ^ Integrates the motion of a particle
           -> CanInteract
-          -> Char
-          -> (Frame -> LayeredColor)
+          -> Glyph
+          -> Colorization
           -> VecPosSpeed
           -- ^ The seed particle
           -> Frame
           -> [Particle]
-particles producePs moveP canInteract char color seedP frame =
+particles producePs moveP canInteract g color seedP frame =
   map
-    (\p -> let newP = moveP frame p
-           in Particle canInteract newP char (color frame))
-    $ producePs seedP
+    (\(particleIndex,p) ->
+        let newP = moveP frame p
+        in Particle canInteract newP g (color frame particleIndex))
+    $ zip [0..] $ producePs seedP
 
 -- | Integrates the motion according to
 -- <https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion#Newton's_first_law Newton's first law>,
@@ -161,8 +167,8 @@ particlesExplosion :: Int
                    -> Float
                    -- ^ Angle of the first particle.
                    -> CanInteract
-                   -> Char
-                   -> (Frame -> LayeredColor)
+                   -> Glyph
+                   -> Colorization
                    -> VecPosSpeed
                    -- ^ Center
                    -> Frame
@@ -177,8 +183,8 @@ gravityExplosionGeo :: Int
                     -> Float
                     -- ^ First angle
                     -> CanInteract
-                    -> Char
-                    -> (Frame -> LayeredColor)
+                    -> Glyph
+                    -> Colorization
                     -> VecPosSpeed
                     -- ^ Center
                     -> Frame
@@ -189,7 +195,7 @@ gravityExplosionGeo resolution angle =
 -- | Expanding then shrinking geometric figure.
 particlesPolygonExpandShrink :: Int
                              -- ^ number of extremities of the polygon (if 1, draw a circle instead)
-                             -> (Frame -> LayeredColor)
+                             -> Colorization
                              -> VecPosSpeed
                              -- ^ Center
                              -> Frame
@@ -198,15 +204,17 @@ particlesPolygonExpandShrink :: Int
 particlesPolygonExpandShrink n colorFunc c@(VecPosSpeed center _) (Frame i) =
   let r = animateRadius (quot i 2) n
       frame' = Frame r
+      glyph = gameGlyph $ intToDigit n
   in if r < 0
        then
          []
        else
          case n of
-            1 -> particlesExplosion 32 0 DontInteract '1' colorFunc c frame'
-            _ -> map (\p' -> let p = mkStaticVecPosSpeed $ pos2vec p'
-                             in Particle DontInteract p (intToDigit n) (colorFunc frame') )
-                    $ polygon n r center
+            1 -> particlesExplosion 32 0 DontInteract glyph colorFunc c frame'
+            _ -> map (\(particleIndex,p') ->
+                        let p = mkStaticVecPosSpeed $ pos2vec p'
+                        in Particle DontInteract p glyph (colorFunc frame' particleIndex) )
+                    $ zip [0..] $ polygon n r center
 
 -- | A polygon using resampled bresenham to augment the number of points :
 -- the number of points needs to be constant across the entire animation

@@ -1,41 +1,254 @@
-- multiplayer mode where two ships (one cannot collide the other) work on the same sum.
-If one ship collides, the other can continue.
-  - the other ship can double numbers (think of levels where we need to double
+
+- bug:
+one client is computing a world,
+one client is joining, triggers the computation of a new world.
+Instead we should detect that a world is already being computed and don't need
+to trigger a new computation.
+
+- over different permutation strategies, measure :
+span of number of connected components, over number of permutations used.
+The idea being to find the permutation strategy where with a minimal amount
+of permutation we can generate a big variety of number of cc (so that permutating
+  becomes interesting vs generating fresh random numbers).
+
+For rotation-style permutations, I witnessed the first single-cc matrix
+  to have 16 other single-cc permutations, and saw that this method was slower than just
+  regenerating random numbers each time.
+
+- we want to find a way to shuffle matrix so that it changes the number of components.
+try:
+0: 12345678
+1: 13572468
+2: 15263748
+
+9 col / rows combinations: (0,0) ... (i,j) ... (2,2)
+
+with non power of 2 lengths:
+
+12345
+13524
+15432 <- stop when the -initially- extremal element is at 2nd position
+
+nsteps = (l+1)/2
+
+1234
+1324
+
+perm :: Int -> Int -> (Int -> Int)
+
+
+perm rows
+perm cols
+perm cols
+perm cols
+
+perm rows
+perm cols
+perm cols
+perm cols
+
+perm rows
+perm cols
+perm cols
+perm cols
+
+we could:
+
+perm rows
+perm cols
+rotate
+etc...
+
+- optimize world creation with .7 ratio:
+  try 02
+  use Int and bit shifts (8 bit precision to have 4 random numbers per call)
+  replace Material by Int + constants
+  parallellism: see how to set capabilities, and how to race between cores.
+  stop computing graph components once we know we have at least n+1
+  recycle random values: change origin (adapt Matrix Unboxed to simply change an offset)
+
+- optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
+  like in the resize scenario)
+
+1 : optimize arithmetic operations
+1.1 : precompute pixel values : type PixelValue = Vec2 Pos
+
+- color of number explosion should be grey if number is deactivated.
+
+- use another text box for networking messages, to separate concerns, to
+prevent messages from being replaced by game info.
+
+- a continuous version where motions are fluid, for opengl.
+
+- Today all ' ' are (background) colored.
+We need 'transparentSpace':
+  transparency (or alpha) could be encoded
+    in the glyph metadata or
+    in the color, and filtered by the delta renderer
+    of in the type : we could have [Either Invisible (Glyph, LayeredColor)],
+      drawing functions would filter Invisible, interpolations would need to handle Invisible too.
+
+Then, use it between player name and ammo.
+
+- if performance matters here,
+put Glyph in Number and Ship.
+maybe in UIRectangle, too?
+
+- Look at core, see if color is encoded n times or 1 only. (delta Draw)
+
+- for game font,
+maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
+maybe we need to move + and - to make them be in the center.
+- maybe we need 2 .ttf fonts, else modified _ would look strange in messages, and pipes too ?
+
+- replace unboxed by Storable?
+
+- one-click "increment / decrement r,g or b (maybe use r,g,b keys)
+
+- animate color of external frame at each shot number (fast change to another color then slow change back to normal)
+: this allows to become aware of when a number is shot.
+
+- chat : make it easier to use
+- in AppState we could have arrays of random numbers, and a particle system would pass
+the index of the animated point.
+
+Hence, either the color could rely on the random part or on the frame or both.
+
+We need n arrays of random numbers, to avoid correlations between particles of the same particle system.
+A good first driver would be to emulate the randomness of fire: With an interpolation between red and yellow,
+we could use random only (not frame) to define at which frame (in the interpolation / in the cube) we are.
+
+- use location of particlesystem point to define color.
+
+- when cycling between two colors, we cycle on a bresenham straight line.
+Instead, to have richer color variations we could understand the two extremities as
+the poles of a sphere (approximated by a cube?), and cycle on all colors in great circles
+alternating the great circles at each interpolation of the sphere. Or spiraling on the sphere / cube.
+
+so we need to define interpolations between 3d points: Line
+
+- random distribution of colors : center / radius
+
+- inject player color /gray/ component in cycle colors:
+first step:
+  the hardcoded colors will only be used for their hue.
+
+- make world end when no reachable number is available. (i.e some numbers are alive,
+  but in another component)
+
+- 3 players : 2 do the 2 expressions,
+one does the operation : * or +
+
+- the count of flying items per connected component should be proportional to
+the cc size.
+
+- ships replaced by humans walking, jumping, climbing
+
+- Duel mode with one component, the one that has the max sum wins the level number.
+levels go on until 12.
+
+Note that the start location matters a lot in that case. Think of a way to place ships in a fair way,
+with the notion of "manhattan collision free distance" to number.
+
+- (mkLevelEssence) Specialized mode where one has + the other has -.
+To make players engage, they need to feel that they are both important to win
+the level. Using big flying numbers and small goal number is a way to reach this.
+To compensate for the small numbers of shots needed to finish a level,
+we can have a list of goal numbers (3).
+
+to compute the target we do a random operation
+on existing numbers with + and -. Use big numbers.
+Show minus numbers in blue
+
+Single player where + and - alternate at every shot number
+
+Laser color changes : red = plus
+
+- the other ship can double numbers (make levels where we need to double
     some numbers in order to reach the sum)
-  - the other ship can multiply
+- the other ship can multiply
 
-  - one of the entities will be the server, containing game/world state and making the world step.
-  clients know when the server will send an update (todo explain how) event hence
-  if there is a connection problem, they can say so (lost connection, please wait...)
+- TextBox should take newlines into account, to make messages like:
+While parsing:
+  stringparsed
+Error:
+  ...
 
-  0th step : use multi cast with a single user group : write to the group, and read from the group.
+- multiline algo should have an option to keep multiple spaces.
 
-  1st step: find a way to communicate between client and server.
-  compare using :
-  - http://haskell-distributed.github.io/
-  - https://hackage.haskell.org/package/network-multicast
+- use up/down arrow to recall last message? -> shift up shift down to change cursor position.
 
-- make font characters more square
+- autocompletion based on beginning of string, right arrow to validate.
+if input is a /, write all commands in help
 
-- make distance between world and text depend on unit width
+- Press H to show help / press H to hide help (write on the right of the game)
+
+- ranking :
+high scores of a user can be stored locally, and sent to other clients when connecting to a server.
+How to prevent fraud?
+
+- identify clients to match on reconnect (ip + player name ?)
+
+- recover on disconnections (intentional or not), client-side:
+    when server connection vanishes, client could say:
+      "Server is not reachable, please wait..."
+    Then, when server is up again, (client trying every second),
+    the client sends, along with the Connection request, its GameStateEssence + Level
+    so that the server creates the corresponding CurrentGame, and ServerState.
+
+- server transfer:
+  During the game, we could elect a new server when the server dies.
+  When the server shutdowns, we could let the clients live, so that they can keep the game state.
+
+- when in Setup intent, the server should send updates of a list "which players would be in the
+game, should you hit Space now" to the clients
+
+- when player presses a key to restart: it waits for other player to also press a key to restart
+we could display "waiting for other players to press a key..."
+
+- the info "game ended" is sent when player presses play.
+then server verifies outcome and computes next world.
+
+Instead, the info should be sent immediately so that the server can verify
+outcomes.
+
+- when changing view center, the text on the left does not change position, it
+changes only on the next world change.
+
+- investigate using higher level concepts to clarify server / client statefull interactions
+and make the implementation more robust, to be confident that all edge cases are well-handled:
+describe logic with a GRAFCET.
+
+- broadcast every player state change, to have the following UI:
+                                                        - Players:
+                                                            Player1 [Level 3 running]
+                                                            Player2 [Level 3 won]
+                                                            Player3 [Waiting]
+
+                                                        - Chat:
+                                                        (Player 1) Hello !
+                                                        (Player 2) Salut
+                                                        <Player 3 joined>
+                                                        (Player 2 typing...)
+                                                        > Comm|
+
+- I dropped the changes in time period (accelerating during game, resetting on collision
+  with initalGameMultiplicator). Should we use it?
+
+- now that we have multiple threads, revise number of capabilities
+
+- if the server closes the connection, the next send from client should fail :
+can we automatically reconnect in that case? All peers should store their last GameStepIdx
+to know which was more advanced, and start from that state.
+- on connection, if server is not found, retry every 3 seconds.
+
+- when talking, animate text.
+
+- use bitwise package to optimize boolean matrix representation.
 
 - try round instead of square for walls.
 
 - go back and forth in time.
-
-- add state transitions:
-
-  - hitting escape:
-
-  play -> quit the current game? yes / no -> configuration -> quit ? yes / no
-
-  - hitting space : play -> paused -> play
-
-should animations continue or should we pause them?
-if yes we should have a time offset in the state.
-
-- display debug infos in a nice way when using the terminal :
-overlay,
 
 - store update time in deadlines, to replace "while we are under the budget"
   by "if curTimeSpent + foreseenTimeSpent < budget then update this deadline"
@@ -43,10 +256,7 @@ overlay,
   more time to update / game moved takes longer if there is a collision / laser shot
   takes longer if there is a collision
 
-- try glfw on windows, if it works, disable limitation
-
-- use http://book.realworldhaskell.org/read/monad-transformers.html
-to simplify if needed
+- try glfw on windows, if it works, disable limitation and force the use of glfw on windows
 
 - a game where we need to escape a randomly generated maze.
 
@@ -69,4 +279,6 @@ evolution to place the ship where it is in the next world.
   - delta renderer
 compilation times are slower by 4% with -O2.
 
-- for stackage, which ghc versions should I support? https://www.fpcomplete.com/blog/2014/05/stackage-server
+Tools:
+- analyse using https://hackage.haskell.org/package/threadscope
+https://making.pusher.com/latency-working-set-ghc-gc-pick-two/

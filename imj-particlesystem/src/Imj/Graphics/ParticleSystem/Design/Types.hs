@@ -1,6 +1,8 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Imj.Graphics.ParticleSystem.Design.Types
           ( ParticleSystem(..)
@@ -9,6 +11,8 @@ module Imj.Graphics.ParticleSystem.Design.Types
           , UpdateSpec(..)
           , ParticleTree(..)
           , Particle(..)
+          , Colorization
+          , ParticleIndex(..)
           , CanInteract(..)
           , InteractionResult(..)
           -- Reexports
@@ -19,10 +23,9 @@ module Imj.Graphics.ParticleSystem.Design.Types
 
 import           Imj.Prelude
 
-import           GHC.Show(showString)
-
 import           Imj.Iteration
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem.Design.Timing
 import           Imj.Geo.Discrete.Types
 import           Imj.Physics.Continuous.Types
@@ -32,10 +35,10 @@ import           Imj.Timing
 data ParticleSystem = ParticleSystem {
     _particleSystemPoints :: !ParticleTree
   , _particleSystemUpdate :: !(EnvFunctions
-                          -> Frame
-                          -> ParticleTree
-                          -> ParticleTree)
-  , _particleSystemEnvFunctions :: !EnvFunctions
+                            -> Frame
+                            -> ParticleTree
+                            -> ParticleTree)
+  , _particleSystemEnvFunctions :: {-# UNPACK #-} !EnvFunctions
   , _particleSystemNextUpdateSpec :: !UpdateSpec
 }
 
@@ -71,14 +74,13 @@ data Distance = DistanceOK
 
 
 instance Show ParticleSystem where
-  showsPrec _ (ParticleSystem a _ _ b) =
-    showString $ "ParticleSystem{" ++ show (a,b) ++ "}"
+  show (ParticleSystem a _ _ b) = "ParticleSystem{" ++ show (a,b) ++ "}"
 
 
 data UpdateSpec = UpdateSpec {
-    _updateSpecTime :: !(Time Point ParticleSyst)
+    _updateSpecTime :: {-# UNPACK #-} !(Time Point ParticleSyst)
     -- ^ The time at which the update should happen.
-  , _updateSpecIteration :: !Iteration
+  , _updateSpecIteration :: {-# UNPACK #-} !Iteration
     -- ^ The iteration that will be used in the update.
 } deriving(Show)
 
@@ -88,23 +90,29 @@ data ParticleTree = ParticleTree {
     -- ^ The children. A child can be 'Right' 'Particle' or 'Left' 'ParticleTree'.
     --
     --  When a 'Right' 'Particle' mutates, it is converted to an empty 'Left' 'ParticleTree'
-  , _particleTreeCenter :: !VecPosSpeed
+  , _particleTreeCenter :: {-# UNPACK #-} !VecPosSpeed
     -- ^ The center, aka the position and speed of the 'Particle', w.r.t the particle system reference frame,
     -- that gave birth to this 'ParticleTree'.
-  , _particleTreeFrame :: !Frame
+  , _particleTreeFrame :: {-# UNPACK #-} !Frame
     -- ^ The frame at which this 'ParticleTree' was created, relatively to the parent, if any.
 } deriving (Show)
 
 data Particle = Particle {
-    _particleCanInteract :: !CanInteract
+    _particleCanInteract :: {-unpack sum-} !CanInteract
     -- ^ Can the particle interact with the environment?
   , _particleVecPosSpeed :: {-# UNPACK #-} !VecPosSpeed
     -- ^ Continuous location and speed, w.r.t the particle system reference frame.
-  , _particleDrawnWith :: !Char
+  , _particleDrawnWith :: {-# UNPACK #-} !Glyph
     -- ^ The char used to draw the particle.
-  , _particleColor :: !LayeredColor
+  , _particleColor :: {-# UNPACK #-} !LayeredColor
   -- ^ The color used to draw the particle.
 } deriving (Show)
+
+-- | Type for functions defining the color of a 'Particle' during an update.
+type Colorization = Frame -> ParticleIndex -> LayeredColor
+
+newtype ParticleIndex = ParticleIndex Int
+  deriving(Generic, Show, Num, Enum)
 
 data CanInteract = DontInteract
                  {- ^ The 'Particle' can't interact with the environment.

@@ -14,8 +14,12 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import           Imj.Graphics.Render
-import           Imj.Geo.Discrete
+import           Imj.Geo.Discrete.Types
+
+import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Render.FromMonadReader
+import           Imj.Graphics.Font
 
 
 countRectContainerChars :: Size -> Int
@@ -39,16 +43,20 @@ drawPartialRectContainer :: (Draw e, MonadReader e m, MonadIO m)
                            -> LayeredColor
                            -> m ()
 drawPartialRectContainer sz r colors =
-  drawUpperWall sz colors r
-    >>= drawRightWall sz colors
-    >>= drawLowerWall sz colors
-    >>= drawLeftWall sz colors
+  let verticalGlyph = gameGlyph '|'
+      upperGlyph = gameGlyph '_'
+      lowerGlyph = gameGlyph 'T'
+  in drawUpperWall sz colors upperGlyph r
+    >>= drawRightWall sz colors verticalGlyph
+    >>= drawLowerWall sz colors lowerGlyph
+    >>= drawLeftWall  sz colors verticalGlyph
     >> return ()
 
 {-# INLINABLE drawLeftWall #-}
 drawLeftWall :: (Draw e, MonadReader e m, MonadIO m)
                => Size
                -> LayeredColor
+               -> Glyph
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
 drawLeftWall = drawSideWall Up
@@ -57,6 +65,7 @@ drawLeftWall = drawSideWall Up
 drawRightWall :: (Draw e, MonadReader e m, MonadIO m)
                => Size
                -> LayeredColor
+               -> Glyph
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
 drawRightWall = drawSideWall Down
@@ -66,15 +75,16 @@ drawSideWall :: (Draw e, MonadReader e m, MonadIO m)
                => Direction
                -> Size
                -> LayeredColor
+               -> Glyph
                -> (Coords Pos, Int, Int)
                -> m (Coords Pos, Int, Int)
-drawSideWall dir sz colors (ref, from, to) = do
+drawSideWall dir sz colors g (ref, from, to) = do
   let countMax = countRectContainerVerticalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
       nChars = 1 + actualTo - actualFrom
       wallCoords = map (\n -> move n dir ref) [actualFrom..actualTo]
       nextRef = move countMax dir ref
-  mapM_ (\pos -> drawChar '|' pos colors) wallCoords
+  mapM_ (\pos -> drawGlyph g pos colors) wallCoords
   if nChars <= 0
     then
       return (nextRef, from - countMax, to - countMax)
@@ -85,44 +95,46 @@ drawSideWall dir sz colors (ref, from, to) = do
 drawUpperWall :: (Draw e, MonadReader e m, MonadIO m)
                 => Size
                 -> LayeredColor
+                -> Glyph
                 -> (Coords Pos, Int, Int)
                 -> m (Coords Pos, Int, Int)
 drawUpperWall =
-  drawHorizontalWall Down RIGHT '_'
+  drawHorizontalWall Down RIGHT
 
 {-# INLINABLE drawLowerWall #-}
 drawLowerWall :: (Draw e, MonadReader e m, MonadIO m)
                 => Size
                 -> LayeredColor
+                -> Glyph
                 -> (Coords Pos, Int, Int)
                 -> m (Coords Pos, Int, Int)
 drawLowerWall =
-  drawHorizontalWall Up LEFT 'T'
+  drawHorizontalWall Up LEFT
 
 {-# INLINABLE drawHorizontalWall #-}
 drawHorizontalWall :: (Draw e, MonadReader e m, MonadIO m)
                      => Direction
                      -> Direction
-                     -> Char
                      -> Size
                      -> LayeredColor
+                     -> Glyph
                      -> (Coords Pos, Int, Int)
                      -> m (Coords Pos, Int, Int)
-drawHorizontalWall dirV dirH char sz colors (upperLeft, from, to) = do
+drawHorizontalWall dirV dirH sz colors g (upperLeft, from, to) = do
   let countMax = countRectContainerHorizontalChars sz
       (actualFrom, actualTo) = actualRange countMax (from, to)
-      nChars = 1 + actualTo - actualFrom
+      n = 1 + actualTo - actualFrom
       nextR = translateInDir dirV $ move (countMax - 1) dirH upperLeft
       startDraw = case dirH of
             RIGHT -> move actualFrom RIGHT upperLeft
             LEFT  -> move actualTo LEFT upperLeft
             _ -> error "not allowed"
-  if nChars <= 0
+  if n <= 0
     then
       return (nextR, from - countMax, to - countMax)
     else
-      drawChars nChars char startDraw colors
-       >> return (nextR, from + nChars - countMax, to - countMax)
+      drawGlyphs n g startDraw colors
+       >> return (nextR, from + n - countMax, to - countMax)
 
 
 actualRange :: Int -> (Int, Int) -> (Int, Int)

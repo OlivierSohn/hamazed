@@ -20,8 +20,8 @@ import           Imj.Physics.Discrete.Types
 Note on naming : the @vec@ in the name refers to
 <https://en.wikipedia.org/wiki/Vector_graphics vector graphics>. -}
 data VecPosSpeed = VecPosSpeed {
-    _vecPosSpeedPos :: !(Vec2 Pos)
-  , _vecPosSpeedSpeed :: !(Vec2 Vel)
+    _vecPosSpeedPos :: {-# UNPACK #-} !(Vec2 Pos)
+  , _vecPosSpeedSpeed :: {-# UNPACK #-} !(Vec2 Vel)
 } deriving (Eq, Show)
 
 -- | Convert from 'PosSpeed' to 'VecPosSpeed'

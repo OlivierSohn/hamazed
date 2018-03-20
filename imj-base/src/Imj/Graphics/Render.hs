@@ -42,17 +42,16 @@ follows this pattern. -}
   , usingScissor
   -- * Draw colored chars
   , fill
-  , drawChar
-  , drawChars
+  , drawGlyph
+  , drawGlyphs
   , drawTxt
   , drawStr
   , drawMultiLineStr
-  , drawColorStr
   -- ** Render to the physical device
   , renderToScreen
   -- * Reexports
   , LayeredColor(..), Coords(..), Pos
-  , Alignment(..), ColorString, Text, Char, String
+  , Alignment(..), Text, Char, String
   , MonadReader, MonadIO
   ) where
 
@@ -67,5 +66,5 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.FromMonadReader
 
 import           Imj.Graphics.Color(LayeredColor(..))
-import           Imj.Geo.Discrete(Coords(..))
-import           Imj.Graphics.Text.Alignment(Alignment(..))
+import           Imj.Geo.Discrete.Types(Coords(..))
+import           Imj.Graphics.Class.Positionable(Alignment(..))

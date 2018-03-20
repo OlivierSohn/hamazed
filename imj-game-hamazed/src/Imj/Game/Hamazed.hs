@@ -12,7 +12,7 @@ module Imj.Game.Hamazed
 
         Good luck !
 
-        /Note that to adapt the keyboard layout, you can modify 'eventFromKey'./
+        /Note that to adapt the keyboard layout, you can modify 'translatePlatformEvent'./
         -}
         run
       -- * Parameters
@@ -22,7 +22,8 @@ module Imj.Game.Hamazed
       * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
       * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
        -}
-      , GameParameters(..)
+      , WorldParameters(..)
+      , ViewMode(..)
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 
@@ -85,7 +86,7 @@ module Imj.Game.Hamazed
         -- * GameState
       , GameState(..)
         -- * Keyboard layout
-      , eventFromKey
+      , translatePlatformEvent
         -- * Reexport
       , module Imj.Game.Hamazed.Env
       , module Imj.Game.Hamazed.World

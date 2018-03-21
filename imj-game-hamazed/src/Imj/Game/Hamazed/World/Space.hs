@@ -16,7 +16,6 @@ module Imj.Game.Hamazed.World.Space
     , mkRandomlyFilledSpace
     , mkRenderedSpace
     , RandomParameters(..)
-    , Strategy(..)
     , location
     , distanceToSpace
     , Scope(..)
@@ -28,6 +27,11 @@ module Imj.Game.Hamazed.World.Space
     , randomCCCoords
     -- for tests
     , mkSmallWorld
+    , mkSmallMat
+    , mapRotations
+    , matchTopology
+    , getComponentCount
+    , TopoMatch
     -- * Reexports
     , module Imj.Graphics.Render
     ) where
@@ -40,15 +44,16 @@ import           Data.Either(partitionEithers)
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
 import           Data.List(length, group, concat, mapAccumL, sortOn)
 import qualified Data.List as List (foldl')
-import           Data.Maybe(mapMaybe, catMaybes)
-import qualified Data.Map as Map(empty, alter)
+import           Data.Maybe(mapMaybe, listToMaybe)
+import qualified Data.Map as Map(alter)
 import qualified Data.Set as Set(size, fromList, toList, union)
-import           Data.Tree(Tree, flatten)
+import           Data.Tree(flatten)
 import qualified Data.Vector.Unboxed as V (Vector, fromList, length, (!), foldl')
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
 import           Imj.Data.Matrix.Unboxed(Matrix, getRow, fromLists, toLists)
-import qualified Imj.Data.Matrix.Cyclic as Cyclic(Matrix, unsafeSetRotation, fromList, toLists, unsafeGet, getRow, getCol, nrows, ncols)
+import           Imj.Data.Matrix.Cyclic(mapRotations, mapInterleavedVariations)
+import qualified Imj.Data.Matrix.Cyclic as Cyclic(Matrix, fromList, toLists, unsafeGet, getRow, getCol, nrows, ncols)
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
@@ -156,9 +161,9 @@ mkRandomlyFilledSpace :: RandomParameters
 mkRandomlyFilledSpace _ s 0 _ _ =
   let (a,b) = mkFilledSpace s
   in return (Just (a,b),Nothing)
-mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio strategy) s nComponents continue gen = do
+mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio) s nComponents continue gen = do
   (mayWT, stats) <-
-    mkSmallWorld gen (bigToSmall s blockSize) strategy nComponents wallAirRatio continue
+    mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue
   return (maybe
     Nothing
     (\(MaterialMatrix smallWorldMat, smallTopo) ->
@@ -184,82 +189,82 @@ the random graph defined in the function.
 mkSmallWorld :: GenIO
              -> Size
              -- ^ Size of the small world
-             -> Strategy
              -> ComponentCount
              -- ^ Count connex components
-             -> Double
+             -> Float
              -- ^ Wall / Air ratio
              -> IO Bool
              -- ^ Can continue?
              -> IO (Maybe (MaterialMatrix, SmallWorldTopology), Statistics)
              -- ^ the "small world"
-mkSmallWorld gen s strategy nComponents' wallAirRatio' continue = do
-  when (nComponents' == 0) $ error "should be handled by caller"
-  t <- getSystemTime
-  go 0 Map.empty t
+mkSmallWorld gen s nComponents' wallAirRatio continue
+  | nComponents' == 0 = error "should be handled by caller"
+  | otherwise = withDuration (go zeroStats) >>= \((r,stats),dt) ->
+      return (listToMaybe r, stats { totalTime = dt })
  where
-  !wallAirRatio = realToFrac wallAirRatio'
+  go stats = continue >>= bool
+    (return ([], stats))
+      -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
+    (mapInterleavedVariations (\x ->
+      let res = matchTopology nComponents x
+      in tryRotationsIfAlmostMatches nComponents x res) <$> mkSmallMat gen wallAirRatio s >>= \l -> do
+      let !newStats = updateStats l stats
+      case partitionEithers l of
+        (_,[]) -> go newStats
+        (_,successes) -> return (successes, newStats))
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
   maxNComp = ComponentCount $ succ $ quot (pred $ area s) 2 -- for checkerboard-like layout
-  go i j t =
-    continue >>= \goOn ->
-      if goOn
-        then do
-          (errors, successes) <- partitionEithers . tryAllRotations <$> mkCyclicMat
-          let j' =
-                List.foldl'
-                  (flip $ Map.alter (Just . succ . fromMaybe 0))
-                  j
-                  $ catMaybes errors
-                  ++ map (ComponentCount . length . getConnectedComponents . snd) successes
-          case successes of
-            [] -> go (i + length errors) j' t
-            -- take first success, discard others.
-            first:_ -> do
-              t' <- getSystemTime
-              return (Just first, Statistics (i + length errors + length successes) j' $ t...t')
-        else do
-          t' <- getSystemTime
-          return (Nothing, Statistics i j $ t...t')
-  mkCyclicMat = mkSmallMat gen wallAirRatio s
-  tryAllRotations cyclicMat =
-    -- we rotate the matrix to recycle random numbers, as random number generation is expensive
-    forEachRotation cyclicMat $ \rotated ->
-      if smallMatHasAirOnEveryFronteer rotated
-        then
-          let (graph, vtxToCoords', _) = graphOfIndex Air rotated
-              vtxToCoords vtx = a where (a,_,_) = vtxToCoords' vtx
-          in case strategy of
-            OneComponentPerShip ->
-              let gcomps = components graph
-                  nComps = ComponentCount $ length gcomps
-                  comps = map mkConnectedComponent $ components graph
-                  -- the order of evaluation is important, to avoid unnecessary computation of comps.
-              in if nComponents == nComps && wellDistributed comps
-                then
-                  Right (MaterialMatrix $ Cyclic.toLists rotated
-                       , SmallWorldTopology comps vtxToCoords)
-                else
-                  Left $ Just nComps
-        else
-          Left Nothing
-  forEachRotation x f =
-    let nRotations = 1 --Cyclic.countRotations x -- TODO measure if rotating is beneficial, or not.
-    in map (f . Cyclic.unsafeSetRotation x) [0..pred nRotations]
-  wellDistributed comps =
-    maximum lengths < 2 * minimum lengths
-   where lengths = map countSmallCCElts comps
+  updateStats l (Statistics i j dt) =
+    let i' = i + length l
+        j' = List.foldl'
+          (flip $ Map.alter (Just . succ . fromMaybe 0))
+          j
+          $ mapMaybe getComponentCount l
+    in Statistics i' j' dt
 
-smallMatHasAirOnEveryFronteer :: Cyclic.Matrix Material -> Bool
-smallMatHasAirOnEveryFronteer mat =
-  all (V.foldl' (\res x -> res || (x == Air)) False) fronteers
+type TopoMatch = Either (Maybe ComponentCount) (MaterialMatrix, SmallWorldTopology)
+
+getComponentCount :: TopoMatch -> Maybe ComponentCount
+getComponentCount (Left c) = c
+getComponentCount (Right (_,topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
+
+matchTopology :: ComponentCount
+              -> Cyclic.Matrix Material
+              -> TopoMatch
+matchTopology nComponents r
+  | not $ smallMatHasAirOnEveryFronteer r = Left Nothing
+  | nComponents /= nComps = Left $ Just nComps
+    -- from here on, comps is evaluated.
+  | not wellDistributed   = Left $ Just nComps
+  | otherwise = Right (MaterialMatrix $ Cyclic.toLists r, SmallWorldTopology comps vtxToCoords)
  where
-  fronteers =
-    [ Cyclic.getRow 0 mat
-    , Cyclic.getRow (pred $ Cyclic.nrows mat) mat
-    , Cyclic.getCol 0 mat
-    , Cyclic.getCol (pred $ Cyclic.ncols mat) mat
-    ]
+  nComps = ComponentCount $ length gcomps
+  gcomps = components graph
+  (graph, vtxToCoords', _) = graphOfIndex Air r
+  vtxToCoords vtx = a where (a,_,_) = vtxToCoords' vtx
+  comps = map (ConnectedComponent . V.fromList . flatten) $ components graph
+  lengths = map countSmallCCElts comps
+  wellDistributed = maximum lengths < 2 * minimum lengths
+  smallMatHasAirOnEveryFronteer :: Cyclic.Matrix Material -> Bool
+  smallMatHasAirOnEveryFronteer mat =
+    all (V.foldl' (\res x -> res || (x == Air)) False) fronteers
+   where
+    fronteers =
+      [ Cyclic.getRow 0 mat
+      , Cyclic.getRow (pred $ Cyclic.nrows mat) mat
+      , Cyclic.getCol 0 mat
+      , Cyclic.getCol (pred $ Cyclic.ncols mat) mat
+      ]
+
+tryRotationsIfAlmostMatches :: ComponentCount -> Cyclic.Matrix Material -> TopoMatch -> [TopoMatch]
+tryRotationsIfAlmostMatches _ _ r@(Right _) = [r]
+tryRotationsIfAlmostMatches _ _ r@(Left Nothing) = [r]
+tryRotationsIfAlmostMatches n m r@(Left (Just nComps))
+  | abs (n - nComps) <= 5 = -- TODO fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
+    -- we are already close to the target number, so
+    -- there is a good probability that rotating will trigger the component match.
+    mapRotations (matchTopology n) m -- TODO skip zero rotation, which has already been tested
+  | otherwise = [r]
 
 mkSmallMat :: GenIO
            -> Float
@@ -284,11 +289,6 @@ newtype ConnectedComponent = ConnectedComponent (V.Vector Vertex)
 {-# INLINE countSmallCCElts #-}
 countSmallCCElts :: ConnectedComponent -> Int
 countSmallCCElts (ConnectedComponent v) = V.length v
-
-{-# INLINE mkConnectedComponent #-}
-mkConnectedComponent :: Tree Vertex -> ConnectedComponent
-mkConnectedComponent =
-  ConnectedComponent . V.fromList . flatten
 
 {-# INLINE countBigCCElts #-}
 countBigCCElts :: Int -> ConnectedComponent -> Int
@@ -359,11 +359,11 @@ graphOfIndex matchIdx mat =
 
 
 connectedNeighbours :: Material -> Coords Pos -> Cyclic.Matrix Material -> (Int, Int) -> [Coords Pos]
-connectedNeighbours match coords mat (nRows,nCols) =
+connectedNeighbours material coords mat (nRows,nCols) =
   let neighbours = [translateInDir LEFT coords, translateInDir Down coords]
   in mapMaybe
       (\other@(Coords (Coord r) (Coord c)) ->
-        if r < 0 || c < 0 || r >= nRows || c >= nCols || Cyclic.unsafeGet r c mat /= match
+        if r < 0 || c < 0 || r >= nRows || c >= nCols || Cyclic.unsafeGet r c mat /= material
           then
             Nothing
           else

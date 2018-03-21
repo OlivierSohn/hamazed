@@ -67,7 +67,6 @@ module Imj.Game.Hamazed.World
       towards zero with increasing sizes. -}
     , mkRandomlyFilledSpace
     , RandomParameters(..)
-    , Strategy(..)
       -- ** Collision detection
       {- | 'location' is the standard collision detection function that considers
       that being outside the world means being in collision.

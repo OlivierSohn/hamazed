@@ -21,6 +21,7 @@ module Imj.Timing
     , System
     , Point
     , Duration
+    , zeroDuration
     -- ** Time TimeRange
     , TimeRange
     , mkRangeSingleton
@@ -42,12 +43,12 @@ module Imj.Timing
     , fromSecs
     , unsafeToSecs
     -- * Utilities
+    , withDuration
     , getSystemTime
     , getCurrentSecond
     , getDurationFromNowTo
     , toMicros
     , strictlyNegative
-    , zeroDuration
     , unsafeGetTimeSpec
     , unsafeFromTimeSpec
     -- * Reexports
@@ -238,3 +239,10 @@ prettyShowTime (Time (TimeSpec seconds' ns)) =
   (minutes', seconds) = seconds' `quotRem` 60
   (hours'  , minutes) = minutes' `quotRem` 60
   (_       , hours)   = hours'   `quotRem` 24
+
+withDuration :: IO a -> IO (a, Time Duration System)
+withDuration act = do
+  t <- getSystemTime
+  r <- act
+  t' <- getSystemTime
+  return (r, t...t')

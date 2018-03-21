@@ -48,9 +48,9 @@ import           Data.Vector.Algorithms.Intro(sort) -- unstable sort
 import           Control.Monad.Primitive(RealWorld, PrimMonad, PrimState)
 import           Data.Primitive.MutVar(MutVar, readMutVar, newMutVar, writeMutVar)
 
+import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV(MVector, take, length, new, unsafeRead,
                                                   unsafeGrow, unsafeWrite)
-import qualified Data.Vector.Unboxed as V(Unbox)
 
 
 -- | Mutable vector with dynamic behaviour living in the ST or IO monad.
@@ -66,14 +66,14 @@ data MVectorData s a = MVectorData {
 
 -- | O(1) access to the underlying vector
 {-# INLINABLE accessUnderlying #-}
-accessUnderlying :: (PrimMonad m, V.Unbox a)
+accessUnderlying :: (PrimMonad m, Unbox a)
                  => MVector (PrimState m) a
                  -> m (MV.MVector (PrimState m) a)
 accessUnderlying (MVector v') = readMutVar v' >>= \(MVectorData sz v) ->
   return $ MV.take sz v
 
 -- | O(N*log(N)) unstable sort.
-unstableSort :: (PrimMonad m, V.Unbox a, Ord a)
+unstableSort :: (PrimMonad m, Unbox a, Ord a)
              => MVector (PrimState m) a
              -> m ()
 unstableSort v =
@@ -89,7 +89,7 @@ length (MVector v) =
 {-# INLINABLE length #-}
 
 -- | Number of elements that the vector currently has reserved space for.
-capacity :: (PrimMonad m, V.Unbox a)
+capacity :: (PrimMonad m, Unbox a)
          => MVector (PrimState m) a
          -> m Int
 capacity (MVector v) =
@@ -97,7 +97,7 @@ capacity (MVector v) =
 {-# INLINABLE capacity #-}
 
 -- | Create a vector with a given capacity.
-new :: (PrimMonad m, V.Unbox a)
+new :: (PrimMonad m, Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
 new i =
@@ -105,7 +105,7 @@ new i =
 {-# INLINABLE new #-}
 
 -- | Read by index. Performs bounds checking.
-read :: (PrimMonad m, V.Unbox a)
+read :: (PrimMonad m, Unbox a)
      => MVector (PrimState m) a
      -> Int
      -> m a
@@ -118,7 +118,7 @@ read (MVector v') i = readMutVar v' >>= \(MVectorData sz buf) ->
 {-# INLINABLE read #-}
 
 -- | Read by index without bounds checking.
-unsafeRead :: (PrimMonad m, V.Unbox a)
+unsafeRead :: (PrimMonad m, Unbox a)
            => MVector (PrimState m) a
            -> Int
            -> m a
@@ -137,7 +137,7 @@ clear (MVector v) =
 {-# INLINABLE clear #-}
 
 -- | Increment the size of the vector and write a value to the back.
-pushBack :: (PrimMonad m, V.Unbox a)
+pushBack :: (PrimMonad m, Unbox a)
          => MVector (PrimState m) a
          -> a
          -> m ()

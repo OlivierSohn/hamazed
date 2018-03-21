@@ -209,7 +209,7 @@ updateGameParamsFromChar = \case
   '1' -> sendToServer $ ChangeWorldShape Square
   '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
   'e' -> sendToServer $ ChangeWallDistribution None
-  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 OneComponentPerShip
+  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5
   {-
   'd' -> putViewMode CenterSpace -- TODO force a redraw?
   'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
@@ -387,7 +387,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
             significantDeadline f sofar = maybe
               (succ f, sofar)
               (\dt ->
-                let newDuration = dt |+| fromMaybe (fromSecs 0) sofar
+                let newDuration = dt |+| fromMaybe zeroDuration sofar
                 in if newDuration > minDt
                     then
                       (succ f, Just newDuration)

@@ -10,6 +10,7 @@ import           Test.Imj.Color
 --import           Test.Imj.Ease
 import           Test.Imj.FreeType2
 import           Test.Imj.Font
+import           Test.Imj.Interleave
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
 import           Test.Imj.StdoutBuffer
@@ -35,7 +36,6 @@ main = do
   testVector >>= print
   testZigZag >>= print
   testInterpolation
-  testUtils
   testColor
 
   clearScreen
@@ -45,11 +45,13 @@ main = do
 
   --testEase
   testMutableBytestring
+  testUtils
+  testLogBase2
   testLastAbove
-  testInterleaveHalves
   testSums
   testFont
   testFreeType2
   testFreeType2'
+  testInterleaveHalves
   putStrLn ""
   return ()

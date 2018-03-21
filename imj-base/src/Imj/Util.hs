@@ -11,21 +11,29 @@ module Imj.Util
     , takeWhileInclusive
     , commonPrefix
     , commonSuffix
-    , interleaveHalves
       -- * Math utilities
     , clamp
     , zigzag
     , lastAbove
+    , logBase2
+    -- * distribution utilities
+    , asDistribution
+    , Distribution
     -- * Render utilities
     , showArray
+    , showDistribution
+    , showInBox
     -- * Reexports
     , Int64
     ) where
 
 import           Imj.Prelude
 
+import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl')
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import           Data.Maybe(maybeToList)
 import           Data.Text(Text, pack)
 
@@ -33,6 +41,14 @@ import           Data.Text(Text, pack)
 maximumMaybe :: Ord a => [a] -> Maybe a
 maximumMaybe [] = Nothing
 maximumMaybe xs = Just $ maximum xs
+
+showInBox :: [String] -> [String]
+showInBox l =
+  bar '_' : map (withFrame '|') l ++ [bar 'T']
+ where
+  bar = replicate (maxWidth + 2)
+  withFrame f str = f : str ++ [f]
+  maxWidth = fromMaybe 0 $ maximumMaybe $ map length l
 
 showArray :: Maybe (String, String) -> [(String,String)] -> [String]
 showArray mayTitles body =
@@ -51,6 +67,34 @@ showArray mayTitles body =
   justifyL x maxL =
     let l = length x
     in " " ++ x ++ replicate (maxL-l) ' ' ++ " "
+
+type Distribution a = Map a Int
+
+{-# INLINABLE asDistribution #-}
+asDistribution :: (Ord a)
+               => [a] -> Distribution a
+asDistribution = Map.fromListWith (+) . map (flip (,) 1)
+
+{-# INLINABLE showDistribution #-}
+showDistribution :: (Ord a, Show a, Enum a)
+                 => Distribution a
+                 -> [String]
+showDistribution m =
+  map
+    (\(k,n) ->
+      let s = show k
+      in s ++ replicate (maxWidth - length s) ' ' ++ " | " ++ replicate n '.')
+    l
+ where
+  mayMin = Map.lookupMin m
+  mayMax = Map.lookupMax m
+  -- m' has no gap between min and max key (we add 0s if needed)
+  m' = maybe m (\(min_,_) ->
+      let (max_,_) = fromMaybe (error "logic") mayMax
+      in foldl' (\ma k -> Map.insertWith (+) k 0 ma) m [min_..max_])
+    mayMin
+  l = Map.toAscList m'
+  maxWidth = fromMaybe 0 $ maximumMaybe $ map (length . show . fst) l
 
 {-# INLINABLE showListOrSingleton #-}
 -- | If list is a singleton, show the element, else show the list.
@@ -218,11 +262,6 @@ lastAbove threshold f minIdx maxIdx =
       where
         x = quot (tooLow + tooHigh) 2
 
--- | Interleave the first half with the second half.
-interleaveHalves :: [a] -> [a]
-interleaveHalves l =
-  uncurry (++) $ go [] [] l
- where
-  go l1 l2 []         = (   l1,l2)
-  go l1 l2 [x1]       = (x1:l1,l2)
-  go l1 l2 (x1:x2:xs) = go (x1:l1) (x2:l2) xs
+{-# INLINE logBase2 #-}
+logBase2 :: Int -> Int
+logBase2 x = finiteBitSize x - 1 - countLeadingZeros x

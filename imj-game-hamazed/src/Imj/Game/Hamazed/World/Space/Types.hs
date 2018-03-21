@@ -16,10 +16,10 @@ module Imj.Game.Hamazed.World.Space.Types
     , Material(..)
     , MaterialMatrix(..)
     , RandomParameters(..)
-    , Strategy(..)
     , DrawGroup(..)
     , Scope(..)
     , Statistics(..)
+    , zeroStats
     , mergeStats
     , mergeMayStats
     , BigWorldTopology(..)
@@ -51,12 +51,6 @@ import           Imj.Graphics.Font
 import           Imj.Timing
 import           Imj.Util
 
-data Strategy = OneComponentPerShip
-              -- ^ There should be one 'Air' connected component per ship.
-              deriving(Generic, Show)
-instance Binary Strategy
-instance NFData Strategy
-
 -- | Parameters for random walls creation.
 data RandomParameters = RandomParameters {
     _randomWallsBlockSize :: {-# UNPACK #-} !Int
@@ -64,9 +58,7 @@ data RandomParameters = RandomParameters {
     --
     -- Note that the smaller the block size, the harder it will be for the algorithm to find
     -- a random world with a single component of air.
-  , _wallProbability :: {-# UNPACK #-} !Double -- ^ 1 means only walls, 0 means no walls at all
-  , _randomWallsStrategy :: {-# UNPACK #-} !Strategy
-    -- ^ Space characteristics
+  , _wallProbability :: {-# UNPACK #-} !Float -- ^ 1 means only walls, 0 means no walls at all
 } deriving(Generic, Show)
 instance Binary RandomParameters
 instance NFData RandomParameters
@@ -126,7 +118,7 @@ newtype ComponentIdx = ComponentIdx Int
 
 
 newtype ComponentCount = ComponentCount Int
-  deriving(Generic, Eq, Ord, Show, Binary, Num)
+  deriving(Generic, Eq, Ord, Show, Binary, Num, Enum)
 
 data Statistics = Statistics {
     countGeneratedMatrixes :: {-# UNPACK #-} !Int
@@ -134,6 +126,9 @@ data Statistics = Statistics {
   , totalTime :: !(Time Duration System)
 } deriving(Generic,Show)
 instance Binary Statistics
+
+zeroStats :: Statistics
+zeroStats = Statistics 0 mempty zeroDuration
 
 mergeStats :: Statistics -> Statistics -> Statistics
 mergeStats (Statistics a b c) (Statistics a' b' c') =

@@ -1,8 +1,12 @@
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Test.Imj.Util
          ( testUtils
          , testLastAbove
-         , testInterleaveHalves
+         , testLogBase2
          ) where
+
+import           Imj.Prelude
 
 import           Imj.Util
 
@@ -15,6 +19,11 @@ testUtils = do
   mkGroups 1 [1,2,3,4,5,6::Int] `shouldBe` [[1,2,3,4,5,6]]
   mkGroups 3 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5,6]]
   mkGroups 4 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5],[6]]
+
+testLogBase2 :: IO ()
+testLogBase2 = do
+  logBase2 8 `shouldBe` 3
+  logBase2 7 `shouldBe` 2
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =
@@ -46,13 +55,3 @@ testLastAbove = do
 
   -- predicate not being decreasing:
   lastAbove False (\v -> return $ v >= (10 :: Int)) 0 10 >>= shouldBe $ Nothing
-
-testInterleaveHalves :: IO ()
-testInterleaveHalves = do
-  interleaveHalves [0,1,2,3::Int] `shouldBe` [2,0,3,1]
-  interleaveHalves [2,0,3,1::Int] `shouldBe` [3,2,1,0]
-
-  interleaveHalves [0,1,2,3,4::Int] `shouldBe` [4,2,0,3,1]
-  interleaveHalves [4,2,0,3,1::Int] `shouldBe` [1,0,4,3,2]
-  interleaveHalves [1,0,4,3,2::Int] `shouldBe` [2,4,1,3,0]
-  interleaveHalves [2,4,1,3,0::Int] `shouldBe` [0,1,2,3,4]

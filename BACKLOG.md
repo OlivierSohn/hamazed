@@ -5,7 +5,6 @@ one client is joining, triggers the computation of a new world.
 Instead we should detect that a world is already being computed and don't need
 to trigger a new computation.
 
-
 - adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
 
 - over different permutation strategies, measure :
@@ -19,8 +18,6 @@ of permutation we can generate a big variety of number of cc (so that permutatin
   use Int and bit shifts (8 bit precision to have 4 random numbers per call)
   replace Material by Int + constants
   parallellism: see how to set capabilities, and how to race between cores.
-  stop computing graph components once we know we have at least n+1
-  recycle random values: change origin (adapt Matrix Unboxed to simply change an offset)
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

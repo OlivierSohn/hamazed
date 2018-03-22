@@ -94,7 +94,7 @@ command = do
        where
         reportColorScheme =
           do void $ string "color" <* endOfInput
-             return $ Right $ ServerRep TellColorSchemeCenter
+             return $ Right $ ServerRep $ Get ColorSchemeCenterKey
         setColorScheme = do
           skipSpace
           r <- decimal
@@ -102,5 +102,5 @@ command = do
           g <- decimal
           skipSpace
           b <- decimal
-          return $ ServerCmd . SetColorSchemeCenter <$> userRgb r g b
+          return $ ServerCmd . Put . ColorSchemeCenter <$> userRgb r g b
     _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)

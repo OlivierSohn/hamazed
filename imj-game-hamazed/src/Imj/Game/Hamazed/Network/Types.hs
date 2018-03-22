@@ -62,6 +62,8 @@ module Imj.Game.Hamazed.Network.Types
       , Command(..)
       , ClientCommand(..)
       , ServerCommand(..)
+      , SharedValueKey(..)
+      , SharedValue(..)
       , ClientQueues(..)
       , Server(..)
       , ServerLogs(..)
@@ -170,19 +172,18 @@ data ClientEvent =
     -- ^ In response to 'WorldRequest'
   | CurrentGameState {-# UNPACK #-} !GameStateEssence
     -- ^ In response to ' CurrentGameStateRequest'
-  | ChangeWallDistribution {-unpack sum-} !WallDistribution
-  | ChangeWorldShape {-unpack sum-} !WorldShape
   | IsReady {-# UNPACK #-} !WorldId
   -- ^ When the level's UI transition is finished.
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
   | CanContinue {-unpack sum-} !GameStatus
-  | RequestCommand {-unpack sum-} !ClientCommand
-  -- ^ A Client wants to run a command, in response the server either sends 'CommandError'
-  -- or 'RunCommand'
+  | RequestApproval {-unpack sum-} !ClientCommand
+  -- ^ A Client asks for authorization to run a 'ClientCommand'.
+  -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
   | Do {-unpack sum-} !ServerCommand
-  -- ^ A Client asks the server to do a task which can't fail.
+  -- ^ A Client asks the server to run a 'ServerCommand'.
+  -- In response, the server runs the 'ServerCommand' then publishes a 'PlayerNotif' 'Done' 'ServerCommand'.
   | Report !ServerReport
   -- ^ A client want to know an information on the server state. The server will answer by
   -- sending a 'Report'.
@@ -210,7 +211,7 @@ data ServerEvent =
   -- ^ The command cannot be run, with a reason.
   | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !ClientCommand
   -- ^ The server validated the use of the command, now it must be executed.
-  | Reporting {-unpack sum-} !ServerReport !Text
+  | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
   | ServerError !String
   -- ^ A non-recoverable error occured in the server. Before crashing, the server sends the error to its clients.
@@ -297,15 +298,31 @@ instance Binary Command
 
 -- | Describes what the client wants to know about the server.
 data ServerReport =
-    TellColorSchemeCenter
+    Get !SharedValueKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary ServerReport
 
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand =
-    SetColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
+    Put !SharedValue
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary ServerCommand
+
+-- | Identifiers of values shared by all players.
+data SharedValueKey =
+    ColorSchemeCenterKey
+  | WorldShapeKey
+  | WallDistributionKey
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary SharedValueKey
+
+-- | Values shared by all players.
+data SharedValue =
+    ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
+  | WorldShape {-unpack sum-} !WorldShape
+  | WallDistribution {-unpack sum-} !WallDistribution
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary SharedValue
 
 -- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
 --  then executed (for the final part) by /every/ client.
@@ -382,9 +399,8 @@ data PlayerNotif =
     Joins
   | WaitsToJoin
   | StartsGame
-  | Done {-unpack sum-} !ServerCommand {-# UNPACK #-} !Text
-    -- ^ The server notifies whenever a 'Do' task is finished. Contains Text info that can be printed in the chat
-    -- to inform every player of the task's execution.
+  | Done {-unpack sum-} !ServerCommand
+    -- ^ The server notifies whenever a 'Do' task is finished.
   deriving(Generic, Show)
 instance Binary PlayerNotif
 

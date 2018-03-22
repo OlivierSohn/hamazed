@@ -474,7 +474,8 @@ handleIncomingEvent' :: ClientEvent -> ClientHandlerIO ()
 handleIncomingEvent' = \case
   Connect (SuggestedPlayerName sn) _ ->
     handlerError $ "already connected : " <> sn
-  RequestCommand cmd@(AssignName name) -> either
+
+  RequestApproval cmd@(AssignName name) -> either
     (notifyClient . CommandError cmd)
     (\_ -> checkNameAvailability name >>= either
       (notifyClient . CommandError cmd)
@@ -482,25 +483,38 @@ handleIncomingEvent' = \case
         adjustClient $ \c -> c { getName = name }
         acceptCmd cmd)
     ) $ checkName name
-  RequestCommand cmd@(AssignColor _) ->
-    notifyClient $ CommandError cmd "use SetColorSchemeCenter instead"
-  Report TellColorSchemeCenter ->
-    colorSchemeCenterStr >>= notifyClient . Reporting TellColorSchemeCenter
-  Do cmd@(SetColorSchemeCenter color) -> do
-    modify' $ \s -> s { centerColor = color }
-    gets clientsMap >>= Map.traverseWithKey (\i c -> do
-      col <- mkClientColor i
-      return c { getColor = col })
-        >>= \newClients -> do
-          setClients newClients
-          notifyEveryoneN $
-            map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
-            Map.toList newClients
-    colorSchemeCenterStr >>= publish . Done cmd
-  RequestCommand cmd@(Says _) ->
+  RequestApproval cmd@(AssignColor _) ->
+    notifyClient $ CommandError cmd "use Do PutColorSchemeCenter instead"
+  RequestApproval cmd@(Says _) ->
     acceptCmd cmd
-  RequestCommand (Leaves _) ->
+  RequestApproval (Leaves _) ->
     disconnectClient -- will do the corresponding 'notifyEveryone $ RunCommand'
+
+  Do cmd -> do
+   case cmd of
+    Put (ColorSchemeCenter color) -> do
+      modify' $ \s -> s { centerColor = color }
+      gets clientsMap >>= Map.traverseWithKey (\i c -> do
+        col <- mkClientColor i
+        return c { getColor = col })
+          >>= \newClients -> do
+            setClients newClients
+            notifyEveryoneN $
+              map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
+              Map.toList newClients
+    Put (WallDistribution t) ->
+      onChangeWorldParams $ changeWallDistrib t
+    Put (WorldShape s) ->
+      onChangeWorldParams $ changeWorldShape s
+   publish $ Done cmd
+
+  Report (Get ColorSchemeCenterKey) ->
+    gets centerColor >>= notifyClient . Reporting . Put . ColorSchemeCenter
+  Report (Get WorldShapeKey) ->
+    worldShape <$> gets worldParameters >>= notifyClient . Reporting . Put . WorldShape
+  Report (Get WallDistributionKey) ->
+    wallDistrib <$> gets worldParameters >>= notifyClient . Reporting . Put . WallDistribution
+
   ExitedState Excluded -> gets intent >>= \case
     IntentSetup -> do
       -- change client state to make it playable
@@ -512,7 +526,16 @@ handleIncomingEvent' = \case
     _ -> do
       notifyClient $ EnterState Excluded
       publish WaitsToJoin
-  ExitedState (PlayLevel _) -> return ()
+  ExitedState Setup -> gets intent >>= \case
+    IntentSetup -> do
+      modify' $ \s -> s { intent = IntentPlayGame Nothing }
+      publish StartsGame
+      notifyPlayers $ ExitState Setup
+      requestWorld Nothing
+    _ -> return ()
+  ExitedState (PlayLevel _) ->
+    return ()
+
   LevelEnded outcome -> do
     adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
     gets intent >>= \case
@@ -559,20 +582,6 @@ handleIncomingEvent' = \case
               void $ updateCurrentStatus $ Just curStatus
             _ -> error $ "inconsistent:"  ++ show curStatus)
 
-------------------------------------------------------------------------------
--- Clients in 'Setup' state can configure the world.
-------------------------------------------------------------------------------
-  ChangeWallDistribution t ->
-    onChangeWorldParams $ changeWallDistrib t
-  ChangeWorldShape s ->
-    onChangeWorldParams $ changeWorldShape s
-  ExitedState Setup -> gets intent >>= \case
-    IntentSetup -> do
-      modify' $ \s -> s { intent = IntentPlayGame Nothing }
-      publish StartsGame
-      notifyPlayers $ ExitState Setup
-      requestWorld Nothing
-    _ -> return ()
   WorldProposal mayEssence stats -> do
     log $ colored (pack $ maybe "Nothing" prettyShowStats stats) white
     maybe
@@ -589,10 +598,7 @@ handleIncomingEvent' = \case
         flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
           notifyN [PutGameState gameStateEssence]
       invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid
-------------------------------------------------------------------------------
--- Clients notify when they have received a given world, and the corresponding
---   UI Animation is over (hence the level shall start, for example.):
-------------------------------------------------------------------------------
+
   IsReady wid -> do
     adjustClient $ \c -> c { getCurrentWorld = Just wid }
     gets intent >>= \case
@@ -630,9 +636,7 @@ handleIncomingEvent' = \case
                 adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
                                        , getShipAcceleration = zeroCoords }))
             mayLastWId
-------------------------------------------------------------------------------
--- Clients in 'PlayLevel' state can play the game.
-------------------------------------------------------------------------------
+
   -- Due to network latency, laser shots may be applied to a world state
   -- different from what the player saw when the shot was made.
   -- But since the laser shot will be rendered with latency, too, the player will be
@@ -644,7 +648,6 @@ handleIncomingEvent' = \case
  where
   publish a = lift (asks shipId) >>= notifyEveryone . PlayerInfo a
   acceptCmd cmd = lift (asks shipId) >>= notifyEveryone . flip RunCommand cmd
-  colorSchemeCenterStr = ("Color scheme center is:" <>) . pack . show . color8CodeToXterm256 <$> gets centerColor
 
 
 onLevelOutcome :: (MonadIO m, MonadState ServerState m)

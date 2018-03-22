@@ -1,3 +1,25 @@
+- Make mode "no wall" equivalent to 0 probability:
+when multiplayer is on, allow every ship to be in the same cc i.e relax the constraint on number of cc.
+
+- allow to change block size and wall air ratio
+- while searching for a world, display this status message:
+
+Generating a world with :
+  1 connected component(s)
+  logic size 12*6
+  block size 6
+  70 % wall
+
+World generation started 4 seconds ago, using random matrices, with columns and
+row shuffling and matrix rotation.
+12345 random matrices were generated
+21312354 interleaved matrices were generated
+1235416253 rotated matrices were generated
+32149 Worlds were tested.
+2212 were rejected due to fronteer issues.
+The other have the following connected component distribution:
+CC 2 .
+CC 3 ...
 
 - bug:
 one client is computing a world,

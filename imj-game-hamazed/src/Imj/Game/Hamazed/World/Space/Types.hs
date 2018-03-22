@@ -59,7 +59,7 @@ data RandomParameters = RandomParameters {
     -- Note that the smaller the block size, the harder it will be for the algorithm to find
     -- a random world with a single component of air.
   , _wallProbability :: {-# UNPACK #-} !Float -- ^ 1 means only walls, 0 means no walls at all
-} deriving(Generic, Show)
+} deriving(Generic, Show, Eq)
 instance Binary RandomParameters
 instance NFData RandomParameters
 

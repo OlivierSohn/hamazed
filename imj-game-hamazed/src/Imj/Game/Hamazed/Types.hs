@@ -128,7 +128,7 @@ minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, the
                        -- 6 has always been ok
 
 initialParameters :: WorldParameters
-initialParameters = WorldParameters Rectangle2x1 (Random defaultRandom)
+initialParameters = WorldParameters Rectangle'2x1 (Random defaultRandom)
 
 initialViewMode :: ViewMode
 initialViewMode = CenterSpace

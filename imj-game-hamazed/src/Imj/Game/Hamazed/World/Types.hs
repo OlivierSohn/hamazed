@@ -85,9 +85,9 @@ instance NFData WorldParameters
 
 data WorldShape = Square
                 -- ^ Width = Height
-                | Rectangle2x1
+                | Rectangle'2x1
                 -- ^ Width = 2 * Height
-                deriving(Generic, Show)
+                deriving(Generic, Show, Eq)
 
 instance Binary WorldShape
 instance NFData WorldShape
@@ -97,7 +97,7 @@ data WallDistribution = None
                       -- ^ No 'Wall's.
                       | Random !RandomParameters
                       -- ^ 'Wall's are created with an algorithm involving random numbers.
-                      deriving(Generic, Show)
+                      deriving(Generic, Show, Eq)
 
 instance Binary WallDistribution
 instance NFData WallDistribution
@@ -239,7 +239,7 @@ makePreferred n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor
   c' = preferredNumberColor i
   startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
-makePreferred n@(Number _ _ _) = n
+makePreferred n = n
 
 makeReachable :: Number -> Number
 makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) = Number e newColor Reachable

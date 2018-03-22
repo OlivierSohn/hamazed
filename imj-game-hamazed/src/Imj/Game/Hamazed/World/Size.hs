@@ -35,5 +35,5 @@ worldSizeFromLevel level shape =
       -- we need even world dimensions to ease level construction
       w = fromIntegral $ assert (even h) h * case shape of
         Square       -> 1
-        Rectangle2x1 -> 2
+        Rectangle'2x1 -> 2
   in Size h w

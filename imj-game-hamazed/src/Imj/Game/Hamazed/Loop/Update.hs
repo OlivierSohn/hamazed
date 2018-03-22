@@ -31,6 +31,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Command
@@ -59,7 +60,7 @@ updateAppState :: (MonadState AppState m
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  Interrupt Quit -> sendToServer $ RequestCommand $ Leaves Intentional
+  Interrupt Quit -> sendToServer $ RequestApproval $ Leaves Intentional
   Interrupt Help -> error "not implemented"
   Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
@@ -94,9 +95,8 @@ updateAppState (Left evt) = case evt of
   CommandError cmd err ->
     stateChat $ addMessage $ Information Warning $
       pack (show cmd) <> " failed:" <> err
-  Reporting cmd res ->
-    stateChat $ addMessage $ Information Info $
-      pack (show cmd) <> " is:" <> res
+  Reporting cmd ->
+    stateChat $ addMessage $ Information Info $ showReport cmd
   WorldRequest dt stats spec -> do
     deadline <- addDuration dt <$> liftIO getSystemTime
     let continue = getSystemTime >>= \t -> return (t < deadline)
@@ -149,7 +149,7 @@ updateAppState (Left evt) = case evt of
     Joins        -> " joins the game."
     WaitsToJoin  -> " is waiting to join the game."
     StartsGame   -> " starts the game."
-    Done cmd res -> " initiated " <> pack (show cmd) <> " resulting in:" <> res
+    Done cmd -> " changed " <> showReport cmd
 
   toTxt' (LevelResult n (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
@@ -157,6 +157,13 @@ updateAppState (Left evt) = case evt of
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor
+
+  showReport (Put (ColorSchemeCenter c)) =
+    ("color scheme center:" <>) $ pack $ show $ color8CodeToXterm256 c
+  showReport (Put (WorldShape shape)) =
+    ("world shape:" <>) $ pack $ show shape
+  showReport (Put (WallDistribution d)) =
+    ("wall distribution:" <>) $ pack $ show d
 
 
 {-# INLINABLE onTargetSize #-}
@@ -197,7 +204,7 @@ onSendChatMessage =
         (\case
             ServerRep rep -> sendToServer $ Report rep
             ServerCmd cmd -> sendToServer $ Do cmd
-            ClientCmd cmd -> sendToServer $ RequestCommand cmd))
+            ClientCmd cmd -> sendToServer $ RequestApproval cmd))
       p
 
 updateGameParamsFromChar :: (MonadState AppState m
@@ -206,10 +213,10 @@ updateGameParamsFromChar :: (MonadState AppState m
                          => Char
                          -> m ()
 updateGameParamsFromChar = \case
-  '1' -> sendToServer $ ChangeWorldShape Square
-  '2' -> sendToServer $ ChangeWorldShape Rectangle2x1
-  'e' -> sendToServer $ ChangeWallDistribution None
-  'r' -> sendToServer $ ChangeWallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5
+  '1' -> sendToServer $ Do $ Put $ WorldShape Square
+  '2' -> sendToServer $ Do $ Put $ WorldShape Rectangle'2x1
+  'e' -> sendToServer $ Do $ Put $ WallDistribution None
+  'r' -> sendToServer $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 -- TODO make modifications more atomic.
   {-
   'd' -> putViewMode CenterSpace -- TODO force a redraw?
   'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?

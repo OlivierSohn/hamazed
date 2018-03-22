@@ -54,7 +54,7 @@ representation (Left (Disconnected _)) = Disconnected'
 representation (Left (EnterState _)) = EnterState'
 representation (Left (ExitState _)) = ExitState'
 representation (Left (RunCommand _ _))        = WorldRequest'
-representation (Left (WorldRequest _ _ _))        = WorldRequest'
+representation (Left WorldRequest{})        = WorldRequest'
 representation (Left CurrentGameStateRequest) = WorldRequest'
 representation (Left (ChangeLevel _ _)) = ChangeLevel'
 representation (Left (PutGameState _))  = ChangeLevel'
@@ -62,7 +62,7 @@ representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
 representation (Left (ConnectionRefused _)) = ConnectionRefused'
 representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _))     = Chat'
-representation (Left (Reporting _ _))  = Chat'
+representation (Left (Reporting _))  = Chat'
 representation (Right e) = case e of
   ApplyPPUDelta _           -> CycleRenderingOptions'
   ApplyFontMarginDelta _    -> CycleRenderingOptions'
@@ -116,7 +116,7 @@ onEvent mayEvt = do
  where
   checkPlayerEndsProgram =
     playerEndsProgram >>= \end ->
-      when end $ sendToServer $ RequestCommand $ Leaves Intentional -- Note that it is safe to send this several times
+      when end $ sendToServer $ RequestApproval $ Leaves Intentional -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m

@@ -46,6 +46,7 @@ library
                      , Imj.Geo.Discrete
                      , Imj.Geo.Discrete.Bresenham
                      , Imj.Geo.Discrete.Bresenham3
+                     , Imj.Geo.Discrete.Interleave
                      , Imj.Geo.Discrete.Resample
                      , Imj.Geo.Discrete.Types
                      , Imj.Geo.Types
@@ -180,6 +181,7 @@ test-suite imj-base-test
                      , Test.Imj.Ease
                      , Test.Imj.FreeType2
                      , Test.Imj.Font
+                     , Test.Imj.Interleave
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
                      , Test.Imj.StdoutBuffer

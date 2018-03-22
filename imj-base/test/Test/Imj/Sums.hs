@@ -79,7 +79,7 @@ testSums = do
         (round . (/ (fromIntegral nTestRepeat :: Float)) . fromIntegral . toMicros) $
         foldl'
           (zipWith (|+|))
-          (repeat $ fromSecs 0)
+          (repeat zeroDuration)
           times
 
 testAsOccurences :: IO ()

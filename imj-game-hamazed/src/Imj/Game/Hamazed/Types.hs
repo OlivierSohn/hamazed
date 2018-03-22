@@ -141,4 +141,4 @@ defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more
                                   -- 0.5 : on avg, 8 cc
                                   -- 0.6 : on avg, 10 cc
                                   -- above 0.6, it's difficult to have a single connected component
-defaultRandom = RandomParameters minRandomBlockSize 0.5 OneComponentPerShip
+defaultRandom = RandomParameters minRandomBlockSize 0.5

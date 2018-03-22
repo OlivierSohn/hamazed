@@ -1,6 +1,6 @@
 -- adapted from https://github.com/Daniel-Diaz/matrix to use an unboxed vector
 -- and allow indices rotation
-
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
@@ -12,6 +12,10 @@ module Imj.Data.Matrix.Cyclic (
   , colVector
   , setRotation
   , unsafeSetRotation
+  -- * Map
+  , mapRotations
+  , mapRotationsM, mapRotationsM_
+  , mapInterleavedVariations, mapInterleavedVariationsM, mapInterleavedVariationsM_
     -- ** Special matrices
   , zero
   , identity
@@ -23,26 +27,24 @@ module Imj.Data.Matrix.Cyclic (
   , getElem , (!) , unsafeGet , safeGet, getRow, getCol, countRotations
     -- * Matrix operations
   , elementwise, elementwiseUnsafe
-    -- * Matrix multiplication
-    -- ** About matrix multiplication
-    -- $mult
-
-    -- ** Functions
     -- * Linear transformations
   , scaleMatrix
   -- * Reexports
-  , V.Unbox
+  , Unbox
   ) where
 
-import Prelude
+import           Imj.Prelude
+import           Prelude(length)
 -- Classes
-import Control.DeepSeq
-import Control.Loop (numLoop)
-import Data.Maybe
-import GHC.Generics (Generic)
+import           Control.DeepSeq(NFData(..))
+import           Control.Loop (numLoop)
+import           Data.List(foldl')
+import           GHC.Generics (Generic)
 -- Data
-import qualified Data.Vector.Unboxed             as V
-import qualified Data.Vector.Unboxed.Mutable     as MV
+import           Data.Vector.Unboxed(Unbox)
+import qualified Data.Vector.Unboxed         as V hiding(Unbox)
+import qualified Data.Vector.Unboxed.Mutable as MV
+import           Imj.Geo.Discrete.Interleave(mkInterleaveData, interleaveIdx, countUsefullInterleavedVariations)
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -66,10 +68,10 @@ data Matrix a = M {
 instance NFData (Matrix a) where
  rnf = rnf . mvect
 
-countRotations :: (V.Unbox a) => Matrix a -> Int
+countRotations :: (Unbox a) => Matrix a -> Int
 countRotations (M _ _ _ v) = V.length v
 
-setRotation :: (V.Unbox a) => Matrix a -> Int -> Matrix a
+setRotation :: (Unbox a) => Matrix a -> Int -> Matrix a
 setRotation m@(M _ _ _ v) i
   | i < 0 = error "negative offset"
   | i >= V.length v = error "out of range offset"
@@ -79,10 +81,114 @@ setRotation m@(M _ _ _ v) i
 unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
-mapMat :: (V.Unbox a, V.Unbox b)
+mapMat :: (Unbox a, Unbox b)
         => (a -> b)
         -> Matrix a -> Matrix b
 mapMat func (M a b c v) = M a b c $ V.map func v
+
+
+{-# INLINABLE mapRotations #-}
+mapRotations :: Unbox a
+             => (Matrix a -> b)
+             -> Matrix a
+             -> [b]
+mapRotations f x =
+  let nRotations = countRotations x
+  in map (f . setRotation x) [0..pred nRotations]
+
+{-# INLINABLE mapRotationsM #-}
+mapRotationsM :: (Unbox a, Monad m)
+              => (Matrix a -> m b)
+              -> Matrix a
+              -> m [b]
+mapRotationsM f x =
+  let nRotations = countRotations x
+  in mapM (f . setRotation x) [0..pred nRotations]
+
+{-# INLINABLE mapRotationsM_ #-}
+mapRotationsM_ :: (Unbox a, Monad m)
+               => (Matrix a -> m b)
+               -> Matrix a
+               -> m ()
+mapRotationsM_ f m = void $ mapRotationsM f m
+
+
+{-# INLINABLE mapInterleavedVariationsM_ #-}
+mapInterleavedVariationsM_ :: (Unbox a, Monad m)
+                           => (Matrix a -> m [b])
+                           -> Matrix a
+                           -> m ()
+mapInterleavedVariationsM_ f m = void $ mapInterleavedVariationsM f m
+
+mapInterleavedVariationsM :: (Unbox a, Monad m)
+                          => (Matrix a -> m [b])
+                          -> Matrix a
+                          -> m [b]
+mapInterleavedVariationsM act x =
+  snd <$> foldM
+    (\(m,prevResults) i -> do
+      let fi = bool (reorderRows interleaveRows) id $ i == 0
+          m' = fi m
+
+      (_,intermediateResults) <- foldM
+        (\(n, l) j -> do
+          let fj = bool (reorderCols interleaveCols) id $ j == 0
+              n' = fj n
+          res <- act n'
+          return (n', res ++ l))
+        (m', prevResults)
+        [0..nColVar-1]
+
+      return (m', intermediateResults))
+    (x,[])
+    [0..nRowVar-1]
+ where
+  (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
+  (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
+
+mapInterleavedVariations :: Unbox a
+                         => (Matrix a -> [b])
+                         -> Matrix a
+                         -> [b]
+mapInterleavedVariations act x =
+  snd $ foldl'
+    (\(m,prevResults) i ->
+      let fi = bool (reorderRows interleaveRows) id $ i == 0
+          m' = fi m
+          (_,intermediateResults) = foldl'
+            (\(n, l) j ->
+              let fj = bool (reorderCols interleaveCols) id $ j == 0
+                  n' = fj n
+                  res = act n'
+              in (n', res ++ l))
+            (m', prevResults)
+            [0..nColVar-1]
+      in (m', intermediateResults))
+    (x,[])
+    [0..nRowVar-1]
+ where
+  (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
+  (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
+
+getInterleavedInfos :: Int
+                    -- ^ the length of the array that will be interleaved
+                    -> (Int, Int -> Int)
+                    -- ^ fst: The count of usefull variations
+                    -- , snd : the function to get interleaved indices
+getInterleavedInfos d =
+  let !iD = mkInterleaveData d
+  in (countUsefullInterleavedVariations d, interleaveIdx iD)
+
+reorderRows, reorderCols :: (Unbox a)
+                         => (Int -> Int)
+                         -> Matrix a
+                         -> Matrix a
+reorderRows order m =
+  matrix (nrows m) (ncols m) $ \i j ->
+    unsafeGet (order i) j m
+reorderCols order m =
+  matrix (nrows m) (ncols m) $ \i j ->
+    unsafeGet i (order j) m
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -97,7 +203,7 @@ mapMat func (M a b c v) = M a b c $ V.map func v
 -- >     (     ...     )
 -- >     ( 0 0 ... 0 0 )
 -- >   n ( 0 0 ... 0 0 )
-zero :: (Num a, V.Unbox a) =>
+zero :: (Num a, Unbox a) =>
      Int -- ^ Rows
   -> Int -- ^ Columns
   -> Matrix a
@@ -111,7 +217,7 @@ zero n m = M n m 0 $ V.replicate (n*m) 0
 -- >                                  (  3  2  1  0 )
 -- >                                  (  5  4  3  2 )
 -- > matrix 4 4 $ \(i,j) -> 2*i - j = (  7  6  5  4 )
-matrix :: (V.Unbox a)
+matrix :: (Unbox a)
        => Int -- ^ Rows
        -> Int -- ^ Columns
        -> (Int -> Int -> a) -- ^ Generator function
@@ -135,12 +241,12 @@ matrix n m f = M n m 0 $ V.create $ do
 -- >     ( 0 0 ... 1 0 )
 -- >   n ( 0 0 ... 0 1 )
 --
-identity :: (Num a, V.Unbox a) => Int -> Matrix a
+identity :: (Num a, Unbox a) => Int -> Matrix a
 identity n = matrix n n $ \i j -> if i == j then 1 else 0
 
 -- | Similar to 'diagonalList', but using 'V.Vector', which
 --   should be more efficient.
-diagonal :: (V.Unbox a)
+diagonal :: (Unbox a)
          => a -- ^ Default element
          -> V.Vector a  -- ^ Diagonal vector
          -> Matrix a
@@ -156,7 +262,7 @@ diagonal e v = matrix n n $ \i j -> if i == j then V.unsafeIndex v i else e
 -- >                       ( 4 5 6 )
 -- > fromList 3 3 [1..] =  ( 7 8 9 )
 --
-fromList :: (V.Unbox a)
+fromList :: (Unbox a)
          => Int -- ^ Rows
          -> Int -- ^ Columns
          -> [a] -- ^ List of elements
@@ -176,7 +282,7 @@ fromList n m = M n m 0 . V.fromListN (n*m)
 -- >           , [4,5,6,7]     ( 4 5 6 )
 -- >           , [8,9,0  ] ] = ( 8 9 0 )
 --
-fromLists :: (V.Unbox a)
+fromLists :: (Unbox a)
          => [[a]] -> Matrix a
 {-# INLINE fromLists #-}
 fromLists [] = error "fromLists: empty list."
@@ -192,19 +298,19 @@ fromLists (xs:xss) = fromList n m $ concat $ xs : fmap (take m) xss
 -- >         ( 4 5 6 )   , [4,5,6]
 -- > toLists ( 7 8 9 ) = , [7,8,9] ]
 --
-toLists :: (V.Unbox a)
+toLists :: (Unbox a)
          => Matrix a -> [[a]]
 toLists m = [ [ unsafeGet i j m | j <- [0 .. pred $ ncols m] ] | i <- [0 .. pred $ nrows m] ]
 
 -- | /O(1)/. Represent a vector as a one row matrix.
-rowVector :: (V.Unbox a)
+rowVector :: (Unbox a)
          => V.Vector a -> Matrix a
 rowVector v = M 1 m 0 v
   where
     m = V.length v
 
 -- | /O(1)/. Represent a vector as a one column matrix.
-colVector :: (V.Unbox a)
+colVector :: (Unbox a)
          => V.Vector a -> Matrix a
 colVector v = M (V.length v) 1 0 v
 
@@ -224,7 +330,7 @@ colVector v = M (V.length v) 1 0 v
 --
 -- When @i == j@ it reduces to 'identity' @n@.
 --
-permMatrix :: (Num a, V.Unbox a)
+permMatrix :: (Num a, Unbox a)
            => Int -- ^ Size of the matrix.
            -> Int -- ^ Permuted row 1.
            -> Int -- ^ Permuted row 2.
@@ -244,7 +350,7 @@ permMatrix n r1 r2 = matrix n n f
 
 -- | /O(1)/. Get an element of a matrix. Indices range from /(1,1)/ to /(n,m)/.
 --   It returns an 'error' if the requested element is outside of range.
-getElem :: (V.Unbox a)
+getElem :: (Unbox a)
         => Int      -- ^ Row
         -> Int      -- ^ Column
         -> Matrix a -- ^ Matrix
@@ -260,7 +366,7 @@ getElem i j m =
     (safeGet i j m)
 
 -- | /O(1)/. Unsafe variant of 'getElem', without bounds checking.
-unsafeGet :: (V.Unbox a)
+unsafeGet :: (Unbox a)
           => Int      -- ^ Row
           -> Int      -- ^ Column
           -> Matrix a -- ^ Matrix
@@ -279,20 +385,20 @@ unsafeGet i j (M _ m o v) =
 
 
 -- | Short alias for 'getElem'.
-(!) :: (V.Unbox a)
+(!) :: (Unbox a)
     => Matrix a -> (Int,Int) -> a
 {-# INLINE (!) #-}
 m ! (i,j) = getElem i j m
 
 -- | Variant of 'getElem' that returns Maybe instead of an error.
-safeGet :: (V.Unbox a)
+safeGet :: (Unbox a)
          => Int -> Int -> Matrix a -> Maybe a
 safeGet i j a@(M n m _ _)
  | i > n || j > m || i < 1 || j < 1 = Nothing
  | otherwise = Just $ unsafeGet i j a
 
 -- | /O(1)/. Get a row of a matrix as a vector.
-getRow :: (V.Unbox a)
+getRow :: (Unbox a)
        => Int -> Matrix a -> V.Vector a
 {-# INLINE getRow #-}
 getRow i (M _ m o v)
@@ -309,7 +415,7 @@ getRow i (M _ m o v)
   end = start + m
 
 -- | /O(rows)/. Get a column of a matrix as a vector.
-getCol :: (V.Unbox a)
+getCol :: (Unbox a)
        => Int -> Matrix a -> V.Vector a
 {-# INLINE getCol #-}
 getCol j m@(M n _ _ _) =
@@ -327,14 +433,14 @@ getCol j m@(M n _ _ _) =
 --   You may want to use 'elementwiseUnsafe' if you
 --   are definitely sure that a run-time error won't
 --   arise.
-elementwise :: (V.Unbox a, V.Unbox b, V.Unbox c)
+elementwise :: (Unbox a, Unbox b, Unbox c)
             => (a -> b -> c)
             -> (Matrix a -> Matrix b -> Matrix c)
 elementwise f m m' = matrix (nrows m) (ncols m) $
   \i j -> f (getElem i j m) (getElem i j m')
 
 -- | Unsafe version of 'elementwise', but faster.
-elementwiseUnsafe :: (V.Unbox a, V.Unbox b, V.Unbox c)
+elementwiseUnsafe :: (Unbox a, Unbox b, Unbox c)
                   => (a -> b -> c) -> (Matrix a -> Matrix b -> Matrix c)
 {-# INLINE elementwiseUnsafe #-}
 elementwiseUnsafe f m m' = matrix (nrows m) (ncols m) $
@@ -352,6 +458,6 @@ elementwiseUnsafe f m m' = matrix (nrows m) (ncols m) $
 -- >               ( 1 2 3 )   (  2  4  6 )
 -- >               ( 4 5 6 )   (  8 10 12 )
 -- > scaleMatrix 2 ( 7 8 9 ) = ( 14 16 18 )
-scaleMatrix :: (Num a, V.Unbox a)
+scaleMatrix :: (Num a, Unbox a)
             => a -> Matrix a -> Matrix a
 scaleMatrix = mapMat . (*)

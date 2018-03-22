@@ -23,7 +23,9 @@ executable imj-profile-exe
                      -threaded -rtsopts -with-rtsopts=-maxN4
                      -fexcess-precision -optc-ffast-math
   build-depends:       base >= 4.8 && < 4.11
+                     , containers >= 0.5.9.2
                      , imj-game-hamazed ==0.1.*
+                     , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
                      , mwc-random ==0.13.*
   default-language:    Haskell2010

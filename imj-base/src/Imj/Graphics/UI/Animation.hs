@@ -196,7 +196,7 @@ mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownT
         centerDownToAligned   = alignTxtCentered centerDownTo (last txtLowers)
     in  if null txtUppers || null txtLowers
           then
-            TextAnimation [] (Evolution (Successive []) 0 (fromSecs 0) id) (mkEaseClock (fromSecs 0) 0 id)
+            TextAnimation [] (Evolution (Successive []) 0 zeroDuration id) (mkEaseClock zeroDuration 0 id)
           else
             mkSequentialTextTranslationsCharAnchored
               [(sUp, centerUpFromAligned, centerUpToAligned),

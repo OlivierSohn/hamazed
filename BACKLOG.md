@@ -5,67 +5,19 @@ one client is joining, triggers the computation of a new world.
 Instead we should detect that a world is already being computed and don't need
 to trigger a new computation.
 
+- adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
+
 - over different permutation strategies, measure :
 span of number of connected components, over number of permutations used.
 The idea being to find the permutation strategy where with a minimal amount
 of permutation we can generate a big variety of number of cc (so that permutating
   becomes interesting vs generating fresh random numbers).
 
-For rotation-style permutations, I witnessed the first single-cc matrix
-  to have 16 other single-cc permutations, and saw that this method was slower than just
-  regenerating random numbers each time.
-
-- we want to find a way to shuffle matrix so that it changes the number of components.
-try:
-0: 12345678
-1: 13572468
-2: 15263748
-
-9 col / rows combinations: (0,0) ... (i,j) ... (2,2)
-
-with non power of 2 lengths:
-
-12345
-13524
-15432 <- stop when the -initially- extremal element is at 2nd position
-
-nsteps = (l+1)/2
-
-1234
-1324
-
-perm :: Int -> Int -> (Int -> Int)
-
-
-perm rows
-perm cols
-perm cols
-perm cols
-
-perm rows
-perm cols
-perm cols
-perm cols
-
-perm rows
-perm cols
-perm cols
-perm cols
-
-we could:
-
-perm rows
-perm cols
-rotate
-etc...
-
 - optimize world creation with .7 ratio:
   try 02
   use Int and bit shifts (8 bit precision to have 4 random numbers per call)
   replace Material by Int + constants
   parallellism: see how to set capabilities, and how to race between cores.
-  stop computing graph components once we know we have at least n+1
-  recycle random values: change origin (adapt Matrix Unboxed to simply change an offset)
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

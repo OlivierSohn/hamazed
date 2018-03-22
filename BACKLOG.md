@@ -1,3 +1,8 @@
+- fix response on collision:
+ Z
+  XZ  <- here we stay one time too long.
+ X
+
 - Client should keep track of threads creating worlds, and pass a key to the server so that
 it knows which to cancel, if needed.
 - Server should keep track of world creation tasks to know:
@@ -37,17 +42,28 @@ The other have the following connected component distribution:
 CC 2 .
 CC 3 ...
 
-- adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
+- with carefull benchmarking:
+** in produceUsefullInterleavedVariations : are matrices generated one by one?
 
-- over different permutation strategies, measure :
-span of number of connected components, over number of permutations used.
-The idea being to find the permutation strategy where with a minimal amount
-of permutation we can generate a big variety of number of cc (so that permutating
-  becomes interesting vs generating fresh random numbers).
+** adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
+
+** maybe reduce number of rotations:
+rotate (of 1) w times
+then
+rotate (of w) h times
+assuming this would cover most probable cases where n connected components can join (?)
+
+- document different permutation strategies:
+
+Generating random numbers is expensive, hence we need permutation strategies where with a minimal amount
+of permutation we can generate a big variety of number of cc, so that permutating
+  becomes interesting vs generating fresh random numbers.
+
+measure span of number of connected components, over number of permutations used.
 
 - optimize world creation with .7 ratio:
   try 02
-  use Int and bit shifts (8 bit precision to have 4 random numbers per call)
+  generate 4 numbers (8 bit precision) per random Int using bit shifts
   replace Material by Int + constants
   parallellism: see how to set capabilities, and how to race between cores.
 

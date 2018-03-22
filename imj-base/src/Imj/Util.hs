@@ -8,7 +8,7 @@ module Imj.Util
     , intersperse'
     , mkGroups
     , range
-    , takeWhileInclusive
+    , takeWhilePlus
     , commonPrefix
     , commonSuffix
       -- * Math utilities
@@ -135,15 +135,11 @@ mkGroups n elts
         (elts, [])
         sizes
 
--- | Takes elements, until (inclusively) a condition is met.
-takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
-takeWhileInclusive _ [] = []
-takeWhileInclusive p (x:xs) =
-  x : if p x
-        then
-          takeWhileInclusive p xs
-        else
-          []
+-- | Takes elements matching a condition, and the element thereafter.
+takeWhilePlus :: (a -> Bool) -> [a] -> [a]
+takeWhilePlus _ [] = []
+takeWhilePlus p (x:xs) =
+  x : bool [] (takeWhilePlus p xs) (p x)
 
 {-# INLINABLE range #-}
 {- | Builds a range with no constraint on the order of bounds:

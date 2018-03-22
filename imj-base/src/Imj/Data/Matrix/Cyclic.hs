@@ -13,9 +13,8 @@ module Imj.Data.Matrix.Cyclic (
   , setRotation
   , unsafeSetRotation
   -- * Map
-  , mapRotations
-  , mapRotationsM, mapRotationsM_
-  , mapInterleavedVariations, mapInterleavedVariationsM, mapInterleavedVariationsM_
+  , produceRotations
+  , produceUsefullInterleavedVariations
     -- ** Special matrices
   , zero
   , identity
@@ -38,9 +37,9 @@ import           Prelude(length)
 -- Classes
 import           Control.DeepSeq(NFData(..))
 import           Control.Loop (numLoop)
-import           Data.List(foldl')
 import           GHC.Generics (Generic)
 -- Data
+import           Data.List(foldl')
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed         as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV
@@ -87,70 +86,18 @@ mapMat :: (Unbox a, Unbox b)
 mapMat func (M a b c v) = M a b c $ V.map func v
 
 
-{-# INLINABLE mapRotations #-}
-mapRotations :: Unbox a
-             => (Matrix a -> b)
-             -> Matrix a
-             -> [b]
-mapRotations f x =
-  let nRotations = countRotations x
-  in map (f . setRotation x) [0..pred nRotations]
+{-# INLINABLE produceRotations #-}
+produceRotations :: Unbox a
+                 => Matrix a
+                 -> [Matrix a]
+produceRotations x =
+  map (setRotation x) [0..pred $ countRotations x]
 
-{-# INLINABLE mapRotationsM #-}
-mapRotationsM :: (Unbox a, Monad m)
-              => (Matrix a -> m b)
-              -> Matrix a
-              -> m [b]
-mapRotationsM f x =
-  let nRotations = countRotations x
-  in mapM (f . setRotation x) [0..pred nRotations]
-
-{-# INLINABLE mapRotationsM_ #-}
-mapRotationsM_ :: (Unbox a, Monad m)
-               => (Matrix a -> m b)
-               -> Matrix a
-               -> m ()
-mapRotationsM_ f m = void $ mapRotationsM f m
-
-
-{-# INLINABLE mapInterleavedVariationsM_ #-}
-mapInterleavedVariationsM_ :: (Unbox a, Monad m)
-                           => (Matrix a -> m [b])
-                           -> Matrix a
-                           -> m ()
-mapInterleavedVariationsM_ f m = void $ mapInterleavedVariationsM f m
-
-mapInterleavedVariationsM :: (Unbox a, Monad m)
-                          => (Matrix a -> m [b])
-                          -> Matrix a
-                          -> m [b]
-mapInterleavedVariationsM act x =
-  snd <$> foldM
-    (\(m,prevResults) i -> do
-      let fi = bool (reorderRows interleaveRows) id $ i == 0
-          m' = fi m
-
-      (_,intermediateResults) <- foldM
-        (\(n, l) j -> do
-          let fj = bool (reorderCols interleaveCols) id $ j == 0
-              n' = fj n
-          res <- act n'
-          return (n', res ++ l))
-        (m', prevResults)
-        [0..nColVar-1]
-
-      return (m', intermediateResults))
-    (x,[])
-    [0..nRowVar-1]
- where
-  (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
-  (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
-
-mapInterleavedVariations :: Unbox a
-                         => (Matrix a -> [b])
-                         -> Matrix a
-                         -> [b]
-mapInterleavedVariations act x =
+-- TODO should we use foldr or foldl'?
+produceUsefullInterleavedVariations :: Unbox a
+                                    => Matrix a
+                                    -> [Matrix a]
+produceUsefullInterleavedVariations x =
   snd $ foldl'
     (\(m,prevResults) i ->
       let fi = bool (reorderRows interleaveRows) id $ i == 0
@@ -159,8 +106,7 @@ mapInterleavedVariations act x =
             (\(n, l) j ->
               let fj = bool (reorderCols interleaveCols) id $ j == 0
                   n' = fj n
-                  res = act n'
-              in (n', res ++ l))
+              in (n', n':l))
             (m', prevResults)
             [0..nColVar-1]
       in (m', intermediateResults))
@@ -169,6 +115,7 @@ mapInterleavedVariations act x =
  where
   (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
   (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
+
 
 getInterleavedInfos :: Int
                     -- ^ the length of the array that will be interleaved

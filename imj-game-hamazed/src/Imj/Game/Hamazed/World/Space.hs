@@ -28,7 +28,6 @@ module Imj.Game.Hamazed.World.Space
     -- for tests
     , mkSmallWorld
     , mkSmallMat
-    , mapRotations
     , matchTopology
     , getComponentCount
     , TopoMatch
@@ -40,7 +39,7 @@ import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Data.Either(partitionEithers)
+import           Data.Either(partitionEithers, isLeft)
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
 import           Data.List(length, group, concat, mapAccumL, sortOn)
 import qualified Data.List as List (foldl')
@@ -52,7 +51,7 @@ import qualified Data.Vector.Unboxed as V (Vector, fromList, length, (!), foldl'
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
 import           Imj.Data.Matrix.Unboxed(Matrix, getRow, fromLists, toLists)
-import           Imj.Data.Matrix.Cyclic(mapRotations, mapInterleavedVariations)
+import           Imj.Data.Matrix.Cyclic(produceRotations, produceUsefullInterleavedVariations)
 import qualified Imj.Data.Matrix.Cyclic as Cyclic(Matrix, fromList, toLists, unsafeGet, getRow, getCol, nrows, ncols)
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Space.Types
@@ -207,9 +206,11 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
   go stats = continue >>= bool
     (return ([], stats))
       -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-    (mapInterleavedVariations (\x ->
-      let res = matchTopology nComponents x
-      in tryRotationsIfAlmostMatches nComponents x res) <$> mkSmallMat gen wallAirRatio s >>= \l -> do
+    (takeWhilePlus isLeft . concatMap -- stop at the first success.
+      (\x ->
+        let res = matchTopology nComponents x
+        in tryRotationsIfAlmostMatches nComponents x res) . produceUsefullInterleavedVariations
+          <$> mkSmallMat gen wallAirRatio s >>= \l -> do
       let !newStats = updateStats l stats
       case partitionEithers l of
         (_,[]) -> go newStats
@@ -265,7 +266,7 @@ tryRotationsIfAlmostMatches n m r@(Left (Just nComps))
   | abs (n - nComps) <= 5 = -- TODO fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
     -- we are already close to the target number, so
     -- there is a good probability that rotating will trigger the component match.
-    mapRotations (matchTopology n) m -- TODO skip zero rotation, which has already been tested
+    map (matchTopology n) $ drop 1 $ produceRotations m -- skip zero rotation, which has already been tested
   | otherwise = [r]
 
 mkSmallMat :: GenIO

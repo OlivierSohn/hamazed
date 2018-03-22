@@ -1,6 +1,6 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-10.2
+resolver: lts-11.1
 
 packages:
 - './imj-prelude'
@@ -22,7 +22,6 @@ packages:
 
 extra-deps:
 - FTGL-2.1
-- text-1.2.3.0
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

@@ -23,6 +23,8 @@ module Imj.Util
     , showArray
     , showDistribution
     , showInBox
+    , justifyR
+    , justifyL
     -- * Reexports
     , Int64
     ) where
@@ -57,16 +59,16 @@ showArray mayTitles body =
  where
   bar = replicate lBar '-'
   lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
-  format = map (\(a,b) -> "|" ++ justifyL a l1 ++ "|" ++ justifyR b l2 ++ "|")
+  format = map (\(a,b) -> "| " ++ justifyL a l1 ++ " | " ++ justifyR b l2 ++ " |")
   allArray = maybeToList mayTitles ++ body
   l1 = fromMaybe 0 $ maximumMaybe $ map (length . fst) allArray
   l2 = fromMaybe 0 $ maximumMaybe $ map (length . snd) allArray
-  justifyR x maxL =
-    let l = length x
-    in " " ++ replicate (maxL-l) ' ' ++ x ++ " "
-  justifyL x maxL =
-    let l = length x
-    in " " ++ x ++ replicate (maxL-l) ' ' ++ " "
+
+justifyR, justifyL :: String -> Int -> String
+justifyR x maxL =
+  replicate (maxL-length x) ' ' ++ x
+justifyL x maxL =
+  x ++ replicate (maxL-length x) ' '
 
 type Distribution a = Map a Int
 
@@ -83,7 +85,7 @@ showDistribution m =
   map
     (\(k,n) ->
       let s = show k
-      in s ++ replicate (maxWidth - length s) ' ' ++ " | " ++ replicate n '.')
+      in justifyL s maxWidth ++ " | " ++ replicate n '.')
     l
  where
   mayMin = Map.lookupMin m

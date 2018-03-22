@@ -72,7 +72,6 @@ representation (Right e) = case e of
   Log _ _         -> Command'
   SendChatMessage -> Command'
   ChatCmd _       -> Command'
-  Continue _      -> Command'
   Interrupt _ -> Interrupt'
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
   Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'

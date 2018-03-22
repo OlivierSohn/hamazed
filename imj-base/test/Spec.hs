@@ -52,6 +52,8 @@ main = do
   testFont
   testFreeType2
   testFreeType2'
+
+  clearScreen
   testInterleaveHalves
   putStrLn ""
   return ()

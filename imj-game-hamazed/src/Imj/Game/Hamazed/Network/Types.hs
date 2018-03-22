@@ -179,6 +179,7 @@ data ClientEvent =
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
   | CanContinue {-unpack sum-} !GameStatus
+  -- NOTE the 3 constructors below could be factored as 'OnCommand' 'Command'
   | RequestApproval {-unpack sum-} !ClientCommand
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
@@ -215,7 +216,7 @@ data ServerEvent =
   | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
   | ServerError !String
-  -- ^ A non-recoverable error occured in the server. Before crashing, the server sends the error to its clients.
+  -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)
 instance Binary ServerEvent
 instance WebSocketsData ClientEvent where

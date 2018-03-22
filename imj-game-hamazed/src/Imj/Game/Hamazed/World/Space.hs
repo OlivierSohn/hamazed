@@ -155,7 +155,7 @@ mkRandomlyFilledSpace :: RandomParameters
                       -> Size
                       -> ComponentCount
                       -> IO Bool
-                      -- ^ Returns false to stop
+                      -- ^ Computation stops when it returns False
                       -> GenIO
                       -> IO (Maybe (Space, BigWorldTopology), Maybe Statistics)
 mkRandomlyFilledSpace _ s 0 _ _ =
@@ -164,13 +164,15 @@ mkRandomlyFilledSpace _ s 0 _ _ =
 mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio) s nComponents continue gen = do
   (mayWT, stats) <-
     mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue
-  return (maybe
-    Nothing
-    (\(MaterialMatrix smallWorldMat, smallTopo) ->
-      let replicateElems = replicateElements blockSize
-          innerMat = replicateElems $ map replicateElems smallWorldMat
-      in Just (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo))
-    mayWT, Just stats)
+  return
+    (maybe
+      Nothing
+      (\(MaterialMatrix smallWorldMat, smallTopo) ->
+        let replicateElems = replicateElements blockSize
+            innerMat = replicateElems $ map replicateElems smallWorldMat
+        in Just (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo))
+      mayWT
+    , Just stats)
 
 bigToSmall :: Size -> Int -> Size
 bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =

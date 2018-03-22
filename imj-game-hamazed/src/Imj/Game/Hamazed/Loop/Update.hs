@@ -60,9 +60,7 @@ updateAppState :: (MonadState AppState m
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  Interrupt Quit -> sendToServer $ RequestApproval $ Leaves Intentional
   Interrupt Help -> error "not implemented"
-  Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
   Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
   CycleRenderingOptions i j -> do
@@ -205,10 +203,10 @@ onSendChatMessage =
       (left . pack)
       (either
         left
-        (\case
-            ServerRep rep -> sendToServer $ Report rep
-            ServerCmd cmd -> sendToServer $ Do cmd
-            ClientCmd cmd -> sendToServer $ RequestApproval cmd))
+        (sendToServer . (\case
+            ServerRep rep -> Report rep
+            ServerCmd cmd -> Do cmd
+            ClientCmd cmd -> RequestApproval cmd)))
       p
 
 {-# INLINABLE onLaser #-}

@@ -24,10 +24,10 @@ translatePlatformEvent :: (MonadState AppState m)
                        -> m (Maybe GenEvent)
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
-  StopProgram -> return $ Just $ Evt $ Interrupt Quit
+  StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional
   FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
   KeyPress key -> case key of
-    Escape      -> return $ Just $ Evt $ Interrupt Quit
+    Escape      -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional
     Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
     _ -> getChatMode >>= \case
       Editing -> return $ case key of
@@ -94,7 +94,7 @@ translatePlatformEvent k = case k of
                     (\me -> maybe (error "logic") (\iHavePressed ->
                             if iHavePressed
                               then return Nothing
-                              else return $ Just $ Evt $ Continue x)
+                              else return $ Just $ CliEvt $ CanContinue x)
                               $ Map.lookup me havePressed)
                 New -> return Nothing
                 Paused _ _ -> return Nothing

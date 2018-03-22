@@ -61,7 +61,6 @@ data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !Cyc
            -- ^ The 'Deadline' that needs to be handled immediately.
            | Interrupt !MetaAction
            -- ^ A game interruption.
-           | Continue !GameStatus
            | ToggleEventRecording
            | Log !MessageLevel !Text
            | ChatCmd {-unpack sum-} !ChatCommand
@@ -69,12 +68,9 @@ data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !Cyc
            -- ^ Send message or execute command if the message starts with a '/'
            deriving(Eq, Show)
 
-data MetaAction = Quit
-                -- ^ The player decided to quit the game.
-                | Help
+data MetaAction = Help
                 -- ^ The player wants to read the help page /(Not implemented yet)/
                 deriving(Eq, Show)
-
 
 data GameStatus =
     New

@@ -1,7 +1,23 @@
+- Client should keep track of threads creating worlds, and pass a key to the server so that
+it knows which to cancel, if needed.
+- Server should keep track of world creation tasks to know:
+   if a world creation should be triggered when a new player enters (see bug below)
+   if some tasks should be canceled before starting new ones when during setup a world parameter
+     is changed
+   (multi builder scenario) which tasks to cancel when the world was successfully created by one client.
+
+- bug:
+one client is computing a world,
+one client is joining, triggers the computation of a new world.
+Instead we should detect that a world is already being computed and don't need
+to trigger a new computation.
+
+
+- compute a sensible upper bound for probability
 - Make mode "no wall" equivalent to 0 probability:
 when multiplayer is on, allow every ship to be in the same cc i.e relax the constraint on number of cc.
 
-- allow to change block size and wall air ratio
+- (print instructions on screen for:) allow to change block size and wall air ratio
 - while searching for a world, display this status message:
 
 Generating a world with :
@@ -20,12 +36,6 @@ row shuffling and matrix rotation.
 The other have the following connected component distribution:
 CC 2 .
 CC 3 ...
-
-- bug:
-one client is computing a world,
-one client is joining, triggers the computation of a new world.
-Instead we should detect that a world is already being computed and don't need
-to trigger a new computation.
 
 - adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
 

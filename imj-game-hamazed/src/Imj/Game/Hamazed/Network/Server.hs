@@ -506,6 +506,8 @@ handleIncomingEvent' = \case
       onChangeWorldParams $ changeWallDistrib t
     Put (WorldShape s) ->
       onChangeWorldParams $ changeWorldShape s
+    Succ x -> onDelta 1    x
+    Pred x -> onDelta (-1) x
    publish $ Done cmd
 
   Report (Get ColorSchemeCenterKey) ->
@@ -926,13 +928,34 @@ requestWorld stats = do
     in s { lastRequestedWorldId = Just wid }
 
 
+onDelta :: (MonadIO m, MonadState ServerState m)
+        => Int
+        -> SharedEnumerableValueKey
+        -> m ()
+onDelta i BlockSize =
+  onChangeWorldParams $ \wp -> case wallDistrib wp of
+    None ->
+      wp
+    Random p@(RandomParameters prevBlockSize _) ->
+      wp { wallDistrib = Random p { blockSize' = prevBlockSize + i } }
+onDelta i WallProbability =
+  onChangeWorldParams $ \wp -> case wallDistrib wp of
+    None ->
+      wp
+    Random p@(RandomParameters _ prevProba) ->
+      wp { wallDistrib = Random p { wallProbability' = prevProba + fromIntegral i / 10 } }
+
+
 onChangeWorldParams :: (MonadIO m, MonadState ServerState m)
                     => (WorldParameters -> WorldParameters)
                     -> m ()
 onChangeWorldParams f = do
-  modify' $ \s ->
-    s { worldParameters = f $ worldParameters s }
-  requestWorld Nothing
+  prevParams <- gets worldParameters
+  let newParams = f prevParams
+  when (newParams /= prevParams) $ do
+    modify' $ \s ->
+      s { worldParameters = f $ worldParameters s }
+    requestWorld Nothing
 
 changeWallDistrib :: WallDistribution -> WorldParameters -> WorldParameters
 changeWallDistrib d p = p { wallDistrib = d }

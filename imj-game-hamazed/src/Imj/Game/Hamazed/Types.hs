@@ -124,8 +124,7 @@ data AnimatedLine = AnimatedLine {
 } deriving(Generic, Show)
 
 minRandomBlockSize :: Int
-minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
-                       -- 6 has always been ok
+minRandomBlockSize = 4
 
 initialParameters :: WorldParameters
 initialParameters = WorldParameters Rectangle'2x1 (Random defaultRandom)

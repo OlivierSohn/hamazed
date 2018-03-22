@@ -63,6 +63,7 @@ module Imj.Game.Hamazed.Network.Types
       , ClientCommand(..)
       , ServerCommand(..)
       , SharedValueKey(..)
+      , SharedEnumerableValueKey(..)
       , SharedValue(..)
       , ClientQueues(..)
       , Server(..)
@@ -305,8 +306,17 @@ instance Binary ServerReport
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand =
     Put !SharedValue
+  | Succ !SharedEnumerableValueKey
+  | Pred !SharedEnumerableValueKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary ServerCommand
+
+-- | Identifiers of values shared by all players.
+data SharedEnumerableValueKey =
+    BlockSize
+  | WallProbability
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary SharedEnumerableValueKey
 
 -- | Identifiers of values shared by all players.
 data SharedValueKey =

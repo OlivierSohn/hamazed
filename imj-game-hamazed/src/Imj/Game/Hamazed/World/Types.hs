@@ -78,7 +78,7 @@ import           Imj.Timing
 data WorldParameters = WorldParameters {
     worldShape :: !WorldShape
   , wallDistrib :: !WallDistribution
-} deriving(Generic, Show)
+} deriving(Generic, Show, Eq)
 
 instance Binary WorldParameters
 instance NFData WorldParameters
@@ -247,7 +247,7 @@ makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) = Number e newColor
   c' = numberColor i
   startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
-makeReachable n@(Number _ _ _) = n
+makeReachable n = n
 
 getColliding :: Coords Pos -> Map NumId Number -> Map NumId Number
 getColliding pos =

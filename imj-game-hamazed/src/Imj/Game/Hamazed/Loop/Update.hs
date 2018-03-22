@@ -65,8 +65,6 @@ updateAppState (Right evt) = case evt of
   Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
   Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
-  Configuration c ->
-    updateGameParamsFromChar c
   CycleRenderingOptions i j -> do
     cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
     onTargetSize
@@ -149,7 +147,10 @@ updateAppState (Left evt) = case evt of
     Joins        -> " joins the game."
     WaitsToJoin  -> " is waiting to join the game."
     StartsGame   -> " starts the game."
-    Done cmd -> " changed " <> showReport cmd
+    Done cmd@(Put _) ->
+      " changed " <> showReport cmd
+    Done cmd ->
+      " " <> showReport cmd
 
   toTxt' (LevelResult n (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
@@ -164,7 +165,10 @@ updateAppState (Left evt) = case evt of
     ("world shape:" <>) $ pack $ show shape
   showReport (Put (WallDistribution d)) =
     ("wall distribution:" <>) $ pack $ show d
-
+  showReport (Succ x) =
+    "incremented " <> pack (show x)
+  showReport (Pred x) =
+    "decremented " <> pack (show x)
 
 {-# INLINABLE onTargetSize #-}
 onTargetSize :: (MonadState AppState m
@@ -206,22 +210,6 @@ onSendChatMessage =
             ServerCmd cmd -> sendToServer $ Do cmd
             ClientCmd cmd -> sendToServer $ RequestApproval cmd))
       p
-
-updateGameParamsFromChar :: (MonadState AppState m
-                           , MonadReader e m, ClientNode e
-                           , MonadIO m)
-                         => Char
-                         -> m ()
-updateGameParamsFromChar = \case
-  '1' -> sendToServer $ Do $ Put $ WorldShape Square
-  '2' -> sendToServer $ Do $ Put $ WorldShape Rectangle'2x1
-  'e' -> sendToServer $ Do $ Put $ WallDistribution None
-  'r' -> sendToServer $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 -- TODO make modifications more atomic.
-  {-
-  'd' -> putViewMode CenterSpace -- TODO force a redraw?
-  'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
-  -}
-  _ -> return ()
 
 {-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m

@@ -49,9 +49,7 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ The status is being progressively displayed, with line index.
                   deriving(Eq, Show)
 
-data Event = Configuration {-# UNPACK #-} !Char
-           -- ^ Configures game parameters
-           | CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
+data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
            -- ^ Changes the font used to render
            | ApplyPPUDelta {-# UNPACK #-} !Size
            | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin

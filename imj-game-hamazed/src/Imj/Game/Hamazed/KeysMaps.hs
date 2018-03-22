@@ -15,8 +15,8 @@ import qualified Data.Map as Map(lookup)
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
-import           Imj.Geo.Discrete.Types
 import           Imj.Input.Types
 
 translatePlatformEvent :: (MonadState AppState m)
@@ -42,12 +42,15 @@ translatePlatformEvent k = case k of
         Arrow Down  -> return $ Just $ Evt $ CycleRenderingOptions 1 0
         Arrow LEFT  -> return $ Just $ Evt $ CycleRenderingOptions 0 (-1)
         Arrow RIGHT -> return $ Just $ Evt $ CycleRenderingOptions 0 1
+        -- commented out, replaced by precomputed PPU / Margins associations (see 4 lines above)
+        {-
         AlphaNum 'h' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 1 0
         AlphaNum 'n' -> return $ Just $ Evt $ ApplyPPUDelta $ Size (-1) 0
         AlphaNum 'b' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 (-1)
         AlphaNum 'm' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 1
         AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
         AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
+        -}
         _ -> do
           (ClientState activity state) <- getClientState <$> gets game
           case activity of
@@ -55,11 +58,20 @@ translatePlatformEvent k = case k of
             Ongoing -> case state of
               Excluded -> return Nothing
               Setup -> return $ case key of
-                AlphaNum ' ' -> Just $ CliEvt $ ExitedState Setup
-                AlphaNum c   -> Just $ Evt $ Configuration c
+                AlphaNum c -> case c of
+                  ' ' -> Just $ CliEvt $ ExitedState Setup
+                  '1' -> Just $ CliEvt $ Do $ Put $ WorldShape Square
+                  '2' -> Just $ CliEvt $ Do $ Put $ WorldShape Rectangle'2x1
+                  'e' -> Just $ CliEvt $ Do $ Put $ WallDistribution None
+                  'r' -> Just $ CliEvt $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5
+                  'y' -> Just $ CliEvt $ Do $ Succ BlockSize
+                  'g' -> Just $ CliEvt $ Do $ Pred BlockSize
+                  'u' -> Just $ CliEvt $ Do $ Succ WallProbability
+                  'h' -> Just $ CliEvt $ Do $ Pred WallProbability
+                  _ -> Nothing
                 _ -> Nothing
               PlayLevel status -> case status of
-                Running -> getLevelOutcome >>= return . maybe
+                Running -> maybe
                   (case key of
                     AlphaNum c -> case c of
                       'k' -> Just $ CliEvt $ Action Laser Down
@@ -74,6 +86,7 @@ translatePlatformEvent k = case k of
                       _   -> Nothing
                     _ -> Nothing)
                   (const Nothing)
+                  <$> getLevelOutcome
                 WhenAllPressedAKey _ (Just _) _ -> return Nothing
                 WhenAllPressedAKey x Nothing havePressed ->
                   getMyShipId >>= maybe

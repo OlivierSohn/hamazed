@@ -69,11 +69,10 @@ representation (Right e) = case e of
   CycleRenderingOptions _ _ -> CycleRenderingOptions'
   CanvasSizeChanged         -> CycleRenderingOptions'
   RenderingTargetChanged    -> CycleRenderingOptions'
-  Log _ _         -> Configuration'
-  SendChatMessage -> Configuration'
-  Configuration _ -> Configuration'
-  ChatCmd _       -> Configuration'
-  Continue _      -> Configuration'
+  Log _ _         -> Command'
+  SendChatMessage -> Command'
+  ChatCmd _       -> Command'
+  Continue _      -> Command'
   Interrupt _ -> Interrupt'
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
   Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
@@ -94,7 +93,7 @@ reprToCS Laser'                 = colored "L" cyan
 reprToCS ExitState'             = colored "O" cyan
 reprToCS ConnectionRefused'     = colored "R" cyan
 reprToCS Error'                 = colored "X" cyan
-reprToCS Configuration'         = colored "C" yellow
+reprToCS Command'         = colored "C" yellow
 reprToCS Interrupt'             = colored "I" yellow
 reprToCS CycleRenderingOptions' = colored "R" yellow
 reprToCS ToggleEventRecording'  = colored "T" yellow

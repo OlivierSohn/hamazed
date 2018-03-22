@@ -2,7 +2,7 @@ module Main where
 
 import           Imj.Prelude
 import           Prelude(print, putStrLn)
-
+import           Control.Arrow((&&&))
 import           Data.IORef(newIORef, atomicModifyIORef')
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(isJust, catMaybes)
@@ -68,7 +68,7 @@ profileMkSmallWorld = do
   gen <- create
   r <- newIORef (0 :: Int)
   (res, stats) <- mkSmallWorld gen (Size 10 5) (ComponentCount 1) 0.7 $ do
-    newValue <- atomicModifyIORef' r (\v -> (succ v, succ v))
+    newValue <- atomicModifyIORef' r (succ &&& succ)
     return (newValue /= 20000)
   print stats
   when (isJust res) $ error "result was found"

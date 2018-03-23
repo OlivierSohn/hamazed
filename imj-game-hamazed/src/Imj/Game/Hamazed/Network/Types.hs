@@ -176,18 +176,19 @@ instance NFData StateValue
 data ClientQueues = ClientQueues { -- TODO Use -funbox-strict-fields to force deep evaluation of thunks when inserting in the queues
     inputQueue :: {-# UNPACK #-} !(TQueue EventsForClient)
   , outputQueue :: {-# UNPACK #-} !(TQueue ClientEvent)
-  , requestsResources :: !(Lazy.MVar RequestsResources)
+  , requestsAsyncs :: !(Lazy.MVar RequestsAsyncs)
 }
 
-type RequestsResources = Map WorldId (Set (Async ()))
+type RequestId = WorldId
+type RequestsAsyncs = Map RequestId (Set (Async ()))
 
-addRequestAsync :: Lazy.MVar RequestsResources -> Async () -> WorldId -> IO ()
+addRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
 addRequestAsync r a wid =
   Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
  where
   alt = Just . Set.insert a . fromMaybe Set.empty
 
-removeRequestAsync :: Lazy.MVar RequestsResources -> Async () -> WorldId -> IO ()
+removeRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
 removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
  where
   alt = maybe
@@ -196,7 +197,7 @@ removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wi
       let s = Set.delete a set
       in bool (Just s) Nothing $ Set.null s)
 
-releaseRequestResources :: Lazy.MVar RequestsResources -> WorldId -> IO ()
+releaseRequestResources :: Lazy.MVar RequestsAsyncs -> RequestId -> IO ()
 releaseRequestResources r wid = Lazy.modifyMVar_ r $ \m -> do
   let (e, m') = Map.updateLookupWithKey (\_ _ -> Nothing) wid m
   maybe
@@ -217,7 +218,7 @@ data ClientEvent =
   | WorldProposal !WorldId !(Maybe WorldEssence) !(Maybe Statistics)
     -- ^ In response to 'WorldRequest' 'Build'
   | CurrentGameState {-# UNPACK #-} !WorldId !(Maybe GameStateEssence)
-    -- ^ In response to ' WorldRequest' 'GetGameState'
+    -- ^ In response to 'WorldRequest' 'GetGameState'
   | IsReady {-# UNPACK #-} !WorldId
   -- ^ When the level's UI transition is finished.
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction

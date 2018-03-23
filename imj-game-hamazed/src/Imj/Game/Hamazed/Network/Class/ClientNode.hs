@@ -21,7 +21,7 @@ class ClientNode a where
 
   -- | Attaches an 'Async' to the request, detaches it when the Async is done.
   belongsTo' :: (MonadIO m) => a -> Async () -> WorldId -> m ()
-  -- | Cancels every 'Async's currently attached to the request
+  -- | Cancels every 'Async' currently attached to the request
   cancel' :: (MonadIO m) => a -> WorldId -> m ()
 
 

@@ -235,7 +235,9 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ succ i
 
-data ClientLifecycle = NewClient | ReconnectingClient !(Set ShipId)
+data ClientLifecycle =
+    NewClient
+  | ReconnectingClient !(Set ShipId)
   deriving(Show)
 
 takeShipId :: StateT ServerState IO (ShipId, ClientLifecycle)

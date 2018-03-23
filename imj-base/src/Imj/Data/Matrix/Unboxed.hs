@@ -47,7 +47,7 @@ module Imj.Data.Matrix.Unboxed (
 import Prelude
 -- Classes
 import Control.DeepSeq
-import Control.Loop (numLoop)
+import Control.Loop (numLoop, numLoopFold)
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Semigroup as S
@@ -55,6 +55,7 @@ import GHC.Generics (Generic)
 -- Data
 import           Control.Monad.Primitive (PrimMonad, PrimState)
 import           Data.Vector.Unboxed(Unbox)
+import qualified Data.Vector                     as BV
 import qualified Data.Vector.Unboxed             as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable     as MV
 import qualified Data.Matrix                     as Mat
@@ -183,7 +184,7 @@ mapPos :: (Unbox a, Unbox b)
         => ((Int, Int) -> a -> b) -- ^ Function takes the current Position as additional argument.
         -> Matrix a
         -> Matrix b
-mapPos f m@(M {ncols = cols, mvect = vect})=
+mapPos f m@M {ncols = cols, mvect = vect}=
   m { mvect = V.imap (\i e -> f (decode cols i) e) vect}
 
 -------------------------------------------------------
@@ -587,6 +588,16 @@ multStd a1@(M n m _) a2@(M n' m' _)
                     ++ sizeStr n' m' ++ " matrices."
    | otherwise = multStd_ a1 a2
 
+
+-- | Standard matrix multiplication by definition.
+multStd2 :: (Num a, Unbox a) => Matrix a -> Matrix a -> Matrix a
+{-# INLINE multStd2 #-}
+multStd2 a1@(M n m _) a2@(M n' m' _)
+   -- Checking that sizes match...
+   | m /= n' = error $ "Multiplication of " ++ sizeStr n m ++ " and "
+                    ++ sizeStr n' m' ++ " matrices."
+   | otherwise = multStd__ a1 a2
+
 -- | Standard matrix multiplication by definition, without checking if sizes match.
 multStd_ :: (Num a, Unbox a) => Matrix a -> Matrix a -> Matrix a
 {-# INLINE multStd_ #-}
@@ -620,12 +631,22 @@ multStd_ a@(M 3 3 _) b@(M 3 3 _) =
            ]
 multStd_ a@(M n m _) b@(M _ m' _) = matrix n m' $ \(i,j) -> sum [ a !. (i,k) * b !. (k,j) | k <- [0 .. pred m] ]
 
-{-
-dotProduct v1 v2 = go (V.length v1 - 1) 0
+
+multStd__ :: (Num a, Unbox a) => Matrix a -> Matrix a -> Matrix a
+{-# INLINE multStd__ #-}
+multStd__ a b = matrix r c $ \(i,j) -> dotProduct (BV.unsafeIndex avs $ i - 1) (BV.unsafeIndex bvs $ j - 1)
   where
-    go (-1) a = a
-    go i a = go (i-1) $ (V.unsafeIndex v1 i) * (V.unsafeIndex v2 i) + a
--}
+    r = nrows a
+    avs = BV.generate r $ \i -> getRow (i+1) a
+    c = ncols b
+    bvs = BV.generate c $ \i -> getCol (i+1) b
+
+
+dotProduct :: (Num a, Unbox a) => V.Vector a -> V.Vector a -> a
+{-# INLINE dotProduct #-}
+dotProduct v1 v2 = numLoopFold 0 (V.length v1 - 1) 0 $
+  \r i -> V.unsafeIndex v1 i * V.unsafeIndex v2 i + r
+
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -649,7 +670,7 @@ instance (Num a, Unbox a) => Num (Matrix a) where
 
  -- Multiplication of matrices.
  {-# INLINE (*) #-}
- (*) = undefined
+ (*) = multStd2
 
 -------------------------------------------------------
 -------------------------------------------------------

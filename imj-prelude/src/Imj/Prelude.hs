@@ -23,7 +23,7 @@ import           Prelude as Exported
   , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
   , negate, div, divMod, quot, quotRem, even, odd
   , error, undefined
-  , (!!)
+  , (!!), ($!)
   )
 
 import           GHC.Generics as Exported(Generic)

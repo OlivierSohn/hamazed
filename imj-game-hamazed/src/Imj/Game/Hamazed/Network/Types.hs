@@ -37,9 +37,18 @@ perceptually earlier shot.
 -}
 
 module Imj.Game.Hamazed.Network.Types
-      ( ConnectionStatus(..)
-      , NoConnectReason(..)
-      , DisconnectReason(..)
+      ( -- * ClientQueues
+        ClientQueues(..)
+      , addRequestAsync
+      , removeRequestAsync
+      , releaseRequestResources
+      -- * Server
+      , Server(..)
+      , ServerLogs(..)
+      , ServerPort(..)
+      , ServerName(..)
+      , getServerNameAndPort
+      -- * Player
       , SuggestedPlayerName(..)
       , PlayerName(..)
       , Player(..)
@@ -50,14 +59,22 @@ module Imj.Game.Hamazed.Network.Types
       , mkPlayerColors
       , getPlayerUIName'
       , getPlayerUIName''
+      -- * Connection
+      , ConnectionStatus(..)
+      , NoConnectReason(..)
+      , DisconnectReason(..)
+      -- * Colors
       , ColorScheme(..)
+      -- * Client
       , ServerOwnership(..)
       , ClientState(..)
       , StateNature(..)
       , StateValue(..)
+      -- * Client / Server communication
       , EventsForClient(..)
       , ClientEvent(..)
       , ServerEvent(..)
+      , WorldRequestArg(..)
       , ServerReport(..)
       , Command(..)
       , ClientCommand(..)
@@ -65,31 +82,32 @@ module Imj.Game.Hamazed.Network.Types
       , SharedValueKey(..)
       , SharedEnumerableValueKey(..)
       , SharedValue(..)
-      , ClientQueues(..)
-      , Server(..)
-      , ServerLogs(..)
-      , ServerPort(..)
-      , ServerName(..)
-      , getServerNameAndPort
       , PlayerNotif(..)
       , GameNotif(..)
       , LeaveReason(..)
       , GameStep(..)
       , GameStatus(..)
+      -- * Game
       , GameStateEssence(..)
       , ShotNumber(..)
       , Operation(..)
       , applyOperations
+      -- * Utils
       , welcome
       ) where
 
 import           Imj.Prelude
+
+import           Control.Concurrent.Async (Async, cancel)
+import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
 import           Control.Concurrent.STM(TQueue)
 import           Control.DeepSeq(NFData)
-import           Data.Map.Strict(Map, elems)
+import qualified Data.Map.Strict as Map(elems, alter, updateLookupWithKey)
+import           Data.Map.Strict(Map)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.List(foldl')
 import           Data.Set(Set)
+import qualified Data.Set as Set(insert, delete, empty, null)
 import           Data.String(IsString)
 import           Data.Text(unpack)
 import qualified Data.Text.Lazy as Lazy(unpack)
@@ -156,9 +174,36 @@ instance NFData StateValue
 -- instead of 'MVar' has the benefit that in case of the connection being closed,
 -- the main thread won't block.
 data ClientQueues = ClientQueues { -- TODO Use -funbox-strict-fields to force deep evaluation of thunks when inserting in the queues
-    getInputQueue :: {-# UNPACK #-} !(TQueue EventsForClient)
-  , getOutputQueue :: {-# UNPACK #-} !(TQueue ClientEvent)
+    inputQueue :: {-# UNPACK #-} !(TQueue EventsForClient)
+  , outputQueue :: {-# UNPACK #-} !(TQueue ClientEvent)
+  , requestsResources :: !(Lazy.MVar RequestsResources)
 }
+
+type RequestsResources = Map WorldId (Set (Async ()))
+
+addRequestAsync :: Lazy.MVar RequestsResources -> Async () -> WorldId -> IO ()
+addRequestAsync r a wid =
+  Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
+ where
+  alt = Just . Set.insert a . fromMaybe Set.empty
+
+removeRequestAsync :: Lazy.MVar RequestsResources -> Async () -> WorldId -> IO ()
+removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
+ where
+  alt = maybe
+    Nothing
+    (\set ->
+      let s = Set.delete a set
+      in bool (Just s) Nothing $ Set.null s)
+
+releaseRequestResources :: Lazy.MVar RequestsResources -> WorldId -> IO ()
+releaseRequestResources r wid = Lazy.modifyMVar_ r $ \m -> do
+  let (e, m') = Map.updateLookupWithKey (\_ _ -> Nothing) wid m
+  maybe
+    (return ())
+    (mapM_ cancel)
+    e
+  return $! m'
 
 data EventsForClient =
     FromClient !Event
@@ -169,10 +214,10 @@ data EventsForClient =
 data ClientEvent =
     Connect !SuggestedPlayerName {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !StateValue
-  | WorldProposal !(Maybe WorldEssence) !(Maybe Statistics)
-    -- ^ In response to 'WorldRequest'
-  | CurrentGameState {-# UNPACK #-} !GameStateEssence
-    -- ^ In response to ' CurrentGameStateRequest'
+  | WorldProposal !WorldId !(Maybe WorldEssence) !(Maybe Statistics)
+    -- ^ In response to 'WorldRequest' 'Build'
+  | CurrentGameState {-# UNPACK #-} !WorldId !(Maybe GameStateEssence)
+    -- ^ In response to ' WorldRequest' 'GetGameState'
   | IsReady {-# UNPACK #-} !WorldId
   -- ^ When the level's UI transition is finished.
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
@@ -199,14 +244,10 @@ data ServerEvent =
   | ExitState {-unpack sum-} !StateValue
   | PlayerInfo {-unpack sum-} !PlayerNotif {-# UNPACK #-} !ShipId
   | GameInfo {-unpack sum-} !GameNotif
-  | WorldRequest {-# UNPACK #-} !(Time Duration System) !(Maybe Statistics) {-# UNPACK #-} !WorldSpec
-  -- ^ Upon reception, the client should respond with a 'WorldProposal', within the
-  -- given duration. The 'Statistics' should be used as a starting point.
-  | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence
+  | WorldRequest {-# UNPACK #-} !WorldId !WorldRequestArg
+  | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence {-# UNPACK #-} !WorldId
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
-  | CurrentGameStateRequest
-  -- ^ (reconnection scenario) Upon reception, the client should respond with a 'CurrentGameState'.
-  | PutGameState {-# UNPACK #-} !GameStateEssence
+  | PutGameState {-# UNPACK #-} !GameStateEssence {-# UNPACK #-} !WorldId
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
   | CommandError {-unpack sum-} !ClientCommand {-# UNPACK #-} !Text
@@ -237,6 +278,18 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
+
+data WorldRequestArg =
+    Build {-# UNPACK #-} !(Time Duration System)
+          {-# UNPACK #-} !WorldSpec
+  | Cancel
+  | GetGameState
+  -- ^ Upon 'Build' reception, the client should respond with a 'WorldProposal', within the
+  -- given duration, except if a later 'Cancel' for the same 'WorldId' is received.
+  --
+  -- Upon 'GetGameState' reception, the client responds with a 'CurrentGameState'
+  deriving(Generic, Show)
+instance Binary WorldRequestArg
 
 data PlayerStatus = Present | Absent
   deriving(Generic, Show)
@@ -432,7 +485,7 @@ welcome l =
   text "Welcome! Players are: "
   <> ColorString.intercalate
       (text ", ")
-      (map (getPlayerUIName' . Just) $ elems l)
+      (map (getPlayerUIName' . Just) $ Map.elems l)
  where
   text x = ColorString.colored x chatMsgColor
 

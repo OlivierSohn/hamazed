@@ -24,11 +24,11 @@ import           Control.Monad.Reader(runReaderT, lift, asks)
 import           Control.Monad.State.Strict(StateT, MonadState, runStateT, execStateT, modify', get, gets, state)
 import           Data.Char (isPunctuation, isSpace, toLower)
 import           Data.Map.Strict(Map)
-import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, elems, keys, adjust, keysSet
+import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, keys, adjust, keysSet
                                       , insert, null, empty, mapAccumWithKey, updateLookupWithKey
                                       , restrictKeys, traverseWithKey, lookup, toList, partition)
 import           Data.Set (Set)
-import qualified Data.Set as Set (difference, lookupMin, empty, insert)
+import qualified Data.Set as Set (difference, union, lookupMin, empty, singleton, null, insert, delete, size)
 import           Data.Maybe(isJust)
 import           Data.Text(pack, unpack, justifyRight)
 import           Data.Tuple(swap)
@@ -62,6 +62,7 @@ type ClientHandlerIO = StateT ServerState (ReaderT ConstClient IO)
 data ConstClient = ConstClient {
     connection :: {-# UNPACK #-} !Connection
   , shipId :: {-# UNPACK #-} !ShipId
+  , lifecycle :: !ClientLifecycle
 }
 
 log :: ColorString -> ClientHandlerIO ()
@@ -130,10 +131,6 @@ notifyPlayers :: (MonadIO m, MonadState ServerState m) => ServerEvent -> m ()
 notifyPlayers evt =
   notifyN [evt] =<< gets onlyPlayersMap
 
-notifyFirstWorldBuilder :: (MonadIO m, MonadState ServerState m) => ServerEvent -> m ()
-notifyFirstWorldBuilder evt =
-  notifyN [evt] . Map.take 1 =<< gets clientsMap
-
 {-# INLINABLE notifyN #-}
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
 -- to factorize serialization.
@@ -179,14 +176,14 @@ appSrv st pending =
 appSrv' :: MVar ServerState -> Connection -> IO ()
 appSrv' st conn =
   -- Currently, we cannot have a 'Client' in a disconnected state, this is why
-  -- we do a special case for Connect. But ideally we should be abble to disconnect a client.
+  -- we do a special case for Connect. But ideally we should be able to disconnect a client.
   -- and reconnect it in the loop. To do that, when we disconnect a client, it will not
   -- be removed from the map, instead its state will be Disconnected. (TODO)
   receiveData conn >>= \case
     Connect sn@(SuggestedPlayerName suggestedName) cliType -> either
       (sendBinaryData conn . ConnectionRefused . InvalidName sn)
       (\_ -> modifyMVar st (fmap swap . runStateT takeShipId) >>=
-               runReaderT (handleClient st sn cliType) . ConstClient conn)
+               runReaderT (handleClient st sn cliType) . uncurry (ConstClient conn))
       $ checkName $ PlayerName $ pack suggestedName
     msg -> error $ "First sent message should be 'Connect'. " ++ show msg
 
@@ -203,7 +200,20 @@ handleClient st sn cliType = do
   -- To detect disconnections when communication is idle:
   void $ liftIO $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
   disconnectOnException "Handler" $ do
-    modifyMVar_ st $ execStateT $ addClient sn cliType
+    modifyMVar_ st $ execStateT $ do
+      addClient sn cliType
+      asks lifecycle >>= \case
+        NewClient ->
+          log "Is a new client"
+        ReconnectingClient gameConnectedPlayers -> do
+          log "Is a reconnecting client"
+          gets worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
+            Created ->
+              gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
+            CreationAssigned _ ->
+              -- a game is in progress and a "next level" is being built:
+              -- add the newcomer to the assigned builders.
+              continueWorldRequest Nothing wid
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . handleIncomingEvent
 
@@ -225,22 +235,22 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ succ i
 
-takeShipId :: StateT ServerState IO ShipId
+data ClientLifecycle = NewClient | ReconnectingClient !(Set ShipId)
+  deriving(Show)
+
+takeShipId :: StateT ServerState IO (ShipId, ClientLifecycle)
 takeShipId =
   takeDisconnectedShipId >>= maybe
     (state $ \s ->
       let newShipId = getNextShipId $ getClients s
-      in (newShipId, s { getClients = (getClients s) { getNextShipId = succ newShipId } } ))
+      in ( (newShipId, NewClient)
+         , s { getClients = (getClients s) { getNextShipId = succ newShipId } } ))
     (\(gameConnectedPlayers, disconnected) -> do
-      if Map.null gameConnectedPlayers
-        then
-          serverError "the current game has no connected player" -- TODO support that
-        else do
-          serverLog $ ("Reconnecting using " <>) <$> showId disconnected
-          notifyN [CurrentGameStateRequest] (Map.take 1 gameConnectedPlayers)
-      return disconnected)
+      when (Set.null gameConnectedPlayers) $
+        serverError "the current game has no connected player" -- TODO support that
+      return (disconnected, ReconnectingClient gameConnectedPlayers))
  where
-  takeDisconnectedShipId :: StateT ServerState IO (Maybe (Map ShipId Client, ShipId)) -- (connected, disconnected)
+  takeDisconnectedShipId :: StateT ServerState IO (Maybe (Set ShipId, ShipId)) -- (connected, disconnected)
   takeDisconnectedShipId =
     get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
       if terminate
@@ -258,7 +268,7 @@ takeShipId =
                   connectedPlayers <- gets onlyPlayersMap
                   let connectedPlayerKeys = Map.keysSet connectedPlayers
                       mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
-                      gameConnectedPlayers = Map.restrictKeys connectedPlayers gamePlayers
+                      gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
                   maybe
                     (do serverLog $ pure "A paused game exists, but has no disconnected player."
                         return Nothing)
@@ -322,7 +332,7 @@ makePlayerName (SuggestedPlayerName sn) = do
 checkNameAvailability :: (MonadIO m, MonadState ServerState m)
                       => PlayerName -> m (Either Text ())
 checkNameAvailability name =
-  any ((== name) . getName) <$> gets allClients >>= \case
+  any ((== name) . getName) <$> gets clientsMap >>= \case
     True  -> return $ Left "Name is already taken"
     False -> return $ Right ()
 
@@ -330,7 +340,7 @@ shutdown :: Text -> StateT ServerState IO ()
 shutdown reason = do
   serverLog $ pure $ colored "Server shutdown" red <> "|" <> colored reason (rgb 4 1 1)
   modify' $ \s -> s { shouldTerminate = True }
-  mapM_ (disconnect $ ServerShutdown reason) =<< gets allClientsIds
+  Map.keysSet <$> gets clientsMap >>= mapM_ (disconnect $ ServerShutdown reason)
 
 -- It's important that this function doesn't throw any exception.
 onBrokenClient :: (Show a, MonadIO m, MonadState ServerState m)
@@ -353,11 +363,6 @@ onBrokenClient threadCategory infos e i = do
     , s
     ]
 
-disconnectClient :: ClientHandlerIO ()
-disconnectClient = do
-  sid <- asks shipId
-  disconnect ClientShutdown sid
-
 disconnect :: (MonadIO m, MonadState ServerState m) => DisconnectReason -> ShipId -> m ()
 disconnect r i =
   tryRemoveClient >>= maybe
@@ -369,7 +374,7 @@ disconnect r i =
           gets clientsMap >>= void . Map.traverseWithKey
             (\j client' -> do
                 let msg = "[" <> name <> "] disconnection (hosts the Server) < " <> pack (show r)
-                -- Because we pass a 'ServerShutdown', 'disconnectClient' won't
+                -- Because we pass a 'ServerShutdown', 'closeConnection' won't
                 -- use the clients map so it's safe to just clear the client map
                 -- /after/ the entire traversal was done, we won't have infinite recursion.
                 closeConnection (ServerShutdown msg) j client')
@@ -395,12 +400,25 @@ disconnect r i =
         notify conn cid $ Disconnected reason
         liftIO $ sendClose conn $
           "[" <> playerName <> "] disconnection < " <> pack (show reason)
-    -- notify other clients about the disconnection of client
+    -- if needed, notify other clients about the disconnection of client
     case reason of
-      BrokenClient e -> notifyEveryone $ RunCommand cid $ Leaves $ ConnectionError e
-      ClientShutdown -> notifyEveryone $ RunCommand cid $ Leaves Intentional
-      ServerShutdown _ -> return () -- no need to notify other clients, as they will be diconnected too,
-                                    -- hence they will receive a server shutdown notification.
+      BrokenClient e ->
+        notifyEveryone $ RunCommand cid $ Leaves $ ConnectionError e
+      ClientShutdown ->
+        notifyEveryone $ RunCommand cid $ Leaves Intentional
+      ServerShutdown _ ->
+        return () -- no need to notify other clients, as they will be diconnected too,
+                  -- hence they will receive a server shutdown notification.
+    -- if needed, request a new world
+    case reason of
+      ServerShutdown _ ->
+        return ()
+      _ -> do
+        unAssign cid
+        gets intent >>= \case
+          IntentSetup -> requestWorld
+          IntentPlayGame _ -> return ()
+
   tryRemoveClient = state $ \s ->
     let clients = getClients s
         (mayClient, newClients) =
@@ -412,16 +430,9 @@ disconnect r i =
   removeAllClients = modify' $ \s ->
     s { getClients = (getClients s) { getClients' = Map.empty } }
 
-{-# INLINE allClients #-}
-allClients :: ServerState -> [Client]
-allClients = Map.elems . clientsMap
-
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState -> Map ShipId Client
 clientsMap = getClients' . getClients
-
-allClientsIds :: ServerState -> [ShipId]
-allClientsIds = Map.keys . clientsMap
 
 onlyPlayersMap :: ServerState -> Map ShipId Client
 onlyPlayersMap = Map.filter (isJust . getState) . clientsMap
@@ -488,8 +499,7 @@ handleIncomingEvent' = \case
   RequestApproval cmd@(Says _) ->
     acceptCmd cmd
   RequestApproval (Leaves _) ->
-    disconnectClient -- will do the corresponding 'notifyEveryone $ RunCommand'
-
+    asks shipId >>= disconnect ClientShutdown -- will do the corresponding 'notifyEveryone $ RunCommand'
   Do cmd -> do
    case cmd of
     Put (ColorSchemeCenter color) -> do
@@ -522,10 +532,10 @@ handleIncomingEvent' = \case
       -- change client state to make it playable
       adjustClient $ \c -> c { getState = Just ReadyToPlay }
       publish Joins
-      -- request world to let the client have a world
-      requestWorld Nothing
+      -- The number of players just changed, so we need a new world.
+      requestWorld
       -- next step when client 'IsReady'
-    _ -> do
+    IntentPlayGame _ -> do
       notifyClient $ EnterState Excluded
       publish WaitsToJoin
   ExitedState Setup -> gets intent >>= \case
@@ -533,8 +543,10 @@ handleIncomingEvent' = \case
       modify' $ \s -> s { intent = IntentPlayGame Nothing }
       publish StartsGame
       notifyPlayers $ ExitState Setup
-      requestWorld Nothing
-    _ -> return ()
+      -- we need a new world so that the game starts on a world
+      -- that players didn't have time to visually analyze yet.
+      requestWorld
+    IntentPlayGame _ -> return ()
   ExitedState (PlayLevel _) ->
     return ()
 
@@ -567,7 +579,7 @@ handleIncomingEvent' = \case
       notifyN [EnterState $ PlayLevel gameStatus] playersDonePlaying
       gets scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
         (warning "LevelEnded sent while game is Nothing")
-        (\game -> void $ liftIO $ putMVar g $ game { status' = gameStatus })
+        (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
   CanContinue next ->
     gets scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
       (warning "CanContinue sent while game is Nothing")
@@ -579,27 +591,40 @@ handleIncomingEvent' = \case
               i <- lift $ asks shipId
               let newHavePressed = Map.insert i True havePressed
                   intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
-              liftIO $ void $ swapMVar g $ game { status' = intermediateStatus }
+              liftIO $ void $ swapMVar g $! game { status' = intermediateStatus }
               -- update to avoid state where the map is equal to all players:
               void $ updateCurrentStatus $ Just curStatus
             _ -> error $ "inconsistent:"  ++ show curStatus)
 
-  WorldProposal mayEssence stats -> do
-    log $ colored (pack $ maybe "Nothing" prettyShowStats stats) white
-    maybe
-      (requestWorld stats)
-      (\essence -> get >>= \(ServerState _ _ _ levelSpec _ lastWid _ _ _ _) -> do
-          let wid = fromMaybe (error "Nothing WorldId in WorldProposal") $ getWorldId essence
-          when (lastWid == Just wid) $
-            notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence)
-      mayEssence
-  CurrentGameState gameStateEssence ->
-    gets scheduledGame >>= liftIO . tryReadMVar >>= \case
-      Just (CurrentGame _ gamePlayers (Paused _ _)) -> do
-        disconnectedPlayerKeys <- Set.difference gamePlayers <$> gets onlyPlayersIds
-        flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
-          notifyN [PutGameState gameStateEssence]
-      invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid
+  WorldProposal wid mayEssence stats -> maybe
+    -- No world essence was created.
+    (continueWorldRequest stats wid)
+    -- A world essence was created. It may be too late though:
+    (\essence -> get >>= \(ServerState _ _ _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _ _) ->
+        bool
+          (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
+          (case st of
+            Created ->
+              serverLog $ pure $ colored ("Dropped already created world " <> pack (show wid)) blue
+            CreationAssigned _ -> do
+              -- This is the first valid world essence, so we can cancel the request
+              cancelWorldRequest
+              let newStats = mergeMayStats stats prevStats
+              log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
+              modify' $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
+              notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
+          $ key == wid)
+    mayEssence
+  CurrentGameState wid mayGameStateEssence -> maybe
+    (handlerError $ "Could not get GameState " ++ show wid)
+    (\gameStateEssence ->
+      gets scheduledGame >>= liftIO . tryReadMVar >>= \case
+        Just (CurrentGame _ gamePlayers (Paused _ _)) -> do
+          disconnectedPlayerKeys <- Set.difference gamePlayers <$> gets onlyPlayersIds
+          flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
+            notifyN [PutGameState gameStateEssence wid]
+        invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid)
+    mayGameStateEssence
 
   IsReady wid -> do
     adjustClient $ \c -> c { getCurrentWorld = Just wid }
@@ -609,35 +634,33 @@ handleIncomingEvent' = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient $ EnterState Setup
       IntentPlayGame maybeOutcome ->
-        get >>= \(ServerState _ (Clients clients _) _ _ _ mayLastWId _ _ _ game) -> maybe
-          (return ())
-          (\lastWId -> liftIO (tryReadMVar game) >>= maybe
-            (do
-              adjustClient $ \c -> c { getState = Just ReadyToPlay }
-              -- start the game when all players have the right world
-              playersKeys <- gets onlyPlayersIds
-              let playersAllReady =
-                    all ((== Just lastWId) . getCurrentWorld) $ Map.restrictKeys clients playersKeys
-              when playersAllReady $ do
-                adjustAll $ \c ->
-                  case getState c of
-                    Just ReadyToPlay ->
-                      c { getState = Just $ Playing Nothing
-                        , getShipAcceleration = zeroCoords }
-                    _ -> c
-                -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
-                -- of 'ServerState' and we are inside one.
-                void $ liftIO $ putMVar game $ mkCurrentGame lastWId playersKeys)
-            -- a game is in progress (reconnection scenario) :
-            (\(CurrentGame wid' _ _) -> do
-                when (wid' /= lastWId) $
-                  handlerError $ "reconnection failed " ++ show (wid', lastWId)
-                -- make player join the current game, but do /not/ set getShipSafeUntil,
-                -- else disconnecting / reconnecting intentionally could be a way to cheat
-                -- by having more safe time.
-                adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
-                                       , getShipAcceleration = zeroCoords }))
-            mayLastWId
+        get >>= \(ServerState _ (Clients clients _) _ _ _ (WorldCreation _ lastWId _ _) _ _ _ game) ->
+         liftIO (tryReadMVar game) >>= maybe
+          (do
+            adjustClient $ \c -> c { getState = Just ReadyToPlay }
+            -- start the game when all players have the right world
+            playersKeys <- gets onlyPlayersIds
+            let playersAllReady =
+                  all ((== Just lastWId) . getCurrentWorld) $ Map.restrictKeys clients playersKeys
+            when playersAllReady $ do
+              adjustAll $ \c ->
+                case getState c of
+                  Just ReadyToPlay ->
+                    c { getState = Just $ Playing Nothing
+                      , getShipAcceleration = zeroCoords }
+                  _ -> c
+              -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
+              -- of 'ServerState' and we are inside one.
+              void $ liftIO $ putMVar game $ mkCurrentGame lastWId playersKeys)
+          -- a game is in progress (reconnection scenario) :
+          (\(CurrentGame wid' _ _) -> do
+              when (wid' /= lastWId) $
+                handlerError $ "reconnection failed " ++ show (wid', lastWId)
+              -- make player join the current game, but do /not/ set getShipSafeUntil,
+              -- else disconnecting / reconnecting intentionally could be a way to cheat
+              -- by having more safe time.
+              adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
+                                     , getShipAcceleration = zeroCoords })
 
   -- Due to network latency, laser shots may be applied to a world state
   -- different from what the player saw when the shot was made.
@@ -681,7 +704,7 @@ onLevelOutcome outcome =
           Just ReadyToPlay -> Nothing
           Nothing -> Just $ c { getState = Just ReadyToPlay })
           >>= notifyEveryoneN . map (PlayerInfo Joins)
-      _ -> return ()
+      IntentPlayGame _ -> return ()
 
 -- | To avoid deadlocks, this function should be called only from inside a
 -- transaction on ServerState.
@@ -746,7 +769,7 @@ onChangeStatus notified status newStatus = gets scheduledGame >>= \game -> tryRe
     -- a 'modifyMVar' of 'ServerState', we guarantee that the 'takeMVar' inside
     -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
     -- returned a 'Just'.
-    liftIO $ void $ swapMVar game $ g {status' = newStatus}
+    liftIO $ void $ swapMVar game $! g {status' = newStatus}
     serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
     notifyN [EnterState $ PlayLevel newStatus] notified)
 
@@ -823,7 +846,7 @@ gameScheduler st =
                     return $ NotExecutedTryAgainLater $ fromSecs 1
                   OutcomeValidated outcome -> do
                     onLevelOutcome outcome
-                    requestWorld Nothing
+                    requestWorld
                     return NotExecutedGameCanceled
                   -- these values are never supposed to be used here:
                   New -> do
@@ -916,17 +939,76 @@ adjustAll' f =
     in (Map.keys changed
       , s { getClients = clients { getClients' = newM } })
 
-requestWorld :: (MonadIO m, MonadState ServerState m) => Maybe Statistics -> m ()
-requestWorld stats = do
-  incrementWorldId
-  get >>= \(ServerState _ _ _ level params wid _ _ _ _) -> do
-    shipIds <- gets onlyPlayersIds
-    notifyFirstWorldBuilder $ WorldRequest (fromSecs 1) stats $ WorldSpec level shipIds params wid
- where
-  incrementWorldId = modify' $ \s ->
-    let wid = maybe (WorldId 0) succ $ lastRequestedWorldId s
-    in s { lastRequestedWorldId = Just wid }
+unAssign :: (MonadIO m, MonadState ServerState m)
+         => ShipId
+         -> m ()
+unAssign sid = gets worldCreation >>= \wc -> case creationState wc of
+  Created -> return ()
+  CreationAssigned assignees -> do
+    let s1 = Set.size assignees
+        newAssignees = Set.delete sid assignees
+        s2 = Set.size newAssignees
+    unless (s1 == s2) $
+      modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees } }
 
+cancelWorldRequest :: (MonadIO m, MonadState ServerState m)
+                   => m ()
+cancelWorldRequest = gets worldCreation >>= \wc@(WorldCreation st wid _ _) -> case st of
+  Created -> return ()
+  CreationAssigned assignees -> unless (Set.null assignees) $ do
+    gets clientsMap >>= notifyN [WorldRequest wid Cancel] . flip Map.restrictKeys assignees
+    modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } }
+
+
+continueWorldRequest :: Maybe Statistics
+                     -> WorldId
+                     -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
+                     -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
+                     -- this case could occur if the request was cancelled just after the non-result was
+                     -- sent by the client).
+                     -> ClientHandlerIO ()
+continueWorldRequest stats key = asks shipId >>= \origin ->
+  gets worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
+    let newStats = mergeMayStats prevStats stats
+    bool
+      (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
+      (case st of
+        Created ->
+          -- drop newStats if world is already created.
+          serverLog $ pure $ colored ("World " <> pack (show key) <> " is already created.") blue
+        CreationAssigned assignees -> do
+          let prevSize = Set.size assignees
+              single = Set.singleton origin
+              newAssignees = Set.union single assignees
+              newSize = Set.size newAssignees
+          unless (newSize == prevSize) $
+            -- a previously assigned client has disconnected, reconnects and sends a non-result
+            serverLog $ pure $ colored ("Adding assignee : " <> pack (show origin)) blue
+          log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
+          modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees
+                                                 , creationStatistics = newStats } }
+          gets clientsMap >>= requestWorldBy . flip Map.restrictKeys single)
+      $ wid == key
+
+requestWorld :: (MonadIO m, MonadState ServerState m)
+             => m ()
+requestWorld = do
+  cancelWorldRequest
+  modify' $ \s@(ServerState _ _ _ level params creation _ _ _ _) ->
+    let nextWid = succ $ creationKey creation
+    in s { worldCreation = WorldCreation
+            (CreationAssigned $ Map.keysSet $ clientsMap s)
+            nextWid
+            (WorldSpec level (onlyPlayersIds s) params)
+            Nothing
+        }
+  gets clientsMap >>= requestWorldBy
+
+requestWorldBy :: (MonadIO m, MonadState ServerState m)
+               => Map ShipId Client -> m ()
+requestWorldBy x =
+  gets worldCreation >>= \(WorldCreation _ wid spec _) ->
+    notifyN [WorldRequest wid $ Build (fromSecs 1) spec] x
 
 onDelta :: (MonadIO m, MonadState ServerState m)
         => Int
@@ -953,9 +1035,8 @@ onChangeWorldParams f = do
   prevParams <- gets worldParameters
   let newParams = f prevParams
   when (newParams /= prevParams) $ do
-    modify' $ \s ->
-      s { worldParameters = f $ worldParameters s }
-    requestWorld Nothing
+    modify' $ \s -> s { worldParameters = f $ worldParameters s }
+    requestWorld
 
 changeWallDistrib :: WallDistribution -> WorldParameters -> WorldParameters
 changeWallDistrib d p = p { wallDistrib = d }

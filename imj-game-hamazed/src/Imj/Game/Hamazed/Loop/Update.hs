@@ -14,6 +14,7 @@ import           Imj.Prelude hiding(intercalate)
 import           Prelude(length)
 
 import           Control.Concurrent(forkIO)
+import           Control.Concurrent.Async(withAsync)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -93,22 +94,24 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
-  WorldRequest dt stats spec -> do
-    deadline <- addDuration dt <$> liftIO getSystemTime
-    let continue = getSystemTime >>= \t -> return (t < deadline)
-    asks sendToServer' >>= \f ->
-      void $ liftIO $ forkIO $ mkWorldEssence spec continue >>= \(res, stats') -> do
-        let mergedStats = mergeMayStats stats stats'
-        f $ WorldProposal res mergedStats
-  CurrentGameStateRequest ->
-    sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
-  ChangeLevel levelEssence worldEssence ->
+  WorldRequest wid arg -> case arg of
+    GetGameState ->
+      mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
+    Build dt spec -> do
+      deadline <- addDuration dt <$> liftIO getSystemTime
+      let continue = getSystemTime >>= \t -> return (t < deadline)
+      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+        -- TODO see why we have a division by 0 error.
+        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
+          mkWorldEssence spec continue >>= send . uncurry (WorldProposal wid)
+    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
+  ChangeLevel levelEssence worldEssence wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkInitialState levelEssence worldEssence names viewMode sz (Just state)
+      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
-  PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
+      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor

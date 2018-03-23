@@ -119,6 +119,7 @@ newtype ComponentIdx = ComponentIdx Int
 
 newtype ComponentCount = ComponentCount Int
   deriving(Generic, Eq, Ord, Show, Binary, Num, Enum)
+instance NFData ComponentCount
 
 data Statistics = Statistics {
     countGeneratedMatrixes :: {-# UNPACK #-} !Int
@@ -126,6 +127,7 @@ data Statistics = Statistics {
   , totalTime :: !(Time Duration System)
 } deriving(Generic,Show)
 instance Binary Statistics
+instance NFData Statistics
 
 zeroStats :: Statistics
 zeroStats = Statistics 0 mempty zeroDuration

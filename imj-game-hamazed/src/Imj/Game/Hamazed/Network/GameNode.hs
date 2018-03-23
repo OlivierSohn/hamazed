@@ -8,10 +8,13 @@ module Imj.Game.Hamazed.Network.GameNode
       ) where
 
 import           Imj.Prelude
+import           Control.Concurrent(ThreadId, forkIO, myThreadId, throwTo)
 import           Control.Concurrent.STM(newTQueueIO)
-import           Control.Concurrent (MVar, ThreadId, forkIO, newMVar, putMVar, modifyMVar_, myThreadId, throwTo)
+import qualified Control.Concurrent.MVar as Lazy(newMVar)
+import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
 import           Control.Monad.State.Strict(execStateT)
+import qualified Data.Map as Map (empty)
 import           Data.Text(pack)
 import           Foreign.C.Types(CInt)
 import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
@@ -76,15 +79,15 @@ startClient playerName srv = do
   sendToServer' qs $
     Connect playerName $
       case srv of
-        Local _ _ _ -> ClientOwnsServer
-        Distant _ _ -> ClientDoesntOwnServer
+        Local {} -> ClientOwnsServer
+        Distant {} -> ClientDoesntOwnServer
   return qs
  where
   msg x = x <> " to server " <> pack (show srv)
 
 mkQueues :: IO ClientQueues
 mkQueues =
-  ClientQueues <$> newTQueueIO <*> newTQueueIO
+  ClientQueues <$> newTQueueIO <*> newTQueueIO <*> Lazy.newMVar Map.empty
 
 installOneHandler :: MVar ServerState -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =

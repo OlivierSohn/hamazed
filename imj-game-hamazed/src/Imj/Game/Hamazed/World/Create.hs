@@ -35,7 +35,7 @@ data Association = Association {
 } deriving(Show)
 
 mkWorldEssence :: WorldSpec -> IO Bool -> IO (Maybe WorldEssence, Maybe Statistics)
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution) wid) continue =
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution)) continue =
 -- withSystemRandom seeds a PRNG with data from the system's fast source of pseudo-random numbers.
 -- The generator should be used from a single thread.
  withSystemRandom . asGenIO $ \gen -> do
@@ -67,13 +67,12 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
                 (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
                 (Map.fromList ships)
                 (toListOfLists space)
-                wid
               , stats))
     maySpaceTopo
 
 
 mkMinimalWorldEssence :: WorldEssence
-mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]]) Nothing
+mkMinimalWorldEssence = WorldEssence Map.empty Map.empty (MaterialMatrix [[]])
 
 mkSpace :: (MonadIO m)
         => Size

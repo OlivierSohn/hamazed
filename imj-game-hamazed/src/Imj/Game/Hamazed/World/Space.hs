@@ -160,9 +160,9 @@ mkRandomlyFilledSpace :: RandomParameters
 mkRandomlyFilledSpace _ s 0 _ _ =
   let (a,b) = mkFilledSpace s
   in return (Just (a,b),Nothing)
-mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio) s nComponents continue gen = do
-  (mayWT, stats) <-
-    mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue
+mkRandomlyFilledSpace (RandomParameters blockSize wallAirRatio) s nComponents continue gen
+  | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
+  | otherwise = mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue >>= \(mayWT, stats) ->
   return
     (maybe
       Nothing

@@ -106,9 +106,9 @@ data WorldSpec = WorldSpec {
     getLevelSpec' :: {-unpack sum-} !LevelSpec
   , getShipIds :: !(Set ShipId)
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
-  , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.
 } deriving(Generic, Show)
 instance Binary WorldSpec
+instance NFData WorldSpec
 
 -- | Contains the minimal information needed to describe all parameters of the 'World'
 -- that matter to the game (i.e we ignore particle system animations and objects used to optimize rendering)
@@ -116,12 +116,11 @@ data WorldEssence = WorldEssence {
     getNumbers :: !(Map NumId NumberEssence)
   , getShips :: !(Map ShipId BattleShip) -- TODO remove ShipId from BattleShip
   , getSpaceMatrix :: !MaterialMatrix
-  , getWorldId :: !(Maybe WorldId)
 } deriving(Generic, Show)
 instance Binary WorldEssence
 
 newtype WorldId = WorldId Int64
-  deriving(Generic, Show, Binary, Enum, Eq, NFData)
+  deriving(Generic, Show, Binary, Enum, Eq, Ord, NFData)
 
 data World = World {
     getWorldNumbers :: !(Map NumId Number)

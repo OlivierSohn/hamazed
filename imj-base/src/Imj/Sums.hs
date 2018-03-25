@@ -43,8 +43,8 @@ mkSums allNumbers total =
     | target < n = Set.empty
     | otherwise = Set.union
        -- NOTE the input being ascending, the resulting lists are descending. Numbers are distinct.
-       (go rest (target - n) (n:curNums)) -- in this branch, we take the number
        (go rest target curNums) -- in this branch, we drop the number
+       (go rest (target - n) (n:curNums)) -- in this branch, we take the number
 
 -- A version using a storable vector, and using Sets as output.
 mkSumsArray'' :: Set Int -> Int -> Set [Int] -- using Set (Set Int) makes tests slower
@@ -60,8 +60,8 @@ mkSumsArray'' allNumbers total =
     | target == 0 = Set.singleton curNums
     | target < n = Set.empty
     | otherwise = Set.union
-        (go index (target - n) (n:curNums)) -- in this branch, we take the number
         (go index target curNums) -- in this branch, we drop the number
+        (go index (target - n) (n:curNums)) -- in this branch, we take the number
     where
       !index = pred i
       n = Storable.unsafeIndex array index
@@ -85,8 +85,8 @@ mkSumsArray' allNumbers total =
     | target == 0 = [curNums]
     | target < n = []
     | otherwise =
-         go index (target - n) (n:curNums) -- in this branch, we take the number
-      ++ go index target curNums -- in this branch, we drop the number
+         go index target curNums -- in this branch, we drop the number
+      ++ go index (target - n) (n:curNums) -- in this branch, we take the number
     where
       !index = pred i
       n = Storable.unsafeIndex array index
@@ -113,8 +113,8 @@ mkSumsStrict allNumbers total =
     where
       !index = pred i
       !n = Storable.unsafeIndex array index
-      left = go index (target - n) (n:curNums) -- in this branch, we take the number
-      right = go index target curNums -- in this branch, we drop the number
+      left = go index target curNums -- in this branch, we drop the number
+      right = go index (target - n) (n:curNums) -- in this branch, we take the number
 
 -- A version using a strict tree as output
 mkSumsStrict2 :: Set Int -> Int -> StrictTree [Int]
@@ -134,8 +134,8 @@ mkSumsStrict2 allNumbers total =
           NoResult -> left
           _ -> StrictBranch left right
     where
-      left = go rest (target - n) (n:curNums) -- in this branch, we take the number
-      right = go rest target curNums -- in this branch, we drop the number
+      left = go rest target curNums -- in this branch, we drop the number
+      right = go rest (target - n) (n:curNums) -- in this branch, we take the number
 
 
 
@@ -160,8 +160,8 @@ mkSumsLazy allNumbers total =
     where
       index = pred i
       n = Storable.unsafeIndex array index
-      left = go index (target - n) (n:curNums) -- in this branch, we take the number
-      right = go index target curNums -- in this branch, we drop the number
+      left = go index target curNums -- in this branch, we drop the number
+      right = go index (target - n) (n:curNums) -- in this branch, we take the number
 
 data ValueOccurences = ValueOccurences {
     _countOccurences :: {-# UNPACK #-} !Int

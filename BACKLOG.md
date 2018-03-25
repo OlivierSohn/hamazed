@@ -1,4 +1,4 @@
-- test nearby algo with unit tests.
+- optimize 'spaceIsWellUsed' (see comment)
 
 - for n cc:
 min_n_air :

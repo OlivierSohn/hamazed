@@ -11,10 +11,11 @@ import           Data.Maybe(isJust, catMaybes)
 import           System.IO(hFlush, stdout)
 import           System.Random.MWC(create)
 
-import           Imj.Data.Matrix.Cyclic(Matrix, toLists, produceUsefullInterleavedVariations, unsafeGet, nrows, ncols)
+import           Imj.Data.Matrix.Cyclic(Matrix, produceUsefullInterleavedVariations, unsafeGet, nrows, ncols)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Space.Read
 import           Imj.Util
 
 -- command used to profile:
@@ -87,14 +88,9 @@ getTopology r =
       render = do
         print compCount
         putStrLn ""
-        mapM_ putStrLn $ showInBox $ map (map toChar) $ toLists r
+        mapM_ putStrLn $ showInBox $ writeWorld r
         putStrLn ""
   in (compCount, render)
-
--- unlike in the game, we draw Air to better see the component shapes
-toChar :: Material -> Char
-toChar Air = 'O'
-toChar Wall = ' '
 
 profileMkSmallWorld :: IO ()
 profileMkSmallWorld = do

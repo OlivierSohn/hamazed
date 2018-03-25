@@ -268,15 +268,15 @@ matchTopology nComponents r
 
   TODO optimize complexity constant, by:
 
-  * TODO Prune redundant analysis :
+  * TODO Prune redundant lookups :
     * orthogonal lookups can be done in 2 directions (LEFT, Down) instead of 4
     * diagonal lookups can be done in 2 directions (Down LEFT, Down RIGHT) instead of 4
   * TODO Change Material to RawMaterial (or Int where 0 is a wall, 1 is empty space), and using
     Material = Wall | Air (Maybe !ComponentIdx)
-    for unpack:
-    Wall        -> -2
-    Air Nothing -> -1
-    Air i       -> i
+     with unpack instance:
+      Wall        -> -2
+      Air Nothing -> -1
+      Air i       -> i
     Create the Material matrix from the RawMaterial matrix + components lookups,
     only once we know the number of components is right and the components are well distributed.
   -}
@@ -405,7 +405,9 @@ data SmallWorldTopology = SmallWorldTopology {
     getConnectedComponents :: [ConnectedComponent]
   , _vertexToCoords :: Vertex -> Coords Pos
   -- ^ Used to get 'ConnectedComponent''s coordinates w.r.t small world
-}
+} deriving(Generic)
+instance Show SmallWorldTopology where
+  show (SmallWorldTopology a _) = show ("SmallWorldTopology:",a)
 
 newtype ConnectedComponent = ConnectedComponent (V.Vector Vertex)
   deriving(Generic, Show)

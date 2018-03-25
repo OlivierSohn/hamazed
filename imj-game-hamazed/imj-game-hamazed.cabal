@@ -64,6 +64,7 @@ library
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
+                     , Imj.Game.Hamazed.World.Space.Read
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
@@ -112,6 +113,7 @@ test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   other-modules:       Test.Imj.ParseCommand
+                     , Test.Imj.Topology
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 4.11
                      , attoparsec ==0.13.*

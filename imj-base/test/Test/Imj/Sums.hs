@@ -13,7 +13,7 @@ import           Data.Text(pack)
 import qualified Data.Text.IO as Text (putStr)
 import           System.IO(putStr, putStrLn)
 
-import qualified Imj.Data.Tree as Tree
+import qualified Imj.Data.Tree as Filt(Filterable(..))
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString
 import           Imj.Sums
@@ -42,14 +42,15 @@ testSums = do
    `shouldBe` Set.empty
 
   -- verify all output lists are descending
-  Tree.toList (mkSumsStrict (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
-  Tree.toList (mkSumsStrict2 (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
-  Tree.toList (mkSumsLazy (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
-  Tree.toList (mkSumsStrictN [1,2,3,3,4,5,6,9,9] 3) `shouldBe` [[3],[2,1]]
-  Tree.toList (mkSumsStrictN2 [1,2,3,3,4,5,6,9,9] 3) `shouldBe` [[3],[2,1]]
-  mkSumsN [1,2,3,3,4,5,6,9,9] 3 `shouldBe` [[3],[2,1]]
-  mkSumsArray' (Set.fromList [1,2,3,4,5,6]) 3 `shouldBe` [[3],[2,1]]
-  mkSumsArray'' (Set.fromList [1,2,3,4,5,6]) 3 `shouldBe` Set.fromList [[3],[2,1]]
+  let verify x = Set.fromList (Filt.toList $ x [1,2,3,3,4,5,6,9,9] 3) `shouldBe` Set.fromList [[3],[2,1]]
+  verify mkSumsN
+  verify mkSumsStrictN
+  verify mkSumsStrictN2
+  verify $ mkSumsStrict . Set.fromList
+  verify $ mkSumsStrict2 . Set.fromList
+  verify $ mkSumsArray' . Set.fromList
+  verify $ mkSumsArray'' . Set.fromList
+  verify $ mkSumsLazy . Set.fromList
 
   -- Using different implementations to find the number
   -- of different combinations of length < 6.
@@ -60,24 +61,24 @@ testSums = do
         time $ void $ evaluate $
           countCombinations numbers (quot (maxSum * n) n) -- trick to force a new evaluation
       tests =
-        [ ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b)            , "mkSums filter")
-        , ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b)            , "mkSumsArray filter")
-        , ((\a b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  a b)            , "mkSumsArray' filter")
-        , ((\a b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' a b)            , "mkSumsArray'' filter")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsStrict  a b)            , "mkSumsStrict filter")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsLazy    a b)            , "mkSumsLazy filter")
-        , ((\a b -> Set.size                                             $ mkSums       a b)               , "mkSums")
-        , ((\a b -> Set.size                                             $ mkSumsArray  a b)               , "mkSumsArray")
-        , ((\a b -> Tree.countValues                                     $ mkSumsArray' a b)               , "mkSumsArray'")
-        , ((\a b -> Set.size                                             $ mkSumsArray'' a b)               , "mkSumsArray''")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrict2 a b)              , "mkSumsStrict2")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrict a b)               , "mkSumsStrict")
-        , ((\a b -> Tree.countValues                                     $ mkSumsLazy   a b)               , "mkSumsLazy")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length s < 6) $ mkSumsStrictN  (Set.toList a) b), "mkSumsStrictN filter")
-        , ((\a b -> length           $ Tree.filter  (\s -> length s < 6) $ mkSumsN        (Set.toList a) b), "mkSumsN filter'")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrictN  (Set.toList a) b), "mkSumsStrictN")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrictN2 (Set.toList a) b), "mkSumsStrictN2")
-        , ((\a b -> Tree.countValues                                     $ mkSumsN        (Set.toList a) b), "mkSumsN")
+        [ (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b            , "mkSums filter")
+        , (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b            , "mkSumsArray filter")
+        , (\a b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  a b            , "mkSumsArray' filter")
+        , (\a b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' a b            , "mkSumsArray'' filter")
+        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsStrict  a b            , "mkSumsStrict filter")
+        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsLazy    a b            , "mkSumsLazy filter")
+        , (\a b -> Set.size                                             $ mkSums       a b               , "mkSums")
+        , (\a b -> Set.size                                             $ mkSumsArray  a b               , "mkSumsArray")
+        , (\a b -> Filt.countValues                                     $ mkSumsArray' a b               , "mkSumsArray'")
+        , (\a b -> Set.size                                             $ mkSumsArray'' a b               , "mkSumsArray''")
+        , (\a b -> Filt.countValues                                     $ mkSumsStrict2 a b              , "mkSumsStrict2")
+        , (\a b -> Filt.countValues                                     $ mkSumsStrict a b               , "mkSumsStrict")
+        , (\a b -> Filt.countValues                                     $ mkSumsLazy   a b               , "mkSumsLazy")
+        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length s < 6) $ mkSumsStrictN  (Set.toList a) b, "mkSumsStrictN filter")
+        , (\a b -> length           $ Filt.filter  (\s -> length s < 6) $ mkSumsN        (Set.toList a) b, "mkSumsN filter'")
+        , (\a b -> Filt.countValues                                     $ mkSumsStrictN  (Set.toList a) b, "mkSumsStrictN")
+        , (\a b -> Filt.countValues                                     $ mkSumsStrictN2 (Set.toList a) b, "mkSumsStrictN2")
+        , (\a b -> Filt.countValues                                     $ mkSumsN        (Set.toList a) b, "mkSumsN")
         ]
   let nTestRepeat = 100
   times <-

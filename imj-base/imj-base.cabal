@@ -107,6 +107,7 @@ library
                      , Imj.Graphics.UI.RectArea
                      , Imj.Graphics.UI.RectContainer
                      , Imj.Graphics.UI.RectContainer.MorphParallel4
+                     , Imj.Graphics.UI.Slider
                      , Imj.Graphics.UI.TextBox
                      , Imj.Input
                      , Imj.Input.Blocking

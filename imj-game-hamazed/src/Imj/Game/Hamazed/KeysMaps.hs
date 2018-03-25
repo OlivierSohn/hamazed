@@ -62,8 +62,8 @@ translatePlatformEvent k = case k of
                   ' ' -> Just $ CliEvt $ ExitedState Setup
                   '1' -> Just $ CliEvt $ Do $ Put $ WorldShape Square
                   '2' -> Just $ CliEvt $ Do $ Put $ WorldShape Rectangle'2x1
-                  'e' -> Just $ CliEvt $ Do $ Put $ WallDistribution None
-                  'r' -> Just $ CliEvt $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5
+                  --'e' -> Just $ CliEvt $ Do $ Put $ WallDistribution None
+                  --'r' -> Just $ CliEvt $ Do $ Put $ WallDistribution $ minRandomBlockSize 0.5
                   'y' -> Just $ CliEvt $ Do $ Succ BlockSize
                   'g' -> Just $ CliEvt $ Do $ Pred BlockSize
                   'u' -> Just $ CliEvt $ Do $ Succ WallProbability

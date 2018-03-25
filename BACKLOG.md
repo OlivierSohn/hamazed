@@ -1,14 +1,102 @@
-- print sliders on screen for :
-  - block size. make <=0 sizes forbidden.
-  - probability, between 0 and 1
-- (print instructions on screen for:) allow to change block size and wall air ratio
+- test nearby algo with unit tests.
+
+- for n cc:
+min_n_air :
+  if n <= quot (l + w - 1) 2 -- at the limit, each cc has one block only
+    -- L shape with one block interruptions is minimal:
+    min_n_air = l + w - n
+  else if n < quot (l*w + 1) 2 -- at the limit we have a checkerboard
+    min_n_air = n
+  else
+    impossible to meet the n cc constraint.
+- Use min_n_air to discard matrices that have not enough air.
+- Use min_n_air to compute a theoretical upper bound for wall probability,
+given (block size, size of the world) -> small size
+and given the number of cc we want in the world (adjusted with checkerboard algo).
+
+The /user wall probability/ will go from 0.1 to 0.9, and will be mapped to :
+[0.1 * theoretical upper bound .. theoretical upper bound] to ensure worlds can be built.
+
+for the worlds that have the least possible air: max_wall_ratio : 1 - min_n_air/(l*w)
+
+for 1 cc, size 6 12 : max_wall_ratio = 1 - (17/72) = 0.763888
+for 2 cc, size 6 12 : max_wall_ratio = 1 - (16/72) = 0.777777
+...
+for 4 cc, size 6 12 : max_wall_ratio = 1 - (14/72) = 0.805555
+
+
+for 1 cc, size 4 8 : max_wall_ratio = 1 - (11/32) = 0.65625
+for 2 cc, size 4 8 : max_wall_ratio = 1 - (10/32) = 0.6875
+...
+for 4 cc, size 4 8 : max_wall_ratio = 1 - ( 8/32) = 0.75
+
+- Add music :
+  slow (ternary) :
+  1st voice:
+  do . .
+  | . sol
+  ré - -
+  - mib fa
+  sol mib do
+  ré . vsol
+  do . .
+  sol mib v si (alternate with variations :
+    sol fa mib,
+    sol lab sol,
+    fa mi réb,
+    ré . v sol,
+    ré mib ré,
+    sol sol sol,
+    ré sol vsol)
+
+  2nd voice:
+  . . sol
+  . . .
+  . . sol
+  . . .
+  mib . .
+  fa . .
+  mib . .
+  ré . .
+
+  fast: (when game goes faster)
+  1st voice:
+
+  do ré mib fa
+  sol . do ré
+  mib fa sol .
+  do ré mib fa
+  ré - - -
+  - - - -
+  lab . . .
+  sol . . .
+
+  ^do sib la sol
+  . . ^do sib
+  la sol . .
+  do ré mi fa
+  sol - - -
+  fa - - -
+  mib - - -
+  v sol . . .
+
+  2nd voice:
+  mib fa sol lab
+  sol . sol lab
+  sol fa sol .
+  sol fa mib fa
+  . . sol .
+  v sol . sol .
+  . . sol .
+  mib . ré .
+
 - while searching for a world, display this status message:
 
-Generating a world with :
+Randomly generating level 1 with constraints:
+  walls size  = 6
+  walls proba = 0.7
   1 connected component(s)
-  logic size 12*6
-  block size 6
-  70 % wall
+Number of computing nodes: 1 (i.e length of assignees)
 
 World generation started 4 seconds ago, using random matrices, with columns and
 row shuffling and matrix rotation.
@@ -27,10 +115,6 @@ CC 3 ...
  Z
   XZ  <- here we stay one time too long.
  X
-
-- compute a sensible upper bound for probability
-- Make mode "no wall" equivalent to 0 probability:
-when multiplayer is on, allow every ship to be in the same cc i.e relax the constraint on number of cc.
 
 - with carefull benchmarking:
 ** in produceUsefullInterleavedVariations : are matrices generated one by one?

@@ -17,7 +17,13 @@ module Imj.Game.Hamazed.Types
     , GenEvent(..)
     , initialParameters
     , initialViewMode
-    , minRandomBlockSize
+    , initialBlockSize
+    , minBlockSize
+    , maxBlockSize
+    , initialWallProba
+    , minWallProba
+    , maxWallProba
+    , wallProbaIncrements
     -- * Reexports
     , module Imj.Game.Hamazed.Chat
     , module Imj.Game.Hamazed.Level.Types
@@ -89,7 +95,7 @@ data Game = Game {
     getClientState :: {-# UNPACK #-} !ClientState
   , getGameState' :: !GameState
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
-  , getServer :: {-unpack sum-} !Server
+  , getServer' :: {-unpack sum-} !Server
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
   , getChat' :: !Chat
@@ -123,16 +129,25 @@ data AnimatedLine = AnimatedLine {
   , getALDeadline :: Maybe Deadline
 } deriving(Generic, Show)
 
-minRandomBlockSize :: Int
-minRandomBlockSize = 4
+initialBlockSize, minBlockSize, maxBlockSize :: Int
+initialBlockSize = 4
+minBlockSize = 1
+maxBlockSize = 6
+
+wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: Float
+initialWallProba = 0.5
+minWallProba = 0.1
+maxWallProba = 0.9
+wallProbaIncrements = 0.1
 
 initialParameters :: WorldParameters
-initialParameters = WorldParameters Rectangle'2x1 (Random defaultRandom)
+initialParameters =
+  WorldParameters Rectangle'2x1 defaultRandom
 
 initialViewMode :: ViewMode
 initialViewMode = CenterSpace
 
-defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more connected components.
+defaultRandom :: WallDistribution -- below 0.1, it's difficult to have 2 or more connected components.
                                   -- 0.1 : on avg, 1 cc
                                   -- 0.2 : on avg, 1 cc
                                   -- 0.3 : on avg, 2 cc
@@ -140,4 +155,4 @@ defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more
                                   -- 0.5 : on avg, 8 cc
                                   -- 0.6 : on avg, 10 cc
                                   -- above 0.6, it's difficult to have a single connected component
-defaultRandom = RandomParameters minRandomBlockSize 0.5
+defaultRandom = WallDistribution initialBlockSize initialWallProba

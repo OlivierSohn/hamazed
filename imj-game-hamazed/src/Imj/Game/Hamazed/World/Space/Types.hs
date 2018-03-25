@@ -15,7 +15,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , getSize
     , Material(..)
     , MaterialMatrix(..)
-    , RandomParameters(..)
+    , WallDistribution(..)
     , DrawGroup(..)
     , Scope(..)
     , Statistics(..)
@@ -39,8 +39,8 @@ import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.List(unlines)
 import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet)
-import           Data.Map(Map)
-import qualified Data.Map as Map(toAscList, foldl')
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map(toAscList, foldl')
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 
@@ -52,7 +52,7 @@ import           Imj.Timing
 import           Imj.Util
 
 -- | Parameters for random walls creation.
-data RandomParameters = RandomParameters {
+data WallDistribution = WallDistribution {
     blockSize' :: {-# UNPACK #-} !Int
     -- ^ The size of a square wall block.
     --
@@ -60,8 +60,8 @@ data RandomParameters = RandomParameters {
     -- a random world with a single component of air.
   , wallProbability' :: {-# UNPACK #-} !Float -- ^ 1 means only walls, 0 means no walls at all
 } deriving(Generic, Show, Eq)
-instance Binary RandomParameters
-instance NFData RandomParameters
+instance Binary WallDistribution
+instance NFData WallDistribution
 
 data DrawGroup = DrawGroup {
     _drawGroupCoords :: {-# UNPACK #-} !(Coords Pos)
@@ -114,11 +114,10 @@ getComponentIndices :: BigWorldTopology -> [ComponentIdx]
 getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
 
 newtype ComponentIdx = ComponentIdx Int
-  deriving(Generic, Eq, Ord, Show, Binary)
-
+  deriving(Generic, Enum, Num, Eq, Ord, Show, Binary, Integral, Real)
 
 newtype ComponentCount = ComponentCount Int
-  deriving(Generic, Eq, Ord, Show, Binary, Num, Enum)
+  deriving(Generic, Eq, Ord, Show, Binary, Num, Enum, Integral, Real)
 instance NFData ComponentCount
 
 data Statistics = Statistics {

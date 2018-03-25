@@ -25,7 +25,7 @@ testSums = do
 
   mkSums Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSums (Set.fromList [1,2,3,4,5]) 3
-   `shouldBe` Set.fromList (map Set.fromList [[3],[1,2]])
+   `shouldBe` Set.fromList (map Set.fromList [[3],[2,1]])
   mkSums (Set.fromList [2,3,4,5]) 18
    `shouldBe` Set.empty
   mkSums (Set.fromList [2,3,4,5]) 1
@@ -35,11 +35,21 @@ testSums = do
 
   mkSumsArray Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSumsArray (Set.fromList [1,2,3,4,5]) 3
-   `shouldBe` Set.fromList (map Set.fromList [[3],[1,2]])
+   `shouldBe` Set.fromList (map Set.fromList [[3],[2,1]])
   mkSumsArray (Set.fromList [2,3,4,5]) 18
    `shouldBe` Set.empty
   mkSumsArray (Set.fromList [2,3,4,5]) 1
    `shouldBe` Set.empty
+
+  -- verify all output lists are descending
+  Tree.toList (mkSumsStrict (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
+  Tree.toList (mkSumsStrict2 (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
+  Tree.toList (mkSumsLazy (Set.fromList [1,2,3,4,5,6,9]) 3) `shouldBe` [[3],[2,1]]
+  Tree.toList (mkSumsStrictN [1,2,3,3,4,5,6,9,9] 3) `shouldBe` [[3],[2,1]]
+  Tree.toList (mkSumsStrictN2 [1,2,3,3,4,5,6,9,9] 3) `shouldBe` [[3],[2,1]]
+  mkSumsN [1,2,3,3,4,5,6,9,9] 3 `shouldBe` [[3],[2,1]]
+  mkSumsArray' (Set.fromList [1,2,3,4,5,6]) 3 `shouldBe` [[3],[2,1]]
+  mkSumsArray'' (Set.fromList [1,2,3,4,5,6]) 3 `shouldBe` Set.fromList [[3],[2,1]]
 
   -- Using different implementations to find the number
   -- of different combinations of length < 6.
@@ -53,11 +63,13 @@ testSums = do
         [ ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b)            , "mkSums filter")
         , ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b)            , "mkSumsArray filter")
         , ((\a b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  a b)            , "mkSumsArray' filter")
+        , ((\a b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' a b)            , "mkSumsArray'' filter")
         , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsStrict  a b)            , "mkSumsStrict filter")
         , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsLazy    a b)            , "mkSumsLazy filter")
         , ((\a b -> Set.size                                             $ mkSums       a b)               , "mkSums")
         , ((\a b -> Set.size                                             $ mkSumsArray  a b)               , "mkSumsArray")
         , ((\a b -> Tree.countValues                                     $ mkSumsArray' a b)               , "mkSumsArray'")
+        , ((\a b -> Set.size                                             $ mkSumsArray'' a b)               , "mkSumsArray''")
         , ((\a b -> Tree.countValues                                     $ mkSumsStrict2 a b)              , "mkSumsStrict2")
         , ((\a b -> Tree.countValues                                     $ mkSumsStrict a b)               , "mkSumsStrict")
         , ((\a b -> Tree.countValues                                     $ mkSumsLazy   a b)               , "mkSumsLazy")

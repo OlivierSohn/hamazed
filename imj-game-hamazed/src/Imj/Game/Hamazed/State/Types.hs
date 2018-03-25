@@ -23,6 +23,7 @@ module Imj.Game.Hamazed.State.Types
       , getChat
       , getViewMode
       , getWorld
+      , getWorldParameters
       , getCurScreen
       , getLastRenderTime
       , hasVisibleNonRenderedUpdates
@@ -37,6 +38,7 @@ module Imj.Game.Hamazed.State.Types
       , putViewMode
       , putGameConnection
       , putWorld
+      , putWorldParameters
       , putAnimation
       , putDrawnState
       , stateChat
@@ -52,7 +54,7 @@ import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(gets, state, modify')
-import           Data.Map.Strict(fromList, union, updateWithKey, insert, (!?))
+import           Data.Map.Strict(fromDistinctAscList, union, updateWithKey, insert, (!?))
 
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.UI.Animation
@@ -121,6 +123,10 @@ data EventRepr = Laser'
 getGameState :: MonadState AppState m => m GameState
 getGameState = getGameState' <$> gets game
 
+{-# INLINABLE getServer #-}
+getServer :: MonadState AppState m => m Server
+getServer = getServer' <$> gets game
+
 {-# INLINABLE getViewMode #-}
 getViewMode :: MonadState AppState m => m ViewMode
 getViewMode = getViewMode' <$> getGameState
@@ -165,6 +171,11 @@ getLastRenderTime = gets timeAfterRender
 putGame :: MonadState AppState m => Game -> m ()
 putGame g = modify' $ \s -> s { game = g }
 
+{-# INLINABLE putServer #-}
+putServer :: MonadState AppState m => Server -> m ()
+putServer s =
+  gets game >>= \g -> putGame $ g {getServer' = s}
+
 {-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
 putGameState s =
@@ -200,6 +211,17 @@ putViewMode p =
 putWorld :: MonadState AppState m => World -> m ()
 putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 
+{-# INLINABLE putWorldParameters #-}
+putWorldParameters :: MonadState AppState m => WorldParameters -> m ()
+putWorldParameters p =
+  getServer >>= \s@(Server _ c) ->
+    putServer s { serverContent = c { serverWorldParameters = Just p } }
+
+{-# INLINABLE getWorldParameters #-}
+getWorldParameters :: MonadState AppState m => m (Maybe WorldParameters)
+getWorldParameters =
+  serverWorldParameters . serverContent <$> getServer
+
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState AppState m => m (Map ShipId Player)
 getPlayers = getPlayers' <$> getGameState
@@ -232,7 +254,7 @@ addParticleSystems :: MonadState AppState m
                    -> m ()
 addParticleSystems l = do
   keys <- takeKeys $ length l
-  let ps2 = fromList $ zip keys l
+  let ps2 = fromDistinctAscList $ zip keys l
   getWorld >>= \w -> putWorld $ w {getParticleSystems = union (getParticleSystems w) ps2}
 
 {-# INLINABLE updateOneParticleSystem #-}

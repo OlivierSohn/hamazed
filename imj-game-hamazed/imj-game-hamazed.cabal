@@ -63,6 +63,7 @@ library
                      , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
+                     , Imj.Game.Hamazed.World.Space.Draw
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
@@ -90,6 +91,7 @@ library
                      , unliftio ==0.2.*
                      , unliftio-core ==0.1.*
                      , vector >= 0.12.0.1 && < 0.13
+                     , vector-algorithms >= 0.7.0.1 && < 0.8
                      , vector-th-unbox == 0.2.*
                      , websockets ==0.12.*
   ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints

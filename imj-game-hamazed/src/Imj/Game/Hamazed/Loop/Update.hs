@@ -113,14 +113,17 @@ updateAppState (Left evt) = case evt of
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
       mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
+  OnWorldParameters worldParameters ->
+    putWorldParameters worldParameters
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) ->
     onLaser shipId dir Add
-  ConnectionAccepted i eplayers -> do
+  ConnectionAccepted i eplayers worldParams -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
+    putWorldParameters worldParams
     let p = Map.map mkPlayer eplayers
     putPlayers p
     stateChat $ addMessage $ ChatMessage $ welcome p
@@ -164,8 +167,6 @@ updateAppState (Left evt) = case evt of
     ("color scheme center:" <>) $ pack $ show $ color8CodeToXterm256 c
   showReport (Put (WorldShape shape)) =
     ("world shape:" <>) $ pack $ show shape
-  showReport (Put (WallDistribution d)) =
-    ("wall distribution:" <>) $ pack $ show d
   showReport (Succ x) =
     "incremented " <> pack (show x)
   showReport (Pred x) =

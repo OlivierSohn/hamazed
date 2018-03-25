@@ -44,6 +44,8 @@ module Imj.Game.Hamazed.Network.Types
       , releaseRequestResources
       -- * Server
       , Server(..)
+      , ServerType(..)
+      , ServerContent(..)
       , ServerLogs(..)
       , ServerPort(..)
       , ServerName(..)
@@ -127,9 +129,20 @@ import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
 import           Imj.Timing
 
 -- | a Server, seen from a Client's perspective
-data Server = Distant !ServerName !ServerPort
-            | Local !ServerLogs !ColorScheme !ServerPort
+data Server = Server {
+    serverType :: !ServerType
+  , serverContent :: !ServerContent
+}  deriving(Generic, Show)
+
+data ServerType =
+    Distant !ServerName
+  | Local !ServerLogs !ColorScheme
   deriving(Generic, Show)
+
+data ServerContent = ServerContent {
+    serverPort :: {-# UNPACK #-} !ServerPort
+  , serverWorldParameters :: !(Maybe WorldParameters)
+}  deriving(Generic, Show)
 
 data ServerLogs =
     NoLogs
@@ -238,22 +251,32 @@ data ClientEvent =
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
-    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId PlayerEssence)
+    ConnectionAccepted {-# UNPACK #-} !ShipId
+                                      !(Map ShipId PlayerEssence)
+                       {-# UNPACK #-} !WorldParameters
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
   | ExitState {-unpack sum-} !StateValue
-  | PlayerInfo {-unpack sum-} !PlayerNotif {-# UNPACK #-} !ShipId
+  | PlayerInfo {-unpack sum-} !PlayerNotif
+               {-# UNPACK #-} !ShipId
   | GameInfo {-unpack sum-} !GameNotif
-  | WorldRequest {-# UNPACK #-} !WorldId !WorldRequestArg
-  | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence {-# UNPACK #-} !WorldId
+  | WorldRequest {-# UNPACK #-} !WorldId
+                                !WorldRequestArg
+  | ChangeLevel {-# UNPACK #-} !LevelEssence -- TODO merge with WorldRequest
+                {-# UNPACK #-} !WorldEssence
+                {-# UNPACK #-} !WorldId
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
-  | PutGameState {-# UNPACK #-} !GameStateEssence {-# UNPACK #-} !WorldId
+  | PutGameState {-# UNPACK #-} !GameStateEssence  -- TODO merge with WorldRequest
+                 {-# UNPACK #-} !WorldId
+  | OnWorldParameters {-# UNPACK #-} !WorldParameters
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
-  | CommandError {-unpack sum-} !ClientCommand {-# UNPACK #-} !Text
+  | CommandError {-unpack sum-} !ClientCommand
+                 {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
-  | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !ClientCommand
+  | RunCommand {-# UNPACK #-} !ShipId
+               {-unpack sum-} !ClientCommand
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
@@ -377,7 +400,6 @@ instance Binary SharedEnumerableValueKey
 data SharedValueKey =
     ColorSchemeCenterKey
   | WorldShapeKey
-  | WallDistributionKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary SharedValueKey
 
@@ -385,7 +407,6 @@ instance Binary SharedValueKey
 data SharedValue =
     ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
   | WorldShape {-unpack sum-} !WorldShape
-  | WallDistribution {-unpack sum-} !WallDistribution
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary SharedValue
 
@@ -495,8 +516,8 @@ newtype SuggestedPlayerName = SuggestedPlayerName String
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)
-getServerNameAndPort (Local _ _ p) = (ServerName "localhost", p)
-getServerNameAndPort (Distant name p) = (name, p)
+getServerNameAndPort (Server (Local _ _) (ServerContent p _)) = (ServerName "localhost", p)
+getServerNameAndPort (Server (Distant name) (ServerContent p _)) = (name, p)
 
 newtype ServerName = ServerName String
   deriving (Show, IsString, Eq)

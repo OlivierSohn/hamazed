@@ -14,8 +14,8 @@ import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(sortOn)
-import qualified Data.Map.Strict as Map(empty, fromList)
-import qualified Data.Set as Set(size, toList, empty)
+import qualified Data.Map.Strict as Map(empty, fromDistinctAscList)
+import qualified Data.Set as Set(size, toAscList, empty)
 import           System.Random.MWC(GenIO, withSystemRandom, asGenIO)
 
 import           Imj.Game.Hamazed.Level.Types
@@ -47,7 +47,7 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
     (return (Nothing, stats))
     (\(space, topology) -> do
       let associations = map (\(a,b,c) -> Association a b c) $ zip3
-            (Set.toList shipIds)
+            (Set.toAscList shipIds)
             (mkGroups nShips numbers) -- TODO shuffle numbers ?
             $ cycle $ getComponentIndices topology
       -- TODO make groups such that a single player cannot finish the level without the help of others.
@@ -64,8 +64,8 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
       let (ships, balls) = unzip shipsAndNums
       return (Just $ WorldEssence
                 -- we sort the numbers so that their order in the map matches the order of their numeric values
-                (Map.fromList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
-                (Map.fromList ships)
+                (Map.fromDistinctAscList $ zip (map NumId [0..]) $ sortOn getNumber $ concat balls)
+                (Map.fromDistinctAscList ships)
                 (toListOfLists space)
               , stats))
     maySpaceTopo
@@ -85,9 +85,10 @@ mkSpace :: (MonadIO m)
         -- ^ Returns false when we should stop trying
         -> GenIO
         -> m (Maybe (Space, BigWorldTopology), Maybe Statistics)
-mkSpace s n dist continue gen = case dist of
-  None -> let (a,b) = mkEmptySpace s in return (Just (a,b),Nothing)
-  Random params -> liftIO $ mkRandomlyFilledSpace params s n continue gen
+mkSpace s n params@(WallDistribution _ proba) continue gen
+ | proba > 0 = liftIO $ mkRandomlyFilledSpace params s n continue gen
+-- with 0 probability, we can't do anything else but return an empty space:
+ | otherwise = let (a,b) = mkEmptySpace s in return (Just (a,b),Nothing)
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

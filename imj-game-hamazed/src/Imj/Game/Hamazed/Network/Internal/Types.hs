@@ -76,7 +76,7 @@ data ServerState = ServerState {
   , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
   , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
-  -- ^ The second at which the 'ServerState' was created
+  -- ^ The color scheme.
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
   , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)

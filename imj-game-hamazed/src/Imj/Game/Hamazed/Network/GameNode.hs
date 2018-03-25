@@ -37,8 +37,8 @@ startServerIfLocal :: Server
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal srv@(Distant _ _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal srv@(Local logs color _) v = do
+startServerIfLocal srv@(Server (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal srv@(Server (Local logs color) _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
@@ -78,7 +78,7 @@ startClient playerName srv = do
   -- initialize the game connection
   sendToServer' qs $
     Connect playerName $
-      case srv of
+      case serverType srv of
         Local {} -> ClientOwnsServer
         Distant {} -> ClientDoesntOwnServer
   return qs

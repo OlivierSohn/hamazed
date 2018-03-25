@@ -106,11 +106,11 @@ serverLog msg = gets serverLogs >>= \case
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerPort -> Server
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent -> Server
 mkServer color logs Nothing =
-  Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color)
+  Server (Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color))
 mkServer Nothing Nothing (Just (ServerName n)) =
-  Distant $ ServerName $ map toLower n
+  Server (Distant $ ServerName $ map toLower n)
 mkServer _ (Just _) (Just _) =
   error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
 mkServer (Just _) _ (Just _) =
@@ -211,7 +211,7 @@ handleClient st sn cliType = do
             Created ->
               gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
             CreationAssigned _ ->
-              -- a game is in progress and a "next level" is being built:
+              -- A game is in progress and a "next level" is being built:
               -- add the newcomer to the assigned builders.
               continueWorldRequest Nothing wid
     forever $ liftIO (receiveData conn) >>=
@@ -298,11 +298,11 @@ addClient sn cliType = do
               clients { getClients' =
                 Map.insert i client $ getClients' clients } }
     serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient client) <$> showId i
-    gets clientsMap
-  notifyClient $ ConnectionAccepted i $
     Map.map
       (\(Client n _ _ _ _ _ _ color) -> PlayerEssence n Present color)
-      presentClients
+      <$> gets clientsMap
+  gets worldParameters >>= notifyClient . ConnectionAccepted i presentClients
+
 
 mkClientColor :: (MonadIO m, MonadState ServerState m)
               => ShipId -> m (Color8 Foreground)
@@ -514,8 +514,6 @@ handleIncomingEvent' = \case
             notifyEveryoneN $
               map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) $
               Map.toList newClients
-    Put (WallDistribution t) ->
-      onChangeWorldParams $ changeWallDistrib t
     Put (WorldShape s) ->
       onChangeWorldParams $ changeWorldShape s
     Succ x -> onDelta 1    x
@@ -526,8 +524,6 @@ handleIncomingEvent' = \case
     gets centerColor >>= notifyClient . Reporting . Put . ColorSchemeCenter
   Report (Get WorldShapeKey) ->
     worldShape <$> gets worldParameters >>= notifyClient . Reporting . Put . WorldShape
-  Report (Get WallDistributionKey) ->
-    wallDistrib <$> gets worldParameters >>= notifyClient . Reporting . Put . WallDistribution
 
   ExitedState Excluded -> gets intent >>= \case
     IntentSetup -> do
@@ -1016,35 +1012,51 @@ onDelta :: (MonadIO m, MonadState ServerState m)
         => Int
         -> SharedEnumerableValueKey
         -> m ()
-onDelta i BlockSize =
-  onChangeWorldParams $ \wp -> case wallDistrib wp of
-    None ->
-      wp
-    Random p@(RandomParameters prevBlockSize _) ->
-      wp { wallDistrib = Random p { blockSize' = prevBlockSize + i } }
-onDelta i WallProbability =
-  onChangeWorldParams $ \wp -> case wallDistrib wp of
-    None ->
-      wp
-    Random p@(RandomParameters _ prevProba) ->
-      wp { wallDistrib = Random p { wallProbability' = prevProba + fromIntegral i / 10 } }
-
+onDelta i key = onChangeWorldParams $ \wp -> case key of
+  BlockSize -> case wallDistrib wp of
+    p@(WallDistribution prevSize _) ->
+      let adjustedSize
+           | newSize < minBlockSize = minBlockSize
+           | newSize > maxBlockSize = maxBlockSize
+           | otherwise = newSize -- TODO define an upper bound and use it for the slider.
+           where newSize = prevSize + i
+      in bool
+        (Just $ wp { wallDistrib = p { blockSize' = adjustedSize } })
+        Nothing $
+        adjustedSize == prevSize
+  WallProbability -> case wallDistrib wp of
+    p@(WallDistribution _ prevProba) ->
+      let adjustedProba
+           | newProba < minWallProba = minWallProba
+           | newProba > maxWallProba = maxWallProba
+           | otherwise = newProba
+           where
+             newProba = wallProbaIncrements * fromIntegral (round (newProba' / wallProbaIncrements) :: Int)
+             newProba' = minWallProba + wallProbaIncrements * fromIntegral nIncrements
+             nIncrements = i + round ((prevProba - minWallProba) / wallProbaIncrements)
+      in bool
+        (Just $ wp { wallDistrib = p { wallProbability' = adjustedProba } })
+        Nothing $
+        adjustedProba == prevProba
 
 onChangeWorldParams :: (MonadIO m, MonadState ServerState m)
-                    => (WorldParameters -> WorldParameters)
+                    => (WorldParameters -> Maybe WorldParameters)
                     -> m ()
-onChangeWorldParams f = do
-  prevParams <- gets worldParameters
-  let newParams = f prevParams
-  when (newParams /= prevParams) $ do
-    modify' $ \s -> s { worldParameters = f $ worldParameters s }
+onChangeWorldParams f =
+  state (\s ->
+    let mayNewParams = f prevParams
+        prevParams = worldParameters s
+    in (mayNewParams
+      , maybe s (\newParams -> s { worldParameters = newParams }) mayNewParams))
+    >>= maybe (return ()) onChange
+ where
+  onChange p = do
+    notifyEveryone $ OnWorldParameters p
     requestWorld
 
-changeWallDistrib :: WallDistribution -> WorldParameters -> WorldParameters
-changeWallDistrib d p = p { wallDistrib = d }
-
-changeWorldShape :: WorldShape -> WorldParameters -> WorldParameters
-changeWorldShape d p = p { worldShape = d }
+changeWorldShape :: WorldShape -> WorldParameters -> Maybe WorldParameters
+changeWorldShape d p =
+  bool (Just $ p { worldShape = d }) Nothing $ d == worldShape p
 
 -- Game Timing:
 {-

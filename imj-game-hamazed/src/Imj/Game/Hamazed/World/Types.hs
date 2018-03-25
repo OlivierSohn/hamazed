@@ -13,7 +13,6 @@ module Imj.Game.Hamazed.World.Types
         , findShip
         , ParticleSystemKey(..)
         , WorldParameters(..)
-        , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
         , ShipId(..)
@@ -91,16 +90,6 @@ data WorldShape = Square
 
 instance Binary WorldShape
 instance NFData WorldShape
-
--- | How should walls be created?
-data WallDistribution = None
-                      -- ^ No 'Wall's.
-                      | Random !RandomParameters
-                      -- ^ 'Wall's are created with an algorithm involving random numbers.
-                      deriving(Generic, Show, Eq)
-
-instance Binary WallDistribution
-instance NFData WallDistribution
 
 data WorldSpec = WorldSpec {
     getLevelSpec' :: {-unpack sum-} !LevelSpec

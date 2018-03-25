@@ -23,11 +23,12 @@ import           Imj.Graphics.Class.Positionable
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World
 import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Graphics.UI.Slider
 
 -- | Draws the game content.
 {-# INLINABLE draw #-}
@@ -67,35 +68,47 @@ drawStatus :: (MonadState AppState m
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state gs _ _ _ _) -> do
+  gets game >>= \(Game state gs _ (Server _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       (ClientState Ongoing Setup) ->
         getCurScreen >>= \(Screen _ center) -> getWorld >>=
-          drawSetup . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace -- TODO using progressivelyInform
+          drawSetup worldParams . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace -- TODO using progressivelyInform
       _ -> return ()
     forM_ (getDrawnClientState gs) $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}
-drawSetup :: (Draw e, MonadReader e m, MonadIO m)
-          => RectContainer
+drawSetup :: (MonadReader e m, Draw e
+            , MonadIO m)
+          => Maybe WorldParameters
+          -> RectContainer
           -> m ()
-drawSetup cont = do
+drawSetup mayWorldParams cont = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
         getSideCenters cont
       left = move 12 LEFT (Coords r c)
-
+      wallsSizeSlider = maybe
+        return
+        (\(WorldParameters _ (WallDistribution size _)) ->
+            drawSlider $ Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize) 'g' 'y' configColors Compact)
+        mayWorldParams
+      wallsProbaSlider = maybe
+        return
+        (\(WorldParameters _ (WallDistribution _ proba)) ->
+            let nSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
+            in drawSlider $ Slider proba minWallProba maxWallProba nSteps 'h' 'u' configColors Compact)
+        mayWorldParams
   dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"
   dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
   void $ section "World shape"
-      [ "'1' : width is height"
-      , "'2' : width is 2 x height"
+      [ "'1' : width = height"
+      , "'2' : width = 2 x height"
       ] (move 5 Up left)
-    >>= section "World walls"
-      [ "'e' : No walls"
-      , "'r' : Random walls"
-      ]
+    >>= section "Walls size" []
+    >>= wallsSizeSlider
+    >>= section "Walls probability" []
+    >>= wallsProbaSlider
       {-
     >>= section "Center view"
       [ "'d' : On space"
@@ -111,6 +124,9 @@ drawSetup cont = do
     dText_ ("[" <> title <> "]") pos
     foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts
     return $ move (2 + length elts) Down pos
+  drawSlider s upperLeft = do
+    drawAt s $ move 2 RIGHT upperLeft
+    return $ move (fromIntegral $ height s) Down upperLeft
 
 
 {-# INLINABLE dText #-}

@@ -24,6 +24,7 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Create
+import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored

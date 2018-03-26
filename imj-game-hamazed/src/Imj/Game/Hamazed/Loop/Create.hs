@@ -25,7 +25,6 @@ import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
@@ -101,11 +100,10 @@ mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEss
     mayWid
 
 mkWorld :: WorldEssence -> Maybe WorldId -> World
-mkWorld (WorldEssence balls ships llMat) wid =
-  let space = fromListOfLists llMat
-      renderedSpace = mkRenderedSpace space
+mkWorld (WorldEssence balls ships space) wid =
+  let renderedSpace = mkRenderedSpace space
   in World (Map.map mkNumber balls) ships space renderedSpace mempty wid
 
 worldToEssence :: World -> (WorldEssence, Maybe WorldId)
 worldToEssence (World balls ships space _ _ wid) =
-  (WorldEssence (Map.map getNumEssence balls) ships (toListOfLists space), wid)
+  (WorldEssence (Map.map getNumEssence balls) ships space, wid)

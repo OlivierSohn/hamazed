@@ -1,7 +1,9 @@
--- adapted from https://github.com/Daniel-Diaz/matrix to use an unboxed vector
--- and allow indices rotation
+-- adapted from https://github.com/Daniel-Diaz/matrix to use an unboxed vector,
+-- allow indices rotation, and 0-index the matrix.
+
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
+
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
     Matrix
@@ -33,10 +35,11 @@ module Imj.Data.Matrix.Cyclic (
   ) where
 
 import           Imj.Prelude
-import           Prelude(length)
--- Classes
+import           Prelude(length, and)
+
 import           Control.DeepSeq(NFData(..))
 import           Control.Loop (numLoop)
+import           Data.Binary(Binary(..))
 import           GHC.Generics (Generic)
 -- Data
 import           Data.List(foldl')
@@ -64,8 +67,29 @@ data Matrix a = M {
  , mvect     :: !(V.Vector a)        -- ^ Content of the matrix as a plain vector.
    } deriving (Generic, Show)
 
+instance (Eq a, Unbox a)
+        => Eq (Matrix a) where
+  m1 == m2 =
+    let r = nrows m1
+        c = ncols m1
+    in  and $ (r == nrows m2) : (c == ncols m2)
+            : [ m1 ! (i,j) == m2 ! (i,j) | i <- [0 .. r-1] , j <- [0 .. c-1] ]
+
 instance NFData (Matrix a) where
  rnf = rnf . mvect
+
+instance (Binary a, Unbox a) => Binary (Matrix a) where
+  put (M a b c d) = do
+    put a
+    put b
+    put c
+    put $ V.toList d
+  get = do
+    a <- get
+    b <- get
+    c <- get
+    d <- V.fromList <$> get
+    return $ M a b c d
 
 countRotations :: (Unbox a) => Matrix a -> Int
 countRotations (M _ _ _ v) = V.length v
@@ -232,7 +256,7 @@ fromList n m = M n m 0 . V.fromListN (n*m)
 fromLists :: (Unbox a)
          => [[a]] -> Matrix a
 {-# INLINE fromLists #-}
-fromLists [] = error "fromLists: empty list."
+fromLists [] = fromList 0 0 []
 fromLists (xs:xss) = fromList n m $ concat $ xs : fmap (take m) xss
   where
     n = 1 + length xss
@@ -341,7 +365,7 @@ m ! (i,j) = getElem i j m
 safeGet :: (Unbox a)
          => Int -> Int -> Matrix a -> Maybe a
 safeGet i j a@(M n m _ _)
- | i > n || j > m || i < 1 || j < 1 = Nothing
+ | i >= n || j >= m || i < 0 || j < 0 = Nothing
  | otherwise = Just $ unsafeGet i j a
 
 -- | /O(1)/. Get a row of a matrix as a vector.

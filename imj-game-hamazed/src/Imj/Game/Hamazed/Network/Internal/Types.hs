@@ -137,7 +137,7 @@ mkGameTiming = GameTiming Nothing initalGameMultiplicator
 mkClients :: Clients
 mkClients = Clients Map.empty (ShipId 0)
 
-firstServerLevel :: Int
+firstServerLevel :: LevelNumber
 firstServerLevel = firstLevel
 
 newServerState :: ServerLogs -> ColorScheme -> IO ServerState

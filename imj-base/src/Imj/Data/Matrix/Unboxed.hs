@@ -1,6 +1,9 @@
 -- adapted from https://github.com/Daniel-Diaz/matrix to use an unboxed vector
+-- and 0-index the matrix.
 
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
+
 module Imj.Data.Matrix.Unboxed (
     -- * Matrix type
     Matrix , prettyMatrix
@@ -44,21 +47,21 @@ module Imj.Data.Matrix.Unboxed (
   , Unbox
   ) where
 
-import Prelude
--- Classes
-import Control.DeepSeq
-import Control.Loop (numLoop, numLoopFold)
-import Data.Maybe
-import Data.Monoid
+import           Imj.Prelude
+import           Prelude(length, and, unlines)
+
+import           Control.DeepSeq
+import           Control.Loop (numLoop, numLoopFold)
+import           Data.Binary(Binary(..))
 import qualified Data.Semigroup as S
-import GHC.Generics (Generic)
+import           GHC.Generics (Generic)
 -- Data
 import           Control.Monad.Primitive (PrimMonad, PrimState)
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector                     as BV
 import qualified Data.Vector.Unboxed             as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable     as MV
-import qualified Data.Matrix                     as Mat
+import qualified Data.Matrix                     as Mat -- this matrix is 1-indexed, whereas ours is 0-indexed
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -84,6 +87,14 @@ data Matrix a = M {
  , mvect     :: !(V.Vector a)          -- ^ Content of the matrix as a plain vector.
    } deriving (Generic)
 
+instance (Eq a, Unbox a)
+        => Eq (Matrix a) where
+  m1 == m2 =
+    let r = nrows m1
+        c = ncols m1
+    in  and $ (r == nrows m2) : (c == ncols m2)
+            : [ m1 ! (i,j) == m2 ! (i,j) | i <- [0 .. r-1] , j <- [0 .. c-1] ]
+
 -- | Just a cool way to output the size of a matrix.
 sizeStr :: Int -> Int -> String
 sizeStr n m = show n ++ "x" ++ show m
@@ -93,7 +104,7 @@ prettyMatrix :: (Show a, Unbox a) => Matrix a -> String
 prettyMatrix m = concat
    [ "┌ ", unwords (replicate (ncols m) blank), " ┐\n"
    , unlines
-   [ "│ " ++ unwords (fmap (\j -> fill $ strings Mat.! (i,j)) [0..pred $ ncols m]) ++ " │" | i <- [0.. pred $ nrows m] ]
+   [ "│ " ++ unwords (fmap (\j -> fill $ strings Mat.! (i,j)) [1..ncols m]) ++ " │" | i <- [1.. nrows m] ]
    , "└ ", unwords (replicate (ncols m) blank), " ┘"
    ]
  where
@@ -109,6 +120,17 @@ instance (Show a, Unbox a) => Show (Matrix a) where
 
 instance NFData (Matrix a) where
  rnf = rnf . mvect
+
+instance (Binary a, Unbox a) => Binary (Matrix a) where
+  put (M a b c) = do
+    put a
+    put b
+    put $ V.toList c
+  get = do
+    a <- get
+    b <- get
+    c <- V.fromList <$> get
+    return $ M a b c
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -134,7 +156,7 @@ mapMat func (M a b v) = M a b $ V.map func v
 mapMat' :: (Unbox a)
         => (a -> b)
         -> Matrix a -> Mat.Matrix b
-mapMat' func m = Mat.matrix (nrows m) (ncols m) (\(i,j) -> func $ unsafeGet i j m)
+mapMat' func m = Mat.matrix (nrows m) (ncols m) (\(i,j) -> func $ unsafeGet (i-1) (j-1) m)
 
 -- | /O(rows*cols)/. Map a function over a row.
 --   Example:
@@ -319,7 +341,7 @@ diagonalList n e xs = matrix n n $ \(i,j) -> if i == j then xs !! i else e
 fromLists :: (Unbox a)
          => [[a]] -> Matrix a
 {-# INLINE fromLists #-}
-fromLists [] = error "fromLists: empty list."
+fromLists [] = fromList 0 0 []
 fromLists (xs:xss) = fromList n m $ concat $ xs : fmap (take m) xss
   where
     n = 1 + length xss

@@ -7,7 +7,7 @@ module Imj.Prelude
           ) where
 
 import           Prelude as Exported
-  ( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
+  ( Eq, Show(..), Real, Num(..), Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
   , Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either

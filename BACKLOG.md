@@ -1,15 +1,13 @@
 - optimize 'spaceIsWellUsed' (see comment)
 
-- for n cc:
-min_n_air :
-  if n <= quot (l + w - 1) 2 -- at the limit, each cc has one block only
-    -- L shape with one block interruptions is minimal:
-    min_n_air = l + w - n
-  else if n < quot (l*w + 1) 2 -- at the limit we have a checkerboard
-    min_n_air = n
-  else
-    impossible to meet the n cc constraint.
-- Use min_n_air to discard matrices that have not enough air.
+- the server should not start the game until all levels are possible to create.
+Or created? level creation could occur in the background, during setup to speed up things
+for the player.
+
+- Use min_n_air / min_n_wall to discard matrices that have not enough air.
+While doing that , adapt the tests that verify min calculations so that
+they use a version that doesn't discard spaces (else the test is meaningless)
+
 - Use min_n_air to compute a theoretical upper bound for wall probability,
 given (block size, size of the world) -> small size
 and given the number of cc we want in the world (adjusted with checkerboard algo).

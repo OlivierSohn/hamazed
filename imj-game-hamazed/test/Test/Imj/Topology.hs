@@ -6,7 +6,10 @@ module Test.Imj.Topology
           ) where
 
 import           Imj.Prelude
-import           Prelude(print, putStrLn)
+import           Prelude(print, putStrLn, length)
+import           Data.Either(rights)
+import           Data.List(foldl')
+import           System.Random.MWC(GenIO, create)
 
 import           Imj.Data.Matrix.Cyclic
 
@@ -21,6 +24,7 @@ testTopology = do
   testNumComps
   testComponentsSizesWellDistributed
   testComponentsNearby
+  testMinCountAirBlocks
 
 forAnyNumberOfComponents :: (ComponentCount -> IO ())
                          -> IO ()
@@ -42,6 +46,20 @@ debugForM_ :: [Matrix Material]
 debugForM_ l act = forM_ l (\e -> do
   mapM_ putStrLn $ showInBox $ writeWorld e
   act e)
+
+displayNWorlds :: Int -> [Matrix Material] -> [String]
+displayNWorlds lineLength = concat . reverse .
+  foldl'
+    (\(line:prevLines) m -> case line of
+      [] -> m:prevLines
+      x:_ ->
+        if length x < lineLength
+          then
+            addRight line 1 m:prevLines
+          else
+            m:line:prevLines)
+    [[]]
+    . map (showInBox . writeWorld)
 
 testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
@@ -67,6 +85,94 @@ testComponentsNearby = do
   forM_ matricesWithNWellDistributedComponentsSpaceNotWellUsed
     (\(expected, m) ->
       either (`shouldBe` Just expected) (error "expected Left") $ matchTopology expected m)
+
+testMinCountAirBlocks :: IO ()
+testMinCountAirBlocks = do
+  gen <- create -- use a deterministic random numbers source
+  forM_ nComps_expectedMinAir $ uncurry $ go gen
+ where
+  sz = Size 5 3
+  countBlocks = area sz
+  nComps_expectedMinAir =
+    [ (0,Just 0)
+    , (1,Just 7), (2,Just 6), (3,Just 6) -- for the (3,Just 6) case, in 'minCountAirBlocks' an adjustment was made
+                                         -- to produce a well-distributed result.
+    , (4,Just 4) , (5,Just 5), (6,Just 6), (7,Just 7), (8, Just 8), (9, Nothing)
+    ]
+
+  go :: GenIO -> ComponentCount -> Maybe Int -> IO ()
+  go gen nComps expectedCountMinAir = do
+    putStrLn $ "testMinCountAirBlocks " ++ show (nComps, expectedCountMinAir)
+    minCountAirBlocks nComps sz `shouldBe` expectedCountMinAir
+    when (nComps > 0) $ go' 0
+   where
+    go' n = maybe
+      -- verify that it's not possible to generate a world of that size with that many components.
+      (do
+        let wallProba = 1 - fromIntegral nComps / fromIntegral countBlocks
+        validWorlds <- rights <$> generateAtLeastN 10000 (generate wallProba)
+        length validWorlds `shouldBe` 0)
+      -- verify that the number of air blocks in worlds of that size with that count of components
+      -- is according to what is expected, and that it is possible to reach the minimum.
+      (\minAirCount -> do
+        let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: Float
+        successes <- generateAtLeastN nSuccesses $
+          map getSmallMatrix . rights <$> generate wallAirRatio
+        let z = zip (map countAirElements successes) successes
+            minimals = filter (\(countAirElems, _) -> countAirElems == minAirCount) z
+            totalSuccesses = n + length successes
+        mapM_ (`shouldBeBiggerOrEqualTo` minAirCount) $ map fst z
+        bool
+          (do
+            putStrLn $
+              "Found " ++
+              show (length minimals) ++
+              " minimal configuration(s) among " ++
+              show totalSuccesses ++
+              " successes:"
+
+            mapM_ putStrLn $ displayNWorlds 100 $ map snd minimals
+            )
+          (go' totalSuccesses)
+          $ null minimals )
+      expectedCountMinAir
+
+    nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower...
+
+    generate proba =
+      concatMap (tryRotationsIfAlmostMatches matchTopology nComps) .
+        produceUsefullInterleavedVariations <$> mkSmallMat gen proba sz
+
+generateAtLeastN :: Int -> IO [a] -> IO [a]
+generateAtLeastN n act =
+  go n []
+ where
+  go remaining l
+   | remaining <= 0 = return l
+   | otherwise = act >>= \generated -> go (remaining - length generated) (generated ++ l)
+
+countAirElements :: Matrix Material -> Int
+countAirElements l = length $ filter (== Air) $ concat $ toLists l
+
+-- Test deactivated, it actually fails, and shows that we need to make sure
+-- the sum of lower bounds is smaller than the total number of blocks, else
+-- it is guaranteed that no world can be generated.
+{-
+testMinimas :: IO ()
+testMinimas =
+  forM_ [0..8] $ \i ->
+    forM_ [0..8] $ \j -> do
+      let sz = Size i j
+          nBlocks = area sz
+      forM_ [0..64] $ \n -> do
+        print (i,j,n)
+        (fromMaybe 0 (minCountAirBlocks n sz) +
+          fromMaybe 0 (minCountWallBlocks n sz)) `shouldBeSmallerOrEqualTo` nBlocks
+
+shouldBeSmallerOrEqualTo :: (Show a, Ord a) => a -> a -> IO ()
+shouldBeSmallerOrEqualTo actual maxValue =
+  unless (actual <= maxValue) $ error $ "expected <= \n" ++ show maxValue ++ " but got\n" ++ show actual
+-}
 
 matricesWithoutAirOnEveryFronteer :: [Matrix Material]
 matricesWithoutAirOnEveryFronteer = map readWorld [
@@ -397,6 +503,10 @@ shouldNotBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldNotBe actual unexpected =
   when (actual == unexpected) $ error $ "didn't expect\n" ++ show unexpected
 
+
+shouldBeBiggerOrEqualTo :: (Show a, Ord a) => a -> a -> IO ()
+shouldBeBiggerOrEqualTo actual minValue =
+  unless (actual >= minValue) $ error $ "expected >= \n" ++ show minValue ++ " but got\n" ++ show actual
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

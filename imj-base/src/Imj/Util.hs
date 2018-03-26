@@ -23,6 +23,7 @@ module Imj.Util
     , showArray
     , showDistribution
     , showInBox
+    , addRight
     , justifyR
     , justifyL
     -- * Reexports
@@ -44,13 +45,30 @@ maximumMaybe :: Ord a => [a] -> Maybe a
 maximumMaybe [] = Nothing
 maximumMaybe xs = Just $ maximum xs
 
+addRight :: [String] -> Int -> [String] -> [String]
+addRight l1' margin l2' =
+  zipWith (++)
+    (fillH l1 maxWidth1)
+    (fillH l2 maxWidth2)
+ where
+  fillH x maxWidth = take height $ x ++ repeat (replicate maxWidth ' ')
+  maxWidth1 = maxLength l1'
+  maxWidth2 = maxLength l2'
+  height = max (length l1') (length l2')
+  fillW maxWidth = map (\str -> take maxWidth $ str ++ repeat ' ')
+  l1 = fillW (maxWidth1 + margin) l1'
+  l2 = fillW maxWidth2 l2'
+
+maxLength :: [[a]] -> Int
+maxLength = fromMaybe 0 . maximumMaybe . map length
+
 showInBox :: [String] -> [String]
 showInBox l =
   bar '_' : map (withFrame '|') l ++ [bar 'T']
  where
   bar = replicate (maxWidth + 2)
-  withFrame f str = f : str ++ [f]
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map length l
+  withFrame f str = f : take maxWidth (str ++ repeat ' ') ++ [f]
+  maxWidth = maxLength l
 
 showArray :: Maybe (String, String) -> [(String,String)] -> [String]
 showArray mayTitles body =
@@ -61,8 +79,8 @@ showArray mayTitles body =
   lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
   format = map (\(a,b) -> "| " ++ justifyL a l1 ++ " | " ++ justifyR b l2 ++ " |")
   allArray = maybeToList mayTitles ++ body
-  l1 = fromMaybe 0 $ maximumMaybe $ map (length . fst) allArray
-  l2 = fromMaybe 0 $ maximumMaybe $ map (length . snd) allArray
+  l1 = maxLength $ map fst allArray
+  l2 = maxLength $ map snd allArray
 
 justifyR, justifyL :: String -> Int -> String
 justifyR x maxL =
@@ -96,7 +114,7 @@ showDistribution m =
       in foldl' (\ma k -> Map.insertWith (+) k 0 ma) m [min_..max_])
     mayMin
   l = Map.toAscList m'
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map (length . show . fst) l
+  maxWidth = maxLength $ map (show . fst) l
 
 {-# INLINABLE showListOrSingleton #-}
 -- | If list is a singleton, show the element, else show the list.

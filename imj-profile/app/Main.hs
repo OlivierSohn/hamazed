@@ -7,7 +7,7 @@ import           Control.Concurrent(threadDelay)
 import           Data.IORef(newIORef, atomicModifyIORef')
 import           Data.List(foldl')
 import qualified Data.Map.Strict as Map
-import           Data.Maybe(isJust, catMaybes)
+import           Data.Maybe(catMaybes)
 import           System.IO(hFlush, stdout)
 import           System.Random.MWC(create)
 
@@ -101,4 +101,7 @@ profileMkSmallWorld = do
     newValue <- atomicModifyIORef' r (succ &&& succ)
     return (newValue /= 20000)
   print stats
-  when (isJust res) $ error "result was found"
+  case res of
+    NeedMoreTime -> error "result was found"
+    Impossible err -> error $ "impossible :" ++ show err
+    Success _ -> return ()

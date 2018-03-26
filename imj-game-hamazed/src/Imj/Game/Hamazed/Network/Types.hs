@@ -228,7 +228,7 @@ data EventsForClient =
 data ClientEvent =
     Connect !SuggestedPlayerName {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !StateValue
-  | WorldProposal !WorldId !(Maybe WorldEssence) !(Maybe Statistics)
+  | WorldProposal !WorldId !(MkSpaceResult WorldEssence) !(Maybe Statistics)
     -- ^ In response to 'WorldRequest' 'Build'
   | CurrentGameState {-# UNPACK #-} !WorldId !(Maybe GameStateEssence)
     -- ^ In response to 'WorldRequest' 'GetGameState'
@@ -497,8 +497,9 @@ data LeaveReason =
 instance Binary LeaveReason
 
 data GameNotif =
-    LevelResult {-# UNPACK #-} !Int {-unpack sum-} !LevelOutcome
+    LevelResult {-# UNPACK #-} !LevelNumber {-unpack sum-} !LevelOutcome
   | GameWon
+  | CannotCreateLevel ![Text] {-# UNPACK #-} !LevelNumber
   deriving(Generic, Show)
 instance Binary GameNotif
 

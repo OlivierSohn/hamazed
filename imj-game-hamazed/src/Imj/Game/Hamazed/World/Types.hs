@@ -104,7 +104,7 @@ instance NFData WorldSpec
 data WorldEssence = WorldEssence {
     getNumbers :: !(Map NumId NumberEssence)
   , getShips :: !(Map ShipId BattleShip) -- TODO remove ShipId from BattleShip
-  , getSpaceMatrix :: !MaterialMatrix
+  , getSpace :: !Space
 } deriving(Generic, Show)
 instance Binary WorldEssence
 

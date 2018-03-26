@@ -24,7 +24,7 @@ import           Data.List(foldl')
 import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
 import qualified Data.Set as Set (empty, union, size, null, toList)
 import           Data.Text(pack, unpack, strip, uncons)
-import qualified Data.Text as Text(length)
+import qualified Data.Text as Text(length, intercalate)
 import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
@@ -162,6 +162,8 @@ updateAppState (Left evt) = case evt of
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor
+  toTxt' (CannotCreateLevel errs n) =
+    colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
   showReport (Put (ColorSchemeCenter c)) =
     ("color scheme center:" <>) $ pack $ show $ color8CodeToXterm256 c

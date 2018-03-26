@@ -31,6 +31,7 @@ import           Data.Set (Set)
 import qualified Data.Set as Set (difference, union, lookupMin, empty, singleton, null, insert, delete, size)
 import           Data.Maybe(isJust)
 import           Data.Text(pack, unpack, justifyRight)
+import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
 import           Network.WebSockets
                   (PendingConnection, WebSocketsData(..), Connection, DataMessage(..),
@@ -463,7 +464,9 @@ error' from msg = do
  where
   txt = Prel.intercalate "|" [from, "error from Server", msg]
 
-serverError :: String -> StateT ServerState IO ()
+serverError :: (MonadIO m, MonadState ServerState m)
+            => String
+            -> m ()
 serverError msg = do
   serverLog $ pure $ colored (pack txt) red
   notifyEveryone $ ServerError txt
@@ -594,25 +597,29 @@ handleIncomingEvent' = \case
               void $ updateCurrentStatus $ Just curStatus
             _ -> error $ "inconsistent:"  ++ show curStatus)
 
-  WorldProposal wid mayEssence stats -> maybe
-    -- No world essence was created.
-    (continueWorldRequest stats wid)
-    -- A world essence was created. It may be too late though:
-    (\essence -> get >>= \(ServerState _ _ _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _ _) ->
-        bool
-          (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
-          (case st of
-            Created ->
-              serverLog $ pure $ colored ("Dropped already created world " <> pack (show wid)) blue
-            CreationAssigned _ -> do
-              -- This is the first valid world essence, so we can cancel the request
-              cancelWorldRequest
-              let newStats = mergeMayStats stats prevStats
-              log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
-              modify' $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
-              notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
-          $ key == wid)
-    mayEssence
+  WorldProposal wid mkEssenceRes stats -> case mkEssenceRes of
+    Impossible errs -> gets intent >>= \case
+      IntentSetup -> gets levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
+      IntentPlayGame _ ->
+        fmap levelNumber (gets levelSpecification) >>= \ln -> do
+          notifyPlayers $ GameInfo $ CannotCreateLevel errs ln
+          -- TODO before launching the game we should check that it is possible to create all levels.
+          serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
+
+    NeedMoreTime -> continueWorldRequest stats wid
+    Success essence -> get >>= \(ServerState _ _ _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _ _) -> bool
+      (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
+      (case st of
+        Created ->
+          serverLog $ pure $ colored ("Dropped already created world " <> pack (show wid)) blue
+        CreationAssigned _ -> do
+          -- This is the first valid world essence, so we can cancel the request
+          cancelWorldRequest
+          let newStats = mergeMayStats stats prevStats
+          log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
+          modify' $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
+          notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
+      $ key == wid
   CurrentGameState wid mayGameStateEssence -> maybe
     (handlerError $ "Could not get GameState " ++ show wid)
     (\gameStateEssence ->

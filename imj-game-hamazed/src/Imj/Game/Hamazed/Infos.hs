@@ -3,8 +3,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Infos(
-        mkInfos
+module Imj.Game.Hamazed.Infos
+      ( mkInfos
       , mkLeftInfo
       , InfoType(..)
       ) where
@@ -33,8 +33,8 @@ text' x = colored (map textGlyph x)
 number :: String -> Color8 Foreground -> ColoredGlyphList
 number x = colored (map gameGlyph x)
 
-mkLevelCS :: InfoType -> Int -> Successive ColoredGlyphList
-mkLevelCS t level =
+mkLevelCS :: InfoType -> LevelNumber -> Successive ColoredGlyphList
+mkLevelCS t (LevelNumber level) =
   let neutralColor = neutralMessageColorFg
       txt x = text "Level " <> number (show level) x <> text " / " <> number (show lastLevel) neutralColor
   in Successive $ map txt $ case t of

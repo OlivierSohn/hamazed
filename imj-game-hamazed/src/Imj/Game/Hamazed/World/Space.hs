@@ -2,12 +2,10 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.World.Space
     ( Space
-    , toListOfLists
-    , fromListOfLists
     , Material(..)
     , mkEmptySpace
     , mkFilledSpace
@@ -21,8 +19,11 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     -- for tests
+    , minCountAirBlocks
+    , minCountWallBlocks
     , mkSmallWorld
     , mkSmallMat
+    , tryRotationsIfAlmostMatches
     , matchTopology
     , getComponentCount
     , TopoMatch
@@ -34,16 +35,17 @@ import           Data.Either(partitionEithers, isLeft)
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
 import           Data.List(length, sortOn)
 import qualified Data.List as List (foldl')
-import           Data.Maybe(mapMaybe, listToMaybe)
+import           Data.Maybe(mapMaybe)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(alter, insert, insertWith, empty, lookup, toAscList, fromDistinctAscList)
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
+import           Data.Text(pack)
 import           Data.Tree(flatten)
-import qualified Data.Vector.Unboxed as V (Vector, fromList, length, (!), foldl')
+import qualified Data.Vector.Unboxed as V (fromList, length, (!), foldl')
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
-import           Imj.Data.Matrix.Unboxed(fromLists, toLists)
+import           Imj.Data.Matrix.Unboxed(fromLists)
 import           Imj.Data.Matrix.Cyclic(produceRotations, produceUsefullInterleavedVariations)
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space.Types
@@ -51,12 +53,6 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Physics.Discrete
 import           Imj.Timing
 import           Imj.Util
-
-toListOfLists :: Space -> MaterialMatrix
-toListOfLists (Space mat) = MaterialMatrix $ toLists mat
-
-fromListOfLists :: MaterialMatrix -> Space
-fromListOfLists (MaterialMatrix m) = Space $ fromLists m
 
 -- | Creates a 'PosSpeed' from a position,
 -- moves to precollision and mirrors speed if a collision is detected for
@@ -117,16 +113,16 @@ randomSpeed gen = do
 
 
 -- | Creates a rectangular empty space of size specified in parameters.
-mkEmptySpace :: Size -> (Space, BigWorldTopology)
+mkEmptySpace :: Size -> BigWorld
 mkEmptySpace s =
-  (mkSpaceFromMat s $ MaterialMatrix [[Air]], mkEmptyBigWorldTopology s)
+  BigWorld (mkSpaceFromMat s [[Air]]) $ mkEmptyBigWorldTopology s
 
-mkFilledSpace :: Size -> (Space, BigWorldTopology)
+mkFilledSpace :: Size -> BigWorld
 mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
   let w = fromIntegral widthEmptySpace
       h = fromIntegral heightEmptySpace
       l = replicate h $ replicate w Wall
-  in (mkSpaceFromMat s $ MaterialMatrix l, mkFilledBigWorldTopology s)
+  in BigWorld (mkSpaceFromMat s l) $ mkFilledBigWorldTopology s
 
 -- | Creates a rectangular random space of size specified in parameters.
 -- 'IO' is used for random numbers generation.
@@ -136,22 +132,27 @@ mkRandomlyFilledSpace :: WallDistribution
                       -> IO Bool
                       -- ^ Computation stops when it returns False
                       -> GenIO
-                      -> IO (Maybe (Space, BigWorldTopology), Maybe Statistics)
-mkRandomlyFilledSpace _ s 0 _ _ =
-  let (a,b) = mkFilledSpace s
-  in return (Just (a,b),Nothing)
+                      -> IO (MkSpaceResult BigWorld, Maybe Statistics)
+mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s,Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gen
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue >>= \(mayWT, stats) ->
+  | otherwise = mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue >>= \(res, stats) ->
   return
-    (maybe
-      Nothing
-      (\(MaterialMatrix smallWorldMat, smallTopo) ->
-        let replicateElems = replicateElements blockSize
-            innerMat = replicateElems $ map replicateElems smallWorldMat
-        in Just (mkSpaceFromMat s $ MaterialMatrix innerMat, smallToBig blockSize s smallTopo))
-      mayWT
+    (case res of
+      NeedMoreTime -> NeedMoreTime
+      Impossible bounds -> Impossible bounds
+      Success small -> Success $ smallWorldToBigWorld s blockSize small
     , Just stats)
+
+smallWorldToBigWorld :: Size
+                     -> Int
+                     -> SmallWorld
+                     -> BigWorld
+smallWorldToBigWorld s blockSize (SmallWorld smallWorldMat smallTopo) =
+  BigWorld (mkSpaceFromMat s innerMat) (smallToBig blockSize s smallTopo)
+ where
+  replicateElems = replicateElements blockSize
+  innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
 
 bigToSmall :: Size -> Int -> Size
 bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
@@ -176,20 +177,26 @@ mkSmallWorld :: GenIO
              -- ^ Wall / Air ratio
              -> IO Bool
              -- ^ Can continue?
-             -> IO (Maybe (MaterialMatrix, SmallWorldTopology), Statistics)
+             -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
 mkSmallWorld gen s nComponents' wallAirRatio continue
   | nComponents' == 0 = error "should be handled by caller"
-  | otherwise = withDuration (go zeroStats) >>= \((r,stats),dt) ->
-      return (listToMaybe r, stats { totalTime = dt })
+  | otherwise = either
+      (\_ ->
+        return (Impossible [pack $ show lowerBounds], zeroStats))
+      (\_ -> withDuration (go zeroStats) >>= \((r,stats),dt) ->
+        return (case r of
+                [] -> NeedMoreTime
+                small:_ -> Success small
+              , stats { totalTime = dt }))
+      $ diagnostic lowerBounds
  where
+  lowerBounds = mkLowerBounds s nComponents'
   go stats = continue >>= bool
     (return ([], stats))
       -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
     (takeWhilePlus isLeft . concatMap -- stop at the first success.
-      (\x ->
-        let res = matchTopology nComponents x
-        in tryRotationsIfAlmostMatches nComponents x res) . produceUsefullInterleavedVariations
+      (tryRotationsIfAlmostMatches matchTopology nComponents) . produceUsefullInterleavedVariations
           <$> mkSmallMat gen wallAirRatio s >>= \l -> do
       let !newStats = updateStats l stats
       case partitionEithers l of
@@ -205,11 +212,11 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
           $ mapMaybe getComponentCount l
     in Statistics i' j' dt
 
-type TopoMatch = Either (Maybe ComponentCount) (MaterialMatrix, SmallWorldTopology)
+type TopoMatch = Either (Maybe ComponentCount) SmallWorld
 
 getComponentCount :: TopoMatch -> Maybe ComponentCount
 getComponentCount (Left c) = c
-getComponentCount (Right (_,topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
+getComponentCount (Right (SmallWorld _ topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
 
 -- Indicates if there is a /real/ wall (i.e not an out of bounds position) in a given direction
 data OrthoWall = OrthoWall {
@@ -229,7 +236,7 @@ matchTopology nComponents r
   | not wellDistributed   = Left $ Just nComps
     -- from here on, if the number of components is > 1, we compute the distances between components
   | not spaceIsWellUsed   = Left $ Just nComps
-  | otherwise = Right (MaterialMatrix $ Cyclic.toLists r, SmallWorldTopology comps vtxToCoords)
+  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps vtxToCoords
  where
   nComps = ComponentCount $ length gcomps
   gcomps = components graph
@@ -381,15 +388,21 @@ matchTopology nComponents r
   nRows = Cyclic.nrows r
   nCols = Cyclic.ncols r
 
-tryRotationsIfAlmostMatches :: ComponentCount -> Cyclic.Matrix Material -> TopoMatch -> [TopoMatch]
-tryRotationsIfAlmostMatches _ _ r@(Right _) = [r]
-tryRotationsIfAlmostMatches _ _ r@(Left Nothing) = [r]
-tryRotationsIfAlmostMatches n m r@(Left (Just nComps))
-  | abs (n - nComps) <= 5 = -- TODO Maybe the bound should be randomized? At least, fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
-    -- we are already close to the target number, so
-    -- there is a good probability that rotating will trigger the component match.
-    map (matchTopology n) $ drop 1 $ produceRotations m -- skip zero rotation, which has already been tested
-  | otherwise = [r]
+tryRotationsIfAlmostMatches :: (ComponentCount -> Cyclic.Matrix Material -> TopoMatch)
+                            -> ComponentCount
+                            -> Cyclic.Matrix Material
+                            -> [TopoMatch]
+tryRotationsIfAlmostMatches matchTopo n m =
+  go $ matchTopo n m
+ where
+  go r@(Right _) = [r]
+  go r@(Left Nothing) = [r]
+  go r@(Left (Just nComps))
+   | abs (n - nComps) <= 5 = -- TODO Maybe the bound should be randomized? At least, fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
+     -- we are already close to the target number, so
+     -- there is a good probability that rotating will trigger the component match.
+     map (matchTopo n) $ drop 1 $ produceRotations m -- skip zero rotation, which has already been tested
+   | otherwise = [r]
 
 mkSmallMat :: GenIO
            -> Float
@@ -400,17 +413,6 @@ mkSmallMat :: GenIO
 mkSmallMat gen wallAirRatio (Size nRows nCols) =
   Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) <$>
     replicateM (fromIntegral nRows * fromIntegral nCols) (randBiasedMaterial gen wallAirRatio)
-
-data SmallWorldTopology = SmallWorldTopology {
-    getConnectedComponents :: [ConnectedComponent]
-  , _vertexToCoords :: Vertex -> Coords Pos
-  -- ^ Used to get 'ConnectedComponent''s coordinates w.r.t small world
-} deriving(Generic)
-instance Show SmallWorldTopology where
-  show (SmallWorldTopology a _) = show ("SmallWorldTopology:",a)
-
-newtype ConnectedComponent = ConnectedComponent (V.Vector Vertex)
-  deriving(Generic, Show)
 
 
 {-# INLINE countSmallCCElts #-}
@@ -498,11 +500,9 @@ graphOfIndex material mat =
         r < 0 || c < 0 || r >= nRows || c >= nCols || Cyclic.unsafeGet r c mat /= material)
       [translateInDir LEFT pos, translateInDir Down pos]
 
-mkSpaceFromMat :: Size -> MaterialMatrix -> Space
-mkSpaceFromMat s (MaterialMatrix matMaybeSmaller) =
-  let ext = extend s matMaybeSmaller
-      mat = fromLists ext
-  in Space mat
+mkSpaceFromMat :: Size -> [[Material]] -> Space
+mkSpaceFromMat s matMaybeSmaller =
+  Space $ fromLists $ extend s matMaybeSmaller
 
 extend :: Size -> [[a]] -> [[a]]
 extend (Size rs cs) mat =
@@ -526,10 +526,58 @@ extend'' final initial =
 
 randBiasedMaterial :: GenIO -> Float -> IO Material
 randBiasedMaterial gen r =
-  (\v ->
-    if v < r
-      then intToMat 0
-      else intToMat 1) <$> uniform gen
+  (\v -> intToMat $ bool 1 0 $ v < r) <$> uniform gen
+
+mkLowerBounds :: Size
+              -> ComponentCount
+              -> LowerBounds
+              -- ^ Nothing is returned when no such world can be generated.
+mkLowerBounds sz n =
+  LowerBounds diagnose mayMinAir mayMinWall total
+ where
+  mayMinAir = minCountAirBlocks n sz
+  mayMinWall = minCountWallBlocks n sz
+  total = area sz
+  sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show n)
+  diagnose =
+    maybe
+      (Left sizeMsg)
+      (\minAir ->
+        maybe
+          (Left sizeMsg)
+          (\minWall -> bool (Left sizeMsg) (Right ()) $ minAir + minWall <= total)
+          mayMinWall)
+      mayMinAir
+
+minCountAirBlocks :: ComponentCount -> Size -> Maybe Int
+minCountAirBlocks (ComponentCount n) (Size (Length h) (Length w))
+  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
+  | n <= 0 = Just 0
+  | n <= quot (h + w - 1) 2 = Just $ adjustForGoodDistribution $ h + w - n -- L shape with one block interruptions is minimal.
+  | n <= quot (h*w + 1) 2 = Just n -- all of size 1, note that at the limit, we have a checkerboard
+  | otherwise = Nothing -- impossible to meet the n cc constraint.
+  where
+   -- 'adjustForGoodDistribution' answers the following problem:
+   --
+   -- Given a number of components and a minimum count of air blocks,
+   -- what is the minimum count of air blocks needed to form a
+   -- well-distributed world?
+   adjustForGoodDistribution minCount
+    | count1 == 1 && count2 > 0 =
+     -- we would have some having 1 block, some other having 2,
+     -- which is a badly distributed configuration. Hence the answer is 2*n.
+        2*n
+    | otherwise = minCount
+    where
+     (count1,count2) = quotRem minCount n
+
+minCountWallBlocks :: ComponentCount -> Size -> Maybe Int
+minCountWallBlocks (ComponentCount n) (Size (Length h) (Length w))
+  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
+  | n <= 0 = Just $ w*h
+  | n <= quot (h*w + 1) 2 = Just $ n - 1 -- at the limit, we have a checker board
+  | otherwise = Nothing
+
 
 intToMat :: Int -> Material
 intToMat 0 = Wall
@@ -550,13 +598,13 @@ getMaterial coords@(Coords r c) space
 -- the manhattan distance to the space border.
 distanceToSpace :: Coords Pos -> Space -> Int
 distanceToSpace (Coords r c) space =
-    dist r (rs-1) + dist c (cs-1)
-  where
-    (Size rs cs) = getSize space
-    dist x b
-      | x < 0 = fromIntegral $ - x
-      | x > fromIntegral b = fromIntegral x - fromIntegral b
-      | otherwise = 0
+  dist r (rs-1) + dist c (cs-1)
+ where
+  (Size rs cs) = getSize space
+  dist x b
+   | x < 0 = fromIntegral $ - x
+   | x > fromIntegral b = fromIntegral x - fromIntegral b
+   | otherwise = 0
 
 materialToLocation :: Material -> Location
 materialToLocation m = case m of

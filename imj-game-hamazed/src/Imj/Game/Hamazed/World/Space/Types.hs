@@ -11,10 +11,12 @@
 
 module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
+    , mkZeroSpace
+    , MkSpaceResult(..)
+    , LowerBounds(..)
     , RenderedSpace(..)
     , getSize
     , Material(..)
-    , MaterialMatrix(..)
     , WallDistribution(..)
     , DrawGroup(..)
     , Scope(..)
@@ -22,7 +24,11 @@ module Imj.Game.Hamazed.World.Space.Types
     , zeroStats
     , mergeStats
     , mergeMayStats
+    , BigWorld(..)
     , BigWorldTopology(..)
+    , SmallWorld(..)
+    , SmallWorldTopology(..)
+    , ConnectedComponent(..)
     , ComponentCount(..)
     , ComponentIdx(..)
     , getComponentIndices
@@ -37,12 +43,15 @@ import           Imj.Prelude
 
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
+import           Data.Graph(Vertex)
 import           Data.List(unlines)
-import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet)
+import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet, fromLists)
+import qualified Imj.Data.Matrix.Cyclic as Cyclic(Matrix)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(toAscList, foldl')
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Vector.Unboxed.Deriving(derivingUnbox)
+import           Data.Vector.Unboxed(Vector)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
@@ -70,17 +79,8 @@ data DrawGroup = DrawGroup {
   , _drawGroupCount :: {-# UNPACK #-} !Int
 }
 
-newtype Space = Space (Matrix Material)
-
 -- | How to draw the space.
 newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an array to have better memory layout
-
-{-# INLINE getSize #-}
-getSize :: Space -> Size
-getSize (Space m) = Size (Length $ nrows m) (Length $ ncols m)
-
-newtype MaterialMatrix = MaterialMatrix [[Material]] -- TODO ByteString would use 3 * 64 times less memory
-  deriving(Generic, Show, Binary)
 
 data Material = Air
               -- ^ In it, ship and numbers can move.
@@ -93,6 +93,17 @@ derivingUnbox "Material"
     [| (== Wall) |]
     [| \ i -> if i then Wall else Air|]
 
+
+newtype Space = Space (Matrix Material)
+  deriving(Generic, Show, Binary, NFData)
+
+mkZeroSpace :: Space
+mkZeroSpace = Space $ fromLists []
+
+{-# INLINE getSize #-}
+getSize :: Space -> Size
+getSize (Space m) = Size (Length $ nrows m) (Length $ ncols m)
+
 unsafeGetMaterial :: Coords Pos -> Space -> Material
 unsafeGetMaterial (Coords (Coord r) (Coord c)) (Space mat) =
   unsafeGet r c mat
@@ -104,11 +115,43 @@ data Scope = WorldScope !Material
            deriving(Show)
 
 
+data MkSpaceResult r =
+    Success r
+  | NeedMoreTime
+  | Impossible [Text]
+  deriving (Generic, Show)
+instance (Binary r) => Binary (MkSpaceResult r)
+instance (NFData r) => NFData (MkSpaceResult r)
+
+
+-- | These 'LowerBounds' can be used to prune the search space, and
+-- to adapt user probabilities.
+data LowerBounds = LowerBounds {
+    diagnostic :: Either Text ()
+    -- ^ 'Left' if the world cannot be built due to topological constraints.
+  , minAirBlocks, minWallBlocks :: !(Maybe Int)
+    -- ^ The minimium count of air and wall blocks. If any of them is is Nothing, the world is impossible to build.
+  , totalBlocks :: {-# UNPACK #-} !Int
+  -- ^ The total number of blocks in the world.
+} deriving(Generic, Show)
+
+data BigWorld = BigWorld {
+    _bigSpace :: {-# UNPACK #-} !Space
+  , _bigTopo :: !BigWorldTopology
+}
+
+data SmallWorld = SmallWorld {
+    getSmallMatrix :: {-# UNPACK #-} !(Cyclic.Matrix Material)
+  , _smallTopo :: !SmallWorldTopology
+}
+
 data BigWorldTopology = BigWorldTopology {
     countComponents :: {-# UNPACK #-} !Int
   , getComponentSize :: ComponentIdx -> Int
   , getEltCoords :: ComponentIdx -> Int -> Coords Pos
-}
+} deriving (Generic)
+instance Show BigWorldTopology where
+  show (BigWorldTopology a _ _) = show ("BigWorldTopology", a)
 
 getComponentIndices :: BigWorldTopology -> [ComponentIdx]
 getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
@@ -119,6 +162,17 @@ newtype ComponentIdx = ComponentIdx Int
 newtype ComponentCount = ComponentCount Int
   deriving(Generic, Eq, Ord, Show, Binary, Num, Enum, Integral, Real)
 instance NFData ComponentCount
+
+data SmallWorldTopology = SmallWorldTopology {
+    getConnectedComponents :: [ConnectedComponent]
+  , _vertexToCoords :: Vertex -> Coords Pos
+  -- ^ Used to get 'ConnectedComponent''s coordinates w.r.t small world
+} deriving(Generic)
+instance Show SmallWorldTopology where
+  show (SmallWorldTopology a _) = show ("SmallWorldTopology:",a)
+
+newtype ConnectedComponent = ConnectedComponent (Vector Vertex)
+  deriving(Generic, Show)
 
 data Statistics = Statistics {
     countGeneratedMatrixes :: {-# UNPACK #-} !Int

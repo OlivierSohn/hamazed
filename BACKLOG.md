@@ -1,8 +1,5 @@
 - optimize 'spaceIsWellUsed' (see comment)
 
-- currently when a random distribution doesn't have enough air on fronteers, we discard it.
-Instead we could compute its number of cc and maybe use it with interleaving / rotations.
-
 - Use min_n_air to compute a theoretical upper bound for wall probability,
 given (block size, size of the world) -> small size
 and given the number of cc we want in the world (adjusted with checkerboard algo).
@@ -114,7 +111,7 @@ CC 3 ...
  X
 
 - with carefull benchmarking:
-** in produceUsefullInterleavedVariations : are matrices generated one by one?
+** in produceUsefulInterleavedVariations : are matrices generated one by one?
 
 ** adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
 

@@ -4,18 +4,19 @@ import           Imj.Prelude
 import           Prelude(print, putStrLn, putStr, length)
 import           Control.Arrow((&&&))
 import           Control.Concurrent(threadDelay)
-import           Data.IORef(newIORef, atomicModifyIORef')
+import           Data.IORef(newIORef, atomicModifyIORef', readIORef)
 import           Data.List(foldl')
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(catMaybes)
 import           System.IO(hFlush, stdout)
 import           System.Random.MWC(create)
 
-import           Imj.Data.Matrix.Cyclic(Matrix, produceUsefullInterleavedVariations, unsafeGet, nrows, ncols)
+import           Imj.Data.Matrix.Cyclic(Matrix, produceUsefulInterleavedVariations, unsafeGet, nrows, ncols)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Space.Read
+import           Imj.Timing
 import           Imj.Util
 
 -- command used to profile:
@@ -23,9 +24,10 @@ import           Imj.Util
 
 main :: IO ()
 main =
-  --profileMkSmallWorld
+  profileMkSmallWorld
+  --printVariations2
   --printVariations
-  measureMemory
+  --measureMemory
 
 measureMemory :: IO ()
 measureMemory = do
@@ -34,7 +36,7 @@ measureMemory = do
     delay "Make random mat"
     unsafeMkSmallMat gen 0.7 (Size 1000 1000) >>= \m -> do
       delay "print all" -- Here we have 126 M
-      let l = produceUsefullInterleavedVariations m
+      let l = produceUsefulInterleavedVariations m
       print (length l, map matrixSum l)
       delay "Produce, getTopology, analyze " -- Still 126 M
       mapM
@@ -74,16 +76,23 @@ analyzeDistribution l = do
       putStrLn "")
     $ Map.lookupMin d
 
+printVariations2 :: IO ()
+printVariations2 = do
+  gen <- create -- use a deterministic random numbers source
+  replicateM_ 1 $
+    produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen 0.8 (Size 18 9)
+       >>= mapM_ (mapM_ putStrLn . showInBox . writeWorld)
+
 printVariations :: IO ()
 printVariations = do
   gen <- create -- use a deterministic random numbers source
   forever $
-    map getTopology . produceUsefullInterleavedVariations <$> unsafeMkSmallMat gen 0.7 (Size 6 12)
+    map getTopology . produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen 0.8 (Size 18 9)
        >>= analyzeDistribution
 
 getTopology :: Matrix Material -> (Maybe ComponentCount, IO ())
 getTopology r =
-  let res = matchTopology (ComponentCount 1) r
+  let res = matchTopology DontForceComputeComponentCount (ComponentCount 1) r
       compCount = getComponentCount res
       render = do
         print compCount
@@ -97,11 +106,13 @@ profileMkSmallWorld = do
   -- use a deterministic random numbers source
   gen <- create
   r <- newIORef (0 :: Int)
-  (res, stats) <- mkSmallWorld gen (Size 10 5) (ComponentCount 1) 0.7 $ do
-    newValue <- atomicModifyIORef' r (succ &&& succ)
-    return (newValue /= 20000)
-  print stats
+  ((res, stats), duration) <- withDuration $
+    mkSmallWorld gen (Size 18 9) (ComponentCount 1) 0.8 $ do
+      newValue <- atomicModifyIORef' r (succ &&& succ)
+      return (newValue /= 200)
+  putStrLn $ prettyShowStats stats
+  print duration -- min   without stats, 4.75 with stats
   case res of
-    NeedMoreTime -> error "result was found"
+    NeedMoreTime -> return ()
     Impossible err -> error $ "impossible :" ++ show err
-    Success _ -> return ()
+    Success _ -> readIORef r >>= \iteration -> error $ "result found at iteration " ++ show iteration

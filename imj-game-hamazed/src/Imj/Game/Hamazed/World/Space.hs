@@ -31,6 +31,7 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
+import           Prelude(putStrLn, print)
 
 import           Data.Either(partitionEithers, isLeft)
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
@@ -47,7 +48,6 @@ import qualified Data.Vector.Unboxed as V (fromList, length, (!), foldl')
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
 import           Imj.Data.Matrix.Unboxed(fromLists)
-import           Imj.Data.Matrix.Cyclic(produceRotations, produceUsefullInterleavedVariations)
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
@@ -180,7 +180,7 @@ mkSmallWorld :: GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen s nComponents' wallAirRatio continue
+mkSmallWorld gen sz nComponents' wallAirRatio continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\_ ->
@@ -189,10 +189,13 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
         return (case r of
                 [] -> NeedMoreTime
                 small:_ -> Success small
-              , stats { totalTime = dt }))
+              , stats { totalTime = dt
+                      , countInterleavedVariations = Cyclic.countUsefulInterleavedVariations2D sz
+                      , countRotationsByIV = Cyclic.countRotations' sz }))
       $ diagnostic lowerBounds
  where
-  lowerBounds = mkLowerBounds s nComponents'
+  lowerBounds = mkLowerBounds sz nComponents'
+
   go stats = continue >>= bool
     (return ([], stats))
       -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
@@ -200,21 +203,41 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
       ((: []) . Left)
       -- stop at first success
       (takeWhilePlus isLeft . concatMap (tryRotationsIfAlmostMatches matchTopology nComponents) .
-          produceUsefullInterleavedVariations)
-      <$> mkSmallMat gen wallAirRatio s lowerBounds >>= \l -> do
-      let !newStats = updateStats l stats
+          Cyclic.produceUsefulInterleavedVariations)
+      <$> mkSmallMat gen wallAirRatio sz lowerBounds >>= \l -> do
+      let !newStats = updateStats stats l
       case partitionEithers l of
         (_,[]) -> go newStats
         (_,successes) -> return (successes, newStats))
+
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
-  maxNComp = ComponentCount $ succ $ quot (pred $ area s) 2 -- for checkerboard-like layout
-  updateStats l (Statistics i j dt) =
-    let i' = i + length l
-        j' = List.foldl'
-          (flip $ Map.alter (Just . succ . fromMaybe 0))
-          j
-          $ mapMaybe getComponentCount l
-    in Statistics i' j' dt
+  maxNComp = ComponentCount $ succ $ quot (pred $ area sz) 2 -- for checkerboard-like layout
+
+  updateStats s l =
+    let s' = List.foldl' addToStats s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
+    in s' { countRandomMatrices = 1 + countRandomMatrices s}
+  addToStats s elt =
+   let s'' = case elt of
+        Right (SmallWorld _ topo) ->
+          let nComps = ComponentCount $ length $ getConnectedComponents topo
+          in addNComp nComps s
+        Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
+        Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+        Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
+        Left (CC x nComps) -> addNComp nComps $ case x of
+          ComponentCountMismatch ->
+            s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
+          ComponentsSizesNotWellDistributed ->
+            s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
+          SpaceNotUsedWellEnough ->
+            s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
+          UnusedFronteers' ->
+            s { countUnusedFronteers = 1 + countUnusedFronteers s }
+   in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
+
+  addNComp n s =
+    s { countGeneratedGraphsByComponentCount =
+      Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
 
 type TopoMatch = Either SmallWorldRejection SmallWorld
 
@@ -231,11 +254,14 @@ data OrthoWall = OrthoWall {
     -- ^ 'Just' if a real wall is at distance 1 in the given 'Direction'.
 }
 
-matchTopology :: ComponentCount
+matchTopology :: MatchOption
+              -> ComponentCount
               -> Cyclic.Matrix Material
               -> TopoMatch
-matchTopology nComponents r
-  | not $ smallMatHasAirOnEveryFronteer r = Left UnusedFronteers
+matchTopology option nComponents r
+  | not $ smallMatHasAirOnEveryFronteer r = case option of
+      DontForceComputeComponentCount -> Left UnusedFronteers
+      ForceComputeComponentCount -> Left $ CC UnusedFronteers' nComps
   | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
     -- from here on, comps is evaluated.
   | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
@@ -393,21 +419,30 @@ matchTopology nComponents r
   nRows = Cyclic.nrows r
   nCols = Cyclic.ncols r
 
-tryRotationsIfAlmostMatches :: (ComponentCount -> Cyclic.Matrix Material -> TopoMatch)
+tryRotationsIfAlmostMatches :: (MatchOption -> ComponentCount -> Cyclic.Matrix Material -> TopoMatch)
                             -> ComponentCount
                             -> Cyclic.Matrix Material
                             -> [TopoMatch]
-tryRotationsIfAlmostMatches matchTopo n m =
-  go $ matchTopo n m
+tryRotationsIfAlmostMatches matchTopo n zeroRotation =
+
+  zeroRotationRes : tryRotation
+
  where
-  go r@(Right _) = [r]
-  go r@(Left (CC _ nComps))
-   | abs (n - nComps) <= 5 = -- TODO Maybe the bound should be randomized? At least, fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
+
+  tryRotation = case zeroRotationRes of
+    Right _ -> []
+    Left (CC _ nComps) -> try nComps
+    Left _ -> []
+
+  try nComps
+   | -- TODO Maybe the bound should be randomized? or it should be min w h of the world?
+     abs (n - nComps) <= 5 =
      -- we are already close to the target number, so
      -- there is a good probability that rotating will trigger the component match.
-     map (matchTopo n) $ drop 1 $ produceRotations m -- skip zero rotation, which has already been tested
-   | otherwise = [r]
-  go r@(Left _) = [r] -- TODO use UnusedFronteers too? we could compute the number of components here and decide if it's worth it.
+     map (matchTopo DontForceComputeComponentCount n) $ drop 1 $ Cyclic.produceRotations zeroRotation -- skip zero rotation, which has already been tested
+   | otherwise = []
+
+  zeroRotationRes = matchTopo ForceComputeComponentCount n zeroRotation
 
 mkSmallMat :: GenIO
            -> Float

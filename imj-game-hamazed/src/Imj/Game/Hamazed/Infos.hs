@@ -36,7 +36,8 @@ number x = colored (map gameGlyph x)
 mkLevelCS :: InfoType -> LevelNumber -> Successive ColoredGlyphList
 mkLevelCS t (LevelNumber level) =
   let neutralColor = neutralMessageColorFg
-      txt x = text "Level " <> number (show level) x <> text " / " <> number (show lastLevel) neutralColor
+      (LevelNumber lastLev) = lastLevel
+      txt x = text "Level " <> number (show level) x <> text " / " <> number (show lastLev) neutralColor
   in Successive $ map txt $ case t of
       Normal        -> [neutralColor]
       ColorAnimated -> [red, neutralColor]

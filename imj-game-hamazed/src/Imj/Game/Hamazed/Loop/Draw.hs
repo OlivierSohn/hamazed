@@ -89,13 +89,13 @@ drawSetup mayWorldParams cont = do
       wallsSizeSlider = maybe
         return
         (\(WorldParameters _ (WallDistribution size _)) ->
-            drawSlider $ Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize) 'g' 'y' configColors Compact)
+            drawSlider $ Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize) 'y' 'g' configColors Compact)
         mayWorldParams
       wallsProbaSlider = maybe
         return
         (\(WorldParameters _ (WallDistribution _ proba)) ->
             let nSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
-            in drawSlider $ Slider proba minWallProba maxWallProba nSteps 'h' 'u' configColors Compact)
+            in drawSlider $ Slider proba minWallProba maxWallProba nSteps 'u' 'h' configColors Compact)
         mayWorldParams
   dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"

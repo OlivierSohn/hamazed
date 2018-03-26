@@ -30,6 +30,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , BigWorldTopology(..)
     , SmallWorld(..)
     , SmallWorldTopology(..)
+    , MatchOption(..)
     , ConnectedComponent(..)
     , ComponentCount(..)
     , ComponentIdx(..)
@@ -134,24 +135,29 @@ data SmallWorldRejection =
                         -- in it to build a world of given 'Size' / 'ComponentCount'.
                         -- (see 'LowerBounds')
   | UnusedFronteers -- some fronteer sides had no 'Air'
-  | CC SmallWorldComponentsRejection !ComponentCount
+  | CC !SmallWorldComponentsRejection !ComponentCount
   deriving(Generic, Show, Eq)
 instance Binary SmallWorldRejection
 instance NFData SmallWorldRejection
 
 -- | The order in which the constructors are written is also the order in which the checks are done.
 data SmallWorldComponentsRejection =
-    ComponentCountMismatch -- the number of connected components didn't match
+    UnusedFronteers' -- same as UnusedFronteers except that the number of components was computed, too
+  | ComponentCountMismatch -- the number of connected components didn't match
   | ComponentsSizesNotWellDistributed -- some components were at least twice as big as others.
   | SpaceNotUsedWellEnough -- Some walls were too thick and didn't bring interesting features to the map.
   deriving(Generic, Show, Eq)
 instance Binary SmallWorldComponentsRejection
 instance NFData SmallWorldComponentsRejection
 
+data MatchOption =
+    ForceComputeComponentCount -- may produce 'UnusedFronteers''
+  | DontForceComputeComponentCount -- may produce 'UnusedFronteers'
+
 -- | These 'LowerBounds' can be used to prune the search space, and
 -- to adapt user probabilities.
 data LowerBounds = LowerBounds {
-    diagnostic :: Either Text ()
+    diagnostic :: !(Either Text ())
     -- ^ 'Left' if the world cannot be built due to topological constraints.
   , mayMinAirBlocks, mayMinWallBlocks :: !(Maybe Int)
     -- ^ The minimium count of air and wall blocks. If any of them is is Nothing, the world is impossible to build.
@@ -203,27 +209,39 @@ newtype ConnectedComponent = ConnectedComponent (Vector Vertex)
   deriving(Generic, Show)
 
 data Statistics = Statistics {
-    countGeneratedMatrixes :: {-# UNPACK #-} !Int
+    countInterleavedVariations, countRotationsByIV :: {-# NOUNPACK #-} !Int
+  , countRandomMatrices, countGeneratedMatrices :: {-# NOUNPACK #-} !Int
   , countGeneratedGraphsByComponentCount :: !(Map ComponentCount Int)
-  , totalTime :: !(Time Duration System)
+  , countNotEnoughAir, countNotEnoughWalls, countUnusedFronteers :: {-# NOUNPACK #-} !Int
+  , countComponentCountMismatch, countComponentsSizesNotWellDistributed, countSpaceNotUsedWellEnough :: {-# NOUNPACK #-} !Int
+  , totalTime :: {-# NOUNPACK #-} !(Time Duration System)
 } deriving(Generic,Show)
 instance Binary Statistics
 instance NFData Statistics
 
 zeroStats :: Statistics
-zeroStats = Statistics 0 mempty zeroDuration
+zeroStats = Statistics 0 0 0 0 mempty 0 0 0 0 0 0 zeroDuration
 
 mergeStats :: Statistics -> Statistics -> Statistics
-mergeStats (Statistics a b c) (Statistics a' b' c') =
+mergeStats (Statistics _ _ z a b c d e f g h i) (Statistics x' y' z' a' b' c' d' e' f' g' h' i') =
   Statistics
+    x'
+    y'
+    (z+z')
     (a+a')
     (merge
       preserveMissing
       preserveMissing
-      (zipWithMatched $ \_ x y -> x + y)
+      (zipWithMatched $ \_ elt elt' -> elt + elt')
       b
       b')
-    $ c |+| c'
+    (c+c')
+    (d+d')
+    (e+e')
+    (f+f')
+    (g+g')
+    (h+h')
+    $ i |+| i'
 
 mergeMayStats :: Maybe Statistics -> Maybe Statistics -> Maybe Statistics
 mergeMayStats Nothing x = x
@@ -231,14 +249,26 @@ mergeMayStats x Nothing = x
 mergeMayStats (Just x) (Just y) = Just $ mergeStats x y
 
 prettyShowStats :: Statistics -> String
-prettyShowStats (Statistics nMats ccm dt) = unlines $
+prettyShowStats (Statistics nInterleave nRotations nRandomMatrices nMats ccm notEnoughAir notEnoughWall unusedFronteer ccCountMismatch ccSizesDistribution unusedSpace dt) = unlines $
   "":
   "General world generation statistics:" :
   ("Computation time:" ++ show dt):
   showArray
     (Just ("Stat name","Stat value"))
-    [ ("N. generated matrices", show nMats)
-    , ("N. generated graphs", show $ Map.foldl' (+) 0 ccm)] ++
+    [ ("+ N. Random mat", show nRandomMatrices)
+    , ("- N. Filtered random (not enough Air)", show notEnoughAir)
+    , ("- N. Filtered random (not enough Walls)", show notEnoughWall)
+    , ("N. interleaved per random", show nInterleave)
+    , ("N. rotations per interleaved", show nRotations)
+    , ("Max N. variations per random", show $ nRotations * nInterleave)
+    , ("N. mat", show nMats)
+    , ("N. mat / N. random mat", show (fromIntegral nMats / fromIntegral nRandomMatrices :: Float))
+    , ("- N. Filtered (unused fronteers)", show unusedFronteer)
+    , ("N. graphs + component", show $ Map.foldl' (+) 0 ccm)
+    , ("- N. Filtered (component count mismatch)", show ccCountMismatch)
+    , ("- N. Filtered (wrong size distribution)", show ccSizesDistribution)
+    , ("- N. Filtered (space not well used)", show unusedSpace)
+    ] ++
   "":
   "Graph generation statistics:" :
   prettyShowCCMap ("N. components", "N. graphs") ccm

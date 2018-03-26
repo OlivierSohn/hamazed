@@ -38,13 +38,14 @@ mkWorldEssence :: WorldSpec -> IO Bool -> IO (MkSpaceResult WorldEssence, Maybe 
 mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution)) continue =
 -- withSystemRandom seeds a PRNG with data from the system's fast source of pseudo-random numbers.
 -- The generator should be used from a single thread.
-  withSystemRandom . asGenIO $ \gen -> go (min 1 $ fromIntegral nShips) [] Nothing gen
+  withSystemRandom . asGenIO $ \gen -> go (max 1 $ fromIntegral nShips) [] Nothing gen
  where
   (LevelEssence _ _ numbers) = mkLevelEssence s
   size = worldSizeFromLevel levelNum shape
   nShips = Set.size shipIds
 
-  go x y z gen = go' x y z
+  go x y z gen =
+    go' x y z
    where
     go' 0 errs stats = return (Impossible errs, stats)
     go' n errs prevStats = do
@@ -77,7 +78,6 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
                     (Map.fromDistinctAscList ships)
                     space
                   , newStats)
-
 
 
 mkMinimalWorldEssence :: WorldEssence

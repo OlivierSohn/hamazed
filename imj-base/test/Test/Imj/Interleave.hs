@@ -65,9 +65,9 @@ testInterleaveHalves = do
             res)
           (Left $ equivalents [0..pred len])
           [1.. 100] >>= either (fail $ "not enough iterations " ++ show len) final
-  -- verify formula for countUsefullInterleavedVariations:
+  -- verify formula for countUsefulInterleavedVariations:
   mapM_
-    (\len -> f len (`shouldBe` countUsefullInterleavedVariations len))
+    (\len -> f len (`shouldBe` countUsefulInterleavedVariations len))
     [1..20]
 
   -- print values
@@ -76,7 +76,7 @@ testInterleaveHalves = do
     (\len ->
       f len (\value ->
         putStrLn $
-          "countUsefullInterleavedVariations " ++
+          "countUsefulInterleavedVariations " ++
           justifyR (show len) 3 ++
           " = " ++
           justifyR (show (value::Int)) 3))

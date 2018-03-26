@@ -615,7 +615,7 @@ handleIncomingEvent' = \case
         CreationAssigned _ -> do
           -- This is the first valid world essence, so we can cancel the request
           cancelWorldRequest
-          let newStats = mergeMayStats stats prevStats
+          let newStats = mergeMayStats prevStats stats
           log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
           modify' $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
           notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)

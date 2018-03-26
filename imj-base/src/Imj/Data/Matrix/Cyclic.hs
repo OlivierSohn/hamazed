@@ -16,7 +16,7 @@ module Imj.Data.Matrix.Cyclic (
   , unsafeSetRotation
   -- * Map
   , produceRotations
-  , produceUsefullInterleavedVariations
+  , produceUsefulInterleavedVariations, countUsefulInterleavedVariations2D
     -- ** Special matrices
   , zero
   , identity
@@ -26,6 +26,7 @@ module Imj.Data.Matrix.Cyclic (
   , fromList , fromLists, toLists
     -- * Accessing
   , getElem , (!) , unsafeGet , safeGet, getRow, getCol, countRotations
+  , countRotations'
     -- * Matrix operations
   , elementwise, elementwiseUnsafe
     -- * Linear transformations
@@ -46,7 +47,9 @@ import           Data.List(foldl')
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed         as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV
-import           Imj.Geo.Discrete.Interleave(mkInterleaveData, interleaveIdx, countUsefullInterleavedVariations)
+
+import           Imj.Geo.Discrete.Types
+import           Imj.Geo.Discrete.Interleave(mkInterleaveData, interleaveIdx, countUsefulInterleavedVariations)
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -94,6 +97,9 @@ instance (Binary a, Unbox a) => Binary (Matrix a) where
 countRotations :: (Unbox a) => Matrix a -> Int
 countRotations (M _ _ _ v) = V.length v
 
+countRotations' :: Size -> Int
+countRotations' (Size (Length x) (Length y)) = x * y
+
 setRotation :: (Unbox a) => Matrix a -> Int -> Matrix a
 setRotation m@(M _ _ _ v) i
   | i < 0 = error "negative offset"
@@ -118,10 +124,10 @@ produceRotations x =
   map (setRotation x) [0..pred $ countRotations x]
 
 -- TODO should we use foldr or foldl'?
-produceUsefullInterleavedVariations :: Unbox a
+produceUsefulInterleavedVariations :: Unbox a
                                     => Matrix a
                                     -> [Matrix a]
-produceUsefullInterleavedVariations x =
+produceUsefulInterleavedVariations x =
   snd $ foldl'
     (\(m,prevResults) i ->
       let fi = bool (reorderRows interleaveRows) id $ i == 0
@@ -140,15 +146,19 @@ produceUsefullInterleavedVariations x =
   (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
   (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
 
+-- Counts the number of matrices returned by 'produceUsefulInterleavedVariations'
+countUsefulInterleavedVariations2D :: Size -> Int
+countUsefulInterleavedVariations2D (Size (Length x) (Length y)) =
+  countUsefulInterleavedVariations x * countUsefulInterleavedVariations y
 
 getInterleavedInfos :: Int
                     -- ^ the length of the array that will be interleaved
                     -> (Int, Int -> Int)
-                    -- ^ fst: The count of usefull variations
+                    -- ^ fst: The count of useful variations
                     -- , snd : the function to get interleaved indices
 getInterleavedInfos d =
   let !iD = mkInterleaveData d
-  in (countUsefullInterleavedVariations d, interleaveIdx iD)
+  in (countUsefulInterleavedVariations d, interleaveIdx iD)
 
 reorderRows, reorderCols :: (Unbox a)
                          => (Int -> Int)

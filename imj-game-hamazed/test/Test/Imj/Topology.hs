@@ -35,17 +35,23 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithoutAir"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    ((`shouldBe` Left UnusedFronteers) . matchTopology n)
+    (const . (`shouldBe` Left UnusedFronteers) . matchTopology DontForceComputeComponentCount n)
   putStrLn "WithtAir"
   debugForM_ matricesWithAirOnEveryFronteer
-    ((`shouldNotBe` Left UnusedFronteers) . matchTopology n)
+    (const . (`shouldNotBe` Left UnusedFronteers) . matchTopology DontForceComputeComponentCount n)
+  putStrLn "WithoutAir 2"
+  debugForM_ matricesWithoutAirOnEveryFronteer
+    (\m expected -> matchTopology ForceComputeComponentCount n m `shouldBe` Left (CC UnusedFronteers' expected))
+  putStrLn "WithtAir 2"
+  debugForM_ matricesWithAirOnEveryFronteer
+    (\m expected -> matchTopology ForceComputeComponentCount n m `shouldNotBe` Left (CC UnusedFronteers' expected))
 
-debugForM_ :: [Matrix Material]
-           -> (Matrix Material -> IO ())
+debugForM_ :: [(ComponentCount,Matrix Material)]
+           -> (Matrix Material -> ComponentCount -> IO ())
            -> IO ()
-debugForM_ l act = forM_ l (\e -> do
+debugForM_ l act = forM_ l (\(n,e) -> do
   mapM_ putStrLn $ showInBox $ writeWorld e
-  act e)
+  act e n)
 
 displayNWorlds :: Int -> [Matrix Material] -> [String]
 displayNWorlds lineLength = concat . reverse .
@@ -65,24 +71,24 @@ testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithNComponents"
-  forM_ matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology n m) `shouldBe` Just expected)
+  forM_ matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology ForceComputeComponentCount n m) `shouldBe` Just expected)
 
 testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
   forM_ matricesWithNNotWellDistributedComponents
-    (\(expected, m) -> matchTopology expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
+    (\(expected, m) -> matchTopology ForceComputeComponentCount expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
   forM_ matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m) -> do
       mapM_ putStrLn $ showInBox $ writeWorld m
-      either (error "expected Right") (const $ return ()) $ matchTopology expected m)
+      either (error "expected Right") (const $ return ()) $ matchTopology ForceComputeComponentCount expected m)
 
 testComponentsNearby :: IO ()
 testComponentsNearby = do
   putStrLn "WithNWellDistributedComponentsSpaceNotWellUsed"
   forM_ matricesWithNWellDistributedComponentsSpaceNotWellUsed
-    (\(expected, m) -> matchTopology expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
+    (\(expected, m) -> matchTopology ForceComputeComponentCount expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
 
 testMinCountAirBlocks :: IO ()
 testMinCountAirBlocks = do
@@ -142,7 +148,7 @@ testMinCountAirBlocks = do
       concatMap (tryRotationsIfAlmostMatches matchTopology nComps) .
         -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
         -- with 'mkSmallMat', the test is not relevant.
-        produceUsefullInterleavedVariations <$> unsafeMkSmallMat gen proba sz
+        produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen proba sz
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =
@@ -175,86 +181,105 @@ shouldBeSmallerOrEqualTo actual maxValue =
   unless (actual <= maxValue) $ error $ "expected <= \n" ++ show maxValue ++ " but got\n" ++ show actual
 -}
 
-matricesWithoutAirOnEveryFronteer :: [Matrix Material]
-matricesWithoutAirOnEveryFronteer = map readWorld [
+matricesWithoutAirOnEveryFronteer :: [(ComponentCount,Matrix Material)]
+matricesWithoutAirOnEveryFronteer = map (fmap readWorld) [
+ (1,
  ["     "
  ,"     "
- ,"    O"]
+ ,"    O"])
  ,
+ (1,
  ["    O"
  ,"     "
- ,"     "]
+ ,"     "])
  ,
+ (2,
  ["  O  "
  ,"     "
- ,"O    "]
+ ,"O    "])
  ,
+ (2,
  ["    O"
  ,"O    "
- ,"     "]
+ ,"     "])
  ,
+ (3,
  ["     "
  ,"O   O"
- ,"  O  "]
+ ,"  O  "])
  ,
+ (3,
  ["  O  "
  ,"O    "
- ,"  O  "]
+ ,"  O  "])
  ,
+ (3,
  ["  O  "
  ,"O   O"
- ,"     "]
+ ,"     "])
  ,
+ (3,
  ["  O  "
  ,"    O"
- ,"  O  "]
+ ,"  O  "])
  ,
+ (1,
  ["OOOO "
  ,"OOOO "
- ,"OOOO "]
+ ,"OOOO "])
  ,
+ (1,
  ["     "
  ,"OOOOO"
- ,"OOOOO"]
+ ,"OOOOO"])
  ,
+ (1,
  [" OOOO"
  ," OOOO"
- ," OOOO"]
+ ," OOOO"])
  ,
+ (1,
  ["OOOOO"
  ,"OOOOO"
- ,"     "]
+ ,"     "])
  ]
 
-matricesWithAirOnEveryFronteer :: [Matrix Material]
-matricesWithAirOnEveryFronteer = map readWorld [
+matricesWithAirOnEveryFronteer :: [(ComponentCount,Matrix Material)]
+matricesWithAirOnEveryFronteer = map (fmap readWorld) [
+ (2,
  ["O    "
  ,"     "
- ,"    O"]
+ ,"    O"])
  ,
+ (2,
  ["    O"
  ,"     "
- ,"O    "]
+ ,"O    "])
  ,
+ (3,
  ["  O  "
  ,"    O"
- ,"O    "]
+ ,"O    "])
  ,
+ (3,
  ["    O"
  ,"O    "
- ,"  O  "]
+ ,"  O  "])
  ,
+ (4,
  ["  O  "
  ,"O   O"
- ,"  O  "]
+ ,"  O  "])
  ,
+ (1,
  ["OOOOO"
  ,"O   O"
- ,"OOOOO"]
+ ,"OOOOO"])
  ,
+ (1,
  ["OOOOO"
  ,"OOOOO"
- ,"OOOOO"]
+ ,"OOOOO"])
  ]
 
 

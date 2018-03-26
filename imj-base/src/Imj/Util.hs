@@ -16,6 +16,7 @@ module Imj.Util
     , zigzag
     , lastAbove
     , logBase2
+    , mapRange
     -- * distribution utilities
     , asDistribution
     , Distribution
@@ -197,6 +198,27 @@ zigzag from' to' v =
               then v'
               else
                 2*d - v'
+
+{-# INLINABLE mapRange #-}
+mapRange :: (Fractional a, Eq a)
+         => a
+         -- ^ low 1
+         -> a
+         -- ^ high 1
+         -> a
+         -- ^ low 2
+         -> a
+         -- ^ high 2
+         -> a
+         -- ^ value 1
+         -> a
+         -- ^ value 2
+mapRange l1 h1 l2 h2 v1
+  | denom == 0 = (h2 + l2) / 2
+  | otherwise = l2 + normalized * (h2 - l2)
+ where
+  denom = h1 - l1
+  normalized = (v1 - l1) / denom
 
 {-# INLINABLE commonPrefix #-}
 commonPrefix :: (Eq a) => [a] -> [a] -> [a]

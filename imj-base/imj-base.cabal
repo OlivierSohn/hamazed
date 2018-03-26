@@ -192,6 +192,7 @@ test-suite imj-base-test
                      , Test.Imj.Sums
                      , Test.Imj.Timing
                      , Test.Imj.Util
+                     , Test.Imj.Utilities
                      , Test.Imj.Vector
                      , Test.Imj.ZigZag
   main-is:             Spec.hs

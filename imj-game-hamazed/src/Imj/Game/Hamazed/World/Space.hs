@@ -31,7 +31,6 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
-import           Prelude(putStrLn, print)
 
 import           Data.Either(partitionEithers, isLeft)
 import           Data.Graph(Graph, Vertex, graphFromEdges, components)
@@ -175,40 +174,47 @@ mkSmallWorld :: GenIO
              -> ComponentCount
              -- ^ Count connex components
              -> Float
-             -- ^ Wall / Air ratio
+             -- ^ User wall proba, in range [0,1]. This function will map the range to
+             -- a range that takes into account theoretical min / max wall probas
+             -- given the parameters (number of components, size) of the samll world.
              -> IO Bool
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen sz nComponents' wallAirRatio continue
+mkSmallWorld gen sz nComponents' userWallProba continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
-      (\_ ->
-        return (Impossible [pack $ show lowerBounds], zeroStats))
-      (\_ -> withDuration (go zeroStats) >>= \((r,stats),dt) ->
+      (\err ->
+        return (Impossible [err], zeroStats))
+      (\lowerBounds -> withDuration (go lowerBounds) >>= \((r,stats),dt) ->
         return (case r of
                 [] -> NeedMoreTime
                 small:_ -> Success small
               , stats { totalTime = dt
                       , countInterleavedVariations = Cyclic.countUsefulInterleavedVariations2D sz
                       , countRotationsByIV = Cyclic.countRotations' sz }))
-      $ diagnostic lowerBounds
+      $ mkLowerBounds sz nComponents'
  where
-  lowerBounds = mkLowerBounds sz nComponents'
+  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
+    go' zeroStats
+   where
+    go' stats = continue >>= bool
+      (return ([], stats))
+        -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
+      (either
+        ((: []) . Left)
+        -- stop at first success
+        (takeWhilePlus isLeft . concatMap (tryRotationsIfAlmostMatches matchTopology nComponents) .
+            Cyclic.produceUsefulInterleavedVariations)
+        <$> mkSmallMat gen wallProba sz lowerBounds >>= \l -> do
+        let !newStats = updateStats stats l
+        case partitionEithers l of
+          (_,[]) -> go' newStats
+          (_,successes) -> return (successes, newStats))
 
-  go stats = continue >>= bool
-    (return ([], stats))
-      -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-    (either
-      ((: []) . Left)
-      -- stop at first success
-      (takeWhilePlus isLeft . concatMap (tryRotationsIfAlmostMatches matchTopology nComponents) .
-          Cyclic.produceUsefulInterleavedVariations)
-      <$> mkSmallMat gen wallAirRatio sz lowerBounds >>= \l -> do
-      let !newStats = updateStats stats l
-      case partitionEithers l of
-        (_,[]) -> go newStats
-        (_,successes) -> return (successes, newStats))
+    wallProba = mapRange 0 1 minWallProba maxWallProba userWallProba
+    minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
+    maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
   maxNComp = ComponentCount $ succ $ quot (pred $ area sz) 2 -- for checkerboard-like layout
@@ -451,17 +457,15 @@ mkSmallMat :: GenIO
            -- ^ Size of the matrix
            -> LowerBounds
            -> IO (Either SmallWorldRejection (Cyclic.Matrix Material))
-mkSmallMat gen wallAirRatio (Size nRows nCols) (LowerBounds _ mayMinAir mayMinWall countBlocks)
+mkSmallMat gen wallProba (Size nRows nCols) (LowerBounds minAirCount minWallCount countBlocks)
   | countBlocks /= fromIntegral nRows * fromIntegral nCols = error "logic"
-  | minAirBlocks + minWallBlocks > countBlocks = error "logic"
-  | intToMat 1 /= Air = error "logic" -- this is used below
-  | otherwise = analyze <$> replicateM countBlocks (randBiased gen wallAirRatio)
+  | minAirCount + minWallCount > countBlocks = error "logic" -- this is checked when creating 'LowerBounds'
+  | intToMat 1 /= Air = error "logic" -- we make this assumption below, when using sum
+  | otherwise = analyze <$> replicateM countBlocks (randBiased gen wallProba)
  where
-  minAirBlocks = fromMaybe (error "logic") mayMinAir
-  minWallBlocks = fromMaybe (error "logic") mayMinWall
   analyze r
-    | countAirBlocks < minAirBlocks = Left $ NotEnough Air
-    | countWallBlocks < minWallBlocks = Left $ NotEnough Wall
+    | countAirBlocks < minAirCount = Left $ NotEnough Air
+    | countWallBlocks < minWallCount = Left $ NotEnough Wall
     | otherwise = Right $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) $ map intToMat r
     where
       countAirBlocks = sum r
@@ -594,24 +598,26 @@ randBiased gen r =
 
 mkLowerBounds :: Size
               -> ComponentCount
-              -> LowerBounds
-              -- ^ Nothing is returned when no such world can be generated.
+              -> Either Text LowerBounds
+              -- ^ Left is returned when no such world can be generated.
 mkLowerBounds sz n =
-  LowerBounds diagnose mayMinAir mayMinWall total
+  maybe
+    (Left sizeMsg)
+    (\minAir ->
+      maybe
+        (Left sizeMsg)
+        (\minWall -> bool
+          (Left sizeMsg)
+          (Right $ LowerBounds minAir minWall total)
+          $ minAir + minWall <= total)
+        mayMinWall)
+    mayMinAir
  where
   mayMinAir = minCountAirBlocks n sz
   mayMinWall = minCountWallBlocks n sz
   total = area sz
   sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show n)
-  diagnose =
-    maybe
-      (Left sizeMsg)
-      (\minAir ->
-        maybe
-          (Left sizeMsg)
-          (\minWall -> bool (Left sizeMsg) (Right ()) $ minAir + minWall <= total)
-          mayMinWall)
-      mayMinAir
+
 
 minCountAirBlocks :: ComponentCount -> Size -> Maybe Int
 minCountAirBlocks (ComponentCount n) (Size (Length h) (Length w))

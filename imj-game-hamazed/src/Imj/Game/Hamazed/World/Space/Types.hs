@@ -157,9 +157,7 @@ data MatchOption =
 -- | These 'LowerBounds' can be used to prune the search space, and
 -- to adapt user probabilities.
 data LowerBounds = LowerBounds {
-    diagnostic :: !(Either Text ())
-    -- ^ 'Left' if the world cannot be built due to topological constraints.
-  , mayMinAirBlocks, mayMinWallBlocks :: !(Maybe Int)
+    minAirBlocks, minWallBlocks :: !Int
     -- ^ The minimium count of air and wall blocks. If any of them is is Nothing, the world is impossible to build.
   , totalBlocks :: {-# UNPACK #-} !Int
   -- ^ The total number of blocks in the world.

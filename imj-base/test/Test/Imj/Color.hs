@@ -14,6 +14,8 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Color.Hue
 import           Imj.Graphics.Color.Hue.Internal
 
+import           Test.Imj.Utilities
+
 testColor :: IO ()
 testColor = do
   testHue
@@ -114,14 +116,6 @@ saturatedCycle (Intensity i) = concat
   , map (\x -> rgb x     0     i    ) [0..pred i]
   , map (\x -> rgb i     0     (i-x)) [0..pred i]
   ]
-
-almost :: Float -> AlmostFloat
-almost = AlmostFloat
-
-newtype AlmostFloat = AlmostFloat Float
-  deriving(Show)
-instance Eq AlmostFloat where
-  (AlmostFloat x) == (AlmostFloat y) = abs (x-y) < 1e-6
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

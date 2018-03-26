@@ -1,24 +1,55 @@
 - optimize 'spaceIsWellUsed' (see comment)
 
-- Use min_n_air to compute a theoretical upper bound for wall probability,
-given (block size, size of the world) -> small size
-and given the number of cc we want in the world (adjusted with checkerboard algo).
+- test just w+h rotations and see if it optimizes the overall time to find a world like this:
+for
+wall size 1
+wall proba 0.2
 
-The /user wall probability/ will go from 0.1 to 0.9, and will be mapped to :
-[0.1 * theoretical upper bound .. theoretical upper bound] to ensure worlds can be built.
+generation took one minute, with no stats every second because only one random matrix was used (see below)
+Hence, it would be nice if client sends regularly updates about statistics (even from within this inner loop),
+and server doesn't need to forward the request, the client continues by itself.
+Of course, if server wants to stop the client, it can do so like today.
+The only problem with this is that if the server dies, the client could compute forever.
 
-for the worlds that have the least possible air: max_wall_ratio : 1 - min_n_air/(l*w)
+An other option is to make the computation be a state machine that can stop and continue at will.
 
-for 1 cc, size 6 12 : max_wall_ratio = 1 - (17/72) = 0.763888
-for 2 cc, size 6 12 : max_wall_ratio = 1 - (16/72) = 0.777777
-...
-for 4 cc, size 6 12 : max_wall_ratio = 1 - (14/72) = 0.805555
+Computation time:Time (TimeSpec {sec = 54, nsec = 875065965})
+---------------------------------------------------------
+| Stat name                                | Stat value |
+---------------------------------------------------------
+| + N. Random mat                          |          1 |
+| - N. Filtered random (not enough Air)    |          0 |
+| - N. Filtered random (not enough Walls)  |          0 |
+| N. interleaved per random                |        162 |
+| N. rotations per interleaved             |       2592 |
+| Max N. variations per random             |     419904 |
+| N. mat                                   |      12962 |
+| N. mat / N. random mat                   |    12962.0 |
+| - N. Filtered (unused fronteers)         |          0 |
+| N. graphs + component                    |      12962 |
+| - N. Filtered (component count mismatch) |      12961 |
+| - N. Filtered (wrong size distribution)  |          0 |
+| - N. Filtered (space not well used)      |          0 |
+---------------------------------------------------------
 
+Graph generation statistics:
+---------------------------------
+| N. components     | N. graphs |
+---------------------------------
+| ComponentCount 1  |         1 |
+| ComponentCount 2  |      1076 |
+| ComponentCount 3  |      2477 |
+| ComponentCount 4  |      3561 |
+| ComponentCount 5  |      3192 |
+| ComponentCount 6  |      1698 |
+| ComponentCount 7  |       657 |
+| ComponentCount 8  |       237 |
+| ComponentCount 9  |        53 |
+| ComponentCount 10 |        10 |
+---------------------------------
 
-for 1 cc, size 4 8 : max_wall_ratio = 1 - (11/32) = 0.65625
-for 2 cc, size 4 8 : max_wall_ratio = 1 - (10/32) = 0.6875
-...
-for 4 cc, size 4 8 : max_wall_ratio = 1 - ( 8/32) = 0.75
+- Notion of Property containing upperbounds, wall probability, small world size and
+"statistics" that are constant.
 
 - the server should not start the game until all levels are possible to create.
 - Create levels in the background during setup (maybe ask different nodes to compute different

@@ -35,10 +35,10 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithoutAir"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (either (`shouldBe` Nothing) (error "expected Left") . matchTopology n)
+    ((`shouldBe` Left UnusedFronteers) . matchTopology n)
   putStrLn "WithtAir"
   debugForM_ matricesWithAirOnEveryFronteer
-    (either (`shouldNotBe` Nothing) (const $ return ()) . matchTopology n)
+    ((`shouldNotBe` Left UnusedFronteers) . matchTopology n)
 
 debugForM_ :: [Matrix Material]
            -> (Matrix Material -> IO ())
@@ -71,8 +71,7 @@ testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
   forM_ matricesWithNNotWellDistributedComponents
-    (\(expected, m) ->
-      either (`shouldBe` Just expected) (error "expected Left") $ matchTopology expected m)
+    (\(expected, m) -> matchTopology expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
   forM_ matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m) -> do
@@ -83,8 +82,7 @@ testComponentsNearby :: IO ()
 testComponentsNearby = do
   putStrLn "WithNWellDistributedComponentsSpaceNotWellUsed"
   forM_ matricesWithNWellDistributedComponentsSpaceNotWellUsed
-    (\(expected, m) ->
-      either (`shouldBe` Just expected) (error "expected Left") $ matchTopology expected m)
+    (\(expected, m) -> matchTopology expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
 
 testMinCountAirBlocks :: IO ()
 testMinCountAirBlocks = do
@@ -124,24 +122,27 @@ testMinCountAirBlocks = do
         mapM_ (`shouldBeBiggerOrEqualTo` minAirCount) $ map fst z
         bool
           (do
+            let lenMinimals = length minimals
             putStrLn $
               "Found " ++
-              show (length minimals) ++
+              show lenMinimals ++
               " minimal configuration(s) among " ++
               show totalSuccesses ++
-              " successes:"
+              " successes" ++ bool ":" " (showing 20 first only):" (lenMinimals > 20)
 
-            mapM_ putStrLn $ displayNWorlds 100 $ map snd minimals
+            mapM_ putStrLn $ displayNWorlds 100 $ take 20 $ map snd minimals
             )
           (go' totalSuccesses)
           $ null minimals )
       expectedCountMinAir
 
-    nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower...
+    nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower.
 
     generate proba =
       concatMap (tryRotationsIfAlmostMatches matchTopology nComps) .
-        produceUsefullInterleavedVariations <$> mkSmallMat gen proba sz
+        -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
+        -- with 'mkSmallMat', the test is not relevant.
+        produceUsefullInterleavedVariations <$> unsafeMkSmallMat gen proba sz
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

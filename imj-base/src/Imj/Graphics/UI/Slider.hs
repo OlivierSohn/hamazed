@@ -33,31 +33,34 @@ data Slider a = Slider {
   , sliderPresentation :: !SliderPresentation
 }
 
+{- | 
+'Compact' mode:
+
+@
+                           6
+      Block size : 'g' ....|...... 'y'
+
+                            0.01
+      Wall probability : 'h' |............... 'u'
+@
+
+'Large' mode:
+
+@
+
+                     6                 < numeric value (Int / Float)
+      block size ....|......           < label, slider
+               'g' <   > 'y'           < Up / down chars
+
+                      0.01
+      wall probability |.................
+                 'h' <   > 'u'
+
+@
+-}
 data SliderPresentation =
     Compact
-    {- |
-    @
-                               6
-          Block size : 'g' ....|...... 'y'
-
-                                0.01
-          Wall probability : 'h' |............... 'u'
-    @
-    -}
   | Large
-  {- |
-  @
-
-                       6                 < numeric value (Int / Float)
-        block size ....|......           < label, slider
-                 'g' <   > 'y'           < Up / down chars
-
-                        0.01
-        wall probability |.................
-                   'h' <   > 'u'
-
-  @
-  -}
 
 {- | The coords passed to drawAt is the X position in the following examples:
 

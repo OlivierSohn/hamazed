@@ -14,6 +14,8 @@ module Imj.Game.Hamazed.World.Space.Types
     , mkZeroSpace
     , MkSpaceResult(..)
     , LowerBounds(..)
+    , SmallWorldRejection(..)
+    , SmallWorldComponentsRejection(..)
     , RenderedSpace(..)
     , getSize
     , Material(..)
@@ -88,6 +90,7 @@ data Material = Air
               -- ^ Ship and numbers rebound on 'Wall's.
               deriving(Generic, Eq, Show)
 instance Binary Material
+instance NFData Material
 derivingUnbox "Material"
     [t| Material -> Bool |]
     [| (== Wall) |]
@@ -95,7 +98,7 @@ derivingUnbox "Material"
 
 
 newtype Space = Space (Matrix Material)
-  deriving(Generic, Show, Binary, NFData)
+  deriving(Generic, Show, Binary, NFData, Eq)
 
 mkZeroSpace :: Space
 mkZeroSpace = Space $ fromLists []
@@ -123,13 +126,34 @@ data MkSpaceResult r =
 instance (Binary r) => Binary (MkSpaceResult r)
 instance (NFData r) => NFData (MkSpaceResult r)
 
+-- | Info on small matrix rejection.
+--
+-- The order in which the constructors are written is also the order in which the checks are done.
+data SmallWorldRejection =
+    NotEnough !Material -- The random distribution had not enough of some material
+                        -- in it to build a world of given 'Size' / 'ComponentCount'.
+                        -- (see 'LowerBounds')
+  | UnusedFronteers -- some fronteer sides had no 'Air'
+  | CC SmallWorldComponentsRejection !ComponentCount
+  deriving(Generic, Show, Eq)
+instance Binary SmallWorldRejection
+instance NFData SmallWorldRejection
+
+-- | The order in which the constructors are written is also the order in which the checks are done.
+data SmallWorldComponentsRejection =
+    ComponentCountMismatch -- the number of connected components didn't match
+  | ComponentsSizesNotWellDistributed -- some components were at least twice as big as others.
+  | SpaceNotUsedWellEnough -- Some walls were too thick and didn't bring interesting features to the map.
+  deriving(Generic, Show, Eq)
+instance Binary SmallWorldComponentsRejection
+instance NFData SmallWorldComponentsRejection
 
 -- | These 'LowerBounds' can be used to prune the search space, and
 -- to adapt user probabilities.
 data LowerBounds = LowerBounds {
     diagnostic :: Either Text ()
     -- ^ 'Left' if the world cannot be built due to topological constraints.
-  , minAirBlocks, minWallBlocks :: !(Maybe Int)
+  , mayMinAirBlocks, mayMinWallBlocks :: !(Maybe Int)
     -- ^ The minimium count of air and wall blocks. If any of them is is Nothing, the world is impossible to build.
   , totalBlocks :: {-# UNPACK #-} !Int
   -- ^ The total number of blocks in the world.
@@ -138,12 +162,16 @@ data LowerBounds = LowerBounds {
 data BigWorld = BigWorld {
     _bigSpace :: {-# UNPACK #-} !Space
   , _bigTopo :: !BigWorldTopology
-}
+} deriving(Generic, Show)
+instance Eq BigWorld where
+  (BigWorld a _) == (BigWorld b _) = a == b
 
 data SmallWorld = SmallWorld {
     getSmallMatrix :: {-# UNPACK #-} !(Cyclic.Matrix Material)
   , _smallTopo :: !SmallWorldTopology
-}
+} deriving(Generic, Show)
+instance Eq SmallWorld where
+  (SmallWorld a _) == (SmallWorld b _) = a == b
 
 data BigWorldTopology = BigWorldTopology {
     countComponents :: {-# UNPACK #-} !Int

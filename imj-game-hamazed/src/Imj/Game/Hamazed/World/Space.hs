@@ -19,6 +19,7 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     -- for tests
+    , unsafeMkSmallMat
     , minCountAirBlocks
     , minCountWallBlocks
     , mkSmallWorld
@@ -195,9 +196,12 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
   go stats = continue >>= bool
     (return ([], stats))
       -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-    (takeWhilePlus isLeft . concatMap -- stop at the first success.
-      (tryRotationsIfAlmostMatches matchTopology nComponents) . produceUsefullInterleavedVariations
-          <$> mkSmallMat gen wallAirRatio s >>= \l -> do
+    (either
+      ((: []) . Left)
+      -- stop at first success
+      (takeWhilePlus isLeft . concatMap (tryRotationsIfAlmostMatches matchTopology nComponents) .
+          produceUsefullInterleavedVariations)
+      <$> mkSmallMat gen wallAirRatio s lowerBounds >>= \l -> do
       let !newStats = updateStats l stats
       case partitionEithers l of
         (_,[]) -> go newStats
@@ -212,10 +216,11 @@ mkSmallWorld gen s nComponents' wallAirRatio continue
           $ mapMaybe getComponentCount l
     in Statistics i' j' dt
 
-type TopoMatch = Either (Maybe ComponentCount) SmallWorld
+type TopoMatch = Either SmallWorldRejection SmallWorld
 
 getComponentCount :: TopoMatch -> Maybe ComponentCount
-getComponentCount (Left c) = c
+getComponentCount (Left (CC _ c)) = Just c
+getComponentCount (Left _) = Nothing
 getComponentCount (Right (SmallWorld _ topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
 
 -- Indicates if there is a /real/ wall (i.e not an out of bounds position) in a given direction
@@ -230,12 +235,12 @@ matchTopology :: ComponentCount
               -> Cyclic.Matrix Material
               -> TopoMatch
 matchTopology nComponents r
-  | not $ smallMatHasAirOnEveryFronteer r = Left Nothing
-  | nComponents /= nComps = Left $ Just nComps
+  | not $ smallMatHasAirOnEveryFronteer r = Left UnusedFronteers
+  | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
     -- from here on, comps is evaluated.
-  | not wellDistributed   = Left $ Just nComps
+  | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
     -- from here on, if the number of components is > 1, we compute the distances between components
-  | not spaceIsWellUsed   = Left $ Just nComps
+  | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
   | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps vtxToCoords
  where
   nComps = ComponentCount $ length gcomps
@@ -396,23 +401,47 @@ tryRotationsIfAlmostMatches matchTopo n m =
   go $ matchTopo n m
  where
   go r@(Right _) = [r]
-  go r@(Left Nothing) = [r]
-  go r@(Left (Just nComps))
+  go r@(Left (CC _ nComps))
    | abs (n - nComps) <= 5 = -- TODO Maybe the bound should be randomized? At least, fine-tune 5, by finding the sweet spot that gives the more valid worlds per seconds.
      -- we are already close to the target number, so
      -- there is a good probability that rotating will trigger the component match.
      map (matchTopo n) $ drop 1 $ produceRotations m -- skip zero rotation, which has already been tested
    | otherwise = [r]
+  go r@(Left _) = [r] -- TODO use UnusedFronteers too? we could compute the number of components here and decide if it's worth it.
 
 mkSmallMat :: GenIO
            -> Float
            -- ^ Probability to generate a wall
            -> Size
            -- ^ Size of the matrix
-           -> IO (Cyclic.Matrix Material)
-mkSmallMat gen wallAirRatio (Size nRows nCols) =
-  Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) <$>
-    replicateM (fromIntegral nRows * fromIntegral nCols) (randBiasedMaterial gen wallAirRatio)
+           -> LowerBounds
+           -> IO (Either SmallWorldRejection (Cyclic.Matrix Material))
+mkSmallMat gen wallAirRatio (Size nRows nCols) (LowerBounds _ mayMinAir mayMinWall countBlocks)
+  | countBlocks /= fromIntegral nRows * fromIntegral nCols = error "logic"
+  | minAirBlocks + minWallBlocks > countBlocks = error "logic"
+  | intToMat 1 /= Air = error "logic" -- this is used below
+  | otherwise = analyze <$> replicateM countBlocks (randBiased gen wallAirRatio)
+ where
+  minAirBlocks = fromMaybe (error "logic") mayMinAir
+  minWallBlocks = fromMaybe (error "logic") mayMinWall
+  analyze r
+    | countAirBlocks < minAirBlocks = Left $ NotEnough Air
+    | countWallBlocks < minWallBlocks = Left $ NotEnough Wall
+    | otherwise = Right $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) $ map intToMat r
+    where
+      countAirBlocks = sum r
+      countWallBlocks = countBlocks - countAirBlocks
+
+-- | Used in 'LowerBounds' test.
+unsafeMkSmallMat :: GenIO
+                 -> Float
+                 -- ^ Probability to generate a wall
+                 -> Size
+                 -- ^ Size of the matrix
+                 -> IO (Cyclic.Matrix Material)
+unsafeMkSmallMat gen wallAirRatio (Size nRows nCols) =
+  Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) . map intToMat <$>
+    replicateM (fromIntegral nRows * fromIntegral nCols) (randBiased gen wallAirRatio)
 
 
 {-# INLINE countSmallCCElts #-}
@@ -524,9 +553,9 @@ extend'' final initial =
       addsRight = addsTotal - addsLeft
   in (addsLeft, addsRight)
 
-randBiasedMaterial :: GenIO -> Float -> IO Material
-randBiasedMaterial gen r =
-  (\v -> intToMat $ bool 1 0 $ v < r) <$> uniform gen
+randBiased :: GenIO -> Float -> IO Int
+randBiased gen r =
+  (\v -> bool 1 0 $ v < r) <$> uniform gen
 
 mkLowerBounds :: Size
               -> ComponentCount

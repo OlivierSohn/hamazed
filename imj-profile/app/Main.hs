@@ -32,7 +32,7 @@ measureMemory = do
   gen <- create -- use a deterministic random numbers source
   forever $ do
     delay "Make random mat"
-    mkSmallMat gen 0.7 (Size 1000 1000) >>= \m -> do
+    unsafeMkSmallMat gen 0.7 (Size 1000 1000) >>= \m -> do
       delay "print all" -- Here we have 126 M
       let l = produceUsefullInterleavedVariations m
       print (length l, map matrixSum l)
@@ -78,7 +78,7 @@ printVariations :: IO ()
 printVariations = do
   gen <- create -- use a deterministic random numbers source
   forever $
-    map getTopology . produceUsefullInterleavedVariations <$> mkSmallMat gen 0.7 (Size 6 12)
+    map getTopology . produceUsefullInterleavedVariations <$> unsafeMkSmallMat gen 0.7 (Size 6 12)
        >>= analyzeDistribution
 
 getTopology :: Matrix Material -> (Maybe ComponentCount, IO ())

@@ -1,12 +1,7 @@
 - optimize 'spaceIsWellUsed' (see comment)
 
-- the server should not start the game until all levels are possible to create.
-Or created? level creation could occur in the background, during setup to speed up things
-for the player.
-
-- Use min_n_air / min_n_wall to discard matrices that have not enough air.
-While doing that , adapt the tests that verify min calculations so that
-they use a version that doesn't discard spaces (else the test is meaningless)
+- currently when a random distribution doesn't have enough air on fronteers, we discard it.
+Instead we could compute its number of cc and maybe use it with interleaving / rotations.
 
 - Use min_n_air to compute a theoretical upper bound for wall probability,
 given (block size, size of the world) -> small size
@@ -27,6 +22,10 @@ for 1 cc, size 4 8 : max_wall_ratio = 1 - (11/32) = 0.65625
 for 2 cc, size 4 8 : max_wall_ratio = 1 - (10/32) = 0.6875
 ...
 for 4 cc, size 4 8 : max_wall_ratio = 1 - ( 8/32) = 0.75
+
+- the server should not start the game until all levels are possible to create.
+- Create levels in the background during setup (maybe ask different nodes to compute different
+levels? the bigger ones are more expensive...) and start the game once all levels are created
 
 - Add music :
   slow (ternary) :

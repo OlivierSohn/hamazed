@@ -136,17 +136,27 @@ profileLargeWorld = do
       Success _ -> return ()
     return (res, stats)
   let stats = map (snd . fst) timesAndResStats
-      results = map (fst . fst) timesAndResStats
-      times = map (toMicros . snd) timesAndResStats
-      maxTime = fromMaybe 1 $ maximumMaybe times
-      ratioTimes = map (\t -> fromIntegral t / fromIntegral maxTime) times
+      --results = map (fst . fst) timesAndResStats
+      times = map snd timesAndResStats
   mapM_ (putStrLn . prettyShowStats) stats
-  mapM_ putStrLn $
-    showArray
-      (Just ("Seed", "Duration"))
-      $ map
-          (\(a,b) -> (show a, replicate (round $ b * (40 :: Float)) '|'))
-          $ zip [1 :: Int ..] ratioTimes
+  mapM_ putStrLn $ prettyShowTimes times
+
+prettyShowTimes :: [Time Duration System] -> [String]
+prettyShowTimes times' =
+  showArrayN
+    (Just ["Seed", "Duration", "Duration'"])
+    $ map
+        (\(a,b,c) ->
+        let n = round $ b * (40 :: Float)
+        in [ show a
+           , replicate n '|'
+           , show c
+           ])
+        $ zip3 [1 :: Int ..] ratioTimes times
+ where
+  times = map toMicros times'
+  maxTime = fromMaybe 1 $ maximumMaybe times
+  ratioTimes = map (\t -> fromIntegral t / fromIntegral maxTime) times
 
 -- | Runs the action several times, with different - deterministically seeded - generators.
 withDifferentSeeds :: (GenIO -> IO a) -> IO [a]
@@ -163,10 +173,10 @@ timeWithDifferentSeeds :: (Show a) => (GenIO -> IO a) -> IO [(a, Time Duration S
 timeWithDifferentSeeds act =
   drop 1 <$> withDifferentSeeds (\gen -> do
     putStrLn "-"
-    res@(a,time) <- withDuration $ act gen
-    print a
-    print time
-    return res)
+    withDuration (act gen) >>= \res@(a,time) -> do
+      print a
+      print time
+      return res)
 
 writeSeedsSource :: IO ()
 writeSeedsSource =

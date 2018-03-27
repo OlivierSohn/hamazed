@@ -24,6 +24,7 @@ module Imj.Util
     , Distribution
     -- * Render utilities
     , showArray
+    , showArrayN
     , showDistribution
     , showInBox
     , addRight
@@ -37,7 +38,7 @@ import           Imj.Prelude
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Int(Int64)
-import           Data.List(reverse, length, splitAt, foldl')
+import           Data.List(reverse, length, splitAt, foldl', intersperse)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(maybeToList)
@@ -84,6 +85,28 @@ showArray mayTitles body =
   allArray = maybeToList mayTitles ++ body
   l1 = maxLength $ map fst allArray
   l2 = maxLength $ map snd allArray
+
+showArrayN :: Maybe [String] -> [[String]] -> [String]
+showArrayN mayTitles body =
+  maybe [] (\titles -> bar : format [titles]) mayTitles
+  ++ [bar] ++ format body ++ [bar]
+ where
+  bar = replicate lBar '-'
+  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
+  format =
+    map
+      (\strs ->
+      "| " ++
+      intercalate
+        " | "
+        (map
+          (\(str, justify, len) -> justify str len)
+          $ zip3 strs justifications ls) ++
+      " |")
+  allArray = maybeToList mayTitles ++ body
+  ls = map maxLength allArray
+
+  justifications = justifyL : repeat justifyR
 
 justifyR, justifyL :: String -> Int -> String
 justifyR x maxL =

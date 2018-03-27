@@ -44,6 +44,7 @@ module Imj.Timing
     , unsafeToSecs
     -- * Utilities
     , withDuration
+    , withDuration_
     , getSystemTime
     , getCurrentSecond
     , getDurationFromNowTo
@@ -246,3 +247,6 @@ withDuration act = do
   r <- act
   t' <- getSystemTime
   return (r, t...t')
+
+withDuration_ :: IO a -> IO (Time Duration System)
+withDuration_ act = snd <$> withDuration act

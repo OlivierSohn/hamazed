@@ -1,8 +1,9 @@
 - optimize 'spaceIsWellUsed' (see comment)
 
-- test just w+h rotations and see if it optimizes the overall time to find a world like this:
+- (with multiple different seeds to make sure we optimize on average)
+test just w+h rotations and see if it optimizes the overall time to find a world like this:
 for
-wall size 1
+wall size 1    -> Size 36 * 72 for level 1
 wall proba 0.2
 
 generation took one minute, with no stats every second because only one random matrix was used (see below)

@@ -11,7 +11,7 @@ import           Prelude as Exported
   , Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
-  , sum, map, concatMap, concat, filter, mapM_
+  , sum, map, concatMap, concat, filter, mapM_, sequence_
   , all, any, notElem, null, minimum, maximum
   , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate
   , zip, zip3, unzip, zipWith, fst, snd

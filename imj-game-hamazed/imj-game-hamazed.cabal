@@ -64,7 +64,6 @@ library
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
-                     , Imj.Game.Hamazed.World.Space.Read
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11

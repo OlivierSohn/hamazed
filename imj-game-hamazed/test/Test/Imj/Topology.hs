@@ -14,7 +14,6 @@ import           System.Random.MWC(GenIO, create)
 import           Imj.Data.Matrix.Cyclic
 
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.World.Space.Read
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Util
 

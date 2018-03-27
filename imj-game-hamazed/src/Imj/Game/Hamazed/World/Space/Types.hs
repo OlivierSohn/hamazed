@@ -37,19 +37,22 @@ module Imj.Game.Hamazed.World.Space.Types
     , getComponentIndices
     , prettyShowStats
     , unsafeGetMaterial
+    , readWorld
+    , writeWorld
     -- reexports
     , Glyph
     , module Imj.Geo.Discrete.Types
     ) where
 
 import           Imj.Prelude
+import           Prelude(length)
 
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.Graph(Vertex)
 import           Data.List(unlines)
 import           Imj.Data.Matrix.Unboxed(Matrix, ncols, nrows, unsafeGet, fromLists)
-import qualified Imj.Data.Matrix.Cyclic as Cyclic(Matrix)
+import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(toAscList, foldl')
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
@@ -173,9 +176,15 @@ instance Eq BigWorld where
 data SmallWorld = SmallWorld {
     getSmallMatrix :: {-# UNPACK #-} !(Cyclic.Matrix Material)
   , _smallTopo :: !SmallWorldTopology
-} deriving(Generic, Show)
+} deriving(Generic)
 instance Eq SmallWorld where
   (SmallWorld a _) == (SmallWorld b _) = a == b
+instance Show SmallWorld where
+  show (SmallWorld a _) = '\n' :
+    unlines
+      (zipWith (++)
+        (showInBox $ writeWorld a)
+        (showInBox $ writeGameWorld a))
 
 data BigWorldTopology = BigWorldTopology {
     countComponents :: {-# UNPACK #-} !Int
@@ -206,6 +215,36 @@ instance Show SmallWorldTopology where
 newtype ConnectedComponent = ConnectedComponent (Vector Vertex)
   deriving(Generic, Show)
 
+
+readWorld :: [String] -> Cyclic.Matrix Material
+readWorld [] = Cyclic.fromList 0 0 []
+readWorld l@(s:_)
+  | any (/= len) lens = error $ "lengths should all be equal:" ++ show lens
+  | otherwise = Cyclic.fromLists $ map (map toMaterial) l
+  where
+   len = length s
+   lens = map length l
+
+writeWorld :: Cyclic.Matrix Material -> [String]
+writeWorld = map (map toChar) . Cyclic.toLists
+
+writeGameWorld :: Cyclic.Matrix Material -> [String]
+writeGameWorld = map (map toGameChar) . Cyclic.toLists
+
+toMaterial :: Char -> Material
+toMaterial 'O' = Air
+toMaterial ' ' = Wall
+toMaterial x = error $ "Can't parse '" ++ show x ++ "' as a Material"
+
+-- unlike in the game, we draw Air to better see the component shapes
+toChar :: Material -> Char
+toChar Air = 'O'
+toChar Wall = ' '
+
+toGameChar :: Material -> Char
+toGameChar Air = ' '
+toGameChar Wall = 'Z'
+
 data Statistics = Statistics {
     countInterleavedVariations, countRotationsByIV :: {-# NOUNPACK #-} !Int
   , countRandomMatrices, countGeneratedMatrices :: {-# NOUNPACK #-} !Int
@@ -213,9 +252,11 @@ data Statistics = Statistics {
   , countNotEnoughAir, countNotEnoughWalls, countUnusedFronteers :: {-# NOUNPACK #-} !Int
   , countComponentCountMismatch, countComponentsSizesNotWellDistributed, countSpaceNotUsedWellEnough :: {-# NOUNPACK #-} !Int
   , totalTime :: {-# NOUNPACK #-} !(Time Duration System)
-} deriving(Generic,Show)
+} deriving(Generic)
 instance Binary Statistics
 instance NFData Statistics
+instance Show Statistics where
+  show = prettyShowStats
 
 zeroStats :: Statistics
 zeroStats = Statistics 0 0 0 0 mempty 0 0 0 0 0 0 zeroDuration

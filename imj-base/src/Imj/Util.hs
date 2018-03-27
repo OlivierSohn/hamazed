@@ -6,11 +6,13 @@ module Imj.Util
       showListOrSingleton
     , replicateElements
     , intersperse'
+    , splitEvery
     , mkGroups
     , range
     , takeWhilePlus
     , commonPrefix
     , commonSuffix
+    , maximumMaybe
       -- * Math utilities
     , clamp
     , zigzag
@@ -153,6 +155,12 @@ mkGroups n elts
           in (rest,a:res))
         (elts, [])
         sizes
+
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery n xs = as : splitEvery n bs
+  where (as,bs) = splitAt n xs
+
 
 -- | Takes elements matching a condition, and the element thereafter.
 takeWhilePlus :: (a -> Bool) -> [a] -> [a]

@@ -215,17 +215,13 @@ mkSmallWorld gen sz nComponents' userWallProba continue
           (_,successes) -> return (successes, newStats))
 
     withDurationSampledEvery n i x =
-      if r == 0
+      if (i+1 :: Int) `rem` n == 0 -- measure only after the first n
         then do
           (t,res) <- withDuration x
+          -- we scale the duration, assuming other executions have roughly the same duration.
           return (fromIntegral n .* t, res)
         else
-          withZeroDuration
-     where
-      (_,r) = quotRem (i+1 :: Int) n -- we want to measure only after the first n
-      withZeroDuration = do
-        res <- x
-        return (zeroDuration, res)
+          (,) zeroDuration <$> x
 
     wallProba = mapRange 0 1 minWallProba maxWallProba userWallProba
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount

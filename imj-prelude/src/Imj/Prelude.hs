@@ -20,7 +20,7 @@ import           Prelude as Exported
   , (*), (**), (+), (-), (/), (^), (==), (/=), (>), (<), (>=), (<=)
   , realToFrac, fromIntegral, recip, signum, pred, succ
   , sin, cos, pi
-  , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
+  , mod, rem, min, max, abs, floor, round, ceiling, maxBound, minBound
   , negate, div, divMod, quot, quotRem, even, odd
   , error, undefined
   , (!!), ($!)

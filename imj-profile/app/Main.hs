@@ -15,7 +15,7 @@ import           Data.Word(Word32)
 import           System.IO(hFlush, stdout)
 import           System.Random.MWC
 
-import           Imj.Data.Matrix.Cyclic(Matrix, produceUsefulInterleavedVariations, unsafeGet, nrows, ncols)
+import qualified Imj.Data.Matrix.Cyclic as Cyclic
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
@@ -37,8 +37,6 @@ main = do
   profileLargeWorld'
   --profileLargeWorld
   --profileMkSmallWorld
-  --printVariations2
-  --printVariations
   --measureMemory
   --writeSeedsSource
   --testRNG
@@ -48,15 +46,15 @@ measureMemory = do
   gen <- create -- use a deterministic random numbers source
   forever $ do
     delay "Make random mat"
-    unsafeMkSmallMat gen 0.7 (Size 1000 1000) >>= \m -> do
+    unsafeMkSmallMat gen 0.7 (Size 1000 1000) >>= \(SmallMatInfo nAir m) -> do
       delay "print all" -- Here we have 126 M
-      let l = produceUsefulInterleavedVariations m
+      let l = Cyclic.produceUsefulInterleavedVariations m
       print (length l, map matrixSum l)
       delay "Produce, getTopology, analyze " -- Still 126 M
       mapM
         (\x -> do
           putStr "." >> flush
-          return $ getTopology x) l >>= analyzeDistribution -- ~ 300 M
+          return $ getTopology $ SmallMatInfo nAir x) l >>= analyzeDistribution -- ~ 300 M
  where
   flush = hFlush stdout
   delay nextAction = do
@@ -66,12 +64,12 @@ measureMemory = do
       putStr (show i) >> flush
     putStrLn $ '\n' : nextAction
   matrixSum mat =
-    let n = nrows mat
-        m = ncols mat
+    let n = Cyclic.nrows mat
+        m = Cyclic.ncols mat
     in foldl'
         (\s i ->
           foldl'
-            (\s' j -> s' + case unsafeGet i j mat of
+            (\s' j -> s' + case Cyclic.unsafeGet i j mat of
               MaterialAndKey k -> k)
             s
             [0..pred m])
@@ -91,28 +89,15 @@ analyzeDistribution l = do
       putStrLn "")
     $ Map.lookupMin d
 
-printVariations2 :: IO ()
-printVariations2 = do
-  gen <- create -- use a deterministic random numbers source
-  replicateM_ 1 $
-    produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen 0.8 (Size 18 9)
-       >>= mapM_ (mapM_ putStrLn . showInBox . writeWorld)
 
-printVariations :: IO ()
-printVariations = do
-  gen <- create -- use a deterministic random numbers source
-  forever $
-    map getTopology . produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen 0.8 (Size 18 9)
-       >>= analyzeDistribution
-
-getTopology :: Matrix MaterialAndKey -> (Maybe ComponentCount, IO ())
-getTopology r =
+getTopology :: SmallMatInfo -> (Maybe ComponentCount, IO ())
+getTopology r@(SmallMatInfo _ w) =
   let res = matchTopology NCompsNotRequired (ComponentCount 1) r
       compCount = getComponentCount res
       render = do
         print compCount
         putStrLn ""
-        mapM_ putStrLn $ showInBox $ writeWorld r
+        mapM_ putStrLn $ showInBox $ writeWorld w
         putStrLn ""
   in (compCount, render)
 

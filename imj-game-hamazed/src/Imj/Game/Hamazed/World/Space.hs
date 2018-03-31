@@ -31,18 +31,19 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
-import Prelude(print)
+
 import           Data.Either(partitionEithers, isLeft)
-import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, components)
+import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, graphFromEdgesWithConsecutiveKeys, components)
 import           Data.List(length, sortOn)
 import qualified Data.List as List (foldl')
 import           Data.Map.Strict(Map)
-import qualified Data.Map.Strict as Map(alter, insert, insertWith, empty, lookup, toAscList, fromDistinctAscList)
+import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Text(pack)
 import           Data.Tree(flatten)
-import qualified Data.Vector.Unboxed as V (any, fromList, length, (!), foldl')
+import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
+import qualified Data.Vector.Unboxed as V
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
@@ -147,7 +148,7 @@ smallWorldToBigWorld :: Size
                      -> Int
                      -> SmallWorld
                      -> BigWorld
-smallWorldToBigWorld s blockSize small@(SmallWorld smallWorldMat _) =
+smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat) _) =
   BigWorld (mkSpaceFromMat s $ map (map materialAndKeyToMaterial) innerMat) (smallToBig blockSize s small)
  where
   replicateElems = replicateElements blockSize
@@ -208,8 +209,6 @@ mkSmallWorld gen sz nComponents' userWallProba continue
           (takeWhilePlus isLeft . strategy Rotate))
         <$> withDurationSampledEvery 1000 i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
         let newStats = addMkRandomMatDuration duration $ updateStats l stats
-        when (mod i 10000 == 0) $ print (i,newStats)
-        --print newStats
         case partitionEithers l of
           (_,[]) -> go' (i+1) newStats
           (_,successes) -> return (successes, newStats))
@@ -231,17 +230,18 @@ mkSmallWorld gen sz nComponents' userWallProba continue
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
-    withInterleaving x = concatMap x . Cyclic.produceUsefulInterleavedVariations
+    withInterleaving x (SmallMatInfo nAir mat) =
+      concatMap (x . SmallMatInfo nAir) $ Cyclic.produceUsefulInterleavedVariations mat
 
     tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches rotationOrder matchTopology nComponents
 
     strategy Rotate m = tryRotationsIfAlmostMatches' m
-    strategy InterleavePlusRotate m = r ++ i
+    strategy InterleavePlusRotate m@(SmallMatInfo nAir mat) = r ++ i
      where
       r = tryRotationsIfAlmostMatches' m -- also checks m, hence we drop 1 in the next line
       i = map
-          (matchTopology NCompsNotRequired nComponents)
-          $ drop 1 $ Cyclic.produceUsefulInterleavedVariations m
+          (matchTopology NCompsNotRequired nComponents . SmallMatInfo nAir)
+          $ drop 1 $ Cyclic.produceUsefulInterleavedVariations mat
     strategy InterleaveTimesRotate m = withInterleaving tryRotationsIfAlmostMatches' m
 
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
@@ -299,10 +299,10 @@ data OrthoWall = OrthoWall {
 
 matchTopology :: NCompsRequest
               -> ComponentCount
-              -> Cyclic.Matrix MaterialAndKey
+              -> SmallMatInfo
               -> TopoMatch
-matchTopology nCompsReq nComponents r
-  | not $ smallMatHasAirOnEveryFronteer r = case nCompsReq of
+matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
+  | not airOnEveryFronteer = case nCompsReq of
       NCompsNotRequired -> Left UnusedFronteers
       NCompsRequiredWithPrecision _ -> Left $ CC UnusedFronteers' nComps
   | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
@@ -325,8 +325,7 @@ matchTopology nCompsReq nComponents r
   lengths = map countSmallCCElts comps
   wellDistributed = maximum lengths < 2 * minimum lengths
 
-  smallMatHasAirOnEveryFronteer :: Cyclic.Matrix MaterialAndKey -> Bool
-  smallMatHasAirOnEveryFronteer mat =
+  airOnEveryFronteer =
     all
       (V.any (\case
         MaterialAndKey (-1) -> False
@@ -378,14 +377,13 @@ matchTopology nCompsReq nComponents r
                            , i
                            , Set.toList js))
                 $ Map.toAscList closeComponentIndices
-        in --components (Just 2) g
-           components Nothing g
+        in components (Just 2) g
 
       closeComponentIndices = List.foldl'
         (\edges' rowIdx ->
           -- walls must be detected by /matrix/ lookup.
           -- 'lookupComponent' is O(log V) and works for Air only.
-          List.foldl' (\edges colIdx -> case Cyclic.unsafeGet rowIdx colIdx r of
+          List.foldl' (\edges colIdx -> case Cyclic.unsafeGet rowIdx colIdx mat of
             MaterialAndKey (-1) -> edges
             MaterialAndKey k -> case neighbourComponents of
               [] -> edges
@@ -410,7 +408,7 @@ matchTopology nCompsReq nComponents r
                       -- Note that (translateInDir d1 w2) is equivalent to (translateInDir d2 w1).
                       -- Also, by construction, diag is withinBounds because both OrthoWalls are.
                       -- Hence we skip the 'withinBounds' test.
-                  in (case getMatAndKey diagRow diagCol of
+                  in (case getMaterialAndKey diagRow diagCol of
                       MaterialAndKey (-1) -> Nothing
                       (MaterialAndKey diagK) -> Just $ lookupComponent diagK) : go rest
                 go (_:rest@(_:_)) = go rest
@@ -419,7 +417,7 @@ matchTopology nCompsReq nComponents r
 
               lookupOrthogonally (OrthoWall _ Nothing) = Nothing
               lookupOrthogonally (OrthoWall dir (Just wall1Pos))
-               | withinBounds r2 c2 = case getMatAndKey r2 c2 of
+               | withinBounds r2 c2 = case getMaterialAndKey r2 c2 of
                     MaterialAndKey (-1) -> Nothing
                     MaterialAndKey afterWallK -> Just $ lookupComponent afterWallK
                | otherwise = Nothing
@@ -435,7 +433,7 @@ matchTopology nCompsReq nComponents r
                 in OrthoWall d $
                   bool
                     Nothing
-                    (case getMatAndKey row col of
+                    (case getMaterialAndKey row col of
                        MaterialAndKey (-1) -> Just p
                        MaterialAndKey _ -> Nothing)
                     $ withinBounds row col
@@ -443,7 +441,7 @@ matchTopology nCompsReq nComponents r
               withinBounds row col =
                 row >= 0 && col >= 0 && row < nRows && col < nCols
 
-              getMatAndKey row col = Cyclic.unsafeGet row col r)
+              getMaterialAndKey row col = Cyclic.unsafeGet row col mat)
             edges'
             [0..nCols-1])
         -- initialize with every component index
@@ -453,35 +451,30 @@ matchTopology nCompsReq nComponents r
             $ repeat Set.empty :: Map ComponentIdx (Set ComponentIdx))
         [0..nRows-1]
 
-      -- Int is the key of a graph node. This function errors if the key is out of bounds.
+      -- Int is an Air key. This function errors if the key is out of bounds.
       lookupComponent :: Int -> ComponentIdx
-      lookupComponent k =
-        fromMaybe (error "out of bounds key") $ Map.lookup k matIdxMap
+      lookupComponent = (V.!) keyToComponent
 
-  -- O(nVertex * log nVertex)
-  matIdxMap :: Map Int ComponentIdx -- Int is the key of a graph node -- TODO make this be a vector
-  matIdxMap =
-    List.foldl'
-      (\m (i, ConnectedComponent v) ->
-        V.foldl'
-          (\m' value -> Map.insert value i m')
-          m
-          v)
-      Map.empty
+  keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
+  keyToComponent = V.create $ do
+    v <- VM.new nAirKeys
+    mapM_
+      (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
       $ zip [0 :: ComponentIdx ..] comps
+    return v
 
-  nRows = Cyclic.nrows r
-  nCols = Cyclic.ncols r
+  nRows = Cyclic.nrows mat
+  nCols = Cyclic.ncols mat
 
 thresholdDiffComponentCount :: ComponentCount
 thresholdDiffComponentCount = 5
 
 tryRotationsIfAlmostMatches :: Cyclic.RotationOrder
-                            -> (NCompsRequest -> ComponentCount -> Cyclic.Matrix MaterialAndKey -> TopoMatch)
+                            -> (NCompsRequest -> ComponentCount -> SmallMatInfo -> TopoMatch)
                             -> ComponentCount
-                            -> Cyclic.Matrix MaterialAndKey
+                            -> SmallMatInfo
                             -> [TopoMatch]
-tryRotationsIfAlmostMatches order matchTopo n zeroRotation =
+tryRotationsIfAlmostMatches order matchTopo n zeroRotation@(SmallMatInfo nAir matZeroRotation) =
 
   zeroRotationRes : tryRotation
 
@@ -497,7 +490,7 @@ tryRotationsIfAlmostMatches order matchTopo n zeroRotation =
      abs (n - nComps) <= thresholdDiffComponentCount =
      -- we are already close to the target number, so
      -- there is a good probability that rotating will trigger the component match.
-     map (matchTopo NCompsNotRequired n) $ Cyclic.produceRotations order zeroRotation
+     map (matchTopo NCompsNotRequired n . SmallMatInfo nAir) $ Cyclic.produceRotations order matZeroRotation
    | otherwise = []
 
   zeroRotationRes = matchTopo
@@ -512,7 +505,7 @@ mkSmallMat :: GenIO
            -> Size
            -- ^ Size of the matrix
            -> LowerBounds
-           -> IO (Either SmallWorldRejection (Cyclic.Matrix MaterialAndKey))
+           -> IO (Either SmallWorldRejection SmallMatInfo)
            -- ^ in Right, the Air keys are ascending, consecutive, and start at 0
 mkSmallMat gen wallProba (Size nRows nCols) (LowerBounds minAirCount minWallCount countBlocks)
   | countBlocks /= fromIntegral nRows * fromIntegral nCols = error "logic"
@@ -522,7 +515,7 @@ mkSmallMat gen wallProba (Size nRows nCols) (LowerBounds minAirCount minWallCoun
   go floats
    | countAirBlocks < minAirCount = Left $ NotEnough Air
    | countWallBlocks < minWallCount = Left $ NotEnough Wall
-   | otherwise = Right $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) $ reverse wallsAndDescendingAirKeys
+   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) wallsAndDescendingAirKeys
    where
     (countAirBlocks, wallsAndDescendingAirKeys) = mkWallsAndDescendingAirKeys wallProba floats
 
@@ -549,10 +542,10 @@ unsafeMkSmallMat :: GenIO
                  -- ^ Probability to generate a wall
                  -> Size
                  -- ^ Size of the matrix
-                 -> IO (Cyclic.Matrix MaterialAndKey)
-unsafeMkSmallMat gen wallAirRatio s@(Size nRows nCols) =
-  Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) . snd . mkWallsAndDescendingAirKeys wallAirRatio <$>
-    replicateM (area s) (uniform gen)
+                 -> IO SmallMatInfo
+unsafeMkSmallMat gen wallAirRatio s@(Size nRows nCols) = do
+  (nAir, l) <- mkWallsAndDescendingAirKeys wallAirRatio <$> replicateM (area s) (uniform gen)
+  return $ SmallMatInfo nAir $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) l
 
 
 {-# INLINE countSmallCCElts #-}
@@ -599,7 +592,7 @@ smallToBig blockSize bigSize s@(SmallWorld _ (SmallWorldTopology ccs _)) =
    | otherwise = ccs !! i
 
 getBigCoords :: Int -> Int -> Size -> SmallWorld -> ConnectedComponent -> Coords Pos
-getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld smallMat (SmallWorldTopology _ resolver)) component =
+getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatInfo _ smallMat) (SmallWorldTopology _ resolver)) component =
   let modulo = blockSize * blockSize
       (smallIndex, remain) = bigIndex `quotRem` modulo
       (remainRow, remainCol) = remain `quotRem` blockSize
@@ -614,17 +607,20 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld smallMat (S
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-mkGraph :: Cyclic.Matrix MaterialAndKey
+mkGraph :: SmallMatInfo
         -> ( Graph
            , Vertex -> Int
            )
-mkGraph mat =
+mkGraph (SmallMatInfo _ mat) =
   (a,b)
  where
   -- TODO use graphFromEdgesWithConsecutiveAscKeys for better complexity.
   --  to have ascending keys, we need to traverse the underlying vector
   --  from start to end.
-  (a,b',_) = graphFromSortedEdges $ concatMap
+  -- TODO try graphFromMapOfEdgesWithConsecutiveAscKeys (maybe sorting will be faster)
+  (a,b',_) =
+    graphFromEdgesWithConsecutiveKeys
+    $ concatMap
     (\row -> let iRow = row * nCols in mapMaybe
       (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
         MaterialAndKey (-1) -> Nothing

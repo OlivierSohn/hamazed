@@ -1,3 +1,7 @@
+when using fromConsecutiveAsc, the labelling with air keys should happen after each interleaving
+else use fromConsecutive
+
+unsafeMkSmallMat should also reverse
 
 - try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
 
@@ -105,6 +109,10 @@ sliding rows / columns randomly
     -> 52s
     after computing a minimal count of components:
     -> 44.7s
+    with O(1) lookup in Data.Graph:
+    -> 37 s
+    removing reverse when creating the matrix
+    -> 35s
   }
  Interleaving + rotations:
   * Order0 | |||||||||||||||||||||||||| | didn't finish

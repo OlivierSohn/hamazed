@@ -33,6 +33,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , BigWorldTopology(..)
     , SmallWorld(..)
     , SmallWorldTopology(..)
+    , SmallMatInfo(..)
     , ConnectedComponent(..)
     , ComponentCount(..)
     , ComponentIdx(..)
@@ -92,6 +93,13 @@ data DrawGroup = DrawGroup {
 -- | How to draw the space.
 newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an array to have better memory layout
 
+newtype ComponentIdx = ComponentIdx Int
+  deriving(Generic, Enum, Num, Eq, Ord, Show, Binary, Integral, Real)
+derivingUnbox "ComponentIdx"
+    [t| ComponentIdx -> Int |]
+    [| \(ComponentIdx m) -> m |]
+    [|ComponentIdx|]
+
 data Material = Air
               -- ^ In it, ship and numbers can move.
               | Wall
@@ -103,7 +111,6 @@ derivingUnbox "Material"
     [t| Material -> Bool |]
     [| (== Wall) |]
     [| \ i -> if i then Wall else Air|]
-
 
 newtype MaterialAndKey = MaterialAndKey Int -- -1 for Wall, >= 0 for Air key
   deriving(Generic, Eq, Show)
@@ -117,6 +124,11 @@ materialAndKeyToMaterial :: MaterialAndKey -> Material
 materialAndKeyToMaterial (MaterialAndKey m)
   | m < 0 = Wall
   | otherwise = Air
+
+data SmallMatInfo = SmallMatInfo {
+    _countAirKeys :: !Int
+  , _smallMat :: !(Cyclic.Matrix MaterialAndKey)
+} deriving(Show, Eq)
 
 newtype Space = Space (Unboxed.Matrix Material)
   deriving(Generic, Show, Binary, NFData, Eq)
@@ -191,13 +203,13 @@ instance Eq BigWorld where
   (BigWorld a _) == (BigWorld b _) = a == b
 
 data SmallWorld = SmallWorld {
-    getSmallMatrix :: {-# UNPACK #-} !(Cyclic.Matrix MaterialAndKey)
+    getSmallMatrix :: {-# UNPACK #-} !SmallMatInfo
   , _smallTopo :: !SmallWorldTopology
 } deriving(Generic)
 instance Eq SmallWorld where
   (SmallWorld a _) == (SmallWorld b _) = a == b
 instance Show SmallWorld where
-  show (SmallWorld a _) = '\n' :
+  show (SmallWorld (SmallMatInfo _ a) _) = '\n' :
     unlines
       (zipWith (++)
         (showInBox $ writeWorld a)
@@ -214,8 +226,6 @@ instance Show BigWorldTopology where
 getComponentIndices :: BigWorldTopology -> [ComponentIdx]
 getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
 
-newtype ComponentIdx = ComponentIdx Int
-  deriving(Generic, Enum, Num, Eq, Ord, Show, Binary, Integral, Real)
 
 newtype ComponentCount = ComponentCount Int
   deriving(Generic, Eq, Ord, Show, Binary, Num, Enum, Integral, Real)

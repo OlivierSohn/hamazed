@@ -174,8 +174,12 @@ generateAtLeastN n act =
    | remaining <= 0 = return l
    | otherwise = act >>= \generated -> go (remaining - length generated) (generated ++ l)
 
-countAirElements :: Cyclic.Matrix MaterialAndKey -> Int
-countAirElements l = length $ filter ((== Air).materialAndKeyToMaterial) $ concat $ Cyclic.toLists l
+countAirElements :: SmallMatInfo -> Int
+countAirElements (SmallMatInfo nAir l) =
+  let nAir' = length $ filter ((== Air).materialAndKeyToMaterial) $ concat $ Cyclic.toLists l
+  in if nAir == nAir'
+    then nAir
+    else error $ "mismatch nAir" ++ show(nAir, nAir')
 
 -- Test deactivated, it actually fails, and shows that we need to make sure
 -- the sum of lower bounds is smaller than the total number of blocks, else

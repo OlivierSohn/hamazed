@@ -81,6 +81,7 @@ module Imj.Data.Graph (
     , dff
     , topSort
     , components
+    , componentsN
     , scc
     , bcc
     , reachable
@@ -544,8 +545,8 @@ graphFromEdgesWithConsecutiveAscKeys edges0
 dff          :: Graph -> Forest Vertex
 dff g         = dfs g (vertices g)
 
-dff'          :: Maybe Int -> Graph -> Forest Vertex
-dff' n g       = dfs' n g (vertices g)
+dffN          :: Int -> Graph -> Forest Vertex
+dffN n g       = dfs' (Just n) g (vertices g)
 
 -- | A spanning forest of the part of the graph reachable from the listed
 -- vertices, obtained from a depth-first search of the graph starting at
@@ -716,8 +717,13 @@ topSort       = reverse . postOrd
 -- | The connected components of a graph.
 -- Two vertices are connected if there is a path between them, traversing
 -- edges in either direction.
-components   :: Maybe Int -> Graph -> Forest Vertex
-components n   = dff' n . undirected
+components   :: Graph -> Forest Vertex
+components    = dff . undirected
+
+-- | Same as 'components' except that the search stops when a given count
+-- of connected components are found.
+componentsN  :: Int -> Graph -> Forest Vertex
+componentsN n = dffN n . undirected
 
 undirected   :: Graph -> Graph
 undirected g  = buildG (bounds g) (edges g ++ reverseE g)

@@ -34,7 +34,7 @@ module Imj.Game.Hamazed.World.Space
 import           Imj.Prelude
 
 import           Data.Either(partitionEithers, isLeft)
-import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, graphFromEdgesWithConsecutiveKeys, components)
+import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, componentsN)
 import qualified Data.Array as Array(array)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn)
@@ -313,11 +313,11 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps (\i -> vtxToMatIdx UArray.! i)
  where
   nComps = ComponentCount $ length gcomps
-  maxNCompsAsked = Just $ fromIntegral $ case nCompsReq of
+  maxNCompsAsked = fromIntegral $ case nCompsReq of
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
-  gcomps = components maxNCompsAsked graph
+  gcomps = componentsN maxNCompsAsked graph
 
   -- complexity of vtxToMatIdx is O(1)
   graph = mkGraph r
@@ -387,7 +387,7 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
                            , i
                            , Set.toList js))
                 $ Map.toAscList closeComponentIndices
-        in components (Just 2) g
+        in componentsN 2 g
 
       closeComponentIndices = List.foldl'
         (\edges' rowIdx ->
@@ -617,13 +617,8 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-mkGraph :: SmallMatInfo
-        -> Graph
+mkGraph :: SmallMatInfo -> Graph
 mkGraph (SmallMatInfo nAirKeys mat) =
-  -- TODO use graphFromEdgesWithConsecutiveAscKeys for better complexity.
-  --  to have ascending keys, we need to traverse the underlying vector
-  --  from start to end.
-  -- TODO try graphFromMapOfEdgesWithConsecutiveAscKeys (maybe sorting will be faster)
   Array.array (0,nAirKeys - 1) $ concatMap
     (\row -> let iRow = row * nCols in mapMaybe
       (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of

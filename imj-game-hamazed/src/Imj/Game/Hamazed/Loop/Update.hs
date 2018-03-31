@@ -14,6 +14,7 @@ import           Imj.Prelude hiding(intercalate)
 import           Prelude(length)
 
 import           Control.Concurrent(forkIO)
+import           Control.Concurrent.Async(withAsync)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
@@ -23,7 +24,7 @@ import           Data.List(foldl')
 import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
 import qualified Data.Set as Set (empty, union, size, null, toList)
 import           Data.Text(pack, unpack, strip, uncons)
-import qualified Data.Text as Text(length)
+import qualified Data.Text as Text(length, intercalate)
 import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
@@ -60,13 +61,9 @@ updateAppState :: (MonadState AppState m
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  Interrupt Quit -> sendToServer $ RequestApproval $ Leaves Intentional
   Interrupt Help -> error "not implemented"
-  Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
   Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
-  Configuration c ->
-    updateGameParamsFromChar c
   CycleRenderingOptions i j -> do
     cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
     onTargetSize
@@ -97,31 +94,36 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
-  WorldRequest dt stats spec -> do
-    deadline <- addDuration dt <$> liftIO getSystemTime
-    let continue = getSystemTime >>= \t -> return (t < deadline)
-    asks sendToServer' >>= \f ->
-      void $ liftIO $ forkIO $ mkWorldEssence spec continue >>= \(res, stats') -> do
-        let mergedStats = mergeMayStats stats stats'
-        f $ WorldProposal res mergedStats
-  CurrentGameStateRequest ->
-    sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
-  ChangeLevel levelEssence worldEssence ->
+  WorldRequest wid arg -> case arg of
+    GetGameState ->
+      mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
+    Build dt spec -> do
+      deadline <- addDuration dt <$> liftIO getSystemTime
+      let continue = getSystemTime >>= \t -> return (t < deadline)
+      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+        -- TODO see why we have a division by 0 error.
+        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
+          mkWorldEssence spec continue >>= send . uncurry (WorldProposal wid)
+    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
+  ChangeLevel levelEssence worldEssence wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkInitialState levelEssence worldEssence names viewMode sz (Just state)
+      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
-  PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
+      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
+  OnWorldParameters worldParameters ->
+    putWorldParameters worldParameters
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) ->
     onLaser shipId dir Add
-  ConnectionAccepted i eplayers -> do
+  ConnectionAccepted i eplayers worldParams -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
+    putWorldParameters worldParams
     let p = Map.map mkPlayer eplayers
     putPlayers p
     stateChat $ addMessage $ ChatMessage $ welcome p
@@ -149,7 +151,10 @@ updateAppState (Left evt) = case evt of
     Joins        -> " joins the game."
     WaitsToJoin  -> " is waiting to join the game."
     StartsGame   -> " starts the game."
-    Done cmd -> " changed " <> showReport cmd
+    Done cmd@(Put _) ->
+      " changed " <> showReport cmd
+    Done cmd ->
+      " " <> showReport cmd
 
   toTxt' (LevelResult n (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
@@ -157,14 +162,17 @@ updateAppState (Left evt) = case evt of
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor
+  toTxt' (CannotCreateLevel errs n) =
+    colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
   showReport (Put (ColorSchemeCenter c)) =
     ("color scheme center:" <>) $ pack $ show $ color8CodeToXterm256 c
   showReport (Put (WorldShape shape)) =
     ("world shape:" <>) $ pack $ show shape
-  showReport (Put (WallDistribution d)) =
-    ("wall distribution:" <>) $ pack $ show d
-
+  showReport (Succ x) =
+    "incremented " <> pack (show x)
+  showReport (Pred x) =
+    "decremented " <> pack (show x)
 
 {-# INLINABLE onTargetSize #-}
 onTargetSize :: (MonadState AppState m
@@ -201,27 +209,11 @@ onSendChatMessage =
       (left . pack)
       (either
         left
-        (\case
-            ServerRep rep -> sendToServer $ Report rep
-            ServerCmd cmd -> sendToServer $ Do cmd
-            ClientCmd cmd -> sendToServer $ RequestApproval cmd))
+        (sendToServer . (\case
+            ServerRep rep -> Report rep
+            ServerCmd cmd -> Do cmd
+            ClientCmd cmd -> RequestApproval cmd)))
       p
-
-updateGameParamsFromChar :: (MonadState AppState m
-                           , MonadReader e m, ClientNode e
-                           , MonadIO m)
-                         => Char
-                         -> m ()
-updateGameParamsFromChar = \case
-  '1' -> sendToServer $ Do $ Put $ WorldShape Square
-  '2' -> sendToServer $ Do $ Put $ WorldShape Rectangle'2x1
-  'e' -> sendToServer $ Do $ Put $ WallDistribution None
-  'r' -> sendToServer $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 -- TODO make modifications more atomic.
-  {-
-  'd' -> putViewMode CenterSpace -- TODO force a redraw?
-  'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
-  -}
-  _ -> return ()
 
 {-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m

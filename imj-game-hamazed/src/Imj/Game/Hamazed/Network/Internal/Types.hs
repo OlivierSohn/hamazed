@@ -4,6 +4,8 @@
 
 module Imj.Game.Hamazed.Network.Internal.Types
       ( ServerState(..)
+      , WorldState(..)
+      , WorldCreation(..)
       , Client(..)
       , mkClient
       , PlayerState(..)
@@ -16,17 +18,19 @@ module Imj.Game.Hamazed.Network.Internal.Types
     ) where
 
 import           Imj.Prelude
-import           Control.Concurrent.MVar(MVar, newEmptyMVar)
+import           Control.Concurrent.MVar.Strict(MVar, newEmptyMVar)
 import           Control.DeepSeq(NFData(..))
-import           Data.Map.Strict(Map, empty)
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map (empty)
 import           Data.Set(Set)
+import qualified Data.Set as Set (empty)
 import           Network.WebSockets(Connection)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
 
-import           Imj.Geo.Discrete
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.Color
 
@@ -68,17 +72,35 @@ data ServerState = ServerState {
   , levelSpecification :: {-# UNPACK #-} !LevelSpec
   , worldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the 'Clients'
-  , lastRequestedWorldId :: {-unpack sum-} !(Maybe WorldId)
+  , worldCreation :: {-unpack sum-} !WorldCreation
   , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
   , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
-  -- ^ The second at which the 'ServerState' was created
+  -- ^ The color scheme.
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
   , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
 instance NFData ServerState
+
+data WorldCreation = WorldCreation {
+    creationState :: !WorldState
+  , creationKey :: !WorldId
+  , creationSpec :: !WorldSpec
+  , creationStatistics :: !(Maybe Statistics)
+  -- ^ Statistics stop being gathered once the world is created
+} deriving(Generic)
+instance NFData WorldCreation
+
+mkWorldCreation :: WorldSpec -> WorldCreation
+mkWorldCreation spec = WorldCreation (CreationAssigned Set.empty) (WorldId 0) spec  Nothing
+
+data WorldState =
+    CreationAssigned !(Set ShipId) -- which clients are responsible for creating the world
+  | Created
+  deriving(Generic, Show)
+instance NFData WorldState
 
 data CurrentGame = CurrentGame {
     gameWorld :: {-# UNPACK #-} !WorldId
@@ -113,16 +135,19 @@ mkGameTiming :: GameTiming
 mkGameTiming = GameTiming Nothing initalGameMultiplicator
 
 mkClients :: Clients
-mkClients = Clients empty (ShipId 0)
+mkClients = Clients Map.empty (ShipId 0)
 
-firstServerLevel :: Int
+firstServerLevel :: LevelNumber
 firstServerLevel = firstLevel
 
 newServerState :: ServerLogs -> ColorScheme -> IO ServerState
 newServerState logs colorScheme = do
   c <- mkCenterColor colorScheme
-  ServerState logs mkClients mkGameTiming (LevelSpec firstServerLevel CannotOvershoot)
-              initialParameters Nothing IntentSetup c False <$> newEmptyMVar
+  let lvSpec = LevelSpec firstServerLevel CannotOvershoot
+      params = initialParameters
+  ServerState logs mkClients mkGameTiming lvSpec params
+              (mkWorldCreation $ WorldSpec lvSpec Set.empty params)
+              IntentSetup c False <$> newEmptyMVar
 
 mkCenterColor :: ColorScheme -> IO (Color8 Foreground)
 mkCenterColor (ColorScheme c) = return c

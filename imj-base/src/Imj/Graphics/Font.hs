@@ -49,7 +49,7 @@ import           Data.Char(chr, ord)
 import           Data.Either(partitionEithers)
 import           Data.List(foldl', length)
 import           Data.Map(Map)
-import qualified Data.Map as Map(size, lookup, adjust, fromList)
+import qualified Data.Map as Map(size, lookup, adjust, fromDistinctAscList)
 import           Data.FileEmbed(embedFile)
 import           Data.Word(Word32)
 import           Foreign.Ptr(nullPtr)
@@ -109,14 +109,14 @@ fontFiles =
 mkFontsVariations :: FontsVariations
 mkFontsVariations = FontsVariations l 0
  where
-  l = Map.fromList $
+  l = Map.fromDistinctAscList $
       zip [0..] $
       map
         (\(content, name, variations) ->
           FontVariations
             name
             content
-            (Map.fromList $ zip [0..] $ map (uncurry $ flip FontVariation) variations)
+            (Map.fromDistinctAscList $ zip [0..] $ map (uncurry $ flip FontVariation) variations)
             0)
             fontFiles
 

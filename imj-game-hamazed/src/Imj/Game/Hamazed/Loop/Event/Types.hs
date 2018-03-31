@@ -49,9 +49,7 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ The status is being progressively displayed, with line index.
                   deriving(Eq, Show)
 
-data Event = Configuration {-# UNPACK #-} !Char
-           -- ^ Configures game parameters
-           | CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
+data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
            -- ^ Changes the font used to render
            | ApplyPPUDelta {-# UNPACK #-} !Size
            | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin
@@ -63,7 +61,6 @@ data Event = Configuration {-# UNPACK #-} !Char
            -- ^ The 'Deadline' that needs to be handled immediately.
            | Interrupt !MetaAction
            -- ^ A game interruption.
-           | Continue !GameStatus
            | ToggleEventRecording
            | Log !MessageLevel !Text
            | ChatCmd {-unpack sum-} !ChatCommand
@@ -71,12 +68,9 @@ data Event = Configuration {-# UNPACK #-} !Char
            -- ^ Send message or execute command if the message starts with a '/'
            deriving(Eq, Show)
 
-data MetaAction = Quit
-                -- ^ The player decided to quit the game.
-                | Help
+data MetaAction = Help
                 -- ^ The player wants to read the help page /(Not implemented yet)/
                 deriving(Eq, Show)
-
 
 data GameStatus =
     New

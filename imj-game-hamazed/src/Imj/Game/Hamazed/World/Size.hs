@@ -22,12 +22,12 @@ maxLevelWidth = 2 * fromIntegral maxLevelHeight
 maxWorldSize :: Size
 maxWorldSize = Size maxLevelHeight maxLevelWidth
 
-heightFromLevel :: Int -> Length Height
+heightFromLevel :: LevelNumber -> Length Height
 heightFromLevel level =
   maxLevelHeight + fromIntegral (2 * (firstLevel-level)) -- less and less space as level increases
 
 
-worldSizeFromLevel :: Int
+worldSizeFromLevel :: LevelNumber
                    -- ^ 'Level' number
                    -> WorldShape -> Size
 worldSizeFromLevel level shape =

@@ -1,28 +1,39 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Util
     ( -- * List utilities
       showListOrSingleton
     , replicateElements
     , intersperse'
+    , splitEvery
     , mkGroups
     , range
-    , takeWhileInclusive
+    , takeWhilePlus
     , commonPrefix
     , commonSuffix
+    , maximumMaybe
       -- * Math utilities
     , clamp
     , zigzag
     , lastAbove
     , logBase2
+    , mapRange
+    , Quantifiable(..)
     -- * distribution utilities
     , asDistribution
     , Distribution
     -- * Render utilities
     , showArray
+    , showArrayN
     , showDistribution
+    , showQuantities
     , showInBox
+    , addRight
+    , justifyR
+    , justifyL
     -- * Reexports
     , Int64
     ) where
@@ -34,7 +45,7 @@ import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import           Data.Maybe(maybeToList)
+import           Data.Maybe(listToMaybe)
 import           Data.Text(Text, pack)
 
 {-# INLINE maximumMaybe #-}
@@ -42,31 +53,118 @@ maximumMaybe :: Ord a => [a] -> Maybe a
 maximumMaybe [] = Nothing
 maximumMaybe xs = Just $ maximum xs
 
+addRight :: [String] -> Int -> [String] -> [String]
+addRight l1' margin l2' =
+  zipWith (++)
+    (fillH l1 maxWidth1)
+    (fillH l2 maxWidth2)
+ where
+  fillH x maxWidth = take height $ x ++ repeat (replicate maxWidth ' ')
+  maxWidth1 = maxLength l1'
+  maxWidth2 = maxLength l2'
+  height = max (length l1') (length l2')
+  fillW maxWidth = map (\str -> take maxWidth $ str ++ repeat ' ')
+  l1 = fillW (maxWidth1 + margin) l1'
+  l2 = fillW maxWidth2 l2'
+
+maxLength :: [[a]] -> Int
+maxLength = fromMaybe 0 . maximumMaybe . map length
+
 showInBox :: [String] -> [String]
 showInBox l =
   bar '_' : map (withFrame '|') l ++ [bar 'T']
  where
   bar = replicate (maxWidth + 2)
-  withFrame f str = f : str ++ [f]
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map length l
+  withFrame f str = f : take maxWidth (str ++ repeat ' ') ++ [f]
+  maxWidth = maxLength l
 
 showArray :: Maybe (String, String) -> [(String,String)] -> [String]
 showArray mayTitles body =
+  showArrayN
+    (fmap pairToList mayTitles)
+    (map pairToList body)
+ where pairToList (a,b) = [a,b]
+
+showArrayN :: Maybe [String] -> [[String]] -> [String]
+showArrayN mayTitles body =
   maybe [] (\titles -> bar : format [titles]) mayTitles
   ++ [bar] ++ format body ++ [bar]
  where
   bar = replicate lBar '-'
-  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
-  format = map (\(a,b) -> "|" ++ justifyL a l1 ++ "|" ++ justifyR b l2 ++ "|")
-  allArray = maybeToList mayTitles ++ body
-  l1 = fromMaybe 0 $ maximumMaybe $ map (length . fst) allArray
-  l2 = fromMaybe 0 $ maximumMaybe $ map (length . snd) allArray
-  justifyR x maxL =
-    let l = length x
-    in " " ++ replicate (maxL-l) ' ' ++ x ++ " "
-  justifyL x maxL =
-    let l = length x
-    in " " ++ x ++ replicate (maxL-l) ' ' ++ " "
+  lBar = maxLength $ format arrayLines
+  format =
+    map
+      (\strs ->
+      "| " ++
+      intercalate
+        " | "
+        (map
+          (\(columnIdx, str, justify) -> justify (ls !! columnIdx) str)
+          $ zip3 [0..] strs justifications) ++
+      " |")
+  arrayLines = maybe body (:body) mayTitles
+  ls = map
+    (\colIdx -> maxLength $ mapMaybe (listToMaybe . drop colIdx) arrayLines)
+    [0..]
+
+  justifications = justifyL : repeat justifyR
+
+justifyR, justifyL :: Int -> String -> String
+justifyR maxL x =
+  replicate (maxL-length x) ' ' ++ x
+justifyL maxL x =
+  x ++ replicate (maxL-length x) ' '
+
+
+class (Ord a, Show a) => Quantifiable a where
+  readFloat :: Float -> a
+  writeFloat :: a -> Float
+
+  -- | Can be seen as a zero, and is the result of 'partition 0 x'.
+  nothing :: a
+  nothing = readFloat 0
+
+  gather :: a -> a -> a
+  gather a b = readFloat $ writeFloat a + writeFloat b
+
+  scatter :: Int -> a -> a
+  scatter 0 _ = nothing
+  scatter n a = readFloat $ writeFloat a / fromIntegral n
+
+  average :: [a] -> a
+  average l = scatter (length l) $ foldl' gather nothing l
+
+  normalize :: [a] -> [Float]
+  normalize l =
+    let fs = map writeFloat l
+        maxQty = fromMaybe (error "logic") $ maximumMaybe fs
+    in  map (/maxQty) fs
+
+  showQty :: a -> String
+  showQty = show
+
+instance Quantifiable Float where
+  readFloat = realToFrac
+  writeFloat = realToFrac
+
+showQuantities :: (Quantifiable a)
+               => [a]
+               -- ^ value
+               -> [String]
+showQuantities l' =
+  showArrayN (listToMaybe header) body
+ where
+  l = avg : l'
+  avg = average l'
+  txts = map showQty l
+  normalizedQuantities = normalize l
+  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
+  (header, body) = splitAt 1
+    $ map (\(i,g,t) -> [i, g, t])
+    $ zip3
+        ("Avg" : map show [1 :: Int ..])
+        graphical
+        txts
 
 type Distribution a = Map a Int
 
@@ -83,7 +181,7 @@ showDistribution m =
   map
     (\(k,n) ->
       let s = show k
-      in s ++ replicate (maxWidth - length s) ' ' ++ " | " ++ replicate n '.')
+      in justifyL maxWidth s ++ " | " ++ replicate n '.')
     l
  where
   mayMin = Map.lookupMin m
@@ -94,7 +192,7 @@ showDistribution m =
       in foldl' (\ma k -> Map.insertWith (+) k 0 ma) m [min_..max_])
     mayMin
   l = Map.toAscList m'
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map (length . show . fst) l
+  maxWidth = maxLength $ map (show . fst) l
 
 {-# INLINABLE showListOrSingleton #-}
 -- | If list is a singleton, show the element, else show the list.
@@ -133,15 +231,17 @@ mkGroups n elts
         (elts, [])
         sizes
 
--- | Takes elements, until (inclusively) a condition is met.
-takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
-takeWhileInclusive _ [] = []
-takeWhileInclusive p (x:xs) =
-  x : if p x
-        then
-          takeWhileInclusive p xs
-        else
-          []
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery n xs = as : splitEvery n bs
+  where (as,bs) = splitAt n xs
+
+
+-- | Takes elements matching a condition, and the element thereafter.
+takeWhilePlus :: (a -> Bool) -> [a] -> [a]
+takeWhilePlus _ [] = []
+takeWhilePlus p (x:xs) =
+  x : bool [] (takeWhilePlus p xs) (p x)
 
 {-# INLINABLE range #-}
 {- | Builds a range with no constraint on the order of bounds:
@@ -181,6 +281,27 @@ zigzag from' to' v =
               then v'
               else
                 2*d - v'
+
+{-# INLINABLE mapRange #-}
+mapRange :: (Fractional a, Eq a)
+         => a
+         -- ^ low 1
+         -> a
+         -- ^ high 1
+         -> a
+         -- ^ low 2
+         -> a
+         -- ^ high 2
+         -> a
+         -- ^ value 1
+         -> a
+         -- ^ value 2
+mapRange l1 h1 l2 h2 v1
+  | denom == 0 = (h2 + l2) / 2
+  | otherwise = l2 + normalized * (h2 - l2)
+ where
+  denom = h1 - l1
+  normalized = (v1 - l1) / denom
 
 {-# INLINABLE commonPrefix #-}
 commonPrefix :: (Eq a) => [a] -> [a] -> [a]

@@ -7,11 +7,11 @@ module Imj.Prelude
           ) where
 
 import           Prelude as Exported
-  ( Eq, Show(..), Real, Num, Enum, Bounded, Integral, Ord, Monoid(..), Monad(..)
+  ( Eq, Show(..), Real, Num(..), Enum, Bounded, Integral, Fractional, Ord, Monoid(..), Monad(..)
   , Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
-  , sum, map, concatMap, concat, filter, mapM_
+  , sum, map, concatMap, concat, filter, mapM_, sequence_
   , all, any, notElem, null, minimum, maximum
   , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate
   , zip, zip3, unzip, zipWith, fst, snd
@@ -23,7 +23,7 @@ import           Prelude as Exported
   , mod, min, max, abs, floor, round, ceiling, maxBound, minBound
   , negate, div, divMod, quot, quotRem, even, odd
   , error, undefined
-  , (!!)
+  , (!!), ($!)
   )
 
 import           GHC.Generics as Exported(Generic)

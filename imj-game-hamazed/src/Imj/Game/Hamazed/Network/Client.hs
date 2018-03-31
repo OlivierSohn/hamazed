@@ -21,14 +21,12 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 
 appCli :: ClientQueues -> ClientApp ()
-appCli q@(ClientQueues toClient toServer) conn = do
+appCli q@(ClientQueues toClient toServer _) conn = do
   void $ forkIO $
     safeForever $
-      receiveData conn
-        >>= writeToClient' q . FromServer
+      receiveData conn >>= writeToClient' q . FromServer
   safeForever $
-    liftIO (atomically (readTQueue toServer))
-      >>= sendBinaryData conn
+    liftIO (atomically $ readTQueue toServer) >>= sendBinaryData conn
  where
   safeForever = handleConnectionException . forever
   handleConnectionException :: IO () -> IO ()

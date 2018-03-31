@@ -32,9 +32,6 @@ executable imj-measure-stdout-exe
   hs-source-dirs:      app, src
   main-is:             Main.hs
   other-modules:       Imj.Measure.Stdout
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -threaded -rtsopts -with-rtsopts=-maxN4
-                     -fexcess-precision -optc-ffast-math
   build-depends:       base >= 4.8 && < 4.11
                      , imj-prelude ==0.1.*
                      , imj-base ==0.1.*

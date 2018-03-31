@@ -371,7 +371,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
     when (isJust maybeBackend)  $ conflict "--render"
 
   let srvPort = fromMaybe defaultPort maySrvPort
-      srv = mkServer mayColorScheme maySrvLogs maySrvName srvPort
+      srv = mkServer mayColorScheme maySrvLogs maySrvName (ServerContent srvPort Nothing)
       player = fromMaybe "Player" mayPlayerName
   newEmptyMVar >>= \ready ->
     if serverOnly

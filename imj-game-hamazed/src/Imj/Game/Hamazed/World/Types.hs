@@ -13,7 +13,6 @@ module Imj.Game.Hamazed.World.Types
         , findShip
         , ParticleSystemKey(..)
         , WorldParameters(..)
-        , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
         , ShipId(..)
@@ -78,7 +77,7 @@ import           Imj.Timing
 data WorldParameters = WorldParameters {
     worldShape :: !WorldShape
   , wallDistrib :: !WallDistribution
-} deriving(Generic, Show)
+} deriving(Generic, Show, Eq)
 
 instance Binary WorldParameters
 instance NFData WorldParameters
@@ -92,36 +91,25 @@ data WorldShape = Square
 instance Binary WorldShape
 instance NFData WorldShape
 
--- | How should walls be created?
-data WallDistribution = None
-                      -- ^ No 'Wall's.
-                      | Random !RandomParameters
-                      -- ^ 'Wall's are created with an algorithm involving random numbers.
-                      deriving(Generic, Show, Eq)
-
-instance Binary WallDistribution
-instance NFData WallDistribution
-
 data WorldSpec = WorldSpec {
     getLevelSpec' :: {-unpack sum-} !LevelSpec
   , getShipIds :: !(Set ShipId)
   , getWorldParams :: {-# UNPACK #-} !WorldParameters
-  , getWorldId' :: {-unpack sum-} !(Maybe WorldId) -- 'Nothing' when created by the client at initialization time.
 } deriving(Generic, Show)
 instance Binary WorldSpec
+instance NFData WorldSpec
 
 -- | Contains the minimal information needed to describe all parameters of the 'World'
 -- that matter to the game (i.e we ignore particle system animations and objects used to optimize rendering)
 data WorldEssence = WorldEssence {
     getNumbers :: !(Map NumId NumberEssence)
   , getShips :: !(Map ShipId BattleShip) -- TODO remove ShipId from BattleShip
-  , getSpaceMatrix :: !MaterialMatrix
-  , getWorldId :: !(Maybe WorldId)
+  , getSpace :: !Space
 } deriving(Generic, Show)
 instance Binary WorldEssence
 
 newtype WorldId = WorldId Int64
-  deriving(Generic, Show, Binary, Enum, Eq, NFData)
+  deriving(Generic, Show, Binary, Enum, Eq, Ord, NFData)
 
 data World = World {
     getWorldNumbers :: !(Map NumId Number)
@@ -247,7 +235,7 @@ makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) = Number e newColor
   c' = numberColor i
   startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
-makeReachable n@(Number _ _ _) = n
+makeReachable n = n
 
 getColliding :: Coords Pos -> Map NumId Number -> Map NumId Number
 getColliding pos =

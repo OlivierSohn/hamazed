@@ -6,6 +6,11 @@
 
 # cabal sdist
 dist
+dist-newstyle
 
 # cabal helper
 cabal-helper*
+
+# profiling results
+*.ticky
+*.prof

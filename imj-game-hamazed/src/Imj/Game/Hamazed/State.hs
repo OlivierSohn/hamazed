@@ -43,6 +43,7 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString
 import           Imj.Input.FromMonadReader
+import           Imj.Util
 
 representation :: UpdateEvent -> EventRepr
 representation (Left (GameEvent e)) = case e of
@@ -184,8 +185,11 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
 
 groupStats :: EventGroup -> String
 groupStats (EventGroup l _ t _) =
-  replicate (pred $ length l) ' ' ++ "|" ++
-    replicate (10 - length l) ' ' ++ " u " ++ showTime t
+  replicate (pred $ length l) ' ' ++
+  "|" ++
+  replicate (10 - length l) ' ' ++
+  " u " ++
+  showTime t
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m
@@ -204,16 +208,18 @@ renderAll = do
       drawAt msg $ Coords 0 0
       liftIO $ putStrLn msg)
     (\(dtDelta, dtCmds, dtFlush) -> debug >>= \case
-        True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
-                                  ++ " de " ++ showTime dtDelta
-                                  ++ " cmd " ++ showTime dtCmds
-                                  ++ " fl " ++ showTime dtFlush
+        True -> liftIO $ putStrLn $ " d "   ++ showTime' (t1...t2)
+                                 ++ " de "  ++ showTime' dtDelta
+                                 ++ " cmd " ++ showTime' dtCmds
+                                 ++ " fl "  ++ showTime' dtFlush
         False -> return ())
     res
   maybe
     (return ())
     (\_ -> asks writeToClient' >>= \f -> f $ FromClient CanvasSizeChanged)
       mayNewBufferSz
+ where
+  showTime' = justifyR 11 . showTime
 
 {-# INLINABLE getEvtStrs #-}
 getEvtStrs :: MonadState AppState m

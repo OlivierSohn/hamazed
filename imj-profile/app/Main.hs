@@ -10,11 +10,10 @@ import           Data.IORef(newIORef, atomicModifyIORef', readIORef)
 import           Data.List(foldl', unlines, intersperse)
 import qualified Data.Map.Strict as Map
 import           Data.Vector(fromList)
+import qualified Data.Vector.Unboxed as U(toList)
 import           Data.Word(Word32)
-import           Foreign.Marshal.Alloc   (allocaBytes)
-import           Foreign.Marshal.Array   (peekArray)
-import           System.IO(IOMode(..), hGetBuf, hFlush, stdout, withBinaryFile)
-import           System.Random.MWC(create, initialize, GenIO)
+import           System.IO(hFlush, stdout)
+import           System.Random.MWC
 
 import           Imj.Data.Matrix.Cyclic(Matrix, produceUsefulInterleavedVariations, unsafeGet, nrows, ncols)
 
@@ -25,17 +24,24 @@ import           Imj.Util
 
 import           Imj.Random.MWC.Seeds
 
--- command used to profile:
--- stack build --executable-profiling --library-profiling --ghc-options="-fprof-auto -rtsopts" && stack exec -- imj-game-hamazed-exe +RTS -M2G -p
+-- command used to profile.
+--
+-- for cost centers:
+-- stack build --executable-profiling --library-profiling --ghc-options="-fprof-auto -rtsopts" && stack exec -- imj-profile +RTS -M2G -p
+--
+-- for ticky-ticky : add ticky option at compile time (in the module, or in stack.yaml) +
+-- stack build && stack exec -- imj-profile-exe +RTS -rprofile.ticky
 
 main :: IO ()
 main = do
-  --writeSeedsSource
-  profileLargeWorld
+  profileLargeWorld'
+  --profileLargeWorld
   --profileMkSmallWorld
   --printVariations2
   --printVariations
   --measureMemory
+  --writeSeedsSource
+  --testRNG
 
 measureMemory :: IO ()
 measureMemory = do
@@ -65,7 +71,8 @@ measureMemory = do
     in foldl'
         (\s i ->
           foldl'
-            (\s' j -> s' + bool 0 1 (Air == unsafeGet i j mat))
+            (\s' j -> s' + case unsafeGet i j mat of
+              MaterialAndKey k -> k)
             s
             [0..pred m])
         (0 :: Int)
@@ -98,9 +105,9 @@ printVariations = do
     map getTopology . produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen 0.8 (Size 18 9)
        >>= analyzeDistribution
 
-getTopology :: Matrix Material -> (Maybe ComponentCount, IO ())
+getTopology :: Matrix MaterialAndKey -> (Maybe ComponentCount, IO ())
 getTopology r =
-  let res = matchTopology DontForceComputeComponentCount (ComponentCount 1) r
+  let res = matchTopology NCompsNotRequired (ComponentCount 1) r
       compCount = getComponentCount res
       render = do
         print compCount
@@ -114,7 +121,7 @@ profileMkSmallWorld = do
   -- use a deterministic random numbers source
   gen <- create
   r <- newIORef (0 :: Int)
-  ((res, stats), duration) <- withDuration $
+  (duration, (res, stats)) <- withDuration $
     mkSmallWorld gen (Size 18 9) (ComponentCount 1) 0.8 $ do
       newValue <- atomicModifyIORef' r (succ &&& succ)
       return (newValue /= 200)
@@ -125,68 +132,118 @@ profileMkSmallWorld = do
     Impossible err -> error $ "impossible :" ++ show err
     Success _ -> readIORef r >>= \iteration -> error $ "result found at iteration " ++ show iteration
 
+profile :: GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
+profile gen = do
+  (res, stats) <- mkSmallWorld gen
+    --(Size 32 72) (ComponentCount 1) 0.2
+    --(Size  8 18) (ComponentCount 1) 0.5
+    --(Size  8 18) (ComponentCount 1) 0.6
+    (Size  8 18) (ComponentCount 1) 0.7
+    $ pure True -- never interrupt
+  case res of
+    NeedMoreTime -> error "test logic"
+    Impossible err -> error $ "impossible :" ++ show err
+    Success _ -> return ()
+  return (res, stats)
+
+profileLargeWorld' :: IO ()
+profileLargeWorld' =
+  withNumberedSeed profile 0 >>= print
+
 profileLargeWorld :: IO ()
 profileLargeWorld = do
-  timesAndResStats <- timeWithDifferentSeeds $ \gen -> do
-    -- I could wait until I have x successes
-    (res, stats) <- mkSmallWorld gen (Size 36 72) (ComponentCount 1) 0.2 $ return True -- never interrupt
-    case res of
-      NeedMoreTime -> error "test logic"
-      Impossible err -> error $ "impossible :" ++ show err
-      Success _ -> return ()
-    return (res, stats)
-  let stats = map (snd . fst) timesAndResStats
+  timesAndResStats <- timeWithDifferentSeeds profile
+  let stats = map (snd . snd) timesAndResStats
       --results = map (fst . fst) timesAndResStats
-      times = map snd timesAndResStats
+      times = map fst timesAndResStats
   mapM_ (putStrLn . prettyShowStats) stats
-  mapM_ putStrLn $ prettyShowTimes times
+  mapM_ putStrLn $ showQuantities times
 
 prettyShowTimes :: [Time Duration System] -> [String]
 prettyShowTimes times' =
   showArrayN
-    (Just ["Seed", "Duration", "Duration'"])
+    (Just ["Seed", "Duration", "Duration (us)"])
     $ map
         (\(a,b,c) ->
         let n = round $ b * (40 :: Float)
         in [ show a
            , replicate n '|'
-           , show c
+           , showTime c
            ])
-        $ zip3 [1 :: Int ..] ratioTimes times
+        $ zip3 [1 :: Int ..] ratioTimes times'
  where
   times = map toMicros times'
   maxTime = fromMaybe 1 $ maximumMaybe times
   ratioTimes = map (\t -> fromIntegral t / fromIntegral maxTime) times
 
+
+displayRandomValues :: IO [Word32] -> IO ()
+displayRandomValues getWord32s =
+  replicateM_ 15 $
+    map (bool 'Z' ' ' . (>= 0x80000000)) <$> getWord32s >>= putStrLn
+
+displayRandomValuesF :: IO [Float] -> IO ()
+displayRandomValuesF get =
+  replicateM_ 15 $
+    map (bool 'Z' ' ' . (<= 0.5)) <$> get >>= putStrLn
+
+testRNG :: IO ()
+testRNG = do
+  putStrLn "/dev/urandom"
+  displayRandomValues mkSeedSystem
+
+  withDifferentSeeds_ $ \gen -> do
+    --s <- save gen
+    putStrLn "geni"
+    displayRandomValues $ replicateM 256 $ uniform gen
+    {-
+    gen' <- restore s
+    putStrLn "genf"
+    displayRandomValuesF $ replicateM 256 $ uniform gen'
+    -}
+
+
 -- | Runs the action several times, with different - deterministically seeded - generators.
 withDifferentSeeds :: (GenIO -> IO a) -> IO [a]
 withDifferentSeeds act =
+  mapM (withNumberedSeed act) [0..10]
+
+withDifferentSeeds_ :: (GenIO -> IO a) -> IO ()
+withDifferentSeeds_ = void . withDifferentSeeds
+
+withNumberedSeed :: (GenIO -> IO a) -> Int -> IO a
+withNumberedSeed act i = do
   -- we use deterministic seeds made from the same source as 'withSystemRandom' (see https://github.com/bos/mwc-random/issues/64)
-  mapM (initialize . fromList >=> act) $ take 11 deterministicMWCSeeds
+  gen <- initialize $ fromList $ deterministicMWCSeeds !! i
+  putStrLn $ "- With seed " ++ show (i :: Int) ++ ":"
+  act gen
 
 -- | Drops the first measurement.
 timeWithDifferentSeeds_ :: (Show a) => (GenIO -> IO a) -> IO [Time Duration System]
-timeWithDifferentSeeds_ act = map snd <$> timeWithDifferentSeeds act
+timeWithDifferentSeeds_ = fmap (map fst) . timeWithDifferentSeeds
 
 -- | Drops the first measurement.
-timeWithDifferentSeeds :: (Show a) => (GenIO -> IO a) -> IO [(a, Time Duration System)]
+timeWithDifferentSeeds :: (Show a) => (GenIO -> IO a) -> IO [(Time Duration System, a)]
 timeWithDifferentSeeds act =
-  drop 1 <$> withDifferentSeeds (\gen -> do
-    putStrLn "-"
-    withDuration (act gen) >>= \res@(a,time) -> do
-      print a
-      print time
+  drop 1 <$> withDifferentSeeds (\gen ->
+    withDuration (act gen) >>= \res -> do
+      print res
       return res)
 
 writeSeedsSource :: IO ()
 writeSeedsSource =
   mkSeedsSourceFile 100 >>= writeFile "./imj-profile/src/Imj/Random/MWC/Seeds.hs"
 
+mkSeedSystem :: IO [Word32]
+mkSeedSystem =
+  -- drop initial index and carry which are not needed
+  reverse . drop 2 . reverse . U.toList . fromSeed <$> (save =<< createSystemRandom)
+
 mkSeedsSourceFile :: Int -> IO String
 mkSeedsSourceFile n = do
   allSeeds <- (\x -> [" [", unlines $ intersperse " ," x, " ]"]) <$>
     replicateM n (do
-      allNums <- unlines . map ((++) "    " . concat) . splitEvery 8 . words . intercalate ", " . map show <$> acquireSeedSystem
+      allNums <- unlines . map ((++) "    " . concat) . splitEvery 8 . words . intercalate ", " . map show <$> mkSeedSystem
       return $ unlines ["  [", allNums, "  ]"])
   return $ unlines $
     [ "-- | The source code for this module was generated by 'writeSeedsSource'"
@@ -205,13 +262,3 @@ mkSeedsSourceFile n = do
     , "deterministicMWCSeeds = "
     ]
     ++ allSeeds
-
-acquireSeedSystem :: IO [Word32] -- TODO remove once exported by mwc-random
-acquireSeedSystem = do
-  -- Read 256 random Word32s from /dev/urandom
-  let nbytes = 1024
-      random = "/dev/urandom"
-  allocaBytes nbytes $ \buf -> do
-    nread <- withBinaryFile random ReadMode $
-               \h -> hGetBuf h buf nbytes
-    peekArray (nread `div` 4) buf

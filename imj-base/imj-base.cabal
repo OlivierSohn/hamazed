@@ -29,8 +29,10 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
 library
   hs-source-dirs:      src
+  include-dirs:        include
   other-modules:
-  exposed-modules:     Imj.Data.Matrix.Cyclic
+  exposed-modules:     Imj.Data.Graph
+                     , Imj.Data.Matrix.Cyclic
                      , Imj.Data.Matrix.Unboxed
                      , Imj.Data.StdoutBuffer
                      , Imj.Data.Tree
@@ -127,6 +129,7 @@ library
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal ==0.8.*
+                     , array >= 0.4.0.0
                      , binary == 0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*
@@ -154,8 +157,6 @@ library
                      , utf8-string ==1.0.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-algorithms >= 0.7.0.1 && < 0.8
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 executable imj-base-examples-exe
@@ -168,17 +169,16 @@ executable imj-base-examples-exe
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , text >=1.2.3 && < 1.3
-
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 test-suite imj-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Imj.Bresenham2
+  other-modules:       Test.Imj.Averageable
+                     , Test.Imj.Bresenham2
                      , Test.Imj.Bresenham3
                      , Test.Imj.Color
+                     , Test.Imj.CyclicMatrix
                      , Test.Imj.Ease
                      , Test.Imj.FreeType2
                      , Test.Imj.Font
@@ -211,8 +211,6 @@ test-suite imj-base-test
                      , text >=1.2.3 && < 1.3
                      , utf8-string ==1.0.*
                      , vector >= 0.12.0.1 && < 0.13
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 source-repository head

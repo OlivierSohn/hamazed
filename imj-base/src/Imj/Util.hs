@@ -1,5 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Util
     ( -- * List utilities
@@ -19,6 +21,7 @@ module Imj.Util
     , lastAbove
     , logBase2
     , mapRange
+    , Quantifiable(..)
     -- * distribution utilities
     , asDistribution
     , Distribution
@@ -26,6 +29,7 @@ module Imj.Util
     , showArray
     , showArrayN
     , showDistribution
+    , showQuantities
     , showInBox
     , addRight
     , justifyR
@@ -38,10 +42,10 @@ import           Imj.Prelude
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Int(Int64)
-import           Data.List(reverse, length, splitAt, foldl', intersperse)
+import           Data.List(reverse, length, splitAt, foldl')
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
-import           Data.Maybe(maybeToList)
+import           Data.Maybe(listToMaybe)
 import           Data.Text(Text, pack)
 
 {-# INLINE maximumMaybe #-}
@@ -76,15 +80,10 @@ showInBox l =
 
 showArray :: Maybe (String, String) -> [(String,String)] -> [String]
 showArray mayTitles body =
-  maybe [] (\titles -> bar : format [titles]) mayTitles
-  ++ [bar] ++ format body ++ [bar]
- where
-  bar = replicate lBar '-'
-  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
-  format = map (\(a,b) -> "| " ++ justifyL a l1 ++ " | " ++ justifyR b l2 ++ " |")
-  allArray = maybeToList mayTitles ++ body
-  l1 = maxLength $ map fst allArray
-  l2 = maxLength $ map snd allArray
+  showArrayN
+    (fmap pairToList mayTitles)
+    (map pairToList body)
+ where pairToList (a,b) = [a,b]
 
 showArrayN :: Maybe [String] -> [[String]] -> [String]
 showArrayN mayTitles body =
@@ -92,7 +91,7 @@ showArrayN mayTitles body =
   ++ [bar] ++ format body ++ [bar]
  where
   bar = replicate lBar '-'
-  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
+  lBar = maxLength $ format arrayLines
   format =
     map
       (\strs ->
@@ -100,19 +99,72 @@ showArrayN mayTitles body =
       intercalate
         " | "
         (map
-          (\(str, justify, len) -> justify str len)
-          $ zip3 strs justifications ls) ++
+          (\(columnIdx, str, justify) -> justify (ls !! columnIdx) str)
+          $ zip3 [0..] strs justifications) ++
       " |")
-  allArray = maybeToList mayTitles ++ body
-  ls = map maxLength allArray
+  arrayLines = maybe body (:body) mayTitles
+  ls = map
+    (\colIdx -> maxLength $ mapMaybe (listToMaybe . drop colIdx) arrayLines)
+    [0..]
 
   justifications = justifyL : repeat justifyR
 
-justifyR, justifyL :: String -> Int -> String
-justifyR x maxL =
+justifyR, justifyL :: Int -> String -> String
+justifyR maxL x =
   replicate (maxL-length x) ' ' ++ x
-justifyL x maxL =
+justifyL maxL x =
   x ++ replicate (maxL-length x) ' '
+
+
+class (Ord a, Show a) => Quantifiable a where
+  readFloat :: Float -> a
+  writeFloat :: a -> Float
+
+  -- | Can be seen as a zero, and is the result of 'partition 0 x'.
+  nothing :: a
+  nothing = readFloat 0
+
+  gather :: a -> a -> a
+  gather a b = readFloat $ writeFloat a + writeFloat b
+
+  scatter :: Int -> a -> a
+  scatter 0 _ = nothing
+  scatter n a = readFloat $ writeFloat a / fromIntegral n
+
+  average :: [a] -> a
+  average l = scatter (length l) $ foldl' gather nothing l
+
+  normalize :: [a] -> [Float]
+  normalize l =
+    let fs = map writeFloat l
+        maxQty = fromMaybe (error "logic") $ maximumMaybe fs
+    in  map (/maxQty) fs
+
+  showQty :: a -> String
+  showQty = show
+
+instance Quantifiable Float where
+  readFloat = realToFrac
+  writeFloat = realToFrac
+
+showQuantities :: (Quantifiable a)
+               => [a]
+               -- ^ value
+               -> [String]
+showQuantities l' =
+  showArrayN (listToMaybe header) body
+ where
+  l = avg : l'
+  avg = average l'
+  txts = map showQty l
+  normalizedQuantities = normalize l
+  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
+  (header, body) = splitAt 1
+    $ map (\(i,g,t) -> [i, g, t])
+    $ zip3
+        ("Avg" : map show [1 :: Int ..])
+        graphical
+        txts
 
 type Distribution a = Map a Int
 
@@ -129,7 +181,7 @@ showDistribution m =
   map
     (\(k,n) ->
       let s = show k
-      in justifyL s maxWidth ++ " | " ++ replicate n '.')
+      in justifyL maxWidth s ++ " | " ++ replicate n '.')
     l
  where
   mayMin = Map.lookupMin m

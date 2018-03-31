@@ -22,17 +22,12 @@ library
   exposed-modules:     Imj.Random.MWC.Seeds
   other-modules:
   build-depends:       base >= 4.8 && < 4.11
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -fexcess-precision -optc-ffast-math
   default-language:    Haskell2010
 
 
 executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -threaded -rtsopts -with-rtsopts=-maxN4
-                     -fexcess-precision -optc-ffast-math
   build-depends:       base >= 4.8 && < 4.11
                      , containers >= 0.5.9.2
                      , imj-game-hamazed ==0.1.*

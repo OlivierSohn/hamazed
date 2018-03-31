@@ -77,9 +77,9 @@ testInterleaveHalves = do
       f len (\value ->
         putStrLn $
           "countUsefulInterleavedVariations " ++
-          justifyR (show len) 3 ++
+          justifyR 3 (show len) ++
           " = " ++
-          justifyR (show (value::Int)) 3))
+          justifyR 3 (show (value::Int))))
     [1..100]
 
   --------------------------------------------------------------------------

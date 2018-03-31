@@ -11,7 +11,8 @@ import           Data.Either(rights)
 import           Data.List(foldl')
 import           System.Random.MWC(GenIO, create)
 
-import           Imj.Data.Matrix.Cyclic
+import qualified Imj.Data.Matrix.Cyclic as Cyclic
+import qualified Imj.Data.Matrix.Unboxed as Unboxed
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
@@ -34,25 +35,41 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithoutAir"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (const . (`shouldBe` Left UnusedFronteers) . matchTopology DontForceComputeComponentCount n)
+    (const . (`shouldBe` Left UnusedFronteers) . matchTopology NCompsNotRequired n)
   putStrLn "WithtAir"
   debugForM_ matricesWithAirOnEveryFronteer
-    (const . (`shouldNotBe` Left UnusedFronteers) . matchTopology DontForceComputeComponentCount n)
+    (const . (`shouldNotBe` Left UnusedFronteers) . matchTopology NCompsNotRequired n)
   putStrLn "WithoutAir 2"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (\m expected -> matchTopology ForceComputeComponentCount n m `shouldBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> matchTopology (NCompsRequiredWithPrecision 100) n m `shouldBe` Left (CC UnusedFronteers' expected))
   putStrLn "WithtAir 2"
   debugForM_ matricesWithAirOnEveryFronteer
-    (\m expected -> matchTopology ForceComputeComponentCount n m `shouldNotBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> matchTopology (NCompsRequiredWithPrecision 100) n m `shouldNotBe` Left (CC UnusedFronteers' expected))
 
-debugForM_ :: [(ComponentCount,Matrix Material)]
-           -> (Matrix Material -> ComponentCount -> IO ())
+
+mkKeys :: Unboxed.Matrix Material -> Cyclic.Matrix MaterialAndKey
+mkKeys m = Cyclic.fromList r c $ reverse l
+ where
+  r = Unboxed.nrows m
+  c = Unboxed.ncols m
+  l = fst $ foldl'
+      (\(l',k) v -> case v of
+        Wall -> (MaterialAndKey (-1):l',k)
+        Air -> (MaterialAndKey k:l', k+1))
+      ([],0)
+      $ Unboxed.toList m
+
+debugForM_ :: [(a,Unboxed.Matrix Material)]
+           -> (Cyclic.Matrix MaterialAndKey -> a -> IO ())
            -> IO ()
-debugForM_ l act = forM_ l (\(n,e) -> do
+debugForM_ l act = forM_' l (\(n,e) -> do
   mapM_ putStrLn $ showInBox $ writeWorld e
   act e n)
 
-displayNWorlds :: Int -> [Matrix Material] -> [String]
+forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,Cyclic.Matrix MaterialAndKey) -> IO ()) -> IO ()
+forM_' l = forM_ (map (fmap mkKeys) l)
+
+displayNWorlds :: Int -> [Cyclic.Matrix MaterialAndKey] -> [String]
 displayNWorlds lineLength = concat . reverse .
   foldl'
     (\(line:prevLines) m -> case line of
@@ -70,24 +87,24 @@ testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithNComponents"
-  forM_ matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology ForceComputeComponentCount n m) `shouldBe` Just expected)
+  forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology (NCompsRequiredWithPrecision 100) n m) `shouldBe` Just expected)
 
 testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
-  forM_ matricesWithNNotWellDistributedComponents
-    (\(expected, m) -> matchTopology ForceComputeComponentCount expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
+  forM_' matricesWithNNotWellDistributedComponents
+    (\(expected, m) -> matchTopology (NCompsRequiredWithPrecision 100) expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
-  forM_ matricesWithNWellDistributedComponentsSpaceWellUsed
+  forM_' matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m) -> do
       mapM_ putStrLn $ showInBox $ writeWorld m
-      either (error "expected Right") (const $ return ()) $ matchTopology ForceComputeComponentCount expected m)
+      either (error "expected Right") (const $ return ()) $ matchTopology (NCompsRequiredWithPrecision 100) expected m)
 
 testComponentsNearby :: IO ()
 testComponentsNearby = do
   putStrLn "WithNWellDistributedComponentsSpaceNotWellUsed"
-  forM_ matricesWithNWellDistributedComponentsSpaceNotWellUsed
-    (\(expected, m) -> matchTopology ForceComputeComponentCount expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
+  forM_' matricesWithNWellDistributedComponentsSpaceNotWellUsed
+    (\(expected, m) -> matchTopology (NCompsRequiredWithPrecision 100) expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
 
 testMinCountAirBlocks :: IO ()
 testMinCountAirBlocks = do
@@ -144,10 +161,10 @@ testMinCountAirBlocks = do
     nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower.
 
     generate proba =
-      concatMap (tryRotationsIfAlmostMatches matchTopology nComps) .
+      concatMap (tryRotationsIfAlmostMatches Cyclic.Order2 matchTopology nComps) .
         -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
         -- with 'mkSmallMat', the test is not relevant.
-        produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen proba sz
+        Cyclic.produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen proba sz
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =
@@ -157,8 +174,8 @@ generateAtLeastN n act =
    | remaining <= 0 = return l
    | otherwise = act >>= \generated -> go (remaining - length generated) (generated ++ l)
 
-countAirElements :: Matrix Material -> Int
-countAirElements l = length $ filter (== Air) $ concat $ toLists l
+countAirElements :: Cyclic.Matrix MaterialAndKey -> Int
+countAirElements l = length $ filter ((== Air).materialAndKeyToMaterial) $ concat $ Cyclic.toLists l
 
 -- Test deactivated, it actually fails, and shows that we need to make sure
 -- the sum of lower bounds is smaller than the total number of blocks, else
@@ -180,7 +197,7 @@ shouldBeSmallerOrEqualTo actual maxValue =
   unless (actual <= maxValue) $ error $ "expected <= \n" ++ show maxValue ++ " but got\n" ++ show actual
 -}
 
-matricesWithoutAirOnEveryFronteer :: [(ComponentCount,Matrix Material)]
+matricesWithoutAirOnEveryFronteer :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithoutAirOnEveryFronteer = map (fmap readWorld) [
  (1,
  ["     "
@@ -243,7 +260,7 @@ matricesWithoutAirOnEveryFronteer = map (fmap readWorld) [
  ,"     "])
  ]
 
-matricesWithAirOnEveryFronteer :: [(ComponentCount,Matrix Material)]
+matricesWithAirOnEveryFronteer :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithAirOnEveryFronteer = map (fmap readWorld) [
  (2,
  ["O    "
@@ -282,7 +299,7 @@ matricesWithAirOnEveryFronteer = map (fmap readWorld) [
  ]
 
 
-matricesWithNComponents :: [(ComponentCount,Matrix Material)]
+matricesWithNComponents :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithNComponents = map (fmap readWorld) [
  (2,
  ["O    "
@@ -331,7 +348,7 @@ matricesWithNComponents = map (fmap readWorld) [
  ,"OOO O"])
  ]
 
-matricesWithNWellDistributedComponentsSpaceNotWellUsed :: [(ComponentCount,Matrix Material)]
+matricesWithNWellDistributedComponentsSpaceNotWellUsed :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithNWellDistributedComponentsSpaceNotWellUsed = map (fmap readWorld) [
  (2,
  ["O    "
@@ -379,7 +396,7 @@ matricesWithNWellDistributedComponentsSpaceNotWellUsed = map (fmap readWorld) [
  ,"  OOO"])
  ]
 
-matricesWithNWellDistributedComponentsSpaceWellUsed :: [(ComponentCount,Matrix Material)]
+matricesWithNWellDistributedComponentsSpaceWellUsed :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithNWellDistributedComponentsSpaceWellUsed = map (fmap readWorld) [
  (8,
  ["O O O"
@@ -483,7 +500,7 @@ matricesWithNWellDistributedComponentsSpaceWellUsed = map (fmap readWorld) [
  ,"OO  O"])
  ]
 
-matricesWithNNotWellDistributedComponents :: [(ComponentCount,Matrix Material)]
+matricesWithNNotWellDistributedComponents :: [(ComponentCount,Unboxed.Matrix Material)]
 matricesWithNNotWellDistributedComponents = map (fmap readWorld) [
  (2,
  ["OOO  "

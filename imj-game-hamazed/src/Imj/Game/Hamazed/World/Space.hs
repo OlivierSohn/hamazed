@@ -19,6 +19,7 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     -- for tests
+    , withInterleaving
     , unsafeMkSmallMat
     , minCountAirBlocks
     , minCountWallBlocks
@@ -230,9 +231,6 @@ mkSmallWorld gen sz nComponents' userWallProba continue
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
-    withInterleaving x (SmallMatInfo nAir mat) =
-      concatMap (x . SmallMatInfo nAir) $ Cyclic.produceUsefulInterleavedVariations mat
-
     tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches rotationOrder matchTopology nComponents
 
     strategy Rotate m = tryRotationsIfAlmostMatches' m
@@ -275,6 +273,10 @@ mkSmallWorld gen sz nComponents' userWallProba continue
   addNComp n s =
     s { countGeneratedGraphsByComponentCount =
       Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
+
+withInterleaving :: (SmallMatInfo -> [a]) -> SmallMatInfo -> [a]
+withInterleaving x (SmallMatInfo nAir mat) =
+  concatMap (x . SmallMatInfo nAir) $ Cyclic.produceUsefulInterleavedVariations mat
 
 data Strategy =
     Rotate
@@ -618,6 +620,7 @@ mkGraph (SmallMatInfo _ mat) =
   --  to have ascending keys, we need to traverse the underlying vector
   --  from start to end.
   -- TODO try graphFromMapOfEdgesWithConsecutiveAscKeys (maybe sorting will be faster)
+  -- TODO try passing a freezed vector (after write + sort) (next step : use Graph directly)
   (a,b',_) =
     graphFromEdgesWithConsecutiveKeys
     $ concatMap

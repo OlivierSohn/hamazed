@@ -209,7 +209,7 @@ data SmallWorld = SmallWorld {
 instance Eq SmallWorld where
   (SmallWorld a _) == (SmallWorld b _) = a == b
 instance Show SmallWorld where
-  show (SmallWorld (SmallMatInfo _ a) _) = '\n' :
+  show (SmallWorld a _) = '\n' :
     unlines
       (zipWith (++)
         (showInBox $ writeWorld a)
@@ -251,11 +251,14 @@ readWorld l@(s:_)
    len = length s
    lens = map length l
 
-writeWorld :: Cyclic.Matrix MaterialAndKey -> [String]
-writeWorld = map (map $ toChar . materialAndKeyToMaterial) . Cyclic.toLists
+writeWorld' :: (Material -> Char) -> SmallMatInfo -> [String]
+writeWorld' materialToChar (SmallMatInfo _ mat) = map (map $ materialToChar . materialAndKeyToMaterial) $ Cyclic.toLists mat
 
-writeGameWorld :: Cyclic.Matrix MaterialAndKey -> [String]
-writeGameWorld = map (map $ toGameChar . materialAndKeyToMaterial) . Cyclic.toLists
+writeWorld :: SmallMatInfo -> [String]
+writeWorld = writeWorld' toChar
+
+writeGameWorld :: SmallMatInfo -> [String]
+writeGameWorld = writeWorld' toGameChar
 
 toMaterial :: Char -> Material
 toMaterial 'O' = Air

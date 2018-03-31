@@ -47,12 +47,12 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
     (\m expected -> matchTopology (NCompsRequiredWithPrecision 100) n m `shouldNotBe` Left (CC UnusedFronteers' expected))
 
 
-mkKeys :: Unboxed.Matrix Material -> Cyclic.Matrix MaterialAndKey
-mkKeys m = Cyclic.fromList r c $ reverse l
+mkKeys :: Unboxed.Matrix Material -> SmallMatInfo
+mkKeys m = SmallMatInfo nAir $ Cyclic.fromList r c $ reverse l
  where
   r = Unboxed.nrows m
   c = Unboxed.ncols m
-  l = fst $ foldl'
+  (l, nAir) = foldl'
       (\(l',k) v -> case v of
         Wall -> (MaterialAndKey (-1):l',k)
         Air -> (MaterialAndKey k:l', k+1))
@@ -60,16 +60,16 @@ mkKeys m = Cyclic.fromList r c $ reverse l
       $ Unboxed.toList m
 
 debugForM_ :: [(a,Unboxed.Matrix Material)]
-           -> (Cyclic.Matrix MaterialAndKey -> a -> IO ())
+           -> (SmallMatInfo -> a -> IO ())
            -> IO ()
 debugForM_ l act = forM_' l (\(n,e) -> do
   mapM_ putStrLn $ showInBox $ writeWorld e
   act e n)
 
-forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,Cyclic.Matrix MaterialAndKey) -> IO ()) -> IO ()
+forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,SmallMatInfo) -> IO ()) -> IO ()
 forM_' l = forM_ (map (fmap mkKeys) l)
 
-displayNWorlds :: Int -> [Cyclic.Matrix MaterialAndKey] -> [String]
+displayNWorlds :: Int -> [SmallMatInfo] -> [String]
 displayNWorlds lineLength = concat . reverse .
   foldl'
     (\(line:prevLines) m -> case line of
@@ -160,11 +160,11 @@ testMinCountAirBlocks = do
 
     nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower.
 
-    generate proba =
-      concatMap (tryRotationsIfAlmostMatches Cyclic.Order2 matchTopology nComps) .
-        -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
-        -- with 'mkSmallMat', the test is not relevant.
-        Cyclic.produceUsefulInterleavedVariations <$> unsafeMkSmallMat gen proba sz
+    -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
+    -- with 'mkSmallMat', the test is not relevant.
+    generate proba = withInterleaving tryRotationsIfAlmostMatches' <$> unsafeMkSmallMat gen proba sz
+     where
+      tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches Cyclic.Order2 matchTopology nComps
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

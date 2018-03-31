@@ -91,13 +91,13 @@ analyzeDistribution l = do
 
 
 getTopology :: SmallMatInfo -> (Maybe ComponentCount, IO ())
-getTopology r@(SmallMatInfo _ w) =
+getTopology r =
   let res = matchTopology NCompsNotRequired (ComponentCount 1) r
       compCount = getComponentCount res
       render = do
         print compCount
         putStrLn ""
-        mapM_ putStrLn $ showInBox $ writeWorld w
+        mapM_ putStrLn $ showInBox $ writeWorld r
         putStrLn ""
   in (compCount, render)
 

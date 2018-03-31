@@ -317,10 +317,7 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
-  gcomps = componentsN maxNCompsAsked graph
-
-  -- complexity of vtxToMatIdx is O(1)
-  graph = mkGraph r
+  gcomps = componentsN maxNCompsAsked $ mkGraph r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -362,19 +359,9 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
 
   We traverse the space row by row to optimize memory access locality.
 
-  TODO optimize complexity constant, by:
-
   * TODO Prune redundant lookups :
     * orthogonal lookups can be done in 2 directions (LEFT, Down) instead of 4
     * diagonal lookups can be done in 2 directions (Down LEFT, Down RIGHT) instead of 4
-  * TODO Change Material to RawMaterial (or Int where 0 is a wall, 1 is empty space), and using
-    Material = Wall | Air (Maybe !ComponentIdx)
-     with unpack instance:
-      Wall        -> -2
-      Air Nothing -> -1
-      Air i       -> i
-    Create the Material matrix from the RawMaterial matrix + components lookups,
-    only once we know the number of components is right and the components are well distributed.
   -}
   spaceIsWellUsed
     | nComps <= 1 = True

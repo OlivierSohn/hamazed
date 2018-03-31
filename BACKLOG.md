@@ -1,11 +1,6 @@
-when using fromConsecutiveAsc, the labelling with air keys should happen after each interleaving
-else use fromConsecutive
-
-unsafeMkSmallMat should also reverse
-
 - try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
 
-- optimize 'spaceIsWellUsed' (see comment, and use a vector for componentindex lookups)
+- optimize 'spaceIsWellUsed' (see comment)
 
 - llvm produces much better code for vector, try it (https://downloads.haskell.org/~ghc/master/users-guide/codegens.html#native-code-gen)
 - Server doesn't need to forward the request, the client continues by itself.

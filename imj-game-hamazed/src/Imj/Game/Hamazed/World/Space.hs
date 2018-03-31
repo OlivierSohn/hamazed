@@ -209,7 +209,7 @@ mkSmallWorld gen sz nComponents' userWallProba continue
           -- stop at first success
           (takeWhilePlus isLeft . strategy Rotate))
         <$> withDurationSampledEvery 1000 i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
-        let newStats = addMkRandomMatDuration duration $ updateStats l stats
+        let !newStats = addMkRandomMatDuration duration $ updateStats l stats
         case partitionEithers l of
           (_,[]) -> go' (i+1) newStats
           (_,successes) -> return (successes, newStats))

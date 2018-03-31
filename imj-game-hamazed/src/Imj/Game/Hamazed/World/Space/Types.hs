@@ -280,7 +280,7 @@ data Statistics = Statistics {
   , countGeneratedGraphsByComponentCount :: !(Map ComponentCount Int)
   , countNotEnoughAir, countNotEnoughWalls, countUnusedFronteers :: {-# NOUNPACK #-} !Int
   , countComponentCountMismatch, countComponentsSizesNotWellDistributed, countSpaceNotUsedWellEnough :: {-# NOUNPACK #-} !Int
-  , durations :: {-# NOUNPACK #-} DurationStats
+  , durations :: {-# NOUNPACK #-} !DurationStats
 } deriving(Generic)
 instance Binary Statistics
 instance NFData Statistics

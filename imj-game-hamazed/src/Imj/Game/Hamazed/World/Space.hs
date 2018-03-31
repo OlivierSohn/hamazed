@@ -35,6 +35,8 @@ import           Imj.Prelude
 
 import           Data.Either(partitionEithers, isLeft)
 import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, graphFromEdgesWithConsecutiveKeys, components)
+import qualified Data.Array as Array(array)
+import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn)
 import qualified Data.List as List (foldl')
 import           Data.Map.Strict(Map)
@@ -308,7 +310,7 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
     -- from here on, if the number of components is > 1, we compute the distances between components
   | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
-  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps vtxToMatIdx
+  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps (\i -> vtxToMatIdx UArray.! i)
  where
   nComps = ComponentCount $ length gcomps
   maxNCompsAsked = Just $ fromIntegral $ case nCompsReq of
@@ -318,7 +320,17 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   gcomps = components maxNCompsAsked graph
 
   -- complexity of vtxToMatIdx is O(1)
-  (graph, vtxToMatIdx) = mkGraph r
+  graph = mkGraph r
+
+  vtxToMatIdx :: UArray.Array Int Int
+  vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
+    (\row -> let iRow = row * nCols in mapMaybe
+      (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
+        MaterialAndKey (-1) -> Nothing
+        MaterialAndKey k -> Just (k, matIdx :: Int))
+      [0..nCols-1])
+    [0..nRows-1]
+
   comps = map (ConnectedComponent . V.fromList . flatten) gcomps
   lengths = map countSmallCCElts comps
   wellDistributed = maximum lengths < 2 * minimum lengths
@@ -606,51 +618,33 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        multiply blockSize smallCoords
 
 mkGraph :: SmallMatInfo
-        -> ( Graph
-           , Vertex -> Int
-           )
-mkGraph (SmallMatInfo _ mat) =
-  (a,b)
- where
+        -> Graph
+mkGraph (SmallMatInfo nAirKeys mat) =
   -- TODO use graphFromEdgesWithConsecutiveAscKeys for better complexity.
   --  to have ascending keys, we need to traverse the underlying vector
   --  from start to end.
   -- TODO try graphFromMapOfEdgesWithConsecutiveAscKeys (maybe sorting will be faster)
-  -- TODO try passing a freezed vector (after write + sort) (next step : use Graph directly)
-  (a,b',_) =
-    graphFromEdgesWithConsecutiveKeys
-    $ concatMap
+  Array.array (0,nAirKeys - 1) $ concatMap
     (\row -> let iRow = row * nCols in mapMaybe
       (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
         MaterialAndKey (-1) -> Nothing
-        MaterialAndKey k -> Just (matIdx, k, connectedNeighbours matIdx row col))
+        MaterialAndKey k -> Just (k, rightUpAirKeys matIdx row col))
       [0..nCols-1])
     [0..nRows-1]
-  b vtx = idx where (idx,_,_) = b' vtx
+
+ where
 
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
 
-  connectedNeighbours :: Int -> Int -> Int -> [Int]
-  connectedNeighbours i row col =
-    mapMaybe (\j -> case Cyclic.unsafeGetByIndex j mat of
+  rightUpAirKeys :: Int -> Int -> Int -> [Int]
+  rightUpAirKeys matIdx row col =
+    mapMaybe (\neighbourMatIdx -> case Cyclic.unsafeGetByIndex neighbourMatIdx mat of
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
-    [
-    -- try RIGHT
-    if col == nCols-1
-      then
-        Nothing
-      else
-        Just $ i+1
-    ,
-    -- try Up
-    if row == 0
-      then
-        Nothing
-      else
-        Just $ i-nCols
+    [ bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT
+    , bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
     ]
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space

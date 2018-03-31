@@ -67,6 +67,7 @@ library
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.11
+                     , array == 0.5.*
                      , async ==2.1.*
                      , attoparsec ==0.13.*
                      , binary ==0.8.*

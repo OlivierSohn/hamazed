@@ -129,7 +129,7 @@ library
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.11
                      , ansi-terminal ==0.8.*
-                     , array >= 0.4.0.0
+                     , array == 0.5.*
                      , binary == 0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*

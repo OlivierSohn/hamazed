@@ -111,8 +111,10 @@ sliding rows / columns randomly
     -> 44.7s
     with O(1) lookup in Data.Graph:
     -> 37 s
-    removing reverse when creating the matrix
+    removing reverse when creating the matrix:
     -> 35s
+    merge notion of Vertex and Key:
+    -> 26s
   }
  Interleaving + rotations:
   * Order0 | |||||||||||||||||||||||||| | didn't finish

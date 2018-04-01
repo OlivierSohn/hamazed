@@ -30,6 +30,8 @@ module Imj.Util
     , showArrayN
     , showDistribution
     , showQuantities
+    , showQuantities'
+    , showQuantities''
     , showInBox
     , addRight
     , justifyR
@@ -41,6 +43,7 @@ module Imj.Util
 import           Imj.Prelude
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
+import           Data.Either(partitionEithers)
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl')
 import           Data.Map.Strict (Map)
@@ -149,7 +152,7 @@ instance Quantifiable Float where
 
 showQuantities :: (Quantifiable a)
                => [a]
-               -- ^ value
+               -- ^ values
                -> [String]
 showQuantities l' =
   showArrayN (listToMaybe header) body
@@ -163,6 +166,53 @@ showQuantities l' =
     $ map (\(i,g,t) -> [i, g, t])
     $ zip3
         ("Avg" : map show [1 :: Int ..])
+        graphical
+        txts
+
+showQuantities' :: (Quantifiable a)
+                => a
+                -- ^ Value to use for graphical representation when Left
+                -> [Either String a]
+                -- ^ Values
+                -> [String]
+showQuantities' leftValue l' =
+  showArrayN (listToMaybe header) body
+ where
+  l = avg : l'
+  avg = case partitionEithers l' of
+    ([], valids) -> Right $ average valids
+    (_:_,_) -> Left "N/A"
+  txts = map (either id showQty) l
+  normalizedQuantities = normalize $ map (either (const leftValue) id) l
+  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
+  (header, body) = splitAt 1
+    $ map (\(i,g,t) -> [i, g, t])
+    $ zip3
+        ("Avg" : map show [1 :: Int ..])
+        graphical
+        txts
+
+-- | no average header
+showQuantities'' :: (Quantifiable a)
+                => a
+                -- ^ Value to use for graphical representation when Left
+                -> [Either String a]
+                -- ^ Values
+                -> [String]
+                -- ^ Labels
+                -> String
+                -- ^ Title
+                -> [String]
+showQuantities'' leftValue l labels title =
+  showArrayN (Just [title]) body
+ where
+  txts = map (either id showQty) l
+  normalizedQuantities = normalize $ map (either (const leftValue) id) l
+  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
+  body =
+    map (\(i,g,t) -> [i, g, t])
+    $ zip3
+        labels
         graphical
         txts
 

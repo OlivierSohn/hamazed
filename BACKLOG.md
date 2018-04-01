@@ -9,6 +9,10 @@
     Maybe it would be good to also take the seed index into account to avoid having too big differences:
     The scheduler stops the test if it reaches a max number of seeds (1000?)
 
+  - Within the same test, we want to find the fastest combination, so we could allocate .1s to each,
+  see which ones succeed. This way, the ones that are slow won't block the test forever.
+  But : we should not discard a combination that, "out of bad luck" took a long time on a given seed.
+
 - during the game, to create worlds, use the strategy of the closest known world.
 
 - try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
@@ -32,6 +36,7 @@ sliding rows / columns randomly
 - limit the number of interleavings?
 
 - Averaged on different seed:
+
 
 * (Size 32 72) (ComponentCount 1) 0.2      {Rotations / Interleavings are NOT usefull}
  Rotate:

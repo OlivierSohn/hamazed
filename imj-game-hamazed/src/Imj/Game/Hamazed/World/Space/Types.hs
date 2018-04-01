@@ -14,7 +14,9 @@ module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
+    , prettyShowSWCharacteristics
     , SmallWorldCreationStrategy(..)
+    , prettyShowSWCreationStrategy
     , MatrixBranchingStrategy(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
@@ -171,6 +173,10 @@ data SmallWorldCharacteristics = SWCharacteristics {
 instance Binary SmallWorldCharacteristics
 instance NFData SmallWorldCharacteristics
 
+prettyShowSWCharacteristics :: SmallWorldCharacteristics -> String
+prettyShowSWCharacteristics (SWCharacteristics (Size (Length h) (Length w)) (ComponentCount nComps) proba) =
+  show (h,w) ++ ", " ++ show nComps ++ " component, " ++ show proba ++ " wall."
+
 -- TODO update comment when done
 -- | (Will soon be) deduced from 'SmallWorldCharacteristics'
 data SmallWorldCreationStrategy = SWCreationStrategy {
@@ -182,6 +188,10 @@ data SmallWorldCreationStrategy = SWCreationStrategy {
 } deriving(Generic, Show, Eq, Ord)
 instance Binary SmallWorldCreationStrategy
 instance NFData SmallWorldCreationStrategy
+
+prettyShowSWCreationStrategy :: SmallWorldCreationStrategy -> String
+prettyShowSWCreationStrategy (SWCreationStrategy branching rotation) =
+  show branching ++ " " ++ show rotation
 
 data MatrixBranchingStrategy =
     Rotate
@@ -458,11 +468,11 @@ prettyShowProperties
     , ("Matrices dimensions (h,w)", show (h,w))
     , ("Branching strategy", show branchStrategy)
     , ("Rotation order", show rotationOrder)
-    , ("Max N. matrices per Random matrix", show maxMatricesPerRandom)
     ]
 
   nInterleaved = Cyclic.countUsefulInterleavedVariations2D sz
   nRotations = Cyclic.countRotations' rotationOrder sz
+  {-
   maxMatricesPerRandom = 1 + case branchStrategy of
     Rotate ->
       nRotations
@@ -470,7 +480,7 @@ prettyShowProperties
       nRotations + nInterleaved
     InterleaveTimesRotate ->
       nRotations * nInterleaved
-
+  -}
   random = "using random matrices"
   branchingIn = ", each of them branching in "
   rotated =

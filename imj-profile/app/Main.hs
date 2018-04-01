@@ -9,12 +9,14 @@ import           Control.Arrow((&&&))
 import           Control.Concurrent(threadDelay)
 import           Data.IORef(newIORef, atomicModifyIORef', readIORef)
 import           Data.List(foldl', unlines, intersperse)
+import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Vector(fromList)
 import qualified Data.Vector.Unboxed as U(toList)
 import           Data.Word(Word32)
 import           System.IO(hFlush, stdout)
 import           System.Random.MWC
+import           System.Timeout(timeout)
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 
@@ -35,8 +37,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  --profileLargeWorld'
-  profileLargeWorld
+  profileAllProps
+  --profileLargeWorld
   --profileMkSmallWorld
   --measureMemory
   --writeSeedsSource
@@ -121,30 +123,27 @@ profileMkSmallWorld = do
     Impossible err -> error $ "impossible :" ++ show err
     Success _ -> readIORef r >>= \iteration -> error $ "result found at iteration " ++ show iteration
 
-profile :: GenIO -> IO (MkSpaceResult SmallWorld, (Properties, Statistics))
-profile gen = do
-  (res, stats) <- mkSmallWorld gen property neverInterrupt
-  case res of
-    NeedMoreTime -> error "test logic" -- since we bever interrupt the test, this is not possible.
-    Impossible err -> error $ "impossible :" ++ show err
-    Success _ -> return ()
-  return (res, (property,stats))
+-- | Returns 12 combinations
+allStrategies :: [SmallWorldCreationStrategy]
+allStrategies =
+  concatMap
+    (\branch ->
+      map
+        (SWCreationStrategy branch)
+        [ Cyclic.Order0
+        , Cyclic.AtDistance1
+        , Cyclic.Order1
+        , Cyclic.Order2
+        ])
+    [ Rotate
+    , InterleavePlusRotate
+    , InterleaveTimesRotate
+    ]
 
+allWorlds :: [SmallWorldCharacteristics]
+allWorlds =
+  map (\(a,b,c) -> SWCharacteristics a b c) params
  where
-  property = mkProperties characteristics strategy
-
-  strategy = SWCreationStrategy
---    Rotate
---    InterleavePlusRotate
-    InterleaveTimesRotate
-
---    Cyclic.Order0
---    Cyclic.AtDistance1
-    Cyclic.Order1
---    Cyclic.Order2
-
-  testedParamsIdx = 0
-
   params =
     [ (Size 32 72, ComponentCount 1, 0.2)
     , (Size  8 18, ComponentCount 1, 0.5)
@@ -152,40 +151,82 @@ profile gen = do
     , (Size  8 18, ComponentCount 1, 0.7)
     ]
 
-  (size, componentCount, wallProba) = params !! testedParamsIdx
-  characteristics = SWCharacteristics size componentCount wallProba
+allProps :: [Properties]
+allProps = [mkProperties ch st | ch <- allWorlds, st <- allStrategies]
 
+forMLoudly :: String -> [a] -> (a -> IO b) -> IO [b]
+forMLoudly name l act = do
+  let count = length l
+  forM (zip [1 :: Int ..] l)
+    (\(i,v) -> do
+      putStrLn $ name ++ " " ++ show i ++ " of " ++ show count
+      act v)
+
+profileAllProps :: IO ()
+profileAllProps = do
+  allRes <- zip allWorlds <$> forMLoudly "World" allWorlds
+    (\worldCharacteristics ->
+      zip allStrategies <$> forMLoudly "Strategy" allStrategies
+        (\strategy -> do
+          let p = mkProperties worldCharacteristics strategy
+          timeWithDifferentSeeds (timeout allowedMicros . profile p))
+      )
+  forM_ allRes
+    (\(worldCharac, worldResults) -> do
+      let labelsAndMaybeTimes = map
+            (\(strategy, seedsResults) ->
+              ( prettyShowSWCreationStrategy strategy
+              , case length seedsResults - length (catMaybes $ map snd seedsResults) of
+                  0 -> Right $ average $ map fst seedsResults
+                  nSeedsTimeouts -> Left nSeedsTimeouts))
+            worldResults
+          labels = map fst labelsAndMaybeTimes
+
+      mapM_ putStrLn $
+        showQuantities''
+          allowed
+          (map (either (\n -> Left $ show n ++ " Timeouts.") Right . snd) labelsAndMaybeTimes)
+          labels
+          $ prettyShowSWCharacteristics worldCharac)
+ where
+  -- time allowed for each individual seed
+  !allowed = fromSecs 10
+  !allowedMicros = fromIntegral $ toMicros allowed
+
+maybeToEither :: b -> Maybe a -> Either b a
+maybeToEither err = maybe (Left err) Right
+
+
+profile :: Properties -> GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
+profile property gen = do
+  (res, stats) <- mkSmallWorld gen property neverInterrupt
+  case res of
+    NeedMoreTime -> error "test logic" -- since we bever interrupt the test, this is not possible.
+    Impossible err -> error $ "impossible :" ++ show err
+    Success _ -> return ()
+  return (res, stats)
+ where
   neverInterrupt = pure True
-
-profileLargeWorld' :: IO ()
-profileLargeWorld' =
-  withNumberedSeed profile 0 >>= print
 
 profileLargeWorld :: IO ()
 profileLargeWorld = do
-  timesAndResStats <- timeWithDifferentSeeds profile
+  timesAndResStats <- timeWithDifferentSeeds $ profile $ head allProps
   let stats = map (snd . snd) timesAndResStats
       --results = map (fst . fst) timesAndResStats
       times = map fst timesAndResStats
   mapM_ (putStrLn . show) stats
   mapM_ putStrLn $ showQuantities times
 
-prettyShowTimes :: [Time Duration System] -> [String]
-prettyShowTimes times' =
-  showArrayN
-    (Just ["Seed", "Duration", "Duration (us)"])
-    $ map
-        (\(a,b,c) ->
-        let n = round $ b * (40 :: Float)
-        in [ show a
-           , replicate n '|'
-           , showTime c
-           ])
-        $ zip3 [1 :: Int ..] ratioTimes times'
+
+-- | Runs several actions sequentially, allocating a given budget to each.
+{-# INLINABLE withinDuration #-}
+withinDuration :: (Ord a) => Time Duration System -> (a -> IO b) -> [a] -> IO (Map a (Maybe b))
+withinDuration duration act args =
+-- Note that for this to work we may need to compile with -fno-omit-yields
+  Map.fromList . zip args <$> forM args (timeout micros . act)
  where
-  times = map toMicros times'
-  maxTime = fromMaybe 1 $ maximumMaybe times
-  ratioTimes = map (\t -> fromIntegral t / fromIntegral maxTime) times
+  micros = fromIntegral $ toMicros duration
+
 
 
 displayRandomValues :: IO [Word32] -> IO ()
@@ -230,16 +271,13 @@ withNumberedSeed act i = do
   act gen
 
 -- | Drops the first measurement.
-timeWithDifferentSeeds_ :: (Show a) => (GenIO -> IO a) -> IO [Time Duration System]
+timeWithDifferentSeeds_ :: (GenIO -> IO a) -> IO [Time Duration System]
 timeWithDifferentSeeds_ = fmap (map fst) . timeWithDifferentSeeds
 
 -- | Drops the first measurement.
-timeWithDifferentSeeds :: (Show a) => (GenIO -> IO a) -> IO [(Time Duration System, a)]
+timeWithDifferentSeeds :: (GenIO -> IO a) -> IO [(Time Duration System, a)]
 timeWithDifferentSeeds act =
-  drop 1 <$> withDifferentSeeds (\gen ->
-    withDuration (act gen) >>= \res -> do
-      print res
-      return res)
+  drop 1 <$> withDifferentSeeds (withDuration . act)
 
 writeSeedsSource :: IO ()
 writeSeedsSource =

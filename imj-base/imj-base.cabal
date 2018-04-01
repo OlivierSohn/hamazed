@@ -32,7 +32,7 @@ library
   include-dirs:        include
   other-modules:
   exposed-modules:     Imj.Data.Graph
-                     , Imj.Data.Graph4
+                     , Imj.Data.UndirectedGraph
                      , Imj.Data.Matrix.Cyclic
                      , Imj.Data.Matrix.Unboxed
                      , Imj.Data.StdoutBuffer

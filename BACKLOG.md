@@ -113,7 +113,7 @@ sliding rows / columns randomly
     -> 35s
     merge notion of Vertex and Key:
     -> 26s
-    use Graph4
+    use Graph
     -> 19s
   }
  Interleaving + rotations:

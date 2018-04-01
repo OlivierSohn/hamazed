@@ -34,10 +34,8 @@ module Imj.Game.Hamazed.World.Space
 import           Imj.Prelude
 
 import           Data.Either(partitionEithers, isLeft)
-import           Imj.Data.Graph(Vertex, graphFromSortedEdges, componentsN)
-import           Imj.Data.Graph4(Graph4, List4(..))
-import qualified Imj.Data.Graph4 as G4(componentsN)
-import qualified Data.Array as Array(array)
+import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
+import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn)
 import qualified Data.List as List (foldl')
@@ -47,8 +45,10 @@ import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Text(pack)
 import           Data.Tree(flatten)
+import qualified Data.Vector.Mutable as BVM (new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
 import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector as BV
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
@@ -319,7 +319,9 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
-  gcomps = G4.componentsN maxNCompsAsked $ mkGraph r
+
+  -- mkGraph returns an undirected graph
+  gcomps = Undirected.componentsN maxNCompsAsked $ mkGraph r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -370,13 +372,13 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
     | otherwise = length compsOfCloseComps == 1
     where
       compsOfCloseComps =
-        let (g,_,_) = graphFromSortedEdges $
+        let (g,_,_) = Directed.graphFromSortedEdges $
               map
                 (\(i,js) -> (i
                            , i
                            , Set.toList js))
                 $ Map.toAscList closeComponentIndices
-        in componentsN 2 g
+        in Directed.componentsN 2 g
 
       closeComponentIndices = List.foldl'
         (\edges' rowIdx ->
@@ -556,7 +558,7 @@ countBigCCElts :: Int -> ConnectedComponent -> Int
 countBigCCElts blockSize c =
   blockSize * blockSize * countSmallCCElts c -- doesn't include extensions.
 
-getSmallMatIndex :: Int -> (Vertex -> Int) -> ConnectedComponent -> Int
+getSmallMatIndex :: Int -> (Undirected.Vertex -> Int) -> ConnectedComponent -> Int
 getSmallMatIndex smallIndex resolver c@(ConnectedComponent v)
   | smallIndex < 0 || smallIndex >= countSmallCCElts c = error $ "index out of bounds:" ++ show smallIndex
   | otherwise = resolver $ v V.! smallIndex
@@ -606,15 +608,19 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-mkGraph :: SmallMatInfo -> Graph4
+-- | Creates an undirected graph
+mkGraph :: SmallMatInfo -> Undirected.Graph
 mkGraph (SmallMatInfo nAirKeys mat) =
-  Array.array (0,nAirKeys - 1) $ concatMap
-    (\row -> let iRow = row * nCols in mapMaybe
-      (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
-        MaterialAndKey (-1) -> Nothing
-        MaterialAndKey k -> Just (k, List4 $ rightUpAirKeys matIdx row col))
-      [0..nCols-1])
-    [0..nRows-1]
+  BV.create $ do
+    v <- BVM.new nAirKeys
+    forM_ [0..nRows-1] (\row -> do
+      let iRow = row * nCols
+      forM_ [0..nCols-1] (\col -> do
+        let matIdx = iRow + col
+        case Cyclic.unsafeGetByIndex matIdx mat of
+          MaterialAndKey (-1) -> return ()
+          MaterialAndKey k -> BVM.write v k $ rightUpAirKeys matIdx row col))
+    return v
 
  where
 

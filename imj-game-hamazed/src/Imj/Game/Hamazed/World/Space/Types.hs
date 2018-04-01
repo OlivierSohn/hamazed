@@ -100,6 +100,7 @@ derivingUnbox "ComponentIdx"
     [| \(ComponentIdx m) -> m |]
     [|ComponentIdx|]
 
+
 data Material = Air
               -- ^ In it, ship and numbers can move.
               | Wall

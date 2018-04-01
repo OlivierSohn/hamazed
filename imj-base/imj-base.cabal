@@ -32,6 +32,7 @@ library
   include-dirs:        include
   other-modules:
   exposed-modules:     Imj.Data.Graph
+                     , Imj.Data.Graph4
                      , Imj.Data.Matrix.Cyclic
                      , Imj.Data.Matrix.Unboxed
                      , Imj.Data.StdoutBuffer
@@ -157,6 +158,7 @@ library
                      , utf8-string ==1.0.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-algorithms >= 0.7.0.1 && < 0.8
+                     , vector-th-unbox == 0.2.*
   default-language:    Haskell2010
 
 executable imj-base-examples-exe

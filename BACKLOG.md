@@ -1,5 +1,8 @@
 - try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
 
+- write a graph that has at most N outs, then I can use a Graph 4 for my purpose, and an unboxed array.
+Use a Word64 storing at most 4 edges.
+
 - optimize 'spaceIsWellUsed' (see comment)
 
 - llvm produces much better code for vector, try it (https://downloads.haskell.org/~ghc/master/users-guide/codegens.html#native-code-gen)
@@ -110,6 +113,8 @@ sliding rows / columns randomly
     -> 35s
     merge notion of Vertex and Key:
     -> 26s
+    use Graph4
+    -> 19s
   }
  Interleaving + rotations:
   * Order0 | |||||||||||||||||||||||||| | didn't finish

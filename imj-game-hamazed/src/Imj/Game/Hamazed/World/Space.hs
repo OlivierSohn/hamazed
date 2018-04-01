@@ -34,7 +34,9 @@ module Imj.Game.Hamazed.World.Space
 import           Imj.Prelude
 
 import           Data.Either(partitionEithers, isLeft)
-import           Imj.Data.Graph(Graph, Vertex, graphFromSortedEdges, componentsN)
+import           Imj.Data.Graph(Vertex, graphFromSortedEdges, componentsN)
+import           Imj.Data.Graph4(Graph4, List4(..))
+import qualified Imj.Data.Graph4 as G4(componentsN)
 import qualified Data.Array as Array(array)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn)
@@ -317,7 +319,7 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
-  gcomps = componentsN maxNCompsAsked $ mkGraph r
+  gcomps = G4.componentsN maxNCompsAsked $ mkGraph r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -604,13 +606,13 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-mkGraph :: SmallMatInfo -> Graph
+mkGraph :: SmallMatInfo -> Graph4
 mkGraph (SmallMatInfo nAirKeys mat) =
   Array.array (0,nAirKeys - 1) $ concatMap
     (\row -> let iRow = row * nCols in mapMaybe
       (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
         MaterialAndKey (-1) -> Nothing
-        MaterialAndKey k -> Just (k, rightUpAirKeys matIdx row col))
+        MaterialAndKey k -> Just (k, List4 $ rightUpAirKeys matIdx row col))
       [0..nCols-1])
     [0..nRows-1]
 
@@ -625,8 +627,10 @@ mkGraph (SmallMatInfo nAirKeys mat) =
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
-    [ bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT
-    , bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
+    [ bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
+    , bool (Just $ matIdx - 1)     Nothing $ col == 0       -- LEFT
+    , bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT
+    , bool (Just $ matIdx + nCols) Nothing $ row == nRows-1 -- Up
     ]
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space

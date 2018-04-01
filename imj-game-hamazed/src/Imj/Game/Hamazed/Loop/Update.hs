@@ -156,9 +156,9 @@ updateAppState (Left evt) = case evt of
     Done cmd ->
       " " <> showReport cmd
 
-  toTxt' (LevelResult n (Lost reason)) =
+  toTxt' (LevelResult (LevelNumber n) (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
-  toTxt' (LevelResult n Won) =
+  toTxt' (LevelResult (LevelNumber n) Won) =
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor

@@ -1,4 +1,13 @@
-- in test, automate finding the best strategy.
+- in test, automate finding the best strategy:
+  take average of different seeds:
+    budget time equally, i.e if a test took a very long time to run with a given seed,
+    it will wait possibly until all other tests have finished all their iterations to be run again.
+    Implement this using for each test
+      - a duration counter for "time spent sofar in this test, for all seeds"
+      - a "next seed index" (Maybe Int)
+    and the scheduler runs the test with minimal time spent sofar (maybe it will run it several times in a row, that's ok.).
+    Maybe it would be good to also take the seed index into account to avoid having too big differences:
+    The scheduler stops the test if it reaches a max number of seeds (1000?)
 
 - during the game, to create worlds, use the strategy of the closest known world.
 
@@ -6,7 +15,6 @@
 
 - optimize 'spaceIsWellUsed' (see comment)
 
-- llvm produces much better code for vector, try it (https://downloads.haskell.org/~ghc/master/users-guide/codegens.html#native-code-gen)
 - Server doesn't need to forward the request, the client continues by itself.
 This will avoid unproductive waits.
 
@@ -15,7 +23,8 @@ fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark, then reuse random matrix b
 sliding rows / columns randomly
 
 - not sure if translations could be used in place of rotations (in a +1 rotation, the
-  last element of the last column becomes the first element of the first column, maybe that's a problem.)
+  last element of the last column becomes the first element of the first column, maybe that's a problem
+  as it breaks the topology in two ways (that's one too much!).)
 
 - benchmark alternative rotations:
   - modulo ()
@@ -27,65 +36,65 @@ sliding rows / columns randomly
 * (Size 32 72) (ComponentCount 1) 0.2      {Rotations / Interleavings are NOT usefull}
  Rotate:
   # Order0 |                          | |     221'877 (us)    nRandMat 50, nMatPerRandMat    1 ... in    50 matrices we found a solution
-  * Rect'1 |                         || |     444'260 (us)    nRandMat 15, nMatPerRandMat    5
+  * Dist'1 |                         || |     444'260 (us)    nRandMat 15, nMatPerRandMat    5
   * Order1 |                        ||| |   2'607'746 (us)    nRandMat 13, nMatPerRandMat   50
   * Order2 | |||||||||||||||||||||||||| |  58'014'198 (us)    nRandMat 15, nMatPerRandMat 1000 ... in 15000 matrices we found a solution
  InterleavePlusRotate:
   * Order0 |                          | |     343'393 (us)    nRandMat 3, nMatPerRandMat   30
-  * Rect'1 |                          | |     392'693 (us)    nRandMat 2, nMatPerRandMat   30
+  * Dist'1 |                          | |     392'693 (us)    nRandMat 2, nMatPerRandMat   30
   * Order1 |                         || |     902'222 (us)    nRandMat 3, nMatPerRandMat   80
   * Order2 |               |||||||||||| |  12'637'535 (us)    nRandMat 1, nMatPerRandMat 1000
  InterleaveTimesRotate:
   * Order0 |                          | |     300'000 (us)    nRandMat 3, nMatPerRandMat    20 ... in    60 matrices we found a solution
-  * Rect'1 |                         || |     679'619 (us)    nRandMat 1, nMatPerRandMat   150
+  * Dist'1 |                         || |     679'619 (us)    nRandMat 1, nMatPerRandMat   150
   * Order1 |                       |||| |   3'200'000 (us)    nRandMat 1, nMatPerRandMat  1000
   * Order2 |    ||||||||||||||||||||||| |  49'000'000 (us)    nRandMat 1, nMatPerRandMat 36000 ... in 36000 matrices we found a solution
 * (Size 8 18) (ComponentCount 1) 0.5       {Order1 Rotations are usefull}
  Rotate:
   * Order0 | |||||||||||||||||||||||||| |     106'503 (us)    nRandMat 1200, nMatPerRandMat  1
-  * Rect'1 | |||||||||||||||||||||||||| |     105'413 (us)
+  * Dist'1 | |||||||||||||||||||||||||| |     105'413 (us)
   * Order1 |           |||||||||||||||| |      66'151 (us)    nRandMat  120, nMatPerRandMat  8
   * Order2 |      ||||||||||||||||||||| |      95'620 (us)    nRandMat   45, nMatPerRandMat 50
  InterleavePlusRotate:
   * Order0 |      ||||||||||||||||||||| |     124'336 (us)    nRandMat 40, nMatPerRandMat  26
-  * Rect'1 |         |||||||||||||||||| |     111'081 (us)    
+  * Dist'1 |         |||||||||||||||||| |     111'081 (us)    
   * Order1 |      ||||||||||||||||||||| |     123'329 (us)    nRandMat 40, nMatPerRandMat  33
   * Order2 |       |||||||||||||||||||| |     117'181 (us)    nRandMat 20, nMatPerRandMat  55
  InterleaveTimesRotate:
   * Order0 |      ||||||||||||||||||||| |     122'000 (us)    nRandMat 40, nMatPerRandMat  25
-  * Rect'1 | |||||||||||||||||||||||||| |     158'618 (us)
+  * Dist'1 | |||||||||||||||||||||||||| |     158'618 (us)
   # Order1 |                  ||||||||| |      53'000 (us)    nRandMat 10, nMatPerRandMat 100
   * Order2 | |||||||||||||||||||||||||| |     153'000 (us)    nRandMat  5, nMatPerRandMat 300
-* (Size 8 18) (ComponentCount 1) 0.6       {Rect'1 / Order2 rotations AND interleavings are usefull}
+* (Size 8 18) (ComponentCount 1) 0.6       {Dist'1 / Order2 rotations AND interleavings are usefull}
  Rotate:
   * Order0 | |||||||||||||||||||||||||| |   5'842'968 (us)    nRandMat 80000, nMatPerRandMat 1
-  * Rect'1 |                   |||||||| |   1'146'145 (us)
+  * Dist'1 |                   |||||||| |   1'146'145 (us)
   * Order1 |                     |||||| |     931'941 (us)    nRandMat 10000, nMatPerRandMat 1.3
   * Order2 |                   |||||||| |   1'179'585 (us)    nRandMat  8000, nMatPerRandMat 3.5
  InterleavePlusRotate:
   * Order0 |     |||||||||||||||||||||| |   4'145'613 (us)    nRandMat 2000, nMatPerRandMat 26
-  * Rect'1 | |||||||||||||||||||||||||| |   5'402'585 (us)
+  * Dist'1 | |||||||||||||||||||||||||| |   5'402'585 (us)
   * Order1 |     |||||||||||||||||||||| |   4'553'834 (us)    nRandMat 2000, nMatPerRandMat 28
   * Order2 |     |||||||||||||||||||||| |   4'656'659 (us)    nRandMat 2000, nMatPerRandMat 29
  InterleaveTimesRotate:
   * Order0 |     |||||||||||||||||||||| |   4'366'515 (us)    nRandMat 2000, nMatPerRandMat  26
-  # Rect'1 |                       |||| |     560'915 (us)    nRandMat  100, nMatPerRandMat  80
+  # Dist'1 |                       |||| |     560'915 (us)    nRandMat  100, nMatPerRandMat  80
   * Order1 |                     |||||| |     856'166 (us)    nRandMat  400, nMatPerRandMat  40
   # Order2 |                       |||| |     566'578 (us)    nRandMat  100, nMatPerRandMat 100
 * (Size 8 18) (ComponentCount 1) 0.7      {Order2 Rotations are usefull BUT interleavings aren't}
  Rotate:
   * Order0 | |||||||||||||||||||||||||| | didn't finish
-  * Rect'1 |    ||||||||||||||||||||||| | 561                         11000000                 1.002
+  * Dist'1 |    ||||||||||||||||||||||| | 561                         11000000                 1.002
   * Order1 |                     |||||| | 150'167'129 (us)    nRandMat 2500000, nMatPerRandMat 1.006
   # Order2 |                        ||| |  76'005'355 (us)    nRandMat 1500000, nMatPerRandMat 1.04
  InterleavePlusRotate:
   * Order0 | |||||||||||||||||||||||||| | didn't finish
-  * Rect'1 |                            | ?
+  * Dist'1 |                            | ?
   * Order1 | |||||||||||||||||||||||||| | didn't finish
   * Order2 | |||||||||||||||||||||||||| | didn't finish
  InterleaveTimesRotate:                  
   * Order0 | |||||||||||||||||||||||||| | didn't finish
-  * Rect'1 |   |||||||||||||||||||||||| | 600'000'000         nRandMat  350000, nMatPerRandMat 27
+  * Dist'1 |   |||||||||||||||||||||||| | 600'000'000         nRandMat  350000, nMatPerRandMat 27
   * Order1 |                  ||||||||| | 275'000'000 (us)    nRandMat  100000, nMatPerRandMat 27
   * Order2 |                        ||| | 102'000'000 (us)    nRandMat   30000, nMatPerRandMat 28
 
@@ -100,12 +109,10 @@ Maybe for big worlds, interleaving / rotating is not usefull because
 
 The ratio "time to analyze a matrix vs time to generate a random matrix" could be key
   in determining the strategy to use.
-(to verify that we need first to split Statistics in Properties + Statistics (averageable))
 
 Before generalizing, we should see if improvements vary with number of components / probability / size.
 
-- Notion of Property containing upperbounds, wall probability, small world size and
-"statistics" that are constant.
+- Put UpperBounds in Properties
 
 - the server should not start the game until all levels are possible to create.
 - Create levels in the background during setup (maybe ask different nodes to compute different

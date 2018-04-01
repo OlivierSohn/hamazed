@@ -71,7 +71,7 @@ library
                      , async ==2.1.*
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
-                     , containers >= 0.5.9.2
+                     , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-particlesystem ==0.1.*
                      , imj-particlesystem ==0.1.*

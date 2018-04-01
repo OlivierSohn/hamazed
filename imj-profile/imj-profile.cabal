@@ -2,7 +2,7 @@ name:                imj-profile
 version:             0.1.0.3
 Category:            Application
 Synopsis:            Profiling tool.
-Description:         An executable used to profil some parts of the program
+Description:         An executable used to profile some parts of the program
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-profile//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -29,7 +29,7 @@ executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , containers >= 0.5.9.2
+                     , containers ==0.5.*
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*

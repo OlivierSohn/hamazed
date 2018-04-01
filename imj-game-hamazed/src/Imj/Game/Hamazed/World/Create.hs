@@ -1,6 +1,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.World.Create
         ( mkWorldEssence
@@ -34,11 +35,11 @@ data Association = Association {
   , _componentIdx :: {-# UNPACK #-} !ComponentIdx
 } deriving(Show)
 
-mkWorldEssence :: WorldSpec -> IO Bool -> IO (MkSpaceResult WorldEssence, Maybe Statistics)
+mkWorldEssence :: WorldSpec -> IO Bool -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
 mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDistribution)) continue =
 -- withSystemRandom seeds a PRNG with data from the system's fast source of pseudo-random numbers.
 -- The generator should be used from a single thread.
-  withSystemRandom . asGenIO $ \gen -> go (max 1 $ fromIntegral nShips) [] Nothing gen
+  withSystemRandom . asGenIO $ \gen -> go (max 1 $ fromIntegral nShips) [] Map.empty gen
  where
   (LevelEssence _ _ numbers) = mkLevelEssence s
   size = worldSizeFromLevel levelNum shape
@@ -48,9 +49,9 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
     go' x y z
    where
     go' 0 errs stats = return (Impossible errs, stats)
-    go' n errs prevStats = do
+    go' n !errs prevStats = do
       (mkSpaceRes, stats) <- mkSpace size n wallDistribution continue gen
-      let newStats = mergeMayStats prevStats stats
+      let !newStats = safeMerge mergeStats prevStats stats
       case mkSpaceRes of
         Impossible err -> -- reduce the number of components asked for:
           go' (n-1) (err ++ errs) newStats
@@ -93,11 +94,13 @@ mkSpace :: (MonadIO m)
         -> IO Bool
         -- ^ Returns false when we should stop trying
         -> GenIO
-        -> m (MkSpaceResult BigWorld, Maybe Statistics)
+        -> m (MkSpaceResult BigWorld, Map Properties Statistics)
 mkSpace s n params@(WallDistribution _ proba) continue gen
- | proba > 0 = liftIO $ mkRandomlyFilledSpace params s n continue gen
+ | proba > 0 =
+    fmap (Map.fromDistinctAscList . maybeToList) <$>
+      liftIO (mkRandomlyFilledSpace params s n continue gen)
 -- with 0 probability, we can't do anything else but return an empty space:
- | otherwise = return (Success $ mkEmptySpace s, Nothing)
+ | otherwise = return (Success $ mkEmptySpace s, Map.empty)
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

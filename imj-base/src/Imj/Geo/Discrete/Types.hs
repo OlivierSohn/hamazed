@@ -118,7 +118,7 @@ coordsForDirection RIGHT = Coords 0 1
 
 -- | Discrete length
 newtype Length a = Length Int
-  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic, NFData)
+  deriving (Eq, Num, Ord, Integral, Real, Enum, Show, PrettyVal, Generic, NFData, Binary)
 
 -- | Phantom type for width
 data Width
@@ -128,9 +128,10 @@ data Height
 data Size = Size {
     getHeight :: {-# UNPACK #-} !(Length Height)
   , getWidth :: {-# UNPACK #-} !(Length Width)
-} deriving (Eq, Show, Generic)
+} deriving (Eq, Ord, Show, Generic)
 instance PrettyVal Size
 instance NFData Size
+instance Binary Size
 
 {-# INLINE sumSizes #-}
 sumSizes :: Size -> Size -> Size

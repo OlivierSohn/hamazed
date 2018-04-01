@@ -107,28 +107,42 @@ profileMkSmallWorld = do
   -- use a deterministic random numbers source
   gen <- create
   r <- newIORef (0 :: Int)
-  (duration, (res, stats)) <- withDuration $
-    mkSmallWorld gen (Size 18 9) (ComponentCount 1) 0.8 (MatrixCreationStrategy Rotate Cyclic.Order2) $ do
+  let property = mkProperties
+        (SWCharacteristics (Size 18 9) (ComponentCount 1) 0.8)
+        (SWCreationStrategy Rotate Cyclic.Order2)
+  (duration, (res, stat)) <- withDuration $
+    mkSmallWorld gen property $ do
       newValue <- atomicModifyIORef' r (succ &&& succ)
       return (newValue /= 200)
-  putStrLn $ prettyShowStats stats
+  putStrLn $ show (property, stat)
   print duration -- min   without stats, 4.75 with stats
   case res of
     NeedMoreTime -> return ()
     Impossible err -> error $ "impossible :" ++ show err
     Success _ -> readIORef r >>= \iteration -> error $ "result found at iteration " ++ show iteration
 
-profile :: GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
+profile :: GenIO -> IO (MkSpaceResult SmallWorld, (Properties, Statistics))
 profile gen = do
-  (res, stats) <- mkSmallWorld gen size componentCount wallProba strategy neverInterrupt
+  (res, stats) <- mkSmallWorld gen property neverInterrupt
   case res of
     NeedMoreTime -> error "test logic" -- since we bever interrupt the test, this is not possible.
     Impossible err -> error $ "impossible :" ++ show err
     Success _ -> return ()
-  return (res, stats)
+  return (res, (property,stats))
 
  where
-  strategy = MatrixCreationStrategy Rotate Cyclic.Order0
+  property = mkProperties characteristics strategy
+
+  strategy = SWCreationStrategy
+--    Rotate
+--    InterleavePlusRotate
+    InterleaveTimesRotate
+
+--    Cyclic.Order0
+--    Cyclic.AtDistance1
+    Cyclic.Order1
+--    Cyclic.Order2
+
   testedParamsIdx = 0
 
   params =
@@ -139,6 +153,7 @@ profile gen = do
     ]
 
   (size, componentCount, wallProba) = params !! testedParamsIdx
+  characteristics = SWCharacteristics size componentCount wallProba
 
   neverInterrupt = pure True
 
@@ -152,7 +167,7 @@ profileLargeWorld = do
   let stats = map (snd . snd) timesAndResStats
       --results = map (fst . fst) timesAndResStats
       times = map fst timesAndResStats
-  mapM_ (putStrLn . prettyShowStats) stats
+  mapM_ (putStrLn . show) stats
   mapM_ putStrLn $ showQuantities times
 
 prettyShowTimes :: [Time Duration System] -> [String]

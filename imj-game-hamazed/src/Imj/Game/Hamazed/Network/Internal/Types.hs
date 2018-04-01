@@ -88,13 +88,13 @@ data WorldCreation = WorldCreation {
     creationState :: !WorldState
   , creationKey :: !WorldId
   , creationSpec :: !WorldSpec
-  , creationStatistics :: !(Maybe Statistics)
+  , creationStatistics :: !(Map Properties Statistics)
   -- ^ Statistics stop being gathered once the world is created
 } deriving(Generic)
 instance NFData WorldCreation
 
 mkWorldCreation :: WorldSpec -> WorldCreation
-mkWorldCreation spec = WorldCreation (CreationAssigned Set.empty) (WorldId 0) spec  Nothing
+mkWorldCreation spec = WorldCreation (CreationAssigned Set.empty) (WorldId 0) spec Map.empty
 
 data WorldState =
     CreationAssigned !(Set ShipId) -- which clients are responsible for creating the world

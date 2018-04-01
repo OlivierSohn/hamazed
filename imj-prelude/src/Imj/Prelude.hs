@@ -3,7 +3,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Imj.Prelude
-          ( module Exported
+          ( safeMergeWithKey, safeMerge
+          -- * Reexports
+          , module Exported
           ) where
 
 import           Prelude as Exported
@@ -37,7 +39,9 @@ import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Bool as Exported(bool)
 import           Data.Binary as Exported(Binary)
 import           Data.List as Exported(intercalate, cycle, repeat, words, unwords)
-import           Data.Maybe as Exported(listToMaybe, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
+import           Data.Maybe as Exported(listToMaybe, maybeToList, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
+import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
+import           Data.Map.Strict(Map)
 import           Data.Monoid as Exported((<>))
 import           Data.Ratio as Exported((%))
 import           Data.String as Exported(String)
@@ -57,3 +61,12 @@ import           Text.Show.Pretty as Exported(PrettyVal(..))
                 | n < 0 = error $ "negative index" ++ show (x:xs, l, i)
                 | otherwise = go xs (n-1)
 -}
+
+
+-- | Safe in the sense that it keeps elements that are not in the other map.
+safeMerge :: (Ord a) => (b -> b -> b) -> Map a b -> Map a b -> Map a b
+safeMerge f = safeMergeWithKey (const f)
+
+-- | Same as 'safeMerge', but the key is passed to the merge function.
+safeMergeWithKey :: (Ord a) => (a -> b -> b -> b) -> Map a b -> Map a b -> Map a b
+safeMergeWithKey = merge preserveMissing preserveMissing . zipWithMatched

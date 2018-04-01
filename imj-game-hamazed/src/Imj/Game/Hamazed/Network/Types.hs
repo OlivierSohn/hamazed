@@ -228,7 +228,7 @@ data EventsForClient =
 data ClientEvent =
     Connect !SuggestedPlayerName {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !StateValue
-  | WorldProposal !WorldId !(MkSpaceResult WorldEssence) !(Maybe Statistics)
+  | WorldProposal !WorldId !(MkSpaceResult WorldEssence) !(Map Properties Statistics)
     -- ^ In response to 'WorldRequest' 'Build'
   | CurrentGameState {-# UNPACK #-} !WorldId !(Maybe GameStateEssence)
     -- ^ In response to 'WorldRequest' 'GetGameState'

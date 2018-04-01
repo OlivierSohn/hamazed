@@ -214,7 +214,7 @@ handleClient st sn cliType = do
             CreationAssigned _ ->
               -- A game is in progress and a "next level" is being built:
               -- add the newcomer to the assigned builders.
-              continueWorldRequest Nothing wid
+              continueWorldRequest Map.empty wid
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . handleIncomingEvent
 
@@ -615,8 +615,8 @@ handleIncomingEvent' = \case
         CreationAssigned _ -> do
           -- This is the first valid world essence, so we can cancel the request
           cancelWorldRequest
-          let newStats = mergeMayStats prevStats stats
-          log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
+          let !newStats = safeMerge mergeStats prevStats stats
+          log $ colored (pack $ show newStats) white
           modify' $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
           notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
       $ key == wid
@@ -965,7 +965,7 @@ cancelWorldRequest = gets worldCreation >>= \wc@(WorldCreation st wid _ _) -> ca
     modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } }
 
 
-continueWorldRequest :: Maybe Statistics
+continueWorldRequest :: Map Properties Statistics
                      -> WorldId
                      -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
                      -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
@@ -974,7 +974,7 @@ continueWorldRequest :: Maybe Statistics
                      -> ClientHandlerIO ()
 continueWorldRequest stats key = asks shipId >>= \origin ->
   gets worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
-    let newStats = mergeMayStats prevStats stats
+    let newStats = safeMerge mergeStats prevStats stats
     bool
       (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
       (case st of
@@ -989,7 +989,7 @@ continueWorldRequest stats key = asks shipId >>= \origin ->
           unless (newSize == prevSize) $
             -- a previously assigned client has disconnected, reconnects and sends a non-result
             serverLog $ pure $ colored ("Adding assignee : " <> pack (show origin)) blue
-          log $ colored (pack $ maybe "Nothing" prettyShowStats newStats) white
+          log $ colored (pack $ show newStats) white
           modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees
                                                  , creationStatistics = newStats } }
           gets clientsMap >>= requestWorldBy . flip Map.restrictKeys single)
@@ -1005,7 +1005,7 @@ requestWorld = do
             (CreationAssigned $ Map.keysSet $ clientsMap s)
             nextWid
             (WorldSpec level (onlyPlayersIds s) params)
-            Nothing
+            Map.empty
         }
   gets clientsMap >>= requestWorldBy
 

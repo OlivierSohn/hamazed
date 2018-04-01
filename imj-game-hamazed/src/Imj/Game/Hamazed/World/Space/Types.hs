@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -12,7 +13,8 @@
 module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , mkZeroSpace
-    , MatrixCreationStrategy(..)
+    , SmallWorldCharacteristics(..)
+    , SmallWorldCreationStrategy(..)
     , MatrixBranchingStrategy(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
@@ -26,10 +28,11 @@ module Imj.Game.Hamazed.World.Space.Types
     , WallDistribution(..)
     , DrawGroup(..)
     , Scope(..)
+    , Properties(..)
+    , mkProperties
     , Statistics(..)
     , zeroStats
     , mergeStats
-    , mergeMayStats
     , DurationStats(..)
     , BigWorld(..)
     , BigWorldTopology(..)
@@ -41,10 +44,12 @@ module Imj.Game.Hamazed.World.Space.Types
     , ComponentIdx(..)
     , NCompsRequest(..)
     , getComponentIndices
-    , prettyShowStats
     , unsafeGetMaterial
     , readWorld
     , writeWorld
+    -- export for tests
+    , minCountAirBlocks
+    , minCountWallBlocks
     -- reexports
     , Glyph
     , module Imj.Geo.Discrete.Types
@@ -60,8 +65,8 @@ import           Data.List(unlines)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Data.Map.Strict(Map)
-import qualified Data.Map.Strict as Map(toAscList, foldl')
-import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
+import qualified Data.Map.Strict as Map
+import           Data.Text(pack)
 import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 import           Data.Vector.Unboxed(Vector)
 import           Numeric(showFFloat)
@@ -153,15 +158,38 @@ data Scope = WorldScope !Material
            -- ^ Excludes the 'World' and its outer view frame.
            deriving(Show)
 
+data SmallWorldCharacteristics = SWCharacteristics {
+    _smallSize :: {-# UNPACK #-} !Size
+    -- ^ Size of the small world
+  , _componentCount :: !ComponentCount
+    -- ^ The expected count of connex components.
+  , _userWallProba :: Float
+    -- ^ User wall proba, in range [0,1]. The /real/ wall proba will then be this value
+    -- mapped to the theoretical min / max proba range, computed according to
+    -- 'ComponentCount' and 'Size' of the small world.
+} deriving(Generic, Show, Eq, Ord)
+instance Binary SmallWorldCharacteristics
+instance NFData SmallWorldCharacteristics
 
-data MatrixCreationStrategy = MatrixCreationStrategy !MatrixBranchingStrategy !Cyclic.RotationOrder
-  deriving(Show)
+-- TODO update comment when done
+-- | (Will soon be) deduced from 'SmallWorldCharacteristics'
+data SmallWorldCreationStrategy = SWCreationStrategy {
+    _matrixBranchingStrategy :: !MatrixBranchingStrategy
+    -- ^ Specifies how matrices are produced, either using only the random number generator, or
+    -- by also using deterministic variations of random matrices.
+  , _matrixRotationOrder :: !Cyclic.RotationOrder
+    -- ^ Specifies the order of rotations.
+} deriving(Generic, Show, Eq, Ord)
+instance Binary SmallWorldCreationStrategy
+instance NFData SmallWorldCreationStrategy
 
 data MatrixBranchingStrategy =
     Rotate
   | InterleavePlusRotate
   | InterleaveTimesRotate
-  deriving(Show)
+  deriving(Generic, Show, Eq, Ord)
+instance Binary MatrixBranchingStrategy
+instance NFData MatrixBranchingStrategy
 
 data MkSpaceResult r =
     Success r
@@ -197,15 +225,31 @@ instance NFData SmallWorldComponentsRejection
 data NCompsRequest =
     NCompsNotRequired
   | NCompsRequiredWithPrecision {-# UNPACK #-} !ComponentCount
+ deriving(Show)
 
 -- | These 'LowerBounds' can be used to prune the search space, and
 -- to adapt user probabilities.
 data LowerBounds = LowerBounds {
-    minAirBlocks, minWallBlocks :: !Int
+    minAirBlocks, minWallBlocks :: {-# UNPACK #-} !Int
     -- ^ The minimium count of air and wall blocks. If any of them is is Nothing, the world is impossible to build.
   , totalBlocks :: {-# UNPACK #-} !Int
   -- ^ The total number of blocks in the world.
-} deriving(Generic, Show)
+} deriving(Generic, Eq, Ord)
+instance Binary LowerBounds
+instance NFData LowerBounds
+instance Show LowerBounds where
+  show l = unlines $
+    "" :
+    prettyShowLowerBounds l
+
+prettyShowLowerBounds :: LowerBounds -> [String]
+prettyShowLowerBounds (LowerBounds minAir minWall total) =
+  showArray (Just ("World constraints", "Count"))
+    [ ("Total blocks", show total)
+    , ("Min Air", show minAir)
+    , ("Min Wall", show minWall)
+    ]
+
 
 data BigWorld = BigWorld {
     _bigSpace :: {-# UNPACK #-} !Space
@@ -233,7 +277,7 @@ data BigWorldTopology = BigWorldTopology {
   , getEltCoords :: ComponentIdx -> Int -> Coords Pos
 } deriving (Generic)
 instance Show BigWorldTopology where
-  show (BigWorldTopology a _ _) = show ("BigWorldTopology", a)
+  show (BigWorldTopology a _ _) = show ("BigWorldTopology" :: String, a)
 
 getComponentIndices :: BigWorldTopology -> [ComponentIdx]
 getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
@@ -248,7 +292,7 @@ data SmallWorldTopology = SmallWorldTopology {
   , _vertexToSmallMatIndex :: Vertex -> Int -- Int is a matrix index
 } deriving(Generic)
 instance Show SmallWorldTopology where
-  show (SmallWorldTopology a _) = show ("SmallWorldTopology:",a)
+  show (SmallWorldTopology a _) = show ("SmallWorldTopology:" :: String,a)
 
 newtype ConnectedComponent = ConnectedComponent (Vector Vertex)
   deriving(Generic, Show)
@@ -286,9 +330,73 @@ toGameChar :: Material -> Char
 toGameChar Air = ' '
 toGameChar Wall = 'Z'
 
+-- | Constant information about the search (dual of 'Statistics')
+data Properties = Properties !SmallWorldCharacteristics !SmallWorldCreationStrategy !(Either Text LowerBounds)
+  deriving(Generic, Eq, Ord)
+instance Binary Properties
+instance NFData Properties
+instance Show Properties where
+  show = unlines . prettyShowProperties
+
+mkProperties :: SmallWorldCharacteristics -> SmallWorldCreationStrategy -> Properties
+mkProperties ch@(SWCharacteristics sz nComponents' _) st =
+  Properties ch st $ mkLowerBounds sz nComponents'
+
+mkLowerBounds :: Size
+              -> ComponentCount
+              -> Either Text LowerBounds
+              -- ^ Left is returned when no such world can be generated.
+mkLowerBounds sz n =
+  maybe
+    (Left sizeMsg)
+    (\minAir ->
+      maybe
+        (Left sizeMsg)
+        (\minWall -> bool
+          (Left sizeMsg)
+          (Right $ LowerBounds minAir minWall total)
+          $ minAir + minWall <= total)
+        mayMinWall)
+    mayMinAir
+ where
+  mayMinAir = minCountAirBlocks n sz
+  mayMinWall = minCountWallBlocks n sz
+  total = area sz
+  sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show n)
+
+
+minCountAirBlocks :: ComponentCount -> Size -> Maybe Int
+minCountAirBlocks (ComponentCount n) (Size (Length h) (Length w))
+  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
+  | n <= 0 = Just 0
+  | n <= quot (h + w - 1) 2 = Just $ adjustForGoodDistribution $ h + w - n -- L shape with one block interruptions is minimal.
+  | n <= quot (h*w + 1) 2 = Just n -- all of size 1, note that at the limit, we have a checkerboard
+  | otherwise = Nothing -- impossible to meet the n cc constraint.
+  where
+   -- 'adjustForGoodDistribution' answers the following problem:
+   --
+   -- Given a number of components and a minimum count of air blocks,
+   -- what is the minimum count of air blocks needed to form a
+   -- well-distributed world?
+   adjustForGoodDistribution minCount
+    | count1 == 1 && count2 > 0 =
+     -- we would have some having 1 block, some other having 2,
+     -- which is a badly distributed configuration. Hence the answer is 2*n.
+        2*n
+    | otherwise = minCount
+    where
+     (count1,count2) = quotRem minCount n
+
+minCountWallBlocks :: ComponentCount -> Size -> Maybe Int
+minCountWallBlocks (ComponentCount n) (Size (Length h) (Length w))
+  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
+  | n <= 0 = Just $ w*h
+  | n <= quot (h*w + 1) 2 = Just $ n - 1 -- at the limit, we have a checker board
+  | otherwise = Nothing
+
+-- | Varying information about the search (dual of 'Properties')
 data Statistics = Statistics {
-    countInterleavedVariations, countRotationsByIV :: {-# NOUNPACK #-} !Int
-  , countRandomMatrices, countGeneratedMatrices :: {-# NOUNPACK #-} !Int
+    countRandomMatrices, countGeneratedMatrices :: {-# NOUNPACK #-} !Int
   , countGeneratedGraphsByComponentCount :: !(Map ComponentCount Int)
   , countNotEnoughAir, countNotEnoughWalls, countUnusedFronteers :: {-# NOUNPACK #-} !Int
   , countComponentCountMismatch, countComponentsSizesNotWellDistributed, countSpaceNotUsedWellEnough :: {-# NOUNPACK #-} !Int
@@ -297,7 +405,7 @@ data Statistics = Statistics {
 instance Binary Statistics
 instance NFData Statistics
 instance Show Statistics where
-  show = prettyShowStats
+  show = unlines . prettyShowStats
 
 data DurationStats = Durations {
     randomMatCreation, totalDuration ::  {-# NOUNPACK #-} !(Time Duration System)
@@ -308,7 +416,7 @@ instance Show DurationStats where
   show = unlines . prettyShowDurations
 
 zeroStats :: Statistics
-zeroStats = Statistics 0 0 0 0 mempty 0 0 0 0 0 0 mkDurationStats
+zeroStats = Statistics 0 0 mempty 0 0 0 0 0 0 mkDurationStats
 
 mkDurationStats :: DurationStats
 mkDurationStats = Durations zeroDuration zeroDuration
@@ -318,18 +426,11 @@ mergeDurations (Durations a b) (Durations a' b') =
   Durations (a |+| a') (b |+| b')
 
 mergeStats :: Statistics -> Statistics -> Statistics
-mergeStats (Statistics _ _ z a b c d e f g h i) (Statistics x' y' z' a' b' c' d' e' f' g' h' i') =
+mergeStats (Statistics z a b c d e f g h i) (Statistics z' a' b' c' d' e' f' g' h' i') =
   Statistics
-    x'
-    y'
     (z+z')
     (a+a')
-    (merge
-      preserveMissing
-      preserveMissing
-      (zipWithMatched $ \_ elt elt' -> elt + elt')
-      b
-      b')
+    (safeMerge (+) b b')
     (c+c')
     (d+d')
     (e+e')
@@ -338,10 +439,55 @@ mergeStats (Statistics _ _ z a b c d e f g h i) (Statistics x' y' z' a' b' c' d'
     (h+h')
     $ mergeDurations i i'
 
-mergeMayStats :: Maybe Statistics -> Maybe Statistics -> Maybe Statistics
-mergeMayStats Nothing x = x
-mergeMayStats x Nothing = x
-mergeMayStats (Just x) (Just y) = Just $ mergeStats x y
+prettyShowProperties :: Properties -> [String]
+prettyShowProperties
+  (Properties
+    (SWCharacteristics sz@(Size (Length h) (Length w)) (ComponentCount nComponents') userWallProba)
+    (SWCreationStrategy branchStrategy rotationOrder)
+    lb) =
+  "" :
+  show ("World generation " ++ txt) :
+  showInBox strs
+ where
+  strs =
+   either ((:[]) . show) prettyShowLowerBounds lb ++
+   showArray
+    (Just ("Property","Value"))
+    [ ("User-specified N. components", show nComponents')
+    , ("User-specified wall probability", show userWallProba)
+    , ("Matrices dimensions (h,w)", show (h,w))
+    , ("Branching strategy", show branchStrategy)
+    , ("Rotation order", show rotationOrder)
+    , ("Max N. matrices per Random matrix", show maxMatricesPerRandom)
+    ]
+
+  nInterleaved = Cyclic.countUsefulInterleavedVariations2D sz
+  nRotations = Cyclic.countRotations' rotationOrder sz
+  maxMatricesPerRandom = 1 + case branchStrategy of
+    Rotate ->
+      nRotations
+    InterleavePlusRotate ->
+      nRotations + nInterleaved
+    InterleaveTimesRotate ->
+      nRotations * nInterleaved
+
+  random = "using random matrices"
+  branchingIn = ", each of them branching in "
+  rotated =
+    show nRotations ++ " rotated"
+  interleaved =
+    show nInterleaved ++ " interleaved"
+  variations = " variations"
+  txt =
+    random ++ case branchStrategy of
+      Rotate -> case rotationOrder of
+        Cyclic.Order0 -> " exclusively"
+        _ -> branchingIn ++ rotated ++ variations
+      InterleavePlusRotate ->
+        branchingIn ++ rotated ++ " + " ++ interleaved ++ variations
+      InterleaveTimesRotate ->
+        branchingIn ++ interleaved ++ variations ++ branchingIn ++ rotated ++ variations
+    ++ "."
 
 prettyShowDurations :: DurationStats -> [String]
 prettyShowDurations (Durations onlyMkRandomMat total) =
@@ -355,33 +501,38 @@ prettyShowDurations (Durations onlyMkRandomMat total) =
 showRatioAsPercentage :: Double -> String
 showRatioAsPercentage r =
   let p = r * 100
-  in showFFloat (Just 0) p " %"
+  in showFFloat (Just 4) p " %"
 
 
-prettyShowStats :: Statistics -> String
-prettyShowStats (Statistics nInterleave nRotations nRandomMatrices nMats ccm notEnoughAir notEnoughWall unusedFronteer ccCountMismatch ccSizesDistribution unusedSpace timings) = unlines $
-  "":
-  "General world generation statistics:" :
-  prettyShowDurations timings ++
-  showArray
-    (Just ("Stat name","Stat value"))
-    [ ("+ N. Random mat", show nRandomMatrices)
-    , ("- N. Filtered random (not enough Air)", show notEnoughAir)
-    , ("- N. Filtered random (not enough Walls)", show notEnoughWall)
-    , ("N. interleaved per random", show nInterleave)
-    , ("N. rotations per interleaved", show nRotations)
-    , ("Max N. variations per random", show $ nRotations * nInterleave)
-    , ("N. mat", show nMats)
-    , ("N. mat / N. random mat", show (fromIntegral nMats / fromIntegral nRandomMatrices :: Float))
-    , ("- N. Filtered (unused fronteers)", show unusedFronteer)
-    , ("N. graphs + component", show $ Map.foldl' (+) 0 ccm)
-    , ("- N. Filtered (component count mismatch)", show ccCountMismatch)
-    , ("- N. Filtered (wrong size distribution)", show ccSizesDistribution)
-    , ("- N. Filtered (space not well used)", show unusedSpace)
+prettyShowStats :: Statistics -> [String]
+prettyShowStats (Statistics nRandomMatrices nMats ccm notEnoughAir notEnoughWall unusedFronteer ccCountMismatch ccSizesDistribution unusedSpace timings) =
+  "" :
+  showInBox strs
+ where
+  strs =
+   prettyShowDurations timings ++
+   showArray
+    (Just ("N. valid matrices"                 , showCount nValid))
+    [ ("Randomly generated matrices"           , showCount nRandomMatrices)
+    , ("- lack of Air"                         , showFilterCount notEnoughAir)
+    , ("- lack of Walls"                       , showFilterCount notEnoughWall)
+    , ("Deterministically generated matrices"  , showCount $ nMats - nRandomMatrices)
+    , ("- lack of Air on fronteers"            , showFilterCount unusedFronteer)
+    , ("- wrong count of components"           , showFilterCount ccCountMismatch)
+    , ("- unevenly distributed component sizes", showFilterCount ccSizesDistribution)
+    , ("- wasted space"                        , showFilterCount unusedSpace)
     ] ++
-  "":
-  "Graph generation statistics:" :
-  prettyShowCCMap ("N. components", "N. graphs") ccm
+   "":
+   "Graphs analyses:" :
+   prettyShowCCMap ("N. components (lower bound)", "N. graphs") ccm
+  nValid = nMats - nFiltered
+  nFiltered = notEnoughAir + notEnoughWall + unusedFronteer + ccCountMismatch + ccSizesDistribution + unusedSpace
+
+  showCount :: Int -> String
+  showCount 0 = "-"
+  showCount x = show x
+
+  showFilterCount = showCount . negate
 
 prettyShowCCMap :: (String, String) -> Map ComponentCount Int -> [String]
 prettyShowCCMap header =

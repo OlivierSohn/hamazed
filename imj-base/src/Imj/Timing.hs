@@ -33,6 +33,7 @@ module Imj.Timing
     , (...)
     -- * Scale, add, substract durations
     , (.*)
+    , (./)
     , (|-|)
     , (|+|)
     -- * Convert durations between time spaces
@@ -137,7 +138,7 @@ fromSystemDuration (Multiplicator m) =
 {-# INLINE toSystemDuration #-}
 toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
 toSystemDuration (Multiplicator m) =
-  (.*) (recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
+  (./) m . unsafeFromTimeSpec . unsafeGetTimeSpec
 
 
 {- | Substraction for 'Time' 'Duration' -}
@@ -150,7 +151,12 @@ Time a |+| Time b = Time $ a+b
 (.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
   fromSecs $ scale * unsafeToSecs t
+{- | Scalar division for 'Time' 'Duration' -}
+(./) :: Double -> Time Duration a -> Time Duration a
+scale ./ t =
+  fromSecs $ scale / unsafeToSecs t
 {-# INLINE (.*) #-}
+{-# INLINE (./) #-}
 {-# INLINE (|-|) #-}
 {-# INLINE (|+|) #-}
 

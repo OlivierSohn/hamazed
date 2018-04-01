@@ -134,7 +134,7 @@ library
                      , binary == 0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*
-                     , containers >= 0.5.9.2
+                     , containers ==0.5.*
                      , deepseq ==1.4.*
                      , file-embed ==0.0.*
                      , freetype2 ==0.1.*
@@ -202,7 +202,7 @@ test-suite imj-base-test
                      , ansi-terminal ==0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*
-                     , containers >= 0.5.9.2
+                     , containers ==0.5.*
                      , FTGL ==2.1.*
                      , freetype2 ==0.1.*
                      , imj-base

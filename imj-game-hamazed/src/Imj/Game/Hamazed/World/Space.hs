@@ -21,8 +21,6 @@ module Imj.Game.Hamazed.World.Space
     -- for tests
     , withInterleaving
     , unsafeMkSmallMat
-    , minCountAirBlocks
-    , minCountWallBlocks
     , mkSmallWorld
     , mkSmallMat
     , tryRotationsIfAlmostMatches
@@ -43,7 +41,6 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
-import           Data.Text(pack)
 import           Data.Tree(flatten)
 import qualified Data.Vector.Mutable as BVM (new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
@@ -137,24 +134,26 @@ mkRandomlyFilledSpace :: WallDistribution
                       -> IO Bool
                       -- ^ Computation stops when it returns False
                       -> GenIO
-                      -> IO (MkSpaceResult BigWorld, Maybe Statistics)
-mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s,Nothing)
+                      -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
+mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gen
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = mkSmallWorld gen smallSz nComponents wallAirRatio strategy continue >>= \(res, stats) ->
+  | otherwise = mkSmallWorld gen property continue >>= \(res, stats) ->
   return
     (case res of
       NeedMoreTime -> NeedMoreTime
       Impossible bounds -> Impossible bounds
       Success small -> Success $ smallWorldToBigWorld s blockSize small
-    , Just stats)
+    , Just (property, stats))
  where
+  property = mkProperties characteristics strategy
+  characteristics = SWCharacteristics smallSz nComponents wallAirRatio
   smallSz = bigToSmall s blockSize
-  strategy = bestStrategy smallSz nComponents
+  strategy = bestStrategy characteristics
 
-bestStrategy :: Size -> ComponentCount -> MatrixCreationStrategy
-bestStrategy _ _ = -- TODO measure the best strategy for known cases, then interpolate.
-  MatrixCreationStrategy Rotate Cyclic.Order1
+bestStrategy :: SmallWorldCharacteristics -> SmallWorldCreationStrategy
+bestStrategy _ = -- TODO measure the best strategy for known cases, then interpolate.
+  SWCreationStrategy Rotate Cyclic.Order1
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -181,20 +180,12 @@ To do so we need to know the probability to have a unique connected component in
 the random graph defined in the function.
 -}
 mkSmallWorld :: GenIO
-             -> Size
-             -- ^ Size of the small world
-             -> ComponentCount
-             -- ^ Count connex components
-             -> Float
-             -- ^ User wall proba, in range [0,1]. This function will map the range to
-             -- a range that takes into account theoretical min / max wall probas
-             -- given the parameters (number of components, size) of the samll world.
-             -> MatrixCreationStrategy
+             -> Properties
              -> IO Bool
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen sz nComponents' userWallProba (MatrixCreationStrategy branch rotationOrder) continue
+mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) (SWCreationStrategy branch rotationOrder) eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -204,9 +195,8 @@ mkSmallWorld gen sz nComponents' userWallProba (MatrixCreationStrategy branch ro
                 [] -> NeedMoreTime
                 small:_ -> Success small
               , stats { durations = (durations stats) { totalDuration = dt }
-                      , countInterleavedVariations = Cyclic.countUsefulInterleavedVariations2D sz
-                      , countRotationsByIV = Cyclic.countRotations' rotationOrder sz }))
-      $ mkLowerBounds sz nComponents'
+                      }))
+      eitherLowerBounds
  where
 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
@@ -219,20 +209,28 @@ mkSmallWorld gen sz nComponents' userWallProba (MatrixCreationStrategy branch ro
           ((: []) . Left)
           -- stop at first success
           (takeWhilePlus isLeft . strategy branch))
-        <$> withDurationSampledEvery 1000 i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
+        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
         let !newStats = addMkRandomMatDuration duration $ updateStats l stats
         case partitionEithers l of
           (_,[]) -> go' (i+1) newStats
-          (_,successes) -> return (successes, newStats))
+          (_,successes) -> return (successes, finalizeStats i newStats))
 
-    withDurationSampledEvery n i x =
-      if (i+1 :: Int) `rem` n == 0 -- measure only after the first n
-        then do
-          (t,res) <- withDuration x
-          -- we scale the duration, assuming other executions have roughly the same duration.
-          return (fromIntegral n .* t, res)
-        else
-          (,) zeroDuration <$> x
+    rndMatSamplingPeriod = 1000
+
+    -- Measure the first sample, then wait rndMatSamplingPeriod iterations before measuring again.
+    -- If you change this, please modify 'finalizeStats' accordingly.
+    willMeasure i = (i :: Int) `rem` rndMatSamplingPeriod == 0
+
+    withSampledDuration =
+      bool (fmap ((,) zeroDuration)) withDuration . willMeasure
+
+    finalizeStats i s =
+      let d = durations s
+          -- 'randomMatCreation' is the sum of /nMeasurements/ measurements done at the /beginning/ of every period.
+          nMeasurements = 1 + quot i rndMatSamplingPeriod
+          -- hence, assuming other executions have roughly the same duration, we can extrapolate:
+          mult = fromIntegral (i+1) / fromIntegral nMeasurements
+      in s { durations = d { randomMatCreation = mult .* randomMatCreation d } }
 
     wallProba = mapRange 0 1 minWallProba maxWallProba userWallProba
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
@@ -665,58 +663,6 @@ extend'' final initial =
       addsLeft = quot addsTotal 2
       addsRight = addsTotal - addsLeft
   in (addsLeft, addsRight)
-
-mkLowerBounds :: Size
-              -> ComponentCount
-              -> Either Text LowerBounds
-              -- ^ Left is returned when no such world can be generated.
-mkLowerBounds sz n =
-  maybe
-    (Left sizeMsg)
-    (\minAir ->
-      maybe
-        (Left sizeMsg)
-        (\minWall -> bool
-          (Left sizeMsg)
-          (Right $ LowerBounds minAir minWall total)
-          $ minAir + minWall <= total)
-        mayMinWall)
-    mayMinAir
- where
-  mayMinAir = minCountAirBlocks n sz
-  mayMinWall = minCountWallBlocks n sz
-  total = area sz
-  sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show n)
-
-
-minCountAirBlocks :: ComponentCount -> Size -> Maybe Int
-minCountAirBlocks (ComponentCount n) (Size (Length h) (Length w))
-  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
-  | n <= 0 = Just 0
-  | n <= quot (h + w - 1) 2 = Just $ adjustForGoodDistribution $ h + w - n -- L shape with one block interruptions is minimal.
-  | n <= quot (h*w + 1) 2 = Just n -- all of size 1, note that at the limit, we have a checkerboard
-  | otherwise = Nothing -- impossible to meet the n cc constraint.
-  where
-   -- 'adjustForGoodDistribution' answers the following problem:
-   --
-   -- Given a number of components and a minimum count of air blocks,
-   -- what is the minimum count of air blocks needed to form a
-   -- well-distributed world?
-   adjustForGoodDistribution minCount
-    | count1 == 1 && count2 > 0 =
-     -- we would have some having 1 block, some other having 2,
-     -- which is a badly distributed configuration. Hence the answer is 2*n.
-        2*n
-    | otherwise = minCount
-    where
-     (count1,count2) = quotRem minCount n
-
-minCountWallBlocks :: ComponentCount -> Size -> Maybe Int
-minCountWallBlocks (ComponentCount n) (Size (Length h) (Length w))
-  | h <= 0 || w <= 0 = bool Nothing (Just 0) $ n <= 0
-  | n <= 0 = Just $ w*h
-  | n <= quot (h*w + 1) 2 = Just $ n - 1 -- at the limit, we have a checker board
-  | otherwise = Nothing
 
 -- | <https://hackage.haskell.org/package/matrix-0.3.5.0/docs/Data-Matrix.html#v:getElem Indices start at 1>:
 -- @Coord 0 0@ corresponds to indexes 1 1 in matrix

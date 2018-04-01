@@ -106,7 +106,9 @@ data RotationOrder =
   | Order1 -- rotation across all rows, then rotation across all columns
   | Order2 -- rotation across all rows + columns at the same time
   | AtDistance1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
-  deriving(Show)
+  deriving(Generic, Show, Eq, Ord)
+instance Binary RotationOrder
+instance NFData RotationOrder
 
 countRotations :: (Unbox a)
                => RotationOrder -> Matrix a -> Int

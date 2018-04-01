@@ -619,7 +619,7 @@ mkGraph (SmallMatInfo nAirKeys mat) =
         let matIdx = iRow + col
         case Cyclic.unsafeGetByIndex matIdx mat of
           MaterialAndKey (-1) -> return ()
-          MaterialAndKey k -> BVM.write v k $ rightUpAirKeys matIdx row col))
+          MaterialAndKey k -> BVM.write v k $ neighbourAirKeys matIdx row col))
     return v
 
  where
@@ -627,12 +627,14 @@ mkGraph (SmallMatInfo nAirKeys mat) =
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
 
-  rightUpAirKeys :: Int -> Int -> Int -> [Int]
-  rightUpAirKeys matIdx row col =
+  neighbourAirKeys :: Int -> Int -> Int -> [Int]
+  neighbourAirKeys matIdx row col =
     mapMaybe (\neighbourMatIdx -> case Cyclic.unsafeGetByIndex neighbourMatIdx mat of
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
+    -- it is faster to write all directions at once than just 2, and wait for
+    -- other nodes to add other directions.
     [ bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
     , bool (Just $ matIdx - 1)     Nothing $ col == 0       -- LEFT
     , bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT

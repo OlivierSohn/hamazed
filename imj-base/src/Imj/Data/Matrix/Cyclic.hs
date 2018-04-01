@@ -101,6 +101,13 @@ instance (Binary a, Unbox a) => Binary (Matrix a) where
     d <- V.fromList <$> get
     return $ M a b c d
 
+data RotationOrder =
+    Order0 -- no rotation is produced
+  | Order1 -- rotation across all rows, then rotation across all columns
+  | Order2 -- rotation across all rows + columns at the same time
+  | AtDistance1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
+  deriving(Show)
+
 countRotations :: (Unbox a)
                => RotationOrder -> Matrix a -> Int
 countRotations Order0 _ = 0
@@ -149,12 +156,6 @@ produceRotations ro x@(M r c _ v) =
 {-# INLINE canHaveAtDistance1Rotations #-}
 canHaveAtDistance1Rotations :: Matrix a -> Bool
 canHaveAtDistance1Rotations (M r c _ _) = not $ c < 3 || r < 3 -- to avoid duplicate rotations
-
-data RotationOrder =
-    Order0 -- no rotation is produced
-  | Order1 -- rotation across all rows, then rotation across all columns
-  | Order2 -- rotation across all rows + columns at the same time
-  | AtDistance1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
 
 setRotation :: (Unbox a) => Matrix a -> Int -> Matrix a
 setRotation m@(M _ _ _ v) i

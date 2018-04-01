@@ -12,6 +12,8 @@
 module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , mkZeroSpace
+    , MatrixCreationStrategy(..)
+    , MatrixBranchingStrategy(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
     , SmallWorldRejection(..)
@@ -151,6 +153,15 @@ data Scope = WorldScope !Material
            -- ^ Excludes the 'World' and its outer view frame.
            deriving(Show)
 
+
+data MatrixCreationStrategy = MatrixCreationStrategy !MatrixBranchingStrategy !Cyclic.RotationOrder
+  deriving(Show)
+
+data MatrixBranchingStrategy =
+    Rotate
+  | InterleavePlusRotate
+  | InterleaveTimesRotate
+  deriving(Show)
 
 data MkSpaceResult r =
     Success r

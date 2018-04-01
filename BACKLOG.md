@@ -1,7 +1,8 @@
-- try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
+- in test, automate finding the best strategy.
 
-- write a graph that has at most N outs, then I can use a Graph 4 for my purpose, and an unboxed array.
-Use a Word64 storing at most 4 edges.
+- during the game, to create worlds, use the strategy of the closest known world.
+
+- try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
 
 - optimize 'spaceIsWellUsed' (see comment)
 
@@ -24,104 +25,65 @@ sliding rows / columns randomly
 - Averaged on different seed:
 
 * (Size 32 72) (ComponentCount 1) 0.2      {Rotations / Interleavings are NOT usefull}
- Rotations:
+ Rotate:
   # Order0 |                          | |     221'877 (us)    nRandMat 50, nMatPerRandMat    1 ... in    50 matrices we found a solution
   * Rect'1 |                         || |     444'260 (us)    nRandMat 15, nMatPerRandMat    5
   * Order1 |                        ||| |   2'607'746 (us)    nRandMat 13, nMatPerRandMat   50
   * Order2 | |||||||||||||||||||||||||| |  58'014'198 (us)    nRandMat 15, nMatPerRandMat 1000 ... in 15000 matrices we found a solution
- Interleaving + rotations:
+ InterleavePlusRotate:
   * Order0 |                          | |     343'393 (us)    nRandMat 3, nMatPerRandMat   30
   * Rect'1 |                          | |     392'693 (us)    nRandMat 2, nMatPerRandMat   30
   * Order1 |                         || |     902'222 (us)    nRandMat 3, nMatPerRandMat   80
   * Order2 |               |||||||||||| |  12'637'535 (us)    nRandMat 1, nMatPerRandMat 1000
- Interleaving * rotations:
+ InterleaveTimesRotate:
   * Order0 |                          | |     300'000 (us)    nRandMat 3, nMatPerRandMat    20 ... in    60 matrices we found a solution
   * Rect'1 |                         || |     679'619 (us)    nRandMat 1, nMatPerRandMat   150
   * Order1 |                       |||| |   3'200'000 (us)    nRandMat 1, nMatPerRandMat  1000
   * Order2 |    ||||||||||||||||||||||| |  49'000'000 (us)    nRandMat 1, nMatPerRandMat 36000 ... in 36000 matrices we found a solution
 * (Size 8 18) (ComponentCount 1) 0.5       {Order1 Rotations are usefull}
- Rotations:
+ Rotate:
   * Order0 | |||||||||||||||||||||||||| |     106'503 (us)    nRandMat 1200, nMatPerRandMat  1
   * Rect'1 | |||||||||||||||||||||||||| |     105'413 (us)
   * Order1 |           |||||||||||||||| |      66'151 (us)    nRandMat  120, nMatPerRandMat  8
   * Order2 |      ||||||||||||||||||||| |      95'620 (us)    nRandMat   45, nMatPerRandMat 50
- Interleaving + rotations:
+ InterleavePlusRotate:
   * Order0 |      ||||||||||||||||||||| |     124'336 (us)    nRandMat 40, nMatPerRandMat  26
   * Rect'1 |         |||||||||||||||||| |     111'081 (us)    
   * Order1 |      ||||||||||||||||||||| |     123'329 (us)    nRandMat 40, nMatPerRandMat  33
   * Order2 |       |||||||||||||||||||| |     117'181 (us)    nRandMat 20, nMatPerRandMat  55
- Interleaving * rotations:
+ InterleaveTimesRotate:
   * Order0 |      ||||||||||||||||||||| |     122'000 (us)    nRandMat 40, nMatPerRandMat  25
   * Rect'1 | |||||||||||||||||||||||||| |     158'618 (us)
   # Order1 |                  ||||||||| |      53'000 (us)    nRandMat 10, nMatPerRandMat 100
   * Order2 | |||||||||||||||||||||||||| |     153'000 (us)    nRandMat  5, nMatPerRandMat 300
 * (Size 8 18) (ComponentCount 1) 0.6       {Rect'1 / Order2 rotations AND interleavings are usefull}
- Rotations:
+ Rotate:
   * Order0 | |||||||||||||||||||||||||| |   5'842'968 (us)    nRandMat 80000, nMatPerRandMat 1
   * Rect'1 |                   |||||||| |   1'146'145 (us)
   * Order1 |                     |||||| |     931'941 (us)    nRandMat 10000, nMatPerRandMat 1.3
   * Order2 |                   |||||||| |   1'179'585 (us)    nRandMat  8000, nMatPerRandMat 3.5
- Interleaving + rotations:
+ InterleavePlusRotate:
   * Order0 |     |||||||||||||||||||||| |   4'145'613 (us)    nRandMat 2000, nMatPerRandMat 26
   * Rect'1 | |||||||||||||||||||||||||| |   5'402'585 (us)
   * Order1 |     |||||||||||||||||||||| |   4'553'834 (us)    nRandMat 2000, nMatPerRandMat 28
   * Order2 |     |||||||||||||||||||||| |   4'656'659 (us)    nRandMat 2000, nMatPerRandMat 29
- Interleaving * rotations:
+ InterleaveTimesRotate:
   * Order0 |     |||||||||||||||||||||| |   4'366'515 (us)    nRandMat 2000, nMatPerRandMat  26
   # Rect'1 |                       |||| |     560'915 (us)    nRandMat  100, nMatPerRandMat  80
   * Order1 |                     |||||| |     856'166 (us)    nRandMat  400, nMatPerRandMat  40
   # Order2 |                       |||| |     566'578 (us)    nRandMat  100, nMatPerRandMat 100
 * (Size 8 18) (ComponentCount 1) 0.7      {Order2 Rotations are usefull BUT interleavings aren't}
- Rotations:
+ Rotate:
   * Order0 | |||||||||||||||||||||||||| | didn't finish
   * Rect'1 |    ||||||||||||||||||||||| | 561                         11000000                 1.002
   * Order1 |                     |||||| | 150'167'129 (us)    nRandMat 2500000, nMatPerRandMat 1.006
   # Order2 |                        ||| |  76'005'355 (us)    nRandMat 1500000, nMatPerRandMat 1.04
-  {
-    Profiling this shows (with inherited times):
-
-    mkSmallMat   = 41%
-      mkSmallMat.analyze = 16.5%
-        - what is costly here ?
-      randBiased = 24%
-        uniform = 22.5%
-          - what is costly here ?
-    mkSmallWorld.go.tryRotationsIfAlmostMatches' = 57%
-      tryRotationsIfAlmostMatches.zeroRotationRes = 54%
-        graphOfIndex = 39%
-        matchTopology.gcomps = 6.6%
-        matchTopology.smallMatHasAirOnEveryFronteer = 8%
-        matchTopology.smallMatHasAirOnEveryFronteer.fronteers = 4%
-
-    But timing in real conditions, with optimizations shows:
-    mkSmallMat = 17%
-    , hence :mkSmallWorld.go.tryRotationsIfAlmostMatches' = 83%
-
-    so graphOfIndex is to be optimized in priority:
-        - use graphFromConsecutiveAscList
-        - write undirectedGraphFromConsecutiveAscList to avoid having to create
-          the graph twice.
-        - use a Vector as input of graphFromEdges
-
-    after using /sampled/ timing measurements:
-    -> 52s
-    after computing a minimal count of components:
-    -> 44.7s
-    with O(1) lookup in Data.Graph:
-    -> 37 s
-    removing reverse when creating the matrix:
-    -> 35s
-    merge notion of Vertex and Key:
-    -> 26s
-    use Graph
-    -> 19s
-  }
- Interleaving + rotations:
+ InterleavePlusRotate:
   * Order0 | |||||||||||||||||||||||||| | didn't finish
   * Rect'1 |                            | ?
   * Order1 | |||||||||||||||||||||||||| | didn't finish
   * Order2 | |||||||||||||||||||||||||| | didn't finish
- Interleaving * rotations:                  
+ InterleaveTimesRotate:                  
   * Order0 | |||||||||||||||||||||||||| | didn't finish
   * Rect'1 |   |||||||||||||||||||||||| | 600'000'000         nRandMat  350000, nMatPerRandMat 27
   * Order1 |                  ||||||||| | 275'000'000 (us)    nRandMat  100000, nMatPerRandMat 27
@@ -140,11 +102,7 @@ The ratio "time to analyze a matrix vs time to generate a random matrix" could b
   in determining the strategy to use.
 (to verify that we need first to split Statistics in Properties + Statistics (averageable))
 
-2 aspects : the time it takes to find the solution, how many matrices are tested.
-  the pertinence of rotations / interleave could be improved to reduce the number of tested matrices?
-
 Before generalizing, we should see if improvements vary with number of components / probability / size.
-
 
 - Notion of Property containing upperbounds, wall probability, small world size and
 "statistics" that are constant.

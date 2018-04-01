@@ -141,13 +141,20 @@ mkRandomlyFilledSpace :: WallDistribution
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s,Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gen
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = mkSmallWorld gen (bigToSmall s blockSize) nComponents wallAirRatio continue >>= \(res, stats) ->
+  | otherwise = mkSmallWorld gen smallSz nComponents wallAirRatio strategy continue >>= \(res, stats) ->
   return
     (case res of
       NeedMoreTime -> NeedMoreTime
       Impossible bounds -> Impossible bounds
       Success small -> Success $ smallWorldToBigWorld s blockSize small
     , Just stats)
+ where
+  smallSz = bigToSmall s blockSize
+  strategy = bestStrategy smallSz nComponents
+
+bestStrategy :: Size -> ComponentCount -> MatrixCreationStrategy
+bestStrategy _ _ = -- TODO measure the best strategy for known cases, then interpolate.
+  MatrixCreationStrategy Rotate Cyclic.Order1
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -182,11 +189,12 @@ mkSmallWorld :: GenIO
              -- ^ User wall proba, in range [0,1]. This function will map the range to
              -- a range that takes into account theoretical min / max wall probas
              -- given the parameters (number of components, size) of the samll world.
+             -> MatrixCreationStrategy
              -> IO Bool
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen sz nComponents' userWallProba continue
+mkSmallWorld gen sz nComponents' userWallProba (MatrixCreationStrategy branch rotationOrder) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -200,7 +208,6 @@ mkSmallWorld gen sz nComponents' userWallProba continue
                       , countRotationsByIV = Cyclic.countRotations' rotationOrder sz }))
       $ mkLowerBounds sz nComponents'
  where
-  rotationOrder = Cyclic.Order2
 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
     go' 0 zeroStats
@@ -211,7 +218,7 @@ mkSmallWorld gen sz nComponents' userWallProba continue
       (fmap (either
           ((: []) . Left)
           -- stop at first success
-          (takeWhilePlus isLeft . strategy Rotate))
+          (takeWhilePlus isLeft . strategy branch))
         <$> withDurationSampledEvery 1000 i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
         let !newStats = addMkRandomMatDuration duration $ updateStats l stats
         case partitionEithers l of
@@ -277,12 +284,6 @@ mkSmallWorld gen sz nComponents' userWallProba continue
 withInterleaving :: (SmallMatInfo -> [a]) -> SmallMatInfo -> [a]
 withInterleaving x (SmallMatInfo nAir mat) =
   concatMap (x . SmallMatInfo nAir) $ Cyclic.produceUsefulInterleavedVariations mat
-
-data Strategy =
-    Rotate
-  | InterleavePlusRotate
-  | InterleaveTimesRotate
-
 
 type TopoMatch = Either SmallWorldRejection SmallWorld
 

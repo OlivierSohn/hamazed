@@ -3,6 +3,7 @@
 module Main where
 
 import           Imj.Prelude
+
 import           Prelude(print, putStrLn, putStr, length, writeFile)
 import           Control.Arrow((&&&))
 import           Control.Concurrent(threadDelay)
@@ -33,9 +34,9 @@ import           Imj.Random.MWC.Seeds
 -- stack build && stack exec -- imj-profile-exe +RTS -rprofile.ticky
 
 main :: IO ()
-main = do
-  profileLargeWorld'
-  --profileLargeWorld
+main =
+  --profileLargeWorld'
+  profileLargeWorld
   --profileMkSmallWorld
   --measureMemory
   --writeSeedsSource
@@ -107,7 +108,7 @@ profileMkSmallWorld = do
   gen <- create
   r <- newIORef (0 :: Int)
   (duration, (res, stats)) <- withDuration $
-    mkSmallWorld gen (Size 18 9) (ComponentCount 1) 0.8 $ do
+    mkSmallWorld gen (Size 18 9) (ComponentCount 1) 0.8 (MatrixCreationStrategy Rotate Cyclic.Order2) $ do
       newValue <- atomicModifyIORef' r (succ &&& succ)
       return (newValue /= 200)
   putStrLn $ prettyShowStats stats
@@ -119,17 +120,27 @@ profileMkSmallWorld = do
 
 profile :: GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
 profile gen = do
-  (res, stats) <- mkSmallWorld gen
-    --(Size 32 72) (ComponentCount 1) 0.2
-    --(Size  8 18) (ComponentCount 1) 0.5
-    --(Size  8 18) (ComponentCount 1) 0.6
-    (Size  8 18) (ComponentCount 1) 0.7
-    $ pure True -- never interrupt
+  (res, stats) <- mkSmallWorld gen size componentCount wallProba strategy neverInterrupt
   case res of
-    NeedMoreTime -> error "test logic"
+    NeedMoreTime -> error "test logic" -- since we bever interrupt the test, this is not possible.
     Impossible err -> error $ "impossible :" ++ show err
     Success _ -> return ()
   return (res, stats)
+
+ where
+  strategy = MatrixCreationStrategy Rotate Cyclic.Order0
+  testedParamsIdx = 0
+
+  params =
+    [ (Size 32 72, ComponentCount 1, 0.2)
+    , (Size  8 18, ComponentCount 1, 0.5)
+    , (Size  8 18, ComponentCount 1, 0.6)
+    , (Size  8 18, ComponentCount 1, 0.7)
+    ]
+
+  (size, componentCount, wallProba) = params !! testedParamsIdx
+
+  neverInterrupt = pure True
 
 profileLargeWorld' :: IO ()
 profileLargeWorld' =

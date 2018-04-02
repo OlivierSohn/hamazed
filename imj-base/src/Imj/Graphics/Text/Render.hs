@@ -181,24 +181,18 @@ showQuantities'' leftValue l labels title =
       (\(i,strs) ->
       let isBest = i `List.elem` bestIndexes
           isWorst = i `List.elem` worstIndexes
-          f
-           | isBest && isWorst = id
-           | isBest = colorize $ onBlack green
-           | isWorst = colorize $ onBlack orange
-           | otherwise = id
-      in map f strs)
+          (f, quality)
+           | isBest && isWorst = (id, "")
+           | isBest = (colorize $ onBlack green, "+")
+           | isWorst = (colorize $ onBlack orange, "-")
+           | otherwise = (id, "")
+      in map f (strs ++ [quality]))
      $ zip [0..] $
       map (\(i,g,t) -> [i, g, t])
       $ zip3
           labels
           graphical
           txts
-
-{-
-minIndex :: (Ord a) => [a] -> Maybe Int
-minIndex [] = Nothing
-minIndex a = List.elemIndex (List.foldl1' min a) a
--}
 
 type Distribution a = Map a Int
 

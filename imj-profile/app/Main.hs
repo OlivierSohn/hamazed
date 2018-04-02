@@ -6,9 +6,7 @@ module Main where
 import           Imj.Prelude
 
 import           Prelude(print, putStrLn, putStr, length, writeFile)
-import           Control.Arrow((&&&))
 import           Control.Concurrent(threadDelay)
-import           Data.IORef(newIORef, atomicModifyIORef', readIORef)
 import           Data.List as List(foldl', unlines, intersperse)
 import qualified Data.List as List(intercalate, concat)
 import           Data.String(IsString(..))
@@ -43,9 +41,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  profileAllProps
-  --profileLargeWorld
-  --profileMkSmallWorld
+  --profileAllProps
+  profileLargeWorld
   --measureMemory
   --writeSeedsSource
   --testRNG
@@ -110,25 +107,6 @@ getTopology r =
         putStrLn ""
   in (compCount, render)
 
-profileMkSmallWorld :: IO ()
-profileMkSmallWorld = do
-  -- use a deterministic random numbers source
-  gen <- create
-  r <- newIORef (0 :: Int)
-  let property = mkProperties
-        (SWCharacteristics (Size 18 9) (ComponentCount 1) 0.8)
-        (SWCreationStrategy Rotate Cyclic.Order2)
-  (duration, (res, stat)) <- withDuration $
-    mkSmallWorld gen property $ do
-      newValue <- atomicModifyIORef' r (succ &&& succ)
-      return (newValue /= 200)
-  putStrLn $ show (property, stat)
-  print duration -- min   without stats, 4.75 with stats
-  case res of
-    NeedMoreTime -> return ()
-    Impossible err -> error $ "impossible :" ++ show err
-    Success _ -> readIORef r >>= \iteration -> error $ "result found at iteration " ++ show iteration
-
 -- | Returns 12 combinations
 allStrategies :: [SmallWorldCreationStrategy]
 allStrategies =
@@ -157,9 +135,6 @@ allWorlds =
     , (Size  8 18, ComponentCount 1, 0.7)
     ]
 
-allProps :: [Properties]
-allProps = [mkProperties ch st | ch <- allWorlds, st <- allStrategies]
-
 forMLoudly :: String -> [a] -> (a -> IO b) -> IO [b]
 forMLoudly name l act = do
   let count = length l
@@ -170,6 +145,7 @@ forMLoudly name l act = do
 
 profileAllProps :: IO ()
 profileAllProps = do
+  -- run benchmarks
   allRes <- zip allWorlds <$> forMLoudly "World" allWorlds
     (\worldCharacteristics ->
       zip allStrategies <$> forMLoudly "Strategy" allStrategies
@@ -177,6 +153,8 @@ profileAllProps = do
           let p = mkProperties worldCharacteristics strategy
           timeWithDifferentSeeds (timeout allowedMicros . profile p))
       )
+  -- print results
+  putStrLn $ "Timeout = " ++ show allowed
   forM_ allRes
     (\(worldCharac, worldResults) -> do
       let labelsAndEitherTimeoutsTimes = map
@@ -195,7 +173,7 @@ profileAllProps = do
           $ fromString $ prettyShowSWCharacteristics worldCharac)
  where
   -- time allowed for each individual seed
-  !allowed = fromSecs 0.1
+  !allowed = fromSecs 0.1-- 100
   !allowedMicros = fromIntegral $ toMicros allowed
 
 maybeToEither :: b -> Maybe a -> Either b a
@@ -215,12 +193,10 @@ profile property gen = do
 
 profileLargeWorld :: IO ()
 profileLargeWorld = do
-  timesAndResStats <- timeWithDifferentSeeds $ profile $ head allProps
-  let stats = map (snd . snd) timesAndResStats
-      --results = map (fst . fst) timesAndResStats
-      times = map fst timesAndResStats
-  mapM_ (putStrLn . show) stats
-  mapM_ putStrLn $ showQuantities times
+  let props = mkProperties
+        (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
+        (SWCreationStrategy Rotate Cyclic.Order2)
+  withNumberedSeed (withDuration . profile props) 0 >>= print
 
 
 -- | Runs several actions sequentially, allocating a given budget to each.

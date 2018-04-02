@@ -44,6 +44,7 @@ import           Imj.Prelude
 
 import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, (.|.))
+import           Data.List(intercalate, concat)
 import           Data.Text(pack)
 import           Data.Word (Word8, Word16)
 

@@ -13,9 +13,9 @@ import           Prelude as Exported
   , Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
-  , sum, map, concatMap, concat, filter, mapM_, sequence_
+  , sum, map, concatMap, filter, mapM_, sequence_
   , all, any, notElem, null, minimum, maximum
-  , replicate, (++), take, takeWhile, tail, last, head, drop, reverse, iterate
+  , (++), takeWhile, tail, last, head, drop, reverse, iterate
   , zip, zip3, unzip, zipWith, fst, snd
   , fmap, (.), (=<<), ($), (<$>), const, id, flip, curry, uncurry
   , compare, not, or, (||), (&&), otherwise
@@ -38,7 +38,7 @@ import           Control.Monad.IO.Class as Exported(liftIO)
 import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Bool as Exported(bool)
 import           Data.Binary as Exported(Binary)
-import           Data.List as Exported(intercalate, cycle, repeat, words, unwords)
+import           Data.List as Exported(cycle, repeat, words, unwords)
 import           Data.Maybe as Exported(listToMaybe, maybeToList, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Map.Strict(Map)

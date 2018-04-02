@@ -8,7 +8,7 @@ module Test.Imj.Topology
 import           Imj.Prelude
 import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
-import           Data.List(foldl')
+import           Data.List(foldl', take, concat)
 import           System.Random.MWC(GenIO, create)
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -16,7 +16,7 @@ import qualified Imj.Data.Matrix.Unboxed as Unboxed
 
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Util
+import           Imj.Graphics.Text.Render
 
 testTopology :: IO ()
 testTopology = do

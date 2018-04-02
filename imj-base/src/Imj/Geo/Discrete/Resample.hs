@@ -9,9 +9,9 @@ module Imj.Geo.Discrete.Resample
 
 import           Imj.Prelude
 
-import           Data.List( length )
+import           Data.List(length, replicate, take)
 
-import           Imj.Util( replicateElements )
+import           Imj.Util(replicateElements)
 
 
 {- | Resamples a list, using the analogy where a list

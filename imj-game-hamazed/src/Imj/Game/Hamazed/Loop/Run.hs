@@ -24,7 +24,7 @@ import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
-import           Data.List(unlines)
+import qualified Data.List as List(unlines, intercalate)
 import           Data.Maybe(isJust)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(fromList, lookup, keys)
@@ -60,10 +60,10 @@ import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
-import           Imj.Graphics.Text.ColorString hiding(intercalate)
+import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.RasterizedString
+import           Imj.Graphics.Text.Render
 import           Imj.Log
-import           Imj.Util
 
 {- | Runs the Hamazed game.
 
@@ -198,7 +198,7 @@ predefinedColor = flip Map.lookup predefinedColors
 descPredefinedColors :: String
 descPredefinedColors =
   "{'" ++
-  intercalate "','" listPredefinedColors ++
+  List.intercalate "','" listPredefinedColors ++
   "'}"
 
 listPredefinedColors :: [String]
@@ -347,14 +347,14 @@ runWithBackend :: Bool
                -> Bool
                -> IO ()
 runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPlayerName maybeBackend mayPPU mayScreenSize debug = do
-  let printServerArgs = putStr $ unlines $ showArray (Just ("Server Arg", ""))
+  let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
         , ("Server name", show maySrvName)
         , ("Server port", show maySrvPort)
         , ("Server logs", show maySrvLogs)
         , ("Colorscheme", show mayColorScheme)
         ]
-      printClientArgs = putStr $ unlines $ showArray (Just ("Client Arg", ""))
+      printClientArgs = putStr $ List.unlines $ showArray (Just ("Client Arg", ""))
         [ ("Client Rendering", show maybeBackend)
         , ("PPU             ", show mayPPU)
         , ("Player name     ", show mayPlayerName)

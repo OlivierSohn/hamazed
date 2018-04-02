@@ -13,7 +13,8 @@ module Imj.Graphics.UI.TextBox
         ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+
+import qualified Data.List as List(length, take)
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
@@ -21,7 +22,7 @@ import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.ColorString hiding(take)
+import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
 
@@ -44,7 +45,7 @@ instance Positionable (TextBox ColorString) where
     usingScissor contentArea $ fill space whiteOnBlack
     foldM_
       (\lineStart (c, str) -> do
-        let nLines = Prelude.length str
+        let nLines = List.length str
             upperLeftGroup = move (pred nLines) Up lineStart
             szGroup = Size (fromIntegral nLines) w
         usingScissor (intersection contentArea $ mkRectArea upperLeftGroup szGroup) $ do
@@ -101,8 +102,8 @@ addText t (TextBox s@(Size h w) l adjustHeight color) =
         NoAdjustment ->
           -- given that each group of lines has at least one line, if we take 'h' groups,
           -- we have enought to fill the box.
-          TextBox s $ take (fromIntegral h) newLines
+          TextBox s $ List.take (fromIntegral h) newLines
         Adjust ->
           TextBox (Size newH w) newLines
-          where newH = fromIntegral $ Prelude.length newLines
+          where newH = fromIntegral $ List.length newLines
   in tb adjustHeight $ alternate color

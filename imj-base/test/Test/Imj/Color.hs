@@ -5,7 +5,7 @@ module Test.Imj.Color
          ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+import           Prelude(length, concat)
 
 import           Data.Set(fromList)
 

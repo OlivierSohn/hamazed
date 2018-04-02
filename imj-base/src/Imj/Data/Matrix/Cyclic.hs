@@ -47,7 +47,7 @@ import           Control.Loop (numLoop)
 import           Data.Binary(Binary(..))
 import           GHC.Generics (Generic)
 -- Data
-import           Data.List(foldl')
+import           Data.List(foldl', take, concat)
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed         as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV

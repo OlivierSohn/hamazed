@@ -6,10 +6,10 @@ module Test.Imj.Interleave
 
 import           Imj.Prelude
 import           Prelude(putStrLn)
-
 import           Data.List(elem,splitAt)
+
 import           Imj.Geo.Discrete.Interleave
-import           Imj.Util
+import           Imj.Graphics.Text.Render
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

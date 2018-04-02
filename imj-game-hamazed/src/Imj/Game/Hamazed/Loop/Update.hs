@@ -10,7 +10,7 @@ module Imj.Game.Hamazed.Loop.Update
       , sendToServer
       ) where
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Concurrent(forkIO)
@@ -48,10 +48,10 @@ import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.RasterizedString
+import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Util
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m

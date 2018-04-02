@@ -14,7 +14,7 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Data.List(sortOn)
+import           Data.List(sortOn, concat)
 import qualified Data.Map.Strict as Map(empty, fromDistinctAscList)
 import qualified Data.Set as Set(size, toAscList, empty)
 import           System.Random.MWC(GenIO, withSystemRandom, asGenIO)

@@ -117,10 +117,9 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import qualified Data.Set as Set(empty, null, member, fromList, fromDescList, fromDistinctDescList, unions, union, size)
-import qualified Data.Map.Strict as Map(elems, insert, lookup, lookupMin, map, empty, null, keysSet, foldl', alter
-                                      , findWithDefault, mapAccumWithKey, fromListWith)
-import           Data.List(elem, length)
+import qualified Data.Set as Set
+import qualified Data.Map.Strict as Map
+import           Data.List(elem, length, concat)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
 

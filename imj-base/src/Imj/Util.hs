@@ -5,8 +5,7 @@
 
 module Imj.Util
     ( -- * List utilities
-      showListOrSingleton
-    , replicateElements
+      replicateElements
     , intersperse'
     , splitEvery
     , mkGroups
@@ -21,21 +20,6 @@ module Imj.Util
     , lastAbove
     , logBase2
     , mapRange
-    , Quantifiable(..)
-    -- * distribution utilities
-    , asDistribution
-    , Distribution
-    -- * Render utilities
-    , showArray
-    , showArrayN
-    , showDistribution
-    , showQuantities
-    , showQuantities'
-    , showQuantities''
-    , showInBox
-    , addRight
-    , justifyR
-    , justifyL
     -- * Reexports
     , Int64
     ) where
@@ -43,212 +27,15 @@ module Imj.Util
 import           Imj.Prelude
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
-import           Data.Either(partitionEithers)
 import           Data.Int(Int64)
-import           Data.List(reverse, length, splitAt, foldl')
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Maybe(listToMaybe)
-import           Data.Text(Text, pack)
+import           Data.List(reverse, length, splitAt, foldl', replicate)
+
 
 {-# INLINE maximumMaybe #-}
 maximumMaybe :: Ord a => [a] -> Maybe a
 maximumMaybe [] = Nothing
 maximumMaybe xs = Just $ maximum xs
 
-addRight :: [String] -> Int -> [String] -> [String]
-addRight l1' margin l2' =
-  zipWith (++)
-    (fillH l1 maxWidth1)
-    (fillH l2 maxWidth2)
- where
-  fillH x maxWidth = take height $ x ++ repeat (replicate maxWidth ' ')
-  maxWidth1 = maxLength l1'
-  maxWidth2 = maxLength l2'
-  height = max (length l1') (length l2')
-  fillW maxWidth = map (\str -> take maxWidth $ str ++ repeat ' ')
-  l1 = fillW (maxWidth1 + margin) l1'
-  l2 = fillW maxWidth2 l2'
-
-maxLength :: [[a]] -> Int
-maxLength = fromMaybe 0 . maximumMaybe . map length
-
-showInBox :: [String] -> [String]
-showInBox l =
-  bar '_' : map (withFrame '|') l ++ [bar 'T']
- where
-  bar = replicate (maxWidth + 2)
-  withFrame f str = f : take maxWidth (str ++ repeat ' ') ++ [f]
-  maxWidth = maxLength l
-
-showArray :: Maybe (String, String) -> [(String,String)] -> [String]
-showArray mayTitles body =
-  showArrayN
-    (fmap pairToList mayTitles)
-    (map pairToList body)
- where pairToList (a,b) = [a,b]
-
-showArrayN :: Maybe [String] -> [[String]] -> [String]
-showArrayN mayTitles body =
-  maybe [] (\titles -> bar : format [titles]) mayTitles
-  ++ [bar] ++ format body ++ [bar]
- where
-  bar = replicate lBar '-'
-  lBar = maxLength $ format arrayLines
-  format =
-    map
-      (\strs ->
-      "| " ++
-      intercalate
-        " | "
-        (map
-          (\(columnIdx, str, justify) -> justify (ls !! columnIdx) str)
-          $ zip3 [0..] strs justifications) ++
-      " |")
-  arrayLines = maybe body (:body) mayTitles
-  ls = map
-    (\colIdx -> maxLength $ mapMaybe (listToMaybe . drop colIdx) arrayLines)
-    [0..]
-
-  justifications = justifyL : repeat justifyR
-
-justifyR, justifyL :: Int -> String -> String
-justifyR maxL x =
-  replicate (maxL-length x) ' ' ++ x
-justifyL maxL x =
-  x ++ replicate (maxL-length x) ' '
-
-
-class (Ord a, Show a) => Quantifiable a where
-  readFloat :: Float -> a
-  writeFloat :: a -> Float
-
-  -- | Can be seen as a zero, and is the result of 'partition 0 x'.
-  nothing :: a
-  nothing = readFloat 0
-
-  gather :: a -> a -> a
-  gather a b = readFloat $ writeFloat a + writeFloat b
-
-  scatter :: Int -> a -> a
-  scatter 0 _ = nothing
-  scatter n a = readFloat $ writeFloat a / fromIntegral n
-
-  average :: [a] -> a
-  average l = scatter (length l) $ foldl' gather nothing l
-
-  normalize :: [a] -> [Float]
-  normalize l =
-    let fs = map writeFloat l
-        maxQty = fromMaybe (error "logic") $ maximumMaybe fs
-    in  map (/maxQty) fs
-
-  showQty :: a -> String
-  showQty = show
-
-instance Quantifiable Float where
-  readFloat = realToFrac
-  writeFloat = realToFrac
-
-showQuantities :: (Quantifiable a)
-               => [a]
-               -- ^ values
-               -> [String]
-showQuantities l' =
-  showArrayN (listToMaybe header) body
- where
-  l = avg : l'
-  avg = average l'
-  txts = map showQty l
-  normalizedQuantities = normalize l
-  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
-  (header, body) = splitAt 1
-    $ map (\(i,g,t) -> [i, g, t])
-    $ zip3
-        ("Avg" : map show [1 :: Int ..])
-        graphical
-        txts
-
-showQuantities' :: (Quantifiable a)
-                => a
-                -- ^ Value to use for graphical representation when Left
-                -> [Either String a]
-                -- ^ Values
-                -> [String]
-showQuantities' leftValue l' =
-  showArrayN (listToMaybe header) body
- where
-  l = avg : l'
-  avg = case partitionEithers l' of
-    ([], valids) -> Right $ average valids
-    (_:_,_) -> Left "N/A"
-  txts = map (either id showQty) l
-  normalizedQuantities = normalize $ map (either (const leftValue) id) l
-  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
-  (header, body) = splitAt 1
-    $ map (\(i,g,t) -> [i, g, t])
-    $ zip3
-        ("Avg" : map show [1 :: Int ..])
-        graphical
-        txts
-
--- | no average header
-showQuantities'' :: (Quantifiable a)
-                => a
-                -- ^ Value to use for graphical representation when Left
-                -> [Either String a]
-                -- ^ Values
-                -> [String]
-                -- ^ Labels
-                -> String
-                -- ^ Title
-                -> [String]
-showQuantities'' leftValue l labels title =
-  showArrayN (Just [title]) body
- where
-  txts = map (either id showQty) l
-  normalizedQuantities = normalize $ map (either (const leftValue) id) l
-  graphical = map (\q -> replicate (round $ q*50) '|') normalizedQuantities
-  body =
-    map (\(i,g,t) -> [i, g, t])
-    $ zip3
-        labels
-        graphical
-        txts
-
-type Distribution a = Map a Int
-
-{-# INLINABLE asDistribution #-}
-asDistribution :: (Ord a)
-               => [a] -> Distribution a
-asDistribution = Map.fromListWith (+) . map (flip (,) 1)
-
-{-# INLINABLE showDistribution #-}
-showDistribution :: (Ord a, Show a, Enum a)
-                 => Distribution a
-                 -> [String]
-showDistribution m =
-  map
-    (\(k,n) ->
-      let s = show k
-      in justifyL maxWidth s ++ " | " ++ replicate n '.')
-    l
- where
-  mayMin = Map.lookupMin m
-  mayMax = Map.lookupMax m
-  -- m' has no gap between min and max key (we add 0s if needed)
-  m' = maybe m (\(min_,_) ->
-      let (max_,_) = fromMaybe (error "logic") mayMax
-      in foldl' (\ma k -> Map.insertWith (+) k 0 ma) m [min_..max_])
-    mayMin
-  l = Map.toAscList m'
-  maxWidth = maxLength $ map (show . fst) l
-
-{-# INLINABLE showListOrSingleton #-}
--- | If list is a singleton, show the element, else show the list.
-showListOrSingleton :: Show a => [a] -> Text
-showListOrSingleton [e] = pack $ show e
-showListOrSingleton l   = pack $ show l
 
 {-# INLINE replicateElements #-}
 -- | Replicates each list element n times and concatenates the result.

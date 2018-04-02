@@ -20,7 +20,7 @@ module Imj.Sums -- TODO allow non unique elements
 
 import           Imj.Prelude
 
-import           Data.List(reverse, length, break, null)
+import           Data.List(reverse, length, break, null, replicate, concat)
 import qualified Data.List as List(filter)
 import           Data.Set(Set)
 import qualified Data.Set as Set(empty, singleton, union, toAscList, toDescList, fromList, fromDistinctDescList)

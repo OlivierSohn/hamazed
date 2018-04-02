@@ -32,16 +32,20 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * Convert to colored Text
             , buildTxt
             , safeBuildTxt
+            -- * IO
+            , putStrLn
+            , putStr
             -- * Reexports
             , LayeredColor(..)
             ) where
 
-import           Imj.Prelude hiding(take, concat, intercalate)
+import           Imj.Prelude
 
 import           Control.Monad.Reader.Class(asks)
 import           Data.Char(isSpace)
 import           Data.String(IsString(..))
-import qualified Data.Text as Text( pack, unpack, length, take, words, last, head, cons, splitAt, null)
+import qualified Data.Text as Text
+import qualified Data.Text.IO as Text(putStrLn, putStr)
 import           Data.Text.Lazy(toStrict)
 import           Data.Text.Lazy.Builder(Builder, toLazyText)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
@@ -66,7 +70,7 @@ instance Monoid ColorString where
 instance PrettyVal ColorString where
   prettyVal c = prettyVal $ map fst $ simplify c
 instance IsString ColorString where
-  fromString str = ColorString [(Text.pack str, onBlack white)]
+  fromString str = ColorString [(Text.pack str, whiteOnBlack)]
 instance Characters ColorString where
   length = countChars
   empty (ColorString x) = null x || all (Text.null . fst) x
@@ -89,6 +93,28 @@ instance Characters ColorString where
           len = Text.length txt
           (tLeft,tRight) = Text.splitAt n txt
 
+  cons c (ColorString l) = ColorString $ (Text.singleton c, whiteOnBlack):l
+
+  intercalate (ColorString i) =
+    ColorString . List.concat . intersperse' i . map (\(ColorString s) -> s)
+
+  take nChars (ColorString l)
+    | nChars <= 0 = mempty
+    | otherwise = ColorString $ reverse $ take' nChars [] l
+    where
+      take' :: Int -> [(Text, LayeredColor)] -> [(Text, LayeredColor)] -> [(Text, LayeredColor)]
+      take' _ cur [] = cur
+      take' 0 cur _  = cur
+      take' n cur (r@(txt,color):rs)
+        | n >= lr = take' (n-lr) (r:cur) rs
+        | otherwise = (Text.take n txt, color):cur
+        where lr = Text.length txt
+
+  concat = ColorString . concatMap (\(ColorString s) -> s)
+
+  colorize color (ColorString l) =
+    ColorString $ map (\(t, _) -> (t, color)) l
+
   drawOnPath positions (ColorString cs) = do
     f <- asks drawGlyph'
     let go [] _ = return ()
@@ -100,6 +126,9 @@ instance Characters ColorString where
           go tailRs rest
     go positions cs
   {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE concat #-}
+  {-# INLINABLE intercalate #-}
+  {-# INLINABLE take #-}
   {-# INLINABLE length #-}
   {-# INLINABLE splitAt #-}
   {-# INLINABLE empty #-}
@@ -221,15 +250,6 @@ buildTxt prev (ColorString l') =
       Builder.fromString (colorChange c color) <>
       Builder.fromText txt
 
-{-# INLINE concat #-}
-concat :: [ColorString] -> ColorString
-concat = ColorString . concatMap (\(ColorString s) -> s)
-
-intercalate :: ColorString -> [ColorString] -> ColorString
-intercalate (ColorString i) =
-  ColorString . List.concat . intersperse' i . map (\(ColorString s) -> s)
-
-
 replaceBackground :: Color8 Background -> ColorString -> ColorString
 replaceBackground bg (ColorString l) =
   ColorString $ map (\(t, LayeredColor _ fg) -> (t, LayeredColor bg fg)) l
@@ -258,15 +278,8 @@ countChars :: ColorString -> Int -- TODO rename as length
 countChars (ColorString cs) =
   sum $ map (Text.length . fst) cs
 
-take :: Int -> ColorString -> ColorString
-take nChars (ColorString l)
-  | nChars <= 0 = mempty
-  | otherwise = ColorString $ reverse $ take' nChars [] l
-  where
-    take' :: Int -> [(Text, LayeredColor)] -> [(Text, LayeredColor)] -> [(Text, LayeredColor)]
-    take' _ cur [] = cur
-    take' 0 cur _  = cur
-    take' n cur (r@(txt,color):rs)
-      | n >= lr = take' (n-lr) (r:cur) rs
-      | otherwise = (Text.take n txt, color):cur
-      where lr = Text.length txt
+putStrLn :: ColorString -> IO ()
+putStrLn = Text.putStrLn . safeBuildTxt
+
+putStr :: ColorString -> IO ()
+putStr = Text.putStr . safeBuildTxt

@@ -17,8 +17,10 @@ import           Imj.Prelude hiding(unwords, words)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad( zipWithM_ )
+import           Data.String(IsString(..))
+import qualified Data.List as List
 import qualified Data.String as String(words, unwords)
-import qualified Data.Text as Text(length, splitAt, words, unwords, null, unpack)
+import qualified Data.Text as Text
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
@@ -28,12 +30,23 @@ import           Imj.Graphics.Font
 
 newtype SingleWord a = SingleWord a
 
-class Characters a where
+class (IsString a, Monoid a) => Characters a where
   length :: a -> Int
   empty :: a -> Bool
+  cons :: Char -> a -> a
+  intercalate :: a -> [a] -> a
+  take :: Int -> a -> a
+  concat :: [a] -> a
   splitAt :: Int -> a -> (a, a)
+
+  colorize :: LayeredColor -> a -> a
+
   drawOnPath :: (MonadIO m, MonadReader e m, Draw e)
              => [Coords Pos] -> a -> m ()
+
+  replicate :: Int -> Char -> a
+  replicate n c = fromString (List.replicate n c)
+
 
 -- | A 'Words' is a 'Characters' that can be split in words.
 class (Characters a) => Words a where
@@ -88,10 +101,19 @@ multiLineTrivial n alltxt =
 instance Characters ([] Char) where
   length = Prelude.length
   empty = null
+  cons = (:)
+  intercalate = List.intercalate
+  take = List.take
+  concat = List.concat
   splitAt = Prelude.splitAt
+  colorize _ = id
   drawOnPath positions str = do
     d <- asks drawGlyph'
     zipWithM_ (\pos char -> d (textGlyph char) pos whiteOnBlack) positions str
+  {-# INLINABLE intercalate #-}
+  {-# INLINABLE take #-}
+  {-# INLINABLE concat #-}
+  {-# INLINABLE cons #-}
   {-# INLINABLE length #-}
   {-# INLINABLE splitAt #-}
   {-# INLINABLE empty #-}
@@ -106,8 +128,17 @@ instance Words ([] Char) where
 instance Characters Text where
   length = Text.length
   empty = Text.null
+  cons = Text.cons
+  intercalate = Text.intercalate
   splitAt = Text.splitAt
+  concat = Text.concat
+  take = Text.take
+  colorize _ = id
   drawOnPath positions txt = drawOnPath positions (Text.unpack txt)
+  {-# INLINABLE take #-}
+  {-# INLINABLE concat #-}
+  {-# INLINABLE intercalate #-}
+  {-# INLINABLE cons #-}
   {-# INLINABLE length #-}
   {-# INLINABLE splitAt #-}
   {-# INLINABLE empty #-}

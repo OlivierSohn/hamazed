@@ -15,8 +15,7 @@ module Imj.Game.Hamazed.Network.Server
       , defaultPort
       ) where
 
-import           Imj.Prelude hiding(intercalate)
-import qualified Imj.Prelude as Prel (intercalate)
+import           Imj.Prelude
 
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Monad.IO.Unlift(MonadUnliftIO, MonadIO)
@@ -27,6 +26,7 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(map, mapMaybe, union, filter, take, keys, adjust, keysSet
                                       , insert, null, empty, mapAccumWithKey, updateLookupWithKey
                                       , restrictKeys, traverseWithKey, lookup, toList, partition)
+import qualified Data.List as List(intercalate)
 import           Data.Set (Set)
 import qualified Data.Set as Set (difference, union, lookupMin, empty, singleton, null, insert, delete, size)
 import           Data.Maybe(isJust)
@@ -462,7 +462,7 @@ error' from msg = do
   notifyClient $ ServerError txt
   error txt
  where
-  txt = Prel.intercalate "|" [from, "error from Server", msg]
+  txt = List.intercalate "|" [from, "error from Server", msg]
 
 serverError :: (MonadIO m, MonadState ServerState m)
             => String
@@ -472,7 +472,7 @@ serverError msg = do
   notifyEveryone $ ServerError txt
   error txt
  where
-  txt = Prel.intercalate "|" ["Server error from Server", msg]
+  txt = List.intercalate "|" ["Server error from Server", msg]
 
 handleIncomingEvent :: ClientEvent -> ClientHandlerIO ()
 handleIncomingEvent =

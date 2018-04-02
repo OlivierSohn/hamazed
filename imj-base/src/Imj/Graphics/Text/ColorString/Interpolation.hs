@@ -13,7 +13,7 @@ module Imj.Graphics.Text.ColorString.Interpolation
 
 import           Imj.Prelude
 
-import           Data.List(length, splitAt)
+import           Data.List(length, splitAt, take)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color.Types

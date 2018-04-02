@@ -1,11 +1,12 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 
-module Test.Imj.Averageable(testAverageable) where
+module Test.Imj.Quantifiable(testAverageable) where
 
-import           Imj.Util
 import           Test.Imj.Utilities
 import           Imj.Timing
+import           Imj.Data.Class.Quantifiable
+import           Imj.Graphics.Text.Render
 
 testAverageable :: IO ()
 testAverageable = do

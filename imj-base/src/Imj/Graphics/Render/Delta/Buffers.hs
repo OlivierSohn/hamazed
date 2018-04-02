@@ -12,13 +12,12 @@ module Imj.Graphics.Render.Delta.Buffers
           , getBufferHeight
           ) where
 
-import           Imj.Prelude hiding(replicate, unzip)
-import           Prelude hiding (replicate, unzip, length)
+import           Imj.Prelude
 
 import           Control.Exception(assert)
 import           Data.IORef( IORef , newIORef )
 import           Data.Maybe( fromMaybe )
-import           Data.Vector.Unboxed.Mutable( replicate, unzip, length )
+import qualified Data.Vector.Unboxed.Mutable as VUM( replicate, unzip, length )
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn (new)
 import           Imj.Graphics.Color.Types
@@ -65,13 +64,13 @@ mkBuffers width' height' backBufferCell =
       -- to an inexistant value.
       buf <- newBufferArray sz (backBufferCell, invalidCell)
       delta <- Dyn.new $ fromIntegral sz -- reserve the maximum possible size
-      let (back, front) = unzip buf
+      let (back, front) = VUM.unzip buf
       return $ Right (Buffer back, Buffer front, Delta delta, width))
     $ bufferSizeFromWH width' height'
 
 getBufferDimensions :: Buffers -> (Dim Width, Dim Height)
 getBufferDimensions (Buffers (Buffer back) _ width _ _ _) =
-  (width, getBufferHeight width $ fromIntegral $ length back)
+  (width, getBufferHeight width $ fromIntegral $ VUM.length back)
 
 
 {-# INLINE getBufferHeight #-}
@@ -98,4 +97,4 @@ createBuffers pol@(Policies _ _ clearColor) w h =
 
 -- TODO use phantom types for Cell (requires Data.Vector.Unboxed.Deriving to use newtype in vector)
 newBufferArray :: Dim BufferSize -> (Cell, Cell) -> IO BackFrontBuffer
-newBufferArray size = replicate (fromIntegral size)
+newBufferArray size = VUM.replicate (fromIntegral size)

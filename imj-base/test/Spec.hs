@@ -4,7 +4,7 @@ import           Control.Monad.Reader(runReaderT)
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Naive
 
-import           Test.Imj.Averageable
+import           Test.Imj.Quantifiable
 import           Test.Imj.Bresenham2
 import           Test.Imj.Bresenham3
 import           Test.Imj.Color

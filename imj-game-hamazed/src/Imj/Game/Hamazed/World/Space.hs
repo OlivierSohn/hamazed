@@ -35,7 +35,7 @@ import           Data.Either(partitionEithers, isLeft)
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
-import           Data.List(length, sortOn)
+import           Data.List(length, sortOn, replicate, take)
 import qualified Data.List as List (foldl')
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map

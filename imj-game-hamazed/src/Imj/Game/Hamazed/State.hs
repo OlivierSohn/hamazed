@@ -41,9 +41,9 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
+import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
-import           Imj.Util
 
 representation :: UpdateEvent -> EventRepr
 representation (Left (GameEvent e)) = case e of

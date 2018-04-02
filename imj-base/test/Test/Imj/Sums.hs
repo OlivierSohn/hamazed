@@ -7,15 +7,15 @@ module Test.Imj.Sums
 import           Imj.Prelude
 import           Prelude(logBase)
 import           Control.Exception (evaluate)
-import           Data.List(foldl', length)
+import           Data.List(foldl', length, replicate)
 import qualified Data.Set as Set(fromList, toList, empty, singleton, filter, size)
 import           Data.Text(pack)
-import qualified Data.Text.IO as Text (putStr)
 import           System.IO(putStr, putStrLn)
 
 import qualified Imj.Data.Tree as Filt(Filterable(..))
 import           Imj.Graphics.Color
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
+import qualified Imj.Graphics.Text.ColorString  as CS(putStr)
 import           Imj.Sums
 import           Imj.Timing
 
@@ -118,10 +118,11 @@ printTimes times = do
     let n = round $ countStars dt
         s = show dt
         s' = replicate (nCharsTime - length s) ' ' ++ s
-        inColor = safeBuildTxt $ colored (pack $ replicate n '+') green <>
-                                 colored (pack $ replicate (nStars - n) '.') (gray 14)
+        inColor =
+          colored (pack $ replicate n '+') green <>
+          colored (pack $ replicate (nStars - n) '.') (gray 14)
     putStr $ s' ++ " "
-    Text.putStr inColor
+    CS.putStr inColor
     putStr $ " " ++ desc ++ "\n") times
  where
   nCharsTime = length $ show $ maximum $ map snd times

@@ -31,7 +31,8 @@ library
   hs-source-dirs:      src
   include-dirs:        include
   other-modules:
-  exposed-modules:     Imj.Data.Graph
+  exposed-modules:     Imj.Data.Class.Quantifiable
+                     , Imj.Data.Graph
                      , Imj.Data.UndirectedGraph
                      , Imj.Data.Matrix.Cyclic
                      , Imj.Data.Matrix.Unboxed
@@ -103,6 +104,7 @@ library
                      , Imj.Graphics.Text.ColoredGlyphList
                      , Imj.Graphics.Text.ColorString.Interpolation
                      , Imj.Graphics.Text.RasterizedString
+                     , Imj.Graphics.Text.Render
                      , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Animation.Types
@@ -176,7 +178,7 @@ executable imj-base-examples-exe
 test-suite imj-base-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Imj.Averageable
+  other-modules:       Test.Imj.Quantifiable
                      , Test.Imj.Bresenham2
                      , Test.Imj.Bresenham3
                      , Test.Imj.Color

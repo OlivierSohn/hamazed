@@ -76,9 +76,9 @@ import           Numeric(showFFloat)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
+import           Imj.Graphics.Text.Render
 import           Imj.Graphics.Font
 import           Imj.Timing
-import           Imj.Util
 
 -- | Parameters for random walls creation.
 data WallDistribution = WallDistribution {

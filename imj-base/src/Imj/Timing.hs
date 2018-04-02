@@ -58,16 +58,17 @@ module Imj.Timing
     , Int64
     ) where
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 import           GHC.Float(float2Double, double2Float)
 import           Prelude(fromInteger)
 import           Control.DeepSeq(NFData(..))
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
-import           Data.List(intersperse)
+import           Data.List(intersperse, concat)
 import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
+import           Imj.Data.Class.Quantifiable
 import           Imj.Util
 
 {- | Represents a time.

@@ -5,7 +5,7 @@ module Test.Imj.CyclicMatrix
            ) where
 
 import           Imj.Prelude
-import           Prelude(print)
+import           Prelude(print, take)
 import           Imj.Data.Matrix.Cyclic
 
 testCyclicMatrix :: IO ()

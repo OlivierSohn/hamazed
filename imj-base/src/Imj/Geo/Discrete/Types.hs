@@ -40,6 +40,7 @@ import           Imj.Prelude
 
 import           Control.DeepSeq(NFData)
 import           Data.Word(Word32)
+import           Data.List(take)
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types

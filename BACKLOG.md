@@ -1,6 +1,10 @@
-- benchmark IntSet vs. Set Int for Sums
+- for graph, try Mutable vector only, (no freezing)
+- then try to reuse the same mutable vector multiple times (allocate it in a caller function)
+- same for matrices: reuse
 
-- with automated tests, tune thresholdDiffComponentCount (orthogonally from tuning the strategy)
+- with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
+
+- benchmark IntSet vs. Set Int for Sums
 
 - during the game, to create worlds, use the strategy of the closest known world.
 
@@ -24,71 +28,72 @@ sliding rows / columns randomly
 
 - Averaged on different seed:
 
-Timeout = 100 seconds
-------------------------------------------------------------------------------------------------------------
+Timeout = Duration:10'000'000 (us)
+---------------------------------------------------------------------------------------------------------------
 | (32,72), 1 component, 0.2 wall.   |
+---------------------------------------------------------------------------------------------------------------
+| Rotate Order0                     |                                                    |    19'259 (us) | + |
+| Rotate AtDistance1                |                                                    |    68'677 (us) |   |
+| Rotate Order1                     |                                                  | |   170'762 (us) |   |
+| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |     1 Timeouts | - |
+| InterleavePlusRotate Order0       |                                                    |    37'829 (us) |   |
+| InterleavePlusRotate AtDistance1  |                                                    |    44'802 (us) |   |
+| InterleavePlusRotate Order1       |                                                    |    55'374 (us) |   |
+| InterleavePlusRotate Order2       |                                                 || |   378'258 (us) |   |
+| InterleaveTimesRotate Order0      |                                                    |    35'865 (us) |   |
+| InterleaveTimesRotate AtDistance1 |                                                  | |   107'821 (us) |   |
+| InterleaveTimesRotate Order1      |                                                  | |   174'017 (us) |   |
+| InterleaveTimesRotate Order2      |                                           |||||||| | 1'565'275 (us) |   |
+---------------------------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |                                                    |    148'000 (us) |
-| Rotate AtDistance1                |                                                    |    255'665 (us) |
-| Rotate Order1                     |                                                  | |  1'745'218 (us) |
-| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |      1 Timeouts |
-| InterleavePlusRotate Order0       |                                                    |    198'764 (us) |
-| InterleavePlusRotate AtDistance1  |                                                    |    226'854 (us) |
-| InterleavePlusRotate Order1       |                                                    |    542'353 (us) |
-| InterleavePlusRotate Order2       |                                               |||| |  7'281'384 (us) |
-| InterleaveTimesRotate Order0      |                                                    |    199'534 (us) |
-| InterleaveTimesRotate AtDistance1 |                                                    |    383'286 (us) |
-| InterleaveTimesRotate Order1      |                                                  | |  2'169'013 (us) |
-| InterleaveTimesRotate Order2      |                                    ||||||||||||||| | 30'608'646 (us) |
-------------------------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------------------
 | (8,18), 1 component, 0.5 wall.    |
---------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |                           |||||||||||||||||||||||| | 30'868 (us) |
-| Rotate AtDistance1                |                                  ||||||||||||||||| | 22'249 (us) |
-| Rotate Order1                     |                               |||||||||||||||||||| | 25'654 (us) |
-| Rotate Order2                     |                   |||||||||||||||||||||||||||||||| | 40'585 (us) |
-| InterleavePlusRotate Order0       |          ||||||||||||||||||||||||||||||||||||||||| | 52'744 (us) |
-| InterleavePlusRotate AtDistance1  |             |||||||||||||||||||||||||||||||||||||| | 49'372 (us) |
-| InterleavePlusRotate Order1       |        ||||||||||||||||||||||||||||||||||||||||||| | 54'698 (us) |
-| InterleavePlusRotate Order2       |            ||||||||||||||||||||||||||||||||||||||| | 50'579 (us) |
-| InterleaveTimesRotate Order0      |         |||||||||||||||||||||||||||||||||||||||||| | 54'401 (us) |
-| InterleaveTimesRotate AtDistance1 |                         |||||||||||||||||||||||||| | 33'039 (us) |
-| InterleaveTimesRotate Order1      |                           |||||||||||||||||||||||| | 30'658 (us) |
-| InterleaveTimesRotate Order2      | |||||||||||||||||||||||||||||||||||||||||||||||||| | 64'343 (us) |
---------------------------------------------------------------------------------------------------------
------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+| Rotate Order0                     |                            ||||||||||||||||||||||| | 14'465 (us) |   |
+| Rotate AtDistance1                |                          ||||||||||||||||||||||||| | 15'776 (us) |   |
+| Rotate Order1                     |                             |||||||||||||||||||||| | 13'815 (us) | + |
+| Rotate Order2                     |                          ||||||||||||||||||||||||| | 15'671 (us) |   |
+| InterleavePlusRotate Order0       |  ||||||||||||||||||||||||||||||||||||||||||||||||| | 30'922 (us) |   |
+| InterleavePlusRotate AtDistance1  |     |||||||||||||||||||||||||||||||||||||||||||||| | 29'109 (us) |   |
+| InterleavePlusRotate Order1       |   |||||||||||||||||||||||||||||||||||||||||||||||| | 30'761 (us) |   |
+| InterleavePlusRotate Order2       |            ||||||||||||||||||||||||||||||||||||||| | 25'030 (us) |   |
+| InterleaveTimesRotate Order0      | |||||||||||||||||||||||||||||||||||||||||||||||||| | 31'871 (us) | - |
+| InterleaveTimesRotate AtDistance1 |             |||||||||||||||||||||||||||||||||||||| | 24'238 (us) |   |
+| InterleaveTimesRotate Order1      |                       |||||||||||||||||||||||||||| | 17'724 (us) |   |
+| InterleaveTimesRotate Order2      |          ||||||||||||||||||||||||||||||||||||||||| | 26'127 (us) |   |
+------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
 | (8,18), 1 component, 0.6 wall.    |
------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |          ||||||||||||||||||||||||||||||||||||||||| | 1'513'445 (us) |
-| Rotate AtDistance1                |                                   |||||||||||||||| |   587'654 (us) |
-| Rotate Order1                     |                                         |||||||||| |   365'760 (us) |
-| Rotate Order2                     |                                       |||||||||||| |   449'422 (us) |
-| InterleavePlusRotate Order0       |    ||||||||||||||||||||||||||||||||||||||||||||||| | 1'720'041 (us) |
-| InterleavePlusRotate AtDistance1  |   |||||||||||||||||||||||||||||||||||||||||||||||| | 1'746'546 (us) |
-| InterleavePlusRotate Order1       |   |||||||||||||||||||||||||||||||||||||||||||||||| | 1'749'209 (us) |
-| InterleavePlusRotate Order2       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 1'830'242 (us) |
-| InterleaveTimesRotate Order0      |   |||||||||||||||||||||||||||||||||||||||||||||||| | 1'767'310 (us) |
-| InterleaveTimesRotate AtDistance1 |                                ||||||||||||||||||| |   706'528 (us) |
-| InterleaveTimesRotate Order1      |                                           |||||||| |   289'711 (us) |
-| InterleaveTimesRotate Order2      |                                            ||||||| |   249'384 (us) |
------------------------------------------------------------------------------------------------------------
---------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------
+| Rotate Order0                     |                      ||||||||||||||||||||||||||||| |   842'290 (us) |   |
+| Rotate AtDistance1                |                                 |||||||||||||||||| |   542'193 (us) |   |
+| Rotate Order1                     |                                         |||||||||| |   307'523 (us) |   |
+| Rotate Order2                     |                                  ||||||||||||||||| |   488'198 (us) |   |
+| InterleavePlusRotate Order0       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 1'465'830 (us) | - |
+| InterleavePlusRotate AtDistance1  |    ||||||||||||||||||||||||||||||||||||||||||||||| | 1'388'471 (us) |   |
+| InterleavePlusRotate Order1       |        ||||||||||||||||||||||||||||||||||||||||||| | 1'271'897 (us) |   |
+| InterleavePlusRotate Order2       |         |||||||||||||||||||||||||||||||||||||||||| | 1'233'250 (us) |   |
+| InterleaveTimesRotate Order0      |        ||||||||||||||||||||||||||||||||||||||||||| | 1'246'437 (us) |   |
+| InterleaveTimesRotate AtDistance1 |                          ||||||||||||||||||||||||| |   720'038 (us) |   |
+| InterleaveTimesRotate Order1      |                                          ||||||||| |   252'797 (us) |   |
+| InterleaveTimesRotate Order2      |                                              ||||| |   153'448 (us) | + |
+---------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
 | (8,18), 1 component, 0.7 wall.    |
---------------------------------------------------------------------------------------------------------
-| Rotate Order0                     | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts |
-| Rotate AtDistance1                | |||||||||||||||||||||||||||||||||||||||||||||||||| |  5 Timeouts |
-| Rotate Order1                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  4 Timeouts |
-| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  1 Timeouts |
-| InterleavePlusRotate Order0       | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |
-| InterleavePlusRotate AtDistance1  | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |
-| InterleavePlusRotate Order1       | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |
-| InterleavePlusRotate Order2       | |||||||||||||||||||||||||||||||||||||||||||||||||| |  8 Timeouts |
-| InterleaveTimesRotate Order0      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |
-| InterleaveTimesRotate AtDistance1 | |||||||||||||||||||||||||||||||||||||||||||||||||| |  7 Timeouts |
-| InterleaveTimesRotate Order1      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  3 Timeouts |
-| InterleaveTimesRotate Order2      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  1 Timeouts |
---------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------
+| Rotate Order0                     | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| Rotate AtDistance1                | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| Rotate Order1                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
+| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  6 Timeouts | + |
+| InterleavePlusRotate Order0       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| InterleavePlusRotate AtDistance1  | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| InterleavePlusRotate Order1       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| InterleavePlusRotate Order2       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| InterleaveTimesRotate Order0      | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
+| InterleaveTimesRotate AtDistance1 | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
+| InterleaveTimesRotate Order1      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
+| InterleaveTimesRotate Order2      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  8 Timeouts |   |
+------------------------------------------------------------------------------------------------------------
+
 It looks like:
   For high density BIG   worlds, rotations (the way we do them today) are less usefull than random (maybe a more subtle way would be ok)
   For high density small worlds, rotations (the way we do them today) are MORE usefull than random

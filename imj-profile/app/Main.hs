@@ -41,8 +41,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  --profileAllProps
-  profileLargeWorld
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --measureMemory
   --writeSeedsSource
   --testRNG
@@ -173,7 +173,7 @@ profileAllProps = do
           $ fromString $ prettyShowSWCharacteristics worldCharac)
  where
   -- time allowed for each individual seed
-  !allowed = fromSecs 0.1-- 100
+  !allowed = fromSecs 10-- 100
   !allowedMicros = fromIntegral $ toMicros allowed
 
 maybeToEither :: b -> Maybe a -> Either b a

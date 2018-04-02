@@ -153,7 +153,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
 
 bestStrategy :: SmallWorldCharacteristics -> SmallWorldCreationStrategy
 bestStrategy _ = -- TODO measure the best strategy for known cases, then interpolate.
-  SWCreationStrategy Rotate Cyclic.Order1
+  SWCreationStrategy Rotate (ComponentCount 5) Cyclic.Order1
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -185,7 +185,8 @@ mkSmallWorld :: GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) (SWCreationStrategy branch rotationOrder) eitherLowerBounds) continue
+mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
+                             (SWCreationStrategy branch rotationDist rotationOrder) eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -232,11 +233,11 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) (
           mult = fromIntegral (i+1) / fromIntegral nMeasurements
       in s { durations = d { randomMatCreation = mult .* randomMatCreation d } }
 
-    wallProba = mapRange 0 1 minWallProba maxWallProba userWallProba
+    wallProba = fromMaybe (error "logic") $ mapRange 0 1 minWallProba maxWallProba userWallProba
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
-    tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches rotationOrder matchTopology nComponents
+    tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches rotationDist rotationOrder matchTopology nComponents
 
     strategy Rotate m = tryRotationsIfAlmostMatches' m
     strategy InterleavePlusRotate m@(SmallMatInfo nAir mat) = r ++ i
@@ -481,15 +482,18 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
 
-thresholdDiffComponentCount :: ComponentCount
-thresholdDiffComponentCount = 5
-
-tryRotationsIfAlmostMatches :: Cyclic.RotationOrder
+tryRotationsIfAlmostMatches :: ComponentCount
+                            ->Cyclic.RotationOrder
                             -> (NCompsRequest -> ComponentCount -> SmallMatInfo -> TopoMatch)
                             -> ComponentCount
                             -> SmallMatInfo
                             -> [TopoMatch]
-tryRotationsIfAlmostMatches order matchTopo n zeroRotation@(SmallMatInfo nAir matZeroRotation) =
+tryRotationsIfAlmostMatches
+  componentCountMarginForRotation
+  order
+  matchTopo
+  n
+  zeroRotation@(SmallMatInfo nAir matZeroRotation) =
 
   zeroRotationRes : tryRotation
 
@@ -502,7 +506,7 @@ tryRotationsIfAlmostMatches order matchTopo n zeroRotation@(SmallMatInfo nAir ma
 
   try nComps
    | -- TODO Maybe the bound should be randomized? or it should be min w h of the world?
-     abs (n - nComps) <= thresholdDiffComponentCount =
+     abs (n - nComps) <= componentCountMarginForRotation =
      -- we are already close to the target number, so
      -- there is a good probability that rotating will trigger the component match.
      map (matchTopo NCompsNotRequired n . SmallMatInfo nAir) $ Cyclic.produceRotations order matZeroRotation
@@ -511,7 +515,7 @@ tryRotationsIfAlmostMatches order matchTopo n zeroRotation@(SmallMatInfo nAir ma
   zeroRotationRes = matchTopo
     (case order of
       Cyclic.Order0 -> NCompsNotRequired
-      _ -> NCompsRequiredWithPrecision thresholdDiffComponentCount)
+      _ -> NCompsRequiredWithPrecision componentCountMarginForRotation)
     n zeroRotation
 
 mkSmallMat :: GenIO

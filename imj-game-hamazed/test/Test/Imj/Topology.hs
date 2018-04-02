@@ -164,7 +164,7 @@ testMinCountAirBlocks = do
     -- with 'mkSmallMat', the test is not relevant.
     generate proba = withInterleaving tryRotationsIfAlmostMatches' <$> unsafeMkSmallMat gen proba sz
      where
-      tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches Cyclic.Order2 matchTopology nComps
+      tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches 5 Cyclic.Order2 matchTopology nComps
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

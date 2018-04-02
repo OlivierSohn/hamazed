@@ -62,7 +62,7 @@ import           Prelude(length)
 
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
-import           Data.List(unlines)
+import           Data.List(unlines, unwords)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Data.Map.Strict(Map)
@@ -183,15 +183,28 @@ data SmallWorldCreationStrategy = SWCreationStrategy {
     _matrixBranchingStrategy :: !MatrixBranchingStrategy
     -- ^ Specifies how matrices are produced, either using only the random number generator, or
     -- by also using deterministic variations of random matrices.
+  , _distRotate :: !ComponentCount
+  -- ^ Only used when rotations are activated.
+  --
+  -- If the distance between the target number of components and the matrix count of components
+  -- is smaller than this value, then we will try rotations.
+  --
+  -- /Rotated/ variations "preserve" the topology more than /interleaved/ variations, this is the reason why
+  -- we don't use this criteria for interleaved rotations.
+  --
+  -- TODO We could have a function here : depending on the distance, we could
+  --
+  --  * chose one type of rotation or the other (the choice of Cyclic.RotationOrder could be automated this way)
+  --  * chose to rotate "less", i.e take one out of n rotations
   , _matrixRotationOrder :: !Cyclic.RotationOrder
-    -- ^ Specifies the order of rotations.
+  -- ^ Specifies the order of rotations.
 } deriving(Generic, Show, Eq, Ord)
 instance Binary SmallWorldCreationStrategy
 instance NFData SmallWorldCreationStrategy
 
 prettyShowSWCreationStrategy :: SmallWorldCreationStrategy -> String
-prettyShowSWCreationStrategy (SWCreationStrategy branching rotation) =
-  show branching ++ " " ++ show rotation
+prettyShowSWCreationStrategy (SWCreationStrategy branching (ComponentCount rotationDist) rotation) =
+  unwords [show rotationDist, show branching, show rotation]
 
 data MatrixBranchingStrategy =
     Rotate
@@ -453,7 +466,7 @@ prettyShowProperties :: Properties -> [String]
 prettyShowProperties
   (Properties
     (SWCharacteristics sz@(Size (Length h) (Length w)) (ComponentCount nComponents') userWallProba)
-    (SWCreationStrategy branchStrategy rotationOrder)
+    (SWCreationStrategy branchStrategy distRotate rotationOrder)
     lb) =
   "" :
   show ("World generation " ++ txt) :
@@ -467,6 +480,7 @@ prettyShowProperties
     , ("User-specified wall probability", show userWallProba)
     , ("Matrices dimensions (h,w)", show (h,w))
     , ("Branching strategy", show branchStrategy)
+    , ("Rotate if dist <", show distRotate)
     , ("Rotation order", show rotationOrder)
     ]
 

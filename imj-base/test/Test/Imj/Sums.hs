@@ -1,17 +1,19 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Imj.Sums
          ( testSums
          ) where
 
 import           Imj.Prelude
-import           Prelude(logBase)
+
 import           Control.Exception (evaluate)
 import           Data.List(foldl', length, replicate)
 import qualified Data.Set as Set(fromList, toList, empty, singleton, filter, size)
 import           Data.Text(pack)
 import           System.IO(putStr, putStrLn)
 
+import           Imj.Data.Class.Quantifiable
 import qualified Imj.Data.Tree as Filt(Filterable(..))
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
@@ -58,8 +60,8 @@ testSums = do
 
   let !numbers = Set.fromList maxHamazedNumbers
       measure n countCombinations =
-        time $ void $ evaluate $
-          countCombinations numbers (quot (maxSum * n) n) -- trick to force a new evaluation
+        fst <$> withDuration (void $ evaluate $
+          countCombinations numbers (quot (maxSum * n) n)) -- trick to force a new evaluation
       tests =
         [ (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b            , "mkSums filter")
         , (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b            , "mkSumsArray filter")
@@ -89,7 +91,7 @@ testSums = do
     zip
       (map snd tests) $
       map
-        (round . (/ (fromIntegral nTestRepeat :: Float)) . fromIntegral . toMicros) $
+        (readFloat . (/ (fromIntegral nTestRepeat :: Float)) . writeFloat) $
         foldl'
           (zipWith (|+|))
           (repeat zeroDuration)
@@ -111,34 +113,25 @@ testAsOccurences = do
     , ValueOccurences 2 3
     ]
 
-printTimes :: [(String, Int64)] -> IO ()
+printTimes :: [(String, Time Duration System)] -> IO ()
 printTimes times = do
   putStrLn "micros|Logarithmic scale"
-  mapM_ (\(desc, dt) -> do
-    let n = round $ countStars dt
-        s = show dt
+  forM_ (zip times logTimes) $ \((desc, dt), logRatio) -> do
+    let n = countStars logRatio
+        s = showTime dt
         s' = replicate (nCharsTime - length s) ' ' ++ s
         inColor =
-          colored (pack $ replicate n '+') green <>
-          colored (pack $ replicate (nStars - n) '.') (gray 14)
+          colored (pack $ replicate n '+') (gray 19) <>
+          colored (pack $ replicate (nStars - n) '.') (gray 5)
     putStr $ s' ++ " "
     CS.putStr inColor
-    putStr $ " " ++ desc ++ "\n") times
+    putStr $ " " ++ desc ++ "\n"
  where
-  nCharsTime = length $ show $ maximum $ map snd times
+  nCharsTime = length $ showTime $ maximum $ map snd times
   nStars = 120
-  countStars dt =
-    let d = logBase minD (fromIntegral dt)
-    in succ $ fromIntegral (pred nStars) * (d - 1) / (ratioMax - 1)
-  ratioMax = logBase minD maxD
-  maxD = fromIntegral $ maximum $ map snd times
-  minD = fromIntegral $ minimum $ map snd times :: Float
-time :: IO () -> IO (Time Duration System)
-time action = do
-  start <- getSystemTime
-  action
-  end <- getSystemTime
-  return $ start...end
+  countStars x = round $ fromIntegral nStars * x
+  logTimes = logarithmically 10 $ map snd times
+
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

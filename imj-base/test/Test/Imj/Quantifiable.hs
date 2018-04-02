@@ -1,7 +1,11 @@
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE NoImplicitPrelude #-}
 
 module Test.Imj.Quantifiable(testAverageable) where
+
+import           Imj.Prelude
+import           Prelude(putStrLn)
 
 import           Test.Imj.Utilities
 import           Imj.Timing

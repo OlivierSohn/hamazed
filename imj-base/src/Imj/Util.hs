@@ -131,11 +131,11 @@ mapRange :: (Fractional a, Eq a)
          -- ^ high 2
          -> a
          -- ^ value 1
-         -> a
+         -> Maybe a
          -- ^ value 2
 mapRange l1 h1 l2 h2 v1
-  | denom == 0 = (h2 + l2) / 2
-  | otherwise = l2 + normalized * (h2 - l2)
+  | denom == 0 = Nothing
+  | otherwise = Just $ l2 + normalized * (h2 - l2)
  where
   denom = h1 - l1
   normalized = (v1 - l1) / denom

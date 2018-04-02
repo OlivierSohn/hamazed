@@ -147,7 +147,8 @@ showQuantities' leftValue l' =
         graphical
         txts
 
--- | no average header
+-- | Shows times, underlying min and max times, and using a logarithmic scale
+-- for the graphical representation.
 showQuantities'' :: (Quantifiable a, Characters s)
                  => a
                  -- ^ Value used for Left (Timeout)
@@ -162,7 +163,7 @@ showQuantities'' leftValue l labels title =
   showArrayN (Just [title]) body
  where
   txts = map (fromString . either (\n -> show n ++ " Timeouts") showQty) l
-  normalizedQuantities = normalize $ map (either (const leftValue) id) l
+  normalizedQuantities = logarithmically 10 $ map (either (const leftValue) id) l
 
   worstVal = case partitionEithers l of
     ([],successes@(_:_)) -> Right $ maximum successes

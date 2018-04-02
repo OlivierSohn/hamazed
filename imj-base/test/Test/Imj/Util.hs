@@ -26,13 +26,14 @@ testUtils = do
 
 testMapRange :: IO ()
 testMapRange = do
-  mapRange 0   1   0    10 0.5 `shouldBeAlmost` 5
-  mapRange 0.5 1   0    10 0.5 `shouldBeAlmost` 0
-  mapRange 0   0.5 0    10 0.5 `shouldBeAlmost` 10
+  fromMaybe (error "test") (mapRange 0   1   0    10 0.5) `shouldBeAlmost` 5
+  fromMaybe (error "test") (mapRange 0.5 1   0    10 0.5) `shouldBeAlmost` 0
+  fromMaybe (error "test") (mapRange 0   0.5 0    10 0.5) `shouldBeAlmost` 10
 
-  mapRange 0   1   (-5) 5 0.5 `shouldBeAlmost` 0
-  mapRange 0   1   (-5) 5 0   `shouldBeAlmost` (-5)
-  mapRange 0   1   (-5) 5 1   `shouldBeAlmost` 5
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 0.5) `shouldBeAlmost` 0
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 0)   `shouldBeAlmost` (-5)
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 1)   `shouldBeAlmost` 5
+  mapRange (1 :: Double) 1 2 1 2 `shouldBe` Nothing
 
 
 testLogBase2 :: IO ()

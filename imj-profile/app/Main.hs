@@ -7,7 +7,7 @@ import           Imj.Prelude
 
 import           Prelude(print, putStrLn, putStr, length, writeFile)
 import           Control.Concurrent(threadDelay)
-import           Data.List as List(foldl', unlines, intersperse)
+import           Data.List as List(foldl', unlines, intersperse, take)
 import qualified Data.List as List(intercalate, concat)
 import           Data.String(IsString(..))
 import           Data.Map.Strict(Map)
@@ -108,12 +108,14 @@ getTopology r =
   in (compCount, render)
 
 -- | Returns 12 combinations
-allStrategies :: [SmallWorldCreationStrategy]
-allStrategies =
+allStrategies :: ComponentCount -> [SmallWorldCreationStrategy]
+allStrategies n =
   concatMap
     (\branch ->
       map
-        (SWCreationStrategy branch)
+        (SWCreationStrategy branch n) -- TODO try other values than 5. It would be interesting to see if when varying,
+          -- the winning strategy changes or not, and what are the best combinations, to deduce an heuristic for chosing
+          -- that appropriately.
         [ Cyclic.Order0
         , Cyclic.AtDistance1
         , Cyclic.Order1
@@ -146,9 +148,11 @@ forMLoudly name l act = do
 profileAllProps :: IO ()
 profileAllProps = do
   -- run benchmarks
-  allRes <- zip allWorlds <$> forMLoudly "World" allWorlds
-    (\worldCharacteristics ->
-      zip allStrategies <$> forMLoudly "Strategy" allStrategies
+  let worlds = take 1 $ drop 3 allWorlds
+  allRes <- zip worlds <$> forMLoudly "World" worlds
+    (\worldCharacteristics -> do
+      let strategies = concatMap allStrategies [0..10]
+      zip strategies <$> forMLoudly "Strategy" strategies
         (\strategy -> do
           let p = mkProperties worldCharacteristics strategy
           timeWithDifferentSeeds (timeout allowedMicros . profile p))
@@ -173,7 +177,7 @@ profileAllProps = do
           $ fromString $ prettyShowSWCharacteristics worldCharac)
  where
   -- time allowed for each individual seed
-  !allowed = fromSecs 10-- 100
+  !allowed = fromSecs 100-- 100
   !allowedMicros = fromIntegral $ toMicros allowed
 
 maybeToEither :: b -> Maybe a -> Either b a
@@ -195,7 +199,7 @@ profileLargeWorld :: IO ()
 profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        (SWCreationStrategy Rotate Cyclic.Order2)
+        (SWCreationStrategy Rotate 5 Cyclic.Order2)
   withNumberedSeed (withDuration . profile props) 0 >>= print
 
 

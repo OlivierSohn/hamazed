@@ -4,9 +4,11 @@
 
 module Imj.Data.Class.Quantifiable
     ( Quantifiable(..)
+    , logarithmically
     ) where
 
 import           Imj.Prelude
+import           Prelude(logBase)
 
 import           Data.List(length, foldl')
 
@@ -31,6 +33,7 @@ class (Ord a, Show a) => Quantifiable a where
   average l = scatter (length l) $ foldl' gather nothing l
 
   normalize :: [a] -> [Float]
+  normalize [] = []
   normalize l =
     let fs = map writeFloat l
         maxQty = fromMaybe (error "logic") $ maximumMaybe fs
@@ -42,3 +45,20 @@ class (Ord a, Show a) => Quantifiable a where
 instance Quantifiable Float where
   readFloat = realToFrac
   writeFloat = realToFrac
+
+{- | Adapts range [min max] (where 0 < min < max) to [0 1]
+, with logarithmic scaling.
+-}
+logarithmically :: (Quantifiable a)
+                => Float
+                -- ^ Base to use for the logarithm : the bigger, the more it will deviate from linear scaling
+                -> [a]
+                -> [Float]
+logarithmically _ [] = []
+logarithmically base l'' =
+  map (logBase base) l
+ where
+  l = map (maybe 1 id . mapRange minD maxD 1 base . writeFloat) l'
+  l' = map writeFloat l''
+  maxD = maximum l'
+  minD = minimum l'

@@ -36,7 +36,7 @@ import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn, replicate, take)
-import qualified Data.List as List (foldl')
+import qualified Data.List as List (foldl', foldr)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -313,14 +313,18 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
   | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps (\i -> vtxToMatIdx UArray.! i)
  where
-  nComps = ComponentCount $ length gcomps
   maxNCompsAsked = fromIntegral $ case nCompsReq of
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
+  nComps
+   | minNComps >= maxNCompsAsked = minNComps
+   | otherwise = ComponentCount $ length gcomps
 
-  -- mkGraph returns an undirected graph
-  gcomps = Undirected.componentsN maxNCompsAsked $ mkGraph r
+  gcomps = Undirected.componentsN (fromIntegral maxNCompsAsked) graph
+
+  -- mkGraph returns an undirected graph, and a minimum bound on the number of components it contains.
+  (graph, minNComps) = mkGraph r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -608,20 +612,30 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        multiply blockSize smallCoords
 
 -- | Creates an undirected graph
-mkGraph :: SmallMatInfo -> Undirected.Graph
-mkGraph (SmallMatInfo nAirKeys mat) =
-  BV.create $ do
+mkGraph :: SmallMatInfo -> (Undirected.Graph, ComponentCount)
+mkGraph (SmallMatInfo nAirKeys mat) = (graph,nMonoNodeComponents)
+ where
+  graph = BV.create $ do
     v <- BVM.new nAirKeys
-    forM_ [0..nRows-1] (\row -> do
-      let iRow = row * nCols
-      forM_ [0..nCols-1] (\col -> do
-        let matIdx = iRow + col
-        case Cyclic.unsafeGetByIndex matIdx mat of
-          MaterialAndKey (-1) -> return ()
-          MaterialAndKey k -> BVM.write v k $ neighbourAirKeys matIdx row col))
+    forM_ listNodes (uncurry (BVM.write v))
     return v
 
- where
+  (listNodes, nMonoNodeComponents) =
+    List.foldr
+      (\row (ln',sn') ->
+        let iRow = row * nCols
+        in List.foldr
+            (\col (ln,sn) ->
+              let matIdx = iRow + col
+              in case Cyclic.unsafeGetByIndex matIdx mat of
+                MaterialAndKey (-1) -> (ln,sn)
+                MaterialAndKey k ->
+                  let neighbours = neighbourAirKeys matIdx row col
+                  in ((k,neighbours):ln, bool sn (1+sn) $ null neighbours))
+            (ln',sn')
+            [0..nCols-1])
+      ([],0)
+      [0..nRows-1]
 
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
@@ -632,8 +646,8 @@ mkGraph (SmallMatInfo nAirKeys mat) =
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
-    -- it is faster to write all directions at once than just 2, and wait for
-    -- other nodes to add other directions.
+    -- Benchmarks showed that it is faster to write all directions at once,
+    -- rather than just 2, and wait for other directions to come from nearby nodes.
     [ bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
     , bool (Just $ matIdx - 1)     Nothing $ col == 0       -- LEFT
     , bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT

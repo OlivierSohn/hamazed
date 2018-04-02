@@ -36,7 +36,7 @@ import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn, replicate, take)
-import qualified Data.List as List (foldl', foldr)
+import qualified Data.List as List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -317,14 +317,24 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
+
+  -- To optimize performances, we use the fact that mono-components are easily detected
+  -- while building the graph : they don't have any neighbour.
+  -- If the lower bound of the number of component is already bigger than the max number needed, we are done.
+  -- Else, we need to detect components using Undirected.componentsN on the graph.
   nComps
-   | minNComps >= maxNCompsAsked = minNComps
-   | otherwise = ComponentCount $ length gcomps
+   | nMinComps >= maxNCompsAsked = nMinComps
+   | otherwise = ComponentCount (length allComps)
 
-  gcomps = Undirected.componentsN (fromIntegral maxNCompsAsked) graph
+  allComps = Undirected.componentsN
+    (fromIntegral maxNCompsAsked)
+    $ fromMaybe (error "logic") graph
 
-  -- mkGraph returns an undirected graph, and a minimum bound on the number of components it contains.
-  (graph, minNComps) = mkGraph r
+  -- returns a minimum bound on the number of components.
+  -- if the lowerbound of the number of cc is >= to the limit,
+  --   a Nothing graph is returned.
+  --   else a Just undirected graph is returned.
+  (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -335,7 +345,8 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       [0..nCols-1])
     [0..nRows-1]
 
-  comps = map (ConnectedComponent . V.fromList . flatten) gcomps
+  comps = map (ConnectedComponent . V.fromList . flatten) allComps
+
   lengths = map countSmallCCElts comps
   wellDistributed = maximum lengths < 2 * minimum lengths
 
@@ -611,30 +622,58 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
--- | Creates an undirected graph
-mkGraph :: SmallMatInfo -> (Undirected.Graph, ComponentCount)
-mkGraph (SmallMatInfo nAirKeys mat) = (graph,nMonoNodeComponents)
+-- | Creates an undirected graph, and returns a lower bound of the number of components:
+-- we count the mono-node components while creating the graph, and add 1 to that number
+-- if there is at least one multi-node component.
+mkGraphWithStrictlyLess :: ComponentCount
+                        -- ^ If during graph creation we detect that the graph has at least
+                        -- that number of components, we cancel graph creation and return Nothing,
+                        -- along with that number.
+                        -> SmallMatInfo
+                        -> (Maybe Undirected.Graph, ComponentCount)
+                        -- ^ (Undirected graph, lower bound of components count)
+mkGraphWithStrictlyLess tooBigNComps (SmallMatInfo nAirKeys mat) =
+  (mayGraph, nMinCompsFinal)
  where
-  graph = BV.create $ do
-    v <- BVM.new nAirKeys
-    forM_ listNodes (uncurry (BVM.write v))
-    return v
+  mayGraph =
+    if canContinue
+      then
+        Just $ BV.create $ do
+          v <- BVM.new nAirKeys
+          forM_ listNodes (uncurry (BVM.write v))
+          return v
+      else
+        Nothing
 
-  (listNodes, nMonoNodeComponents) =
-    List.foldr
-      (\row (ln',sn') ->
+  (listNodes, nMinCompsFinal, canContinue, _) =
+    List.foldl'
+      (\ res'@(ln',nMinComps', continue', oneMulti') row->
         let iRow = row * nCols
-        in List.foldr
-            (\col (ln,sn) ->
-              let matIdx = iRow + col
-              in case Cyclic.unsafeGetByIndex matIdx mat of
-                MaterialAndKey (-1) -> (ln,sn)
-                MaterialAndKey k ->
-                  let neighbours = neighbourAirKeys matIdx row col
-                  in ((k,neighbours):ln, bool sn (1+sn) $ null neighbours))
-            (ln',sn')
-            [0..nCols-1])
-      ([],0)
+        in bool res'
+            (List.foldl'
+              (\ res@(ln,nMinComps,continue,oneMulti) col->
+                let matIdx = iRow + col
+                in bool res
+                    (case Cyclic.unsafeGetByIndex matIdx mat of
+                        MaterialAndKey (-1) -> res
+                        MaterialAndKey k ->
+                          let neighbours = neighbourAirKeys matIdx row col
+                              isMono = null neighbours
+                              newNMinComps = bool (bool (nMinComps+1) nMinComps oneMulti) (1+nMinComps) isMono
+                              willContinue = newNMinComps < tooBigNComps
+                              newList =
+                                bool [] -- drop the list if we don't continue
+                                  ((k,neighbours):ln)
+                                  willContinue
+                          in (newList
+                             , newNMinComps
+                             , willContinue
+                             , not isMono || oneMulti))
+                     continue)
+              (ln',nMinComps',continue',oneMulti')
+              [0..nCols-1])
+            continue')
+      ([],0,True, False)
       [0..nRows-1]
 
   nRows = Cyclic.nrows mat

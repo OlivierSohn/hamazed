@@ -62,7 +62,6 @@ import           Prelude(length)
 
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
-import           Data.Graph(Vertex)
 import           Data.List(unlines)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -73,6 +72,7 @@ import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 import           Data.Vector.Unboxed(Vector)
 import           Numeric(showFFloat)
 
+import           Imj.Data.Graph(Vertex)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 

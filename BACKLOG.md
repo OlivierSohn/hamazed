@@ -1,27 +1,8 @@
-- when constructing the graph, we can detect single node components,
-return a minimum amount of components.
+- benchmark IntSet vs. Set Int for Sums
 
-- benchmark IntMap vs. Map Int (use it where it makes sense)
-
-- in test, automate finding the best strategy:
-  take average of different seeds:
-    budget time equally, i.e if a test took a very long time to run with a given seed,
-    it will wait possibly until all other tests have finished all their iterations to be run again.
-    Implement this using for each test
-      - a duration counter for "time spent sofar in this test, for all seeds"
-      - a "next seed index" (Maybe Int)
-    and the scheduler runs the test with minimal time spent sofar (maybe it will run it several times in a row, that's ok.).
-    Maybe it would be good to also take the seed index into account to avoid having too big differences:
-    The scheduler stops the test if it reaches a max number of seeds (1000?)
-
-  - Within the same test, we want to find the fastest combination, so we could allocate .1s to each,
-  see which ones succeed. This way, the ones that are slow won't block the test forever.
-  However, we also want to be able to
-
+- with automated tests, tune thresholdDiffComponentCount (orthogonally from tuning the strategy)
 
 - during the game, to create worlds, use the strategy of the closest known world.
-
-- try Data.IntSet, it is said to be much faster than Data.Set for ints (inserting, deleting).
 
 - optimize 'spaceIsWellUsed' (see comment)
 

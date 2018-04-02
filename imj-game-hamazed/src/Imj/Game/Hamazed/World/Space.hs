@@ -36,7 +36,7 @@ import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn, replicate, take)
-import qualified Data.List as List (foldl')
+import qualified Data.List as List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -313,14 +313,28 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
   | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps (\i -> vtxToMatIdx UArray.! i)
  where
-  nComps = ComponentCount $ length gcomps
   maxNCompsAsked = fromIntegral $ case nCompsReq of
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
                                                          -- it is possible to fail or succeed the distance test.
 
-  -- mkGraph returns an undirected graph
-  gcomps = Undirected.componentsN maxNCompsAsked $ mkGraph r
+  -- To optimize performances, we use the fact that mono-components are easily detected
+  -- while building the graph : they don't have any neighbour.
+  -- If the lower bound of the number of component is already bigger than the max number needed, we are done.
+  -- Else, we need to detect components using Undirected.componentsN on the graph.
+  nComps
+   | nMinComps >= maxNCompsAsked = nMinComps
+   | otherwise = ComponentCount (length allComps)
+
+  allComps = Undirected.componentsN
+    (fromIntegral maxNCompsAsked)
+    $ fromMaybe (error "logic") graph
+
+  -- returns a minimum bound on the number of components.
+  -- if the lowerbound of the number of cc is >= to the limit,
+  --   a Nothing graph is returned.
+  --   else a Just undirected graph is returned.
+  (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r
 
   vtxToMatIdx :: UArray.Array Int Int
   vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
@@ -331,7 +345,8 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       [0..nCols-1])
     [0..nRows-1]
 
-  comps = map (ConnectedComponent . V.fromList . flatten) gcomps
+  comps = map (ConnectedComponent . V.fromList . flatten) allComps
+
   lengths = map countSmallCCElts comps
   wellDistributed = maximum lengths < 2 * minimum lengths
 
@@ -607,21 +622,59 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
--- | Creates an undirected graph
-mkGraph :: SmallMatInfo -> Undirected.Graph
-mkGraph (SmallMatInfo nAirKeys mat) =
-  BV.create $ do
-    v <- BVM.new nAirKeys
-    forM_ [0..nRows-1] (\row -> do
-      let iRow = row * nCols
-      forM_ [0..nCols-1] (\col -> do
-        let matIdx = iRow + col
-        case Cyclic.unsafeGetByIndex matIdx mat of
-          MaterialAndKey (-1) -> return ()
-          MaterialAndKey k -> BVM.write v k $ neighbourAirKeys matIdx row col))
-    return v
-
+-- | Creates an undirected graph, and returns a lower bound of the number of components:
+-- we count the mono-node components while creating the graph, and add 1 to that number
+-- if there is at least one multi-node component.
+mkGraphWithStrictlyLess :: ComponentCount
+                        -- ^ If during graph creation we detect that the graph has at least
+                        -- that number of components, we cancel graph creation and return Nothing,
+                        -- along with that number.
+                        -> SmallMatInfo
+                        -> (Maybe Undirected.Graph, ComponentCount)
+                        -- ^ (Undirected graph, lower bound of components count)
+mkGraphWithStrictlyLess tooBigNComps (SmallMatInfo nAirKeys mat) =
+  (mayGraph, nMinCompsFinal)
  where
+  mayGraph =
+    if canContinue
+      then
+        Just $ BV.create $ do
+          v <- BVM.new nAirKeys
+          forM_ listNodes (uncurry (BVM.write v))
+          return v
+      else
+        Nothing
+
+  (listNodes, nMinCompsFinal, canContinue, _) =
+    List.foldl'
+      (\ res'@(ln',nMinComps', continue', oneMulti') row->
+        let iRow = row * nCols
+        in bool res'
+            (List.foldl'
+              (\ res@(ln,nMinComps,continue,oneMulti) col->
+                let matIdx = iRow + col
+                in bool res
+                    (case Cyclic.unsafeGetByIndex matIdx mat of
+                        MaterialAndKey (-1) -> res
+                        MaterialAndKey k ->
+                          let neighbours = neighbourAirKeys matIdx row col
+                              isMono = null neighbours
+                              newNMinComps = bool (bool (nMinComps+1) nMinComps oneMulti) (1+nMinComps) isMono
+                              willContinue = newNMinComps < tooBigNComps
+                              newList =
+                                bool [] -- drop the list if we don't continue
+                                  ((k,neighbours):ln)
+                                  willContinue
+                          in (newList
+                             , newNMinComps
+                             , willContinue
+                             , not isMono || oneMulti))
+                     continue)
+              (ln',nMinComps',continue',oneMulti')
+              [0..nCols-1])
+            continue')
+      ([],0,True, False)
+      [0..nRows-1]
 
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
@@ -632,8 +685,8 @@ mkGraph (SmallMatInfo nAirKeys mat) =
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
-    -- it is faster to write all directions at once than just 2, and wait for
-    -- other nodes to add other directions.
+    -- Benchmarks showed that it is faster to write all directions at once,
+    -- rather than just 2, and wait for other directions to come from nearby nodes.
     [ bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
     , bool (Just $ matIdx - 1)     Nothing $ col == 0       -- LEFT
     , bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT

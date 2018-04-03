@@ -243,7 +243,7 @@ instance Binary Variation
 instance NFData Variation
 instance Show Variation where
   show Interleave = "Interleave"
-  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", "Rotate", show order]
+  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", show order, "Rotate"]
 
 data RotationDetail = RotationDetail {
     _distRotate :: !ComponentCount

@@ -187,8 +187,7 @@ mkSmallWorld :: GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
-                             branch eitherLowerBounds) continue
+mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) branch eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -202,7 +201,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
       eitherLowerBounds
  where
   nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
-  maxNComp = ComponentCount $ succ $ quot (pred $ area sz) 2 -- for checkerboard-like layout
+  maxNComp = ComponentCount $ 1 + quot (pred $ area sz) 2 -- for checkerboard-like layout
 
   matchAndVariate' = matchAndVariate nComponents
 
@@ -243,34 +242,40 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
-  addMkRandomMatDuration dt s =
-    let d = durations s
-    in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
-  updateStats l s =
-    let s' = List.foldl' addToStats s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
-    in s' { countRandomMatrices = 1 + countRandomMatrices s}
-  addToStats s elt =
-   let s'' = case elt of
-        Right (SmallWorld _ topo) ->
-          let nComps = ComponentCount $ length $ getConnectedComponents topo
-          in addNComp nComps s
-        Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
-        Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
-        Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
-        Left (CC x nComps) -> addNComp nComps $ case x of
-          ComponentCountMismatch ->
-            s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
-          ComponentsSizesNotWellDistributed ->
-            s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
-          SpaceNotUsedWellEnough ->
-            s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
-          UnusedFronteers' ->
-            s { countUnusedFronteers = 1 + countUnusedFronteers s }
-   in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
+addMkRandomMatDuration :: Time Duration System -> Statistics -> Statistics
+addMkRandomMatDuration dt s =
+  let d = durations s
+  in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
 
-  addNComp n s =
-    s { countGeneratedGraphsByComponentCount =
-      Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
+updateStats :: [TopoMatch] -> Statistics -> Statistics
+updateStats l s =
+  let s' = List.foldl' (flip addToStats) s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
+  in s' { countRandomMatrices = 1 + countRandomMatrices s}
+
+addToStats :: TopoMatch -> Statistics -> Statistics
+addToStats elt s =
+ let s'' = case elt of
+      Right (SmallWorld _ topo) ->
+        let nComps = ComponentCount $ length $ getConnectedComponents topo
+        in addNComp nComps s
+      Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
+      Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+      Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
+      Left (CC x nComps) -> addNComp nComps $ case x of
+        ComponentCountMismatch ->
+          s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
+        ComponentsSizesNotWellDistributed ->
+          s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
+        SpaceNotUsedWellEnough ->
+          s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
+        UnusedFronteers' ->
+          s { countUnusedFronteers = 1 + countUnusedFronteers s }
+ in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
+
+addNComp :: ComponentCount -> Statistics -> Statistics
+addNComp n s =
+  s { countGeneratedGraphsByComponentCount =
+    Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
 
 matchAndVariate :: ComponentCount
                 -> Maybe MatrixVariants
@@ -281,14 +286,16 @@ matchAndVariate nComponents curB info@(SmallMatInfo nAir m) =
  where
   variationResults = maybe []
     (\(Variants variations nextB) ->
-        let canRecurse = case deepMargin of
-              NCompsNotRequired -> True
-              NCompsRequiredWithMargin margin ->
-                case rootRes of
-                  Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
-                  _ -> False
-            variantsMatrices = map (SmallMatInfo nAir) $ concatMap (produceVariations m) $ NE.toList variations
-        in bool [] (concatMap (matchAndVariate nComponents nextB) variantsMatrices) canRecurse)
+      let authorizeVariation Interleave = True
+          authorizeVariation (Rotate (RotationDetail margin _)) =
+            case rootRes of
+              Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
+              _ -> False
+      in concatMap
+          (matchAndVariate nComponents nextB . SmallMatInfo nAir)
+          $ concatMap (produceVariations m)
+          $ filter authorizeVariation
+          $ NE.toList variations)
     curB
   deepMargin = requiredNComponentsMargin curB
   rootRes = matchTopology deepMargin nComponents info

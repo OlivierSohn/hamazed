@@ -43,7 +43,6 @@ import           Imj.Random.MWC.Seeds
 main :: IO ()
 main =
   --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  --profileInterleave0MarginRotateOrder1 -- TODO remove when done investigating
   profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --measureMemory
   --writeSeedsSource

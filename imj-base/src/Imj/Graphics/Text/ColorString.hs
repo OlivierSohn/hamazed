@@ -112,40 +112,17 @@ instance Characters ColorString where
 
   concat = ColorString . concatMap (\(ColorString s) -> s)
 
-  colorize color (ColorString l) =
-    ColorString $ map (\(t, _) -> (t, color)) l
-
-  drawOnPath positions (ColorString cs) = do
-    f <- asks drawGlyph'
-    let go [] _ = return ()
-        go _ [] = return ()
-        go ps ((txt, color):rest) = do
-          let len = length txt
-              (headRs, tailRs) = List.splitAt len $ assert (List.length ps >= len) ps
-          zipWithM_ (\char coord -> f (textGlyph char) coord color) (Text.unpack txt) headRs
-          go tailRs rest
-    go positions cs
-  {-# INLINABLE drawOnPath #-}
-  {-# INLINABLE concat #-}
-  {-# INLINABLE intercalate #-}
-  {-# INLINABLE take #-}
-  {-# INLINABLE length #-}
-  {-# INLINABLE splitAt #-}
-  {-# INLINABLE empty #-}
-instance Words ColorString where
-  unwords :: [SingleWord ColorString] -> ColorString
   unwords strs =
     unwords' (reverse strs) mempty
    where
     unwords' [] cur = cur
-    unwords' (SingleWord x:xs) (ColorString []) =
+    unwords' (x:xs) (ColorString []) =
       unwords' xs x
-    unwords' (SingleWord (ColorString x):xs) (ColorString ((c,color):cs)) =
+    unwords' (ColorString x:xs) (ColorString ((c,color):cs)) =
       unwords' xs $ ColorString $ x ++ ((Text.cons ' ' c,color):cs)
 
-  words :: ColorString -> [SingleWord ColorString]
   words (ColorString l) =
-    map (SingleWord . ColorString) $ reverse $ words' l False []
+    map ColorString $ reverse $ words' l False []
    where
     words' :: [(Text,LayeredColor)] -> Bool -> [[(Text,LayeredColor)]] -> [[(Text,LayeredColor)]]
     words' [] _ cur = cur
@@ -168,6 +145,27 @@ instance Words ColorString where
               else
                 -- we don't merge words
                 map (\aw -> [(aw, color)]) (reverse asWords) ++ cur
+
+  colorize color (ColorString l) =
+    ColorString $ map (\(t, _) -> (t, color)) l
+
+  drawOnPath positions (ColorString cs) = do
+    f <- asks drawGlyph'
+    let go [] _ = return ()
+        go _ [] = return ()
+        go ps ((txt, color):rest) = do
+          let len = length txt
+              (headRs, tailRs) = List.splitAt len $ assert (List.length ps >= len) ps
+          zipWithM_ (\char coord -> f (textGlyph char) coord color) (Text.unpack txt) headRs
+          go tailRs rest
+    go positions cs
+  {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE concat #-}
+  {-# INLINABLE intercalate #-}
+  {-# INLINABLE take #-}
+  {-# INLINABLE length #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE empty #-}
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
 instance Positionable ColorString where

@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -15,9 +16,11 @@ module Imj.Game.Hamazed.World.Space.Types
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
     , prettyShowSWCharacteristics
-    , SmallWorldCreationStrategy(..)
-    , prettyShowSWCreationStrategy
-    , MatrixBranchingStrategy(..)
+    , MatrixVariants(..)
+    , prettyShowMatrixVariants
+    , humanShowVariants
+    , Variation(..)
+    , RotationDetail(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
     , SmallWorldRejection(..)
@@ -62,7 +65,8 @@ import           Prelude(length)
 
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
-import           Data.List(unlines, unwords)
+import           Data.List(unlines, unwords, intercalate)
+import           Data.List.NonEmpty(NonEmpty(..), toList)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Data.Map.Strict(Map)
@@ -177,16 +181,73 @@ prettyShowSWCharacteristics :: SmallWorldCharacteristics -> String
 prettyShowSWCharacteristics (SWCharacteristics (Size (Length h) (Length w)) (ComponentCount nComps) proba) =
   show (h,w) ++ ", " ++ show nComps ++ " component, " ++ show proba ++ " wall."
 
--- TODO update comment when done
--- | (Will soon be) deduced from 'SmallWorldCharacteristics'
-data SmallWorldCreationStrategy = SWCreationStrategy {
-    _matrixBranchingStrategy :: !MatrixBranchingStrategy
-    -- ^ Specifies how matrices are produced, either using only the random number generator, or
-    -- by also using deterministic variations of random matrices.
-  , _distRotate :: !ComponentCount
-  -- ^ Only used when rotations are activated.
-  --
-  -- If the distance between the target number of components and the matrix count of components
+data MatrixVariants =
+    Variants !(NonEmpty Variation) !(Maybe MatrixVariants) -- 'MatrixVariants' applies to every variation produced by NonEmpty Variation
+  deriving(Generic, Eq, Ord)
+instance Binary MatrixVariants
+instance NFData MatrixVariants
+instance Show MatrixVariants where
+  show = prettyShowMatrixVariants . Just
+
+prettyShowMatrixVariants :: Maybe MatrixVariants -> String
+prettyShowMatrixVariants =
+  maybe
+    "No variant"
+    go
+ where
+  go (Variants v mv) =
+    intercalate " . " $
+      intercalate " + " (map show (toList v)) : maybeToList (fmap go mv)
+
+humanShowVariants :: Maybe Size -> Maybe MatrixVariants -> String
+humanShowVariants sz variations = txt
+ where
+  random = "using random matrices"
+  branchingIn = ", variating in "
+
+  humanShowVariation (Rotate (RotationDetail (ComponentCount distRotate) rotationOrder)) =
+    unwords $
+      ["margin-" ++ show distRotate, show rotationOrder] ++
+      maybe [] ((:[]).show) nRotations ++
+      ["rotated"]
+   where
+    nRotations = fmap (Cyclic.countRotations' rotationOrder) sz
+
+  humanShowVariation Interleave =
+    unwords $
+      maybe [] ((:[]).show) nInterleavings ++
+      ["interleaved"]
+   where
+    nInterleavings = fmap Cyclic.countUsefulInterleavedVariations2D sz
+
+  humanShowVariates x = unwords [sv x, "variations"]
+   where
+    sv l = intercalate "+" $ map humanShowVariation l
+
+  txt = random ++ go variations
+
+  go = \case
+    Nothing -> " exclusively"
+    b@(Just _) ->
+      humanShowBranch b ++ "."
+
+  humanShowBranch = maybe
+    ""
+    (\(Variants variates next) -> branchingIn ++ humanShowVariates (toList variates) ++ humanShowBranch next)
+
+data Variation =
+    Rotate !RotationDetail
+  | Interleave
+  deriving(Generic, Eq, Ord)
+instance Binary Variation
+instance NFData Variation
+instance Show Variation where
+  show Interleave = "Interleave"
+  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", show order, "Rotate"]
+
+data RotationDetail = RotationDetail {
+    _distRotate :: !ComponentCount
+  -- ^ If the distance between the target number of components and the matrix count of components
   -- is smaller than this value, then we will try rotations.
   --
   -- /Rotated/ variations "preserve" the topology more than /interleaved/ variations, this is the reason why
@@ -196,23 +257,12 @@ data SmallWorldCreationStrategy = SWCreationStrategy {
   --
   --  * chose one type of rotation or the other (the choice of Cyclic.RotationOrder could be automated this way)
   --  * chose to rotate "less", i.e take one out of n rotations
-  , _matrixRotationOrder :: !Cyclic.RotationOrder
-  -- ^ Specifies the order of rotations.
-} deriving(Generic, Show, Eq, Ord)
-instance Binary SmallWorldCreationStrategy
-instance NFData SmallWorldCreationStrategy
-
-prettyShowSWCreationStrategy :: SmallWorldCreationStrategy -> String
-prettyShowSWCreationStrategy (SWCreationStrategy branching (ComponentCount rotationDist) rotation) =
-  unwords [show rotationDist, show branching, show rotation]
-
-data MatrixBranchingStrategy =
-    Rotate
-  | InterleavePlusRotate
-  | InterleaveTimesRotate
-  deriving(Generic, Show, Eq, Ord)
-instance Binary MatrixBranchingStrategy
-instance NFData MatrixBranchingStrategy
+  , _rotationOrder :: !Cyclic.RotationOrder
+} deriving(Generic, Eq, Ord)
+instance Binary RotationDetail
+instance NFData RotationDetail
+instance Show RotationDetail where
+  show (RotationDetail (ComponentCount n) order) = unwords [show n, show order]
 
 data MkSpaceResult r =
     Success r
@@ -247,7 +297,7 @@ instance NFData SmallWorldComponentsRejection
 
 data NCompsRequest =
     NCompsNotRequired
-  | NCompsRequiredWithPrecision {-# UNPACK #-} !ComponentCount
+  | NCompsRequiredWithMargin {-# UNPACK #-} !ComponentCount
  deriving(Show)
 
 -- | These 'LowerBounds' can be used to prune the search space, and
@@ -354,14 +404,19 @@ toGameChar Air = ' '
 toGameChar Wall = 'Z'
 
 -- | Constant information about the search (dual of 'Statistics')
-data Properties = Properties !SmallWorldCharacteristics !SmallWorldCreationStrategy !(Either Text LowerBounds)
-  deriving(Generic, Eq, Ord)
+data Properties = Properties {
+    _characteristics :: !SmallWorldCharacteristics
+  , _variants :: !(Maybe MatrixVariants)
+-- TODO update comment when done
+-- ^ (Will soon be) deduced from 'SmallWorldCharacteristics'
+  , _lowerbounds :: !(Either Text LowerBounds)
+} deriving(Generic, Eq, Ord)
 instance Binary Properties
 instance NFData Properties
 instance Show Properties where
   show = unlines . prettyShowProperties
 
-mkProperties :: SmallWorldCharacteristics -> SmallWorldCreationStrategy -> Properties
+mkProperties :: SmallWorldCharacteristics -> Maybe MatrixVariants -> Properties
 mkProperties ch@(SWCharacteristics sz nComponents' _) st =
   Properties ch st $ mkLowerBounds sz nComponents'
 
@@ -466,10 +521,10 @@ prettyShowProperties :: Properties -> [String]
 prettyShowProperties
   (Properties
     (SWCharacteristics sz@(Size (Length h) (Length w)) (ComponentCount nComponents') userWallProba)
-    (SWCreationStrategy branchStrategy distRotate rotationOrder)
+    matrixVariations
     lb) =
   "" :
-  show ("World generation " ++ txt) :
+  show ("World generation " ++ humanShowVariants (Just sz) matrixVariations) :
   showInBox strs
  where
   strs =
@@ -479,39 +534,8 @@ prettyShowProperties
     [ ("User-specified N. components", show nComponents')
     , ("User-specified wall probability", show userWallProba)
     , ("Matrices dimensions (h,w)", show (h,w))
-    , ("Branching strategy", show branchStrategy)
-    , ("Rotate if dist <", show distRotate)
-    , ("Rotation order", show rotationOrder)
+    , ("Matrices variations", show matrixVariations)
     ]
-
-  nInterleaved = Cyclic.countUsefulInterleavedVariations2D sz
-  nRotations = Cyclic.countRotations' rotationOrder sz
-  {-
-  maxMatricesPerRandom = 1 + case branchStrategy of
-    Rotate ->
-      nRotations
-    InterleavePlusRotate ->
-      nRotations + nInterleaved
-    InterleaveTimesRotate ->
-      nRotations * nInterleaved
-  -}
-  random = "using random matrices"
-  branchingIn = ", each of them branching in "
-  rotated =
-    show nRotations ++ " rotated"
-  interleaved =
-    show nInterleaved ++ " interleaved"
-  variations = " variations"
-  txt =
-    random ++ case branchStrategy of
-      Rotate -> case rotationOrder of
-        Cyclic.Order0 -> " exclusively"
-        _ -> branchingIn ++ rotated ++ variations
-      InterleavePlusRotate ->
-        branchingIn ++ rotated ++ " + " ++ interleaved ++ variations
-      InterleaveTimesRotate ->
-        branchingIn ++ interleaved ++ variations ++ branchingIn ++ rotated ++ variations
-    ++ "."
 
 prettyShowDurations :: DurationStats -> [String]
 prettyShowDurations (Durations onlyMkRandomMat total) =

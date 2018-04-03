@@ -91,7 +91,7 @@ mkTextBox :: Size -> BackgroundColorPolicy -> TextBox a
 mkTextBox s = TextBox s [] NoAdjustment
 
 {-# INLINABLE addText #-}
-addText :: (Words t)
+addText :: (Characters t)
         => t
         -> TextBox t
         -> TextBox t

@@ -20,9 +20,8 @@ import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
 
 import           Data.Attoparsec.Text(parseOnly)
-import           Data.List(foldl')
-import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
-import qualified Data.Set as Set (empty, union, size, null, toList)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Data.Text(pack, unpack, strip, uncons)
 import qualified Data.Text as Text(length, intercalate)
 import           System.Exit(exitSuccess)
@@ -261,14 +260,12 @@ onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
     >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim b o m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
-          allCollisions =
-            foldl'
-            (\s (BattleShip _ _ _ shipStatus collisions _) ->
+          allCollisions = Set.unions $ mapMaybe
+            (\(BattleShip _ _ _ shipStatus collisions _) ->
               case shipStatus of
-                Armored -> s
-                _ -> Set.union s collisions)
-            Set.empty
-            ships
+                Armored -> Nothing
+                _ -> Just collisions)
+            $ Map.elems ships
           remainingBalls = Map.withoutKeys balls allCollisions
           numbersChanged =
             assert (Set.size allCollisions + Map.size remainingBalls == Map.size balls)

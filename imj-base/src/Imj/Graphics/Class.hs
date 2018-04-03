@@ -7,7 +7,7 @@ module Imj.Graphics.Class
   , Positionable(..)
   , Drawable(..)
   , HasRectArea(..)
-  , Words(..)
+  , Characters(..)
   , UncoloredTextual(..)
   -- * Reexports
   , Draw

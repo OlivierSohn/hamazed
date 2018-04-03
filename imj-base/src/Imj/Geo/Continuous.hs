@@ -170,7 +170,7 @@ polyExtremities :: Vec2 Pos
                 -> Float
                 -- ^ Radius
                 -> Float
-                -- ^ Rotation angle
+                -- ^ Rotate angle
                 -> Int
                 -- ^ Number of sides of the polygon.
                 -> [Vec2 Pos]

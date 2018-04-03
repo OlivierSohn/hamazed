@@ -1,3 +1,7 @@
+- try foldr for:
+produceUsefulInterleavedVariations
+in produceRotations, try foldMap?
+
 - for graph, try Mutable vector only, (no freezing)
 - then try to reuse the same mutable vector multiple times (allocate it in a caller function)
 - same for matrices: reuse

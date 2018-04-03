@@ -41,10 +41,10 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
     (const . (`shouldNotBe` Left UnusedFronteers) . matchTopology NCompsNotRequired n)
   putStrLn "WithoutAir 2"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (\m expected -> matchTopology (NCompsRequiredWithPrecision 100) n m `shouldBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> matchTopology (NCompsRequiredWithMargin 100) n m `shouldBe` Left (CC UnusedFronteers' expected))
   putStrLn "WithtAir 2"
   debugForM_ matricesWithAirOnEveryFronteer
-    (\m expected -> matchTopology (NCompsRequiredWithPrecision 100) n m `shouldNotBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> matchTopology (NCompsRequiredWithMargin 100) n m `shouldNotBe` Left (CC UnusedFronteers' expected))
 
 
 mkKeys :: Unboxed.Matrix Material -> SmallMatInfo
@@ -87,24 +87,24 @@ testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithNComponents"
-  forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology (NCompsRequiredWithPrecision 100) n m) `shouldBe` Just expected)
+  forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology (NCompsRequiredWithMargin 100) n m) `shouldBe` Just expected)
 
 testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
   forM_' matricesWithNNotWellDistributedComponents
-    (\(expected, m) -> matchTopology (NCompsRequiredWithPrecision 100) expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
+    (\(expected, m) -> matchTopology (NCompsRequiredWithMargin 100) expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
   forM_' matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m) -> do
       mapM_ putStrLn $ showInBox $ writeWorld m
-      either (error "expected Right") (const $ return ()) $ matchTopology (NCompsRequiredWithPrecision 100) expected m)
+      either (error "expected Right") (const $ return ()) $ matchTopology (NCompsRequiredWithMargin 100) expected m)
 
 testComponentsNearby :: IO ()
 testComponentsNearby = do
   putStrLn "WithNWellDistributedComponentsSpaceNotWellUsed"
   forM_' matricesWithNWellDistributedComponentsSpaceNotWellUsed
-    (\(expected, m) -> matchTopology (NCompsRequiredWithPrecision 100) expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
+    (\(expected, m) -> matchTopology (NCompsRequiredWithMargin 100) expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
 
 testMinCountAirBlocks :: IO ()
 testMinCountAirBlocks = do
@@ -162,9 +162,11 @@ testMinCountAirBlocks = do
 
     -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
     -- with 'mkSmallMat', the test is not relevant.
-    generate proba = withInterleaving tryRotationsIfAlmostMatches' <$> unsafeMkSmallMat gen proba sz
-     where
-      tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches 5 Cyclic.Order2 matchTopology nComps
+    generate proba =
+      matchAndVariate nComps
+        (Just $ Variants
+          (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
+          Nothing) <$> unsafeMkSmallMat gen proba sz
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

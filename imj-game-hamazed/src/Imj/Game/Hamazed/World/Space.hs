@@ -19,11 +19,10 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     -- for tests
-    , withInterleaving
+    , matchAndVariate
     , unsafeMkSmallMat
     , mkSmallWorld
     , mkSmallMat
-    , tryRotationsIfAlmostMatches
     , matchTopology
     , getComponentCount
     , TopoMatch
@@ -36,6 +35,7 @@ import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.List(length, sortOn, replicate, take)
+import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
@@ -151,9 +151,11 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
   smallSz = bigToSmall s blockSize
   strategy = bestStrategy characteristics
 
-bestStrategy :: SmallWorldCharacteristics -> SmallWorldCreationStrategy
+bestStrategy :: SmallWorldCharacteristics -> Maybe MatrixVariants
 bestStrategy _ = -- TODO measure the best strategy for known cases, then interpolate.
-  SWCreationStrategy Rotate (ComponentCount 5) Cyclic.Order1
+  Just $
+    Variants (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
+      Nothing
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -185,8 +187,7 @@ mkSmallWorld :: GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
-                             (SWCreationStrategy branch rotationDist rotationOrder) eitherLowerBounds) continue
+mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) branch eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -199,6 +200,10 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
                       }))
       eitherLowerBounds
  where
+  nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
+  maxNComp = ComponentCount $ 1 + quot (pred $ area sz) 2 -- for checkerboard-like layout
+
+  matchAndVariate' = matchAndVariate nComponents
 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
     go' 0 zeroStats
@@ -209,7 +214,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
       (fmap (either
           ((: []) . Left)
           -- stop at first success
-          (takeWhilePlus isLeft . strategy branch))
+          (takeWhilePlus isLeft . matchAndVariate' branch))
         <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
         let !newStats = addMkRandomMatDuration duration $ updateStats l stats
         case partitionEithers l of
@@ -237,52 +242,92 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba)
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
-    tryRotationsIfAlmostMatches' = tryRotationsIfAlmostMatches rotationDist rotationOrder matchTopology nComponents
+addMkRandomMatDuration :: Time Duration System -> Statistics -> Statistics
+addMkRandomMatDuration dt s =
+  let d = durations s
+  in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
 
-    strategy Rotate m = tryRotationsIfAlmostMatches' m
-    strategy InterleavePlusRotate m@(SmallMatInfo nAir mat) = r ++ i
-     where
-      r = tryRotationsIfAlmostMatches' m -- also checks m, hence we drop 1 in the next line
-      i = map
-          (matchTopology NCompsNotRequired nComponents . SmallMatInfo nAir)
-          $ drop 1 $ Cyclic.produceUsefulInterleavedVariations mat
-    strategy InterleaveTimesRotate m = withInterleaving tryRotationsIfAlmostMatches' m
+updateStats :: [TopoMatch] -> Statistics -> Statistics
+updateStats l s =
+  let s' = List.foldl' (flip addToStats) s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
+  in s' { countRandomMatrices = 1 + countRandomMatrices s}
 
-  nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
-  maxNComp = ComponentCount $ succ $ quot (pred $ area sz) 2 -- for checkerboard-like layout
+addToStats :: TopoMatch -> Statistics -> Statistics
+addToStats elt s =
+ let s'' = case elt of
+      Right (SmallWorld _ topo) ->
+        let nComps = ComponentCount $ length $ getConnectedComponents topo
+        in addNComp nComps s
+      Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
+      Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+      Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
+      Left (CC x nComps) -> addNComp nComps $ case x of
+        ComponentCountMismatch ->
+          s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
+        ComponentsSizesNotWellDistributed ->
+          s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
+        SpaceNotUsedWellEnough ->
+          s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
+        UnusedFronteers' ->
+          s { countUnusedFronteers = 1 + countUnusedFronteers s }
+ in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
 
-  addMkRandomMatDuration dt s =
-    let d = durations s
-    in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
-  updateStats l s =
-    let s' = List.foldl' addToStats s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
-    in s' { countRandomMatrices = 1 + countRandomMatrices s}
-  addToStats s elt =
-   let s'' = case elt of
-        Right (SmallWorld _ topo) ->
-          let nComps = ComponentCount $ length $ getConnectedComponents topo
-          in addNComp nComps s
-        Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
-        Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
-        Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
-        Left (CC x nComps) -> addNComp nComps $ case x of
-          ComponentCountMismatch ->
-            s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
-          ComponentsSizesNotWellDistributed ->
-            s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
-          SpaceNotUsedWellEnough ->
-            s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
-          UnusedFronteers' ->
-            s { countUnusedFronteers = 1 + countUnusedFronteers s }
-   in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
+addNComp :: ComponentCount -> Statistics -> Statistics
+addNComp n s =
+  s { countGeneratedGraphsByComponentCount =
+    Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
 
-  addNComp n s =
-    s { countGeneratedGraphsByComponentCount =
-      Map.alter (Just . (+1) . fromMaybe 0) n $ countGeneratedGraphsByComponentCount s }
+matchAndVariate :: ComponentCount
+                -> Maybe MatrixVariants
+                -> SmallMatInfo
+                -> [TopoMatch]
+matchAndVariate nComponents curB info@(SmallMatInfo nAir m) =
+  rootRes : variationResults
+ where
+  variationResults = maybe []
+    (\(Variants variations nextB) ->
+      let authorizeVariation Interleave = True
+          authorizeVariation (Rotate (RotationDetail margin _)) =
+            case rootRes of
+              Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
+              _ -> False
+      in concatMap
+          (matchAndVariate nComponents nextB . SmallMatInfo nAir)
+          $ concatMap (produceVariations m)
+          $ filter authorizeVariation
+          $ NE.toList variations)
+    curB
+  deepMargin = requiredNComponentsMargin curB
+  rootRes = matchTopology deepMargin nComponents info
 
-withInterleaving :: (SmallMatInfo -> [a]) -> SmallMatInfo -> [a]
-withInterleaving x (SmallMatInfo nAir mat) =
-  concatMap (x . SmallMatInfo nAir) $ Cyclic.produceUsefulInterleavedVariations mat
+
+produceVariations :: Cyclic.Unbox a
+                  => Cyclic.Matrix a -> Variation -> [Cyclic.Matrix a]
+produceVariations m Interleave = drop 1 $ Cyclic.produceUsefulInterleavedVariations m
+produceVariations m (Rotate (RotationDetail _ order)) = Cyclic.produceRotations order m
+
+requiredNComponentsMargin :: Maybe MatrixVariants -> NCompsRequest
+requiredNComponentsMargin Nothing = NCompsNotRequired
+requiredNComponentsMargin (Just (Variants variations nextB)) =
+  max' thisValue recursiveValue
+ where
+  thisValue = List.foldl' max' NCompsNotRequired $ NE.map requiredNComponentsMarginForVariation variations
+  recursiveValue = requiredNComponentsMargin nextB
+
+  max' NCompsNotRequired a = a
+  max' a NCompsNotRequired = a
+  max' (NCompsRequiredWithMargin a) (NCompsRequiredWithMargin b) = NCompsRequiredWithMargin $ max a b
+
+requiredNComponentsMarginForVariation :: Variation -> NCompsRequest
+requiredNComponentsMarginForVariation Interleave = NCompsNotRequired
+requiredNComponentsMarginForVariation (Rotate (RotationDetail margin _)) = NCompsRequiredWithMargin margin
+
+-- | Takes elements matching a condition, and the element thereafter.
+takeWhilePlus :: (a -> Bool) -> [a] -> [a]
+takeWhilePlus p = go
+ where
+  go [] = []
+  go (x:xs) = x : bool [] (go xs) (p x)
 
 type TopoMatch = Either SmallWorldRejection SmallWorld
 
@@ -306,7 +351,7 @@ matchTopology :: NCompsRequest
 matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not airOnEveryFronteer = case nCompsReq of
       NCompsNotRequired -> Left UnusedFronteers
-      NCompsRequiredWithPrecision _ -> Left $ CC UnusedFronteers' nComps
+      NCompsRequiredWithMargin _ -> Left $ CC UnusedFronteers' nComps
   | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
     -- from here on, comps is evaluated.
   | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
@@ -316,8 +361,8 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
  where
   maxNCompsAsked = fromIntegral $ case nCompsReq of
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
-    NCompsRequiredWithPrecision x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
-                                                         -- it is possible to fail or succeed the distance test.
+    NCompsRequiredWithMargin x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
+                                                      -- it is possible to fail or succeed the distance test.
 
   -- To optimize performances, we use the fact that mono-components are easily detected
   -- while building the graph : they don't have any neighbour.
@@ -482,41 +527,6 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   nRows = Cyclic.nrows mat
   nCols = Cyclic.ncols mat
 
-tryRotationsIfAlmostMatches :: ComponentCount
-                            ->Cyclic.RotationOrder
-                            -> (NCompsRequest -> ComponentCount -> SmallMatInfo -> TopoMatch)
-                            -> ComponentCount
-                            -> SmallMatInfo
-                            -> [TopoMatch]
-tryRotationsIfAlmostMatches
-  componentCountMarginForRotation
-  order
-  matchTopo
-  n
-  zeroRotation@(SmallMatInfo nAir matZeroRotation) =
-
-  zeroRotationRes : tryRotation
-
- where
-
-  tryRotation = case zeroRotationRes of
-    Right _ -> []
-    Left (CC _ nComps) -> try nComps
-    Left _ -> []
-
-  try nComps
-   | -- TODO Maybe the bound should be randomized? or it should be min w h of the world?
-     abs (n - nComps) <= componentCountMarginForRotation =
-     -- we are already close to the target number, so
-     -- there is a good probability that rotating will trigger the component match.
-     map (matchTopo NCompsNotRequired n . SmallMatInfo nAir) $ Cyclic.produceRotations order matZeroRotation
-   | otherwise = []
-
-  zeroRotationRes = matchTopo
-    (case order of
-      Cyclic.Order0 -> NCompsNotRequired
-      _ -> NCompsRequiredWithPrecision componentCountMarginForRotation)
-    n zeroRotation
 
 mkSmallMat :: GenIO
            -> Float

@@ -7,7 +7,8 @@ import           Imj.Prelude
 
 import           Prelude(print, putStrLn, putStr, length, writeFile)
 import           Control.Concurrent(threadDelay)
-import           Data.List as List(foldl', unlines, intersperse, take)
+import           Data.List.NonEmpty (NonEmpty(..))
+import           Data.List as List hiding(intercalate, concat)
 import qualified Data.List as List(intercalate, concat)
 import           Data.String(IsString(..))
 import           Data.Map.Strict(Map)
@@ -42,8 +43,7 @@ import           Imj.Random.MWC.Seeds
 main :: IO ()
 main =
   --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  profileInterleave0MarginRotateOrder1 -- TODO remove
-  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --measureMemory
   --writeSeedsSource
   --testRNG
@@ -108,24 +108,24 @@ getTopology r =
         putStrLn ""
   in (compCount, render)
 
--- | Returns 12 combinations
-allStrategies :: ComponentCount -> [SmallWorldCreationStrategy]
-allStrategies n =
+justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
+justVariantsWithRotations n =
   concatMap
-    (\branch ->
-      map
-        (SWCreationStrategy branch n) -- TODO try other values than 5. It would be interesting to see if when varying,
-          -- the winning strategy changes or not, and what are the best combinations, to deduce an heuristic for chosing
-          -- that appropriately.
-        [ Cyclic.Order0
-        , Cyclic.AtDistance1
-        , Cyclic.Order1
-        , Cyclic.Order2
-        ])
-    [ Rotate
-    , InterleavePlusRotate
-    , InterleaveTimesRotate
+    (\rotationOrder ->
+      let rotation =
+            Rotate $ RotationDetail n rotationOrder
+      in map (\x -> x Nothing)
+          [ Variants (pure rotation)
+          , Variants (pure Interleave) . Just . Variants (pure rotation)
+          , Variants (Interleave :| [rotation])
+          ])
+    [ Cyclic.Rect1
+    , Cyclic.Order1
+    , Cyclic.Order2
     ]
+
+justVariantsWithoutRotations :: [MatrixVariants]
+justVariantsWithoutRotations = [Variants (pure Interleave) Nothing]
 
 allWorlds :: [SmallWorldCharacteristics]
 allWorlds =
@@ -148,13 +148,11 @@ forMLoudly name l act = do
 
 profileAllProps :: IO ()
 profileAllProps = do
-  let worlds = take 1 allWorlds
-      strategies = concatMap allStrategies [0..10]
   -- display global test info
   putStrLn " - Worlds:"
   mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
   putStrLn " - Strategies:"
-  mapM_ (putStrLn . prettyShowSWCreationStrategy) strategies
+  mapM_ print strategies
   let ntests = length worlds * length strategies * nSeeds
   putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
   putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
@@ -173,8 +171,8 @@ profileAllProps = do
     (\(worldCharac, worldResults) -> do
       let labelsAndEitherTimeoutsTimes = map
             (\(strategy, seedsResults) ->
-              ( fromString $ prettyShowSWCreationStrategy strategy
-              , case length seedsResults - length (catMaybes $ map snd seedsResults) of
+              ( fromString $ prettyShowMatrixVariants strategy
+              , case length seedsResults - length (mapMaybe snd seedsResults) of
                   0 -> Right $ average $ map fst seedsResults
                   nSeedsTimeouts -> Left nSeedsTimeouts))
             worldResults
@@ -188,8 +186,14 @@ profileAllProps = do
   putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 0.1-- 100
+  !allowedDt = fromSecs 100
   !allowedDtMicros = fromIntegral $ toMicros allowedDt
+
+  worlds = allWorlds
+  strategies =
+    Nothing :
+    map Just (justVariantsWithoutRotations ++ concatMap justVariantsWithRotations margins)
+  margins = [1..10]
 
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither err = maybe (Left err) Right
@@ -210,17 +214,17 @@ profileLargeWorld :: IO ()
 profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        (SWCreationStrategy Rotate 5 Cyclic.Order2)
+        (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
   withNumberedSeed (withDuration . profile props) 0 >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do
   let props = mkProperties
         (SWCharacteristics (Size 32 72) (ComponentCount 1) 0.2)
-        (SWCreationStrategy InterleavePlusRotate 0 Cyclic.Order1)
+        (Just $ Variants (pure Interleave) $ Just $ Variants (pure $ Rotate $ RotationDetail 0 Cyclic.Order1) Nothing)
   print props
   withNumberedSeed (withDuration . profile props) 0 >>= print
-  --withDifferentSeeds (withDuration . profile props) >>= print
+--  withDifferentSeeds (withDuration . profile props) >>= print
 
 -- | Runs several actions sequentially, allocating a given budget to each.
 {-# INLINABLE withinDuration #-}
@@ -230,8 +234,6 @@ withinDuration duration act args =
   Map.fromList . zip args <$> forM args (timeout micros . act)
  where
   micros = fromIntegral $ toMicros duration
-
-
 
 displayRandomValues :: IO [Word32] -> IO ()
 displayRandomValues getWord32s =
@@ -274,7 +276,7 @@ withNumberedSeed :: (GenIO -> IO a) -> Int -> IO a
 withNumberedSeed act i = do
   -- we use deterministic seeds made from the same source as 'withSystemRandom' (see https://github.com/bos/mwc-random/issues/64)
   gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-  putStrLn $ "- With seed " ++ show (i :: Int) ++ ":"
+  putStrLn $ unwords ["-", "seed", show (i :: Int)]
   act gen
 
 -- | Drops the first measurement.

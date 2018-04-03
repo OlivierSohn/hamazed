@@ -10,7 +10,6 @@ module Imj.Util
     , splitEvery
     , mkGroups
     , range
-    , takeWhilePlus
     , commonPrefix
     , commonSuffix
     , maximumMaybe
@@ -73,12 +72,6 @@ splitEvery _ [] = []
 splitEvery n xs = as : splitEvery n bs
   where (as,bs) = splitAt n xs
 
-
--- | Takes elements matching a condition, and the element thereafter.
-takeWhilePlus :: (a -> Bool) -> [a] -> [a]
-takeWhilePlus _ [] = []
-takeWhilePlus p (x:xs) =
-  x : bool [] (takeWhilePlus p xs) (p x)
 
 {-# INLINABLE range #-}
 {- | Builds a range with no constraint on the order of bounds:

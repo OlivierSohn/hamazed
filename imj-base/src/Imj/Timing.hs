@@ -95,9 +95,9 @@ instance PrettyVal (Time Point b) where
 instance PrettyVal (Time Duration b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:" :: String, s, n)
 instance Show (Time Point a) where
-  show = (++) "Time:" . unpack . prettyShowTime
+  show = (++) "Time: " . unpack . prettyShowTime
 instance Show (Time Duration a) where
-  show = (++) "Duration:" . showTime
+  show = (++) "Duration: " . showTime
 instance Quantifiable (Time Duration a) where
   writeFloat = double2Float . unsafeToSecs
   readFloat = fromSecs . float2Double

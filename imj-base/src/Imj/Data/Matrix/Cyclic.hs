@@ -102,20 +102,18 @@ instance (Binary a, Unbox a) => Binary (Matrix a) where
     return $ M a b c d
 
 data RotationOrder =
-    Order0 -- no rotation is produced
-  | Order1 -- rotation across all rows, then rotation across all columns
+    Order1 -- rotation across all rows, then rotation across all columns
   | Order2 -- rotation across all rows + columns at the same time
-  | AtDistance1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
+  | Rect1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
   deriving(Generic, Show, Eq, Ord)
 instance Binary RotationOrder
 instance NFData RotationOrder
 
 countRotations :: (Unbox a)
                => RotationOrder -> Matrix a -> Int
-countRotations Order0 _ = 0
 countRotations Order1 (M n m _ _) = n + m - 1
 countRotations Order2 (M _ _ _ v) = V.length v - 1
-countRotations AtDistance1 x =
+countRotations Rect1 x =
   if canHaveAtDistance1Rotations x
     then
       8
@@ -123,10 +121,9 @@ countRotations AtDistance1 x =
       0
 
 countRotations' :: RotationOrder -> Size -> Int
-countRotations' Order0 _ = 0
 countRotations' Order1 (Size (Length x) (Length y)) = x + y - 1
 countRotations' Order2 (Size (Length x) (Length y)) = x * y - 1
-countRotations' AtDistance1 (Size (Length x) (Length y)) =
+countRotations' Rect1 (Size (Length x) (Length y)) =
   if x < 3 || y < 3
     then
       0
@@ -140,10 +137,9 @@ produceRotations ro x@(M r c _ v) =
   -- note that we could take the matrix rotation into account,
   -- but in practice we use this function with 0 rotation matrices only so it doesn't make a difference.
   map (setRotation x) $ case ro of
-    Order0 -> []
     Order1 -> [1.. c-1] ++ map (*c) [1..r-1]
     Order2 -> [1..countRotations Order2 x]
-    AtDistance1 ->
+    Rect1 ->
       if canHaveAtDistance1Rotations x
         then
           concatMap

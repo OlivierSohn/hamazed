@@ -164,9 +164,9 @@ testMinCountAirBlocks = do
     -- with 'mkSmallMat', the test is not relevant.
     generate proba =
       matchAndVariate nComps
-        (Variants
+        (Just $ Variants
           (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
-          NoBranch) <$> unsafeMkSmallMat gen proba sz
+          Nothing) <$> unsafeMkSmallMat gen proba sz
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

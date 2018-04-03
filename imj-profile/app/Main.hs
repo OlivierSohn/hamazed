@@ -43,7 +43,8 @@ import           Imj.Random.MWC.Seeds
 main :: IO ()
 main =
   --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  profile0MarginRotateOrder2 -- TODO remove when done investigating
+  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --measureMemory
   --writeSeedsSource
   --testRNG
@@ -212,6 +213,13 @@ profileLargeWorld = do
         (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
   withNumberedSeed (withDuration . profile props) 0 >>= print
 
+profile0MarginRotateOrder2 :: IO ()
+profile0MarginRotateOrder2 = do
+  let props = mkProperties
+        (SWCharacteristics (Size 32 72) (ComponentCount 1) 0.2)
+        (Just $ Variants (pure $ Rotate $ RotationDetail 0 Cyclic.Order2) Nothing)
+  print props
+  withNumberedSeed (withDuration . profile props) 0 >>= print
 
 -- | Runs several actions sequentially, allocating a given budget to each.
 {-# INLINABLE withinDuration #-}

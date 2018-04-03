@@ -276,20 +276,23 @@ matchAndVariate :: ComponentCount
                 -> Maybe MatrixVariants
                 -> SmallMatInfo
                 -> [TopoMatch]
-matchAndVariate nComponents Nothing m =
-  [matchTopology NCompsNotRequired nComponents m]
-matchAndVariate nComponents (Just (Variants variations nextB)) info@(SmallMatInfo nAir m) =
-  rootRes : bool [] (concatMap (matchAndVariate nComponents nextB) variantsMatrices) canRecurse
+matchAndVariate nComponents curB info@(SmallMatInfo nAir m) =
+  rootRes : variationResults
  where
-  marginForNextBranch = requiredNComponentsMargin nextB
-  rootRes = matchTopology marginForNextBranch nComponents info
-  variantsMatrices = map (SmallMatInfo nAir) $ concatMap (produceVariations m) $ NE.toList variations
-  canRecurse = case marginForNextBranch of
-    NCompsNotRequired -> True
-    NCompsRequiredWithMargin margin ->
-      case rootRes of
-        Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
-        _ -> False
+  variationResults = maybe []
+    (\(Variants variations nextB) ->
+        let canRecurse = case deepMargin of
+              NCompsNotRequired -> True
+              NCompsRequiredWithMargin margin ->
+                case rootRes of
+                  Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
+                  _ -> False
+            variantsMatrices = map (SmallMatInfo nAir) $ concatMap (produceVariations m) $ NE.toList variations
+        in bool [] (concatMap (matchAndVariate nComponents nextB) variantsMatrices) canRecurse)
+    curB
+  deepMargin = requiredNComponentsMargin curB
+  rootRes = matchTopology deepMargin nComponents info
+
 
 produceVariations :: Cyclic.Unbox a
                   => Cyclic.Matrix a -> Variation -> [Cyclic.Matrix a]

@@ -72,7 +72,7 @@ mkShotNumbersCS _ nums =
               let t = case op of
                     Add -> mempty
                     Substract -> "-"
-              in SingleWord $ number (t ++ [intToDigit n]) $ numberColor n)
+              in number (t ++ [intToDigit n]) $ numberColor n)
           nums
   in Successive [insideBrackets middle]
 

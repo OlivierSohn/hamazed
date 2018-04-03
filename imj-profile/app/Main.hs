@@ -7,6 +7,7 @@ import           Imj.Prelude
 
 import           Prelude(print, putStrLn, putStr, length, writeFile)
 import           Control.Concurrent(threadDelay)
+import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List(foldl', unlines, intersperse, take)
 import qualified Data.List as List(intercalate, concat)
 import           Data.String(IsString(..))
@@ -107,24 +108,23 @@ getTopology r =
         putStrLn ""
   in (compCount, render)
 
--- | Returns 12 combinations
-allStrategies :: ComponentCount -> [SmallWorldCreationStrategy]
-allStrategies n =
+justVariants :: ComponentCount -> [MatrixVariants]
+justVariants n =
   concatMap
-    (\branch ->
-      map
-        (SWCreationStrategy branch n) -- TODO try other values than 5. It would be interesting to see if when varying,
-          -- the winning strategy changes or not, and what are the best combinations, to deduce an heuristic for chosing
-          -- that appropriately.
-        [ Cyclic.Order0
-        , Cyclic.AtDistance1
-        , Cyclic.Order1
-        , Cyclic.Order2
-        ])
-    [ Rotate
-    , InterleavePlusRotate
-    , InterleaveTimesRotate
+    (\rotationOrder ->
+      let rotation =
+            Rotate $ RotationDetail n rotationOrder
+      in map (\x -> x Nothing)
+          [ Variants (pure rotation)
+          , Variants (pure Interleave)
+          , Variants (pure Interleave) . Just . Variants (pure rotation)
+          , Variants (Interleave :| [rotation])
+          ])
+    [ Cyclic.Rect1
+    , Cyclic.Order1
+    , Cyclic.Order2
     ]
+
 
 allWorlds :: [SmallWorldCharacteristics]
 allWorlds =
@@ -147,13 +147,13 @@ forMLoudly name l act = do
 
 profileAllProps :: IO ()
 profileAllProps = do
-  let worlds = take 1 allWorlds
-      strategies = concatMap allStrategies [0..10]
+  let worlds = take 2 allWorlds
+      strategies = Nothing : map Just (concatMap justVariants [0..10])
   -- display global test info
   putStrLn " - Worlds:"
   mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
   putStrLn " - Strategies:"
-  mapM_ (putStrLn . prettyShowSWCreationStrategy) strategies
+  mapM_ print strategies
   let ntests = length worlds * length strategies * nSeeds
   putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
   putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
@@ -172,7 +172,7 @@ profileAllProps = do
     (\(worldCharac, worldResults) -> do
       let labelsAndEitherTimeoutsTimes = map
             (\(strategy, seedsResults) ->
-              ( fromString $ prettyShowSWCreationStrategy strategy
+              ( fromString $ prettyShowMatrixVariants strategy
               , case length seedsResults - length (catMaybes $ map snd seedsResults) of
                   0 -> Right $ average $ map fst seedsResults
                   nSeedsTimeouts -> Left nSeedsTimeouts))
@@ -209,7 +209,7 @@ profileLargeWorld :: IO ()
 profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        (SWCreationStrategy Rotate 5 Cyclic.Order2)
+        (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
   withNumberedSeed (withDuration . profile props) 0 >>= print
 
 
@@ -221,8 +221,6 @@ withinDuration duration act args =
   Map.fromList . zip args <$> forM args (timeout micros . act)
  where
   micros = fromIntegral $ toMicros duration
-
-
 
 displayRandomValues :: IO [Word32] -> IO ()
 displayRandomValues getWord32s =

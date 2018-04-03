@@ -4,10 +4,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Imj.Graphics.Class.Words
-            ( Words(..)
-            , Characters(..)
-            , SingleWord(..)
+            ( Characters(..)
             , multiLineTrivial
+            , multiLine
             ) where
 
 import qualified Prelude(splitAt, length)
@@ -28,8 +27,6 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 
 
-newtype SingleWord a = SingleWord a
-
 class (IsString a, Monoid a) => Characters a where
   length :: a -> Int
   empty :: a -> Bool
@@ -47,45 +44,44 @@ class (IsString a, Monoid a) => Characters a where
   replicate :: Int -> Char -> a
   replicate n c = fromString (List.replicate n c)
 
+  -- | Produce a list of words
+  words :: a -> [a]
+  -- | Consume a list of words
+  unwords :: [a] -> a
 
--- | A 'Words' is a 'Characters' that can be split in words.
-class (Characters a) => Words a where
-  -- | Produce a list of words from a 'Words'.
-  words :: a -> [SingleWord a]
-  -- | Consume a list of words to produce a 'Words'.
-  unwords :: [SingleWord a] -> a
 
-  -- | Splits a 'Words' in multiple lines, respecting the words integrity
-  -- when words are smaller than the line length.
-  {-# INLINABLE multiLine #-}
-  multiLine :: Int
-            -- ^ Line length.
-            -> a
-            -> [a]
-  multiLine maxLineSize str  =
-    map (unwords . reverse) $ reverse $ toMultiLine' (words str) 0 [] []
-   where
-    toMultiLine' :: (Words a)
-                 => [SingleWord a] -> Int -> [SingleWord a] -> [[SingleWord a]] -> [[SingleWord a]]
-    toMultiLine' [] _ []      curLines = curLines
-    toMultiLine' [] _ curLine curLines = curLine : curLines
-    toMultiLine' a@(x@(SingleWord w):xs) curLineSize curLine curLines =
-      let l = length w
-          sz = 1 + l + curLineSize
-      in if sz > maxLineSize
-          then
-            if curLineSize == 0
-              then
-                -- split the word
-                let (cur,next) = splitAt maxLineSize w
-                in toMultiLine' (SingleWord next:xs) 0 [] ([SingleWord cur] : curLines)
-              else
-                toMultiLine' a 0 [] (curLine : curLines)
-          else
-            toMultiLine' xs sz (x:curLine) curLines
+-- | Splits a 'Words' in multiple lines, respecting the words integrity
+-- when words are smaller than the line length.
+{-# INLINABLE multiLine #-}
+multiLine :: (Characters a)
+          => Int
+          -- ^ Line length.
+          -> a
+          -> [a]
+multiLine maxLineSize str  =
+  map (unwords . reverse) $ reverse $ toMultiLine' (words str) 0 [] []
+ where
+  toMultiLine' :: (Characters a)
+               => [a] -> Int -> [a] -> [[a]] -> [[a]]
+  toMultiLine' [] _ []      curLines = curLines
+  toMultiLine' [] _ curLine curLines = curLine : curLines
+  toMultiLine' a@(x@w:xs) curLineSize curLine curLines =
+    let l = length w
+        sz = 1 + l + curLineSize
+    in if sz > maxLineSize
+        then
+          if curLineSize == 0
+            then
+              -- split the word
+              let (cur,next) = splitAt maxLineSize w
+              in toMultiLine' (next:xs) 0 [] ([cur] : curLines)
+            else
+              toMultiLine' a 0 [] (curLine : curLines)
+        else
+          toMultiLine' xs sz (x:curLine) curLines
 
 {-# INLINABLE multiLineTrivial #-}
-multiLineTrivial :: (Words a)
+multiLineTrivial :: (Characters a)
                  => Length Width
                  -- ^ Line length.
                  -> a
@@ -106,6 +102,8 @@ instance Characters ([] Char) where
   take = List.take
   concat = List.concat
   splitAt = Prelude.splitAt
+  words = String.words
+  unwords = String.unwords
   colorize _ = id
   drawOnPath positions str = do
     d <- asks drawGlyph'
@@ -118,10 +116,6 @@ instance Characters ([] Char) where
   {-# INLINABLE splitAt #-}
   {-# INLINABLE empty #-}
   {-# INLINABLE drawOnPath #-}
-
-instance Words ([] Char) where
-  words = map SingleWord . String.words
-  unwords = String.unwords . map (\(SingleWord w) -> w)
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
 
@@ -134,6 +128,8 @@ instance Characters Text where
   concat = Text.concat
   take = Text.take
   colorize _ = id
+  words = Text.words
+  unwords = Text.unwords
   drawOnPath positions txt = drawOnPath positions (Text.unpack txt)
   {-# INLINABLE take #-}
   {-# INLINABLE concat #-}
@@ -143,9 +139,5 @@ instance Characters Text where
   {-# INLINABLE splitAt #-}
   {-# INLINABLE empty #-}
   {-# INLINABLE drawOnPath #-}
-
-instance Words Text where
-  words = map SingleWord . Text.words
-  unwords = Text.unwords . map (\(SingleWord w) -> w)
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}

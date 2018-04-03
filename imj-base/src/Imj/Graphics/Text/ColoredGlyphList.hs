@@ -69,6 +69,21 @@ instance Characters ColoredGlyphList where
 
   concat = ColoredGlyphList . concatMap (\(ColoredGlyphList s) -> s)
 
+  unwords = intercalate (ColoredGlyphList [(sp, color)])
+   where
+    !sp = textGlyph ' '
+    !color = whiteOnBlack
+
+  words (ColoredGlyphList str) =
+    map ColoredGlyphList $ go str
+   where
+    isSpace = (' ' ==) . fst . decodeGlyph . fst
+    go s = case List.dropWhile isSpace s of
+            [] -> []
+            s' -> w : go s''
+              where
+                (w, s'') = List.break isSpace s'
+
   colorize color (ColoredGlyphList l) =
     ColoredGlyphList $ map (\(t, _) -> (t, color)) l
 
@@ -83,23 +98,6 @@ instance Characters ColoredGlyphList where
   {-# INLINABLE cons #-}
   {-# INLINABLE empty #-}
   {-# INLINABLE length #-}
-instance Words ColoredGlyphList where
-  unwords :: [SingleWord ColoredGlyphList] -> ColoredGlyphList
-  unwords l = intercalate (ColoredGlyphList [(sp, color)]) $ map (\(SingleWord w) -> w) l
-   where
-    !sp = textGlyph ' '
-    !color = whiteOnBlack
-
-  words :: ColoredGlyphList -> [SingleWord ColoredGlyphList]
-  words (ColoredGlyphList str) =
-    map (SingleWord . ColoredGlyphList) $ go str
-   where
-    isSpace = (' ' ==) . fst . decodeGlyph . fst
-    go s = case List.dropWhile isSpace s of
-            [] -> []
-            s' -> w : go s''
-              where
-                (w, s'') = List.break isSpace s'
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
 -- | First interpolating characters, then color.

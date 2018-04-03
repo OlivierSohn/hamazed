@@ -100,9 +100,8 @@ It looks like:
 
 Maybe for big worlds, interleaving / rotating is not usefull because
   random matrices produce more randomness than interleavings or rotations
-  and the cost of generating random matrices becomes negligible vs. the cost of graph analysis,
+  and the cost of generating random matrices becomes negligible vs. the cost of graph creation and analysis,
   so generating only random matrices becomes a competitive strategy again.
-
 The ratio "time to analyze a matrix vs time to generate a random matrix" could be key
   in determining the strategy to use.
 

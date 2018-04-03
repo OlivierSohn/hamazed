@@ -147,18 +147,27 @@ forMLoudly name l act = do
 
 profileAllProps :: IO ()
 profileAllProps = do
+  let worlds = take 1 allWorlds
+      strategies = concatMap allStrategies [0..10]
+  -- display global test info
+  putStrLn " - Worlds:"
+  mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
+  putStrLn " - Strategies:"
+  mapM_ (putStrLn . prettyShowSWCreationStrategy) strategies
+  let ntests = length worlds * length strategies * nSeeds
+  putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
+  putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
   -- run benchmarks
-  let worlds = take 1 $ drop 3 allWorlds
-  allRes <- zip worlds <$> forMLoudly "World" worlds
-    (\worldCharacteristics -> do
-      let strategies = concatMap allStrategies [0..10]
-      zip strategies <$> forMLoudly "Strategy" strategies
-        (\strategy -> do
-          let p = mkProperties worldCharacteristics strategy
-          timeWithDifferentSeeds (timeout allowedMicros . profile p))
-      )
+  (totalDt, allRes) <- withDuration
+    (zip worlds <$> forMLoudly "World" worlds
+      (\worldCharacteristics ->
+        zip strategies <$> forMLoudly "Strategy" strategies
+          (\strategy -> do
+            let p = mkProperties worldCharacteristics strategy
+            timeWithDifferentSeeds (timeout allowedDtMicros . profile p))
+        ))
   -- print results
-  putStrLn $ "Timeout = " ++ show allowed
+  putStrLn $ "Timeout = " ++ show allowedDt
   forM_ allRes
     (\(worldCharac, worldResults) -> do
       let labelsAndEitherTimeoutsTimes = map
@@ -171,14 +180,15 @@ profileAllProps = do
 
       mapM_ CS.putStrLn $
         showQuantities''
-          allowed
+          allowedDt
           (map snd labelsAndEitherTimeoutsTimes)
           (map fst labelsAndEitherTimeoutsTimes)
           $ fromString $ prettyShowSWCharacteristics worldCharac)
+  putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
-  !allowed = fromSecs 100-- 100
-  !allowedMicros = fromIntegral $ toMicros allowed
+  !allowedDt = fromSecs 0.1-- 100
+  !allowedDtMicros = fromIntegral $ toMicros allowedDt
 
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither err = maybe (Left err) Right
@@ -240,10 +250,13 @@ testRNG = do
     -}
 
 
+nSeeds :: Int
+nSeeds = 11
+
 -- | Runs the action several times, with different - deterministically seeded - generators.
 withDifferentSeeds :: (GenIO -> IO a) -> IO [a]
 withDifferentSeeds act =
-  mapM (withNumberedSeed act) [0..10]
+  mapM (withNumberedSeed act) [0..nSeeds - 1]
 
 withDifferentSeeds_ :: (GenIO -> IO a) -> IO ()
 withDifferentSeeds_ = void . withDifferentSeeds

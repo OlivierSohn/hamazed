@@ -5,18 +5,14 @@ module Main where
 
 import           Imj.Prelude
 
-import           Prelude(print, putStrLn, putStr, length, writeFile)
-import           Control.Concurrent(threadDelay)
+import           Prelude(print, putStrLn, length, writeFile)
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List hiding(intercalate, concat)
 import qualified Data.List as List(intercalate, concat)
 import           Data.String(IsString(..))
-import           Data.Map.Strict(Map)
-import qualified Data.Map.Strict as Map
 import           Data.Vector(fromList)
 import qualified Data.Vector.Unboxed as U(toList)
 import           Data.Word(Word32)
-import           System.IO(hFlush, stdout)
 import           System.Random.MWC
 import           System.Timeout(timeout)
 
@@ -32,7 +28,7 @@ import           Imj.Util
 
 import           Imj.Random.MWC.Seeds
 
--- command used to profile.
+-- commands used to profile:
 --
 -- for cost centers:
 -- stack build --executable-profiling --library-profiling --ghc-options="-fprof-auto -rtsopts" && stack exec -- imj-profile +RTS -M2G -p
@@ -42,71 +38,9 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  --measureMemory
+  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --writeSeedsSource
-  --testRNG
-
-measureMemory :: IO ()
-measureMemory = do
-  gen <- create -- use a deterministic random numbers source
-  forever $ do
-    delay "Make random mat"
-    unsafeMkSmallMat gen 0.7 (Size 1000 1000) >>= \(SmallMatInfo nAir m) -> do
-      delay "print all" -- Here we have 126 M
-      let l = Cyclic.produceUsefulInterleavedVariations m
-      print (length l, map matrixSum l)
-      delay "Produce, getTopology, analyze " -- Still 126 M
-      mapM
-        (\x -> do
-          putStr "." >> flush
-          return $ getTopology $ SmallMatInfo nAir x) l >>= analyzeDistribution -- ~ 300 M
- where
-  flush = hFlush stdout
-  delay nextAction = do
-    putStr "\nWaiting ... "
-    forM_ [0..9::Int] $ \i -> do
-      threadDelay $ 1 * 1000 * 1000
-      putStr (show i) >> flush
-    putStrLn $ '\n' : nextAction
-  matrixSum mat =
-    let n = Cyclic.nrows mat
-        m = Cyclic.ncols mat
-    in List.foldl'
-        (\s i ->
-          List.foldl'
-            (\s' j -> s' + case Cyclic.unsafeGet i j mat of
-              MaterialAndKey k -> k)
-            s
-            [0..pred m])
-        (0 :: Int)
-        [0..pred n]
-
-analyzeDistribution :: [(Maybe ComponentCount, IO ())]
-                    -- ^ IO () is the render function
-                    -> IO ()
-analyzeDistribution l = do
-  let d = asDistribution $ mapMaybe fst l
-  maybe
-    (return ())
-    (\(min_,_) -> when (min_ <= 1) $ do
-      mapM_ snd l
-      mapM_ putStrLn (showDistribution d)
-      putStrLn "")
-    $ Map.lookupMin d
-
-
-getTopology :: SmallMatInfo -> (Maybe ComponentCount, IO ())
-getTopology r =
-  let res = matchTopology NCompsNotRequired (ComponentCount 1) r
-      compCount = getComponentCount res
-      render = do
-        print compCount
-        putStrLn ""
-        mapM_ putStrLn $ showInBox $ writeWorld r
-        putStrLn ""
-  in (compCount, render)
 
 justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
 justVariantsWithRotations n =
@@ -195,9 +129,6 @@ profileAllProps = do
     map Just (justVariantsWithoutRotations ++ concatMap justVariantsWithRotations margins)
   margins = [1..10]
 
-maybeToEither :: b -> Maybe a -> Either b a
-maybeToEither err = maybe (Left err) Right
-
 
 profile :: Properties -> GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
 profile property gen = do
@@ -215,6 +146,7 @@ profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
         (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
+  print props
   withNumberedSeed (withDuration . profile props) 0 >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
@@ -225,41 +157,6 @@ profileInterleave0MarginRotateOrder1 = do
   print props
   withNumberedSeed (withDuration . profile props) 0 >>= print
 --  withDifferentSeeds (withDuration . profile props) >>= print
-
--- | Runs several actions sequentially, allocating a given budget to each.
-{-# INLINABLE withinDuration #-}
-withinDuration :: (Ord a) => Time Duration System -> (a -> IO b) -> [a] -> IO (Map a (Maybe b))
-withinDuration duration act args =
--- Note that for this to work we may need to compile with -fno-omit-yields
-  Map.fromList . zip args <$> forM args (timeout micros . act)
- where
-  micros = fromIntegral $ toMicros duration
-
-displayRandomValues :: IO [Word32] -> IO ()
-displayRandomValues getWord32s =
-  replicateM_ 15 $
-    map (bool 'Z' ' ' . (>= 0x80000000)) <$> getWord32s >>= putStrLn
-
-displayRandomValuesF :: IO [Float] -> IO ()
-displayRandomValuesF get =
-  replicateM_ 15 $
-    map (bool 'Z' ' ' . (<= 0.5)) <$> get >>= putStrLn
-
-testRNG :: IO ()
-testRNG = do
-  putStrLn "/dev/urandom"
-  displayRandomValues mkSeedSystem
-
-  withDifferentSeeds_ $ \gen -> do
-    --s <- save gen
-    putStrLn "geni"
-    displayRandomValues $ replicateM 256 $ uniform gen
-    {-
-    gen' <- restore s
-    putStrLn "genf"
-    displayRandomValuesF $ replicateM 256 $ uniform gen'
-    -}
-
 
 nSeeds :: Int
 nSeeds = 11

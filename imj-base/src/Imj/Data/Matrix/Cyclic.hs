@@ -171,10 +171,10 @@ mapMat :: (Unbox a, Unbox b)
 mapMat func (M a b c v) = M a b c $ V.map func v
 
 
--- TODO should we use foldr or foldl'?
+-- Benchmarks show that foldr is slower than foldl' here.
 produceUsefulInterleavedVariations :: Unbox a
-                                    => Matrix a
-                                    -> [Matrix a]
+                                   => Matrix a
+                                   -> [Matrix a]
 produceUsefulInterleavedVariations x =
   snd $ foldl'
     (\(m,prevResults) i ->

@@ -1,11 +1,3 @@
-- try foldr for:
-produceUsefulInterleavedVariations
-in produceRotations, try foldMap?
-
-- for graph, try Mutable vector only, (no freezing)
-- then try to reuse the same mutable vector multiple times (allocate it in a caller function)
-- same for matrices: reuse
-
 - with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
 
 - benchmark IntSet vs. Set Int for Sums

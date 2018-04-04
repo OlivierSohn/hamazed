@@ -79,7 +79,7 @@ The phantom type 'a' represents the time space. It could be 'System'
  or a duration)-}
 newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord)
 instance NFData (Time a b) where
-  rnf _ = () -- TimeSpec has unboxed fields so they are already in normal form
+  rnf _ = () -- TimeSpec has strict fields so they are already in normal form
 instance Binary (Time Duration a) where
   put (Time (TimeSpec s ns)) = do
     Bin.put s

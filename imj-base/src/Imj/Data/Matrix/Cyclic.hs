@@ -3,11 +3,12 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
     Matrix
-  , nrows , ncols, rotation
+  , nrows , ncols, nelems, rotation
     -- * Builders
   , matrix
   , rowVector
@@ -29,7 +30,7 @@ module Imj.Data.Matrix.Cyclic (
     -- * List conversions
   , fromList , fromLists, toLists
     -- * Accessing
-  , getElem , (!) , unsafeGet, safeGet, getRow, getCol
+  , getElem , unsafeGet, safeGet, getRow, getCol
   , unsafeGetByIndex
     -- * Matrix operations
   , elementwise, elementwiseUnsafe, mapMat
@@ -83,7 +84,7 @@ instance (Eq a, Unbox a)
     let r = nrows m1
         c = ncols m1
     in  and $ (r == nrows m2) : (c == ncols m2)
-            : [ m1 ! (i,j) == m2 ! (i,j) | i <- [0 .. r-1] , j <- [0 .. c-1] ]
+            : [ unsafeGetByIndex i m1 == unsafeGetByIndex i m2 | i <- [0 .. nelems m1 - 1]]
 
 instance NFData (Matrix a) where
  rnf = rnf . mvect
@@ -130,13 +131,13 @@ countRotations' Rect1 (Size (Length x) (Length y)) =
     else
       8
 
-{-# INLINABLE produceRotations #-}
+{-# INLINE produceRotations #-}
 produceRotations :: Unbox a
                  => RotationOrder -> Matrix a -> [Matrix a]
 produceRotations ro x@(M r c _ v) =
   -- note that we could take the matrix rotation into account,
   -- but in practice we use this function with 0 rotation matrices only so it doesn't make a difference.
-  map (setRotation x) $ case ro of
+  map (unsafeSetRotation x) $ case ro of
     Order1 -> [1.. c-1] ++ map (*c) [1..r-1]
     Order2 -> [1..countRotations Order2 x]
     Rect1 ->
@@ -165,6 +166,10 @@ setRotation m@(M _ _ _ v) i
 unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
+{-# INLINE nelems #-}
+nelems :: (Unbox a) => Matrix a -> Int
+nelems (M _ _ _ v) = V.length v
+
 mapMat :: (Unbox a, Unbox b)
         => (a -> b)
         -> Matrix a -> Matrix b
@@ -172,17 +177,18 @@ mapMat func (M a b c v) = M a b c $ V.map func v
 
 
 -- Benchmarks show that foldr is slower than foldl' here.
+{-# INLINE produceUsefulInterleavedVariations #-}
 produceUsefulInterleavedVariations :: Unbox a
                                    => Matrix a
                                    -> [Matrix a]
-produceUsefulInterleavedVariations x =
-  snd $ foldl'
+produceUsefulInterleavedVariations x@(M rows cols _ _) =
+  snd $ foldl' -- TODO verify adding 2 force doesn't change memory needed (or uses less), and runs faster
     (\(m,prevResults) i ->
-      let fi = bool (reorderRows interleaveRows) id $ i == 0
+      let fi = bool reorderRows id $ i == 0
           m' = fi m
           (_,intermediateResults) = foldl'
             (\(n, l) j ->
-              let fj = bool (reorderCols interleaveCols) id $ j == 0
+              let fj = bool reorderCols id $ j == 0
                   n' = fj n
               in (n', n':l))
             (m', prevResults)
@@ -191,8 +197,23 @@ produceUsefulInterleavedVariations x =
     (x,[])
     [0..nRowVar-1]
  where
-  (nRowVar, interleaveRows) = getInterleavedInfos $ nrows x
-  (nColVar, interleaveCols) = getInterleavedInfos $ ncols x
+  (nRowVar, interleaveRows) = getInterleavedInfos rows
+  (nColVar, interleaveCols) = getInterleavedInfos cols
+
+  -- TODO benchark difference with current implementation.
+  -- TODO benchark difference between iterate and iterate'
+  iterate' f x = x `seq` x : iterate' f (f x)
+  rowsRotated = take nRowVar $ iterate' reorderRows x
+  colsRotated = take nColVar . iterate' reorderCols
+  res = concatMap colsRotated rowsRotated -- TODO drop 1 here if benchmarks are ok
+
+  reorderRows m =
+    matrix rows cols $ \i j ->
+      unsafeGet (interleaveRows i) j m
+
+  reorderCols m =
+    matrix rows cols $ \i j ->
+      unsafeGet i (interleaveCols j) m
 
 -- Counts the number of matrices returned by 'produceUsefulInterleavedVariations'
 countUsefulInterleavedVariations2D :: Size -> Int
@@ -204,20 +225,9 @@ getInterleavedInfos :: Int
                     -> (Int, Int -> Int)
                     -- ^ fst: The count of useful variations
                     -- , snd : the function to get interleaved indices
-getInterleavedInfos d =
+getInterleavedInfos !d =
   let !iD = mkInterleaveData d
   in (countUsefulInterleavedVariations d, interleaveIdx iD)
-
-reorderRows, reorderCols :: (Unbox a)
-                         => (Int -> Int)
-                         -> Matrix a
-                         -> Matrix a
-reorderRows order m =
-  matrix (nrows m) (ncols m) $ \i j ->
-    unsafeGet (order i) j m
-reorderCols order m =
-  matrix (nrows m) (ncols m) $ \i j ->
-    unsafeGet i (order j) m
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -414,12 +424,6 @@ unsafeGetByIndex idx (M _ _ o v) =
  where
   l = V.length v
   rawIdx = idx + o
-
--- | Short alias for 'getElem'.
-(!) :: (Unbox a)
-    => Matrix a -> (Int,Int) -> a
-{-# INLINE (!) #-}
-m ! (i,j) = getElem i j m
 
 -- | Variant of 'getElem' that returns Maybe instead of an error.
 safeGet :: (Unbox a)

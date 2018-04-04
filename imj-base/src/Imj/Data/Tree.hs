@@ -59,7 +59,7 @@ class (Foldable a) => Filterable a where
   hasValue :: a b -> Bool
 
   countValues :: a b -> Int
-  countValues = foldl' (\s _ -> succ s) 0
+  countValues = foldl' (\s _ -> s + 1) 0
 
   toList :: a b -> [b]
   toList = foldl' (flip (:)) []

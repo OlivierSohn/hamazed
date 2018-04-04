@@ -267,7 +267,7 @@ instance Show RotationDetail where
 data MkSpaceResult r =
     Success r
   | NeedMoreTime
-  | Impossible [Text]
+  | Impossible ![Text]
   deriving (Generic, Show)
 instance (Binary r) => Binary (MkSpaceResult r)
 instance (NFData r) => NFData (MkSpaceResult r)

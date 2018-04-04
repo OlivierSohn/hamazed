@@ -24,7 +24,7 @@ import           Prelude as Exported
   , sin, cos, pi
   , mod, rem, min, max, abs, floor, round, ceiling, maxBound, minBound
   , negate, div, divMod, quot, quotRem, even, odd
-  , error, undefined
+  , error, undefined, seq
   , (!!), ($!)
   )
 

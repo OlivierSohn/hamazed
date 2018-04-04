@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Geo.Discrete.Interleave
     ( mkInterleaveData
@@ -161,7 +162,7 @@ mkInterleaveData len =
 
 {-# INLINE interleaveIdx #-}
 interleaveIdx :: InterleaveData -> Int -> Int
-interleaveIdx (InterleaveData firstOddIdx halfLength) i =
+interleaveIdx (InterleaveData firstOddIdx halfLength) !i =
   let i' = firstOddIdx-i
   in if i' > 0
       then

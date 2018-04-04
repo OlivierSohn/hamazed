@@ -9,7 +9,8 @@ import           Imj.Prelude
 import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
 import           Data.List(foldl', take, concat)
-import           System.Random.MWC(GenIO, create)
+import qualified Data.List.NonEmpty as NE(toList)
+import           System.Random.MWC(GenIO, create, uniform)
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
@@ -89,6 +90,11 @@ testNumComps = forAnyNumberOfComponents $ \n -> do
   putStrLn "WithNComponents"
   forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology (NCompsRequiredWithMargin 100) n m) `shouldBe` Just expected)
 
+getComponentCount :: TopoMatch -> Maybe ComponentCount
+getComponentCount (Left (CC _ c)) = Just c
+getComponentCount (Left _) = Nothing
+getComponentCount (Right (SmallWorld _ topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
+
 testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
@@ -130,14 +136,14 @@ testMinCountAirBlocks = do
       -- verify that it's not possible to generate a world of that size with that many components.
       (do
         let wallProba = 1 - fromIntegral nComps / fromIntegral countBlocks
-        validWorlds <- rights <$> generateAtLeastN 10000 (generate wallProba)
+        validWorlds <- rights <$> generateAtLeastN 10000 (NE.toList <$> generate wallProba)
         length validWorlds `shouldBe` 0)
       -- verify that the number of air blocks in worlds of that size with that count of components
       -- is according to what is expected, and that it is possible to reach the minimum.
       (\minAirCount -> do
         let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: Float
         successes <- generateAtLeastN nSuccesses $
-          map getSmallMatrix . rights <$> generate wallAirRatio
+          map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
         let z = zip (map countAirElements successes) successes
             minimals = filter (\(countAirElems, _) -> countAirElems == minAirCount) z
             totalSuccesses = n + length successes
@@ -160,13 +166,23 @@ testMinCountAirBlocks = do
 
     nSuccesses = 100 -- I verified the test passes also with 10000 but it is a lot slower.
 
-    -- we use 'unsafeMkSmallMat' because we want to test the lower bounds.
+    -- we use 'mkSmallMatUnchecked' because we want to test the lower bounds.
     -- with 'mkSmallMat', the test is not relevant.
     generate proba =
       matchAndVariate nComps
         (Just $ Variants
           (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
-          Nothing) <$> unsafeMkSmallMat gen proba sz
+          Nothing) <$> mkSmallMatUnchecked gen proba sz
+
+mkSmallMatUnchecked :: GenIO
+                    -> Float
+                    -- ^ Probability to generate a wall
+                    -> Size
+                    -- ^ Size of the matrix
+                    -> IO SmallMatInfo
+mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do
+  (nAir, l) <- mkWallsAndDescendingAirKeys wallAirRatio <$> replicateM (area s) (uniform gen)
+  return $ SmallMatInfo nAir $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) l
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

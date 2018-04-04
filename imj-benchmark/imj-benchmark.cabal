@@ -34,7 +34,7 @@ executable imj-benchmark-exe
   build-depends:       base >= 4.8 && < 4.11
                      , containers
                      , criterion
-                     , deepseq >= 1.1.0.0 && < 1.5
+                     , deepseq ==1.4.*
                      , imj-base
                      , imj-prelude ==0.1.*
                      , random < 1.2

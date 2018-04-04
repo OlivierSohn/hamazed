@@ -1,3 +1,9 @@
+- Handle TODOs wrt strictness in Cyclic, Space
+
+- when running a long test, we see memory increasing -> to investigate space leaks:
+https://wiki.haskell.org/Memory_leak
+https://queue.acm.org/detail.cfm?id=2538488
+
 - with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
 
 - benchmark IntSet vs. Set Int for Sums

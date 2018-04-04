@@ -1,11 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Main where
 
 import           Imj.Prelude
 
 import           Prelude(print, putStrLn, length, writeFile)
+import           Control.Concurrent.MVar.Strict (MVar, newMVar, modifyMVar_, readMVar)
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List hiding(intercalate, concat)
 import qualified Data.List as List(intercalate, concat)
@@ -13,6 +15,8 @@ import           Data.String(IsString(..))
 import           Data.Vector(fromList)
 import qualified Data.Vector.Unboxed as U(toList)
 import           Data.Word(Word32)
+import           Foreign.C.Types(CInt)
+import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 import           System.Random.MWC
 import           System.Timeout(timeout)
 
@@ -28,6 +32,7 @@ import           Imj.Util
 
 import           Imj.Random.MWC.Seeds
 
+
 -- commands used to profile:
 --
 -- for cost centers:
@@ -38,8 +43,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --writeSeedsSource
 
 justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
@@ -72,13 +77,25 @@ allWorlds =
     , (Size  8 18, ComponentCount 1, 0.7)
     ]
 
-forMLoudly :: String -> [a] -> (a -> IO b) -> IO [b]
+forMLoudly :: (Show a) => String -> [a] -> (a -> IO b) -> IO [b]
 forMLoudly name l act = do
   let count = length l
   forM (zip [1 :: Int ..] l)
     (\(i,v) -> do
-      putStrLn $ name ++ " " ++ show i ++ " of " ++ show count
+      putStrLn $ unwords [name, show i, "of", show count, ":", show v]
       act v)
+
+setToFalseOnTermination :: MVar Bool -> IO ()
+setToFalseOnTermination continue = mapM_ installHandlers
+   [sigINT, sigTERM]
+ where
+  installHandlers :: CInt -> IO ()
+  installHandlers sig =
+    void $ installHandler sig (Catch handleTermination) Nothing
+
+  handleTermination :: IO ()
+  handleTermination =
+    modifyMVar_ continue $ const $ return False
 
 profileAllProps :: IO ()
 profileAllProps = do
@@ -90,34 +107,58 @@ profileAllProps = do
   let ntests = length worlds * length strategies * nSeeds
   putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
   putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
+  -- setup handlers to stop the test with Ctrl+C if needed, and still get some results.
+  continue <- newMVar True
+  setToFalseOnTermination continue
   -- run benchmarks
   (totalDt, allRes) <- withDuration
     (zip worlds <$> forMLoudly "World" worlds
-      (\worldCharacteristics ->
-        zip strategies <$> forMLoudly "Strategy" strategies
-          (\strategy -> do
-            let p = mkProperties worldCharacteristics strategy
-            timeWithDifferentSeeds (timeout allowedDtMicros . profile p))
-        ))
+      (\worldCharacteristics -> readMVar continue >>= \case
+         True ->
+          zip strategies <$> forMLoudly "Strategy" strategies
+            (\strategy -> readMVar continue >>= \case
+               True -> do
+                let p = mkProperties worldCharacteristics strategy
+                -- fmap void snd : to drop the world results so that memory is not wasted.
+                res <- timeWithDifferentSeeds (\seed ->
+                  readMVar continue >>= bool
+                    (putStrLn "skipped" >> return Nothing)
+                    (timeout allowedDtMicros $ fmap (void snd) $ profile p seed))
+                bool [] res <$> readMVar continue -- avoid truncated measurements
+               False -> do
+                 putStrLn "skipped"
+                 return [])
+         False -> do
+           putStrLn "skipped"
+           return []))
   -- print results
   putStrLn $ "Timeout = " ++ show allowedDt
-  forM_ allRes
-    (\(worldCharac, worldResults) -> do
-      let labelsAndEitherTimeoutsTimes = map
-            (\(strategy, seedsResults) ->
-              ( fromString $ prettyShowMatrixVariants strategy
-              , case length seedsResults - length (mapMaybe snd seedsResults) of
-                  0 -> Right $ average $ map fst seedsResults
-                  nSeedsTimeouts -> Left nSeedsTimeouts))
-            worldResults
+  let printInterrupted = readMVar continue >>= bool
+        (putStrLn "Test was interrupted.")
+        (return ())
+      withInterrupted x = do
+        printInterrupted
+        void x
+        printInterrupted
 
-      mapM_ CS.putStrLn $
-        showQuantities''
-          allowedDt
-          (map snd labelsAndEitherTimeoutsTimes)
-          (map fst labelsAndEitherTimeoutsTimes)
-          $ fromString $ prettyShowSWCharacteristics worldCharac)
-  putStrLn $ "Actual test duration = " ++ show totalDt
+  withInterrupted $ do
+    forM_ allRes
+      (\(worldCharac, worldResults) -> do
+        let labelsAndEitherTimeoutsTimes = map
+              (\(strategy, seedsResults) ->
+                ( fromString $ prettyShowMatrixVariants strategy
+                , case length seedsResults - length (mapMaybe snd seedsResults) of
+                    0 -> Right $ average $ map fst seedsResults
+                    nSeedsTimeouts -> Left nSeedsTimeouts))
+              worldResults
+
+        mapM_ CS.putStrLn $
+          showQuantities''
+            allowedDt
+            (map snd labelsAndEitherTimeoutsTimes)
+            (map fst labelsAndEitherTimeoutsTimes)
+            $ fromString $ prettyShowSWCharacteristics worldCharac)
+    putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
   !allowedDt = fromSecs 100

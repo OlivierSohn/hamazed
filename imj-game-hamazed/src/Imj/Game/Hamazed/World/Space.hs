@@ -47,7 +47,7 @@ import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
 import qualified Data.Vector.Unboxed as V
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
-import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
+import qualified Imj.Data.Graph as Directed(Vertex,graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -632,6 +632,19 @@ getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMat
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
+data GraphNode = Node !Directed.Vertex [Directed.Vertex]
+
+data GraphCreationState = GC {
+    _listNodes :: [GraphNode]
+  , _nMinComps :: !ComponentCount
+  , _canContinue :: !Bool
+  , _oneMulti :: !Bool
+}
+{-# INLINE mkGraphCreationState #-}
+mkGraphCreationState :: GraphCreationState
+mkGraphCreationState = GC [] 0 True False
+
+
 -- | Creates an undirected graph, and returns a lower bound of the number of components:
 -- we count the mono-node components while creating the graph, and add 1 to that number
 -- if there is at least one multi-node component.
@@ -653,39 +666,44 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       then
         Just $ BV.create $ do
           v <- BVM.new nAirKeys
-          forM_ listNodes (uncurry (BVM.write v))
+          forM_ listNodes (\(Node key neighbours) -> BVM.write v key neighbours)
           return v
       else
         Nothing
 
   -- TODO try iterating on elem index, and compute the row and col ( when colIdx == ncol, colIdx = 0, ++rowIdx)
-  (listNodes, nMinCompsFinal, canContinue, _) = -- TODO use a strict data type (see https://www.fpcomplete.com/blog/2017/09/all-about-strictness)
-    List.foldl' (\res'@(ln',nMinComps', continue', oneMulti') row ->
+  (GC listNodes nMinCompsFinal canContinue _) =
+    List.foldl' (\res'@(GC _ _ continue' _) row ->
       bool res'
         (let !iRow = row * nCols
-         in List.foldl' (\res@(ln,nMinComps,continue,oneMulti) col ->
+         in List.foldl' (\res@(GC ln nMinComps continue oneMulti) col ->
               bool res
                 (let !matIdx = iRow + col
                  in case Cyclic.unsafeGetByIndex matIdx mat of
                         MaterialAndKey (-1) -> res
                         MaterialAndKey k ->
-                          let !neighbours = neighbourAirKeys matIdx row col
-                              !isMono = null neighbours
-                              !newNMinComps = bool (bool (nMinComps+1) nMinComps oneMulti) (1+nMinComps) isMono
-                              !willContinue = newNMinComps < tooBigNComps
-                              !newList =
+                          let neighbours = neighbourAirKeys matIdx row col
+                              isMono = null neighbours
+                              newNMinComps =
+                                bool
+                                  (bool (nMinComps+1) nMinComps oneMulti)
+                                  (1+nMinComps)
+                                  isMono
+                              willContinue = newNMinComps < tooBigNComps
+                              newList =
                                 bool [] -- drop the list if we don't continue
-                                  ((k,neighbours):ln)
+                                  (Node k neighbours:ln)
                                   willContinue
-                          in (newList
-                             , newNMinComps
-                             , willContinue
-                             , not isMono || oneMulti))
+                          in GC
+                               newList
+                               newNMinComps
+                               willContinue
+                               $ not isMono || oneMulti)
                 continue)
-            (ln',nMinComps',continue',oneMulti')
+            res'
             [0..nCols-1])
         continue')
-      ([],0,True, False)
+      mkGraphCreationState
       [0..nRows-1]
 
   neighbourAirKeys :: Int -> Int -> Int -> [Int]

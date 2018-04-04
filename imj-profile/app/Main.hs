@@ -43,8 +43,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --writeSeedsSource
 
 justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
@@ -166,8 +166,13 @@ profileAllProps = do
 
   worlds = allWorlds
   strategies =
-    Nothing :
-    map Just (justVariantsWithoutRotations ++ concatMap justVariantsWithRotations margins)
+    Nothing : -- i.e no variant, use only random matrices.
+    map
+      Just
+      (justVariantsWithoutRotations ++ -- variants using only interleaved variations
+      concatMap
+        justVariantsWithRotations -- variants using rotations
+        margins)
   margins = [1..10]
 
 

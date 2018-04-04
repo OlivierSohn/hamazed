@@ -220,7 +220,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
     go' !i !stats = continue >>= bool
       (return (NeedMoreTime, stats))
         -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-      (fmap (foldStats . either
+      (fmap (foldStats stats . either
           ((:|[]) . Left)
           -- stop at first success
           (takeWhilePlus isLeft . matchAndVariate' branch))
@@ -230,11 +230,6 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
           (const $ go' (i+1) newStats)
           (\su -> return (Success su, finalizeStats i newStats))
           res)
-     where
-      -- gathers 'Statistics' of 'TopoMatch'es and returns the last 'TopoMatch'.
-      foldStats :: NonEmpty TopoMatch -> BestRandomMatrixVariation
-      foldStats (x:|xs) =
-        List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x stats) xs
 
     !rndMatSamplingPeriod = 1000
 
@@ -256,6 +251,11 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
     wallProba = fromMaybe (error "logic") $ mapRange 0 1 minWallProba maxWallProba userWallProba
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
+
+-- gathers 'Statistics' of 'TopoMatch'es and returns the last 'TopoMatch'.
+foldStats :: Statistics -> NonEmpty TopoMatch -> BestRandomMatrixVariation
+foldStats stats (x:|xs) =
+  List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x $ addToStats x stats) xs
 
 addMkRandomMatDuration :: Time Duration System -> Statistics -> Statistics
 addMkRandomMatDuration dt s =
@@ -671,7 +671,6 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       else
         Nothing
 
-  -- TODO try iterating on elem index, and compute the row and col ( when colIdx == ncol, colIdx = 0, ++rowIdx)
   (GC listNodes nMinCompsFinal canContinue _) =
     List.foldl' (\res'@(GC _ _ continue' _) row ->
       bool res'

@@ -12,7 +12,7 @@ module Imj.Game.Hamazed.Loop.Run
       ) where
 
 import           Imj.Prelude
-import           Prelude (putStrLn, putStr, getLine, toInteger)
+import           Prelude ( putStr, toInteger)
 
 import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
@@ -38,7 +38,6 @@ import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
 import           System.Environment(getArgs)
 import           System.Info(os)
-import           System.IO(hFlush, stdout)
 import           Text.Read(readMaybe)
 
 import           Imj.Game.Hamazed.Types
@@ -60,7 +59,7 @@ import           Imj.Graphics.Font
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
-import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
+import           Imj.Graphics.Text.ColorString hiding(putStr)
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.Render
 import           Imj.Log
@@ -160,8 +159,7 @@ runWithArgs =
               <> short 'r'
               <> help (
               "[Client] 'console': play in the console. " ++
-              "'opengl': play in an opengl window. When omitted, the player " ++
-              "will be asked to chose interactively." ++
+              "'opengl': play in an opengl window (default value)." ++
               renderHelp)
               ))
       <*> optional
@@ -316,25 +314,6 @@ suggestedPlayerName =
                      ++ renderHelp
     name -> return $ SuggestedPlayerName name
 
-userPicksBackend :: IO BackendType
-userPicksBackend = do
-  putStrLn ""
-  putStrLn " Welcome to Hamazed!"
-  putStrLn ""
-  putStrLn " - Press (1) then (Enter) to play in the console."
-  putStrLn "     An error message will inform you if your console is too small."
-  putStrLn "          [Equivalent to passing '-r console']"
-  putStrLn " - Press (2) then (Enter) to play in a separate window (enables more rendering options)."
-  putStrLn "          [Equivalent to passing '-r opengl']"
-  putStrLn ""
-  hFlush stdout -- just in case stdout BufferMode is "block"
-  getLine >>= \case
-    "1" -> return Console
-    "2" -> return OpenGLWindow
-    c -> do
-      baseLog $ colored ("invalid value : " <> pack c) red
-      userPicksBackend
-
 runWithBackend :: Bool
                -> Maybe ServerName
                -> Maybe ServerPort
@@ -379,9 +358,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
         startServerIfLocal srv ready
       else do
         printClientArgs
-        -- userPicksBackend must run before 'startServerIfLocal' where we install the termination handlers,
-        -- because we want the user to be able to stop the program now.
-        backend <- maybe userPicksBackend return maybeBackend
+        let backend = fromMaybe OpenGLWindow maybeBackend
         case backend of
           Console -> do
             when (isJust mayPPU) $

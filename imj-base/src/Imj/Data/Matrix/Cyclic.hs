@@ -43,9 +43,10 @@ module Imj.Data.Matrix.Cyclic (
 import           Imj.Prelude
 import           Prelude(length, and)
 
-import           Control.DeepSeq(NFData(..))
+import           Control.DeepSeq(NFData(..), force)
 import           Control.Loop (numLoop)
 import           Data.Binary(Binary(..))
+import Data.Traversable(traverse)
 import           GHC.Generics (Generic)
 -- Data
 import           Data.List(foldl', take, concat)
@@ -175,6 +176,10 @@ mapMat :: (Unbox a, Unbox b)
         -> Matrix a -> Matrix b
 mapMat func (M a b c v) = M a b c $ V.map func v
 
+data InterleavedVariationState a = IVS {
+    _refMat :: !(Matrix a)
+  , _producedMats :: [Matrix a]
+}
 
 -- Benchmarks show that foldr is slower than foldl' here.
 {-# INLINE produceUsefulInterleavedVariations #-}
@@ -182,30 +187,23 @@ produceUsefulInterleavedVariations :: Unbox a
                                    => Matrix a
                                    -> [Matrix a]
 produceUsefulInterleavedVariations x@(M rows cols _ _) =
-  snd $ foldl' -- TODO verify adding 2 force doesn't change memory needed (or uses less), and runs faster
-    (\(m,prevResults) i ->
+  _producedMats $ foldl'
+    (\(IVS m prevResults) i ->
       let fi = bool reorderRows id $ i == 0
           m' = fi m
-          (_,intermediateResults) = foldl'
-            (\(n, l) j ->
+          (IVS _ intermediateResults) = foldl'
+            (\(IVS n l) j ->
               let fj = bool reorderCols id $ j == 0
                   n' = fj n
-              in (n', n':l))
-            (m', prevResults)
+              in IVS n' $ n':l)
+            (IVS m' prevResults)
             [0..nColVar-1]
-      in (m', intermediateResults))
-    (x,[])
+      in IVS m' intermediateResults)
+    (IVS x [])
     [0..nRowVar-1]
  where
   (nRowVar, interleaveRows) = getInterleavedInfos rows
   (nColVar, interleaveCols) = getInterleavedInfos cols
-
-  -- TODO benchark difference with current implementation.
-  -- TODO benchark difference between iterate and iterate'
-  iterate' f x = x `seq` x : iterate' f (f x)
-  rowsRotated = take nRowVar $ iterate' reorderRows x
-  colsRotated = take nColVar . iterate' reorderCols
-  res = concatMap colsRotated rowsRotated -- TODO drop 1 here if benchmarks are ok
 
   reorderRows m =
     matrix rows cols $ \i j ->

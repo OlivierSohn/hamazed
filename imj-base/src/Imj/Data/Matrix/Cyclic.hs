@@ -43,12 +43,10 @@ module Imj.Data.Matrix.Cyclic (
 import           Imj.Prelude
 import           Prelude(length, and)
 
-import           Control.DeepSeq(NFData(..), force)
+import           Control.DeepSeq(NFData(..))
 import           Control.Loop (numLoop)
 import           Data.Binary(Binary(..))
-import Data.Traversable(traverse)
 import           GHC.Generics (Generic)
--- Data
 import           Data.List(foldl', take, concat)
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed         as V hiding(Unbox)

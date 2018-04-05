@@ -15,7 +15,7 @@ import           Data.Text.Lazy.IO(writeFile)
 import           Clay
 
 mkCss :: Css
-mkCss = "*" ? do -- * to apply the properties to all content type
+mkCss = "*" ? do -- to apply the properties to all content type
   font ( Optional Nothing Nothing Nothing
        , Required (px 12) Nothing [] [monospace]
        )

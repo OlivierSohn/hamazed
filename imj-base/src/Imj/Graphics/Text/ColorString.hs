@@ -76,8 +76,13 @@ instance PrettyVal ColorString where
   prettyVal c = prettyVal $ map fst $ simplify c
 instance ToMarkup ColorString where
   toMarkup (ColorString x) =
-    mconcat <$> forM x (\(txt, LayeredColor _ fg) ->
-      H.span H.! A.style (H.textValue $ colorToHtml $ color8ToRGB256 fg) $
+    mconcat <$> forM x (\(txt, LayeredColor bg fg) ->
+      H.span
+        H.! A.style
+          (H.textValue $
+            colorToHtml (color8ToRGB256 fg) <>
+            "background-" <>
+            colorToHtml (color8ToRGB256 bg)) $
         H.text $ transformSpaces txt)
    where
     -- browsers concatenate consecutive spaces. Hence, to preserve formatting,

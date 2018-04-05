@@ -103,7 +103,7 @@ showTestResults l labels title =
     (fromString . (\case
       SomeTimeout n dt -> unwords [show n, showQty dt, "Timeout"]
       Finished dt -> showQty $ mean dt
-      Cancelled -> "Cancelled" ))
+      Cancelled -> "..." ))
       l
 
   normalizedQuantities = IMap.union validOrTimeoutNormalizedQuantities cancelledNormalizedQuantities

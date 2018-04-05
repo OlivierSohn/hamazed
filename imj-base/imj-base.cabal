@@ -134,6 +134,7 @@ library
                      , ansi-terminal ==0.8.*
                      , array == 0.5.*
                      , binary == 0.8.*
+                     , blaze-html ==0.9.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers ==0.5.*

@@ -21,12 +21,19 @@ library
   hs-source-dirs:      src
   exposed-modules:     Imj.Random.MWC.Seeds
                      , Imj.Profile.Render
+                     , Imj.Profile.Render.Characters
+                     , Imj.Profile.Render.Clay
+                     , Imj.Profile.Render.Blaze
                      , Imj.Profile.Result
   other-modules:
   build-depends:       base >= 4.8 && < 4.11
+                     , blaze-html ==0.9.*
+                     , bytestring == 0.10.*
+                     , clay ==0.12.*
                      , containers ==0.5.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
+                     , text >=1.2.3 && < 1.3
   default-language:    Haskell2010
 
 

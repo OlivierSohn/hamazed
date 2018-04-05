@@ -42,7 +42,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
 import           Imj.Prelude
 
 import           Control.Monad.Reader.Class(asks)
-import           Data.Char(isSpace)
+import           Data.Char(isSpace, chr)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text(putStrLn, putStr)
@@ -50,6 +50,9 @@ import           Data.Text.Lazy(toStrict)
 import           Data.Text.Lazy.Builder(Builder, toLazyText)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
 import qualified Data.List as List(length, concat, splitAt)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
+import           Text.Blaze.Html5(ToMarkup(..))
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
@@ -67,10 +70,25 @@ instance Monoid ColorString where
   mempty = ColorString []
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 -- we can't use the Generic one because of missing instance for 'Text'
-instance PrettyVal ColorString where
-  prettyVal c = prettyVal $ map fst $ simplify c
 instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, whiteOnBlack)]
+instance PrettyVal ColorString where
+  prettyVal c = prettyVal $ map fst $ simplify c
+instance ToMarkup ColorString where
+  toMarkup (ColorString x) =
+    mconcat <$> forM x (\(txt, LayeredColor _ fg) ->
+      H.span H.! A.style (H.textValue $ colorToHtml $ color8ToRGB256 fg) $
+        H.text $ transformSpaces txt)
+   where
+    -- browsers concatenate consecutive spaces. Hence, to preserve formatting,
+    -- we replace spaces by &nbsp; (160)
+    transformSpaces = Text.replace " " $ Text.singleton $ chr 160
+    {-
+      mconcat <$> forM x $ \(txt, (LayeredColor _ fg)) -> do
+        H.span
+          H.! A.style (fromString $ colorToHtml fg)
+          (H.text $ transformSpaces txt)
+          -}
 instance Characters ColorString where
   length = countChars
   empty (ColorString x) = null x || all (Text.null . fst) x

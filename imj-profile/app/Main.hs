@@ -25,6 +25,7 @@ import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import qualified Imj.Graphics.Text.ColorString as CS(putStrLn)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Profile.Render.Characters
 import           Imj.Profile.Render
 import           Imj.Profile.Result
 import           Imj.Timing
@@ -142,27 +143,28 @@ profileAllProps = do
         printInterrupted
 
   withInterrupted $ do
-    forM_ allRes
+    forM allRes
       (\(worldCharac, worldResults) -> do
-        let labelsAndEitherTimeoutsTimes = map
-              (\(strategy, mayResults) ->
-                ( fromString $ prettyShowMatrixVariants strategy
-                , maybe
-                    Cancelled
-                    (\results ->
-                      let tds = testDurations results
-                      in case length tds - length (mapMaybe testResult tds) of
-                        0 -> Finished results
-                        n -> SomeTimeout n)
-                    mayResults
-                  ))
-              worldResults
+          let labelsAndEitherTimeoutsTimes = map
+                (\(strategy, mayResults) ->
+                  ( fromString $ prettyShowMatrixVariants strategy
+                  , maybe
+                      Cancelled
+                      (\results ->
+                        let tds = testDurations results
+                        in case length tds - length (mapMaybe testResult tds) of
+                          0 -> Finished results
+                          n -> SomeTimeout n)
+                      mayResults
+                    ))
+                worldResults
+              resultsAsCS = showTestResults allowedDt
+                (map snd labelsAndEitherTimeoutsTimes)
+                (map fst labelsAndEitherTimeoutsTimes)
+                $ fromString $ prettyShowSWCharacteristics worldCharac
+          mapM_ CS.putStrLn resultsAsCS
+          return resultsAsCS) >>= renderResults . mconcat
 
-        mapM_ CS.putStrLn $
-          showTestResults allowedDt
-            (map snd labelsAndEitherTimeoutsTimes)
-            (map fst labelsAndEitherTimeoutsTimes)
-            $ fromString $ prettyShowSWCharacteristics worldCharac)
     putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed

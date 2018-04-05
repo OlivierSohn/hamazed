@@ -346,8 +346,8 @@ draw ppu size font rs col row char bg fg
       drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 bR bG (bB :: GL.GLfloat)
       renderChar font ppu size col row char $ GL.Color3 fR fG (fB :: GL.GLfloat)
  where
-   (bR,bG,bB) = color8ToUnitRGB bg
-   (fR,fG,fB) = color8ToUnitRGB fg
+   (UnitColor bR bG bB) = color8ToUnitRGB bg
+   (UnitColor fR fG fB) = color8ToUnitRGB fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()

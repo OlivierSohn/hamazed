@@ -30,6 +30,7 @@ module Imj.Graphics.Color.Types
           , Xterm256Color(..)
           , color8CodeToXterm256
           , xterm256ColorToCode
+          , color8ToRGB256
           , onBlack
           , whiteOnBlack
           , red, green, blue
@@ -38,6 +39,9 @@ module Imj.Graphics.Color.Types
           , lime
           , white, black
           , RGB(..)
+          , UnitColor(..)
+          , RGB256(..)
+          , colorToHtml
           ) where
 
 import           Imj.Prelude
@@ -277,16 +281,33 @@ data Xterm256Color a = RGBColor !RGB
                      deriving (Eq, Show, Read)
 
 
-color8ToUnitRGB :: Color8 a -> (Float, Float, Float)
+data UnitColor = UnitColor {-# UNPACK #-} !Float {-# UNPACK #-} !Float {-# UNPACK #-} !Float
+color8ToUnitRGB :: Color8 a -> UnitColor
 color8ToUnitRGB c =
-  case color8CodeToXterm256 c of
-    RGBColor (RGB r g b) -> (rgbToUnit r,rgbToUnit g,rgbToUnit b)
-    GrayColor g -> let v = grayToUnit g in (v,v,v)
+    UnitColor (fromIntegral r/255) (fromIntegral g/255) (fromIntegral b/255)
   where
-    rgbToUnit :: Int -> Float
-    rgbToUnit x = fromIntegral (xtermMapRGB8bitComponent x) / 255
-    grayToUnit :: Int -> Float
-    grayToUnit gr = fromIntegral (xtermMapGray8bitComponent gr) / 255
+    (RGB256 r g b) = color8ToRGB256 c
+
+data RGB256 = RGB256 !Int !Int !Int
+
+colorToHtml :: RGB256 -> Text
+colorToHtml (RGB256 r g b) =
+  "color:rgb(" <>
+  pack (intercalate "," $ map show [r,g,b]) <>
+  ");"
+
+{-# INLINE color8ToRGB256 #-}
+color8ToRGB256 :: Color8 a -> RGB256
+color8ToRGB256 c =
+  case color8CodeToXterm256 c of
+    RGBColor (RGB r g b) ->
+      RGB256
+        (xtermMapRGB8bitComponent r)
+        (xtermMapRGB8bitComponent g)
+        (xtermMapRGB8bitComponent b)
+    GrayColor g ->
+      let v = xtermMapGray8bitComponent g
+      in RGB256 v v v
 
 
 -- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)

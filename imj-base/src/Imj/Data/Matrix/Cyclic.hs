@@ -8,7 +8,7 @@
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
     Matrix
-  , nrows , ncols, nelems, rotation
+  , nelems, nrows, ncols, rotation
     -- * Builders
   , matrix
   , rowVector
@@ -28,7 +28,7 @@ module Imj.Data.Matrix.Cyclic (
   , diagonal
   , permMatrix
     -- * List conversions
-  , fromList , fromLists, toLists
+  , fromList, fromLists, fromVector, toLists
     -- * Accessing
   , getElem , unsafeGet, safeGet, getRow, getCol
   , unsafeGetByIndex
@@ -48,6 +48,7 @@ import           Control.Loop (numLoop)
 import           Data.Binary(Binary(..))
 import           GHC.Generics (Generic)
 import           Data.List(foldl', take, concat)
+import           Data.Vector.Binary()
 import           Data.Vector.Unboxed(Unbox)
 import qualified Data.Vector.Unboxed         as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV
@@ -88,18 +89,7 @@ instance (Eq a, Unbox a)
 instance NFData (Matrix a) where
  rnf = rnf . mvect
 
-instance (Binary a, Unbox a) => Binary (Matrix a) where
-  put (M a b c d) = do
-    put a
-    put b
-    put c
-    put $ V.toList d
-  get = do
-    a <- get
-    b <- get
-    c <- get
-    d <- V.fromList <$> get
-    return $ M a b c d
+instance (Binary a, Unbox a) => Binary (Matrix a)
 
 data RotationOrder =
     Order1 -- rotation across all rows, then rotation across all columns
@@ -288,6 +278,17 @@ diagonal :: (Unbox a)
 diagonal e v = matrix n n $ \i j -> if i == j then V.unsafeIndex v i else e
   where
     n = V.length v
+
+fromVector :: (Unbox a)
+           => Int -- ^ Rows
+           -> Int -- ^ Columns
+           -> V.Vector a -- ^ Vector of elements
+           -> Matrix a
+{-# INLINE fromVector #-}
+fromVector n m v
+  | n * m == len = M n m 0 v
+  | otherwise = error $ "Wrong size " ++ show (n,m,len)
+  where len = V.length v
 
 -- | Create a matrix from a non-empty list given the desired size.
 --   The list must have at least /rows*cols/ elements.

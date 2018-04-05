@@ -10,7 +10,7 @@ import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
 import           Data.List(foldl', take, concat)
 import qualified Data.List.NonEmpty as NE(toList)
-import           System.Random.MWC(GenIO, create, uniform)
+import           System.Random.MWC(GenIO, create)
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
@@ -181,8 +181,8 @@ mkSmallMatUnchecked :: GenIO
                     -- ^ Size of the matrix
                     -> IO SmallMatInfo
 mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do
-  (nAir, l) <- mkWallsAndDescendingAirKeys wallAirRatio <$> replicateM (area s) (uniform gen)
-  return $ SmallMatInfo nAir $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) l
+  (nAir, v) <- mkSmallVector gen wallAirRatio $ area s
+  return $ SmallMatInfo nAir $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

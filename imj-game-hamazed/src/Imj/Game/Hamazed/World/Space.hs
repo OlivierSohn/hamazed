@@ -20,16 +20,17 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     -- for tests
-    , mkWallsAndDescendingAirKeys
     , matchAndVariate
     , mkSmallWorld
     , mkSmallMat
+    , mkSmallVector
     , matchTopology
     , TopoMatch
     ) where
 
 import           Imj.Prelude
 
+import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Either(isLeft)
 import           Data.List(length, sortOn, replicate, take)
@@ -526,12 +527,13 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       lookupComponent i = (V.!) keyToComponent i
 
       keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
-      keyToComponent = V.create $ do
-        v <- VM.new nAirKeys
-        mapM_
-          (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
-          $ zip [0 :: ComponentIdx ..] comps
-        return v
+      keyToComponent =
+        runST $ do
+          v <- VM.new nAirKeys
+          mapM_
+            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
+            $ zip [0 :: ComponentIdx ..] comps
+          V.unsafeFreeze v
 
 
 mkSmallMat :: GenIO
@@ -545,30 +547,31 @@ mkSmallMat :: GenIO
 mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAirCount minWallCount countBlocks)
   | countBlocks /= nRows * nCols = error "logic"
   | minAirCount + minWallCount > countBlocks = error "logic" -- this is checked when creating 'LowerBounds'
-  | otherwise = go <$> replicateM countBlocks (uniform gen)
+  | otherwise = go <$> mkSmallVector gen wallProba countBlocks
  where
-  go floats
+  go (countAirBlocks, materialsAndKeys)
    | countAirBlocks < minAirCount = Left $ NotEnough Air
    | countWallBlocks < minWallCount = Left $ NotEnough Wall
-   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromList nRows nCols wallsAndDescendingAirKeys
+   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromVector nRows nCols materialsAndKeys
    where
-    (!countAirBlocks, wallsAndDescendingAirKeys) = mkWallsAndDescendingAirKeys wallProba floats
-
     !countWallBlocks = countBlocks - countAirBlocks
 
-
-mkWallsAndDescendingAirKeys :: Float -- probability of a wall
-                            -> [Float] -- produced by randBiased
-                            -> (Int, [MaterialAndKey])
-mkWallsAndDescendingAirKeys wallProba =
-  go 0 []
- where
-  go !k l [] = (k, l)
-  go !k l (p:ps)
-   -- Air
-   | p > wallProba = go (k+1) (MaterialAndKey k   :l) ps
-   -- Wall
-   | otherwise     = go k     (MaterialAndKey (-1):l) ps
+mkSmallVector :: GenIO
+              -> Float
+              -- ^ Probability to generate a wall
+              -> Int
+              -> IO (Int, V.Vector MaterialAndKey)
+mkSmallVector gen wallProba countBlocks = do
+  v <- VM.new countBlocks
+  countAirKeys <- foldM
+    (\k i -> do
+      float <- uniform gen :: IO Float
+      let (k', materialAndKey) = bool (k, MaterialAndKey $ -1) (k+1, MaterialAndKey k) $ float > wallProba
+      VM.write v i materialAndKey
+      return k')
+    0
+    [0..countBlocks-1]
+  (,) countAirKeys <$> V.unsafeFreeze v -- we don't modify v so we use unsafeFreeze to avoid a copy
 
 {-# INLINE countSmallCCElts #-}
 countSmallCCElts :: ConnectedComponent -> Int
@@ -664,10 +667,10 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
   mayGraph =
     if canContinue
       then
-        Just $ BV.create $ do
+        Just $ runST $ do
           v <- BVM.new nAirKeys
           forM_ listNodes (\(Node key neighbours) -> BVM.write v key neighbours)
-          return v
+          BV.unsafeFreeze v
       else
         Nothing
 

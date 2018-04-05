@@ -43,8 +43,8 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --writeSeedsSource
 
 justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
@@ -161,7 +161,8 @@ profileAllProps = do
     putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 100
+  !allowedDt = fromSecs 40 -- TODO this timeout should be dynamic : with the first seed, measure all tests and use fastest * 50
+  -- in general, it would be interesting to chose the seed on the outer loop.
   !allowedDtMicros = fromIntegral $ toMicros allowedDt
 
   worlds = allWorlds
@@ -173,7 +174,7 @@ profileAllProps = do
       concatMap
         justVariantsWithRotations -- variants using rotations
         margins)
-  margins = [1..10]
+  margins = [1..7]
 
 
 profile :: Properties -> GenIO -> IO (MkSpaceResult SmallWorld, Statistics)

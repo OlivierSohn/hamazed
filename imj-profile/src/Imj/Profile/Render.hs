@@ -101,7 +101,8 @@ showTestResults timeoutValue l labels title =
     (Just [ title
           , ""
           , fromString $ List.unwords ["Best:", bestValStr]
-          , ""]) body
+          , ""
+          , "Deviation"]) body
  where
   lMap = IMap.fromDistinctAscList $ zip [0..] l
 

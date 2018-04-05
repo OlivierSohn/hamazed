@@ -100,9 +100,9 @@ showTestResults :: Characters s
 showTestResults timeoutValue l labels title =
   showArrayN
     (Just [ title
-          , ""
-          , fromString $ List.unwords ["Best:", bestValStr]
-          , "Disp"
+          , fromString $ List.unwords ["Best mean:", bestValStr]
+          , "Mean"
+          , "Dispersion"
           , ""]) body
  where
   lMap = IMap.fromDistinctAscList $ zip [0..] l
@@ -138,7 +138,7 @@ showTestResults timeoutValue l labels title =
     SomeTimeout n -> unwords [show n, "Timeout(s)", showTime timeoutValue]
     Finished x -> showTime $ mean x
 
-  barSize = 50 :: Int
+  barSize = 25 :: Int
   graphical = map
     (maybe
       "?"

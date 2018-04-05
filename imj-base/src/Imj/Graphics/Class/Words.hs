@@ -11,7 +11,7 @@ module Imj.Graphics.Class.Words
 
 import qualified Prelude(splitAt, length)
 
-import           Imj.Prelude hiding(unwords, words)
+import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)

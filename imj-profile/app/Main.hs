@@ -20,13 +20,13 @@ import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigT
 import           System.Random.MWC
 import           System.Timeout(timeout)
 
-import           Imj.Data.Class.Quantifiable
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 
 import qualified Imj.Graphics.Text.ColorString as CS(putStrLn)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Graphics.Text.Render
+import           Imj.Profile.Render
+import           Imj.Profile.Result
 import           Imj.Timing
 import           Imj.Util
 
@@ -111,7 +111,7 @@ profileAllProps = do
   continue <- newMVar True
   setToFalseOnTermination continue
   -- run benchmarks
-  (totalDt, allRes) <- withDuration
+  (TestDuration totalDt allRes) <- withTestDuration
     (zip worlds <$> forMLoudly "World" worlds
       (\worldCharacteristics -> readMVar continue >>= \case
          True ->
@@ -119,15 +119,15 @@ profileAllProps = do
             (\strategy -> readMVar continue >>= \case
                True -> do
                 let p = mkProperties worldCharacteristics strategy
-                -- fmap void snd : to drop the world results so that memory is not wasted.
                 res <- timeWithDifferentSeeds (\seed ->
                   readMVar continue >>= bool
                     (putStrLn "skipped" >> return Nothing)
+                    -- fmap void snd : to drop the world results so that memory is not wasted.
                     (timeout allowedDtMicros $ fmap (void snd) $ profile p seed))
-                bool [] res <$> readMVar continue -- avoid truncated measurements
+                bool Nothing (Just res) <$> readMVar continue -- avoid truncated measurements
                False -> do
                  putStrLn "skipped"
-                 return [])
+                 return Nothing)
          False -> do
            putStrLn "skipped"
            return []))
@@ -145,23 +145,28 @@ profileAllProps = do
     forM_ allRes
       (\(worldCharac, worldResults) -> do
         let labelsAndEitherTimeoutsTimes = map
-              (\(strategy, seedsResults) ->
+              (\(strategy, mayResults) ->
                 ( fromString $ prettyShowMatrixVariants strategy
-                , case length seedsResults - length (mapMaybe snd seedsResults) of
-                    0 -> Right $ average $ map fst seedsResults
-                    nSeedsTimeouts -> Left nSeedsTimeouts))
+                , maybe
+                    Cancelled
+                    (\results ->
+                      let tds = testDurations results
+                      in case length tds - length (mapMaybe testResult tds) of
+                        0 -> Finished results
+                        nSeedsTimeouts -> SomeTimeout nSeedsTimeouts allowedDt)
+                    mayResults
+                  ))
               worldResults
 
         mapM_ CS.putStrLn $
-          showQuantities''
-            allowedDt
+          showTestResults
             (map snd labelsAndEitherTimeoutsTimes)
             (map fst labelsAndEitherTimeoutsTimes)
             $ fromString $ prettyShowSWCharacteristics worldCharac)
     putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 40 -- TODO this timeout should be dynamic : with the first seed, measure all tests and use fastest * 50
+  !allowedDt = fromSecs 40 -- TODO this timeout should be dynamic
   -- in general, it would be interesting to chose the seed on the outer loop.
   !allowedDtMicros = fromIntegral $ toMicros allowedDt
 
@@ -194,7 +199,7 @@ profileLargeWorld = do
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
         (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
   print props
-  withNumberedSeed (withDuration . profile props) 0 >>= print
+  withNumberedSeed (withTestDuration . profile props) 0 >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do
@@ -202,8 +207,8 @@ profileInterleave0MarginRotateOrder1 = do
         (SWCharacteristics (Size 32 72) (ComponentCount 1) 0.2)
         (Just $ Variants (pure Interleave) $ Just $ Variants (pure $ Rotate $ RotationDetail 0 Cyclic.Order1) Nothing)
   print props
-  withNumberedSeed (withDuration . profile props) 0 >>= print
---  withDifferentSeeds (withDuration . profile props) >>= print
+  withNumberedSeed (withTestDuration . profile props) 0 >>= print
+--  withDifferentSeeds (withTestDuration . profile props) >>= print
 
 nSeeds :: Int
 nSeeds = 11
@@ -224,13 +229,12 @@ withNumberedSeed act i = do
   act gen
 
 -- | Drops the first measurement.
-timeWithDifferentSeeds_ :: (GenIO -> IO a) -> IO [Time Duration System]
-timeWithDifferentSeeds_ = fmap (map fst) . timeWithDifferentSeeds
-
--- | Drops the first measurement.
-timeWithDifferentSeeds :: (GenIO -> IO a) -> IO [(Time Duration System, a)]
+timeWithDifferentSeeds :: (GenIO -> IO a) -> IO (TestDurations a)
 timeWithDifferentSeeds act =
-  drop 1 <$> withDifferentSeeds (withDuration . act)
+  mkTestDurations . drop 1 <$> withDifferentSeeds (withTestDuration . act)
+
+withTestDuration :: IO a -> IO (TestDuration a)
+withTestDuration = fmap (uncurry TestDuration) . withDuration
 
 writeSeedsSource :: IO ()
 writeSeedsSource =

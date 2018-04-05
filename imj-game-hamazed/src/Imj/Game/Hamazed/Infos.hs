@@ -9,7 +9,7 @@ module Imj.Game.Hamazed.Infos
       , InfoType(..)
       ) where
 
-import           Imj.Prelude hiding(unwords)
+import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.Map.Strict((!?))

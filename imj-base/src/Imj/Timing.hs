@@ -63,7 +63,7 @@ import           Prelude(fromInteger)
 import           Control.DeepSeq(NFData(..))
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
-import qualified Data.List as List(intercalate)
+import qualified Data.List as List
 import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
@@ -213,7 +213,7 @@ showTime :: Time a b -> String
 showTime (Time x)
  | minutes == 0 = usVal
  | us == 0 = minutesVal
- | otherwise = unwords [minutesVal, usVal]
+ | otherwise = List.unwords [minutesVal, usVal]
  where
   minutesVal = show minutes ++ " (min)"
   (minutes, us) = quotRem us' $ fromIntegral oneMinuteAsMs

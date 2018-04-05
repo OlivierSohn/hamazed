@@ -1,3 +1,15 @@
+- global timeout (100) + adaptive timeout : when only one seed is known, apply a x100 factor.
+2 seeds -> x50
+etc..
+
+so it will be
+
+fold
+100 -- initial value for global timeout, can only decrease from now on.
+[100, 50, , 25, , , , 12.5]
+
+- display the variance in our tests (a second measurement) : we may prefer a low variance with worse mean.
+
 - when running a long test, we see memory increasing -> to investigate space leaks:
 https://wiki.haskell.org/Memory_leak
 https://queue.acm.org/detail.cfm?id=2538488
@@ -21,79 +33,12 @@ sliding rows / columns randomly
   last element of the last column becomes the first element of the first column, maybe that's a problem
   as it breaks the topology in two ways (that's one too much!).)
 
-- benchmark alternative rotations:
-  - modulo ()
-  - circle around 0,0, then diagonally
+- benchmark alternative variations:
+  - rotate around 0,0, then diagonally
+  - modulo (take one element out of n, offset if needed to cover all elements)
 - limit the number of interleavings?
 
-- Averaged on different seed:
-
-Timeout = Duration:10'000'000 (us)
----------------------------------------------------------------------------------------------------------------
-| (32,72), 1 component, 0.2 wall.   |
----------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |                                                    |    19'259 (us) | + |
-| Rotate AtDistance1                |                                                    |    68'677 (us) |   |
-| Rotate Order1                     |                                                  | |   170'762 (us) |   |
-| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |     1 Timeouts | - |
-| InterleavePlusRotate Order0       |                                                    |    37'829 (us) |   |
-| InterleavePlusRotate AtDistance1  |                                                    |    44'802 (us) |   |
-| InterleavePlusRotate Order1       |                                                    |    55'374 (us) |   |
-| InterleavePlusRotate Order2       |                                                 || |   378'258 (us) |   |
-| InterleaveTimesRotate Order0      |                                                    |    35'865 (us) |   |
-| InterleaveTimesRotate AtDistance1 |                                                  | |   107'821 (us) |   |
-| InterleaveTimesRotate Order1      |                                                  | |   174'017 (us) |   |
-| InterleaveTimesRotate Order2      |                                           |||||||| | 1'565'275 (us) |   |
----------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------
-| (8,18), 1 component, 0.5 wall.    |
-------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |                            ||||||||||||||||||||||| | 14'465 (us) |   |
-| Rotate AtDistance1                |                          ||||||||||||||||||||||||| | 15'776 (us) |   |
-| Rotate Order1                     |                             |||||||||||||||||||||| | 13'815 (us) | + |
-| Rotate Order2                     |                          ||||||||||||||||||||||||| | 15'671 (us) |   |
-| InterleavePlusRotate Order0       |  ||||||||||||||||||||||||||||||||||||||||||||||||| | 30'922 (us) |   |
-| InterleavePlusRotate AtDistance1  |     |||||||||||||||||||||||||||||||||||||||||||||| | 29'109 (us) |   |
-| InterleavePlusRotate Order1       |   |||||||||||||||||||||||||||||||||||||||||||||||| | 30'761 (us) |   |
-| InterleavePlusRotate Order2       |            ||||||||||||||||||||||||||||||||||||||| | 25'030 (us) |   |
-| InterleaveTimesRotate Order0      | |||||||||||||||||||||||||||||||||||||||||||||||||| | 31'871 (us) | - |
-| InterleaveTimesRotate AtDistance1 |             |||||||||||||||||||||||||||||||||||||| | 24'238 (us) |   |
-| InterleaveTimesRotate Order1      |                       |||||||||||||||||||||||||||| | 17'724 (us) |   |
-| InterleaveTimesRotate Order2      |          ||||||||||||||||||||||||||||||||||||||||| | 26'127 (us) |   |
-------------------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------------------
-| (8,18), 1 component, 0.6 wall.    |
----------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     |                      ||||||||||||||||||||||||||||| |   842'290 (us) |   |
-| Rotate AtDistance1                |                                 |||||||||||||||||| |   542'193 (us) |   |
-| Rotate Order1                     |                                         |||||||||| |   307'523 (us) |   |
-| Rotate Order2                     |                                  ||||||||||||||||| |   488'198 (us) |   |
-| InterleavePlusRotate Order0       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 1'465'830 (us) | - |
-| InterleavePlusRotate AtDistance1  |    ||||||||||||||||||||||||||||||||||||||||||||||| | 1'388'471 (us) |   |
-| InterleavePlusRotate Order1       |        ||||||||||||||||||||||||||||||||||||||||||| | 1'271'897 (us) |   |
-| InterleavePlusRotate Order2       |         |||||||||||||||||||||||||||||||||||||||||| | 1'233'250 (us) |   |
-| InterleaveTimesRotate Order0      |        ||||||||||||||||||||||||||||||||||||||||||| | 1'246'437 (us) |   |
-| InterleaveTimesRotate AtDistance1 |                          ||||||||||||||||||||||||| |   720'038 (us) |   |
-| InterleaveTimesRotate Order1      |                                          ||||||||| |   252'797 (us) |   |
-| InterleaveTimesRotate Order2      |                                              ||||| |   153'448 (us) | + |
----------------------------------------------------------------------------------------------------------------
-------------------------------------------------------------------------------------------------------------
-| (8,18), 1 component, 0.7 wall.    |
-------------------------------------------------------------------------------------------------------------
-| Rotate Order0                     | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| Rotate AtDistance1                | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| Rotate Order1                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
-| Rotate Order2                     | |||||||||||||||||||||||||||||||||||||||||||||||||| |  6 Timeouts | + |
-| InterleavePlusRotate Order0       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| InterleavePlusRotate AtDistance1  | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| InterleavePlusRotate Order1       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| InterleavePlusRotate Order2       | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| InterleaveTimesRotate Order0      | |||||||||||||||||||||||||||||||||||||||||||||||||| | 10 Timeouts | - |
-| InterleaveTimesRotate AtDistance1 | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
-| InterleaveTimesRotate Order1      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  9 Timeouts |   |
-| InterleaveTimesRotate Order2      | |||||||||||||||||||||||||||||||||||||||||||||||||| |  8 Timeouts |   |
-------------------------------------------------------------------------------------------------------------
-
+-
 It looks like:
   For high density BIG   worlds, rotations (the way we do them today) are less usefull than random (maybe a more subtle way would be ok)
   For high density small worlds, rotations (the way we do them today) are MORE usefull than random

@@ -153,20 +153,20 @@ profileAllProps = do
                       let tds = testDurations results
                       in case length tds - length (mapMaybe testResult tds) of
                         0 -> Finished results
-                        nSeedsTimeouts -> SomeTimeout nSeedsTimeouts allowedDt)
+                        n -> SomeTimeout n)
                     mayResults
                   ))
               worldResults
 
         mapM_ CS.putStrLn $
-          showTestResults
+          showTestResults allowedDt
             (map snd labelsAndEitherTimeoutsTimes)
             (map fst labelsAndEitherTimeoutsTimes)
             $ fromString $ prettyShowSWCharacteristics worldCharac)
     putStrLn $ "Actual test duration = " ++ show totalDt
  where
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 40 -- TODO this timeout should be dynamic
+  !allowedDt = fromSecs 0.04 --40 -- TODO this timeout should be dynamic
   -- in general, it would be interesting to chose the seed on the outer loop.
   !allowedDtMicros = fromIntegral $ toMicros allowedDt
 

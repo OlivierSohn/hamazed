@@ -82,28 +82,34 @@ showQuantities' leftValue l' =
         txts
 
 {-# INLINABLE inverseMap #-}
-inverseMap :: (Quantifiable a) => IntMap a -> Map a IntSet
+inverseMap :: (Ord a) => IntMap a -> Map a IntSet
 inverseMap = Map.fromListWith ISet.union . map (fmap ISet.singleton . swap) . IMap.toList
 
 -- | Shows times, underlying min and max times, and using a logarithmic scale
 -- for the graphical representation.
 showTestResults :: Characters s
-                 => [TestResult a]
+                 => Time Duration System
+                 -- ^ Timeout value
+                 -> [TestResult a]
                  -> [s]
                  -- ^ Labels
                  -> s
                  -- ^ Title
                  -> [s]
-showTestResults l labels title =
-  showArrayN (Just [title, "", fromString $ List.unwords ["Best:", showTime bestVal]]) body
+showTestResults timeoutValue l labels title =
+  showArrayN
+    (Just [ title
+          , ""
+          , fromString $ List.unwords ["Best:", bestValStr]
+          , ""]) body
  where
   lMap = IMap.fromDistinctAscList $ zip [0..] l
 
   txts = map
     (fromString . (\case
-      SomeTimeout n dt -> unwords [show n, showQty dt, "Timeout"]
+      SomeTimeout n -> unwords [show n, "Timeout"]
       Finished dt -> showQty $ mean dt
-      Cancelled -> "..." ))
+      Cancelled -> "?" ))
       l
 
   normalizedQuantities = IMap.union validOrTimeoutNormalizedQuantities cancelledNormalizedQuantities
@@ -121,33 +127,26 @@ showTestResults l labels title =
 
   allQuantities = IMap.map (\case
     Cancelled -> Nothing
-    SomeTimeout _ timeout -> Just timeout
+    SomeTimeout _ -> Just timeoutValue
     Finished dt -> Just $ mean dt)
     lMap
 
-  (timeoutCounts', validDurations') = IMap.mapEither (\case
-    Cancelled -> error "logic" -- has been filtered by mapMaybe
-    SomeTimeout n dt -> Left $ fromIntegral n .* dt
-    Finished dt -> Right $ mean dt) $
-    IMap.filter (\case Cancelled -> False; _ -> True) lMap
-
-  timeoutCounts = inverseMap timeoutCounts'
-  validDurations = inverseMap validDurations'
+  invMap = inverseMap lMap
 
   (_, worstIndexes) =
-    fromMaybe
-      (fromMaybe (zeroDuration, ISet.empty) $ Map.lookupMax validDurations)
-      $ Map.lookupMax timeoutCounts
+    fromMaybe (Cancelled, ISet.empty) $ Map.lookupMax invMap
 
   (bestVal, bestIndexes) =
-    fromMaybe
-      (fromMaybe (zeroDuration, ISet.empty) $ Map.lookupMin timeoutCounts)
-      $ Map.lookupMin validDurations
+    fromMaybe (Cancelled, ISet.empty) $ Map.lookupMin invMap
+  bestValStr = case bestVal of
+    Cancelled -> "?"
+    SomeTimeout n -> unwords [show n, "Timeout(s)", showTime timeoutValue]
+    Finished x -> showTime $ mean x
 
-  barSize = 50
+  barSize = 50 :: Int
   graphical = map
     (maybe
-      (replicate barSize '.')
+      "?"
       (\q -> replicate (round $ q* fromIntegral barSize) '|')) $
     IMap.elems normalizedQuantities
   body =

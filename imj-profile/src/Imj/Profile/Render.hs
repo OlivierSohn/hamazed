@@ -29,6 +29,7 @@ import qualified Data.IntMap.Strict as IMap
 import           Data.IntSet(IntSet)
 import qualified Data.IntSet as ISet
 import           Data.Maybe(listToMaybe)
+import           Numeric(showFFloat)
 
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Class.Words
@@ -101,17 +102,10 @@ showTestResults timeoutValue l labels title =
     (Just [ title
           , ""
           , fromString $ List.unwords ["Best:", bestValStr]
-          , ""
-          , "Deviation"]) body
+          , "Disp"
+          , ""]) body
  where
   lMap = IMap.fromDistinctAscList $ zip [0..] l
-
-  txts = map
-    (fromString . (\case
-      SomeTimeout n -> unwords [show n, "Timeout"]
-      Finished dt -> showQty $ mean dt
-      Cancelled -> "?" ))
-      l
 
   normalizedQuantities = IMap.union validOrTimeoutNormalizedQuantities cancelledNormalizedQuantities
 
@@ -162,11 +156,20 @@ showTestResults timeoutValue l labels title =
            | otherwise = (id, "")
       in map f (strs ++ [quality]))
      $ zip [0..] $
-      map (\(i,g,t) -> [i, g, t])
+      map (\(i,g,e) ->
+        let t = fromString $ case e of
+                  SomeTimeout n -> unwords [show n, "Timeout"]
+                  Finished dt -> showQty $ mean dt
+                  Cancelled -> "?"
+            v = fromString $ case e of
+                  SomeTimeout _ -> "."
+                  Finished dt -> showFFloat (Just 0) (100 * dispersion dt) " %"
+                  Cancelled -> "?"
+        in [i, g, t, v])
       $ zip3
           labels
           graphical
-          txts
+          l
 
 type Distribution a = Map a Int
 

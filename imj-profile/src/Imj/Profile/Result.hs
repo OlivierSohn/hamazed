@@ -7,9 +7,12 @@ module Imj.Profile.Result
     , TestDuration(..)
     , TestDurations(..)
     , mkTestDurations
+    , dispersion
     ) where
 
 import           Imj.Prelude
+import           Prelude(sqrt)
+import           Data.List(foldl', length)
 
 import           Imj.Timing
 import           Imj.Data.Class.Quantifiable
@@ -49,6 +52,20 @@ instance Eq (TestDurations a) where
 instance Ord (TestDurations a) where
   compare x y = compare (mean x) (mean y)
   {-# INLINABLE compare #-}
+
+-- dispersion is normalized standard deviation (normalized in the sense that the mean is mapped to 1)
+dispersion :: TestDurations a -> Float
+dispersion (TD [] _) = 0
+dispersion (TD ds meanD)
+  | f == 0 = 0
+  | otherwise = sqrt variance
+ where
+  f = writeFloat meanD
+  ratio = 1 / f
+  normalizedDs = map ((* ratio) . writeFloat . testDuration) ds
+  sqSum = foldl' (\s d -> (d-1)*(d-1) + s) 0 normalizedDs
+  variance = sqSum / fromIntegral (length ds)
+
 
 data TestDuration a = TestDuration {
     testDuration :: !(Time Duration System)

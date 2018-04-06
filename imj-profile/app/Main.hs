@@ -123,8 +123,10 @@ profileAllProps = do
                 res <- timeWithDifferentSeeds (\seed ->
                   readMVar continue >>= bool
                     (putStrLn "skipped" >> return Nothing)
-                    -- fmap void snd : to drop the world results so that memory is not wasted.
-                    (timeout allowedDtMicros $ fmap (void snd) $ profile p seed))
+                    -- fmap snd : to drop the world results so that memory is not wasted.
+                    -- NOTE instead we could store the stats of the median world.
+                    -- NOTE the result here will make the memory increase during the test.
+                    (timeout allowedDtMicros $ fmap snd $ profile p seed))
                 bool Nothing (Just res) <$> readMVar continue -- avoid truncated measurements
                False -> do
                  putStrLn "skipped"
@@ -143,7 +145,7 @@ profileAllProps = do
         printInterrupted
 
   withInterrupted $ do
-    forM allRes
+    html <- forM allRes
       (\(worldCharac, worldResults) -> do
           let labelsAndEitherTimeoutsTimes = map
                 (\(strategy, mayResults) ->
@@ -158,15 +160,25 @@ profileAllProps = do
                       mayResults
                     ))
                 worldResults
-              resultsAsCS = showTestResults allowedDt
-                (map snd labelsAndEitherTimeoutsTimes)
-                (map fst labelsAndEitherTimeoutsTimes)
+              resultsAndCS = showTestResults allowedDt -- map these lines to individual results
+                labelsAndEitherTimeoutsTimes
                 $ fromString $ prettyShowSWCharacteristics worldCharac
-          mapM_ CS.putStrLn resultsAsCS
-          return resultsAsCS) >>= renderResults . mconcat
+          mapM_ CS.putStrLn $ mconcat $ map snd resultsAndCS
+          return resultsAndCS) >>=
+            renderResultsHtml
+              . concatMap
+                (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
+                . mconcat
 
     putStrLn $ "Actual test duration = " ++ show totalDt
+    putStrLn $ "html report: " ++ html
  where
+  toTitle (Finished (TD l _)) =
+    map
+      (\(TestDuration _ res) -> maybe ["error : no stat"] (map fromString . prettyShowStats) res)
+      l
+  toTitle x = [[fromString $ show x]]
+
   -- time allowed for each individual seed
   !allowedDt = fromSecs 0.04 --40 -- TODO this timeout should be dynamic
   -- in general, it would be interesting to chose the seed on the outer loop.

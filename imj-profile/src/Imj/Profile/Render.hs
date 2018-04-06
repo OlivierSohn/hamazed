@@ -1,21 +1,51 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Profile.Render
-    ( renderResults
+    ( renderResultsHtml
+    -- reexport
+    , FilePath
     ) where
 
 import           Imj.Prelude
+import           Prelude(FilePath)
+
+import qualified Text.Blaze.Html5 as H
+
+import           Imj.Graphics.Text.ColorString
 
 import           Imj.Profile.Render.Blaze
 import           Imj.Profile.Render.Clay
 
-renderResults :: (ToMarkup a) => [a] -> IO ()
-renderResults allResultsCS = do
-  let cssFile = "results.css"
-  renderCss cssFile mkCss
-  renderHtml "results.html" $
+renderResultsHtml :: (ToMarkup a) => [(a, Maybe [[ColorString]])] -> IO FilePath
+renderResultsHtml resultsAndSubresults = do
+  let cssName = "results.css"
+  renderCss ("report/" <> cssName) mkCss
+  resultsAndLinks <-
+    forM
+      (zip [0 :: Int ..] resultsAndSubresults)
+      (\(i,(a,mayDetailsContents)) ->
+        (,) a <$> maybe
+          (return Nothing)
+          (\detailsContents -> do
+            let detailName = show i
+            _ <- renderHtml ("report/html/results/" ++ show i)
+              (fromHeaderBody
+                (do
+                  H.title $ H.string $ "Test detail #" ++ show i
+                  cssHeader $ "../../" <> cssName) $
+                    mconcat <$> forM detailsContents (\lines -> do
+                      H.div $ mconcat <$> forM lines (H.p . H.toHtml)
+                      H.br))
+            return $ Just $ "results/" ++ detailName ++ ".html")
+          mayDetailsContents)
+
+  renderHtml "report/html/results" $
     fromHeaderBody
-      (cssHeader cssFile) $
-      mconcat $ map resultLine allResultsCS
+      (do
+        H.title "Test report"
+        cssHeader $ "../" <> cssName
+        scripts) $
+      mconcat $ map (uncurry resultLine) resultsAndLinks

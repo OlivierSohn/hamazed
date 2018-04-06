@@ -74,7 +74,7 @@ instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, whiteOnBlack)]
 instance PrettyVal ColorString where
   prettyVal c = prettyVal $ map fst $ destructure c
--- | Safari doesn't seem to handle nbsp well, but it works ok for Chrome + string renderer.
+-- | Safari doesn't seem to handle &nbsp; well, but it works ok for Chrome + string renderer.
 instance ToMarkup ColorString where
   toMarkup cs = do
     let (ColorString x) = restructure $ transformConsecutiveSpaces $ destructure cs
@@ -97,6 +97,7 @@ instance ToMarkup ColorString where
       -- Same as version above, except that for Chrome + pretty renderer,
       --   /less/ spaces are added, hence it's a little better.
       go (x@(' ',_):xs) False = x : go xs True
+      go (('-',col):xs) _ = (chr 8209,col) : go xs False -- transform hyphens into non-breaking hyphens.
       go (x:xs) _ = x : go xs False
       go [] _ = []
 

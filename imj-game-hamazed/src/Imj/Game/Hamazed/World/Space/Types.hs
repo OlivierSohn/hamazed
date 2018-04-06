@@ -36,6 +36,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , Properties(..)
     , mkProperties
     , Statistics(..)
+    , prettyShowStats
     , zeroStats
     , mergeStats
     , DurationStats(..)

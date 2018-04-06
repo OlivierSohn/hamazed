@@ -2,13 +2,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
 module Imj.Graphics.Text.Render
     ( -- * Render utilities
       showListOrSingleton
     , showArray
     , showArrayN
+    , indexedShowArray
+    , indexedShowArrayN
     , showInBox
     , addRight
     , justifyR
@@ -17,9 +18,11 @@ module Imj.Graphics.Text.Render
 
 import           Imj.Prelude
 
+import           Data.IntMap.Strict(IntMap)
+import qualified Data.IntMap.Strict as IMap
 import qualified Data.List as List
-import           Data.String(IsString(..))
 import           Data.Maybe(listToMaybe)
+import           Data.String(IsString(..))
 import           Data.Text(Text, pack)
 
 import           Imj.Graphics.Class.Words
@@ -51,18 +54,48 @@ showInBox l =
   maxWidth = maxL l
 
 showArray :: (Characters s) => Maybe (s, s) -> [(s,s)] -> [s]
-showArray mayTitles body =
-  showArrayN
+showArray a = mconcat . IMap.elems . indexedShowArray a . IMap.fromDistinctAscList . zip [0..]
+
+indexedShowArray :: (Characters s) => Maybe (s, s) -> IntMap (s,s) -> IntMap [s]
+indexedShowArray mayTitles body =
+  indexedShowArrayN
     (fmap pairToList mayTitles)
-    (map pairToList body)
+    (IMap.map pairToList body)
  where pairToList (a,b) = [a,b]
 
-showArrayN :: (Characters s) => Maybe [s] -> [[s]] -> [s]
-showArrayN mayTitles body =
-  maybe mempty (\titles -> bar : format [titles]) mayTitles
-   <> [bar] <> format body <> [bar]
+showArrayN :: (Characters s)
+           => Maybe [s]
+           -- ^ The column titles
+           -> [[s]]
+           -- ^ The body, row by row
+           -> [s]
+showArrayN t = mconcat . IMap.elems . indexedShowArrayN t . IMap.fromDistinctAscList . zip [0..]
+
+indexedShowArrayN :: (Characters s)
+                  => Maybe [s]
+                  -- ^ The column titles
+                  -> IntMap [s]
+                  -- ^ The body, row by row, where the list contains each column value
+                  -> IntMap [s]
+                  -- ^ The result, where the list contains potentially several rows.
+indexedShowArrayN mayTitles body =
+  mconcat
+    [ IMap.singleton headerIndex $
+        maybe [] ((:) bar . format . (:[])) mayTitles ++
+        [bar]
+    , IMap.fromDistinctAscList $
+          zip (IMap.keys body) $
+            map (:[]) $ format bodyElems -- in the future, format may be [s] -> [[s]]
+    , IMap.singleton footerIndex [bar]
+    ]
  where
+  headerIndex = bool (pred $ fst $ IMap.findMin body) 0 $ IMap.null body -- TODO use lookupMin when containers 0.5.11 is available
+  footerIndex = bool (succ $ fst $ IMap.findMax body) 1 $ IMap.null body
+
+  bodyElems = IMap.elems body
+
   bar = replicate lBar '-'
+
   lBar = maxL $ format arrayLines
   format =
     map
@@ -74,7 +107,7 @@ showArrayN mayTitles body =
           (\(columnIdx, str, justify) -> justify (ls !! columnIdx) str)
           $ zip3 [0..] strs justifications) <>
       " |")
-  arrayLines = maybe body (:body) mayTitles
+  arrayLines = maybe id (:) mayTitles bodyElems
   ls = map
     (\colIdx -> maxL $ mapMaybe (listToMaybe . drop colIdx) arrayLines)
     [0..]

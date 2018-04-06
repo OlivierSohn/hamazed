@@ -14,6 +14,8 @@ import           Data.Text.Lazy.IO(writeFile)
 
 import           Clay
 
+import           Imj.File
+
 mkCss :: Css
 mkCss = "*" ? do -- to apply the properties to all content type
   font ( Optional Nothing Nothing Nothing
@@ -24,4 +26,6 @@ mkCss = "*" ? do -- to apply the properties to all content type
   textAlign center
 
 renderCss :: FilePath -> Css -> IO ()
-renderCss path css = writeFile path $ render css
+renderCss path css = do
+  createDirectories path
+  writeFile path $ render css

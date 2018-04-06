@@ -91,20 +91,30 @@ inverseMap = Map.fromListWith ISet.union . map (fmap ISet.singleton . swap) . IM
 showTestResults :: Characters s
                  => Time Duration System
                  -- ^ Timeout value
-                 -> [TestResult a]
-                 -> [s]
-                 -- ^ Labels
+                 -> [(s, TestResult a)]
+                 -- ^ fst is labels
                  -> s
                  -- ^ Title
-                 -> [s]
-showTestResults timeoutValue l labels title =
-  showArrayN
+                 -> [(Maybe (TestResult a), [s])]
+                 -- ^ [s] is a list of lines corresponding to maybe one test result
+showTestResults timeoutValue l title =
+  map ((,) Nothing) (IMap.elems footerMap) ++
+  zipWith
+    (\lines res -> (Just res,lines))
+    (IMap.elems bodyMap)
+    (IMap.elems resultsMap) ++
+  map ((,) Nothing) (IMap.elems headerMap)
+ where
+  (footerMap, headerMap) = IMap.split 0 $ IMap.withoutKeys  indexed resultKeys
+  bodyMap = IMap.restrictKeys indexed resultKeys
+
+  indexed = indexedShowArrayN
     (Just [ title
           , fromString $ List.unwords ["Best mean:", bestValStr]
           , "Mean"
           , "Dispersion"
           , ""]) body
- where
+
   lMap = IMap.fromDistinctAscList $ zip [0..] l
 
   normalizedQuantities = IMap.union validOrTimeoutNormalizedQuantities cancelledNormalizedQuantities
@@ -118,15 +128,20 @@ showTestResults timeoutValue l labels title =
   cancelledNormalizedQuantities =
     IMap.map (const Nothing) cancelled
 
-  (cancelled, validOrTimeout) = IMap.mapMaybe id <$> IMap.partition isNothing allQuantities
+  (cancelled, validOrTimeout) =
+    IMap.mapMaybe id <$>
+      IMap.partition isNothing allQuantities
 
   allQuantities = IMap.map (\case
     Cancelled -> Nothing
     SomeTimeout _ -> Just timeoutValue
     Finished dt -> Just $ mean dt)
-    lMap
+    resultsMap
 
-  invMap = inverseMap lMap
+  resultsMap = IMap.map snd lMap
+  resultKeys = IMap.keysSet resultsMap
+
+  invMap = inverseMap resultsMap
 
   (_, worstIndexes) =
     fromMaybe (Cancelled, ISet.empty) $ Map.lookupMax invMap
@@ -139,12 +154,12 @@ showTestResults timeoutValue l labels title =
     Finished x -> showTime $ mean x
 
   barSize = 25 :: Int
-  graphical = map
-    (maybe
-      "?"
-      (\q -> replicate (round $ q* fromIntegral barSize) '|')) $
-    IMap.elems normalizedQuantities
-  body =
+
+  graphical = IMap.map
+    (maybe "?" (\q -> replicate (round $ q* fromIntegral barSize) '|'))
+    normalizedQuantities
+
+  body = IMap.fromDistinctAscList $
     map
       (\(i,strs) ->
       let isBest = i `ISet.member` bestIndexes
@@ -154,9 +169,9 @@ showTestResults timeoutValue l labels title =
            | isBest = (colorize $ onBlack green, "+")
            | isWorst = (colorize $ onBlack orange, "-")
            | otherwise = (id, "")
-      in map f (strs ++ [quality]))
-     $ zip [0..] $
-      map (\(i,g,e) ->
+      in (i,map f (strs ++ [quality])))
+     $ zip [0..] $ -- not ideal, we could use the indices in the map
+      map (\(g,(s,e)) ->
         let t = fromString $ case e of
                   SomeTimeout n -> unwords [show n, "Timeout(s)"]
                   Finished dt -> showQty $ mean dt
@@ -165,10 +180,9 @@ showTestResults timeoutValue l labels title =
                   SomeTimeout _ -> "."
                   Finished dt -> showFFloat (Just 0) (100 * dispersion dt) " %"
                   Cancelled -> "?"
-        in [i, g, t, v])
-      $ zip3
-          labels
-          graphical
+        in [s, g, t, v])
+      $ zip
+          (IMap.elems graphical)
           l
 
 type Distribution a = Map a Int

@@ -158,7 +158,7 @@ showTestResults timeoutValue l labels title =
      $ zip [0..] $
       map (\(i,g,e) ->
         let t = fromString $ case e of
-                  SomeTimeout n -> unwords [show n, "Timeout"]
+                  SomeTimeout n -> unwords [show n, "Timeout(s)"]
                   Finished dt -> showQty $ mean dt
                   Cancelled -> "?"
             v = fromString $ case e of

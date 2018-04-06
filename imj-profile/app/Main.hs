@@ -132,7 +132,7 @@ profileAllProps = do
          False -> do
            putStrLn "skipped"
            return []))
-  -- print results
+
   putStrLn $ "Timeout = " ++ show allowedDt
   let printInterrupted = readMVar continue >>= bool
         (putStrLn "Test was interrupted.")

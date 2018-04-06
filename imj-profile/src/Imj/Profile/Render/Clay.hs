@@ -19,6 +19,7 @@ mkCss = "*" ? do -- to apply the properties to all content type
   font ( Optional Nothing Nothing Nothing
        , Required (px 12) Nothing [] [monospace]
        )
+
   margin auto auto auto auto
   textAlign center
 

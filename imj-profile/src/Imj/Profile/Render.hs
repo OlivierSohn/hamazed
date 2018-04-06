@@ -10,7 +10,6 @@ import           Imj.Prelude
 
 import           Imj.Profile.Render.Blaze
 import           Imj.Profile.Render.Clay
---import           Text.Blaze.Html5
 
 renderResults :: (ToMarkup a) => [a] -> IO ()
 renderResults allResultsCS = do

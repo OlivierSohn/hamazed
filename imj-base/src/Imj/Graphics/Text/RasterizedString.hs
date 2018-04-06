@@ -71,7 +71,7 @@ mkRasterizedString str color sizedFace@(SizedFace face _) =
 
 mkRasterizedStringFromColorString :: ColorString -> SizedFace -> IO RasterizedString
 mkRasterizedStringFromColorString cs face = do
-  let s = simplify cs
+  let s = destructure cs
       str = map fst s
       colors = map snd s
   mkRasterizedString str (funcFromColors colors) face

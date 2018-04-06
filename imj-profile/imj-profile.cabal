@@ -45,6 +45,7 @@ executable imj-profile-exe
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.11
                      , containers ==0.5.*
+                     , deepseq ==1.4.*
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*

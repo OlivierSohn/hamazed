@@ -21,9 +21,9 @@ mkCss = "*" ? do -- to apply the properties to all content type
   font ( Optional Nothing Nothing Nothing
        , Required (px 12) Nothing [] [monospace]
        )
-
   margin auto auto auto auto
   textAlign center
+  backgroundColor "#1d1d1d"
 
 renderCss :: FilePath -> Css -> IO ()
 renderCss path css = do

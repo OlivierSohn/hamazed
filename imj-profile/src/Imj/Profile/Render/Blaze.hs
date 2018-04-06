@@ -14,11 +14,12 @@ module Imj.Profile.Render.Blaze
 
 import           Imj.Prelude
 import           Prelude(FilePath, unlines)
-import qualified Data.ByteString.Lazy as BS(writeFile)
+import qualified Data.ByteString as B
 --import           Data.Char(chr)
+import qualified System.IO as IO
 
 import           Text.Blaze.Html5 (Html, ToMarkup(..), docTypeHtml, body, toHtml)
-import qualified Text.Blaze.Html.Renderer.Utf8 as Utf8(renderHtml)
+import qualified Text.Blaze.Html.Renderer.Utf8 as Utf8(renderHtmlToByteStringIO)
 --import qualified Text.Blaze.Html.Renderer.String as Str(renderHtml)
 --import qualified Text.Blaze.Html.Renderer.Pretty as Pretty(renderHtml)
 import qualified Text.Blaze.Html5 as H
@@ -71,7 +72,10 @@ renderHtml :: FilePath -> Html -> IO FilePath
 renderHtml base html = do
   createDirectories base
   let utf8path = base <> ".html"
-  BS.writeFile utf8path $ Utf8.renderHtml html
+  --BL.writeFile utf8path $ Utf8.renderHtml html
+  IO.withFile utf8path IO.WriteMode $ \h ->
+    Utf8.renderHtmlToByteStringIO (B.hPutStr h) html
+
 --  writeFile (base <> ".string.html") $ Str.renderHtml html
 --  writeFile (base <> ".pretty.html") $ Pretty.renderHtml html
   return utf8path

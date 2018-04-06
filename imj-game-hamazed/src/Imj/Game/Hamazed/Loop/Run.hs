@@ -24,7 +24,7 @@ import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(runStateT)
 import           Data.Char(toLower)
-import qualified Data.List as List(unlines, intercalate)
+import qualified Data.List as List(unlines, intercalate, words)
 import           Data.Maybe(isJust)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(fromList, lookup, keys)
@@ -251,7 +251,7 @@ screenSizeArg = map toLower <$> str >>= \lowercase -> do
       asScreenSize l = case catMaybes $ map readMaybe l of
         [x,y] -> either (err . Just) return $ mkFixedScreenSize (fromIntegral (x::Int)) (fromIntegral y)
         _ -> err Nothing
-  case words lowercase of
+  case List.words lowercase of
     ["full"] -> return FullScreen
     [x, y] -> asScreenSize [x,y]
     _ -> err Nothing
@@ -267,7 +267,7 @@ ppuArg = map toLower <$> str >>= \lowercase -> do
       asPPU l = case catMaybes $ map readMaybe l of
         [x,y] -> either (err . Just) return $ mkUserPPU (fromIntegral (x::Int)) (fromIntegral y)
         _ -> err Nothing
-  case words lowercase of
+  case List.words lowercase of
     [x, y] -> asPPU [x,y]
     _ -> err Nothing
 

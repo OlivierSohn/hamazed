@@ -48,7 +48,7 @@ module Imj.Data.Matrix.Unboxed (
   ) where
 
 import           Imj.Prelude
-import           Prelude(length, and, unlines, replicate, concat, take)
+import           Prelude(length, and, unlines, unwords, replicate, concat, take)
 
 import           Control.DeepSeq
 import           Control.Loop (numLoop, numLoopFold)

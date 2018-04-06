@@ -28,7 +28,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * Utilities
             , countChars
             , take
-            , simplify
+            , destructure
             -- * Convert to colored Text
             , buildTxt
             , safeBuildTxt
@@ -42,7 +42,7 @@ str = colored \"Hello\" white <> colored \" World\" yellow
 import           Imj.Prelude
 
 import           Control.Monad.Reader.Class(asks)
-import           Data.Char(isSpace)
+import           Data.Char(isSpace, chr)
 import           Data.String(IsString(..))
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text(putStrLn, putStr)
@@ -50,6 +50,9 @@ import           Data.Text.Lazy(toStrict)
 import           Data.Text.Lazy.Builder(Builder, toLazyText)
 import qualified Data.Text.Lazy.Builder as Builder(fromText, fromString)
 import qualified Data.List as List(length, concat, splitAt)
+import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
+import           Text.Blaze.Html5(ToMarkup(..))
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
@@ -67,10 +70,37 @@ instance Monoid ColorString where
   mempty = ColorString []
   mappend (ColorString x) (ColorString y) = ColorString $ x ++ y
 -- we can't use the Generic one because of missing instance for 'Text'
-instance PrettyVal ColorString where
-  prettyVal c = prettyVal $ map fst $ simplify c
 instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, whiteOnBlack)]
+instance PrettyVal ColorString where
+  prettyVal c = prettyVal $ map fst $ destructure c
+-- | Safari doesn't seem to handle &nbsp; well, but it works ok for Chrome + string renderer.
+instance ToMarkup ColorString where
+  toMarkup cs = do
+    let (ColorString x) = restructure $ transformConsecutiveSpaces $ destructure cs
+    mconcat <$> forM x (\(txt, LayeredColor bg fg) ->
+      H.span
+        H.! A.style
+          (H.textValue $
+            colorToHtml (color8ToRGB256 fg) <>
+            "background-" <>
+            colorToHtml (color8ToRGB256 bg)) $
+        H.text txt)
+   where
+    transformConsecutiveSpaces l =
+      go l False
+     where
+      go ((' ',col):xs) True = (chr 160,col) : go xs True
+      -- The version below works well for Chrome + string renderer, but not for
+      --    Chrome + pretty renderer, where some spaces are added.
+      --go ((' ',col):xs) False = (chr 160,col) : go xs True
+      -- Same as version above, except that for Chrome + pretty renderer,
+      --   /less/ spaces are added, hence it's a little better.
+      go (x@(' ',_):xs) False = x : go xs True
+      go (('-',col):xs) _ = (chr 8209,col) : go xs False -- transform hyphens into non-breaking hyphens.
+      go (x:xs) _ = x : go xs False
+      go [] _ = []
+
 instance Characters ColorString where
   length = countChars
   empty (ColorString x) = null x || all (Text.null . fst) x
@@ -188,8 +218,8 @@ instance DiscreteDistance ColorString where
     let colorDist (_, color) (_, color') = distance color color'
         n1 = countChars c1
         n2 = countChars c2
-        s1 = simplify c1
-        s2 = simplify c2
+        s1 = destructure c1
+        s2 = destructure c2
 
         (c1', remaining) = interpolateChars s1 s2 countTextChanges
         s1' = assert (remaining == 0) c1'
@@ -212,8 +242,8 @@ instance DiscreteDistance ColorString where
 -- | First interpolating characters, then color.
 instance DiscreteInterpolation ColorString where
   interpolate c1 c2 i =
-    let c2' = simplify c2
-        (c1', remaining) = interpolateChars (simplify c1) c2' i
+    let c2' = destructure c2
+        (c1', remaining) = interpolateChars (destructure c1) c2' i
     in ColorString $ map (\(char,color) -> (Text.pack [char], color)) $
         if remaining >= 0
           then
@@ -254,16 +284,31 @@ replaceBackground bg (ColorString l) =
 
 
 -- | Maps a 'ColorString' to a list of 'Char' and 'LayeredColor'.
--- It is used to simplify the implementation of some interpolation algorithms
-simplify :: ColorString -> [(Char, LayeredColor)]
-simplify (ColorString []) = []
-simplify (ColorString l@(_:_)) =
-  let (txt, color) = head l
-  in map
-       (\c -> (c,color))
-       (Text.unpack txt)
-     ++ simplify (ColorString $ tail l)
+destructure :: ColorString -> [(Char, LayeredColor)]
+destructure (ColorString s) =
+  go s
+ where
+  go [] = []
+  go ((txt, color):ls) =
+    map
+      (flip (,) color)
+      (Text.unpack txt)
+     ++ go ls
 
+-- | Reconstructs a minimal version of the string, i.e. keeps track of the current color
+-- so that no 2 adjacent segments have the same color.
+restructure :: [(Char, LayeredColor)] -> ColorString
+restructure ls =
+  ColorString $ reverse $ go (reverse ls) Nothing
+ where
+  go []           Nothing                 = []
+  go []           (Just ([], _))          = []
+  go []           (Just (l@(_:_), color)) = [(Text.pack l, color)]
+  go ((c,col):xs) Nothing                 = go xs $ Just ([c],col)
+  go ((c,col):xs) (Just (l@(_:_), color))
+    | col == color                        = go xs (Just (c:l,color))
+    | otherwise    = (Text.pack l, color) : go xs (Just ([c],col))
+  go ((_, _):_)   (Just ([], _))          = error "logic"
 
 colored' :: Text -> LayeredColor -> ColorString
 colored' t c = ColorString [(t, c)]

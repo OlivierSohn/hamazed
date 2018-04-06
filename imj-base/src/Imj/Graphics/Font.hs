@@ -42,7 +42,7 @@ module Imj.Graphics.Font
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData)
+import           Control.DeepSeq(NFData, force)
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteString(ByteString, writeFile)
 import           Data.Char(chr, ord)
@@ -364,7 +364,7 @@ charsetAABB (CharSet charset) font = do
   unless (null errors) $
     error $ show errors
   return $ fromMaybe (error "logic") $
-    foldl' (\r aabb -> Just $ maybe aabb (combine aabb) r) Nothing aabbs
+    foldl' (\r aabb -> force $ Just $ maybe aabb (combine aabb) r) Nothing aabbs
 
 data FontCoordinates
 data UnitRectangleCoordinates
@@ -372,6 +372,7 @@ data UnitRectangleCoordinates
 data AABB a = AABB {
   _min, _max :: {-# UNPACK #-} !(Vec2 Pos)
 } deriving (Generic, Show)
+instance NFData (AABB a)
 
 -- | returns the smallest 'AABB' containg the given 'AABB's.
 combine :: AABB a -> AABB a -> AABB a

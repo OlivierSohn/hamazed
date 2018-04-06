@@ -24,7 +24,7 @@ import           Prelude as Exported
   , sin, cos, pi
   , mod, rem, min, max, abs, floor, round, ceiling, maxBound, minBound
   , negate, div, divMod, quot, quotRem, even, odd
-  , error, undefined
+  , error, undefined, seq
   , (!!), ($!)
   )
 
@@ -38,7 +38,7 @@ import           Control.Monad.IO.Class as Exported(liftIO)
 import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Bool as Exported(bool)
 import           Data.Binary as Exported(Binary)
-import           Data.List as Exported(cycle, repeat, words, unwords)
+import           Data.List as Exported(cycle, repeat)
 import           Data.Maybe as Exported(listToMaybe, maybeToList, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Map.Strict(Map)

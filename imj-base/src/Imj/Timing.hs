@@ -63,7 +63,7 @@ import           Prelude(fromInteger)
 import           Control.DeepSeq(NFData(..))
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
-import qualified Data.List as List(intercalate)
+import qualified Data.List as List
 import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
@@ -79,7 +79,7 @@ The phantom type 'a' represents the time space. It could be 'System'
  or a duration)-}
 newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord)
 instance NFData (Time a b) where
-  rnf _ = () -- TimeSpec has unboxed fields so they are already in normal form
+  rnf _ = () -- TimeSpec has strict fields so they are already in normal form
 instance Binary (Time Duration a) where
   put (Time (TimeSpec s ns)) = do
     Bin.put s
@@ -213,7 +213,7 @@ showTime :: Time a b -> String
 showTime (Time x)
  | minutes == 0 = usVal
  | us == 0 = minutesVal
- | otherwise = unwords [minutesVal, usVal]
+ | otherwise = List.unwords [minutesVal, usVal]
  where
   minutesVal = show minutes ++ " (min)"
   (minutes, us) = quotRem us' $ fromIntegral oneMinuteAsMs

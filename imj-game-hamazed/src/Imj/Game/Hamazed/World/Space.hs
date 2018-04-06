@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.World.Space
     ( Space
@@ -20,21 +21,20 @@ module Imj.Game.Hamazed.World.Space
     , randomCCCoords
     -- for tests
     , matchAndVariate
-    , unsafeMkSmallMat
     , mkSmallWorld
     , mkSmallMat
+    , mkSmallVector
     , matchTopology
-    , getComponentCount
     , TopoMatch
     ) where
 
 import           Imj.Prelude
 
-import           Data.Either(partitionEithers, isLeft)
-import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
-import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
+import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
+import           Data.Either(isLeft)
 import           Data.List(length, sortOn, replicate, take)
+import           Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
 import           Data.Map.Strict(Map)
@@ -43,11 +43,13 @@ import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Tree(flatten)
 import qualified Data.Vector.Mutable as BVM (new, write)
+import qualified Data.Vector as BV
 import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
 import qualified Data.Vector.Unboxed as V
-import qualified Data.Vector as BV
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
+import qualified Imj.Data.Graph as Directed(Vertex,graphFromSortedEdges, componentsN)
+import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space.Types
@@ -173,6 +175,13 @@ bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
       nRows = quot heightEmptySpace $ fromIntegral blockSize
   in Size nRows nCols
 
+data BestRandomMatrixVariation = BRMV {
+  _topology :: !TopoMatch
+  -- ^ Best found sofar
+  , _stats :: !Statistics
+  -- ^ Records stats about the search
+}
+
 {- | Generates a random world with the constraint that it should have
 a single "Air" connected component. The function recurses and builds a new random world
 until the constraint is met.
@@ -193,35 +202,37 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
       (\err ->
         return (Impossible [err], zeroStats))
       (\lowerBounds -> withDuration (go lowerBounds) >>= \(dt, (r,stats)) ->
-        return (case r of
-                [] -> NeedMoreTime
-                small:_ -> Success small
+        return (r
               , stats { durations = (durations stats) { totalDuration = dt }
                       }))
       eitherLowerBounds
  where
-  nComponents = min nComponents' maxNComp -- relax the constraint on number of components if the size is too small
-  maxNComp = ComponentCount $ 1 + quot (pred $ area sz) 2 -- for checkerboard-like layout
+  !nComponents = -- relax the constraint on number of components if the size is too small
+    min
+      nComponents'
+      $ ComponentCount $ 1 + quot (pred $ area sz) 2 -- for checkerboard-like layout
 
   matchAndVariate' = matchAndVariate nComponents
 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
     go' 0 zeroStats
    where
-    go' i stats = continue >>= bool
-      (return ([], stats))
+    go' :: Int -> Statistics -> IO (MkSpaceResult SmallWorld, Statistics)
+    go' !i !stats = continue >>= bool
+      (return (NeedMoreTime, stats))
         -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-      (fmap (either
-          ((: []) . Left)
+      (fmap (foldStats stats . either
+          ((:|[]) . Left)
           -- stop at first success
           (takeWhilePlus isLeft . matchAndVariate' branch))
-        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, l) -> do
-        let !newStats = addMkRandomMatDuration duration $ updateStats l stats
-        case partitionEithers l of
-          (_,[]) -> go' (i+1) newStats
-          (_,successes) -> return (successes, finalizeStats i newStats))
+        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, BRMV res s) -> do
+        let !newStats = addMkRandomMatDuration duration (s{countRandomMatrices = 1 + countRandomMatrices s})
+        either
+          (const $ go' (i+1) newStats)
+          (\su -> return (Success su, finalizeStats i newStats))
+          res)
 
-    rndMatSamplingPeriod = 1000
+    !rndMatSamplingPeriod = 1000
 
     -- Measure the first sample, then wait rndMatSamplingPeriod iterations before measuring again.
     -- If you change this, please modify 'finalizeStats' accordingly.
@@ -230,7 +241,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
     withSampledDuration =
       bool (fmap ((,) zeroDuration)) withDuration . willMeasure
 
-    finalizeStats i s =
+    finalizeStats !i s =
       let d = durations s
           -- 'randomMatCreation' is the sum of /nMeasurements/ measurements done at the /beginning/ of every period.
           nMeasurements = 1 + quot i rndMatSamplingPeriod
@@ -242,15 +253,15 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
+-- gathers 'Statistics' of 'TopoMatch'es and returns the last 'TopoMatch'.
+foldStats :: Statistics -> NonEmpty TopoMatch -> BestRandomMatrixVariation
+foldStats stats (x:|xs) =
+  List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x $ addToStats x stats) xs
+
 addMkRandomMatDuration :: Time Duration System -> Statistics -> Statistics
 addMkRandomMatDuration dt s =
   let d = durations s
   in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
-
-updateStats :: [TopoMatch] -> Statistics -> Statistics
-updateStats l s =
-  let s' = List.foldl' (flip addToStats) s l -- 2.5% relative cost, measured using 'profileMkSmallWorld'
-  in s' { countRandomMatrices = 1 + countRandomMatrices s}
 
 addToStats :: TopoMatch -> Statistics -> Statistics
 addToStats elt s =
@@ -280,31 +291,30 @@ addNComp n s =
 matchAndVariate :: ComponentCount
                 -> Maybe MatrixVariants
                 -> SmallMatInfo
-                -> [TopoMatch]
-matchAndVariate nComponents curB info@(SmallMatInfo nAir m) =
-  rootRes : variationResults
+                -> NonEmpty TopoMatch
+matchAndVariate nComponents curB info =
+  rootRes :| variationResults
  where
-  variationResults = maybe []
-    (\(Variants variations nextB) ->
-      let authorizeVariation Interleave = True
-          authorizeVariation (Rotate (RotationDetail margin _)) =
-            case rootRes of
-              Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
-              _ -> False
-      in concatMap
-          (matchAndVariate nComponents nextB . SmallMatInfo nAir)
-          $ concatMap (produceVariations m)
-          $ filter authorizeVariation
-          $ NE.toList variations)
-    curB
+  variationResults = case info of
+    (SmallMatInfo nAir m) ->
+      maybe []
+        (\(Variants variations nextB) ->
+          let authorizeVariation Interleave = True
+              authorizeVariation (Rotate (RotationDetail margin _)) =
+                case rootRes of
+                  Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
+                  _ -> False
+
+              produceVariations Interleave = drop 1 $ Cyclic.produceUsefulInterleavedVariations m
+              produceVariations (Rotate (RotationDetail _ order)) = Cyclic.produceRotations order m
+          in List.concatMap -- TODO benchmark which is faster : consuming depth first or breadth first
+              (NE.toList . matchAndVariate nComponents nextB . SmallMatInfo nAir)
+              $ concatMap produceVariations
+              $ NE.filter authorizeVariation variations)
+        curB
   deepMargin = requiredNComponentsMargin curB
   rootRes = matchTopology deepMargin nComponents info
 
-
-produceVariations :: Cyclic.Unbox a
-                  => Cyclic.Matrix a -> Variation -> [Cyclic.Matrix a]
-produceVariations m Interleave = drop 1 $ Cyclic.produceUsefulInterleavedVariations m
-produceVariations m (Rotate (RotationDetail _ order)) = Cyclic.produceRotations order m
 
 requiredNComponentsMargin :: Maybe MatrixVariants -> NCompsRequest
 requiredNComponentsMargin Nothing = NCompsNotRequired
@@ -323,18 +333,14 @@ requiredNComponentsMarginForVariation Interleave = NCompsNotRequired
 requiredNComponentsMarginForVariation (Rotate (RotationDetail margin _)) = NCompsRequiredWithMargin margin
 
 -- | Takes elements matching a condition, and the element thereafter.
-takeWhilePlus :: (a -> Bool) -> [a] -> [a]
-takeWhilePlus p = go
+takeWhilePlus :: (a -> Bool) -> NonEmpty a -> NonEmpty a
+takeWhilePlus p (e:|es) =
+  e :| bool [] (go es) (p e)
  where
-  go [] = []
   go (x:xs) = x : bool [] (go xs) (p x)
+  go [] = []
 
 type TopoMatch = Either SmallWorldRejection SmallWorld
-
-getComponentCount :: TopoMatch -> Maybe ComponentCount
-getComponentCount (Left (CC _ c)) = Just c
-getComponentCount (Left _) = Nothing
-getComponentCount (Right (SmallWorld _ topo)) = Just $ ComponentCount $ length $ getConnectedComponents topo
 
 -- Indicates if there is a /real/ wall (i.e not an out of bounds position) in a given direction
 data OrthoWall = OrthoWall {
@@ -348,7 +354,7 @@ matchTopology :: NCompsRequest
               -> ComponentCount
               -> SmallMatInfo
               -> TopoMatch
-matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
+matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not airOnEveryFronteer = case nCompsReq of
       NCompsNotRequired -> Left UnusedFronteers
       NCompsRequiredWithMargin _ -> Left $ CC UnusedFronteers' nComps
@@ -357,8 +363,33 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
     -- from here on, if the number of components is > 1, we compute the distances between components
   | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
-  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps (\i -> vtxToMatIdx UArray.! i)
+  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps
+      (\i ->
+        let vtxToMatIdx :: UArray.Array Int Int
+            vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ mapMaybe
+              (\matIdx -> case Cyclic.unsafeGetByIndex matIdx mat of
+                  MaterialAndKey (-1) -> Nothing
+                  MaterialAndKey k -> Just (k, matIdx))
+              [0..Cyclic.nelems mat-1]
+        in vtxToMatIdx UArray.! i)
  where
+  !airOnEveryFronteer =
+    all
+      (V.any (\case
+        MaterialAndKey (-1) -> False
+        MaterialAndKey _ -> True))
+      fronteers
+   where
+    fronteers =
+      [ Cyclic.getRow 0 mat
+      , Cyclic.getRow (nRows - 1) mat
+      , Cyclic.getCol 0 mat
+      , Cyclic.getCol (nCols - 1) mat
+      ]
+
+  !nRows = Cyclic.nrows mat
+  !nCols = Cyclic.ncols mat
+
   maxNCompsAsked = fromIntegral $ case nCompsReq of
     NCompsNotRequired -> nComponents + 1 -- + 1 so that the equality test makes sense
     NCompsRequiredWithMargin x -> nComponents + 1 + x -- + 1 so that in tryRotationsIfAlmostMatches
@@ -382,33 +413,12 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   --   else a Just undirected graph is returned.
   (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r
 
-  vtxToMatIdx :: UArray.Array Int Int
-  vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ concatMap
-    (\row -> let iRow = row * nCols in mapMaybe
-      (\col -> let matIdx = iRow + col in case Cyclic.unsafeGetByIndex matIdx mat of
-        MaterialAndKey (-1) -> Nothing
-        MaterialAndKey k -> Just (k, matIdx :: Int))
-      [0..nCols-1])
-    [0..nRows-1]
-
   comps = map (ConnectedComponent . V.fromList . flatten) allComps
 
-  lengths = map countSmallCCElts comps
-  wellDistributed = maximum lengths < 2 * minimum lengths
+  wellDistributed =
+    let lengths = map countSmallCCElts comps -- NOTE we could use foldTree to avoid flatten
+    in maximum lengths < 2 * minimum lengths
 
-  airOnEveryFronteer =
-    all
-      (V.any (\case
-        MaterialAndKey (-1) -> False
-        MaterialAndKey _ -> True))
-      fronteers
-   where
-    fronteers =
-      [ Cyclic.getRow 0 mat
-      , Cyclic.getRow (Cyclic.nrows mat - 1) mat
-      , Cyclic.getCol 0 mat
-      , Cyclic.getCol (Cyclic.ncols mat - 1) mat
-      ]
 
   {- Returns True if the nearby graph (where an edge means 2 components are nearby)
   has only one connected component.
@@ -514,18 +524,16 @@ matchTopology nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
 
       -- Int is an Air key. This function errors if the key is out of bounds.
       lookupComponent :: Int -> ComponentIdx
-      lookupComponent = (V.!) keyToComponent
+      lookupComponent i = (V.!) keyToComponent i
 
-  keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
-  keyToComponent = V.create $ do
-    v <- VM.new nAirKeys
-    mapM_
-      (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
-      $ zip [0 :: ComponentIdx ..] comps
-    return v
-
-  nRows = Cyclic.nrows mat
-  nCols = Cyclic.ncols mat
+      keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
+      keyToComponent =
+        runST $ do
+          v <- VM.new nAirKeys
+          mapM_
+            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
+            $ zip [0 :: ComponentIdx ..] comps
+          V.unsafeFreeze v
 
 
 mkSmallMat :: GenIO
@@ -536,46 +544,34 @@ mkSmallMat :: GenIO
            -> LowerBounds
            -> IO (Either SmallWorldRejection SmallMatInfo)
            -- ^ in Right, the Air keys are ascending, consecutive, and start at 0
-mkSmallMat gen wallProba (Size nRows nCols) (LowerBounds minAirCount minWallCount countBlocks)
-  | countBlocks /= fromIntegral nRows * fromIntegral nCols = error "logic"
+mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAirCount minWallCount countBlocks)
+  | countBlocks /= nRows * nCols = error "logic"
   | minAirCount + minWallCount > countBlocks = error "logic" -- this is checked when creating 'LowerBounds'
-  | otherwise = go <$> replicateM countBlocks (uniform gen)
+  | otherwise = go <$> mkSmallVector gen wallProba countBlocks
  where
-  go floats
+  go (countAirBlocks, materialsAndKeys)
    | countAirBlocks < minAirCount = Left $ NotEnough Air
    | countWallBlocks < minWallCount = Left $ NotEnough Wall
-   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) wallsAndDescendingAirKeys
+   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromVector nRows nCols materialsAndKeys
    where
-    (countAirBlocks, wallsAndDescendingAirKeys) = mkWallsAndDescendingAirKeys wallProba floats
+    !countWallBlocks = countBlocks - countAirBlocks
 
-    countWallBlocks = countBlocks - countAirBlocks
-
-
-mkWallsAndDescendingAirKeys :: Float -- probability of a wall
-                            -> [Float] -- produced by randBiased
-                            -> (Int, [MaterialAndKey])
-mkWallsAndDescendingAirKeys wallProba =
-  go 0 []
- where
-  -- the Air elements for a list of consecutive /descending/ keys
-  go k l (p:ps)
-   -- Air
-   | p > wallProba = go (k+1) (MaterialAndKey k   :l) ps
-   -- Wall
-   | otherwise     = go k     (MaterialAndKey (-1):l) ps
-  go k l [] = (k, l)
-
--- | Used in 'LowerBounds' test.
-unsafeMkSmallMat :: GenIO
-                 -> Float
-                 -- ^ Probability to generate a wall
-                 -> Size
-                 -- ^ Size of the matrix
-                 -> IO SmallMatInfo
-unsafeMkSmallMat gen wallAirRatio s@(Size nRows nCols) = do
-  (nAir, l) <- mkWallsAndDescendingAirKeys wallAirRatio <$> replicateM (area s) (uniform gen)
-  return $ SmallMatInfo nAir $ Cyclic.fromList (fromIntegral nRows) (fromIntegral nCols) l
-
+mkSmallVector :: GenIO
+              -> Float
+              -- ^ Probability to generate a wall
+              -> Int
+              -> IO (Int, V.Vector MaterialAndKey)
+mkSmallVector gen wallProba countBlocks = do
+  v <- VM.new countBlocks
+  countAirKeys <- foldM
+    (\k i -> do
+      float <- uniform gen :: IO Float
+      let (k', materialAndKey) = bool (k, MaterialAndKey $ -1) (k+1, MaterialAndKey k) $ float > wallProba
+      VM.write v i materialAndKey
+      return k')
+    0
+    [0..countBlocks-1]
+  (,) countAirKeys <$> V.unsafeFreeze v -- we don't modify v so we use unsafeFreeze to avoid a copy
 
 {-# INLINE countSmallCCElts #-}
 countSmallCCElts :: ConnectedComponent -> Int
@@ -597,7 +593,8 @@ mkEmptyBigWorldTopology s@(Size nRows _) =
  where
   sz (ComponentIdx 0) = area s
   sz i = error $ "index out of range " ++ show i
-  coords i eltIdx
+
+  coords !i !eltIdx
     | eltIdx < 0 || eltIdx >= sz i = error $ "out of range " ++ show (i, eltIdx)
     | otherwise = Coords (fromIntegral row) (fromIntegral col)
         where (col, row) = eltIdx `quotRem` fromIntegral nRows
@@ -613,15 +610,17 @@ smallToBig :: Int -> Size -> SmallWorld -> BigWorldTopology
 smallToBig blockSize bigSize s@(SmallWorld _ (SmallWorldTopology ccs _)) =
   BigWorldTopology l (countBigCCElts blockSize . safeGetCC) coords
  where
-  l = length ccs
+  !l = length ccs
+
   coords i eltIdx =
     getBigCoords eltIdx blockSize bigSize s $ safeGetCC i
+
   safeGetCC (ComponentIdx i)
    | i < 0 || i >= l = error $ "index out of bounds:" ++ show i
    | otherwise = ccs !! i
 
 getBigCoords :: Int -> Int -> Size -> SmallWorld -> ConnectedComponent -> Coords Pos
-getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatInfo _ smallMat) (SmallWorldTopology _ resolver)) component =
+getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatInfo _ smallMat) (SmallWorldTopology _ resolver)) component =
   let modulo = blockSize * blockSize
       (smallIndex, remain) = bigIndex `quotRem` modulo
       (remainRow, remainCol) = remain `quotRem` blockSize
@@ -636,6 +635,19 @@ getBigCoords bigIndex blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMatIn
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
+data GraphNode = Node !Directed.Vertex [Directed.Vertex]
+
+data GraphCreationState = GC {
+    _listNodes :: [GraphNode]
+  , _nMinComps :: !ComponentCount
+  , _canContinue :: !Bool
+  , _oneMulti :: !Bool
+}
+{-# INLINE mkGraphCreationState #-}
+mkGraphCreationState :: GraphCreationState
+mkGraphCreationState = GC [] 0 True False
+
+
 -- | Creates an undirected graph, and returns a lower bound of the number of components:
 -- we count the mono-node components while creating the graph, and add 1 to that number
 -- if there is at least one multi-node component.
@@ -646,65 +658,68 @@ mkGraphWithStrictlyLess :: ComponentCount
                         -> SmallMatInfo
                         -> (Maybe Undirected.Graph, ComponentCount)
                         -- ^ (Undirected graph, lower bound of components count)
-mkGraphWithStrictlyLess tooBigNComps (SmallMatInfo nAirKeys mat) =
+mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
   (mayGraph, nMinCompsFinal)
  where
+  !nRows = Cyclic.nrows mat
+  !nCols = Cyclic.ncols mat
+
   mayGraph =
     if canContinue
       then
-        Just $ BV.create $ do
+        Just $ runST $ do
           v <- BVM.new nAirKeys
-          forM_ listNodes (uncurry (BVM.write v))
-          return v
+          forM_ listNodes (\(Node key neighbours) -> BVM.write v key neighbours)
+          BV.unsafeFreeze v
       else
         Nothing
 
-  (listNodes, nMinCompsFinal, canContinue, _) =
-    List.foldl'
-      (\ res'@(ln',nMinComps', continue', oneMulti') row->
-        let iRow = row * nCols
-        in bool res'
-            (List.foldl'
-              (\ res@(ln,nMinComps,continue,oneMulti) col->
-                let matIdx = iRow + col
-                in bool res
-                    (case Cyclic.unsafeGetByIndex matIdx mat of
+  (GC listNodes nMinCompsFinal canContinue _) =
+    List.foldl' (\res'@(GC _ _ continue' _) row ->
+      bool res'
+        (let !iRow = row * nCols
+         in List.foldl' (\res@(GC ln nMinComps continue oneMulti) col ->
+              bool res
+                (let !matIdx = iRow + col
+                 in case Cyclic.unsafeGetByIndex matIdx mat of
                         MaterialAndKey (-1) -> res
                         MaterialAndKey k ->
                           let neighbours = neighbourAirKeys matIdx row col
                               isMono = null neighbours
-                              newNMinComps = bool (bool (nMinComps+1) nMinComps oneMulti) (1+nMinComps) isMono
+                              newNMinComps =
+                                bool
+                                  (bool (nMinComps+1) nMinComps oneMulti)
+                                  (1+nMinComps)
+                                  isMono
                               willContinue = newNMinComps < tooBigNComps
                               newList =
                                 bool [] -- drop the list if we don't continue
-                                  ((k,neighbours):ln)
+                                  (Node k neighbours:ln)
                                   willContinue
-                          in (newList
-                             , newNMinComps
-                             , willContinue
-                             , not isMono || oneMulti))
-                     continue)
-              (ln',nMinComps',continue',oneMulti')
-              [0..nCols-1])
-            continue')
-      ([],0,True, False)
+                          in GC
+                               newList
+                               newNMinComps
+                               willContinue
+                               $ not isMono || oneMulti)
+                continue)
+            res'
+            [0..nCols-1])
+        continue')
+      mkGraphCreationState
       [0..nRows-1]
-
-  nRows = Cyclic.nrows mat
-  nCols = Cyclic.ncols mat
 
   neighbourAirKeys :: Int -> Int -> Int -> [Int]
   neighbourAirKeys matIdx row col =
-    mapMaybe (\neighbourMatIdx -> case Cyclic.unsafeGetByIndex neighbourMatIdx mat of
+    mapMaybe (\i -> case Cyclic.unsafeGetByIndex (i+matIdx) mat of
       MaterialAndKey (-1) -> Nothing
       MaterialAndKey k -> Just k)
     $ catMaybes
     -- Benchmarks showed that it is faster to write all directions at once,
     -- rather than just 2, and wait for other directions to come from nearby nodes.
-    [ bool (Just $ matIdx - nCols) Nothing $ row == 0       -- Up
-    , bool (Just $ matIdx - 1)     Nothing $ col == 0       -- LEFT
-    , bool (Just $ matIdx + 1)     Nothing $ col == nCols-1 -- RIGHT
-    , bool (Just $ matIdx + nCols) Nothing $ row == nRows-1 -- Up
+    [ bool (Just $ -nCols) Nothing $ row == 0       -- Up
+    , bool (Just $ -1    ) Nothing $ col == 0       -- LEFT
+    , bool (Just 1       ) Nothing $ col == nCols-1 -- RIGHT
+    , bool (Just nCols   ) Nothing $ row == nRows-1 -- Up
     ]
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space

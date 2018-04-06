@@ -36,6 +36,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , Properties(..)
     , mkProperties
     , Statistics(..)
+    , prettyShowStats
     , zeroStats
     , mergeStats
     , DurationStats(..)
@@ -242,8 +243,8 @@ data Variation =
 instance Binary Variation
 instance NFData Variation
 instance Show Variation where
-  show Interleave = "Interleave"
-  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", show order, "Rotate"]
+  show Interleave = "I"
+  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", show order, "R"]
 
 data RotationDetail = RotationDetail {
     _distRotate :: !ComponentCount
@@ -267,7 +268,7 @@ instance Show RotationDetail where
 data MkSpaceResult r =
     Success r
   | NeedMoreTime
-  | Impossible [Text]
+  | Impossible ![Text]
   deriving (Generic, Show)
 instance (Binary r) => Binary (MkSpaceResult r)
 instance (NFData r) => NFData (MkSpaceResult r)

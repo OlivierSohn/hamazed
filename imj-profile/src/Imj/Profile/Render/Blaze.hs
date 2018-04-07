@@ -41,11 +41,17 @@ scripts =
   H.script ! A.lang "javascript" $ H.string $ unlines
     [ ""
     , "function open_url(url){"
-    , "var viewportwidth = document.documentElement.clientWidth;"
-    , "var viewportheight = document.documentElement.clientHeight;"
-    , "window.resizeBy(-500,0);"
-    , "window.moveTo(0,0);"
-    , "tm=window.open(url,\"Test details\",\"width=500,height =\"+(viewportheight)+\",top=0,left=\"+viewportwidth+\"\");"
+    , "  var viewportwidth = document.documentElement.clientWidth;"
+    , "  var viewportheight = document.documentElement.clientHeight;"
+    , "  window.resizeBy(-500,0);"
+    , "  window.moveTo(0,0);"
+    , "  tm=window.open(url,\"Test details\",\"width=500,height =\"+(viewportheight)+\",top=0,left=\"+viewportwidth+\"\");"
+    , "}"
+    , "function show_overlay(e){"
+    , "  e.childNodes[0].style.display=\"block\""
+    , "}"
+    , "function hide_overlay(e){"
+    , "  e.childNodes[0].style.display=\"none\""
     , "}"
     ]
 
@@ -57,10 +63,13 @@ resultLine e details =
         H.div
           H.! A.class_ "clic"
           H.! A.onclick (H.stringValue $ "open_url(\"" ++ w ++ "\")")
-          $ txt
-        {-H.div
-          H.! A.class_ "overlay"
-          $ pure ()-}
+          H.! A.onmouseover (H.stringValue $ "show_overlay(this)")
+          H.! A.onmouseout (H.stringValue $ "hide_overlay(this)")
+          $ do
+            H.div
+              H.! A.class_ "overlay" -- has absolute positionning to take no space in flow.
+              $ pure ()
+            txt
       )
       details
  where

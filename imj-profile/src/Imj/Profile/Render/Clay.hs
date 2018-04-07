@@ -25,22 +25,26 @@ mkCss = do
     margin auto auto auto auto
     textAlign center
     backgroundColor "#1d1d1d"
-
-  ".overlay" ? do
-    width $ pct 100
-    height $ px 10
-    position relative
-    zIndex 2
-    top $ px 0
-    left $ px 0
-    backgroundColor $ rgba 255 255 255 0.5
-
-  ".clic" ?
-    cursor pointer
+    whiteSpace nowrap
 
   ".stick" ? do
     position sticky
     top $ px 0
+    zIndex 2
+
+  ".clic" ? do
+    cursor pointer
+    position relative -- so that the overlay inside can be absolutely positionned.
+
+  ".overlay" ? do
+    display none -- hide by default
+
+    position absolute
+    width $ pct 100
+    height $ pct 100
+
+    backgroundColor $ rgba 239 239 255 0.05
+
 
 renderCss :: FilePath -> Css -> IO ()
 renderCss path css = do

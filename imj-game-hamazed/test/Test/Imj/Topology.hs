@@ -171,7 +171,7 @@ testMinCountAirBlocks = do
     generate proba =
       matchAndVariate nComps
         (Just $ Variants
-          (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
+          (pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
           Nothing) <$> mkSmallMatUnchecked gen proba sz
 
 mkSmallMatUnchecked :: GenIO

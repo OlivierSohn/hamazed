@@ -8,8 +8,9 @@ module Main where
 import           Imj.Prelude
 
 import           Prelude(print, putStrLn, length, writeFile, getChar)
+import           Control.Concurrent(forkIO, throwTo, ThreadId, myThreadId)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, modifyMVar_, readMVar)
-import           Control.Concurrent(forkIO)
+import           Control.Exception(Exception(..))
 import           Control.DeepSeq(NFData(..))
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List hiding(intercalate, concat)
@@ -159,17 +160,26 @@ foldMInterruptible continue name zero l f =
  where
   total = length l
 
-setToFalseOnTermination :: MVar UserIntent -> IO ()
-setToFalseOnTermination continue = mapM_ installHandlers
-   [sigINT, sigTERM]
- where
-  installHandlers :: CInt -> IO ()
-  installHandlers sig =
-    void $ installHandler sig (Catch handleTermination) Nothing
+data TestException = TestInterruptedByUser
+    deriving Show
+instance Exception TestException
 
-  handleTermination :: IO ()
-  handleTermination =
-    modifyMVar_ continue $ const $ return Cancel
+setToFalseOnTermination :: MVar UserIntent -> IO ()
+setToFalseOnTermination continue = do
+  mainTid <- myThreadId
+  mapM_ (installHandlers mainTid) [sigINT, sigTERM]
+ where
+  installHandlers :: ThreadId -> CInt -> IO ()
+  installHandlers mainTid sig =
+    void $ installHandler sig (Catch $ handleTermination mainTid) Nothing
+
+  handleTermination :: ThreadId -> IO ()
+  handleTermination mainTid =
+    modifyMVar_ continue $ \case
+      Cancel -> do
+        void $ throwTo mainTid TestInterruptedByUser
+        return Cancel
+      _ -> return Cancel
 
 data UserIntent =
     NoIntent
@@ -178,24 +188,21 @@ data UserIntent =
   deriving(Generic)
 instance NFData UserIntent
 
-data LoopAction =
-    Continue
-  | AbortReturnPartialResults
-  | AbortReturnFullResults
-
 type Results = Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations (Maybe Statistics)))
 
 mkEmptyResults :: Results
 mkEmptyResults = Map.empty
 
-addResult :: SmallWorldCharacteristics -> Maybe MatrixVariants -> TestDurations (Maybe Statistics) -> Results -> Results
-addResult w strategy stats res =
+addResult :: SmallWorldCharacteristics -> Maybe MatrixVariants -> SeedNumber -> TestDuration (Maybe Statistics) -> Results -> Results
+addResult w strategy seed stats res =
   Map.alter
     (Just . maybe
-      (Map.singleton strategy stats)
-      (Map.alter (Just . maybe stats (error "a result already exits for this strategy")) strategy))
+      (Map.singleton strategy s)
+      (Map.alter (Just . maybe s (mappend s)) strategy))
     w
     res
+ where
+  s = mkTestDurations $ Map.singleton seed stats
 
 withTestScheduler :: [SmallWorldCharacteristics]
                   -> [Maybe MatrixVariants]
@@ -205,17 +212,18 @@ withTestScheduler :: [SmallWorldCharacteristics]
                   -> IO (TestDuration Results)
 withTestScheduler worlds strategies allowed intent f =
   withTestDuration $
-    foldMInterruptible continue "World" mkEmptyResults worlds (\res world ->
-      foldMInterruptible continue "Strategy" res strategies (\res' strategy -> do
-        -- Note that we don't report from inside timeWithDifferentSeeds,
-        -- to avoid incomplete time series.
-        mayReport res'
-        let properties = mkProperties world strategy
-        flip (addResult world strategy) res' <$>
-          timeWithDifferentSeeds (\gen ->
-            continue >>= \case
-              True -> timeout allowedMicros $ f properties gen
-              False -> return Nothing)))
+    foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) -> do
+      gen <- initialize $ fromList $ deterministicMWCSeeds !! i
+      foldMInterruptible continue "World" res0 worlds (\res1 world ->
+        foldMInterruptible continue "Strategy" res1 strategies (\res2 strategy -> do
+          -- Note that we don't report from inside timeWithDifferentSeeds,
+          -- to avoid incomplete time series.
+          mayReport res2
+          let properties = mkProperties world strategy
+          flip (addResult world strategy seed) res2 <$> withTestDuration
+              (continue >>= \case
+                True -> timeout allowedMicros $ f properties gen
+                False -> return Nothing))))
  where
   !allowedMicros = fromIntegral $ toMicros allowed
 
@@ -238,7 +246,7 @@ mkTerminator = do
     forever $ getChar >>= \case
       'r' -> do
         modifyMVar_ b $ const $ return Report
-        void $ timeout 5000000 $ void getChar -- to avoid key repeats
+        void $ timeout 5000000 $ forever $ void getChar -- skip key repeats
       _ -> return ()
   setToFalseOnTermination b
   return b
@@ -265,7 +273,7 @@ profileAllProps = do
  where
 
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 40 -- TODO this timeout should be dynamic
+  !allowedDt = fromSecs 100 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
   strategies =
@@ -311,9 +319,9 @@ nSeeds :: SeedNumber
 nSeeds = 10
 
 -- | Runs the action several times, with different - deterministically seeded - generators.
-withDifferentSeeds :: (GenIO -> IO a) -> IO (Map SeedNumber a)
+withDifferentSeeds :: (SeedNumber -> GenIO -> IO a) -> IO (Map SeedNumber a)
 withDifferentSeeds act =
-  Map.fromAscList <$> mapM (\n -> (,) n <$> withNumberedSeed act n) [0..nSeeds - 1]
+  Map.fromAscList <$> mapM (\n -> (,) n <$> withNumberedSeed (act n) n) [0..nSeeds - 1]
 
 
 withNumberedSeed :: (GenIO -> IO a) -> SeedNumber -> IO a
@@ -322,11 +330,6 @@ withNumberedSeed act (SeedNumber i) = do
   gen <- initialize $ fromList $ deterministicMWCSeeds !! i
   putStrLn $ unwords ["-", "seed", show i]
   act gen
-
--- | Drops the first measurement.
-timeWithDifferentSeeds :: (GenIO -> IO a) -> IO (TestDurations a)
-timeWithDifferentSeeds act =
-  mkTestDurations <$> withDifferentSeeds (withTestDuration . act)
 
 withTestDuration :: IO a -> IO (TestDuration a)
 withTestDuration = fmap (uncurry TestDuration) . withDuration

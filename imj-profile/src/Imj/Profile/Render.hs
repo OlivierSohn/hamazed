@@ -13,6 +13,7 @@ import           Imj.Prelude
 import           Prelude(FilePath)
 
 import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html5.Attributes as A
 
 import           Imj.Graphics.Text.ColorString
 
@@ -46,6 +47,7 @@ renderResultsHtml resultsAndSubresults = do
     fromHeaderBody
       (do
         H.title "Test report"
+        H.meta H.! A.httpEquiv "refresh" H.! A.content "2"
         cssHeader $ "../" <> cssName
         scripts) $
       mconcat $ map (uncurry resultLine) resultsAndLinks

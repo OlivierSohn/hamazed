@@ -18,6 +18,7 @@ import qualified Data.List as List(intercalate, concat)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
+import           Data.Text(pack)
 import           Data.Vector(fromList)
 import qualified Data.Vector.Unboxed as U(toList)
 import           Data.Word(Word32)
@@ -29,7 +30,9 @@ import           System.IO(hSetBuffering, stdin, BufferMode(..))
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 
-import qualified Imj.Graphics.Text.ColorString as CS(putStrLn)
+import           Imj.Graphics.Color
+import           Imj.Graphics.Text.ColorString(ColorString)
+import qualified Imj.Graphics.Text.ColorString as CS
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Profile.Render.Characters
@@ -60,7 +63,7 @@ justVariantsWithRotations n =
   concatMap
     (\rotationOrder ->
       let rotation =
-            Rotate $ RotationDetail n rotationOrder
+            Rotate $ RotationDetail rotationOrder n
       in map (\x -> x Nothing)
           [ Variants (pure rotation)
           , Variants (pure Interleave) . Just . Variants (pure rotation)
@@ -91,15 +94,15 @@ writeHtmlReport :: Time Duration System
                 -> IO ()
 writeHtmlReport allowedDt allRes intent = do
   putStrLn $ "Timeout = " ++ show allowedDt
-  printInterrupted
+  putStrLn intentStr
   write
-  printInterrupted
+  putStrLn intentStr
 
  where
-  printInterrupted = case intent of
-        Cancel -> putStrLn "Test was interrupted."
-        Report -> putStrLn "Test is still running."
-        _ -> return ()
+  intentStr = case intent of
+    Cancel -> "Test was interrupted"
+    Report -> "Test is still running"
+    NoIntent -> "Test is finished"
 
   write = do
     html <- forM (Map.assocs allRes)
@@ -107,27 +110,33 @@ writeHtmlReport allowedDt allRes intent = do
           let labelsAndEitherTimeoutsTimes = map
                 (\(strategy, results) ->
                   ( fromString $ prettyShowMatrixVariants strategy
-                  , let tds = testDurations results
-                    in case length tds - length (Map.mapMaybe testResult tds) of
-                      0 -> Finished results
-                      n -> SomeTimeout n)) $ Map.assocs worldResults
+                  , results)) $ Map.assocs worldResults
               resultsAndCS = showTestResults allowedDt -- map these lines to individual results
                 labelsAndEitherTimeoutsTimes
                 $ fromString $ prettyShowSWCharacteristics worldCharac
           mapM_ CS.putStrLn $ mconcat $ map snd resultsAndCS
           return resultsAndCS) >>=
-            renderResultsHtml
+            renderResultsHtml intentStr
               . concatMap
                 (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
                 . mconcat
-    putStrLn $ "Wrote html report: " ++ html
 
-  toTitle (Finished (TD l _)) =
-    map
-      (\(TestDuration _ res) -> maybe ["error : no stat"] (map fromString . prettyShowStats) res)
-      $ Map.elems l
-  toTitle x = [[fromString $ show x]]
+    putStrLn $ "Chrome-compatible html report: " ++ html
 
+  showAsCs :: TestStatus Statistics -> [ColorString]
+  showAsCs NotStarted = [CS.colored "NotStarted" blue]
+  showAsCs Timeout = [CS.colored "Timeout" red]
+  showAsCs (Finished _ stat) = map fromString $ prettyShowStats stat
+
+  toTitle :: TestDurations Statistics
+          -> [[ColorString]]
+  toTitle (TD m) =
+    map (\(seed, stat) ->
+      CS.colored' (pack $ show seed) seedColor:
+      showAsCs stat)
+      $ Map.assocs m
+   where
+     seedColor = LayeredColor (gray 5) (gray 17)
 
 forMLoudly :: (Show a) => String -> [a] -> (a -> IO b) -> IO [b]
 forMLoudly name l act = do
@@ -156,7 +165,7 @@ foldMInterruptible continue name zero l f =
         putStrLn "[Skipped]"
         return b)
     zero
-    $ zip [0 :: Int ..] l
+    $ zip [1 :: Int ..] l
  where
   total = length l
 
@@ -188,12 +197,12 @@ data UserIntent =
   deriving(Generic)
 instance NFData UserIntent
 
-type Results = Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations (Maybe Statistics)))
+type Results = Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations Statistics))
 
 mkEmptyResults :: Results
 mkEmptyResults = Map.empty
 
-addResult :: SmallWorldCharacteristics -> Maybe MatrixVariants -> SeedNumber -> TestDuration (Maybe Statistics) -> Results -> Results
+addResult :: SmallWorldCharacteristics -> Maybe MatrixVariants -> SeedNumber -> TestStatus Statistics -> Results -> Results
 addResult w strategy seed stats res =
   Map.alter
     (Just . maybe
@@ -202,30 +211,23 @@ addResult w strategy seed stats res =
     w
     res
  where
-  s = mkTestDurations $ Map.singleton seed stats
+  s = TD $ Map.singleton seed stats
 
 withTestScheduler :: [SmallWorldCharacteristics]
                   -> [Maybe MatrixVariants]
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
-                  -> IO (TestDuration Results)
+                  -> IO Results
 withTestScheduler worlds strategies allowed intent f =
-  withTestDuration $
-    foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) -> do
-      gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-      foldMInterruptible continue "World" res0 worlds (\res1 world ->
-        foldMInterruptible continue "Strategy" res1 strategies (\res2 strategy -> do
-          -- Note that we don't report from inside timeWithDifferentSeeds,
-          -- to avoid incomplete time series.
-          mayReport res2
-          let properties = mkProperties world strategy
-          flip (addResult world strategy seed) res2 <$> withTestDuration
-              (continue >>= \case
-                True -> timeout allowedMicros $ f properties gen
-                False -> return Nothing))))
+  foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) -> do
+    gen <- initialize $ fromList $ deterministicMWCSeeds !! i
+    foldMInterruptible continue "World" res0 worlds (\res1 world ->
+      foldMInterruptible continue "Strategy" res1 strategies (\res2 strategy -> do
+        mayReport res2
+        let test = f (mkProperties world strategy) gen
+        flip (addResult world strategy seed) res2 <$> withTimeout allowed test)))
  where
-  !allowedMicros = fromIntegral $ toMicros allowed
 
   continue = (\case
     Cancel -> False
@@ -264,7 +266,7 @@ profileAllProps = do
   -- setup handlers to stop the test with Ctrl+C if needed, and still get some results.
   intent <- mkTerminator
   -- run benchmarks
-  (TestDuration totalDt allRes) <-
+  (totalDt, allRes) <- withDuration $
     withTestScheduler worlds strategies allowedDt intent (\property seed ->
       snd <$> profile property seed)
 
@@ -273,7 +275,7 @@ profileAllProps = do
  where
 
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 100 -- TODO this timeout should be dynamic
+  !allowedDt = fromSecs 0.100 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
   strategies =
@@ -302,17 +304,17 @@ profileLargeWorld :: IO ()
 profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        (Just $ Variants (pure $ Rotate $ RotationDetail 5 Cyclic.Order2) Nothing)
+        (Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
   print props
-  withNumberedSeed (withTestDuration . profile props) (SeedNumber 0) >>= print
+  withNumberedSeed (withDuration . profile props) (SeedNumber 0) >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do
   let props = mkProperties
         (SWCharacteristics (Size 32 72) (ComponentCount 1) 0.2)
-        (Just $ Variants (pure Interleave) $ Just $ Variants (pure $ Rotate $ RotationDetail 0 Cyclic.Order1) Nothing)
+        (Just $ Variants (pure Interleave) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
   print props
-  withNumberedSeed (withTestDuration . profile props) (SeedNumber 0) >>= print
+  withNumberedSeed (withDuration . profile props) (SeedNumber 0) >>= print
 --  withDifferentSeeds (withTestDuration . profile props) >>= print
 
 nSeeds :: SeedNumber
@@ -331,8 +333,10 @@ withNumberedSeed act (SeedNumber i) = do
   putStrLn $ unwords ["-", "seed", show i]
   act gen
 
-withTestDuration :: IO a -> IO (TestDuration a)
-withTestDuration = fmap (uncurry TestDuration) . withDuration
+withTimeout :: Time Duration System -> IO a -> IO (TestStatus a)
+withTimeout dtSecs = fmap mkStatus . timeout dt . withDuration
+ where
+  dt = fromIntegral $ toMicros dtSecs
 
 writeSeedsSource :: IO ()
 writeSeedsSource =

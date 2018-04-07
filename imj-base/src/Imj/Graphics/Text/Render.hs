@@ -11,6 +11,7 @@ module Imj.Graphics.Text.Render
     , indexedShowArray
     , indexedShowArrayN
     , showInBox
+    , showInBox'
     , addRight
     , justifyR
     , justifyL
@@ -45,13 +46,19 @@ addRight l1' margin l2' =
 maxL :: (Characters s) => [s] -> Int
 maxL = fromMaybe 0 . maximumMaybe . map length
 
-showInBox :: (Characters s) => [s] -> [s]
-showInBox l =
-  bar '_' : map (withFrame '|') l ++ [bar 'T']
+showInBoxBase :: (Characters s) => Char -> Char -> [s] -> [s]
+showInBoxBase low up l =
+  bar up : map (withFrame '|') l ++ [bar low]
  where
   bar = replicate (maxWidth + 2)
   withFrame f str = cons f (justifyL maxWidth str) <> fromString [f]
   maxWidth = maxL l
+
+showInBox :: (Characters s) => [s] -> [s]
+showInBox = showInBoxBase '-' '-'
+
+showInBox' :: (Characters s) => [s] -> [s]
+showInBox' = showInBoxBase 'T' '_'
 
 showArray :: (Characters s) => Maybe (s, s) -> [(s,s)] -> [s]
 showArray a = mconcat . IMap.elems . indexedShowArray a . IMap.fromDistinctAscList . zip [0..]

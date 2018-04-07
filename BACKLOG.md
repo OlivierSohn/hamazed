@@ -1,3 +1,13 @@
+- on hover, add an overlay with 0.1 alpha white.
+
+https://www.w3schools.com/howto/howto_css_overlay.asp -- global overlay
+https://stackoverflow.com/questions/2941189/how-to-overlay-one-div-over-another-div -- over another div
+
+https://www.w3schools.com/jsref/event_onmouseover.asp -- to activate / deactivate on hover
+https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover
+
+https://www.w3schools.com/css/css_display_visibility.asp -- on hiding elements
+
 - global timeout (100) + adaptive timeout : when only one seed is known, apply a x100 factor.
 2 seeds -> x50
 etc..
@@ -7,12 +17,6 @@ so it will be
 fold
 100 -- initial value for global timeout, can only decrease from now on.
 [100, 50, , 25, , , , 12.5]
-
-- display the variance in our tests (a second measurement) : we may prefer a low variance with worse mean.
-
-- when running a long test, we see memory increasing -> to investigate space leaks:
-https://wiki.haskell.org/Memory_leak
-https://queue.acm.org/detail.cfm?id=2538488
 
 - with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
 

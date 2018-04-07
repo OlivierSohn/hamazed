@@ -19,6 +19,7 @@ module Imj.Util
     , lastAbove
     , logBase2
     , mapRange
+    , unsafeMapRange
     -- * Reexports
     , Int64
     ) where
@@ -129,6 +130,26 @@ mapRange :: (Fractional a, Eq a)
 mapRange l1 h1 l2 h2 v1
   | denom == 0 = Nothing
   | otherwise = Just $ l2 + normalized * (h2 - l2)
+ where
+  denom = h1 - l1
+  normalized = (v1 - l1) / denom
+
+-- | same as 'mapRange' except the denomiator is not checked for 0 before dividing.
+unsafeMapRange :: (Fractional a)
+         => a
+         -- ^ low 1
+         -> a
+         -- ^ high 1
+         -> a
+         -- ^ low 2
+         -> a
+         -- ^ high 2
+         -> a
+         -- ^ value 1
+         -> a
+         -- ^ value 2
+unsafeMapRange l1 h1 l2 h2 v1 =
+  l2 + normalized * (h2 - l2)
  where
   denom = h1 - l1
   normalized = (v1 - l1) / denom

@@ -206,7 +206,7 @@ humanShowVariants sz variations = txt
   random = "using random matrices"
   branchingIn = ", variating in "
 
-  humanShowVariation (Rotate (RotationDetail (ComponentCount distRotate) rotationOrder)) =
+  humanShowVariation (Rotate (RotationDetail rotationOrder (ComponentCount distRotate))) =
     unwords $
       ["margin-" ++ show distRotate, show rotationOrder] ++
       maybe [] ((:[]).show) nRotations ++
@@ -244,10 +244,11 @@ instance Binary Variation
 instance NFData Variation
 instance Show Variation where
   show Interleave = "I"
-  show (Rotate (RotationDetail (ComponentCount n) order)) = unwords [show n ++ "-margin", show order, "R"]
+  show (Rotate (RotationDetail order (ComponentCount n))) = unwords [show n ++ "-margin", show order, "R"]
 
 data RotationDetail = RotationDetail {
-    _distRotate :: !ComponentCount
+    _rotationOrder :: !Cyclic.RotationOrder
+  , _distRotate :: !ComponentCount
   -- ^ If the distance between the target number of components and the matrix count of components
   -- is smaller than this value, then we will try rotations.
   --
@@ -258,12 +259,11 @@ data RotationDetail = RotationDetail {
   --
   --  * chose one type of rotation or the other (the choice of Cyclic.RotationOrder could be automated this way)
   --  * chose to rotate "less", i.e take one out of n rotations
-  , _rotationOrder :: !Cyclic.RotationOrder
 } deriving(Generic, Eq, Ord)
 instance Binary RotationDetail
 instance NFData RotationDetail
 instance Show RotationDetail where
-  show (RotationDetail (ComponentCount n) order) = unwords [show n, show order]
+  show (RotationDetail order (ComponentCount n)) = unwords [show n, show order]
 
 data MkSpaceResult r =
     Success r

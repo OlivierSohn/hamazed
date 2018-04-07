@@ -156,7 +156,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
 bestStrategy :: SmallWorldCharacteristics -> Maybe MatrixVariants
 bestStrategy _ = -- TODO measure the best strategy for known cases, then interpolate.
   Just $
-    Variants (pure $ Rotate $ RotationDetail (ComponentCount 5) Cyclic.Order1)
+    Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
       Nothing
 
 smallWorldToBigWorld :: Size
@@ -300,13 +300,13 @@ matchAndVariate nComponents curB info =
       maybe []
         (\(Variants variations nextB) ->
           let authorizeVariation Interleave = True
-              authorizeVariation (Rotate (RotationDetail margin _)) =
+              authorizeVariation (Rotate (RotationDetail _ margin)) =
                 case rootRes of
                   Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
                   _ -> False
 
               produceVariations Interleave = drop 1 $ Cyclic.produceUsefulInterleavedVariations m
-              produceVariations (Rotate (RotationDetail _ order)) = Cyclic.produceRotations order m
+              produceVariations (Rotate (RotationDetail order _)) = Cyclic.produceRotations order m
           in List.concatMap -- TODO benchmark which is faster : consuming depth first or breadth first
               (NE.toList . matchAndVariate nComponents nextB . SmallMatInfo nAir)
               $ concatMap produceVariations
@@ -330,7 +330,7 @@ requiredNComponentsMargin (Just (Variants variations nextB)) =
 
 requiredNComponentsMarginForVariation :: Variation -> NCompsRequest
 requiredNComponentsMarginForVariation Interleave = NCompsNotRequired
-requiredNComponentsMarginForVariation (Rotate (RotationDetail margin _)) = NCompsRequiredWithMargin margin
+requiredNComponentsMarginForVariation (Rotate (RotationDetail _ margin)) = NCompsRequiredWithMargin margin
 
 -- | Takes elements matching a condition, and the element thereafter.
 takeWhilePlus :: (a -> Bool) -> NonEmpty a -> NonEmpty a

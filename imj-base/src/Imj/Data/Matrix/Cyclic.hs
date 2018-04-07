@@ -92,9 +92,9 @@ instance NFData (Matrix a) where
 instance (Binary a, Unbox a) => Binary (Matrix a)
 
 data RotationOrder =
-    Order1 -- rotation across all rows, then rotation across all columns
+    Rect1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
+  | Order1 -- rotation across all rows, then rotation across all columns
   | Order2 -- rotation across all rows + columns at the same time
-  | Rect1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
   deriving(Generic, Show, Eq, Ord)
 instance Binary RotationOrder
 instance NFData RotationOrder

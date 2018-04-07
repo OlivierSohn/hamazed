@@ -16,4 +16,4 @@ cabal-helper*
 *.prof
 
 # profile report folder
-report
+report*

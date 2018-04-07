@@ -35,6 +35,8 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * IO
             , putStrLn
             , putStr
+            -- * Blaze helpers
+            , colorAttribute
             -- * Reexports
             , LayeredColor(..)
             ) where
@@ -78,14 +80,9 @@ instance PrettyVal ColorString where
 instance ToMarkup ColorString where
   toMarkup cs = do
     let (ColorString x) = restructure $ transformConsecutiveSpaces $ destructure cs
-    mconcat <$> forM x (\(txt, LayeredColor bg fg) ->
+    mconcat <$> forM x (\(txt, color) ->
       H.span
-        H.! A.style
-          (H.textValue $
-            colorToHtml (color8ToRGB256 fg) <>
-            "background-" <>
-            colorToHtml (color8ToRGB256 bg)) $
-        H.text txt)
+        H.! A.style (colorAttribute color) $ H.text txt)
    where
     transformConsecutiveSpaces l =
       go l False
@@ -326,3 +323,9 @@ putStrLn = Text.putStrLn . safeBuildTxt
 
 putStr :: ColorString -> IO ()
 putStr = Text.putStr . safeBuildTxt
+
+colorAttribute :: LayeredColor -> H.AttributeValue
+colorAttribute (LayeredColor bg fg) = H.textValue $
+  colorToHtml (color8ToUnitRGB fg) <>
+  "background-" <>
+  colorToHtml (color8ToUnitRGB bg)

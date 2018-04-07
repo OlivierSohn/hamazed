@@ -64,7 +64,7 @@ debugForM_ :: [(a,Unboxed.Matrix Material)]
            -> (SmallMatInfo -> a -> IO ())
            -> IO ()
 debugForM_ l act = forM_' l (\(n,e) -> do
-  mapM_ putStrLn $ showInBox $ writeWorld e
+  mapM_ putStrLn $ showInBox' $ writeWorld e
   act e n)
 
 forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,SmallMatInfo) -> IO ()) -> IO ()
@@ -82,7 +82,7 @@ displayNWorlds lineLength = concat . reverse .
           else
             m:line:prevLines)
     [[]]
-    . map (showInBox . writeWorld)
+    . map (showInBox' . writeWorld)
 
 testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
@@ -103,7 +103,7 @@ testComponentsSizesWellDistributed = do
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
   forM_' matricesWithNWellDistributedComponentsSpaceWellUsed
     (\(expected, m) -> do
-      mapM_ putStrLn $ showInBox $ writeWorld m
+      mapM_ putStrLn $ showInBox' $ writeWorld m
       either (error "expected Right") (const $ return ()) $ matchTopology (NCompsRequiredWithMargin 100) expected m)
 
 testComponentsNearby :: IO ()

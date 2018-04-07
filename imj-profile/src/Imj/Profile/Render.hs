@@ -9,45 +9,70 @@ module Imj.Profile.Render
     , FilePath
     ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(div)
 import           Prelude(FilePath)
 
-import qualified Text.Blaze.Html5 as H
+import qualified Data.List as List(map)
+import           Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
 
+import           Imj.File
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Class.Words
 
 import           Imj.Profile.Render.Blaze
 import           Imj.Profile.Render.Clay
 
-renderResultsHtml :: (ToMarkup a) => [(a, Maybe [[ColorString]])] -> IO FilePath
-renderResultsHtml resultsAndSubresults = do
-  let cssName = "results.css"
-  renderCss ("report/" <> cssName) mkCss
-  resultsAndLinks <-
-    forM
-      (zip [0 :: Int ..] resultsAndSubresults)
-      (\(i,(a,mayDetailsContents)) ->
-        (,) a <$> maybe
+renderResultsHtml :: (ToMarkup a)
+                  => String
+                  -> [(a, Maybe [[ColorString]])]
+                  -> IO FilePath
+renderResultsHtml status resultsAndSubresults = do
+  renameDirectoryIfExists dir
+  css
+  detailPages >>= mainPage
+ where
+  dir = "report"
+
+  css = renderCss (dir <> "/" <> cssName) mkCss
+
+  mainPage resultsAndLinks = renderHtml (dir <> "/html/results") $
+    fromHeaderBody
+      (do
+        title $ string $ "Test report - " ++ status
+        meta ! A.httpEquiv "refresh" ! A.content "2"
+        cssHeader $ "../" <> cssName
+        scripts)
+      (do
+        testStatus
+        mconcat $ List.map (uncurry resultLine) resultsAndLinks)
+
+  detailPages =
+    forM (zip [0 :: Int ..] resultsAndSubresults)
+      (\(idx,(res,mayDetailsContents)) ->
+        (,) res <$> maybe
           (return Nothing)
           (\detailsContents -> do
-            let detailName = show i
-            _ <- renderHtml ("report/html/results/" ++ show i)
+            let detailName = show idx
+            _ <- renderHtml (dir <> "/html/results/" <> detailName)
               (fromHeaderBody
                 (do
-                  H.title $ H.string $ "Test detail #" ++ show i
-                  cssHeader $ "../../" <> cssName) $
-                    mconcat <$> forM detailsContents (\lines -> do
-                      H.div $ mconcat <$> forM lines (H.p . H.toHtml)
-                      H.br))
+                  title $ string $ "Test detail #" ++ detailName
+                  cssHeader $ "../../" <> cssName)
+                (do
+                  testStatus
+                  mconcat <$> forM detailsContents (\lines -> do
+                    div $ mconcat <$> forM lines (\l -> p $ toHtml $ bool l "|" $ empty l)
+                    br)))
             return $ Just $ "results/" ++ detailName ++ ".html")
           mayDetailsContents)
 
-  renderHtml "report/html/results" $
-    fromHeaderBody
-      (do
-        H.title "Test report"
-        H.meta H.! A.httpEquiv "refresh" H.! A.content "2"
-        cssHeader $ "../" <> cssName
-        scripts) $
-      mconcat $ map (uncurry resultLine) resultsAndLinks
+  testStatus = do
+    br
+    h1 ! A.style (colorAttribute statusColor) $ string status
+    br
+   where
+    statusColor = LayeredColor (gray 13) black
+
+  cssName = "results.css"

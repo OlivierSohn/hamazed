@@ -91,11 +91,11 @@ inverseMap = Map.fromListWith ISet.union . map (fmap ISet.singleton . swap) . IM
 showTestResults :: Characters s
                  => Time Duration System
                  -- ^ Timeout value
-                 -> [(s, TestResult a)]
+                 -> [(s, TestDurations a)]
                  -- ^ fst is labels
                  -> s
                  -- ^ Title
-                 -> [(Maybe (TestResult a), [s])]
+                 -> [(Maybe (TestDurations a), [s])]
                  -- ^ [s] is a list of lines corresponding to maybe one test result
 showTestResults timeoutValue l title =
   map ((,) Nothing) (IMap.elems footerMap) ++
@@ -123,35 +123,32 @@ showTestResults timeoutValue l title =
     IMap.fromDistinctAscList $
     zip (IMap.keys validOrTimeout) $
     map Just $
-    logarithmically 10 $ IMap.elems validOrTimeout
+    logarithmically 10 $ map (\case
+      NTimeouts _ -> timeoutValue
+      FinishedAverage dt _ -> dt
+      NoResult -> error "logic") $ IMap.elems validOrTimeout
 
   cancelledNormalizedQuantities =
     IMap.map (const Nothing) cancelled
 
-  (cancelled, validOrTimeout) =
-    IMap.mapMaybe id <$>
-      IMap.partition isNothing allQuantities
-
-  allQuantities = IMap.map (\case
-    Cancelled -> Nothing
-    SomeTimeout _ -> Just timeoutValue
-    Finished dt -> Just $ mean dt)
-    resultsMap
+  (cancelled, validOrTimeout) = IMap.partition (\case NoResult -> True; _ -> False) summary
 
   resultsMap = IMap.map snd lMap
   resultKeys = IMap.keysSet resultsMap
 
-  invMap = inverseMap resultsMap
+  summary = IMap.map summarize resultsMap
 
-  (_, worstIndexes) =
-    fromMaybe (Cancelled, ISet.empty) $ Map.lookupMax invMap
+  invMap = inverseMap summary
+
+  worstIndexes =
+    maybe ISet.empty snd $ Map.lookupMax invMap
 
   (bestVal, bestIndexes) =
-    fromMaybe (Cancelled, ISet.empty) $ Map.lookupMin invMap
+    fromMaybe (NoResult, ISet.empty) $ Map.lookupMin invMap
   bestValStr = case bestVal of
-    Cancelled -> "?"
-    SomeTimeout n -> unwords [show n, "Timeout(s)", showTime timeoutValue]
-    Finished x -> showTime $ mean x
+    NoResult -> "?"
+    NTimeouts n -> unwords [show n, "Timeout(s)", showTime timeoutValue]
+    FinishedAverage x _ -> showTime  x
 
   barSize = 25 :: Int
 
@@ -160,30 +157,27 @@ showTestResults timeoutValue l title =
     normalizedQuantities
 
   body = IMap.fromDistinctAscList $
-    map
-      (\(i,strs) ->
-      let isBest = i `ISet.member` bestIndexes
-          isWorst = i `ISet.member` worstIndexes
-          (f, quality)
-           | isBest && isWorst = (id, "")
-           | isBest = (colorize $ onBlack green, "+")
-           | isWorst = (colorize $ onBlack orange, "-")
-           | otherwise = (id, "")
-      in (i,map f (strs ++ [quality])))
-     $ zip [0..] $ -- not ideal, we could use the indices in the map
-      map (\(g,(s,e)) ->
-        let t = fromString $ case e of
-                  SomeTimeout n -> unwords [show n, "Timeout(s)"]
-                  Finished dt -> showQty $ mean dt
-                  Cancelled -> "?"
-            v = fromString $ case e of
-                  SomeTimeout _ -> "."
-                  Finished dt -> showFFloat (Just 0) (100 * dispersion dt) " %"
-                  Cancelled -> "?"
-        in [s, g, t, v])
-      $ zip
+    map (\(s,g,(i,su)) ->
+        let t = fromString $ case su of
+                  NTimeouts n -> unwords [show n, "Timeout(s)"]
+                  FinishedAverage dt _ -> showQty dt
+                  NoResult -> "?"
+            v = fromString $ case su of
+                  NTimeouts _ -> "."
+                  FinishedAverage _ dispersion -> showFFloat (Just 0) (100 * realToFrac dispersion :: Float) " %"
+                  NoResult -> "?"
+            isBest = i `ISet.member` bestIndexes
+            isWorst = i `ISet.member` worstIndexes
+            (style, q)
+             | isBest && isWorst = (id, "")
+             | isBest = (colorize $ onBlack green, "+")
+             | isWorst = (colorize $ onBlack orange, "-")
+             | otherwise = (id, "")
+        in (i,map style [s, g, t, v, q]))
+      $ zip3
+          (map fst l)
           (IMap.elems graphical)
-          l
+          $ IMap.assocs summary
 
 type Distribution a = Map a Int
 

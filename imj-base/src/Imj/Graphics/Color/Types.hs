@@ -290,11 +290,35 @@ color8ToUnitRGB c =
 
 data RGB256 = RGB256 !Int !Int !Int
 
-colorToHtml :: RGB256 -> Text
-colorToHtml (RGB256 r g b) =
+colorToHtml :: UnitColor -> Text
+colorToHtml color =
   "color:rgb(" <>
   pack (intercalate "," $ map show [r,g,b]) <>
   ");"
+ where
+  (UnitColor fr fg fb) = lowerContrast color
+  r = round $ 255 * fr :: Int
+  g = round $ 255 * fg
+  b = round $ 255 * fb
+
+  lowerContrast (UnitColor r1 g1 b1)
+   | isGray = UnitColor gr gr gr
+   | otherwise = UnitColor r' g' b'
+   where
+    isGray = r1 == g1 && g1 == b1
+
+    darkenGrays = 0.75/0.8 -- makes colors stand out more.
+    darken = 0.85
+    lightenDarks = 0.05
+
+    gr = mapGray r1
+
+    r' = mapColor r1
+    g' = mapColor g1
+    b' = mapColor b1
+
+    mapColor = unsafeMapRange 0 1 lightenDarks darken
+    mapGray  = unsafeMapRange 0 1 lightenDarks (darkenGrays * darken)
 
 {-# INLINE color8ToRGB256 #-}
 color8ToRGB256 :: Color8 a -> RGB256

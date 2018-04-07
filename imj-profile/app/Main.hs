@@ -95,12 +95,6 @@ writeHtmlReport allowedDt allRes intent = do
   printInterrupted
 
  where
-  toTitle (Finished (TD l _)) =
-    map
-      (\(TestDuration _ res) -> maybe ["error : no stat"] (map fromString . prettyShowStats) res)
-      l
-  toTitle x = [[fromString $ show x]]
-
   printInterrupted = case intent of
         Cancel -> putStrLn "Test was interrupted."
         Report -> putStrLn "Test is still running."
@@ -113,7 +107,7 @@ writeHtmlReport allowedDt allRes intent = do
                 (\(strategy, results) ->
                   ( fromString $ prettyShowMatrixVariants strategy
                   , let tds = testDurations results
-                    in case length tds - length (mapMaybe testResult tds) of
+                    in case length tds - length (Map.mapMaybe testResult tds) of
                       0 -> Finished results
                       n -> SomeTimeout n)) $ Map.assocs worldResults
               resultsAndCS = showTestResults allowedDt -- map these lines to individual results
@@ -126,6 +120,13 @@ writeHtmlReport allowedDt allRes intent = do
                 (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
                 . mconcat
     putStrLn $ "Wrote html report: " ++ html
+
+  toTitle (Finished (TD l _)) =
+    map
+      (\(TestDuration _ res) -> maybe ["error : no stat"] (map fromString . prettyShowStats) res)
+      $ Map.elems l
+  toTitle x = [[fromString $ show x]]
+
 
 forMLoudly :: (Show a) => String -> [a] -> (a -> IO b) -> IO [b]
 forMLoudly name l act = do
@@ -249,7 +250,7 @@ profileAllProps = do
   mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
   putStrLn " - Strategies:"
   mapM_ print strategies
-  let ntests = length worlds * length strategies * nSeeds
+  let ntests = length worlds * length strategies * fromIntegral nSeeds
   putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
   putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
   -- setup handlers to stop the test with Ctrl+C if needed, and still get some results.
@@ -306,18 +307,14 @@ profileInterleave0MarginRotateOrder1 = do
   withNumberedSeed (withTestDuration . profile props) (SeedNumber 0) >>= print
 --  withDifferentSeeds (withTestDuration . profile props) >>= print
 
-newtype SeedNumber = SeedNumber Int
-
-nSeeds :: Int
-nSeeds = 11
+nSeeds :: SeedNumber
+nSeeds = 10
 
 -- | Runs the action several times, with different - deterministically seeded - generators.
-withDifferentSeeds :: (GenIO -> IO a) -> IO [a]
+withDifferentSeeds :: (GenIO -> IO a) -> IO (Map SeedNumber a)
 withDifferentSeeds act =
-  mapM (withNumberedSeed act . SeedNumber) [0..nSeeds - 1]
+  Map.fromAscList <$> mapM (\n -> (,) n <$> withNumberedSeed act n) [0..nSeeds - 1]
 
-withDifferentSeeds_ :: (GenIO -> IO a) -> IO ()
-withDifferentSeeds_ = void . withDifferentSeeds
 
 withNumberedSeed :: (GenIO -> IO a) -> SeedNumber -> IO a
 withNumberedSeed act (SeedNumber i) = do
@@ -329,7 +326,7 @@ withNumberedSeed act (SeedNumber i) = do
 -- | Drops the first measurement.
 timeWithDifferentSeeds :: (GenIO -> IO a) -> IO (TestDurations a)
 timeWithDifferentSeeds act =
-  mkTestDurations . drop 1 <$> withDifferentSeeds (withTestDuration . act)
+  mkTestDurations <$> withDifferentSeeds (withTestDuration . act)
 
 withTestDuration :: IO a -> IO (TestDuration a)
 withTestDuration = fmap (uncurry TestDuration) . withDuration

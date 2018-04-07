@@ -40,8 +40,8 @@ renderResultsHtml status resultsAndSubresults = do
   mainPage resultsAndLinks = renderHtml (dir <> "/html/results") $
     fromHeaderBody
       (do
-        title $ string $ "Test report - " ++ status
-        meta ! A.httpEquiv "refresh" ! A.content "2"
+        pagetTitle "Test report"
+--        meta ! A.httpEquiv "refresh" ! A.content "2"
         cssHeader $ "../" <> cssName
         scripts)
       (do
@@ -58,7 +58,7 @@ renderResultsHtml status resultsAndSubresults = do
             _ <- renderHtml (dir <> "/html/results/" <> detailName)
               (fromHeaderBody
                 (do
-                  title $ string $ "Test detail #" ++ detailName
+                  pagetTitle "Test detail"
                   cssHeader $ "../../" <> cssName)
                 (do
                   testStatus
@@ -70,9 +70,14 @@ renderResultsHtml status resultsAndSubresults = do
 
   testStatus = do
     br
-    h1 ! A.style (colorAttribute statusColor) $ string status
+    div
+      ! A.style (colorAttribute statusColor)
+      ! A.class_ "stick"
+      $ string status
     br
    where
     statusColor = LayeredColor (gray 13) black
+
+  pagetTitle x = title $ string $ x ++ " - " ++ status
 
   cssName = "results.css"

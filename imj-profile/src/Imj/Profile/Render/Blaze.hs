@@ -40,26 +40,31 @@ scripts :: Html
 scripts =
   H.script ! A.lang "javascript" $ H.string $ unlines
     [ ""
-    , "function to_open(url){"
+    , "function open_url(url){"
     , "var viewportwidth = document.documentElement.clientWidth;"
     , "var viewportheight = document.documentElement.clientHeight;"
     , "window.resizeBy(-500,0);"
     , "window.moveTo(0,0);"
     , "tm=window.open(url,\"Test details\",\"width=500,height =\"+(viewportheight)+\",top=0,left=\"+viewportwidth+\"\");"
     , "}"
-    , "function to_close(){"
-    , "tm.close();"
-    , "}"
     ]
 
 resultLine :: ToMarkup a => a -> Maybe String -> Html
-resultLine e subWindow =
-  pMayTitle $ toHtml e
+resultLine e details =
+    maybe
+      (H.p txt)
+      (\w -> do
+        H.div
+          H.! A.class_ "clic"
+          H.! A.onclick (H.stringValue $ "open_url(\"" ++ w ++ "\")")
+          $ txt
+        {-H.div
+          H.! A.class_ "overlay"
+          $ pure ()-}
+      )
+      details
  where
-  pMayTitle = maybe
-    H.p
-    (\w -> H.p H.! A.onclick (H.stringValue $ "to_open(\"" ++ w ++ "\")"))
-    subWindow
+  txt = toHtml e
 
 --    ((H.!) H.p . A.title . H.stringValue . replaceNewlines)
 {-  replaceNewlines [] = []

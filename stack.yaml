@@ -19,6 +19,10 @@ packages:
     git: https://github.com/OlivierSohn/bindings-GLFW.git
     commit: 02d8896984607e98de5a8b46872b8939863637af
   extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/clay.git
+    commit: fabb12c7cffcf12d2eb51224409b1819f7cdd42f
+  extra-dep: true
 
 extra-deps:
 - FTGL-2.1

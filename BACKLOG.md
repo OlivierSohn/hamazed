@@ -1,5 +1,9 @@
 - on hover, add an overlay with 0.1 alpha white.
 
+  - using css only:
+https://www.codecademy.com/en/forum_questions/5200efa1abf821f829003bca
+
+  - using javascript:
 https://www.w3schools.com/howto/howto_css_overlay.asp -- global overlay
 https://stackoverflow.com/questions/2941189/how-to-overlay-one-div-over-another-div -- over another div
 

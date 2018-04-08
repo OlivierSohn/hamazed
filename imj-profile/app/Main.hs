@@ -223,12 +223,14 @@ withTestScheduler :: [SmallWorldCharacteristics]
                   -> (Properties -> GenIO -> IO Statistics)
                   -> IO Results
 withTestScheduler worlds strategies allowed intent f =
-  foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) -> do
-    gen <- initialize $ fromList $ deterministicMWCSeeds !! i
+  foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) ->
     foldMInterruptible continue "World" res0 worlds (\res1 world -> do
       let strats = strategies $ worldSize world
       foldMInterruptible continue "Strategy" res1 strats (\res2 strategy -> do
         mayReport res2
+        -- For easier reproductibility, eventhough the choice of seed is on the outer loop,
+        -- we initialize the generator here.
+        gen <- initialize $ fromList $ deterministicMWCSeeds !! i
         let test = f (mkProperties world strategy) gen
         flip (addResult world strategy seed) res2 <$> withTimeout allowed test)))
  where

@@ -244,7 +244,7 @@ instance Binary Variation
 instance NFData Variation
 instance Show Variation where
   show i@Interleave{} = "I" ++ showVariationDetails i
-  show r@Rotate{} = unwords [showVariationDetails r, "R"]
+  show r@Rotate{} = unwords ["R", showVariationDetails r]
 
 showVariationDetails :: Variation -> String
 showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords [show n ++ "-margin", show order]

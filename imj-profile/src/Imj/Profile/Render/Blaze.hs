@@ -43,27 +43,20 @@ scripts =
     , "function hide_overlay(e){"
     , "  e.childNodes[0].style.display=\"none\""
     , "}"
-    , "function toggle_details(e){"
-    , "  toggleExpand(e.childNodes[2])"
+    , "function toggle_details(e,evt){"
+    , "  toggleExpand(e,e.childNodes[2],evt)"
     , "}"
     -- using https://stackoverflow.com/a/26476282 for height animation:
-    , "function toggleExpand(element) {"
+    , "function toggleExpand(ownerElementAbove,element,evt) {"
     , "  var h = Array.prototype.reduce.call(element.childNodes, function(p, c) {return p + (c.offsetHeight || 0);}, 0);"
     , "  var ms = Math.ceil(40*Math.sqrt(h));"
     , "  if (!element.style.height || element.style.height == '0px') {"
     , "      element.style.transitionDuration = ms.toString() + 'ms'"
     , "      element.style.height = h + 'px';"
     , "  } else {"
-    , "      var c = getCoords(element);"
-    , "      var cScreen = getCoordsWrtScreen(element);"
-    , "      let clientH = document.documentElement.clientHeight;"
-    , "      let centerY = clientH / 2;"
-    , "      "
-    , "      if(cScreen.top < 0) {" -- the element top is not visible
---    , "        if(cScreen.top + h > clientH) {" -- the element bottom is not visible
-    , "          scrollTo(c.top - centerY, ms);"
---    , "        }"
-    , "      }"
+    , "      mouseY = evt?evt.clientY:(document.documentElement.clientHeight/2)"
+    , "      var target = (getCoords(ownerElementAbove).top + getCoords(element).top) / 2"
+    , "      scrollTo(target - mouseY, ms);"
     , "      element.style.height = '0px';"
     , "  }"
     , "}"
@@ -114,7 +107,7 @@ resultLine e =
         H.div
           H.! A.class_ "clic"
           H.! A.onclick (H.stringValue
-            "toggle_details(this)")
+            "toggle_details(this,event)")
           H.! A.onmouseover (H.stringValue "show_overlay(this)")
           H.! A.onmouseout (H.stringValue "hide_overlay(this)")
           $ do

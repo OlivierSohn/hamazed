@@ -1,3 +1,7 @@
+- (8,18), 1 component, 0.7 wall could benefit from higher margins than 7:
+best is "7-margin Order2 R"
+Hence, continue tests with higher margins.
+
 - scroll when animating:
 
 if we see the top, don't scroll.

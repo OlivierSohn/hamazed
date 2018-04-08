@@ -275,7 +275,7 @@ profileAllProps = do
  where
 
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 0.100 -- TODO this timeout should be dynamic
+  !allowedDt = fromSecs 80 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
   strategies =

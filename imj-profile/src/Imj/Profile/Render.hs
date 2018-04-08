@@ -53,7 +53,7 @@ renderResultsHtml status resultsAndSubresults = do
       (\(_,(res,mayDetailsContents)) ->
         (,) res $ maybe
           Nothing
-          (Just . mconcat . List.map (\lines -> do
+          (Just . mconcat . List.map (\lines ->
               div $ do
                 mconcat $ List.map (\l -> p $ toHtml $ bool l "|" $ empty l) lines
                 br

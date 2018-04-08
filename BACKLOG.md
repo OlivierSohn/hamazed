@@ -1,4 +1,3 @@
-- investigate why results differ with optimizations.
 
 - when we iterate over rows and columns, try numLoop
 

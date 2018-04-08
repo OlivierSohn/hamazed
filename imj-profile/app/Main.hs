@@ -280,7 +280,7 @@ profileAllProps = do
   !allowedDt = fromSecs 80 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
-  strategies = \size ->
+  strategies size =
     Nothing : -- i.e no variant, use only random matrices.
     map
       Just
@@ -288,6 +288,10 @@ profileAllProps = do
       concatMap
         (justVariantsWithRotations size) -- variants using rotations
         margins)
+
+  -- NOTE we don't use margin 0 because, for single component worlds, it is strictly equivalent to never rotating.
+  -- For multiple component worlds however, it is not equivalent, since after the nComponents test,
+  -- maybe the spacewellused or well distributed test could fail.
   margins = [1..7] -- TODO test higher margins
 
 

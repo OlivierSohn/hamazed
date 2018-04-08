@@ -1,16 +1,27 @@
-- on hover, add an overlay with 0.1 alpha white.
+- scroll when animating:
 
-  - using css only:
-https://www.codecademy.com/en/forum_questions/5200efa1abf821f829003bca
+if we see the top, don't scroll.
+else , scroll so that at the end, the top is at the middle of the screen.
+TODO what happends if we scrollTo too far?
 
-  - using javascript:
-https://www.w3schools.com/howto/howto_css_overlay.asp -- global overlay
-https://stackoverflow.com/questions/2941189/how-to-overlay-one-div-over-another-div -- over another div
+use http://javascript.info/coordinates
 
-https://www.w3schools.com/jsref/event_onmouseover.asp -- to activate / deactivate on hover
-https://www.w3schools.com/jsref/tryit.asp?filename=tryjsref_onmouseover
+// get document coordinates of the element
+function getCoords(elem) {
+  let box = elem.getBoundingClientRect();
 
-https://www.w3schools.com/css/css_display_visibility.asp -- on hiding elements
+  return {
+    top: box.top + pageYOffset,
+    left: box.left + pageXOffset
+  };
+}
+-- specifies the document coordinates of the upper left point of the client area
+-- hence, to place a point in the middle we should add / remove half width / height
+-- of the client area.
+    window.scrollTo({
+      left: 500,
+      behavior: "smooth"
+	});
 
 - global timeout (100) + adaptive timeout : when only one seed is known, apply a x100 factor.
 2 seeds -> x50

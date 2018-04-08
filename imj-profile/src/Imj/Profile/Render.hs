@@ -31,7 +31,7 @@ renderResultsHtml :: (ToMarkup a)
 renderResultsHtml status resultsAndSubresults = do
   renameDirectoryIfExists dir
   css
-  detailPages >>= mainPage
+  mainPage resultDetails
  where
   dir = "report"
 
@@ -40,7 +40,7 @@ renderResultsHtml status resultsAndSubresults = do
   mainPage resultsAndLinks = renderHtml (dir <> "/html/results") $
     fromHeaderBody
       (do
-        pagetTitle "Test report"
+        pageTitle "Test report"
 --        meta ! A.httpEquiv "refresh" ! A.content "2"
         cssHeader $ "../" <> cssName
         scripts)
@@ -48,25 +48,18 @@ renderResultsHtml status resultsAndSubresults = do
         testStatus
         mconcat $ List.map (uncurry resultLine) resultsAndLinks)
 
-  detailPages =
-    forM (zip [0 :: Int ..] resultsAndSubresults)
-      (\(idx,(res,mayDetailsContents)) ->
-        (,) res <$> maybe
-          (return Nothing)
-          (\detailsContents -> do
-            let detailName = show idx
-            _ <- renderHtml (dir <> "/html/results/" <> detailName)
-              (fromHeaderBody
-                (do
-                  pagetTitle "Test detail"
-                  cssHeader $ "../../" <> cssName)
-                (do
-                  testStatus
-                  mconcat <$> forM detailsContents (\lines -> do
-                    div $ mconcat <$> forM lines (\l -> p $ toHtml $ bool l "|" $ empty l)
-                    br)))
-            return $ Just $ "results/" ++ detailName ++ ".html")
+  resultDetails =
+    List.map
+      (\(_,(res,mayDetailsContents)) ->
+        (,) res $ maybe
+          Nothing
+          (Just . mconcat . List.map (\lines -> do
+              div $ do
+                mconcat $ List.map (\l -> p $ toHtml $ bool l "|" $ empty l) lines
+                br
+              ))
           mayDetailsContents)
+    (zip [0 :: Int ..] resultsAndSubresults)
 
   testStatus = do
     br
@@ -78,6 +71,6 @@ renderResultsHtml status resultsAndSubresults = do
    where
     statusColor = LayeredColor (gray 13) black
 
-  pagetTitle x = title $ string $ x ++ " - " ++ status
+  pageTitle x = title $ string x
 
   cssName = "results.css"

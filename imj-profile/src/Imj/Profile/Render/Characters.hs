@@ -105,7 +105,7 @@ showTestResults timeoutValue l title =
     (IMap.elems resultsMap) ++
   map ((,) Nothing) (IMap.elems headerMap)
  where
-  (footerMap, headerMap) = IMap.split 0 $ IMap.withoutKeys  indexed resultKeys
+  (footerMap, headerMap) = IMap.split 0 $ IMap.withoutKeys indexed resultKeys
   bodyMap = IMap.restrictKeys indexed resultKeys
 
   indexed = indexedShowArrayN

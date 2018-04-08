@@ -30,21 +30,26 @@ mkCss = do
   ".stick" ? do
     position sticky
     top $ px 0
-    zIndex 2
+    zIndex 2 -- so that it is not hidden behind elements coming after.
 
   ".clic" ? do
-    cursor pointer
     position relative -- so that the overlay inside can be absolutely positionned.
+    cursor pointer
 
   ".overlay" ? do
-    display none -- hide by default
-
     position absolute
     width $ pct 100
     height $ pct 100
+    zIndex 1
 
+    display none -- hide by default
     backgroundColor $ rgba 239 239 255 0.05
 
+  ".detail" ? do
+    -- in conjunction with 'toggleExpand'
+    height $ px 0
+    transition "height" 1 linear 0
+    overflow hidden
 
 renderCss :: FilePath -> Css -> IO ()
 renderCss path css = do

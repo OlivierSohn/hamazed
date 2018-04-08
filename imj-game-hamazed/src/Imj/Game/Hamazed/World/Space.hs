@@ -42,9 +42,9 @@ import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Tree(flatten)
-import qualified Data.Vector.Mutable as BVM (new, write)
+import qualified Data.Vector.Mutable as BVM (unsafeNew, unsafeWrite)
 import qualified Data.Vector as BV
-import qualified Data.Vector.Unboxed.Mutable as VM (new, write)
+import qualified Data.Vector.Unboxed.Mutable as VM (unsafeNew, unsafeWrite)
 import qualified Data.Vector.Unboxed as V
 import           System.Random.MWC(GenIO, uniform, uniformR)
 
@@ -299,19 +299,23 @@ matchAndVariate nComponents curB info =
     (SmallMatInfo nAir m) ->
       maybe []
         (\(Variants variations nextB) ->
-          let authorizeVariation Interleave = True
+          let authorizeVariation (Interleave _ _) = True
               authorizeVariation (Rotate (RotationDetail _ margin)) =
                 case rootRes of
                   Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
                   _ -> False
 
-              produceVariations Interleave = drop 1 $ Cyclic.produceUsefulInterleavedVariations m
-              produceVariations (Rotate (RotationDetail order _)) = Cyclic.produceRotations order m
+              produceVariations (Interleave r c) =
+                drop 1 $ Cyclic.produceUsefulInterleavedVariations r c m
+
+              produceVariations (Rotate (RotationDetail order _)) =
+                Cyclic.produceRotations order m
           in List.concatMap -- TODO benchmark which is faster : consuming depth first or breadth first
               (NE.toList . matchAndVariate nComponents nextB . SmallMatInfo nAir)
               $ concatMap produceVariations
               $ NE.filter authorizeVariation variations)
         curB
+
   deepMargin = requiredNComponentsMargin curB
   rootRes = matchTopology deepMargin nComponents info
 
@@ -329,7 +333,7 @@ requiredNComponentsMargin (Just (Variants variations nextB)) =
   max' (NCompsRequiredWithMargin a) (NCompsRequiredWithMargin b) = NCompsRequiredWithMargin $ max a b
 
 requiredNComponentsMarginForVariation :: Variation -> NCompsRequest
-requiredNComponentsMarginForVariation Interleave = NCompsNotRequired
+requiredNComponentsMarginForVariation (Interleave _ _) = NCompsNotRequired
 requiredNComponentsMarginForVariation (Rotate (RotationDetail _ margin)) = NCompsRequiredWithMargin margin
 
 -- | Takes elements matching a condition, and the element thereafter.
@@ -529,9 +533,9 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
       keyToComponent =
         runST $ do
-          v <- VM.new nAirKeys
+          v <- VM.unsafeNew nAirKeys
           mapM_
-            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.write v) compIdx) vertices)
+            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.unsafeWrite v) compIdx) vertices)
             $ zip [0 :: ComponentIdx ..] comps
           V.unsafeFreeze v
 
@@ -562,12 +566,12 @@ mkSmallVector :: GenIO
               -> Int
               -> IO (Int, V.Vector MaterialAndKey)
 mkSmallVector gen wallProba countBlocks = do
-  v <- VM.new countBlocks
+  v <- VM.unsafeNew countBlocks
   countAirKeys <- foldM
     (\k i -> do
       float <- uniform gen :: IO Float
       let (k', materialAndKey) = bool (k, MaterialAndKey $ -1) (k+1, MaterialAndKey k) $ float > wallProba
-      VM.write v i materialAndKey
+      VM.unsafeWrite v i materialAndKey
       return k')
     0
     [0..countBlocks-1]
@@ -668,8 +672,8 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
     if canContinue
       then
         Just $ runST $ do
-          v <- BVM.new nAirKeys
-          forM_ listNodes (\(Node key neighbours) -> BVM.write v key neighbours)
+          v <- BVM.unsafeNew nAirKeys
+          forM_ listNodes (\(Node key neighbours) -> BVM.unsafeWrite v key neighbours)
           BV.unsafeFreeze v
       else
         Nothing
@@ -686,16 +690,13 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
                         MaterialAndKey k ->
                           let neighbours = neighbourAirKeys matIdx row col
                               isMono = null neighbours
-                              newNMinComps =
-                                bool
-                                  (bool (nMinComps+1) nMinComps oneMulti)
-                                  (1+nMinComps)
-                                  isMono
+                              newNMinComps
+                                | isMono || not oneMulti = 1+nMinComps
+                                | otherwise = nMinComps
                               willContinue = newNMinComps < tooBigNComps
-                              newList =
-                                bool [] -- drop the list if we don't continue
-                                  (Node k neighbours:ln)
-                                  willContinue
+                              newList
+                                | willContinue = Node k neighbours:ln
+                                | otherwise = [] -- drop the list if we don't continue
                           in GC
                                newList
                                newNMinComps

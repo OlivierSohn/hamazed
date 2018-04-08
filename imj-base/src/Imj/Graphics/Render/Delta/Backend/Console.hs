@@ -13,7 +13,7 @@ import           GHC.IO.Encoding(setLocaleEncoding)
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.STM(TQueue, newTQueueIO, atomically, writeTQueue)
 import           Data.List(concat)
-import           Data.Vector.Unboxed.Mutable(read)
+import           Data.Vector.Unboxed.Mutable(unsafeRead)
 import qualified System.Console.Terminal.Size as Terminal(Window(..), size)
 import           System.Console.ANSI(clearScreen, hideCursor
                                    , setSGR, setCursorPosition, showCursor)
@@ -166,7 +166,7 @@ renderDelta delta' w b = do
        | fromIntegral sz == index =
           return whiteOnBlack -- this value is not used
        | otherwise = do
-          c <- read delta $ fromIntegral index
+          c <- unsafeRead delta $ fromIntegral index
           let (bg, fg, idx, glyph) = expandIndexed c
               prevRendered = (== Just (pred idx)) prevIndex
           setCursorPositionIfNeeded w idx prevRendered b

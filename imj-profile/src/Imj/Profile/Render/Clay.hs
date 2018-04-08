@@ -45,11 +45,10 @@ mkCss = do
     display none -- hide by default
     backgroundColor $ rgba 239 239 255 0.05
 
-  ".detail" ? do
-    -- in conjunction with 'toggleExpand'
-    height $ px 0
-    transition "height" 1 linear 0
+  ".detail" ? do -- height and transition duration are overriden in 'toggleExpand'
     overflow hidden
+    height $ px 0
+    transition "height" 1 linear 0 -- same easing as for scroll in 'toggleExpand'.
 
 renderCss :: FilePath -> Css -> IO ()
 renderCss path css = do

@@ -29,7 +29,7 @@ import qualified Graphics.UI.GLFW          as GLFW
 import           Foreign.Ptr(nullPtr)
 import           System.IO(print, putStrLn)
 
-import           Data.Vector.Unboxed.Mutable(read)
+import           Data.Vector.Unboxed.Mutable(unsafeRead)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, accessUnderlying, length)
 
@@ -307,7 +307,7 @@ renderDelta win ppu fonts rs delta' w = do
       renderDelta' index
        | fromIntegral sz == index = return ()
        | otherwise = do
-          c <- read delta $ fromIntegral index
+          c <- unsafeRead delta $ fromIntegral index
           let (bg, fg, idx, glyph) = expandIndexed c
               (char,fontIndex) = decodeGlyph glyph
               font = lookupFont fontIndex fonts

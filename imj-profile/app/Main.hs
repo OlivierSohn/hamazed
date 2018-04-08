@@ -58,35 +58,38 @@ main =
   profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
   --writeSeedsSource
 
-justVariantsWithRotations :: ComponentCount -> [MatrixVariants]
-justVariantsWithRotations n =
+justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
+justVariantsWithRotations sz n =
   concatMap
     (\rotationOrder ->
       let rotation =
             Rotate $ RotationDetail rotationOrder n
-      in map (\x -> x Nothing)
-          [ Variants (pure rotation)
-          , Variants (pure Interleave) . Just . Variants (pure rotation)
-          , Variants (Interleave :| [rotation])
-          ])
-    [ Cyclic.Rect1
-    , Cyclic.Order1
-    , Cyclic.Order2
+          interleave = mkInterleaveVariation sz
+      in map (\x -> x Nothing) $
+          Variants (pure rotation):
+          Variants (pure interleave) . Just . Variants (pure rotation):
+          Variants (interleave :| [rotation]):
+          []
+          )
+    [
+    Cyclic.Rect1,
+    Cyclic.Order1,
+    Cyclic.Order2
     ]
 
-justVariantsWithoutRotations :: [MatrixVariants]
-justVariantsWithoutRotations = [Variants (pure Interleave) Nothing]
+justVariantsWithoutRotations :: Size -> [MatrixVariants]
+justVariantsWithoutRotations sz = [Variants (pure (mkInterleaveVariation sz)) Nothing]
 
 allWorlds :: [SmallWorldCharacteristics]
 allWorlds =
   map (\(a,b,c) -> SWCharacteristics a b c) params
  where
   params =
-    [ (Size 32 72, ComponentCount 1, 0.2)
-    , (Size  8 18, ComponentCount 1, 0.5)
-    , (Size  8 18, ComponentCount 1, 0.6)
-    , (Size  8 18, ComponentCount 1, 0.7)
-    ]
+    (Size 32 72, ComponentCount 1, 0.2):
+    (Size  8 18, ComponentCount 1, 0.5):
+    (Size  8 18, ComponentCount 1, 0.6):
+    (Size  8 18, ComponentCount 1, 0.7):
+    []
 
 writeHtmlReport :: Time Duration System
                 -> Results
@@ -214,7 +217,7 @@ addResult w strategy seed stats res =
   s = TD $ Map.singleton seed stats
 
 withTestScheduler :: [SmallWorldCharacteristics]
-                  -> [Maybe MatrixVariants]
+                  -> (Size -> [Maybe MatrixVariants])
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
@@ -222,8 +225,9 @@ withTestScheduler :: [SmallWorldCharacteristics]
 withTestScheduler worlds strategies allowed intent f =
   foldMInterruptible continue "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) -> do
     gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-    foldMInterruptible continue "World" res0 worlds (\res1 world ->
-      foldMInterruptible continue "Strategy" res1 strategies (\res2 strategy -> do
+    foldMInterruptible continue "World" res0 worlds (\res1 world -> do
+      let strats = strategies $ worldSize world
+      foldMInterruptible continue "Strategy" res1 strats (\res2 strategy -> do
         mayReport res2
         let test = f (mkProperties world strategy) gen
         flip (addResult world strategy seed) res2 <$> withTimeout allowed test)))
@@ -258,11 +262,7 @@ profileAllProps = do
   -- display global test info
   putStrLn " - Worlds:"
   mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
-  putStrLn " - Strategies:"
-  mapM_ print strategies
-  let ntests = length worlds * length strategies * fromIntegral nSeeds
-  putStrLn $ "starting " ++ show ntests ++ " tests, with timeout " ++ show allowedDt
-  putStrLn $ "Max overall duration = " ++ show (fromIntegral ntests .* allowedDt)
+  putStrLn $ "starting tests, with timeout " ++ show allowedDt
   -- setup handlers to stop the test with Ctrl+C if needed, and still get some results.
   intent <- mkTerminator
   -- run benchmarks
@@ -278,15 +278,15 @@ profileAllProps = do
   !allowedDt = fromSecs 80 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
-  strategies =
+  strategies = \size ->
     Nothing : -- i.e no variant, use only random matrices.
     map
       Just
-      (justVariantsWithoutRotations ++ -- variants using only interleaved variations
+      (justVariantsWithoutRotations size ++ -- variants using only interleaved variations
       concatMap
-        justVariantsWithRotations -- variants using rotations
+        (justVariantsWithRotations size) -- variants using rotations
         margins)
-  margins = [1..7]
+  margins = [1..7] -- TODO test higher margins
 
 
 profile :: Properties -> GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
@@ -310,12 +310,12 @@ profileLargeWorld = do
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do
-  let props = mkProperties
-        (SWCharacteristics (Size 32 72) (ComponentCount 1) 0.2)
-        (Just $ Variants (pure Interleave) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
+  let sz = Size 32 72
+      props = mkProperties
+        (SWCharacteristics sz (ComponentCount 1) 0.2)
+        (Just $ Variants (pure $ mkInterleaveVariation sz) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
   print props
   withNumberedSeed (withDuration . profile props) (SeedNumber 0) >>= print
---  withDifferentSeeds (withTestDuration . profile props) >>= print
 
 nSeeds :: SeedNumber
 nSeeds = 10

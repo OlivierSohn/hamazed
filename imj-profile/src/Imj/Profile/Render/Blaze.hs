@@ -49,7 +49,7 @@ scripts =
     -- using https://stackoverflow.com/a/26476282 for height animation:
     , "function toggleExpand(ownerElementAbove,element,evt) {"
     , "  var h = Array.prototype.reduce.call(element.childNodes, function(p, c) {return p + (c.offsetHeight || 0);}, 0);"
-    , "  var ms = Math.ceil(40*Math.sqrt(h));"
+    , "  var ms = Math.min(1000,Math.ceil(40*Math.sqrt(h)));"
     , "  if (!element.style.height || element.style.height == '0px') {"
     , "      element.style.transitionDuration = ms.toString() + 'ms'"
     , "      element.style.height = h + 'px';"

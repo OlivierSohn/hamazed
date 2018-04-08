@@ -3,7 +3,6 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
@@ -21,7 +20,6 @@ module Imj.Data.Matrix.Cyclic (
   , produceRotations, countRotations, countRotations'
   -- * Interleaved
   , produceUsefulInterleavedVariations
-  , countUsefulInterleavedVariations2D
     -- ** Special matrices
   , zero
   , identity
@@ -54,7 +52,7 @@ import qualified Data.Vector.Unboxed         as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable as MV
 
 import           Imj.Geo.Discrete.Types
-import           Imj.Geo.Discrete.Interleave(mkInterleaveData, interleaveIdx, countUsefulInterleavedVariations)
+import           Imj.Geo.Discrete.Interleave(InterleaveInfo(..))
 import qualified Imj.Data.Matrix.Unboxed as Mat
 
 -------------------------------------------------------
@@ -170,19 +168,31 @@ data InterleavedVariationState a = IVS {
 }
 
 -- Benchmarks show that foldr is slower than foldl' here.
+-- | Note that rotation is applied /after/ the interleaving.
 {-# INLINE produceUsefulInterleavedVariations #-}
 produceUsefulInterleavedVariations :: Unbox a
-                                   => Matrix a
+                                   => InterleaveInfo
+                                   -- ^ for rows
+                                   -> InterleaveInfo
+                                   -- ^ for columns
+                                   -> Matrix a
                                    -> [Matrix a]
-produceUsefulInterleavedVariations x@(M rows cols _ _) =
+produceUsefulInterleavedVariations
+  (InterleaveInfo nRowVar interleaveRows)
+  (InterleaveInfo nColVar interleaveCols)
+  x@(M rows cols _ _) =
   _producedMats $ foldl'
     (\(IVS m prevResults) i ->
-      let fi = bool reorderRows id $ i == 0
-          m' = fi m
+      let fi
+           | i == 0 = id
+           | otherwise = reorderRows
+          m' = m{mvect = fi $ mvect m}
           (IVS _ intermediateResults) = foldl'
             (\(IVS n l) j ->
-              let fj = bool reorderCols id $ j == 0
-                  n' = fj n
+              let fj
+                   | j == 0 = id
+                   | otherwise = reorderCols
+                  n' = n{mvect = fj $ mvect n}
               in IVS n' $ n':l)
             (IVS m' prevResults)
             [0..nColVar-1]
@@ -190,30 +200,29 @@ produceUsefulInterleavedVariations x@(M rows cols _ _) =
     (IVS x [])
     [0..nRowVar-1]
  where
-  (nRowVar, interleaveRows) = getInterleavedInfos rows
-  (nColVar, interleaveCols) = getInterleavedInfos cols
+  len = rows * cols
 
-  reorderRows m =
-    matrix rows cols $ \i j ->
-      unsafeGet (interleaveRows i) j m
+  -- NOTE reorderCols is faster than reorderRows, because we use iTimeM.
+  -- The function calls reorderCols "nRowVar*nColVar" times and reorderRows only "nRowVar" times,
+  -- hence it is ok.
+  reorderRows v = -- ignores rotations
+    V.create $ do
+      mv <- MV.unsafeNew len
+      numLoop 0 (rows-1) $ \i -> do
+        let rowStart = cols*i
+            interleavedRowStart = cols * V.unsafeIndex interleaveRows i
+        numLoop 0 (cols-1) $ \j ->
+          MV.unsafeWrite mv (rowStart+j) $ V.unsafeIndex v $ interleavedRowStart + j -- TODO copy slice or move.
+      return mv
 
-  reorderCols m =
-    matrix rows cols $ \i j ->
-      unsafeGet i (interleaveCols j) m
-
--- Counts the number of matrices returned by 'produceUsefulInterleavedVariations'
-countUsefulInterleavedVariations2D :: Size -> Int
-countUsefulInterleavedVariations2D (Size (Length x) (Length y)) =
-  countUsefulInterleavedVariations x * countUsefulInterleavedVariations y
-
-getInterleavedInfos :: Int
-                    -- ^ the length of the array that will be interleaved
-                    -> (Int, Int -> Int)
-                    -- ^ fst: The count of useful variations
-                    -- , snd : the function to get interleaved indices
-getInterleavedInfos !d =
-  let !iD = mkInterleaveData d
-  in (countUsefulInterleavedVariations d, interleaveIdx iD)
+  reorderCols v = -- ignores rotations
+    V.create $ do
+      mv <- MV.unsafeNew len
+      numLoop 0 (rows-1) $ \i -> do
+        let rowStart = cols*i
+        numLoop 0 (cols-1) $ \j ->
+          MV.unsafeWrite mv (rowStart+j) $ V.unsafeIndex v $ rowStart + V.unsafeIndex interleaveCols j
+      return mv
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -235,7 +244,7 @@ zero :: (Num a, Unbox a) =>
 {-# INLINE zero #-}
 zero n m = M n m 0 $ V.replicate (n*m) 0
 
--- | /O(rows*cols)/. Generate a matrix from a generator function.
+-- | /O(rows*cols)/. Generate a 0-rotation matrix from a generator function.
 --   Example of usage:
 --
 -- >                                  (  1  0 -1 -2 )
@@ -245,16 +254,17 @@ zero n m = M n m 0 $ V.replicate (n*m) 0
 matrix :: (Unbox a)
        => Int -- ^ Rows
        -> Int -- ^ Columns
-       -> (Int -> Int -> a) -- ^ Generator function
+       -> (Int -> Int -> Int -> a) -- ^ Generator function
        -> Matrix a
 {-# INLINE matrix #-}
-matrix n m f = M n m 0 $ V.create $ do
-  v <- MV.new $ n * m
-  let en = encode m
-  numLoop 0 (n-1) $
-    \i -> numLoop 0 (m-1) $
-    \j -> MV.unsafeWrite v (en i j) (f i j)
-  return v
+matrix n m f = M n m 0 $
+  V.create $ do
+    v <- MV.unsafeNew $ n * m
+    numLoop 0 (n-1) $ \i -> do
+      let rowStart = m*i
+      numLoop 0 (m-1) $ \j ->
+        MV.unsafeWrite v (rowStart+j) (f rowStart i j)
+    return v
 
 -- | /O(rows*cols)/. Identity matrix of the given order.
 --
@@ -267,7 +277,7 @@ matrix n m f = M n m 0 $ V.create $ do
 -- >   n ( 0 0 ... 0 1 )
 --
 identity :: (Num a, Unbox a) => Int -> Matrix a
-identity n = matrix n n $ \i j -> if i == j then 1 else 0
+identity n = matrix n n $ \_ i j -> if i == j then 1 else 0
 
 -- | Similar to 'diagonalList', but using 'V.Vector', which
 --   should be more efficient.
@@ -275,7 +285,7 @@ diagonal :: (Unbox a)
          => a -- ^ Default element
          -> V.Vector a  -- ^ Diagonal vector
          -> Matrix a
-diagonal e v = matrix n n $ \i j -> if i == j then V.unsafeIndex v i else e
+diagonal e v = matrix n n $ \_ i j -> if i == j then V.unsafeIndex v i else e
   where
     n = V.length v
 
@@ -374,7 +384,7 @@ permMatrix :: (Num a, Unbox a)
 permMatrix n r1 r2 | r1 == r2 = identity n
 permMatrix n r1 r2 = matrix n n f
  where
-  f i j
+  f _ i j
    | i == r1 = if j == r2 then 1 else 0
    | i == r2 = if j == r1 then 1 else 0
    | i == j = 1
@@ -422,6 +432,7 @@ unsafeGetByIndex idx (M _ _ o v) =
   l = V.length v
   rawIdx = idx + o
 
+
 -- | Variant of 'getElem' that returns Maybe instead of an error.
 safeGet :: (Unbox a)
          => Int -> Int -> Matrix a -> Maybe a
@@ -434,12 +445,12 @@ getRow :: (Unbox a)
        => Int -> Matrix a -> V.Vector a
 {-# INLINE getRow #-}
 getRow i (M _ m o v)
-  | start <= l - m = V.slice start     m         v
-  | start  < l     = V.slice start     (l-start) v V.++
-                     V.slice 0         (end-l)   v
-  | start <= 2*l-m = V.slice (start-l) m         v
-  | start  < 2*l   = V.slice (start-l) (2*l-start) v V.++
-                     V.slice 0         (end-2*l)   v
+  | start <= l - m = V.unsafeSlice start     m         v
+  | start  < l     = V.unsafeSlice start     (l-start) v V.++
+                     V.unsafeSlice 0         (end-l)   v
+  | start <= 2*l-m = V.unsafeSlice (start-l) m         v
+  | start  < 2*l   = V.unsafeSlice (start-l) (2*l-start) v V.++
+                     V.unsafeSlice 0         (end-2*l)   v
   | otherwise = error "out of range"
  where
   l = V.length v
@@ -469,14 +480,14 @@ elementwise :: (Unbox a, Unbox b, Unbox c)
             => (a -> b -> c)
             -> (Matrix a -> Matrix b -> Matrix c)
 elementwise f m m' = matrix (nrows m) (ncols m) $
-  \i j -> f (getElem i j m) (getElem i j m')
+  \_ i j -> f (getElem i j m) (getElem i j m')
 
 -- | Unsafe version of 'elementwise', but faster.
 elementwiseUnsafe :: (Unbox a, Unbox b, Unbox c)
                   => (a -> b -> c) -> (Matrix a -> Matrix b -> Matrix c)
 {-# INLINE elementwiseUnsafe #-}
 elementwiseUnsafe f m m' = matrix (nrows m) (ncols m) $
-  \i j -> f (unsafeGet i j m) (unsafeGet i j m')
+  \_ i j -> f (unsafeGet i j m) (unsafeGet i j m')
 
 
 

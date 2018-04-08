@@ -20,6 +20,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , prettyShowMatrixVariants
     , humanShowVariants
     , Variation(..)
+    , mkInterleaveVariation
     , RotationDetail(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
@@ -81,6 +82,7 @@ import           Imj.Data.Graph(Vertex)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
+import           Imj.Geo.Discrete.Interleave
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.Font
 import           Imj.Timing
@@ -166,7 +168,7 @@ data Scope = WorldScope !Material
            deriving(Show)
 
 data SmallWorldCharacteristics = SWCharacteristics {
-    _smallSize :: {-# UNPACK #-} !Size
+    worldSize :: {-# UNPACK #-} !Size
     -- ^ Size of the small world
   , _componentCount :: !ComponentCount
     -- ^ The expected count of connex components.
@@ -206,20 +208,18 @@ humanShowVariants sz variations = txt
   random = "using random matrices"
   branchingIn = ", variating in "
 
-  humanShowVariation (Rotate (RotationDetail rotationOrder (ComponentCount distRotate))) =
+  humanShowVariation v@(Rotate (RotationDetail rotationOrder _)) =
     unwords $
-      ["margin-" ++ show distRotate, show rotationOrder] ++
+      [showVariationDetails v] ++
       maybe [] ((:[]).show) nRotations ++
       ["rotated"]
    where
     nRotations = fmap (Cyclic.countRotations' rotationOrder) sz
 
-  humanShowVariation Interleave =
-    unwords $
-      maybe [] ((:[]).show) nInterleavings ++
-      ["interleaved"]
+  humanShowVariation v@(Interleave r c) =
+    unwords [showVariationDetails v, show n, "interleaved"]
    where
-    nInterleavings = fmap Cyclic.countUsefulInterleavedVariations2D sz
+    n = nUseful r * nUseful c
 
   humanShowVariates x = unwords [sv x, "variations"]
    where
@@ -238,13 +238,21 @@ humanShowVariants sz variations = txt
 
 data Variation =
     Rotate !RotationDetail
-  | Interleave
+  | Interleave !InterleaveInfo !InterleaveInfo -- first is for rows, second is for columns
   deriving(Generic, Eq, Ord)
 instance Binary Variation
 instance NFData Variation
 instance Show Variation where
-  show Interleave = "I"
-  show (Rotate (RotationDetail order (ComponentCount n))) = unwords [show n ++ "-margin", show order, "R"]
+  show i@Interleave{} = "I" ++ showVariationDetails i
+  show r@Rotate{} = unwords [showVariationDetails r, "R"]
+
+showVariationDetails :: Variation -> String
+showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords [show n ++ "-margin", show order]
+showVariationDetails (Interleave r c) = "(" ++ show (nUseful r) ++ "," ++ show (nUseful c) ++ ")"
+
+mkInterleaveVariation :: Size -> Variation
+mkInterleaveVariation (Size (Length rows) (Length cols)) =
+  Interleave (mkInterleaveInfo rows) (mkInterleaveInfo cols)
 
 data RotationDetail = RotationDetail {
     _rotationOrder :: !Cyclic.RotationOrder

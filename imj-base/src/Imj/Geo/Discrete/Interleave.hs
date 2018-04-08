@@ -1,8 +1,10 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Geo.Discrete.Interleave
-    ( mkInterleaveData
+    ( InterleaveInfo(..)
+    , mkInterleaveInfo
     , countUsefulInterleavedVariations
     , interleaveHalves
     , interleaveHalves'
@@ -10,9 +12,48 @@ module Imj.Geo.Discrete.Interleave
     ) where
 
 import           Imj.Prelude
-
+import           Control.DeepSeq(NFData(..))
+import           Control.Loop (numLoop)
 import           Data.List(length, (!!))
+import           Data.Vector.Binary()
+import qualified Data.Vector.Unboxed         as V hiding(Unbox)
+import qualified Data.Vector.Unboxed.Mutable as MV
+
 import           Imj.Util
+
+
+data InterleaveInfo = InterleaveInfo {
+    nUseful :: !Int
+   -- ^ The count of useful variations
+  , _lookup :: V.Vector Int
+   -- ^ lookup vector to get interleaved indices
+} deriving(Generic, Eq, Show, Ord)
+instance Binary InterleaveInfo
+instance NFData InterleaveInfo
+
+mkInterleaveInfo :: Int
+             -- ^ the length of the array that will be interleaved
+             -> InterleaveInfo
+mkInterleaveInfo n =
+  InterleaveInfo len v
+ where
+  (len,interleave) = getInterleavedInfos n
+
+  v = V.create $ do
+    mv <- MV.unsafeNew n
+    numLoop 0 (n-1) $ \i ->
+      MV.unsafeWrite mv i $ interleave i
+    return mv
+
+getInterleavedInfos :: Int
+                    -- ^ the length of the array that will be interleaved
+                    -> (Int, Int -> Int)
+                    -- ^ fst: The count of useful variations
+                    -- , snd : the function to get interleaved indices
+getInterleavedInfos !d =
+  let !iD = mkInterleaveData d
+  in (countUsefulInterleavedVariations d, interleaveIdx iD)
+
 
 {- Definition: two interleaved variations are /equivalent/ if we can transform
 one into the other by using reverse and list rotations.

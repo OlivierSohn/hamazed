@@ -1,41 +1,18 @@
+- investigate why results differ with optimizations.
+
+- when we iterate over rows and columns, try numLoop
+
+- random numbers generation is 50% time in
+fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark.
+We could try sliding rows / columns randomly
+
 - (8,18), 1 component, 0.7 wall could benefit from higher margins than 7:
 best is "7-margin Order2 R"
 Hence, continue tests with higher margins.
 
-- scroll when animating:
-
-if we see the top, don't scroll.
-else , scroll so that at the end, the top is at the middle of the screen.
-TODO what happends if we scrollTo too far?
-
-use http://javascript.info/coordinates
-
-// get document coordinates of the element
-function getCoords(elem) {
-  let box = elem.getBoundingClientRect();
-
-  return {
-    top: box.top + pageYOffset,
-    left: box.left + pageXOffset
-  };
-}
--- specifies the document coordinates of the upper left point of the client area
--- hence, to place a point in the middle we should add / remove half width / height
--- of the client area.
-    window.scrollTo({
-      left: 500,
-      behavior: "smooth"
-	});
-
-- global timeout (100) + adaptive timeout : when only one seed is known, apply a x100 factor.
+- global timeout (100) + "adaptive timeout per world" : when only one seed is known, apply a x100 factor.
 2 seeds -> x50
 etc..
-
-so it will be
-
-fold
-100 -- initial value for global timeout, can only decrease from now on.
-[100, 50, , 25, , , , 12.5]
 
 - with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
 
@@ -47,10 +24,6 @@ fold
 
 - Server doesn't need to forward the request, the client continues by itself.
 This will avoid unproductive waits.
-
-- if after benchmarking, the random numbers generation is what is limiting in
-fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark, then reuse random matrix by
-sliding rows / columns randomly
 
 - not sure if translations could be used in place of rotations (in a +1 rotation, the
   last element of the last column becomes the first element of the first column, maybe that's a problem

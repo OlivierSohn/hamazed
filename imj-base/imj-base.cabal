@@ -148,7 +148,6 @@ library
                      , matrix >= 0.3.5.0
                      , mtl >= 2.2.1 && < 2.3
                      , OpenGL ==3.0.*
-                     , pretty-show ==1.6.*
                      , primitive ==0.6.*
                      , stm ==2.4.*
                      , strict-concurrency ==0.2.*
@@ -170,11 +169,9 @@ executable imj-base-examples-exe
   other-modules:
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.11
-                     , ansi-terminal ==0.8.*
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
-                     , text >=1.2.3 && < 1.3
   default-language:    Haskell2010
 
 test-suite imj-base-test
@@ -212,11 +209,7 @@ test-suite imj-base-test
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
-                     , pretty-show ==1.6.*
-                     , primitive ==0.6.*
                      , text >=1.2.3 && < 1.3
-                     , utf8-string ==1.0.*
-                     , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
 source-repository head

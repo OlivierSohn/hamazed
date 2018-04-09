@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Imj.Benchmark.ListEltAccess where
+module Imj.Benchmark.ListEltAccess
+        ( subscrOp
+        , headDrop) where
 
 tooLarge :: Int -> a
 tooLarge _ = errorWithoutStackTrace "!!: index too large"

@@ -23,6 +23,10 @@ packages:
     git: https://github.com/OlivierSohn/clay.git
     commit: fabb12c7cffcf12d2eb51224409b1819f7cdd42f
   extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/mwc-random.git
+    commit: ddefea77835eaef2ad0deadbf6d7b7b91c169e2b
+  extra-dep: true
 
 extra-deps:
 - FTGL-2.1

@@ -1,4 +1,5 @@
 {-# OPTIONS_HADDOCK hide #-}
+{-# OPTIONS_GHC -O2 #-}
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
@@ -32,6 +33,7 @@ import           Imj.Prelude
 
 import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
+import           Data.Bits(shiftR)
 import           Data.Either(isLeft)
 import           Data.List(length, sortOn, replicate, take)
 import           Data.List.NonEmpty(NonEmpty(..))
@@ -46,7 +48,8 @@ import qualified Data.Vector.Mutable as BVM (unsafeNew, unsafeWrite)
 import qualified Data.Vector as BV
 import qualified Data.Vector.Unboxed.Mutable as VM (unsafeNew, unsafeWrite)
 import qualified Data.Vector.Unboxed as V
-import           System.Random.MWC(GenIO, uniform, uniformR)
+import           Data.Word(Word8)
+import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
 import qualified Imj.Data.Graph as Directed(Vertex,graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
@@ -560,6 +563,11 @@ mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAi
    where
     !countWallBlocks = countBlocks - countAirBlocks
 
+data AccumSource = AS {
+    countAirKeys :: {-# UNPACK #-} !Int
+  , _index :: {-# UNPACK #-} !Int
+}
+
 mkSmallVector :: GenIO
               -> Float
               -- ^ Probability to generate a wall
@@ -567,15 +575,35 @@ mkSmallVector :: GenIO
               -> IO (Int, V.Vector MaterialAndKey)
 mkSmallVector gen wallProba countBlocks = do
   v <- VM.unsafeNew countBlocks
-  countAirKeys <- foldM
-    (\k i -> do
-      float <- uniform gen :: IO Float
-      let (k', materialAndKey) = bool (k, MaterialAndKey $ -1) (k+1, MaterialAndKey k) $ float > wallProba
-      VM.unsafeWrite v i materialAndKey
-      return k')
-    0
-    [0..countBlocks-1]
-  (,) countAirKeys <$> V.unsafeFreeze v -- we don't modify v so we use unsafeFreeze to avoid a copy
+  let !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
+
+      source8' :: Int -> (Int -> Int -> Word8 -> IO Int) -> IO Int
+      source8' n f =
+        countAirKeys <$> foldMUniforms nWord32 accF (AS 0 0) gen
+       where
+        nWord32 = 1 + quot (n-1) 4
+
+        accF (AS s i) w32 = do
+          let w1 = fromIntegral w32 :: Word8
+              w2 = fromIntegral (w32 `shiftR` 8) :: Word8
+              w3 = fromIntegral (w32 `shiftR` 16) :: Word8
+              w4 = fromIntegral (w32 `shiftR` 24) :: Word8
+
+          f    i    s  w4 >>= \s1 ->
+            f (i+1) s1 w3 >>= \s2 ->
+            f (i+2) s2 w2 >>= \s3 ->
+            f (i+3) s3 w1 >>= \s4 -> return (AS s4 $ i+4)
+
+      buildVector i nAir word
+        | i >= countBlocks = return nAir
+        | otherwise = do
+            VM.unsafeWrite v i $ MaterialAndKey $ bool (-1) nAir air
+            return $ bool nAir (nAir+1) air
+        where
+          air = word > limit
+
+  source8' countBlocks buildVector >>= \nAirKeys ->
+    (,) nAirKeys <$> V.unsafeFreeze v -- we don't modify v later, so we can use unsafeFreeze to avoid a copy
 
 {-# INLINE countSmallCCElts #-}
 countSmallCCElts :: ConnectedComponent -> Int

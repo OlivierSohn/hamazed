@@ -77,6 +77,7 @@ library
                      , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
+                     , loop ==0.3.*
                      , matrix >= 0.3.5.0
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3

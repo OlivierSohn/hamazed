@@ -312,7 +312,7 @@ profileLargeWorld = do
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
         (Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
   print props
-  withNumberedSeed (withDuration . profile props) (SeedNumber 0) >>= print
+  withNumberedSeed (withDuration . profile props) (SeedNumber 2) >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do

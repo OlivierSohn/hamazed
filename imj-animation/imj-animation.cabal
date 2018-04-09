@@ -33,7 +33,7 @@ library
                      , Imj.Graphics.Animation.Design.Types
                      , Imj.Graphics.Animation.Design.Update
                      , Imj.Graphics.Animation.Design.UpdateParticles
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , mtl >= 2.2.1 && < 2.3
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
@@ -44,7 +44,7 @@ test-suite imj-animation-test
   hs-source-dirs:      test
   other-modules:
   main-is:             Spec.hs
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
   default-language:    Haskell2010
 
 source-repository head

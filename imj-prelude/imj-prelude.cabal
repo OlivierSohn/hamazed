@@ -20,7 +20,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Prelude
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , binary == 0.8.*
                      , containers ==0.5.*
                      , mtl >= 2.2.1 && < 2.3

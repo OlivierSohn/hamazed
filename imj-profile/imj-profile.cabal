@@ -27,7 +27,7 @@ library
                      , Imj.Profile.Render.Blaze
                      , Imj.Profile.Result
   other-modules:
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
                      , clay ==0.13.*
@@ -44,7 +44,7 @@ library
 executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-game-hamazed ==0.1.*

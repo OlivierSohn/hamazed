@@ -130,7 +130,7 @@ library
                      , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , ansi-terminal ==0.8.*
                      , array == 0.5.*
                      , binary == 0.8.*
@@ -168,7 +168,7 @@ executable imj-base-examples-exe
   hs-source-dirs:      example
   other-modules:
   main-is:             Main.hs
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , imj-base
                      , imj-prelude ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
@@ -199,7 +199,7 @@ test-suite imj-base-test
                      , Test.Imj.Vector
                      , Test.Imj.ZigZag
   main-is:             Spec.hs
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , ansi-terminal ==0.8.*
                      , bytestring == 0.10.*
                      , clock ==0.7.*

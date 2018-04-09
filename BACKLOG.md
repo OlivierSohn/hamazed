@@ -1,3 +1,21 @@
+-
+Try in mkSmallWorld :
+
+-- random mat creation
+write mv
+
+-- analysis
+v <- unsafeFreeze mv
+
+... use v. in the meantime, noone should write mv
+
+-- analysis is finished, loop
+
+- Should we parallelize :
+  random matrix creation?
+  or world creation?
+  or both?
+
 - random numbers generation is 50% time in
 fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark.
 We could try sliding rows / columns randomly

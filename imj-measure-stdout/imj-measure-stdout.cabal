@@ -32,7 +32,7 @@ executable imj-measure-stdout-exe
   hs-source-dirs:      app, src
   main-is:             Main.hs
   other-modules:       Imj.Measure.Stdout
-  build-depends:       base >= 4.8 && < 4.11
+  build-depends:       base >= 4.8 && < 4.12
                      , imj-prelude ==0.1.*
                      , imj-base ==0.1.*
                      , optparse-applicative == 0.14.*

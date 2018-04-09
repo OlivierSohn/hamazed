@@ -13,11 +13,11 @@ packages:
 
 - location:
     git: https://github.com/OlivierSohn/GLFW-b.git
-    commit: 9c4a7a1306e6a4f07a33897e773d87cc5e547178
+    commit: 0cdf2168997f73a79319550d2cbac06d68a07407
   extra-dep: true
 - location:
-    git: https://github.com/OlivierSohn/bindings-GLFW.git
-    commit: 02d8896984607e98de5a8b46872b8939863637af
+    git: https://github.com/bsl/bindings-GLFW.git
+    commit: 3699e8fbb4a945017f6f6cecba3e10fba85b6af9
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/clay.git

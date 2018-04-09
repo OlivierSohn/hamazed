@@ -55,8 +55,11 @@ scripts =
     , "      element.style.height = h + 'px';"
     , "  } else {"
     , "      mouseY = evt?evt.clientY:(document.documentElement.clientHeight/2)"
-    , "      var target = (getCoords(ownerElementAbove).top + getCoords(element).top) / 2"
-    , "      scrollTo(target - mouseY, ms);"
+    , "      var ownerTop = getCoords(ownerElementAbove).top"
+    , "      if(ownerTop < 20 + pageYOffset) {" -- top is not clearly visible
+    , "          var target = (ownerTop + getCoords(element).top) / 2"
+    , "          scrollTo(target - mouseY, ms);"
+    , "      }"
     , "      element.style.height = '0px';"
     , "  }"
     , "}"

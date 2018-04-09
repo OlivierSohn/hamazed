@@ -679,7 +679,6 @@ data GraphCreationState = GC {
 mkGraphCreationState :: GraphCreationState
 mkGraphCreationState = GC [] 0 True False
 
-
 -- | Creates an undirected graph, and returns a lower bound of the number of components:
 -- we count the mono-node components while creating the graph, and add 1 to that number
 -- if there is at least one multi-node component.
@@ -714,22 +713,22 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
               bool res
                 (let !matIdx = iRow + col
                  in case Cyclic.unsafeGetByIndex matIdx mat of
-                        MaterialAndKey (-1) -> res
-                        MaterialAndKey k ->
-                          let neighbours = neighbourAirKeys matIdx row col
-                              isMono = null neighbours
-                              newNMinComps
-                                | isMono || not oneMulti = 1+nMinComps
-                                | otherwise = nMinComps
-                              willContinue = newNMinComps < tooBigNComps
-                              newList
-                                | willContinue = Node k neighbours:ln
-                                | otherwise = [] -- drop the list if we don't continue
-                          in GC
-                               newList
-                               newNMinComps
-                               willContinue
-                               $ not isMono || oneMulti)
+                      MaterialAndKey (-1) -> res
+                      MaterialAndKey k ->
+                        let neighbours = neighbourAirKeys matIdx row col
+                            isMono = null neighbours
+                            newNMinComps
+                              | isMono || not oneMulti = 1+nMinComps
+                              | otherwise = nMinComps
+                            willContinue = newNMinComps < tooBigNComps
+                            newList
+                              | willContinue = Node k neighbours:ln
+                              | otherwise = [] -- drop the list if we don't continue
+                        in GC
+                             newList
+                             newNMinComps
+                             willContinue
+                             $ not isMono || oneMulti)
                 continue)
             res'
             [0..nCols-1])

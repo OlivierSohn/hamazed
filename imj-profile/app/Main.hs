@@ -8,7 +8,7 @@ module Main where
 import           Imj.Prelude
 
 import           Prelude(print, putStrLn, length, writeFile, getChar)
-import           Control.Concurrent(forkIO, throwTo, ThreadId, myThreadId)
+import           Control.Concurrent(forkIO, throwTo, ThreadId, myThreadId, threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, modifyMVar_, readMVar)
 import           Control.Exception(Exception(..))
 import           Control.DeepSeq(NFData(..))
@@ -103,9 +103,10 @@ writeHtmlReport allowedDt allRes intent = do
 
  where
   intentStr = case intent of
-    Cancel -> "Test was interrupted"
-    Report -> "Test is still running"
-    NoIntent -> "Test is finished"
+    Cancel -> "The test was interrupted."
+    Report _ -> "The test is still running."
+    Run -> "The test has finished." -- because we write a report only at the end, or on 'Report'
+    Pause _ -> "The test is paused" -- should not happen
 
   write = do
     html <- forM (Map.assocs allRes)
@@ -123,8 +124,7 @@ writeHtmlReport allowedDt allRes intent = do
               . concatMap
                 (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
                 . mconcat
-
-    putStrLn $ "Chrome-compatible html report: " ++ html
+    CS.putStrLn $ CS.colored ("Chrome-compatible html report: " <> pack html) yellow
 
   showAsCs :: TestStatus Statistics -> [ColorString]
   showAsCs NotStarted = [CS.colored "NotStarted" blue]
@@ -160,11 +160,13 @@ foldMInterruptible :: (Show a)
                    -> IO b
 foldMInterruptible continue name zero l f =
   foldM (\b (i,a) -> do
-    putStrLn $ unwords [name, show i, "of", show total, ":", show a]
+    let inform = putStrLn $ unwords [name, show i, "of", show total, ":", show a]
     continue >>= \case
-      True ->
+      True -> do
+        inform
         f b a
       False -> do
+        inform
         putStrLn "[Skipped]"
         return b)
     zero
@@ -189,16 +191,29 @@ setToFalseOnTermination continue = do
   handleTermination mainTid =
     modifyMVar_ continue $ \case
       Cancel -> do
+        CS.putStrLn $ CS.colored
+          "\nUser forced test termination."
+          red
+        threadDelay 100000
         void $ throwTo mainTid TestInterruptedByUser
         return Cancel
-      _ -> return Cancel
+      _ -> do
+        CS.putStrLn $ CS.colored
+          "\nUser requested test termination. A report will be generated, unless user requests termination one more time."
+          orange
+        return Cancel
 
 data UserIntent =
-    NoIntent
+    Run
+  | Pause !UserIntent
   | Cancel
-  | Report
-  deriving(Generic)
+  | Report !UserIntent
+  deriving(Generic, Show)
 instance NFData UserIntent
+
+firstNonReport :: UserIntent -> UserIntent
+firstNonReport (Report x) = firstNonReport x
+firstNonReport y = y
 
 type Results = Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations Statistics))
 
@@ -236,25 +251,50 @@ withTestScheduler worlds strategies allowed intent f =
  where
 
   continue = (\case
-    Cancel -> False
-    _ -> True) <$> readMVar intent
+    Cancel -> return False
+    Pause _ -> do
+      CS.putStrLn $ CS.colored "Test is paused, press 'Space' to continue..." yellow
+      let waitForNewIntent = do
+            threadDelay 100000
+            readMVar intent >>= \case
+              Pause _ -> waitForNewIntent
+              _ -> return ()
+      waitForNewIntent
+      continue
+    _ -> return True) =<< readMVar intent
 
   mayReport x = readMVar intent >>= \case
-    Report -> do
-      writeHtmlReport allowed x Report
-      modifyMVar_ intent $ const $ return NoIntent
+    i@(Report prevIntent) -> do
+      writeHtmlReport allowed x i
+      modifyMVar_ intent $ const $ return $ firstNonReport prevIntent
       return ()
     _ -> return ()
 
+
 mkTerminator :: IO (MVar UserIntent)
 mkTerminator = do
-  b <- newMVar NoIntent
+  b <- newMVar Run
   void $ forkIO $ do
     hSetBuffering stdin NoBuffering
+
+    let skipRepeats = void $ timeout 1000000 $ forever $ do
+          void getChar
+          CS.putStrLn $ CS.colored "\nA key-press was ignored. Please try again in a second." yellow
+
     forever $ getChar >>= \case
       'r' -> do
-        modifyMVar_ b $ const $ return Report
-        void $ timeout 5000000 $ forever $ void getChar -- skip key repeats
+        CS.putStrLn $ CS.colored "\nAn intermediate html report will be generated as soon as possible..." yellow
+        modifyMVar_ b $ \prevIntent -> return $ Report prevIntent
+        skipRepeats
+      ' ' -> do
+        modifyMVar_ b $ \case
+          Pause x -> do
+            CS.putStrLn $ CS.colored ("\nTest state is " <> pack (show x)) yellow
+            return x
+          s -> do
+            CS.putStrLn $ CS.colored "\nTest will pause as soon as possible, please wait..." yellow
+            return $ Pause s
+        skipRepeats
       _ -> return ()
   setToFalseOnTermination b
   return b
@@ -277,7 +317,7 @@ profileAllProps = do
  where
 
   -- time allowed for each individual seed
-  !allowedDt = fromSecs 80 -- TODO this timeout should be dynamic
+  !allowedDt = fromSecs 15 -- TODO this timeout should be dynamic
 
   worlds = allWorlds
   strategies size =

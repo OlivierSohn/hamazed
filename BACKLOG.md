@@ -1,6 +1,3 @@
-
-- when we iterate over rows and columns, try numLoop
-
 - random numbers generation is 50% time in
 fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark.
 We could try sliding rows / columns randomly

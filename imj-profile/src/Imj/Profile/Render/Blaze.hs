@@ -47,7 +47,8 @@ scripts =
     , "  toggleExpand(e,e.childNodes[2],evt)"
     , "}"
     -- using https://stackoverflow.com/a/26476282 for height animation:
-    , "function toggleExpand(ownerElementAbove,element,evt) {"
+    , "const"
+    , "toggleExpand = function(ownerElementAbove,element,evt) {"
     , "  var h = Array.prototype.reduce.call(element.childNodes, function(p, c) {return p + (c.offsetHeight || 0);}, 0);"
     , "  var ms = Math.min(1000,Math.ceil(40*Math.sqrt(h)));"
     , "  if (!element.style.height || element.style.height == '0px') {"
@@ -55,22 +56,24 @@ scripts =
     , "      element.style.height = h + 'px';"
     , "  } else {"
     , "      mouseY = evt?evt.clientY:(document.documentElement.clientHeight/2)"
-    , "      var ownerTop = getCoords(ownerElementAbove).top"
-    , "      if(ownerTop < 20 + pageYOffset) {" -- top is not clearly visible
+    , "      var ownerTop = getCoordsWrtDoc(ownerElementAbove).top"
+    , "      if(ownerTop < 20 + pageYOffset) {" -- top is not clearly visible (we use a 20 margin because of the sticky element)
     , "          var target = (ownerTop + getCoords(element).top) / 2"
     , "          scrollTo(target - mouseY, ms);"
     , "      }"
     , "      element.style.height = '0px';"
     , "  }"
     , "}"
-    , "function getCoords(elem) {" -- coords w.r.t document
+    , "const"
+    , "getCoordsWrtDoc = function(elem) {"
     , "  let box = elem.getBoundingClientRect();"
     , "  return {"
     , "    top: box.top + pageYOffset,"
     , "    left: box.left + pageXOffset"
     , "  };"
     , "}"
-    , "function getCoordsWrtScreen(elem) {" -- coords w.r.t document
+    , "const"
+    , "getCoordsWrtScreen = function(elem) {"
     , "  return elem.getBoundingClientRect();"
     , "}"
     , "const"
@@ -80,7 +83,7 @@ scripts =
     , "    start = element.scrollTop,"
     , "    change = to - start,"
     , "    startDate = +new Date(),"
-    , "    // t = current time"
+    , "    // t = current progress"
     , "    // b = start value"
     , "    // c = change in value"
     , "    // d = duration"
@@ -109,10 +112,10 @@ resultLine e =
       (\resultDetail ->
         H.div
           H.! A.class_ "clic"
-          H.! A.onclick (H.stringValue
-            "toggle_details(this,event)")
+          H.! A.onclick (H.stringValue "toggle_details(this,event)")
           H.! A.onmouseover (H.stringValue "show_overlay(this)")
           H.! A.onmouseout (H.stringValue "hide_overlay(this)")
+          -- H.! A.title (H.stringValue "Click to open / close.") -- the title is distracting
           $ do
             H.div -- 0
               H.! A.class_ "overlay" -- has absolute positionning, hence doesn't take space in flow.

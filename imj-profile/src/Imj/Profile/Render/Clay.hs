@@ -1,6 +1,4 @@
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Profile.Render.Clay
@@ -44,6 +42,7 @@ mkCss = do
 
     display none -- hide by default
     backgroundColor $ rgba 239 239 255 0.05
+
 
   ".detail" ? do -- height and transition duration are overriden in 'toggleExpand'
     overflow hidden

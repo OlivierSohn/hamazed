@@ -115,7 +115,7 @@ resultLine e =
           H.! A.onclick (H.stringValue "toggle_details(this,event)")
           H.! A.onmouseover (H.stringValue "show_overlay(this)")
           H.! A.onmouseout (H.stringValue "hide_overlay(this)")
-          -- H.! A.title (H.stringValue "Click to open / close.") -- the title is distracting
+          -- No title (it is distracting)
           $ do
             H.div -- 0
               H.! A.class_ "overlay" -- has absolute positionning, hence doesn't take space in flow.

@@ -2,8 +2,6 @@
 -- | This module is like Imj.Data.Graph, but for undirected graphs only,
 -- with a more efficient representation, where each vertex can have at most 4
 -- neighbours, hence the name of the module.
---
--- Keys are 'Int's, between 0 and 2^15.
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
@@ -39,7 +37,7 @@ module Imj.Data.UndirectedGraph (
 import Control.Monad.ST
 import Data.Array.ST.Safe (STUArray, newArray, readArray, writeArray)
 import Data.Tree (Tree(Node), Forest)
-
+import GHC.Int(Int32)
 import qualified Data.Vector as UV
 
 -------------------------------------------------------------------------
@@ -49,11 +47,11 @@ import qualified Data.Vector as UV
 -------------------------------------------------------------------------
 
 -- | Abstract representation of vertices.
-type Vertex  = Int
+type Vertex  = Int32
 -- | Adjacency list representation of an undirected graph, mapping each vertex to its
 -- list of successors. When constructing the graph, please make sure that each undirected
 -- edge is represented by two directed edges, one bein the inverse of the other.
-type Graph = UV.Vector ([] Int)
+type Graph = UV.Vector ([] Int32)
 -- | The bounds of an @Array@.
 type Bounds  = (Vertex, Vertex)
 
@@ -65,7 +63,7 @@ type Bounds  = (Vertex, Vertex)
 --
 -- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1,2]
 vertices :: Graph -> [Vertex]
-vertices g = [0..UV.length g -1]
+vertices g = [0.. fromIntegral $ UV.length g -1]
 
 -- | Returns the list of edges in the graph.
 --
@@ -84,12 +82,12 @@ vertices g = [0..UV.length g -1]
 -- > outdegree (buildG (0,-1) []) == array (0,-1) []
 --
 -- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
-degree :: Graph -> UV.Vector Int
+degree :: Graph -> UV.Vector Int32
 -- This is bizarrely lazy. We build an array filled with thunks, instead
 -- of actually calculating anything. This is the historical behavior, and I
 -- suppose someone *could* be relying on it, but it might be worth finding
 -- out. Note that we *can't* be so lazy with indegree.
-degree  = UV.map length
+degree  = UV.map (fromIntegral . length)
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -102,7 +100,7 @@ degree  = UV.map length
 dff          :: Graph -> Forest Vertex
 dff g         = dfs g (vertices g)
 
-dffN          :: Int -> Graph -> Forest Vertex
+dffN          :: Int32 -> Graph -> Forest Vertex
 dffN n g       = dfs' (Just n) g (vertices g)
 
 -- | A spanning forest of the part of the graph reachable from the listed
@@ -111,18 +109,18 @@ dffN n g       = dfs' (Just n) g (vertices g)
 dfs          :: Graph -> [Vertex] -> Forest Vertex
 dfs           = dfs' Nothing
 
-dfs'          :: Maybe Int -> Graph -> [Vertex] -> Forest Vertex
-dfs' n g vs   = prune (0, UV.length g -1) n (map (generate g) vs)
+dfs'          :: Maybe Int32 -> Graph -> [Vertex] -> Forest Vertex
+dfs' n g vs   = prune (0, fromIntegral $ UV.length g -1) n (map (generate g) vs)
 
 generate     :: Graph -> Vertex -> Tree Vertex
-generate g v  = Node v (map (generate g) (UV.unsafeIndex g v))
+generate g v  = Node v (map (generate g) (UV.unsafeIndex g $ fromIntegral v))
 
-prune        :: Bounds -> Maybe Int -> Forest Vertex -> Forest Vertex
+prune        :: Bounds -> Maybe Int32 -> Forest Vertex -> Forest Vertex
 prune bnds mayCount ts = run bnds (maybe chop chopTakeN mayCount ts)
 
 -- Same as 'chop', except that no more than n first-level forests
 -- are computed.
-chopTakeN         :: Int -> Forest Vertex -> SetM s (Forest Vertex)
+chopTakeN         :: Int32 -> Forest Vertex -> SetM s (Forest Vertex)
 chopTakeN 0 _     = return []
 chopTakeN _ []     = return []
 chopTakeN n (Node v ts : us)
@@ -231,7 +229,7 @@ components    = dff
 
 -- | Same as 'components' except that the search stops when a given count
 -- of connected components are found.
-componentsN  :: Int -> Graph -> Forest Vertex
+componentsN  :: Int32 -> Graph -> Forest Vertex
 componentsN n = dffN n
 
 

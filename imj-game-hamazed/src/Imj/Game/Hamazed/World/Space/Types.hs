@@ -5,6 +5,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE UnboxedTuples, MagicHash #-}
 
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -65,12 +66,16 @@ module Imj.Game.Hamazed.World.Space.Types
 import           Imj.Prelude
 import           Prelude(length)
 
+import GHC.Storable (readInt32OffPtr, writeInt32OffPtr)
+import GHC.Ptr (Ptr(..))
+import GHC.Int(Int32)
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.List(unlines, unwords, intercalate)
 import           Data.List.NonEmpty(NonEmpty(..), toList)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
-import qualified Imj.Data.Matrix.Cyclic as Cyclic
+import           Imj.Data.Matrix.Cyclic (Storable(..))
+import qualified Imj.Data.Matrix.Cyclic as Cyclic hiding (Storable(..))
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
@@ -78,7 +83,7 @@ import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 import           Data.Vector.Unboxed(Vector)
 import           Numeric(showFFloat)
 
-import           Imj.Data.Graph(Vertex)
+import           Imj.Data.UndirectedGraph(Vertex)
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 
@@ -129,12 +134,17 @@ derivingUnbox "Material"
     [| (== Wall) |]
     [| \ i -> if i then Wall else Air|]
 
-newtype MaterialAndKey = MaterialAndKey Int -- -1 for Wall, >= 0 for Air key
+newtype MaterialAndKey = MaterialAndKey Int32 -- -1 for Wall, >= 0 for Air key
   deriving(Generic, Eq, Show)
 derivingUnbox "MaterialAndKey"
-    [t| MaterialAndKey -> Int |]
+    [t| MaterialAndKey -> Int32 |]
     [| \(MaterialAndKey m) -> m |]
     [|MaterialAndKey|]
+instance Storable MaterialAndKey where -- maps to a Word16
+  sizeOf    _ = 4
+  alignment _ = 4
+  peekElemOff (Ptr a) b = MaterialAndKey <$> readInt32OffPtr (Ptr a) b
+  pokeElemOff (Ptr a) b (MaterialAndKey c) = writeInt32OffPtr (Ptr a) b c
 
 {-# INLINE materialAndKeyToMaterial #-}
 materialAndKeyToMaterial :: MaterialAndKey -> Material
@@ -247,7 +257,7 @@ instance Show Variation where
   show r@Rotate{} = unwords ["R", showVariationDetails r]
 
 showVariationDetails :: Variation -> String
-showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords [show n ++ "-margin", show order]
+showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords ["margin-" ++ show n, show order]
 showVariationDetails (Interleave r c) = "(" ++ show (nUseful r) ++ "," ++ show (nUseful c) ++ ")"
 
 mkInterleaveVariation :: Size -> Variation

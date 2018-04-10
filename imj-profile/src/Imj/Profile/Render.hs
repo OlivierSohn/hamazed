@@ -29,15 +29,9 @@ renderResultsHtml :: (ToMarkup a)
                   -> [(a, Maybe [[ColorString]])]
                   -> IO FilePath
 renderResultsHtml status resultsAndSubresults = do
-  renameDirectoryIfExists dir
-  css
-  mainPage resultDetails
- where
-  dir = "report"
-
-  css = renderCss (dir <> "/" <> cssName) mkCss
-
-  mainPage resultsAndLinks = renderHtml (dir <> "/html/results") $
+  renameDirectoryIfExists dir -- TODO if it is the same run, rename the directory to .old, then delete it
+  renderCss (dir <> "/" <> cssName) mkCss
+  renderHtml (dir <> "/html/results") $
     fromHeaderBody
       (do
         pageTitle "Test report"
@@ -45,8 +39,25 @@ renderResultsHtml status resultsAndSubresults = do
         cssHeader $ "../" <> cssName
         scripts)
       (do
-        testStatus
-        mconcat $ List.map (uncurry resultLine) resultsAndLinks)
+        bodyHeader
+        bodyResults)
+ where
+  dir = "report"
+
+  bodyHeader = do
+    div $ do
+      br
+      p "Chrome-compatible html report."
+      br
+    div
+      ! A.style (colorAttribute statusColor)
+      ! A.class_ "stick"
+      $ string status
+    div br
+   where
+    statusColor = LayeredColor (gray 13) black
+
+  bodyResults = mconcat $ List.map (uncurry resultLine) resultDetails
 
   resultDetails =
     List.map
@@ -60,16 +71,6 @@ renderResultsHtml status resultsAndSubresults = do
               ))
           mayDetailsContents)
     (zip [0 :: Int ..] resultsAndSubresults)
-
-  testStatus = do
-    br
-    div
-      ! A.style (colorAttribute statusColor)
-      ! A.class_ "stick"
-      $ string status
-    br
-   where
-    statusColor = LayeredColor (gray 13) black
 
   pageTitle x = title $ string x
 

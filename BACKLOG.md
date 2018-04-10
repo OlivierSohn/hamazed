@@ -1,15 +1,6 @@
--
-Try in mkSmallWorld :
 
--- random mat creation
-write mv
-
--- analysis
-v <- unsafeFreeze mv
-
-... use v. in the meantime, noone should write mv
-
--- analysis is finished, loop
+- modulo matrices : maybe it has a stronger "destructuring power" than interleaving?
+it may also produce more matrices
 
 - Should we parallelize :
   random matrix creation?

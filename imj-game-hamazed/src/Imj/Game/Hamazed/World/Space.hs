@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Hamazed.World.Space
     ( Space
@@ -24,12 +25,14 @@ module Imj.Game.Hamazed.World.Space
     , matchAndVariate
     , mkSmallWorld
     , mkSmallMat
-    , mkSmallVector
+    , fillSmallVector
     , matchTopology
     , TopoMatch
     ) where
 
 import           Imj.Prelude
+
+import           GHC.Int(Int32)
 
 import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
@@ -44,14 +47,16 @@ import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Tree(flatten)
-import qualified Data.Vector.Mutable as BVM (unsafeNew, unsafeWrite)
+import qualified Data.Vector.Mutable as BMV (unsafeNew, unsafeWrite)
 import qualified Data.Vector as BV
-import qualified Data.Vector.Unboxed.Mutable as VM (unsafeNew, unsafeWrite)
+import qualified Data.Vector.Storable as S
+import qualified Data.Vector.Storable.Mutable as MS
+import qualified Data.Vector.Unboxed.Mutable as MV
 import qualified Data.Vector.Unboxed as V
 import           Data.Word(Word8)
 import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
-import qualified Imj.Data.Graph as Directed(Vertex,graphFromSortedEdges, componentsN)
+import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -169,6 +174,7 @@ smallWorldToBigWorld :: Size
 smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat) _) =
   BigWorld (mkSpaceFromMat s $ map (map materialAndKeyToMaterial) innerMat) (smallToBig blockSize s small)
  where
+  replicateElems :: [a] -> [a]
   replicateElems = replicateElements blockSize
   innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
 
@@ -204,10 +210,12 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
   | otherwise = either
       (\err ->
         return (Impossible [err], zeroStats))
-      (\lowerBounds -> withDuration (go lowerBounds) >>= \(dt, (r,stats)) ->
-        return (r
-              , stats { durations = (durations stats) { totalDuration = dt }
-                      }))
+      (\lowerBounds@(LowerBounds _ _ countBlocks) -> do
+        v <- MS.unsafeNew countBlocks
+        withDuration (go lowerBounds v) >>= \(dt, (r,stats)) ->
+          return (r
+                , stats { durations = (durations stats) { totalDuration = dt }
+                        }))
       eitherLowerBounds
  where
   !nComponents = -- relax the constraint on number of components if the size is too small
@@ -217,7 +225,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
 
   matchAndVariate' = matchAndVariate nComponents
 
-  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
+  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) v =
     go' 0 zeroStats
    where
     go' :: Int -> Statistics -> IO (MkSpaceResult SmallWorld, Statistics)
@@ -228,7 +236,7 @@ mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) b
           ((:|[]) . Left)
           -- stop at first success
           (takeWhilePlus isLeft . matchAndVariate' branch))
-        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds) >>= \(duration, BRMV res s) -> do
+        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds v) >>= \(duration, BRMV res s) -> do
         let !newStats = addMkRandomMatDuration duration (s{countRandomMatrices = 1 + countRandomMatrices s})
         either
           (const $ go' (i+1) newStats)
@@ -313,6 +321,13 @@ matchAndVariate nComponents curB info =
 
               produceVariations (Rotate (RotationDetail order _)) =
                 Cyclic.produceRotations order m
+          -- TODO try conduit or pipes or https://www.twanvl.nl/blog/haskell/streaming-vector in
+          --    matchAndVariate
+          --    random matrix creation
+          --    matrix production.
+          -- See if it is faster / if the code is more modular.
+          -- https://stackoverflow.com/questions/14259229/streaming-recursive-descent-of-a-directory-in-haskell
+          -- https://gist.github.com/FranklinChen/133cb61af931a08bbe20
           in List.concatMap -- TODO benchmark which is faster : consuming depth first or breadth first
               (NE.toList . matchAndVariate nComponents nextB . SmallMatInfo nAir)
               $ concatMap produceVariations
@@ -376,13 +391,13 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
             vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ mapMaybe
               (\matIdx -> case Cyclic.unsafeGetByIndex matIdx mat of
                   MaterialAndKey (-1) -> Nothing
-                  MaterialAndKey k -> Just (k, matIdx))
+                  MaterialAndKey k -> Just (fromIntegral k, matIdx))
               [0..Cyclic.nelems mat-1]
-        in vtxToMatIdx UArray.! i)
+        in fromIntegral $ vtxToMatIdx UArray.! fromIntegral i)
  where
   !airOnEveryFronteer =
     all
-      (V.any (\case
+      (S.any (\case
         MaterialAndKey (-1) -> False
         MaterialAndKey _ -> True))
       fronteers
@@ -530,15 +545,15 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
         [0..nRows-1]
 
       -- Int is an Air key. This function errors if the key is out of bounds.
-      lookupComponent :: Int -> ComponentIdx
-      lookupComponent i = (V.!) keyToComponent i
+      lookupComponent :: Int32 -> ComponentIdx
+      lookupComponent i = (V.!) keyToComponent $ fromIntegral i
 
       keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
       keyToComponent =
         runST $ do
-          v <- VM.unsafeNew nAirKeys
+          v <- MV.unsafeNew $ fromIntegral nAirKeys
           mapM_
-            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (VM.unsafeWrite v) compIdx) vertices)
+            (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (MV.unsafeWrite v) compIdx . fromIntegral) vertices)
             $ zip [0 :: ComponentIdx ..] comps
           V.unsafeFreeze v
 
@@ -549,35 +564,38 @@ mkSmallMat :: GenIO
            -> Size
            -- ^ Size of the matrix
            -> LowerBounds
+           -> MS.IOVector MaterialAndKey
+           -- ^ The memory of this mutable vector will be used in the matrix.
            -> IO (Either SmallWorldRejection SmallMatInfo)
            -- ^ in Right, the Air keys are ascending, consecutive, and start at 0
-mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAirCount minWallCount countBlocks)
+mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAirCount minWallCount countBlocks) v
   | countBlocks /= nRows * nCols = error "logic"
   | minAirCount + minWallCount > countBlocks = error "logic" -- this is checked when creating 'LowerBounds'
-  | otherwise = go <$> mkSmallVector gen wallProba countBlocks
+  | otherwise = fromIntegral <$> fillSmallVector gen wallProba v >>= go
  where
-  go (countAirBlocks, materialsAndKeys)
-   | countAirBlocks < minAirCount = Left $ NotEnough Air
-   | countWallBlocks < minWallCount = Left $ NotEnough Wall
-   | otherwise = Right $ SmallMatInfo countAirBlocks $ Cyclic.fromVector nRows nCols materialsAndKeys
+  go countAirBlocks
+   | countAirBlocks < minAirCount = return $ Left $ NotEnough Air
+   | countWallBlocks < minWallCount = return $ Left $ NotEnough Wall
+   | otherwise = Right . SmallMatInfo countAirBlocks . Cyclic.fromVector nRows nCols <$> S.unsafeFreeze v
    where
     !countWallBlocks = countBlocks - countAirBlocks
 
 data AccumSource = AS {
-    countAirKeys :: {-# UNPACK #-} !Int
+    countAirKeys :: {-# UNPACK #-} !Int32
   , _index :: {-# UNPACK #-} !Int
 }
 
-mkSmallVector :: GenIO
-              -> Float
-              -- ^ Probability to generate a wall
-              -> Int
-              -> IO (Int, V.Vector MaterialAndKey)
-mkSmallVector gen wallProba countBlocks = do
-  v <- VM.unsafeNew countBlocks
-  let !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
+fillSmallVector :: GenIO
+                -> Float
+                -- ^ Probability to generate a wall
+                -> MS.IOVector MaterialAndKey
+                -- ^ Use this memory
+                -> IO Int32
+fillSmallVector gen wallProba v = do
+  let countBlocks = MS.length v
+      !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
 
-      source8' :: Int -> (Int -> Int -> Word8 -> IO Int) -> IO Int
+      source8' :: Int -> (Int -> Int32 -> Word8 -> IO Int32) -> IO Int32
       source8' n f =
         countAirKeys <$> foldMUniforms nWord32 accF (AS 0 0) gen
        where
@@ -597,13 +615,12 @@ mkSmallVector gen wallProba countBlocks = do
       buildVector i nAir word
         | i >= countBlocks = return nAir
         | otherwise = do
-            VM.unsafeWrite v i $ MaterialAndKey $ bool (-1) nAir air
+            MS.unsafeWrite v i $ MaterialAndKey $ bool (-1) nAir air
             return $ bool nAir (nAir+1) air
         where
           air = word > limit
 
-  source8' countBlocks buildVector >>= \nAirKeys ->
-    (,) nAirKeys <$> V.unsafeFreeze v -- we don't modify v later, so we can use unsafeFreeze to avoid a copy
+  source8' countBlocks buildVector
 
 {-# INLINE countSmallCCElts #-}
 countSmallCCElts :: ConnectedComponent -> Int
@@ -667,7 +684,7 @@ getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMat
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-data GraphNode = Node !Directed.Vertex [Directed.Vertex]
+data GraphNode = Node !Undirected.Vertex [Undirected.Vertex]
 
 data GraphCreationState = GC {
     _listNodes :: [GraphNode]
@@ -699,8 +716,8 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
     if canContinue
       then
         Just $ runST $ do
-          v <- BVM.unsafeNew nAirKeys
-          forM_ listNodes (\(Node key neighbours) -> BVM.unsafeWrite v key neighbours)
+          v <- BMV.unsafeNew nAirKeys
+          forM_ listNodes (\(Node key neighbours) -> BMV.unsafeWrite v (fromIntegral key) neighbours)
           BV.unsafeFreeze v
       else
         Nothing
@@ -736,7 +753,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       mkGraphCreationState
       [0..nRows-1]
 
-  neighbourAirKeys :: Int -> Int -> Int -> [Int]
+  neighbourAirKeys :: Int -> Int -> Int -> [Int32]
   neighbourAirKeys matIdx row col =
     mapMaybe (\i -> case Cyclic.unsafeGetByIndex (i+matIdx) mat of
       MaterialAndKey (-1) -> Nothing

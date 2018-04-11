@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -O2 #-}
--- | This module is like Imj.Data.Graph, but for undirected graphs only,
--- with a more efficient representation, where each vertex can have at most 4
--- neighbours, hence the name of the module.
+-- | This module is like Imj.Data.Graph, but for undirected graphs only.
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
@@ -35,7 +33,8 @@ module Imj.Data.UndirectedGraph (
 
 
 import Control.Monad.ST
-import Data.Array.ST.Safe (STUArray, newArray, readArray, writeArray)
+import           Data.Vector.Storable.Mutable (MVector)
+import qualified Data.Vector.Storable.Mutable as S
 import Data.Tree (Tree(Node), Forest)
 import GHC.Int(Int64)
 import qualified Data.Vector as UV
@@ -50,10 +49,8 @@ import qualified Data.Vector as UV
 type Vertex  = Int64
 -- | Adjacency list representation of an undirected graph, mapping each vertex to its
 -- list of successors. When constructing the graph, please make sure that each undirected
--- edge is represented by two directed edges, one bein the inverse of the other.
+-- edge is represented by two directed edges, one being the inverse of the other.
 type Graph = UV.Vector ([] Int64)
--- | The bounds of an @Array@.
-type Bounds  = (Vertex, Vertex)
 
 -- | Returns the list of vertices in the graph.
 --
@@ -110,13 +107,13 @@ dfs          :: Graph -> [Vertex] -> Forest Vertex
 dfs           = dfs' Nothing
 
 dfs'          :: Maybe Int64 -> Graph -> [Vertex] -> Forest Vertex
-dfs' n g vs   = prune (0, fromIntegral $ UV.length g -1) n (map (generate g) vs)
+dfs' n g vs   = prune (fromIntegral $ UV.length g) n (map (generate g) vs)
 
 generate     :: Graph -> Vertex -> Tree Vertex
 generate g v  = Node v (map (generate g) (UV.unsafeIndex g $ fromIntegral v))
 
-prune        :: Bounds -> Maybe Int64 -> Forest Vertex -> Forest Vertex
-prune bnds mayCount ts = run bnds (maybe chop chopTakeN mayCount ts)
+prune        :: Int -> Maybe Int64 -> Forest Vertex -> Forest Vertex
+prune n mayCount ts = run n (maybe chop chopTakeN mayCount ts)
 
 -- Same as 'chop', except that no more than n first-level forests
 -- are computed.
@@ -149,7 +146,7 @@ chop (Node v ts : us)
 
 -- Use the ST monad, for constant-time primitives.
 
-newtype SetM s a = SetM { runSetM :: STUArray s Vertex Bool -> ST s a }
+newtype SetM s a = SetM { runSetM :: MVector s Bool -> ST s a }
 
 instance Monad (SetM s) where
     return = pure
@@ -170,14 +167,14 @@ instance Applicative (SetM s) where
     -- but Applicative (ST s) instance is present only in GHC 7.2+
     {-# INLINE (<*>) #-}
 
-run          :: Bounds -> (forall s. SetM s a) -> a
-run bnds act  = runST (newArray bnds False >>= runSetM act)
+run          :: Int -> (forall s. SetM s a) -> a
+run n act  = runST (S.replicate n False >>= runSetM act)
 
 contains     :: Vertex -> SetM s Bool
-contains v    = SetM $ \ m -> readArray m v
+contains v    = SetM $ \ m -> S.unsafeRead m (fromIntegral v)
 
 include      :: Vertex -> SetM s ()
-include v     = SetM $ \ m -> writeArray m v True
+include v     = SetM $ \ m -> S.unsafeWrite m (fromIntegral v) True
 
 -------------------------------------------------------------------------
 --                                                                      -

@@ -32,8 +32,6 @@ module Imj.Game.Hamazed.World.Space
 
 import           Imj.Prelude
 
-import           GHC.Int(Int64)
-
 import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Bits(shiftR)
@@ -490,7 +488,6 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
               neighbourComponents =
                 filter
                   (/= component)
-                  $ catMaybes
                   $ lookupNearbyComponentsDiagonally ++ lookupNearbyComponentsOrthogonally
 
               component = lookupComponent k
@@ -507,18 +504,18 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
                       -- Also, by construction, diag is withinBounds because both OrthoWalls are.
                       -- Hence we skip the 'withinBounds' test.
                   in (case getMaterialAndKey diagRow diagCol of
-                      MaterialAndKey (-1) -> Nothing
-                      (MaterialAndKey diagK) -> Just $ lookupComponent diagK) : go rest
+                      MaterialAndKey (-1) -> []
+                      (MaterialAndKey diagK) -> [lookupComponent diagK]) ++ go rest
                 go (_:rest@(_:_)) = go rest
 
-              lookupNearbyComponentsOrthogonally = map lookupOrthogonally cyclicOrthoWalls
+              lookupNearbyComponentsOrthogonally = concatMap lookupOrthogonally cyclicOrthoWalls
 
-              lookupOrthogonally (OrthoWall _ Nothing) = Nothing
+              lookupOrthogonally (OrthoWall _ Nothing) = []
               lookupOrthogonally (OrthoWall dir (Just wall1Pos))
                | withinBounds r2 c2 = case getMaterialAndKey r2 c2 of
-                    MaterialAndKey (-1) -> Nothing
-                    MaterialAndKey afterWallK -> Just $ lookupComponent afterWallK
-               | otherwise = Nothing
+                    MaterialAndKey (-1) -> []
+                    MaterialAndKey afterWallK -> [lookupComponent afterWallK]
+               | otherwise = []
                where
                 (Coords (Coord r2) (Coord c2)) = translateInDir dir wall1Pos
 
@@ -600,7 +597,7 @@ fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
       !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
 
-      source8' :: Int -> (Int -> Int64 -> Word8 -> IO Int64) -> IO Int64
+      source8' :: Int -> (Int -> Int64 -> Word8 -> IO Int64) -> IO Int64
       source8' n f =
         countAirKeys <$> foldMUniforms nWord32 accF (AS 0 0) gen
        where
@@ -689,7 +686,7 @@ getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMat
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-data GraphNode = Node !Undirected.Vertex [Undirected.Vertex]
+data GraphNode = Node !Int64 [Int64]
 
 data GraphCreationState = GC {
     _listNodes :: [GraphNode]
@@ -760,14 +757,11 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
 
   neighbourAirKeys :: Int -> Int -> Int -> [Int64]
   neighbourAirKeys matIdx row col =
-    mapMaybe (\i ->
-      if i==0
-        then
-          Nothing
-        else
-          case Cyclic.unsafeGetByIndex (i+matIdx) mat of
-            MaterialAndKey (-1) -> Nothing
-            MaterialAndKey k -> Just k)
+    filter (/= -1) $
+    map (\i ->
+        case Cyclic.unsafeGetByIndex (i+matIdx) mat of
+          MaterialAndKey k -> k) $
+    filter (/= 0)
     -- Benchmarks showed that it is faster to write all directions at once,
     -- rather than just 2, and wait for other directions to come from nearby nodes.
     [ bool (-nCols) 0 $ row == 0       -- Up

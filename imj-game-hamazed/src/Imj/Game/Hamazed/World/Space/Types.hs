@@ -67,9 +67,10 @@ module Imj.Game.Hamazed.World.Space.Types
 import           Imj.Prelude
 import           Prelude(length)
 
-import GHC.Storable (readInt64OffPtr, writeInt64OffPtr)
-import GHC.Ptr (Ptr(..))
-import GHC.Int(Int64)
+import           GHC.Storable (readWord16OffPtr, writeWord16OffPtr)
+import           GHC.Ptr (Ptr(..))
+import           GHC.Word(Word16)
+
 import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.List(unlines, unwords, intercalate)
@@ -135,23 +136,22 @@ derivingUnbox "Material"
     [| (== Wall) |]
     [| \ i -> if i then Wall else Air|]
 
-newtype MaterialAndKey = MaterialAndKey Int64 -- -1 for Wall, >= 0 for Air key
+newtype MaterialAndKey = MaterialAndKey Word16 -- -1 for Wall, >= 0 for Air key
   deriving(Generic, Eq, Show)
 derivingUnbox "MaterialAndKey"
-    [t| MaterialAndKey -> Int64 |]
+    [t| MaterialAndKey -> Word16 |]
     [| \(MaterialAndKey m) -> m |]
     [|MaterialAndKey|]
 instance Storable MaterialAndKey where -- maps to a Word16
-  sizeOf    _ = 8
-  alignment _ = 8
-  peekElemOff (Ptr a) b = MaterialAndKey <$> readInt64OffPtr (Ptr a) b
-  pokeElemOff (Ptr a) b (MaterialAndKey c) = writeInt64OffPtr (Ptr a) b c
+  sizeOf    _ = 2
+  alignment _ = 2
+  peekElemOff (Ptr a) b = MaterialAndKey <$> readWord16OffPtr (Ptr a) b
+  pokeElemOff (Ptr a) b (MaterialAndKey c) = writeWord16OffPtr (Ptr a) b c
 
 {-# INLINE materialAndKeyToMaterial #-}
 materialAndKeyToMaterial :: MaterialAndKey -> Material
-materialAndKeyToMaterial (MaterialAndKey m)
-  | m < 0 = Wall
-  | otherwise = Air
+materialAndKeyToMaterial (MaterialAndKey 0xFFFF) = Wall
+materialAndKeyToMaterial (MaterialAndKey _) = Air
 
 data SmallMatInfo = SmallMatInfo {
     _countAirKeys :: !Int

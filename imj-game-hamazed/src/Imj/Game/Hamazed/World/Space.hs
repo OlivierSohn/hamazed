@@ -395,7 +395,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
         let vtxToMatIdx :: UArray.Array Int Int
             vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ mapMaybe
               (\matIdx -> case Cyclic.unsafeGetByIndex matIdx mat of
-                  MaterialAndKey (-1) -> Nothing
+                  MaterialAndKey 0xFFFF -> Nothing
                   MaterialAndKey k -> Just (fromIntegral k, matIdx))
               [0..Cyclic.nelems mat-1]
         in fromIntegral $ vtxToMatIdx UArray.! fromIntegral i)
@@ -403,7 +403,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   !airOnEveryFronteer =
     all
       (S.any (\case
-        MaterialAndKey (-1) -> False
+        MaterialAndKey 0xFFFF -> False
         MaterialAndKey _ -> True))
       fronteers
    where
@@ -482,7 +482,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
           -- walls must be detected by /matrix/ lookup.
           -- 'lookupComponent' is O(log V) and works for Air only.
           List.foldl' (\edges colIdx -> case Cyclic.unsafeGet rowIdx colIdx mat of
-            MaterialAndKey (-1) -> edges
+            MaterialAndKey 0xFFFF -> edges
             MaterialAndKey k -> case neighbourComponents of
               [] -> edges
               l -> Map.insertWith Set.union component (Set.fromList l) edges
@@ -506,7 +506,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
                       -- Also, by construction, diag is withinBounds because both OrthoWalls are.
                       -- Hence we skip the 'withinBounds' test.
                   in (case getMaterialAndKey diagRow diagCol of
-                      MaterialAndKey (-1) -> []
+                      MaterialAndKey 0xFFFF -> []
                       (MaterialAndKey diagK) -> [lookupComponent diagK]) ++ go rest
                 go (_:rest@(_:_)) = go rest
 
@@ -515,7 +515,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
               lookupOrthogonally (OrthoWall _ Nothing) = []
               lookupOrthogonally (OrthoWall dir (Just wall1Pos))
                | withinBounds r2 c2 = case getMaterialAndKey r2 c2 of
-                    MaterialAndKey (-1) -> []
+                    MaterialAndKey 0xFFFF -> []
                     MaterialAndKey afterWallK -> [lookupComponent afterWallK]
                | otherwise = []
                where
@@ -531,7 +531,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
                   bool
                     Nothing
                     (case getMaterialAndKey row col of
-                       MaterialAndKey (-1) -> Just p
+                       MaterialAndKey 0xFFFF -> Just p
                        MaterialAndKey _ -> Nothing)
                     $ withinBounds row col
 
@@ -549,7 +549,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
         [0..nRows-1]
 
       -- Int is an Air key. This function errors if the key is out of bounds.
-      lookupComponent :: Int64 -> ComponentIdx
+      lookupComponent :: Word16 -> ComponentIdx
       lookupComponent i = (V.!) keyToComponent $ fromIntegral i
 
       keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
@@ -585,7 +585,7 @@ mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAi
     !countWallBlocks = countBlocks - countAirBlocks
 
 data AccumSource = AS {
-    countAirKeys :: {-# UNPACK #-} !Int64
+    countAirKeys :: {-# UNPACK #-} !Word16
   , _index :: {-# UNPACK #-} !Int
 }
 
@@ -594,12 +594,12 @@ fillSmallVector :: GenIO
                 -- ^ Probability to generate a wall
                 -> MS.IOVector MaterialAndKey
                 -- ^ Use this memory
-                -> IO Int64
+                -> IO Word16
 fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
       !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
 
-      source8' :: Int -> (Int -> Int64 -> Word8 -> IO Int64) -> IO Int64
+      source8' :: Int -> (Int -> Word16 -> Word8 -> IO Word16) -> IO Word16
       source8' n f =
         countAirKeys <$> foldMUniforms nWord32 accF (AS 0 0) gen
        where
@@ -619,7 +619,7 @@ fillSmallVector gen wallProba v = do
       buildVector i nAir word
         | i >= countBlocks = return nAir
         | otherwise = do
-            MS.unsafeWrite v i $ MaterialAndKey $ bool (-1) nAir air
+            MS.unsafeWrite v i $ MaterialAndKey $ bool 0xFFFF nAir air
             return $ bool nAir (nAir+1) air
         where
           air = word > limit
@@ -689,7 +689,7 @@ getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMat
        multiply blockSize smallCoords
 
 data GraphNode = Node {
-    _nodeId              :: {-# UNPACK #-} !Int64
+    _nodeId              :: {-# UNPACK #-} !Word16
   , _packedNeighboursIds :: {-# UNPACK #-} !Word64 -- 4 Word16 where -1 == no neighbour
 }
 data GraphCreationState = GC {
@@ -737,7 +737,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
               bool res
                 (let !matIdx = iRow + col
                  in case Cyclic.unsafeGetByIndex matIdx mat of
-                      MaterialAndKey (-1) -> res
+                      MaterialAndKey 0xFFFF -> res
                       MaterialAndKey k ->
                         let neighbours = neighbourAirKeys matIdx row col
                             isMono = (neighbours == 0xFFFFFFFFFFFFFFFF)

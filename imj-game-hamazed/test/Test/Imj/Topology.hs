@@ -57,7 +57,7 @@ mkKeys m = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromList r c $ reverse l
   c = Unboxed.ncols m
   (l, nAir) = foldl'
       (\(l',k) v -> case v of
-        Wall -> (MaterialAndKey (-1):l',k)
+        Wall -> (MaterialAndKey 0xFFFF:l',k)
         Air -> (MaterialAndKey k:l', k+1))
       ([],0)
       $ Unboxed.toList m

@@ -58,7 +58,7 @@ scripts =
     , "      mouseY = evt?evt.clientY:(document.documentElement.clientHeight/2)"
     , "      var ownerTop = getCoordsWrtDoc(ownerElementAbove).top"
     , "      if(ownerTop < 20 + pageYOffset) {" -- top is not clearly visible (we use a 20 margin because of the sticky element)
-    , "          var target = (ownerTop + getCoords(element).top) / 2"
+    , "          var target = (ownerTop + getCoordsWrtDoc(element).top) / 2"
     , "          scrollTo(target - mouseY, ms);"
     , "      }"
     , "      element.style.height = '0px';"

@@ -394,17 +394,14 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       (\i ->
         let vtxToMatIdx :: UArray.Array Int Int
             vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ mapMaybe
-              (\matIdx -> case Cyclic.unsafeGetByIndex matIdx mat of
-                  MaterialAndKey 0xFFFF -> Nothing
-                  MaterialAndKey k -> Just (fromIntegral k, matIdx))
+              (\matIdx -> isAir Nothing (\k -> Just (fromIntegral k, matIdx)) $
+                Cyclic.unsafeGetByIndex matIdx mat)
               [0..Cyclic.nelems mat-1]
         in fromIntegral $ vtxToMatIdx UArray.! fromIntegral i)
  where
   !airOnEveryFronteer =
     all
-      (S.any (\case
-        MaterialAndKey 0xFFFF -> False
-        MaterialAndKey _ -> True))
+      (S.any (isAir False (const True)))
       fronteers
    where
     fronteers =
@@ -479,74 +476,67 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
 
       closeComponentIndices = List.foldl'
         (\edges' rowIdx ->
-          -- walls must be detected by /matrix/ lookup.
-          -- 'lookupComponent' is O(log V) and works for Air only.
-          List.foldl' (\edges colIdx -> case Cyclic.unsafeGet rowIdx colIdx mat of
-            MaterialAndKey 0xFFFF -> edges
-            MaterialAndKey k -> case neighbourComponents of
-              [] -> edges
-              l -> Map.insertWith Set.union component (Set.fromList l) edges
-             where
-              neighbourComponents =
-                filter
-                  (/= component)
-                  $ lookupNearbyComponentsDiagonally ++ lookupNearbyComponentsOrthogonally
-
-              component = lookupComponent k
-              pos = Coords (fromIntegral rowIdx) (fromIntegral colIdx)
-
-              lookupNearbyComponentsDiagonally =
-                go $ take 5 $ cycle cyclicOrthoWalls
-               where
-                go []  = []
-                go [_] = []
-                go (OrthoWall d1 (Just _) : rest@(OrthoWall _ (Just w2) : _)) =
-                  let (Coords (Coord diagRow) (Coord diagCol)) = translateInDir d1 w2
-                      -- Note that (translateInDir d1 w2) is equivalent to (translateInDir d2 w1).
-                      -- Also, by construction, diag is withinBounds because both OrthoWalls are.
-                      -- Hence we skip the 'withinBounds' test.
-                  in (case getMaterialAndKey diagRow diagCol of
-                      MaterialAndKey 0xFFFF -> []
-                      (MaterialAndKey diagK) -> [lookupComponent diagK]) ++ go rest
-                go (_:rest@(_:_)) = go rest
-
-              lookupNearbyComponentsOrthogonally = concatMap lookupOrthogonally cyclicOrthoWalls
-
-              lookupOrthogonally (OrthoWall _ Nothing) = []
-              lookupOrthogonally (OrthoWall dir (Just wall1Pos))
-               | withinBounds r2 c2 = case getMaterialAndKey r2 c2 of
-                    MaterialAndKey 0xFFFF -> []
-                    MaterialAndKey afterWallK -> [lookupComponent afterWallK]
-               | otherwise = []
-               where
-                (Coords (Coord r2) (Coord c2)) = translateInDir dir wall1Pos
-
-              cyclicDirs = [LEFT,Up,RIGHT,Down]
-              cyclicOrthoWalls = map orthoWallInDir cyclicDirs
-
-              orthoWallInDir :: Direction -> OrthoWall
-              orthoWallInDir d =
-                let p@(Coords (Coord row) (Coord col)) = translateInDir d pos
-                in OrthoWall d $
-                  bool
-                    Nothing
-                    (case getMaterialAndKey row col of
-                       MaterialAndKey 0xFFFF -> Just p
-                       MaterialAndKey _ -> Nothing)
-                    $ withinBounds row col
-
-              withinBounds row col =
-                row >= 0 && col >= 0 && row < nRows && col < nCols
-
-              getMaterialAndKey row col = Cyclic.unsafeGet row col mat)
-            edges'
-            [0..nCols-1])
+          List.foldl' (`folder` rowIdx) edges' [0..nCols-1])
         -- initialize with every component index
         (Map.fromDistinctAscList $
           zip
             [0..fromIntegral $ nComps-1]
             $ repeat Set.empty :: Map ComponentIdx (Set ComponentIdx))
         [0..nRows-1]
+
+      folder edges rowIdx colIdx = isAir edges onAir $ Cyclic.unsafeGet rowIdx colIdx mat
+       where
+        onAir k = case neighbourComponents of
+          [] -> edges
+          l -> Map.insertWith Set.union component (Set.fromList l) edges
+         where
+          neighbourComponents =
+            filter
+              (/= component)
+              $ lookupNearbyComponentsDiagonally ++ lookupNearbyComponentsOrthogonally
+
+          component = lookupComponent k
+          pos = Coords (fromIntegral rowIdx) (fromIntegral colIdx)
+
+          lookupNearbyComponentsDiagonally =
+            go $ take 5 $ cycle cyclicOrthoWalls
+           where
+            go []  = []
+            go [_] = []
+            go (OrthoWall d1 (Just _) : rest@(OrthoWall _ (Just w2) : _)) =
+              let (Coords (Coord diagRow) (Coord diagCol)) = translateInDir d1 w2
+                  -- Note that (translateInDir d1 w2) is equivalent to (translateInDir d2 w1).
+                  -- Also, by construction, diag is withinBounds because both OrthoWalls are.
+                  -- Hence we skip the 'withinBounds' test.
+              in isAir [] ((:[]) . lookupComponent) (getMaterialAndKey diagRow diagCol) ++
+                  go rest
+            go (_:rest@(_:_)) = go rest
+
+          lookupNearbyComponentsOrthogonally = concatMap lookupOrthogonally cyclicOrthoWalls
+
+          lookupOrthogonally (OrthoWall _ Nothing) = []
+          lookupOrthogonally (OrthoWall dir (Just wall1Pos))
+           | withinBounds r2 c2 = isAir [] ((:[]) . lookupComponent) $ getMaterialAndKey r2 c2
+           | otherwise = []
+           where
+            (Coords (Coord r2) (Coord c2)) = translateInDir dir wall1Pos
+
+          cyclicDirs = [LEFT,Up,RIGHT,Down]
+          cyclicOrthoWalls = map orthoWallInDir cyclicDirs
+
+          orthoWallInDir :: Direction -> OrthoWall
+          orthoWallInDir d =
+            let p@(Coords (Coord row) (Coord col)) = translateInDir d pos
+            in OrthoWall d $
+              bool
+                Nothing
+                (isAir (Just p) (const Nothing) $ getMaterialAndKey row col)
+                $ withinBounds row col
+
+          withinBounds row col =
+            row >= 0 && col >= 0 && row < nRows && col < nCols
+
+          getMaterialAndKey row col = Cyclic.unsafeGet row col mat
 
       -- Int is an Air key. This function errors if the key is out of bounds.
       lookupComponent :: Word16 -> ComponentIdx
@@ -736,23 +726,24 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
          in List.foldl' (\res@(GC ln nMinComps continue oneMulti) col ->
               bool res
                 (let !matIdx = iRow + col
-                 in case Cyclic.unsafeGetByIndex matIdx mat of
-                      MaterialAndKey 0xFFFF -> res
-                      MaterialAndKey k ->
-                        let neighbours = neighbourAirKeys matIdx row col
-                            isMono = (neighbours == 0xFFFFFFFFFFFFFFFF)
-                            newNMinComps
-                              | isMono || not oneMulti = 1+nMinComps
-                              | otherwise = nMinComps
-                            willContinue = newNMinComps < tooBigNComps
+                 in isAir
+                      res
+                      (\k ->
+                       let neighbours = neighbourAirKeys matIdx row col
+                           isMono = (neighbours == 0xFFFFFFFFFFFFFFFF)
+                           newNMinComps
+                             | isMono || not oneMulti = 1+nMinComps
+                             | otherwise = nMinComps
+                           willContinue = newNMinComps < tooBigNComps
+                           newList
+                             | willContinue = Node k neighbours:ln
+                             | otherwise = [] -- drop the list if we don't continue
+                       in GC
                             newList
-                              | willContinue = Node k neighbours:ln
-                              | otherwise = [] -- drop the list if we don't continue
-                        in GC
-                             newList
-                             newNMinComps
-                             willContinue
-                             $ not isMono || oneMulti)
+                            newNMinComps
+                            willContinue
+                            $ not isMono || oneMulti)
+                      $ Cyclic.unsafeGetByIndex matIdx mat)
                 continue)
             res'
             [0..nCols-1])
@@ -763,9 +754,9 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
   neighbourAirKeys :: Int -> Int -> Int -> Word64
   neighbourAirKeys matIdx row col = toWord64 l
    where
-    f 0 = 0xFFFF
+    f 0 = 0xFFFF -- in Graph.Undirected, 0xFFFF means no neighbour ...
     f x = case Cyclic.unsafeGetByIndex (x+matIdx) mat of
-      MaterialAndKey k -> fromIntegral k
+      MaterialAndKey k -> k -- ... hence this is valid because wall is 0xFFFF
 
     g (Four a b c d) = Four' (f a) (f b) (f c) (f d)
 
@@ -782,6 +773,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
 data Four  = Four  {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int
 data Four' = Four' {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16
 
+{-# INLINE toWord64 #-}
 toWord64 :: Four' -> Word64
 toWord64 (Four' w1 w2 w3 w4) =
   fromIntegral w1 .|. (fromIntegral w2 `shiftL` 16) .|. (fromIntegral w3 `shiftL` 32) .|. (fromIntegral w4 `shiftL` 48)

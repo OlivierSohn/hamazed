@@ -32,6 +32,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , getSize
     , Material(..)
     , MaterialAndKey(..)
+    , isAir
     , materialAndKeyToMaterial
     , WallDistribution(..)
     , DrawGroup(..)
@@ -148,10 +149,15 @@ instance Storable MaterialAndKey where -- maps to a Word16
   peekElemOff (Ptr a) b = MaterialAndKey <$> readWord16OffPtr (Ptr a) b
   pokeElemOff (Ptr a) b (MaterialAndKey c) = writeWord16OffPtr (Ptr a) b c
 
+{-# INLINE isAir #-}
+isAir :: a -> (Word16 -> a) -> MaterialAndKey -> a
+isAir no yes (MaterialAndKey x)
+ | x < 0x8000 = yes x -- TODO benchmark /= 0xFFFF
+ | otherwise = no
+
 {-# INLINE materialAndKeyToMaterial #-}
 materialAndKeyToMaterial :: MaterialAndKey -> Material
-materialAndKeyToMaterial (MaterialAndKey 0xFFFF) = Wall
-materialAndKeyToMaterial (MaterialAndKey _) = Air
+materialAndKeyToMaterial = isAir Wall (const Air)
 
 data SmallMatInfo = SmallMatInfo {
     _countAirKeys :: !Int

@@ -81,6 +81,7 @@ library
                      , mtl >= 2.2.1 && < 2.3
                      , network ==2.6.*
                      , optparse-applicative == 0.14.*
+                     , primitive ==0.6.*
                      , stm ==2.4.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4

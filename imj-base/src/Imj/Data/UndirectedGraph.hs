@@ -4,7 +4,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 
-
 #include "containers.h"
 
 module Imj.Data.UndirectedGraph (
@@ -23,11 +22,12 @@ module Imj.Data.UndirectedGraph (
     ) where
 
 import           Control.Monad.ST
+import           Data.Bits(shiftR)
 import           Data.Vector.Storable.Mutable (MVector)
 import qualified Data.Vector.Storable.Mutable as S
 import           Data.Tree (Tree(Node), Forest)
-import           GHC.Int(Int64)
-import qualified Data.Vector as UV
+import           GHC.Word(Word16, Word64)
+import           Data.Primitive.ByteArray(ByteArray(..), indexByteArray, sizeofByteArray)
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -35,12 +35,14 @@ import qualified Data.Vector as UV
 --                                                                      -
 -------------------------------------------------------------------------
 
--- | Abstract representation of vertices.
-type Vertex  = Int64
+-- | Abstract representation of vertices. Vertices /must/ be < 0x8000
+type Vertex  = Word16
 -- | Adjacency list representation of an undirected graph, mapping each vertex to its
--- list of successors. When constructing the graph, please make sure that each undirected
+-- list of successors (at most 4 elements, encoded as Word16).
+--
+-- When constructing the graph, please make sure that each undirected
 -- edge is represented by two directed edges, one being the inverse of the other.
-type Graph = UV.Vector ([] Int64)
+type Graph = ByteArray
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -48,7 +50,7 @@ type Graph = UV.Vector ([] Int64)
 --                                                                      -
 -------------------------------------------------------------------------
 
-componentsN        :: Int64 -> Graph -> Forest Vertex
+componentsN        :: Word16 -> Graph -> Forest Vertex
 componentsN n g       = dfs' (Just n) g
 
 -- | A spanning forest of the part of the graph reachable from the listed
@@ -57,7 +59,7 @@ componentsN n g       = dfs' (Just n) g
 components :: Graph -> Forest Vertex
 components = dfs' Nothing
 
-forLoop :: Int64 -> Int64 -> (Int64 -> a) -> [a]
+forLoop :: Word16 -> Word16 -> (Word16 -> a) -> [a]
 forLoop start end f = go start
   where
     go x
@@ -65,19 +67,28 @@ forLoop start end f = go start
       | otherwise = f x : go (x+1)
 
 
-dfs'          :: Maybe Int64 -> Graph -> Forest Vertex
-dfs' n g   = prune v n (forLoop 0 (fromIntegral v) (generate g))
- where v = UV.length g
+dfs'          :: Maybe Word16 -> Graph -> Forest Vertex
+dfs' n g   = prune v n (forLoop 0 v (generate g))
+ where v = fromIntegral $ quot (sizeofByteArray g) SIZEOF_WORD64
 
 generate     :: Graph -> Vertex -> Tree Vertex
-generate g v  = Node v (map (generate g) (UV.unsafeIndex g $ fromIntegral v))
+generate g v  = Node v (map (generate g) $ neighbours v)
+ where
+  neighbours :: Vertex -> [Vertex]
+  neighbours x =
+    let w64 = indexByteArray g $ fromIntegral x :: Word64
+        w1 = fromIntegral w64 :: Word16
+        w2 = fromIntegral (w64 `shiftR` 16) :: Word16
+        w3 = fromIntegral (w64 `shiftR` 32) :: Word16
+        w4 = fromIntegral (w64 `shiftR` 48) :: Word16
+    in filter (< 0x8000) [w1,w2,w3,w4]
 
-prune        :: Int -> Maybe Int64 -> Forest Vertex -> Forest Vertex
+prune        :: Word16 -> Maybe Word16 -> Forest Vertex -> Forest Vertex
 prune n mayCount ts = run n (maybe chop chopTakeN mayCount ts)
 
 -- Same as 'chop', except that no more than n first-level forests
 -- are computed.
-chopTakeN         :: Int64 -> Forest Vertex -> SetM s (Forest Vertex)
+chopTakeN         :: Word16 -> Forest Vertex -> SetM s (Forest Vertex)
 chopTakeN 0 _     = return []
 chopTakeN _ []     = return []
 chopTakeN n (Node v ts : us)
@@ -127,8 +138,8 @@ instance Applicative (SetM s) where
     -- but Applicative (ST s) instance is present only in GHC 7.2+
     {-# INLINE (<*>) #-}
 
-run          :: Int -> (forall s. SetM s a) -> a
-run n act  = runST (S.replicate n False >>= runSetM act)
+run          :: Word16 -> (forall s. SetM s a) -> a
+run n act  = runST (S.replicate (fromIntegral n) False >>= runSetM act)
 
 contains     :: Vertex -> SetM s Bool
 contains v    = SetM $ \ m -> S.unsafeRead m (fromIntegral v)

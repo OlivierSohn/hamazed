@@ -33,8 +33,11 @@ module Imj.Game.Hamazed.World.Space
 import           Imj.Prelude
 
 import           Control.Monad.ST(runST)
+
+import Data.Primitive.ByteArray
+
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
-import           Data.Bits(shiftR)
+import           Data.Bits(shiftR, shiftL, (.|.))
 import           Data.Either(isLeft)
 import           Data.List(length, sortOn, replicate, take)
 import           Data.List.NonEmpty(NonEmpty(..))
@@ -45,13 +48,12 @@ import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
 import           Data.Tree(flatten)
-import qualified Data.Vector.Mutable as BMV (unsafeNew, unsafeWrite)
-import qualified Data.Vector as BV
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import qualified Data.Vector.Unboxed.Mutable as MV
 import qualified Data.Vector.Unboxed as V
 import           Data.Word(Word8)
+import           GHC.Word(Word64, Word16)
 import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
@@ -686,8 +688,10 @@ getBigCoords !bigIndex !blockSize (Size nBigRows nBigCols) (SmallWorld (SmallMat
        translate (Coords (fromIntegral remainRow) (fromIntegral remainCol)) $
        multiply blockSize smallCoords
 
-data GraphNode = Node !Int64 [Int64]
-
+data GraphNode = Node {
+    _nodeId              :: {-# UNPACK #-} !Int64
+  , _packedNeighboursIds :: {-# UNPACK #-} !Word64 -- 4 Word16 where -1 == no neighbour
+}
 data GraphCreationState = GC {
     _listNodes :: [GraphNode]
   , _nMinComps :: !ComponentCount
@@ -718,9 +722,10 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
     if canContinue
       then
         Just $ runST $ do
-          v <- BMV.unsafeNew nAirKeys
-          forM_ listNodes (\(Node key neighbours) -> BMV.unsafeWrite v (fromIntegral key) neighbours)
-          BV.unsafeFreeze v
+          -- 8 is size of Word64 in bytes
+          v <- newAlignedPinnedByteArray (nAirKeys * 8) 64
+          forM_ listNodes (\(Node key neighbours) -> writeByteArray v (fromIntegral key) neighbours)
+          unsafeFreezeByteArray v
       else
         Nothing
 
@@ -735,7 +740,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
                       MaterialAndKey (-1) -> res
                       MaterialAndKey k ->
                         let neighbours = neighbourAirKeys matIdx row col
-                            isMono = null neighbours
+                            isMono = (neighbours == 0xFFFFFFFFFFFFFFFF)
                             newNMinComps
                               | isMono || not oneMulti = 1+nMinComps
                               | otherwise = nMinComps
@@ -755,21 +760,31 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       mkGraphCreationState
       [0..nRows-1]
 
-  neighbourAirKeys :: Int -> Int -> Int -> [Int64]
-  neighbourAirKeys matIdx row col =
-    filter (/= -1) $
-    map (\i ->
-        case Cyclic.unsafeGetByIndex (i+matIdx) mat of
-          MaterialAndKey k -> k) $
-    filter (/= 0)
-    -- Benchmarks showed that it is faster to write all directions at once,
-    -- rather than just 2, and wait for other directions to come from nearby nodes.
-    [ bool (-nCols) 0 $ row == 0       -- Up
-    , bool (-1)     0 $ col == 0       -- LEFT
-    , bool 1        0 $ col == nCols-1 -- RIGHT
-    , bool nCols    0 $ row == nRows-1 -- Down
-    ]
+  neighbourAirKeys :: Int -> Int -> Int -> Word64
+  neighbourAirKeys matIdx row col = toWord64 l
+   where
+    f 0 = 0xFFFF
+    f x = case Cyclic.unsafeGetByIndex (x+matIdx) mat of
+      MaterialAndKey k -> fromIntegral k
 
+    g (Four a b c d) = Four' (f a) (f b) (f c) (f d)
+
+    l =
+      g $
+      -- Benchmarks showed that it is faster to write all directions at once,
+      -- rather than just 2, and wait for other directions to come from nearby nodes.
+      Four (bool (-nCols) 0 $ row == 0)       -- Up
+           (bool (-1)     0 $ col == 0)      -- LEFT
+           (bool 1        0 $ col == nCols-1) -- RIGHT
+           (bool nCols    0 $ row == nRows-1) -- Down
+
+
+data Four  = Four  {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int
+data Four' = Four' {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16
+
+toWord64 :: Four' -> Word64
+toWord64 (Four' w1 w2 w3 w4) =
+  fromIntegral w1 .|. (fromIntegral w2 `shiftL` 16) .|. (fromIntegral w3 `shiftL` 32) .|. (fromIntegral w4 `shiftL` 48)
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space
 mkSpaceFromMat s matMaybeSmaller =

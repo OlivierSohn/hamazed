@@ -1,3 +1,4 @@
+- try Word16 in MaterialAndKey, using test (< 0x8000) for keys
 
 - analyze results of modulation to see if they have a stronger "destructuring power" than interleaving.
 -> Modulate is inefficient, maybe because we access memory in a non linear way.

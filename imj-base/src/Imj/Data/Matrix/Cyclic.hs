@@ -18,8 +18,10 @@ module Imj.Data.Matrix.Cyclic (
   -- ** Rotations
   , RotationOrder(..)
   , produceRotations, countRotations, countRotations'
-  -- * Interleaved
+  -- ** Interleaved
   , produceUsefulInterleavedVariations
+  -- ** Moduloed
+  , modulo
     -- ** Special matrices
   , zero
   , identity
@@ -151,6 +153,31 @@ setRotation m@(M _ _ _ v) i
 {-# INLINE unsafeSetRotation #-}
 unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
+
+modulo :: (Storable a) => Int -> Matrix a -> Matrix a
+modulo n mat@(M rows cols rot v)
+ | n <= 1 = mat
+ | n >= len = error $ "out of range modulo:" ++ show n
+ | otherwise =
+     M rows cols rot $ V.create (do
+      mv <- MV.unsafeNew len
+      numLoop 0 (nIterationsWithOneMore-1) $ \startIdx ->
+        numLoop 0 standardIterationsLength $ \i -> do
+          let source = startIdx + i*n
+              target = startIdx*(standardIterationsLength+1) + i
+          MV.unsafeWrite mv target $ V.unsafeIndex v source
+      let start2 = nIterationsWithOneMore * (standardIterationsLength+1)
+      numLoop nIterationsWithOneMore (n-1) (\startIdx ->
+        numLoop 0 (standardIterationsLength-1) (\i -> do
+          let source = startIdx + i*n
+              target = start2 + (startIdx-nIterationsWithOneMore)*standardIterationsLength + i
+          MV.unsafeWrite mv target $ V.unsafeIndex v source))
+      return mv)
+  where
+    -- when starting at [0..nIterationsWithOneMore-1], there are standardIterationsLength+1 elements.
+    -- when starting at [nIterationsWithOneMore..n-1], there are standardIterationsLength elements.
+    (standardIterationsLength,nIterationsWithOneMore) = quotRem len n
+    len = V.length v
 
 {-# INLINE nelems #-}
 nelems :: (Storable a) => Matrix a -> Int

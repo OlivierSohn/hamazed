@@ -32,7 +32,7 @@ module Imj.Game.Hamazed.World.Space
 
 import           Imj.Prelude
 
-import           GHC.Int(Int32)
+import           GHC.Int(Int64)
 
 import           Control.Monad.ST(runST)
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
@@ -545,7 +545,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
         [0..nRows-1]
 
       -- Int is an Air key. This function errors if the key is out of bounds.
-      lookupComponent :: Int32 -> ComponentIdx
+      lookupComponent :: Int64 -> ComponentIdx
       lookupComponent i = (V.!) keyToComponent $ fromIntegral i
 
       keyToComponent :: V.Vector ComponentIdx -- Indexed by Air keys
@@ -581,7 +581,7 @@ mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAi
     !countWallBlocks = countBlocks - countAirBlocks
 
 data AccumSource = AS {
-    countAirKeys :: {-# UNPACK #-} !Int32
+    countAirKeys :: {-# UNPACK #-} !Int64
   , _index :: {-# UNPACK #-} !Int
 }
 
@@ -590,12 +590,12 @@ fillSmallVector :: GenIO
                 -- ^ Probability to generate a wall
                 -> MS.IOVector MaterialAndKey
                 -- ^ Use this memory
-                -> IO Int32
+                -> IO Int64
 fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
       !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
 
-      source8' :: Int -> (Int -> Int32 -> Word8 -> IO Int32) -> IO Int32
+      source8' :: Int -> (Int -> Int64 -> Word8 -> IO Int64) -> IO Int64
       source8' n f =
         countAirKeys <$> foldMUniforms nWord32 accF (AS 0 0) gen
        where
@@ -753,7 +753,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       mkGraphCreationState
       [0..nRows-1]
 
-  neighbourAirKeys :: Int -> Int -> Int -> [Int32]
+  neighbourAirKeys :: Int -> Int -> Int -> [Int64]
   neighbourAirKeys matIdx row col =
     mapMaybe (\i -> case Cyclic.unsafeGetByIndex (i+matIdx) mat of
       MaterialAndKey (-1) -> Nothing

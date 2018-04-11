@@ -13,30 +13,20 @@ module Imj.Data.UndirectedGraph (
       Graph
     , Vertex
 
-    -- ** Graph Properties
-    , vertices
-    , degree
-
     -- ** Graph Algorithms
-    , dfs
-    , dff
-    , topSort
     , components
     , componentsN
-    , reachable
-    , path
 
     -- * Trees
     , module Data.Tree
 
     ) where
 
-
-import Control.Monad.ST
+import           Control.Monad.ST
 import           Data.Vector.Storable.Mutable (MVector)
 import qualified Data.Vector.Storable.Mutable as S
-import Data.Tree (Tree(Node), Forest)
-import GHC.Int(Int64)
+import           Data.Tree (Tree(Node), Forest)
+import           GHC.Int(Int64)
 import qualified Data.Vector as UV
 
 -------------------------------------------------------------------------
@@ -52,62 +42,32 @@ type Vertex  = Int64
 -- edge is represented by two directed edges, one being the inverse of the other.
 type Graph = UV.Vector ([] Int64)
 
--- | Returns the list of vertices in the graph.
---
--- ==== __Examples__
---
--- > vertices (buildG (0,-1) []) == []
---
--- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1,2]
-vertices :: Graph -> [Vertex]
-vertices g = [0.. fromIntegral $ UV.length g -1]
-
--- | Returns the list of edges in the graph.
---
--- ==== __Examples__
---
--- > edges (buildG (0,-1) []) == []
---
--- > edges (buildG (0,2) [(0,1),(1,2)]) == [(0,1),(1,2)]
---edges    :: Graph -> [Edge]
---edges g   = [ (v, w) | v <- vertices g, w <- g!v]
-
--- | A table of the count of edges for each node.
---
--- ==== __Examples__
---
--- > outdegree (buildG (0,-1) []) == array (0,-1) []
---
--- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
-degree :: Graph -> UV.Vector Int64
--- This is bizarrely lazy. We build an array filled with thunks, instead
--- of actually calculating anything. This is the historical behavior, and I
--- suppose someone *could* be relying on it, but it might be worth finding
--- out. Note that we *can't* be so lazy with indegree.
-degree  = UV.map (fromIntegral . length)
-
 -------------------------------------------------------------------------
 --                                                                      -
 --      Depth first search
 --                                                                      -
 -------------------------------------------------------------------------
 
--- | A spanning forest of the graph, obtained from a depth-first search of
--- the graph starting from each vertex in an unspecified order.
-dff          :: Graph -> Forest Vertex
-dff g         = dfs g (vertices g)
-
-dffN          :: Int64 -> Graph -> Forest Vertex
-dffN n g       = dfs' (Just n) g (vertices g)
+componentsN        :: Int64 -> Graph -> Forest Vertex
+componentsN n g       = dfs' (Just n) g
 
 -- | A spanning forest of the part of the graph reachable from the listed
 -- vertices, obtained from a depth-first search of the graph starting at
 -- each of the listed vertices in order.
-dfs          :: Graph -> [Vertex] -> Forest Vertex
-dfs           = dfs' Nothing
+components :: Graph -> Forest Vertex
+components = dfs' Nothing
 
-dfs'          :: Maybe Int64 -> Graph -> [Vertex] -> Forest Vertex
-dfs' n g vs   = prune (fromIntegral $ UV.length g) n (map (generate g) vs)
+forLoop :: Int64 -> Int64 -> (Int64 -> a) -> [a]
+forLoop start end f = go start
+  where
+    go x
+      | x == end = []
+      | otherwise = f x : go (x+1)
+
+
+dfs'          :: Maybe Int64 -> Graph -> Forest Vertex
+dfs' n g   = prune v n (forLoop 0 (fromIntegral v) (generate g))
+ where v = UV.length g
 
 generate     :: Graph -> Vertex -> Tree Vertex
 generate g v  = Node v (map (generate g) (UV.unsafeIndex g $ fromIntegral v))
@@ -175,83 +135,3 @@ contains v    = SetM $ \ m -> S.unsafeRead m (fromIntegral v)
 
 include      :: Vertex -> SetM s ()
 include v     = SetM $ \ m -> S.unsafeWrite m (fromIntegral v) True
-
--------------------------------------------------------------------------
---                                                                      -
---      Algorithms
---                                                                      -
--------------------------------------------------------------------------
-
-------------------------------------------------------------
--- Algorithm 1: depth first search numbering
-------------------------------------------------------------
-
-preorder' :: Tree a -> [a] -> [a]
-preorder' (Node a ts) = (a :) . preorderF' ts
-
-preorderF' :: Forest a -> [a] -> [a]
-preorderF' ts = foldr (.) id $ map preorder' ts
-
-preorderF :: Forest a -> [a]
-preorderF ts = preorderF' ts []
-
-------------------------------------------------------------
--- Algorithm 2: topological sorting
-------------------------------------------------------------
-
-postorder :: Tree a -> [a] -> [a]
-postorder (Node a ts) = postorderF ts . (a :)
-
-postorderF   :: Forest a -> [a] -> [a]
-postorderF ts = foldr (.) id $ map postorder ts
-
-postOrd :: Graph -> [Vertex]
-postOrd g = postorderF (dff g) []
-
--- | A topological sort of the graph.
--- The order is partially specified by the condition that a vertex /i/
--- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
-topSort      :: Graph -> [Vertex]
-topSort       = reverse . postOrd
-
-------------------------------------------------------------
--- Algorithm 3: connected components
-------------------------------------------------------------
-
--- | The connected components of a graph.
--- Two vertices are connected if there is a path between them, traversing
--- edges in either direction.
-components   :: Graph -> Forest Vertex
-components    = dff
-
--- | Same as 'components' except that the search stops when a given count
--- of connected components are found.
-componentsN  :: Int64 -> Graph -> Forest Vertex
-componentsN n = dffN n
-
-
-------------------------------------------------------------
--- Algorithm 6: Finding reachable vertices
-------------------------------------------------------------
-
--- | Returns the list of vertices reachable from a given vertex.
---
--- ==== __Examples__
---
--- > reachable (buildG (0,0) []) 0 == [0]
---
--- > reachable (buildG (0,2) [(0,1), (1,2)]) 0 == [0,1,2]
-reachable :: Graph -> Vertex -> [Vertex]
-reachable g v = preorderF (dfs g [v])
-
--- | Returns @True@ if the second vertex reachable from the first.
---
--- ==== __Examples__
---
--- > path (buildG (0,0) []) 0 0 == True
---
--- > path (buildG (0,2) [(0,1), (1,2)]) 0 2 == True
---
--- > path (buildG (0,2) [(0,1), (1,2)]) 2 0 == False
-path :: Graph -> Vertex -> Vertex -> Bool
-path g v w    = w `elem` (reachable g v)

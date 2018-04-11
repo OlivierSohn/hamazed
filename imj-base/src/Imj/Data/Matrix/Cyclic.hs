@@ -21,7 +21,7 @@ module Imj.Data.Matrix.Cyclic (
   -- ** Interleaved
   , produceUsefulInterleavedVariations
   -- ** Moduloed
-  , modulo
+  , modulate
     -- ** Special matrices
   , zero
   , identity
@@ -154,8 +154,8 @@ setRotation m@(M _ _ _ v) i
 unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
-modulo :: (Storable a) => Int -> Matrix a -> Matrix a
-modulo n mat@(M rows cols rot v)
+modulate :: (Storable a) => Int -> Matrix a -> Matrix a
+modulate n mat@(M rows cols rot v)
  | n <= 1 = mat
  | n >= len = error $ "out of range modulo:" ++ show n
  | otherwise =

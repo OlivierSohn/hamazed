@@ -61,18 +61,25 @@ import           Imj.Random.MWC.Seeds
 
 main :: IO ()
 main =
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
-  --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
+  --profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
   --writeSeedsSource
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
 justVariantsWithRotations sz n =
   let interleave = mkInterleaveVariation sz
+      modulation = mkModulateVariation sz
   in concatMap (map (\y -> y Nothing)) $
       map (\rotationOrder ->
         let rotation = Rotate $ RotationDetail rotationOrder n
-        in  Variants (pure interleave) . Just . Variants (pure rotation):
+        in  Variants (pure interleave) . Just . Variants (pure modulation) . Just . Variants (pure rotation):
+            Variants (modulation :| [interleave]) . Just . Variants (pure rotation):
+            Variants (pure interleave) . Just . Variants (pure rotation):
+            Variants (pure modulation) . Just . Variants (pure rotation):
             Variants (interleave :| [rotation]):
+            Variants (modulation :| [rotation]):
+            Variants (interleave :| [modulation,rotation]):
             Variants (pure rotation):
             [])
       [
@@ -84,7 +91,12 @@ justVariantsWithRotations sz n =
 justVariantsWithoutRotations :: Size -> [MatrixVariants]
 justVariantsWithoutRotations sz =
   let interleave = mkInterleaveVariation sz
-  in [Variants (pure interleave) Nothing]
+      modulation = mkModulateVariation sz
+  in map (\y -> y Nothing)
+       [ Variants (pure interleave)
+       , Variants (pure modulation)
+       , Variants (modulation :| [interleave])
+       , Variants (pure interleave) . Just . Variants (pure modulation)]
 
 allWorlds :: [SmallWorldCharacteristics]
 allWorlds =
@@ -109,13 +121,26 @@ exhaustiveWorlds =
     [SWCharacteristics size componentCount proba |
       proba <- map ((*) 0.1 . fromIntegral) [1 :: Int ..9]]
 
-writeHtmlReport :: Time Duration System
+writeHtmlReport :: Maybe (Time Duration System)
                 -> Results
                 -> UserIntent
                 -> IO ()
-writeHtmlReport allowedDt allRes intent = do
-  write
-
+writeHtmlReport mayAllowedDt allRes intent = do
+  html <- forM (Map.assocs allRes)
+    (\(worldCharac, worldResults) -> do
+        let labelsAndEitherTimeoutsTimes = map
+              (\(strategy, results) ->
+                ( fromString $ prettyShowMatrixVariants strategy
+                , results)) $ Map.assocs worldResults
+            resultsAndCS = showTestResults mayAllowedDt -- map these lines to individual results
+              labelsAndEitherTimeoutsTimes
+              $ (fromString $ prettyShowSWCharacteristics worldCharac :: ColorString)
+        return resultsAndCS) >>=
+          renderResultsHtml intentStr
+            . concatMap
+              (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
+              . mconcat
+  CS.putStrLn $ CS.colored ("Wrote Chrome-compatible html report: " <> pack html) yellow
  where
   intentStr = case intent of
     Cancel -> "The test was interrupted."
@@ -123,22 +148,6 @@ writeHtmlReport allowedDt allRes intent = do
     Run -> "The test has finished." -- because we write a report only at the end, or on 'Report'
     Pause _ -> "The test is paused" -- should not happen
 
-  write = do
-    html <- forM (Map.assocs allRes)
-      (\(worldCharac, worldResults) -> do
-          let labelsAndEitherTimeoutsTimes = map
-                (\(strategy, results) ->
-                  ( fromString $ prettyShowMatrixVariants strategy
-                  , results)) $ Map.assocs worldResults
-              resultsAndCS = showTestResults allowedDt -- map these lines to individual results
-                labelsAndEitherTimeoutsTimes
-                $ (fromString $ prettyShowSWCharacteristics worldCharac :: ColorString)
-          return resultsAndCS) >>=
-            renderResultsHtml intentStr
-              . concatMap
-                (\(res,ls) -> map (\l -> (l, fmap toTitle res)) ls)
-                . mconcat
-    CS.putStrLn $ CS.colored ("Chrome-compatible html report: " <> pack html) yellow
 
   showAsCs :: TestStatus Statistics -> [ColorString]
   showAsCs NotStarted = [CS.colored "NotStarted" blue]
@@ -316,7 +325,7 @@ withTestScheduler' worldsByDifficulty mkStrategies intent testF = do
                   informSuccess easy strategy res
                   informHint hs newHint strategy
                   let newOneValid = addResult easy strategy seedN res oneValid
-                  writeHtmlReport dt newOneValid (Report Run)
+                  writeHtmlReport (Just dt) newOneValid (Report Run)
                   -- we also try harder worlds now:
                   tryWorlds difficults (ISet.insert newHint hs) noValid newOneValid)
          where
@@ -411,7 +420,7 @@ continue intent = readMVar intent >>= \case
 mayReport :: Time Duration System -> MVar UserIntent -> Results -> IO ()
 mayReport allowed intent x = readMVar intent >>= \case
   i@(Report prevIntent) -> do
-    writeHtmlReport allowed x i
+    writeHtmlReport (Just allowed) x i
     modifyMVar_ intent $ const $ return $ firstNonReport prevIntent
     return ()
   _ -> return ()
@@ -444,8 +453,8 @@ mkTerminator = do
   setToFalseOnTermination b
   return b
 
-profileAllProps :: IO ()
-profileAllProps = do
+profileAllProps2 :: IO ()
+profileAllProps2 = do
   putStrLn " - Worlds:"
   mapM_ (putStrLn . prettyShowSWCharacteristics) $ List.concat worlds
   intent <- mkTerminator
@@ -458,13 +467,42 @@ profileAllProps = do
         modifyMVar_ c $ const $ return False -- TODO measure overhead vs. using timeout
       profileWithContinue property seed c)
 
-  readMVar intent >>= writeHtmlReport allowedDt allRes
+  readMVar intent >>= writeHtmlReport Nothing allRes
+  putStrLn $ "Test duration = " ++ show totalDt
+ where
+
+  worlds = exhaustiveWorlds --allWorlds
+  strategies size =
+    map
+      Just
+      (concatMap
+        (justVariantsWithRotations size)
+        margins ++
+      justVariantsWithoutRotations size) ++
+    [Nothing] -- i.e use only random matrices.
+
+  -- NOTE we don't use margin 0 because for single component worlds, it is strictly equivalent to never rotating.
+  -- For multiple component worlds however, it is not equivalent, since after the nComponents test,
+  -- maybe the spacewellused or well distributed test could fail.
+  margins = [1..7] -- TODO test higher margins
+
+profileAllProps :: IO ()
+profileAllProps = do
+  putStrLn " - Worlds:"
+  mapM_ (putStrLn . prettyShowSWCharacteristics) worlds
+  intent <- mkTerminator
+
+  (totalDt, allRes) <- withDuration $
+    withTestScheduler worlds strategies allowedDt intent (\property seed ->
+      snd <$> profile property seed)
+
+  readMVar intent >>= writeHtmlReport (Just allowedDt) allRes
   putStrLn $ "Test duration = " ++ show totalDt
  where
 
   !allowedDt = fromSecs 15
 
-  worlds = exhaustiveWorlds --allWorlds
+  worlds = allWorlds
   strategies size =
     map
       Just

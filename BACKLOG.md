@@ -1,11 +1,12 @@
 
-- modulo matrices : maybe it has a stronger "destructuring power" than interleaving?
-it may also produce more matrices
+- analyze results of modulation to see if they have a stronger "destructuring power" than interleaving.
 
 - Should we parallelize :
   random matrix creation?
   or world creation?
   or both?
+
+- We could get rid of the graph datastructure and use the data in the matrix directly.
 
 - random numbers generation is 50% time in
 fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark.
@@ -36,7 +37,6 @@ This will avoid unproductive waits.
 
 - benchmark alternative variations:
   - rotate around 0,0, then diagonally
-  - modulo (take one element out of n, offset if needed to cover all elements)
 - limit the number of interleavings?
 
 -

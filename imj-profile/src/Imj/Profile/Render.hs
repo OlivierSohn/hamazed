@@ -45,10 +45,12 @@ renderResultsHtml status resultsAndSubresults = do
   dir = "report"
 
   bodyHeader = do
-    div $ do
-      br
-      p "Chrome-compatible html report."
-      br
+    div
+      ! A.style (colorAttribute statusColor)
+      $ do
+        br
+        p "Chrome-compatible html report."
+        br
     div
       ! A.style (colorAttribute statusColor)
       ! A.class_ "stick"
@@ -56,6 +58,8 @@ renderResultsHtml status resultsAndSubresults = do
     div br
    where
     statusColor = LayeredColor (gray 13) black
+    msgColor = LayeredColor (gray 3) (gray 13)
+
 
   bodyResults = mconcat $ List.map (uncurry resultLine) resultDetails
 

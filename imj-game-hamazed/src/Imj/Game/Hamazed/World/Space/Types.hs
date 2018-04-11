@@ -22,6 +22,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , humanShowVariants
     , Variation(..)
     , mkInterleaveVariation
+    , mkModulateVariation
     , RotationDetail(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
@@ -231,6 +232,11 @@ humanShowVariants sz variations = txt
    where
     n = nUseful r * nUseful c
 
+  humanShowVariation v@(Modulate from to) =
+    unwords [showVariationDetails v, show n, "modulos"]
+   where
+    n = from-to+1
+
   humanShowVariates x = unwords [sv x, "variations"]
    where
     sv l = intercalate "+" $ map humanShowVariation l
@@ -249,20 +255,27 @@ humanShowVariants sz variations = txt
 data Variation =
     Rotate !RotationDetail
   | Interleave !InterleaveInfo !InterleaveInfo -- first is for rows, second is for columns
+  | Modulate !Int !Int -- from / to, inclusively
   deriving(Generic, Eq, Ord)
 instance Binary Variation
 instance NFData Variation
 instance Show Variation where
+  show m@Modulate{} = "M" ++ showVariationDetails m
   show i@Interleave{} = "I" ++ showVariationDetails i
   show r@Rotate{} = unwords ["R", showVariationDetails r]
 
 showVariationDetails :: Variation -> String
 showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords ["margin-" ++ show n, show order]
-showVariationDetails (Interleave r c) = "(" ++ show (nUseful r) ++ "," ++ show (nUseful c) ++ ")"
+showVariationDetails (Interleave r c) = show (nUseful r, nUseful c)
+showVariationDetails (Modulate from to) = show (from,to)
 
 mkInterleaveVariation :: Size -> Variation
 mkInterleaveVariation (Size (Length rows) (Length cols)) =
   Interleave (mkInterleaveInfo rows) (mkInterleaveInfo cols)
+
+mkModulateVariation :: Size -> Variation
+mkModulateVariation (Size (Length rows) (Length cols)) =
+  Modulate 2 (quot (rows * cols) 2)
 
 data RotationDetail = RotationDetail {
     _rotationOrder :: !Cyclic.RotationOrder

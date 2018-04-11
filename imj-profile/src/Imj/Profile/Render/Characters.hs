@@ -89,7 +89,7 @@ inverseMap = Map.fromListWith ISet.union . map (fmap ISet.singleton . swap) . IM
 -- | Shows times, underlying min and max times, and using a logarithmic scale
 -- for the graphical representation.
 showTestResults :: Characters s
-                 => Time Duration System
+                 => Maybe (Time Duration System)
                  -- ^ Timeout value
                  -> [(s, TestDurations a)]
                  -- ^ fst is labels
@@ -124,7 +124,7 @@ showTestResults timeoutValue l title =
     zip (IMap.keys validOrTimeout) $
     map Just $
     logarithmically 10 $ map (\case
-      NTimeouts _ -> timeoutValue
+      NTimeouts _ -> fromMaybe (error "Please provide a value") timeoutValue
       FinishedAverage dt _ -> dt
       NoResult -> error "logic") $ IMap.elems validOrTimeout
 
@@ -147,7 +147,7 @@ showTestResults timeoutValue l title =
     fromMaybe (NoResult, ISet.empty) $ Map.lookupMin invMap
   bestValStr = case bestVal of
     NoResult -> "?"
-    NTimeouts n -> unwords [show n, "Timeout(s)", showTime timeoutValue]
+    NTimeouts n -> unwords [show n, "Timeout(s)", showTime $ fromMaybe (error "please provide a value") timeoutValue]
     FinishedAverage x _ -> showTime  x
 
   barSize = 25 :: Int

@@ -310,11 +310,15 @@ matchAndVariate nComponents curB info =
     (SmallMatInfo nAir m) ->
       maybe []
         (\(Variants variations nextB) ->
-          let authorizeVariation (Interleave _ _) = True
+          let authorizeVariation (Modulate _ _) = True
+              authorizeVariation (Interleave _ _) = True
               authorizeVariation (Rotate (RotationDetail _ margin)) =
                 case rootRes of
                   Left (CC _ nComps) -> abs (nComponents - nComps) <= margin
                   _ -> False
+
+              produceVariations (Modulate from to) =
+                map (`Cyclic.modulate` m) [from..to]
 
               produceVariations (Interleave r c) =
                 drop 1 $ Cyclic.produceUsefulInterleavedVariations r c m
@@ -351,6 +355,7 @@ requiredNComponentsMargin (Just (Variants variations nextB)) =
   max' (NCompsRequiredWithMargin a) (NCompsRequiredWithMargin b) = NCompsRequiredWithMargin $ max a b
 
 requiredNComponentsMarginForVariation :: Variation -> NCompsRequest
+requiredNComponentsMarginForVariation (Modulate _ _)   = NCompsNotRequired
 requiredNComponentsMarginForVariation (Interleave _ _) = NCompsNotRequired
 requiredNComponentsMarginForVariation (Rotate (RotationDetail _ margin)) = NCompsRequiredWithMargin margin
 

@@ -760,16 +760,20 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
 
   neighbourAirKeys :: Int -> Int -> Int -> [Int64]
   neighbourAirKeys matIdx row col =
-    mapMaybe (\i -> case Cyclic.unsafeGetByIndex (i+matIdx) mat of
-      MaterialAndKey (-1) -> Nothing
-      MaterialAndKey k -> Just k)
-    $ catMaybes
+    mapMaybe (\i ->
+      if i==0
+        then
+          Nothing
+        else
+          case Cyclic.unsafeGetByIndex (i+matIdx) mat of
+            MaterialAndKey (-1) -> Nothing
+            MaterialAndKey k -> Just k)
     -- Benchmarks showed that it is faster to write all directions at once,
     -- rather than just 2, and wait for other directions to come from nearby nodes.
-    [ bool (Just $ -nCols) Nothing $ row == 0       -- Up
-    , bool (Just $ -1    ) Nothing $ col == 0       -- LEFT
-    , bool (Just 1       ) Nothing $ col == nCols-1 -- RIGHT
-    , bool (Just nCols   ) Nothing $ row == nRows-1 -- Down
+    [ bool (-nCols) 0 $ row == 0       -- Up
+    , bool (-1)     0 $ col == 0       -- LEFT
+    , bool 1        0 $ col == nCols-1 -- RIGHT
+    , bool nCols    0 $ row == nRows-1 -- Down
     ]
 
 

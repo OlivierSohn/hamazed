@@ -10,6 +10,8 @@ import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
 import           Data.List(foldl', take, concat)
 import qualified Data.List.NonEmpty as NE(toList)
+import qualified Data.Vector.Storable as S
+import qualified Data.Vector.Storable.Mutable as MS
 import           System.Random.MWC(GenIO, create)
 
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -49,7 +51,7 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
 
 
 mkKeys :: Unboxed.Matrix Material -> SmallMatInfo
-mkKeys m = SmallMatInfo nAir $ Cyclic.fromList r c $ reverse l
+mkKeys m = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromList r c $ reverse l
  where
   r = Unboxed.nrows m
   c = Unboxed.ncols m
@@ -181,8 +183,10 @@ mkSmallMatUnchecked :: GenIO
                     -- ^ Size of the matrix
                     -> IO SmallMatInfo
 mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do
-  (nAir, v) <- mkSmallVector gen wallAirRatio $ area s
-  return $ SmallMatInfo nAir $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v
+  v <- MS.unsafeNew $ area s
+  nAir <- fillSmallVector gen wallAirRatio v
+  v' <- S.unsafeFreeze v
+  return $ SmallMatInfo (fromIntegral nAir) $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v'
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =

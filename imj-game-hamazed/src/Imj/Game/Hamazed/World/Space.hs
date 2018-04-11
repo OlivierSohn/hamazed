@@ -769,8 +769,9 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
     [ bool (Just $ -nCols) Nothing $ row == 0       -- Up
     , bool (Just $ -1    ) Nothing $ col == 0       -- LEFT
     , bool (Just 1       ) Nothing $ col == nCols-1 -- RIGHT
-    , bool (Just nCols   ) Nothing $ row == nRows-1 -- Up
+    , bool (Just nCols   ) Nothing $ row == nRows-1 -- Down
     ]
+
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space
 mkSpaceFromMat s matMaybeSmaller =

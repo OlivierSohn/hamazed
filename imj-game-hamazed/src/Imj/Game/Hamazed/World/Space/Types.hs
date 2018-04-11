@@ -275,7 +275,8 @@ mkInterleaveVariation (Size (Length rows) (Length cols)) =
 
 mkModulateVariation :: Size -> Variation
 mkModulateVariation (Size (Length rows) (Length cols)) =
-  Modulate 2 (quot (rows * cols) 2)
+  -- reduce the range, as modulating is less competitive than interleaving, maybe due to memory access patterns which are a lot less linear
+  Modulate 2 (min 3 $ quot (rows * cols) 2)
 
 data RotationDetail = RotationDetail {
     _rotationOrder :: !Cyclic.RotationOrder

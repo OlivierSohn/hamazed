@@ -25,7 +25,7 @@ import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
 import           Data.Text(pack)
 import           Data.Vector(fromList)
-import qualified Data.Vector.Storable as S(toList)
+import qualified Data.Vector.Unboxed as U
 import           Data.Word(Word32)
 import           Foreign.C.Types(CInt)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
@@ -575,7 +575,7 @@ writeSeedsSource =
 mkSeedSystem :: IO [Word32]
 mkSeedSystem =
   -- drop initial index and carry which are not needed
-  reverse . drop 2 . reverse . S.toList . fromSeed <$> (save =<< createSystemRandom)
+  reverse . drop 2 . reverse . U.toList . fromSeed <$> (save =<< createSystemRandom)
 
 mkSeedsSourceFile :: Int -> IO String
 mkSeedsSourceFile n = do

@@ -25,7 +25,7 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/mwc-random.git
-    commit: 145e551099dc2fdeb3f84ab113ed1d2684ee10a5
+    commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
 
 extra-deps:

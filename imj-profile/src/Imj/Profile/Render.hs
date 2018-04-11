@@ -46,7 +46,7 @@ renderResultsHtml status resultsAndSubresults = do
 
   bodyHeader = do
     div
-      ! A.style (colorAttribute statusColor)
+      ! A.style (colorAttribute msgColor)
       $ do
         br
         p "Chrome-compatible html report."

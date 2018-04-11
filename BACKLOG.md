@@ -1,5 +1,7 @@
 
 - analyze results of modulation to see if they have a stronger "destructuring power" than interleaving.
+-> Modulate is inefficient, maybe because we access memory in a non linear way.
+TODO limit modulate range (2,4) to have "more" linear access, and redo the test.
 
 - Should we parallelize :
   random matrix creation?

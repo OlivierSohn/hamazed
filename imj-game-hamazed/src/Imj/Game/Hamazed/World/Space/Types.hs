@@ -152,7 +152,7 @@ instance Storable MaterialAndKey where -- maps to a Word16
 {-# INLINE isAir #-}
 isAir :: a -> (Word16 -> a) -> MaterialAndKey -> a
 isAir no yes (MaterialAndKey x)
- | x < 0x8000 = yes x -- TODO benchmark /= 0xFFFF
+ | x < 0x8000 = yes x
  | otherwise = no
 
 {-# INLINE materialAndKeyToMaterial #-}

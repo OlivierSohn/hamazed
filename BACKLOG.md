@@ -1,35 +1,86 @@
-- try Word16 in MaterialAndKey, using test (< 0x8000) for keys
-
-- analyze results of modulation to see if they have a stronger "destructuring power" than interleaving.
--> Modulate is inefficient, maybe because we access memory in a non linear way.
-TODO limit modulate range (2,4) to have "more" linear access, and redo the test.
-
 - Should we parallelize :
   random matrix creation?
   or world creation?
   or both?
 
-- We could get rid of the graph datastructure and use the data in the matrix directly.
 
-- random numbers generation is 50% time in
-fastest (Size 8 18) (ComponentCount 1) 0.7 benchmark.
-We could try sliding rows / columns randomly
+-- either independance : every thread, on every core, does random generation + strategy.
 
-- (8,18), 1 component, 0.7 wall could benefit from higher margins than 7:
-best is "7-margin Order2 R"
-Hence, continue tests with higher margins.
+-- or specialization : a thread, bound to a core, only computes random matrices, in a queue.
+other threads, on other cores, consume them.
+Consumers have strategies to generate pseudo random matrices from random matrices,
+however the generated matrices are of lower random quality.
+Hence, when a consumer sees that a new matrix is available, it has the possibility
+to drop the current search (or archive it for later) and use the newly generated matrix
+which has a bigger probability of being "interesting".
 
-- global timeout (100) + "adaptive timeout per world" : when only one seed is known, apply a x100 factor.
-2 seeds -> x50
-etc..
+The benchmarks today address the "independance" mode.
 
-- with automated tests, tune thresholdDiffComponentCount (see it as an additional parameter in the strategy)
+We could do benchmarks with 1 thread creating matrices, one thread consuming them,
+and compare them with parallelized independance.
 
-- benchmark IntSet vs. Set Int for Sums
+random matrix creation   0..1(nCores/2 ?) thread      (pass all matrices that are valid wrt n air / n wall)
+  | (size 3 to avoid starvation)
+destructuring            0..n threads (pass all matrices that match the required margin)
+  | (size 3 to avoid starvation)
+fine-tuning              0..1 thread
+
+We have a pool of threads, each attached to a single core.
+When a worker finishes its task, it decides what to do next:
+  If the downstream queue is saturated, it processes the result it just created
+    further downstream, and becomes a n-1 worker.
+  Else, the downstream queue can receive more so it puts its result here and tries to take
+    a job from the upstream queue.
+    If it gets a job, it does the job
+    Else, it becomes an n+1 worker
+
+Each worker has a copy of the pipeline strategy, i.e knows where are the queues, what are the actions required
+to pass the result of one queue to the other.
+The decision process happends concurrently, with no lock, i.e maybe 3 workers will decide to go help
+downstream but one will be jobless there, and will go back to its initial level. That's ok,
+if reading the queue is atomic and can guarantee that the job will be done once only.
+
+Some levels require some data :
+  for random matrix generation, each worker should have its own state.
+  for destructuring, buffers InterleaveInfo in Interleave could be shared (if only for read access
+    we won't have false sharing)
+
+If the number of workers is already at its maximum, and one worker should be added downstream,
+the upstream worker that detected this situation changes its action to go work downstream.
+
+When a worker finishes its task, it takes a new one from the queue, if any.
+Else, it changes its task to see if it can help upstream.
+
+The 'Maybe MatrixVariant' would be the spec of this architecture.
+data MatrixVariantsSpec =
+    Variants !(NonEmpty Variation) !(Maybe MatrixVariantsSpec)
+data MatrixVariants =
+    Variants !(NonEmpty Variation) !(Maybe downstream queue) !(Maybe MatrixVariants)
+
+this queue has a notion of length:
+https://github.com/asakamirai/kazura-queue/blob/master/src/Control/Concurrent/KazuraQueue.hs
+this one also (estimated):
+https://github.com/jberryman/unagi-chan/commits/master
+but has a bug: https://github.com/jberryman/unagi-chan/issues/25
+We can make a wrapper of TQueue with a TVar to count the elements?
+
+if we want reproducible tests, we should use a single rng. Hence we need the notion of specialization:
+one worker is specialized in matrix generation, on a dedicated core, other workers are specialized in
+downstream tasks.
+
+Maybe we need to make some tasks more parallelizable. We should keep track of the number of workers
+at each level, using an Info queue: the main thread reads it, and logs changes.
+
+- We could evaluate if the problem we're trying to solve has a known probability to be solved:
+With random distributions of size n*n, biased with wall probability wallProba, what is the probability
+to have a single connected component touching the 4 fronteers?
 
 - during the game, to create worlds, use the strategy of the closest known world.
 
+- benchmark, understand the strategies for multi component worlds
 - optimize 'spaceIsWellUsed' (see comment)
+
+- benchmark IntSet vs. Set Int for Sums
 
 - Server doesn't need to forward the request, the client continues by itself.
 This will avoid unproductive waits.
@@ -40,7 +91,6 @@ This will avoid unproductive waits.
 
 - benchmark alternative variations:
   - rotate around 0,0, then diagonally
-- limit the number of interleavings?
 
 -
 It looks like:
@@ -55,8 +105,6 @@ The ratio "time to analyze a matrix vs time to generate a random matrix" could b
   in determining the strategy to use.
 
 Before generalizing, we should see if improvements vary with number of components / probability / size.
-
-- Put UpperBounds in Properties
 
 - the server should not start the game until all levels are possible to create.
 - Create levels in the background during setup (maybe ask different nodes to compute different
@@ -141,14 +189,14 @@ The other have the following connected component distribution:
 CC 2 .
 CC 3 ...
 
-- bug : when client reconneccts, it is not reflected in the name until world is there.
+- bug : when client reconnects, it is not reflected in the name until world is there.
 
 - fix response on collision:
  Z
   XZ  <- here we stay one time too long.
  X
 
-- with carefull benchmarking:
+- with careful benchmarking:
 ** in produceUsefulInterleavedVariations : are matrices generated one by one?
 
 ** adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.

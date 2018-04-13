@@ -9,11 +9,12 @@ module Main where
 import           Imj.Prelude
 
 import           Prelude(print, putStrLn, length, writeFile, getChar)
-import           Control.Concurrent(forkIO, throwTo, ThreadId, myThreadId, threadDelay)
+import           Control.Concurrent(getNumCapabilities, forkIO, throwTo, ThreadId, myThreadId, threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, modifyMVar_, readMVar)
 import           Control.Exception(Exception(..))
 import           Control.DeepSeq(NFData(..))
 import           Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE(map)
 import           Data.List as List hiding(intercalate, concat)
 import qualified Data.List as List(intercalate, concat)
 import           Data.IntMap.Strict(IntMap)
@@ -36,6 +37,7 @@ import           System.IO(hSetBuffering, stdin, BufferMode(..))
 import           Imj.Game.Hamazed.World.Space.Types
 import qualified Imj.Graphics.Class.Words as W
 
+import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Color
@@ -47,7 +49,6 @@ import           Imj.Profile.Render
 import           Imj.Profile.Result
 import           Imj.Timing
 import           Imj.Util
-
 import           Imj.Random.MWC.Seeds
 
 
@@ -60,10 +61,12 @@ import           Imj.Random.MWC.Seeds
 -- stack build && stack exec -- imj-profile-exe +RTS -rprofile.ticky
 
 main :: IO ()
-main =
-  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+main = do
+  useOneCapabilityPerPhysicalCore
+
+  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
+  --profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
   --writeSeedsSource
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
@@ -465,13 +468,13 @@ profileAllProps2 = do
       _ <- forkIO $ do
         threadDelay $ fromIntegral $ toMicros dt
         modifyMVar_ c $ const $ return False -- TODO measure overhead vs. using timeout
-      profileWithContinue property seed c)
+      profileWithContinue property (pure seed) c)
 
   readMVar intent >>= writeHtmlReport Nothing allRes
   putStrLn $ "Test duration = " ++ show totalDt
  where
 
-  worlds = exhaustiveWorlds --allWorlds
+  worlds = exhaustiveWorlds
   strategies size =
     map
       Just
@@ -494,7 +497,7 @@ profileAllProps = do
 
   (totalDt, allRes) <- withDuration $
     withTestScheduler worlds strategies allowedDt intent (\property seed ->
-      snd <$> profile property seed)
+      snd <$> profile property (pure seed))
 
   readMVar intent >>= writeHtmlReport (Just allowedDt) allRes
   putStrLn $ "Test duration = " ++ show totalDt
@@ -518,10 +521,10 @@ profileAllProps = do
   margins = [1..7] -- TODO test higher margins
 
 
-profile :: Properties -> GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
+profile :: Properties -> NonEmpty GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
 profile p gen = newMVar True >>= profileWithContinue p gen
 
-profileWithContinue :: Properties -> GenIO -> MVar Bool -> IO (MkSpaceResult SmallWorld, Statistics)
+profileWithContinue :: Properties -> NonEmpty GenIO -> MVar Bool -> IO (MkSpaceResult SmallWorld, Statistics)
 profileWithContinue property gen c = do
   (res, stats) <- mkSmallWorld gen property $ readMVar c
   case res of
@@ -536,7 +539,9 @@ profileLargeWorld = do
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
         (Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
   print props
-  withNumberedSeed (withDuration . profile props) (SeedNumber 2) >>= print
+  nWorkers <- max 1 <$> getNumCapabilities
+  putStrLn $ unwords ["using", show nWorkers, "workers"]
+  withNumberedSeeds (withDuration . profile props) (NE.map SeedNumber $ 2:|take (nWorkers-1) [6..]) >>= print
 
 profileInterleave0MarginRotateOrder1 :: IO ()
 profileInterleave0MarginRotateOrder1 = do
@@ -545,22 +550,22 @@ profileInterleave0MarginRotateOrder1 = do
         (SWCharacteristics sz (ComponentCount 1) 0.2)
         (Just $ Variants (pure $ mkInterleaveVariation sz) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
   print props
-  withNumberedSeed (withDuration . profile props) (SeedNumber 0) >>= print
+  withNumberedSeeds (withDuration . profile props) (pure $ SeedNumber 0) >>= print
 
 nSeeds :: SeedNumber
 nSeeds = 10
 
 -- | Runs the action several times, with different - deterministically seeded - generators.
-withDifferentSeeds :: (SeedNumber -> GenIO -> IO a) -> IO (Map SeedNumber a)
+withDifferentSeeds :: (NonEmpty SeedNumber -> NonEmpty GenIO -> IO a) -> IO (Map SeedNumber a)
 withDifferentSeeds act =
-  Map.fromAscList <$> mapM (\n -> (,) n <$> withNumberedSeed (act n) n) [0..nSeeds - 1]
+  Map.fromAscList <$> mapM (\n -> let l = pure n in (,) n <$> withNumberedSeeds (act l) l) [0..nSeeds - 1]
 
 
-withNumberedSeed :: (GenIO -> IO a) -> SeedNumber -> IO a
-withNumberedSeed act (SeedNumber i) = do
+withNumberedSeeds :: (NonEmpty GenIO -> IO a) -> NonEmpty SeedNumber -> IO a
+withNumberedSeeds act seedNs = do
   -- we use deterministic seeds made from the same source as 'withSystemRandom' (see https://github.com/bos/mwc-random/issues/64)
-  gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-  putStrLn $ unwords ["-", "seed", show i]
+  gen <- mapM (\(SeedNumber i) -> initialize $ fromList $ deterministicMWCSeeds !! i) seedNs
+  putStrLn $ unwords ["-", "seeds", show seedNs]
   act gen
 
 withTimeout :: Time Duration System -> IO a -> IO (TestStatus a)
@@ -584,7 +589,7 @@ mkSeedsSourceFile n = do
       allNums <- unlines . map ((++) "    " . List.concat) . splitEvery 8 . words . List.intercalate ", " . map show <$> mkSeedSystem
       return $ unlines ["  [", allNums, "  ]"])
   return $ unlines $
-    [ "-- | The source code for this module was generated by 'writeSeedsSource'"
+    [ "-- | The source code for this module was generated by 'mkSeedsSourceFile'"
     , ""
     , "{-# LANGUAGE NoImplicitPrelude #-}"
     , ""

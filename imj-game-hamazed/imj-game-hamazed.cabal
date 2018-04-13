@@ -98,6 +98,7 @@ executable imj-game-hamazed-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.12
+                     , imj-base ==0.1.*
                      , imj-game-hamazed
   default-language:    Haskell2010
 

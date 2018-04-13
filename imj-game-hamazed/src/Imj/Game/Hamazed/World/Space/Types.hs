@@ -17,6 +17,11 @@ module Imj.Game.Hamazed.World.Space.Types
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
     , prettyShowSWCharacteristics
+    , MatrixPipeline(..)
+    , MatrixSource(..)
+    , MatrixTransformer(..)
+    , BestRandomMatrixVariation(..)
+    , TopoMatch
     , MatrixVariants(..)
     , prettyShowMatrixVariants
     , humanShowVariants
@@ -82,9 +87,11 @@ import qualified Imj.Data.Matrix.Cyclic as Cyclic hiding (Storable(..))
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
+import qualified Data.Vector.Storable.Mutable as MS(IOVector)
 import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 import           Data.Vector.Unboxed(Vector)
 import           Numeric(showFFloat)
+import           System.Random.MWC(GenIO)
 
 import           Imj.Data.UndirectedGraph(Vertex)
 import           Imj.Geo.Discrete.Types
@@ -208,6 +215,24 @@ instance Binary MatrixVariants
 instance NFData MatrixVariants
 instance Show MatrixVariants where
   show = prettyShowMatrixVariants . Just
+
+data MatrixPipeline = MatrixPipeline {
+    randomMatricesSource :: !MatrixSource
+  , variationProduction :: !MatrixTransformer
+}
+
+newtype MatrixSource = MatrixSource (MS.IOVector MaterialAndKey -> GenIO -> IO SmallMatInfo)
+
+newtype MatrixTransformer = MatrixTransformer (Statistics -> SmallMatInfo -> BestRandomMatrixVariation)
+
+data BestRandomMatrixVariation = BRMV {
+  _topology :: !TopoMatch
+  -- ^ Best found sofar
+  , _stats :: !Statistics
+  -- ^ Records stats about the search
+}
+
+type TopoMatch = Either SmallWorldRejection SmallWorld
 
 prettyShowMatrixVariants :: Maybe MatrixVariants -> String
 prettyShowMatrixVariants =

@@ -24,7 +24,6 @@ module Imj.Game.Hamazed.World.Space
     -- for tests
     , matchAndVariate
     , mkSmallWorld
-    , mkSmallMat
     , fillSmallVector
     , matchTopology
     , TopoMatch
@@ -33,6 +32,8 @@ module Imj.Game.Hamazed.World.Space
 import           Imj.Prelude
 
 import           Control.Monad.ST(runST)
+import           Control.Concurrent(MVar, takeMVar, tryPutMVar, newEmptyMVar)
+import           Control.Concurrent.Async(withAsync)
 
 import Data.Primitive.ByteArray
 
@@ -65,6 +66,8 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Physics.Discrete
 import           Imj.Timing
 import           Imj.Util
+
+
 
 -- | Creates a 'PosSpeed' from a position,
 -- moves to precollision and mirrors speed if a collision is detected for
@@ -143,12 +146,12 @@ mkRandomlyFilledSpace :: WallDistribution
                       -> ComponentCount
                       -> IO Bool
                       -- ^ Computation stops when it returns False
-                      -> GenIO
+                      -> NonEmpty GenIO
                       -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
-mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gen
+mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = mkSmallWorld gen property continue >>= \(res, stats) ->
+  | otherwise = mkSmallWorld gens property continue >>= \(res, stats) ->
   return
     (case res of
       NeedMoreTime -> NeedMoreTime
@@ -184,114 +187,135 @@ bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
       nRows = quot heightEmptySpace $ fromIntegral blockSize
   in Size nRows nCols
 
-data BestRandomMatrixVariation = BRMV {
-  _topology :: !TopoMatch
-  -- ^ Best found sofar
-  , _stats :: !Statistics
-  -- ^ Records stats about the search
-}
 
-{- | Generates a random world with the constraint that it should have
-a single "Air" connected component. The function recurses and builds a new random world
-until the constraint is met.
-It might take "a long time" especially if worldsize is big and multFactor is small.
-An interesting problem would be to compute the complexity of this function.
-To do so we need to know the probability to have a unique connected component in
-the random graph defined in the function.
--}
-mkSmallWorld :: GenIO
+-- We need n locations to store random matrices.
+-- We need to wait when more than m locations are used.
+mkMatrixPipeline :: ComponentCount
+                 -> Float
+                 -- ^ Probability to generate a wall
+                 -> Size
+                 -- ^ Size of the matrix
+                 -> LowerBounds
+                 -> Maybe MatrixVariants
+                 -> IO MatrixPipeline
+mkMatrixPipeline nComponents' wallProba (Size (Length nRows) (Length nCols)) lb variants =
+  return $ MatrixPipeline (MatrixSource produce) $ MatrixTransformer consume
+ where
+  produce v gen =
+    fillSmallVector gen wallProba v >>= \nAir ->
+      SmallMatInfo (fromIntegral nAir) . Cyclic.fromVector nRows nCols <$> S.unsafeFreeze v
+
+  consume s mat =
+    foldStats (s{countRandomMatrices = 1 + countRandomMatrices s}) $ either
+          ((:|[]) . Left)
+          (takeWhilePlus isLeft . matchAndVariate nComponents variants) $ checkRandomMatrix lb mat
+
+  !nComponents = -- relax the constraint on number of components if the size is too small
+    min
+      nComponents'
+      $ ComponentCount $ 1 + quot (nBlocks - 1) 2 -- for checkerboard-like layout
+
+  nBlocks = nRows * nCols
+
+runPipeline :: Int -> NonEmpty GenIO -> IO Bool -> MatrixPipeline -> IO (Maybe SmallWorld, Statistics)
+runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (MatrixTransformer consume)) = do
+  resVar <- newEmptyMVar :: IO (MVar (Maybe SmallWorld, Statistics))
+  run resVar
+ where
+  run resM =
+    run' (NE.toList generators)
+   where
+    run' [] =
+      takeMVar resM -- the first will win
+
+    run' (gen:gens) =
+      withAsync (shortcut gen) $ \_ ->
+        -- print =<< threadCapability (asyncThreadId a)
+        run' gens
+
+    -- Note that running producer and consummer in separate threads, and forwarding the results
+    -- through an MVar is slower than calling them sequentially, like here.
+    shortcut gen =
+      MS.unsafeNew nBlocks >>= go'
+     where
+      go' v =
+        go zeroStats
+       where
+        go s = continue >>= \case
+          False ->
+            void $ tryPutMVar resM (Nothing, s)
+          True ->
+            consume s <$> produce v gen >>= \(BRMV m s') ->
+                either (const $ go s') (void . tryPutMVar resM . flip (,) s' . Just) m
+
+checkRandomMatrix :: LowerBounds -> SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
+checkRandomMatrix (LowerBounds minAirCount minWallCount countBlocks) m@(SmallMatInfo countAirBlocks _)
+   | countAirBlocks < minAirCount = Left $ NotEnough Air
+   | countWallBlocks < minWallCount = Left $ NotEnough Wall
+   | otherwise = Right m
+   where
+    !countWallBlocks = countBlocks - countAirBlocks
+
+mkSmallWorld :: NonEmpty GenIO
              -> Properties
              -> IO Bool
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gen (Properties (SWCharacteristics sz nComponents' userWallProba) branch eitherLowerBounds) continue
+mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userWallProba) variants eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
         return (Impossible [err], zeroStats))
-      (\lowerBounds@(LowerBounds _ _ countBlocks) -> do
-        v <- MS.unsafeNew countBlocks
-        withDuration (go lowerBounds v) >>= \(dt, (r,stats)) ->
-          return (r
+      (\lowerBounds ->
+        withDuration (go lowerBounds) >>= \(dt, (r,stats)) ->
+          return (maybe NeedMoreTime Success r
                 , stats { durations = (durations stats) { totalDuration = dt }
                         }))
       eitherLowerBounds
  where
-  !nComponents = -- relax the constraint on number of components if the size is too small
-    min
-      nComponents'
-      $ ComponentCount $ 1 + quot (pred $ area sz) 2 -- for checkerboard-like layout
-
-  matchAndVariate' = matchAndVariate nComponents
-
-  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) v =
-    go' 0 zeroStats
+  go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
+    mkMatrixPipeline nComponents wallProba sz lowerBounds variants >>= runPipeline (area sz) gens continue
    where
-    go' :: Int -> Statistics -> IO (MkSpaceResult SmallWorld, Statistics)
-    go' !i !stats = continue >>= bool
-      (return (NeedMoreTime, stats))
-        -- We use variations of the matrix to recycle random numbers, as random number generation is expensive.
-      (fmap (foldStats stats . either
-          ((:|[]) . Left)
-          -- stop at first success
-          (takeWhilePlus isLeft . matchAndVariate' branch))
-        <$> withSampledDuration i (mkSmallMat gen wallProba sz lowerBounds v) >>= \(duration, BRMV res s) -> do
-        let !newStats = addMkRandomMatDuration duration (s{countRandomMatrices = 1 + countRandomMatrices s})
-        either
-          (const $ go' (i+1) newStats)
-          (\su -> return (Success su, finalizeStats i newStats))
-          res)
-
-    !rndMatSamplingPeriod = 1000
-
-    -- Measure the first sample, then wait rndMatSamplingPeriod iterations before measuring again.
-    -- If you change this, please modify 'finalizeStats' accordingly.
-    willMeasure i = (i :: Int) `rem` rndMatSamplingPeriod == 0
-
-    withSampledDuration =
-      bool (fmap ((,) zeroDuration)) withDuration . willMeasure
-
-    finalizeStats !i s =
-      let d = durations s
-          -- 'randomMatCreation' is the sum of /nMeasurements/ measurements done at the /beginning/ of every period.
-          nMeasurements = 1 + quot i rndMatSamplingPeriod
-          -- hence, assuming other executions have roughly the same duration, we can extrapolate:
-          mult = fromIntegral (i+1) / fromIntegral nMeasurements
-      in s { durations = d { randomMatCreation = mult .* randomMatCreation d } }
-
     wallProba = fromMaybe (error "logic") $ mapRange 0 1 minWallProba maxWallProba userWallProba
     minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
     maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
+
+  !nComponents = -- relax the constraint on number of components if the size is too small
+    min
+      nComponents'
+      $ ComponentCount $ 1 + quot (area sz - 1) 2 -- for checkerboard-like layout
+
 
 -- gathers 'Statistics' of 'TopoMatch'es and returns the last 'TopoMatch'.
 foldStats :: Statistics -> NonEmpty TopoMatch -> BestRandomMatrixVariation
 foldStats stats (x:|xs) =
   List.foldl' (\(BRMV _ s) v -> BRMV v $ addToStats v s) (BRMV x $ addToStats x stats) xs
 
-addMkRandomMatDuration :: Time Duration System -> Statistics -> Statistics
-addMkRandomMatDuration dt s =
-  let d = durations s
-  in s { durations = d { randomMatCreation = randomMatCreation d |+| dt } }
+addToStats' :: SmallWorldRejection -> Statistics -> Statistics
+addToStats' (NotEnough Air) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+addToStats' (NotEnough Wall) s = s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
+addToStats' UnusedFronteers s = s { countUnusedFronteers = 1 + countUnusedFronteers s }
+addToStats' (CC x nComps) s = addNComp nComps $ case x of
+  ComponentCountMismatch ->
+    s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
+  ComponentsSizesNotWellDistributed ->
+    s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
+  SpaceNotUsedWellEnough ->
+    s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
+  UnusedFronteers' ->
+    s { countUnusedFronteers = 1 + countUnusedFronteers s }
+
+addToStats'' :: SmallWorld -> Statistics -> Statistics
+addToStats'' (SmallWorld _ topo) s =
+  let nComps = ComponentCount $ length $ getConnectedComponents topo
+  in addNComp nComps s
 
 addToStats :: TopoMatch -> Statistics -> Statistics
 addToStats elt s =
  let s'' = case elt of
-      Right (SmallWorld _ topo) ->
-        let nComps = ComponentCount $ length $ getConnectedComponents topo
-        in addNComp nComps s
-      Left (NotEnough Air)  -> s { countNotEnoughAir    = 1 + countNotEnoughAir s }
-      Left (NotEnough Wall) -> s { countNotEnoughWalls  = 1 + countNotEnoughWalls s }
-      Left UnusedFronteers -> s { countUnusedFronteers = 1 + countUnusedFronteers s }
-      Left (CC x nComps) -> addNComp nComps $ case x of
-        ComponentCountMismatch ->
-          s { countComponentCountMismatch = 1 + countComponentCountMismatch s }
-        ComponentsSizesNotWellDistributed ->
-          s { countComponentsSizesNotWellDistributed = 1 + countComponentsSizesNotWellDistributed s }
-        SpaceNotUsedWellEnough ->
-          s { countSpaceNotUsedWellEnough = 1 + countSpaceNotUsedWellEnough s }
-        UnusedFronteers' ->
-          s { countUnusedFronteers = 1 + countUnusedFronteers s }
+      Right r -> addToStats'' r s
+      Left l  -> addToStats' l s
  in s'' { countGeneratedMatrices = 1 + countGeneratedMatrices s'' }
 
 addNComp :: ComponentCount -> Statistics -> Statistics
@@ -366,8 +390,6 @@ takeWhilePlus p (e:|es) =
  where
   go (x:xs) = x : bool [] (go xs) (p x)
   go [] = []
-
-type TopoMatch = Either SmallWorldRejection SmallWorld
 
 -- Indicates if there is a /real/ wall (i.e not an out of bounds position) in a given direction
 data OrthoWall = OrthoWall {
@@ -550,29 +572,6 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
             (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (MV.unsafeWrite v) compIdx . fromIntegral) vertices)
             $ zip [0 :: ComponentIdx ..] comps
           V.unsafeFreeze v
-
-
-mkSmallMat :: GenIO
-           -> Float
-           -- ^ Probability to generate a wall
-           -> Size
-           -- ^ Size of the matrix
-           -> LowerBounds
-           -> MS.IOVector MaterialAndKey
-           -- ^ The memory of this mutable vector will be used in the matrix.
-           -> IO (Either SmallWorldRejection SmallMatInfo)
-           -- ^ in Right, the Air keys are ascending, consecutive, and start at 0
-mkSmallMat gen wallProba (Size (Length nRows) (Length nCols)) (LowerBounds minAirCount minWallCount countBlocks) v
-  | countBlocks /= nRows * nCols = error "logic"
-  | minAirCount + minWallCount > countBlocks = error "logic" -- this is checked when creating 'LowerBounds'
-  | otherwise = fromIntegral <$> fillSmallVector gen wallProba v >>= go
- where
-  go countAirBlocks
-   | countAirBlocks < minAirCount = return $ Left $ NotEnough Air
-   | countWallBlocks < minWallCount = return $ Left $ NotEnough Wall
-   | otherwise = Right . SmallMatInfo countAirBlocks . Cyclic.fromVector nRows nCols <$> S.unsafeFreeze v
-   where
-    !countWallBlocks = countBlocks - countAirBlocks
 
 data AccumSource = AS {
     countAirKeys :: {-# UNPACK #-} !Word16

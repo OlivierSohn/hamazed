@@ -31,7 +31,8 @@ library
   hs-source-dirs:      src
   include-dirs:        include
   other-modules:
-  exposed-modules:     Imj.Data.Class.Quantifiable
+  exposed-modules:     Imj.Control.Concurrent
+                     , Imj.Data.Class.Quantifiable
                      , Imj.Data.Graph
                      , Imj.Data.UndirectedGraph
                      , Imj.Data.Matrix.Cyclic
@@ -126,8 +127,8 @@ library
                      , Imj.Physics.Discrete
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
+                     , Imj.Random.MWC.Parallel
                      , Imj.Sums
-                     , Imj.Threading
                      , Imj.Timing
                      , Imj.Util
   build-depends:       base >= 4.8 && < 4.12
@@ -146,6 +147,7 @@ library
                      , imj-prelude ==0.1.*
                      , loop ==0.3.*
                      , matrix >= 0.3.5.0
+                     , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
                      , OpenGL ==3.0.*
                      , primitive ==0.6.*

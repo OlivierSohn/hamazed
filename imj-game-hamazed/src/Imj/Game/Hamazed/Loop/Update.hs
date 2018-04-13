@@ -51,6 +51,7 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m
@@ -98,11 +99,19 @@ updateAppState (Left evt) = case evt of
       mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
     Build dt spec -> do
       deadline <- addDuration dt <$> liftIO getSystemTime
+      -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+      -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
+      -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
+      --
+      -- continue <- newIORef True
       let continue = getSystemTime >>= \t -> return (t < deadline)
       asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
-        -- TODO see why we have a division by 0 error.
         void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
-          mkWorldEssence spec continue >>= send . uncurry (WorldProposal wid)
+          -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
+          -- and to have no more than one worker per capability.
+          -- Every worker thread (one per physical core), does random generation + transformation.
+          -- (We don't gain performance by separating random matrix creation from transformation)
+          mkOneGenPerCapability >>= mkWorldEssence spec continue >>= send . uncurry (WorldProposal wid)
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
   ChangeLevel levelEssence worldEssence wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->

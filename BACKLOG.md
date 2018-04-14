@@ -1,6 +1,3 @@
-- use reorderRows more than reorderCols,
-optimize reorderRows (slicing)
-
 - embed some refined strategies in the program.
 
 - display estimated time to build a world (based on optimal strategy time)

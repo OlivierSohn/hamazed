@@ -232,11 +232,9 @@ produceUsefulInterleavedVariations
     V.create $ do
       mv <- MV.unsafeNew len
       numLoop 0 (rows-1) $ \i -> do
-        let rowStart = cols*i
-            interleavedRowStart = cols * V.unsafeIndex interleaveRows i
-            sliceSource = V.unsafeSlice interleavedRowStart cols v
-            sliceDest = MV.unsafeSlice rowStart cols mv
-        V.copy sliceDest sliceSource
+        let source = V.unsafeSlice (cols*V.unsafeIndex interleaveRows i) cols v
+            dest  = MV.unsafeSlice (cols*i)                              cols mv
+        V.copy dest source
       return mv
 
   reorderCols v = -- ignores rotations

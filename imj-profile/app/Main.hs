@@ -65,9 +65,9 @@ main :: IO ()
 main = do
   useOneCapabilityPerPhysicalCore
 
-  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
+  --profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
   --writeSeedsSource
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
@@ -629,7 +629,8 @@ profileLargeWorld :: IO ()
 profileLargeWorld = do
   let props = mkProperties
         (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        (Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
+        --(Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
+        (Just $ Variants (pure $ mkVariation (Size 8 18) Interleaving) Nothing)
   print props
   nWorkers <- max 1 <$> getNumCapabilities
   putStrLn $ unwords ["using", show nWorkers, "workers"]

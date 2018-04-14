@@ -284,6 +284,11 @@ matricesWithoutAirOnEveryFronteer = map (fmap readWorld) [
  ["OOOOO"
  ,"OOOOO"
  ,"     "])
+ ,
+ (1,
+ ["OOOOOOOOOOOOOOOOO"
+ ,"OOOOOOOOOOOOOOOOO"
+ ,"                 "])
  ]
 
 matricesWithAirOnEveryFronteer :: [(ComponentCount,Unboxed.Matrix Material)]
@@ -322,6 +327,11 @@ matricesWithAirOnEveryFronteer = map (fmap readWorld) [
  ["OOOOO"
  ,"OOOOO"
  ,"OOOOO"])
+ ,
+ (1,
+ ["OOOOOOOOOOOOOOOOOOOO"
+ ,"OOOOOOOOOOOOOOOOOOOO"
+ ,"OOOOOOOOOOOOOOOOOOOO"])
  ]
 
 
@@ -372,6 +382,11 @@ matricesWithNComponents = map (fmap readWorld) [
  ["O OOO"
  ,"O O O"
  ,"OOO O"])
+ ,
+ (1,
+ ["O OOOOOOOOOOOOOOOOOO"
+ ,"O O                O"
+ ,"OOO                O"])
  ]
 
 matricesWithNWellDistributedComponentsSpaceNotWellUsed :: [(ComponentCount,Unboxed.Matrix Material)]
@@ -420,6 +435,11 @@ matricesWithNWellDistributedComponentsSpaceNotWellUsed = map (fmap readWorld) [
  ["OO   "
  ,"O    "
  ,"  OOO"])
+ ,
+ (2,
+ ["OOOOOOOO         "
+ ,"      O          "
+ ,"        OOOOOOOOO"])
  ]
 
 matricesWithNWellDistributedComponentsSpaceWellUsed :: [(ComponentCount,Unboxed.Matrix Material)]
@@ -524,6 +544,11 @@ matricesWithNWellDistributedComponentsSpaceWellUsed = map (fmap readWorld) [
  ["O OOO"
  ,"O O O"
  ,"OO  O"])
+ ,
+ (2,
+ ["O      OOOOOOOOO"
+ ,"O      O O      "
+ ,"OOOOOOO  O      "])
  ]
 
 matricesWithNNotWellDistributedComponents :: [(ComponentCount,Unboxed.Matrix Material)]

@@ -1,81 +1,25 @@
-- Should we parallelize :
-  random matrix creation?
-  or world creation?
-  or both?
+- embed some refined strategies in the program.
 
+- display estimated time to build a world (based on optimal strategy time)
 
--- either independance : every thread, on every core, does random generation + strategy.
+- see how to generalize to n components.
 
--- or specialization : a thread, bound to a core, only computes random matrices, in a queue.
-other threads, on other cores, consume them.
-Consumers have strategies to generate pseudo random matrices from random matrices,
-however the generated matrices are of lower random quality.
-Hence, when a consumer sees that a new matrix is available, it has the possibility
-to drop the current search (or archive it for later) and use the newly generated matrix
-which has a bigger probability of being "interesting".
+- the game is fun to play with all maxed:
+  wall size = 6
+  proba = 0.9
 
-The benchmarks today address the "independance" mode.
+- parallel stats :
+the stats displayed are the stats of the rng the lead to finding a world.
+Should we merge them with the stats of RNGs that didn't find?
 
-We could do benchmarks with 1 thread creating matrices, one thread consuming them,
-and compare them with parallelized independance.
-
-random matrix creation   0..1(nCores/2 ?) thread      (pass all matrices that are valid wrt n air / n wall)
-  | (size 3 to avoid starvation)
-destructuring            0..n threads (pass all matrices that match the required margin)
-  | (size 3 to avoid starvation)
-fine-tuning              0..1 thread
-
-We have a pool of threads, each attached to a single core.
-When a worker finishes its task, it decides what to do next:
-  If the downstream queue is saturated, it processes the result it just created
-    further downstream, and becomes a n-1 worker.
-  Else, the downstream queue can receive more so it puts its result here and tries to take
-    a job from the upstream queue.
-    If it gets a job, it does the job
-    Else, it becomes an n+1 worker
-
-Each worker has a copy of the pipeline strategy, i.e knows where are the queues, what are the actions required
-to pass the result of one queue to the other.
-The decision process happends concurrently, with no lock, i.e maybe 3 workers will decide to go help
-downstream but one will be jobless there, and will go back to its initial level. That's ok,
-if reading the queue is atomic and can guarantee that the job will be done once only.
-
-Some levels require some data :
-  for random matrix generation, each worker should have its own state.
-  for destructuring, buffers InterleaveInfo in Interleave could be shared (if only for read access
-    we won't have false sharing)
-
-If the number of workers is already at its maximum, and one worker should be added downstream,
-the upstream worker that detected this situation changes its action to go work downstream.
-
-When a worker finishes its task, it takes a new one from the queue, if any.
-Else, it changes its task to see if it can help upstream.
-
-The 'Maybe MatrixVariant' would be the spec of this architecture.
-data MatrixVariantsSpec =
-    Variants !(NonEmpty Variation) !(Maybe MatrixVariantsSpec)
-data MatrixVariants =
-    Variants !(NonEmpty Variation) !(Maybe downstream queue) !(Maybe MatrixVariants)
-
-this queue has a notion of length:
-https://github.com/asakamirai/kazura-queue/blob/master/src/Control/Concurrent/KazuraQueue.hs
-this one also (estimated):
-https://github.com/jberryman/unagi-chan/commits/master
-but has a bug: https://github.com/jberryman/unagi-chan/issues/25
-We can make a wrapper of TQueue with a TVar to count the elements?
-
-if we want reproducible tests, we should use a single rng. Hence we need the notion of specialization:
-one worker is specialized in matrix generation, on a dedicated core, other workers are specialized in
-downstream tasks.
-
-Maybe we need to make some tasks more parallelizable. We should keep track of the number of workers
-at each level, using an Info queue: the main thread reads it, and logs changes.
+- benchmark:
+instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
+And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
+(On server cancelation, or on timeout, the IORef Bool is set to False.)
 
 - We could evaluate if the problem we're trying to solve has a known probability to be solved:
 With random distributions of size n*n, biased with wall probability wallProba, what is the probability
 to have a single connected component touching the 4 fronteers?
-
-- during the game, to create worlds, use the strategy of the closest known world.
 
 - benchmark, understand the strategies for multi component worlds
 - optimize 'spaceIsWellUsed' (see comment)

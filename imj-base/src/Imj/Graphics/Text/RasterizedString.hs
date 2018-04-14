@@ -25,7 +25,6 @@ import           Foreign.Marshal(alloca)
 import           Graphics.Rendering.FreeType.Internal(ft_Load_Char, ft_Get_Char_Index, ft_Done_FreeType, ft_Init_FreeType)
 import           Graphics.Rendering.FreeType.Internal.Bitmap(width, rows, buffer)
 import           Graphics.Rendering.FreeType.Internal.Face(glyph, FT_Face)
---import           Graphics.Rendering.FreeType.Internal.Vector(FT_Vector(FT_Vector))
 import           Graphics.Rendering.FreeType.Internal.Library(FT_Library)
 import           Graphics.Rendering.FreeType.Internal.GlyphSlot(bitmap)
 import           Graphics.Rendering.FreeType.Internal.PrimitiveTypes(FT_UInt, ft_LOAD_RENDER)
@@ -34,7 +33,6 @@ import           Data.Char(ord)
 
 import           Imj.Geo.Discrete.Types
 
---import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.HasSizedFace
 import qualified Imj.Graphics.Class.Positionable as Pos
 import           Imj.Graphics.Color

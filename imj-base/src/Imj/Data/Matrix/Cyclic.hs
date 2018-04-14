@@ -80,10 +80,8 @@ instance (Storable a, Show a)
 instance (Eq a, Storable a)
         => Eq (Matrix a) where
   m1 == m2 =
-    let r = nrows m1
-        c = ncols m1
-    in  and $ (r == nrows m2) : (c == ncols m2)
-            : [ unsafeGetByIndex i m1 == unsafeGetByIndex i m2 | i <- [0 .. nelems m1 - 1]]
+    and $ (nrows m1 == nrows m2) : (ncols m1 == ncols m2) : (rotation m1 == rotation m2) :
+        [ unsafeGetByIndex i m1 == unsafeGetByIndex i m2 | i <- [0 .. nelems m1 - 1]]
 
 instance NFData (Matrix a) where
  rnf = rnf . mvect
@@ -110,9 +108,9 @@ countRotations Rect1 x =
       0
 
 countRotations' :: RotationOrder -> Size -> Int
-countRotations' Order1 (Size (Length x) (Length y)) = x + y - 1
-countRotations' Order2 (Size (Length x) (Length y)) = x * y - 1
-countRotations' Rect1 (Size (Length x) (Length y)) =
+countRotations' Order1 (Size (Length y) (Length x)) = x + y - 1
+countRotations' Order2 (Size (Length y) (Length x)) = x * y - 1
+countRotations' Rect1 (Size (Length y) (Length x)) =
   if x < 3 || y < 3
     then
       0
@@ -155,11 +153,11 @@ unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
 modulate :: (Storable a) => Int -> Matrix a -> Matrix a
-modulate n mat@(M rows cols rot v)
+modulate n mat@(M _ _ _ v)
  | n <= 1 = mat
  | n >= len = error $ "out of range modulo:" ++ show n
  | otherwise =
-     M rows cols rot $ V.create (do
+     mat{ mvect = V.create (do
       mv <- MV.unsafeNew len
       numLoop 0 (nIterationsWithOneMore-1) $ \startIdx ->
         numLoop 0 standardIterationsLength $ \i -> do
@@ -173,6 +171,7 @@ modulate n mat@(M rows cols rot v)
               target = start2 + (startIdx-nIterationsWithOneMore)*standardIterationsLength + i
           MV.unsafeWrite mv target $ V.unsafeIndex v source))
       return mv)
+    }
   where
     -- when starting at [0..nIterationsWithOneMore-1], there are standardIterationsLength+1 elements.
     -- when starting at [nIterationsWithOneMore..n-1], there are standardIterationsLength elements.
@@ -207,38 +206,35 @@ produceUsefulInterleavedVariations
   (InterleaveInfo nRowVar interleaveRows)
   (InterleaveInfo nColVar interleaveCols)
   x@(M rows cols _ _) =
+  -- reorderRows is faster than reorderCols, hence it is done in the inner loop.
   _producedMats $ foldl'
-    (\(IVS m prevResults) i ->
-      let fi
-           | i == 0 = id
-           | otherwise = reorderRows
-          m' = m{mvect = fi $ mvect m}
+    (\(IVS m prevResults) j ->
+      let fj
+           | j == 0 = id
+           | otherwise = reorderCols
+          m' = m{mvect = fj $ mvect m}
           (IVS _ intermediateResults) = foldl'
-            (\(IVS n l) j ->
-              let fj
-                   | j == 0 = id
-                   | otherwise = reorderCols
-                  n' = n{mvect = fj $ mvect n}
+            (\(IVS n l) i ->
+              let fi
+                   | i == 0 = id
+                   | otherwise = reorderRows
+                  n' = n{mvect = fi $ mvect n}
               in IVS n' $ n':l)
             (IVS m' prevResults)
-            [0..nColVar-1]
+            [0..nRowVar-1]
       in IVS m' intermediateResults)
     (IVS x [])
-    [0..nRowVar-1]
+    [0..nColVar-1]
  where
   len = rows * cols
 
-  -- NOTE reorderCols is faster than reorderRows, because we use iTimeM.
-  -- The function calls reorderCols "nRowVar*nColVar" times and reorderRows only "nRowVar" times,
-  -- hence it is ok.
   reorderRows v = -- ignores rotations
     V.create $ do
       mv <- MV.unsafeNew len
       numLoop 0 (rows-1) $ \i -> do
-        let rowStart = cols*i
-            interleavedRowStart = cols * V.unsafeIndex interleaveRows i
-        numLoop 0 (cols-1) $ \j ->
-          MV.unsafeWrite mv (rowStart+j) $ V.unsafeIndex v $ interleavedRowStart + j -- TODO copy slice or move.
+        let source = V.unsafeSlice (cols*V.unsafeIndex interleaveRows i) cols v
+            dest  = MV.unsafeSlice (cols*i)                              cols mv
+        V.copy dest source
       return mv
 
   reorderCols v = -- ignores rotations

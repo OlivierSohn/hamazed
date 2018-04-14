@@ -45,10 +45,16 @@ extra-package-dbs: []
 # for GC stats:
 #   -with-rtsopts=-sstderr
 #
-# -fpedantic-bottoms is to catch errors that are masked by the compiler,
-#   as explained in  https://ghc.haskell.org/trac/ghc/ticket/14521
+# -with-rtsopts=-N : we use it just to set the parallel GC on, we will manually set the number of capabilities in the code.
+#
+# -fpedantic-bottoms : to catch errors that are masked by the compiler,
+#   as explained in https://ghc.haskell.org/trac/ghc/ticket/14521
+#
+# -qa : makes the benchmarks on world creation slightly (~1%) faster.
+#
+# -feager-blackholing : removed since it is slower (3%) for world creation benchmarks.
 ghc-options:
-  "$locals": -threaded -fexcess-precision -optc-ffast-math -Wall -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-maxN4
+  "$locals": -threaded -fexcess-precision -optc-ffast-math -Wall -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-N -with-rtsopts=-qa
 
 # Whenever an option here changes, the corresponding modules should be recompiled:
 rebuild-ghc-options: true

@@ -64,6 +64,7 @@ library
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
+                     , Imj.Game.Hamazed.World.Space.Strategies
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.12
@@ -73,6 +74,7 @@ library
                      , binary ==0.8.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
+                     , directory ==1.3.*
                      , imj-particlesystem ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
@@ -98,6 +100,7 @@ executable imj-game-hamazed-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.12
+                     , imj-base ==0.1.*
                      , imj-game-hamazed
   default-language:    Haskell2010
 

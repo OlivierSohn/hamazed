@@ -91,11 +91,11 @@ inverseMap = Map.fromListWith ISet.union . map (fmap ISet.singleton . swap) . IM
 showTestResults :: Characters s
                  => Maybe (Time Duration System)
                  -- ^ Timeout value
-                 -> [(s, TestDurations a)]
+                 -> [(s, TestDurations k a)]
                  -- ^ fst is labels
                  -> s
                  -- ^ Title
-                 -> [(Maybe (TestDurations a), [s])]
+                 -> [(Maybe (TestDurations k a), [s])]
                  -- ^ [s] is a list of lines corresponding to maybe one test result
 showTestResults timeoutValue l title =
   map ((,) Nothing) (IMap.elems footerMap) ++

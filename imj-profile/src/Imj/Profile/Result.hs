@@ -13,6 +13,7 @@ module Imj.Profile.Result
     , summarize
     , Dispersion(..)
     , SeedNumber(..)
+    , unSeedNumber
     ) where
 
 import           Imj.Prelude
@@ -73,11 +74,13 @@ mkEmptyStatus = NotStarted
 
 newtype SeedNumber = SeedNumber Int
   deriving(Show, Ord, Eq, Real, Num, Enum, Integral)
+unSeedNumber :: SeedNumber -> Int
+unSeedNumber (SeedNumber s) = s
 
 -- | By seed
-newtype TestDurations a = TD (Map SeedNumber (TestStatus a))
+newtype TestDurations k a = TD (Map k (TestStatus a))
   deriving(Show)
-instance Monoid (TestDurations a) where
+instance (Ord k) => Monoid (TestDurations k a) where
   mempty = TD Map.empty
   mappend (TD l) (TD l') = TD $ Map.unionWith (error "would overwrite") l l'
   mconcat = TD . Map.unionsWith (error "would overwrite") . map (\(TD m) -> m)
@@ -85,7 +88,7 @@ instance Monoid (TestDurations a) where
 -- | Ignoring tests that didn't run yet:
 -- if one test is Timeout, return the timeout value,
 -- else return the average of finished tests.
-summarize :: TestDurations a -> Summary
+summarize :: TestDurations k a -> Summary
 summarize (TD d)
  | nTimeouts == 0 = case Map.elems $ Map.mapMaybe (\case Finished dt _ -> Just dt; _ -> Nothing) d of
     [] -> NoResult

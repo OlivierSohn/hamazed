@@ -32,8 +32,8 @@ instance Binary InterleaveInfo
 instance NFData InterleaveInfo
 
 mkInterleaveInfo :: Int
-             -- ^ the length of the array that will be interleaved
-             -> InterleaveInfo
+                 -- ^ the length of the array that will be interleaved
+                 -> InterleaveInfo
 mkInterleaveInfo n =
   InterleaveInfo len v
  where

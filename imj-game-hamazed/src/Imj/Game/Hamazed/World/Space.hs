@@ -30,7 +30,7 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
-
+import Prelude(print)
 import           Control.Monad.ST(runST)
 import           Control.Concurrent(MVar, takeMVar, tryPutMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync)
@@ -62,6 +62,7 @@ import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, component
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Class.Positionable
 import           Imj.Physics.Discrete
 import           Imj.Timing
@@ -151,24 +152,32 @@ mkRandomlyFilledSpace :: WallDistribution
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = mkSmallWorld gens property continue >>= \(res, stats) ->
-  return
-    (case res of
-      NeedMoreTime -> NeedMoreTime
-      Impossible bounds -> Impossible bounds
-      Success small -> Success $ smallWorldToBigWorld s blockSize small
-    , Just (property, stats))
+  | otherwise = decodeOptimalStrategiesFileOrFail >>= go
  where
-  property = mkProperties characteristics strategy
+  go optimalStrategies = do
+    print strategy
+    mkSmallWorld gens property continue >>= \(res, stats) ->
+      return
+        (case res of
+          NeedMoreTime -> NeedMoreTime
+          Impossible bounds -> Impossible bounds
+          Success small -> Success $ smallWorldToBigWorld s blockSize small
+        , Just (property, stats))
+   where
+    strategy = bestStrategy optimalStrategies characteristics
+    property = mkProperties characteristics strategy
   characteristics = SWCharacteristics smallSz nComponents wallAirRatio
   smallSz = bigToSmall s blockSize
-  strategy = bestStrategy characteristics
 
-bestStrategy :: SmallWorldCharacteristics -> Maybe MatrixVariants
-bestStrategy _ = -- TODO measure the best strategy for known cases, then interpolate.
-  Just $
-    Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
-      Nothing
+bestStrategy :: OptimalStrategies -> SmallWorldCharacteristics -> Maybe MatrixVariants
+bestStrategy (OptimalStrategies m) world@(SWCharacteristics sz _ _) =
+  fmap (adaptToSize sz) $ maybe defaultStrategy (\(OptimalStrategy s _) -> s) best
+ where
+  (best,_) = Map.foldlWithKey' (\cur@(_, curDist) charac strategy ->
+    let dist = smallWorldCharacteristicsDistance charac world
+    in bool cur (Just strategy, dist) $ dist < curDist) (Nothing, 1000000) m
+
+  defaultStrategy = Nothing
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -186,6 +195,22 @@ bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
   let nCols = quot widthEmptySpace $ fromIntegral blockSize
       nRows = quot heightEmptySpace $ fromIntegral blockSize
   in Size nRows nCols
+
+
+data MatrixPipeline = MatrixPipeline !MatrixSource !MatrixTransformer
+
+newtype MatrixSource = MatrixSource (MS.IOVector MaterialAndKey -> GenIO -> IO SmallMatInfo)
+
+newtype MatrixTransformer = MatrixTransformer (Statistics -> SmallMatInfo -> BestRandomMatrixVariation)
+
+data BestRandomMatrixVariation = BRMV {
+  _topology :: !TopoMatch
+  -- ^ Best found sofar
+  , _stats :: !Statistics
+  -- ^ Records stats about the search
+}
+
+type TopoMatch = Either SmallWorldRejection SmallWorld
 
 
 -- We need n locations to store random matrices.

@@ -1,3 +1,20 @@
+- use reorderRows more than reorderCols,
+optimize reorderRows (slicing)
+
+- embed some refined strategies in the program.
+
+- display estimated time to build a world (based on optimal strategy time)
+
+- see how to generalize to n components.
+
+- the game is fun to play with all maxed:
+  wall size = 6
+  proba = 0.9
+
+- parallel stats :
+the stats displayed are the stats of the rng the lead to finding a world.
+Should we merge them with the stats of RNGs that didn't find?
+
 - benchmark:
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
@@ -6,8 +23,6 @@ And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the
 - We could evaluate if the problem we're trying to solve has a known probability to be solved:
 With random distributions of size n*n, biased with wall probability wallProba, what is the probability
 to have a single connected component touching the 4 fronteers?
-
-- during the game, to create worlds, use the strategy of the closest known world.
 
 - benchmark, understand the strategies for multi component worlds
 - optimize 'spaceIsWellUsed' (see comment)

@@ -8,13 +8,13 @@ module Main where
 
 import           Imj.Prelude
 
-import           Prelude(print, putStrLn, length, writeFile, getChar)
+import           Prelude(print, putStrLn, putStr, length, writeFile, getChar)
 import           Control.Concurrent(getNumCapabilities, forkIO, throwTo, ThreadId, myThreadId, threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, modifyMVar_, readMVar)
 import           Control.Exception(Exception(..))
 import           Control.DeepSeq(NFData(..))
 import           Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE(map)
+import qualified Data.List.NonEmpty as NE
 import           Data.List as List hiding(intercalate, concat)
 import qualified Data.List as List(intercalate, concat)
 import           Data.IntMap.Strict(IntMap)
@@ -32,7 +32,7 @@ import           Foreign.C.Types(CInt)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 import           System.Random.MWC
 import           System.Timeout(timeout)
-import           System.IO(hSetBuffering, stdin, BufferMode(..))
+import           System.IO(hFlush, hSetBuffering, stdin, stdout, BufferMode(..))
 
 import           Imj.Game.Hamazed.World.Space.Types
 import qualified Imj.Graphics.Class.Words as W
@@ -40,6 +40,7 @@ import qualified Imj.Graphics.Class.Words as W
 import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString(ColorString)
 import qualified Imj.Graphics.Text.ColorString as CS
@@ -64,15 +65,15 @@ main :: IO ()
 main = do
   useOneCapabilityPerPhysicalCore
 
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  --profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
+  profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
   --writeSeedsSource
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
 justVariantsWithRotations sz n =
-  let interleave = mkInterleaveVariation sz
-      modulation = mkModulateVariation sz
+  let interleave = mkVariation sz Interleaving
+      modulation = mkVariation sz Modulation
   in concatMap (map (\y -> y Nothing)) $
       map (\rotationOrder ->
         let rotation = Rotate $ RotationDetail rotationOrder n
@@ -93,8 +94,8 @@ justVariantsWithRotations sz n =
 
 justVariantsWithoutRotations :: Size -> [MatrixVariants]
 justVariantsWithoutRotations sz =
-  let interleave = mkInterleaveVariation sz
-      modulation = mkModulateVariation sz
+  let interleave = mkVariation sz Interleaving
+      modulation = mkVariation sz Modulation
   in map (\y -> y Nothing)
        [ Variants (pure interleave)
        , Variants (pure modulation)
@@ -124,11 +125,12 @@ exhaustiveWorlds =
     [SWCharacteristics size componentCount proba |
       proba <- map ((*) 0.1 . fromIntegral) [1 :: Int ..9]]
 
-writeHtmlReport :: Maybe (Time Duration System)
-                -> Results
+writeHtmlReport :: (Show k)
+                => Maybe (Time Duration System)
+                -> Results k
                 -> UserIntent
                 -> IO ()
-writeHtmlReport mayAllowedDt allRes intent = do
+writeHtmlReport mayAllowedDt (Results allRes) intent = do
   html <- forM (Map.assocs allRes)
     (\(worldCharac, worldResults) -> do
         let labelsAndEitherTimeoutsTimes = map
@@ -137,7 +139,7 @@ writeHtmlReport mayAllowedDt allRes intent = do
                 , results)) $ Map.assocs worldResults
             resultsAndCS = showTestResults mayAllowedDt -- map these lines to individual results
               labelsAndEitherTimeoutsTimes
-              $ (fromString $ prettyShowSWCharacteristics worldCharac :: ColorString)
+              (fromString $ prettyShowSWCharacteristics worldCharac :: ColorString)
         return resultsAndCS) >>=
           renderResultsHtml intentStr
             . concatMap
@@ -157,11 +159,11 @@ writeHtmlReport mayAllowedDt allRes intent = do
   showAsCs Timeout = [CS.colored "Timeout" red]
   showAsCs (Finished _ stat) = map fromString $ prettyShowStats stat
 
-  toTitle :: TestDurations Statistics
+  toTitle :: (Show k) => TestDurations k Statistics
           -> [[ColorString]]
   toTitle (TD m) =
-    map (\(seed, stat) ->
-      CS.colored' (pack $ show seed) seedColor:
+    map (\(k, stat) ->
+      CS.colored' (pack $ show k) seedColor:
       showAsCs stat)
       $ Map.assocs m
    where
@@ -241,16 +243,15 @@ firstNonReport :: UserIntent -> UserIntent
 firstNonReport (Report x) = firstNonReport x
 firstNonReport y = y
 
-type Results = Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations Statistics))
---newtype Tests = T (Map SmallWorldCharacteristics WorldTests)
---newtype WorldTests = WT (Map (Maybe MatrixVariants) (TestStatus Statistics))
+newtype Results k = Results (Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
 
-mkEmptyResults :: Results
-mkEmptyResults = Map.empty
+mkEmptyResults :: Results k
+mkEmptyResults = Results Map.empty
 
-addResult :: SmallWorldCharacteristics -> Maybe MatrixVariants -> SeedNumber -> TestStatus Statistics -> Results -> Results
-addResult w strategy seed stats res =
-  Map.alter
+{-# INLINABLE addResult #-}
+addResult :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> Results k -> Results k
+addResult w strategy seed stats (Results res) =
+  Results $ Map.alter
     (Just . maybe
       (Map.singleton strategy s)
       (Map.alter (Just . maybe s (mappend s)) strategy))
@@ -259,90 +260,173 @@ addResult w strategy seed stats res =
  where
   s = TD $ Map.singleton seed stats
 
--- 70 strategies * 160 tests = 11200
--- seed = 256 * 64 o = 16 ko  -> 183 Mo for all tests and strategies
+toOptimalStrategies :: Results k -> OptimalStrategies
+toOptimalStrategies (Results m) = OptimalStrategies $
+  Map.mapMaybe
+    (Map.foldlWithKey'
+      (\a strategy results -> case summarize results of
+          NoResult -> a
+          NTimeouts _ -> a
+          FinishedAverage dt _ ->
+            let cur = OptimalStrategy strategy dt
+            in Just $ maybe cur (min cur) a)
+      Nothing)
+    m
 
--- 2 step algorithm:
---
--- 1. for each world, find /a/ strategy that works within a given time upper bound.
---
--- (optional:
---   At the end of the time, save and restore the state of RNG so that the times are cumulative (to not lose time).
---   Interrupt a test cleanly, ie without timeout directly: every 1000 matrix, check for continuation
---   which will check for elapsed time.)
--- If we don't do that, change the seed number at each timeout increment.
---
--- if we found a best for a world, start from that strategy for the next world.
--- we don't need to test all strategies, we just want to find one that works with this timeout.
--- we will refine later on.
---
--- 2. Now that we have for each world an upper bound: find /the/ fastest strategy using that upper bound.
+-- | Given a hint variant, computes the best variant, taking the time of the hint
+-- as a reference to early-discard others.
+refineWithHint :: SmallWorldCharacteristics
+               -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (MkSpaceResult a, Statistics))
+               -> (Int,Maybe MatrixVariants)
+               -- ^ This is the hint : a variant which we think is one of the fastest.
+               -> [(Int,Maybe MatrixVariants)]
+               -- ^ The candidates (the hint should not be in this list)
+               -> IO ((Int,Maybe MatrixVariants),[(NonEmpty SeedNumber, TestStatus Statistics)])
+               -- ^ The best
+refineWithHint world testF hintStrategy strategies =
+  mkHintStats >>= go strategies . mkBestSofar hintStrategy
+ where
+  go [] (BestSofar s l _) = return (s, l)
+  go (candidate:candidates) bsf@(BestSofar _ _ (DurationConstraints maxTotal maxIndividual)) =
+    mkStatsWithConstraint >>= go candidates . either
+      (const bsf)
+      (mkBestSofar candidate)
+   where
+    mkStatsWithConstraint :: IO (Either () [(NonEmpty SeedNumber, TestStatus Statistics)])
+    mkStatsWithConstraint  =
+      seedGroups >>= ho [] zeroDuration
+     where
+      ho l totalSofar remaining
+        | totalSofar >= maxTotal = return $ Left ()
+        | otherwise = case remaining of
+            [] -> return $ Right l
+            seedGroup:groups -> do
+              let maxDt = min maxIndividual $ maxTotal |-| totalSofar
+                  props = mkProperties world $ snd candidate
+              uncurry mkResultFromStats <$> withNumberedSeeds (testF (Just maxDt) props) seedGroup >>= \case
+                  Timeout -> return $ Left ()
+                  f@(Finished dt _) -> ho ((seedGroup,f):l) (totalSofar |+| dt) groups
+                  NotStarted -> error "logic"
+  mkHintStats :: IO [(NonEmpty SeedNumber, TestStatus Statistics)]
+  mkHintStats =
+    seedGroups >>= mapM
+      (\seedGroup -> ((,) seedGroup . uncurry mkResultFromStats) <$>
+        withNumberedSeeds (testF Nothing $ mkProperties world $ snd hintStrategy) seedGroup)
+
+data BestSofar = BestSofar {
+    _strategy :: !(Int, Maybe MatrixVariants)
+  , _results :: [(NonEmpty SeedNumber, TestStatus Statistics)]
+  , _inducedContraints :: !DurationConstraints
+}
+
+mkBestSofar :: (Int, Maybe MatrixVariants) -> [(NonEmpty SeedNumber, TestStatus Statistics)] -> BestSofar
+mkBestSofar s r = BestSofar s r $ mkDurationConstraints $ map snd r
+
+data DurationConstraints = DurationConstraints {
+    _maxTotal :: !(Time Duration System)
+  , _maxIndividual :: !(Time Duration System)
+}
+
+nTests :: Int
+nTests = 5
+
+seedGroups :: IO [NonEmpty SeedNumber]
+seedGroups = do
+  nWorkers <- max 1 <$> getNumCapabilities
+  return $ map
+    (\i ->
+      let start = i*nWorkers
+      in NE.fromList $ map SeedNumber [start..start+nWorkers-1])
+    [0..nTests-1]
+
+mkDurationConstraints :: [TestStatus Statistics]
+                      -> DurationConstraints
+mkDurationConstraints results =
+  DurationConstraints sumTime $ 3 .* maxTime
+ where
+  sumTime = foldl' (\t r -> getTime r |+| t) zeroDuration results
+  maxTime = foldl' (\t r -> max (getTime r) t) zeroDuration results
+
+  getTime r = case r of
+    Timeout -> error "logic"
+    NotStarted -> error "logic"
+    Finished dt _ -> dt
+
+-- |
+-- For each world:
+--   Using a single seed group, find /a/ strategy that works within a given time upper bound.
+--   Using all seed groups, and the found strategy as a hint, find the best strategy.
+--   Accumulate the best strategies in a list, and test them first in subsequent iterations.
 withTestScheduler' :: [[SmallWorldCharacteristics]]
                    -- ^ Within inner-lists, 'SmallWorldCharacteristics' are ordered by increasing estimated
                    -- difficulty (i.e increasing estimated time to find a valid world)
                    -> (Size -> [Maybe MatrixVariants])
                    -> MVar UserIntent
-                   -> (Time Duration System -> Properties -> GenIO -> IO (MkSpaceResult a, Statistics))
-                   -> IO Results
-withTestScheduler' worldsByDifficulty mkStrategies intent testF = do
-  informStep dt0 allCombinationsByDifficulty
-  go dt0 mempty allCombinationsByDifficulty [] Map.empty
+                   -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (MkSpaceResult SmallWorld, Statistics))
+                   -> IO (Results (NonEmpty SeedNumber))
+withTestScheduler' worldsByDifficulty mkStrategies intent testF =
+  flip (!!) 0 <$> seedGroups >>= start
  where
-  go :: Time Duration System
-     -> IntSet
-     -- ^ Hints for the key of the fastest strategies
-     -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-     -- ^ We test the first element of each inner list (the elements thereafter are
-     -- considered too difficult and will be tested at a later step).
-     -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-     -> Results
-     -> IO Results
-  go !dt hints remaining noValidStrategy oneValidStrategy = continue intent >>= bool
-    (return oneValidStrategy)
-    (case remaining of
-      [] ->
-        if null noValidStrategy
-          then
-            return oneValidStrategy
-          else do
-            let newDt = nextDt dt
-            informStep newDt noValidStrategy
-            go newDt hints noValidStrategy [] oneValidStrategy
-      []:rest -> go dt hints rest noValidStrategy oneValidStrategy
-      easyAndDifficult:nextWorlds -> do
-        (remainingEasyDifficult, newHints, newNoValidStrategy, newOneValidStrategy) <-
-          tryWorlds easyAndDifficult hints noValidStrategy oneValidStrategy
-        go dt newHints (remainingEasyDifficult:nextWorlds) newNoValidStrategy newOneValidStrategy
-       where
-        tryWorlds [] hs noValid oneValid = return ([], hs, noValid, oneValid)
-        tryWorlds l@((easy,strategies):difficults) hs noValid oneValid = do
-          let orderedStrategies =
-                IMap.assocs (IMap.restrictKeys strategies hs) ++
-                IMap.assocs (IMap.withoutKeys strategies hs)
-          go' easy orderedStrategies >>= maybe
-            (return ([], hs, l:noValid, oneValid))
-            (\((newHint,strategy),res) -> case res of
-                Timeout -> error "logic"
-                NotStarted -> error "logic"
-                Finished{} -> do
-                  informSuccess easy strategy res
-                  informHint hs newHint strategy
-                  let newOneValid = addResult easy strategy seedN res oneValid
-                  writeHtmlReport (Just dt) newOneValid (Report Run)
-                  -- we also try harder worlds now:
-                  tryWorlds difficults (ISet.insert newHint hs) noValid newOneValid)
+  start firstSeedGroup = do
+    informStep dt0 allCombinationsByDifficulty
+    go dt0 mempty allCombinationsByDifficulty [] mkEmptyResults
+   where
+    go :: Time Duration System
+       -> IntSet
+       -- ^ Hints for the key of the fastest strategies
+       -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+       -- ^ We test the first element of each inner list (the elements thereafter are
+       -- considered too difficult and will be tested at a later step).
+       -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+       -> Results (NonEmpty SeedNumber)
+       -> IO (Results (NonEmpty SeedNumber))
+    go !dt hints remaining noValidStrategy oneValidStrategy = continue intent >>= bool
+      (return oneValidStrategy)
+      (case remaining of
+        [] ->
+          if null noValidStrategy
+            then
+              return oneValidStrategy
+            else do
+              let newDt = nextDt dt
+              informStep newDt noValidStrategy
+              go newDt hints noValidStrategy [] oneValidStrategy
+        []:rest -> go dt hints rest noValidStrategy oneValidStrategy
+        easyAndDifficult:nextWorlds -> do
+          (remainingEasyDifficult, newHints, newNoValidStrategy, newOneValidStrategy) <-
+            tryWorlds easyAndDifficult hints noValidStrategy oneValidStrategy
+          go dt newHints (remainingEasyDifficult:nextWorlds) newNoValidStrategy newOneValidStrategy
          where
-          go' _ [] = return Nothing
-          go' world (assoc@(_,strategy):otherStrategies) =
-            continue intent >>= bool
-              (return Nothing)
-              (do
-                  putStrLn $ "try " ++ show strategy
-                  initialize (fromList $ deterministicMWCSeeds !! fromIntegral seedN) >>=
-                    testF dt (mkProperties world strategy) >>= \(res,stats) -> case mkResultFromStats res stats of
-                      Timeout -> go' world otherStrategies
-                      f@Finished{} -> return (Just (assoc,f))
-                      NotStarted -> error "logic"))
+          tryWorlds [] hs noValid oneValid = return ([], hs, noValid, oneValid)
+          tryWorlds l@((easy,strategies):difficults) hs noValid oneValid = do
+            let orderedStrategies =
+                  IMap.assocs (IMap.restrictKeys strategies hs) ++
+                  IMap.assocs (IMap.withoutKeys strategies hs)
+            go' easy orderedStrategies >>= maybe
+              (return ([], hs, l:noValid, oneValid))
+              (\((stratI,strategy),res) -> do
+                  informSuccess easy strategy res
+                  informRefine strategy
+                  ((refinedI,refined), resultsBySeeds) <- refineWithHint easy testF (stratI,strategy)
+                    $ IMap.assocs $ IMap.delete stratI strategies
+                  informHint hs refinedI refined
+                  let newOneValid = foldl' (flip (uncurry (addResult easy refined))) oneValid resultsBySeeds
+                  writeHtmlReport (Just dt) newOneValid (Report Run)
+                  encodeOptimalStrategiesFile $ toOptimalStrategies newOneValid
+                  -- we also try harder worlds now:
+                  tryWorlds difficults (ISet.insert refinedI hs) noValid newOneValid)
+           where
+            go' _ [] = return Nothing
+            go' world (assoc@(_,strategy):otherStrategies) =
+              continue intent >>= bool
+                (return Nothing)
+                (do
+                    putStrLn $ "try " ++ show strategy
+                    withNumberedSeeds (testF (Just dt) (mkProperties world strategy)) firstSeedGroup
+                       >>= \(res,stats) -> case mkResultFromStats res stats of
+                        Timeout -> go' world otherStrategies
+                        f@Finished{} -> return $ Just (assoc,f)
+                        NotStarted -> error "logic"))
 
   -- We index the strategies so as to be able to start testing world n+1 with the winning strategy of world n.
   allCombinationsByDifficulty :: [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
@@ -362,9 +446,13 @@ withTestScheduler' worldsByDifficulty mkStrategies intent testF = do
 
   informHint :: IntSet -> Int -> Maybe MatrixVariants -> IO ()
   informHint prev cur strat = bool
-    (CS.putStrLn $ CS.colored ("Add hint: " <> pack (show strat)) green)
+    (CS.putStrLn $ CS.colored ("Add refined hint: " <> pack (show strat)) green)
     (return ())
     $ cur `ISet.member` prev
+
+  informRefine :: Maybe MatrixVariants -> IO ()
+  informRefine strat =
+    CS.putStrLn $ CS.colored ("Refining from : " <> pack (show strat)) green
 
   informSuccess :: SmallWorldCharacteristics -> Maybe MatrixVariants -> TestStatus Statistics -> IO ()
   informSuccess w v s = do
@@ -374,8 +462,7 @@ withTestScheduler' worldsByDifficulty mkStrategies intent testF = do
 
   nextDt = (.*) multDt
   multDt = 10
-  dt0 = fromSecs 0.00001
-  seedN = SeedNumber 0
+  dt0 = fromSecs 0.01
 
 -- note that even in case of timeout we could provide some stats.
 mkResultFromStats :: MkSpaceResult a -> Statistics -> TestStatus Statistics
@@ -390,7 +477,7 @@ withTestScheduler :: [SmallWorldCharacteristics]
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
-                  -> IO Results
+                  -> IO (Results SeedNumber)
 withTestScheduler worlds strategies allowed intent f =
   foldMInterruptible cont "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) ->
     foldMInterruptible cont "World" res0 worlds (\res1 world -> do
@@ -420,7 +507,7 @@ continue intent = readMVar intent >>= \case
     continue intent
   _ -> return True
 
-mayReport :: Time Duration System -> MVar UserIntent -> Results -> IO ()
+mayReport :: (Show k) => Time Duration System -> MVar UserIntent -> Results k -> IO ()
 mayReport allowed intent x = readMVar intent >>= \case
   i@(Report prevIntent) -> do
     writeHtmlReport (Just allowed) x i
@@ -463,12 +550,17 @@ profileAllProps2 = do
   intent <- mkTerminator
 
   (totalDt, allRes) <- withDuration $
-    withTestScheduler' worlds strategies intent (\dt property seed -> do
+    withTestScheduler' worlds strategies intent (\mayDt property seedGroup -> do
       c <- newMVar True
       _ <- forkIO $ do
-        threadDelay $ fromIntegral $ toMicros dt
-        modifyMVar_ c $ const $ return False -- TODO measure overhead vs. using timeout
-      profileWithContinue property (pure seed) c)
+        -- to have the same test conditions when there is a timeout and when there is none,
+        -- we use a big timeout when there is none
+        maybe
+          (forever $ threadDelay maxBound) -- disable timeout : we need forever, else after 35 minutes, the timeout expires
+          (threadDelay . fromIntegral . toMicros)
+          mayDt
+        modifyMVar_ c $ const $ return False
+      profileWithContinue property seedGroup $ readMVar c)
 
   readMVar intent >>= writeHtmlReport Nothing allRes
   putStrLn $ "Test duration = " ++ show totalDt
@@ -522,11 +614,11 @@ profileAllProps = do
 
 
 profile :: Properties -> NonEmpty GenIO -> IO (MkSpaceResult SmallWorld, Statistics)
-profile p gen = newMVar True >>= profileWithContinue p gen
+profile p gen = newMVar True >>= profileWithContinue p gen . readMVar
 
-profileWithContinue :: Properties -> NonEmpty GenIO -> MVar Bool -> IO (MkSpaceResult SmallWorld, Statistics)
+profileWithContinue :: Properties -> NonEmpty GenIO -> IO Bool -> IO (MkSpaceResult SmallWorld, Statistics)
 profileWithContinue property gen c = do
-  (res, stats) <- mkSmallWorld gen property $ readMVar c
+  (res, stats) <- mkSmallWorld gen property c
   case res of
     NeedMoreTime -> return ()
     Impossible err -> error $ "impossible :" ++ show err
@@ -548,7 +640,7 @@ profileInterleave0MarginRotateOrder1 = do
   let sz = Size 32 72
       props = mkProperties
         (SWCharacteristics sz (ComponentCount 1) 0.2)
-        (Just $ Variants (pure $ mkInterleaveVariation sz) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
+        (Just $ Variants (pure $ mkVariation sz Interleaving) $ Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order1 0) Nothing)
   print props
   withNumberedSeeds (withDuration . profile props) (pure $ SeedNumber 0) >>= print
 
@@ -565,7 +657,8 @@ withNumberedSeeds :: (NonEmpty GenIO -> IO a) -> NonEmpty SeedNumber -> IO a
 withNumberedSeeds act seedNs = do
   -- we use deterministic seeds made from the same source as 'withSystemRandom' (see https://github.com/bos/mwc-random/issues/64)
   gen <- mapM (\(SeedNumber i) -> initialize $ fromList $ deterministicMWCSeeds !! i) seedNs
-  putStrLn $ unwords ["-", "seeds", show seedNs]
+  putStr $ unwords [show $ map unSeedNumber $ NE.toList seedNs] ++ " "
+  hFlush stdout
   act gen
 
 withTimeout :: Time Duration System -> IO a -> IO (TestStatus a)

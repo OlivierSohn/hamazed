@@ -102,8 +102,6 @@ updateAppState (Left evt) = case evt of
       -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
       -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
       -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
-      --
-      -- continue <- newIORef True
       let continue = getSystemTime >>= \t -> return (t < deadline)
       asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
         void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $

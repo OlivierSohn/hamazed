@@ -80,10 +80,8 @@ instance (Storable a, Show a)
 instance (Eq a, Storable a)
         => Eq (Matrix a) where
   m1 == m2 =
-    let r = nrows m1
-        c = ncols m1
-    in  and $ (r == nrows m2) : (c == ncols m2)
-            : [ unsafeGetByIndex i m1 == unsafeGetByIndex i m2 | i <- [0 .. nelems m1 - 1]]
+    and $ (nrows m1 == nrows m2) : (ncols m1 == ncols m2) : (rotation m1 == rotation m2) :
+        [ unsafeGetByIndex i m1 == unsafeGetByIndex i m2 | i <- [0 .. nelems m1 - 1]]
 
 instance NFData (Matrix a) where
  rnf = rnf . mvect
@@ -110,9 +108,9 @@ countRotations Rect1 x =
       0
 
 countRotations' :: RotationOrder -> Size -> Int
-countRotations' Order1 (Size (Length x) (Length y)) = x + y - 1
-countRotations' Order2 (Size (Length x) (Length y)) = x * y - 1
-countRotations' Rect1 (Size (Length x) (Length y)) =
+countRotations' Order1 (Size (Length y) (Length x)) = x + y - 1
+countRotations' Order2 (Size (Length y) (Length x)) = x * y - 1
+countRotations' Rect1 (Size (Length y) (Length x)) =
   if x < 3 || y < 3
     then
       0
@@ -155,11 +153,11 @@ unsafeSetRotation :: Matrix a -> Int -> Matrix a
 unsafeSetRotation m i = m { rotation = i }
 
 modulate :: (Storable a) => Int -> Matrix a -> Matrix a
-modulate n mat@(M rows cols rot v)
+modulate n mat@(M _ _ _ v)
  | n <= 1 = mat
  | n >= len = error $ "out of range modulo:" ++ show n
  | otherwise =
-     M rows cols rot $ V.create (do
+     mat{ mvect = V.create (do
       mv <- MV.unsafeNew len
       numLoop 0 (nIterationsWithOneMore-1) $ \startIdx ->
         numLoop 0 standardIterationsLength $ \i -> do
@@ -173,6 +171,7 @@ modulate n mat@(M rows cols rot v)
               target = start2 + (startIdx-nIterationsWithOneMore)*standardIterationsLength + i
           MV.unsafeWrite mv target $ V.unsafeIndex v source))
       return mv)
+    }
   where
     -- when starting at [0..nIterationsWithOneMore-1], there are standardIterationsLength+1 elements.
     -- when starting at [nIterationsWithOneMore..n-1], there are standardIterationsLength elements.
@@ -228,9 +227,8 @@ produceUsefulInterleavedVariations
  where
   len = rows * cols
 
-  -- NOTE reorderCols is faster than reorderRows, because we use iTimeM.
-  -- The function calls reorderCols "nRowVar*nColVar" times and reorderRows only "nRowVar" times,
-  -- hence it is ok.
+  -- TODO reorderRows is faster than reorderCols, hence it should be preferred in the loop:
+  -- The function calls reorderCols "nRowVar*nColVar" times and reorderRows only "nRowVar" times.
   reorderRows v = -- ignores rotations
     V.create $ do
       mv <- MV.unsafeNew len

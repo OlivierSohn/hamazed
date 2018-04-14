@@ -17,17 +17,17 @@ module Imj.Game.Hamazed.World.Space.Types
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
     , prettyShowSWCharacteristics
-    , MatrixPipeline(..)
-    , MatrixSource(..)
-    , MatrixTransformer(..)
-    , BestRandomMatrixVariation(..)
-    , TopoMatch
     , MatrixVariants(..)
+    , MatrixVariantsSpec(..)
+    , toMV
+    , toMVSpec
+    , adaptToSize
     , prettyShowMatrixVariants
     , humanShowVariants
     , Variation(..)
-    , mkInterleaveVariation
-    , mkModulateVariation
+    , VariationSpec(..)
+    , mkVariation
+    , mkVariationSpec
     , RotationDetail(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
@@ -81,17 +81,15 @@ import           Control.Arrow((***))
 import           Control.DeepSeq(NFData)
 import           Data.List(unlines, unwords, intercalate)
 import           Data.List.NonEmpty(NonEmpty(..), toList)
+import qualified Data.List.NonEmpty as NE(map)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import           Imj.Data.Matrix.Cyclic (Storable(..))
 import qualified Imj.Data.Matrix.Cyclic as Cyclic hiding (Storable(..))
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
-import qualified Data.Vector.Storable.Mutable as MS(IOVector)
 import           Data.Vector.Unboxed.Deriving(derivingUnbox)
 import           Data.Vector.Unboxed(Vector)
-import           Numeric(showFFloat)
-import           System.Random.MWC(GenIO)
 
 import           Imj.Data.UndirectedGraph(Vertex)
 import           Imj.Geo.Discrete.Types
@@ -216,23 +214,20 @@ instance NFData MatrixVariants
 instance Show MatrixVariants where
   show = prettyShowMatrixVariants . Just
 
-data MatrixPipeline = MatrixPipeline {
-    randomMatricesSource :: !MatrixSource
-  , variationProduction :: !MatrixTransformer
-}
+data MatrixVariantsSpec =
+    VariantsSpec !(NonEmpty VariationSpec) !(Maybe MatrixVariantsSpec) -- 'MatrixVariantsSpec' applies to every variation produced by NonEmpty VariationSpec
+  deriving(Generic, Eq, Ord)
+instance Binary MatrixVariantsSpec
+instance NFData MatrixVariantsSpec
 
-newtype MatrixSource = MatrixSource (MS.IOVector MaterialAndKey -> GenIO -> IO SmallMatInfo)
+adaptToSize :: Size -> MatrixVariants -> MatrixVariants
+adaptToSize sz = toMV sz . toMVSpec
 
-newtype MatrixTransformer = MatrixTransformer (Statistics -> SmallMatInfo -> BestRandomMatrixVariation)
+toMVSpec :: MatrixVariants -> MatrixVariantsSpec
+toMVSpec (Variants l next) = VariantsSpec (NE.map mkVariationSpec l) (fmap toMVSpec next)
 
-data BestRandomMatrixVariation = BRMV {
-  _topology :: !TopoMatch
-  -- ^ Best found sofar
-  , _stats :: !Statistics
-  -- ^ Records stats about the search
-}
-
-type TopoMatch = Either SmallWorldRejection SmallWorld
+toMV :: Size -> MatrixVariantsSpec -> MatrixVariants
+toMV sz (VariantsSpec l next) = Variants (NE.map (mkVariation sz) l) (fmap (toMV sz) next)
 
 prettyShowMatrixVariants :: Maybe MatrixVariants -> String
 prettyShowMatrixVariants =
@@ -300,14 +295,26 @@ showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unword
 showVariationDetails (Interleave r c) = show (nUseful r, nUseful c)
 showVariationDetails (Modulate from to) = show (from,to)
 
-mkInterleaveVariation :: Size -> Variation
-mkInterleaveVariation (Size (Length rows) (Length cols)) =
-  Interleave (mkInterleaveInfo rows) (mkInterleaveInfo cols)
+data VariationSpec =
+    Rotation !RotationDetail
+  | Interleaving
+  | Modulation
+  deriving(Generic, Eq, Ord)
+instance Binary VariationSpec
+instance NFData VariationSpec
 
-mkModulateVariation :: Size -> Variation
-mkModulateVariation (Size (Length rows) (Length cols)) =
-  -- reduce the range, as modulating is less competitive than interleaving, maybe due to memory access patterns which are a lot less linear
-  Modulate 2 (min 3 $ quot (rows * cols) 2)
+
+mkVariation :: Size -> VariationSpec -> Variation
+mkVariation _ (Rotation x) = Rotate x
+mkVariation (Size (Length rows) (Length cols)) Interleaving =
+  Interleave (mkInterleaveInfo rows) (mkInterleaveInfo cols)
+-- reduce the range, as modulating is less competitive than interleaving, maybe due to memory access patterns which are a lot less linear
+mkVariation sz Modulation = Modulate 2 (min 3 $ quot (area sz) 2)
+
+mkVariationSpec :: Variation -> VariationSpec
+mkVariationSpec (Rotate x) = Rotation x
+mkVariationSpec (Interleave _ _) = Interleaving
+mkVariationSpec (Modulate _ _) = Modulation
 
 data RotationDetail = RotationDetail {
     _rotationOrder :: !Cyclic.RotationOrder
@@ -550,7 +557,7 @@ instance Show Statistics where
   show = unlines . prettyShowStats
 
 data DurationStats = Durations {
-    randomMatCreation, totalDuration ::  {-# NOUNPACK #-} !(Time Duration System)
+    totalDuration ::  {-# NOUNPACK #-} !(Time Duration System)
 } deriving(Generic)
 instance Binary DurationStats
 instance NFData DurationStats
@@ -561,11 +568,11 @@ zeroStats :: Statistics
 zeroStats = Statistics 0 0 mempty 0 0 0 0 0 0 mkDurationStats
 
 mkDurationStats :: DurationStats
-mkDurationStats = Durations zeroDuration zeroDuration
+mkDurationStats = Durations zeroDuration
 
 mergeDurations :: DurationStats -> DurationStats -> DurationStats
-mergeDurations (Durations a b) (Durations a' b') =
-  Durations (a |+| a') (b |+| b')
+mergeDurations (Durations a) (Durations a') =
+  Durations (a |+| a')
 
 mergeStats :: Statistics -> Statistics -> Statistics
 mergeStats (Statistics z a b c d e f g h i) (Statistics z' a' b' c' d' e' f' g' h' i') =
@@ -602,19 +609,10 @@ prettyShowProperties
     ]
 
 prettyShowDurations :: DurationStats -> [String]
-prettyShowDurations (Durations onlyMkRandomMat total) =
+prettyShowDurations (Durations total) =
   showArray Nothing
     [ ("Total duration", showTime total)
-    , ("Random mat generation", showRatioAsPercentage ratioRandom)
     ]
- where
-  ratioRandom = durationRatio onlyMkRandomMat total
-
-showRatioAsPercentage :: Double -> String
-showRatioAsPercentage r =
-  let p = r * 100
-  in showFFloat (Just 4) p " %"
-
 
 prettyShowStats :: Statistics -> [String]
 prettyShowStats (Statistics nRandomMatrices nMats ccm notEnoughAir notEnoughWall unusedFronteer ccCountMismatch ccSizesDistribution unusedSpace timings) =

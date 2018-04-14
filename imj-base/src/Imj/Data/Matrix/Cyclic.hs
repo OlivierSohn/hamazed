@@ -206,29 +206,28 @@ produceUsefulInterleavedVariations
   (InterleaveInfo nRowVar interleaveRows)
   (InterleaveInfo nColVar interleaveCols)
   x@(M rows cols _ _) =
+  -- reorderRows is faster than reorderCols, hence it is done in the inner loop.
   _producedMats $ foldl'
-    (\(IVS m prevResults) i ->
-      let fi
-           | i == 0 = id
-           | otherwise = reorderRows
-          m' = m{mvect = fi $ mvect m}
+    (\(IVS m prevResults) j ->
+      let fj
+           | j == 0 = id
+           | otherwise = reorderCols
+          m' = m{mvect = fj $ mvect m}
           (IVS _ intermediateResults) = foldl'
-            (\(IVS n l) j ->
-              let fj
-                   | j == 0 = id
-                   | otherwise = reorderCols
-                  n' = n{mvect = fj $ mvect n}
+            (\(IVS n l) i ->
+              let fi
+                   | i == 0 = id
+                   | otherwise = reorderRows
+                  n' = n{mvect = fi $ mvect n}
               in IVS n' $ n':l)
             (IVS m' prevResults)
-            [0..nColVar-1]
+            [0..nRowVar-1]
       in IVS m' intermediateResults)
     (IVS x [])
-    [0..nRowVar-1]
+    [0..nColVar-1]
  where
   len = rows * cols
 
-  -- TODO reorderRows is faster than reorderCols, hence it should be preferred in the loop:
-  -- The function calls reorderCols "nRowVar*nColVar" times and reorderRows only "nRowVar" times.
   reorderRows v = -- ignores rotations
     V.create $ do
       mv <- MV.unsafeNew len

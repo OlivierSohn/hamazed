@@ -171,7 +171,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
 
 bestStrategy :: OptimalStrategies -> SmallWorldCharacteristics -> Maybe MatrixVariants
 bestStrategy (OptimalStrategies m) world@(SWCharacteristics sz _ _) =
-  fmap (adaptToSize sz) $ maybe defaultStrategy (\(OptimalStrategy s _) -> s) best
+  fmap (toVariants sz) $ maybe defaultStrategy (\(OptimalStrategy s _) -> s) best
  where
   (best,_) = Map.foldlWithKey' (\cur@(_, curDist) charac strategy ->
     let dist = smallWorldCharacteristicsDistance charac world

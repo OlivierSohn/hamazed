@@ -40,7 +40,7 @@ newtype OptimalStrategies = OptimalStrategies (Map SmallWorldCharacteristics Opt
 instance Binary OptimalStrategies
 
 data OptimalStrategy = OptimalStrategy {
-    _optinalStrategy :: !(Maybe MatrixVariants)
+    _optinalStrategy :: !(Maybe MatrixVariantsSpec)
   , averageDuration :: !(Time Duration System)
 } deriving(Generic)
 instance Binary OptimalStrategy

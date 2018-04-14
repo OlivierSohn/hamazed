@@ -19,9 +19,8 @@ module Imj.Game.Hamazed.World.Space.Types
     , prettyShowSWCharacteristics
     , MatrixVariants(..)
     , MatrixVariantsSpec(..)
-    , toMV
-    , toMVSpec
-    , adaptToSize
+    , toVariants
+    , toVariantsSpec
     , prettyShowMatrixVariants
     , humanShowVariants
     , Variation(..)
@@ -220,14 +219,11 @@ data MatrixVariantsSpec =
 instance Binary MatrixVariantsSpec
 instance NFData MatrixVariantsSpec
 
-adaptToSize :: Size -> MatrixVariants -> MatrixVariants
-adaptToSize sz = toMV sz . toMVSpec
+toVariantsSpec :: MatrixVariants -> MatrixVariantsSpec
+toVariantsSpec (Variants l next) = VariantsSpec (NE.map mkVariationSpec l) (fmap toVariantsSpec next)
 
-toMVSpec :: MatrixVariants -> MatrixVariantsSpec
-toMVSpec (Variants l next) = VariantsSpec (NE.map mkVariationSpec l) (fmap toMVSpec next)
-
-toMV :: Size -> MatrixVariantsSpec -> MatrixVariants
-toMV sz (VariantsSpec l next) = Variants (NE.map (mkVariation sz) l) (fmap (toMV sz) next)
+toVariants :: Size -> MatrixVariantsSpec -> MatrixVariants
+toVariants sz (VariantsSpec l next) = Variants (NE.map (mkVariation sz) l) (fmap (toVariants sz) next)
 
 prettyShowMatrixVariants :: Maybe MatrixVariants -> String
 prettyShowMatrixVariants =

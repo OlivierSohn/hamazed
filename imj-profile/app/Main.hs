@@ -65,9 +65,9 @@ main :: IO ()
 main = do
   useOneCapabilityPerPhysicalCore
 
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  --profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
+  profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
   --writeSeedsSource
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
@@ -268,7 +268,7 @@ toOptimalStrategies (Results m) = OptimalStrategies $
           NoResult -> a
           NTimeouts _ -> a
           FinishedAverage dt _ ->
-            let cur = OptimalStrategy strategy dt
+            let cur = OptimalStrategy (fmap toVariantsSpec strategy) dt
             in Just $ maybe cur (min cur) a)
       Nothing)
     m

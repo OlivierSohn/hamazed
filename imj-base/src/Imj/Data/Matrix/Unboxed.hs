@@ -48,7 +48,7 @@ module Imj.Data.Matrix.Unboxed (
   ) where
 
 import           Imj.Prelude
-import           Prelude(length, and, unlines, unwords, replicate, concat, take)
+import           Prelude(length, and, unlines, concat, take)
 
 import           Control.DeepSeq
 import           Control.Loop (numLoop, numLoopFold)
@@ -62,6 +62,8 @@ import qualified Data.Vector                     as BV
 import qualified Data.Vector.Unboxed             as V hiding(Unbox)
 import qualified Data.Vector.Unboxed.Mutable     as MV
 import qualified Data.Matrix                     as Mat -- this matrix is 1-indexed, whereas ours is 0-indexed
+
+import           Imj.Graphics.Text.Render
 
 -------------------------------------------------------
 -------------------------------------------------------
@@ -101,18 +103,7 @@ sizeStr n m = show n ++ "x" ++ show m
 
 -- | Display a matrix as a 'String' using the 'Show' instance of its elements.
 prettyMatrix :: (Show a, Unbox a) => Matrix a -> String
-prettyMatrix m = concat
-   [ "\n┌ ", unwords (replicate (ncols m) blank), " ┐\n"
-   , unlines
-   [ "│ " ++ unwords (fmap (\j -> fill $ strings Mat.! (i,j)) [1..ncols m]) ++ " │" | i <- [1.. nrows m] ]
-   , "└ ", unwords (replicate (ncols m) blank), " ┘"
-   ]
- where
-   strings = mapMat' show m
-   widest = maximum $ map length $ Mat.toList strings
-   fill str = replicate (widest - length str) ' ' ++ str
-   blank = fill ""
-
+prettyMatrix = unlines . showArrayN Nothing . Mat.toLists . mapMat' show
 
 instance (Show a, Unbox a) => Show (Matrix a) where
  show = prettyMatrix

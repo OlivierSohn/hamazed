@@ -8,6 +8,7 @@ module Imj.Data.Class.Quantifiable
     ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(maximum,minimum)
 import           Prelude(logBase)
 
 import           Data.List(length, foldl')
@@ -60,5 +61,5 @@ logarithmically base l'' =
  where
   l = map (maybe 1 id . mapRange minD maxD 1 base . writeFloat) l'
   l' = map writeFloat l''
-  maxD = maximum l'
-  minD = minimum l'
+  maxD = Unsafe.maximum l'
+  minD = Unsafe.minimum l'

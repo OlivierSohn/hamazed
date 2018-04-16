@@ -94,8 +94,7 @@ drawSetup mayWorldParams cont = do
       wallsProbaSlider = maybe
         return
         (\(WorldParameters _ (WallDistribution _ proba)) ->
-            let nSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
-            in drawSlider $ Slider proba minWallProba maxWallProba nSteps 'u' 'h' configColors Compact)
+            drawSlider $ Slider proba minWallProba maxWallProba nProbaSteps 'u' 'h' configColors Compact)
         mayWorldParams
   dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"

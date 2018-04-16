@@ -4,7 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Profile.Render
-    ( renderResultsHtml
+    ( writeHtmlReport
+    , resultsToHtml
     -- reexport
     , FilePath
     ) where
@@ -12,24 +13,44 @@ module Imj.Profile.Render
 import           Imj.Prelude hiding(div)
 import           Prelude(FilePath)
 
-import qualified Data.List as List(map)
+import           Data.Text(pack)
+import           Data.UUID(UUID)
 import           Text.Blaze.Html5
 import qualified Text.Blaze.Html5.Attributes as A
 
-import           Imj.File
 import           Imj.Graphics.Color.Types
-import           Imj.Graphics.Text.ColorString
-import           Imj.Graphics.Class.Words
 
+import           Imj.File
+import           Imj.Graphics.Text.ColorString
+import           Imj.Profile.Intent
 import           Imj.Profile.Render.Blaze
 import           Imj.Profile.Render.Clay
+import           Imj.Profile.Results
 
-renderResultsHtml :: (ToMarkup a)
-                  => String
-                  -> [(a, Maybe [[ColorString]])]
+
+writeHtmlReport :: UUID
+                -> Html
+                -> UserIntent
+                -> IO ()
+writeHtmlReport key h intent = do
+  name <- renderResultsHtml key intentStr h
+  putStrLn $ colored ("Wrote Chrome-compatible html report: " <> pack name) yellow
+
+ where
+
+  intentStr = case intent of
+    Cancel -> "The test was interrupted."
+    Report _ -> "The test is still running."
+    Run -> "The test has finished." -- because we write a report only at the end, or on 'Report'
+    Pause _ -> "The test is paused" -- should not happen
+
+
+renderResultsHtml :: UUID
+                  -> String
+                  -> Html
                   -> IO FilePath
-renderResultsHtml status resultsAndSubresults = do
-  renameDirectoryIfExists dir -- TODO if it is the same run, rename the directory to .old, then delete it
+renderResultsHtml k status resultsAndSubresults = do
+  deleteOrRename dir k
   renderCss (dir <> "/" <> cssName) mkCss
   renderHtml (dir <> "/html/results") $
     fromHeaderBody
@@ -40,7 +61,7 @@ renderResultsHtml status resultsAndSubresults = do
         scripts)
       (do
         bodyHeader
-        bodyResults)
+        resultsAndSubresults)
  where
   dir = "report"
 
@@ -59,22 +80,6 @@ renderResultsHtml status resultsAndSubresults = do
    where
     statusColor = LayeredColor (gray 13) black
     msgColor = LayeredColor (gray 3) (gray 13)
-
-
-  bodyResults = mconcat $ List.map (uncurry resultLine) resultDetails
-
-  resultDetails =
-    List.map
-      (\(_,(res,mayDetailsContents)) ->
-        (,) res $ maybe
-          Nothing
-          (Just . mconcat . List.map (\lines ->
-              div $ do
-                mconcat $ List.map (\l -> p $ toHtml $ bool l "|" $ empty l) lines
-                br
-              ))
-          mayDetailsContents)
-    (zip [0 :: Int ..] resultsAndSubresults)
 
   pageTitle x = title $ string x
 

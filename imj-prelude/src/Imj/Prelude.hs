@@ -14,8 +14,8 @@ import           Prelude as Exported
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
   , sum, map, concatMap, filter, mapM_, sequence_
-  , all, any, notElem, null, minimum, maximum
-  , (++), takeWhile, tail, last, head, drop, reverse, iterate
+  , all, any, notElem, null
+  , (++), takeWhile, drop, reverse, iterate
   , zip, zip3, unzip, zipWith, fst, snd
   , fmap, (.), (=<<), ($), (<$>), const, id, flip, curry, uncurry
   , compare, not, or, (||), (&&), otherwise

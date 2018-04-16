@@ -10,6 +10,7 @@
 module Imj.Game.Hamazed.World.Space.Strategies
     ( OptimalStrategies(..)
     , OptimalStrategy(..)
+    , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
     , decodeOptimalStrategiesFileOrFail
     , smallWorldCharacteristicsDistance
@@ -19,10 +20,17 @@ import           Imj.Prelude
 
 import           Prelude(FilePath, putStrLn)
 import           Data.Binary
+import           Data.List
 import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import           Data.String(IsString(..))
 import           System.Directory(doesFileExist)
 
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Class.Words hiding(intercalate)
+import           Imj.Graphics.Text.Render
 import           Imj.Timing
 
 -- NOTE we could record also non optimal strategies, because when we interpolate, maybe the points of the cube do not agree:
@@ -38,9 +46,11 @@ import           Imj.Timing
 newtype OptimalStrategies = OptimalStrategies (Map SmallWorldCharacteristics OptimalStrategy)
   deriving(Generic)
 instance Binary OptimalStrategies
+instance Show OptimalStrategies where
+  show = unlines . prettyShowOptimalStrategies
 
 data OptimalStrategy = OptimalStrategy {
-    _optinalStrategy :: !(Maybe MatrixVariantsSpec)
+    _optimalStrategy :: !(Maybe MatrixVariantsSpec)
   , averageDuration :: !(Time Duration System)
 } deriving(Generic)
 instance Binary OptimalStrategy
@@ -56,7 +66,7 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
   --   proba 0.6 -> 0.7
   --   2 cc -> 3 cc
   --   4 cc -> 5 cc
-  dSize + 10 * abs (p-p') + fromIntegral (dCC (min cc cc') (max cc cc'))
+  doubleSize + 10 * abs (p-p') + fromIntegral (dCC (min cc cc') (max cc cc'))
  where
    -- c1 <= c2
    dCC c1 c2
@@ -64,7 +74,7 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
     | c1 == 1 = (c2 - c1) * 10
     | otherwise = c2 - c1
 
-   dSize
+   doubleSize -- 1 when size doubles
     | a == a' = 0
     | a' == 0 = 1000000
     | ratio > 1 = ratio - 1
@@ -95,3 +105,39 @@ decodeOptimalStrategiesFileOrFail =
       return fallback
  where
   fallback = OptimalStrategies mempty
+
+data SizeProba = SizeProba {
+    _spSize :: {-# UNPACK #-} !Size
+  , _spProba :: {-# UNPACK #-} !AlmostFloat
+} deriving(Eq, Ord)
+
+prettyShowOptimalStrategies :: Characters s => OptimalStrategies -> [s]
+prettyShowOptimalStrategies (OptimalStrategies m) =
+  intercalate [""] $ map (\(cc,optimalStrategies) -> fromString (show cc) : showBySizeProba optimalStrategies)
+    $ Map.toList $ splitKeys (\(SWCharacteristics sz cc proba) -> (cc, SizeProba sz $ almost proba)) m
+ where
+  showBySizeProba m' = map fromString $ showArrayN
+    (Just $ "" : map show allProbas) $
+    map showFullLine $ sortOn (area . fst) fullLines -- order by area
+   where
+    sparseLines :: [(Size, Map AlmostFloat OptimalStrategy)]
+    sparseLines = Map.assocs $ splitKeys (\(SizeProba sz p) -> (sz, p)) m'
+
+    allProbas = Set.toList $ Set.unions $ map (Map.keysSet . snd) sparseLines
+
+    common = Map.fromDistinctAscList $ zip allProbas $ repeat Nothing
+
+    fullLines :: [(Size, [Maybe OptimalStrategy])]
+    fullLines = map (fmap $ Map.elems . safeMerge (<|>) common . Map.map Just) sparseLines
+
+    showFullLine (Size (Length a) (Length b), l) = show (a,b) : map (maybe "" (showTime . averageDuration)) l
+
+
+splitKeys :: (Ord k, Ord k1, Ord k2)
+          => (k -> (k1, k2))
+          -- ^ is expected to be injective
+          -> Map k v
+          -> Map k1 (Map k2 v)
+splitKeys convertKey =
+  Map.map (Map.mapKeysWith (error "logic") (snd . convertKey))
+  . Map.mapKeysWith Map.union (fst . convertKey) . Map.mapWithKey Map.singleton

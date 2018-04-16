@@ -20,24 +20,38 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   exposed-modules:     Imj.File
+                     , Imj.Random.MWC.Util
                      , Imj.Random.MWC.Seeds
+                     , Imj.Random.MWC.MkSeeds
+                     , Imj.Random.Util
+                     , Imj.Profile.Intent
                      , Imj.Profile.Render
                      , Imj.Profile.Render.Characters
                      , Imj.Profile.Render.Clay
                      , Imj.Profile.Render.Blaze
                      , Imj.Profile.Result
+                     , Imj.Profile.Results
+                     , Imj.Profile.Scheduler
   other-modules:
   build-depends:       base >= 4.8 && < 4.12
+                     , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
                      , clay ==0.13.*
                      , containers ==0.5.*
+                     , deepseq ==1.4.*
                      , directory ==1.3.*
                      , filepath ==1.4.*
                      , imj-base ==0.1.*
+                     , imj-game-hamazed ==0.1.*
                      , imj-prelude ==0.1.*
+                     , mwc-random ==0.13.*
+                     , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , time ==1.8.*
+                     , unix ==2.7.*
+                     , uuid == 1.3.*
+                     , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
 
@@ -45,6 +59,7 @@ executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.12
+                     , blaze-html ==0.9.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-game-hamazed ==0.1.*
@@ -55,6 +70,7 @@ executable imj-profile-exe
                      , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , unix ==2.7.*
+                     , uuid == 1.3.*
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 

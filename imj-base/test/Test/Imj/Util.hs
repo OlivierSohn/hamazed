@@ -10,7 +10,7 @@ import           Imj.Prelude
 
 import           Imj.Util
 
-import           Test.Imj.Utilities
+import           Imj.Data.AlmostFloat
 
 testUtils :: IO ()
 testUtils = do

@@ -28,6 +28,7 @@ module Imj.Geo.Discrete
           ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(last)
 
 import           Data.Word(Word32)
 
@@ -72,7 +73,7 @@ extremities (Horizontal row c1 c2) = (Coords row c1, Coords row c2)
 extremities (Vertical   col r1 r2) = (Coords r1 col, Coords r2 col)
 extremities oblique@(Oblique c1 _ l)
   | l <= 0 = error $ "Segment length should be strictly positive : " ++ show l
-  | otherwise = (c1, last $ bresenham oblique)
+  | otherwise = (c1, Unsafe.last $ bresenham oblique)
 
 -- | Returns the number of valid positions when moving in a given direction
 -- from a start position. The start position is tested also, hence when this function

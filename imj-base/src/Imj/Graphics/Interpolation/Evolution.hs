@@ -38,6 +38,7 @@ or rendered (for morphings), based on the current frame and the inverse ease fun
 import           GHC.Show(showString)
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(last)
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -163,9 +164,10 @@ getValueAt :: DiscreteInterpolation v
            -> Frame
            -> v
            -- ^ The evolution value.
-getValueAt (Evolution s@(Successive l) lastFrame _ _) frame@(Frame step)
-  | frame <= 0         = head l
-  | frame >= lastFrame = last l
+getValueAt (Evolution (Successive []) _ _ _) _ = error "logic"
+getValueAt (Evolution s@(Successive l@(v:_)) lastFrame _ _) frame@(Frame step)
+  | frame <= 0         = v
+  | frame >= lastFrame = Unsafe.last l
   | otherwise          = interpolateSuccessive s step
 
 

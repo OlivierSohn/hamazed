@@ -11,6 +11,7 @@ module Imj.Game.Hamazed.World.Create
 
 import           Imj.Prelude
 import           Prelude(length)
+import qualified Prelude as Unsafe(last)
 
 import           Control.Monad.IO.Class(liftIO)
 import           Data.List(sortOn, concat)
@@ -117,5 +118,8 @@ doBallMotion (PosSpeed pos speed) =
 doBallMotionUntilCollision :: Space -> PosSpeed -> PosSpeed
 doBallMotionUntilCollision space (PosSpeed pos speed) =
   let trajectory = bresenham $ mkSegment pos $ sumPosSpeed pos speed
-      newPos = maybe (last trajectory) snd $ firstCollision (`location` space) trajectory
-  in PosSpeed newPos speed
+  in case trajectory of
+    [] -> error "logic"
+    _:_ ->
+      let newPos = maybe (Unsafe.last trajectory) snd $ firstCollision (`location` space) trajectory
+      in PosSpeed newPos speed

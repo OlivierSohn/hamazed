@@ -111,12 +111,7 @@ instance DiscreteDistance ColoredGlyphList where
         s1' = assert (remaining == 0) c1'
         l = zipWith colorDist s1' s2 -- since color interpolation happends AFTER char changes,
                                      -- we compare colors with result of char interpolation
-        colorDistance =
-          if null l
-            then
-              1
-            else
-              maximum l
+        colorDistance = fromMaybe 1 $ maximumMaybe l
 
         str1 = map fst s1
         str2 = map fst s2

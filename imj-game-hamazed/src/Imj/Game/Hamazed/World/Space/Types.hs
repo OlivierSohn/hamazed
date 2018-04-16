@@ -30,6 +30,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , RotationDetail(..)
     , MkSpaceResult(..)
     , LowerBounds(..)
+    , mkLowerBounds
     , SmallWorldRejection(..)
     , SmallWorldComponentsRejection(..)
     , RenderedSpace(..)
@@ -189,11 +190,11 @@ data Scope = WorldScope !Material
            deriving(Show)
 
 data SmallWorldCharacteristics = SWCharacteristics {
-    worldSize :: {-# UNPACK #-} !Size
+    swSize :: {-# UNPACK #-} !Size
     -- ^ Size of the small world
-  , _componentCount :: !ComponentCount
+  , swComponentCount :: !ComponentCount
     -- ^ The expected count of connex components.
-  , _userWallProba :: Float
+  , swUserWallProba :: !Float
     -- ^ User wall proba, in range [0,1]. The /real/ wall proba will then be this value
     -- mapped to the theoretical min / max proba range, computed according to
     -- 'ComponentCount' and 'Size' of the small world.
@@ -474,8 +475,7 @@ toGameChar Wall = 'Z'
 data Properties = Properties {
     _characteristics :: !SmallWorldCharacteristics
   , _variants :: !(Maybe MatrixVariants)
--- TODO update comment when done
--- ^ (Will soon be) deduced from 'SmallWorldCharacteristics'
+-- ^ Deduced from 'SmallWorldCharacteristics'
   , _lowerbounds :: !(Either Text LowerBounds)
 } deriving(Generic, Eq, Ord)
 instance Binary Properties
@@ -484,14 +484,12 @@ instance Show Properties where
   show = unlines . prettyShowProperties
 
 mkProperties :: SmallWorldCharacteristics -> Maybe MatrixVariants -> Properties
-mkProperties ch@(SWCharacteristics sz nComponents' _) st =
-  Properties ch st $ mkLowerBounds sz nComponents'
+mkProperties ch st = Properties ch st $ mkLowerBounds ch
 
-mkLowerBounds :: Size
-              -> ComponentCount
+mkLowerBounds :: SmallWorldCharacteristics
               -> Either Text LowerBounds
               -- ^ Left is returned when no such world can be generated.
-mkLowerBounds sz n =
+mkLowerBounds (SWCharacteristics sz nComponents _) =
   maybe
     (Left sizeMsg)
     (\minAir ->
@@ -504,10 +502,10 @@ mkLowerBounds sz n =
         mayMinWall)
     mayMinAir
  where
-  mayMinAir = minCountAirBlocks n sz
-  mayMinWall = minCountWallBlocks n sz
+  mayMinAir = minCountAirBlocks nComponents sz
+  mayMinWall = minCountWallBlocks nComponents sz
   total = area sz
-  sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show n)
+  sizeMsg = pack (show sz) <> " is too small to contain " <> pack (show nComponents)
 
 
 minCountAirBlocks :: ComponentCount -> Size -> Maybe Int

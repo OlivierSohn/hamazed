@@ -6,7 +6,7 @@ module Test.Imj.Quantifiable(testAverageable) where
 
 import           Imj.Prelude
 
-import           Test.Imj.Utilities
+import           Imj.Data.AlmostFloat
 import           Imj.Timing
 import           Imj.Data.Class.Quantifiable
 

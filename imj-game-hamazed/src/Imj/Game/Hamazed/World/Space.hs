@@ -21,6 +21,7 @@ module Imj.Game.Hamazed.World.Space
     , countBigCCElts
     , OverlapKind(..)
     , randomCCCoords
+    , bigToSmall
     -- for tests
     , matchAndVariate
     , mkSmallWorld
@@ -30,7 +31,8 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
-import Prelude(print)
+import           Prelude(print)
+import qualified Prelude as Unsafe(head,last, maximum, minimum)
 import           Control.Monad.ST(runST)
 import           Control.Concurrent(MVar, takeMVar, tryPutMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync)
@@ -486,10 +488,10 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
 
   comps = map (ConnectedComponent . V.fromList . flatten) allComps
 
-  wellDistributed =
-    let lengths = map countSmallCCElts comps -- NOTE we could use foldTree to avoid flatten
-    in maximum lengths < 2 * minimum lengths
-
+  wellDistributed = case map countSmallCCElts comps of -- NOTE we could use 'foldTree' to avoid 'flatten'
+    [] -> True
+    lengths@(_:_) ->
+      Unsafe.maximum lengths < 2 * Unsafe.minimum lengths
 
   {- Returns True if the nearby graph (where an edge means 2 components are nearby)
   has only one connected component.
@@ -813,9 +815,9 @@ extend (Size rs cs) mat =
 extend' :: Int -> [a] -> [a]
 extend' _ [] = error "extend empty list not supported"
 extend' sz l@(_:_) =
-  replicate addsLeft (head l) ++
+  replicate addsLeft (Unsafe.head l) ++
   l ++
-  replicate addsRight (last l)
+  replicate addsRight (Unsafe.last l)
  where
   (addsLeft, addsRight) = extend'' sz $ length l
 

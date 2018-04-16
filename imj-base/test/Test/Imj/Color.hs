@@ -14,7 +14,7 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Color.Hue
 import           Imj.Graphics.Color.Hue.Internal
 
-import           Test.Imj.Utilities
+import           Imj.Data.AlmostFloat
 
 testColor :: IO ()
 testColor = do

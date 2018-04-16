@@ -222,12 +222,7 @@ instance DiscreteDistance ColorString where
         s1' = assert (remaining == 0) c1'
         l = zipWith colorDist s1' s2 -- since color interpolation happends AFTER char changes,
                                      -- we compare colors with result of char interpolation
-        colorDistance =
-          if null l
-            then
-              1
-            else
-              maximum l
+        colorDistance = fromMaybe 1 $ maximumMaybe l
 
         toString = map fst
         str1 = toString s1

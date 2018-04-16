@@ -1,6 +1,6 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-11.1
+resolver: lts-11.5
 
 packages:
 - './imj-prelude'
@@ -13,11 +13,7 @@ packages:
 
 - location:
     git: https://github.com/OlivierSohn/GLFW-b.git
-    commit: 0cdf2168997f73a79319550d2cbac06d68a07407
-  extra-dep: true
-- location:
-    git: https://github.com/bsl/bindings-GLFW.git
-    commit: 3699e8fbb4a945017f6f6cecba3e10fba85b6af9
+    commit: b271c2dda33f3d2eccc49ecbac1a4257580acb52
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/clay.git
@@ -30,6 +26,7 @@ packages:
 
 extra-deps:
 - FTGL-2.1
+- bindings-GLFW-3.2.1.0
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

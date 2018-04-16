@@ -8,7 +8,6 @@ module Imj.Profile.Render.Blaze
     , fromHeaderBody
     , cssHeader
     , scripts
-    , resultLine
     , ToMarkup
     ) where
 
@@ -17,25 +16,24 @@ import           Prelude(FilePath, unlines)
 import qualified Data.ByteString as B
 import qualified System.IO as IO
 
-import           Text.Blaze.Html5 (Html, ToMarkup(..), docTypeHtml, body, toHtml)
-import qualified Text.Blaze.Html.Renderer.Utf8 as Utf8(renderHtmlToByteStringIO)
-import qualified Text.Blaze.Html5 as H
+import qualified Text.Blaze.Html.Renderer.Utf8 as Utf8
+import           Text.Blaze.Html5
 import           Text.Blaze.Html4.FrameSet ((!))
 import qualified Text.Blaze.Html5.Attributes as A
 
 import           Imj.File
 
 fromHeaderBody :: Html -> Html -> Html
-fromHeaderBody h b = docTypeHtml $ do
-  H.head h
-  body b
+fromHeaderBody ht bo = docTypeHtml $ do
+  head ht
+  body bo
 
 cssHeader :: FilePath -> Html
 cssHeader css =
-  H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href (H.stringValue css)
+  link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href (stringValue css)
 scripts :: Html
 scripts =
-  H.script ! A.lang "javascript" $ H.string $ unlines
+  script ! A.lang "javascript" $ string $ unlines
     [ ""
     , "function show_overlay(e){"
     , "  e.childNodes[0].style.display=\"block\""
@@ -83,10 +81,10 @@ scripts =
     , "    start = element.scrollTop,"
     , "    change = to - start,"
     , "    startDate = +new Date(),"
-    , "    // t = current progress"
-    , "    // b = start value"
-    , "    // c = change in value"
-    , "    // d = duration"
+     -- t = current progress
+     -- b = start value
+     -- c = change in value
+     -- d = duration
     , "    easeLin = function(t, b, c, d) {"
     , "        return b + c * t / d;"
     , "    },"
@@ -105,46 +103,10 @@ scripts =
     , "};"
     ]
 
-resultLine :: ToMarkup a => a -> Maybe Html -> Html
-resultLine e =
-    maybe
-      (H.p txt)
-      (\resultDetail ->
-        H.div
-          H.! A.class_ "clic"
-          H.! A.onclick (H.stringValue "toggle_details(this,event)")
-          H.! A.onmouseover (H.stringValue "show_overlay(this)")
-          H.! A.onmouseout (H.stringValue "hide_overlay(this)")
-          -- No title (it is distracting)
-          $ do
-            H.div -- 0
-              H.! A.class_ "overlay" -- has absolute positionning, hence doesn't take space in flow.
-              $ pure ()
-            H.div -- 1
-              txt
-            H.div -- 2
-              H.! A.class_ "detail"
-              $ do
-                H.div H.br -- if br is outside this div, its height is not taken into account in toggleExpand
-                resultDetail)
- where
-  txt = toHtml e
-
---    ((H.!) H.p . A.title . H.stringValue . replaceNewlines)
-{-  replaceNewlines [] = []
-  replaceNewlines ('\n':xs) = chr 13:replaceNewlines xs
-  replaceNewlines (c:xs)    = c     :replaceNewlines xs
-  -}
-  -- in a <p title="titleTxt"> ... </p>, onChrome, any of &#10; &#13; &#xA; in titleTxt make newlines.
-
 renderHtml :: FilePath -> Html -> IO FilePath
-renderHtml base html = do
-  createDirectories base
-  let utf8path = base <> ".html"
-  --BL.writeFile utf8path $ Utf8.renderHtml html
-  IO.withFile utf8path IO.WriteMode $ \h ->
-    Utf8.renderHtmlToByteStringIO (B.hPutStr h) html
-
---  writeFile (base <> ".string.html") $ Str.renderHtml html
---  writeFile (base <> ".pretty.html") $ Pretty.renderHtml html
+renderHtml name h = do
+  createDirectories name
+  let utf8path = name <> ".html"
+  IO.withFile utf8path IO.WriteMode $ \str ->
+    Utf8.renderHtmlToByteStringIO (B.hPutStr str) h
   return utf8path

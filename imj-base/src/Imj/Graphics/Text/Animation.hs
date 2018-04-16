@@ -51,6 +51,7 @@ import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
 import           Imj.Timing
+import           Imj.Util
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextStringAnchored #-}
@@ -99,7 +100,7 @@ drawAnimatedTextCharAnchored' :: (DiscreteInterpolation a, Characters a,
 drawAnimatedTextCharAnchored' [] _ _ = return ()
 drawAnimatedTextCharAnchored' (e@(Evolution (Successive colorStrings) _ _ _):rest) rs i = do
   -- use length of from to know how many Anchors we should take
-  let nRS = maximum $ map Words.length colorStrings
+  let nRS = fromMaybe (error "logic") $ maximumMaybe $ map Words.length colorStrings
       (nowRS, laterRS) = splitAt nRS rs
       str = getValueAt e i
   Words.drawOnPath nowRS str
@@ -129,7 +130,7 @@ mkSequentialTextTranslationsCharAnchored l =
   let (from_,to_) =
         foldl'
           (\(froms, tos) (Successive a, from, to) ->
-            let sz = maximum $ map Words.length a
+            let sz = fromMaybe (error "logic") $ maximumMaybe $ map Words.length a
             in (froms ++ build from sz, tos ++ build to sz))
           ([], [])
           l
@@ -168,7 +169,7 @@ mkSequentialTextTranslationsAnchored :: (DiscreteDistance a)
                                      -> TextAnimation a b
 mkSequentialTextTranslationsAnchored txts from_ to_ duration =
   let strsEv = map (`mkEvolutionEaseQuart` duration) txts
-      fromTosLastFrame = maximum $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
+      fromTosLastFrame = fromMaybe (error "logic") $ maximumMaybe $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
       evAnchors@(Evolution _ anchorsLastFrame _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                           SequentiallyInterpolatedList to_]) duration

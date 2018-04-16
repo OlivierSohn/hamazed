@@ -86,7 +86,7 @@ instance DiscreteColorableMorphing RectContainer where
     | frame >= lastFrame = drawUsingColor to color
     | otherwise          = drawRectFrameInterpolation from to lastFrame frame color
     where
-      lastFrame = pred $ distance from to
+      lastFrame = distance from to - 1
 
 -- TODO typeclass "continuous closed path" to gather 'ranges' and 'drawRectFrameInterpolation' logics.
 
@@ -179,7 +179,7 @@ ranges progress sz =
 
 complement :: Int -> Int -> [(Int, Int)] -> [(Int, Int)]
 complement a max_ []          = [(a, max_)]
-complement a max_ l@((b,c):_) = (a, pred b) : complement (succ c) max_ (tail l)
+complement a max_ ((b,c):rest) = (a, b - 1) : complement (c + 1) max_ rest
 
 rangeByRemovingFromTotal :: Int -> Int -> Int -> (Int, Int)
 rangeByRemovingFromTotal remove total start =

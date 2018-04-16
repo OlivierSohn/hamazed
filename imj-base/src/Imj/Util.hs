@@ -1,11 +1,13 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Util
     ( -- * List utilities
-      replicateElements
+      dedup
+    , dedupAsc
+    , replicateElements
     , intersperse'
     , splitEvery
     , mkGroups
@@ -25,16 +27,26 @@ module Imj.Util
     ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(maximum)
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl', replicate)
+import qualified Data.Set as Set
 
+{-# INLINABLE dedup #-}
+dedup :: (Ord a) => [a] -> [a]
+dedup = Set.toList . Set.fromList
+
+{-# INLINABLE dedupAsc #-}
+dedupAsc :: (Ord a) => [a] -> [a]
+dedupAsc = Set.toList . Set.fromAscList
 
 {-# INLINE maximumMaybe #-}
 maximumMaybe :: Ord a => [a] -> Maybe a
-maximumMaybe [] = Nothing
-maximumMaybe xs = Just $ maximum xs
+maximumMaybe = \case
+  [] -> Nothing
+  xs@(_:_) -> Just $ Unsafe.maximum xs
 
 
 {-# INLINE replicateElements #-}

@@ -1,3 +1,11 @@
+- Bug:
+impossible :["Size {getHeight = Length 2, getWidth = Length 2} is too small to contain ComponentCount 3"]
+
+- first restrict benchmarks to worlds with blocksize 6.
+- make results cumulative, so that we can run the test several times and restart from where we left.
+The timeout can be set to the max recorded duration.
+- maybe the hints should be more local.
+
 - embed some refined strategies in the program.
 
 - display estimated time to build a world (based on optimal strategy time)

@@ -59,8 +59,8 @@ class (DiscreteDistance v, Drawable v)
                          -> m ()
   drawMorphingSuccessive (Successive []) _ = error "empty successive"
   drawMorphingSuccessive (Successive [a]) _ = drawMorphing a a 0
-  drawMorphingSuccessive (Successive l@(a:b:_)) i
+  drawMorphingSuccessive (Successive (a:rest@(b:_))) i
     | i <= 0      = drawMorphing a a 0
-    | i >= lf = drawMorphingSuccessive (Successive $ tail l) $ i-lf
+    | i >= lf = drawMorphingSuccessive (Successive rest) $ i-lf
     | otherwise = drawMorphing a b i
     where lf = pred $ distance a b

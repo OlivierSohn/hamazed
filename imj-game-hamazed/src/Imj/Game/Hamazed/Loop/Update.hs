@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.Loop.Update
 
 import           Imj.Prelude
 import           Prelude(length)
+import qualified Prelude as Unsafe(last)
 
 import           Control.Concurrent(forkIO)
 import           Control.Concurrent.Async(withAsync)
@@ -349,7 +350,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
         else do
           let mayPrevRecord = case s of
                 [] -> Nothing
-                _ -> Just $ last s
+                _:_ -> Just $ Unsafe.last s
           evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
           evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
           let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
@@ -370,7 +371,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
         else do
           let mayPrevRecord = case s of
                 [] -> Nothing
-                _ -> Just $ last s
+                _:_ -> Just $ Unsafe.last s
           evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
           evolutionEnd <- liftIO mkZeroRecordDraw
           let ev = mkEvolutionEaseInQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 0.5

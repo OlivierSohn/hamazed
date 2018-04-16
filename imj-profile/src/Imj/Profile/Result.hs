@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Profile.Result
@@ -10,6 +11,7 @@ module Imj.Profile.Result
     , mkEmptyStatus
     , TestDurations(..)
     , Summary(..)
+    , getSummaryDuration
     , summarize
     , Dispersion(..)
     , SeedNumber(..)
@@ -45,11 +47,17 @@ instance Ord Summary where
   compare (FinishedAverage _ _) _ = LT
   {-# INLINABLE compare #-}
 
+getSummaryDuration :: Summary -> Maybe (Time Duration System)
+getSummaryDuration = \case
+  NTimeouts _ -> Nothing
+  NoResult -> Nothing
+  FinishedAverage dt _ -> Just dt
+
 data TestStatus a = -- TODO remove maybe unused Ord, Eq
     NotStarted
   | Finished !(Time Duration System) !a
   | Timeout
-  deriving(Show)
+  deriving(Generic, Show)
 -- | 'Eq' and 'Ord' instances are based on durations : 'Finished' < ' Timeout' < 'NotStarted'
 instance (Eq a) => Eq (TestStatus a) where
   NotStarted == NotStarted = True
@@ -65,6 +73,7 @@ instance (Ord a) => Ord (TestStatus a) where
   compare Timeout _ = GT
   compare (Finished _ _) _ = LT
   {-# INLINABLE compare #-}
+instance (Binary a) => Binary (TestStatus a)
 
 mkStatus :: Maybe (Time Duration System, a) -> TestStatus a
 mkStatus = maybe Timeout (uncurry Finished)
@@ -73,13 +82,13 @@ mkEmptyStatus :: TestStatus a
 mkEmptyStatus = NotStarted
 
 newtype SeedNumber = SeedNumber Int
-  deriving(Show, Ord, Eq, Real, Num, Enum, Integral)
+  deriving(Show, Ord, Eq, Real, Num, Enum, Integral, Binary)
 unSeedNumber :: SeedNumber -> Int
 unSeedNumber (SeedNumber s) = s
 
 -- | By seed
 newtype TestDurations k a = TD (Map k (TestStatus a))
-  deriving(Show)
+  deriving(Show, Binary)
 instance (Ord k) => Monoid (TestDurations k a) where
   mempty = TD Map.empty
   mappend (TD l) (TD l') = TD $ Map.unionWith (error "would overwrite") l l'

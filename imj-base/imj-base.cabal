@@ -32,6 +32,7 @@ library
   include-dirs:        include
   other-modules:
   exposed-modules:     Imj.Control.Concurrent
+                     , Imj.Data.AlmostFloat
                      , Imj.Data.Class.Quantifiable
                      , Imj.Data.Graph
                      , Imj.Data.UndirectedGraph
@@ -197,7 +198,6 @@ test-suite imj-base-test
                      , Test.Imj.Sums
                      , Test.Imj.Timing
                      , Test.Imj.Util
-                     , Test.Imj.Utilities
                      , Test.Imj.Vector
                      , Test.Imj.ZigZag
   main-is:             Spec.hs

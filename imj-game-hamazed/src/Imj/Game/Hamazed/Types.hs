@@ -20,10 +20,13 @@ module Imj.Game.Hamazed.Types
     , initialBlockSize
     , minBlockSize
     , maxBlockSize
+    , allBlockSizes
     , initialWallProba
     , minWallProba
     , maxWallProba
     , wallProbaIncrements
+    , allProbasForGame
+    , nProbaSteps
     -- * Reexports
     , module Imj.Game.Hamazed.Chat
     , module Imj.Game.Hamazed.Level.Types
@@ -134,11 +137,20 @@ initialBlockSize = 4
 minBlockSize = 1
 maxBlockSize = 6
 
+allBlockSizes :: [Int]
+allBlockSizes = [minBlockSize..maxBlockSize]
+
 wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: Float
 initialWallProba = 0.5
 minWallProba = 0.1
 maxWallProba = 0.9
 wallProbaIncrements = 0.1
+
+allProbasForGame :: [Float]
+allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
+
+nProbaSteps :: Int
+nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
 
 initialParameters :: WorldParameters
 initialParameters =

@@ -32,7 +32,7 @@ module Imj.Game.Hamazed.World.Space
 
 import           Imj.Prelude
 import           Prelude(print)
-import qualified Prelude as Unsafe(head,last, maximum, minimum)
+import qualified Prelude as Unsafe(head,last)
 import           Control.Monad.ST(runST)
 import           Control.Concurrent(MVar, takeMVar, tryPutMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync)
@@ -42,7 +42,7 @@ import Data.Primitive.ByteArray
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Bits(shiftR, shiftL, (.|.))
 import           Data.Either(isLeft)
-import           Data.List(length, sortOn, replicate, take)
+import           Data.List(length, sortOn, replicate, take, foldl')
 import           Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
@@ -50,7 +50,7 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
-import           Data.Tree(flatten)
+import           Data.Tree(flatten, foldTree)
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import qualified Data.Vector.Unboxed.Mutable as MV
@@ -436,7 +436,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
       NCompsRequiredWithMargin _ -> Left $ CC UnusedFronteers' nComps
   | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
     -- from here on, comps is evaluated.
-  | not wellDistributed   = Left $ CC ComponentsSizesNotWellDistributed nComps
+  | not (wellDistributed lengthsMinMax) = Left $ CC ComponentsSizesNotWellDistributed nComps
     -- from here on, if the number of components is > 1, we compute the distances between components
   | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
   | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps
@@ -488,10 +488,12 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
 
   comps = map (ConnectedComponent . V.fromList . flatten) allComps
 
-  wellDistributed = case map countSmallCCElts comps of -- NOTE we could use 'foldTree' to avoid 'flatten'
-    [] -> True
-    lengths@(_:_) ->
-      Unsafe.maximum lengths < 2 * Unsafe.minimum lengths
+  lengthsMinMax = foldl'
+    (\mm comp ->
+      let len = foldTree (\_ l -> 1 + foldl' (+) 0 l) comp
+      in addValue len mm)
+    mkEmptyMinMax
+    allComps
 
   {- Returns True if the nearby graph (where an edge means 2 components are nearby)
   has only one connected component.
@@ -599,6 +601,27 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
             (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (MV.unsafeWrite v) compIdx . fromIntegral) vertices)
             $ zip [0 :: ComponentIdx ..] comps
           V.unsafeFreeze v
+
+-- | Where min > max means empty
+data MinMax = MinMax {
+    _min :: {-# UNPACK #-} !Int
+  , _max :: {-# UNPACK #-} !Int
+}
+
+mkEmptyMinMax :: MinMax
+mkEmptyMinMax = MinMax 1 (-1)
+
+addValue :: Int -> MinMax -> MinMax
+addValue !i m@(MinMax mi ma)
+  | mi > ma = MinMax i i
+  | i < mi = MinMax i ma
+  | i > ma = MinMax mi i
+  | otherwise = m
+
+wellDistributed :: MinMax -> Bool
+wellDistributed (MinMax mi ma)
+  | mi >= ma = True
+  | otherwise = ma < 2 * mi
 
 data AccumSource = AS {
     countAirKeys :: {-# UNPACK #-} !Word16

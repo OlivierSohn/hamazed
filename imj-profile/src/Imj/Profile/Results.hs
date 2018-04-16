@@ -134,7 +134,7 @@ resultsToHtml mayAllowedDt (Results results) =
       br
 
   aggregate :: [(Html, Maybe Html)] -> Html
-  aggregate = mconcat . map (uncurry withDetail)
+  aggregate = div . mconcat . map (uncurry withDetail)
 
 
 withDetail :: Html -> Maybe Html -> Html

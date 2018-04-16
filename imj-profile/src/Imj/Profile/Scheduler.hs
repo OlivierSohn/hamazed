@@ -14,7 +14,7 @@ module Imj.Profile.Scheduler
   )
   where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(div)
 
 import           Prelude(putStrLn, length)
 import           Control.Concurrent(threadDelay)
@@ -32,7 +32,7 @@ import           Data.Text(pack)
 import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
-import qualified Text.Blaze.Html5 as H
+import           Text.Blaze.Html5(div,Html, toHtml)
 
 import           Imj.Game.Hamazed.World.Space.Types
 import qualified Imj.Graphics.Class.Words as W
@@ -177,23 +177,30 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
 
   report progress@(TestProgress _ theDt _ _ _ valids) i = do
     let optimalStats = toOptimalStrategies valids
-        str = prettyShowOptimalStrategies optimalStats :: [ColorString]
-        h = H.div $ do
-          H.div $ mapM_ (H.div . H.toHtml) str
-          H.div $ resultsToHtml (Just theDt) valids
+        divArray :: [ColorString] -> Html
+        divArray = div . mapM_ (div . toHtml)
+        h =
+          div $ do
+            divArray $ showStep progress
+            divArray $ prettyShowOptimalStrategies optimalStats
+            resultsToHtml (Just theDt) valids
     writeHtmlReport key h i
     encodeOptimalStrategiesFile optimalStats
     encodeProgressFile progress
 
-  informStep (TestProgress _ theDt _ theWorlds _ _) =
-    mapM_ CS.putStrLn $ showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
+  informStep = mapM_ CS.putStrLn . showStep
+
+  showStep (TestProgress _ theDt _ worldsNow worldsLater _) =
+    showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
       [ ["Timeout ", showTime theDt]
-      , ["Easy worlds", show nEasy]
-      , ["Difficult worlds", show nDifficult]
+      , ["Easy candidates", show nEasy]
+      , ["Difficult candidates", show nDifficult]
+      , ["Later candidates", show nLater]
       ]
    where
-     n = sum $ map length theWorlds
-     nEasy = length theWorlds
+     n = sum $ map length worldsNow
+     nLater = sum $ map length worldsLater
+     nEasy = length worldsNow
      nDifficult = n - nEasy
 
   informRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> IO ()

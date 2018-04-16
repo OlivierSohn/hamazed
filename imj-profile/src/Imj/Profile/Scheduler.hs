@@ -113,17 +113,17 @@ withTestScheduler' :: MVar UserIntent
                    -> TestProgress
                    -> IO ()
 withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
-  flip (!!) 0 <$> seedGroups >>= start >>= \res ->
-    readMVar intent >>= report res
+  flip (!!) 0 <$> seedGroups >>= start >>= \finalProgress ->
+    readMVar intent >>= report finalProgress
  where
   start firstSeedGroup = do
     informStep initialProgress
-    mayReport initialProgress
     go initialProgress
    where
     go :: TestProgress
        -> IO TestProgress
-    go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) =
+    go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) = do
+      onReport (report p) intent
       continue intent >>= bool
         (return p)
         (case remaining of
@@ -174,8 +174,6 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
         let optimalStats = toOptimalStrategies valids
             str = prettyShowOptimalStrategies optimalStats
         mapM_ CS.putStrLn str -- to give a feedback of the progress in the console
-
-    mayReport progress = onReport (report progress) intent
 
   report progress@(TestProgress _ theDt _ _ _ valids) i = do
     let optimalStats = toOptimalStrategies valids

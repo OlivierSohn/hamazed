@@ -31,8 +31,11 @@ testIntensities = do
     (\i -> do
       let ref = saturatedCycle $ mkIntensity i
           n = length ref
-      n `shouldBe` countHuesOfSameIntensity (head ref)
-      fromList ref `shouldBe` fromList (sameIntensityHues (head ref)))
+      case ref of
+        [] -> error "test"
+        (r:_) -> do
+          n `shouldBe` countHuesOfSameIntensity r
+          fromList ref `shouldBe` fromList (sameIntensityHues r))
     [1..5]
 
 testRotateColorsWithHue :: IO ()

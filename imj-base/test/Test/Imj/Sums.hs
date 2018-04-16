@@ -20,6 +20,7 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import qualified Imj.Graphics.Text.ColorString  as CS(putStr)
 import           Imj.Sums
 import           Imj.Timing
+import           Imj.Util
 
 testSums :: IO ()
 testSums = do
@@ -114,6 +115,7 @@ testAsOccurences = do
     ]
 
 printTimes :: [(String, Time Duration System)] -> IO ()
+printTimes [] = putStrLn "No time"
 printTimes times = do
   putStrLn "micros|Logarithmic scale"
   forM_ (zip times logTimes) $ \((desc, dt), logRatio) -> do
@@ -127,7 +129,7 @@ printTimes times = do
     CS.putStr inColor
     putStr $ " " ++ desc ++ "\n"
  where
-  nCharsTime = length $ showTime $ maximum $ map snd times
+  nCharsTime = length $ showTime $ fromMaybe (error "logic") $ maximumMaybe $ map snd times
   nStars = 120
   countStars x = round $ fromIntegral nStars * x
   logTimes = logarithmically 10 $ map snd times

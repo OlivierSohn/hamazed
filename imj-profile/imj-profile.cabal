@@ -59,17 +59,13 @@ executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
   build-depends:       base >= 4.8 && < 4.12
-                     , blaze-html ==0.9.*
                      , containers ==0.5.*
-                     , deepseq ==1.4.*
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-profile
                      , mwc-random ==0.13.*
                      , strict-concurrency ==0.2.*
-                     , text >=1.2.3 && < 1.3
-                     , unix ==2.7.*
                      , uuid == 1.3.*
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010

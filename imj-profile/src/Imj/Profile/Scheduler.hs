@@ -28,6 +28,7 @@ import qualified Data.IntSet as ISet
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
+import           Data.Text(pack)
 import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
@@ -113,16 +114,16 @@ withTestScheduler' :: MVar UserIntent
                    -> IO ()
 withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
   flip (!!) 0 <$> seedGroups >>= start >>= \res ->
-    readMVar intent >>= report Nothing res
+    readMVar intent >>= report res
  where
   start firstSeedGroup = do
     informStep initialProgress
+    mayReport initialProgress
     go initialProgress
    where
     go :: TestProgress
        -> IO TestProgress
-    go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) = do
-      mayReport p
+    go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) =
       continue intent >>= bool
         (return p)
         (case remaining of
@@ -136,23 +137,22 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
                 go newProgress
           []:rest -> go $ p{willTestInIteration = rest}
           l@((easy,strategies):difficults):nextWorlds -> do
-            -- we have duplicate indices in hintsIndicesByDistance
             let hintsIndicesByDistance = map fst $ sortOn snd $ Map.assocs $ Map.fromListWith min $
                   map (\(w,i) -> (i, smallWorldCharacteristicsDistance easy w)) $ Map.assocs hints
                 hintsByDistance = map (\idx -> (idx, fromMaybe (error "logic") $ IMap.lookup idx strategies)) hintsIndicesByDistance
                 orderedStrategies =
                   hintsByDistance ++
                   IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
-            (remainingEasyDifficult, newHints, newNoValidStrategy, newOneValidStrategy) <-
-              go' easy orderedStrategies >>= maybe
-                (return ([], hints, l:noValidStrategy, oneValidStrategy))
-                (\((stratI,strategy),_) -> do
-                    --informRefine strategy
-                    ((refinedI,refined), resultsBySeeds) <- refineWithHint easy testF (stratI,strategy)
-                      $ IMap.assocs $ IMap.delete stratI strategies
-                    let newOneValid = foldl' (flip (uncurry (addResult easy refined))) oneValidStrategy resultsBySeeds
-                    return (difficults, Map.insert easy refinedI hints, noValidStrategy, newOneValid))
-            go $ updateProgress dt newHints (remainingEasyDifficult:nextWorlds) newNoValidStrategy newOneValidStrategy p
+            go' easy orderedStrategies >>= maybe
+              (go $ updateProgress dt hints nextWorlds (l:noValidStrategy) oneValidStrategy p)
+              (\((stratI,strategy),_) -> do
+                  ((refinedI,refined), resultsBySeeds) <- refineWithHint easy testF (stratI,strategy)
+                    $ IMap.assocs $ IMap.delete stratI strategies
+                  let newOneValid = foldl' (flip (uncurry (addResult easy refined))) oneValidStrategy resultsBySeeds
+                      newHints = Map.insert easy refinedI hints
+                  showValids newOneValid
+                  informRefined strategy refined
+                  go $ updateProgress dt newHints (difficults:nextWorlds) noValidStrategy newOneValid p)
            where
             go' _ [] = return Nothing
             go' world (assoc@(_,strategy):otherStrategies) =
@@ -166,22 +166,23 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
                         Timeout -> error "logic"
                         NotStarted -> error "logic"
                         f@(Finished dt' _) -> bool
-                          (go' world otherStrategies) -- timeout failed to stop the computation
+                          (onTimeoutMismatch dt dt' >> go' world otherStrategies)
                           (return $ Just (assoc,f))
                           $ dt' <= dt)))
      where
-      mayReport progress@(TestProgress _ _ _ _ _ valids) = do
+      showValids valids = do
         let optimalStats = toOptimalStrategies valids
             str = prettyShowOptimalStrategies optimalStats
         mapM_ CS.putStrLn str -- to give a feedback of the progress in the console
-        onReport (report (Just dt) progress) intent
 
-  report duration progress@(TestProgress _ _ _ _ _ valids) i = do
+    mayReport progress = onReport (report progress) intent
+
+  report progress@(TestProgress _ theDt _ _ _ valids) i = do
     let optimalStats = toOptimalStrategies valids
         str = prettyShowOptimalStrategies optimalStats :: [ColorString]
         h = H.div $ do
           H.div $ mapM_ (H.div . H.toHtml) str
-          H.div $ resultsToHtml duration valids
+          H.div $ resultsToHtml (Just theDt) valids
     writeHtmlReport key h i
     encodeOptimalStrategiesFile optimalStats
     encodeProgressFile progress
@@ -197,15 +198,18 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
      nEasy = length theWorlds
      nDifficult = n - nEasy
 
-  {-
-  informRefine :: Maybe MatrixVariants -> IO ()
-  informRefine strat =
-    CS.putStrLn $ CS.colored ("Refining from : " <> pack (show strat)) green
-  -}
+  informRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> IO ()
+  informRefined from to =
+    CS.putStrLn $ CS.colored ("Refined from: " <> pack (show from) <> " to: " <> pack (show to)) green
 
   nextDt = (.*) multDt
   multDt = 6
 
+onTimeoutMismatch :: Time Duration System -> Time Duration System -> IO ()
+onTimeoutMismatch specified actual
+  | actual <= specified = error "logic"
+  | actual <= 2 .* specified = return ()
+  | otherwise = putStrLn $ unwords ["Big timeout mismatch:", showTime specified, showTime actual]
 
 continue :: MVar UserIntent -> IO Bool
 continue intent = readMVar intent >>= \case
@@ -266,7 +270,7 @@ refineWithHint world testF hintStrategy strategies =
                   NotStarted -> error "logic"
                   f@(Finished dt _) ->
                     bool
-                      (return $ Left ()) -- timeout failed to stop the computation
+                      (onTimeoutMismatch maxDt dt >> return (Left ()))
                       (ho ((seedGroup,f):l) (totalSofar |+| dt) groups)
                       $ dt <= maxDt)
   mkHintStats :: IO [(NonEmpty SeedNumber, TestStatus Statistics)]

@@ -200,13 +200,15 @@ profileAllProps = do
   key <- randUUID
 
   (totalDt, allRes) <- withDuration $
-    withTestScheduler key allWorlds allStrategies (fromSecs 15) intent (\property seed ->
+    withTestScheduler key allWorlds allStrategies allowedDt intent (\property seed ->
       snd <$> profile property (pure seed))
 
   readMVar intent >>= writeHtmlReport key (resultsToHtml (Just allowedDt) allRes)
   putStrLn $ "Test duration = " ++ show totalDt
+ where
+  allowedDt = fromSecs 15
 
-allStrategies :: [Maybe MatrixVariants]
+allStrategies :: Size -> [Maybe MatrixVariants]
 allStrategies size =
   map
     Just

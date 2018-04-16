@@ -19,7 +19,6 @@ import           Imj.Prelude
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue, tryPeekTQueue)
-import           Control.DeepSeq(NFData)
 import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
 import           Data.Text(pack)

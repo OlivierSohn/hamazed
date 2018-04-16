@@ -11,7 +11,6 @@ module Imj.Geo.Continuous.Types
     ) where
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData)
 
 import           Imj.Geo.Types
 

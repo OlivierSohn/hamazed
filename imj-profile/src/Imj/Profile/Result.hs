@@ -31,6 +31,7 @@ data Summary =
     NTimeouts !Int
   | FinishedAverage !(Time Duration System) !Dispersion -- NOTE Dispersion is ignored in 'Ord' and 'Eq' instances
   | NoResult
+  deriving (Generic)
 -- | 'Eq' and 'Ord' instances are based on durations : 'FinishedAverage' < 'NTimeouts' < 'NoResult'
 instance Eq Summary where
   NoResult == NoResult = True
@@ -46,6 +47,7 @@ instance Ord Summary where
   compare (NTimeouts _) _ = GT
   compare (FinishedAverage _ _) _ = LT
   {-# INLINABLE compare #-}
+instance NFData Summary
 
 getSummaryDuration :: Summary -> Maybe (Time Duration System)
 getSummaryDuration = \case
@@ -74,6 +76,7 @@ instance (Ord a) => Ord (TestStatus a) where
   compare (Finished _ _) _ = LT
   {-# INLINABLE compare #-}
 instance (Binary a) => Binary (TestStatus a)
+instance (NFData a) => NFData (TestStatus a)
 
 mkStatus :: Maybe (Time Duration System, a) -> TestStatus a
 mkStatus = maybe Timeout (uncurry Finished)
@@ -82,17 +85,18 @@ mkEmptyStatus :: TestStatus a
 mkEmptyStatus = NotStarted
 
 newtype SeedNumber = SeedNumber Int
-  deriving(Show, Ord, Eq, Real, Num, Enum, Integral, Binary)
+  deriving(Generic, NFData, Show, Ord, Eq, Real, Num, Enum, Integral, Binary)
 unSeedNumber :: SeedNumber -> Int
 unSeedNumber (SeedNumber s) = s
 
 -- | By seed
 newtype TestDurations k a = TD (Map k (TestStatus a))
-  deriving(Show, Binary)
+  deriving(Generic, Show, Binary)
 instance (Ord k) => Monoid (TestDurations k a) where
   mempty = TD Map.empty
   mappend (TD l) (TD l') = TD $ Map.unionWith (error "would overwrite") l l'
   mconcat = TD . Map.unionsWith (error "would overwrite") . map (\(TD m) -> m)
+instance (NFData k, NFData a) => NFData (TestDurations k a)
 
 -- | Ignoring tests that didn't run yet:
 -- if one test is Timeout, return the timeout value,
@@ -108,7 +112,7 @@ summarize (TD d)
 
 -- Dispersion is normalized standard deviation (normalized in the sense that the mean is mapped to 1)
 newtype Dispersion = Dispersion Float
-  deriving(Num, Real, Ord, Eq, Fractional)
+  deriving(Generic, NFData, Num, Real, Ord, Eq, Fractional)
 
 mkDispersion :: (Quantifiable a) => [a] -> Dispersion
 mkDispersion l

@@ -38,7 +38,6 @@ module Imj.Geo.Discrete.Types
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData)
 import           Data.Word(Word32)
 import           Data.List(take)
 

@@ -1,7 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Main where
 
@@ -13,7 +12,7 @@ import           Control.Concurrent.MVar.Strict (MVar, newMVar, readMVar)
 import           Data.Either(isRight)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-import           Data.List hiding(concat)
+import           Data.List
 import           Data.IntMap.Strict(IntMap)
 import qualified Data.IntMap.Strict as IMap
 import           Data.UUID(UUID)
@@ -28,13 +27,17 @@ import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Graphics.Text.Render
 import           Imj.Profile.Intent
 import           Imj.Profile.Render
 import           Imj.Profile.Result
 import           Imj.Profile.Results
 import           Imj.Profile.Scheduler
+import           Imj.Random.Image
+import           Imj.Random.MWC.Image
 import           Imj.Random.MWC.Seeds
 import           Imj.Random.MWC.Util
+import           Imj.Random.Test
 import           Imj.Random.Util
 import           Imj.Timing
 import           Imj.Util
@@ -52,8 +55,52 @@ main = do
   useOneCapabilityPerPhysicalCore
   --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  profileAllProps2 -- exhaustive benchmark, with notion of easy / hard test to reach approximated results as fast as possible.
+  --mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
+  --compareRNGImages
+  compareRNGsSpeed
   --writeSeedsSource
+
+
+compareRNGsSpeed :: IO ()
+compareRNGsSpeed = do
+  r1 <- withMWC256 test
+  r2 <- withRandom test
+  r2L <- withRandomL testL
+
+  mapM_ putStrLn $ showArrayN Nothing $ map
+    (\(name,(dt,n)) ->[name, show n, showTime dt])
+    [r1, r2, r2L]
+
+
+  -- random
+ where
+  test gen =
+    withDuration $ splitRandWord32 10000000 (quot maxBound 2) gen
+  testL gen =
+    withDuration $ splitRandWord32L 10000000 (quot maxBound 2) gen
+
+compareRNGImages :: IO ()
+compareRNGImages =
+  forM_ [Size 768 1024] $ \sz -> do
+    forM_ grayGens8 $ \(g,name) ->
+      g seed sz >>= writeRndImage seed name sz Nothing
+    forM_ grayGens32 $ \(g,name) ->
+      g seed sz >>= writeRndImage seed name sz Nothing
+    forM_ bwGens $ \(g,name) ->
+      forM_ probas $ \proba ->
+        g seed sz proba >>= writeRndImage seed name sz (Just proba)
+ where
+  seed = SeedNumber 0
+
+  bwGens = [(mkMWC256Image, "mwc256")
+          , (mkSystemRandomImage, "random")]
+  grayGens8 = [(mkMWC256ImageGray, "mwc256")
+              ]
+  grayGens32 = [
+             (mkMWC256ImageGray', "mwc256bis")
+             ]
+
+  probas = [0.1, 0.01, 0.5, 0.9, 0.99]
 
 justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
 justVariantsWithRotations sz n =
@@ -168,14 +215,14 @@ withTestScheduler key worlds strategies allowed intent testF =
    where
     total = length l
 
-  withTimeout :: IO a -> IO (TestStatus a)
+  withTimeout :: (NFData a) => IO a -> IO (TestStatus a)
   withTimeout = fmap mkStatus . timeout dt . withDuration
    where
     dt = fromIntegral $ toMicros allowed
 
 
-profileAllProps2 :: IO ()
-profileAllProps2 = do
+mkOptimalStrategies :: IO ()
+mkOptimalStrategies = do
   intent <- mkTerminator
 
   let testF mayDt property seedGroup = do

@@ -148,7 +148,7 @@ deltaRenderConsole b (Delta delta) w = do
   flush b
   liftIO $ hFlush stdout -- TODO is flush blocking? slow? could it be async?
   t3 <- getSystemTime
-  return (t1...t2, t2...t3)
+  return $!! ((t1...t2), (t2...t3))
 
 renderDelta :: Dyn.IOVector Cell
             -> Dim Width

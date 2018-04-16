@@ -24,7 +24,7 @@ instance Ord AlmostFloat where
     | otherwise = x `compare` y
 instance Show AlmostFloat where
   show (AlmostFloat f) =
-    unwords ["~", trimZeros str]
+    trimZeros str
    where
     str = showFFloat (Just 6) f ""
     trimZeros = bool id (reverse . dropWhile (=='0') . reverse) $ '.' `elem` str

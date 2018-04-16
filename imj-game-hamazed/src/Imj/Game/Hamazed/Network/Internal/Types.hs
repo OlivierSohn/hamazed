@@ -19,7 +19,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
 
 import           Imj.Prelude
 import           Control.Concurrent.MVar.Strict(MVar, newEmptyMVar)
-import           Control.DeepSeq(NFData(..))
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map (empty)
 import           Data.Set(Set)

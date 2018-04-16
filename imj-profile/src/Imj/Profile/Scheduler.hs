@@ -47,7 +47,6 @@ import           Imj.Profile.Render
 import           Imj.Profile.Result
 import           Imj.Profile.Results
 import           Imj.Random.MWC.Util
-import           Imj.Random.Util
 import           Imj.Timing
 
 -- | Represents the progress of 'withTestScheduler''

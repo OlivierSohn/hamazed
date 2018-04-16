@@ -78,7 +78,6 @@ import           GHC.Ptr (Ptr(..))
 import           GHC.Word(Word16)
 
 import           Control.Arrow((***))
-import           Control.DeepSeq(NFData)
 import           Data.List(unlines, unwords, intercalate)
 import           Data.List.NonEmpty(NonEmpty(..), toList)
 import qualified Data.List.NonEmpty as NE(map)
@@ -167,7 +166,8 @@ materialAndKeyToMaterial = isAir Wall (const Air)
 data SmallMatInfo = SmallMatInfo {
     _countAirKeys :: !Int
   , _smallMat :: !(Cyclic.Matrix MaterialAndKey)
-} deriving(Show, Eq)
+} deriving(Generic, Show, Eq)
+instance NFData SmallMatInfo
 
 newtype Space = Space (Unboxed.Matrix Material)
   deriving(Generic, Show, Binary, NFData, Eq)
@@ -403,6 +403,7 @@ data SmallWorld = SmallWorld {
     getSmallMatrix :: {-# UNPACK #-} !SmallMatInfo
   , _smallTopo :: !SmallWorldTopology
 } deriving(Generic)
+instance NFData SmallWorld
 instance Eq SmallWorld where
   (SmallWorld a _) == (SmallWorld b _) = a == b
 instance Show SmallWorld where
@@ -432,11 +433,13 @@ data SmallWorldTopology = SmallWorldTopology {
     getConnectedComponents :: [ConnectedComponent]
   , _vertexToSmallMatIndex :: Vertex -> Int -- Int is a matrix index
 } deriving(Generic)
+instance NFData SmallWorldTopology
 instance Show SmallWorldTopology where
   show (SmallWorldTopology a _) = show ("SmallWorldTopology:" :: String,a)
 
 newtype ConnectedComponent = ConnectedComponent (Vector Vertex)
   deriving(Generic, Show)
+instance NFData ConnectedComponent
 
 
 readWorld :: [String] -> Unboxed.Matrix Material

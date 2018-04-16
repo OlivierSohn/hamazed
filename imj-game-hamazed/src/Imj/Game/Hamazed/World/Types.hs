@@ -53,7 +53,6 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
-import           Control.DeepSeq(NFData)
 import           Data.List(take)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(lookup, filter)

@@ -46,7 +46,6 @@ module Imj.Graphics.Color.Types
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, (.|.))
 import           Data.List(intercalate, concat)
 import           Data.Text(pack)

@@ -17,3 +17,5 @@ cabal-helper*
 
 # profile report folder
 report*
+
+*.png

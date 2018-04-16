@@ -22,7 +22,6 @@ module Imj.Game.Hamazed.Level.Types
 
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData)
 
 initialLaserAmmo :: Int
 initialLaserAmmo = 10

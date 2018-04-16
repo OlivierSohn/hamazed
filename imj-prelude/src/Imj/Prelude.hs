@@ -32,6 +32,7 @@ import           GHC.Generics as Exported(Generic)
 import           Control.Applicative as Exported((<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow as Exported((>>>))
 import           Control.Exception as Exported(assert)
+import           Control.DeepSeq as Exported(NFData(..), ($!!), deepseq, force)
 import           Control.Monad as Exported(sequence, when, unless, void, (<=<), (>=>), zipWithM_, forever
                               , replicateM, replicateM_, foldM, foldM_, forM_, forM, join)
 import           Control.Monad.IO.Class as Exported(liftIO)

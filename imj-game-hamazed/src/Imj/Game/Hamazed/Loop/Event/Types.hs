@@ -20,7 +20,6 @@ module Imj.Game.Hamazed.Loop.Event.Types
         ) where
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData(..))
 
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types

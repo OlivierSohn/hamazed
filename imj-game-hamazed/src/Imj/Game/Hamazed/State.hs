@@ -22,7 +22,6 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(state, get, put)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
-
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.State.Types
@@ -152,7 +151,7 @@ handleEvent e = do
       t1 <- liftIO getSystemTime
       updateAppState evt
       t2 <- liftIO getSystemTime
-      addUpdateTime $ t1...t2)
+      addUpdateTime $!! t1...t2)
     e
 
 {-# INLINE addUpdateTime #-}

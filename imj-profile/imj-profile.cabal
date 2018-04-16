@@ -20,9 +20,12 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   exposed-modules:     Imj.File
+                     , Imj.Random.Image
+                     , Imj.Random.MWC.Image
                      , Imj.Random.MWC.Util
                      , Imj.Random.MWC.Seeds
                      , Imj.Random.MWC.MkSeeds
+                     , Imj.Random.Test
                      , Imj.Random.Util
                      , Imj.Profile.Intent
                      , Imj.Profile.Render
@@ -45,7 +48,9 @@ library
                      , imj-base ==0.1.*
                      , imj-game-hamazed ==0.1.*
                      , imj-prelude ==0.1.*
+                     , JuicyPixels ==3.2.*
                      , mwc-random ==0.13.*
+                     , random ==1.1.*
                      , strict-concurrency ==0.2.*
                      , text >=1.2.3 && < 1.3
                      , time ==1.8.*

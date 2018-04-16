@@ -12,7 +12,6 @@ module Imj.Geo.Discrete.Interleave
     ) where
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData(..))
 import           Control.Loop (numLoop)
 import           Data.List(length, (!!))
 import           Data.Vector.Binary()

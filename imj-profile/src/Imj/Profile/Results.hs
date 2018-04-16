@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Profile.Results
     ( toOptimalStrategies
@@ -28,13 +29,14 @@ import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Class.Words
-import           Imj.Graphics.Text.ColorString hiding(putStrLn)
+import           Imj.Graphics.Text.ColorString
 import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
 import           Imj.Timing
 
 newtype Results k = Results (Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
-  deriving(Binary)
+  deriving(Generic, Binary)
+instance (NFData k) => NFData (Results k)
 
 mkEmptyResults :: Results k
 mkEmptyResults = Results Map.empty

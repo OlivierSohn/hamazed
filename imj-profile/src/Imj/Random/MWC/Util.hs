@@ -1,16 +1,21 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Random.MWC.Util
        ( withNumberedSeeds
        , seedGroups
+       , withMWC256
+       , randUUID
        ) where
 
 import           Imj.Prelude
 
 import           Control.Concurrent(getNumCapabilities)
 import           Data.List.NonEmpty(NonEmpty)
-import qualified Data.List.NonEmpty as NE(fromList)
+import qualified Data.List.NonEmpty as NE
+import           Data.UUID
 import           Data.Vector(fromList)
+import           Data.Word(Word32)
 import           System.Random.MWC
 
 import           Imj.Profile.Result
@@ -34,3 +39,16 @@ seedGroups = do
     [0..nGroups-1]
  where
   nGroups = 5
+
+withMWC256 :: (IO Word32 -> IO a) -> IO (String,a)
+withMWC256 act =
+  (,) "mwc256" <$>
+    withNumberedSeeds (act . uniform . NE.head) (pure seed)
+ where
+  seed = SeedNumber 0
+
+randUUID :: IO UUID
+randUUID = withSystemRandom . asGenIO $ \gen ->
+  forM [0 :: Int ..3] (const $ uniform gen) >>= \case
+    [w1,w2,w3,w4] -> return $ fromWords w1 w2 w3 w4
+    _ -> error "logic"

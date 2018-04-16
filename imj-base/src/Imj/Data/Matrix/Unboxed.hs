@@ -50,7 +50,6 @@ module Imj.Data.Matrix.Unboxed (
 import           Imj.Prelude
 import           Prelude(length, and, unlines, concat, take)
 
-import           Control.DeepSeq
 import           Control.Loop (numLoop, numLoopFold)
 import           Data.Binary(Binary(..))
 import qualified Data.Semigroup as S

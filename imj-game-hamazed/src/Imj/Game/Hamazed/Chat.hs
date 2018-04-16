@@ -20,7 +20,6 @@ module Imj.Game.Hamazed.Chat
 
 import           Imj.Prelude hiding (drop, null)
 import qualified Prelude as P(length)
-import           Control.DeepSeq(NFData)
 import           Data.Text(Text, snoc, length, splitAt, dropEnd, drop, null)
 
 import           Imj.Game.Hamazed.Color

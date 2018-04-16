@@ -42,7 +42,6 @@ module Imj.Graphics.Font
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData, force)
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteString(ByteString, writeFile)
 import           Data.Char(chr, ord)

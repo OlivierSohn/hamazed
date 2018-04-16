@@ -60,7 +60,6 @@ module Imj.Timing
 import           Imj.Prelude
 import           GHC.Float(float2Double, double2Float)
 import           Prelude(fromInteger)
-import           Control.DeepSeq(NFData(..))
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
 import qualified Data.List as List
@@ -206,7 +205,7 @@ getSystemTime =
 getDurationFromNowTo :: Time Point System
                      -> IO (Time Duration System)
 getDurationFromNowTo t =
-  getSystemTime >>= \now -> return $ now ... t
+  getSystemTime >>= \now -> return $!! now ... t
 
 -- | Nice for durations.
 showTime :: Time a b -> String
@@ -277,12 +276,15 @@ prettyShowTime (Time (TimeSpec seconds' ns)) =
   (hours'  , minutes) = minutes' `quotRem` 60
   (_       , hours)   = hours'   `quotRem` 24
 
-withDuration :: IO a -> IO (Time Duration System, a)
+{-# INLINABLE withDuration #-}
+withDuration :: (NFData a) => IO a -> IO (Time Duration System, a)
 withDuration act = do
   t <- getSystemTime
   r <- act
-  t' <- getSystemTime
-  return (t...t', r)
+  t' <- r `deepseq` getSystemTime
+  let !dt = t...t'
+  return (dt, r)
 
-withDuration_ :: IO a -> IO (Time Duration System)
+{-# INLINABLE withDuration_ #-}
+withDuration_ :: (NFData a) => IO a -> IO (Time Duration System)
 withDuration_ act = fst <$> withDuration act

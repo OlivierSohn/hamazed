@@ -44,7 +44,6 @@ import           Imj.Prelude
 import           Prelude(length, and)
 
 import           Foreign.Storable(Storable(..))
-import           Control.DeepSeq(NFData(..))
 import           Control.Loop (numLoop)
 import           Data.Binary(Binary(..))
 import           GHC.Generics (Generic)

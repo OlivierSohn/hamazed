@@ -103,7 +103,6 @@ import           Imj.Prelude
 import           Control.Concurrent.Async (Async, cancel)
 import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
 import           Control.Concurrent.STM(TQueue)
-import           Control.DeepSeq(NFData)
 import qualified Data.Map.Strict as Map(elems, alter, updateLookupWithKey)
 import           Data.Map.Strict(Map)
 import qualified Data.Binary as Bin(encode, decode)

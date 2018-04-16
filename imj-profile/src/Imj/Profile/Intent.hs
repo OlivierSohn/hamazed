@@ -13,7 +13,6 @@ module Imj.Profile.Intent
     ) where
 
 import           Imj.Prelude
-import           Control.DeepSeq(NFData(..))
 
 import           Prelude(getChar)
 import           Control.Concurrent(forkIO, throwTo, myThreadId, threadDelay)

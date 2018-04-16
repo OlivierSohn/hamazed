@@ -611,6 +611,7 @@ fillSmallVector :: GenIO
                 -> MS.IOVector MaterialAndKey
                 -- ^ Use this memory
                 -> IO Word16
+                -- ^ The count of air keys
 fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
       !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8

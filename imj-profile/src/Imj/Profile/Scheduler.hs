@@ -11,6 +11,7 @@ module Imj.Profile.Scheduler
   , continue
   , TestProgress
   , mkZeroProgress
+  , swDifficulty
   )
   where
 
@@ -83,6 +84,24 @@ updateProgress :: Time Duration System
 updateProgress a b c d e p =
   TestProgress (_uuid p) a b c d e
 
+-- | This function estimates the difficulty to create a 'SmallWorld'
+-- corresponding to the given 'SmallWorldCharacteristics'.
+swDifficulty :: SmallWorldCharacteristics -> Float
+swDifficulty (SWCharacteristics _ (ComponentCount n) p)
+  | n <= 1 = p
+  | otherwise = abs $ p - 0.5
+
+-- | Historically, this function was introduced when already several hours worth of results
+-- were gathered and we needed to change the algorithm sorting worlds by difficulty,
+-- without losing already gathered results.
+{-
+resetKeepValid :: TestProgress -> TestProgress
+resetKeepValid (TestProgress a _ c l1 l2 d) =
+  TestProgress a (fromSecs 0.0001) c (map s l2 ++ map s l1) [] d
+ where
+  s = sortOn (swDifficulty . fst)
+-}
+
 progressFile :: FilePath
 progressFile = "testState.bin"
 
@@ -119,8 +138,7 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
     informStep initialProgress
     go initialProgress
    where
-    go :: TestProgress
-       -> IO TestProgress
+    go :: TestProgress -> IO TestProgress
     go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) = do
       onReport (report p) intent
       continue intent >>= bool

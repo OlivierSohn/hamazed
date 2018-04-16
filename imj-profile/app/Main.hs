@@ -55,14 +55,14 @@ main = do
   useOneCapabilityPerPhysicalCore
   --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  --mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
-  --compareRNGImages
-  compareRNGsSpeed
+  mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
+  --writeRNGImages
+  --measureRNGsSpeed
   --writeSeedsSource
 
 
-compareRNGsSpeed :: IO ()
-compareRNGsSpeed = do
+measureRNGsSpeed :: IO ()
+measureRNGsSpeed = do
   r1 <- withMWC256 test
   r2 <- withRandom test
   r2L <- withRandomL testL
@@ -79,9 +79,11 @@ compareRNGsSpeed = do
   testL gen =
     withDuration $ splitRandWord32L 10000000 (quot maxBound 2) gen
 
-compareRNGImages :: IO ()
-compareRNGImages =
+writeRNGImages :: IO ()
+writeRNGImages =
   forM_ [Size 768 1024] $ \sz -> do
+    forM_ colorGens $ \(g,name) ->
+      g seed sz >>= writeRndImage seed name sz Nothing
     forM_ grayGens8 $ \(g,name) ->
       g seed sz >>= writeRndImage seed name sz Nothing
     forM_ grayGens32 $ \(g,name) ->
@@ -97,8 +99,9 @@ compareRNGImages =
   grayGens8 = [(mkMWC256ImageGray, "mwc256")
               ]
   grayGens32 = [
-             (mkMWC256ImageGray', "mwc256bis")
+             (mkMWC256ImageGray', "mwc256gray")
              ]
+  colorGens = [(mkMWC256ImageRGB, "mwc256color")]
 
   probas = [0.1, 0.01, 0.5, 0.9, 0.99]
 
@@ -145,12 +148,10 @@ allWorlds =
     (Size  8 18, ComponentCount 1, 0.7):
     []
 
--- | 'SmallWorldCharacteristics's are ordered by difficulty (for a single component, the higher the probability,
--- the more difficult it is to find a valid world.)
-exhaustiveWorldsByDifficulty :: [[SmallWorldCharacteristics]]
-exhaustiveWorldsByDifficulty =
+exhaustiveWorlds :: [[SmallWorldCharacteristics]]
+exhaustiveWorlds =
   concatMap
-    (flip map exhaustiveSmallSizes . flip worldsByIncreasingDifficulty)
+    (flip map exhaustiveSmallSizes . flip possibleWorlds)
     [1 :: ComponentCount ..4]
 
  where
@@ -161,9 +162,10 @@ exhaustiveWorldsByDifficulty =
     -- we make sure removed worlds have more than one component.
         isRight (mkLowerBounds ch) || ((nComponents == 1) && error "logic")
 
-  worldsByIncreasingDifficulty size componentCount =
-    filter possibleWorld $
-    map (SWCharacteristics size componentCount) allProbasForGame
+  possibleWorlds size componentCount =
+    sortOn swDifficulty
+    $ filter possibleWorld
+    $ map (SWCharacteristics size componentCount) allProbasForGame
 
   exhaustiveSmallSizes =
     sortOn area $ dedup $ map canonicalize $
@@ -176,7 +178,6 @@ exhaustiveWorldsByDifficulty =
     canonicalize sz@(Size (Length a) (Length b))
       | a <= b = sz
       | otherwise = Size (fromIntegral b) (fromIntegral a)
-
 
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
@@ -239,7 +240,7 @@ mkOptimalStrategies = do
   worlds =
     map
       (map (\w@(SWCharacteristics sz _ _) -> (w,IMap.fromList $ zip [0..] $ allStrategies sz)))
-      exhaustiveWorldsByDifficulty
+      exhaustiveWorlds
 
 profileAllProps :: IO ()
 profileAllProps = do

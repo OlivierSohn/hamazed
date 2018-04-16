@@ -194,7 +194,7 @@ data SmallWorldCharacteristics = SWCharacteristics {
     -- ^ Size of the small world
   , swComponentCount :: !ComponentCount
     -- ^ The expected count of connex components.
-  , swUserWallProba :: !Float
+  , userWallProbability :: !Float
     -- ^ User wall proba, in range [0,1]. The /real/ wall proba will then be this value
     -- mapped to the theoretical min / max proba range, computed according to
     -- 'ComponentCount' and 'Size' of the small world.

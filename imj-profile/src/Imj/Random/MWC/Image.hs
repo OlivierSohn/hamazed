@@ -5,6 +5,7 @@ module Imj.Random.MWC.Image
        ( mkMWC256Image
        , mkMWC256ImageGray
        , mkMWC256ImageGray'
+       , mkMWC256ImageRGB
        ) where
 
 import           Imj.Prelude
@@ -82,5 +83,29 @@ mkMWC256ImageGray' seed sz@(Size (Length h) (Length w)) =
     v <- S.unsafeFreeze mv
     return $ generateImage
       (\i j -> v S.! (i + j*w))
+      w h
+  genImg _ = fail "logic"
+
+mkMWC256ImageRGB :: SeedNumber -> Size -> IO (Image PixelRGB8)
+mkMWC256ImageRGB seed sz@(Size (Length h) (Length w)) =
+  withNumberedSeeds genImg (pure seed)
+ where
+
+  nBlocks = area sz
+
+  genImg (gen:|[]) = do
+    mv <- MS.unsafeNew nBlocks
+    forM_ [0..nBlocks - 1] $ \i -> do
+      w32 <- uniform gen :: IO Word32
+      MS.unsafeWrite mv i w32
+    v <- S.unsafeFreeze mv
+    return $ generateImage
+      (\i j ->
+        let w32 = v S.! (i + j*w)
+            w1 = fromIntegral w32 :: Word8
+            w2 = fromIntegral (w32 `shiftR` 8) :: Word8
+            w3 = fromIntegral (w32 `shiftR` 16) :: Word8
+--            w4 = fromIntegral (w32 `shiftR` 24) :: Word8
+        in PixelRGB8 w1 w2 w3)
       w h
   genImg _ = fail "logic"

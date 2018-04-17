@@ -159,7 +159,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
           (putStrLn "No close world was found.")
           (\close ->
             if close == characteristics
-              then
+              then do
                 putStrLn $ unwords
                   [ "Found an exact match for"
                   , prettyShowSWCharacteristics characteristics]

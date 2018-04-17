@@ -11,7 +11,6 @@ module Imj.Profile.Scheduler
   , continue
   , TestProgress
   , mkZeroProgress
-  , swDifficulty
   )
   where
 
@@ -33,7 +32,6 @@ import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
 import           Text.Blaze.Html5(div,Html, toHtml)
-
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as W
@@ -123,22 +121,22 @@ showRefined from to =
   CS.colored " to: " green <>
   fromString (show to)
 
--- | This function estimates the difficulty to create a 'SmallWorld'
--- corresponding to the given 'SmallWorldCharacteristics'.
-swDifficulty :: SmallWorldCharacteristics -> Float
-swDifficulty (SWCharacteristics _ (ComponentCount n) p)
-  | n <= 1 = p
-  | otherwise = abs $ p - 0.5
-
 -- | Historically, this function was introduced when already several hours worth of results
--- were gathered and we needed to change the algorithm sorting worlds by difficulty,
--- without losing already gathered results.
+-- were gathered and we needed to change the sorting of worlds.
 {-
-resetKeepValid :: TestProgress -> TestProgress
-resetKeepValid (TestProgress a _ c l1 l2 d) =
-  TestProgress a (fromSecs 0.0001) c (map s l2 ++ map s l1) [] d
+reset :: TestProgress -> TestProgress
+reset (TestProgress a b c l1 l2 d) =
+  TestProgress a b c (concatMap s $ l2 ++ l1) [] d
  where
-  s = sortOn (swDifficulty . fst)
+  s [] = []
+  s l@(_:_)
+    | isJust (find ((== almost 0.5) . almost . prob) l) && (sortOn prob l == l) = [l] -- list is ascending
+    | otherwise = splitL
+   where
+    (lowp,highp) = partition ((< 0.49) . prob) l
+    splitL = [reverse lowp, highp]
+
+  prob (SWCharacteristics _ _ p,_) = p
 -}
 
 progressFile :: FilePath

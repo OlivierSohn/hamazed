@@ -150,21 +150,26 @@ allWorlds =
 exhaustiveWorlds :: [[SmallWorldCharacteristics]]
 exhaustiveWorlds =
   concatMap
-    (flip map exhaustiveSmallSizes . flip possibleWorlds)
+    (\cc ->
+      concatMap
+        (\sz ->
+          map
+            (filter isPossible . map (SWCharacteristics sz cc)) $
+            probas cc)
+        exhaustiveSmallSizes)
     [1 :: ComponentCount ..4]
 
  where
+  probas (ComponentCount 1) = [allProbasForGame]
+  probas _ =
+    let (l,h) = partition (< 0.49) allProbasForGame
+    in [reverse l,h]
 
-  possibleWorld ch@(SWCharacteristics _ nComponents _) =
+  isPossible ch@(SWCharacteristics _ nComponents _) =
     -- we remove impossible worlds : in the game when an impossible configuration
     -- is encountered, we reduce the count of components. Hence
     -- we make sure removed worlds have more than one component.
         isRight (mkLowerBounds ch) || ((nComponents == 1) && error "logic")
-
-  possibleWorlds size componentCount =
-    sortOn swDifficulty
-    $ filter possibleWorld
-    $ map (SWCharacteristics size componentCount) allProbasForGame
 
   exhaustiveSmallSizes =
     sortOn area $ dedup $ map canonicalize $

@@ -45,6 +45,7 @@ library
                      , deepseq ==1.4.*
                      , directory ==1.3.*
                      , filepath ==1.4.*
+                     , file-embed ==0.0.*
                      , imj-base ==0.1.*
                      , imj-game-hamazed ==0.1.*
                      , imj-prelude ==0.1.*

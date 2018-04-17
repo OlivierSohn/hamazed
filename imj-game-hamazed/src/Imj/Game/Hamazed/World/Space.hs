@@ -31,18 +31,16 @@ module Imj.Game.Hamazed.World.Space
     ) where
 
 import           Imj.Prelude
-import           Prelude(print)
+import           Prelude(putStrLn)
 import qualified Prelude as Unsafe(head,last)
 import           Control.Monad.ST(runST)
 import           Control.Concurrent(MVar, takeMVar, tryPutMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync)
-
-import Data.Primitive.ByteArray
-
+import           Data.Primitive.ByteArray
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Bits(shiftR, shiftL, (.|.))
 import           Data.Either(isLeft)
-import           Data.List(length, sortOn, replicate, take, foldl')
+import           Data.List(unwords, length, sortOn, replicate, take, foldl')
 import           Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
@@ -59,6 +57,7 @@ import           Data.Word(Word8)
 import           GHC.Word(Word64, Word16)
 import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
+import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
 import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
@@ -154,20 +153,42 @@ mkRandomlyFilledSpace :: WallDistribution
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = do
-      print strategy
-      mkSmallWorld gens property continue >>= \(res, stats) ->
-        return
-          (case res of
-            NeedMoreTime -> NeedMoreTime
-            Impossible bounds -> Impossible bounds
-            Success small -> Success $ smallWorldToBigWorld s blockSize small
-          , Just (property, stats))
+  | otherwise = case closestOptimalStrategy characteristics of
+      (ClosestOptimalStrategy mayCloseWorld mayDuration strategy) -> do
+        maybe
+          (putStrLn "No close world was found.")
+          (\close ->
+            if close == characteristics
+              then
+                putStrLn $ unwords
+                  [ "Found an exact match for"
+                  , prettyShowSWCharacteristics characteristics]
+              else do
+                let dist = almost $ smallWorldCharacteristicsDistance close characteristics
+                putStrLn $ unwords
+                  [ "Found\n"
+                  , prettyShowSWCharacteristics close
+                  , "\nat distance"
+                  , show dist
+                  , "of\n"
+                  , prettyShowSWCharacteristics characteristics])
+          mayCloseWorld
+        putStrLn $ "Closest strategy:" ++ show strategy
+        putStrLn $
+          "Closest strategy estimated duration:" ++
+          maybe "no estimation" showTime mayDuration
+        mkSmallWorld gens property continue >>= \(res, stats) ->
+          return
+            (case res of
+              NeedMoreTime -> NeedMoreTime
+              Impossible bounds -> Impossible bounds
+              Success small -> Success $ smallWorldToBigWorld s blockSize small
+            , Just (property, stats))
+       where
+        property = mkProperties characteristics strategy
  where
-  strategy = bestStrategy characteristics
-  property = mkProperties characteristics strategy
-  characteristics = SWCharacteristics smallSz nComponents wallAirRatio
   smallSz = bigToSmall s blockSize
+  characteristics = SWCharacteristics smallSz nComponents wallAirRatio
 
 smallWorldToBigWorld :: Size
                      -> Int

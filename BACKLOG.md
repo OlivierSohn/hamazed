@@ -1,12 +1,4 @@
-- use embedStringFile for javascript, and for mkSeeds.
-
-- this may be faster / require less memory than binary :
-https://github.com/fpco/store
-https://github.com/Quid2/flat
-
 - first restrict benchmarks to worlds with blocksize 6.
-
-- embed some refined strategies in the program.
 
 - display estimated time to build a world (based on optimal strategy time)
 

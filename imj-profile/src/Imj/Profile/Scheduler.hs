@@ -35,6 +35,7 @@ import           System.Random.MWC
 import           Text.Blaze.Html5(div,Html, toHtml)
 
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as W
 
 import           Imj.Game.Hamazed.World.Space.Strategies
@@ -83,6 +84,45 @@ updateProgress :: Time Duration System
 updateProgress a b c d e p =
   TestProgress (_uuid p) a b c d e
 
+writeReports :: TestProgress -> UserIntent -> IO ()
+writeReports progress@(TestProgress key theDt _ _ _ valids) i = do
+  let optimalStats = toOptimalStrategies valids
+      divArray :: [ColorString] -> Html
+      divArray = div . mapM_ (div . toHtml)
+      h =
+        div $ do
+          divArray $ showStep progress
+          divArray $ prettyShowOptimalStrategies optimalStats
+          resultsToHtml (Just theDt) valids
+  writeHtmlReport key h i
+  encodeOptimalStrategiesFile optimalStats
+  encodeProgressFile progress
+
+showStep :: Characters s => TestProgress -> [s]
+showStep (TestProgress _ theDt _ worldsNow worldsLater _) =
+  showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
+    [ ["Timeout ", showTime theDt]
+    , ["Easy candidates", show nEasy]
+    , ["Difficult candidates", show nDifficult]
+    , ["Later candidates", show nLater]
+    ]
+ where
+   n = sum $ map length worldsNow
+   nLater = sum $ map length worldsLater
+   nEasy = length worldsNow
+   nDifficult = n - nEasy
+
+showResults :: (Characters s) => Results a -> [s]
+showResults r =
+  prettyShowOptimalStrategies $ toOptimalStrategies r
+
+showRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> ColorString
+showRefined from to =
+  CS.colored "Refined from: " green <>
+  fromString (show from) <>
+  CS.colored " to: " green <>
+  fromString (show to)
+
 -- | This function estimates the difficulty to create a 'SmallWorld'
 -- corresponding to the given 'SmallWorldCharacteristics'.
 swDifficulty :: SmallWorldCharacteristics -> Float
@@ -129,17 +169,17 @@ withTestScheduler' :: MVar UserIntent
                    -- ^ Function to test
                    -> TestProgress
                    -> IO ()
-withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
+withTestScheduler' intent testF initialProgress =
   flip (!!) 0 <$> seedGroups >>= start >>= \finalProgress ->
-    readMVar intent >>= report finalProgress
+    readMVar intent >>= writeReports finalProgress
  where
   start firstSeedGroup = do
-    informStep initialProgress
+    mapM_ CS.putStrLn $ showStep initialProgress
     go initialProgress
    where
     go :: TestProgress -> IO TestProgress
     go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) = do
-      onReport (report p) intent
+      onReport (writeReports p) intent
       continue intent >>= bool
         (return p)
         (case remaining of
@@ -149,7 +189,7 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
                 return p
               else do
                 let newProgress = updateProgress (nextDt dt) hints noValidStrategy [] oneValidStrategy p
-                informStep newProgress
+                mapM_ CS.putStrLn $ showStep newProgress
                 go newProgress
           []:rest -> go $ p{willTestInIteration = rest}
           l@((easy,strategies):difficults):nextWorlds -> do
@@ -166,8 +206,8 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
                     $ IMap.assocs $ IMap.delete stratI strategies
                   let newOneValid = foldl' (flip (uncurry (addResult easy refined))) oneValidStrategy resultsBySeeds
                       newHints = Map.insert easy refinedI hints
-                  showValids newOneValid
-                  informRefined strategy refined
+                  mapM_ CS.putStrLn $ showResults newOneValid
+                  CS.putStrLn $ showRefined strategy refined
                   go $ updateProgress dt newHints (difficults:nextWorlds) noValidStrategy newOneValid p)
            where
             go' _ [] = return Nothing
@@ -185,47 +225,6 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
                           (onTimeoutMismatch dt dt' >> go' world otherStrategies)
                           (return $ Just (assoc,f))
                           $ dt' <= dt)))
-     where
-      showValids valids = do
-        let optimalStats = toOptimalStrategies valids
-            str = prettyShowOptimalStrategies optimalStats
-        mapM_ CS.putStrLn str -- to give a feedback of the progress in the console
-
-  report progress@(TestProgress _ theDt _ _ _ valids) i = do
-    let optimalStats = toOptimalStrategies valids
-        divArray :: [ColorString] -> Html
-        divArray = div . mapM_ (div . toHtml)
-        h =
-          div $ do
-            divArray $ showStep progress
-            divArray $ prettyShowOptimalStrategies optimalStats
-            resultsToHtml (Just theDt) valids
-    writeHtmlReport key h i
-    encodeOptimalStrategiesFile optimalStats
-    encodeProgressFile progress
-
-  informStep = mapM_ CS.putStrLn . showStep
-
-  showStep (TestProgress _ theDt _ worldsNow worldsLater _) =
-    showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
-      [ ["Timeout ", showTime theDt]
-      , ["Easy candidates", show nEasy]
-      , ["Difficult candidates", show nDifficult]
-      , ["Later candidates", show nLater]
-      ]
-   where
-     n = sum $ map length worldsNow
-     nLater = sum $ map length worldsLater
-     nEasy = length worldsNow
-     nDifficult = n - nEasy
-
-  informRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> IO ()
-  informRefined from to =
-    CS.putStrLn $
-      CS.colored "Refined from: " green <>
-      fromString (show from) <>
-      CS.colored " to: " green <>
-      fromString (show to)
 
   nextDt = (.*) multDt
   multDt = 6

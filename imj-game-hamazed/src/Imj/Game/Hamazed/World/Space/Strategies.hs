@@ -12,7 +12,8 @@ module Imj.Game.Hamazed.World.Space.Strategies
     , OptimalStrategy(..)
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
-    , bestStrategy
+    , closestOptimalStrategy
+    , ClosestOptimalStrategy(..)
     , smallWorldCharacteristicsDistance
     ) where
 
@@ -63,32 +64,42 @@ instance Eq OptimalStrategy where
   a == b = averageDuration a == averageDuration b
 
 
-data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float
+data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float {-# UNPACK #-} !SmallWorldCharacteristics
 
-bestStrategy :: SmallWorldCharacteristics -> Maybe MatrixVariants
-bestStrategy world@(SWCharacteristics sz _ _) =
-  toVariants sz <$> maybe defaultStrategy (\(StratDist (OptimalStrategy s _) _) -> s) best
+data ClosestOptimalStrategy = ClosestOptimalStrategy {
+    _closestWorld :: !(Maybe SmallWorldCharacteristics)
+    -- ^ Note that the bigger the distance is, the less accurate the duration estimation will be.
+  , _closestEstimatedDuration :: !(Maybe (Time Duration System))
+  , _closestMatrixVariant :: !(Maybe MatrixVariants)
+}
+
+closestOptimalStrategy :: SmallWorldCharacteristics -> ClosestOptimalStrategy
+closestOptimalStrategy world@(SWCharacteristics sz _ _) =
+  maybe
+    (ClosestOptimalStrategy Nothing Nothing $ fmap (toVariants sz) defaultStrategy)
+    (\(StratDist (OptimalStrategy s dt) _ charac) ->
+      ClosestOptimalStrategy (Just charac) (Just dt) $ fmap (toVariants sz) s)
+    closest
  where
-  best =
-    Map.foldlWithKey'
-      (\prev charac strategy ->
-        let thisDist = smallWorldCharacteristicsDistance charac world
-            this = Just $ StratDist strategy thisDist
-        in maybe
-          this
-          (\(StratDist _ prevDist) ->
-            if thisDist < prevDist
-              then
-                this
-              else
-                prev)
-          prev)
-      Nothing
-      m
+  closest = case embeddedOptimalStrategies of
+    (OptimalStrategies m) ->
+      Map.foldlWithKey'
+        (\prev charac strategy ->
+          let thisDist = smallWorldCharacteristicsDistance charac world
+              this = Just $ StratDist strategy thisDist charac
+          in maybe
+            this
+            (\(StratDist _ prevDist _) ->
+              if thisDist < prevDist
+                then
+                  this
+                else
+                  prev)
+            prev)
+        Nothing
+        m
 
   defaultStrategy = Nothing
-
-  OptimalStrategies m = embeddedOptimalStrategies
 
 smallWorldCharacteristicsDistance :: SmallWorldCharacteristics -> SmallWorldCharacteristics -> Float
 smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =

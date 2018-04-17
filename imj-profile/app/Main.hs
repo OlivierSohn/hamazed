@@ -60,7 +60,6 @@ main = do
   --measureRNGsSpeed
   --writeSeedsSource
 
-
 measureRNGsSpeed :: IO ()
 measureRNGsSpeed = do
   r1 <- withMWC256 test

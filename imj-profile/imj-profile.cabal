@@ -56,7 +56,7 @@ library
                      , text >=1.2.3 && < 1.3
                      , time ==1.8.*
                      , unix ==2.7.*
-                     , uuid == 1.3.*
+                     , uuid ==1.3.*
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
@@ -72,7 +72,7 @@ executable imj-profile-exe
                      , imj-profile
                      , mwc-random ==0.13.*
                      , strict-concurrency ==0.2.*
-                     , uuid == 1.3.*
+                     , uuid ==1.3.*
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 

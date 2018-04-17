@@ -219,6 +219,8 @@ data MatrixVariantsSpec =
   deriving(Generic, Eq, Ord)
 instance Binary MatrixVariantsSpec
 instance NFData MatrixVariantsSpec
+instance Show MatrixVariantsSpec where
+  show = prettyShowMatrixVariantsSpec . Just
 
 toVariantsSpec :: MatrixVariants -> MatrixVariantsSpec
 toVariantsSpec (Variants l next) = VariantsSpec (NE.map mkVariationSpec l) (fmap toVariantsSpec next)
@@ -233,6 +235,16 @@ prettyShowMatrixVariants =
     go
  where
   go (Variants v mv) =
+    intercalate " . " $
+      intercalate " + " (map show (toList v)) : maybeToList (fmap go mv)
+
+prettyShowMatrixVariantsSpec :: Maybe MatrixVariantsSpec -> String
+prettyShowMatrixVariantsSpec =
+  maybe
+    "No variant spec"
+    go
+ where
+  go (VariantsSpec v mv) =
     intercalate " . " $
       intercalate " + " (map show (toList v)) : maybeToList (fmap go mv)
 
@@ -288,9 +300,12 @@ instance Show Variation where
   show r@Rotate{} = unwords ["R", showVariationDetails r]
 
 showVariationDetails :: Variation -> String
-showVariationDetails (Rotate (RotationDetail order (ComponentCount n))) = unwords ["margin-" ++ show n, show order]
+showVariationDetails (Rotate detail) = showRotationDetail detail
 showVariationDetails (Interleave r c) = show (nUseful r, nUseful c)
 showVariationDetails (Modulate from to) = show (from,to)
+
+showRotationDetail :: RotationDetail -> String
+showRotationDetail (RotationDetail order (ComponentCount n)) = unwords ["margin-" ++ show n, show order]
 
 data VariationSpec =
     Rotation !RotationDetail
@@ -299,7 +314,10 @@ data VariationSpec =
   deriving(Generic, Eq, Ord)
 instance Binary VariationSpec
 instance NFData VariationSpec
-
+instance Show VariationSpec where
+  show Modulation{} = "M"
+  show Interleaving{} = "I"
+  show (Rotation detail) = unwords ["R", showRotationDetail detail]
 
 mkVariation :: Size -> VariationSpec -> Variation
 mkVariation _ (Rotation x) = Rotate x

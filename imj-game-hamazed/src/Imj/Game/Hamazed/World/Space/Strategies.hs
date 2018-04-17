@@ -70,35 +70,36 @@ data ClosestOptimalStrategy = ClosestOptimalStrategy {
     _closestWorld :: !(Maybe SmallWorldCharacteristics)
     -- ^ Note that the bigger the distance is, the less accurate the duration estimation will be.
   , _closestEstimatedDuration :: !(Maybe (Time Duration System))
-  , _closestMatrixVariant :: !(Maybe MatrixVariants)
+  , _closestMatrixVariant :: !(Maybe MatrixVariantsSpec)
 }
 
-closestOptimalStrategy :: SmallWorldCharacteristics -> ClosestOptimalStrategy
-closestOptimalStrategy world@(SWCharacteristics sz _ _) =
-  maybe
-    (ClosestOptimalStrategy Nothing Nothing $ fmap (toVariants sz) defaultStrategy)
-    (\(StratDist (OptimalStrategy s dt) _ charac) ->
-      ClosestOptimalStrategy (Just charac) (Just dt) $ fmap (toVariants sz) s)
-    closest
+closestOptimalStrategy :: SmallWorldCharacteristics -> Either ClosestOptimalStrategy OptimalStrategy
+closestOptimalStrategy world = case embeddedOptimalStrategies of
+  (OptimalStrategies m) ->
+    let closest =
+          Map.foldlWithKey'
+            (\prev charac strategy ->
+              let thisDist = smallWorldCharacteristicsDistance charac world
+                  this = Just $ StratDist strategy thisDist charac
+              in maybe
+                this
+                (\(StratDist _ prevDist _) ->
+                  if thisDist < prevDist
+                    then
+                      this
+                    else
+                      prev)
+                prev)
+            Nothing
+            m
+        closestOptimal =
+          maybe
+            (ClosestOptimalStrategy Nothing Nothing defaultStrategy)
+            (\(StratDist (OptimalStrategy s dt) _ charac) ->
+              ClosestOptimalStrategy (Just charac) (Just dt) s)
+            closest
+    in maybe (Left closestOptimal) Right $ Map.lookup world m
  where
-  closest = case embeddedOptimalStrategies of
-    (OptimalStrategies m) ->
-      Map.foldlWithKey'
-        (\prev charac strategy ->
-          let thisDist = smallWorldCharacteristicsDistance charac world
-              this = Just $ StratDist strategy thisDist charac
-          in maybe
-            this
-            (\(StratDist _ prevDist _) ->
-              if thisDist < prevDist
-                then
-                  this
-                else
-                  prev)
-            prev)
-        Nothing
-        m
-
   defaultStrategy = Nothing
 
 smallWorldCharacteristicsDistance :: SmallWorldCharacteristics -> SmallWorldCharacteristics -> Float

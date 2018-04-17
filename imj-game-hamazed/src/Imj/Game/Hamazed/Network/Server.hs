@@ -214,7 +214,7 @@ handleClient st sn cliType = do
             CreationAssigned _ ->
               -- A game is in progress and a "next level" is being built:
               -- add the newcomer to the assigned builders.
-              continueWorldRequest Map.empty wid
+              participateToWorldCreation wid
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . handleIncomingEvent
 
@@ -606,7 +606,7 @@ handleIncomingEvent' = \case
           -- TODO before launching the game we should check that it is possible to create all levels.
           serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
-    NeedMoreTime -> continueWorldRequest stats wid
+    NeedMoreTime -> addStats stats wid
     Success essence -> get >>= \(ServerState _ _ _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _ _) -> bool
       (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
       (case st of
@@ -965,21 +965,39 @@ cancelWorldRequest = gets worldCreation >>= \wc@(WorldCreation st wid _ _) -> ca
     modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } }
 
 
-continueWorldRequest :: Map Properties Statistics
-                     -> WorldId
-                     -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
-                     -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
-                     -- this case could occur if the request was cancelled just after the non-result was
-                     -- sent by the client).
-                     -> ClientHandlerIO ()
-continueWorldRequest stats key = asks shipId >>= \origin ->
+addStats :: Map Properties Statistics
+         -> WorldId
+         -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
+         -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
+         -- this case could occur if the request was cancelled just after the non-result was
+         -- sent by the client).
+         -> ClientHandlerIO ()
+addStats stats key =
   gets worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
     let newStats = safeMerge mergeStats prevStats stats
     bool
       (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
       (case st of
-        Created ->
           -- drop newStats if world is already created.
+        Created -> return ()
+        CreationAssigned _ -> do
+          log $ colored (pack $ show newStats) white
+          modify' $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
+      $ wid == key
+
+
+participateToWorldCreation :: WorldId
+                           -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
+                           -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
+                           -- this case could occur if the request was cancelled just after the non-result was
+                           -- sent by the client).
+                           -> ClientHandlerIO ()
+participateToWorldCreation key = asks shipId >>= \origin ->
+  gets worldCreation >>= \wc@(WorldCreation st wid _ _) ->
+    bool
+      (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
+      (case st of
+        Created ->
           serverLog $ pure $ colored ("World " <> pack (show key) <> " is already created.") blue
         CreationAssigned assignees -> do
           let prevSize = Set.size assignees
@@ -989,9 +1007,8 @@ continueWorldRequest stats key = asks shipId >>= \origin ->
           unless (newSize == prevSize) $
             -- a previously assigned client has disconnected, reconnects and sends a non-result
             serverLog $ pure $ colored ("Adding assignee : " <> pack (show origin)) blue
-          log $ colored (pack $ show newStats) white
           modify' $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees
-                                                 , creationStatistics = newStats } }
+                                                 } }
           gets clientsMap >>= requestWorldBy . flip Map.restrictKeys single)
       $ wid == key
 

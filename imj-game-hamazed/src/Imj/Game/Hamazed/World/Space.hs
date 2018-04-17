@@ -153,40 +153,41 @@ mkRandomlyFilledSpace :: WallDistribution
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = case closestOptimalStrategy characteristics of
-      (ClosestOptimalStrategy mayCloseWorld mayDuration strategy) -> do
-        maybe
-          (putStrLn "No close world was found.")
-          (\close ->
-            if close == characteristics
-              then do
-                putStrLn $ unwords
-                  [ "Found an exact match for"
-                  , prettyShowSWCharacteristics characteristics]
-                putStrLn $ "Strategy:" ++ show strategy
-              else do
-                let dist = almost $ smallWorldCharacteristicsDistance close characteristics
-                putStrLn $ unwords
-                  [ "Found\n"
-                  , prettyShowSWCharacteristics close
-                  , "\nat distance"
-                  , show dist
-                  , "of\n"
-                  , prettyShowSWCharacteristics characteristics]
-                putStrLn $ "Close strategy:" ++ show strategy)
-          mayCloseWorld
-        putStrLn $
-          "Estimated duration:" ++
-          maybe "no estimation" showTime mayDuration
-        mkSmallWorld gens property continue >>= \(res, stats) ->
-          return
-            (case res of
-              NeedMoreTime -> NeedMoreTime
-              Impossible bounds -> Impossible bounds
-              Success small -> Success $ smallWorldToBigWorld s blockSize small
-            , Just (property, stats))
-       where
-        property = mkProperties characteristics strategy
+  | otherwise = do
+      (strategy,mayEstimation) <- either
+        (\(ClosestOptimalStrategy mayCloseWorld mayDuration strategy) -> do
+            maybe
+              (putStrLn "No close world was found.")
+              (\close -> do
+                    let dist = almost $ smallWorldCharacteristicsDistance close characteristics
+                    putStrLn $ unwords
+                      [ "Found\n"
+                      , prettyShowSWCharacteristics close
+                      , "\nat distance"
+                      , show dist
+                      , "of\n"
+                      , prettyShowSWCharacteristics characteristics]
+                    putStrLn $ "Close strategy:" ++ show strategy)
+              mayCloseWorld
+            return (strategy,mayDuration))
+        (\(OptimalStrategy exactMatch duration) -> do
+            putStrLn $ unwords
+              [ "Found an exact match for"
+              , prettyShowSWCharacteristics characteristics]
+            putStrLn $ "Strategy:" ++ show exactMatch
+            return (exactMatch, Just duration))
+        $ closestOptimalStrategy characteristics
+      putStrLn $
+        "Estimated duration:" ++
+        maybe "no estimation" showTime mayEstimation
+      let property = mkProperties characteristics $ fmap (toVariants smallSz) strategy
+      mkSmallWorld gens property continue >>= \(res, stats) ->
+        return
+          (case res of
+            NeedMoreTime -> NeedMoreTime
+            Impossible bounds -> Impossible bounds
+            Success small -> Success $ smallWorldToBigWorld s blockSize small
+          , Just (property, stats))
  where
   smallSz = bigToSmall s blockSize
   characteristics = SWCharacteristics smallSz nComponents wallAirRatio

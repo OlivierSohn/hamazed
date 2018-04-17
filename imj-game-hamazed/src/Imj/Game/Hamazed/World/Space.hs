@@ -163,6 +163,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
                 putStrLn $ unwords
                   [ "Found an exact match for"
                   , prettyShowSWCharacteristics characteristics]
+                putStrLn $ "Strategy:" ++ show strategy
               else do
                 let dist = almost $ smallWorldCharacteristicsDistance close characteristics
                 putStrLn $ unwords
@@ -171,11 +172,11 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
                   , "\nat distance"
                   , show dist
                   , "of\n"
-                  , prettyShowSWCharacteristics characteristics])
+                  , prettyShowSWCharacteristics characteristics]
+                putStrLn $ "Close strategy:" ++ show strategy)
           mayCloseWorld
-        putStrLn $ "Closest strategy:" ++ show strategy
         putStrLn $
-          "Closest strategy estimated duration:" ++
+          "Estimated duration:" ++
           maybe "no estimation" showTime mayDuration
         mkSmallWorld gens property continue >>= \(res, stats) ->
           return

@@ -29,7 +29,6 @@ import qualified Data.IntSet as ISet
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
-import           Data.Text(pack)
 import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
@@ -224,9 +223,9 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
   informRefined from to =
     CS.putStrLn $
       CS.colored "Refined from: " green <>
-      fromString (pack $ show from) <>
+      fromString (show from) <>
       CS.colored " to: " green <>
-      fromString (pack $ show to)
+      fromString (show to)
 
   nextDt = (.*) multDt
   multDt = 6

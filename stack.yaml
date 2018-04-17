@@ -5,7 +5,6 @@ resolver: lts-11.5
 packages:
 - './imj-prelude'
 - './imj-base'
-- './imj-benchmark'
 - './imj-particlesystem'
 - './imj-game-hamazed'
 - './imj-profile'

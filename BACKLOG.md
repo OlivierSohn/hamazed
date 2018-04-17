@@ -1,3 +1,5 @@
+- use embedStringFile for javascript, and for mkSeeds.
+
 - this may be faster / require less memory than binary :
 https://github.com/fpco/store
 https://github.com/Quid2/flat
@@ -8,14 +10,12 @@ https://github.com/Quid2/flat
 
 - display estimated time to build a world (based on optimal strategy time)
 
-- see how to generalize to n components.
-
 - the game is fun to play with all maxed:
   wall size = 6
   proba = 0.9
 
 - parallel stats :
-the stats displayed are the stats of the rng the lead to finding a world.
+the stats displayed are the stats of the rng that found a world.
 Should we merge them with the stats of RNGs that didn't find?
 
 - benchmark:
@@ -27,7 +27,6 @@ And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the
 With random distributions of size n*n, biased with wall probability wallProba, what is the probability
 to have a single connected component touching the 4 fronteers?
 
-- benchmark, understand the strategies for multi component worlds
 - optimize 'spaceIsWellUsed' (see comment)
 
 - benchmark IntSet vs. Set Int for Sums

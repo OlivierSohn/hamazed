@@ -154,32 +154,20 @@ mkRandomlyFilledSpace :: WallDistribution
 mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
-  | otherwise = decodeOptimalStrategiesFileOrFail >>= go
+  | otherwise = do
+      print strategy
+      mkSmallWorld gens property continue >>= \(res, stats) ->
+        return
+          (case res of
+            NeedMoreTime -> NeedMoreTime
+            Impossible bounds -> Impossible bounds
+            Success small -> Success $ smallWorldToBigWorld s blockSize small
+          , Just (property, stats))
  where
-  go optimalStrategies = do
-    print strategy
-    mkSmallWorld gens property continue >>= \(res, stats) ->
-      return
-        (case res of
-          NeedMoreTime -> NeedMoreTime
-          Impossible bounds -> Impossible bounds
-          Success small -> Success $ smallWorldToBigWorld s blockSize small
-        , Just (property, stats))
-   where
-    strategy = bestStrategy optimalStrategies characteristics
-    property = mkProperties characteristics strategy
+  strategy = bestStrategy characteristics
+  property = mkProperties characteristics strategy
   characteristics = SWCharacteristics smallSz nComponents wallAirRatio
   smallSz = bigToSmall s blockSize
-
-bestStrategy :: OptimalStrategies -> SmallWorldCharacteristics -> Maybe MatrixVariants
-bestStrategy (OptimalStrategies m) world@(SWCharacteristics sz _ _) =
-  fmap (toVariants sz) $ maybe defaultStrategy (\(OptimalStrategy s _) -> s) best
- where
-  (best,_) = Map.foldlWithKey' (\cur@(_, curDist) charac strategy ->
-    let dist = smallWorldCharacteristicsDistance charac world
-    in bool cur (Just strategy, dist) $ dist < curDist) (Nothing, 1000000) m
-
-  defaultStrategy = Nothing
 
 smallWorldToBigWorld :: Size
                      -> Int

@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -12,20 +12,22 @@ module Imj.Game.Hamazed.World.Space.Strategies
     , OptimalStrategy(..)
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
-    , decodeOptimalStrategiesFileOrFail
+    , bestStrategy
     , smallWorldCharacteristicsDistance
     ) where
 
 import           Imj.Prelude
 
 import           Prelude(FilePath, putStrLn)
+import           Data.FileEmbed(embedFile)
 import           Data.Binary
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as L
 import           Data.List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import           Data.String(IsString(..))
-import           System.Directory(doesFileExist)
 
 import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
@@ -59,7 +61,35 @@ instance Ord OptimalStrategy where
 instance Eq OptimalStrategy where
   a == b = averageDuration a == averageDuration b
 
-smallWorldCharacteristicsDistance :: SmallWorldCharacteristics ->SmallWorldCharacteristics -> Float
+
+data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float
+
+bestStrategy :: SmallWorldCharacteristics -> Maybe MatrixVariants
+bestStrategy world@(SWCharacteristics sz _ _) =
+  toVariants sz <$> maybe defaultStrategy (\(StratDist (OptimalStrategy s _) _) -> s) best
+ where
+  best =
+    Map.foldlWithKey'
+      (\prev charac strategy ->
+        let thisDist = smallWorldCharacteristicsDistance charac world
+            this = Just $ StratDist strategy thisDist
+        in maybe
+          this
+          (\(StratDist _ prevDist) ->
+            if thisDist < prevDist
+              then
+                this
+              else
+                prev)
+          prev)
+      Nothing
+      m
+
+  defaultStrategy = Nothing
+
+  OptimalStrategies m = embeddedOptimalStrategies
+
+smallWorldCharacteristicsDistance :: SmallWorldCharacteristics -> SmallWorldCharacteristics -> Float
 smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
   -- These changes have the same impact on distance:
   --   doubled size
@@ -85,13 +115,31 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
       ratio = fromIntegral a / fromIntegral a'
 
 optimalStrategiesFile :: FilePath
-optimalStrategiesFile = "optstrat.bin"
+optimalStrategiesFile = "data/optstrat.bin"
 
 encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()
 encodeOptimalStrategiesFile s = do
-  encodeFile optimalStrategiesFile s
-  putStrLn $ "Wrote optimal strategies file:" ++ show optimalStrategiesFile
+  encodeFile path s
+  putStrLn $ "Wrote optimal strategies file:" ++ show path
+ where
+  path = "./imj-game-hamazed/" <> optimalStrategiesFile
 
+embeddedOptimalStrategies :: OptimalStrategies
+embeddedOptimalStrategies =
+  either
+    (\(_,offset,str) -> error $ "The embedded file optstrat.bin is corrupt:" ++ show (offset,str))
+    (\(_,offset,res) ->
+      if fromIntegral len == offset
+        then
+          res
+        else
+          error $ "Not all content has been used :" ++ show (len,offset) ) $
+    decodeOrFail $ L.fromStrict content
+ where
+   content = $(embedFile optimalStrategiesFile)
+   len = B.length content
+
+{-
 decodeOptimalStrategiesFileOrFail :: IO OptimalStrategies
 decodeOptimalStrategiesFileOrFail =
   doesFileExist optimalStrategiesFile >>= \case
@@ -105,6 +153,7 @@ decodeOptimalStrategiesFileOrFail =
       return fallback
  where
   fallback = OptimalStrategies mempty
+-}
 
 data SizeProba = SizeProba {
     _spSize :: {-# UNPACK #-} !Size

@@ -222,7 +222,11 @@ withTestScheduler' intent testF initialProgress@(TestProgress key _ _ _ _ _) =
 
   informRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> IO ()
   informRefined from to =
-    CS.putStrLn $ CS.colored ("Refined from: " <> pack (show from) <> " to: " <> pack (show to)) green
+    CS.putStrLn $
+      CS.colored "Refined from: " green <>
+      fromString (pack $ show from) <>
+      CS.colored " to: " green <>
+      fromString (pack $ show to)
 
   nextDt = (.*) multDt
   multDt = 6

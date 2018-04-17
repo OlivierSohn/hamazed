@@ -65,6 +65,7 @@ library
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
                      , Imj.Game.Hamazed.World.Space.Strategies
+                     , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.8 && < 4.12

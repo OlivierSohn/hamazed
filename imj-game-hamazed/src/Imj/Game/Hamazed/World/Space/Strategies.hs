@@ -18,7 +18,7 @@ module Imj.Game.Hamazed.World.Space.Strategies
 
 import           Imj.Prelude
 
-import           Prelude(FilePath, putStrLn)
+import           Prelude(putStrLn)
 import           Data.FileEmbed(embedFile)
 import           Data.Binary
 import qualified Data.ByteString as B
@@ -30,6 +30,7 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
+import           Imj.Game.Hamazed.World.Space.Strategies.Internal
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words hiding(intercalate)
 import           Imj.Graphics.Text.Render
@@ -113,9 +114,6 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
       a = area sz
       a' = area sz'
       ratio = fromIntegral a / fromIntegral a'
-
-optimalStrategiesFile :: FilePath
-optimalStrategiesFile = "data/optstrat.bin"
 
 encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()
 encodeOptimalStrategiesFile s = do

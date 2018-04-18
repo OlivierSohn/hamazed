@@ -106,7 +106,7 @@ writeRNGImages =
 
   probas = [0.1, 0.01, 0.5, 0.9, 0.99]
 
-justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants]
+justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants] -- 24
 justVariantsWithRotations sz n =
   let interleave = mkVariation sz Interleaving
       modulation = mkVariation sz Modulation
@@ -128,7 +128,7 @@ justVariantsWithRotations sz n =
       Cyclic.Rect1
       ]
 
-justVariantsWithoutRotations :: Size -> [MatrixVariants]
+justVariantsWithoutRotations :: Size -> [MatrixVariants] -- 4
 justVariantsWithoutRotations sz =
   let interleave = mkVariation sz Interleaving
       modulation = mkVariation sz Modulation
@@ -265,7 +265,7 @@ profileAllProps = do
  where
   allowedDt = fromSecs 15
 
-allStrategies :: Size -> [Maybe MatrixVariants]
+allStrategies :: Size -> [Maybe MatrixVariants] -- 1 + 4 + 24*7 == 173
 allStrategies size =
   map
     Just

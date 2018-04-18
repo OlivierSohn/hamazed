@@ -66,8 +66,8 @@ shouldTest world@(SWCharacteristics refSz _ _) m =
       countValidBiggers = IMap.foldl' (\s -> (+) s . List.length) 0 biggersAndBiggers
   in case smallersAndSmallers of
         [] -> True
-        closestSmallers:_ ->
-          not (null closestSmallers) || countValidBiggers > 0
+        closestSmallersValids:_ ->
+          not (null closestSmallersValids) || countValidBiggers > 0
 
 -- returns 'Nothing' when height and width change in opposite directions.
 homogenousDist :: Size -> Size -> Maybe Int

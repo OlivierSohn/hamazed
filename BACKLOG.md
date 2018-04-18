@@ -1,3 +1,5 @@
+- use an acyclic graph for difficulties, to replace proba inner list sorting + 'shouldTest'
+
 -
 Once we have all durations for (6,12), we can support user probabilities in master officially
 

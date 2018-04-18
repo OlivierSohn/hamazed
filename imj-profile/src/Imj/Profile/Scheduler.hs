@@ -16,7 +16,7 @@ module Imj.Profile.Scheduler
 
 import           Imj.Prelude hiding(div)
 
-import           Prelude(putStrLn, length)
+import           Prelude(putStrLn, putStr, length)
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, readMVar)
 import           Data.Binary
@@ -32,7 +32,10 @@ import           Data.String(IsString(..))
 import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
+import           System.IO(stdout, hFlush)
 import           Text.Blaze.Html5(div,Html, toHtml)
+
+
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as W
@@ -198,20 +201,21 @@ withTestScheduler' intent testF initialProgress =
           smalls@((smallEasy,strategies):smallHards):biggerOrDifferents -> do
             let trySmallsLater = go $ updateProgress dt hints biggerOrDifferents (smalls:tooHard) results p
             if not $ shouldTest smallEasy results
-              then
+              then do
+                putStrLn $ "[skip] " ++ prettyShowSWCharacteristics smallEasy
                 trySmallsLater
               else do
+                putStrLn $ "[test] " ++ prettyShowSWCharacteristics smallEasy
                 let hintsIndicesByDistance = map fst $ sortOn snd $ Map.assocs $ Map.fromListWith min $
                       map (\(w,i) -> (i, smallWorldCharacteristicsDistance smallEasy w)) $ Map.assocs hints
                     hintsByDistance = map (\idx -> (idx, fromMaybe (error "logic") $ IMap.lookup idx strategies)) hintsIndicesByDistance
-                    orderedStrategies = take 3 $ -- 3 is arbitrary
+                    orderedStrategies =
                       hintsByDistance ++
                       IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
-                go' smallEasy orderedStrategies >>= maybe
+                go' smallEasy (take 8 orderedStrategies) >>= maybe
                   trySmallsLater
                   (\((stratI,strategy),_) -> do
-                      ((refinedI,refined), resultsBySeeds) <- refineWithHint smallEasy testF (stratI,strategy)
-                        $ IMap.assocs $ IMap.delete stratI strategies
+                      ((refinedI,refined), resultsBySeeds) <- refineWithHint smallEasy testF (stratI,strategy) orderedStrategies
                       let newResults = foldl' (flip (uncurry (addResult smallEasy refined))) results resultsBySeeds
                           newHints = Map.insert smallEasy refinedI hints
                       mapM_ CS.putStrLn $ showResults newResults
@@ -223,7 +227,8 @@ withTestScheduler' intent testF initialProgress =
             go' world (assoc@(_,strategy):otherStrategies) =
               continue intent >>= bool
                 (return Nothing)
-                (--putStrLn $ "try " ++ show strategy
+                (do
+                  putStrLn $ "[try 1 group] " ++ show strategy
                   fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just dt) (mkProperties world strategy)) firstSeedGroup
                      >>= maybe
                       (go' world otherStrategies)
@@ -273,11 +278,14 @@ refineWithHint :: SmallWorldCharacteristics
                -> (Int,Maybe MatrixVariants)
                -- ^ This is the hint : a variant which we think is one of the fastest.
                -> [(Int,Maybe MatrixVariants)]
-               -- ^ The candidates (the hint should not be in this list)
+               -- ^ The candidates (the hint can be in this list, but it will be filtered away)
                -> IO ((Int,Maybe MatrixVariants),[(NonEmpty SeedNumber, TestStatus Statistics)])
                -- ^ The best
-refineWithHint world testF hintStrategy strategies =
-  mkHintStats >>= go strategies . mkBestSofar hintStrategy
+refineWithHint world testF hintStrategy strategies = do
+  putStrLn "[refine] "
+  res <- mkHintStats >>= go (filter (/= hintStrategy) strategies) . mkBestSofar hintStrategy
+  putStrLn ""
+  return res
  where
   go [] (BestSofar s l _) = return (s, l)
   go (candidate:candidates) bsf@(BestSofar _ _ (DurationConstraints maxTotal maxIndividual)) =
@@ -286,13 +294,16 @@ refineWithHint world testF hintStrategy strategies =
       (mkBestSofar candidate)
    where
     mkStatsWithConstraint :: IO (Either () [(NonEmpty SeedNumber, TestStatus Statistics)])
-    mkStatsWithConstraint  =
+    mkStatsWithConstraint  = do
+      putStr "." >> hFlush stdout
       seedGroups >>= ho [] zeroDuration
      where
       ho l totalSofar remaining
         | totalSofar >= maxTotal = return $ Left ()
         | otherwise = case remaining of
-            [] -> return $ Right l
+            [] -> do
+              putStr "+" >> hFlush stdout
+              return $ Right l
             seedGroup:groups -> do
               let maxDt = min maxIndividual $ maxTotal |-| totalSofar
                   props = mkProperties world $ snd candidate

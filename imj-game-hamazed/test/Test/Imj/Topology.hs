@@ -14,6 +14,7 @@ import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import           System.Random.MWC(GenIO, create)
 
+import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 
@@ -143,7 +144,7 @@ testMinCountAirBlocks = do
       -- verify that the number of air blocks in worlds of that size with that count of components
       -- is according to what is expected, and that it is possible to reach the minimum.
       (\minAirCount -> do
-        let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: Float
+        let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: AlmostFloat
         successes <- generateAtLeastN nSuccesses $
           map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
         let z = zip (map countAirElements successes) successes
@@ -177,7 +178,7 @@ testMinCountAirBlocks = do
           Nothing) <$> mkSmallMatUnchecked gen proba sz
 
 mkSmallMatUnchecked :: GenIO
-                    -> Float
+                    -> AlmostFloat
                     -- ^ Probability to generate a wall
                     -> Size
                     -- ^ Size of the matrix

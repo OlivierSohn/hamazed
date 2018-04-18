@@ -109,7 +109,7 @@ smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics
   --   proba 0.6 -> 0.7
   --   2 cc -> 3 cc
   --   4 cc -> 5 cc
-  doubleSize + 10 * abs (p-p') + fromIntegral (dCC (min cc cc') (max cc cc'))
+  doubleSize + 10 * (almostDistance p p') + fromIntegral (dCC (min cc cc') (max cc cc'))
  where
    -- c1 <= c2
    dCC c1 c2
@@ -173,7 +173,7 @@ data SizeProba = SizeProba {
 prettyShowOptimalStrategies :: Characters s => OptimalStrategies -> [s]
 prettyShowOptimalStrategies (OptimalStrategies m) =
   intercalate [""] $ map (\(cc,optimalStrategies) -> fromString (show cc) : showBySizeProba optimalStrategies)
-    $ Map.toList $ splitKeys (\(SWCharacteristics sz cc proba) -> (cc, SizeProba sz $ almost proba)) m
+    $ Map.toList $ splitKeys (\(SWCharacteristics sz cc proba) -> (cc, SizeProba sz proba)) m
  where
   showBySizeProba m' = map fromString $ showArrayN
     (Just $ "" : map show allProbas) $

@@ -40,6 +40,7 @@ import           Control.Exception.Base(Exception(..))
 import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 
+import           Imj.Data.AlmostFloat
 import           Imj.Graphics.RecordDraw
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -140,13 +141,13 @@ maxBlockSize = 6
 allBlockSizes :: [Int]
 allBlockSizes = [minBlockSize..maxBlockSize]
 
-wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: Float
+wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
 initialWallProba = 0.5
 minWallProba = 0.1
 maxWallProba = 0.9
 wallProbaIncrements = 0.1
 
-allProbasForGame :: [Float]
+allProbasForGame :: [AlmostFloat]
 allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
 
 nProbaSteps :: Int

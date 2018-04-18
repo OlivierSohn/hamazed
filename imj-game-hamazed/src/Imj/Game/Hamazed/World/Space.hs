@@ -229,7 +229,7 @@ type TopoMatch = Either SmallWorldRejection SmallWorld
 -- We need n locations to store random matrices.
 -- We need to wait when more than m locations are used.
 mkMatrixPipeline :: ComponentCount
-                 -> Float
+                 -> AlmostFloat
                  -- ^ Probability to generate a wall
                  -> Size
                  -- ^ Size of the matrix
@@ -640,7 +640,7 @@ data AccumSource = AS {
 }
 
 fillSmallVector :: GenIO
-                -> Float
+                -> AlmostFloat
                 -- ^ Probability to generate a wall
                 -> MS.IOVector MaterialAndKey
                 -- ^ Use this memory
@@ -648,7 +648,7 @@ fillSmallVector :: GenIO
                 -- ^ The count of air keys
 fillSmallVector gen wallProba v = do
   let countBlocks = MS.length v
-      !limit = (floor $ wallProba * fromIntegral (maxBound :: Word8)) :: Word8
+      !limit = mapNormalizedToDiscrete wallProba maxBound :: Word8
 
       source8' :: Int -> (Int -> Word16 -> Word8 -> IO Word16) -> IO Word16
       source8' n f =

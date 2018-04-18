@@ -20,11 +20,12 @@ import           System.Random.MWC(uniform)
 
 import           Imj.Game.Hamazed.World.Space.Types
 
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Profile.Result
 import           Imj.Random.MWC.Util
 
-mkMWC256Image :: SeedNumber -> Size -> Float -> IO (Image Word8)
+mkMWC256Image :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
 mkMWC256Image seed sz@(Size (Length h) (Length w)) proba =
   withNumberedSeeds genImg (pure seed)
  where

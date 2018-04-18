@@ -81,6 +81,7 @@ import           Control.Arrow((***))
 import           Data.List(unlines, unwords, intercalate)
 import           Data.List.NonEmpty(NonEmpty(..), toList)
 import qualified Data.List.NonEmpty as NE(map)
+import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import           Imj.Data.Matrix.Cyclic (Storable(..))
 import qualified Imj.Data.Matrix.Cyclic as Cyclic hiding (Storable(..))
@@ -106,7 +107,7 @@ data WallDistribution = WallDistribution {
     --
     -- Note that the smaller the block size, the harder it will be for the algorithm to find
     -- a random world with a single component of air.
-  , wallProbability' :: {-# UNPACK #-} !Float -- ^ 1 means only walls, 0 means no walls at all
+  , wallProbability' :: {-# UNPACK #-} !AlmostFloat -- ^ 1 means only walls, 0 means no walls at all
 } deriving(Generic, Show, Eq)
 instance Binary WallDistribution
 instance NFData WallDistribution
@@ -194,10 +195,12 @@ data SmallWorldCharacteristics = SWCharacteristics {
     -- ^ Size of the small world
   , swComponentCount :: !ComponentCount
     -- ^ The expected count of connex components.
-  , userWallProbability :: !Float
+  , userWallProbability :: !AlmostFloat
     -- ^ User wall proba, in range [0,1]. The /real/ wall proba will then be this value
     -- mapped to the theoretical min / max proba range, computed according to
     -- 'ComponentCount' and 'Size' of the small world.
+    --
+    -- We use an 'AlmostFloat' to account for numerical errors.
 } deriving(Generic, Show, Eq, Ord)
 instance Binary SmallWorldCharacteristics
 instance NFData SmallWorldCharacteristics

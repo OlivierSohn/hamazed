@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
@@ -9,14 +10,18 @@
 module Imj.Profile.Results
     ( toOptimalStrategies
     , addResult
-    , mkEmptyResults
-    , Results(..)
-    , longestDuration
+    , MaybeResults
+    , mkNothingResults
+    , getResultsOfAllSizes
     , resultsToHtml
+    , shouldTest
     ) where
 
 import           Imj.Prelude hiding(div)
 
+import           Data.Set(Set)
+import qualified Data.IntMap.Strict as IMap
+import qualified Data.List as List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
@@ -34,48 +39,87 @@ import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
 import           Imj.Timing
 
-newtype Results k = Results (Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
+-- Same has 'Results', except we have a 'Maybe' to express if the test has run yet or not.
+newtype MaybeResults k = MaybeResults (Map SmallWorldCharacteristics (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics))))
   deriving(Generic, Binary)
-instance (NFData k) => NFData (Results k)
+instance (NFData k) => NFData (MaybeResults k)
 
-mkEmptyResults :: Results k
-mkEmptyResults = Results Map.empty
+-- | Returns true if either
+--
+-- * there is no smaller size
+-- * a valid result exists for the closest smaller size
+-- * a valid result exists for any bigger size
+--
+-- It is used to discard tests that would fail with a hogh probability for a given timeout,
+-- based on the knowledge of how tests with smaller or bigger sizes performed.
+shouldTest :: SmallWorldCharacteristics -> MaybeResults k -> Bool
+shouldTest world@(SWCharacteristics refSz _ _) m =
+  let (l,biggersAndBiggers) =
+        IMap.split 0 $ -- split removes the 0 key. It is ok because this key corresponds only
+                       -- to the 'SmallWorldCharacteristics' passed as parameter.
+        IMap.map catMaybes $ -- keep valid results only, i.e w can use 'null' to detect invalid results
+        IMap.fromListWith (++) $ -- aggregate results that are at the same distance
+        mapMaybe (\(sz,res) -> flip (,) [res] <$> homogenousDist refSz sz) $ -- discard size changes that are not homogenous
+        Map.assocs $
+        getResultsOfAllSizes world m
+      smallersAndSmallers = IMap.toDescList l
+      countValidBiggers = IMap.foldl' (\s -> (+) s . List.length) 0 biggersAndBiggers
+  in case smallersAndSmallers of
+        [] -> True
+        closestSmallers:_ ->
+          not (null closestSmallers) || countValidBiggers > 0
 
+-- returns 'Nothing' when height and width change in opposite directions.
+homogenousDist :: Size -> Size -> Maybe Int
+homogenousDist (Size h w) (Size h' w')
+  | dh > 0 && dw < 0 = Nothing
+  | dh < 0 && dw > 0 = Nothing
+  | otherwise = Just $ fromIntegral dh + fromIntegral dw
+ where
+  dw = w' - w
+  dh = h' - h
+
+getResultsOfAllSizes :: SmallWorldCharacteristics -> MaybeResults k -> Map Size (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
+getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
+  Map.mapKeysMonotonic swSize $
+  Map.filterWithKey
+    (\(SWCharacteristics _ cc' proba') _ -> cc==cc' && proba == proba')
+    m
+
+-- | Note that the list of 'SmallWorldCharacteristics' passed here should contain all
+-- possible future results added to the 'MaybeResults'. Hence, calling 'addResult'
+-- with a 'SmallWorldCharacteristics' outside this set will error.
+mkNothingResults :: Set SmallWorldCharacteristics -> MaybeResults k
+mkNothingResults = MaybeResults . Map.fromSet (const Nothing)
+
+-- | The 'Mayberesult' passed should contain a (possibly 'Nothing') result for 'SmallWorldCharacteristics'
 {-# INLINABLE addResult #-}
-addResult :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> Results k -> Results k
-addResult w strategy seed stats (Results res) =
-  Results $ Map.alter
-    (Just . maybe
-      (Map.singleton strategy s)
-      (Map.alter (Just . maybe s (mappend s)) strategy))
+addResult :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> MaybeResults k -> MaybeResults k
+addResult w strategy seed stats (MaybeResults res) =
+  MaybeResults $ Map.alter
+    (maybe
+      (error $ "unforeseen result:" ++ show w)
+      (Just . Just . maybe
+        (Map.singleton strategy s)
+        (Map.alter (Just . maybe s (mappend s)) strategy)))
     w
     res
  where
   s = TD $ Map.singleton seed stats
 
-longestDuration :: Results k -> Maybe (Time Duration System)
-longestDuration (Results m) =
-  Map.foldr
-    (flip $ Map.foldr (\e -> maxTime (getSummaryDuration $ summarize e)))
-    Nothing
-    m
- where
-  maxTime Nothing Nothing = Nothing
-  maxTime Nothing (Just t) = Just t
-  maxTime (Just t) Nothing = Just t
-  maxTime (Just t) (Just t') = Just $ max t t'
-
-toOptimalStrategies :: Results k -> OptimalStrategies
-toOptimalStrategies (Results m) = OptimalStrategies $
+toOptimalStrategies :: MaybeResults k -> OptimalStrategies
+toOptimalStrategies (MaybeResults m) = OptimalStrategies $
   Map.mapMaybe
-    (Map.foldlWithKey'
-      (\o strategy results -> case summarize results of
-          NoResult -> o
-          NTimeouts _ -> o
-          FinishedAverage duration _ ->
-            let cur = OptimalStrategy (fmap toVariantsSpec strategy) duration
-            in Just $ maybe cur (min cur) o)
-      Nothing)
+    (maybe
+      Nothing
+      (Map.foldlWithKey'
+        (\o strategy results -> case summarize results of
+            NoResult -> o
+            NTimeouts _ -> o
+            FinishedAverage duration _ ->
+              let cur = OptimalStrategy (fmap toVariantsSpec strategy) duration
+              in Just $ maybe cur (min cur) o)
+        Nothing))
     m
 
 prettyProcessResult :: Maybe (Time Duration System)
@@ -93,9 +137,9 @@ prettyProcessResult mayAllowedDt world results =
 
 resultsToHtml :: (Show k)
               => Maybe (Time Duration System)
-              -> Results k
+              -> MaybeResults k
               -> Html
-resultsToHtml mayAllowedDt (Results results) =
+resultsToHtml mayAllowedDt (MaybeResults results) =
   aggregate $
     concatMap
       (\(res,ls) ->
@@ -103,6 +147,7 @@ resultsToHtml mayAllowedDt (Results results) =
         in map (flip (,) subHtml . toHtml) ls) $
       concatMap
         (uncurry $ prettyProcessResult mayAllowedDt) $
+        map (fmap (fromMaybe Map.empty)) $
         Map.assocs results
 
  where

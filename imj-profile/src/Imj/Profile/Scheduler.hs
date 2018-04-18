@@ -27,6 +27,7 @@ import qualified Data.IntMap.Strict as IMap
 import qualified Data.IntSet as ISet
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Data.String(IsString(..))
 import           Data.UUID(UUID)
 import           System.Directory(doesFileExist)
@@ -56,11 +57,14 @@ data TestProgress = TestProgress {
   , _hints :: !(Map SmallWorldCharacteristics Int)
    -- ^ Hints for the key of the fastest strategies
   , willTestInIteration :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-   -- ^ During the current iteration, we test the first element of each inner list.
-   -- The elements thereafter are considered too difficult and will be tested at a later iteration.
+   -- ^
+   -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
+   -- During the current iteration, we will skip the elements of the inner list that come after
+   -- the first one that timeouts.
   , _willTestNextIteration :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-  -- ^ These will be tested in a later iteration
-  , _profileResults :: !(Results (NonEmpty SeedNumber))
+  -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
+  -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
+  , _profileResults :: !(MaybeResults (NonEmpty SeedNumber))
 } deriving (Generic)
 instance Binary TestProgress
 
@@ -68,7 +72,7 @@ mkZeroProgress :: [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
                -> IO TestProgress
 mkZeroProgress l = do
   key <- randUUID
-  return $ TestProgress key dt0 mempty l [] mkEmptyResults
+  return $ TestProgress key dt0 mempty l [] (mkNothingResults $ Set.fromList $ concatMap (map fst) l)
  where
   dt0 = fromSecs 0.0001
 
@@ -76,7 +80,7 @@ updateProgress :: Time Duration System
                -> Map SmallWorldCharacteristics Int
                -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
                -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-               -> Results (NonEmpty SeedNumber)
+               -> MaybeResults (NonEmpty SeedNumber)
                -> TestProgress
                -> TestProgress
 updateProgress a b c d e p =
@@ -110,7 +114,7 @@ showStep (TestProgress _ theDt _ worldsNow worldsLater _) =
    nEasy = length worldsNow
    nDifficult = n - nEasy
 
-showResults :: (Characters s) => Results a -> [s]
+showResults :: (Characters s) => MaybeResults a -> [s]
 showResults r =
   prettyShowOptimalStrategies $ toOptimalStrategies r
 
@@ -130,7 +134,7 @@ reset (TestProgress a b c l1 l2 d) =
  where
   s [] = []
   s l@(_:_)
-    | isJust (find ((== almost 0.5) . almost . prob) l) && (sortOn prob l == l) = [l] -- list is ascending
+    | isJust (find ((== 0.5) . prob) l) && (sortOn prob l == l) = [l] -- list is ascending
     | otherwise = splitL
    where
     (lowp,highp) = partition ((< 0.49) . prob) l
@@ -176,37 +180,44 @@ withTestScheduler' intent testF initialProgress =
     go initialProgress
    where
     go :: TestProgress -> IO TestProgress
-    go p@(TestProgress _ !dt hints remaining noValidStrategy oneValidStrategy) = do
+    go p@(TestProgress _ !dt hints remaining tooHard results) = do
       onReport (writeReports p) intent
       continue intent >>= bool
         (return p)
         (case remaining of
           [] ->
-            if null noValidStrategy
+            if null tooHard
               then
                 return p
               else do
-                let newProgress = updateProgress (nextDt dt) hints noValidStrategy [] oneValidStrategy p
+                -- reverse to keep the sorting property of 'willTestInIteration' (see doc).
+                let newProgress = updateProgress (nextDt dt) hints (reverse tooHard) [] results p
                 mapM_ CS.putStrLn $ showStep newProgress
                 go newProgress
           []:rest -> go $ p{willTestInIteration = rest}
-          l@((easy,strategies):difficults):nextWorlds -> do
-            let hintsIndicesByDistance = map fst $ sortOn snd $ Map.assocs $ Map.fromListWith min $
-                  map (\(w,i) -> (i, smallWorldCharacteristicsDistance easy w)) $ Map.assocs hints
-                hintsByDistance = map (\idx -> (idx, fromMaybe (error "logic") $ IMap.lookup idx strategies)) hintsIndicesByDistance
-                orderedStrategies =
-                  hintsByDistance ++
-                  IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
-            go' easy orderedStrategies >>= maybe
-              (go $ updateProgress dt hints nextWorlds (l:noValidStrategy) oneValidStrategy p)
-              (\((stratI,strategy),_) -> do
-                  ((refinedI,refined), resultsBySeeds) <- refineWithHint easy testF (stratI,strategy)
-                    $ IMap.assocs $ IMap.delete stratI strategies
-                  let newOneValid = foldl' (flip (uncurry (addResult easy refined))) oneValidStrategy resultsBySeeds
-                      newHints = Map.insert easy refinedI hints
-                  mapM_ CS.putStrLn $ showResults newOneValid
-                  CS.putStrLn $ showRefined strategy refined
-                  go $ updateProgress dt newHints (difficults:nextWorlds) noValidStrategy newOneValid p)
+          smalls@((smallEasy,strategies):smallHards):biggerOrDifferents -> do
+            let trySmallsLater = go $ updateProgress dt hints biggerOrDifferents (smalls:tooHard) results p
+            if not $ shouldTest smallEasy results
+              then
+                trySmallsLater
+              else do
+                let hintsIndicesByDistance = map fst $ sortOn snd $ Map.assocs $ Map.fromListWith min $
+                      map (\(w,i) -> (i, smallWorldCharacteristicsDistance smallEasy w)) $ Map.assocs hints
+                    hintsByDistance = map (\idx -> (idx, fromMaybe (error "logic") $ IMap.lookup idx strategies)) hintsIndicesByDistance
+                    orderedStrategies = take 3 $ -- 3 is arbitrary
+                      hintsByDistance ++
+                      IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
+                go' smallEasy orderedStrategies >>= maybe
+                  trySmallsLater
+                  (\((stratI,strategy),_) -> do
+                      ((refinedI,refined), resultsBySeeds) <- refineWithHint smallEasy testF (stratI,strategy)
+                        $ IMap.assocs $ IMap.delete stratI strategies
+                      let newResults = foldl' (flip (uncurry (addResult smallEasy refined))) results resultsBySeeds
+                          newHints = Map.insert smallEasy refinedI hints
+                      mapM_ CS.putStrLn $ showResults newResults
+                      putStrLn $ prettyShowSWCharacteristics smallEasy
+                      CS.putStrLn $ showRefined strategy refined
+                      go $ updateProgress dt newHints (smallHards:biggerOrDifferents) tooHard newResults p)
            where
             go' _ [] = return Nothing
             go' world (assoc@(_,strategy):otherStrategies) =

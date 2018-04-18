@@ -1,4 +1,9 @@
-- first restrict benchmarks to worlds with blocksize 6.
+-
+Once we have all durations for (6,12), we can support user probabilities in master officially
+
+when parameters lead to a world that has no known duration (for at least one level?),
+silently change probability and/or number of components to the nearest world that has a known creation duration.
+Display a message in the chat for this.
 
 - display estimated time to build a world (based on optimal strategy time)
 
@@ -14,10 +19,6 @@ Should we merge them with the stats of RNGs that didn't find?
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 (On server cancelation, or on timeout, the IORef Bool is set to False.)
-
-- We could evaluate if the problem we're trying to solve has a known probability to be solved:
-With random distributions of size n*n, biased with wall probability wallProba, what is the probability
-to have a single connected component touching the 4 fronteers?
 
 - optimize 'spaceIsWellUsed' (see comment)
 

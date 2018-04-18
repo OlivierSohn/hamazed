@@ -15,6 +15,8 @@ import qualified Data.List.NonEmpty as NE
 import           Data.List
 import           Data.IntMap.Strict(IntMap)
 import qualified Data.IntMap.Strict as IMap
+import           Data.Set(Set)
+import qualified Data.Set as Set
 import           Data.UUID(UUID)
 import           Data.Vector(fromList)
 import           System.Random.MWC
@@ -136,9 +138,9 @@ justVariantsWithoutRotations sz =
        , Variants (modulation :| [interleave])
        , Variants (pure interleave) . Just . Variants (pure modulation)]
 
-allWorlds :: [SmallWorldCharacteristics]
-allWorlds =
-  map (\(a,b,c) -> SWCharacteristics a b c) params
+someWorlds :: Set SmallWorldCharacteristics
+someWorlds =
+  Set.fromList $ map (\(a,b,c) -> SWCharacteristics a b c) params
  where
   params =
     (Size 32 72, ComponentCount 1, 0.2):
@@ -147,6 +149,8 @@ allWorlds =
     (Size  8 18, ComponentCount 1, 0.7):
     []
 
+-- | Inner lists are sorted by estimated probability difficulty.
+-- The outer list, when filtered on a single 'ComponentCount', is sorted by increasing areas of the inner list 'SmallWorldCharacteristics' sizes
 exhaustiveWorlds :: [[SmallWorldCharacteristics]]
 exhaustiveWorlds =
   concatMap
@@ -156,10 +160,11 @@ exhaustiveWorlds =
           map
             (filter isPossible . map (SWCharacteristics sz cc)) $
             probas cc)
-        exhaustiveSmallSizes)
+        $ sortOn area $ exhaustiveSmallSizes)
     [1 :: ComponentCount ..4]
 
  where
+  -- Returns probabilities sorted by difficulty, according to the number of components.
   probas (ComponentCount 1) = [allProbasForGame]
   probas _ =
     let (l,h) = partition (< 0.49) allProbasForGame
@@ -172,7 +177,7 @@ exhaustiveWorlds =
         isRight (mkLowerBounds ch) || ((nComponents == 1) && error "logic")
 
   exhaustiveSmallSizes =
-    sortOn area $ dedup $ map canonicalize $
+    dedup $ map canonicalize $
       concatMap (\s -> map (bigToSmall s) allBlockSizes) bigSizes
    where
     bigSizes = concatMap
@@ -185,15 +190,15 @@ exhaustiveWorlds =
 
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
-                  -> [SmallWorldCharacteristics]
+                  -> Set SmallWorldCharacteristics
                   -> (Size -> [Maybe MatrixVariants])
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
-                  -> IO (Results SeedNumber)
+                  -> IO (MaybeResults SeedNumber)
 withTestScheduler key worlds strategies allowed intent testF =
-  foldMInterruptible "Seed" mkEmptyResults [1..nSeeds] (\res0 seed@(SeedNumber i) ->
-    foldMInterruptible "World" res0 worlds (\res1 world@(SWCharacteristics sz _ _) -> do
+  foldMInterruptible "Seed" (mkNothingResults worlds) [1..nSeeds] (\res0 seed@(SeedNumber i) ->
+    foldMInterruptible "World" res0 (Set.toList worlds) (\res1 world@(SWCharacteristics sz _ _) -> do
       let strats = strategies sz
       foldMInterruptible "Strategy" res1 strats (\res2 strategy -> do
         onReport (writeHtmlReport key (resultsToHtml (Just allowed) res2)) intent
@@ -252,7 +257,7 @@ profileAllProps = do
   key <- randUUID
 
   (totalDt, allRes) <- withDuration $
-    withTestScheduler key allWorlds allStrategies allowedDt intent (\property seed ->
+    withTestScheduler key someWorlds allStrategies allowedDt intent (\property seed ->
       snd <$> profile property (pure seed))
 
   readMVar intent >>= writeHtmlReport key (resultsToHtml (Just allowedDt) allRes)

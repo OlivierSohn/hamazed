@@ -22,8 +22,6 @@ instead of using asyncs, use forkIO and IORef Bool signaling when it should stop
 And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 (On server cancelation, or on timeout, the IORef Bool is set to False.)
 
-- optimize 'spaceIsWellUsed' (see comment)
-
 - benchmark IntSet vs. Set Int for Sums
 
 - Server doesn't need to forward the request, the client continues by itself.

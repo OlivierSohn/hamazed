@@ -117,6 +117,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
+import qualified Data.IntSet as ISet
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map
 import           Data.List(elem, length, concat)
@@ -304,8 +305,8 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
           remainingQty = totalQty - shotQty
           remainingNums = map (getNumber . getNumEssence) $ Map.elems remainingNumbers
 
-          asSet = Set.fromList remainingNums
-          distinct = Set.size asSet == length remainingNums
+          asSet = ISet.fromList remainingNums
+          distinct = ISet.size asSet == length remainingNums
           -- list of descending lists.
           allLists = bool
             (mkSumsN remainingNums remainingQty)
@@ -317,24 +318,24 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
           -- the same numbers could be in multiple components)
           possibleLists = allLists
 
-          -- Set.unions has a linear complexity, overall we have a linear complexity here.
+          -- ISet.unions has a linear complexity, overall we have a linear complexity here.
           possibleSets = bool
-            (map Set.fromDescList)
-            (map Set.fromDistinctDescList)
-            distinct possibleLists
+            (map ISet.fromAscList)
+            (map ISet.fromDistinctAscList)
+            distinct $ reverse possibleLists
 
-          okTargets = Set.unions possibleSets
+          okTargets = ISet.unions possibleSets
 
           -- preferred numbers are on the preferred path (least length)
-          mapLengths = Map.fromListWith Set.union (map (\l -> (Set.size l,l)) possibleSets)
-          preferredSet = maybe Set.empty snd $ Map.lookupMin mapLengths
+          mapLengths = Map.fromListWith ISet.union (map (\l -> (ISet.size l,l)) possibleSets)
+          preferredSet = maybe ISet.empty snd $ Map.lookupMin mapLengths
 
           newNumbers =
             Map.map
               (\n -> let num = getNumber $ getNumEssence n
-                in if Set.member num okTargets
+                in if ISet.member num okTargets
                   then
-                    if Set.member num preferredSet
+                    if ISet.member num preferredSet
                       then
                         makePreferred n
                       else

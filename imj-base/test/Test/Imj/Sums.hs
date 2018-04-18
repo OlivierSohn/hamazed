@@ -9,7 +9,8 @@ import           Imj.Prelude
 
 import           Control.Exception (evaluate)
 import           Data.List(foldl', length, replicate)
-import qualified Data.Set as Set(fromList, toList, empty, singleton, filter, size)
+import qualified Data.Set as Set
+import qualified Data.IntSet as ISet
 import           Data.Text(pack)
 import           System.IO(putStr, putStrLn)
 
@@ -49,7 +50,7 @@ testSums = do
   verify mkSumsN
   verify mkSumsStrictN
   verify mkSumsStrictN2
-  verify $ mkSumsStrict . Set.fromList
+  verify $ mkSumsStrict . ISet.fromList
   verify $ mkSumsStrict2 . Set.fromList
   verify $ mkSumsArray' . Set.fromList
   verify $ mkSumsArray'' . Set.fromList
@@ -59,32 +60,35 @@ testSums = do
   -- of different combinations of length < 6.
   -- The fastest way is to use a 'StrictTree' ('mkSumsStrict').
 
-  let !numbers = Set.fromList maxHamazedNumbers
+  let !numbersL = maxHamazedNumbers
+      !numbersS = Set.fromList maxHamazedNumbers
+      !numbersIS = ISet.fromList maxHamazedNumbers
+
       measure n countCombinations =
-        fst <$> withDuration (void $ evaluate $
-          countCombinations numbers (quot (maxSum * n) n)) -- trick to force a new evaluation
+        fst <$> withDuration (void $ evaluate $ force $
+          countCombinations numbersL numbersS numbersIS (quot (maxSum * n) n)) -- trick to force a new evaluation
       tests =
-        [ (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b            , "mkSums filter")
-        , (\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b            , "mkSumsArray filter")
-        , (\a b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  a b            , "mkSumsArray' filter")
-        , (\a b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' a b            , "mkSumsArray'' filter")
-        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsStrict  a b            , "mkSumsStrict filter")
-        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsLazy    a b            , "mkSumsLazy filter")
-        , (\a b -> Set.size                                             $ mkSums       a b               , "mkSums")
-        , (\a b -> Set.size                                             $ mkSumsArray  a b               , "mkSumsArray")
-        , (\a b -> Filt.countValues                                     $ mkSumsArray' a b               , "mkSumsArray'")
-        , (\a b -> Set.size                                             $ mkSumsArray'' a b               , "mkSumsArray''")
-        , (\a b -> Filt.countValues                                     $ mkSumsStrict2 a b              , "mkSumsStrict2")
-        , (\a b -> Filt.countValues                                     $ mkSumsStrict a b               , "mkSumsStrict")
-        , (\a b -> Filt.countValues                                     $ mkSumsLazy   a b               , "mkSumsLazy")
-        , (\a b -> Filt.countValues $ Filt.filter  (\s -> length s < 6) $ mkSumsStrictN  (Set.toList a) b, "mkSumsStrictN filter")
-        , (\a b -> length           $ Filt.filter  (\s -> length s < 6) $ mkSumsN        (Set.toList a) b, "mkSumsN filter'")
-        , (\a b -> Filt.countValues                                     $ mkSumsStrictN  (Set.toList a) b, "mkSumsStrictN")
-        , (\a b -> Filt.countValues                                     $ mkSumsStrictN2 (Set.toList a) b, "mkSumsStrictN2")
-        , (\a b -> Filt.countValues                                     $ mkSumsN        (Set.toList a) b, "mkSumsN")
+        [ (\_ aS _ b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        aS b            , "mkSums filter")
+        , (\_ aS _ b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   aS b            , "mkSumsArray filter")
+        , (\_ aS _ b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  aS b            , "mkSumsArray' filter")
+        , (\_ aS _ b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' aS b            , "mkSumsArray'' filter")
+        , (\_ _ aIS b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsStrict  aIS b , "mkSumsStrict filter")
+        , (\_ aS _ b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsLazy    aS b            , "mkSumsLazy filter")
+        , (\_ aS _ b -> Set.size                                             $ mkSums          aS b               , "mkSums")
+        , (\_ aS _ b -> Set.size                                             $ mkSumsArray     aS b               , "mkSumsArray")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsArray'    aS b               , "mkSumsArray'")
+        , (\_ aS _ b -> Set.size                                             $ mkSumsArray''   aS b               , "mkSumsArray''")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsStrict2   aS b              , "mkSumsStrict2")
+        , (\_ _ aIS b -> Filt.countValues                                     $ mkSumsStrict    aIS b , "mkSumsStrict")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsLazy      aS b               , "mkSumsLazy")
+        , (\aL _ _ b -> Filt.countValues $ Filt.filter  (\s -> length s < 6) $ mkSumsStrictN   aL b, "mkSumsStrictN filter")
+        , (\aL _ _ b -> length           $ Filt.filter  (\s -> length s < 6) $ mkSumsN         aL b, "mkSumsN filter'")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsStrictN   aL b, "mkSumsStrictN")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsStrictN2  aL b, "mkSumsStrictN2")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsN         aL b, "mkSumsN")
         ]
   let nTestRepeat = 100
-  times <-
+  times <- (numbersL, numbersS, numbersIS) `deepseq`
     mapM
       (\n -> mapM (measure n . fst) tests)
       [1..nTestRepeat] :: IO [[Time Duration System]]

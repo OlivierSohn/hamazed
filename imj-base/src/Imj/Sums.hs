@@ -20,10 +20,12 @@ module Imj.Sums -- TODO allow non unique elements
 
 import           Imj.Prelude
 
+import           Data.IntSet(IntSet)
+import qualified Data.IntSet as ISet
 import           Data.List(reverse, length, break, null, replicate, concat)
 import qualified Data.List as List(filter)
 import           Data.Set(Set)
-import qualified Data.Set as Set(empty, singleton, union, toAscList, toDescList, fromList, fromDistinctDescList)
+import qualified Data.Set as Set
 import qualified Data.Vector.Storable as Storable(fromList, length, unsafeIndex)
 
 import           Imj.Data.Tree
@@ -93,12 +95,12 @@ mkSumsArray' allNumbers total =
 
 
 -- A version using a storable vector, and a strict tree as output.
-mkSumsStrict :: Set Int -> Int -> StrictTree [Int] -- ^ returned lists are descending
+mkSumsStrict :: IntSet -> Int -> StrictTree [Int] -- ^ returned lists are descending
 mkSumsStrict allNumbers total =
   go (Storable.length array) total []
  where
   -- we use 'toDescList' because we will iterate on the array from the last to the first element.
-  array = Storable.fromList $ Set.toDescList allNumbers
+  array = Storable.fromList $ ISet.toDescList allNumbers
   go 0 !target curNums
     | target == 0 = StrictLeaf curNums
     | otherwise = NoResult

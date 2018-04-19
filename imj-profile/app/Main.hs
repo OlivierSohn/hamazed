@@ -195,17 +195,17 @@ withTestScheduler :: UUID
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
-                  -> IO (MaybeResults SeedNumber)
+                  -> IO (OldMaybeResults SeedNumber)
 withTestScheduler key worlds strategies allowed intent testF =
-  foldMInterruptible "Seed" (mkNothingResults worlds) [1..nSeeds] (\res0 seed@(SeedNumber i) ->
+  foldMInterruptible "Seed" (mkNothingResults' worlds) [1..nSeeds] (\res0 seed@(SeedNumber i) ->
     foldMInterruptible "World" res0 (Set.toList worlds) (\res1 world@(SWCharacteristics sz _ _) -> do
       let strats = strategies sz
       foldMInterruptible "Strategy" res1 strats (\res2 strategy -> do
-        onReport (writeHtmlReport key (resultsToHtml (Just allowed) res2)) intent
+        onReport (writeHtmlReport key (resultsToHtml' (Just allowed) res2)) intent
         -- For easier reproductibility, eventhough the choice of seed is on the outer loop,
         -- we initialize the generator here.
         gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-        flip (addResult world strategy seed) res2 <$> withTimeout (testF (mkProperties world strategy) gen))))
+        flip (addResult' world strategy seed) res2 <$> withTimeout (testF (mkProperties world strategy) gen))))
  where
   nSeeds = 10
 
@@ -260,7 +260,7 @@ profileAllProps = do
     withTestScheduler key someWorlds allStrategies allowedDt intent (\property seed ->
       snd <$> profile property (pure seed))
 
-  readMVar intent >>= writeHtmlReport key (resultsToHtml (Just allowedDt) allRes)
+  readMVar intent >>= writeHtmlReport key (resultsToHtml' (Just allowedDt) allRes)
   putStrLn $ "Test duration = " ++ show totalDt
  where
   allowedDt = fromSecs 15

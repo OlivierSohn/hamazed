@@ -10,6 +10,7 @@ module Imj.Profile.Scheduler
   , mkResultFromStats
   , continue
   , TestProgress
+  , OldTestProgress
   , mkZeroProgress
   )
   where
@@ -70,6 +71,24 @@ data TestProgress = TestProgress {
   , _profileResults :: !(MaybeResults (NonEmpty SeedNumber))
 } deriving (Generic)
 instance Binary TestProgress
+
+data OldTestProgress = OldTestProgress {
+    _uuid' :: !UUID
+    -- ^ Test unique identifier
+  , _timeoutThisIteration' :: !(Time Duration System)
+  , _hints' :: !(Map SmallWorldCharacteristics Int)
+   -- ^ Hints for the key of the fastest strategies
+  , _willTestInIteration' :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+   -- ^
+   -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
+   -- During the current iteration, we will skip the elements of the inner list that come after
+   -- the first one that timeouts.
+  , _willTestNextIteration' :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+  -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
+  -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
+  , _profileResults' :: !(OldMaybeResults (NonEmpty SeedNumber))
+} deriving (Generic)
+instance Binary OldTestProgress
 
 mkZeroProgress :: [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
                -> IO TestProgress
@@ -159,11 +178,13 @@ decodeProgressFile =
   doesFileExist progressFile >>= \case
     True -> decodeFileOrFail progressFile >>= either
       (\e -> error $ "File " ++ progressFile ++ " seems corrupt: " ++ show e)
-      (return . Just)
+      (return . Just . convert)
     False -> do
       putStrLn $ "File " ++ progressFile ++ " not found."
       return Nothing
 
+convert :: OldTestProgress -> TestProgress
+convert (OldTestProgress a b c d e oldR) = TestProgress a b c d e $ convertR oldR
 -- |
 -- For each world:
 --   Using a single seed group, find /a/ strategy that works within a given time upper bound.
@@ -214,9 +235,12 @@ withTestScheduler' intent testF initialProgress =
                       IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
                 go' smallEasy (take 8 orderedStrategies) >>= maybe
                   trySmallsLater
-                  (\((stratI,strategy),_) -> do
+                  (\((stratI,strategy),_res) -> do
+                      -- TODO use this once we removed the index of the strategy to use the variantspec directly (se need to make
+                      -- sure we have all the data available to do refining later : data to compute ordered hints)
+                      --let newResults' = addUnrefinedResult smallEasy (fmap toVariantsSpec strategy) (Map.singleton firstSeedGroup _res) results
                       ((refinedI,refined), resultsBySeeds) <- refineWithHint smallEasy testF (stratI,strategy) orderedStrategies
-                      let newResults = foldl' (flip (uncurry (addResult smallEasy refined))) results resultsBySeeds
+                      let newResults = addRefinedResult smallEasy (fmap toVariantsSpec refined) resultsBySeeds results
                           newHints = Map.insert smallEasy refinedI hints
                       mapM_ CS.putStrLn $ showResults newResults
                       putStrLn $ prettyShowSWCharacteristics smallEasy
@@ -279,7 +303,7 @@ refineWithHint :: SmallWorldCharacteristics
                -- ^ This is the hint : a variant which we think is one of the fastest.
                -> [(Int,Maybe MatrixVariants)]
                -- ^ The candidates (the hint can be in this list, but it will be filtered away)
-               -> IO ((Int,Maybe MatrixVariants),[(NonEmpty SeedNumber, TestStatus Statistics)])
+               -> IO ((Int,Maybe MatrixVariants),Map (NonEmpty SeedNumber) (TestStatus Statistics))
                -- ^ The best
 refineWithHint world testF hintStrategy strategies = do
   putStrLn "[refine] "
@@ -293,7 +317,7 @@ refineWithHint world testF hintStrategy strategies = do
       (const bsf)
       (mkBestSofar candidate)
    where
-    mkStatsWithConstraint :: IO (Either () [(NonEmpty SeedNumber, TestStatus Statistics)])
+    mkStatsWithConstraint :: IO (Either () (Map (NonEmpty SeedNumber) (TestStatus Statistics)))
     mkStatsWithConstraint  = do
       putStr "." >> hFlush stdout
       seedGroups >>= ho [] zeroDuration
@@ -303,7 +327,7 @@ refineWithHint world testF hintStrategy strategies = do
         | otherwise = case remaining of
             [] -> do
               putStr "+" >> hFlush stdout
-              return $ Right l
+              return $ Right $ Map.fromList l
             seedGroup:groups -> do
               let maxDt = min maxIndividual $ maxTotal |-| totalSofar
                   props = mkProperties world $ snd candidate
@@ -317,20 +341,20 @@ refineWithHint world testF hintStrategy strategies = do
                       (onTimeoutMismatch maxDt dt >> return (Left ()))
                       (ho ((seedGroup,f):l) (totalSofar |+| dt) groups)
                       $ dt <= maxDt)
-  mkHintStats :: IO [(NonEmpty SeedNumber, TestStatus Statistics)]
+  mkHintStats :: IO (Map (NonEmpty SeedNumber) (TestStatus Statistics))
   mkHintStats =
-    seedGroups >>= mapM
+    seedGroups >>= fmap Map.fromList . mapM
       (\seedGroup -> (,) seedGroup . uncurry mkResultFromStats . fromMaybe (error "logic") <$> -- Nothing is an errorr because we don't specify a timeout
         withNumberedSeeds (testF Nothing $ mkProperties world $ snd hintStrategy) seedGroup)
 
 data BestSofar = BestSofar {
     _strategy :: !(Int, Maybe MatrixVariants)
-  , _results :: [(NonEmpty SeedNumber, TestStatus Statistics)]
+  , _results :: Map (NonEmpty SeedNumber) (TestStatus Statistics)
   , _inducedContraints :: !DurationConstraints
 }
 
-mkBestSofar :: (Int, Maybe MatrixVariants) -> [(NonEmpty SeedNumber, TestStatus Statistics)] -> BestSofar
-mkBestSofar s l = BestSofar s l $ mkDurationConstraints $ map snd l
+mkBestSofar :: (Int, Maybe MatrixVariants) -> Map (NonEmpty SeedNumber) (TestStatus Statistics) -> BestSofar
+mkBestSofar s l = BestSofar s l $ mkDurationConstraints $ Map.elems l
  where
   mkDurationConstraints :: [TestStatus Statistics]
                         -> DurationConstraints

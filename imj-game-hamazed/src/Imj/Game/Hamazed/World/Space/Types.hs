@@ -22,6 +22,7 @@ module Imj.Game.Hamazed.World.Space.Types
     , toVariants
     , toVariantsSpec
     , prettyShowMatrixVariants
+    , prettyShowMatrixVariantsSpec
     , humanShowVariants
     , Variation(..)
     , VariationSpec(..)

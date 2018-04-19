@@ -10,6 +10,7 @@
 module Imj.Game.Hamazed.World.Space.Strategies
     ( OptimalStrategies(..)
     , OptimalStrategy(..)
+    , StrategyTag(..)
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
     , closestOptimalStrategy
@@ -55,6 +56,7 @@ instance Show OptimalStrategies where
 
 data OptimalStrategy = OptimalStrategy {
     _optimalStrategy :: !(Maybe MatrixVariantsSpec)
+  , _optimalStratTag :: !StrategyTag
   , averageDuration :: !(Time Duration System)
 } deriving(Generic)
 instance Binary OptimalStrategy
@@ -63,6 +65,12 @@ instance Ord OptimalStrategy where
 instance Eq OptimalStrategy where
   a == b = averageDuration a == averageDuration b
 
+data StrategyTag =
+    Refined
+  | Unrefined -- in that case, the map contains only one element
+  deriving(Generic, Show)
+instance Binary StrategyTag
+instance NFData StrategyTag
 
 data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float {-# UNPACK #-} !SmallWorldCharacteristics
 
@@ -95,7 +103,7 @@ closestOptimalStrategy world = case embeddedOptimalStrategies of
         closestOptimal =
           maybe
             (ClosestOptimalStrategy Nothing Nothing defaultStrategy)
-            (\(StratDist (OptimalStrategy s dt) _ charac) ->
+            (\(StratDist (OptimalStrategy s _ dt) _ charac) ->
               ClosestOptimalStrategy (Just charac) (Just dt) s)
             closest
     in maybe (Left closestOptimal) Right $ Map.lookup world m

@@ -1,3 +1,13 @@
+- refining stage is the longest now (98%).
+
+We could use heuristics to filter tested strategies:
+the simplest one could be to just take the one we had with the first seed group and refine it with other seed groups.
+
+tag the existing results : refined with all strategies
+tag new results : unrefined
+
+the downside is that the hints are a bit less precise.
+
 - use an acyclic graph for difficulties, to replace proba inner list sorting + 'shouldTest'
 
 -

@@ -9,12 +9,18 @@
 
 module Imj.Profile.Results
     ( toOptimalStrategies
-    , addResult
+    , addRefinedResult
+    , addUnrefinedResult
+    , addResult'
     , MaybeResults
+    , OldMaybeResults
     , mkNothingResults
+    , mkNothingResults'
     , getResultsOfAllSizes
     , resultsToHtml
+    , resultsToHtml'
     , shouldTest
+    , convertR
     ) where
 
 import           Imj.Prelude hiding(div)
@@ -22,7 +28,7 @@ import           Imj.Prelude hiding(div)
 import           Data.Set(Set)
 import qualified Data.IntMap.Strict as IMap
 import qualified Data.List as List
-import           Data.Map.Strict(Map)
+import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
 import           Data.Text(pack)
@@ -39,11 +45,31 @@ import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
 import           Imj.Timing
 
--- Same has 'Results', except we have a 'Maybe' to express if the test has run yet or not.
-newtype MaybeResults k = MaybeResults (Map SmallWorldCharacteristics (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics))))
+-- TODO use for initial version of test scheduler, but remove Maybe
+newtype OldMaybeResults k = OldMaybeResults (Map SmallWorldCharacteristics (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics))))
+  deriving(Generic, Binary)
+instance (NFData k) => NFData (OldMaybeResults k)
+
+-- Same has 'Results', except we have a single variant and we tag the results.
+newtype MaybeResults k = MaybeResults (Map SmallWorldCharacteristics (Maybe (TaggedResult k Statistics)))
   deriving(Generic, Binary)
 instance (NFData k) => NFData (MaybeResults k)
 
+-- This is close to 'OptimalStrategy', but more detailed
+data TaggedResult k a = TaggedResult {
+    _resultTag :: !StrategyTag
+  , _resultVariant :: !(Maybe MatrixVariantsSpec)
+  , _result :: !(TestDurations k a)
+}
+  deriving(Generic, Show)
+instance (NFData k, NFData a) => NFData (TaggedResult k a)
+instance (Binary k, Binary a) => Binary (TaggedResult k a)
+
+convertR :: (Show k) => OldMaybeResults k -> MaybeResults k
+convertR (OldMaybeResults m) = MaybeResults $ Map.map (fmap convertR') m
+ where
+   convertR' (Bin _ k v Tip Tip) = TaggedResult Refined (fmap toVariantsSpec k) v
+   convertR' x = error $ show x
 -- | Returns true if either
 --
 -- * there is no smaller size
@@ -79,7 +105,7 @@ homogenousDist (Size h w) (Size h' w')
   dw = w' - w
   dh = h' - h
 
-getResultsOfAllSizes :: SmallWorldCharacteristics -> MaybeResults k -> Map Size (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
+getResultsOfAllSizes :: SmallWorldCharacteristics -> MaybeResults k -> Map Size (Maybe (TaggedResult k Statistics))
 getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
   Map.mapKeysMonotonic swSize $
   Map.filterWithKey
@@ -89,14 +115,46 @@ getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
 -- | Note that the list of 'SmallWorldCharacteristics' passed here should contain all
 -- possible future results added to the 'MaybeResults'. Hence, calling 'addResult'
 -- with a 'SmallWorldCharacteristics' outside this set will error.
+mkNothingResults' :: Set SmallWorldCharacteristics -> OldMaybeResults k
+mkNothingResults' = OldMaybeResults . Map.fromSet (const Nothing)
+
 mkNothingResults :: Set SmallWorldCharacteristics -> MaybeResults k
 mkNothingResults = MaybeResults . Map.fromSet (const Nothing)
 
--- | The 'Mayberesult' passed should contain a (possibly 'Nothing') result for 'SmallWorldCharacteristics'
-{-# INLINABLE addResult #-}
-addResult :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> MaybeResults k -> MaybeResults k
-addResult w strategy seed stats (MaybeResults res) =
+{-# INLINABLE addRefinedResult #-}
+addRefinedResult :: SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
+addRefinedResult w strategy m (MaybeResults res) =
   MaybeResults $ Map.alter
+    (maybe
+      (error $ "unforeseen result:" ++ show w)
+      (Just . Just . maybe
+        add
+        (\(TaggedResult tag _ _) -> case tag of
+            Unrefined -> add
+            Refined -> error "would overwrite a refined result")))
+    w
+    res
+ where
+  add = TaggedResult Refined strategy $ TD m
+
+{-# INLINABLE addUnrefinedResult #-}
+addUnrefinedResult :: (Show k) => SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
+addUnrefinedResult w strategy m (MaybeResults res) =
+  MaybeResults $ Map.alter
+    (maybe
+      (error $ "unforeseen result:" ++ show w)
+      (Just . Just . maybe
+        add
+        (\r -> error $ "would overwrite:" ++ show r)))
+    w
+    res
+ where
+  add = TaggedResult Unrefined strategy $ TD m
+
+{-# INLINABLE addResult' #-}
+addResult' :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> OldMaybeResults k -> OldMaybeResults k
+addResult' w strategy seed stats (OldMaybeResults res) =
+  OldMaybeResults $ Map.alter
     (maybe
       (error $ "unforeseen result:" ++ show w)
       (Just . Just . maybe
@@ -112,25 +170,38 @@ toOptimalStrategies (MaybeResults m) = OptimalStrategies $
   Map.mapMaybe
     (maybe
       Nothing
-      (Map.foldlWithKey'
-        (\o strategy results -> case summarize results of
-            NoResult -> o
-            NTimeouts _ -> o
+      (\(TaggedResult tag strategy results) -> case summarize results of
+            NoResult -> Nothing
+            NTimeouts _ -> Nothing
             FinishedAverage duration _ ->
-              let cur = OptimalStrategy (fmap toVariantsSpec strategy) duration
-              in Just $ maybe cur (min cur) o)
-        Nothing))
+              Just $ OptimalStrategy strategy tag duration))
     m
 
-prettyProcessResult :: Maybe (Time Duration System)
+prettyProcessResult' :: Maybe (Time Duration System)
                     -> SmallWorldCharacteristics
                     -> Map (Maybe MatrixVariants) (TestDurations k a)
                     -> [(Maybe (TestDurations k a), [ColorString])]
-prettyProcessResult mayAllowedDt world results =
+prettyProcessResult' mayAllowedDt world results =
   let labelsAndEitherTimeoutsTimes = map
         (\(strategy, r) ->
           (colored (pack $ prettyShowMatrixVariants strategy) $ rgb 5 3 2, r))
         $ Map.assocs results
+  in showTestResults mayAllowedDt -- map these lines to individual results
+        labelsAndEitherTimeoutsTimes
+        (colored (pack $ prettyShowSWCharacteristics world) $ rgb 3 4 2)
+
+
+prettyProcessResult :: Maybe (Time Duration System)
+                    -> SmallWorldCharacteristics
+                    -> Maybe (TaggedResult k a)
+                    -> [(Maybe (TestDurations k a), [ColorString])]
+prettyProcessResult mayAllowedDt world results =
+  let labelsAndEitherTimeoutsTimes =
+        maybe
+          []
+          (\(TaggedResult tag strategy r) ->
+            [(colored (pack $ unwords [show tag, prettyShowMatrixVariantsSpec strategy]) $ rgb 5 3 2, r)])
+          results
   in showTestResults mayAllowedDt -- map these lines to individual results
         labelsAndEitherTimeoutsTimes
         (colored (pack $ prettyShowSWCharacteristics world) $ rgb 3 4 2)
@@ -147,41 +218,53 @@ resultsToHtml mayAllowedDt (MaybeResults results) =
         in map (flip (,) subHtml . toHtml) ls) $
       concatMap
         (uncurry $ prettyProcessResult mayAllowedDt) $
+        Map.assocs results
+
+resultsToHtml' :: (Show k)
+              => Maybe (Time Duration System)
+              -> OldMaybeResults k
+              -> Html
+resultsToHtml' mayAllowedDt (OldMaybeResults results) =
+  aggregate $
+    concatMap
+      (\(res,ls) ->
+        let subHtml = fmap (subResultsAsHtml . showSubResult) res
+        in map (flip (,) subHtml . toHtml) ls) $
+      concatMap
+        (uncurry $ prettyProcessResult' mayAllowedDt) $
         map (fmap (fromMaybe Map.empty)) $
         Map.assocs results
 
+showAsCs :: TestStatus Statistics -> [ColorString]
+showAsCs NotStarted = [colored "NotStarted" blue]
+showAsCs Timeout = [colored "Timeout" red]
+showAsCs (Finished _ stat) = map fromString $ prettyShowStats stat
+
+showSubResult :: (Show k)
+              => TestDurations k Statistics
+              -> [[ColorString]]
+showSubResult (TD m) =
+  map (\(k, stat) ->
+    colored' (pack $ show k) seedColor:
+    showAsCs stat)
+    $ Map.assocs m
  where
+   seedColor = LayeredColor (gray 5) (gray 17)
 
-  showAsCs :: TestStatus Statistics -> [ColorString]
-  showAsCs NotStarted = [colored "NotStarted" blue]
-  showAsCs Timeout = [colored "Timeout" red]
-  showAsCs (Finished _ stat) = map fromString $ prettyShowStats stat
+subResultsAsHtml :: [[ColorString]] -> Html
+subResultsAsHtml = mconcat . map subResultAsHtml
 
-  showSubResult :: (Show k)
-                => TestDurations k Statistics
-                -> [[ColorString]]
-  showSubResult (TD m) =
-    map (\(k, stat) ->
-      colored' (pack $ show k) seedColor:
-      showAsCs stat)
-      $ Map.assocs m
-   where
-     seedColor = LayeredColor (gray 5) (gray 17)
+subResultAsHtml :: [ColorString] -> Html
+subResultAsHtml lines =
+  div $ do
+    mconcat $
+      map
+        (\l -> p $ toHtml $ bool l "|" $ empty l)
+        lines
+    br
 
-  subResultsAsHtml :: [[ColorString]] -> Html
-  subResultsAsHtml = mconcat . map subResultAsHtml
-
-  subResultAsHtml :: [ColorString] -> Html
-  subResultAsHtml lines =
-    div $ do
-      mconcat $
-        map
-          (\l -> p $ toHtml $ bool l "|" $ empty l)
-          lines
-      br
-
-  aggregate :: [(Html, Maybe Html)] -> Html
-  aggregate = div . mconcat . map (uncurry withDetail)
+aggregate :: [(Html, Maybe Html)] -> Html
+aggregate = div . mconcat . map (uncurry withDetail)
 
 
 withDetail :: Html -> Maybe Html -> Html

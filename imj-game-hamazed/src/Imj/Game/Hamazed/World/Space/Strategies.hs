@@ -67,7 +67,7 @@ instance Eq OptimalStrategy where
 
 data StrategyTag =
     Refined
-  | Unrefined -- in that case, the map contains only one element
+  | Unrefined
   deriving(Generic, Show)
 instance Binary StrategyTag
 instance NFData StrategyTag
@@ -113,11 +113,11 @@ closestOptimalStrategy world = case embeddedOptimalStrategies of
 smallWorldCharacteristicsDistance :: SmallWorldCharacteristics -> SmallWorldCharacteristics -> Float
 smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
   -- These changes have the same impact on distance:
-  --   doubled size
+  --   doubled area
   --   proba 0.6 -> 0.7
   --   2 cc -> 3 cc
   --   4 cc -> 5 cc
-  doubleSize + 10 * (almostDistance p p') + fromIntegral (dCC (min cc cc') (max cc cc'))
+  doubleSize + 10 * almostDistance p p' + fromIntegral (dCC (min cc cc') (max cc cc'))
  where
    -- c1 <= c2
    dCC c1 c2

@@ -774,7 +774,7 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
       then
         Just $ runST $ do
           -- 8 is size of Word64 in bytes
-          v <- newAlignedPinnedByteArray (nAirKeys * 8) 64
+          v <- newAlignedPinnedByteArray (nAirKeys * 8) 64 -- TODO this takes a global lock, we could use preallocated memory.
           forM_ listNodes (\(Node key neighbours) -> writeByteArray v (fromIntegral key) neighbours)
           unsafeFreezeByteArray v
       else

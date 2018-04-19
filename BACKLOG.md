@@ -1,3 +1,9 @@
+- see if
+(12,24), 4 component, 0.5 wall. | Best mean: 9'374'925 (us)
+can be faster when graph memory is preallocated (next to matrix memory?)
+
+or profile (we didn't do any profiling for multi component search yet)
+
 - refining stage is the longest now (98%).
 
 We could use heuristics to filter tested strategies:

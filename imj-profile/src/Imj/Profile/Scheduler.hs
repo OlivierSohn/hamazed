@@ -16,7 +16,7 @@ module Imj.Profile.Scheduler
 
 import           Imj.Prelude hiding(div)
 
-import           Prelude(putStrLn, putStr, length)
+import           Prelude(putStrLn, putStr, print, length)
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, readMVar)
 import           Data.Binary
@@ -28,6 +28,7 @@ import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.String(IsString(..))
 import           Data.UUID(UUID)
+import           Numeric(showFFloat)
 import           System.Directory(doesFileExist)
 import           System.Random.MWC
 import           System.IO(stdout, hFlush)
@@ -188,17 +189,16 @@ withTestScheduler' intent testF initialProgress =
                 trySmallsLater
               else do
                 putStrLn $ "[test] " ++ prettyShowSWCharacteristics smallEasy
-                let hintsSpecsByDistance =
-                      map fst $
-                      sortOn snd $ Map.assocs tmp
+                let hintsSpecsByDistance = sortOn snd $ Map.assocs tmp
                     hintsSet = Map.keysSet tmp
                     tmp =
                       Map.fromListWith min $
                         map (\(w,spec) -> (spec, smallWorldCharacteristicsDistance smallEasy w)) $
                         Map.assocs hints
                     orderedStrategies =
-                      hintsSpecsByDistance ++
+                      map fst hintsSpecsByDistance ++
                       Set.toList (Set.difference strategiesSpecs hintsSet)
+                mapM_ putStrLn $ showArrayN (Just ["Hint", "Distance"]) $ map (\(h,d) -> [show h, showFFloat (Just 2) d ""]) hintsSpecsByDistance
                 go' smallEasy (take 8 orderedStrategies) >>= maybe
                   trySmallsLater
                   (\(strategy,_res) -> do
@@ -273,15 +273,15 @@ refineWithHint :: SmallWorldCharacteristics
                -- ^ The best
 refineWithHint world@(SWCharacteristics sz _ _) testF hintStrategy strategies = do
   putStrLn "[refine] "
-  res <- mkHintStats >>= go (filter (/= hintStrategy) strategies) . mkBestSofar hintStrategy
+  res <- mkHintStats >>= mkBestSofar hintStrategy >>= go (filter (/= hintStrategy) strategies)
   putStrLn ""
   return res
  where
   go [] (BestSofar s l _) = return (s, l)
   go (candidate:candidates) bsf@(BestSofar _ _ (DurationConstraints maxTotal maxIndividual)) =
-    mkStatsWithConstraint >>= go candidates . either
-      (const bsf)
-      (mkBestSofar candidate)
+    mkStatsWithConstraint >>= either
+      (const $ return bsf)
+      (mkBestSofar candidate) >>= go candidates
    where
     mkStatsWithConstraint :: IO (Either () (Map (NonEmpty SeedNumber) (TestStatus Statistics)))
     mkStatsWithConstraint  = do
@@ -291,8 +291,7 @@ refineWithHint world@(SWCharacteristics sz _ _) testF hintStrategy strategies = 
       ho l totalSofar remaining
         | totalSofar >= maxTotal = return $ Left ()
         | otherwise = case remaining of
-            [] -> do
-              putStr "+" >> hFlush stdout
+            [] ->
               return $ Right $ Map.fromList l
             seedGroup:groups -> do
               let maxDt = min maxIndividual $ maxTotal |-| totalSofar
@@ -318,9 +317,14 @@ data BestSofar = BestSofar {
   , _results :: Map (NonEmpty SeedNumber) (TestStatus Statistics)
   , _inducedContraints :: !DurationConstraints
 }
+instance Show BestSofar where
+  show (BestSofar a _ b) = show (b,a)
 
-mkBestSofar :: Maybe MatrixVariantsSpec -> Map (NonEmpty SeedNumber) (TestStatus Statistics) -> BestSofar
-mkBestSofar s l = BestSofar s l $ mkDurationConstraints $ Map.elems l
+mkBestSofar :: Maybe MatrixVariantsSpec -> Map (NonEmpty SeedNumber) (TestStatus Statistics) -> IO BestSofar
+mkBestSofar s l = do
+  let res = BestSofar s l $ mkDurationConstraints $ Map.elems l
+  print res
+  return res
  where
   mkDurationConstraints :: [TestStatus Statistics]
                         -> DurationConstraints
@@ -338,4 +342,4 @@ mkBestSofar s l = BestSofar s l $ mkDurationConstraints $ Map.elems l
 data DurationConstraints = DurationConstraints {
     _maxTotal :: !(Time Duration System)
   , _maxIndividual :: !(Time Duration System)
-}
+} deriving(Show)

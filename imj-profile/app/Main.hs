@@ -13,8 +13,6 @@ import           Data.Either(isRight)
 import           Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import           Data.List
-import           Data.IntMap.Strict(IntMap)
-import qualified Data.IntMap.Strict as IMap
 import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.UUID(UUID)
@@ -106,21 +104,21 @@ writeRNGImages =
 
   probas = [0.1, 0.01, 0.5, 0.9, 0.99]
 
-justVariantsWithRotations :: Size -> ComponentCount -> [MatrixVariants] -- 24
-justVariantsWithRotations sz n =
-  let interleave = mkVariation sz Interleaving
-      modulation = mkVariation sz Modulation
+justVariantsWithRotations :: ComponentCount -> [MatrixVariantsSpec] -- 24
+justVariantsWithRotations n =
+  let interleave = Interleaving
+      modulation = Modulation
   in concatMap (map (\y -> y Nothing)) $
       map (\rotationOrder ->
-        let rotation = Rotate $ RotationDetail rotationOrder n
-        in  Variants (pure interleave) . Just . Variants (pure modulation) . Just . Variants (pure rotation):
-            Variants (modulation :| [interleave]) . Just . Variants (pure rotation):
-            Variants (pure interleave) . Just . Variants (pure rotation):
-            Variants (pure modulation) . Just . Variants (pure rotation):
-            Variants (interleave :| [rotation]):
-            Variants (modulation :| [rotation]):
-            Variants (interleave :| [modulation,rotation]):
-            Variants (pure rotation):
+        let rotation = Rotation $ RotationDetail rotationOrder n
+        in  VariantsSpec (pure interleave) . Just . VariantsSpec (pure modulation) . Just . VariantsSpec (pure rotation):
+            VariantsSpec (modulation :| [interleave]) . Just . VariantsSpec (pure rotation):
+            VariantsSpec (pure interleave) . Just . VariantsSpec (pure rotation):
+            VariantsSpec (pure modulation) . Just . VariantsSpec (pure rotation):
+            VariantsSpec (interleave :| [rotation]):
+            VariantsSpec (modulation :| [rotation]):
+            VariantsSpec (interleave :| [modulation,rotation]):
+            VariantsSpec (pure rotation):
             [])
       [
       Cyclic.Order2,
@@ -128,15 +126,15 @@ justVariantsWithRotations sz n =
       Cyclic.Rect1
       ]
 
-justVariantsWithoutRotations :: Size -> [MatrixVariants] -- 4
-justVariantsWithoutRotations sz =
-  let interleave = mkVariation sz Interleaving
-      modulation = mkVariation sz Modulation
+justVariantsWithoutRotations :: [MatrixVariantsSpec] -- 4
+justVariantsWithoutRotations =
+  let interleave = Interleaving
+      modulation = Modulation
   in map (\y -> y Nothing)
-       [ Variants (pure interleave)
-       , Variants (pure modulation)
-       , Variants (modulation :| [interleave])
-       , Variants (pure interleave) . Just . Variants (pure modulation)]
+       [ VariantsSpec (pure interleave)
+       , VariantsSpec (pure modulation)
+       , VariantsSpec (modulation :| [interleave])
+       , VariantsSpec (pure interleave) . Just . VariantsSpec (pure modulation)]
 
 someWorlds :: Set SmallWorldCharacteristics
 someWorlds =
@@ -191,21 +189,22 @@ exhaustiveWorlds =
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
                   -> Set SmallWorldCharacteristics
-                  -> (Size -> [Maybe MatrixVariants])
+                  -> Set (Maybe MatrixVariantsSpec)
                   -> Time Duration System
                   -> MVar UserIntent
                   -> (Properties -> GenIO -> IO Statistics)
                   -> IO (OldMaybeResults SeedNumber)
 withTestScheduler key worlds strategies allowed intent testF =
   foldMInterruptible "Seed" (mkNothingResults' worlds) [1..nSeeds] (\res0 seed@(SeedNumber i) ->
-    foldMInterruptible "World" res0 (Set.toList worlds) (\res1 world@(SWCharacteristics sz _ _) -> do
-      let strats = strategies sz
-      foldMInterruptible "Strategy" res1 strats (\res2 strategy -> do
+    foldMInterruptible "World" res0 (Set.toList worlds) (\res1 world@(SWCharacteristics sz _ _) ->
+      foldMInterruptible "Strategy" res1 (Set.toList strategies) (\res2 strategy -> do
         onReport (writeHtmlReport key (resultsToHtml' (Just allowed) res2)) intent
         -- For easier reproductibility, eventhough the choice of seed is on the outer loop,
         -- we initialize the generator here.
         gen <- initialize $ fromList $ deterministicMWCSeeds !! i
-        flip (addResult' world strategy seed) res2 <$> withTimeout (testF (mkProperties world strategy) gen))))
+        let s = fmap (toVariants sz) strategy
+        flip (addResult' world s seed) res2 <$>
+          withTimeout (testF (mkProperties world s) gen))))
  where
   nSeeds = 10
 
@@ -239,17 +238,10 @@ mkOptimalStrategies = do
         let f = profile property seedGroup
         maybe (fmap Just) (timeout . fromIntegral . toMicros) mayDt f
 
-  progress <- decodeProgressFile >>= maybe (mkZeroProgress worlds) return
+  progress <- decodeProgressFile >>= maybe (mkZeroProgress exhaustiveWorlds allStrategies) return
   (totalDt, _) <- withDuration $ withTestScheduler' intent testF progress
 
   putStrLn $ "Test duration = " ++ show totalDt
- where
-  -- We index the strategies so as to be able to start testing world n+1 with the winning strategy of world n.
-  worlds :: [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-  worlds =
-    map
-      (map (\w@(SWCharacteristics sz _ _) -> (w,IMap.fromList $ zip [0..] $ allStrategies sz)))
-      exhaustiveWorlds
 
 profileAllProps :: IO ()
 profileAllProps = do
@@ -265,14 +257,14 @@ profileAllProps = do
  where
   allowedDt = fromSecs 15
 
-allStrategies :: Size -> [Maybe MatrixVariants] -- 1 + 4 + 24*7 == 173
-allStrategies size =
-  map
+allStrategies :: Set (Maybe MatrixVariantsSpec) -- 1 + 4 + 24*7 == 173
+allStrategies =
+  Set.fromList $ map
     Just
     (concatMap
-      (justVariantsWithRotations size)
+      justVariantsWithRotations
       margins ++
-    justVariantsWithoutRotations size) ++
+    justVariantsWithoutRotations) ++
   [Nothing] -- i.e use only random matrices.
  where
   -- NOTE we don't use margin 0 because for single component worlds, it is strictly equivalent to never rotating.

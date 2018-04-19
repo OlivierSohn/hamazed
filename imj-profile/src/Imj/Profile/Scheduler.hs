@@ -10,7 +10,6 @@ module Imj.Profile.Scheduler
   , mkResultFromStats
   , continue
   , TestProgress
-  , OldTestProgress
   , mkZeroProgress
   )
   where
@@ -23,11 +22,9 @@ import           Control.Concurrent.MVar.Strict (MVar, readMVar)
 import           Data.Binary
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List
-import           Data.IntMap.Strict(IntMap)
-import qualified Data.IntMap.Strict as IMap
-import qualified Data.IntSet as ISet
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
+import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.String(IsString(..))
 import           Data.UUID(UUID)
@@ -58,58 +55,42 @@ data TestProgress = TestProgress {
     _uuid :: !UUID
     -- ^ Test unique identifier
   , _timeoutThisIteration :: !(Time Duration System)
-  , _hints :: !(Map SmallWorldCharacteristics Int)
+  , _hintsStrategies :: !(Map SmallWorldCharacteristics (Maybe MatrixVariantsSpec))
    -- ^ Hints for the key of the fastest strategies
-  , willTestInIteration :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+  , _allStrategies :: !(Set (Maybe MatrixVariantsSpec))
+  , willTestInIteration :: ![[SmallWorldCharacteristics]]
    -- ^
    -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
    -- During the current iteration, we will skip the elements of the inner list that come after
    -- the first one that timeouts.
-  , _willTestNextIteration :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+  , _willTestNextIteration :: ![[SmallWorldCharacteristics]]
   -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
   -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
   , _profileResults :: !(MaybeResults (NonEmpty SeedNumber))
 } deriving (Generic)
 instance Binary TestProgress
 
-data OldTestProgress = OldTestProgress {
-    _uuid' :: !UUID
-    -- ^ Test unique identifier
-  , _timeoutThisIteration' :: !(Time Duration System)
-  , _hints' :: !(Map SmallWorldCharacteristics Int)
-   -- ^ Hints for the key of the fastest strategies
-  , _willTestInIteration' :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-   -- ^
-   -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
-   -- During the current iteration, we will skip the elements of the inner list that come after
-   -- the first one that timeouts.
-  , _willTestNextIteration' :: ![[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-  -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
-  -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
-  , _profileResults' :: !(OldMaybeResults (NonEmpty SeedNumber))
-} deriving (Generic)
-instance Binary OldTestProgress
-
-mkZeroProgress :: [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+mkZeroProgress :: [[SmallWorldCharacteristics]]
+               -> Set (Maybe MatrixVariantsSpec)
                -> IO TestProgress
-mkZeroProgress l = do
+mkZeroProgress worlds strategies = do
   key <- randUUID
-  return $ TestProgress key dt0 mempty l [] (mkNothingResults $ Set.fromList $ concatMap (map fst) l)
+  return $ TestProgress key dt0 Map.empty strategies worlds [] (mkNothingResults $ Set.fromList $ concat worlds)
  where
   dt0 = fromSecs 0.0001
 
 updateProgress :: Time Duration System
-               -> Map SmallWorldCharacteristics Int
-               -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
-               -> [[(SmallWorldCharacteristics, IntMap (Maybe MatrixVariants))]]
+               -> Map SmallWorldCharacteristics (Maybe MatrixVariantsSpec)
+               -> [[SmallWorldCharacteristics]]
+               -> [[SmallWorldCharacteristics]]
                -> MaybeResults (NonEmpty SeedNumber)
                -> TestProgress
                -> TestProgress
-updateProgress a b c d e p =
-  TestProgress (_uuid p) a b c d e
+updateProgress a b c d e (TestProgress uu _ _ st _ _ _) =
+  TestProgress uu a b st c d e
 
 writeReports :: TestProgress -> UserIntent -> IO ()
-writeReports progress@(TestProgress key theDt _ _ _ valids) i = do
+writeReports progress@(TestProgress key theDt _ _ _ _ valids) i = do
   let optimalStats = toOptimalStrategies valids
       divArray :: [ColorString] -> Html
       divArray = div . mapM_ (div . toHtml)
@@ -123,12 +104,13 @@ writeReports progress@(TestProgress key theDt _ _ _ valids) i = do
   encodeProgressFile progress
 
 showStep :: Characters s => TestProgress -> [s]
-showStep (TestProgress _ theDt _ worldsNow worldsLater _) =
+showStep (TestProgress _ theDt _ strategies worldsNow worldsLater _) =
   showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
     [ ["Timeout ", showTime theDt]
     , ["Easy candidates", show nEasy]
     , ["Difficult candidates", show nDifficult]
     , ["Later candidates", show nLater]
+    , ["Strategies", show $ length strategies]
     ]
  where
    n = sum $ map length worldsNow
@@ -140,7 +122,7 @@ showResults :: (Characters s) => MaybeResults a -> [s]
 showResults r =
   prettyShowOptimalStrategies $ toOptimalStrategies r
 
-showRefined :: Maybe MatrixVariants -> Maybe MatrixVariants -> ColorString
+showRefined :: Maybe MatrixVariantsSpec -> Maybe MatrixVariantsSpec -> ColorString
 showRefined from to =
   CS.colored "Refined from: " green <>
   fromString (show from) <>
@@ -178,13 +160,11 @@ decodeProgressFile =
   doesFileExist progressFile >>= \case
     True -> decodeFileOrFail progressFile >>= either
       (\e -> error $ "File " ++ progressFile ++ " seems corrupt: " ++ show e)
-      (return . Just . convert)
+      (return . Just)
     False -> do
       putStrLn $ "File " ++ progressFile ++ " not found."
       return Nothing
 
-convert :: OldTestProgress -> TestProgress
-convert (OldTestProgress a b c d e oldR) = TestProgress a b c d e $ convertR oldR
 -- |
 -- For each world:
 --   Using a single seed group, find /a/ strategy that works within a given time upper bound.
@@ -204,7 +184,7 @@ withTestScheduler' intent testF initialProgress =
     go initialProgress
    where
     go :: TestProgress -> IO TestProgress
-    go p@(TestProgress _ !dt hints remaining tooHard results) = do
+    go p@(TestProgress _ !dt hints strategiesSpecs remaining tooHard results) = do
       onReport (writeReports p) intent
       continue intent >>= bool
         (return p)
@@ -219,7 +199,7 @@ withTestScheduler' intent testF initialProgress =
                 mapM_ CS.putStrLn $ showStep newProgress
                 go newProgress
           []:rest -> go $ p{willTestInIteration = rest}
-          smalls@((smallEasy,strategies):smallHards):biggerOrDifferents -> do
+          smalls@(smallEasy:smallHards):biggerOrDifferents -> do
             let trySmallsLater = go $ updateProgress dt hints biggerOrDifferents (smalls:tooHard) results p
             if not $ shouldTest smallEasy results
               then do
@@ -227,33 +207,38 @@ withTestScheduler' intent testF initialProgress =
                 trySmallsLater
               else do
                 putStrLn $ "[test] " ++ prettyShowSWCharacteristics smallEasy
-                let hintsIndicesByDistance = map fst $ sortOn snd $ Map.assocs $ Map.fromListWith min $
-                      map (\(w,i) -> (i, smallWorldCharacteristicsDistance smallEasy w)) $ Map.assocs hints
-                    hintsByDistance = map (\idx -> (idx, fromMaybe (error "logic") $ IMap.lookup idx strategies)) hintsIndicesByDistance
+                let hintsSpecsByDistance =
+                      map fst $
+                      sortOn snd $ Map.assocs tmp
+                    hintsSet = Map.keysSet tmp
+                    tmp =
+                      Map.fromListWith min $
+                        map (\(w,spec) -> (spec, smallWorldCharacteristicsDistance smallEasy w)) $
+                        Map.assocs hints
                     orderedStrategies =
-                      hintsByDistance ++
-                      IMap.assocs (IMap.withoutKeys strategies $ ISet.fromList hintsIndicesByDistance)
+                      hintsSpecsByDistance ++
+                      Set.toList (Set.difference strategiesSpecs hintsSet)
                 go' smallEasy (take 8 orderedStrategies) >>= maybe
                   trySmallsLater
-                  (\((stratI,strategy),_res) -> do
+                  (\(strategy,_res) -> do
                       -- TODO use this once we removed the index of the strategy to use the variantspec directly (se need to make
                       -- sure we have all the data available to do refining later : data to compute ordered hints)
                       --let newResults' = addUnrefinedResult smallEasy (fmap toVariantsSpec strategy) (Map.singleton firstSeedGroup _res) results
-                      ((refinedI,refined), resultsBySeeds) <- refineWithHint smallEasy testF (stratI,strategy) orderedStrategies
-                      let newResults = addRefinedResult smallEasy (fmap toVariantsSpec refined) resultsBySeeds results
-                          newHints = Map.insert smallEasy refinedI hints
+                      (refined, resultsBySeeds) <- refineWithHint smallEasy testF strategy orderedStrategies
+                      let newResults = addRefinedResult smallEasy refined resultsBySeeds results
+                          newHints = Map.insert smallEasy refined hints
                       mapM_ CS.putStrLn $ showResults newResults
                       putStrLn $ prettyShowSWCharacteristics smallEasy
                       CS.putStrLn $ showRefined strategy refined
                       go $ updateProgress dt newHints (smallHards:biggerOrDifferents) tooHard newResults p)
            where
             go' _ [] = return Nothing
-            go' world (assoc@(_,strategy):otherStrategies) =
+            go' world@(SWCharacteristics sz _ _) (strategy:otherStrategies) =
               continue intent >>= bool
                 (return Nothing)
                 (do
                   putStrLn $ "[try 1 group] " ++ show strategy
-                  fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just dt) (mkProperties world strategy)) firstSeedGroup
+                  fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just dt) (mkProperties world $ fmap (toVariants sz) strategy)) firstSeedGroup
                      >>= maybe
                       (go' world otherStrategies)
                       (\case
@@ -261,7 +246,7 @@ withTestScheduler' intent testF initialProgress =
                         NotStarted -> error "logic"
                         f@(Finished dt' _) -> bool
                           (onTimeoutMismatch dt dt' >> go' world otherStrategies)
-                          (return $ Just (assoc,f))
+                          (return $ Just (strategy,f))
                           $ dt' <= dt)))
 
   nextDt = (.*) multDt
@@ -299,13 +284,13 @@ mkResultFromStats res stats = case res of
 -- as a reference to early-discard others.
 refineWithHint :: SmallWorldCharacteristics
                -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (Maybe (MkSpaceResult a, Statistics)))
-               -> (Int,Maybe MatrixVariants)
+               -> Maybe MatrixVariantsSpec
                -- ^ This is the hint : a variant which we think is one of the fastest.
-               -> [(Int,Maybe MatrixVariants)]
+               -> [Maybe MatrixVariantsSpec]
                -- ^ The candidates (the hint can be in this list, but it will be filtered away)
-               -> IO ((Int,Maybe MatrixVariants),Map (NonEmpty SeedNumber) (TestStatus Statistics))
+               -> IO (Maybe MatrixVariantsSpec, Map (NonEmpty SeedNumber) (TestStatus Statistics))
                -- ^ The best
-refineWithHint world testF hintStrategy strategies = do
+refineWithHint world@(SWCharacteristics sz _ _) testF hintStrategy strategies = do
   putStrLn "[refine] "
   res <- mkHintStats >>= go (filter (/= hintStrategy) strategies) . mkBestSofar hintStrategy
   putStrLn ""
@@ -330,7 +315,7 @@ refineWithHint world testF hintStrategy strategies = do
               return $ Right $ Map.fromList l
             seedGroup:groups -> do
               let maxDt = min maxIndividual $ maxTotal |-| totalSofar
-                  props = mkProperties world $ snd candidate
+                  props = mkProperties world $ fmap (toVariants sz) candidate
               fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just maxDt) props) seedGroup >>= maybe
                 (return $ Left ())
                 (\case
@@ -345,15 +330,15 @@ refineWithHint world testF hintStrategy strategies = do
   mkHintStats =
     seedGroups >>= fmap Map.fromList . mapM
       (\seedGroup -> (,) seedGroup . uncurry mkResultFromStats . fromMaybe (error "logic") <$> -- Nothing is an errorr because we don't specify a timeout
-        withNumberedSeeds (testF Nothing $ mkProperties world $ snd hintStrategy) seedGroup)
+        withNumberedSeeds (testF Nothing $ mkProperties world $ fmap (toVariants sz) hintStrategy) seedGroup)
 
 data BestSofar = BestSofar {
-    _strategy :: !(Int, Maybe MatrixVariants)
+    _strategy :: !(Maybe MatrixVariantsSpec)
   , _results :: Map (NonEmpty SeedNumber) (TestStatus Statistics)
   , _inducedContraints :: !DurationConstraints
 }
 
-mkBestSofar :: (Int, Maybe MatrixVariants) -> Map (NonEmpty SeedNumber) (TestStatus Statistics) -> BestSofar
+mkBestSofar :: Maybe MatrixVariantsSpec -> Map (NonEmpty SeedNumber) (TestStatus Statistics) -> BestSofar
 mkBestSofar s l = BestSofar s l $ mkDurationConstraints $ Map.elems l
  where
   mkDurationConstraints :: [TestStatus Statistics]

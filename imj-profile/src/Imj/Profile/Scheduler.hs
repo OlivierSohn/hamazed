@@ -129,24 +129,6 @@ showRefined from to =
   CS.colored " to: " green <>
   fromString (show to)
 
--- | Historically, this function was introduced when already several hours worth of results
--- were gathered and we needed to change the sorting of worlds.
-{-
-reset :: TestProgress -> TestProgress
-reset (TestProgress a b c l1 l2 d) =
-  TestProgress a b c (concatMap s $ l2 ++ l1) [] d
- where
-  s [] = []
-  s l@(_:_)
-    | isJust (find ((== 0.5) . prob) l) && (sortOn prob l == l) = [l] -- list is ascending
-    | otherwise = splitL
-   where
-    (lowp,highp) = partition ((< 0.49) . prob) l
-    splitL = [reverse lowp, highp]
-
-  prob (SWCharacteristics _ _ p,_) = p
--}
-
 progressFile :: FilePath
 progressFile = "testState.bin"
 
@@ -165,11 +147,10 @@ decodeProgressFile =
       putStrLn $ "File " ++ progressFile ++ " not found."
       return Nothing
 
--- |
--- For each world:
---   Using a single seed group, find /a/ strategy that works within a given time upper bound.
---   Using all seed groups, and the found strategy as a hint, find the best strategy.
---   Accumulate the best strategies in a list, and test them first in subsequent iterations.
+-- | For each world:
+-- Using a single seed group, find /a/ strategy that works within a given time upper bound.
+-- Using all seed groups, and the found strategy as a hint, find the best strategy.
+-- Record the best strategies, and use them as hints in subsequent iterations.
 withTestScheduler' :: MVar UserIntent
                    -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (Maybe (MkSpaceResult SmallWorld, Statistics)))
                    -- ^ Function to test
@@ -221,7 +202,7 @@ withTestScheduler' intent testF initialProgress =
                 go' smallEasy (take 8 orderedStrategies) >>= maybe
                   trySmallsLater
                   (\(strategy,_res) -> do
-                      -- TODO use this once we removed the index of the strategy to use the variantspec directly (se need to make
+                      -- TODO use this (we need to make
                       -- sure we have all the data available to do refining later : data to compute ordered hints)
                       --let newResults' = addUnrefinedResult smallEasy (fmap toVariantsSpec strategy) (Map.singleton firstSeedGroup _res) results
                       (refined, resultsBySeeds) <- refineWithHint smallEasy testF strategy orderedStrategies

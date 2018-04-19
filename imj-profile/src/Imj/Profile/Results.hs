@@ -20,7 +20,6 @@ module Imj.Profile.Results
     , resultsToHtml
     , resultsToHtml'
     , shouldTest
-    , convertR
     ) where
 
 import           Imj.Prelude hiding(div)
@@ -45,8 +44,7 @@ import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
 import           Imj.Timing
 
--- TODO use for initial version of test scheduler, but remove Maybe
-newtype OldMaybeResults k = OldMaybeResults (Map SmallWorldCharacteristics (Maybe (Map (Maybe MatrixVariants) (TestDurations k Statistics))))
+newtype OldMaybeResults k = OldMaybeResults (Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
   deriving(Generic, Binary)
 instance (NFData k) => NFData (OldMaybeResults k)
 
@@ -65,11 +63,6 @@ data TaggedResult k a = TaggedResult {
 instance (NFData k, NFData a) => NFData (TaggedResult k a)
 instance (Binary k, Binary a) => Binary (TaggedResult k a)
 
-convertR :: (Show k) => OldMaybeResults k -> MaybeResults k
-convertR (OldMaybeResults m) = MaybeResults $ Map.map (fmap convertR') m
- where
-   convertR' (Bin _ k v Tip Tip) = TaggedResult Refined (fmap toVariantsSpec k) v
-   convertR' x = error $ show x
 -- | Returns true if either
 --
 -- * there is no smaller size
@@ -116,7 +109,7 @@ getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
 -- possible future results added to the 'MaybeResults'. Hence, calling 'addResult'
 -- with a 'SmallWorldCharacteristics' outside this set will error.
 mkNothingResults' :: Set SmallWorldCharacteristics -> OldMaybeResults k
-mkNothingResults' = OldMaybeResults . Map.fromSet (const Nothing)
+mkNothingResults' = OldMaybeResults . Map.fromSet (const Map.empty)
 
 mkNothingResults :: Set SmallWorldCharacteristics -> MaybeResults k
 mkNothingResults = MaybeResults . Map.fromSet (const Nothing)
@@ -155,11 +148,9 @@ addUnrefinedResult w strategy m (MaybeResults res) =
 addResult' :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> OldMaybeResults k -> OldMaybeResults k
 addResult' w strategy seed stats (OldMaybeResults res) =
   OldMaybeResults $ Map.alter
-    (maybe
-      (error $ "unforeseen result:" ++ show w)
-      (Just . Just . maybe
-        (Map.singleton strategy s)
-        (Map.alter (Just . maybe s (mappend s)) strategy)))
+    (Just . maybe
+      (Map.singleton strategy s)
+      (Map.alter (Just . maybe s (mappend s)) strategy))
     w
     res
  where
@@ -232,7 +223,6 @@ resultsToHtml' mayAllowedDt (OldMaybeResults results) =
         in map (flip (,) subHtml . toHtml) ls) $
       concatMap
         (uncurry $ prettyProcessResult' mayAllowedDt) $
-        map (fmap (fromMaybe Map.empty)) $
         Map.assocs results
 
 showAsCs :: TestStatus Statistics -> [ColorString]

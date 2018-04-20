@@ -68,9 +68,12 @@ data StrategyTag =
     Refined
   | Unrefined ![(Maybe MatrixVariantsSpec)]
   -- with a 'List' of untested strategies.
-  deriving(Generic, Show)
+  deriving(Generic)
 instance Binary StrategyTag
 instance NFData StrategyTag
+instance Show StrategyTag where
+  show Refined = "Refined"
+  show (Unrefined _) = "Unrefined" -- for html report
 
 data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float {-# UNPACK #-} !SmallWorldCharacteristics
 

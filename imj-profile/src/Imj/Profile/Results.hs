@@ -12,7 +12,8 @@ module Imj.Profile.Results
     , addRefinedResult
     , addUnrefinedResult
     , addResult'
-    , MaybeResults
+    , MaybeResults(..)
+    , TaggedResult(..) -- for white box tests
     , OldMaybeResults
     , mkNothingResults
     , mkNothingResults'
@@ -20,14 +21,17 @@ module Imj.Profile.Results
     , resultsToHtml
     , resultsToHtml'
     , shouldTest
+    , canonicalize
+    , homogenousDist
     ) where
 
 import           Imj.Prelude hiding(div)
 
 import           Data.Set(Set)
+import           Data.IntMap.Internal(IntMap(..), Key)
 import qualified Data.IntMap.Strict as IMap
 import qualified Data.List as List
-import           Data.Map.Internal(Map(..))
+import           Data.Map.Internal(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
 import           Data.Text(pack)
@@ -73,7 +77,7 @@ instance (Binary k, Binary a) => Binary (TaggedResult k a)
 -- based on the knowledge of how tests with smaller or bigger sizes performed.
 shouldTest :: SmallWorldCharacteristics -> MaybeResults k -> Bool
 shouldTest world@(SWCharacteristics refSz _ _) m =
-  let (l,biggersAndBiggers) =
+  let (smaller,bigger) =
         IMap.split 0 $ -- split removes the 0 key. It is ok because this key corresponds only
                        -- to the 'SmallWorldCharacteristics' passed as parameter.
         IMap.map catMaybes $ -- keep valid results only, i.e w can use 'null' to detect invalid results
@@ -81,22 +85,40 @@ shouldTest world@(SWCharacteristics refSz _ _) m =
         mapMaybe (\(sz,res) -> flip (,) [res] <$> homogenousDist refSz sz) $ -- discard size changes that are not homogenous
         Map.assocs $
         getResultsOfAllSizes world m
-      smallersAndSmallers = IMap.toDescList l
-      countValidBiggers = IMap.foldl' (\s -> (+) s . List.length) 0 biggersAndBiggers
-  in case smallersAndSmallers of
-        [] -> True
-        closestSmallersValids:_ ->
-          not (null closestSmallersValids) || countValidBiggers > 0
+      countValidBiggers = IMap.foldl' (\s -> (+) s . List.length) 0 bigger
+  in maybe
+      True
+      (\(_,closestSmallersValids) -> case closestSmallersValids of
+        [] -> countValidBiggers > 0
+        _:_ -> True)
+      $ lookupMax smaller
+
+lookupMax :: IntMap a -> Maybe (Key, a) -- TODO remove once available in container
+lookupMax Nil = Nothing
+lookupMax (Tip k v) = Just (k,v)
+lookupMax (Bin _ m l r)
+  | m < 0     = go l
+  | otherwise = go r
+    where go (Tip k v)      = Just (k,v)
+          go (Bin _ _ _ r') = go r'
+          go Nil            = Nothing
+
+canonicalize :: Size -> Size
+canonicalize sz@(Size (Length h) (Length w))
+  | h <= w = sz
+  | otherwise = Size (fromIntegral w) (fromIntegral h)
 
 -- returns 'Nothing' when height and width change in opposite directions.
 homogenousDist :: Size -> Size -> Maybe Int
-homogenousDist (Size h w) (Size h' w')
-  | dh > 0 && dw < 0 = Nothing
-  | dh < 0 && dw > 0 = Nothing
-  | otherwise = Just $ fromIntegral dh + fromIntegral dw
+homogenousDist s1 s2 = hDist (canonicalize s1) (canonicalize s2)
  where
-  dw = w' - w
-  dh = h' - h
+  hDist (Size h w) (Size h' w')
+    | dh > 0 && dw < 0 = Nothing
+    | dh < 0 && dw > 0 = Nothing
+    | otherwise = Just $ fromIntegral dh + fromIntegral dw
+   where
+    dw = w' - w
+    dh = h' - h
 
 getResultsOfAllSizes :: SmallWorldCharacteristics -> MaybeResults k -> Map Size (Maybe (TaggedResult k Statistics))
 getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =

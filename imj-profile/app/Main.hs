@@ -182,10 +182,6 @@ exhaustiveWorlds =
       (\l -> map (worldSizeFromLevel l) [Square, Rectangle'2x1])
       [firstLevel..lastLevel]
 
-    canonicalize sz@(Size (Length a) (Length b))
-      | a <= b = sz
-      | otherwise = Size (fromIntegral b) (fromIntegral a)
-
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
                   -> Set SmallWorldCharacteristics

@@ -1,29 +1,3 @@
-- make tests compile
-
-- optimize graph run using Int instead of Bool
-
-- mutableByteArrayContents returns a pointer.
-
-TODO allocate one block of memory, make sure different workers do not share cachelines.
-
-- see if
-(12,24), 4 component, 0.5 wall. | Best mean: 9'374'925 (us)
-can be faster when graph memory is preallocated (next to matrix memory?)
-
-or profile (we didn't do any profiling for multi component search yet)
-
-- refining stage is the longest now (98%).
-
-We could use heuristics to filter tested strategies:
-the simplest one could be to just take the one we had with the first seed group and refine it with other seed groups.
-
-tag the existing results : refined with all strategies
-tag new results : unrefined
-
-the downside is that the hints are a bit less precise.
-
-- use an acyclic graph for difficulties, to replace proba inner list sorting + 'shouldTest'
-
 -
 Once we have all durations for (6,12), we can support user probabilities in master officially
 

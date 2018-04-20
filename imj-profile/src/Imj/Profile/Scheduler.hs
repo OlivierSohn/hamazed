@@ -198,15 +198,17 @@ withTestScheduler' intent testF initialProgress =
                     orderedStrategies =
                       map fst hintsSpecsByDistance ++
                       Set.toList (Set.difference strategiesSpecs hintsSet)
+                    -- this might not work at the beginning of the algo, but once we have sufficient
+                    -- results it is ok.
+                    nCloseHints = foldl' (\n (_,dist) -> if dist <= 2 then n+1 else n) 0 hintsSpecsByDistance
+                    nMaxUsedStrategies = max 8 nCloseHints
+                    (used,unused) = splitAt nMaxUsedStrategies orderedStrategies
                 mapM_ putStrLn $ showArrayN (Just ["Hint", "Distance"]) $ map (\(h,d) -> [show h, showFFloat (Just 2) d ""]) hintsSpecsByDistance
-                go' smallEasy (take 8 orderedStrategies) >>= maybe
+                go' smallEasy used >>= maybe
                   trySmallsLater
                   (\(strategy,_res) -> do
-                      -- TODO use this (we need to make
-                      -- sure we have all the data available to do refining later : data to compute ordered hints)
-                      --let newResults' = addUnrefinedResult smallEasy (fmap toVariantsSpec strategy) (Map.singleton firstSeedGroup _res) results
-                      (refined, resultsBySeeds) <- refineWithHint smallEasy testF strategy orderedStrategies
-                      let newResults = addRefinedResult smallEasy refined resultsBySeeds results
+                      (refined, resultsBySeeds) <- refineWithHint smallEasy testF strategy used
+                      let newResults = addUnrefinedResult smallEasy refined unused resultsBySeeds results
                           newHints = Map.insert smallEasy refined hints
                       mapM_ CS.putStrLn $ showResults newResults
                       putStrLn $ prettyShowSWCharacteristics smallEasy

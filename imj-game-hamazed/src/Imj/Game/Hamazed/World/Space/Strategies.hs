@@ -56,7 +56,6 @@ instance Show OptimalStrategies where
 
 data OptimalStrategy = OptimalStrategy {
     _optimalStrategy :: !(Maybe MatrixVariantsSpec)
-  , _optimalStratTag :: !StrategyTag
   , averageDuration :: !(Time Duration System)
 } deriving(Generic)
 instance Binary OptimalStrategy
@@ -67,7 +66,8 @@ instance Eq OptimalStrategy where
 
 data StrategyTag =
     Refined
-  | Unrefined
+  | Unrefined ![(Maybe MatrixVariantsSpec)]
+  -- with a 'List' of untested strategies.
   deriving(Generic, Show)
 instance Binary StrategyTag
 instance NFData StrategyTag
@@ -103,7 +103,7 @@ closestOptimalStrategy world = case embeddedOptimalStrategies of
         closestOptimal =
           maybe
             (ClosestOptimalStrategy Nothing Nothing defaultStrategy)
-            (\(StratDist (OptimalStrategy s _ dt) _ charac) ->
+            (\(StratDist (OptimalStrategy s dt) _ charac) ->
               ClosestOptimalStrategy (Just charac) (Just dt) s)
             closest
     in maybe (Left closestOptimal) Right $ Map.lookup world m

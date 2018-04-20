@@ -170,11 +170,11 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
                     putStrLn $ "Close strategy:" ++ show strategy)
               mayCloseWorld
             return (strategy,mayDuration))
-        (\(OptimalStrategy exactMatch tag duration) -> do
+        (\(OptimalStrategy exactMatch duration) -> do
             putStrLn $ unwords
               [ "Found an exact match for"
               , prettyShowSWCharacteristics characteristics]
-            putStrLn $ "Strategy:" ++ show (exactMatch, tag)
+            putStrLn $ "Strategy:" ++ show exactMatch
             return (exactMatch, Just duration))
         $ closestOptimalStrategy characteristics
       putStrLn $

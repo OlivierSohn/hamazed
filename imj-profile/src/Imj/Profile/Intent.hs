@@ -62,7 +62,7 @@ setToFalseOnTermination intent = do
         return Cancel
       _ -> do
         CS.putStrLn $ CS.colored
-          "\nUser requested test termination. A report will be generated, unless user requests termination one more time."
+          "\nUser requested test termination. Reports and files will be generated, unless user requests termination one more time."
           orange
         return Cancel
 
@@ -78,7 +78,7 @@ mkTerminator = do
 
     forever $ getChar >>= \case
       'r' -> do
-        CS.putStrLn $ CS.colored "\nAn intermediate html report will be generated as soon as possible..." yellow
+        CS.putStrLn $ CS.colored "\nReports and files will be generated as soon as possible..." yellow
         modifyMVar_ b $ \prevIntent -> return $ Report prevIntent
         skipRepeats
       ' ' -> do

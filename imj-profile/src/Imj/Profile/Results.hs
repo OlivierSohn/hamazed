@@ -123,7 +123,7 @@ addRefinedResult w strategy m (MaybeResults res) =
       (Just . Just . maybe
         add
         (\(TaggedResult tag _ _) -> case tag of
-            Unrefined -> add
+            Unrefined _ -> add
             Refined -> error "would overwrite a refined result")))
     w
     res
@@ -131,8 +131,8 @@ addRefinedResult w strategy m (MaybeResults res) =
   add = TaggedResult Refined strategy $ TD m
 
 {-# INLINABLE addUnrefinedResult #-}
-addUnrefinedResult :: (Show k) => SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
-addUnrefinedResult w strategy m (MaybeResults res) =
+addUnrefinedResult :: (Show k) => SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> [Maybe MatrixVariantsSpec] -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
+addUnrefinedResult w strategy remaining m (MaybeResults res) =
   MaybeResults $ Map.alter
     (maybe
       (error $ "unforeseen result:" ++ show w)
@@ -142,7 +142,7 @@ addUnrefinedResult w strategy m (MaybeResults res) =
     w
     res
  where
-  add = TaggedResult Unrefined strategy $ TD m
+  add = TaggedResult (Unrefined remaining) strategy $ TD m
 
 {-# INLINABLE addResult' #-}
 addResult' :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> OldMaybeResults k -> OldMaybeResults k
@@ -161,11 +161,11 @@ toOptimalStrategies (MaybeResults m) = OptimalStrategies $
   Map.mapMaybe
     (maybe
       Nothing
-      (\(TaggedResult tag strategy results) -> case summarize results of
+      (\(TaggedResult _ strategy results) -> case summarize results of
             NoResult -> Nothing
             NTimeouts _ -> Nothing
             FinishedAverage duration _ ->
-              Just $ OptimalStrategy strategy tag duration))
+              Just $ OptimalStrategy strategy duration))
     m
 
 prettyProcessResult' :: Maybe (Time Duration System)

@@ -53,9 +53,9 @@ import           Imj.Util
 main :: IO ()
 main = do
   useOneCapabilityPerPhysicalCore
-  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  --mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
+  mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
   --writeRNGImages
   --measureRNGsSpeed
   --writeSeedsSource

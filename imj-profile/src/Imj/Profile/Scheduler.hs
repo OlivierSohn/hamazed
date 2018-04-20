@@ -71,6 +71,25 @@ data TestProgress = TestProgress {
 } deriving (Generic)
 instance Binary TestProgress
 
+{-
+-- I thought sorting was ok but at some point I needed this to sort again
+fixProgress :: TestProgress -> TestProgress
+fixProgress (TestProgress a _ b c this next res) =
+  TestProgress a (fromSecs 0.01) b c (sortA $ map sortP $ this ++ next) [] res
+ where
+  sortA = sortOn g
+  g [] = -1
+  g (SWCharacteristics sz _ _:_) = area sz
+
+  sortP [] = []
+  sortP l@(SWCharacteristics _ ncomps proba:_) =
+    f $ sortOn userWallProbability l
+   where
+     f
+      | ncomps >= 2 && proba < 0.49 = reverse
+      | otherwise = id
+-}
+
 mkZeroProgress :: [[SmallWorldCharacteristics]]
                -> Set (Maybe MatrixVariantsSpec)
                -> IO TestProgress
@@ -167,6 +186,12 @@ withTestScheduler' intent testF initialProgress =
    where
     go :: TestProgress -> IO TestProgress
     go p@(TestProgress _ !dt hints strategiesSpecs remaining tooHard results) = do
+      {-
+      putStrLn "remaining"
+      mapM_ print remaining
+      putStrLn "tooHard"
+      mapM_ print tooHard
+      -}
       onReport (writeReports p) intent
       continue intent >>= bool
         (return p)
@@ -216,21 +241,18 @@ withTestScheduler' intent testF initialProgress =
                       go $ updateProgress dt newHints (smallHards:biggerOrDifferents) tooHard newResults p)
            where
             go' _ [] = return Nothing
-            go' world@(SWCharacteristics sz _ _) (strategy:otherStrategies) =
-              continue intent >>= bool
-                (return Nothing)
-                (do
-                  putStrLn $ "[try 1 group] " ++ show strategy
-                  fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just dt) (mkProperties world $ fmap (toVariants sz) strategy)) firstSeedGroup
-                     >>= maybe
-                      (go' world otherStrategies)
-                      (\case
-                        Timeout -> error "logic"
-                        NotStarted -> error "logic"
-                        f@(Finished dt' _) -> bool
-                          (onTimeoutMismatch dt dt' >> go' world otherStrategies)
-                          (return $ Just (strategy,f))
-                          $ dt' <= dt)))
+            go' world@(SWCharacteristics sz _ _) (strategy:otherStrategies) = do
+              putStrLn $ "[try 1 group] " ++ show strategy
+              fmap (uncurry mkResultFromStats) <$> withNumberedSeeds (testF (Just dt) (mkProperties world $ fmap (toVariants sz) strategy)) firstSeedGroup
+                 >>= maybe
+                  (go' world otherStrategies)
+                  (\case
+                    Timeout -> error "logic"
+                    NotStarted -> error "logic"
+                    f@(Finished dt' _) -> bool
+                      (onTimeoutMismatch dt dt' >> go' world otherStrategies)
+                      (return $ Just (strategy,f))
+                      $ dt' <= dt))
 
   nextDt = (.*) multDt
   multDt = 6

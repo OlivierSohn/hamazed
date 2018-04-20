@@ -59,7 +59,7 @@ windowCloseCallback q _ =
 
 -- When resizing a window using a mouse drag of the borders, plenty of FramebufferSizeChanges
 -- events are polled at once, at the end of the motion. Hence, to avoid slowing the app down
--- at that moment, we dedupe.
+-- at that moment, we dedup.
 framebufferSizeCallback :: TQueue PlatformEvent -> GLFW.Window -> Int -> Int -> IO ()
 framebufferSizeCallback q _ _ _ = atomically $ tryPeekTQueue q >>= maybe
   write

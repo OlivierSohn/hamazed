@@ -7,7 +7,7 @@
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
     Matrix
-  , nelems, nrows, ncols, rotation
+  , nelems, nrows, ncols, rotation, mvect
     -- * Builders
   , matrix
   , rowVector

@@ -10,6 +10,8 @@ import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
 import           Data.List(foldl', take, concat)
 import qualified Data.List.NonEmpty as NE(toList)
+import           Data.List.NonEmpty(NonEmpty(..))
+import           Data.Primitive.ByteArray
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import           System.Random.MWC(GenIO, create)
@@ -21,6 +23,7 @@ import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Text.Render
+import           Imj.Util
 
 testTopology :: IO ()
 testTopology = do
@@ -39,23 +42,26 @@ testAirOnEveryFronteer = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithoutAir"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (const . (`shouldBe` Left UnusedFronteers) . matchTopology NCompsNotRequired n)
+    (const . (`shouldBe` Left UnusedFronteers) . uncurry (matchTopology NCompsNotRequired n))
   putStrLn "WithtAir"
   debugForM_ matricesWithAirOnEveryFronteer
-    (const . (`shouldNotBe` Left UnusedFronteers) . matchTopology NCompsNotRequired n)
+    (const . (`shouldNotBe` Left UnusedFronteers) . uncurry (matchTopology NCompsNotRequired n))
   putStrLn "WithoutAir 2"
   debugForM_ matricesWithoutAirOnEveryFronteer
-    (\m expected -> matchTopology (NCompsRequiredWithMargin 100) n m `shouldBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> uncurry (matchTopology (NCompsRequiredWithMargin 100) n) m `shouldBe` Left (CC UnusedFronteers' expected))
   putStrLn "WithtAir 2"
   debugForM_ matricesWithAirOnEveryFronteer
-    (\m expected -> matchTopology (NCompsRequiredWithMargin 100) n m `shouldNotBe` Left (CC UnusedFronteers' expected))
+    (\m expected -> uncurry (matchTopology (NCompsRequiredWithMargin 100) n) m `shouldNotBe` Left (CC UnusedFronteers' expected))
 
 
-mkKeys :: Unboxed.Matrix Material -> SmallMatInfo
-mkKeys m = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromList r c $ reverse l
+mkKeys :: Unboxed.Matrix Material -> IO (ByteArray,SmallMatInfo)
+mkKeys m = do
+  ba <- newAlignedPinnedByteArray (ceilToMultiple 64 $ nBlocks * 8) 64 >>= unsafeFreezeByteArray
+  return (ba,SmallMatInfo (fromIntegral nAir) $ Cyclic.fromList r c $ reverse l)
  where
   r = Unboxed.nrows m
   c = Unboxed.ncols m
+  nBlocks = r*c
   (l, nAir) = foldl'
       (\(l',k) v -> case v of
         Wall -> (MaterialAndKey 0xFFFF:l',k)
@@ -64,14 +70,14 @@ mkKeys m = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromList r c $ reverse l
       $ Unboxed.toList m
 
 debugForM_ :: [(a,Unboxed.Matrix Material)]
-           -> (SmallMatInfo -> a -> IO ())
+           -> ((ByteArray,SmallMatInfo) -> a -> IO ())
            -> IO ()
-debugForM_ l act = forM_' l (\(n,e) -> do
-  mapM_ putStrLn $ showInBox' $ writeWorld e
+debugForM_ l act = forM_' l (\(n,e@(_,mat)) -> do
+  mapM_ putStrLn $ showInBox' $ writeWorld mat
   act e n)
 
-forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,SmallMatInfo) -> IO ()) -> IO ()
-forM_' l = forM_ (map (fmap mkKeys) l)
+forM_' :: [(a,Unboxed.Matrix Material)] -> ((a,(ByteArray,SmallMatInfo)) -> IO ()) -> IO ()
+forM_' l act = forM l (\(a,b) -> (,) a <$> mkKeys b) >>= mapM_ act
 
 displayNWorlds :: Int -> [SmallMatInfo] -> [String]
 displayNWorlds lineLength = concat . reverse .
@@ -91,7 +97,7 @@ testNumComps :: IO ()
 testNumComps = forAnyNumberOfComponents $ \n -> do
   print n
   putStrLn "WithNComponents"
-  forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (matchTopology (NCompsRequiredWithMargin 100) n m) `shouldBe` Just expected)
+  forM_' matricesWithNComponents (\(expected, m) -> getComponentCount (uncurry (matchTopology (NCompsRequiredWithMargin 100) n) m) `shouldBe` Just expected)
 
 getComponentCount :: TopoMatch -> Maybe ComponentCount
 getComponentCount (Left (CC _ c)) = Just c
@@ -102,18 +108,18 @@ testComponentsSizesWellDistributed :: IO ()
 testComponentsSizesWellDistributed = do
   putStrLn "WithNNotWellDistributedComponents"
   forM_' matricesWithNNotWellDistributedComponents
-    (\(expected, m) -> matchTopology (NCompsRequiredWithMargin 100) expected m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
+    (\(expected, m) -> uncurry (matchTopology (NCompsRequiredWithMargin 100) expected) m `shouldBe` Left (CC ComponentsSizesNotWellDistributed expected))
   putStrLn "WithNWellDistributedComponentsSpaceWellUsed"
   forM_' matricesWithNWellDistributedComponentsSpaceWellUsed
-    (\(expected, m) -> do
-      mapM_ putStrLn $ showInBox' $ writeWorld m
-      either (error "expected Right") (const $ return ()) $ matchTopology (NCompsRequiredWithMargin 100) expected m)
+    (\(expected, m@(_,mat)) -> do
+      mapM_ putStrLn $ showInBox' $ writeWorld mat
+      either (fail "expected Right") (const $ return ()) $ uncurry (matchTopology (NCompsRequiredWithMargin 100) expected) m)
 
 testComponentsNearby :: IO ()
 testComponentsNearby = do
   putStrLn "WithNWellDistributedComponentsSpaceNotWellUsed"
   forM_' matricesWithNWellDistributedComponentsSpaceNotWellUsed
-    (\(expected, m) -> matchTopology (NCompsRequiredWithMargin 100) expected m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
+    (\(expected, m) -> uncurry (matchTopology (NCompsRequiredWithMargin 100) expected) m `shouldBe` Left (CC SpaceNotUsedWellEnough expected))
 
 testMinCountAirBlocks :: IO ()
 testMinCountAirBlocks = do
@@ -145,9 +151,13 @@ testMinCountAirBlocks = do
       -- is according to what is expected, and that it is possible to reach the minimum.
       (\minAirCount -> do
         let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: AlmostFloat
-        successes <- generateAtLeastN nSuccesses $
-          map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
-        let z = zip (map countAirElements successes) successes
+        successes <- generateAtLeastN nSuccesses $ do
+          smallMats <- map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
+          putStrLn $ "generated " ++ show (length smallMats)
+          forM_ smallMats (verifyMat "generated")
+          return smallMats
+        nAirElts <- mapM countAirElements successes
+        let z = zip nAirElts successes
             minimals = filter (\(countAirElems, _) -> countAirElems == minAirCount) z
             totalSuccesses = n + length successes
         mapM_ (`shouldBeBiggerOrEqualTo` minAirCount) $ map fst z
@@ -171,23 +181,56 @@ testMinCountAirBlocks = do
 
     -- we use 'mkSmallMatUnchecked' because we want to test the lower bounds.
     -- with 'mkSmallMat', the test is not relevant.
-    generate proba =
-      matchAndVariate nComps
-        (Just $ Variants
-          (pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
-          Nothing) <$> mkSmallMatUnchecked gen proba sz
+    generate proba = do
+      (ba,m) <- mkSmallMatUnchecked gen proba sz
+      verifyMat "generate" m
+      let res = (:|[]) $ matchTopology' NCompsNotRequired nComps m
+--          res = matchAndVariate nComps
+      --     (
+          --Just $ Variants
+            --(pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
+  --          Nothing
+    --        )
+        --    ba m
+          smallMats = map getSmallMatrix $ rights $ NE.toList res
+      mapM_ (verifyMat "afterMatch") smallMats
+      return res
+
+verifyMat :: String -> SmallMatInfo -> IO ()
+verifyMat s sm@(SmallMatInfo nAir m) = do
+  let fs = do
+            mapM_ putStrLn $ showInBox' $ writeWorld sm
+            print m
+  verifyAirKeys fs s (Cyclic.mvect m) nAir
 
 mkSmallMatUnchecked :: GenIO
                     -> AlmostFloat
                     -- ^ Probability to generate a wall
                     -> Size
                     -- ^ Size of the matrix
-                    -> IO SmallMatInfo
+                    -> IO (ByteArray,SmallMatInfo)
 mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do
-  v <- MS.unsafeNew $ area s
+  let nBlocks = area s
+  graphArray <- newAlignedPinnedByteArray (ceilToMultiple 64 $ nBlocks * 8) 64 >>= unsafeFreezeByteArray
+  v <- MS.unsafeNew nBlocks
   nAir <- fillSmallVector gen wallAirRatio v
+
   v' <- S.unsafeFreeze v
-  return $ SmallMatInfo (fromIntegral nAir) $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v'
+  let !mat = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v'
+  a <- verifyMat "mkSmallMatUnchecked" mat
+  return $ a `deepseq` (graphArray, mat)
+
+verifyAirKeys :: (Integral a) => IO () -> String -> S.Vector MaterialAndKey -> a -> IO ()
+verifyAirKeys onError name v nAir = do
+  -- verify that air keys are [0..nAir-1]
+  let sortedUniqueAirKeys = dedup $ mapMaybe (isAir Nothing Just) $ S.toList v
+      expectedAirKeys
+        | nAir == 0 = []
+        | otherwise = [0.. fromIntegral $ nAir-1]
+  when (sortedUniqueAirKeys /= expectedAirKeys) $ do
+    onError
+    fail $ name ++ ":air keys are wrong:" ++ show(expectedAirKeys,sortedUniqueAirKeys)
+  return ()
 
 generateAtLeastN :: Int -> IO [a] -> IO [a]
 generateAtLeastN n act =
@@ -197,12 +240,15 @@ generateAtLeastN n act =
    | remaining <= 0 = return l
    | otherwise = act >>= \generated -> go (remaining - length generated) (generated ++ l)
 
-countAirElements :: SmallMatInfo -> Int
-countAirElements (SmallMatInfo nAir l) =
+countAirElements :: SmallMatInfo -> IO Int
+countAirElements m@(SmallMatInfo nAir l) = do
+  print m
+  mapM_ putStrLn $ showInBox' $ writeWorld m
   let nAir' = length $ filter ((== Air).materialAndKeyToMaterial) $ concat $ Cyclic.toLists l
-  in if nAir == nAir'
-    then nAir
-    else error $ "mismatch nAir" ++ show(nAir, nAir')
+  verifyMat "countAirElements" m
+  if nAir == nAir'
+    then return nAir
+    else fail $ "mismatch nAir" ++ show(nAir, nAir')
 
 -- Test deactivated, it actually fails, and shows that we need to make sure
 -- the sum of lower bounds is smaller than the total number of blocks, else
@@ -595,13 +641,13 @@ matricesWithNNotWellDistributedComponents = map (fmap readWorld) [
 
 shouldNotBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldNotBe actual unexpected =
-  when (actual == unexpected) $ error $ "didn't expect\n" ++ show unexpected
+  when (actual == unexpected) $ fail $ "didn't expect\n" ++ show unexpected
 
 
 shouldBeBiggerOrEqualTo :: (Show a, Ord a) => a -> a -> IO ()
 shouldBeBiggerOrEqualTo actual minValue =
-  unless (actual >= minValue) $ error $ "expected >= \n" ++ show minValue ++ " but got\n" ++ show actual
+  unless (actual >= minValue) $ fail $ "expected >= \n" ++ show minValue ++ " but got\n" ++ show actual
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =
-  unless (actual == expected) $ error $ "expected\n" ++ show expected ++ " but got\n" ++ show actual
+  unless (actual == expected) $ fail $ "expected\n" ++ show expected ++ " but got\n" ++ show actual

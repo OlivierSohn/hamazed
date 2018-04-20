@@ -1,5 +1,7 @@
 - make tests compile
 
+- optimize graph run using Int instead of Bool
+
 - mutableByteArrayContents returns a pointer.
 
 TODO allocate one block of memory, make sure different workers do not share cachelines.

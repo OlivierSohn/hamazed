@@ -35,10 +35,12 @@ import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl', replicate)
 import qualified Data.Set as Set
 
+-- | removes duplicates, and returns elements in ascending order.
 {-# INLINABLE dedup #-}
 dedup :: (Ord a) => [a] -> [a]
 dedup = Set.toList . Set.fromList
 
+-- | Same as 'dedup' except the input is expected to be ascending.
 {-# INLINABLE dedupAsc #-}
 dedupAsc :: (Ord a) => [a] -> [a]
 dedupAsc = Set.toList . Set.fromAscList

@@ -11,22 +11,23 @@ module Imj.Data.UndirectedGraph (
     -- * Graphs
       Graph(..)
     , Vertex
+    , Tree
+    , Forest
+    , foldTree
+    , flatten
 
     -- ** Graph Algorithms
     , components
     , componentsN
 
-    -- * Trees
-    , module Data.Tree
 
     ) where
 
 import           Control.Monad.ST
-import           Data.Bits(shiftR)
+import           Data.Bits(shiftL)
 import           Data.Vector.Storable.Mutable (MVector)
 import qualified Data.Vector.Storable.Mutable as S
-import           Data.Tree (Tree(Node), Forest)
-import           GHC.Word(Word16, Word64)
+import           GHC.Word(Word8, Word16)
 import           Data.Primitive.ByteArray(ByteArray(..), indexByteArray)
 
 -------------------------------------------------------------------------
@@ -49,19 +50,36 @@ data Graph = Graph {
   , _memory :: !ByteArray
 }
 
+-- Like Data.Tree(Tree) but strict in the value
+data Tree = Node {
+  _rootLabel :: {-# UNPACK #-} !Vertex, -- ^ label value
+  _subForest :: Forest   -- ^ zero or more child trees
+}
+type Forest = [Tree]
+
+-- | The elements of a tree in pre-order.
+flatten :: Tree -> [Vertex]
+flatten t = squish t []
+  where
+    squish (Node x ts) xs = x:Prelude.foldr squish xs ts
+
+foldTree :: (Vertex -> [b] -> b) -> Tree -> b
+foldTree f = go where
+    go (Node x ts) = f x (map go ts)
+
 -------------------------------------------------------------------------
 --                                                                      -
 --      Depth first search
 --                                                                      -
 -------------------------------------------------------------------------
 
-componentsN        :: Word16 -> Graph -> Forest Vertex
+componentsN        :: Word16 -> Graph -> Forest
 componentsN n g       = dfs' (Just n) g
 
 -- | A spanning forest of the part of the graph reachable from the listed
 -- vertices, obtained from a depth-first search of the graph starting at
 -- each of the listed vertices in order.
-components :: Graph -> Forest Vertex
+components :: Graph -> Forest
 components = dfs' Nothing
 
 {-# INLINE forLoop #-}
@@ -73,33 +91,38 @@ forLoop start end f = go start
       | otherwise = f x : go (x+1)
 
 
-dfs'          :: Maybe Word16 -> Graph -> Forest Vertex
+dfs'          :: Maybe Word16 -> Graph -> Forest
 dfs' n (Graph sz g)   = prune sz n (forLoop 0 sz (generate g))
 
-generate     :: ByteArray -> Vertex -> Tree Vertex
-generate g v  = Node v (map (generate g) $ neighbours v)
+generate     :: ByteArray -> Vertex -> Tree
+generate g v  = Node v (map4 (generate g) $ neighbours v)
  where
-  neighbours :: Vertex -> [Vertex] -- TODO 3% time in profiling, we could try optimizing it.
+  neighbours :: Vertex -> Four -- TODO 3% time in profiling, we could try optimizing it.
   neighbours x =
-    let w64 = indexByteArray g $ fromIntegral x :: Word64
-        w1 = fromIntegral w64 :: Word16
-        w2 = fromIntegral (w64 `shiftR` 16) :: Word16
-        w3 = fromIntegral (w64 `shiftR` 32) :: Word16
-        w4 = fromIntegral (w64 `shiftR` 48) :: Word16
-    in filter (< 0x8000) [w1,w2,w3,w4]
+    let base = fromIntegral $ x `shiftL` 2
+        w1 = indexByteArray g base :: Word16
+        w2 = indexByteArray g (base + 1) :: Word16
+        w3 = indexByteArray g (base + 2) :: Word16
+        w4 = indexByteArray g (base + 3) :: Word16
+    in Four w1 w2 w3 w4
 
-prune        :: Word16 -> Maybe Word16 -> Forest Vertex -> Forest Vertex
+  map4 f (Four w1 w2 w3 w4) =
+    map f $ filter (< 0x8000) [w1,w2,w3,w4]
+
+data Four = Four {-# UNPACK #-} !Vertex {-# UNPACK #-} !Vertex {-# UNPACK #-} !Vertex {-# UNPACK #-} !Vertex
+
+prune        :: Word16 -> Maybe Word16 -> Forest -> Forest
 prune n mayCount ts = run n (maybe chop chopTakeN mayCount ts)
 
 -- Same as 'chop', except that no more than n first-level forests
 -- are computed.
-chopTakeN         :: Word16 -> Forest Vertex -> SetM s (Forest Vertex)
+chopTakeN         :: Word16 -> Forest -> SetM s Forest
 chopTakeN 0 _     = return []
 chopTakeN _ []     = return []
 chopTakeN n (Node v ts : us)
               = do
                 visited <- contains v
-                if visited then
+                if visited /= 0 then
                   chopTakeN n us
                  else do
                   include v
@@ -107,12 +130,12 @@ chopTakeN n (Node v ts : us)
                   bs <- chopTakeN (n-1) us
                   return (Node v as : bs)
 
-chop         :: Forest Vertex -> SetM s (Forest Vertex)
+chop         :: Forest -> SetM s Forest
 chop []     = return []
 chop (Node v ts : us)
               = do
                 visited <- contains v
-                if visited then
+                if visited /= 0 then
                   chop us
                  else do
                   include v
@@ -122,7 +145,8 @@ chop (Node v ts : us)
 
 -- Use the ST monad, for constant-time primitives.
 
-newtype SetM s a = SetM { runSetM :: MVector s Bool -> ST s a }
+
+newtype SetM s a = SetM { runSetM :: MVector s Word8 -> ST s a }
 
 instance Monad (SetM s) where
     return = pure
@@ -145,12 +169,12 @@ instance Applicative (SetM s) where
 
 {-# INLINE run #-}
 run          :: Word16 -> (forall s. SetM s a) -> a
-run n act  = runST (S.replicate (fromIntegral n) False >>= runSetM act)
+run n act  = runST (S.replicate (fromIntegral n) 0 >>= runSetM act)
 
 {-# INLINE contains #-}
-contains     :: Vertex -> SetM s Bool
+contains     :: Vertex -> SetM s Word8
 contains v    = SetM $ \ m -> S.unsafeRead m (fromIntegral v)
 
 {-# INLINE include #-}
 include      :: Vertex -> SetM s ()
-include v     = SetM $ \ m -> S.unsafeWrite m (fromIntegral v) True
+include v     = SetM $ \ m -> S.unsafeWrite m (fromIntegral v) (0xFF)

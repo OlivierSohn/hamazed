@@ -48,7 +48,6 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set(size, empty, fromList, toList, union)
-import           Data.Tree(flatten, foldTree)
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
 import qualified Data.Vector.Unboxed.Mutable as MV
@@ -504,11 +503,11 @@ matchTopology !nCompsReq nComponents ba r@(SmallMatInfo nAirKeys mat)
   --   else a Just undirected graph is returned.
   (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r ba
 
-  comps = map (ConnectedComponent . V.fromList . flatten) allComps
+  comps = map (ConnectedComponent . V.fromList . Undirected.flatten) allComps
 
   lengthsMinMax = foldl'
     (\mm comp ->
-      let len = foldTree (\_ l -> 1 + foldl' (+) 0 l) comp
+      let len = Undirected.foldTree (\_ l -> 1 + foldl' (+) 0 l) comp
       in addValue len mm)
     mkEmptyMinMax
     allComps

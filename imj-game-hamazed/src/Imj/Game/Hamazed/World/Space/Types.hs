@@ -154,6 +154,12 @@ instance Storable MaterialAndKey where -- maps to a Word16
   alignment _ = 2
   peekElemOff (Ptr a) b = MaterialAndKey <$> readWord16OffPtr (Ptr a) b
   pokeElemOff (Ptr a) b (MaterialAndKey c) = writeWord16OffPtr (Ptr a) b c
+  {-# INLINE sizeOf #-}
+  {-# INLINE alignment #-}
+  {-# INLINE peekElemOff #-}
+  {-# INLINE pokeElemOff #-}
+
+
 
 {-# INLINE isAir #-}
 isAir :: a -> (Word16 -> a) -> MaterialAndKey -> a

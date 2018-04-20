@@ -10,7 +10,6 @@ import           Prelude(print, putStrLn, length)
 import           Data.Either(rights)
 import           Data.List(foldl', take, concat)
 import qualified Data.List.NonEmpty as NE(toList)
-import           Data.List.NonEmpty(NonEmpty(..))
 import           Data.Primitive.ByteArray
 import qualified Data.Vector.Storable as S
 import qualified Data.Vector.Storable.Mutable as MS
@@ -152,10 +151,7 @@ testMinCountAirBlocks = do
       (\minAirCount -> do
         let wallAirRatio = 1 - fromIntegral minAirCount / fromIntegral countBlocks :: AlmostFloat
         successes <- generateAtLeastN nSuccesses $ do
-          smallMats <- map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
-          putStrLn $ "generated " ++ show (length smallMats)
-          forM_ smallMats (verifyMat "generated")
-          return smallMats
+          map getSmallMatrix . rights . NE.toList <$> generate wallAirRatio
         nAirElts <- mapM countAirElements successes
         let z = zip nAirElts successes
             minimals = filter (\(countAirElems, _) -> countAirElems == minAirCount) z
@@ -184,14 +180,11 @@ testMinCountAirBlocks = do
     generate proba = do
       (ba,m) <- mkSmallMatUnchecked gen proba sz
       verifyMat "generate" m
-      let res = (:|[]) $ matchTopology' NCompsNotRequired nComps m
---          res = matchAndVariate nComps
-      --     (
-          --Just $ Variants
-            --(pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
-  --          Nothing
-    --        )
-        --    ba m
+      let res = matchAndVariate nComps (
+            Just $ Variants
+              (pure $ Rotate $ RotationDetail Cyclic.Order1 (ComponentCount 5))
+              Nothing)
+              ba m
           smallMats = map getSmallMatrix $ rights $ NE.toList res
       mapM_ (verifyMat "afterMatch") smallMats
       return res
@@ -216,13 +209,13 @@ mkSmallMatUnchecked gen wallAirRatio s@(Size nRows nCols) = do
   nAir <- fillSmallVector gen wallAirRatio v
 
   v' <- S.unsafeFreeze v
-  let !mat = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v'
-  a <- verifyMat "mkSmallMatUnchecked" mat
-  return $ a `deepseq` (graphArray, mat)
+  let mat = SmallMatInfo (fromIntegral nAir) $ Cyclic.fromVector (fromIntegral nRows) (fromIntegral nCols) v'
+  verifyMat "mkSmallMatUnchecked" mat
+  return (graphArray, mat)
 
+-- verify that air keys are [0..nAir-1]
 verifyAirKeys :: (Integral a) => IO () -> String -> S.Vector MaterialAndKey -> a -> IO ()
 verifyAirKeys onError name v nAir = do
-  -- verify that air keys are [0..nAir-1]
   let sortedUniqueAirKeys = dedup $ mapMaybe (isAir Nothing Just) $ S.toList v
       expectedAirKeys
         | nAir == 0 = []

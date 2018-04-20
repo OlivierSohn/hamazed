@@ -212,7 +212,11 @@ ceilToMultiple :: (Integral a)
                -> a
                -- ^ The value to ceil
                -> a
-ceilToMultiple multiple value = multiple * quot value multiple
+ceilToMultiple multiple value
+  | r > 0     = multiple * (q+1)
+  | otherwise = multiple * q
+ where
+  (q,r) = value `quotRem` multiple
 
 
 {- | Given :

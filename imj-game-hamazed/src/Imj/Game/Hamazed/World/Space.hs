@@ -27,7 +27,6 @@ module Imj.Game.Hamazed.World.Space
     , mkSmallWorld
     , fillSmallVector
     , matchTopology
-    , matchTopology'
     , TopoMatch
     ) where
 
@@ -620,49 +619,6 @@ matchTopology !nCompsReq nComponents ba r@(SmallMatInfo nAirKeys mat)
             (\(compIdx, ConnectedComponent vertices) -> V.mapM_ (flip (MV.unsafeWrite v) compIdx . fromIntegral) vertices)
             $ zip [0 :: ComponentIdx ..] comps
           V.unsafeFreeze v
-
-
--- TODO remove
-matchTopology' :: NCompsRequest
-              -> ComponentCount
-              -> SmallMatInfo
-              -> TopoMatch
-matchTopology' !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
-  | not airOnEveryFronteer = case nCompsReq of
-      NCompsNotRequired -> Left UnusedFronteers
-      NCompsRequiredWithMargin _ -> Left $ CC UnusedFronteers' nComps
-  | nComponents /= nComps = Left $ CC ComponentCountMismatch nComps
-    -- from here on, comps is evaluated.
-    -- from here on, if the number of components is > 1, we compute the distances between components
-  | not spaceIsWellUsed   = Left $ CC SpaceNotUsedWellEnough nComps
-  | otherwise = Right $ SmallWorld r $ SmallWorldTopology comps
-      (\i ->
-        let vtxToMatIdx :: UArray.Array Int Int
-            vtxToMatIdx = UArray.array (0,nAirKeys - 1) $ mapMaybe
-              (\matIdx -> isAir Nothing (\k -> Just (fromIntegral k, matIdx)) $
-                Cyclic.unsafeGetByIndex matIdx mat)
-              [0..Cyclic.nelems mat-1]
-        in fromIntegral $ vtxToMatIdx UArray.! fromIntegral i)
- where
-  !airOnEveryFronteer =
-    all
-      (S.any (isAir False (const True)))
-      fronteers
-   where
-    fronteers =
-      [ Cyclic.getRow 0 mat
-      , Cyclic.getRow (nRows - 1) mat
-      , Cyclic.getCol 0 mat
-      , Cyclic.getCol (nCols - 1) mat
-      ]
-
-  !nRows = Cyclic.nrows mat
-  !nCols = Cyclic.ncols mat
-
-  nComps = nComponents
-
-  comps = map (const $ ConnectedComponent $ V.fromList []) [0..nComps-1]
-  spaceIsWellUsed = True
 
 -- | Where min > max means empty
 data MinMax = MinMax {

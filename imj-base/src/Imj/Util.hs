@@ -20,6 +20,7 @@ module Imj.Util
     , zigzag
     , lastAbove
     , logBase2
+    , ceilToMultiple
     , mapRange
     , unsafeMapRange
     -- * Reexports
@@ -200,6 +201,16 @@ clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
+
+-- | Inputs are expected to be positive.
+{-# INLINABLE ceilToMultiple #-}
+ceilToMultiple :: (Integral a)
+               => a
+               -- ^ The multiple
+               -> a
+               -- ^ The value to ceil
+               -> a
+ceilToMultiple multiple value = multiple * quot value multiple
 
 
 {- | Given :

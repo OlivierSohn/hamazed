@@ -9,7 +9,7 @@
 module Imj.Data.UndirectedGraph (
 
     -- * Graphs
-      Graph
+      Graph(..)
     , Vertex
 
     -- ** Graph Algorithms
@@ -27,7 +27,7 @@ import           Data.Vector.Storable.Mutable (MVector)
 import qualified Data.Vector.Storable.Mutable as S
 import           Data.Tree (Tree(Node), Forest)
 import           GHC.Word(Word16, Word64)
-import           Data.Primitive.ByteArray(ByteArray(..), indexByteArray, sizeofByteArray)
+import           Data.Primitive.ByteArray(ByteArray(..), indexByteArray)
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -42,7 +42,12 @@ type Vertex  = Word16
 --
 -- When constructing the graph, please make sure that each undirected
 -- edge is represented by two directed edges, one being the inverse of the other.
-type Graph = ByteArray
+data Graph = Graph {
+    _nNodes :: {-# UNPACK #-} !Word16
+    -- ^ The number of nodes in the graph.
+    -- Must be <= fromIntegral $ quot (sizeofByteArray _memory) SIZEOF_WORD64
+  , _memory :: !ByteArray
+}
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -59,6 +64,7 @@ componentsN n g       = dfs' (Just n) g
 components :: Graph -> Forest Vertex
 components = dfs' Nothing
 
+{-# INLINE forLoop #-}
 forLoop :: Word16 -> Word16 -> (Word16 -> a) -> [a]
 forLoop start end f = go start
   where
@@ -68,13 +74,12 @@ forLoop start end f = go start
 
 
 dfs'          :: Maybe Word16 -> Graph -> Forest Vertex
-dfs' n g   = prune v n (forLoop 0 v (generate g))
- where v = fromIntegral $ quot (sizeofByteArray g) SIZEOF_WORD64
+dfs' n (Graph sz g)   = prune sz n (forLoop 0 sz (generate g))
 
-generate     :: Graph -> Vertex -> Tree Vertex
+generate     :: ByteArray -> Vertex -> Tree Vertex
 generate g v  = Node v (map (generate g) $ neighbours v)
  where
-  neighbours :: Vertex -> [Vertex]
+  neighbours :: Vertex -> [Vertex] -- TODO 3% time in profiling, we could try optimizing it.
   neighbours x =
     let w64 = indexByteArray g $ fromIntegral x :: Word64
         w1 = fromIntegral w64 :: Word16
@@ -138,11 +143,14 @@ instance Applicative (SetM s) where
     -- but Applicative (ST s) instance is present only in GHC 7.2+
     {-# INLINE (<*>) #-}
 
+{-# INLINE run #-}
 run          :: Word16 -> (forall s. SetM s a) -> a
 run n act  = runST (S.replicate (fromIntegral n) False >>= runSetM act)
 
+{-# INLINE contains #-}
 contains     :: Vertex -> SetM s Bool
 contains v    = SetM $ \ m -> S.unsafeRead m (fromIntegral v)
 
+{-# INLINE include #-}
 include      :: Vertex -> SetM s ()
 include v     = SetM $ \ m -> S.unsafeWrite m (fromIntegral v) True

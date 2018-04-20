@@ -45,7 +45,7 @@ import           Imj.Util
 -- commands used to profile:
 --
 -- for cost centers:
--- stack build --executable-profiling --library-profiling --ghc-options="-fprof-auto -rtsopts" && stack exec -- imj-profile +RTS -M2G -p
+-- stack build --executable-profiling --library-profiling --ghc-options="-fprof-auto -rtsopts" && stack exec -- imj-profile-exe +RTS -M2G -p
 --
 -- for ticky-ticky : add ticky option at compile time (in the module, or in stack.yaml) +
 -- stack build && stack exec -- imj-profile-exe +RTS -rprofile.ticky
@@ -53,9 +53,9 @@ import           Imj.Util
 main :: IO ()
 main = do
   useOneCapabilityPerPhysicalCore
-  --profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
+  profileLargeWorld -- simple benchmark, used as ref for benchmarking a new algo
   --profileAllProps -- exhaustive benchmark, to study how to tune strategy wrt world parameters
-  mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
+  --mkOptimalStrategies -- computes one optimal strategy per possible world in hamazed, and serializes the result.
   --writeRNGImages
   --measureRNGsSpeed
   --writeSeedsSource
@@ -287,11 +287,14 @@ profileWithContinue property gen c = do
 
 profileLargeWorld :: IO ()
 profileLargeWorld = do
-  let props = mkProperties
-        (SWCharacteristics (Size 8 18) (ComponentCount 1) 0.7)
-        --(Just $ Variants (pure $ Rotate $ RotationDetail Cyclic.Order2 5) Nothing)
-        (Just $ Variants (pure $ mkVariation (Size 8 18) Interleaving) Nothing)
+  let sz = Size 12 24
+      -- (Size 8 18)
+      props = mkProperties
+        (SWCharacteristics sz (ComponentCount 4) 0.5)
+        --(SWCharacteristics sz (ComponentCount 1) 0.7)
+        (Just $ (toVariants sz) $ VariantsSpec (pure $ Rotation $ RotationDetail Cyclic.Order2 5) Nothing)
+        --(Just $ toVariants sz $ VariantsSpec (pure Interleaving) Nothing)
   print props
   nWorkers <- max 1 <$> getNumCapabilities
   putStrLn $ unwords ["using", show nWorkers, "workers"]
-  withNumberedSeeds (withDuration . profile props) (NE.map SeedNumber $ 2:|take (nWorkers-1) [6..]) >>= print
+  withNumberedSeeds (withDuration . profile props) (NE.map SeedNumber $ 0:|take (nWorkers-1) [1..]) >>= print

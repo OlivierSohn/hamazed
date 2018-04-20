@@ -24,6 +24,7 @@ import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Profile.Result
 import           Imj.Random.MWC.Util
+import           Imj.Util
 
 mkMWC256Image :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)
 mkMWC256Image seed sz@(Size (Length h) (Length w)) proba =
@@ -51,7 +52,6 @@ mkMWC256ImageGray seed sz@(Size (Length h) (Length w)) =
  where
 
   nBlocks = area sz
-  ceilToMultiple x y = x * quot y x
 
   genImg (gen:|[]) = do
     mv <- MS.unsafeNew $ ceilToMultiple 4 nBlocks

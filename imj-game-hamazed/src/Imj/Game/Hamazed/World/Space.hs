@@ -59,7 +59,7 @@ import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
 import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
-import qualified Imj.Data.UndirectedGraph as Undirected(Graph, Vertex, componentsN)
+import qualified Imj.Data.UndirectedGraph as Undirected
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Space.Types
@@ -214,7 +214,7 @@ data MatrixPipeline = MatrixPipeline !MatrixSource !MatrixTransformer
 
 newtype MatrixSource = MatrixSource (MS.IOVector MaterialAndKey -> GenIO -> IO SmallMatInfo)
 
-newtype MatrixTransformer = MatrixTransformer (Statistics -> SmallMatInfo -> BestRandomMatrixVariation)
+newtype MatrixTransformer = MatrixTransformer (Statistics -> ByteArray -> SmallMatInfo -> BestRandomMatrixVariation)
 
 data BestRandomMatrixVariation = BRMV {
   _topology :: !TopoMatch
@@ -243,10 +243,10 @@ mkMatrixPipeline nComponents' wallProba (Size (Length nRows) (Length nCols)) lb 
     fillSmallVector gen wallProba v >>= \nAir ->
       SmallMatInfo (fromIntegral nAir) . Cyclic.fromVector nRows nCols <$> S.unsafeFreeze v
 
-  consume s mat =
+  consume s v mat =
     foldStats (s{countRandomMatrices = 1 + countRandomMatrices s}) $ either
           ((:|[]) . Left)
-          (takeWhilePlus isLeft . matchAndVariate nComponents variants) $ checkRandomMatrix lb mat
+          (takeWhilePlus isLeft . matchAndVariate nComponents variants v) $ checkRandomMatrix lb mat
 
   !nComponents = -- relax the constraint on number of components if the size is too small
     min
@@ -273,17 +273,22 @@ runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (
 
     -- Note that running producer and consummer in separate threads, and forwarding the results
     -- through an MVar is slower than calling them sequentially, like here.
-    shortcut gen =
-      MS.unsafeNew nBlocks >>= go'
+    shortcut gen = do
+      -- we align to 64 byte and allocate a multiple of 64 bytes to avoid false sharing
+      -- (assuming a cache line size of 64 bytes)
+      graphArray <- newAlignedPinnedByteArray (ceilToMultiple 64 $ nBlocks * 8) 64 >>= unsafeFreezeByteArray
+      -- TODO Take a slice of a bigger vector to avoid false sharing here, too.
+      matV <- MS.unsafeNew nBlocks
+      go' matV graphArray
      where
-      go' v =
+      go' v ba =
         go zeroStats
        where
         go s = continue >>= \case
           False ->
             void $ tryPutMVar resM (Nothing, s)
           True ->
-            consume s <$> produce v gen >>= \(BRMV m s') ->
+            consume s ba <$> produce v gen >>= \(BRMV m s') ->
                 either (const $ go s') (void . tryPutMVar resM . flip (,) s' . Just) m
 
 checkRandomMatrix :: LowerBounds -> SmallMatInfo -> Either SmallWorldRejection SmallMatInfo
@@ -363,9 +368,10 @@ addNComp n s =
 
 matchAndVariate :: ComponentCount
                 -> Maybe MatrixVariants
+                -> ByteArray
                 -> SmallMatInfo
                 -> NonEmpty TopoMatch
-matchAndVariate nComponents curB info =
+matchAndVariate nComponents curB v info =
   rootRes :| variationResults
  where
   variationResults = case info of
@@ -395,13 +401,13 @@ matchAndVariate nComponents curB info =
           -- https://stackoverflow.com/questions/14259229/streaming-recursive-descent-of-a-directory-in-haskell
           -- https://gist.github.com/FranklinChen/133cb61af931a08bbe20
           in List.concatMap -- TODO benchmark which is faster : consuming depth first or breadth first
-              (NE.toList . matchAndVariate nComponents nextB . SmallMatInfo nAir)
+              (NE.toList . matchAndVariate nComponents nextB v . SmallMatInfo nAir)
               $ concatMap produceVariations
               $ NE.filter authorizeVariation variations)
         curB
 
   deepMargin = requiredNComponentsMargin curB
-  rootRes = matchTopology deepMargin nComponents info
+  rootRes = matchTopology deepMargin nComponents info v
 
 
 requiredNComponentsMargin :: Maybe MatrixVariants -> NCompsRequest
@@ -440,8 +446,9 @@ data OrthoWall = OrthoWall {
 matchTopology :: NCompsRequest
               -> ComponentCount
               -> SmallMatInfo
+              -> ByteArray
               -> TopoMatch
-matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
+matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat) ba
   | not airOnEveryFronteer = case nCompsReq of
       NCompsNotRequired -> Left UnusedFronteers
       NCompsRequiredWithMargin _ -> Left $ CC UnusedFronteers' nComps
@@ -495,7 +502,7 @@ matchTopology !nCompsReq nComponents r@(SmallMatInfo nAirKeys mat)
   -- if the lowerbound of the number of cc is >= to the limit,
   --   a Nothing graph is returned.
   --   else a Just undirected graph is returned.
-  (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r
+  (graph, nMinComps) = mkGraphWithStrictlyLess maxNCompsAsked r ba
 
   comps = map (ConnectedComponent . V.fromList . flatten) allComps
 
@@ -745,13 +752,12 @@ data GraphNode = Node {
 }
 data GraphCreationState = GC {
     _listNodes :: [GraphNode]
-  , _nMinComps :: !ComponentCount
-  , _canContinue :: !Bool
-  , _oneMulti :: !Bool
+  , _nMinComps :: {-# UNPACK #-} !ComponentCount
+  , _canContinue :: {-# UNPACK #-} !Int -- 0 : stop, 2: continue 1 : continue , one multi
 }
 {-# INLINE mkGraphCreationState #-}
 mkGraphCreationState :: GraphCreationState
-mkGraphCreationState = GC [] 0 True False
+mkGraphCreationState = GC [] 0 2
 
 -- | Creates an undirected graph, and returns a lower bound of the number of components:
 -- we count the mono-node components while creating the graph, and add 1 to that number
@@ -761,30 +767,33 @@ mkGraphWithStrictlyLess :: ComponentCount
                         -- that number of components, we cancel graph creation and return Nothing,
                         -- along with that number.
                         -> SmallMatInfo
+                        -> ByteArray
+                        -- ^ Its size is expected to be >= 'matrix area' * 8
+                        -- where 8 is the size of Word64 in bytes.
                         -> (Maybe Undirected.Graph, ComponentCount)
                         -- ^ (Undirected graph, lower bound of components count)
-mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
+mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) v =
   (mayGraph, nMinCompsFinal)
  where
   !nRows = Cyclic.nrows mat
   !nCols = Cyclic.ncols mat
 
   mayGraph =
-    if canContinue
+    if canContinue > 0
       then
-        Just $ runST $ do
+        Just $ Undirected.Graph (fromIntegral nAirKeys) $ runST $ do
           -- 8 is size of Word64 in bytes
-          v <- newAlignedPinnedByteArray (nAirKeys * 8) 64 -- TODO this takes a global lock, we could use preallocated memory.
-          forM_ listNodes (\(Node key neighbours) -> writeByteArray v (fromIntegral key) neighbours)
-          unsafeFreezeByteArray v
+          mv <- unsafeThawByteArray v
+          forM_ listNodes (\(Node key neighbours) -> writeByteArray mv (fromIntegral key) neighbours)
+          unsafeFreezeByteArray mv
       else
         Nothing
 
-  (GC listNodes nMinCompsFinal canContinue _) =
-    List.foldl' (\res'@(GC _ _ continue' _) row ->
+  (GC listNodes nMinCompsFinal canContinue) =
+    List.foldl' (\res'@(GC _ _ continue') row ->
       bool res'
         (let !iRow = row * nCols
-         in List.foldl' (\res@(GC ln nMinComps continue oneMulti) col ->
+         in List.foldl' (\res@(GC ln nMinComps continue) col ->
               bool res
                 (let !matIdx = iRow + col
                  in isAir
@@ -793,51 +802,45 @@ mkGraphWithStrictlyLess !tooBigNComps (SmallMatInfo nAirKeys mat) =
                        let neighbours = neighbourAirKeys matIdx row col
                            isMono = (neighbours == 0xFFFFFFFFFFFFFFFF)
                            newNMinComps
-                             | isMono || not oneMulti = 1+nMinComps
+                             | isMono || continue == 2 {-not oneMulti-} = 1+nMinComps
                              | otherwise = nMinComps
-                           willContinue = newNMinComps < tooBigNComps
+                           willContinue
+                             | newNMinComps >= tooBigNComps = 0
+                             | isMono = continue
+                             | otherwise = 1
                            newList
-                             | willContinue = Node k neighbours:ln
+                             | willContinue > 0 = Node k neighbours:ln
                              | otherwise = [] -- drop the list if we don't continue
-                       in GC
-                            newList
-                            newNMinComps
-                            willContinue
-                            $ not isMono || oneMulti)
+                       in GC newList newNMinComps willContinue)
                       $ Cyclic.unsafeGetByIndex matIdx mat)
-                continue)
+                $ continue /= 0)
             res'
             [0..nCols-1])
-        continue')
+        $ continue' /= 0)
       mkGraphCreationState
       [0..nRows-1]
 
   neighbourAirKeys :: Int -> Int -> Int -> Word64
-  neighbourAirKeys matIdx row col = toWord64 l
+  neighbourAirKeys matIdx row col = toWord64 four
    where
-    f 0 = 0xFFFF -- in Graph.Undirected, 0xFFFF means no neighbour ...
-    f x = case Cyclic.unsafeGetByIndex (x+matIdx) mat of
+    --f 0 = 0xFFFF -- in Graph.Undirected, 0xFFFF means no neighbour ...
+    f x = case Cyclic.unsafeGetByIndex x mat of
       MaterialAndKey k -> k -- ... hence this is valid because wall is 0xFFFF
+    toWord64 (Four w1 w2 w3 w4) =
+      fromIntegral w1 .|.
+      (fromIntegral w2 `shiftL` 16) .|.
+      (fromIntegral w3 `shiftL` 32) .|.
+      (fromIntegral w4 `shiftL` 48)
 
-    g (Four a b c d) = Four' (f a) (f b) (f c) (f d)
-
-    l =
-      g $
+    four = Four
       -- Benchmarks showed that it is faster to write all directions at once,
       -- rather than just 2, and wait for other directions to come from nearby nodes.
-      Four (bool (-nCols) 0 $ row == 0)       -- Up
-           (bool (-1)     0 $ col == 0)      -- LEFT
-           (bool 1        0 $ col == nCols-1) -- RIGHT
-           (bool nCols    0 $ row == nRows-1) -- Down
+      (bool (f (matIdx-nCols)) 0xFFFF $ row == 0)       -- Up
+      (bool (f (matIdx-1)    ) 0xFFFF $ col == 0)       -- LEFT
+      (bool (f (matIdx+1)    ) 0xFFFF $ col == nCols-1) -- RIGHT
+      (bool (f (matIdx+nCols)) 0xFFFF $ row == nRows-1) -- Down
 
-
-data Four  = Four  {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int    {-# UNPACK #-} !Int
-data Four' = Four' {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16
-
-{-# INLINE toWord64 #-}
-toWord64 :: Four' -> Word64
-toWord64 (Four' w1 w2 w3 w4) =
-  fromIntegral w1 .|. (fromIntegral w2 `shiftL` 16) .|. (fromIntegral w3 `shiftL` 32) .|. (fromIntegral w4 `shiftL` 48)
+data Four = Four {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16 {-# UNPACK #-} !Word16
 
 mkSpaceFromMat :: Size -> [[Material]] -> Space
 mkSpaceFromMat s matMaybeSmaller =

@@ -1,3 +1,5 @@
+- make tests compile
+
 - mutableByteArrayContents returns a pointer.
 
 TODO allocate one block of memory, make sure different workers do not share cachelines.

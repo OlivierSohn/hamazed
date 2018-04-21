@@ -22,6 +22,9 @@ instead of using asyncs, use forkIO and IORef Bool signaling when it should stop
 And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 (On server cancelation, or on timeout, the IORef Bool is set to False.)
 
+- music:
+https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
+
 - Add music :
   slow (ternary) :
   1st voice:

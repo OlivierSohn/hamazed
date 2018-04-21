@@ -1,10 +1,10 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
 resolver: nightly-2018-04-20
-# ghc 8.4.1:
-# --resolver nightly-2018-04-20
-# ghc 8.2.2:
-# --resolver lts-11.5
+# resolver by ghc version:
+#
+#   8.4.1:  nightly-2018-04-20
+#   8.2.2:  lts-11.5
 
 packages:
 - './imj-prelude'

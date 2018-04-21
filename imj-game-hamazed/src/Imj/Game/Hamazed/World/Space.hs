@@ -153,33 +153,13 @@ mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
-      (strategy,mayEstimation) <- either
-        (\(ClosestOptimalStrategy mayCloseWorld mayDuration strategy) -> do
-            maybe
-              (putStrLn "No close world was found.")
-              (\close -> do
-                    let dist = almost $ smallWorldCharacteristicsDistance close characteristics
-                    putStrLn $ unwords
-                      [ "Found\n"
-                      , prettyShowSWCharacteristics close
-                      , "\nat distance"
-                      , show dist
-                      , "of\n"
-                      , prettyShowSWCharacteristics characteristics]
-                    putStrLn $ "Close strategy:" ++ show strategy)
-              mayCloseWorld
-            return (strategy,mayDuration))
-        (\(OptimalStrategy exactMatch duration) -> do
-            putStrLn $ unwords
-              [ "Found an exact match for"
-              , prettyShowSWCharacteristics characteristics]
-            putStrLn $ "Strategy:" ++ show exactMatch
-            return (exactMatch, Just duration))
-        $ closestOptimalStrategy characteristics
-      putStrLn $
-        "Estimated duration:" ++
-        maybe "no estimation" showTime mayEstimation
-      let property = mkProperties characteristics $ fmap (toVariants smallSz) strategy
+      (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy dt) <- go blockSize
+      putStrLn $ unwords
+        [ "Found\n"
+        , prettyShowSWCharacteristics closeWorld]
+      putStrLn $ "Strategy:" ++ show strategy
+      putStrLn $ "Estimated duration:" ++ showTime dt
+      let property = mkProperties closeWorld $ fmap (toVariants smallSz) strategy
       mkSmallWorld gens property continue >>= \(res, stats) ->
         return
           (case res of
@@ -188,8 +168,16 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
             Success small -> Success $ smallWorldToBigWorld s blockSize small
           , Just (property, stats))
  where
-  smallSz = bigToSmall s blockSize
-  characteristics = SWCharacteristics smallSz nComponents wallAirRatio
+  go 1000 = error "logic"
+  go bsz = either
+    (const $ do
+      putStrLn "try bigger block size"
+      go $ bsz + 1)
+    return
+    $ closestOptimalStrategy userCharacteristics $ fromSecs 1
+   where
+    userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
+
 
 smallWorldToBigWorld :: Size
                      -> Int

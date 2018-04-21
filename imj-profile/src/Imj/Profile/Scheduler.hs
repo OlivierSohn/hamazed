@@ -56,15 +56,15 @@ data TestProgress = TestProgress {
     _uuid :: !UUID
     -- ^ Test unique identifier
   , _timeoutThisIteration :: !(Time Duration System)
-  , _hintsStrategies :: !(Map SmallWorldCharacteristics (Maybe MatrixVariantsSpec))
+  , _hintsStrategies :: !(Map (SmallWorldCharacteristics Program) (Maybe MatrixVariantsSpec))
    -- ^ Hints for the key of the fastest strategies
   , _allStrategies :: !(Set (Maybe MatrixVariantsSpec))
-  , willTestInIteration :: ![[SmallWorldCharacteristics]]
+  , willTestInIteration :: ![[SmallWorldCharacteristics Program]]
    -- ^
    -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
    -- During the current iteration, we will skip the elements of the inner list that come after
    -- the first one that timeouts.
-  , _willTestNextIteration :: ![[SmallWorldCharacteristics]]
+  , _willTestNextIteration :: ![[SmallWorldCharacteristics Program]]
   -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
   -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
   , _profileResults :: !(MaybeResults (NonEmpty SeedNumber))
@@ -72,7 +72,6 @@ data TestProgress = TestProgress {
 instance Binary TestProgress
 
 {-
--- I thought sorting was ok but at some point I needed this to sort again
 fixProgress :: TestProgress -> TestProgress
 fixProgress (TestProgress a _ b c this next res) =
   TestProgress a (fromSecs 0.01) b c (sortA $ map sortP $ this ++ next) [] res
@@ -86,11 +85,12 @@ fixProgress (TestProgress a _ b c this next res) =
     f $ sortOn userWallProbability l
    where
      f
-      | ncomps >= 2 && proba < 0.49 = reverse
+      | ncomps == 2 && proba < 0.39 = reverse
+      | ncomps >= 3 && proba < 0.49 = reverse
       | otherwise = id
 -}
 
-mkZeroProgress :: [[SmallWorldCharacteristics]]
+mkZeroProgress :: [[SmallWorldCharacteristics Program]]
                -> Set (Maybe MatrixVariantsSpec)
                -> IO TestProgress
 mkZeroProgress worlds strategies = do
@@ -100,9 +100,9 @@ mkZeroProgress worlds strategies = do
   dt0 = fromSecs 0.0001
 
 updateProgress :: Time Duration System
-               -> Map SmallWorldCharacteristics (Maybe MatrixVariantsSpec)
-               -> [[SmallWorldCharacteristics]]
-               -> [[SmallWorldCharacteristics]]
+               -> Map (SmallWorldCharacteristics Program) (Maybe MatrixVariantsSpec)
+               -> [[SmallWorldCharacteristics Program]]
+               -> [[SmallWorldCharacteristics Program]]
                -> MaybeResults (NonEmpty SeedNumber)
                -> TestProgress
                -> TestProgress
@@ -308,7 +308,7 @@ mkResultFromStats res stats = case res of
 
 -- | Given a hint variant, computes the best variant, taking the time of the hint
 -- as a reference to early-discard others.
-refineWithHint :: SmallWorldCharacteristics
+refineWithHint :: SmallWorldCharacteristics Program
                -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (Maybe (MkSpaceResult a, Statistics)))
                -> Maybe MatrixVariantsSpec
                -- ^ This is the hint : a variant which we think is one of the fastest.
@@ -354,7 +354,7 @@ refineWithHint world@(SWCharacteristics sz _ _) testF hintStrategy strategies = 
   mkHintStats :: IO (Map (NonEmpty SeedNumber) (TestStatus Statistics))
   mkHintStats =
     seedGroups >>= fmap Map.fromList . mapM
-      (\seedGroup -> (,) seedGroup . uncurry mkResultFromStats . fromMaybe (error "logic") <$> -- Nothing is an errorr because we don't specify a timeout
+      (\seedGroup -> (,) seedGroup . uncurry mkResultFromStats . fromMaybe (error "logic") <$> -- Nothing is an error because we don't specify a timeout
         withNumberedSeeds (testF Nothing $ mkProperties world $ fmap (toVariants sz) hintStrategy) seedGroup)
 
 data BestSofar = BestSofar {

@@ -1,26 +1,15 @@
-- if the closest size before has a duration > 3*timetout, don't test.
-This will allow to concentrate on filling up the configurations that can be achieved in
-a given time.
+- fix response on collision:
+ Z
+  XZ  <- here we stay one time too long.
+ X
 
 - make a standalone library for generating rectangle binary random (small) worlds.
 (move tests of topology there)
 
-- silently scale the user probability to fit in the range where worlds are made in less that one second.
-This way, we don't need to verify beforehand that every level can be computed : we just adapt the scale
-at every level.
-
-We can adapt the wording : wall density
-walls : more / less
-
-- the game is fun to play with all maxed:
-  wall size = 6
-  proba = 0.9
-make this the default.
-
 - benchmark:
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
-And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
-(On server cancelation, or on timeout, the IORef Bool is set to False.)
+(On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
+When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 
 - music:
 https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
@@ -86,11 +75,6 @@ https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
   mib . ré .
 
 - bug : when client reconnects, it is not reflected in the name until world is there.
-
-- fix response on collision:
- Z
-  XZ  <- here we stay one time too long.
- X
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

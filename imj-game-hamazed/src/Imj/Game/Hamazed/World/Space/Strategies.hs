@@ -14,12 +14,11 @@ module Imj.Game.Hamazed.World.Space.Strategies
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
     , closestOptimalStrategy
-    , ClosestOptimalStrategy(..)
     , smallWorldCharacteristicsDistance
     ) where
 
 import           Imj.Prelude
-
+import qualified Prelude as Unsafe(last)
 import           Prelude(putStrLn)
 import           Data.FileEmbed(embedFile)
 import           Data.Binary
@@ -32,11 +31,13 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
+import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Strategies.Internal
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Class.Words hiding(intercalate)
+import           Imj.Graphics.Class.Words hiding(intercalate, length)
 import           Imj.Graphics.Text.Render
 import           Imj.Timing
+import           Imj.Util
 
 -- NOTE we could record also non optimal strategies, because when we interpolate, maybe the points of the cube do not agree:
 -- p1 says "strategy1 is optimal", "strategy2 is good"
@@ -48,7 +49,7 @@ import           Imj.Timing
 -- For now, we'll just record the optimal strategies, assuming that the space of worlds is sufficiently sampled
 -- to say that such situations won't occur.
 -- ... of course, the safest approach is to sample exactly the world characteristics that we will use in the game.
-newtype OptimalStrategies = OptimalStrategies (Map SmallWorldCharacteristics OptimalStrategy)
+newtype OptimalStrategies = OptimalStrategies (Map (SmallWorldCharacteristics Program) OptimalStrategy)
   deriving(Generic)
 instance Binary OptimalStrategies
 instance Show OptimalStrategies where
@@ -75,45 +76,34 @@ instance Show StrategyTag where
   show Refined = "Refined"
   show (Unrefined _) = "Unrefined" -- for html report
 
-data StratDist = StratDist {-# UNPACK #-} !OptimalStrategy {-# UNPACK #-} !Float {-# UNPACK #-} !SmallWorldCharacteristics
+-- | The probability of 'SmallWorldCharacteristics' 'User'
+-- will be adapted by mapping ['minWallProba' 'maxWallProba'] to [l h],
+-- where l == min probability where duration < budget
+--       h == max probability where duration < budget
+-- 'Left' is returned if this range doesn't exist.
+closestOptimalStrategy :: SmallWorldCharacteristics User
+                       -> Time Duration System
+                       -- ^ The budget duration to create the world.
+                       -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
+closestOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
+  case embeddedOptimalStrategies of
+    (OptimalStrategies m) ->
+      let ok = Map.mapKeysMonotonic userWallProbability $
+               Map.filterWithKey
+                (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
+                  dt < maxDuration && sz' == sz && nComps' == nComps)
+                m
+      in case Map.assocs ok of
+          [] -> Left ()
+          l@((minProba,_):_) ->
+            let (maxProba,_) = Unsafe.last l
+                len = length l
+                p = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 proba
+                (_,strategy) = l !! round (p * (fromIntegral $ len - 1))
+                adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba p
+            in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
 
-data ClosestOptimalStrategy = ClosestOptimalStrategy {
-    _closestWorld :: !(Maybe SmallWorldCharacteristics)
-    -- ^ Note that the bigger the distance is, the less accurate the duration estimation will be.
-  , _closestEstimatedDuration :: !(Maybe (Time Duration System))
-  , _closestMatrixVariant :: !(Maybe MatrixVariantsSpec)
-}
-
-closestOptimalStrategy :: SmallWorldCharacteristics -> Either ClosestOptimalStrategy OptimalStrategy
-closestOptimalStrategy world = case embeddedOptimalStrategies of
-  (OptimalStrategies m) ->
-    let closest =
-          Map.foldlWithKey'
-            (\prev charac strategy ->
-              let thisDist = smallWorldCharacteristicsDistance charac world
-                  this = Just $ StratDist strategy thisDist charac
-              in maybe
-                this
-                (\(StratDist _ prevDist _) ->
-                  if thisDist < prevDist
-                    then
-                      this
-                    else
-                      prev)
-                prev)
-            Nothing
-            m
-        closestOptimal =
-          maybe
-            (ClosestOptimalStrategy Nothing Nothing defaultStrategy)
-            (\(StratDist (OptimalStrategy s dt) _ charac) ->
-              ClosestOptimalStrategy (Just charac) (Just dt) s)
-            closest
-    in maybe (Left closestOptimal) Right $ Map.lookup world m
- where
-  defaultStrategy = Nothing
-
-smallWorldCharacteristicsDistance :: SmallWorldCharacteristics -> SmallWorldCharacteristics -> Float
+smallWorldCharacteristicsDistance :: SmallWorldCharacteristics a -> SmallWorldCharacteristics b -> Float
 smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
   -- These changes have the same impact on distance:
   --   doubled area

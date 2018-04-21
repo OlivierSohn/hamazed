@@ -16,6 +16,8 @@ module Imj.Game.Hamazed.World.Space.Types
     ( Space(..)
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
+    , Program
+    , User
     , prettyShowSWCharacteristics
     , MatrixVariants(..)
     , MatrixVariantsSpec(..)
@@ -197,7 +199,7 @@ data Scope = WorldScope !Material
            -- ^ Excludes the 'World' and its outer view frame.
            deriving(Show)
 
-data SmallWorldCharacteristics = SWCharacteristics {
+data SmallWorldCharacteristics a = SWCharacteristics {
     swSize :: {-# UNPACK #-} !Size
     -- ^ Size of the small world
   , swComponentCount :: !ComponentCount
@@ -209,10 +211,10 @@ data SmallWorldCharacteristics = SWCharacteristics {
     --
     -- We use an 'AlmostFloat' to account for numerical errors.
 } deriving(Generic, Show, Eq, Ord)
-instance Binary SmallWorldCharacteristics
-instance NFData SmallWorldCharacteristics
+instance Binary (SmallWorldCharacteristics a)
+instance NFData (SmallWorldCharacteristics a)
 
-prettyShowSWCharacteristics :: SmallWorldCharacteristics -> String
+prettyShowSWCharacteristics :: SmallWorldCharacteristics Program -> String
 prettyShowSWCharacteristics (SWCharacteristics (Size (Length h) (Length w)) (ComponentCount nComps) proba) =
   show (h,w) ++ ", " ++ show nComps ++ " component, " ++ show proba ++ " wall."
 
@@ -502,11 +504,14 @@ toGameChar :: Material -> Char
 toGameChar Air = ' '
 toGameChar Wall = 'Z'
 
+data User
+data Program
+
 -- | Constant information about the search (dual of 'Statistics')
 data Properties = Properties {
-    _characteristics :: !SmallWorldCharacteristics
+    _characteristics :: !(SmallWorldCharacteristics Program)
   , _variants :: !(Maybe MatrixVariants)
--- ^ Deduced from 'SmallWorldCharacteristics'
+  -- ^ Deduced from 'SmallWorldCharacteristics'
   , _lowerbounds :: !(Either Text LowerBounds)
 } deriving(Generic, Eq, Ord)
 instance Binary Properties
@@ -514,10 +519,10 @@ instance NFData Properties
 instance Show Properties where
   show = unlines . prettyShowProperties
 
-mkProperties :: SmallWorldCharacteristics -> Maybe MatrixVariants -> Properties
+mkProperties :: SmallWorldCharacteristics Program -> Maybe MatrixVariants -> Properties
 mkProperties ch st = Properties ch st $ mkLowerBounds ch
 
-mkLowerBounds :: SmallWorldCharacteristics
+mkLowerBounds :: SmallWorldCharacteristics Program
               -> Either Text LowerBounds
               -- ^ Left is returned when no such world can be generated.
 mkLowerBounds (SWCharacteristics sz nComponents _) =

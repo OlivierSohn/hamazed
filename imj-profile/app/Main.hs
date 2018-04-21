@@ -136,7 +136,7 @@ justVariantsWithoutRotations =
        , VariantsSpec (modulation :| [interleave])
        , VariantsSpec (pure interleave) . Just . VariantsSpec (pure modulation)]
 
-someWorlds :: Set SmallWorldCharacteristics
+someWorlds :: Set (SmallWorldCharacteristics Program)
 someWorlds =
   Set.fromList $ map (\(a,b,c) -> SWCharacteristics a b c) params
  where
@@ -149,7 +149,7 @@ someWorlds =
 
 -- | Inner lists are sorted by estimated probability difficulty.
 -- The outer list, when filtered on a single 'ComponentCount', is sorted by increasing areas of the inner list 'SmallWorldCharacteristics' sizes
-exhaustiveWorlds :: [[SmallWorldCharacteristics]]
+exhaustiveWorlds :: [[SmallWorldCharacteristics Program]]
 exhaustiveWorlds =
   concatMap
     (\cc ->
@@ -184,7 +184,7 @@ exhaustiveWorlds =
 
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
-                  -> Set SmallWorldCharacteristics
+                  -> Set (SmallWorldCharacteristics Program)
                   -> Set (Maybe MatrixVariantsSpec)
                   -> Time Duration System
                   -> MVar UserIntent

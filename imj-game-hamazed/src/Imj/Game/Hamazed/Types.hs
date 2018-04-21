@@ -134,7 +134,7 @@ data AnimatedLine = AnimatedLine {
 } deriving(Generic, Show)
 
 initialBlockSize, minBlockSize, maxBlockSize :: Int
-initialBlockSize = 4
+initialBlockSize = maxBlockSize
 minBlockSize = 1
 maxBlockSize = 6
 
@@ -142,7 +142,7 @@ allBlockSizes :: [Int]
 allBlockSizes = [minBlockSize..maxBlockSize]
 
 wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
-initialWallProba = 0.5
+initialWallProba = maxWallProba
 minWallProba = 0.1
 maxWallProba = 0.9
 wallProbaIncrements = 0.1

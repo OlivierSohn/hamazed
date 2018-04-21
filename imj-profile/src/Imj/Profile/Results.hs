@@ -48,12 +48,20 @@ import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
 import           Imj.Timing
 
-newtype OldMaybeResults k = OldMaybeResults (Map SmallWorldCharacteristics (Map (Maybe MatrixVariants) (TestDurations k Statistics)))
+newtype OldMaybeResults k = OldMaybeResults
+  (Map
+    (SmallWorldCharacteristics Program)
+    (Map
+      (Maybe MatrixVariants)
+      (TestDurations k Statistics)))
   deriving(Generic, Binary)
 instance (NFData k) => NFData (OldMaybeResults k)
 
 -- Same has 'Results', except we have a single variant and we tag the results.
-newtype MaybeResults k = MaybeResults (Map SmallWorldCharacteristics (Maybe (TaggedResult k Statistics)))
+newtype MaybeResults k = MaybeResults
+  (Map
+    (SmallWorldCharacteristics Program)
+    (Maybe (TaggedResult k Statistics)))
   deriving(Generic, Binary)
 instance (NFData k) => NFData (MaybeResults k)
 
@@ -80,7 +88,9 @@ data ShouldTest k =
 --
 -- It is used to discard tests that would fail with a hogh probability for a given timeout,
 -- based on the knowledge of how tests with smaller or bigger sizes performed.
-shouldTest :: SmallWorldCharacteristics -> MaybeResults k -> ShouldTest k
+shouldTest :: SmallWorldCharacteristics Program
+           -> MaybeResults k
+           -> ShouldTest k
 shouldTest world@(SWCharacteristics refSz _ _) m =
   let (smaller,_) =
         IMap.split 0 $ -- split removes the 0 key. It is ok because this key corresponds only
@@ -124,7 +134,9 @@ homogenousDist s1 s2 = hDist (canonicalize s1) (canonicalize s2)
     dw = w' - w
     dh = h' - h
 
-getResultsOfAllSizes :: SmallWorldCharacteristics -> MaybeResults k -> Map Size (Maybe (TaggedResult k Statistics))
+getResultsOfAllSizes :: SmallWorldCharacteristics Program
+                     -> MaybeResults k
+                     -> Map Size (Maybe (TaggedResult k Statistics))
 getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
   Map.mapKeysMonotonic swSize $
   Map.filterWithKey
@@ -134,14 +146,18 @@ getResultsOfAllSizes (SWCharacteristics _ cc proba) (MaybeResults m) =
 -- | Note that the list of 'SmallWorldCharacteristics' passed here should contain all
 -- possible future results added to the 'MaybeResults'. Hence, calling 'addResult'
 -- with a 'SmallWorldCharacteristics' outside this set will error.
-mkNothingResults' :: Set SmallWorldCharacteristics -> OldMaybeResults k
+mkNothingResults' :: Set (SmallWorldCharacteristics Program) -> OldMaybeResults k
 mkNothingResults' = OldMaybeResults . Map.fromSet (const Map.empty)
 
-mkNothingResults :: Set SmallWorldCharacteristics -> MaybeResults k
+mkNothingResults :: Set (SmallWorldCharacteristics Program) -> MaybeResults k
 mkNothingResults = MaybeResults . Map.fromSet (const Nothing)
 
 {-# INLINABLE addRefinedResult #-}
-addRefinedResult :: SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
+addRefinedResult :: SmallWorldCharacteristics Program
+                 -> Maybe MatrixVariantsSpec
+                 -> Map k (TestStatus Statistics)
+                 -> MaybeResults k
+                 -> MaybeResults k
 addRefinedResult w strategy m (MaybeResults res) =
   MaybeResults $ Map.alter
     (maybe
@@ -157,7 +173,13 @@ addRefinedResult w strategy m (MaybeResults res) =
   add = TaggedResult Refined strategy $ TD m
 
 {-# INLINABLE addUnrefinedResult #-}
-addUnrefinedResult :: (Show k) => SmallWorldCharacteristics -> Maybe MatrixVariantsSpec -> [Maybe MatrixVariantsSpec] -> Map k (TestStatus Statistics) -> MaybeResults k -> MaybeResults k
+addUnrefinedResult :: (Show k)
+                   => SmallWorldCharacteristics Program
+                   -> Maybe MatrixVariantsSpec
+                   -> [Maybe MatrixVariantsSpec]
+                   -> Map k (TestStatus Statistics)
+                   -> MaybeResults k
+                   -> MaybeResults k
 addUnrefinedResult w strategy remaining m (MaybeResults res) =
   MaybeResults $ Map.alter
     (maybe
@@ -171,7 +193,13 @@ addUnrefinedResult w strategy remaining m (MaybeResults res) =
   add = TaggedResult (Unrefined remaining) strategy $ TD m
 
 {-# INLINABLE addResult' #-}
-addResult' :: (Ord k) => SmallWorldCharacteristics -> Maybe MatrixVariants -> k -> TestStatus Statistics -> OldMaybeResults k -> OldMaybeResults k
+addResult' :: (Ord k)
+           => SmallWorldCharacteristics Program
+           -> Maybe MatrixVariants
+           -> k
+           -> TestStatus Statistics
+           -> OldMaybeResults k
+           -> OldMaybeResults k
 addResult' w strategy seed stats (OldMaybeResults res) =
   OldMaybeResults $ Map.alter
     (Just . maybe
@@ -195,7 +223,7 @@ toOptimalStrategies (MaybeResults m) = OptimalStrategies $
     m
 
 prettyProcessResult' :: Maybe (Time Duration System)
-                    -> SmallWorldCharacteristics
+                    -> SmallWorldCharacteristics Program
                     -> Map (Maybe MatrixVariants) (TestDurations k a)
                     -> [(Maybe (TestDurations k a), [ColorString])]
 prettyProcessResult' mayAllowedDt world results =
@@ -209,7 +237,7 @@ prettyProcessResult' mayAllowedDt world results =
 
 
 prettyProcessResult :: Maybe (Time Duration System)
-                    -> SmallWorldCharacteristics
+                    -> SmallWorldCharacteristics Program
                     -> Maybe (TaggedResult k a)
                     -> [(Maybe (TestDurations k a), [ColorString])]
 prettyProcessResult mayAllowedDt world results =

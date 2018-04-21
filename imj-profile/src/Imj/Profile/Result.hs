@@ -95,7 +95,8 @@ newtype TestDurations k a = TD (Map k (TestStatus a))
 instance (Ord k) => Semigroup (TestDurations k a) where
   (TD l) <> (TD l') = TD $ Map.unionWith (error "would overwrite") l l'
 instance (NFData k, NFData a) => NFData (TestDurations k a)
-instance (Eq k, Eq a) => Eq (TestDurations k a)
+instance (Eq k, Eq a) => Eq (TestDurations k a) where
+  (TD m) == (TD m') = m == m'
 
 -- | Ignoring tests that didn't run yet:
 -- if one test is Timeout, return the timeout value,

@@ -10,7 +10,7 @@ module Imj.Prelude
 
 import           Prelude as Exported
   ( Eq, Show(..), Real, Num(..), Enum, Bounded, Integral, Fractional, Floating, RealFrac
-  , Ord, Monoid(..), Semigroup(..), Monad(..), Functor, Read, Applicative, Foldable
+  , Ord, Monoid(..), Monad(..), Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
   , either
   , sum, map, concatMap, filter, mapM_, sequence_
@@ -27,6 +27,7 @@ import           Prelude as Exported
   , error, undefined, seq
   , (!!), ($!)
   )
+
 
 import           GHC.Generics as Exported(Generic)
 import           Control.Applicative as Exported((<|>), pure, (<*>), (*>), (<*))
@@ -45,6 +46,7 @@ import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Map.Strict(Map)
 import           Data.Monoid as Exported((<>))
 import           Data.Ratio as Exported((%))
+import           Data.Semigroup as Exported(Semigroup (..))
 import           Data.String as Exported(String)
 import           Data.Text as Exported(Text)
 import           Data.Traversable as Exported(mapM)

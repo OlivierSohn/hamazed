@@ -220,7 +220,8 @@ withTestScheduler' intent testF initialProgress =
                     putStrLn $ "[skip - smaller size has timeouts] " ++ prettyShowSWCharacteristics smallEasy
                     trySmallsLater
                   FinishedAverage duration _ ->
-                    if duration > dt
+                    -- The 0.1 multiplicative factor was introduced to discard difficult tests.
+                    if duration > 0.1 .* dt
                       then do
                         putStrLn $ "[skip - smaller size has long duration] " ++ prettyShowSWCharacteristics smallEasy
                         trySmallsLater

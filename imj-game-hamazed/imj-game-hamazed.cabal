@@ -68,7 +68,7 @@ library
                      , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3
                      , attoparsec ==0.13.*
@@ -101,7 +101,7 @@ library
 executable imj-game-hamazed-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , imj-base ==0.1.*
                      , imj-game-hamazed
   default-language:    Haskell2010
@@ -112,7 +112,7 @@ test-suite imj-game-hamazed-test
   other-modules:       Test.Imj.ParseCommand
                      , Test.Imj.Topology
   main-is:             Spec.hs
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , attoparsec ==0.13.*
                      , imj-base ==0.1.*
                      , imj-game-hamazed

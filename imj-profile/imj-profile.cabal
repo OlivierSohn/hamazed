@@ -36,7 +36,7 @@ library
                      , Imj.Profile.Results
                      , Imj.Profile.Scheduler
   other-modules:
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
@@ -64,7 +64,7 @@ library
 executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , containers ==0.5.*
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
@@ -82,10 +82,10 @@ test-suite imj-profile-test
   hs-source-dirs:      test
   other-modules:       Test.Imj.ShouldTest
   main-is:             Spec.hs
-  build-depends:       base >= 4.8 && < 4.12
+  build-depends:       base >= 4.9 && < 4.12
                      , containers ==0.5.*
                      , imj-prelude ==0.1.*
-                     , imj-profile ==0.1.*
+                     , imj-profile
                      , imj-game-hamazed ==0.1.*
   default-language:    Haskell2010
 

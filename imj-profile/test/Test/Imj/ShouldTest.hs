@@ -21,11 +21,15 @@ testShouldTest = do
         ,(SWCharacteristics (Size 6 10) 1 0.5, Nothing) -- so that (12,10) shouldn't be tested.
         ]
 
-  shouldTest (SWCharacteristics (Size 5 10) 1 0.5) res `shouldBe` True
-  shouldTest (SWCharacteristics (Size 10 5) 1 0.5) res `shouldBe` True
 
-  shouldTest (SWCharacteristics (Size 12 10) 1 0.5) res `shouldBe` False
-  shouldTest (SWCharacteristics (Size 10 12) 1 0.5) res `shouldBe` False
+  shouldTest (SWCharacteristics (Size 5 10) 1 0.5) res `shouldBe` (ClosestSmallerSizeHas $ TD Map.empty)
+  shouldTest (SWCharacteristics (Size 10 5) 1 0.5) res `shouldBe` (ClosestSmallerSizeHas $ TD Map.empty)
+
+  shouldTest (SWCharacteristics (Size 2 10) 1 0.5) res `shouldBe` FirstSize
+  shouldTest (SWCharacteristics (Size 10 2) 1 0.5) res `shouldBe` FirstSize
+
+  shouldTest (SWCharacteristics (Size 12 10) 1 0.5) res `shouldBe` ClosestSmallerSizeHasNoResult
+  shouldTest (SWCharacteristics (Size 10 12) 1 0.5) res `shouldBe` ClosestSmallerSizeHasNoResult
 
 
   return ()

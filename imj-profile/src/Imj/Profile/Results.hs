@@ -21,6 +21,7 @@ module Imj.Profile.Results
     , resultsToHtml
     , resultsToHtml'
     , shouldTest
+    , ShouldTest(..)
     , canonicalize
     , homogenousDist
     ) where
@@ -30,7 +31,6 @@ import           Imj.Prelude hiding(div)
 import           Data.Set(Set)
 import           Data.IntMap.Internal(IntMap(..), Key)
 import qualified Data.IntMap.Strict as IMap
-import qualified Data.List as List
 import           Data.Map.Internal(Map)
 import qualified Data.Map.Strict as Map
 import           Data.String(IsString(..))
@@ -67,6 +67,11 @@ data TaggedResult k a = TaggedResult {
 instance (NFData k, NFData a) => NFData (TaggedResult k a)
 instance (Binary k, Binary a) => Binary (TaggedResult k a)
 
+data ShouldTest k =
+    FirstSize -- There is no smaller size.
+  | ClosestSmallerSizeHasNoResult -- the first smaller size has no result yet.
+  | ClosestSmallerSizeHas !(TestDurations k Statistics) -- the first smaller size has a result
+ deriving(Generic, Show, Eq)
 -- | Returns true if either
 --
 -- * there is no smaller size
@@ -75,9 +80,9 @@ instance (Binary k, Binary a) => Binary (TaggedResult k a)
 --
 -- It is used to discard tests that would fail with a hogh probability for a given timeout,
 -- based on the knowledge of how tests with smaller or bigger sizes performed.
-shouldTest :: SmallWorldCharacteristics -> MaybeResults k -> Bool
+shouldTest :: SmallWorldCharacteristics -> MaybeResults k -> ShouldTest k
 shouldTest world@(SWCharacteristics refSz _ _) m =
-  let (smaller,bigger) =
+  let (smaller,_) =
         IMap.split 0 $ -- split removes the 0 key. It is ok because this key corresponds only
                        -- to the 'SmallWorldCharacteristics' passed as parameter.
         IMap.map catMaybes $ -- keep valid results only, i.e w can use 'null' to detect invalid results
@@ -85,12 +90,11 @@ shouldTest world@(SWCharacteristics refSz _ _) m =
         mapMaybe (\(sz,res) -> flip (,) [res] <$> homogenousDist refSz sz) $ -- discard size changes that are not homogenous
         Map.assocs $
         getResultsOfAllSizes world m
-      countValidBiggers = IMap.foldl' (\s -> (+) s . List.length) 0 bigger
   in maybe
-      True
+      FirstSize
       (\(_,closestSmallersValids) -> case closestSmallersValids of
-        [] -> countValidBiggers > 0
-        _:_ -> True)
+        [] -> ClosestSmallerSizeHasNoResult
+        (TaggedResult _ _ res):_ -> ClosestSmallerSizeHas res)
       $ lookupMax smaller
 
 lookupMax :: IntMap a -> Maybe (Key, a) -- TODO remove once available in container

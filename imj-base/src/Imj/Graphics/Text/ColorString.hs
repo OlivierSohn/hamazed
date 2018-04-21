@@ -14,7 +14,7 @@ module Imj.Graphics.Text.ColorString
 /black/ background, wherease 'colored'' allows you to chose both the
 background and the foreground colors.
 
-And since 'ColorString' is 'Monoid', we can write:
+And since 'ColorString' is 'Semigroup', we can write:
 
 @
 str = colored \"Hello\" white <> colored \" World\" yellow
@@ -72,6 +72,7 @@ instance Semigroup ColorString where
   (ColorString x) <> (ColorString y) = ColorString $ x ++ y
 instance Monoid ColorString where
   mempty = ColorString []
+  mappend = (<>)
 -- we can't use the Generic one because of missing instance for 'Text'
 instance IsString ColorString where
   fromString str = ColorString [(Text.pack str, whiteOnBlack)]

@@ -50,6 +50,7 @@ instance Semigroup ColoredGlyphList where
   (ColoredGlyphList x) <> (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
 instance Monoid ColoredGlyphList where
   mempty = ColoredGlyphList []
+  mappend = (<>)
 instance Characters ColoredGlyphList where
   length (ColoredGlyphList l) = List.length l
   empty (ColoredGlyphList l) = null l

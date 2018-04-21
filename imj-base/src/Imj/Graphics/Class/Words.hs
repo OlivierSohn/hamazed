@@ -27,7 +27,7 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 
 
-class (IsString a, Monoid a) => Characters a where
+class (IsString a, Semigroup a) => Characters a where
   length :: a -> Int
   empty :: a -> Bool
   cons :: Char -> a -> a

@@ -353,7 +353,7 @@ getPlayerUIName' = getPlayerUIName ColorString.colored
 getPlayerUIName'' :: Maybe Player -> ColoredGlyphList
 getPlayerUIName'' = getPlayerUIName (ColoredGlyphList.colored . map textGlyph . unpack)
 
-getPlayerUIName :: (IsString a, Monoid a)
+getPlayerUIName :: (IsString a, Semigroup a)
                 => (Text -> Color8 Foreground -> a)
                 -> Maybe Player
                 -> a

@@ -575,7 +575,7 @@ data Statistics = Statistics {
   , countNotEnoughAir, countNotEnoughWalls, countUnusedFronteers :: {-# NOUNPACK #-} !Int
   , countComponentCountMismatch, countComponentsSizesNotWellDistributed, countSpaceNotUsedWellEnough :: {-# NOUNPACK #-} !Int
   , durations :: {-# NOUNPACK #-} !DurationStats
-} deriving(Generic)
+} deriving(Generic, Eq)
 instance Binary Statistics
 instance NFData Statistics
 instance Show Statistics where
@@ -583,7 +583,7 @@ instance Show Statistics where
 
 data DurationStats = Durations {
     totalDuration ::  {-# NOUNPACK #-} !(Time Duration System)
-} deriving(Generic)
+} deriving(Generic, Eq)
 instance Binary DurationStats
 instance NFData DurationStats
 instance Show DurationStats where

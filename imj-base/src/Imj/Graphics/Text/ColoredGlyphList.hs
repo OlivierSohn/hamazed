@@ -46,9 +46,11 @@ instance IsString ColoredGlyphList where
   fromString str =
     let !color = whiteOnBlack
     in ColoredGlyphList $ map (\c -> (textGlyph c, color)) str
+instance Semigroup ColoredGlyphList where
+  (ColoredGlyphList x) <> (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
 instance Monoid ColoredGlyphList where
   mempty = ColoredGlyphList []
-  mappend (ColoredGlyphList x) (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
+  mappend = (<>)
 instance Characters ColoredGlyphList where
   length (ColoredGlyphList l) = List.length l
   empty (ColoredGlyphList l) = null l

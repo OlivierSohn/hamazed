@@ -20,9 +20,8 @@ module Imj.Example.SequentialTextTranslationsAnchored
     , module Imj.Graphics.Text.Animation
     ) where
 
-import           Imj.Prelude
-
 import           Data.Text(pack)
+import           Data.Semigroup((<>))
 import           Control.Concurrent(threadDelay)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader.Class(MonadReader)

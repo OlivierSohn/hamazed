@@ -1,3 +1,7 @@
+- if the closest size before has a duration > 3*timetout, don't test.
+This will allow to concentrate on filling up the configurations that can be achieved in
+a given time.
+
 - make a standalone library for generating rectangle binary random (small) worlds.
 (move tests of topology there)
 

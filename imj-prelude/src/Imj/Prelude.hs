@@ -28,6 +28,7 @@ import           Prelude as Exported
   , (!!), ($!)
   )
 
+
 import           GHC.Generics as Exported(Generic)
 import           Control.Applicative as Exported((<|>), pure, (<*>), (*>), (<*))
 import           Control.Arrow as Exported((>>>))
@@ -43,8 +44,8 @@ import           Data.List as Exported(cycle, repeat)
 import           Data.Maybe as Exported(listToMaybe, maybeToList, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Map.Merge.Strict(merge, preserveMissing, zipWithMatched)
 import           Data.Map.Strict(Map)
-import           Data.Monoid as Exported((<>))
 import           Data.Ratio as Exported((%))
+import           Data.Semigroup as Exported(Semigroup (..))
 import           Data.String as Exported(String)
 import           Data.Text as Exported(Text)
 import           Data.Traversable as Exported(mapM)

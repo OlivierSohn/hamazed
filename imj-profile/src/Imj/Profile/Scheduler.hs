@@ -207,12 +207,33 @@ withTestScheduler' intent testF initialProgress =
                 go newProgress
           []:rest -> go $ p{willTestInIteration = rest}
           smalls@(smallEasy:smallHards):biggerOrDifferents -> do
-            let trySmallsLater = go $ updateProgress dt hints biggerOrDifferents (smalls:tooHard) results p
-            if not $ shouldTest smallEasy results
-              then do
-                putStrLn $ "[skip] " ++ prettyShowSWCharacteristics smallEasy
+            case shouldTest smallEasy results of
+              ClosestSmallerSizeHasNoResult -> do
+                putStrLn $ "[skip - smaller size has no result] " ++ prettyShowSWCharacteristics smallEasy
                 trySmallsLater
-              else do
+              ClosestSmallerSizeHas res -> do
+                case summarize res of
+                  NoResult -> do
+                    putStrLn $ "[skip - smaller size has no result] " ++ prettyShowSWCharacteristics smallEasy
+                    trySmallsLater
+                  NTimeouts _ -> do
+                    putStrLn $ "[skip - smaller size has timeouts] " ++ prettyShowSWCharacteristics smallEasy
+                    trySmallsLater
+                  FinishedAverage duration _ ->
+                    -- The 0.1 multiplicative factor was introduced to discard difficult tests.
+                    if duration > 0.1 .* dt
+                      then do
+                        putStrLn $ "[skip - smaller size has long duration] " ++ prettyShowSWCharacteristics smallEasy
+                        trySmallsLater
+                      else
+                        run
+              FirstSize ->
+                run
+           where
+            trySmallsLater =
+              go $ updateProgress dt hints biggerOrDifferents (smalls:tooHard) results p
+
+            run = do
                 putStrLn $ "[test] " ++ prettyShowSWCharacteristics smallEasy
                 let hintsSpecsByDistance = sortOn snd $ Map.assocs tmp
                     hintsSet = Map.keysSet tmp
@@ -239,7 +260,7 @@ withTestScheduler' intent testF initialProgress =
                       putStrLn $ prettyShowSWCharacteristics smallEasy
                       CS.putStrLn $ showRefined strategy refined
                       go $ updateProgress dt newHints (smallHards:biggerOrDifferents) tooHard newResults p)
-           where
+
             go' _ [] = return Nothing
             go' world@(SWCharacteristics sz _ _) (strategy:otherStrategies) = do
               putStrLn $ "[try 1 group] " ++ show strategy

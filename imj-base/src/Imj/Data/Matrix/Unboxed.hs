@@ -129,14 +129,15 @@ instance (Binary a, Unbox a) => Binary (Matrix a) where
 -------------------------------------------------------
 ---- MONOID INSTANCE
 
-instance (Monoid a, Unbox a) => S.Semigroup (Matrix a) where
-  (<>) = mappend
+instance (Monoid a, Semigroup a, Unbox a) => S.Semigroup (Matrix a) where
+  m <> m' =
+    matrix (max (nrows m) (nrows m')) (max (ncols m) (ncols m')) $ uncurry zipTogether
+   where
+    zipTogether row column = fromMaybe mempty $ safeGet row column m <> safeGet row column m'
 
-instance (Monoid a, Unbox a) => Monoid (Matrix a) where
+instance (Monoid a, Semigroup a, Unbox a) => Monoid (Matrix a) where
   mempty = fromList 1 1 [mempty]
-  mappend m m' = matrix (max (nrows m) (nrows m')) (max (ncols m) (ncols m')) $ uncurry zipTogether
-    where zipTogether row column = fromMaybe mempty $ safeGet row column m <> safeGet row column m'
-
+  mappend = (<>)
 
 mapMat :: (Unbox a, Unbox b)
         => (a -> b)

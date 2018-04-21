@@ -1,6 +1,10 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-11.5
+resolver: nightly-2018-04-20
+# ghc 8.4.1:
+# --resolver nightly-2018-04-20
+# ghc 8.2.2:
+# --resolver lts-11.5
 
 packages:
 - './imj-prelude'
@@ -16,11 +20,18 @@ packages:
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/clay.git
-    commit: fabb12c7cffcf12d2eb51224409b1819f7cdd42f
+    commit: 954476940190873094847939c5f0e6242e324000
   extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
+  extra-dep: true
+# until uuid is ghc-84 compatible:
+- location:
+    git: https://github.com/OlivierSohn/uuid.git
+    commit: 82a74b9d153d0cc5a442c9d9d12b0be76602716f
+    subdirs:
+      - uuid
   extra-dep: true
 
 extra-deps:

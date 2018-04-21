@@ -1,54 +1,22 @@
--
-Once we have all durations for (6,12), we can support user probabilities in master officially
+- make a standalone library for generating rectangle binary random (small) worlds.
+(move tests of topology there)
 
-when parameters lead to a world that has no known duration (for at least one level?),
-silently change probability and/or number of components to the nearest world that has a known creation duration.
-Display a message in the chat for this.
+- silently scale the user probability to fit in the range where worlds are made in less that one second.
+This way, we don't need to verify beforehand that every level can be computed : we just adapt the scale
+at every level.
 
-- display estimated time to build a world (based on optimal strategy time)
+We can adapt the wording : wall density
+walls : more / less
 
 - the game is fun to play with all maxed:
   wall size = 6
   proba = 0.9
-
-- parallel stats :
-the stats displayed are the stats of the rng that found a world.
-Should we merge them with the stats of RNGs that didn't find?
+make this the default.
 
 - benchmark:
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 And when the consumer stops, it should putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 (On server cancelation, or on timeout, the IORef Bool is set to False.)
-
-- benchmark IntSet vs. Set Int for Sums
-
-- Server doesn't need to forward the request, the client continues by itself.
-This will avoid unproductive waits.
-
-- not sure if translations could be used in place of rotations (in a +1 rotation, the
-  last element of the last column becomes the first element of the first column, maybe that's a problem
-  as it breaks the topology in two ways (that's one too much!).)
-
-- benchmark alternative variations:
-  - rotate around 0,0, then diagonally
-
--
-It looks like:
-  For high density BIG   worlds, rotations (the way we do them today) are less usefull than random (maybe a more subtle way would be ok)
-  For high density small worlds, rotations (the way we do them today) are MORE usefull than random
-
-Maybe for big worlds, interleaving / rotating is not usefull because
-  random matrices produce more randomness than interleavings or rotations
-  and the cost of generating random matrices becomes negligible vs. the cost of graph creation and analysis,
-  so generating only random matrices becomes a competitive strategy again.
-The ratio "time to analyze a matrix vs time to generate a random matrix" could be key
-  in determining the strategy to use.
-
-Before generalizing, we should see if improvements vary with number of components / probability / size.
-
-- the server should not start the game until all levels are possible to create.
-- Create levels in the background during setup (maybe ask different nodes to compute different
-levels? the bigger ones are more expensive...) and start the game once all levels are created
 
 - Add music :
   slow (ternary) :
@@ -110,56 +78,12 @@ levels? the bigger ones are more expensive...) and start the game once all level
   . . sol .
   mib . ré .
 
-- while searching for a world, display this status message:
-
-Randomly generating level 1 with constraints:
-  walls size  = 6
-  walls proba = 0.7
-  1 connected component(s)
-Number of computing nodes: 1 (i.e length of assignees)
-
-World generation started 4 seconds ago, using random matrices, with columns and
-row shuffling and matrix rotation.
-12345 random matrices were generated
-21312354 interleaved matrices were generated
-1235416253 rotated matrices were generated
-32149 Worlds were tested.
-2212 were rejected due to fronteer issues.
-The other have the following connected component distribution:
-CC 2 .
-CC 3 ...
-
 - bug : when client reconnects, it is not reflected in the name until world is there.
 
 - fix response on collision:
  Z
   XZ  <- here we stay one time too long.
  X
-
-- with careful benchmarking:
-** in produceUsefulInterleavedVariations : are matrices generated one by one?
-
-** adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
-
-** maybe reduce number of rotations:
-rotate (of 1) w times
-then
-rotate (of w) h times
-assuming this would cover most probable cases where n connected components can join (?)
-
-- document different permutation strategies:
-
-Generating random numbers is expensive, hence we need permutation strategies where with a minimal amount
-of permutation we can generate a big variety of number of cc, so that permutating
-  becomes interesting vs generating fresh random numbers.
-
-measure span of number of connected components, over number of permutations used.
-
-- optimize world creation with .7 ratio:
-  try 02
-  generate 4 numbers (8 bit precision) per random Int using bit shifts
-  replace Material by Int + constants
-  parallellism: see how to set capabilities, and how to race between cores.
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)
@@ -194,8 +118,6 @@ maybe in UIRectangle, too?
 maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
 maybe we need to move + and - to make them be in the center.
 - maybe we need 2 .ttf fonts, else modified _ would look strange in messages, and pipes too ?
-
-- replace unboxed by Storable?
 
 - one-click "increment / decrement r,g or b (maybe use r,g,b keys)
 

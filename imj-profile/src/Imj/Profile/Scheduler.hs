@@ -159,13 +159,13 @@ encodeProgressFile s = do
 
 decodeProgressFile :: IO (Maybe TestProgress)
 decodeProgressFile =
-  doesFileExist progressFile >>= \case
-    True -> decodeFileOrFail progressFile >>= either
-      (\e -> error $ "File " ++ progressFile ++ " seems corrupt: " ++ show e)
-      (return . Just)
-    False -> do
+  doesFileExist progressFile >>= bool
+    (do
       putStrLn $ "File " ++ progressFile ++ " not found."
-      return Nothing
+      return Nothing)
+    (decodeFileOrFail progressFile >>= either
+      (\e -> error $ "File " ++ progressFile ++ " seems corrupt: " ++ show e)
+      (return . Just))
 
 -- | For each world:
 -- Using a single seed group, find /a/ strategy that works within a given time upper bound.

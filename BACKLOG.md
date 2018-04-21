@@ -1,8 +1,3 @@
-- fix response on collision:
- Z
-  XZ  <- here we stay one time too long.
- X
-
 - make a standalone library for generating rectangle binary random (small) worlds.
 (move tests of topology there)
 

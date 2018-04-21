@@ -110,7 +110,7 @@ shouldMirrorAtomic :: (Coords Pos -> Location)
                      -- ^ Nothing if speed should not be mirrored.
 shouldMirrorAtomic getLocation (Coords r c) future@(Coords futR futC) =
   let isWall = (== OutsideWorld) . getLocation
-  in case getLocation future of
+      m1 = case getLocation future of
         OutsideWorld
           | r == futR -> Just MirrorCol
           | c == futC -> Just MirrorRow
@@ -131,3 +131,22 @@ shouldMirrorAtomic getLocation (Coords r c) future@(Coords futR futC) =
                         (False, False) -> Nothing
                         (True, False)  -> Just MirrorRow
                         (False, True)  -> Just MirrorCol
+{-
+ Z
+  XZ  <- without m2, here we stay one time too long.
+ X
+-}
+      m2 x
+        | r == futR || c == futC = x
+        | otherwise = --diagonal
+            let future2 = case x of
+                  MirrorRow -> Coords (r - (futR - r)) futC
+                  MirrorCol -> Coords futR $ c - (futC - c)
+                  _ -> error "logic"
+            in case getLocation future2 of
+                OutsideWorld -> MirrorAll
+                InsideWorld -> x
+  in case m1 of
+    Just MirrorRow -> Just $ m2 MirrorRow
+    Just MirrorCol -> Just $ m2 MirrorCol
+    _ -> m1

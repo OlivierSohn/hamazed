@@ -92,10 +92,8 @@ unSeedNumber (SeedNumber s) = s
 -- | By seed
 newtype TestDurations k a = TD (Map k (TestStatus a))
   deriving(Generic, Show, Binary)
-instance (Ord k) => Monoid (TestDurations k a) where
-  mempty = TD Map.empty
-  mappend (TD l) (TD l') = TD $ Map.unionWith (error "would overwrite") l l'
-  mconcat = TD . Map.unionsWith (error "would overwrite") . map (\(TD m) -> m)
+instance (Ord k) => Semigroup (TestDurations k a) where
+  (TD l) <> (TD l') = TD $ Map.unionWith (error "would overwrite") l l'
 instance (NFData k, NFData a) => NFData (TestDurations k a)
 
 -- | Ignoring tests that didn't run yet:

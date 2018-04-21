@@ -1,3 +1,7 @@
+- if the closest size before has a duration > 3*timetout, don't test.
+This will allow to concentrate on filling up the configurations that can be achieved in
+a given time.
+
 -
 Once we have all durations for (6,12), we can support user probabilities in master officially
 

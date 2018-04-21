@@ -172,7 +172,7 @@ addResult' w strategy seed stats (OldMaybeResults res) =
   OldMaybeResults $ Map.alter
     (Just . maybe
       (Map.singleton strategy s)
-      (Map.alter (Just . maybe s (mappend s)) strategy))
+      (Map.alter (Just . maybe s ((<>) s)) strategy))
     w
     res
  where

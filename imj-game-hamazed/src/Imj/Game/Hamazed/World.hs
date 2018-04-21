@@ -66,7 +66,6 @@ module Imj.Game.Hamazed.World
       connected component drops very fast (probably at least exponentially)
       towards zero with increasing sizes. -}
     , mkRandomlyFilledSpace
-    , RandomParameters(..)
       -- ** Collision detection
       {- | 'location' is the standard collision detection function that considers
       that being outside the world means being in collision.
@@ -118,10 +117,10 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
-import qualified Data.Set as Set(empty, null, member, fromList, unions, union, size)
-import qualified Data.Map.Strict as Map(elems, insert, lookup, lookupMin, map, empty, null, keysSet, foldl', alter
-                                      , findWithDefault, mapAccumWithKey, fromListWith)
-import           Data.List(elem, length)
+import qualified Data.IntSet as ISet
+import qualified Data.Set as Set
+import qualified Data.Map.Strict as Map
+import           Data.List(elem, length, concat)
 import           Data.Maybe(isJust)
 import           Data.Text(pack)
 
@@ -142,6 +141,7 @@ import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Number
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Game.Hamazed.World.Size
+import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
@@ -193,7 +193,6 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
               maybe oldSpeed (sumCoords oldSpeed) $ Map.lookup sid accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
         in (newComps, BattleShip name newPosSpeed ammo newStatus collisions i)
-      -- using fromAscList because the keys are unchanged.
       (changedComponents, newShips) = Map.mapAccumWithKey moveShip [] ships
   putWorld $ World newBalls newShips space rs anims f
   mapM_ checkComponentStatus changedComponents
@@ -306,34 +305,37 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
           remainingQty = totalQty - shotQty
           remainingNums = map (getNumber . getNumEssence) $ Map.elems remainingNumbers
 
-          asSet = Set.fromList remainingNums
-          allLists = if Set.size asSet == length remainingNums
-            then
-              -- there is a 4x performance benefit in using 'mkSumsStrict' when numbers are unique.
-              Tree.toList $ mkSumsStrict asSet remainingQty
-            else
-              Tree.toList $ mkSumsStrictN remainingNums remainingQty
-
+          asSet = ISet.fromList remainingNums
+          distinct = ISet.size asSet == length remainingNums
+          -- list of descending lists.
+          allLists = bool
+            (mkSumsN remainingNums remainingQty)
+            -- there is a 4x performance benefit in using 'mkSumsStrict' when numbers are unique.
+            (Tree.toList $ mkSumsStrict asSet remainingQty)
+            distinct
           -- TODO group numbers by cc, then check if cc has enough ammo.
           -- (take into account that in case of multiple identical number,
           -- the same numbers could be in multiple components)
           possibleLists = allLists
 
-          -- lists are ascending, hence fromList(s) have a linear complexity.
-          -- Set.unions also has a linear complexity, overall we have a linear complexity here.
-          possibleSets = map Set.fromList possibleLists
-          okTargets = Set.unions possibleSets
+          -- ISet.unions has a linear complexity, overall we have a linear complexity here.
+          possibleSets = bool
+            (map ISet.fromAscList)
+            (map ISet.fromDistinctAscList)
+            distinct $ reverse possibleLists
+
+          okTargets = ISet.unions possibleSets
 
           -- preferred numbers are on the preferred path (least length)
-          mapLengths = Map.fromListWith Set.union (map (\l -> (Set.size l,l)) possibleSets)
-          preferredSet = maybe Set.empty snd $ Map.lookupMin mapLengths
+          mapLengths = Map.fromListWith ISet.union (map (\l -> (ISet.size l,l)) possibleSets)
+          preferredSet = maybe ISet.empty snd $ Map.lookupMin mapLengths
 
           newNumbers =
             Map.map
               (\n -> let num = getNumber $ getNumEssence n
-                in if Set.member num okTargets
+                in if ISet.member num okTargets
                   then
-                    if Set.member num preferredSet
+                    if ISet.member num preferredSet
                       then
                         makePreferred n
                       else

@@ -24,7 +24,7 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.World.Create
-import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
@@ -44,11 +44,12 @@ initialGameState :: WorldParameters
                  -> Maybe Size
                  -> IO GameState
 initialGameState _ mode ms =
-  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence mempty mode ms Nothing
+  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing mempty mode ms Nothing
 
 mkInitialState :: (MonadIO m)
                => LevelEssence
                -> WorldEssence
+               -> Maybe WorldId
                -> Map ShipId Player
                -> ViewMode
                -> Maybe Size
@@ -60,14 +61,15 @@ mkIntermediateState :: (MonadIO m)
                     => [ShotNumber]
                     -> LevelEssence
                     -> WorldEssence
+                    -> Maybe WorldId
                     -> Map ShipId Player
                     -> ViewMode
                     -> Maybe Size
                     -> Maybe GameState
                     -> m GameState
-mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
+mkIntermediateState newShotNums newLevel essence wid names mode maySz mayState = do
   let screen@(Screen _ newScreenCenter) = mkScreen maySz
-      newWorld@(World _ _ space _ _ _) = mkWorld essence
+      newWorld@(World _ _ space _ _ _) = mkWorld essence wid
       (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums, stAnim) =
         maybe
         (newWorld, newScreenCenter, newLevel, [], [])
@@ -89,16 +91,19 @@ mkIntermediateState newShotNums newLevel essence names mode maySz mayState = do
           -- during UIAnimation, we need the two worlds.
   return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation stAnim screen mode names
 
-mkGameStateEssence :: GameState -> GameStateEssence
-mkGameStateEssence (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _ _) =
-  GameStateEssence (worldToEssence $ fromMaybe curWorld mayNewWorld) shotNums levelEssence
+mkGameStateEssence :: WorldId -> GameState -> Maybe GameStateEssence
+mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _ _) =
+  let (essence, mayWid) = worldToEssence $ fromMaybe curWorld mayNewWorld
+  in maybe
+    Nothing
+    (\wid -> bool Nothing (Just $ GameStateEssence essence shotNums levelEssence) $ wid == wid')
+    mayWid
 
-mkWorld :: WorldEssence -> World
-mkWorld (WorldEssence balls ships llMat wid) =
-  let space = fromListOfLists llMat
-      renderedSpace = mkRenderedSpace space
+mkWorld :: WorldEssence -> Maybe WorldId -> World
+mkWorld (WorldEssence balls ships space) wid =
+  let renderedSpace = mkRenderedSpace space
   in World (Map.map mkNumber balls) ships space renderedSpace mempty wid
 
-worldToEssence :: World -> WorldEssence
+worldToEssence :: World -> (WorldEssence, Maybe WorldId)
 worldToEssence (World balls ships space _ _ wid) =
-  WorldEssence (Map.map getNumEssence balls) ships (toListOfLists space) wid
+  (WorldEssence (Map.map getNumEssence balls) ships space, wid)

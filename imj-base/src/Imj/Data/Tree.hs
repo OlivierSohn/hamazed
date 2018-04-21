@@ -12,6 +12,8 @@ module Imj.Data.Tree
     ) where
 
 import           Imj.Prelude hiding(filter)
+import           Data.Set(Set)
+import qualified Data.Set as Set (null, filter)
 import qualified Data.List as List(filter)
 import           Data.Foldable(foldl')
 
@@ -36,7 +38,8 @@ data StrictNTree a =
 
 {-# INLINE strictNTreeFromBranches #-}
 strictNTreeFromBranches :: [StrictNTree a] -> StrictNTree a
-strictNTreeFromBranches = go . List.filter hasValue
+strictNTreeFromBranches =
+  go . List.filter hasValue
  where
   go [] = StrictNNothing
   go (StrictNBranch v b1:rest) = StrictNBranch v $ b1 ++ rest
@@ -56,7 +59,7 @@ class (Foldable a) => Filterable a where
   hasValue :: a b -> Bool
 
   countValues :: a b -> Int
-  countValues = foldl' (\s _ -> succ s) 0
+  countValues = foldl' (\s _ -> s + 1) 0
 
   toList :: a b -> [b]
   toList = foldl' (flip (:)) []
@@ -64,6 +67,12 @@ class (Foldable a) => Filterable a where
 instance Filterable [] where
   filter = List.filter
   hasValue = not . null
+  {-# INLINE filter #-}
+  {-# INLINE hasValue #-}
+
+instance Filterable Set where
+  filter = Set.filter
+  hasValue = not . Set.null
   {-# INLINE filter #-}
   {-# INLINE hasValue #-}
 

@@ -30,6 +30,7 @@ module Imj.Graphics.Color.Types
           , Xterm256Color(..)
           , color8CodeToXterm256
           , xterm256ColorToCode
+          , color8ToRGB256
           , onBlack
           , whiteOnBlack
           , red, green, blue
@@ -38,12 +39,15 @@ module Imj.Graphics.Color.Types
           , lime
           , white, black
           , RGB(..)
+          , UnitColor(..)
+          , RGB256(..)
+          , colorToHtml
           ) where
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, (.|.))
+import           Data.List(intercalate, concat)
 import           Data.Text(pack)
 import           Data.Word (Word8, Word16)
 
@@ -276,16 +280,57 @@ data Xterm256Color a = RGBColor !RGB
                      deriving (Eq, Show, Read)
 
 
-color8ToUnitRGB :: Color8 a -> (Float, Float, Float)
+data UnitColor = UnitColor {-# UNPACK #-} !Float {-# UNPACK #-} !Float {-# UNPACK #-} !Float
+color8ToUnitRGB :: Color8 a -> UnitColor
 color8ToUnitRGB c =
-  case color8CodeToXterm256 c of
-    RGBColor (RGB r g b) -> (rgbToUnit r,rgbToUnit g,rgbToUnit b)
-    GrayColor g -> let v = grayToUnit g in (v,v,v)
+    UnitColor (fromIntegral r/255) (fromIntegral g/255) (fromIntegral b/255)
   where
-    rgbToUnit :: Int -> Float
-    rgbToUnit x = fromIntegral (xtermMapRGB8bitComponent x) / 255
-    grayToUnit :: Int -> Float
-    grayToUnit gr = fromIntegral (xtermMapGray8bitComponent gr) / 255
+    (RGB256 r g b) = color8ToRGB256 c
+
+data RGB256 = RGB256 !Int !Int !Int
+
+colorToHtml :: UnitColor -> Text
+colorToHtml color =
+  "color:rgb(" <>
+  pack (intercalate "," $ map show [r,g,b]) <>
+  ");"
+ where
+  (UnitColor fr fg fb) = lowerContrast color
+  r = round $ 255 * fr :: Int
+  g = round $ 255 * fg
+  b = round $ 255 * fb
+
+  lowerContrast (UnitColor r1 g1 b1)
+   | isGray = UnitColor gr gr gr
+   | otherwise = UnitColor r' g' b'
+   where
+    isGray = r1 == g1 && g1 == b1
+
+    darkenGrays = 0.75/0.8 -- makes colors stand out more.
+    darken = 0.85
+    lightenDarks = 0.05
+
+    gr = mapGray r1
+
+    r' = mapColor r1
+    g' = mapColor g1
+    b' = mapColor b1
+
+    mapColor = unsafeMapRange 0 1 lightenDarks darken
+    mapGray  = unsafeMapRange 0 1 lightenDarks (darkenGrays * darken)
+
+{-# INLINE color8ToRGB256 #-}
+color8ToRGB256 :: Color8 a -> RGB256
+color8ToRGB256 c =
+  case color8CodeToXterm256 c of
+    RGBColor (RGB r g b) ->
+      RGB256
+        (xtermMapRGB8bitComponent r)
+        (xtermMapRGB8bitComponent g)
+        (xtermMapRGB8bitComponent b)
+    GrayColor g ->
+      let v = xtermMapGray8bitComponent g
+      in RGB256 v v v
 
 
 -- | how xterm interprets 8bit rgb colors (deduced from https://jonasjacek.github.io/colors/)

@@ -1,11 +1,14 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-11.1
+resolver: nightly-2018-04-20
+# resolver by ghc version:
+#
+#   8.4.1:  nightly-2018-04-20
+#   8.2.2:  lts-11.5
 
 packages:
 - './imj-prelude'
 - './imj-base'
-- './imj-benchmark'
 - './imj-particlesystem'
 - './imj-game-hamazed'
 - './imj-profile'
@@ -13,15 +16,27 @@ packages:
 
 - location:
     git: https://github.com/OlivierSohn/GLFW-b.git
-    commit: 9c4a7a1306e6a4f07a33897e773d87cc5e547178
+    commit: b271c2dda33f3d2eccc49ecbac1a4257580acb52
   extra-dep: true
 - location:
-    git: https://github.com/OlivierSohn/bindings-GLFW.git
-    commit: 02d8896984607e98de5a8b46872b8939863637af
+    git: https://github.com/OlivierSohn/clay.git
+    commit: 954476940190873094847939c5f0e6242e324000
+  extra-dep: true
+- location:
+    git: https://github.com/OlivierSohn/mwc-random.git
+    commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
+  extra-dep: true
+# until uuid is ghc-84 compatible:
+- location:
+    git: https://github.com/OlivierSohn/uuid.git
+    commit: 82a74b9d153d0cc5a442c9d9d12b0be76602716f
+    subdirs:
+      - uuid
   extra-dep: true
 
 extra-deps:
 - FTGL-2.1
+- bindings-GLFW-3.2.1.0
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0
@@ -37,7 +52,16 @@ extra-package-dbs: []
 # for GC stats:
 #   -with-rtsopts=-sstderr
 #
-# I added -fpedantic-bottoms to catch errors that are masked by the compiler
-#   as explained in  https://ghc.haskell.org/trac/ghc/ticket/14521
+# -with-rtsopts=-N : we use it just to set the parallel GC on, we will manually set the number of capabilities in the code.
+#
+# -fpedantic-bottoms : to catch errors that are masked by the compiler,
+#   as explained in https://ghc.haskell.org/trac/ghc/ticket/14521
+#
+# -qa : makes the benchmarks on world creation slightly (~1%) faster.
+#
+# -feager-blackholing : removed since it is slower (3%) for world creation benchmarks.
 ghc-options:
-  "$locals": -threaded -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-maxN4 -fexcess-precision -optc-ffast-math
+  "$locals": -threaded -fexcess-precision -optc-ffast-math -Wall -fpedantic-bottoms -Wredundant-constraints -rtsopts -with-rtsopts=-N -with-rtsopts=-qa
+
+# Whenever an option here changes, the corresponding modules should be recompiled:
+rebuild-ghc-options: true

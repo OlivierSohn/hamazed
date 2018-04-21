@@ -9,13 +9,12 @@ module Imj.Log
         ) where
 
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 
 import           Control.Concurrent(myThreadId)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
-import           Data.List(length, lines)
+import           Data.List(length, lines, take)
 import           Data.Text(pack, justifyRight, dropEnd)
-import           Data.Text.IO(putStrLn)
 import           UnliftIO.Exception (SomeException(..))
 
 import           Imj.Graphics.Color.Types
@@ -34,7 +33,7 @@ baseLog :: (MonadIO m) => ColorString -> m () -- TODO use MessageLevel?
 baseLog msg = liftIO $ do
   tid <- myThreadId
   t <- getSystemTime
-  putStrLn $ safeBuildTxt $
+  putStrLn $
     intercalate (colored "|" white)
     [
     -- dropEnd 3 for microseconds precision

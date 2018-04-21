@@ -1,106 +1,56 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Util
     ( -- * List utilities
-      showListOrSingleton
+      dedup
+    , dedupAsc
     , replicateElements
     , intersperse'
+    , splitEvery
     , mkGroups
     , range
-    , takeWhileInclusive
     , commonPrefix
     , commonSuffix
+    , maximumMaybe
       -- * Math utilities
     , clamp
     , zigzag
     , lastAbove
     , logBase2
-    -- * distribution utilities
-    , asDistribution
-    , Distribution
-    -- * Render utilities
-    , showArray
-    , showDistribution
-    , showInBox
+    , ceilToMultiple
+    , mapRange
+    , unsafeMapRange
     -- * Reexports
     , Int64
     ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(maximum)
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
 import           Data.Int(Int64)
-import           Data.List(reverse, length, splitAt, foldl')
-import           Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
-import           Data.Maybe(maybeToList)
-import           Data.Text(Text, pack)
+import           Data.List(reverse, length, splitAt, foldl', replicate)
+import qualified Data.Set as Set
+
+-- | removes duplicates, and returns elements in ascending order.
+{-# INLINABLE dedup #-}
+dedup :: (Ord a) => [a] -> [a]
+dedup = Set.toList . Set.fromList
+
+-- | Same as 'dedup' except the input is expected to be ascending.
+{-# INLINABLE dedupAsc #-}
+dedupAsc :: (Ord a) => [a] -> [a]
+dedupAsc = Set.toList . Set.fromAscList
 
 {-# INLINE maximumMaybe #-}
 maximumMaybe :: Ord a => [a] -> Maybe a
-maximumMaybe [] = Nothing
-maximumMaybe xs = Just $ maximum xs
+maximumMaybe = \case
+  [] -> Nothing
+  xs@(_:_) -> Just $ Unsafe.maximum xs
 
-showInBox :: [String] -> [String]
-showInBox l =
-  bar '_' : map (withFrame '|') l ++ [bar 'T']
- where
-  bar = replicate (maxWidth + 2)
-  withFrame f str = f : str ++ [f]
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map length l
-
-showArray :: Maybe (String, String) -> [(String,String)] -> [String]
-showArray mayTitles body =
-  maybe [] (\titles -> bar : format [titles]) mayTitles
-  ++ [bar] ++ format body ++ [bar]
- where
-  bar = replicate lBar '-'
-  lBar = fromMaybe 0 $ maximumMaybe $ map length $ format allArray
-  format = map (\(a,b) -> "|" ++ justifyL a l1 ++ "|" ++ justifyR b l2 ++ "|")
-  allArray = maybeToList mayTitles ++ body
-  l1 = fromMaybe 0 $ maximumMaybe $ map (length . fst) allArray
-  l2 = fromMaybe 0 $ maximumMaybe $ map (length . snd) allArray
-  justifyR x maxL =
-    let l = length x
-    in " " ++ replicate (maxL-l) ' ' ++ x ++ " "
-  justifyL x maxL =
-    let l = length x
-    in " " ++ x ++ replicate (maxL-l) ' ' ++ " "
-
-type Distribution a = Map a Int
-
-{-# INLINABLE asDistribution #-}
-asDistribution :: (Ord a)
-               => [a] -> Distribution a
-asDistribution = Map.fromListWith (+) . map (flip (,) 1)
-
-{-# INLINABLE showDistribution #-}
-showDistribution :: (Ord a, Show a, Enum a)
-                 => Distribution a
-                 -> [String]
-showDistribution m =
-  map
-    (\(k,n) ->
-      let s = show k
-      in s ++ replicate (maxWidth - length s) ' ' ++ " | " ++ replicate n '.')
-    l
- where
-  mayMin = Map.lookupMin m
-  mayMax = Map.lookupMax m
-  -- m' has no gap between min and max key (we add 0s if needed)
-  m' = maybe m (\(min_,_) ->
-      let (max_,_) = fromMaybe (error "logic") mayMax
-      in foldl' (\ma k -> Map.insertWith (+) k 0 ma) m [min_..max_])
-    mayMin
-  l = Map.toAscList m'
-  maxWidth = fromMaybe 0 $ maximumMaybe $ map (length . show . fst) l
-
-{-# INLINABLE showListOrSingleton #-}
--- | If list is a singleton, show the element, else show the list.
-showListOrSingleton :: Show a => [a] -> Text
-showListOrSingleton [e] = pack $ show e
-showListOrSingleton l   = pack $ show l
 
 {-# INLINE replicateElements #-}
 -- | Replicates each list element n times and concatenates the result.
@@ -133,15 +83,11 @@ mkGroups n elts
         (elts, [])
         sizes
 
--- | Takes elements, until (inclusively) a condition is met.
-takeWhileInclusive :: (a -> Bool) -> [a] -> [a]
-takeWhileInclusive _ [] = []
-takeWhileInclusive p (x:xs) =
-  x : if p x
-        then
-          takeWhileInclusive p xs
-        else
-          []
+splitEvery :: Int -> [a] -> [[a]]
+splitEvery _ [] = []
+splitEvery n xs = as : splitEvery n bs
+  where (as,bs) = splitAt n xs
+
 
 {-# INLINABLE range #-}
 {- | Builds a range with no constraint on the order of bounds:
@@ -182,6 +128,47 @@ zigzag from' to' v =
               else
                 2*d - v'
 
+{-# INLINABLE mapRange #-}
+mapRange :: (Fractional a, Eq a)
+         => a
+         -- ^ low 1
+         -> a
+         -- ^ high 1
+         -> a
+         -- ^ low 2
+         -> a
+         -- ^ high 2
+         -> a
+         -- ^ value 1
+         -> Maybe a
+         -- ^ value 2
+mapRange l1 h1 l2 h2 v1
+  | denom == 0 = Nothing
+  | otherwise = Just $ l2 + normalized * (h2 - l2)
+ where
+  denom = h1 - l1
+  normalized = (v1 - l1) / denom
+
+-- | same as 'mapRange' except the denomiator is not checked for 0 before dividing.
+unsafeMapRange :: (Fractional a)
+         => a
+         -- ^ low 1
+         -> a
+         -- ^ high 1
+         -> a
+         -- ^ low 2
+         -> a
+         -- ^ high 2
+         -> a
+         -- ^ value 1
+         -> a
+         -- ^ value 2
+unsafeMapRange l1 h1 l2 h2 v1 =
+  l2 + normalized * (h2 - l2)
+ where
+  denom = h1 - l1
+  normalized = (v1 - l1) / denom
+
 {-# INLINABLE commonPrefix #-}
 commonPrefix :: (Eq a) => [a] -> [a] -> [a]
 commonPrefix (x:xs) (y:ys)
@@ -216,6 +203,20 @@ clamp !n min_ max_
   | n < min_ = min_
   | n > max_ = max_
   | otherwise = n
+
+-- | Inputs are expected to be positive.
+{-# INLINABLE ceilToMultiple #-}
+ceilToMultiple :: (Integral a)
+               => a
+               -- ^ The multiple
+               -> a
+               -- ^ The value to ceil
+               -> a
+ceilToMultiple multiple value
+  | r > 0     = multiple * (q+1)
+  | otherwise = multiple * q
+ where
+  (q,r) = value `quotRem` multiple
 
 
 {- | Given :

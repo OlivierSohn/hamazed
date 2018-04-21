@@ -22,7 +22,6 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(state, get, put)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
-
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.State.Types
@@ -41,7 +40,8 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
+import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
 representation :: UpdateEvent -> EventRepr
@@ -53,13 +53,13 @@ representation (Left (ServerError _))    = Error'
 representation (Left (Disconnected _)) = Disconnected'
 representation (Left (EnterState _)) = EnterState'
 representation (Left (ExitState _)) = ExitState'
-representation (Left (RunCommand _ _))        = WorldRequest'
-representation (Left WorldRequest{})        = WorldRequest'
-representation (Left CurrentGameStateRequest) = WorldRequest'
-representation (Left (ChangeLevel _ _)) = ChangeLevel'
-representation (Left (PutGameState _))  = ChangeLevel'
-representation (Left (ConnectionAccepted _ _)) = ConnectionAccepted'
+representation (Left (RunCommand _ _)) = WorldRequest'
+representation (Left WorldRequest{})   = WorldRequest'
+representation (Left ChangeLevel{}) = ChangeLevel'
+representation (Left PutGameState{})  = ChangeLevel'
+representation (Left ConnectionAccepted {}) = ConnectionAccepted'
 representation (Left (ConnectionRefused _)) = ConnectionRefused'
+representation (Left (OnWorldParameters _)) = Chat'
 representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _))     = Chat'
 representation (Left (Reporting _))  = Chat'
@@ -69,11 +69,9 @@ representation (Right e) = case e of
   CycleRenderingOptions _ _ -> CycleRenderingOptions'
   CanvasSizeChanged         -> CycleRenderingOptions'
   RenderingTargetChanged    -> CycleRenderingOptions'
-  Log _ _         -> Configuration'
-  SendChatMessage -> Configuration'
-  Configuration _ -> Configuration'
-  ChatCmd _       -> Configuration'
-  Continue _      -> Configuration'
+  Log _ _         -> Command'
+  SendChatMessage -> Command'
+  ChatCmd _       -> Command'
   Interrupt _ -> Interrupt'
   Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
   Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
@@ -94,7 +92,7 @@ reprToCS Laser'                 = colored "L" cyan
 reprToCS ExitState'             = colored "O" cyan
 reprToCS ConnectionRefused'     = colored "R" cyan
 reprToCS Error'                 = colored "X" cyan
-reprToCS Configuration'         = colored "C" yellow
+reprToCS Command'         = colored "C" yellow
 reprToCS Interrupt'             = colored "I" yellow
 reprToCS CycleRenderingOptions' = colored "R" yellow
 reprToCS ToggleEventRecording'  = colored "T" yellow
@@ -153,7 +151,7 @@ handleEvent e = do
       t1 <- liftIO getSystemTime
       updateAppState evt
       t2 <- liftIO getSystemTime
-      addUpdateTime $ t1...t2)
+      addUpdateTime $!! t1...t2)
     e
 
 {-# INLINE addUpdateTime #-}
@@ -186,8 +184,11 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
 
 groupStats :: EventGroup -> String
 groupStats (EventGroup l _ t _) =
-  replicate (pred $ length l) ' ' ++ "|" ++
-    replicate (10 - length l) ' ' ++ " u " ++ showTime t
+  replicate (pred $ length l) ' ' ++
+  "|" ++
+  replicate (10 - length l) ' ' ++
+  " u " ++
+  showTime t
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m
@@ -206,16 +207,18 @@ renderAll = do
       drawAt msg $ Coords 0 0
       liftIO $ putStrLn msg)
     (\(dtDelta, dtCmds, dtFlush) -> debug >>= \case
-        True -> liftIO $ putStrLn $ " d " ++ showTime (t1...t2)
-                                  ++ " de " ++ showTime dtDelta
-                                  ++ " cmd " ++ showTime dtCmds
-                                  ++ " fl " ++ showTime dtFlush
+        True -> liftIO $ putStrLn $ " d "   ++ showTime' (t1...t2)
+                                 ++ " de "  ++ showTime' dtDelta
+                                 ++ " cmd " ++ showTime' dtCmds
+                                 ++ " fl "  ++ showTime' dtFlush
         False -> return ())
     res
   maybe
     (return ())
     (\_ -> asks writeToClient' >>= \f -> f $ FromClient CanvasSizeChanged)
       mayNewBufferSz
+ where
+  showTime' = justifyR 11 . showTime
 
 {-# INLINABLE getEvtStrs #-}
 getEvtStrs :: MonadState AppState m

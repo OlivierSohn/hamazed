@@ -12,6 +12,7 @@ module Imj.Graphics.Class.DiscreteDistance
         ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(last, maximum)
 
 import           Data.List( length )
 import           Imj.Geo.Discrete.Types
@@ -25,7 +26,7 @@ instance Functor Successive where
   fmap f (Successive l) = Successive $ fmap f l
 instance (HasReferencePosition a) => HasReferencePosition (Successive a) where
   getPosition (Successive []) = zeroCoords -- should we have a Maybe to handle this?
-  getPosition (Successive l) = getPosition $ last l
+  getPosition (Successive l) = getPosition $ Unsafe.last l
   {-# INLINE getPosition #-}
 instance (GeoTransform a) => GeoTransform (Successive a) where
   transform f = fmap (transform f)
@@ -54,8 +55,8 @@ class DiscreteDistance v where
                      -> Int
   distanceSuccessive (Successive []) =
     error "empty successive"
-  distanceSuccessive (Successive l@(_:_)) =
-    succ $ sum $ zipWith (\a b -> pred $ distance a b) l $ tail l
+  distanceSuccessive (Successive l@(_:rest)) =
+    1 + sum (zipWith (\a b -> distance a b - 1) l rest)
 
 -- | Naïve interpolation.
 instance DiscreteDistance Int where
@@ -72,7 +73,7 @@ instance (DiscreteDistance a)
   distance [] _ = 1
   distance _ [] = 1
   distance l l' =
-    maximum $ zipWith distance l $ assert (length l == length l') l'
+    Unsafe.maximum $ zipWith distance l $ assert (length l == length l') l'
 
 -- | Using bresenham 2d line algorithm.
 instance DiscreteDistance (Coords Pos) where
@@ -87,4 +88,4 @@ instance DiscreteDistance (Color8 a) where
 -- | First interpolate background color, then foreground color
 instance DiscreteDistance LayeredColor where
   distance (LayeredColor bg fg) (LayeredColor bg' fg') =
-    succ $ pred (distance bg bg') + pred (distance fg fg')
+    distance bg bg' + distance fg fg' - 1

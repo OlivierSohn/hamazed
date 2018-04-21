@@ -11,7 +11,7 @@ import           Imj.Prelude
 
 import           Control.Monad(when)
 import           Data.IORef( IORef , readIORef, writeIORef)
-import           Data.Vector.Unboxed.Mutable(read, write, length )
+import           Data.Vector.Unboxed.Mutable(unsafeRead, unsafeWrite, length )
 
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                                 (clear, pushBack)
@@ -67,7 +67,7 @@ render mode renderFunc buffers@(Buffers (Buffer b) _ width _ d@(Delta delta) _) 
     FullMode ->
       mapM_
         (\i -> do
-          v <- read b i
+          v <- unsafeRead b i
           Dyn.pushBack delta $ mkIndexedCell v $ fromIntegral i)
         [0..pred $ length b]
 
@@ -87,11 +87,11 @@ computeDelta b@(Buffers (Buffer backBuf) (Buffer frontBuf) _ _ (Delta delta) _) 
   | fromIntegral idx == size = return ()
   | otherwise = do
       let i = fromIntegral idx
-      valueToDisplay <- read backBuf i
-      valueCurrentlyDisplayed <- read frontBuf i
+      valueToDisplay <- unsafeRead backBuf i
+      valueCurrentlyDisplayed <- unsafeRead frontBuf i
       -- TODO skip 2 space characters with the same background colors.
       when (valueToDisplay /= valueCurrentlyDisplayed) $ do
-          write frontBuf i valueToDisplay
+          unsafeWrite frontBuf i valueToDisplay
           Dyn.pushBack delta $ mkIndexedCell valueToDisplay idx
       computeDelta b (succ idx)
   where

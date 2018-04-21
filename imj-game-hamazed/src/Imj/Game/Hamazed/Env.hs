@@ -65,9 +65,13 @@ instance ClientNode (Env x) where
   sendToServer'  (Env _ _ q _) = sendToServer' q
   writeToClient' (Env _ _ q _) = writeToClient' q
   serverQueue    (Env _ _ q _) = serverQueue q
+  belongsTo' (Env _ _ q _) = belongsTo' q
+  cancel' (Env _ _ q _) = cancel' q
   {-# INLINABLE sendToServer' #-}
   {-# INLINABLE writeToClient' #-}
   {-# INLINABLE serverQueue #-}
+  {-# INLINABLE belongsTo' #-}
+  {-# INLINABLE cancel' #-}
 
 instance PlayerInput x => PlayerInput (Env x) where
   plaformQueue     (Env _ a _ _) = plaformQueue a

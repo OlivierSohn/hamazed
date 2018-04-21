@@ -4,17 +4,18 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Imj.Graphics.Text.Animation.Types
-         (
-           TextAnimation(..)
-         , AnchorChars
-         , AnchorStrings
-         ) where
+          ( TextAnimation(..)
+          , mkEmptyTextAnimation
+          , AnchorChars
+          , AnchorStrings
+          ) where
 
 import           Imj.Prelude
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Interpolation
+import           Imj.Timing
 
 -- | One anchor per String
 data AnchorStrings
@@ -38,3 +39,6 @@ data TextAnimation b a = TextAnimation {
 -- I don't need a 'HasReferencePosition' for now on 'TextAnimation'.
 instance GeoTransform (TextAnimation a b) where
   transform f (TextAnimation c d e) = TextAnimation c (transform f d) e
+
+mkEmptyTextAnimation :: TextAnimation a AnchorChars
+mkEmptyTextAnimation = TextAnimation [] (Evolution (Successive []) 0 zeroDuration id) (mkEaseClock zeroDuration 0 id)

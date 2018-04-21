@@ -37,9 +37,20 @@ perceptually earlier shot.
 -}
 
 module Imj.Game.Hamazed.Network.Types
-      ( ConnectionStatus(..)
-      , NoConnectReason(..)
-      , DisconnectReason(..)
+      ( -- * ClientQueues
+        ClientQueues(..)
+      , addRequestAsync
+      , removeRequestAsync
+      , releaseRequestResources
+      -- * Server
+      , Server(..)
+      , ServerType(..)
+      , ServerContent(..)
+      , ServerLogs(..)
+      , ServerPort(..)
+      , ServerName(..)
+      , getServerNameAndPort
+      -- * Player
       , SuggestedPlayerName(..)
       , PlayerName(..)
       , Player(..)
@@ -50,45 +61,54 @@ module Imj.Game.Hamazed.Network.Types
       , mkPlayerColors
       , getPlayerUIName'
       , getPlayerUIName''
+      -- * Connection
+      , ConnectionStatus(..)
+      , NoConnectReason(..)
+      , DisconnectReason(..)
+      -- * Colors
       , ColorScheme(..)
+      -- * Client
       , ServerOwnership(..)
       , ClientState(..)
       , StateNature(..)
       , StateValue(..)
+      -- * Client / Server communication
       , EventsForClient(..)
       , ClientEvent(..)
       , ServerEvent(..)
+      , WorldRequestArg(..)
       , ServerReport(..)
       , Command(..)
       , ClientCommand(..)
       , ServerCommand(..)
       , SharedValueKey(..)
+      , SharedEnumerableValueKey(..)
       , SharedValue(..)
-      , ClientQueues(..)
-      , Server(..)
-      , ServerLogs(..)
-      , ServerPort(..)
-      , ServerName(..)
-      , getServerNameAndPort
       , PlayerNotif(..)
       , GameNotif(..)
       , LeaveReason(..)
       , GameStep(..)
       , GameStatus(..)
+      -- * Game
       , GameStateEssence(..)
       , ShotNumber(..)
       , Operation(..)
       , applyOperations
+      -- * Utils
       , welcome
       ) where
 
 import           Imj.Prelude
+
+import           Control.Concurrent.Async (Async, cancel)
+import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
 import           Control.Concurrent.STM(TQueue)
-import           Control.DeepSeq(NFData)
-import           Data.Map.Strict(Map, elems)
+import qualified Data.Map.Strict as Map(elems, alter, updateLookupWithKey)
+import           Data.Map.Strict(Map)
 import qualified Data.Binary as Bin(encode, decode)
 import           Data.List(foldl')
 import           Data.Set(Set)
+import qualified Data.Set as Set(insert, delete, empty, null)
 import           Data.String(IsString)
 import           Data.Text(unpack)
 import qualified Data.Text.Lazy as Lazy(unpack)
@@ -108,9 +128,20 @@ import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
 import           Imj.Timing
 
 -- | a Server, seen from a Client's perspective
-data Server = Distant !ServerName !ServerPort
-            | Local !ServerLogs !ColorScheme !ServerPort
+data Server = Server {
+    serverType :: !ServerType
+  , serverContent :: !ServerContent
+}  deriving(Generic, Show)
+
+data ServerType =
+    Distant !ServerName
+  | Local !ServerLogs !ColorScheme
   deriving(Generic, Show)
+
+data ServerContent = ServerContent {
+    serverPort :: {-# UNPACK #-} !ServerPort
+  , serverWorldParameters :: !(Maybe WorldParameters)
+}  deriving(Generic, Show)
 
 data ServerLogs =
     NoLogs
@@ -155,9 +186,37 @@ instance NFData StateValue
 -- instead of 'MVar' has the benefit that in case of the connection being closed,
 -- the main thread won't block.
 data ClientQueues = ClientQueues { -- TODO Use -funbox-strict-fields to force deep evaluation of thunks when inserting in the queues
-    getInputQueue :: {-# UNPACK #-} !(TQueue EventsForClient)
-  , getOutputQueue :: {-# UNPACK #-} !(TQueue ClientEvent)
+    inputQueue :: {-# UNPACK #-} !(TQueue EventsForClient)
+  , outputQueue :: {-# UNPACK #-} !(TQueue ClientEvent)
+  , requestsAsyncs :: !(Lazy.MVar RequestsAsyncs)
 }
+
+type RequestId = WorldId
+type RequestsAsyncs = Map RequestId (Set (Async ()))
+
+addRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
+addRequestAsync r a wid =
+  Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
+ where
+  alt = Just . Set.insert a . fromMaybe Set.empty
+
+removeRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
+removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
+ where
+  alt = maybe
+    Nothing
+    (\set ->
+      let s = Set.delete a set
+      in bool (Just s) Nothing $ Set.null s)
+
+releaseRequestResources :: Lazy.MVar RequestsAsyncs -> RequestId -> IO ()
+releaseRequestResources r wid = Lazy.modifyMVar_ r $ \m -> do
+  let (e, m') = Map.updateLookupWithKey (\_ _ -> Nothing) wid m
+  maybe
+    (return ())
+    (mapM_ cancel)
+    e
+  return $! m'
 
 data EventsForClient =
     FromClient !Event
@@ -168,16 +227,17 @@ data EventsForClient =
 data ClientEvent =
     Connect !SuggestedPlayerName {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !StateValue
-  | WorldProposal !(Maybe WorldEssence) !(Maybe Statistics)
-    -- ^ In response to 'WorldRequest'
-  | CurrentGameState {-# UNPACK #-} !GameStateEssence
-    -- ^ In response to ' CurrentGameStateRequest'
+  | WorldProposal !WorldId !(MkSpaceResult WorldEssence) !(Map Properties Statistics)
+    -- ^ In response to 'WorldRequest' 'Build'
+  | CurrentGameState {-# UNPACK #-} !WorldId !(Maybe GameStateEssence)
+    -- ^ In response to 'WorldRequest' 'GetGameState'
   | IsReady {-# UNPACK #-} !WorldId
   -- ^ When the level's UI transition is finished.
   | Action {-unpack sum-} !ActionTarget {-unpack sum-} !Direction
    -- ^ A player action on an 'ActionTarget' in a 'Direction'.
   | LevelEnded {-unpack sum-} !LevelOutcome
   | CanContinue {-unpack sum-} !GameStatus
+  -- NOTE the 3 constructors below could be factored as 'OnCommand' 'Command'
   | RequestApproval {-unpack sum-} !ClientCommand
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
@@ -190,31 +250,37 @@ data ClientEvent =
   deriving(Generic, Show)
 instance Binary ClientEvent
 data ServerEvent =
-    ConnectionAccepted {-# UNPACK #-} !ShipId !(Map ShipId PlayerEssence)
+    ConnectionAccepted {-# UNPACK #-} !ShipId
+                                      !(Map ShipId PlayerEssence)
+                       {-# UNPACK #-} !WorldParameters
   | ConnectionRefused {-# UNPACK #-} !NoConnectReason
   | Disconnected {-unpack sum-} !DisconnectReason
   | EnterState {-unpack sum-} !StateValue
   | ExitState {-unpack sum-} !StateValue
-  | PlayerInfo {-unpack sum-} !PlayerNotif {-# UNPACK #-} !ShipId
+  | PlayerInfo {-unpack sum-} !PlayerNotif
+               {-# UNPACK #-} !ShipId
   | GameInfo {-unpack sum-} !GameNotif
-  | WorldRequest {-# UNPACK #-} !(Time Duration System) !(Maybe Statistics) {-# UNPACK #-} !WorldSpec
-  -- ^ Upon reception, the client should respond with a 'WorldProposal', within the
-  -- given duration. The 'Statistics' should be used as a starting point.
-  | ChangeLevel {-# UNPACK #-} !LevelEssence {-# UNPACK #-} !WorldEssence
+  | WorldRequest {-# UNPACK #-} !WorldId
+                                !WorldRequestArg
+  | ChangeLevel {-# UNPACK #-} !LevelEssence -- TODO merge with WorldRequest
+                {-# UNPACK #-} !WorldEssence
+                {-# UNPACK #-} !WorldId
   -- ^ Triggers a UI transition between the previous (if any) and the next level.
-  | CurrentGameStateRequest
-  -- ^ (reconnection scenario) Upon reception, the client should respond with a 'CurrentGameState'.
-  | PutGameState {-# UNPACK #-} !GameStateEssence
+  | PutGameState {-# UNPACK #-} !GameStateEssence  -- TODO merge with WorldRequest
+                 {-# UNPACK #-} !WorldId
+  | OnWorldParameters {-# UNPACK #-} !WorldParameters
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
-  | CommandError {-unpack sum-} !ClientCommand {-# UNPACK #-} !Text
+  | CommandError {-unpack sum-} !ClientCommand
+                 {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
-  | RunCommand {-# UNPACK #-} !ShipId {-unpack sum-} !ClientCommand
+  | RunCommand {-# UNPACK #-} !ShipId
+               {-unpack sum-} !ClientCommand
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
   | ServerError !String
-  -- ^ A non-recoverable error occured in the server. Before crashing, the server sends the error to its clients.
+  -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)
 instance Binary ServerEvent
 instance WebSocketsData ClientEvent where
@@ -235,6 +301,18 @@ instance WebSocketsData ServerEvent where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
+
+data WorldRequestArg =
+    Build {-# UNPACK #-} !(Time Duration System)
+          {-# UNPACK #-} !WorldSpec
+  | Cancel
+  | GetGameState
+  -- ^ Upon 'Build' reception, the client should respond with a 'WorldProposal', within the
+  -- given duration, except if a later 'Cancel' for the same 'WorldId' is received.
+  --
+  -- Upon 'GetGameState' reception, the client responds with a 'CurrentGameState'
+  deriving(Generic, Show)
+instance Binary WorldRequestArg
 
 data PlayerStatus = Present | Absent
   deriving(Generic, Show)
@@ -275,7 +353,7 @@ getPlayerUIName' = getPlayerUIName ColorString.colored
 getPlayerUIName'' :: Maybe Player -> ColoredGlyphList
 getPlayerUIName'' = getPlayerUIName (ColoredGlyphList.colored . map textGlyph . unpack)
 
-getPlayerUIName :: (IsString a, Monoid a)
+getPlayerUIName :: (IsString a, Semigroup a)
                 => (Text -> Color8 Foreground -> a)
                 -> Maybe Player
                 -> a
@@ -305,14 +383,22 @@ instance Binary ServerReport
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand =
     Put !SharedValue
+  | Succ !SharedEnumerableValueKey
+  | Pred !SharedEnumerableValueKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary ServerCommand
+
+-- | Identifiers of values shared by all players.
+data SharedEnumerableValueKey =
+    BlockSize
+  | WallProbability
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary SharedEnumerableValueKey
 
 -- | Identifiers of values shared by all players.
 data SharedValueKey =
     ColorSchemeCenterKey
   | WorldShapeKey
-  | WallDistributionKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary SharedValueKey
 
@@ -320,7 +406,6 @@ instance Binary SharedValueKey
 data SharedValue =
     ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
   | WorldShape {-unpack sum-} !WorldShape
-  | WallDistribution {-unpack sum-} !WallDistribution
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary SharedValue
 
@@ -411,8 +496,9 @@ data LeaveReason =
 instance Binary LeaveReason
 
 data GameNotif =
-    LevelResult {-# UNPACK #-} !Int {-unpack sum-} !LevelOutcome
+    LevelResult {-# UNPACK #-} !LevelNumber {-unpack sum-} !LevelOutcome
   | GameWon
+  | CannotCreateLevel ![Text] {-# UNPACK #-} !LevelNumber
   deriving(Generic, Show)
 instance Binary GameNotif
 
@@ -421,7 +507,7 @@ welcome l =
   text "Welcome! Players are: "
   <> ColorString.intercalate
       (text ", ")
-      (map (getPlayerUIName' . Just) $ elems l)
+      (map (getPlayerUIName' . Just) $ Map.elems l)
  where
   text x = ColorString.colored x chatMsgColor
 
@@ -430,8 +516,8 @@ newtype SuggestedPlayerName = SuggestedPlayerName String
 
 
 getServerNameAndPort :: Server -> (ServerName, ServerPort)
-getServerNameAndPort (Local _ _ p) = (ServerName "localhost", p)
-getServerNameAndPort (Distant name p) = (name, p)
+getServerNameAndPort (Server (Local _ _) (ServerContent p _)) = (ServerName "localhost", p)
+getServerNameAndPort (Server (Distant name) (ServerContent p _)) = (name, p)
 
 newtype ServerName = ServerName String
   deriving (Show, IsString, Eq)

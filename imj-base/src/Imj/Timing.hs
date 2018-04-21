@@ -43,7 +43,9 @@ module Imj.Timing
     , fromSecs
     , unsafeToSecs
     -- * Utilities
+    , durationRatio
     , withDuration
+    , withDuration_
     , getSystemTime
     , getCurrentSecond
     , getDurationFromNowTo
@@ -55,13 +57,17 @@ module Imj.Timing
     , Int64
     ) where
 
-import           Imj.Prelude hiding(intercalate)
-import           Prelude(length, fromInteger)
-import           Control.DeepSeq(NFData(..))
+import           Imj.Prelude
+import           GHC.Float(float2Double, double2Float)
+import           Prelude(fromInteger)
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
-import           Data.Text(pack, justifyRight, intercalate)
+import qualified Data.List as List
+import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
+
+import           Imj.Data.Class.Quantifiable
+import           Imj.Util
 
 {- | Represents a time.
 
@@ -70,9 +76,9 @@ The phantom type 'a' represents the time space. It could be 'System'
 
  The phantom type 'b' specifies the nature of the time (a point on the timeline
  or a duration)-}
-newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord, Show)
+newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord)
 instance NFData (Time a b) where
-  rnf _ = () -- TimeSpec has unboxed fields so they are already in nf
+  rnf _ = () -- TimeSpec has strict fields so they are already in normal form
 instance Binary (Time Duration a) where
   put (Time (TimeSpec s ns)) = do
     Bin.put s
@@ -86,6 +92,18 @@ instance PrettyVal (Time Point b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:" :: String, s, n)
 instance PrettyVal (Time Duration b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("Duration:" :: String, s, n)
+instance Show (Time Point a) where
+  show = (++) "Time: " . unpack . prettyShowTime
+instance Show (Time Duration a) where
+  show = (++) "Duration: " . showTime
+instance Quantifiable (Time Duration a) where
+  writeFloat = double2Float . unsafeToSecs
+  readFloat = fromSecs . float2Double
+  showQty = showTime
+
+  {-# INLINABLE writeFloat #-}
+  {-# INLINABLE readFloat #-}
+  {-# INLINABLE showQty #-}
 
 {- | A location on a timeline.
 
@@ -119,7 +137,7 @@ fromSystemDuration (Multiplicator m) =
 {-# INLINE toSystemDuration #-}
 toSystemDuration :: Multiplicator a -> Time Duration a -> Time Duration System
 toSystemDuration (Multiplicator m) =
-  (.*) (recip m) . unsafeFromTimeSpec . unsafeGetTimeSpec
+  (.*) (1/m) . unsafeFromTimeSpec . unsafeGetTimeSpec
 
 
 {- | Substraction for 'Time' 'Duration' -}
@@ -163,6 +181,16 @@ unsafeToSecs :: Time Duration a -> Double
 unsafeToSecs (Time (TimeSpec seconds nanos)) =
   fromIntegral seconds + fromIntegral nanos / fromIntegral (10^(9::Int) :: Int)
 
+{-# INLINE durationRatio #-}
+durationRatio :: Time Duration a -> Time Duration a -> Double
+durationRatio a b =
+  let denom = unsafeToSecs b
+  in if denom == 0
+      then
+        -1
+      else
+        unsafeToSecs a / denom
+
 -- | Converts a duration expressed in seconds using a 'Double' to a 'TimeSpec'
 fromSecs :: Double -> Time Duration b
 fromSecs f =
@@ -177,13 +205,21 @@ getSystemTime =
 getDurationFromNowTo :: Time Point System
                      -> IO (Time Duration System)
 getDurationFromNowTo t =
-  getSystemTime >>= \now -> return $ now ... t
+  getSystemTime >>= \now -> return $!! now ... t
 
-showTime :: Time Duration a -> String
-showTime (Time x) =
-  rJustify $ show $ quot (toNanoSecs x) 1000
-  where
-    rJustify txt = replicate (5-length txt) ' ' ++ txt
+-- | Nice for durations.
+showTime :: Time a b -> String
+showTime (Time x)
+ | minutes == 0 = usVal
+ | us == 0 = minutesVal
+ | otherwise = List.unwords [minutesVal, usVal]
+ where
+  minutesVal = show minutes ++ " (min)"
+  (minutes, us) = quotRem us' $ fromIntegral oneMinuteAsMs
+  oneMinuteAsMs = 1000000 * 60 :: Int
+  us' = quot (toNanoSecs x) 1000
+  usVal = usVal' ++ " (us)"
+  usVal' = reverse $ List.intercalate "'" $ splitEvery 3 $ reverse $ show us
 
 {-# INLINE zeroDuration #-}
 zeroDuration :: Time Duration b
@@ -226,7 +262,7 @@ getCurrentSecond :: IO Int
 getCurrentSecond = getSystemTime >>= return . fromInteger . (`quot` (10^(9::Int))) . toNanoSecs . unsafeGetTimeSpec
 
 -- | Prints the time from machine boot. Doesn't print days.
-prettyShowTime :: Time Point System -> Text
+prettyShowTime :: Time Point a -> Text
 prettyShowTime (Time (TimeSpec seconds' ns)) =
   intercalate ":" $
     map (justifyRight 2 '0' . pack . show)
@@ -240,9 +276,15 @@ prettyShowTime (Time (TimeSpec seconds' ns)) =
   (hours'  , minutes) = minutes' `quotRem` 60
   (_       , hours)   = hours'   `quotRem` 24
 
-withDuration :: IO a -> IO (a, Time Duration System)
+{-# INLINABLE withDuration #-}
+withDuration :: (NFData a) => IO a -> IO (Time Duration System, a)
 withDuration act = do
   t <- getSystemTime
   r <- act
-  t' <- getSystemTime
-  return (r, t...t')
+  t' <- r `deepseq` getSystemTime
+  let !dt = t...t'
+  return (dt, r)
+
+{-# INLINABLE withDuration_ #-}
+withDuration_ :: (NFData a) => IO a -> IO (Time Duration System)
+withDuration_ act = fst <$> withDuration act

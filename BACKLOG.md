@@ -1,45 +1,75 @@
-- Make mode "no wall" equivalent to 0 probability:
-when multiplayer is on, allow every ship to be in the same cc i.e relax the constraint on number of cc.
+- make a standalone library for generating rectangle binary random (small) worlds.
+(move tests of topology there)
 
-- allow to change block size and wall air ratio
-- while searching for a world, display this status message:
+- benchmark:
+instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
+(On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
+When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 
-Generating a world with :
-  1 connected component(s)
-  logic size 12*6
-  block size 6
-  70 % wall
+- music:
+https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
 
-World generation started 4 seconds ago, using random matrices, with columns and
-row shuffling and matrix rotation.
-12345 random matrices were generated
-21312354 interleaved matrices were generated
-1235416253 rotated matrices were generated
-32149 Worlds were tested.
-2212 were rejected due to fronteer issues.
-The other have the following connected component distribution:
-CC 2 .
-CC 3 ...
+- Add music :
+  slow (ternary) :
+  1st voice:
+  do . .
+  | . sol
+  ré - -
+  - mib fa
+  sol mib do
+  ré . vsol
+  do . .
+  sol mib v si (alternate with variations :
+    sol fa mib,
+    sol lab sol,
+    fa mi réb,
+    ré . v sol,
+    ré mib ré,
+    sol sol sol,
+    ré sol vsol)
 
-- bug:
-one client is computing a world,
-one client is joining, triggers the computation of a new world.
-Instead we should detect that a world is already being computed and don't need
-to trigger a new computation.
+  2nd voice:
+  . . sol
+  . . .
+  . . sol
+  . . .
+  mib . .
+  fa . .
+  mib . .
+  ré . .
 
-- adjust the gap of number of cc in 'tryRotationsIfAlmostMatches' to optimize world generation time.
+  fast: (when game goes faster)
+  1st voice:
 
-- over different permutation strategies, measure :
-span of number of connected components, over number of permutations used.
-The idea being to find the permutation strategy where with a minimal amount
-of permutation we can generate a big variety of number of cc (so that permutating
-  becomes interesting vs generating fresh random numbers).
+  do ré mib fa
+  sol . do ré
+  mib fa sol .
+  do ré mib fa
+  ré - - -
+  - - - -
+  lab . . .
+  sol . . .
 
-- optimize world creation with .7 ratio:
-  try 02
-  use Int and bit shifts (8 bit precision to have 4 random numbers per call)
-  replace Material by Int + constants
-  parallellism: see how to set capabilities, and how to race between cores.
+  ^do sib la sol
+  . . ^do sib
+  la sol . .
+  do ré mi fa
+  sol - - -
+  fa - - -
+  mib - - -
+  v sol . . .
+
+  2nd voice:
+  mib fa sol lab
+  sol . sol lab
+  sol fa sol .
+  sol fa mib fa
+  . . sol .
+  v sol . sol .
+  . . sol .
+  mib . ré .
+
+- bug : when client reconnects, it is not reflected in the name until world is there.
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)
@@ -74,8 +104,6 @@ maybe in UIRectangle, too?
 maybe we need to make _ higher, | smaller, etc... the idea is to not modify 0-9 a-f Z T
 maybe we need to move + and - to make them be in the center.
 - maybe we need 2 .ttf fonts, else modified _ would look strange in messages, and pipes too ?
-
-- replace unboxed by Storable?
 
 - one-click "increment / decrement r,g or b (maybe use r,g,b keys)
 

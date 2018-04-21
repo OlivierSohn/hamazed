@@ -4,9 +4,11 @@ import           Control.Monad.Reader(runReaderT)
 import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Naive
 
+import           Test.Imj.Quantifiable
 import           Test.Imj.Bresenham2
 import           Test.Imj.Bresenham3
 import           Test.Imj.Color
+import           Test.Imj.CyclicMatrix
 --import           Test.Imj.Ease
 import           Test.Imj.FreeType2
 import           Test.Imj.Font
@@ -52,6 +54,10 @@ main = do
   testFont
   testFreeType2
   testFreeType2'
+
+  clearScreen
   testInterleaveHalves
+  testCyclicMatrix
+  testAverageable
   putStrLn ""
   return ()

@@ -20,7 +20,7 @@ module Imj.Graphics.Text.ColoredGlyphList
             , LayeredColor(..)
             ) where
 
-import           Imj.Prelude hiding(take, intercalate, concat)
+import           Imj.Prelude
 
 import           Control.Monad.Reader.Class(asks)
 import           Data.String(IsString(..))
@@ -46,12 +46,22 @@ instance IsString ColoredGlyphList where
   fromString str =
     let !color = whiteOnBlack
     in ColoredGlyphList $ map (\c -> (textGlyph c, color)) str
+instance Semigroup ColoredGlyphList where
+  (ColoredGlyphList x) <> (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
 instance Monoid ColoredGlyphList where
   mempty = ColoredGlyphList []
-  mappend (ColoredGlyphList x) (ColoredGlyphList y) = ColoredGlyphList $ x ++ y
+  mappend = (<>)
 instance Characters ColoredGlyphList where
   length (ColoredGlyphList l) = List.length l
   empty (ColoredGlyphList l) = null l
+
+  cons c (ColoredGlyphList l) = ColoredGlyphList $ (textGlyph c, whiteOnBlack):l
+
+  intercalate (ColoredGlyphList i) =
+    ColoredGlyphList . List.intercalate i . map (\(ColoredGlyphList s) -> s)
+
+  take n (ColoredGlyphList l) =
+    ColoredGlyphList $ List.take n l
 
   splitAt idx (ColoredGlyphList l) =
     (ColoredGlyphList left
@@ -59,23 +69,15 @@ instance Characters ColoredGlyphList where
     where
       (left,right) = List.splitAt idx l
 
-  drawOnPath positions (ColoredGlyphList l) = do
-    d <- asks drawGlyph'
-    zipWithM_ (\pos (glyph, color) -> d glyph pos color) positions l
-  {-# INLINABLE drawOnPath #-}
-  {-# INLINABLE splitAt #-}
-  {-# INLINABLE empty #-}
-  {-# INLINABLE length #-}
-instance Words ColoredGlyphList where
-  unwords :: [SingleWord ColoredGlyphList] -> ColoredGlyphList
-  unwords l = intercalate (ColoredGlyphList [(sp, color)]) $ map (\(SingleWord w) -> w) l
+  concat = ColoredGlyphList . concatMap (\(ColoredGlyphList s) -> s)
+
+  unwords = intercalate (ColoredGlyphList [(sp, color)])
    where
     !sp = textGlyph ' '
     !color = whiteOnBlack
 
-  words :: ColoredGlyphList -> [SingleWord ColoredGlyphList]
   words (ColoredGlyphList str) =
-    map (SingleWord . ColoredGlyphList) $ go str
+    map ColoredGlyphList $ go str
    where
     isSpace = (' ' ==) . fst . decodeGlyph . fst
     go s = case List.dropWhile isSpace s of
@@ -83,6 +85,21 @@ instance Words ColoredGlyphList where
             s' -> w : go s''
               where
                 (w, s'') = List.break isSpace s'
+
+  colorize color (ColoredGlyphList l) =
+    ColoredGlyphList $ map (\(t, _) -> (t, color)) l
+
+  drawOnPath positions (ColoredGlyphList l) = do
+    d <- asks drawGlyph'
+    zipWithM_ (\pos (glyph, color) -> d glyph pos color) positions l
+  {-# INLINABLE drawOnPath #-}
+  {-# INLINABLE splitAt #-}
+  {-# INLINABLE concat #-}
+  {-# INLINABLE intercalate #-}
+  {-# INLINABLE take #-}
+  {-# INLINABLE cons #-}
+  {-# INLINABLE empty #-}
+  {-# INLINABLE length #-}
   {-# INLINABLE words #-}
   {-# INLINABLE unwords #-}
 -- | First interpolating characters, then color.
@@ -96,12 +113,7 @@ instance DiscreteDistance ColoredGlyphList where
         s1' = assert (remaining == 0) c1'
         l = zipWith colorDist s1' s2 -- since color interpolation happends AFTER char changes,
                                      -- we compare colors with result of char interpolation
-        colorDistance =
-          if null l
-            then
-              1
-            else
-              maximum l
+        colorDistance = fromMaybe 1 $ maximumMaybe l
 
         str1 = map fst s1
         str2 = map fst s2
@@ -130,21 +142,9 @@ instance Positionable ColoredGlyphList where
   {-# INLINABLE height #-}
 
 
-{-# INLINE concat #-}
-concat :: [ColoredGlyphList] -> ColoredGlyphList
-concat = ColoredGlyphList . concatMap (\(ColoredGlyphList s) -> s)
-
-intercalate :: ColoredGlyphList -> [ColoredGlyphList] -> ColoredGlyphList
-intercalate (ColoredGlyphList i) =
-  ColoredGlyphList . List.intercalate i . map (\(ColoredGlyphList s) -> s)
-
 colored' :: [Glyph] -> LayeredColor -> ColoredGlyphList
 colored' l color =
   ColoredGlyphList $ map (\c -> (c,color)) l
 
 colored :: [Glyph] -> Color8 Foreground -> ColoredGlyphList
 colored t c = colored' t $ onBlack c
-
-take :: Int -> ColoredGlyphList -> ColoredGlyphList
-take n (ColoredGlyphList l) =
-  ColoredGlyphList $ List.take n l

@@ -49,8 +49,7 @@ import           Control.Monad.Primitive(RealWorld, PrimMonad, PrimState)
 import           Data.Primitive.MutVar(MutVar, readMutVar, newMutVar, writeMutVar)
 
 import           Data.Vector.Unboxed(Unbox)
-import qualified Data.Vector.Unboxed.Mutable as MV(MVector, take, length, new, unsafeRead,
-                                                  unsafeGrow, unsafeWrite)
+import qualified Data.Vector.Unboxed.Mutable as MV
 
 
 -- | Mutable vector with dynamic behaviour living in the ST or IO monad.
@@ -101,7 +100,7 @@ new :: (PrimMonad m, Unbox a)
     => Int -- ^ Capacity, must be positive
     -> m (MVector (PrimState m) a)
 new i =
-    MV.new i >>= fmap MVector . newMutVar . MVectorData 0
+    MV.unsafeNew i >>= fmap MVector . newMutVar . MVectorData 0
 {-# INLINABLE new #-}
 
 -- | Read by index. Performs bounds checking.

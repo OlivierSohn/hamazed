@@ -44,9 +44,6 @@ matrix:
   include:
   # We grab the appropriate GHC and cabal-install versions from hvr's PPA. See:
   # https://github.com/hvr/multi-ghc-travis
-  - env: BUILD=cabal GHCVER=8.0.2 CABALVER=1.24 HAPPYVER=1.19.5 ALEXVER=3.1.7
-    compiler: ": #GHC 8.0.2"
-    addons: {apt: {packages: [cabal-install-1.24,ghc-8.0.2, *glfw_deps, *FTGL_deps], sources: [hvr-ghc]}}
 
   # Build with the newest GHC and cabal-install. This is an accepted failure,
   # see below.
@@ -56,8 +53,11 @@ matrix:
 
   # The Stack builds. We can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
-  - env: BUILD=stack ARGS="--resolver lts-11.1"
-    compiler: ": #stack LTS 11.1 (GHC 8.2.2)"
+  - env: BUILD=stack ARGS="--resolver lts-11.5"
+    compiler: ": #stack LTS 11.5 (GHC 8.2.2)"
+    addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
+  - env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
+    compiler: ": #stack nightly-2018-04-20 (GHC 8.4.1)"
     addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
 
   # Nightly builds are allowed to fail
@@ -66,8 +66,7 @@ matrix:
     addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
 
   allow_failures:
-    # Because I use aunpublished glfw bindings:
-  - env: BUILD=cabal GHCVER=8.0.2 CABALVER=1.24 HAPPYVER=1.19.5 ALEXVER=3.1.7
+    # Because I use unpublished packages:
   - env: BUILD=stack ARGS="--resolver nightly"
 
 before_install:
@@ -106,7 +105,7 @@ install:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies
+      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies -j1
       ;;
     cabal)
       cabal --version
@@ -125,7 +124,7 @@ script:
   set -ex
   case "$BUILD" in
     stack)
-      stack --no-terminal $ARGS test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps
+      stack --no-terminal $ARGS test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps -j1
       ;;
     cabal)
       cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES

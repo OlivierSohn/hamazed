@@ -19,7 +19,6 @@ import           Imj.Prelude
 
 import           Control.Concurrent.MVar.Strict(MVar, newMVar, swapMVar, readMVar)
 import           Control.Concurrent.STM(TQueue, atomically, newTQueueIO, writeTQueue, tryPeekTQueue)
-import           Control.DeepSeq(NFData)
 import           Data.ByteString(ByteString)
 import           Data.Char(isHexDigit, digitToInt)
 import           Data.Text(pack)
@@ -29,7 +28,7 @@ import qualified Graphics.UI.GLFW          as GLFW
 import           Foreign.Ptr(nullPtr)
 import           System.IO(print, putStrLn)
 
-import           Data.Vector.Unboxed.Mutable(read)
+import           Data.Vector.Unboxed.Mutable(unsafeRead)
 import qualified Imj.Data.Vector.Unboxed.Mutable.Dynamic as Dyn
                         (IOVector, accessUnderlying, length)
 
@@ -60,7 +59,7 @@ windowCloseCallback q _ =
 
 -- When resizing a window using a mouse drag of the borders, plenty of FramebufferSizeChanges
 -- events are polled at once, at the end of the motion. Hence, to avoid slowing the app down
--- at that moment, we dedupe.
+-- at that moment, we dedup.
 framebufferSizeCallback :: TQueue PlatformEvent -> GLFW.Window -> Int -> Int -> IO ()
 framebufferSizeCallback q _ _ _ = atomically $ tryPeekTQueue q >>= maybe
   write
@@ -307,7 +306,7 @@ renderDelta win ppu fonts rs delta' w = do
       renderDelta' index
        | fromIntegral sz == index = return ()
        | otherwise = do
-          c <- read delta $ fromIntegral index
+          c <- unsafeRead delta $ fromIntegral index
           let (bg, fg, idx, glyph) = expandIndexed c
               (char,fontIndex) = decodeGlyph glyph
               font = lookupFont fontIndex fonts
@@ -346,8 +345,8 @@ draw ppu size font rs col row char bg fg
       drawSquare ppu size (fromIntegral col) (fromIntegral row) $ GL.Color3 bR bG (bB :: GL.GLfloat)
       renderChar font ppu size col row char $ GL.Color3 fR fG (fB :: GL.GLfloat)
  where
-   (bR,bG,bB) = color8ToUnitRGB bg
-   (fR,fG,fB) = color8ToUnitRGB fg
+   (UnitColor bR bG bB) = color8ToUnitRGB bg
+   (UnitColor fR fG fB) = color8ToUnitRGB fg
 
 
 renderChar :: Font -> PPU -> Size -> Dim Col -> Dim Row -> Char -> GL.Color3 GL.GLfloat -> IO ()

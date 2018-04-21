@@ -12,8 +12,9 @@ module Imj.Graphics.Text.ColorString.Interpolation
             ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(last,head)
 
-import           Data.List(length, splitAt)
+import           Data.List(length, splitAt, take)
 
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Color.Types
@@ -83,12 +84,12 @@ interpolateChars s1 s2 i =
             then
               Nothing
             else
-              Just $ snd $ last pre
+              Just $ snd $ Unsafe.last pre
         , if null commonSuff
             then
               Nothing
             else
-              Just $ snd $ head commonSuff ]
+              Just $ snd $ Unsafe.head commonSuff ]
 
       remaining = (totalCD + abs signedTotalExDiff) - i
 

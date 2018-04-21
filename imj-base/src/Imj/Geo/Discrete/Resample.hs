@@ -9,9 +9,9 @@ module Imj.Geo.Discrete.Resample
 
 import           Imj.Prelude
 
-import           Data.List( length )
+import           Data.List(length, replicate, take)
 
-import           Imj.Util( replicateElements )
+import           Imj.Util(replicateElements)
 
 
 {- | Resamples a list, using the analogy where a list
@@ -118,16 +118,16 @@ resampleRec :: Int
             --   \( r \) times, or \( r + 1 \) times if distance to next overrepresentation == 0
             -> [a]
 resampleRec _ _ _ _ [] _ = []
-resampleRec m' n curIdx (overRepIdx, s) l@(_:_) r =
+resampleRec m' n curIdx (overRepIdx, s) (v:vs) r =
   let (nCopies, nextState)
 -- uncomment the following line to debug cases where the assert on the line after would fail:
 --        | overIdx < curIdx = error ("\noverIdx " ++ show overIdx ++ "\ncurIdx  " ++ show curIdx ++ "\nm' " ++ show m' ++ "\nn " ++ show n ++ "\ns " ++ show s)
         | assert (overRepIdx >= curIdx) overRepIdx == curIdx
-                = let nextS = succ s
+                = let nextS = s + 1
                       nextOverRepIdx = getOverRepIdx m' n nextS
-                  in  (succ r, (nextOverRepIdx, nextS))
-        | otherwise = (r     , (overRepIdx    , s))
-  in replicate nCopies (head l) ++ resampleRec m' n (succ curIdx) nextState (tail l) r
+                  in  (r + 1, (nextOverRepIdx, nextS))
+        | otherwise = (r    , (overRepIdx    , s))
+  in replicate nCopies v ++ resampleRec m' n (curIdx + 1) nextState vs r
 
 
 -- | Returns maxBound when there is no over-representation

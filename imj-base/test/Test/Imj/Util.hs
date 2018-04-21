@@ -10,8 +10,12 @@ import           Imj.Prelude
 
 import           Imj.Util
 
+import           Imj.Data.AlmostFloat
+
 testUtils :: IO ()
 testUtils = do
+  testMapRange
+
   mkGroups 5 ([]::[Int]) `shouldBe` [[],[],[],[],[]]
   mkGroups 5 [1::Int] `shouldBe` [[1],[],[],[],[]]
   mkGroups 6 [1,2,3,4,5,6::Int] `shouldBe` [[1],[2],[3],[4],[5],[6]]
@@ -19,6 +23,18 @@ testUtils = do
   mkGroups 1 [1,2,3,4,5,6::Int] `shouldBe` [[1,2,3,4,5,6]]
   mkGroups 3 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5,6]]
   mkGroups 4 [1,2,3,4,5,6::Int] `shouldBe` [[1,2],[3,4],[5],[6]]
+
+testMapRange :: IO ()
+testMapRange = do
+  fromMaybe (error "test") (mapRange 0   1   0    10 0.5) `shouldBeAlmost` 5
+  fromMaybe (error "test") (mapRange 0.5 1   0    10 0.5) `shouldBeAlmost` 0
+  fromMaybe (error "test") (mapRange 0   0.5 0    10 0.5) `shouldBeAlmost` 10
+
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 0.5) `shouldBeAlmost` 0
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 0)   `shouldBeAlmost` (-5)
+  fromMaybe (error "test") (mapRange 0   1   (-5) 5 1)   `shouldBeAlmost` 5
+  mapRange (1 :: Double) 1 2 1 2 `shouldBe` Nothing
+
 
 testLogBase2 :: IO ()
 testLogBase2 = do
@@ -28,6 +44,14 @@ testLogBase2 = do
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =
   if actual == expected
+    then
+      return ()
+    else
+      error $ "expected\n" ++ show expected ++ " but got\n" ++ show actual
+
+shouldBeAlmost :: Float -> Float -> IO ()
+shouldBeAlmost actual expected =
+  if almost actual == almost expected
     then
       return ()
     else

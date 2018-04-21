@@ -72,9 +72,9 @@ class (DiscreteDistance v) => DiscreteInterpolation v where
                         -> v
   interpolateSuccessive (Successive []) _ = error "empty successive"
   interpolateSuccessive (Successive [a]) _ = a
-  interpolateSuccessive (Successive l@(a:b:_)) i
+  interpolateSuccessive (Successive (a:rest@(b:_))) i
     | i <= 0      = a
-    | i >= lf = interpolateSuccessive (Successive $ tail l) $ i-lf
+    | i >= lf = interpolateSuccessive (Successive rest) $ i-lf
     | otherwise = interpolate a b i
     where lf = pred $ distance a b
 

@@ -1,23 +1,27 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Test.Imj.Sums
          ( testSums
          ) where
 
 import           Imj.Prelude
-import           Prelude(logBase)
+
 import           Control.Exception (evaluate)
-import           Data.List(foldl', length)
-import qualified Data.Set as Set(fromList, toList, empty, singleton, filter, size)
+import           Data.List(foldl', length, replicate)
+import qualified Data.Set as Set
+import qualified Data.IntSet as ISet
 import           Data.Text(pack)
-import qualified Data.Text.IO as Text (putStr)
 import           System.IO(putStr, putStrLn)
 
-import qualified Imj.Data.Tree as Tree
+import           Imj.Data.Class.Quantifiable
+import qualified Imj.Data.Tree as Filt(Filterable(..))
 import           Imj.Graphics.Color
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
+import qualified Imj.Graphics.Text.ColorString  as CS(putStr)
 import           Imj.Sums
 import           Imj.Timing
+import           Imj.Util
 
 testSums :: IO ()
 testSums = do
@@ -25,7 +29,7 @@ testSums = do
 
   mkSums Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSums (Set.fromList [1,2,3,4,5]) 3
-   `shouldBe` Set.fromList (map Set.fromList [[3],[1,2]])
+   `shouldBe` Set.fromList (map Set.fromList [[3],[2,1]])
   mkSums (Set.fromList [2,3,4,5]) 18
    `shouldBe` Set.empty
   mkSums (Set.fromList [2,3,4,5]) 1
@@ -35,40 +39,56 @@ testSums = do
 
   mkSumsArray Set.empty 0 `shouldBe` Set.singleton Set.empty
   mkSumsArray (Set.fromList [1,2,3,4,5]) 3
-   `shouldBe` Set.fromList (map Set.fromList [[3],[1,2]])
+   `shouldBe` Set.fromList (map Set.fromList [[3],[2,1]])
   mkSumsArray (Set.fromList [2,3,4,5]) 18
    `shouldBe` Set.empty
   mkSumsArray (Set.fromList [2,3,4,5]) 1
    `shouldBe` Set.empty
 
+  -- verify all output lists are descending
+  let verify x = Set.fromList (Filt.toList $ x [1,2,3,3,4,5,6,9,9] 3) `shouldBe` Set.fromList [[3],[2,1]]
+  verify mkSumsN
+  verify mkSumsStrictN
+  verify mkSumsStrictN2
+  verify $ mkSumsStrict . ISet.fromList
+  verify $ mkSumsStrict2 . Set.fromList
+  verify $ mkSumsArray' . Set.fromList
+  verify $ mkSumsArray'' . Set.fromList
+  verify $ mkSumsLazy . Set.fromList
+
   -- Using different implementations to find the number
   -- of different combinations of length < 6.
   -- The fastest way is to use a 'StrictTree' ('mkSumsStrict').
 
-  let !numbers = Set.fromList maxHamazedNumbers
+  let !numbersL = maxHamazedNumbers
+      !numbersS = Set.fromList maxHamazedNumbers
+      !numbersIS = ISet.fromList maxHamazedNumbers
+
       measure n countCombinations =
-        time $ void $ evaluate $
-          countCombinations numbers (quot (maxSum * n) n) -- trick to force a new evaluation
+        fst <$> withDuration (void $ evaluate $ force $
+          countCombinations numbersL numbersS numbersIS (quot (maxSum * n) n)) -- trick to force a new evaluation
       tests =
-        [ ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        a b)            , "mkSums filter")
-        , ((\a b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   a b)            , "mkSumsArray filter")
-        , ((\a b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  a b)            , "mkSumsArray' filter")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsStrict  a b)            , "mkSumsStrict filter")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length   s < 6) $ mkSumsLazy    a b)            , "mkSumsLazy filter")
-        , ((\a b -> Set.size                                             $ mkSums       a b)               , "mkSums")
-        , ((\a b -> Set.size                                             $ mkSumsArray  a b)               , "mkSumsArray")
-        , ((\a b -> Tree.countValues                                     $ mkSumsArray' a b)               , "mkSumsArray'")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrict2 a b)              , "mkSumsStrict2")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrict a b)               , "mkSumsStrict")
-        , ((\a b -> Tree.countValues                                     $ mkSumsLazy   a b)               , "mkSumsLazy")
-        , ((\a b -> Tree.countValues $ Tree.filter  (\s -> length s < 6) $ mkSumsStrictN  (Set.toList a) b), "mkSumsStrictN filter")
-        , ((\a b -> length           $ Tree.filter  (\s -> length s < 6) $ mkSumsN        (Set.toList a) b), "mkSumsN filter'")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrictN  (Set.toList a) b), "mkSumsStrictN")
-        , ((\a b -> Tree.countValues                                     $ mkSumsStrictN2 (Set.toList a) b), "mkSumsStrictN2")
-        , ((\a b -> Tree.countValues                                     $ mkSumsN        (Set.toList a) b), "mkSumsN")
+        [ (\_ aS _ b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSums        aS b            , "mkSums filter")
+        , (\_ aS _ b -> Set.size         $ Set.filter   (\s -> Set.size s < 6) $ mkSumsArray   aS b            , "mkSumsArray filter")
+        , (\_ aS _ b -> length           $ filter       (\s -> length   s < 6) $ mkSumsArray'  aS b            , "mkSumsArray' filter")
+        , (\_ aS _ b -> Set.size         $ Set.filter   (\s -> length   s < 6) $ mkSumsArray'' aS b            , "mkSumsArray'' filter")
+        , (\_ _ aIS b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsStrict  aIS b , "mkSumsStrict filter")
+        , (\_ aS _ b -> Filt.countValues $ Filt.filter  (\s -> length   s < 6) $ mkSumsLazy    aS b            , "mkSumsLazy filter")
+        , (\_ aS _ b -> Set.size                                             $ mkSums          aS b               , "mkSums")
+        , (\_ aS _ b -> Set.size                                             $ mkSumsArray     aS b               , "mkSumsArray")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsArray'    aS b               , "mkSumsArray'")
+        , (\_ aS _ b -> Set.size                                             $ mkSumsArray''   aS b               , "mkSumsArray''")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsStrict2   aS b              , "mkSumsStrict2")
+        , (\_ _ aIS b -> Filt.countValues                                     $ mkSumsStrict    aIS b , "mkSumsStrict")
+        , (\_ aS _ b -> Filt.countValues                                     $ mkSumsLazy      aS b               , "mkSumsLazy")
+        , (\aL _ _ b -> Filt.countValues $ Filt.filter  (\s -> length s < 6) $ mkSumsStrictN   aL b, "mkSumsStrictN filter")
+        , (\aL _ _ b -> length           $ Filt.filter  (\s -> length s < 6) $ mkSumsN         aL b, "mkSumsN filter'")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsStrictN   aL b, "mkSumsStrictN")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsStrictN2  aL b, "mkSumsStrictN2")
+        , (\aL _ _ b -> Filt.countValues                                     $ mkSumsN         aL b, "mkSumsN")
         ]
   let nTestRepeat = 100
-  times <-
+  times <- (numbersL, numbersS, numbersIS) `deepseq`
     mapM
       (\n -> mapM (measure n . fst) tests)
       [1..nTestRepeat] :: IO [[Time Duration System]]
@@ -76,7 +96,7 @@ testSums = do
     zip
       (map snd tests) $
       map
-        (round . (/ (fromIntegral nTestRepeat :: Float)) . fromIntegral . toMicros) $
+        (readFloat . (/ (fromIntegral nTestRepeat :: Float)) . writeFloat) $
         foldl'
           (zipWith (|+|))
           (repeat zeroDuration)
@@ -98,33 +118,26 @@ testAsOccurences = do
     , ValueOccurences 2 3
     ]
 
-printTimes :: [(String, Int64)] -> IO ()
+printTimes :: [(String, Time Duration System)] -> IO ()
+printTimes [] = putStrLn "No time"
 printTimes times = do
   putStrLn "micros|Logarithmic scale"
-  mapM_ (\(desc, dt) -> do
-    let n = round $ countStars dt
-        s = show dt
+  forM_ (zip times logTimes) $ \((desc, dt), logRatio) -> do
+    let n = countStars logRatio
+        s = showTime dt
         s' = replicate (nCharsTime - length s) ' ' ++ s
-        inColor = safeBuildTxt $ colored (pack $ replicate n '+') green <>
-                                 colored (pack $ replicate (nStars - n) '.') (gray 14)
+        inColor =
+          colored (pack $ replicate n '+') (gray 19) <>
+          colored (pack $ replicate (nStars - n) '.') (gray 5)
     putStr $ s' ++ " "
-    Text.putStr inColor
-    putStr $ " " ++ desc ++ "\n") times
+    CS.putStr inColor
+    putStr $ " " ++ desc ++ "\n"
  where
-  nCharsTime = length $ show $ maximum $ map snd times
+  nCharsTime = length $ showTime $ fromMaybe (error "logic") $ maximumMaybe $ map snd times
   nStars = 120
-  countStars dt =
-    let d = logBase minD (fromIntegral dt)
-    in succ $ fromIntegral (pred nStars) * (d - 1) / (ratioMax - 1)
-  ratioMax = logBase minD maxD
-  maxD = fromIntegral $ maximum $ map snd times
-  minD = fromIntegral $ minimum $ map snd times :: Float
-time :: IO () -> IO (Time Duration System)
-time action = do
-  start <- getSystemTime
-  action
-  end <- getSystemTime
-  return $ start...end
+  countStars x = round $ fromIntegral nStars * x
+  logTimes = logarithmically 10 $ map snd times
+
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

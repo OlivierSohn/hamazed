@@ -12,6 +12,7 @@ module Imj.Game.Hamazed.World.Number(
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
+import           Data.List(concat)
 import qualified Data.Map.Strict as Map(elems)
 
 import           Imj.Game.Hamazed.State.Types

@@ -5,7 +5,7 @@ module Test.Imj.Color
          ) where
 
 import           Imj.Prelude
-import           Prelude(length)
+import           Prelude(length, concat)
 
 import           Data.Set(fromList)
 
@@ -13,6 +13,8 @@ import           Imj.Graphics.Color.Types
 
 import           Imj.Graphics.Color.Hue
 import           Imj.Graphics.Color.Hue.Internal
+
+import           Imj.Data.AlmostFloat
 
 testColor :: IO ()
 testColor = do
@@ -29,8 +31,11 @@ testIntensities = do
     (\i -> do
       let ref = saturatedCycle $ mkIntensity i
           n = length ref
-      n `shouldBe` countHuesOfSameIntensity (head ref)
-      fromList ref `shouldBe` fromList (sameIntensityHues (head ref)))
+      case ref of
+        [] -> error "test"
+        (r:_) -> do
+          n `shouldBe` countHuesOfSameIntensity r
+          fromList ref `shouldBe` fromList (sameIntensityHues r))
     [1..5]
 
 testRotateColorsWithHue :: IO ()
@@ -114,14 +119,6 @@ saturatedCycle (Intensity i) = concat
   , map (\x -> rgb x     0     i    ) [0..pred i]
   , map (\x -> rgb i     0     (i-x)) [0..pred i]
   ]
-
-almost :: Float -> AlmostFloat
-almost = AlmostFloat
-
-newtype AlmostFloat = AlmostFloat Float
-  deriving(Show)
-instance Eq AlmostFloat where
-  (AlmostFloat x) == (AlmostFloat y) = abs (x-y) < 1e-6
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

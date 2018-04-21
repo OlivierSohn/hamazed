@@ -2,7 +2,7 @@ name:                imj-profile
 version:             0.1.0.3
 Category:            Application
 Synopsis:            Profiling tool.
-Description:         An executable used to profil some parts of the program
+Description:         An executable used to profile some parts of the program
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-profile//README.md
 bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
 license:             BSD3
@@ -16,18 +16,77 @@ cabal-version:       >=1.10
 
 Tested-With: GHC == 8.0.2, GHC == 8.2.2
 
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Imj.File
+                     , Imj.Random.Image
+                     , Imj.Random.MWC.Image
+                     , Imj.Random.MWC.Util
+                     , Imj.Random.MWC.Seeds
+                     , Imj.Random.MWC.MkSeeds
+                     , Imj.Random.Test
+                     , Imj.Random.Util
+                     , Imj.Profile.Intent
+                     , Imj.Profile.Render
+                     , Imj.Profile.Render.Characters
+                     , Imj.Profile.Render.Clay
+                     , Imj.Profile.Render.Blaze
+                     , Imj.Profile.Result
+                     , Imj.Profile.Results
+                     , Imj.Profile.Scheduler
+  other-modules:
+  build-depends:       base >= 4.9 && < 4.12
+                     , binary == 0.8.*
+                     , blaze-html ==0.9.*
+                     , bytestring == 0.10.*
+                     , clay ==0.13.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , directory ==1.3.*
+                     , filepath ==1.4.*
+                     , file-embed ==0.0.*
+                     , imj-base ==0.1.*
+                     , imj-game-hamazed ==0.1.*
+                     , imj-prelude ==0.1.*
+                     , JuicyPixels ==3.2.*
+                     , mwc-random ==0.13.*
+                     , random ==1.1.*
+                     , strict-concurrency ==0.2.*
+                     , text >=1.2.3 && < 1.3
+                     , time ==1.8.*
+                     , unix ==2.7.*
+                     , uuid ==1.3.*
+                     , vector >= 0.12.0.1 && < 0.13
+  default-language:    Haskell2010
+
+
 executable imj-profile-exe
   hs-source-dirs:      app
   main-is:             Main.hs
-  ghc-options:       -Wall -fpedantic-bottoms -Wredundant-constraints
-                     -threaded -rtsopts -with-rtsopts=-maxN4
-                     -fexcess-precision -optc-ffast-math
-  build-depends:       base >= 4.8 && < 4.11
-                     , containers >= 0.5.9.2
+  build-depends:       base >= 4.9 && < 4.12
+                     , containers ==0.5.*
                      , imj-game-hamazed ==0.1.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
+                     , imj-profile
                      , mwc-random ==0.13.*
+                     , strict-concurrency ==0.2.*
+                     , uuid ==1.3.*
+                     , vector >= 0.12.0.1 && < 0.13
+  default-language:    Haskell2010
+
+
+test-suite imj-profile-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:       Test.Imj.ShouldTest
+  main-is:             Spec.hs
+  build-depends:       base >= 4.9 && < 4.12
+                     , containers ==0.5.*
+                     , imj-prelude ==0.1.*
+                     , imj-profile
+                     , imj-game-hamazed ==0.1.*
   default-language:    Haskell2010
 
 source-repository head

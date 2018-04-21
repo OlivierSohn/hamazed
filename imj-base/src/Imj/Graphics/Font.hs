@@ -42,14 +42,13 @@ module Imj.Graphics.Font
 
 import           Imj.Prelude
 
-import           Control.DeepSeq(NFData)
 import           Data.Bits(shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteString(ByteString, writeFile)
 import           Data.Char(chr, ord)
 import           Data.Either(partitionEithers)
-import           Data.List(foldl', length)
+import           Data.List(foldl', length, intercalate)
 import           Data.Map(Map)
-import qualified Data.Map as Map(size, lookup, adjust, fromList)
+import qualified Data.Map as Map(size, lookup, adjust, fromDistinctAscList)
 import           Data.FileEmbed(embedFile)
 import           Data.Word(Word32)
 import           Foreign.Ptr(nullPtr)
@@ -109,14 +108,14 @@ fontFiles =
 mkFontsVariations :: FontsVariations
 mkFontsVariations = FontsVariations l 0
  where
-  l = Map.fromList $
+  l = Map.fromDistinctAscList $
       zip [0..] $
       map
         (\(content, name, variations) ->
           FontVariations
             name
             content
-            (Map.fromList $ zip [0..] $ map (uncurry $ flip FontVariation) variations)
+            (Map.fromDistinctAscList $ zip [0..] $ map (uncurry $ flip FontVariation) variations)
             0)
             fontFiles
 
@@ -364,7 +363,7 @@ charsetAABB (CharSet charset) font = do
   unless (null errors) $
     error $ show errors
   return $ fromMaybe (error "logic") $
-    foldl' (\r aabb -> Just $ maybe aabb (combine aabb) r) Nothing aabbs
+    foldl' (\r aabb -> force $ Just $ maybe aabb (combine aabb) r) Nothing aabbs
 
 data FontCoordinates
 data UnitRectangleCoordinates
@@ -372,6 +371,7 @@ data UnitRectangleCoordinates
 data AABB a = AABB {
   _min, _max :: {-# UNPACK #-} !(Vec2 Pos)
 } deriving (Generic, Show)
+instance NFData (AABB a)
 
 -- | returns the smallest 'AABB' containg the given 'AABB's.
 combine :: AABB a -> AABB a -> AABB a

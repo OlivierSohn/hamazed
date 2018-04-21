@@ -14,6 +14,7 @@ module Imj.Graphics.UI.Animation
            ) where
 
 import           Imj.Prelude
+import qualified Prelude as Unsafe(head,last)
 
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -21,6 +22,7 @@ import           Data.List(length)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.Animation.Types
+import           Imj.Graphics.Text.Animation.Types
 
 import           Imj.Graphics.Class.DiscreteInterpolation
 import           Imj.Graphics.Class.Words(Characters)
@@ -165,16 +167,19 @@ mkTextAnimRightAligned refFrom refTo listTxts interline duration =
       heightTxt = nTxtLines + pred nTxtLines * interline
       verticalOffset = quot heightTxt 2
       l = zipWith (\i s@(Successive txts) ->
-                    let firstTxt = head txts
-                        lastTxt = last txts
-                        rightAlign pos =
-                          move verticalOffset Up .
-                          move (dy*i) Down .
-                          alignTxt (mkRightAlign pos)
-                        fromAligned = rightAlign refFrom firstTxt
-                        toAligned   = rightAlign refTo lastTxt
-                    in (s, fromAligned, toAligned))
-                  [0..] listTxts
+        case txts of
+          [] -> error "logic"
+          _:_ ->
+            let firstTxt = Unsafe.head txts
+                lastTxt = Unsafe.last txts
+                rightAlign pos =
+                  move verticalOffset Up .
+                  move (dy*i) Down .
+                  alignTxt (mkRightAlign pos)
+                fromAligned = rightAlign refFrom firstTxt
+                toAligned   = rightAlign refTo lastTxt
+            in (s, fromAligned, toAligned))
+          [0..] listTxts
   in  mkSequentialTextTranslationsStringAnchored l duration
 
 mkTextAnimCenteredUpDown :: (Characters a, DiscreteDistance a)
@@ -184,24 +189,20 @@ mkTextAnimCenteredUpDown :: (Characters a, DiscreteDistance a)
                          -- ^ If one 'Successive' has a 0 length, the animation will be empty.
                          -> Time Duration System
                          -> TextAnimation a AnchorChars
-mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo)
-  (sUp@(Successive txtUppers), sLow@(Successive txtLowers))
-                 duration =
-    let alignTxtCentered pos = alignTxt $ mkCentered pos
+mkTextAnimCenteredUpDown _ _ (Successive [], _) _ = mkEmptyTextAnimation
+mkTextAnimCenteredUpDown _ _ (_, Successive []) _ = mkEmptyTextAnimation
+mkTextAnimCenteredUpDown (centerUpFrom, centerDownFrom) (centerUpTo, centerDownTo) (sUp@(Successive txtUppers@(_:_)), sLow@(Successive txtLowers@(_:_))) duration =
+  let alignTxtCentered pos = alignTxt $ mkCentered pos
 
-        centerUpFromAligned = alignTxtCentered centerUpFrom (head txtUppers)
-        centerUpToAligned   = alignTxtCentered centerUpTo (last txtUppers)
+      centerUpFromAligned = alignTxtCentered centerUpFrom (Unsafe.head txtUppers)
+      centerUpToAligned   = alignTxtCentered centerUpTo (Unsafe.last txtUppers)
 
-        centerDownFromAligned = alignTxtCentered centerDownFrom (head txtLowers)
-        centerDownToAligned   = alignTxtCentered centerDownTo (last txtLowers)
-    in  if null txtUppers || null txtLowers
-          then
-            TextAnimation [] (Evolution (Successive []) 0 zeroDuration id) (mkEaseClock zeroDuration 0 id)
-          else
-            mkSequentialTextTranslationsCharAnchored
-              [(sUp, centerUpFromAligned, centerUpToAligned),
-               (sLow, centerDownFromAligned, centerDownToAligned)]
-              duration
+      centerDownFromAligned = alignTxtCentered centerDownFrom (Unsafe.head txtLowers)
+      centerDownToAligned   = alignTxtCentered centerDownTo (Unsafe.last txtLowers)
+  in mkSequentialTextTranslationsCharAnchored
+      [(sUp, centerUpFromAligned, centerUpToAligned),
+       (sLow, centerDownFromAligned, centerDownToAligned)]
+      duration
 
 alignTxt :: (Characters a) => Alignment -> a -> Coords Pos
 alignTxt (Alignment al pos) txt =

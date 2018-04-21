@@ -10,20 +10,21 @@ module Imj.Game.Hamazed.Loop.Update
       , sendToServer
       ) where
 
-import           Imj.Prelude hiding(intercalate)
+import           Imj.Prelude
 import           Prelude(length)
+import qualified Prelude as Unsafe(last)
 
 import           Control.Concurrent(forkIO)
+import           Control.Concurrent.Async(withAsync)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
 
 import           Data.Attoparsec.Text(parseOnly)
-import           Data.List(foldl')
-import qualified Data.Map.Strict as Map (lookup, filter, keysSet, size, elems, map, withoutKeys, restrictKeys)
-import qualified Data.Set as Set (empty, union, size, null, toList)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           Data.Text(pack, unpack, strip, uncons)
-import qualified Data.Text as Text(length)
+import qualified Data.Text as Text(length, intercalate)
 import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
@@ -47,10 +48,11 @@ import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Render.FromMonadReader
-import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.RasterizedString
+import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Util
+import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m
@@ -60,13 +62,9 @@ updateAppState :: (MonadState AppState m
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
-  Interrupt Quit -> sendToServer $ RequestApproval $ Leaves Intentional
   Interrupt Help -> error "not implemented"
-  Continue x -> sendToServer $ CanContinue x
   Log Error txt -> error $ unpack txt
   Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
-  Configuration c ->
-    updateGameParamsFromChar c
   CycleRenderingOptions i j -> do
     cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
     onTargetSize
@@ -97,31 +95,47 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
-  WorldRequest dt stats spec -> do
-    deadline <- addDuration dt <$> liftIO getSystemTime
-    let continue = getSystemTime >>= \t -> return (t < deadline)
-    asks sendToServer' >>= \f ->
-      void $ liftIO $ forkIO $ mkWorldEssence spec continue >>= \(res, stats') -> do
-        let mergedStats = mergeMayStats stats stats'
-        f $ WorldProposal res mergedStats
-  CurrentGameStateRequest ->
-    sendToServer . CurrentGameState . mkGameStateEssence =<< getGameState
-  ChangeLevel levelEssence worldEssence ->
+  WorldRequest wid arg -> case arg of
+    GetGameState ->
+      mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
+    Build dt spec ->
+      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
+          -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
+          -- and to have no more than one worker per capability.
+          mkOneGenPerCapability >>= \gens -> do
+            let go = do
+                  deadline <- addDuration dt <$> liftIO getSystemTime
+                  -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+                  -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
+                  -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
+                  let continue = getSystemTime >>= \t -> return (t < deadline)
+                  mkWorldEssence spec continue gens >>= \res -> do
+                    send $ uncurry (WorldProposal wid) res
+                    case fst res of
+                      NeedMoreTime{} -> go
+                      _ -> return ()
+            go
+    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
+  ChangeLevel levelEssence worldEssence wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkInitialState levelEssence worldEssence names viewMode sz (Just state)
+      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
-  PutGameState (GameStateEssence worldEssence shotNums levelEssence) ->
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
     getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkIntermediateState shotNums levelEssence worldEssence names viewMode sz (Just state)
+      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
         >>= putGameState
+  OnWorldParameters worldParameters ->
+    putWorldParameters worldParameters
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) ->
     onLaser shipId dir Add
-  ConnectionAccepted i eplayers -> do
+  ConnectionAccepted i eplayers worldParams -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
+    putWorldParameters worldParams
     let p = Map.map mkPlayer eplayers
     putPlayers p
     stateChat $ addMessage $ ChatMessage $ welcome p
@@ -149,22 +163,28 @@ updateAppState (Left evt) = case evt of
     Joins        -> " joins the game."
     WaitsToJoin  -> " is waiting to join the game."
     StartsGame   -> " starts the game."
-    Done cmd -> " changed " <> showReport cmd
+    Done cmd@(Put _) ->
+      " changed " <> showReport cmd
+    Done cmd ->
+      " " <> showReport cmd
 
-  toTxt' (LevelResult n (Lost reason)) =
+  toTxt' (LevelResult (LevelNumber n) (Lost reason)) =
     colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
-  toTxt' (LevelResult n Won) =
+  toTxt' (LevelResult (LevelNumber n) Won) =
     colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
   toTxt' GameWon =
     colored "- The game was won! Congratulations!" chatWinColor
+  toTxt' (CannotCreateLevel errs n) =
+    colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
   showReport (Put (ColorSchemeCenter c)) =
     ("color scheme center:" <>) $ pack $ show $ color8CodeToXterm256 c
   showReport (Put (WorldShape shape)) =
     ("world shape:" <>) $ pack $ show shape
-  showReport (Put (WallDistribution d)) =
-    ("wall distribution:" <>) $ pack $ show d
-
+  showReport (Succ x) =
+    "incremented " <> pack (show x)
+  showReport (Pred x) =
+    "decremented " <> pack (show x)
 
 {-# INLINABLE onTargetSize #-}
 onTargetSize :: (MonadState AppState m
@@ -201,27 +221,11 @@ onSendChatMessage =
       (left . pack)
       (either
         left
-        (\case
-            ServerRep rep -> sendToServer $ Report rep
-            ServerCmd cmd -> sendToServer $ Do cmd
-            ClientCmd cmd -> sendToServer $ RequestApproval cmd))
+        (sendToServer . (\case
+            ServerRep rep -> Report rep
+            ServerCmd cmd -> Do cmd
+            ClientCmd cmd -> RequestApproval cmd)))
       p
-
-updateGameParamsFromChar :: (MonadState AppState m
-                           , MonadReader e m, ClientNode e
-                           , MonadIO m)
-                         => Char
-                         -> m ()
-updateGameParamsFromChar = \case
-  '1' -> sendToServer $ Do $ Put $ WorldShape Square
-  '2' -> sendToServer $ Do $ Put $ WorldShape Rectangle'2x1
-  'e' -> sendToServer $ Do $ Put $ WallDistribution None
-  'r' -> sendToServer $ Do $ Put $ WallDistribution $ Random $ RandomParameters minRandomBlockSize 0.5 -- TODO make modifications more atomic.
-  {-
-  'd' -> putViewMode CenterSpace -- TODO force a redraw?
-  'f' -> getMyShipId >>= maybe (return ()) (putViewMode . CenterShip)  -- TODO force a redraw?
-  -}
-  _ -> return ()
 
 {-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m
@@ -269,14 +273,12 @@ onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
     >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim b o m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
-          allCollisions =
-            foldl'
-            (\s (BattleShip _ _ _ shipStatus collisions _) ->
+          allCollisions = Set.unions $ mapMaybe
+            (\(BattleShip _ _ _ shipStatus collisions _) ->
               case shipStatus of
-                Armored -> s
-                _ -> Set.union s collisions)
-            Set.empty
-            ships
+                Armored -> Nothing
+                _ -> Just collisions)
+            $ Map.elems ships
           remainingBalls = Map.withoutKeys balls allCollisions
           numbersChanged =
             assert (Set.size allCollisions + Map.size remainingBalls == Map.size balls)
@@ -353,7 +355,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
         else do
           let mayPrevRecord = case s of
                 [] -> Nothing
-                _ -> Just $ last s
+                _:_ -> Just $ Unsafe.last s
           evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
           evolutionEnd <- recordFromStrs (move (2*i) Down ref) newStr
           let ev = mkEvolutionEaseQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 1
@@ -374,7 +376,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
         else do
           let mayPrevRecord = case s of
                 [] -> Nothing
-                _ -> Just $ last s
+                _:_ -> Just $ Unsafe.last s
           evolutionStart <- flip fromMaybe mayPrevRecord <$> liftIO mkZeroRecordDraw
           evolutionEnd <- liftIO mkZeroRecordDraw
           let ev = mkEvolutionEaseInQuart (Successive [evolutionStart,evolutionEnd]) $ fromSecs 0.5

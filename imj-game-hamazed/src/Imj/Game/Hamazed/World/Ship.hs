@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.World.Ship
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
-import           Data.List( foldl' )
+import           Data.List(foldl', concat)
 import qualified Data.Map.Strict as Map(elems, traverseWithKey, restrictKeys, foldl', lookupMin)
 import qualified Data.Set as Set(null)
 

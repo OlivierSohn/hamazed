@@ -17,7 +17,16 @@ module Imj.Game.Hamazed.Types
     , GenEvent(..)
     , initialParameters
     , initialViewMode
-    , minRandomBlockSize
+    , initialBlockSize
+    , minBlockSize
+    , maxBlockSize
+    , allBlockSizes
+    , initialWallProba
+    , minWallProba
+    , maxWallProba
+    , wallProbaIncrements
+    , allProbasForGame
+    , nProbaSteps
     -- * Reexports
     , module Imj.Game.Hamazed.Chat
     , module Imj.Game.Hamazed.Level.Types
@@ -31,6 +40,7 @@ import           Control.Exception.Base(Exception(..))
 import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 
+import           Imj.Data.AlmostFloat
 import           Imj.Graphics.RecordDraw
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -89,7 +99,7 @@ data Game = Game {
     getClientState :: {-# UNPACK #-} !ClientState
   , getGameState' :: !GameState
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
-  , getServer :: {-unpack sum-} !Server
+  , getServer' :: {-unpack sum-} !Server
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
   , getChat' :: !Chat
@@ -123,17 +133,34 @@ data AnimatedLine = AnimatedLine {
   , getALDeadline :: Maybe Deadline
 } deriving(Generic, Show)
 
-minRandomBlockSize :: Int
-minRandomBlockSize = 6 -- using 4 it once took a very long time (one minute, then I killed the process)
-                       -- 6 has always been ok
+initialBlockSize, minBlockSize, maxBlockSize :: Int
+initialBlockSize = maxBlockSize
+minBlockSize = 1
+maxBlockSize = 6
+
+allBlockSizes :: [Int]
+allBlockSizes = [minBlockSize..maxBlockSize]
+
+wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
+initialWallProba = maxWallProba
+minWallProba = 0.1
+maxWallProba = 0.9
+wallProbaIncrements = 0.1
+
+allProbasForGame :: [AlmostFloat]
+allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
+
+nProbaSteps :: Int
+nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
 
 initialParameters :: WorldParameters
-initialParameters = WorldParameters Rectangle'2x1 (Random defaultRandom)
+initialParameters =
+  WorldParameters Rectangle'2x1 defaultRandom
 
 initialViewMode :: ViewMode
 initialViewMode = CenterSpace
 
-defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more connected components.
+defaultRandom :: WallDistribution -- below 0.1, it's difficult to have 2 or more connected components.
                                   -- 0.1 : on avg, 1 cc
                                   -- 0.2 : on avg, 1 cc
                                   -- 0.3 : on avg, 2 cc
@@ -141,4 +168,4 @@ defaultRandom :: RandomParameters -- below 0.1, it's difficult to have 2 or more
                                   -- 0.5 : on avg, 8 cc
                                   -- 0.6 : on avg, 10 cc
                                   -- above 0.6, it's difficult to have a single connected component
-defaultRandom = RandomParameters minRandomBlockSize 0.5
+defaultRandom = WallDistribution initialBlockSize initialWallProba

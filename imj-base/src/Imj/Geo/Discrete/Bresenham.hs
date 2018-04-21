@@ -27,7 +27,8 @@ bla (!x0, !y0) (!x1, !y1) =
         | otherwise = 1 : balancedWord qty
         where !qty = eps + p - q
 
-      walk w xy = xy : walk (tail w) (step (head w) xy)
+      walk (w:ws) xy = xy : walk ws (step w xy)
+      walk [] _ = error "logic"
   in  walk (balancedWord 0) (x0, y0)
 
 blaLength :: (Int, Int) -> (Int, Int) -> Int

@@ -56,8 +56,11 @@ matrix:
 
   # The Stack builds. We can pass in arbitrary Stack arguments via the ARGS
   # variable, such as using --stack-yaml to point to a different file.
-  - env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
+  - env: BUILD=stack ARGS="--resolver lts-11.5"
     compiler: ": #stack LTS 11.5 (GHC 8.2.2)"
+    addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
+  - env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
+    compiler: ": #stack nightly-2018-04-20 (GHC 8.4.1)"
     addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
 
   # Nightly builds are allowed to fail

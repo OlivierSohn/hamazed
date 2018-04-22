@@ -13,12 +13,6 @@ sudo: false
 
 language: generic
 
-# on osx we use brew to install packages.
-# on linux, we use addons of
-os:
-  - linux
-  - osx
-
 addons:
   apt:
     packages: &glfw_deps
@@ -48,6 +42,12 @@ cache:
 #     addons: {apt: {packages: [libfcgi-dev,libgmp-dev]}}
 matrix:
   include:
+    # on osx we use brew to install packages.
+    # on linux, we use addons
+  - os:
+      - linux
+      - osx
+
   # We grab the appropriate GHC and cabal-install versions from hvr's PPA. See:
   # https://github.com/hvr/multi-ghc-travis
 

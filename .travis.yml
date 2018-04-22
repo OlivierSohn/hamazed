@@ -22,9 +22,6 @@ addons:
     - libxrandr-dev
     packages: &FTGL_deps
     - libftgl-dev
-
-addons:
-  apt:
     sources:
     - ubuntu-toolchain-r-test
     packages:

@@ -23,6 +23,13 @@ addons:
     packages: &FTGL_deps
     - libftgl-dev
 
+addons:
+  apt:
+    sources:
+    - ubuntu-toolchain-r-test
+    packages:
+    - gcc-6
+
 # Caching so the next build will be fast too.
 cache:
   directories:

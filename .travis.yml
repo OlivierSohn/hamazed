@@ -100,6 +100,20 @@ before_install:
   then
     echo 'jobs: $ncpus' >> $HOME/.cabal/config
   fi
+  echo "vDsp folder:"
+  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A)"
+  echo "vDsp folder 1:"
+  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks)"
+  echo "vDsp folder 2:"
+  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A)"
+  echo "vDsp folder 3:"
+  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions)"
+  echo "vDsp folder 4:"
+  echo "$(ls /System/Library/Frameworks/Accelerate.framework)"
+  echo "vDsp folder 5:"
+  echo "$(ls /System/Library/Frameworks)"
+  echo "vDsp folder 6:"
+  echo "$(ls /System/Library)"
 
 install:
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"

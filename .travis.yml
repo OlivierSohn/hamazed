@@ -15,6 +15,8 @@ language: generic
 
 addons:
   apt:
+    sources:
+    - ubuntu-toolchain-r-test
     packages:
     - libxcursor-dev
     - libxi-dev
@@ -23,9 +25,6 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - libportaudio-dev
-    sources:
-    - ubuntu-toolchain-r-test
-    packages:
     - gcc-6
 
 

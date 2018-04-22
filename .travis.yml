@@ -48,35 +48,26 @@ matrix:
   include:
   - os: osx
     env: BUILD=stack ARGS="--resolver lts-11.5"
-    compiler: ": #stack LTS 11.5 (GHC 8.2.2)"
   - os: osx
     env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
-    compiler: ": #stack nightly-2018-04-20 (GHC 8.4.1)"
   - os: osx
     env: BUILD=stack ARGS="--resolver nightly"
-    compiler: ": #stack nightly"
 
   - os: linux
     env: BUILD=stack ARGS="--resolver lts-11.5"
-    compiler: ": #stack LTS 11.5 (GHC 8.2.2)"
-    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
-    compiler: ": #stack nightly-2018-04-20 (GHC 8.4.1)"
-    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly"
-    compiler: ": #stack nightly"
-    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
 
   allow_failures:
     # Because I use unpublished packages:
   - env: BUILD=stack ARGS="--resolver nightly"
 
 before_install:
-# Using compiler above sets CC to an invalid value, so unset it
-# - unset CC
-
 # We want to always allow newer versions of packages when building on GHC HEAD
 - CABALARGS=""
 - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi

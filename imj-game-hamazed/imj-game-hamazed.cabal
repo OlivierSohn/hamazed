@@ -101,11 +101,14 @@ library
                      , vector-th-unbox == 0.2.*
                      , websockets ==0.12.*
   default-language:    Haskell2010
+
   extra-libraries:     stdc++
                      , portaudio
-                     , vDSP
-  -- This path is valid on OSX 10.13.3:
-  extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+  if os(darwin)
+    extra-libraries:   vDSP
+    -- This path is valid on OSX 10.13.3:
+    extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+
   cc-options:          -std=c++14 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
 -- use `stack clean` to take changes into account.
 

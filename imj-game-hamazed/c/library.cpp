@@ -5,6 +5,7 @@
 #ifdef __cplusplus
 
 #include "../../../os.log/source/unity.build.cpp"
+#include "../../../os.storage/source/unity.build.cpp"
 #include "../../../algorithms/source/unity.build.cpp"
 #include "../../../model/source/unity.build.cpp"
 #include "../../../managers/source/unity.build.cpp"

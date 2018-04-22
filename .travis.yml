@@ -135,6 +135,7 @@ install:
       ;;
   esac
   set +ex
+- brew bundle --verbose
 
 script:
 - |

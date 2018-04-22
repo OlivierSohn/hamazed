@@ -119,9 +119,7 @@ before_install:
   echo "$(ls /System/Library)"
 
 install:
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
-    brew bundle --verbose
-  fi
+- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
 - if [ -f configure.ac ]; then autoreconf -i; fi
 - |

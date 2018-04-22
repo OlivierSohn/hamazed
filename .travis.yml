@@ -55,15 +55,15 @@ matrix:
   - os: linux
     env: BUILD=stack ARGS="--resolver lts-11.5"
     compiler: ": #stack LTS 11.5 (GHC 8.2.2)"
-    addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
     compiler: ": #stack nightly-2018-04-20 (GHC 8.4.1)"
-    addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly"
     compiler: ": #stack nightly"
-    addons: {apt: {packages: [libgmp-dev, *glfw_deps, *FTGL_deps]}}
+    addons: {apt: {packages: [libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
 
   allow_failures:
     # Because I use unpublished packages:

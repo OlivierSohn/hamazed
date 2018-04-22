@@ -15,17 +15,19 @@ language: generic
 
 addons:
   apt:
-    packages: &glfw_deps
+    packages:
     - libxcursor-dev
     - libxi-dev
     - libxinerama-dev
     - libxrandr-dev
-    packages: &FTGL_deps
     - libftgl-dev
+    - libgmp-dev
+    - libportaudio-dev
     sources:
     - ubuntu-toolchain-r-test
     packages:
     - gcc-6
+
 
 # Caching so the next build will be fast too.
 cache:
@@ -55,13 +57,10 @@ matrix:
 
   - os: linux
     env: BUILD=stack ARGS="--resolver lts-11.5"
-    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
-    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
   - os: linux
     env: BUILD=stack ARGS="--resolver nightly"
-    addons: {apt: {packages: [gcc-6, libgmp-dev, libportaudio-dev, *glfw_deps, *FTGL_deps]}}
 
   allow_failures:
     # Because I use unpublished packages:

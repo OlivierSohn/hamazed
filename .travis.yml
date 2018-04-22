@@ -116,6 +116,7 @@ before_install:
   echo "$(ls /System/Library)"
 
 install:
+- brew bundle --verbose
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
 - if [ -f configure.ac ]; then autoreconf -i; fi
 - |
@@ -135,7 +136,6 @@ install:
       ;;
   esac
   set +ex
-- brew bundle --verbose
 
 script:
 - |

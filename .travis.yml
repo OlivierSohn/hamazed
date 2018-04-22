@@ -78,7 +78,7 @@ matrix:
 
 before_install:
 # Using compiler above sets CC to an invalid value, so unset it
-- unset CC
+# - unset CC
 
 # We want to always allow newer versions of packages when building on GHC HEAD
 - CABALARGS=""

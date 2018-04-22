@@ -13,8 +13,11 @@ sudo: false
 
 language: generic
 
-# use osx to have vDSP from Accelerate framework
-os: osx
+# on osx we use brew to install packages.
+# on linux, we use addons of
+os:
+  - linux
+  - osx
 
 addons:
   apt:
@@ -116,7 +119,9 @@ before_install:
   echo "$(ls /System/Library)"
 
 install:
-- brew bundle --verbose
+- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then
+    brew bundle --verbose
+  fi
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
 - if [ -f configure.ac ]; then autoreconf -i; fi
 - |

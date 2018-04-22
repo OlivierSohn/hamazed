@@ -1,1 +1,2 @@
 brew 'ftgl'
+brew 'portaudio'

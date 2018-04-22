@@ -13,6 +13,18 @@ sudo: false
 
 language: generic
 
+os:
+  - osx
+  - linux
+
+env:
+  - BUILD=stack ARGS="--resolver lts-11.5"
+  - BUILD=stack ARGS="--resolver nightly-2018-04-20"
+  - BUILD=stack ARGS="--resolver nightly"
+
+allow_failures:
+  - env: BUILD=stack ARGS="--resolver nightly"
+
 addons:
   apt:
     sources:
@@ -27,7 +39,6 @@ addons:
     - libportaudio-dev
     - gcc-6
 
-
 # Caching so the next build will be fast too.
 cache:
   directories:
@@ -35,38 +46,9 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
-# The different configurations we want to test. We have BUILD=cabal which uses
-# cabal-install, and BUILD=stack which uses Stack. More documentation on each
-# of those below.
-#
-# We set the compiler values here to tell Travis to use a different
-# cache file per set of arguments.
-#
-# If you need to have different apt packages for each combination in the
-# matrix, you can use a line such as:
-#     addons: {apt: {packages: [libfcgi-dev,libgmp-dev]}}
-matrix:
-  include:
-  - os: osx
-    env: BUILD=stack ARGS="--resolver lts-11.5"
-  - os: osx
-    env: BUILD=stack ARGS="--resolver nightly-2018-04-20"
-  - os: osx
-    env: BUILD=stack ARGS="--resolver nightly"
-
-  - os: linux
-    env: BUILD=stack MATRIX_EVAL="CC=gcc-6 && CXX=g++-6" ARGS="--resolver lts-11.5"
-  - os: linux
-    env: BUILD=stack MATRIX_EVAL="CC=gcc-6 && CXX=g++-6" ARGS="--resolver nightly-2018-04-20"
-  - os: linux
-    env: BUILD=stack MATRIX_EVAL="CC=gcc-6 && CXX=g++-6" ARGS="--resolver nightly"
-
-  allow_failures:
-    # Because I use unpublished packages:
-  - env: BUILD=stack ARGS="--resolver nightly"
-
 before_install:
-- eval "${MATRIX_EVAL}"
+- unset CC
+- if [[ $TRAVIS_OS_NAME == 'linux' ]]; then CC=gcc-6 && CXX=g++-6; fi
 # We want to always allow newer versions of packages when building on GHC HEAD
 - CABALARGS=""
 - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi

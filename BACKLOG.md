@@ -1,3 +1,13 @@
+
+- fix overflow: uint8_t c : relevantBits( size_interleaved - 1 )
+
+- on linux glfw (or is it due to the graphic driver?), some fonts are too big.
+
+- animate on rebound on Z wall : wave
+on frame: ?
+
+- update readme demos with new UI: add a demo with 2 players.
+
 - make a standalone library for generating rectangle binary random (small) worlds.
 (move tests of topology there)
 
@@ -8,6 +18,7 @@ When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thre
 
 - music:
 https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
+https://stackoverflow.com/questions/37101999/including-c-sources-in-a-haskell-project
 
 - Add music :
   slow (ternary) :

@@ -12,7 +12,7 @@ module Imj.Game.Hamazed.Loop.Run
       ) where
 
 import           Imj.Prelude
-import           Prelude ( putStr, toInteger)
+import           Prelude (putStr, toInteger)
 
 import           Control.Concurrent(threadDelay, forkIO, readMVar, newEmptyMVar)
 import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
@@ -46,6 +46,7 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Input.Types
 
+import           Imj.Audio
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
@@ -78,8 +79,11 @@ run = withSocketsDo $
     then
       error $ "Windows is not currently supported"
       ++ " (https://ghc.haskell.org/trac/ghc/ticket/7353)."
-    else
+    else do
+      initializeAudio
+      beep
       runWithArgs
+      teardownAudio
 
 data BackendType =
     Console

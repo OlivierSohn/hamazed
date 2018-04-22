@@ -37,7 +37,7 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - libportaudio-dev
-    - gcc-6
+    - gcc-5
 
 # Caching so the next build will be fast too.
 cache:

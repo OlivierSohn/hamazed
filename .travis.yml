@@ -51,8 +51,8 @@ before_install:
 - |
   if [[ $TRAVIS_OS_NAME == 'linux' ]]
   then
-    CC=gcc-6 && CXX=g++-6
-    sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
+    CC=gcc-5 && CXX=g++-5
+    sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
     gcc --version
   fi
 # We want to always allow newer versions of packages when building on GHC HEAD

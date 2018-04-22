@@ -49,8 +49,8 @@ matrix:
     # on osx we use brew to install packages.
     # on linux, we use addons
   - os:
-      - linux
       - osx
+      - linux
 
   # We grab the appropriate GHC and cabal-install versions from hvr's PPA. See:
   # https://github.com/hvr/multi-ghc-travis

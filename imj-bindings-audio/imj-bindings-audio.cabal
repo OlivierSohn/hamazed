@@ -34,11 +34,10 @@ library
   else
     extra-libraries:   uuid
 
--- -static-libstdc++ is not absolutely necessary.
-  cc-options:          -std=c++14 -static-libstdc++ -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math -I../../tp.glm
+  cc-options:          -std=c++14 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
   if os(linux)
-    cc-options:        -fpermissive
--- use `stack clean` to take changes into account.
+    -- -static-libstdc++ is not absolutely necessary.
+    cc-options:        -fpermissive -static-libstdc++
 
 source-repository head
   type:     git

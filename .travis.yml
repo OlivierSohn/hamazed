@@ -38,7 +38,7 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - libportaudio-dev
-    - gcc-5
+    - g++-5
 
 # Caching so the next build will be fast too.
 cache:
@@ -48,6 +48,14 @@ cache:
   - $HOME/.stack
 
 before_install:
+- |
+  if [[ $TRAVIS_OS_NAME == 'linux' ]]
+  then
+    export CXX=g++-5
+    export CC=gcc-5
+    ${CXX} --version
+    ${CC} --version
+  fi
 # We want to always allow newer versions of packages when building on GHC HEAD
 - CABALARGS=""
 - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi

@@ -48,14 +48,6 @@ cache:
   - $HOME/.stack
 
 before_install:
-- unset CC
-- |
-  if [[ $TRAVIS_OS_NAME == 'linux' ]]
-  then
-    CC=gcc-5 && CXX=g++-5
-    sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-5 /usr/bin/gcc
-    gcc --version
-  fi
 # We want to always allow newer versions of packages when building on GHC HEAD
 - CABALARGS=""
 - if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
@@ -80,20 +72,6 @@ before_install:
   then
     echo 'jobs: $ncpus' >> $HOME/.cabal/config
   fi
-  echo "vDsp folder:"
-  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A)"
-  echo "vDsp folder 1:"
-  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks)"
-  echo "vDsp folder 2:"
-  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions/A)"
-  echo "vDsp folder 3:"
-  echo "$(ls /System/Library/Frameworks/Accelerate.framework/Versions)"
-  echo "vDsp folder 4:"
-  echo "$(ls /System/Library/Frameworks/Accelerate.framework)"
-  echo "vDsp folder 5:"
-  echo "$(ls /System/Library/Frameworks)"
-  echo "vDsp folder 6:"
-  echo "$(ls /System/Library)"
 
 install:
 - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi

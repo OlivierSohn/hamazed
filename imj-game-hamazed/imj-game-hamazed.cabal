@@ -112,7 +112,7 @@ library
     extra-libraries:   uuid
 
 
-  cc-options:          -std=c++14 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
+  cc-options:          -std=c++14 -static-libstdc++ -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
   if os(linux)
     cc-options:        -fpermissive
 -- use `stack clean` to take changes into account.

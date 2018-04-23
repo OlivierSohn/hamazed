@@ -49,8 +49,6 @@ flags: {}
 
 extra-package-dbs: []
 
-with-gcc: /usr/bin/g++
-
 # for GC stats:
 #   -with-rtsopts=-sstderr
 #

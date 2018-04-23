@@ -102,6 +102,8 @@ install:
   set -ex
   case "$BUILD" in
     stack)
+      echo "$(stack exec -- which gcc)"
+      echo "$(stack exec -- gcc --version)"
       stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies -j1
       ;;
     cabal)

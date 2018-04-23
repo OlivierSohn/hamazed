@@ -5,7 +5,7 @@
 #include <fenv.h>
 #endif
 
-#include "../../../os.audio/include/public.h"
+#include "cpp.os.audio/include/public.h"
 
 extern "C" {
 

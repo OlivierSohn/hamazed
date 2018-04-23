@@ -24,6 +24,7 @@ env:
 
 allow_failures:
   - env: BUILD=stack ARGS="--resolver nightly"
+  - os : linux # The travis ubuntu image (lts-14) is too old. on a more recent ubuntu (16), build is ok.
 
 addons:
   apt:

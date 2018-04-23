@@ -1,9 +1,8 @@
 - make a separate cabal just for audio bindings, with no dependency on imj.prelude
 
 - CI build :
-on linux, libstdc++ is missing or bad.
+on ubuntu 14, libstdc++ is missing or bad.
 TODO locate it, maybe add the folder to extra-lib-dirs
-Or add with-gcc: /usr/bin/g++ to stack.yaml
 And maybe we need to pass -static-libstdc++
 
 - on linux glfw (or is it due to the graphic driver?), some fonts are too big.

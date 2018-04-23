@@ -11,10 +11,8 @@ extern "C" {
 
   void disableDenormals() {
     #if __APPLE__
-        std::cout << "Hello from Apple" << std::endl;
         fesetenv(FE_DFL_DISABLE_SSE_DENORMS_ENV);
     #else
-        std::cout << "Hello from Else" << std::endl;
     #define CSR_FLUSH_TO_ZERO         (1 << 15)
         unsigned csr = __builtin_ia32_stmxcsr();
         csr |= CSR_FLUSH_TO_ZERO;
@@ -84,7 +82,7 @@ extern "C" {
         a->out().play(c, std::move(requests));
     }
     else {
-      LG(WARN,"Audio is not initialized");      
+      LG(WARN,"Audio is not initialized");
     }
   }
 }

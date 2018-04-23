@@ -108,6 +108,9 @@ library
     extra-libraries:   vDSP
     -- This path is valid on OSX 10.13.3:
     extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+  else
+    extra-lib-dirs:    /usr/lib/x86_64-linux-gnu
+
 
   cc-options:          -std=c++14 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
 -- use `stack clean` to take changes into account.

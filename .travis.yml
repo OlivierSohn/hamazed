@@ -38,8 +38,8 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - libportaudio-dev
-    - g++-6
-    - libstdc++6
+    - g++-7
+    - libstdc++7
 
 # Caching so the next build will be fast too.
 cache:
@@ -52,11 +52,11 @@ before_install:
 - |
   if [[ $TRAVIS_OS_NAME == 'linux' ]]
   then
-    export CXX=g++-6
-    export CC=gcc-6
+    export CXX=g++-7
+    export CC=gcc-7
     ${CXX} --version
     ${CC} --version
-    sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-6 /usr/bin/gcc
+    sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
 # We want to always allow newer versions of packages when building on GHC HEAD

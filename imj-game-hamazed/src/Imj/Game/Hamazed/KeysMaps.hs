@@ -82,7 +82,7 @@ translatePlatformEvent k = case k of
                       'e' -> Just $ CliEvt $ Action Ship Up
                       's' -> Just $ CliEvt $ Action Ship LEFT
                       'f' -> Just $ CliEvt $ Action Ship RIGHT
-                      'r'-> Just $ Evt ToggleEventRecording
+                      --'r'-> Just $ Evt ToggleEventRecording
                       _   -> Nothing
                     _ -> Nothing)
                   (const Nothing)

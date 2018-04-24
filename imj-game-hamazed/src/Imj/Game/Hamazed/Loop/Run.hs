@@ -80,7 +80,8 @@ run = withSocketsDo $
       error $ "Windows is not currently supported"
       ++ " (https://ghc.haskell.org/trac/ghc/ticket/7353)."
     else
-      withAudio runWithArgs
+      withAudio
+        runWithArgs
 
 data BackendType =
     Console

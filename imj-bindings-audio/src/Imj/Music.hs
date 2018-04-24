@@ -7,14 +7,13 @@ module Imj.Music
       , NoteName(..)
       , Octave(..)
       , NoteVelocity(..)
-      , noteOn
-      , noteOff
-      , play
       , Tempo(..)
       , Score
       , mkScore
       , stepScore
+      , stopScore
       , Music(..)
+      , play
       ) where
 
 import Control.DeepSeq (NFData(..))
@@ -62,10 +61,19 @@ stepScore (Score (NoteIdx i) cur t l) =
     | i < len-1 = fromIntegral $ i+1
     | otherwise = 0
 
+stopScore :: Score -> (Score, Maybe Music)
+stopScore (Score _ cur t l) =
+    (Score 0 Nothing t l
+    ,noteChange)
+ where
+  noteChange =
+    fmap StopNote cur
+
 -- | A music fragment
 data Music =
      StartNote !Note {-# UNPACK #-} !NoteVelocity
-   | ReplaceNote !Note !Note {-# UNPACK #-} !NoteVelocity
+   | ReplaceNote !Note !Note {-# UNPACK #-} !NoteVelocity -- Today, this is like doing StopNote, then StartNote
+   | StopNote !Note
   deriving(Generic,Show)
 instance Binary Music
 instance NFData Music
@@ -76,6 +84,8 @@ play (StartNote n v) =
 play (ReplaceNote n1 n2 v) = do
   noteOff n1
   noteOn  n2 v
+play (StopNote n) =
+  noteOff n
 
 
 newtype NoteIdx = NoteIdx Int

@@ -793,7 +793,8 @@ gameScheduler st =
         -- block until 'scheduledGame' contains a 'CurrentGame'
         readMVar mayGame >>= \(CurrentGame refWorld _ _ _) -> do
           let run x = modifyMVar st $ fmap swap . runStateT (run' refWorld x)
-              toActOrNotToAct act maybeRefTime continuation = act >>= \case
+
+              toActOrNotToAct act maybeRefTime continuation = run act >>= \case
                 Executed dt ->
                   continuation maybeRefTime dt
                 NotExecutedTryAgainLater dt -> do
@@ -801,9 +802,10 @@ gameScheduler st =
                   -- retry, but forget maybeRefTime because we waited,
                   -- which introduced a discontinuity.
                   toActOrNotToAct act Nothing continuation
-                NotExecutedGameCanceled ->
-                  void $ liftIO $ tryTakeMVar mayGame -- to stop the scheduler
-          toActOrNotToAct (run initializePlayers) Nothing $ \_ dtInit -> do
+                NotExecutedGameCanceled -> do
+                  void $ liftIO $ tryTakeMVar mayGame -- we remove the game to stop the scheduler.
+
+          toActOrNotToAct initializePlayers Nothing $ \_ dtInit -> do
             let go mayPrevUpdate mayDt = do
                   now <- getSystemTime
                   time <- maybe
@@ -814,7 +816,7 @@ gameScheduler st =
                       threadDelay $ fromIntegral $ toMicros $ now...update
                       return update)
                     mayDt
-                  toActOrNotToAct (run $ stepWorld time) (Just time) go
+                  toActOrNotToAct (stepWorld time) (Just time) go
             go Nothing dtInit
           gameScheduler st
  where
@@ -823,46 +825,63 @@ gameScheduler st =
   run' :: WorldId
        -> StateT ServerState IO (Maybe (Time Duration System))
        -> StateT ServerState IO RunResult
-  run' refWid act = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
-    if terminate
-      then do
-        serverLog $ pure $ colored "Terminating game" yellow
-        return NotExecutedGameCanceled
-      else
-        -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
-        liftIO (tryReadMVar game) >>= maybe
-          (do serverError "logic : mayGame is Nothing"
-              return NotExecutedGameCanceled)
-          (\(CurrentGame curWid _ _ _) ->
-            if refWid /= curWid
-              then do
-                serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
-                return NotExecutedGameCanceled -- the world has changed
-              else
-                updateCurrentStatus Nothing >>= maybe (return NotExecutedGameCanceled) (\case
-                  Paused _ _ ->
-                    return $ NotExecutedTryAgainLater $ fromSecs 1
-                  CancelledNoConnectedPlayer -> do
-                    onLevelOutcome $ Lost "All players left"
-                    return NotExecutedGameCanceled
-                  Running ->
-                    Executed <$> act
-                  WaitingForOthersToEndLevel _ ->
-                    return $ NotExecutedTryAgainLater $ fromSecs 0.1
-                  WhenAllPressedAKey _ (Just _) _ ->
-                    return $ NotExecutedTryAgainLater $ fromSecs 1 -- so that the Just corresponds to seconds
-                  WhenAllPressedAKey _ Nothing _ ->
-                    return $ NotExecutedTryAgainLater $ fromSecs 0.1
-                  Countdown _ _ ->
-                    return $ NotExecutedTryAgainLater $ fromSecs 1
-                  OutcomeValidated outcome -> do
-                    onLevelOutcome outcome
-                    requestWorld
-                    return NotExecutedGameCanceled
-                  -- these values are never supposed to be used here:
-                  New -> do
-                    serverError "logic : newStatus == New"
-                    return NotExecutedGameCanceled))
+  run' refWid act =
+    go >>= \res -> do
+      case res of
+        NotExecutedTryAgainLater _ -> stopMusic
+        NotExecutedGameCanceled -> stopMusic
+        Executed _ -> return ()
+      return res
+
+   where
+    stopMusic = get >>= \(ServerState _ _ _ _ _ _ _ _ _ game) ->
+      tryTakeMVar game >>= maybe
+        (return ())
+        (\g@(CurrentGame _ _ _ s) -> do
+          let (newScore, mayNoteChange) = stopScore s
+          maybe (return ()) (notifyPlayers . PlayMusic) mayNoteChange
+          putMVar game $ g{score = newScore})
+
+    go = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
+      if terminate
+        then do
+          serverLog $ pure $ colored "Terminating game" yellow
+          return NotExecutedGameCanceled
+        else
+          -- we use 'tryReadMVar' to /not/ block here, as we are inside a modifyMVar.
+          liftIO (tryReadMVar game) >>= maybe
+            (do serverError "logic : mayGame is Nothing"
+                return NotExecutedGameCanceled)
+            (\(CurrentGame curWid _ _ _) ->
+              if refWid /= curWid
+                then do
+                  serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
+                  return NotExecutedGameCanceled -- the world has changed
+                else
+                  updateCurrentStatus Nothing >>= maybe (return NotExecutedGameCanceled) (\case
+                    Paused _ _ ->
+                      return $ NotExecutedTryAgainLater $ fromSecs 1
+                    CancelledNoConnectedPlayer -> do
+                      onLevelOutcome $ Lost "All players left"
+                      return NotExecutedGameCanceled
+                    Running ->
+                      Executed <$> act
+                    WaitingForOthersToEndLevel _ ->
+                      return $ NotExecutedTryAgainLater $ fromSecs 0.1
+                    WhenAllPressedAKey _ (Just _) _ ->
+                      return $ NotExecutedTryAgainLater $ fromSecs 1 -- so that the Just corresponds to seconds
+                    WhenAllPressedAKey _ Nothing _ ->
+                      return $ NotExecutedTryAgainLater $ fromSecs 0.1
+                    Countdown _ _ ->
+                      return $ NotExecutedTryAgainLater $ fromSecs 1
+                    OutcomeValidated outcome -> do
+                      onLevelOutcome outcome
+                      requestWorld
+                      return NotExecutedGameCanceled
+                    -- these values are never supposed to be used here:
+                    New -> do
+                      serverError "logic : newStatus == New"
+                      return NotExecutedGameCanceled))
 
   initializePlayers :: StateT ServerState IO (Maybe (Time Duration System))
   initializePlayers = liftIO getSystemTime >>= \start -> do

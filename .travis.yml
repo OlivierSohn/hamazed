@@ -36,7 +36,7 @@ addons:
     - libxrandr-dev
     - libftgl-dev
     - libgmp-dev
-    - libportaudio19-dev
+    - portaudio19-dev
     - g++-7
     - libstdc++-7-dev
 

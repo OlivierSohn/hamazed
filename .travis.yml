@@ -18,13 +18,12 @@ os:
   - linux
 
 env:
-  - BUILD=stack ARGS="--resolver lts-11.5"
-  - BUILD=stack ARGS="--resolver nightly-2018-04-20"
-  - BUILD=stack ARGS="--resolver nightly"
+  - RESOLVER="--resolver lts-11.5"
+  - RESOLVER="--resolver nightly-2018-04-20"
+  - RESOLVER="--resolver nightly"
 
 allow_failures:
-  - env: BUILD=stack ARGS="--resolver nightly"
-  - os : linux # The travis ubuntu image (lts-14) is too old. on a more recent ubuntu (16), build is ok.
+  - env: RESOLVER="--resolver nightly"
 
 addons:
   apt:
@@ -37,7 +36,7 @@ addons:
     - libxrandr-dev
     - libftgl-dev
     - libgmp-dev
-    - libportaudio-dev
+    - libportaudio19-dev
     - g++-7
     - libstdc++-7-dev
 
@@ -59,12 +58,7 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-# We want to always allow newer versions of packages when building on GHC HEAD
-- CABALARGS=""
-- if [ "x$GHCVER" = "xhead" ]; then CABALARGS=--allow-newer; fi
-
 # Download and unpack the stack executable
-- export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:/opt/alex/$ALEXVER/bin:/opt/happy/$HAPPYVER/bin:$HOME/.cabal/bin:$PATH
 - mkdir -p ~/.local/bin
 - |
   if [ `uname` = "Darwin" ]
@@ -74,15 +68,10 @@ before_install:
     travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
 
-  # Use the more reliable S3 mirror of Hackage
   mkdir -p $HOME/.cabal
   echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
   echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
-
-  if [ "$CABALVER" != "1.16" ]
-  then
-    echo 'jobs: $ncpus' >> $HOME/.cabal/config
-  fi
+  echo 'jobs: $ncpus' >> $HOME/.cabal/config
 
 install:
 - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi
@@ -90,49 +79,13 @@ install:
 - if [ -f configure.ac ]; then autoreconf -i; fi
 - |
   set -ex
-  case "$BUILD" in
-    stack)
-      echo "$(stack exec -- which gcc)"
-      echo "$(stack exec -- gcc --version)"
-      stack --no-terminal --install-ghc $ARGS test --bench --only-dependencies -j1
-      ;;
-    cabal)
-      cabal --version
-      travis_retry cabal update
-
-      # Get the list of packages from the stack.yaml file
-      PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
-
-      cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
-      ;;
-  esac
+  echo "$(stack exec -- which gcc)"
+  echo "$(stack exec -- gcc --version)"
+  stack --no-terminal --install-ghc $RESOLVER test --bench --only-dependencies -j1
   set +ex
 
 script:
 - |
   set -ex
-  case "$BUILD" in
-    stack)
-      stack --no-terminal $ARGS test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps -j1
-      ;;
-    cabal)
-      cabal install --enable-tests --enable-benchmarks --force-reinstalls --ghc-options=-O0 --reorder-goals --max-backjumps=-1 $CABALARGS $PACKAGES
-
-      ORIGDIR=$(pwd)
-      for dir in $PACKAGES
-      do
-        cd $dir
-        cabal check || [ "$CABALVER" == "1.16" ]
-        cabal sdist
-        PKGVER=$(cabal info . | awk '{print $2;exit}')
-        SRC_TGZ=$PKGVER.tar.gz
-        cd dist
-        tar zxfv "$SRC_TGZ"
-        cd "$PKGVER"
-        cabal configure --enable-tests
-        cabal build
-        cd $ORIGDIR
-      done
-      ;;
-  esac
+  stack --no-terminal $RESOLVER test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps -j1
   set +ex

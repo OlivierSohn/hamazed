@@ -55,6 +55,7 @@ import           Imj.Graphics.Color.Types
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.Text.ColorString(ColorString, intercalate, colored)
 import           Imj.Graphics.Color
+import           Imj.Music hiding(Do)
 import           Imj.Log
 
 type ClientHandlerIO = StateT ServerState (ReaderT ConstClient IO)
@@ -126,6 +127,11 @@ notifyEveryone evt =
 notifyEveryoneN :: (MonadIO m, MonadState ServerState m) => [ServerEvent] -> m ()
 notifyEveryoneN evts =
   notifyN evts =<< gets clientsMap
+
+{-# INLINABLE notifyPlayersN #-}
+notifyPlayersN :: (MonadIO m, MonadState ServerState m) => [ServerEvent] -> m ()
+notifyPlayersN evts =
+  notifyN evts =<< gets onlyPlayersMap
 
 {-# INLINABLE notifyPlayers #-}
 notifyPlayers :: (MonadIO m, MonadState ServerState m) => ServerEvent -> m ()
@@ -263,7 +269,7 @@ takeShipId =
           liftIO (tryReadMVar game) >>= maybe
             (do serverLog $ pure "No game is running"
                 return Nothing)
-            (\(CurrentGame _ gamePlayers status) -> case status of
+            (\(CurrentGame _ gamePlayers status _) -> case status of
                 (Paused _ _) -> do
                 -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
                 -- - the game scheduler thread updates it every second only -
@@ -624,7 +630,7 @@ handleIncomingEvent' = \case
     (handlerError $ "Could not get GameState " ++ show wid)
     (\gameStateEssence ->
       gets scheduledGame >>= liftIO . tryReadMVar >>= \case
-        Just (CurrentGame _ gamePlayers (Paused _ _)) -> do
+        Just (CurrentGame _ gamePlayers (Paused _ _) _) -> do
           disconnectedPlayerKeys <- Set.difference gamePlayers <$> gets onlyPlayersIds
           flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
             notifyN [PutGameState gameStateEssence wid]
@@ -658,7 +664,7 @@ handleIncomingEvent' = \case
               -- of 'ServerState' and we are inside one.
               void $ liftIO $ putMVar game $ mkCurrentGame lastWId playersKeys)
           -- a game is in progress (reconnection scenario) :
-          (\(CurrentGame wid' _ _) -> do
+          (\(CurrentGame wid' _ _ _) -> do
               when (wid' /= lastWId) $
                 handlerError $ "reconnection failed " ++ show (wid', lastWId)
               -- make player join the current game, but do /not/ set getShipSafeUntil,
@@ -720,7 +726,7 @@ updateCurrentStatus :: (MonadState ServerState m, MonadIO m)
                     -> m (Maybe GameStatus)
 updateCurrentStatus ref = gets scheduledGame >>= tryReadMVar >>= maybe
   (return Nothing)
-  (\(CurrentGame _ gamePlayers status) -> do
+  (\(CurrentGame _ gamePlayers status _) -> do
     connectedPlayers' <- gets onlyPlayersMap
     let connectedPlayers = Map.keysSet connectedPlayers'
         missingPlayers = Set.difference gamePlayers connectedPlayers
@@ -785,7 +791,7 @@ gameScheduler st =
       then return ()
       else
         -- block until 'scheduledGame' contains a 'CurrentGame'
-        readMVar mayGame >>= \(CurrentGame refWorld _ _) -> do
+        readMVar mayGame >>= \(CurrentGame refWorld _ _ _) -> do
           let run x = modifyMVar st $ fmap swap . runStateT (run' refWorld x)
               toActOrNotToAct act maybeRefTime continuation = act >>= \case
                 Executed dt ->
@@ -827,7 +833,7 @@ gameScheduler st =
         liftIO (tryReadMVar game) >>= maybe
           (do serverError "logic : mayGame is Nothing"
               return NotExecutedGameCanceled)
-          (\(CurrentGame curWid _ _) ->
+          (\(CurrentGame curWid _ _ _) ->
             if refWid /= curWid
               then do
                 serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
@@ -875,10 +881,18 @@ gameScheduler st =
               then Nothing
               else Just acc)
       <$> gets onlyPlayersMap
-    updateSafeShips >>= notifyPlayers . GameEvent . PeriodicMotion accs
+    updateSafeShips >>= \shipsLostArmor ->
+      updateScore >>= \noteChange ->
+        notifyPlayersN [PlayMusic noteChange, GameEvent $ PeriodicMotion accs shipsLostArmor]
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
    where
+    updateScore =
+      get >>= \s ->
+        liftIO $ modifyMVar
+          (scheduledGame s)
+          (\g -> let (newScore, noteChange) = stepScore $ score g in return (g {score = newScore}, noteChange))
+
     updateSafeShips =
       state $ \s ->
         let clients = getClients s

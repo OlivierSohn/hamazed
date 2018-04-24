@@ -1,3 +1,7 @@
+- on client termination, sound should closegracefully, i.e fade out.
+- add a keyboard so that players can play music collaboratively:
+the note should transit through the server before being played so that both players have the latency.
+
 - make a separate cabal just for audio bindings, with no dependency on imj.prelude
 
 - CI build :

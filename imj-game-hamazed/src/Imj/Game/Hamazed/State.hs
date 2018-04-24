@@ -63,6 +63,7 @@ representation (Left (OnWorldParameters _)) = Chat'
 representation (Left (PlayerInfo _ _)) = Chat'
 representation (Left (GameInfo _))     = Chat'
 representation (Left (Reporting _))  = Chat'
+representation (Left PlayMusic{}) = Command'
 representation (Right e) = case e of
   ApplyPPUDelta _           -> CycleRenderingOptions'
   ApplyFontMarginDelta _    -> CycleRenderingOptions'

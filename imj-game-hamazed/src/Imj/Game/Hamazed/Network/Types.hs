@@ -125,6 +125,7 @@ import           Imj.Graphics.Text.ColorString(ColorString)
 import qualified Imj.Graphics.Text.ColorString as ColorString(colored, intercalate)
 import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
 import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
+import           Imj.Music
 import           Imj.Timing
 
 -- | a Server, seen from a Client's perspective
@@ -279,6 +280,7 @@ data ServerEvent =
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
+  | PlayMusic !Music
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)

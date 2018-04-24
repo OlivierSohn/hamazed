@@ -6,7 +6,50 @@
 #endif
 
 #include "cpp.os.audio/include/public.h"
+#include "cpp.audio/include/public.h"
+namespace imajuscule {
+  namespace audio {
 
+    Event mkNoteOn(int pitch, float velocity) {
+      Event e;
+      e.type = Event::kNoteOnEvent;
+      e.noteOn.pitch = pitch;
+      e.noteOn.velocity = velocity;
+      e.noteOn.channel=0; // unused
+      e.noteOn.tuning = 0;
+      e.noteOn.noteId = -1;
+      e.noteOn.length = std::numeric_limits<decltype(e.noteOn.length)>::max();
+      return e;
+    }
+
+    Event mkNoteOff(int pitch) {
+      Event e;
+      e.type = Event::kNoteOffEvent;
+      e.noteOff.pitch = pitch;
+      e.noteOff.velocity = 0.f;
+      e.noteOff.channel= 0;
+      e.noteOff.tuning = 0;
+      e.noteOff.noteId = -1;
+      return e;
+    }
+
+    namespace sine {
+      using AudioOutSynth = Synth <
+        AudioOut::nAudioOut
+      , XfadePolicy::UseXfade
+      , MonoNoteChannel<1, audioelement::Oscillator<float>>
+      , true
+      , EventIterator<IEventList>
+      , NoteOnEvent
+      , NoteOffEvent>;
+
+      AudioOutSynth & getSynth() {
+        static AudioOutSynth s;
+        return s;
+      }
+    }
+  }
+}
 extern "C" {
 
   void disableDenormals() {
@@ -43,6 +86,34 @@ extern "C" {
     Audio::TearDown();
   }
 
+  void onSynthEvent(imajuscule::audio::Event const & e) {
+    if(auto a = Audio::getInstance()) {
+      using namespace imajuscule::audio::sine;
+      getSynth().onEvent(e, [](auto & c) -> bool {
+          if(!c.elem.isInactive()) {
+              return false;
+          }
+          // here we know that all elements are inactive
+          // but if the channel has not been closed yet
+          // we cannot use it (if we want to enable that,
+          // we should review the way note on/off are detected,
+          // because it would probably cause bugs)
+          return c.closed();
+      }, a->out().getChannelHandler());
+    }
+  }
+
+  void midiNoteOn(int pitch, float velocity) {
+    using namespace imajuscule::audio;
+    onSynthEvent(mkNoteOn(pitch,velocity));
+  }
+
+  void midiNoteOff(int pitch) {
+    using namespace imajuscule::audio;
+    onSynthEvent(mkNoteOff(pitch));
+  }
+
+  // Opens a 'Channel', and plays a Request in it.
   void beep () {
     if(auto a = Audio::getInstance()) {
       // copy/pasted parts of scriptinterpreter.cpp

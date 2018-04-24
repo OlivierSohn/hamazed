@@ -53,6 +53,7 @@ import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
+import qualified Imj.Music as MIDI
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m
@@ -95,6 +96,7 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
+  PlayMusic music -> liftIO $ MIDI.play music
   WorldRequest wid arg -> case arg of
     GetGameState ->
       mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid

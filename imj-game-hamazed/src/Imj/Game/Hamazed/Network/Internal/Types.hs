@@ -26,12 +26,13 @@ import qualified Data.Set as Set (empty)
 import           Network.WebSockets(Connection)
 
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Network.Types hiding(Do)
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.Color
+import           Imj.Music
 
 data Client = Client {
     getName :: {-# UNPACK #-} !PlayerName
@@ -105,10 +106,11 @@ data CurrentGame = CurrentGame {
     gameWorld :: {-# UNPACK #-} !WorldId
   , gamePlayers' :: !(Set ShipId)
   , status' :: {-unpack sum-} !GameStatus
+  , score :: !Score
 } deriving(Generic, Show)
 
 mkCurrentGame :: WorldId -> Set ShipId -> CurrentGame
-mkCurrentGame w s = CurrentGame w s New
+mkCurrentGame w s = CurrentGame w s New $ mkScore Nothing [Note Do 6, Note Do 7]
 
 data Intent =
     IntentSetup

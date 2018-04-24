@@ -39,7 +39,7 @@ addons:
     - libgmp-dev
     - libportaudio-dev
     - g++-7
-    - libstdc++-7
+    - libstdc++-7-dev
 
 # Caching so the next build will be fast too.
 cache:

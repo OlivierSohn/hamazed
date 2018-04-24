@@ -1,13 +1,8 @@
-- on client termination, sound should closegracefully, i.e fade out.
+- when the client is computing the world, we could make audioout sleep to have more CPU available.
+
+- on client termination, sound should close gracefully, i.e fade out.
 - add a keyboard so that players can play music collaboratively:
 the note should transit through the server before being played so that both players have the latency.
-
-- make a separate cabal just for audio bindings, with no dependency on imj.prelude
-
-- CI build :
-on ubuntu 14, libstdc++ is missing or bad.
-TODO locate it, maybe add the folder to extra-lib-dirs
-And maybe we need to pass -static-libstdc++
 
 - on linux glfw (or is it due to the graphic driver?), some fonts are too big.
 
@@ -23,10 +18,6 @@ on frame: ?
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 (On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
 When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
-
-- music:
-https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
-https://stackoverflow.com/questions/37101999/including-c-sources-in-a-haskell-project
 
 - Add music :
   slow (ternary) :

@@ -8,7 +8,6 @@
 # Copy these contents into the root directory of your Github project in a file
 # named .travis.yml
 
-# Use new container infrastructure to enable caching
 sudo: false
 
 language: generic
@@ -22,8 +21,9 @@ env:
   - RESOLVER="--resolver nightly-2018-04-20"
   - RESOLVER="--resolver nightly"
 
-allow_failures:
-  - env: RESOLVER="--resolver nightly"
+matrix:
+  allow_failures:
+    - env: RESOLVER="--resolver nightly"
 
 addons:
   apt:
@@ -37,17 +37,19 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - portaudio19-dev
+    # g++ versions before 7 won't work, as some needed C++ features are not implemented.
     - g++-7
     - libstdc++-7-dev
 
 # Caching so the next build will be fast too.
 cache:
   directories:
-  - $HOME/.ghc
-  - $HOME/.cabal
   - $HOME/.stack
 
 before_install:
+
+- set -ex
+
 - |
   if [[ $TRAVIS_OS_NAME == 'linux' ]]
   then
@@ -58,8 +60,10 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-# Download and unpack the stack executable
+- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi
+
 - mkdir -p ~/.local/bin
+- export PATH=$HOME/.local/bin:$PATH
 - |
   if [ `uname` = "Darwin" ]
   then
@@ -68,24 +72,10 @@ before_install:
     travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
 
-  mkdir -p $HOME/.cabal
-  echo 'remote-repo: hackage.haskell.org:http://hackage.fpcomplete.com/' > $HOME/.cabal/config
-  echo 'remote-repo-cache: $HOME/.cabal/packages' >> $HOME/.cabal/config
-  echo 'jobs: $ncpus' >> $HOME/.cabal/config
-
-install:
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi
-- echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
-- if [ -f configure.ac ]; then autoreconf -i; fi
 - |
-  set -ex
   echo "$(stack exec -- which gcc)"
   echo "$(stack exec -- gcc --version)"
-  stack --no-terminal --install-ghc $RESOLVER test --bench --only-dependencies -j1
-  set +ex
+  stack --no-terminal build --install-ghc $RESOLVER --only-dependencies -j1
 
 script:
-- |
-  set -ex
-  stack --no-terminal $RESOLVER test --pedantic --bench --no-run-benchmarks --haddock --no-haddock-deps -j1
-  set +ex
+- stack --no-terminal $RESOLVER test --pedantic --haddock --no-haddock-deps -j1

@@ -7,7 +7,6 @@
 #endif
 
 #include "cpp.os.audio/include/public.h"
-#include "cpp.audio/include/public.h"
 
 namespace imajuscule {
   namespace audioelement {

@@ -838,8 +838,10 @@ gameScheduler st =
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
-          let (newScore, mayNoteChange) = stopScore s
-          maybe (return ()) (notifyPlayers . PlayMusic) mayNoteChange
+          let (newScore, noteChanges) = stopScore s
+          case noteChanges of
+            [] -> return ()
+            _:_ -> notifyPlayersN $ map PlayMusic notesChanges
           putMVar game $ g{score = newScore})
 
     go = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
@@ -902,7 +904,7 @@ gameScheduler st =
       <$> gets onlyPlayersMap
     updateSafeShips >>= \shipsLostArmor ->
       updateScore >>= \noteChange ->
-        notifyPlayersN [PlayMusic noteChange, GameEvent $ PeriodicMotion accs shipsLostArmor]
+        notifyPlayersN (map PlayMusic noteChange ++ [GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
    where

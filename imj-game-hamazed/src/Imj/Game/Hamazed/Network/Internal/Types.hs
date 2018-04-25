@@ -31,6 +31,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Hamazed.Music
 import           Imj.Graphics.Color
 import           Imj.Music
 
@@ -110,7 +111,7 @@ data CurrentGame = CurrentGame {
 } deriving(Generic, Show)
 
 mkCurrentGame :: WorldId -> Set ShipId -> CurrentGame
-mkCurrentGame w s = CurrentGame w s New $ mkScore Nothing [Note Do 6, Note Do 7]
+mkCurrentGame w s = CurrentGame w s New $ mkScore mainTheme
 
 data Intent =
     IntentSetup

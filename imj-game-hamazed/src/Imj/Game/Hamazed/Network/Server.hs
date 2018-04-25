@@ -838,8 +838,8 @@ gameScheduler st =
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
-          let (newScore, noteChanges) = stopScore s
-          case noteChanges of
+          let (newScore, notesChanges) = stopScore s
+          case notesChanges of
             [] -> return ()
             _:_ -> notifyPlayersN $ map PlayMusic notesChanges
           putMVar game $ g{score = newScore})

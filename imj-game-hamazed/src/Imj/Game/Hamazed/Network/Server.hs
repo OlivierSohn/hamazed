@@ -903,12 +903,12 @@ gameScheduler st =
               else Just acc)
       <$> gets onlyPlayersMap
     updateSafeShips >>= \shipsLostArmor ->
-      updateScore >>= \noteChange ->
+      updateVoice >>= \noteChange ->
         notifyPlayersN (map PlayMusic noteChange ++ [GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
    where
-    updateScore =
+    updateVoice =
       get >>= \s ->
         liftIO $ modifyMVar
           (scheduledGame s)

@@ -5,6 +5,7 @@
 
 module Imj.Game.Hamazed.Music
   ( mainTheme
+  , secondVoice
   , alarm
   ) where
 
@@ -37,6 +38,19 @@ variations =
   , [notes|vsol . .|]
   , [notes|ré sol vsol|]
   ]
+
+secondVoice :: [Symbol]
+secondVoice =
+  [notes|
+  . . sol
+  . . .
+  . . sol
+  . . .
+  mib . .
+  fa . .
+  mib . .
+  ré . .
+  |]
 
 alarm :: [Symbol]
 alarm =

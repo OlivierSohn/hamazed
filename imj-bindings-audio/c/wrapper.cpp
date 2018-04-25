@@ -57,17 +57,9 @@ namespace imajuscule {
 
       void onSynthEvent(imajuscule::audio::Event const & e) {
         if(auto a = Audio::getInstance()) {
-          getSynth().onEvent(e, [](auto & c) -> bool {
-              if(!c.elem.isInactive()) {
-                  return false;
-              }
-              // here we know that all elements are inactive
-              // but if the channel has not been closed yet
-              // we cannot use it (if we want to enable that,
-              // we should review the way note on/off are detected,
-              // because it would probably cause bugs)
-              return c.closed();
-          }, a->out().getChannelHandler());
+          // we need to check for closed() too, or else we should review the way note on/off are detected,
+          // because it would probably cause bugs
+          getSynth().onEvent(e, [](auto & c) { return c.elem.isInactive() && c.closed(); }, a->out().getChannelHandler());
         }
       }
     }
@@ -89,17 +81,9 @@ namespace imajuscule {
 
       void onSynthEvent(imajuscule::audio::Event const & e) {
         if(auto a = Audio::getInstance()) {
-          getSynth().onEvent(e, [](auto & c) -> bool {
-              if(!c.elem.isInactive()) {
-                  return false;
-              }
-              // here we know that all elements are inactive
-              // but if the channel has not been closed yet
-              // we cannot use it (if we want to enable that,
-              // we should review the way note on/off are detected,
-              // because it would probably cause bugs)
-              return c.closed();
-          }, a->out().getChannelHandler());
+          // we need to check for closed() too, or else we should review the way note on/off are detected,
+          // because it would probably cause bugs
+          getSynth().onEvent(e, [](auto & c) { return c.elem.isInactive() && c.closed(); }, a->out().getChannelHandler());
         }
       }
     }

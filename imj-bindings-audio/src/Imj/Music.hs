@@ -17,13 +17,17 @@ module Imj.Music
       , MidiVelocity(..)
       , Tempo(..)
       , Score
-      , sizeScore
-      , notes
       , mkScore
       , stepScore
       , stopScore
-      , stepNScore
-      , stepNScoreAndStop
+      , Voice
+      , sizeVoice
+      , notes
+      , mkVoice
+      , stepVoice
+      , stopVoice
+      , stepNVoice
+      , stepNVoiceAndStop
       , Music(..)
       , play
       ) where
@@ -139,8 +143,38 @@ notes = QuasiQuoter {
     , quoteDec  = undefined
     }
 
--- | Keeps track of progress, and loops when the end is found.
 data Score = Score {
+  _voices :: ![Voice]
+} deriving(Generic,Show, Eq)
+
+mkScore :: [[Symbol]] -> Score
+mkScore = Score . map mkVoice
+
+-- TODO use ids for notes (one id per voice would be enough), to support this case well:
+-- voice1: do - - - -
+-- voice2: . . do . .
+-- when the do of voice2 terminates, we want it to fadeout its own channel, not the one
+-- of the other voice. NOTE it makes a difference only if the 2 notes have different velocities,
+-- which is not possible as of today.
+stepScore :: Score
+          -> (Score, [Music])
+stepScore (Score l) = (s,m)
+ where
+  nv = map stepVoice l
+  s = Score $ map fst nv
+  m = concatMap snd nv
+
+stopScore :: Score
+          -> (Score, [Music])
+stopScore (Score l) = (s,m)
+ where
+  nv = map stopVoice l
+  s = Score $ map fst nv
+  m = concatMap snd nv
+
+
+-- | Keeps track of progress, and loops when the end is found.
+data Voice = Voice {
     _nextIdx :: !NoteIdx
   , _curNote :: (Maybe Symbol)
   -- ^ The invariant is that this can never be 'Just' 'Extend' : instead,
@@ -148,36 +182,35 @@ data Score = Score {
   , _noteSequence :: !(V.Vector Symbol)
 } deriving(Generic,Show, Eq)
 
-mkScore :: [Symbol] -> Score
-mkScore l = Score 0 Nothing $ V.fromList l
+mkVoice :: [Symbol] -> Voice
+mkVoice l = Voice 0 Nothing $ V.fromList l
 
-sizeScore :: Score -> Int
-sizeScore (Score _ _ v) = V.length v
+sizeVoice :: Voice -> Int
+sizeVoice (Voice _ _ v) = V.length v
 
--- | Like 'stepNScore' but also uses 'stopScore' to finalize the music.
-stepNScoreAndStop :: Int -> Score -> (Score, [[Music]])
-stepNScoreAndStop n s =
+-- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
+stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
+stepNVoiceAndStop n s =
   (s'', reverse $ lastMusic:music)
  where
-  (s', music) = stepNScoreReversed n s
-  (s'', lastMusic) = stopScore s'
+  (s', music) = stepNVoiceReversed n s
+  (s'', lastMusic) = stopVoice s'
 
-stepNScoreReversed :: Int -> Score -> (Score, [[Music]])
-stepNScoreReversed n score
+stepNVoiceReversed :: Int -> Voice -> (Voice, [[Music]])
+stepNVoiceReversed n score
   | n < 0 = (score,[])
   | otherwise = go n score []
  where
   go 0 s l = (s, l)
-  go i s l = let (s',m) = stepScore s in go (i-1) s' $ m:l
+  go i s l = let (s',m) = stepVoice s in go (i-1) s' $ m:l
 
-stepNScore :: Int -> Score -> (Score, [[Music]])
-stepNScore n score = let (s,l) = stepNScoreReversed n score in (s,reverse l)
+stepNVoice :: Int -> Voice -> (Voice, [[Music]])
+stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
 
-stepScore :: Score
-          -> (Score, [Music])
-          -- ^ returns the (Maybe) previous note and the current note
-stepScore (Score (NoteIdx i) cur v) =
-    ( Score nextI newCur v
+stepVoice :: Voice
+          -> (Voice, [Music])
+stepVoice (Voice (NoteIdx i) cur v) =
+    ( Voice nextI newCur v
     , catMaybes [mayStopCur, mayStartNext])
  where
   nextNote = v V.! i
@@ -207,9 +240,9 @@ stepScore (Score (NoteIdx i) cur v) =
     | i < len-1 = fromIntegral $ i+1
     | otherwise = 0
 
-stopScore :: Score -> (Score, [Music])
-stopScore (Score _ cur l) =
-    ( Score 0 Nothing l
+stopVoice :: Voice -> (Voice, [Music])
+stopVoice (Voice _ cur l) =
+    ( Voice 0 Nothing l
     , maybeToList noteChange)
  where
   noteChange = maybe Nothing (\case
@@ -225,14 +258,11 @@ data Music =
 instance Binary Music
 instance NFData Music
 
-
-
 play :: Music -> IO ()
 play (StartNote n v) =
   noteOn n v
 play (StopNote n) =
   noteOff n
-
 
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)

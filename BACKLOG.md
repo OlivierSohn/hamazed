@@ -1,3 +1,6 @@
+- laser should have a sound, maybe depending on the music, it could be a chord.
+- winning or losing should change the music
+
 - when the client is computing the world, we could make audioout sleep to have more CPU available.
 
 - on client termination, sound should close gracefully, i.e fade out.

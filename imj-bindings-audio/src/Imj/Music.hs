@@ -259,10 +259,10 @@ instance Binary Music
 instance NFData Music
 
 play :: Music -> IO ()
-play (StartNote n v) =
-  noteOn n v
+play (StartNote n (MidiVelocity v)) =
+  midiNoteOn (noteToMidiPitch n) $ CFloat v
 play (StopNote n) =
-  noteOff n
+  midiNoteOff $ noteToMidiPitch n
 
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
@@ -313,9 +313,3 @@ noteIdx Lab = 8
 noteIdx La = 9
 noteIdx Sib = 10
 noteIdx Si = 11
-
-noteOn :: NoteSpec -> MidiVelocity -> IO ()
-noteOn note (MidiVelocity vel) = midiNoteOn (noteToMidiPitch note) $ CFloat vel
-
-noteOff :: NoteSpec -> IO ()
-noteOff note = midiNoteOff $ noteToMidiPitch note

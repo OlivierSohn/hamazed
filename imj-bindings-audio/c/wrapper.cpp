@@ -121,7 +121,13 @@ extern "C" {
     Audio::Init(Audio::OutInitPolicy::FORCE);
   }
 
-  void finalizeAudio() {
+  void stopAudioGracefully() {
+    if(auto a = Audio::getInstance()) {
+      a->out().onApplicationShouldClose();
+    }
+  }
+
+  void teardownAudio() {
     using namespace imajuscule;
     Audio::TearDown();
   }

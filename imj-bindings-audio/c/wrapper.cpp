@@ -1,4 +1,5 @@
 #ifdef __cplusplus
+
 #include <iostream>
 
 #if __APPLE__
@@ -7,7 +8,13 @@
 
 #include "cpp.os.audio/include/public.h"
 #include "cpp.audio/include/public.h"
+
 namespace imajuscule {
+  namespace audioelement {
+    template <typename Float>
+    using VolumeAdjustedOscillator = FinalAudioElement<VolumeAdjusted<OscillatorAlgo<Float, eNormalizePolicy::FAST>>>;
+  }
+
   namespace audio {
 
     Event mkNoteOn(int pitch, float velocity) {
@@ -47,9 +54,59 @@ namespace imajuscule {
         static AudioOutSynth s;
         return s;
       }
+
+      void onSynthEvent(imajuscule::audio::Event const & e) {
+        if(auto a = Audio::getInstance()) {
+          getSynth().onEvent(e, [](auto & c) -> bool {
+              if(!c.elem.isInactive()) {
+                  return false;
+              }
+              // here we know that all elements are inactive
+              // but if the channel has not been closed yet
+              // we cannot use it (if we want to enable that,
+              // we should review the way note on/off are detected,
+              // because it would probably cause bugs)
+              return c.closed();
+          }, a->out().getChannelHandler());
+        }
+      }
+    }
+
+    namespace vasine {
+      using AudioOutSynth = Synth <
+        AudioOut::nAudioOut
+      , XfadePolicy::UseXfade
+      , MonoNoteChannel<1, audioelement::VolumeAdjustedOscillator<float>>
+      , true
+      , EventIterator<IEventList>
+      , NoteOnEvent
+      , NoteOffEvent>;
+
+      AudioOutSynth & getSynth() {
+        static AudioOutSynth s;
+        return s;
+      }
+
+      void onSynthEvent(imajuscule::audio::Event const & e) {
+        if(auto a = Audio::getInstance()) {
+          getSynth().onEvent(e, [](auto & c) -> bool {
+              if(!c.elem.isInactive()) {
+                  return false;
+              }
+              // here we know that all elements are inactive
+              // but if the channel has not been closed yet
+              // we cannot use it (if we want to enable that,
+              // we should review the way note on/off are detected,
+              // because it would probably cause bugs)
+              return c.closed();
+          }, a->out().getChannelHandler());
+        }
+      }
     }
   }
 }
+namespace mySynth = imajuscule::audio::vasine;
+
 extern "C" {
 
   void disableDenormals() {
@@ -86,30 +143,15 @@ extern "C" {
     Audio::TearDown();
   }
 
-  void onSynthEvent(imajuscule::audio::Event const & e) {
-    if(auto a = Audio::getInstance()) {
-      using namespace imajuscule::audio::sine;
-      getSynth().onEvent(e, [](auto & c) -> bool {
-          if(!c.elem.isInactive()) {
-              return false;
-          }
-          // here we know that all elements are inactive
-          // but if the channel has not been closed yet
-          // we cannot use it (if we want to enable that,
-          // we should review the way note on/off are detected,
-          // because it would probably cause bugs)
-          return c.closed();
-      }, a->out().getChannelHandler());
-    }
-  }
-
   void midiNoteOn(int pitch, float velocity) {
     using namespace imajuscule::audio;
+    using namespace mySynth;
     onSynthEvent(mkNoteOn(pitch,velocity));
   }
 
   void midiNoteOff(int pitch) {
     using namespace imajuscule::audio;
+    using namespace mySynth;
     onSynthEvent(mkNoteOff(pitch));
   }
 

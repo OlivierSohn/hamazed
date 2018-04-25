@@ -28,13 +28,13 @@ mainTheme =
 
 variations :: [[Symbol]]
 variations =
-  [ [notes|vsi vla vsol|]
+  [ [notes|vsol . .|]
   , [notes|vsol vla vsi|]
-  , [notes|sol lab sol|]
-  , [notes|fa mib ré|]
-  , [notes|ré . v sol|]
-  , [notes|ré mib ré|]
-  , [notes|vsol ré sol|]
+  , [notes|vsol . .|]
+  , [notes|ré ré ré|]
+  , [notes|vsol . .|]
+  , [notes|vsol vsi ré|]
+  , [notes|vsol . .|]
   , [notes|ré sol vsol|]
   ]
 

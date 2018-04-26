@@ -39,6 +39,14 @@ namespace imajuscule {
       return e;
     }
 
+    auto & windVoice () {
+      constexpr auto n_audio_out = 2;
+      constexpr bool withNoteOff = true;
+      using VoiceWindImpl = Voice<n_audio_out, audio::SoundEngineMode::WIND, withNoteOff>;
+      static VoiceWindImpl v;
+      return v;
+    }
+
     namespace sine {
       using AudioOutSynth = Synth <
         AudioOut::nAudioOut
@@ -132,16 +140,30 @@ extern "C" {
     Audio::TearDown();
   }
 
-  void midiNoteOn(int pitch, float velocity) {
+  void midiNoteOn(int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     using namespace mySynth;
     onSynthEvent(mkNoteOn(pitch,velocity));
   }
 
-  void midiNoteOff(int pitch) {
+  void midiNoteOff(int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace mySynth;
     onSynthEvent(mkNoteOff(pitch));
+  }
+
+  void effectOn(int16_t pitch) {
+    using namespace imajuscule::audio;
+    if(auto a = Audio::getInstance()) {
+      auto voicing = Voicing(11,pitch,1.f,0.f,true,0);
+      playOneThing(windVoice(),a->out().getChannelHandler(),voicing);
+    }
+  }
+  void effectOff(int16_t pitch) {
+    using namespace imajuscule::audio;
+    if(auto a = Audio::getInstance()) {
+      stopPlaying(windVoice(),a->out().getChannelHandler(),pitch);
+    }
   }
 
   // Opens a 'Channel', and plays a Request in it.

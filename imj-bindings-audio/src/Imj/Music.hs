@@ -30,6 +30,8 @@ module Imj.Music
       , stepNVoiceAndStop
       , Music(..)
       , play
+      , playWind
+      , stopWind
       ) where
 
 import           Language.Haskell.TH
@@ -264,6 +266,11 @@ play (StartNote n (MidiVelocity v)) =
 play (StopNote n) =
   midiNoteOff $ noteToMidiPitch n
 
+playWind :: IO ()
+playWind = effectOn 60
+stopWind :: IO ()
+stopWind = effectOff 60
+
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
 
@@ -297,10 +304,10 @@ instance NFData MidiVelocity
 
 
 -- according to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
-noteToMidiPitch :: NoteSpec -> CInt
+noteToMidiPitch :: NoteSpec -> CShort
 noteToMidiPitch (NoteSpec n oct) = 12 * (fromIntegral oct-1) + noteIdx n
 
-noteIdx :: NoteName -> CInt
+noteIdx :: NoteName -> CShort
 noteIdx Do = 0
 noteIdx Réb = 1
 noteIdx Ré = 2

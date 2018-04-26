@@ -3,9 +3,12 @@
 module Imj.Audio
       ( -- * Using audio
         withAudio
-      -- * Midi
+      -- * Midi Synth
       , midiNoteOn
       , midiNoteOff
+      -- * Effect
+      , effectOn
+      , effectOff
       -- * Troubleshooting
       , beep
         ) where
@@ -17,6 +20,9 @@ import Control.Exception(bracket)
 -- | A test function to emit a beep sound.
 foreign import ccall "beep" beep :: IO ()
 
+foreign import ccall "effectOn" effectOn :: CShort -> IO ()
+foreign import ccall "effectOff" effectOff :: CShort -> IO ()
+
 -- | Should be called prior to using any other function (see 'withAudio')
 foreign import ccall "initializeAudio" initializeAudio :: IO ()
 
@@ -26,8 +32,8 @@ foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 
 -- | Stops audio abruptly (see 'withAudio').
 foreign import ccall "teardownAudio" teardownAudio :: IO ()
-foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CFloat -> IO ()
-foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> IO ()
+foreign import ccall "midiNoteOn" midiNoteOn :: CShort -> CFloat -> IO ()
+foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

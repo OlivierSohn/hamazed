@@ -1,3 +1,6 @@
+
+- use 'Communication' sound while computing the world.
+
 - laser should have a sound, maybe depending on the music, it could be a chord.
 - winning or losing should change the music
 

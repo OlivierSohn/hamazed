@@ -12,7 +12,6 @@ module Imj.Game.Hamazed.Music
 import           Data.List
 import           Imj.Music
 
-
 mainTheme :: [Symbol]
 mainTheme =
   concatMap ((++) begin) variations

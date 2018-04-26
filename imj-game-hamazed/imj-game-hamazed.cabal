@@ -54,6 +54,7 @@ library
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server
                      , Imj.Game.Hamazed.Network.Types
+                     , Imj.Game.Hamazed.Sound
                      , Imj.Game.Hamazed.State
                      , Imj.Game.Hamazed.State.Types
                      , Imj.Game.Hamazed.Types

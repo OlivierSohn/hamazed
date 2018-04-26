@@ -41,6 +41,7 @@ import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Game.Hamazed.Sound
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Ship
@@ -53,7 +54,7 @@ import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
-import qualified Imj.Music as MIDI
+import           Imj.Music hiding(Do)
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m
@@ -96,7 +97,7 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
-  PlayMusic music -> liftIO $ MIDI.play music
+  PlayMusic music -> liftIO $ play music
   WorldRequest wid arg -> case arg of
     GetGameState ->
       mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
@@ -131,7 +132,8 @@ updateAppState (Left evt) = case evt of
     putWorldParameters worldParameters
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
-  GameEvent (LaserShot dir shipId) ->
+  GameEvent (LaserShot dir shipId) -> do
+    liftIO laserSound
     onLaser shipId dir Add
   ConnectionAccepted i eplayers worldParams -> do
     sendToServer $ ExitedState Excluded

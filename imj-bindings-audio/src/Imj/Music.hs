@@ -30,8 +30,6 @@ module Imj.Music
       , stepNVoiceAndStop
       , Music(..)
       , play
-      , playWind
-      , stopWind
       ) where
 
 import           Language.Haskell.TH
@@ -265,11 +263,6 @@ play (StartNote n (MidiVelocity v)) =
   midiNoteOn (noteToMidiPitch n) $ CFloat v
 play (StopNote n) =
   midiNoteOff $ noteToMidiPitch n
-
-playWind :: IO ()
-playWind = effectOn 60
-stopWind :: IO ()
-stopWind = effectOff 60
 
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)

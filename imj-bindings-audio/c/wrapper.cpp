@@ -127,6 +127,9 @@ extern "C" {
 
     // We know we're going to use audio so we force initialization.
     Audio::Init(Audio::OutInitPolicy::FORCE);
+    using namespace imajuscule::audio;
+
+    windVoice().initializeSlow();
   }
 
   void stopAudioGracefully() {

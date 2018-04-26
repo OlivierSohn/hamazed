@@ -66,7 +66,7 @@ namespace imajuscule {
         if(auto a = Audio::getInstance()) {
           // we need to check for closed() too, or else we should review the way note on/off are detected,
           // because it would probably cause bugs
-          getSynth().onEvent(e, [](auto & c) { return c.elem.isInactive() && c.closed(); }, a->out().getChannelHandler());
+          getSynth().onEvent2(e, a->out().getChannelHandler());
         }
       }
     }
@@ -90,7 +90,7 @@ namespace imajuscule {
         if(auto a = Audio::getInstance()) {
           // we need to check for closed() too, or else we should review the way note on/off are detected,
           // because it would probably cause bugs
-          getSynth().onEvent(e, [](auto & c) { return c.elem.isInactive() && c.closed(); }, a->out().getChannelHandler());
+          getSynth().onEvent2(e, a->out().getChannelHandler());
         }
       }
     }

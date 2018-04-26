@@ -144,7 +144,7 @@ library
                      , file-embed ==0.0.*
                      , freetype2 ==0.1.*
                      , FTGL ==2.1.*
-                     , GLFW-b ==1.4.*
+                     , GLFW-b ==3.2.*
                      , imj-prelude ==0.1.*
                      , loop ==0.3.*
                      , matrix >= 0.3.5.0

@@ -64,8 +64,6 @@ namespace imajuscule {
 
       void onSynthEvent(imajuscule::audio::Event const & e) {
         if(auto a = Audio::getInstance()) {
-          // we need to check for closed() too, or else we should review the way note on/off are detected,
-          // because it would probably cause bugs
           getSynth().onEvent2(e, a->out().getChannelHandler());
         }
       }
@@ -88,8 +86,6 @@ namespace imajuscule {
 
       void onSynthEvent(imajuscule::audio::Event const & e) {
         if(auto a = Audio::getInstance()) {
-          // we need to check for closed() too, or else we should review the way note on/off are detected,
-          // because it would probably cause bugs
           getSynth().onEvent2(e, a->out().getChannelHandler());
         }
       }

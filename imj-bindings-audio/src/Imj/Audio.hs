@@ -9,7 +9,7 @@ module Imj.Audio
       -- * Effect
       , effectOn
       , effectOff
-      -- * Troubleshooting
+      -- * Test functions
       , beep
       -- * reexports
       , CInt, CShort, CFloat
@@ -28,8 +28,8 @@ foreign import ccall "effectOff" effectOff :: CShort -> IO ()
 -- | Should be called prior to using any other function (see 'withAudio')
 foreign import ccall "initializeAudio" initializeAudio :: IO ()
 
--- | Should be called to shutdown audio gracefully, i.e fade-out quikcly and close
--- any open audio channel (see 'withAudio')
+-- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes
+-- any open audio channel.
 foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 
 -- | Stops audio abruptly (see 'withAudio').

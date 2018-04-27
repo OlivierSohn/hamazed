@@ -1,4 +1,10 @@
+- make a synth app.
+- develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
+we can reduce the xfade amount : 0 (or small, for fast attacks?)
+
 - make music evolve with the numbers shot in the game.
+
+- keyboard : Octave
 
 - use 'Communication' sound while computing the world.
 

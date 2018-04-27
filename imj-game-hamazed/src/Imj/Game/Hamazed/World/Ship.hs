@@ -12,10 +12,10 @@ module Imj.Game.Hamazed.World.Ship
 
 import           Imj.Prelude
 
-import           Data.Char( intToDigit )
+import           Data.Char(intToDigit)
 import           Data.List(foldl', concat)
-import qualified Data.Map.Strict as Map(elems, traverseWithKey, restrictKeys, foldl', lookupMin)
-import qualified Data.Set as Set(null)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -44,9 +44,9 @@ shipParticleSystems :: (MonadState AppState m)
 shipParticleSystems k =
   getWorld >>= \w -> do
     envFuncs <- envFunctions $ WorldScope Air
-    let sps _ (BattleShip _ _ _ Armored   _  _) = return []
-        sps _ (BattleShip _ _ _ Unarmored _  _) = return []
-        sps shipId (BattleShip _ (PosSpeed shipCoords shipSpeed) _ Destroyed collisions _) =
+    let sps _ (BattleShip _ _ Armored   _  _) = return []
+        sps _ (BattleShip _ _ Unarmored _  _) = return []
+        sps shipId (BattleShip (PosSpeed shipCoords shipSpeed) _ Destroyed collisions _) =
           if Set.null collisions
             then
               return []
@@ -80,7 +80,7 @@ countAmmo =
   foldl' (\s ship -> s + countLiveAmmo ship) 0
 
 countLiveAmmo :: BattleShip -> Int
-countLiveAmmo (BattleShip _ _ ammo status _ _) =
+countLiveAmmo (BattleShip _ ammo status _ _) =
   if shipIsAlive status
     then
       ammo
@@ -97,7 +97,7 @@ updateShipsText =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode
               (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
-              infos = mkLeftInfo Normal (Map.elems ships) names shotNumbers level
+              infos = mkLeftInfo Normal ships names shotNumbers level
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
     putAnimation newAnim

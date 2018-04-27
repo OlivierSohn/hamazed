@@ -33,7 +33,7 @@ drawWorld :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
 drawWorld (World balls ships space _ _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (drawNumber space s) balls
-  let drawShip (i, BattleShip _ (PosSpeed shipCoords _) _ status _ _) = do
+  let drawShip (i, BattleShip (PosSpeed shipCoords _) _ status _ _) = do
         let absPos = sumCoords shipCoords s
             inWorld = InsideWorld == location shipCoords space
             go bg = when inWorld $ maybe shipColor (getPlayerColor . getPlayerColors) <$> getPlayer i >>=

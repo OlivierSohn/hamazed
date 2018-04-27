@@ -7,14 +7,15 @@ resolver: nightly-2018-04-20
 #   8.2.2:  lts-11.5
 
 packages:
-- './imj-bindings-audio'
-- './imj-music'
-- './imj-prelude'
 - './imj-base'
-- './imj-particlesystem'
+- './imj-bindings-audio'
 - './imj-game-hamazed'
-- './imj-profile'
 - './imj-measure-stdout'
+- './imj-music'
+- './imj-particlesystem'
+- './imj-prelude'
+- './imj-profile'
+- './imj-server'
 
 - location:
     git: https://github.com/OlivierSohn/clay.git

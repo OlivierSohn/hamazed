@@ -69,7 +69,7 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
              positions <- randomCCCoords gen (1 + length nums) componentIdx topology NoOverlap
              (shipPS:numPS) <- mapM (mkRandomPosSpeed gen space) positions
              let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
-                 ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
+                 ship = BattleShip shipPS initialLaserAmmo Armored collisions componentIdx
                  ns = map (\(num,posSpeed) -> NumberEssence posSpeed num componentIdx) $ zip nums numPS
              return ((shipId,ship),ns)
           ) associations

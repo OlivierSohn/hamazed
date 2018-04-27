@@ -1,3 +1,10 @@
+- server genericization:
+  ShipID -> ClientId
+  Client becomes a class with conection
+- server split:
+
+communication (send messages to n clients)
+
 - make a synth app.
 - develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
 we can reduce the xfade amount : 0 (or small, for fast attacks?)

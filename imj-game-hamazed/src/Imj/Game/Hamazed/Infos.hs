@@ -13,6 +13,7 @@ import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.Map.Strict((!?))
+import qualified Data.Map.Strict as Map
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
@@ -44,9 +45,10 @@ mkLevelCS t (LevelNumber level) =
 
 mkShipCS :: InfoType
          -> Map ShipId Player -- TODO use the AppState monad instead of passing this ?
+         -> ShipId
          -> BattleShip
          -> Successive ColoredGlyphList
-mkShipCS _ names (BattleShip sid _ ammo status _ _) =
+mkShipCS _ names sid (BattleShip _ ammo status _ _) =
   let name = getPlayerUIName'' $ names !? sid
       pad = initialLaserAmmo - ammo
       ammoColor' Destroyed = darkConfigFgColor
@@ -83,7 +85,7 @@ insideBrackets a =
   text' "]" bracketsColor
 
 mkLeftInfo :: InfoType
-           -> [BattleShip]
+           -> Map ShipId BattleShip
            -> Map ShipId Player
            -> [ShotNumber]
            -> LevelEssence
@@ -93,7 +95,7 @@ mkLeftInfo t ships names shotNums (LevelEssence level (LevelTarget target _) _)=
   , mkShotNumbersCS t shotNums
   ]
   ++
-  map (mkShipCS t names) ships
+  map (uncurry $ mkShipCS t names) (Map.assocs ships)
   ++
   [ mkLevelCS t level
   ]
@@ -103,7 +105,7 @@ mkUpDownInfo =
   (Successive [],Successive [])
 
 mkInfos :: InfoType
-        -> [BattleShip]
+        -> Map ShipId BattleShip
         -> Map ShipId Player
         -> [ShotNumber]
         -> LevelEssence

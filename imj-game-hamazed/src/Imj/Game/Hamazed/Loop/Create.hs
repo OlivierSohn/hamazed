@@ -14,7 +14,7 @@ module Imj.Game.Hamazed.Loop.Create
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
-import qualified Data.Map as Map(elems, map)
+import qualified Data.Map as Map
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -76,8 +76,8 @@ mkIntermediateState newShotNums newLevel essence wid names mode maySz mayState =
         (\(GameState w _ curShotNums (Level curLevel _) _ stateAnim (Screen _ center) _ _) ->
             (w, center, curLevel, curShotNums, stateAnim))
           mayState
-      curInfos = mkInfos Normal        (Map.elems $ getWorldShips curWorld) names shotNums    level
-      newInfos = mkInfos ColorAnimated (Map.elems $ getWorldShips newWorld) names newShotNums newLevel
+      curInfos = mkInfos Normal        (getWorldShips curWorld) names shotNums    level
+      newInfos = mkInfos ColorAnimated (getWorldShips newWorld) names newShotNums newLevel
       (horizontalDist, verticalDist) = computeViewDistances mode
   kt <- liftIO getSystemTime
   let uiAnimation =

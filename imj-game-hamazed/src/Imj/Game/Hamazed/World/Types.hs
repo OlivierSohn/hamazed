@@ -141,8 +141,7 @@ computeViewDistances (CenterShip _) = (30, 2) -- it will overlapp for large worl
 computeViewDistances CenterSpace = (20, 2)
 
 data BattleShip = BattleShip {
-    getPilotId :: {-# UNPACK #-} !ShipId
-  , shipPosSpeed :: !PosSpeed
+    shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
   , getAmmo :: !Int
   -- ^ How many laser shots are left.

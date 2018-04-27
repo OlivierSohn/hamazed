@@ -167,7 +167,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
                                  _:rest -> rest -- move forward in color animation
                                  [] -> [] })
         balls
-      moveShip comps sid (BattleShip name (PosSpeed prevPos oldSpeed) ammo status _ i) =
+      moveShip comps sid (BattleShip (PosSpeed prevPos oldSpeed) ammo status _ i) =
         let collisions =
               if shipIsAlive status
                 then
@@ -192,7 +192,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
             newSpeed =
               maybe oldSpeed (sumCoords oldSpeed) $ Map.lookup sid accelerations
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space $ PosSpeed prevPos newSpeed
-        in (newComps, BattleShip name newPosSpeed ammo newStatus collisions i)
+        in (newComps, BattleShip newPosSpeed ammo newStatus collisions i)
       (changedComponents, newShips) = Map.mapAccumWithKey moveShip [] ships
   putWorld $ World newBalls newShips space rs anims f
   mapM_ checkComponentStatus changedComponents
@@ -207,7 +207,7 @@ laserEventAction :: (MonadState AppState m)
                  -- ^ 'Number's destroyed + ammo changed
 laserEventAction shipId dir t =
   getWorld >>= \(World balls ships space rs d e) -> do
-    let ship@(BattleShip _ (PosSpeed shipCoords _) ammo status _ component) = findShip shipId ships
+    let ship@(BattleShip (PosSpeed shipCoords _) ammo status _ component) = findShip shipId ships
         (maybeLaserRayTheoretical, newAmmo) =
           if ammo > 0 && shipIsAlive status
             then
@@ -272,7 +272,7 @@ countComponentAmmo :: (MonadState AppState m)
                      -> m Int
 countComponentAmmo i =
   Map.foldl'
-    (\m ship@(BattleShip _ _ _ _ _ idx) ->
+    (\m ship@(BattleShip _ _ _ _ idx) ->
         if idx == i
           then
             m + countLiveAmmo ship
@@ -285,7 +285,7 @@ countComponentsAmmo :: (MonadState AppState m)
                     => m (Map ComponentIdx Int)
 countComponentsAmmo =
   Map.foldl'
-    (\m ship@(BattleShip _ _ _ _ _ idx) ->
+    (\m ship@(BattleShip _ _ _ _ idx) ->
       let ammo = countLiveAmmo ship
           f Nothing = Just ammo
           f (Just x) = Just $ ammo + x

@@ -280,7 +280,7 @@ onHasMoved =
     >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim b o m n) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions = Set.unions $ mapMaybe
-            (\(BattleShip _ _ _ shipStatus collisions _) ->
+            (\(BattleShip _ _ shipStatus collisions _) ->
               case shipStatus of
                 Armored -> Nothing
                 _ -> Just collisions)

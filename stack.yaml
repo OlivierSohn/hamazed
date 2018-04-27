@@ -8,6 +8,7 @@ resolver: nightly-2018-04-20
 
 packages:
 - './imj-bindings-audio'
+- './imj-music'
 - './imj-prelude'
 - './imj-base'
 - './imj-particlesystem'

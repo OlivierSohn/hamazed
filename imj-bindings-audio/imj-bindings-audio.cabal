@@ -22,14 +22,7 @@ library
   c-sources:           c/library.cpp
                      , c/wrapper.cpp
   exposed-modules:     Imj.Audio
-                     , Imj.Music
   build-depends:       base >= 4.9 && < 4.12
-                     , binary == 0.8.*
-                     , deepseq ==1.4.*
-                     , parsec ==3.1.*
-                     , template-haskell >=2.12 && < 2.14
-                     , text >=1.2.3 && < 1.3
-                     , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
   extra-libraries:     stdc++
@@ -46,15 +39,6 @@ library
     -- -static-libstdc++ is not absolutely necessary.
     cc-options:        -fpermissive -static-libstdc++
 
-
-test-suite imj-bindings-audio-test
-  type:                exitcode-stdio-1.0
-  hs-source-dirs:      test
-  other-modules:       Test.Imj.ParseMusic
-  main-is:             Spec.hs
-  build-depends:       base >= 4.9 && < 4.12
-                     , imj-bindings-audio
-  default-language:    Haskell2010
 
 source-repository head
   type:     git

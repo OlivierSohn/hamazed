@@ -8,6 +8,7 @@
 
 module Imj.Music
       ( Symbol(..)
+      , Instrument(..)
       , NoteSpec(..)
       , musicSymbol
       , musicSymbols
@@ -30,12 +31,16 @@ module Imj.Music
       , stepNVoiceAndStop
       , Music(..)
       , play
+      , playAtTempo
+      , allMusic
       ) where
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote
 
+import           Control.Concurrent(threadDelay, forkIO)
 import           Control.DeepSeq (NFData(..))
+import           Control.Monad(void)
 import           Data.Binary
 import           Data.Data(Data(..))
 import           Data.Maybe(catMaybes, maybeToList)
@@ -49,6 +54,22 @@ import           Text.Parsec.Text(Parser)
 import           Text.Parsec.Pos(newPos)
 
 import           Imj.Audio
+
+playAtTempo :: Instrument
+            -> Float
+            -- ^ BPMs
+            -> [Symbol]
+            -> IO ()
+playAtTempo instr tempo =
+  void . forkIO . go . allMusic
+ where
+  go [] = return()
+  go (n:ns) = do
+    mapM_ (flip play instr) n
+    threadDelay pause
+    go ns
+
+  pause = round $ 1000*1000*60/tempo
 
 noOctave :: Octave
 noOctave = Octave 6
@@ -188,6 +209,12 @@ mkVoice l = Voice 0 Nothing $ V.fromList l
 sizeVoice :: Voice -> Int
 sizeVoice (Voice _ _ v) = V.length v
 
+allMusic :: [Symbol] -> [[Music]]
+allMusic x =
+  snd $ stepNVoiceAndStop (sizeVoice s) s
+ where
+  s = mkVoice x
+
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
 stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
 stepNVoiceAndStop n s =
@@ -258,11 +285,26 @@ data Music =
 instance Binary Music
 instance NFData Music
 
-play :: Music -> IO ()
-play (StartNote n (MidiVelocity v)) =
-  midiNoteOn (noteToMidiPitch n) $ CFloat v
-play (StopNote n) =
-  midiNoteOff $ noteToMidiPitch n
+data Instrument =
+    SineSynth
+  | Wind !Int
+  deriving(Generic,Show, Eq)
+instance Binary Instrument
+instance NFData Instrument
+
+play :: Music -> Instrument -> IO ()
+play (StartNote n (MidiVelocity v)) = \case
+  SineSynth -> midiNoteOn pitch vel
+  Wind i -> effectOn (fromIntegral i) pitch vel
+ where
+  pitch = noteToMidiPitch n
+  vel = CFloat v
+play (StopNote n) = \case
+  SineSynth -> midiNoteOff pitch
+  Wind _ -> effectOff pitch
+ where
+  pitch = noteToMidiPitch n
+
 
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)

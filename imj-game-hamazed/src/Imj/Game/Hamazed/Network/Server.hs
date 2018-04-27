@@ -841,7 +841,7 @@ gameScheduler st =
           let (newScore, notesChanges) = stopScore s
           case notesChanges of
             [] -> return ()
-            _:_ -> notifyPlayersN $ map PlayMusic notesChanges
+            _:_ -> notifyPlayersN $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
     go = get >>= \(ServerState _ _ _ _ _ _ _ _ terminate game) ->
@@ -904,7 +904,7 @@ gameScheduler st =
       <$> gets onlyPlayersMap
     updateSafeShips >>= \shipsLostArmor ->
       updateVoice >>= \noteChange ->
-        notifyPlayersN (map PlayMusic noteChange ++ [GameEvent $ PeriodicMotion accs shipsLostArmor])
+        notifyPlayersN (map (flip PlayMusic SineSynth) noteChange ++ [GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
    where

@@ -11,7 +11,9 @@ module Imj.Audio
       , effectOff
       -- * Troubleshooting
       , beep
-        ) where
+      -- * reexports
+      , CInt, CShort, CFloat
+      ) where
 
 import Foreign.C
 import Control.Concurrent(threadDelay)
@@ -20,7 +22,7 @@ import Control.Exception(bracket)
 -- | A test function to emit a beep sound.
 foreign import ccall "beep" beep :: IO ()
 
-foreign import ccall "effectOn" effectOn :: CShort -> IO ()
+foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "effectOff" effectOff :: CShort -> IO ()
 
 -- | Should be called prior to using any other function (see 'withAudio')

@@ -111,7 +111,7 @@ data CurrentGame = CurrentGame {
 } deriving(Generic, Show)
 
 mkCurrentGame :: WorldId -> Set ShipId -> CurrentGame
-mkCurrentGame w s = CurrentGame w s New $ mkScore [mainTheme, secondVoice]
+mkCurrentGame w s = CurrentGame w s New $ mkScore $ [mainTheme, secondVoice, thirdVoice] 
 
 data Intent =
     IntentSetup

@@ -70,6 +70,7 @@ representation (Right e) = case e of
   CycleRenderingOptions _ _ -> CycleRenderingOptions'
   CanvasSizeChanged         -> CycleRenderingOptions'
   RenderingTargetChanged    -> CycleRenderingOptions'
+  PlayProgram{}   -> Command'
   Log _ _         -> Command'
   SendChatMessage -> Command'
   ChatCmd _       -> Command'

@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Imj.Game.Hamazed.Loop.Update
       ( updateAppState
@@ -89,6 +90,7 @@ updateAppState (Right evt) = case evt of
   Timeout (Deadline t _ (RedrawStatus f)) -> updateStatus (Just f) t
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
   SendChatMessage -> onSendChatMessage
+  PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
   ToggleEventRecording -> error "should be handled by caller"
 updateAppState (Left evt) = case evt of
   RunCommand i cmd -> runClientCommand i cmd
@@ -97,7 +99,7 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ showReport cmd
-  PlayMusic music -> liftIO $ play music
+  PlayMusic music instr -> liftIO $ play music instr
   WorldRequest wid arg -> case arg of
     GetGameState ->
       mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid

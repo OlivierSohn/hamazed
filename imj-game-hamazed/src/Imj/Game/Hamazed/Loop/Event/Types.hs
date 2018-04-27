@@ -65,6 +65,7 @@ data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !Cyc
            | ChatCmd {-unpack sum-} !ChatCommand
            | SendChatMessage
            -- ^ Send message or execute command if the message starts with a '/'
+           | PlayProgram !Int
            deriving(Eq, Show)
 
 data MetaAction = Help

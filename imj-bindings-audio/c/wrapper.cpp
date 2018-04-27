@@ -151,10 +151,10 @@ extern "C" {
     onSynthEvent(mkNoteOff(pitch));
   }
 
-  void effectOn(int16_t pitch) {
+  void effectOn(int program, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     if(auto a = Audio::getInstance()) {
-      auto voicing = Voicing(11,pitch,1.f,0.f,true,0);
+      auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
       playOneThing(windVoice(),a->out().getChannelHandler(),voicing);
     }
   }

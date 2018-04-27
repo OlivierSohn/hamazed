@@ -280,7 +280,7 @@ data ServerEvent =
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !ServerCommand
   -- ^ Response to a 'Report'.
-  | PlayMusic !Music
+  | PlayMusic !Music !Instrument
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)

@@ -90,6 +90,7 @@ command = do
           case cmdType of
             "name" -> Right . ClientCmd . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
             "color" -> setColorScheme
+            
             _ -> error "logic"
        where
         reportColorScheme =

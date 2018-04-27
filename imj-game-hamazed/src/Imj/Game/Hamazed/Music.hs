@@ -6,6 +6,7 @@
 module Imj.Game.Hamazed.Music
   ( mainTheme
   , secondVoice
+  , thirdVoice
   , alarm
   ) where
 
@@ -52,6 +53,19 @@ secondVoice =
   fa . .
   mib . .
   ré . .
+  |]
+
+thirdVoice :: [Symbol]
+thirdVoice =
+  [notes|
+  . . .
+  mib . .
+  . . .
+  fa . .
+  . . .
+  . . .
+  . . .
+  . . .
   |]
 
 alarm :: [Symbol]

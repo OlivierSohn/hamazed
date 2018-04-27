@@ -106,8 +106,6 @@ testParseMusic = do
     ,Note $ NoteSpec Do noOctave
     ]
 
-  let allMusic x = let s = mkVoice x in snd $ stepNVoiceAndStop (sizeVoice s) s
-
   (allMusic [notes|do ré mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6)) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6)), StartNote (NoteSpec Ré (Octave 6)) (MidiVelocity 1.0)]

@@ -39,8 +39,8 @@ perceptually earlier shot.
 
 module Imj.Game.Hamazed.Network.Types
       ( HamazedServerState
-      , HamazedClientEvent
-      , HamazedServerEvent
+      , HamazedClientEvent(..)
+      , HamazedServerEvent(..)
       , HamazedClient
       -- * ClientQueues
       , ClientQueues(..)
@@ -133,9 +133,9 @@ instance Binary StateNature
 -- game state update and rendering occurs. Using 'TQueue' as a mean of communication
 -- instead of 'MVar' has the benefit that in case of the connection being closed,
 -- the main thread won't block.
-data ClientQueues = ClientQueues { -- TODO Use -funbox-strict-fields to force deep evaluation of thunks when inserting in the queues
-    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient HamazedServerState))
-  , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent HamazedClientEvent SuggestedPlayerName))
+data ClientQueues s = ClientQueues {
+    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient s))
+  , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent s))
   , requestsAsyncs :: !(Lazy.MVar RequestsAsyncs)
 }
 
@@ -170,7 +170,7 @@ data EventsForClient s =
     FromClient !Event
   | FromServer !(ServerEvent s)
   deriving(Generic)
-instance (Show (ServerEventT s)) => Show (EventsForClient s) where
+instance (ClientServer s) => Show (EventsForClient s) where
   show (FromClient e) = show ("FromClient" :: String, e)
   show (FromServer e) = show ("FromServer" :: String, e)
 

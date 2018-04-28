@@ -31,11 +31,11 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
 
+import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
-import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
@@ -44,26 +44,28 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
-representation :: UpdateEvent -> EventRepr
-representation (Left (GameEvent e)) = case e of
-  LaserShot _ _ -> Laser'
-  PeriodicMotion _ _ -> PeriodicMotion'
-representation (Left (CommandError _ _)) = Error'
-representation (Left (ServerError _))    = Error'
-representation (Left (Disconnected _)) = Disconnected'
-representation (Left (EnterState _)) = EnterState'
-representation (Left (ExitState _)) = ExitState'
-representation (Left (RunCommand _ _)) = WorldRequest'
-representation (Left WorldRequest{})   = WorldRequest'
-representation (Left ChangeLevel{}) = ChangeLevel'
-representation (Left PutGameState{})  = ChangeLevel'
-representation (Left ConnectionAccepted {}) = ConnectionAccepted'
-representation (Left (ConnectionRefused _)) = ConnectionRefused'
-representation (Left (OnWorldParameters _)) = Chat'
-representation (Left (PlayerInfo _ _)) = Chat'
-representation (Left (GameInfo _))     = Chat'
-representation (Left (Reporting _))  = Chat'
-representation (Left PlayMusic{}) = Command'
+representation :: UpdateEvent HamazedServerState -> EventRepr
+representation (Left srv) = case srv of
+  ServerError _ -> Error'
+  Disconnected _ -> Disconnected'
+  ConnectionAccepted {} -> ConnectionAccepted'
+  ConnectionRefused _ -> ConnectionRefused'
+  ServerAppEvt e -> case e of
+    GameEvent LaserShot{} -> Laser'
+    GameEvent PeriodicMotion{} -> PeriodicMotion'
+    CommandError _ _ -> Error'
+    EnterState _ -> EnterState'
+    ExitState _ -> ExitState'
+    RunCommand _ _ -> WorldRequest'
+    WorldRequest{} -> WorldRequest'
+    ChangeLevel{} -> ChangeLevel'
+    PutGameState{} -> ChangeLevel'
+    MeetThePlayers{} -> Chat'
+    OnWorldParameters _ -> Chat'
+    PlayerInfo _ _ -> Chat'
+    GameInfo _ -> Chat'
+    Reporting _ -> Chat'
+    PlayMusic{} -> Command'
 representation (Right e) = case e of
   ApplyPPUDelta _           -> CycleRenderingOptions'
   ApplyFontMarginDelta _    -> CycleRenderingOptions'
@@ -104,9 +106,9 @@ reprToCS PeriodicMotion'        = colored "S" blue
 
 {-# INLINABLE onEvent #-}
 onEvent :: (MonadState AppState m
-          , MonadReader e m, ClientNode e, Render e, PlayerInput e, HasSizedFace e
+          , MonadReader (Env i) m, PlayerInput i
           , MonadIO m)
-        => Maybe GenEvent -> m ()
+        => Maybe (GenEvent HamazedServerState) -> m ()
 onEvent mayEvt = do
   checkPlayerEndsProgram
   debug >>= \case
@@ -120,9 +122,9 @@ onEvent mayEvt = do
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m
-           , MonadReader e m, ClientNode e, Render e, HasSizedFace e
+           , MonadReader (Env i) m
            , MonadIO m)
-         => Maybe GenEvent -> m ()
+         => Maybe (GenEvent HamazedServerState) -> m ()
 onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
 onEvent' (Just (CliEvt clientEvt)) = sendToServer clientEvt
 onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
@@ -131,9 +133,9 @@ onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
 onUpdateEvent :: (MonadState AppState m
-                , MonadReader e m, ClientNode e, Render e, HasSizedFace e
+                , MonadReader (Env i) m
                 , MonadIO m)
-              => UpdateEvent -> m ()
+              => UpdateEvent HamazedServerState -> m ()
 onUpdateEvent e = do
   getRecording >>= \case
     Record -> state $ addEvent e
@@ -142,9 +144,9 @@ onUpdateEvent e = do
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (MonadState AppState m
-              , MonadReader e m, ClientNode e, Render e, HasSizedFace e
+              , MonadReader (Env i) m
               , MonadIO m)
-            => Maybe UpdateEvent -> m ()
+            => Maybe (UpdateEvent HamazedServerState) -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
@@ -167,7 +169,7 @@ addUpdateTime add =
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
                                             , MonadReader e m, Render e, ClientNode e
                                             , MonadIO m)
-                                          => Maybe UpdateEvent -> m ()
+                                          => Maybe (UpdateEvent HamazedServerState) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
@@ -184,7 +186,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
     >>= \(t,g) -> get >>= \(AppState _ a _ b c d e) -> put $ AppState t a g b c d e
 
 
-groupStats :: EventGroup -> String
+groupStats :: EventGroup s -> String
 groupStats (EventGroup l _ t _) =
   replicate (pred $ length l) ' ' ++
   "|" ++
@@ -238,7 +240,7 @@ getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: UpdateEvent -> AppState -> ((), AppState)
+addEvent :: UpdateEvent HamazedServerState -> AppState -> ((), AppState)
 addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (representation e) es
   in ((), AppState t g evts es' r b d)
@@ -275,7 +277,7 @@ addEventRepr e oh@(OccurencesHist h r) =
 createState :: Maybe Size
             -> Bool
             -> SuggestedPlayerName
-            -> Server
+            -> Server ColorScheme WorldParameters
             -> ConnectionStatus
             -> IO AppState
 createState ms dbg a b c = do

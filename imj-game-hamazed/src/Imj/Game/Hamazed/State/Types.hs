@@ -60,7 +60,6 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.UI.Animation
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
-import           Imj.Server.Types
 
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
@@ -76,7 +75,7 @@ data Occurences a = Occurences {
 data AppState  = AppState {
     timeAfterRender :: !(Time Point System)
   , game :: !Game
-  , eventsGroup :: !EventGroup
+  , eventsGroup :: !(EventGroup HamazedServerState)
   , _appStateEventHistory :: !OccurencesHist
   -- ^ Can record which events where handled.
   , _appStateRecordEvents :: !RecordMode
@@ -125,7 +124,7 @@ getGameState :: MonadState AppState m => m GameState
 getGameState = getGameState' <$> gets game
 
 {-# INLINABLE getServer #-}
-getServer :: MonadState AppState m => m Server
+getServer :: MonadState AppState m => m (Server ColorScheme WorldParameters)
 getServer = getServer' <$> gets game
 
 {-# INLINABLE getViewMode #-}
@@ -173,7 +172,7 @@ putGame :: MonadState AppState m => Game -> m ()
 putGame g = modify' $ \s -> s { game = g }
 
 {-# INLINABLE putServer #-}
-putServer :: MonadState AppState m => Server -> m ()
+putServer :: MonadState AppState m => (Server ColorScheme WorldParameters) -> m ()
 putServer s =
   gets game >>= \g -> putGame $ g {getServer' = s}
 
@@ -216,12 +215,12 @@ putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 putWorldParameters :: MonadState AppState m => WorldParameters -> m ()
 putWorldParameters p =
   getServer >>= \s@(Server _ c) ->
-    putServer s { serverContent = c { serverWorldParameters = Just p } }
+    putServer s { serverContent = c { cachedContent = Just p } }
 
 {-# INLINABLE getWorldParameters #-}
 getWorldParameters :: MonadState AppState m => m (Maybe WorldParameters)
 getWorldParameters =
-  serverWorldParameters . serverContent <$> getServer
+  cachedContent . serverContent <$> getServer
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState AppState m => m (Map ShipId Player)

@@ -20,7 +20,7 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 
-appCli :: ClientQueues -> ClientApp ()
+appCli :: (ClientServer s) => ClientQueues s -> ClientApp ()
 appCli q@(ClientQueues toClient toServer _) conn = do
   void $ forkIO $
     safeForever $

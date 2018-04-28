@@ -31,9 +31,10 @@ import           Imj.Game.Hamazed.Types
 
 import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.Client(appCli)
-import           Imj.Game.Hamazed.Network.Server(appSrv, gameScheduler, shutdown)
+import           Imj.Game.Hamazed.Network.Server
+import           Imj.Server
 
-startServerIfLocal :: Server
+startServerIfLocal :: (Show c) => Server ColorScheme c
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
@@ -57,7 +58,8 @@ startServerIfLocal srv@(Server (Local logs color) _) v = do
     st False = "failed to start ("
     st True = "starts listening ("
 
-startClient :: SuggestedPlayerName -> Server -> IO ClientQueues
+startClient :: (Show p, Show c)
+            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues HamazedServerState)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues
@@ -85,15 +87,15 @@ startClient playerName srv = do
  where
   msg x = x <> " to server " <> pack (show srv)
 
-mkQueues :: IO ClientQueues
+mkQueues :: IO (ClientQueues s)
 mkQueues =
   ClientQueues <$> newTQueueIO <*> newTQueueIO <*> Lazy.newMVar Map.empty
 
-installOneHandler :: MVar ServerState -> ThreadId -> (CInt, Text) -> IO ()
+installOneHandler :: ClientServer s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =
   void $ installHandler sig (Catch $ handleTermination sigName state serverThreadId) Nothing
  where
-  handleTermination :: Text -> MVar ServerState -> ThreadId -> IO ()
+  handleTermination :: ClientServer s => Text -> MVar (ServerState s) -> ThreadId -> IO ()
   handleTermination signalName s serverMainThreadId = do
     modifyMVar_ s $ execStateT (shutdown $ "received " <> signalName)
     -- we are in a forked thread, so to end the server :

@@ -19,7 +19,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Server
+  exposed-modules:     Imj.ClientServer.Class
+                     , Imj.Server
                      , Imj.Server.Connection
                      , Imj.Server.Types
                      , Imj.Server.Internal.Types

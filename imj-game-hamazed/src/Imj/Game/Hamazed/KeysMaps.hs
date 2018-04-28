@@ -21,7 +21,7 @@ import           Imj.Input.Types
 
 translatePlatformEvent :: (MonadState AppState m)
                        => PlatformEvent
-                       -> m (Maybe GenEvent)
+                       -> m (Maybe (GenEvent HamazedServerState))
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional

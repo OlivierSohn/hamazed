@@ -57,7 +57,6 @@ import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Font
-import           Imj.Graphics.Render
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 import           Imj.Graphics.Text.ColorString hiding(putStr)
@@ -395,8 +394,8 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool
-        -> ClientQueues
-        -> Server
+        -> ClientQueues HamazedServerState
+        -> HamazedClientSideServer
         -> SuggestedPlayerName
         -> a
         -> IO ()
@@ -405,7 +404,7 @@ runWith debug queues srv player backend =
     flip withDefaultPolicies backend $ \drawEnv -> do
       sz <- getDiscreteSize backend
       void $ createState sz debug player srv NotConnected >>=
-        runStateT (runReaderT loop $ Env drawEnv backend queues face)
+        runStateT (runReaderT (loop translatePlatformEvent onEvent) $ Env drawEnv backend queues face)
  where
   (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
   look _ [] = Nothing
@@ -416,19 +415,23 @@ runWith debug queues srv player backend =
 
 loop :: (MonadState AppState m
        , MonadIO m
-       , MonadReader e m, ClientNode e, Render e, PlayerInput e, HasSizedFace e)
-     => m ()
-loop = do
-  let prod = produceEvent >>= maybe
-        (return Nothing) -- means we need to render now.
-        (either
-          (\k -> translatePlatformEvent k >>= maybe
-            prod -- the event was unknown, retry.
-            (return . Just))
-          (return . Just))
-  prod >>= onEvent
-  loop
+       , MonadReader e m, ClientNode e, PlayerInput e)
+     => (PlatformEvent -> m (Maybe (GenEvent (ClientServerT e))))
+     -> (Maybe (GenEvent (ClientServerT e)) -> m ())
+     -> m ()
+loop liftPlatformEvent onEventF =
+  forever $ nextEvent >>= onEventF
+ where
+  nextEvent = produceEvent >>= maybe
+    (return Nothing) -- means we need to render now.
+    (either
+      (\k -> liftPlatformEvent k >>= maybe
+        nextEvent -- the event was unknown, retry.
+        (return . Just))
+      (return . Just))
 
+
+type AnyEvent s = Either PlatformEvent (GenEvent s)
 
 -- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':
 -- 10000 ->   3.5% -- ok but 10 ms is a lot
@@ -454,7 +457,7 @@ loop = do
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadState AppState m, MonadIO m, MonadReader e m, PlayerInput e, ClientNode e)
-             => m (Maybe (Either PlatformEvent GenEvent))
+             => m (Maybe (AnyEvent (ClientServerT e)))
 produceEvent = do
   server <- asks serverQueue
   platform <- asks plaformQueue
@@ -481,8 +484,8 @@ produceEvent = do
 
 triggerRenderOr :: (MonadState AppState m, MonadIO m, MonadReader e m
                   , PlayerInput e)
-                => IO (Maybe (Either PlatformEvent GenEvent))
-                -> m (Maybe (Either PlatformEvent GenEvent))
+                => IO (Maybe (AnyEvent s))
+                -> m (Maybe (AnyEvent s))
 triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
@@ -523,15 +526,15 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
         -}
 
 
-tryAtomically :: STM (Either PlatformEvent GenEvent)
-              -> IO (Maybe (Either PlatformEvent GenEvent))
+tryAtomically :: STM (AnyEvent s)
+              -> IO (Maybe (AnyEvent s))
 tryAtomically a =
   atomically $ fmap Just a
            <|> return Nothing
 
 tryAtomicallyBefore :: Time Point System
-                    -> STM (Either PlatformEvent GenEvent)
-                    -> IO (Maybe (Either PlatformEvent GenEvent))
+                    -> STM (AnyEvent s)
+                    -> IO (Maybe (AnyEvent s))
 tryAtomicallyBefore t a =
   getDurationFromNowTo t >>= \allowed ->
     if strictlyNegative allowed

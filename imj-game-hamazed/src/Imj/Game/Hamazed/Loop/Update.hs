@@ -9,6 +9,7 @@
 module Imj.Game.Hamazed.Loop.Update
       ( updateAppState
       , sendToServer
+      , send'ToServer
       ) where
 
 import           Imj.Prelude
@@ -37,6 +38,7 @@ import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Command
+import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
@@ -59,9 +61,9 @@ import           Imj.Music hiding(Do)
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (MonadState AppState m
-                 , MonadReader e m, ClientNode e, Render e, HasSizedFace e
+                 , MonadReader (Env i) m
                  , MonadIO m)
-               => UpdateEvent
+               => UpdateEvent HamazedServerState
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of
@@ -93,68 +95,69 @@ updateAppState (Right evt) = case evt of
   PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
   ToggleEventRecording -> error "should be handled by caller"
 updateAppState (Left evt) = case evt of
-  RunCommand i cmd -> runClientCommand i cmd
-  CommandError cmd err ->
-    stateChat $ addMessage $ Information Warning $
-      pack (show cmd) <> " failed:" <> err
-  Reporting cmd ->
-    stateChat $ addMessage $ Information Info $ showReport cmd
-  PlayMusic music instr -> liftIO $ play music instr
-  WorldRequest wid arg -> case arg of
-    GetGameState ->
-      mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
-    Build dt spec ->
-      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
-        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
-          -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
-          -- and to have no more than one worker per capability.
-          mkOneGenPerCapability >>= \gens -> do
-            let go = do
-                  deadline <- addDuration dt <$> liftIO getSystemTime
-                  -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
-                  -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
-                  -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
-                  let continue = getSystemTime >>= \t -> return (t < deadline)
-                  mkWorldEssence spec continue gens >>= \res -> do
-                    send $ uncurry (WorldProposal wid) res
-                    case fst res of
-                      NeedMoreTime{} -> go
-                      _ -> return ()
-            go
-    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
-  ChangeLevel levelEssence worldEssence wid ->
-    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
-        >>= putGameState
-  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
-        >>= putGameState
-  OnWorldParameters worldParameters ->
-    putWorldParameters worldParameters
-  GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
-    onMove accelerations shipsLosingArmor
-  GameEvent (LaserShot dir shipId) -> do
-    liftIO laserSound
-    onLaser shipId dir Add
+  ServerAppEvt e -> case e of
+    RunCommand i cmd -> runClientCommand i cmd
+    CommandError cmd err ->
+      stateChat $ addMessage $ Information Warning $
+        pack (show cmd) <> " failed:" <> err
+    Reporting cmd ->
+      stateChat $ addMessage $ Information Info $ showReport cmd
+    PlayMusic music instr -> liftIO $ play music instr
+    WorldRequest wid arg -> case arg of
+      GetGameState ->
+        mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
+      Build dt spec ->
+        asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+          void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
+            -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
+            -- and to have no more than one worker per capability.
+            mkOneGenPerCapability >>= \gens -> do
+              let go = do
+                    deadline <- addDuration dt <$> liftIO getSystemTime
+                    -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+                    -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
+                    -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
+                    let continue = getSystemTime >>= \t -> return (t < deadline)
+                    mkWorldEssence spec continue gens >>= \res -> do
+                      send $ ClientAppEvt $ uncurry (WorldProposal wid) res
+                      case fst res of
+                        NeedMoreTime{} -> go
+                        _ -> return ()
+              go
+      Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
+    ChangeLevel levelEssence worldEssence wid ->
+      getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+        mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+          >>= putGameState
+    PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
+      getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+        mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+          >>= putGameState
+    OnWorldParameters worldParameters ->
+      putWorldParameters worldParameters
+    GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
+      onMove accelerations shipsLosingArmor
+    GameEvent (LaserShot dir shipId) -> do
+      liftIO laserSound
+      onLaser shipId dir Add
+    MeetThePlayers eplayers -> do
+      let p = Map.map mkPlayer eplayers
+      putPlayers p
+      stateChat $ addMessage $ ChatMessage $ welcome p
+    PlayerInfo notif i ->
+      stateChat . addMessage . ChatMessage =<< toTxt i notif
+    GameInfo notif ->
+      stateChat $ addMessage $ ChatMessage $ toTxt' notif
+    EnterState s ->
+      putClientState $ ClientState Ongoing s
+    ExitState s  ->
+      putClientState $ ClientState Over s
   ConnectionAccepted i -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
-  MeetThePlayers eplayers -> do
-    let p = Map.map mkPlayer eplayers
-    putPlayers p
-    stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionRefused reason ->
     putGameConnection $ ConnectionFailed reason
-  PlayerInfo notif i ->
-    stateChat . addMessage . ChatMessage =<< toTxt i notif
-  GameInfo notif ->
-    stateChat $ addMessage $ ChatMessage $ toTxt' notif
-  EnterState s ->
-    putClientState $ ClientState Ongoing s
-  ExitState s  ->
-    putClientState $ ClientState Over s
   Disconnected reason -> onDisconnection reason
   ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
@@ -208,15 +211,23 @@ onTargetSize = getTargetSize >>= maybe (return ()) (\sz ->
 
 {-# INLINABLE sendToServer #-}
 sendToServer :: (MonadState AppState m
-               , MonadReader e m, ClientNode e
+               , MonadReader (Env i) m
                , MonadIO m)
-             => ClientEvent
+             => HamazedClientEvent
              -> m ()
-sendToServer e =
+sendToServer = send'ToServer . ClientAppEvt
+
+{-# INLINABLE send'ToServer #-}
+send'ToServer :: (MonadState AppState m
+               , MonadReader (Env i) m
+               , MonadIO m)
+             => ClientEvent HamazedServerState
+             -> m ()
+send'ToServer e =
   asks sendToServer' >>= \f -> f e
 
 onSendChatMessage :: (MonadState AppState m
-                    , MonadReader e m, ClientNode e
+                    , MonadReader (Env i) m
                     , MonadIO m)
                   => m ()
 onSendChatMessage =
@@ -235,7 +246,7 @@ onSendChatMessage =
 
 {-# INLINABLE onLaser #-}
 onLaser :: (MonadState AppState m
-          , MonadReader e m, ClientNode e
+          , MonadReader (Env i) m
           , MonadIO m)
         => ShipId
         -> Direction
@@ -261,7 +272,7 @@ onLaser ship dir op =
 
 {-# INLINABLE onMove #-}
 onMove :: (MonadState AppState m
-         , MonadReader e m, ClientNode e
+         , MonadReader (Env i) m
          , MonadIO m)
        => Map ShipId (Coords Vel)
        -> Set ShipId
@@ -272,7 +283,7 @@ onMove accelerations shipsLosingArmor = do
 
 {-# INLINABLE onHasMoved #-}
 onHasMoved :: (MonadState AppState m
-             , MonadReader e m, ClientNode e
+             , MonadReader (Env i) m
              , MonadIO m)
            => m ()
 onHasMoved =
@@ -309,7 +320,7 @@ onHasMoved =
 
 {-# INLINABLE updateUIAnim #-}
 updateUIAnim :: (MonadState AppState m
-               , MonadReader e m, ClientNode e
+               , MonadReader (Env i) m
                , MonadIO m)
              => Time Point System -> m ()
 updateUIAnim t =

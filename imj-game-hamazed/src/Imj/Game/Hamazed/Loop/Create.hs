@@ -32,7 +32,7 @@ import           Imj.Graphics.UI.RectContainer
 
 initialGame :: Maybe Size
             -> SuggestedPlayerName
-            -> HamazedServer
+            -> HamazedClientSideServer
             -> ConnectionStatus
             -> IO Game
 initialGame ms suggPlayerName server connectionStatus =

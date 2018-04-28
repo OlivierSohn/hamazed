@@ -10,9 +10,14 @@ module Imj.Server.Connection
       , notifyN
       , notifyN'
       , notifyEveryone
+      , notifyEveryone'
       , notifyEveryoneN
       , notifyClient
+      , notifyClient'
+      , notifyClientN
+      , notifyClientN'
       , disconnect
+      , onBrokenClient
       ) where
 
 import           Imj.Prelude
@@ -33,6 +38,7 @@ import           UnliftIO.Exception (SomeException(..), try)
 
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString(intercalate, colored)
+import           Imj.ClientServer.Class
 import           Imj.Server.Types
 import           Imj.Server.Internal.Types
 
@@ -42,8 +48,7 @@ import           Imj.Server.Log
 
 {-# INLINABLE sendAndHandleExceptions #-}
 sendAndHandleExceptions :: (MonadIO m
-                          , ServerImpl s
-                          , Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s), Binary (ConnectIdT s)
+                          , ClientServer s
                           , MonadState (ServerState s) m)
                         => [ServerEvent s]
                         -> Connection
@@ -60,8 +65,7 @@ sendAndHandleExceptions evts conn i =
 
 -- It's important that this function doesn't throw any exception.
 onBrokenClient :: (Show a, MonadIO m
-                 , Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s)
-                 , ServerImpl s
+                 , ClientServer s
                  , MonadState (ServerState s) m)
                => Text
                -- ^ Describes the type of thread in which the exception was raised
@@ -82,7 +86,7 @@ onBrokenClient threadCategory infos e i = do
     , s
     ]
 
-disconnect :: (MonadIO m, ServerImpl s, Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s), Binary (ConnectIdT s), MonadState (ServerState s) m)
+disconnect :: (MonadIO m, ClientServer s, MonadState (ServerState s) m)
            => DisconnectReason
            -> ClientId
            -> m ()
@@ -106,7 +110,7 @@ disconnect r i =
         -- Finally, shutdown the client connection.
         closeConnection r i c)
  where
-  closeConnection :: (MonadIO m, ServerImpl s, Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s), MonadState (ServerState s) m)
+  closeConnection :: (MonadIO m, ClientServer s, MonadState (ServerState s) m)
                   => DisconnectReason -> ClientId -> Client (ClientT s) -> m ()
   closeConnection reason cid c@(Client conn _ c') = do
     serverLog $ pure $
@@ -129,7 +133,7 @@ disconnect r i =
           nameWithFallback cid c' <>
           "] disconnection < " <> pack (show reason)
 
-    afterClientLeft (undefined :: ServerEventT s) cid reason
+    afterClientLeft cid reason
 
   tryRemoveClient = state $ \s ->
     let clients = getClients s
@@ -147,8 +151,7 @@ disconnect r i =
 
 {-# INLINABLE notify #-}
 notify :: (MonadIO m
-         , Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s)
-         , ServerImpl s, MonadState (ServerState s) m)
+         , ClientServer s, MonadState (ServerState s) m)
        => Connection
        -> ClientId
        -> ServerEvent s
@@ -156,26 +159,52 @@ notify :: (MonadIO m
 notify conn sid evt =
   sendAndHandleExceptions [evt] conn sid
 
+{-# INLINABLE notifyClientN #-}
+notifyClientN :: ClientServer s
+             => [ServerEventT s]
+             -> ClientHandlerIO s ()
+notifyClientN = notifyClientN' . map ServerAppEvt
+
+{-# INLINABLE notifyClientN' #-}
+notifyClientN' :: ClientServer s
+             => [ServerEvent s]
+             -> ClientHandlerIO s ()
+notifyClientN' evts = do
+  conn <- asks connection
+  sid <- asks clientId
+  sendAndHandleExceptions evts conn sid
+
 {-# INLINABLE notifyClient #-}
-notifyClient :: (Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s)
-               , ServerImpl s)
+notifyClient :: ClientServer s
+             => ServerEventT s
+             -> ClientHandlerIO s ()
+notifyClient = notifyClient' . ServerAppEvt
+
+{-# INLINABLE notifyClient' #-}
+notifyClient' :: ClientServer s
              => ServerEvent s
-             -> ClientHandlerIO (ServerState s) ()
-notifyClient evt = do
+             -> ClientHandlerIO s ()
+notifyClient' evt = do
   conn <- asks connection
   sid <- asks clientId
   notify conn sid evt
 
-
 {-# INLINABLE notifyEveryone #-}
-notifyEveryone :: (MonadIO m, Binary (ServerEventT s), Binary (ConnectIdT s), Show (ServerEventT s), ServerImpl s, ClientInfo (ClientT s), MonadState (ServerState s) m)
+notifyEveryone :: (MonadIO m, ClientServer s, MonadState (ServerState s) m)
                => ServerEventT s
                -> m ()
 notifyEveryone evt =
   notifyN [evt] =<< gets clientsMap
 
+{-# INLINABLE notifyEveryone' #-}
+notifyEveryone' :: (MonadIO m, ClientServer s, MonadState (ServerState s) m)
+                => ServerEvent s
+                -> m ()
+notifyEveryone' evt =
+  notifyN' [evt] =<< gets clientsMap
+
 {-# INLINABLE notifyEveryoneN #-}
-notifyEveryoneN :: (MonadIO m, Binary (ServerEventT s), Binary (ConnectIdT s), Show (ServerEventT s), ServerImpl s, ClientInfo (ClientT s), MonadState (ServerState s) m)
+notifyEveryoneN :: (MonadIO m, ClientServer s, MonadState (ServerState s) m)
                 => [ServerEventT s]
                 -> m ()
 notifyEveryoneN evts =
@@ -188,8 +217,7 @@ notifyEveryoneN evts =
 -- from the Map, and we continue the processing.
 {-# INLINABLE notifyN #-}
 notifyN :: (MonadIO m
-          , ServerImpl s
-          , Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s)
+          , ClientServer s
           , MonadState (ServerState s) m)
         => [ServerEventT s]
         -> Map ClientId (Client c)
@@ -198,8 +226,7 @@ notifyN evts = notifyN' (map ServerAppEvt evts)
 
 {-# INLINABLE notifyN' #-}
 notifyN' :: (MonadIO m
-          , ServerImpl s
-          , Binary (ConnectIdT s), Binary (ServerEventT s), Show (ServerEventT s), ClientInfo (ClientT s)
+          , ClientServer s
           , MonadState (ServerState s) m)
         => [ServerEvent s]
         -> Map ClientId (Client c)

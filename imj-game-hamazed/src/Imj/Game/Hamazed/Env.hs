@@ -3,6 +3,10 @@
 
 {-# OPTIONS_HADDOCK hide #-}
 
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+
 module Imj.Game.Hamazed.Env
       ( Env(..)
       ) where
@@ -18,10 +22,10 @@ import           Imj.Input.Types
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
-data Env a = Env {
+data Env i = Env {
     _envDeltaEnv :: !DeltaEnv
-  , _envPlayerInput :: !a
-  , _envClientQueues :: !ClientQueues
+  , _envPlayerInput :: !i
+  , _envClientQueues :: !(ClientQueues HamazedServerState)
   , getSizedFace' :: !SizedFace
   -- ^ Font to draw 'RasterizedString's
 }
@@ -29,7 +33,7 @@ instance HasSizedFace (Env x) where
   getSizedFace = getSizedFace'
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
-instance Draw (Env x) where
+instance Draw (Env i) where
   setScissor     (Env a _ _ _) = setScissor     a
   getScissor'    (Env a _ _ _) = getScissor'    a
   fill'          (Env a _ _ _) = fill'          a
@@ -46,14 +50,14 @@ instance Draw (Env x) where
   {-# INLINE drawStr' #-}
 
 -- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
-instance Canvas (Env x) where
+instance Canvas (Env i) where
   getTargetSize'   (Env a _ _ _) = getTargetSize' a
   onTargetChanged' (Env a _ _ _) = onTargetChanged' a
   {-# INLINE getTargetSize' #-}
   {-# INLINE onTargetChanged' #-}
 
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
-instance Render (Env x) where
+instance Render (Env i) where
   renderToScreen'        (Env a _ _ _) = renderToScreen' a
   cycleRenderingOptions' (Env a _ _ _) = cycleRenderingOptions' a
   applyFontMarginDelta   (Env a _ _ _) = applyFontMarginDelta a
@@ -61,7 +65,8 @@ instance Render (Env x) where
   {-# INLINE renderToScreen' #-}
   {-# INLINE cycleRenderingOptions' #-}
 
-instance ClientNode (Env x) where
+instance ClientNode (Env i) where
+  type ClientServerT (Env i) = HamazedServerState
   sendToServer'  (Env _ _ q _) = sendToServer' q
   writeToClient' (Env _ _ q _) = writeToClient' q
   serverQueue    (Env _ _ q _) = serverQueue q
@@ -73,7 +78,7 @@ instance ClientNode (Env x) where
   {-# INLINABLE belongsTo' #-}
   {-# INLINABLE cancel' #-}
 
-instance PlayerInput x => PlayerInput (Env x) where
+instance PlayerInput i => PlayerInput (Env i) where
   plaformQueue     (Env _ a _ _) = plaformQueue a
   programShouldEnd (Env _ a _ _) = programShouldEnd a
   pollKeys         (Env _ a _ _) = pollKeys a

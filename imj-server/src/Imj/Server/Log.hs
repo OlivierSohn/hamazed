@@ -17,23 +17,25 @@ module Imj.Server.Log
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Unlift(MonadUnliftIO, MonadIO)
-import           Control.Monad.Reader(runReaderT, lift, asks)
-import           Control.Monad.State.Strict(StateT, MonadState, runStateT, execStateT, modify', get, gets, state)
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader(asks)
+import           Control.Monad.State.Strict(MonadState, gets)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
+
+import           Imj.ClientServer.Class
+import           Imj.Server.Types
+import           Imj.Server.Internal.Types
 
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Color
 import           Imj.Log
-import           Imj.Server.Types
-import           Imj.Server.Internal.Types
 
 
 findClient :: ClientId -> ServerState s -> Maybe (Client (ClientT s))
 findClient i s = Map.lookup i $ clientsMap s
 
-showId :: (ClientInfo (ClientT s), MonadState (ServerState s) m)
+showId :: (ClientServer s, MonadState (ServerState s) m)
        => ClientId
        -> m ColorString
 showId i =
@@ -54,8 +56,8 @@ logColor c = fromMaybe (gray 16) $ clientLogColor c
 showClient :: (Show c) => c -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
-log :: (ClientInfo (ClientT s))
-    => ColorString -> (ClientHandlerIO (ServerState s)) ()
+log :: ClientServer s
+    => ColorString -> (ClientHandlerIO s) ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
@@ -66,8 +68,8 @@ log msg = gets serverLogs >>= \case
       , msg
       ]
 
-warning :: (ClientInfo (ClientT s))
-        => Text -> (ClientHandlerIO (ServerState s)) ()
+warning :: ClientServer s
+        => Text -> (ClientHandlerIO s) ()
 warning msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
@@ -79,10 +81,10 @@ warning msg = gets serverLogs >>= \case
       ]
 
 {-# INLINABLE withArgLogged #-}
-withArgLogged :: (Show a, ClientInfo (ClientT s))
-              => (a -> ClientHandlerIO (ServerState s) b)
+withArgLogged :: (Show a, ClientServer s)
+              => (a -> ClientHandlerIO s b)
               -> a
-              -> ClientHandlerIO (ServerState s) b
+              -> ClientHandlerIO s b
 withArgLogged act arg = do
   log $ colored " >> " (gray 18) <> keepExtremities (show arg)
   res <- act arg

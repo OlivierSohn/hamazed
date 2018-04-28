@@ -46,6 +46,12 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , GameStateEssence(..)
       , ShotNumber(..)
       , Operation(..)
+      -- * utilities
+      , requestWorld
+      , onlyPlayersMap
+      , requestWorldBy
+      , cancelWorldRequest
+      , gets'
       -- * Reexport
       , ClientId
     ) where
@@ -62,6 +68,7 @@ import qualified Data.Set as Set
 import           Data.String(IsString)
 import           Network.WebSockets(Connection)
 
+import           Imj.ClientServer.Class
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
@@ -308,12 +315,13 @@ data HamazedServerState = HamazedServerState {
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
 instance NFData HamazedServerState
-instance ServerImpl HamazedServerState where
+instance ClientServer HamazedServerState where
   type ClientT HamazedServerState = HamazedClient
   type ConnectIdT HamazedServerState = SuggestedPlayerName
   type ServerEventT HamazedServerState = HamazedServerEvent
   type ClientEventT HamazedServerState = HamazedClientEvent
-  afterClientLeft _ cid reason = do
+
+  afterClientLeft cid reason = do
     case reason of
       BrokenClient e ->
         notifyEveryone $ RunCommand cid $ Leaves $ ConnectionError e
@@ -364,15 +372,11 @@ requestWorld = do
         worldCreation = WorldCreation
           (CreationAssigned $ Map.keysSet $ clientsMap s)
           nextWid
-          (WorldSpec level (onlyPlayersIds s) params)
+          (WorldSpec level (Map.keysSet $ onlyPlayersMap s) params)
           Map.empty
               })
       s )
   gets clientsMap >>= requestWorldBy
-
-onlyPlayersIds :: ServerState HamazedServerState -> Set ClientId
-onlyPlayersIds =
-  Map.keysSet . onlyPlayersMap
 
 onlyPlayersMap :: ServerState HamazedServerState
                -> Map ClientId (Client HamazedClient)

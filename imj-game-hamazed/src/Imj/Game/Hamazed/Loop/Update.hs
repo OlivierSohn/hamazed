@@ -137,11 +137,11 @@ updateAppState (Left evt) = case evt of
   GameEvent (LaserShot dir shipId) -> do
     liftIO laserSound
     onLaser shipId dir Add
-  ConnectionAccepted i eplayers worldParams -> do
+  ConnectionAccepted i -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
-    putWorldParameters worldParams
+  MeetThePlayers eplayers -> do
     let p = Map.map mkPlayer eplayers
     putPlayers p
     stateChat $ addMessage $ ChatMessage $ welcome p

@@ -19,7 +19,11 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     
+  exposed-modules:     Imj.Server
+                     , Imj.Server.Connection
+                     , Imj.Server.Types
+                     , Imj.Server.Internal.Types
+                     , Imj.Server.Log
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3

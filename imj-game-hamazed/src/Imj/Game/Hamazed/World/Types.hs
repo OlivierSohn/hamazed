@@ -15,7 +15,7 @@ module Imj.Game.Hamazed.World.Types
         , WorldParameters(..)
         , WorldShape(..)
         , BattleShip(..)
-        , ShipId(..)
+        , ShipId
         , ShipStatus(..)
         , shipIsAlive
         , Number(..)
@@ -71,6 +71,7 @@ import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
+import           Imj.Server.Types(ClientId)
 import           Imj.Physics.Discrete
 import           Imj.Timing
 
@@ -129,7 +130,7 @@ newtype NumId = NumId Int
 newtype ParticleSystemKey = ParticleSystemKey Int
   deriving (Eq, Ord, Enum, Show, Num)
 
-data ViewMode = CenterShip !ShipId
+data ViewMode = CenterShip {-# UNPACK #-} !ShipId
               -- ^ the 'BattleShip' position is fixed w.r.t the screen.
               | CenterSpace
               -- ^ the 'Space' frame is fixed w.r.t the screen.
@@ -166,8 +167,7 @@ shipIsAlive Destroyed = False
 shipIsAlive Unarmored = True
 shipIsAlive Armored = True
 
-newtype ShipId = ShipId Int64
-  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)
+type ShipId = ClientId
 
 data NumberEssence = NumberEssence {
     getNumPosSpeed :: !PosSpeed

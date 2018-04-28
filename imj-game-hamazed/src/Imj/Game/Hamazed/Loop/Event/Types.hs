@@ -13,7 +13,6 @@ module Imj.Game.Hamazed.Loop.Event.Types
         , ActionTarget(..)
         , DeadlineType(..)
         , MetaAction(..)
-        , ShipId(..)
         -- * Reexports (for haddock hyperlinks)
         , module Imj.Game.Hamazed.World.Types
         , module Imj.Graphics.ParticleSystem.Design.Create

@@ -16,6 +16,7 @@ module Imj.Game.Hamazed.Chat
   , runChat
   , ChatCommand(..)
   , PlayerName(..)
+  , unPlayerName
   ) where
 
 import           Imj.Prelude hiding (drop, null)
@@ -111,6 +112,8 @@ mkEditableText = EditableText mempty 0
 
 newtype PlayerName = PlayerName Text
   deriving(Generic, Show, Binary, Eq, NFData)
+unPlayerName :: PlayerName -> Text
+unPlayerName (PlayerName t) = t
 
 data ChatMessage =
     ChatMessage !ColorString

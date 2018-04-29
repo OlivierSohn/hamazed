@@ -31,7 +31,7 @@ import           Imj.Prelude
 
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict (MVar)
-import           Control.Monad.IO.Unlift(MonadUnliftIO)
+import           Control.Monad.IO.Unlift(MonadIO, MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
 import           Control.Monad.State.Strict(runStateT, execStateT, modify', state, gets)
 import qualified Data.List as List(intercalate)
@@ -131,9 +131,10 @@ handleClient connectId cliType lifecycle st = do
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
 
-handleIncomingEvent' :: (ClientServer s)
+handleIncomingEvent' :: (ClientServer s
+                       , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
                      => ClientEvent s
-                     -> ClientHandlerIO s ()
+                     -> m ()
 handleIncomingEvent' = \case
   Connect i _ ->
     handlerError $ "already connected : " ++ show i
@@ -149,10 +150,11 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ i + 1 -- it can overflow, that is ok.
 
-addClient :: (ClientServer s)
+addClient :: (ClientServer s
+            , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
           => ConnectIdT s
           -> ServerOwnership
-          -> ClientHandlerIO s ()
+          -> m ()
 addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
@@ -171,12 +173,14 @@ addClient connectId cliType = do
   greeters <- map ServerAppEvt <$> greetings
   notifyClientN' $ ConnectionAccepted i : greeters
 
-handlerError :: (ClientServer s)
-             => String -> ClientHandlerIO s ()
+handlerError :: (ClientServer s
+                , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+             => String -> m ()
 handlerError = error' "Handler"
 
-error' :: (ClientServer s)
-       => String -> String -> ClientHandlerIO s ()
+error' :: (ClientServer s
+         , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+       => String -> String -> m ()
 error' from msg = do
   log $ colored (pack txt) red
   notifyClient' $ ServerError txt

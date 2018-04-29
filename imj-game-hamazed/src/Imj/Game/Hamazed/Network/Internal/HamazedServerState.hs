@@ -25,7 +25,7 @@ import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar)
 import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.Reader(asks, lift) -- TODO replace lift
+import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, get, state, runStateT)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
@@ -417,12 +417,13 @@ checkNameAvailability name =
 -- functions used in 'afterClientWasAdded' -------------------------------------
 --------------------------------------------------------------------------------
 
-participateToWorldCreation :: WorldId
+participateToWorldCreation :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+                           => WorldId
                            -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
                            -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
                            -- this case could occur if the request was cancelled just after the non-result was
                            -- sent by the client).
-                           -> ClientHandlerIO HamazedServerState ()
+                           -> m ()
 participateToWorldCreation key = asks clientId >>= \origin ->
   gets' worldCreation >>= \wc@(WorldCreation st wid _ _) ->
     bool
@@ -448,7 +449,8 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 -- functions used in 'handleClientEvent' ---------------------------------------
 --------------------------------------------------------------------------------
 
-handleEvent :: ClientEventT HamazedServerState -> ClientHandlerIO HamazedServerState ()
+handleEvent :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+            => ClientEventT HamazedServerState -> m ()
 handleEvent = \case
   RequestApproval cmd@(AssignName name) -> either
     (notifyClient . CommandError cmd)
@@ -545,7 +547,7 @@ handleEvent = \case
           case curStatus of
             WhenAllPressedAKey x Nothing havePressed -> do
               when (x /= next) $ error $ "inconsistent:"  ++ show (x,next)
-              i <- lift $ asks clientId
+              i <- asks clientId
               let newHavePressed = Map.insert i True havePressed
                   intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
               liftIO $ void $ swapMVar g $! game { status' = intermediateStatus }
@@ -627,12 +629,12 @@ handleEvent = \case
   -- But since the laser shot will be rendered with latency, too, the player will be
   -- able to integrate the latency via this visual feedback - provided that latency is stable over time.
   Action Laser dir ->
-    lift (asks clientId) >>= notifyPlayers . GameEvent . LaserShot dir
+    asks clientId >>= notifyPlayers . GameEvent . LaserShot dir
   Action Ship dir ->
     adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
  where
-  publish a = lift (asks clientId) >>= notifyEveryone . PlayerInfo a
-  acceptCmd cmd = lift (asks clientId) >>= notifyEveryone . flip RunCommand cmd
+  publish a = asks clientId >>= notifyEveryone . PlayerInfo a
+  acceptCmd cmd = asks clientId >>= notifyEveryone . flip RunCommand cmd
 
 onDelta :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
         => Int
@@ -680,13 +682,14 @@ onChangeWorldParams f =
     notifyEveryone $ OnWorldParameters p
     requestWorld
 
-addStats :: Map Properties Statistics
+addStats :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+         => Map Properties Statistics
          -> WorldId
          -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
          -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
          -- this case could occur if the request was cancelled just after the non-result was
          -- sent by the client).
-         -> ClientHandlerIO HamazedServerState ()
+         -> m ()
 addStats stats key =
   gets' worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
     let newStats = safeMerge mergeStats prevStats stats
@@ -700,7 +703,8 @@ addStats stats key =
           modify' $ mapState $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
       $ wid == key
 
-gameError :: String -> ClientHandlerIO HamazedServerState ()
+gameError :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+          => String -> m ()
 gameError = error' "Game"
 
 --------------------------------------------------------------------------------

@@ -21,7 +21,7 @@ module Imj.Server
 
 import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.Reader(lift, asks)
+import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(StateT, MonadState, modify', gets, state)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
@@ -79,9 +79,11 @@ adjustAll' f =
     in (Map.keysSet changed
       , s { getClients = clients { getClients' = newM } })
 
-adjustClient :: (ClientT s -> ClientT s) -> ClientHandlerIO s ()
+{-# INLINABLE adjustClient #-}
+adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+             => (ClientT s -> ClientT s) -> m ()
 adjustClient f = do
-  i <- lift $ asks clientId
+  i <- asks clientId
   modify' $ \s ->
     let clients = getClients s
     in s { getClients =

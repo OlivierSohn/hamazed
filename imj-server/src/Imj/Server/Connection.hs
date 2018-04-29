@@ -161,30 +161,34 @@ notify conn sid evt =
   sendAndHandleExceptions [evt] conn sid
 
 {-# INLINABLE notifyClientN #-}
-notifyClientN :: ClientServer s
+notifyClientN :: (ClientServer s
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
              => [ServerEventT s]
-             -> ClientHandlerIO s ()
+             -> m ()
 notifyClientN = notifyClientN' . map ServerAppEvt
 
 {-# INLINABLE notifyClientN' #-}
-notifyClientN' :: ClientServer s
+notifyClientN' :: (ClientServer s
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
              => [ServerEvent s]
-             -> ClientHandlerIO s ()
+             -> m ()
 notifyClientN' evts = do
   conn <- asks connection
   sid <- asks clientId
   sendAndHandleExceptions evts conn sid
 
 {-# INLINABLE notifyClient #-}
-notifyClient :: ClientServer s
+notifyClient :: (ClientServer s
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
              => ServerEventT s
-             -> ClientHandlerIO s ()
+             -> m ()
 notifyClient = notifyClient' . ServerAppEvt
 
 {-# INLINABLE notifyClient' #-}
-notifyClient' :: ClientServer s
+notifyClient' :: (ClientServer s
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
              => ServerEvent s
-             -> ClientHandlerIO s ()
+             -> m ()
 notifyClient' evt = do
   conn <- asks connection
   sid <- asks clientId

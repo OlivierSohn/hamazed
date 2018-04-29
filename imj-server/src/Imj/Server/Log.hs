@@ -55,8 +55,9 @@ logColor c = fromMaybe (gray 16) $ clientLogColor c
 showClient :: (Show c) => c -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
-log :: ClientServer s
-    => ColorString -> (ClientHandlerIO s) ()
+log :: (MonadIO m
+      , ClientServer s, MonadState (ServerState s) m, MonadReader ConstClient m)
+    => ColorString -> m ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
@@ -67,8 +68,9 @@ log msg = gets serverLogs >>= \case
       , msg
       ]
 
-warning :: ClientServer s
-        => Text -> (ClientHandlerIO s) ()
+warning :: (MonadIO m
+          , ClientServer s, MonadState (ServerState s) m, MonadReader ConstClient m)
+        => Text -> m ()
 warning msg = gets serverLogs >>= \case
   NoLogs -> return ()
   ConsoleLogs -> do
@@ -80,10 +82,11 @@ warning msg = gets serverLogs >>= \case
       ]
 
 {-# INLINABLE logArg #-}
-logArg :: (Show a, ClientServer s)
-       => (a -> ClientHandlerIO s b)
+logArg :: (Show a, ClientServer s
+          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+       => (a -> m b)
        -> a
-       -> ClientHandlerIO s b
+       -> m b
 logArg act arg = do
   log $ colored " >> " (gray 18) <> keepExtremities (show arg)
   res <- act arg

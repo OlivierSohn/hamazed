@@ -19,13 +19,16 @@ module Imj.ClientServer.Class
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
-      , ClientHandlerIO
+      -- * reexports
+      , MonadReader
+      , MonadState
       ) where
 
 import           Imj.Prelude
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.State.Strict(MonadState, StateT)
+import           Control.Monad.Reader.Class(MonadReader)
+import           Control.Monad.State.Strict(MonadState)
 
 import           Imj.ClientServer.Internal.Types
 
@@ -36,7 +39,6 @@ class (Show c) => ClientInfo c where
   clientLogColor :: c -> Maybe (Color8 Foreground)
   clientFriendlyName :: c -> Maybe Text
 
-type ClientHandlerIO s = StateT (ServerState s) (ReaderT ConstClient IO)
 
 class (Show (ClientEventT s)
      , Show (ServerEventT s)
@@ -49,8 +51,7 @@ class (Show (ClientEventT s)
      , ClientInfo (ClientT s)
      )
  =>
-  ClientServer s -- TODO rename to Server? only the server needs an instance of this, eventhough
-  -- some of the types concern both the client and the server.
+  ClientServer s
  where
 
   -------------- [Server <--> Client] Messages ---------------------------------
@@ -94,9 +95,11 @@ class (Show (ClientEventT s)
 
   -- | Called once, when 'tryReconnect' returned a 'Just', and before any call to
   -- 'handleClientEvent'
-  onReconnection :: ReconnectionContext s -> (ClientHandlerIO s) ()
+  onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                 => ReconnectionContext s -> m ()
 
-  handleClientEvent :: ClientEventT s -> (ClientHandlerIO s) ()
+  handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                    => ClientEventT s -> m ()
 
   -- | Called after a client was disconnected.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)

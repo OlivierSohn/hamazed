@@ -12,7 +12,7 @@ import           UnliftIO.MVar (newEmptyMVar)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Hamazed.Network.Internal.HamazedServerState
+import           Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types
@@ -20,12 +20,12 @@ import           Imj.Graphics.Color.Types
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.Color
 
-newServerState :: ServerLogs -> ColorScheme -> IO (ServerState HamazedServerState)
+newServerState :: ServerLogs -> ColorScheme -> IO (ServerState Hamazed)
 newServerState logs colorScheme = do
   c <- mkCenterColor colorScheme
   let lvSpec = LevelSpec firstServerLevel CannotOvershoot
       params = initialParameters
-  mkServerState logs . HamazedServerState mkGameTiming lvSpec params
+  mkServerState logs . Hamazed mkGameTiming lvSpec params
             (mkWorldCreation $ WorldSpec lvSpec Set.empty params)
             IntentSetup c <$> newEmptyMVar
 

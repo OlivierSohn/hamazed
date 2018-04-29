@@ -64,7 +64,7 @@ import           Imj.Music hiding(Do)
 updateAppState :: (MonadState AppState m
                  , MonadReader (Env i) m
                  , MonadIO m)
-               => UpdateEvent HamazedServerState Event
+               => UpdateEvent Hamazed Event
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of

@@ -52,7 +52,7 @@ library
                      , Imj.Game.Hamazed.Network.Client
                      , Imj.Game.Hamazed.Network.ClientId
                      , Imj.Game.Hamazed.Network.GameNode
-                     , Imj.Game.Hamazed.Network.Internal.HamazedServerState
+                     , Imj.Game.Hamazed.Network.Internal.Hamazed
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server
                      , Imj.Game.Hamazed.Network.Setup

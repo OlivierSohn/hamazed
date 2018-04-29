@@ -38,7 +38,7 @@ perceptually earlier shot.
 -}
 
 module Imj.Game.Hamazed.Network.Types
-      ( HamazedServerState
+      ( Hamazed
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , HamazedClient
@@ -98,7 +98,7 @@ import           Data.Text(unpack)
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Network.Internal.HamazedServerState
+import           Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString(ColorString)

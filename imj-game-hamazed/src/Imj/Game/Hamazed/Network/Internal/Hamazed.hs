@@ -8,8 +8,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Network.Internal.HamazedServerState
-      ( HamazedServerState(..)
+module Imj.Game.Hamazed.Network.Internal.Hamazed
+      ( Hamazed(..)
       -- * utilities
       , onlyPlayersMap
       , gets'
@@ -58,8 +58,8 @@ import           Imj.Server
 import           Imj.Server.Log
 
 
--- | 'HamazedServerState' handles a single game.
-data HamazedServerState = HamazedServerState {
+-- | 'Hamazed' handles a single game.
+data Hamazed = Hamazed {
     gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
   , levelSpecification :: {-# UNPACK #-} !LevelSpec
   , worldParameters :: {-# UNPACK #-} !WorldParameters
@@ -72,21 +72,21 @@ data HamazedServerState = HamazedServerState {
   , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
-instance NFData HamazedServerState
-instance ClientServer HamazedServerState where
+instance NFData Hamazed
+instance ClientServer Hamazed where
 
-  type ClientT HamazedServerState = HamazedClient
-  type ConnectIdT HamazedServerState = SuggestedPlayerName
-  type ServerEventT HamazedServerState = HamazedServerEvent
-  type ClientEventT HamazedServerState = HamazedClientEvent
+  type ClientT Hamazed = HamazedClient
+  type ConnectIdT Hamazed = SuggestedPlayerName
+  type ServerEventT Hamazed = HamazedServerEvent
+  type ClientEventT Hamazed = HamazedClientEvent
   -- Where 'Set ClientId' represents the players in the current game:
-  type ReconnectionContext HamazedServerState = Set ClientId
+  type ReconnectionContext Hamazed = Set ClientId
 
   inParallel = [gameScheduler]
 
   acceptConnection (SuggestedPlayerName name) = checkName name
 
---  tryReconnect :: SuggestedPlayerName -> StateT (ServerState HamazedServerState) IO (Maybe (ClientId, ReonnectionContext HamazedServerState))
+--  tryReconnect :: SuggestedPlayerName -> StateT (ServerState Hamazed) IO (Maybe (ClientId, ReonnectionContext Hamazed))
   tryReconnect _ =
     gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
       (do serverLog $ pure "No game is running"
@@ -151,7 +151,7 @@ instance ClientServer HamazedServerState where
 -- functions used in 'inParallel' ----------------------------------------------
 --------------------------------------------------------------------------------
 
-onLevelOutcome :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+onLevelOutcome :: (MonadIO m, MonadState (ServerState Hamazed) m)
                => LevelOutcome -> m ()
 onLevelOutcome outcome =
   levelNumber <$> gets' levelSpecification >>= \levelN -> do
@@ -185,7 +185,7 @@ onLevelOutcome outcome =
 -- | To avoid deadlocks, this function should be called only from inside a
 -- transaction on ServerState.
 {-# INLINABLE updateCurrentStatus #-}
-updateCurrentStatus :: (MonadState (ServerState HamazedServerState) m, MonadIO m)
+updateCurrentStatus :: (MonadState (ServerState Hamazed) m, MonadIO m)
                     => Maybe GameStatus
                     -- ^ the reference to take into account, if different from current status.
                     -> m (Maybe GameStatus)
@@ -232,7 +232,7 @@ updateCurrentStatus ref = gets' scheduledGame >>= tryReadMVar >>= maybe
     return $ Just newStatus)
 
 {-# INLINABLE onChangeStatus #-}
-onChangeStatus :: (MonadState (ServerState HamazedServerState) m, MonadIO m)
+onChangeStatus :: (MonadState (ServerState Hamazed) m, MonadIO m)
                => Map ClientId (Client HamazedClient)
                -> GameStatus
                -> GameStatus
@@ -249,9 +249,9 @@ onChangeStatus notified status newStatus = gets' scheduledGame >>= \game -> tryR
     serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
     notifyN [EnterState $ PlayLevel newStatus] notified)
 
-gameScheduler :: MVar (ServerState HamazedServerState) -> IO ()
+gameScheduler :: MVar (ServerState Hamazed) -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ terminate (HamazedServerState _ _ _ _ _ _ mayGame)) ->
+  readMVar st >>= \(ServerState _ _ terminate (Hamazed _ _ _ _ _ _ mayGame)) ->
     if terminate
       then return ()
       else
@@ -298,7 +298,7 @@ gameScheduler st =
       return res
 
    where
-    stopMusic = gets unServerState >>= \(HamazedServerState _ _ _ _ _ _ game) ->
+    stopMusic = gets unServerState >>= \(Hamazed _ _ _ _ _ _ game) ->
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
@@ -308,7 +308,7 @@ gameScheduler st =
             _:_ -> notifyPlayersN $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
-    go = get >>= \(ServerState _ _ terminate (HamazedServerState _ _ _ _ _ _ game)) ->
+    go = get >>= \(ServerState _ _ terminate (Hamazed _ _ _ _ _ _ game)) ->
       if terminate
         then do
           serverLog $ pure $ colored "Terminating game" yellow
@@ -396,7 +396,7 @@ gameScheduler st =
 -- functions used in 'createClient' --------------------------------------------
 --------------------------------------------------------------------------------
 
-makePlayerName :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+makePlayerName :: (MonadIO m, MonadState (ServerState Hamazed) m)
                => SuggestedPlayerName -> m PlayerName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
@@ -406,7 +406,7 @@ makePlayerName (SuggestedPlayerName sn) = do
           (\_ -> return proposal)
   go Nothing
 
-checkNameAvailability :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+checkNameAvailability :: (MonadIO m, MonadState (ServerState Hamazed) m)
                       => PlayerName -> m (Either Text ())
 checkNameAvailability name =
   any ((== name) . getName . unClient) <$> gets clientsMap >>= \case
@@ -417,7 +417,7 @@ checkNameAvailability name =
 -- functions used in 'afterClientWasAdded' -------------------------------------
 --------------------------------------------------------------------------------
 
-participateToWorldCreation :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+participateToWorldCreation :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
                            => WorldId
                            -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
                            -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
@@ -449,8 +449,8 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 -- functions used in 'handleClientEvent' ---------------------------------------
 --------------------------------------------------------------------------------
 
-handleEvent :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
-            => ClientEventT HamazedServerState -> m ()
+handleEvent :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
+            => ClientEventT Hamazed -> m ()
 handleEvent = \case
   RequestApproval cmd@(AssignName name) -> either
     (notifyClient . CommandError cmd)
@@ -564,7 +564,7 @@ handleEvent = \case
           serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
     NeedMoreTime -> addStats stats wid
-    Success essence -> gets unServerState >>= \(HamazedServerState _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _) -> bool
+    Success essence -> gets unServerState >>= \(Hamazed _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _) -> bool
       (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
       (case st of
         Created ->
@@ -596,7 +596,7 @@ handleEvent = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient $ EnterState Setup
       IntentPlayGame maybeOutcome ->
-        gets unServerState >>= \(HamazedServerState _ _ _ (WorldCreation _ lastWId _ _) _ _ game) ->
+        gets unServerState >>= \(Hamazed _ _ _ (WorldCreation _ lastWId _ _) _ _ game) ->
          liftIO (tryReadMVar game) >>= maybe
           (do
             adjustClient $ \c -> c { getState = Just ReadyToPlay }
@@ -636,7 +636,7 @@ handleEvent = \case
   publish a = asks clientId >>= notifyEveryone . PlayerInfo a
   acceptCmd cmd = asks clientId >>= notifyEveryone . flip RunCommand cmd
 
-onDelta :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+onDelta :: (MonadIO m, MonadState (ServerState Hamazed) m)
         => Int
         -> SharedEnumerableValueKey
         -> m ()
@@ -667,7 +667,7 @@ onDelta i key = onChangeWorldParams $ \wp -> case key of
         Nothing $
         adjustedProba == prevProba
 
-onChangeWorldParams :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+onChangeWorldParams :: (MonadIO m, MonadState (ServerState Hamazed) m)
                     => (WorldParameters -> Maybe WorldParameters)
                     -> m ()
 onChangeWorldParams f =
@@ -682,7 +682,7 @@ onChangeWorldParams f =
     notifyEveryone $ OnWorldParameters p
     requestWorld
 
-addStats :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+addStats :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
          => Map Properties Statistics
          -> WorldId
          -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
@@ -703,7 +703,7 @@ addStats stats key =
           modify' $ mapState $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
       $ wid == key
 
-gameError :: (MonadIO m, MonadState (ServerState HamazedServerState) m, MonadReader ConstClient m)
+gameError :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
           => String -> m ()
 gameError = error' "Game"
 
@@ -711,12 +711,12 @@ gameError = error' "Game"
 -- functions used in 'afterClientLeft' -----------------------------------------
 --------------------------------------------------------------------------------
 
-requestWorld :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+requestWorld :: (MonadIO m, MonadState (ServerState Hamazed) m)
              => m ()
 requestWorld = do
   cancelWorldRequest
   modify' $ (\s ->
-    let (HamazedServerState _ level params creation _ _ _) = unServerState s
+    let (Hamazed _ level params creation _ _ _) = unServerState s
         nextWid = succ $ creationKey creation
     in mapState
       (\v -> v {
@@ -729,13 +729,13 @@ requestWorld = do
       s )
   gets clientsMap >>= requestWorldBy
 
-requestWorldBy :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+requestWorldBy :: (MonadIO m, MonadState (ServerState Hamazed) m)
                => Map ClientId (Client HamazedClient) -> m ()
 requestWorldBy x =
   gets' worldCreation >>= \(WorldCreation _ wid spec _) ->
     notifyN [WorldRequest wid $ Build (fromSecs 1) spec] x
 
-cancelWorldRequest :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+cancelWorldRequest :: (MonadIO m, MonadState (ServerState Hamazed) m)
                    => m ()
 cancelWorldRequest = gets' worldCreation >>= \wc@(WorldCreation st wid _ _) -> case st of
   Created -> return ()
@@ -744,11 +744,11 @@ cancelWorldRequest = gets' worldCreation >>= \wc@(WorldCreation st wid _ _) -> c
     modify' $ mapState (\s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } })
 
 
-gets' :: (MonadState (ServerState HamazedServerState) m)
-      => (HamazedServerState -> a) -> m a
+gets' :: (MonadState (ServerState Hamazed) m)
+      => (Hamazed -> a) -> m a
 gets' f = gets (f . unServerState)
 
-unAssign :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
+unAssign :: (MonadIO m, MonadState (ServerState Hamazed) m)
          => ClientId
          -> m ()
 unAssign sid = gets' worldCreation >>= \wc -> case creationState wc of
@@ -760,7 +760,7 @@ unAssign sid = gets' worldCreation >>= \wc -> case creationState wc of
     unless (s1 == s2) $
       modify' $ mapState (\s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees } })
 
-onlyPlayersMap :: ServerState HamazedServerState
+onlyPlayersMap :: ServerState Hamazed
                -> Map ClientId (Client HamazedClient)
 onlyPlayersMap = Map.filter (isJust . getState . unClient) . clientsMap
 
@@ -769,13 +769,13 @@ onlyPlayersMap = Map.filter (isJust . getState . unClient) . clientsMap
 --------------------------------------------------------------------------------
 
 {-# INLINABLE notifyPlayersN #-}
-notifyPlayersN :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
-               => [ServerEventT HamazedServerState] -> m ()
+notifyPlayersN :: (MonadIO m, MonadState (ServerState Hamazed) m)
+               => [ServerEventT Hamazed] -> m ()
 notifyPlayersN evts =
   notifyN evts =<< gets onlyPlayersMap
 
 {-# INLINABLE notifyPlayers #-}
-notifyPlayers :: (MonadIO m, MonadState (ServerState HamazedServerState) m)
-              => ServerEventT HamazedServerState -> m ()
+notifyPlayers :: (MonadIO m, MonadState (ServerState Hamazed) m)
+              => ServerEventT Hamazed -> m ()
 notifyPlayers evt =
   notifyN [evt] =<< gets onlyPlayersMap

@@ -52,7 +52,7 @@ startServerIfLocal srv@(Server (Local logs a) _) v createServerState = do
     mapM_ (\parallel -> void $ forkIO $ parallel state) inParallel
     -- the current thread listens for incomming connections, 1 thread is forked per client
     runServer' listen $ appSrv state
-    -- appSrv :: MVar (ServerState HamazedServerState) -> PendingConnection -> IO ()
+    -- appSrv :: MVar (ServerState Hamazed) -> PendingConnection -> IO ()
  where
   msg x = "Hamazed GameServer " ++ st x ++ show srv ++ ")"
    where
@@ -60,7 +60,7 @@ startServerIfLocal srv@(Server (Local logs a) _) v createServerState = do
     st True = "starts listening ("
 
 startClient :: (Show p, Show c)
-            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues Event HamazedServerState)
+            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues Event Hamazed)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues

@@ -33,7 +33,7 @@ import           Imj.Game.Hamazed.Network.Class.AsyncGroups
 data Env i = Env {
     _envDeltaEnv :: !DeltaEnv
   , _envPlayerInput :: !i
-  , _envClientQueues :: !(ClientQueues Event HamazedServerState)
+  , _envClientQueues :: !(ClientQueues Event Hamazed)
   , asyncGroups :: !(RequestsAsyncs WorldId)
   , getSizedFace' :: !SizedFace
   -- ^ Font to draw 'RasterizedString's
@@ -41,7 +41,7 @@ data Env i = Env {
 instance HasSizedFace (Env x) where
   getSizedFace = getSizedFace'
 
-mkEnv :: DeltaEnv -> i -> ClientQueues Event HamazedServerState -> SizedFace -> IO (Env i)
+mkEnv :: DeltaEnv -> i -> ClientQueues Event Hamazed -> SizedFace -> IO (Env i)
 mkEnv a b c d = do
   m <- RequestsAsyncs <$> Lazy.newMVar Map.empty
   return $ Env a b c m d
@@ -81,7 +81,7 @@ instance Render (Env i) where
   {-# INLINE cycleRenderingOptions' #-}
 
 instance ClientNode (Env i) where
-  type ClientServerT (Env i) = HamazedServerState
+  type ClientServerT (Env i) = Hamazed
   type CliEvtT (Env i) = Event
   sendToServer'  (Env _ _ q _ _) = sendToServer' q
   writeToClient' (Env _ _ q _ _) = writeToClient' q

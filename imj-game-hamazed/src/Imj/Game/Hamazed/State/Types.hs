@@ -75,7 +75,7 @@ data Occurences a = Occurences {
 data AppState  = AppState {
     timeAfterRender :: !(Time Point System)
   , game :: !Game
-  , eventsGroup :: !(EventGroup HamazedServerState Event)
+  , eventsGroup :: !(EventGroup Hamazed Event)
   , _appStateEventHistory :: !OccurencesHist
   -- ^ Can record which events where handled.
   , _appStateRecordEvents :: !RecordMode

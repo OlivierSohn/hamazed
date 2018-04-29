@@ -46,7 +46,7 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
-representation :: UpdateEvent HamazedServerState Event -> EventRepr
+representation :: UpdateEvent Hamazed Event -> EventRepr
 representation (Left srv) = case srv of
   ServerError _ -> Error'
   Disconnected _ -> Disconnected'
@@ -137,7 +137,7 @@ onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 onUpdateEvent :: (MonadState AppState m
                 , MonadReader (Env i) m
                 , MonadIO m)
-              => UpdateEvent HamazedServerState Event -> m ()
+              => UpdateEvent Hamazed Event -> m ()
 onUpdateEvent e = do
   getRecording >>= \case
     Record -> state $ addEvent e
@@ -148,7 +148,7 @@ onUpdateEvent e = do
 handleEvent :: (MonadState AppState m
               , MonadReader (Env i) m
               , MonadIO m)
-            => Maybe (UpdateEvent HamazedServerState Event) -> m ()
+            => Maybe (UpdateEvent Hamazed Event) -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
@@ -171,7 +171,7 @@ addUpdateTime add =
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
                                             , MonadReader (Env i) m
                                             , MonadIO m)
-                                          => Maybe (UpdateEvent HamazedServerState Event) -> m ()
+                                          => Maybe (UpdateEvent Hamazed Event) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
@@ -242,7 +242,7 @@ getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: UpdateEvent HamazedServerState Event -> AppState -> ((), AppState)
+addEvent :: UpdateEvent Hamazed Event -> AppState -> ((), AppState)
 addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (representation e) es
   in ((), AppState t g evts es' r b d)

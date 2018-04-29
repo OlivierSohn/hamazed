@@ -11,6 +11,7 @@ module Imj.ClientServer.Internal.Types
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
+      , ClientLifecycle(..)
       ) where
 
 import           Imj.Prelude
@@ -18,6 +19,12 @@ import           Data.Int(Int64)
 import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
 import           Network.WebSockets(Connection)
+
+
+data ClientLifecycle c =
+    NewClient
+  | ReconnectingClient !c
+  deriving(Show)
 
 -- | Immutable data associated to a client.
 data ConstClient = ConstClient {
@@ -40,7 +47,7 @@ data ServerLogs =
 instance NFData ServerLogs
 
 newtype ClientId = ClientId Int64
-  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)
+  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData, Integral, Real, Num)
 
 data Client c = Client {
     getConnection :: {-# UNPACK #-} !Connection

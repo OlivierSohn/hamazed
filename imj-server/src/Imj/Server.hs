@@ -29,7 +29,6 @@ import           Data.Set(Set)
 import           Data.Text(pack)
 
 import           Imj.ClientServer.Class
-import           Imj.ClientServer.Internal.Types
 import           Imj.ClientServer.Types
 import           Imj.Server.Types
 

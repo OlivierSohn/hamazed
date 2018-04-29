@@ -13,9 +13,8 @@ import           Imj.Prelude
 import           Data.Char (isPunctuation, isSpace)
 import           Data.Text(Text)
 
-import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Graphics.Color.Types
-import           Imj.Server.Internal.Types
+import           Imj.Server.Types
 
 import           Imj.Graphics.Color
 
@@ -26,8 +25,9 @@ checkName name
   | otherwise =
       Right ()
 
+-- | This function assumes that ClientId's start at 0 and are ascending.
 mkClientColorFromCenter :: ClientId -> Color8 Foreground -> Color8 Foreground
-mkClientColorFromCenter (ClientId i) ref =
+mkClientColorFromCenter i ref =
   let nColors = countHuesOfSameIntensity ref
       -- we want the following mapping:
       -- 0 -> 0

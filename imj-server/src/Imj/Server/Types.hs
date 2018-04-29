@@ -12,7 +12,6 @@ module Imj.Server.Types
         ClientId
       , Clients
       , Client, mkClient, unClient
-      , takeClientId
       , ServerLogs(..)
       , ServerOwnership(..)
       , DisconnectReason(..)
@@ -46,9 +45,6 @@ mkEmptyClients = Clients Map.empty (ClientId 0)
 mkServerState :: ServerLogs -> s -> ServerState s
 mkServerState logs s =
   ServerState logs mkEmptyClients False s
-
-takeClientId :: Clients c -> (Clients c, ClientId)
-takeClientId (Clients c i) = (Clients c $ succ i, i)
 
 
 --------------------------------------------------------------------------------

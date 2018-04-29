@@ -58,25 +58,26 @@ class (Show (ClientEventT s)
   -- ^ [Server --> Client] events
   type ClientEventT s = (r :: *)| r -> s
   -- ^ [Client --> Server] events
-  type ConnectIdT s = (r :: *) | r -> s -- TODO make implicit or should be part of 'ClientEventT'
-  -- ^ Some optional data that is used by the application to create the identity of the client,
-  -- passed in 'ClientEventT' 'Connect'.
+  type ConnectIdT s = (r :: *) | r -> s
+  -- ^ Passed in 'ClientEvent' 'Connect'.
 
   -------------- Server-side ---------------------------------------------------
   -- | "Server-side" client definition.
   type ClientT s = (r :: *) | r -> s
-  type ConnectionContext s
+  type ReconnectionContext s
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,
   -- the list will typically contain a game scheduling action.
   inParallel :: [MVar (ServerState s) -> IO ()]
 
+  -- | When returning Left, the corresponding client connection is rejected.
   acceptConnection :: ConnectIdT s -> Either Text ()
 
-  associateClientId :: (MonadIO m, MonadState (ServerState s) m)
-                    => ConnectIdT s -- TODO make more granular by exposing the notion of lifecycle, ConnectionContext becoming ReconnectionContext inside lifecycle
-                    -> m (ClientId, ConnectionContext s)
+  -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
+  tryReconnect :: (MonadIO m, MonadState (ServerState s) m)
+               => ConnectIdT s
+               -> m (Maybe (ClientId, ReconnectionContext s))
 
   createClient :: (MonadIO m, MonadState (ServerState s) m)
                => ClientId
@@ -91,8 +92,11 @@ class (Show (ClientEventT s)
   greetings :: (MonadIO m, MonadState (ServerState s) m)
             => m [ServerEventT s]
 
-  afterClientWasAdded :: ConnectionContext s -> (ClientHandlerIO s) ()
-  handleClientEvent   :: ClientEventT s      -> (ClientHandlerIO s) ()
+  -- | Called once, when 'tryReconnect' returned a 'Just', and before any call to
+  -- 'handleClientEvent'
+  onReconnection :: ReconnectionContext s -> (ClientHandlerIO s) ()
+
+  handleClientEvent :: ClientEventT s -> (ClientHandlerIO s) ()
 
   -- | Called after a client was disconnected.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)

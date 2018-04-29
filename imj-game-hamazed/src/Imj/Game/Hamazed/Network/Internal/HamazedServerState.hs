@@ -46,7 +46,6 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.ClientId
 import           Imj.Game.Hamazed.Network.Setup
 import           Imj.Graphics.Color.Types
-import           Imj.Server.Internal.Types
 import           Imj.Server.Types
 
 import           Imj.ClientServer.Run
@@ -75,56 +74,45 @@ data HamazedServerState = HamazedServerState {
 } deriving(Generic)
 instance NFData HamazedServerState
 instance ClientServer HamazedServerState where
+  
   type ClientT HamazedServerState = HamazedClient
   type ConnectIdT HamazedServerState = SuggestedPlayerName
   type ServerEventT HamazedServerState = HamazedServerEvent
   type ClientEventT HamazedServerState = HamazedClientEvent
-  type ConnectionContext HamazedServerState = ClientLifecycle
+  type ReconnectionContext HamazedServerState = Set ClientId -- ^ Representing the players in the current paused game
 
   inParallel = [gameScheduler]
 
   acceptConnection (SuggestedPlayerName name) = checkName name
 
-  --associateClientId :: SuggestedPlayerName -> StateT (ServerState HamazedServerState) IO (ClientId, ClientLifecycle)
-  associateClientId _ =
-    takeDisconnectedShipId >>= maybe
-      (state $ \s ->
-        let (clients,newShipId) = takeClientId $ getClients s
-        in ( (newShipId, NewClient)
-           , s { getClients = clients } ))
-      (\(gameConnectedPlayers, disconnected) -> do
-        when (Set.null gameConnectedPlayers) $
-          serverError "the current game has no connected player" -- TODO support that
-        return (disconnected, ReconnectingClient gameConnectedPlayers))
-   where
-    --takeDisconnectedShipId :: StateT (ServerState HamazedServerState) IO (Maybe (Set ClientId, ClientId)) -- (connected, disconnected)
-    takeDisconnectedShipId =
-      get >>= \(ServerState _ _ terminate (HamazedServerState _ _ _ _ _ _ game)) ->
-        if terminate
-          then
-            return Nothing
-          else
-            liftIO (tryReadMVar game) >>= maybe
-              (do serverLog $ pure "No game is running"
-                  return Nothing)
-              (\(CurrentGame _ gamePlayers status _) -> case status of
-                  (Paused _ _) -> do
-                  -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
-                  -- - the game scheduler thread updates it every second only -
-                  -- so we recompute the difference:
-                    connectedPlayers <- gets onlyPlayersMap
-                    let connectedPlayerKeys = Map.keysSet connectedPlayers
-                        mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
-                        gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
-                    maybe
-                      (do serverLog $ pure "A paused game exists, but has no disconnected player."
-                          return Nothing)
-                      (\disconnected -> do
-                          serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
-                          return $ Just (gameConnectedPlayers, disconnected))
-                      mayDisconnectedPlayerKey
-                  _ -> do serverLog $ pure "A game is in progress."
-                          return Nothing)
+--  tryReconnect :: SuggestedPlayerName -> StateT (ServerState HamazedServerState) IO (Maybe (ClientId, ReonnectionContext HamazedServerState))
+  tryReconnect _ =
+    get >>= \(ServerState _ _ terminate (HamazedServerState _ _ _ _ _ _ game)) ->
+      if terminate
+        then
+          return Nothing
+        else
+          liftIO (tryReadMVar game) >>= maybe
+            (do serverLog $ pure "No game is running"
+                return Nothing)
+            (\(CurrentGame _ gamePlayers status _) -> case status of
+                (Paused _ _) -> do
+                -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
+                -- - the game scheduler thread updates it every second only -
+                -- so we recompute the difference:
+                  connectedPlayers <- gets onlyPlayersMap
+                  let connectedPlayerKeys = Map.keysSet connectedPlayers
+                      mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
+                      gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
+                  maybe
+                    (do serverLog $ pure "A paused game exists, but has no disconnected player."
+                        return Nothing)
+                    (\disconnected -> do
+                        serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
+                        return $ Just (disconnected, gameConnectedPlayers))
+                    mayDisconnectedPlayerKey
+                _ -> do serverLog $ pure "A game is in progress."
+                        return Nothing)
 
 
   createClient i sn = do
@@ -136,18 +124,14 @@ instance ClientServer HamazedServerState where
     map (RunCommand i) [AssignName name , AssignColor color]
     -- TODO this is ClientInfo information so it could be made generic (RunCommand could have generic commands)
 
-  afterClientWasAdded = \case
-    NewClient ->
-      log "Is a new client"
-    ReconnectingClient gameConnectedPlayers -> do
-      log "Is a reconnecting client"
-      gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
-        Created ->
-          gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
-        CreationAssigned _ ->
-          -- A game is in progress and a "next level" is being built:
-          -- add the newcomer to the assigned builders.
-          participateToWorldCreation wid
+  onReconnection gameConnectedPlayers =
+    gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
+      Created ->
+        gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
+      CreationAssigned _ ->
+        -- A game is in progress and a "next level" is being built:
+        -- add the newcomer to the assigned builders.
+        participateToWorldCreation wid
 
   greetings = do
     presentClients <-

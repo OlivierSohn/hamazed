@@ -33,7 +33,7 @@ import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
-import           Control.Monad.State.Strict(runStateT, execStateT, modify')
+import           Control.Monad.State.Strict(runStateT, execStateT, modify', state)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
@@ -46,7 +46,7 @@ import           Imj.ClientServer.Internal.Types
 import           Imj.ClientServer.Class
 import           Imj.ClientServer.Types
 import           Imj.Graphics.Color.Types
-import           Imj.Server.Internal.Types
+import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Server.Connection
@@ -61,26 +61,41 @@ appSrv st pending =
 -- (network failures or players disconnections) are handled so that
 -- a broken connection of /another/ client while broadcasting a message
 -- won't impact the handled client.
-application :: (ClientServer s) => MVar (ServerState s) -> Connection -> IO ()
+application :: ClientServer s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
-    Connect i cliType -> either
+    msg@ClientAppEvt {} -> error $ "First sent message should be 'Connect'. " ++ show msg
+    Connect connectId cliType -> either
       (\txt ->
-          let response = ConnectionRefused i txt
+          let response = ConnectionRefused connectId txt
           in sendBinaryData conn response )
-      (\_ -> modifyMVar st (fmap swap . runStateT (associateClientId i)) >>= \(cid,lifecycle) ->
-               runReaderT (handleClient i cliType lifecycle st) $ ConstClient conn cid)
-      $ acceptConnection i
-    msg -> error $ "First sent message should be 'Connect'. " ++ show msg
+      (\_ -> modifyMVar st (fmap swap . runStateT associateClientId) >>= \(cid,lifecycle) ->
+               runReaderT (handleClient connectId cliType lifecycle st) $ ConstClient conn cid)
+      $ acceptConnection connectId
+
+     where
+
+      associateClientId =
+        tryReconnect connectId >>= maybe
+          (state $ \s ->
+            let (clients,newId) = takeClientId $ getClients s
+            in ( (newId, NewClient)
+               , s { getClients = clients } ))
+          (return . fmap ReconnectingClient)
+
+       where
+
+        takeClientId :: Clients c -> (Clients c, ClientId)
+        takeClientId (Clients c i) = (Clients c $ succ i, i)
 
 
 handleClient :: (ClientServer s)
              => ConnectIdT s
              -> ServerOwnership
-             -> ConnectionContext s
+             -> ClientLifecycle (ReconnectionContext s)
              -> MVar (ServerState s)
              -> ReaderT ConstClient IO ()
-handleClient sn cliType lifecycle st = do
+handleClient connectId cliType lifecycle st = do
   i <- asks clientId
   let disconnectOnException :: (MonadUnliftIO m) => Text -> m () -> m ()
       disconnectOnException name action = try action >>= either
@@ -93,8 +108,14 @@ handleClient sn cliType lifecycle st = do
   void $ liftIO $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
   disconnectOnException "Handler" $ do
     modifyMVar_ st $ execStateT $ do
-      addClient sn cliType
-      afterClientWasAdded lifecycle
+      addClient connectId cliType
+      case lifecycle of
+        NewClient ->
+          log "Is a new client"
+        ReconnectingClient c -> do
+          log "Is a reconnecting client"
+          onReconnection c
+
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
 
@@ -120,10 +141,10 @@ addClient :: (ClientServer s)
           => ConnectIdT s
           -> ServerOwnership
           -> ClientHandlerIO s ()
-addClient sn cliType = do
+addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
-  c' <- createClient i sn
+  c' <- createClient i connectId
   notifyEveryoneN $ eventsOnWillAddClient i c'
 
   let c = mkClient conn cliType c'

@@ -26,6 +26,8 @@ import           Imj.Client.Class
 import           Imj.Client.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
+import           Imj.Game.Hamazed.Network.Scheduler
+import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 

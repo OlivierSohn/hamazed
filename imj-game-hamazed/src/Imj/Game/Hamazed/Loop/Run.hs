@@ -399,7 +399,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool
         -> ClientQueues Event Hamazed
-        -> HamazedClientSideServer
+        -> HamazedView
         -> SuggestedPlayerName
         -> a
         -> IO ()

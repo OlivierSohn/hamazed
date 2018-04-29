@@ -34,13 +34,13 @@ import           Imj.Game.Hamazed.Network.Client(appCli)
 import           Imj.Server
 
 startServerIfLocal :: (Show c, Show a, ClientServer s)
-                   => Server a c -- TODO unify with ClientServer
+                   => ServerView a c -- TODO unify with ClientServer
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> (ServerLogs -> a -> IO (ServerState s))
                    -> IO ()
-startServerIfLocal srv@(Server (Distant _) _) v _ = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal srv@(Server (Local logs a) _) v createServerState = do
+startServerIfLocal srv@(ServerView (Distant _) _) v _ = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal srv@(ServerView (Local logs a) _) v createServerState = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
@@ -60,7 +60,7 @@ startServerIfLocal srv@(Server (Local logs a) _) v createServerState = do
     st True = "starts listening ("
 
 startClient :: (Show p, Show c)
-            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues Event Hamazed)
+            => SuggestedPlayerName -> (ServerView p c) -> IO (ClientQueues Event Hamazed)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues

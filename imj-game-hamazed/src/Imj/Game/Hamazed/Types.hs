@@ -9,7 +9,7 @@
 module Imj.Game.Hamazed.Types
     ( GracefulProgramEnd(..)
     , UnexpectedProgramEnd(..)
-    , HamazedClientSideServer
+    , HamazedView
     , Game(..)
     , GameTime
     , GameState(..)
@@ -89,13 +89,13 @@ instance (Show (CliEvtT e), ClientServer (ClientServerT e)) => Show (GenEvent e)
   show (CliEvt e) = show("CliEvt",e)
   show (SrvEvt e) = show("SrvEvt",e)
 
-type HamazedClientSideServer = Server ColorScheme WorldParameters
+type HamazedView = ServerView ColorScheme WorldParameters
 
 data Game = Game {
     getClientState :: {-# UNPACK #-} !ClientState
   , getGameState' :: !GameState
   , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
-  , getServer' :: {-unpack sum-} !HamazedClientSideServer
+  , getServerView' :: {-unpack sum-} !HamazedView
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
   , getChat' :: !Chat

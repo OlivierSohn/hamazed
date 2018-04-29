@@ -68,7 +68,7 @@ drawStatus :: (MonadState AppState m
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state gs _ (Server _ (ServerContent _ worldParams)) _ _) -> do
+  gets game >>= \(Game state gs _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       (ClientState Ongoing Setup) ->
         getCurScreen >>= \(Screen _ center) -> getWorld >>=

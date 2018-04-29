@@ -123,9 +123,9 @@ data EventRepr = Laser'
 getGameState :: MonadState AppState m => m GameState
 getGameState = getGameState' <$> gets game
 
-{-# INLINABLE getServer #-}
-getServer :: MonadState AppState m => m (Server ColorScheme WorldParameters)
-getServer = getServer' <$> gets game
+{-# INLINABLE getServerView #-}
+getServerView :: MonadState AppState m => m (ServerView ColorScheme WorldParameters)
+getServerView = getServerView' <$> gets game
 
 {-# INLINABLE getViewMode #-}
 getViewMode :: MonadState AppState m => m ViewMode
@@ -172,9 +172,9 @@ putGame :: MonadState AppState m => Game -> m ()
 putGame g = modify' $ \s -> s { game = g }
 
 {-# INLINABLE putServer #-}
-putServer :: MonadState AppState m => (Server ColorScheme WorldParameters) -> m ()
+putServer :: MonadState AppState m => (ServerView ColorScheme WorldParameters) -> m ()
 putServer s =
-  gets game >>= \g -> putGame $ g {getServer' = s}
+  gets game >>= \g -> putGame $ g {getServerView' = s}
 
 {-# INLINABLE putGameState #-}
 putGameState :: MonadState AppState m => GameState -> m ()
@@ -214,13 +214,13 @@ putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 {-# INLINABLE putWorldParameters #-}
 putWorldParameters :: MonadState AppState m => WorldParameters -> m ()
 putWorldParameters p =
-  getServer >>= \s@(Server _ c) ->
+  getServerView >>= \s@(ServerView _ c) ->
     putServer s { serverContent = c { cachedContent = Just p } }
 
 {-# INLINABLE getWorldParameters #-}
 getWorldParameters :: MonadState AppState m => m (Maybe WorldParameters)
 getWorldParameters =
-  cachedContent . serverContent <$> getServer
+  cachedContent . serverContent <$> getServerView
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState AppState m => m (Map ShipId Player)

@@ -19,11 +19,11 @@ defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
 
-mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> HamazedClientSideServer
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> HamazedView
 mkServer color logs Nothing =
-  Server (Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color))
+  ServerView (Local (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color))
 mkServer Nothing Nothing (Just (ServerName n)) =
-  Server (Distant $ ServerName $ map toLower n)
+  ServerView (Distant $ ServerName $ map toLower n)
 mkServer _ (Just _) (Just _) =
   error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
 mkServer (Just _) _ (Just _) =

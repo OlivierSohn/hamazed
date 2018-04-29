@@ -41,9 +41,9 @@ import           Imj.Server.Log
 ---------- Seen from a server's perspective ------------------------------------
 --------------------------------------------------------------------------------
 
-
 {-# INLINABLE adjustAllWithKey #-}
-adjustAllWithKey :: (MonadState (ServerState s) m) => (ClientId -> ClientT s -> ClientT s) -> m ()
+adjustAllWithKey :: (MonadState (ServerState s) m)
+                 => (ClientId -> ClientT s -> ClientT s) -> m ()
 adjustAllWithKey f =
   modify' $ \s ->
     let clients = getClients s
@@ -56,7 +56,8 @@ adjustAllWithKey f =
           }
 
 {-# INLINABLE adjustAll #-}
-adjustAll :: (MonadState (ServerState s) m) => (ClientT s -> ClientT s) -> m ()
+adjustAll :: (MonadState (ServerState s) m)
+          => (ClientT s -> ClientT s) -> m ()
 adjustAll f =
   modify' $ \s ->
     let clients = getClients s
@@ -67,7 +68,8 @@ adjustAll f =
           }
 
 {-# INLINABLE adjustAll' #-}
-adjustAll' :: (MonadState (ServerState s) m) => (ClientT s -> Maybe (ClientT s)) -> m (Set ClientId)
+adjustAll' :: (MonadState (ServerState s) m)
+           => (ClientT s -> Maybe (ClientT s)) -> m (Set ClientId)
 adjustAll' f =
   state $ \s ->
     let clients = getClients s
@@ -115,6 +117,6 @@ serverError msg = do
 ---------- Seen from a client's perspective ------------------------------------
 --------------------------------------------------------------------------------
 
-getServerNameAndPort :: Server p c -> (ServerName, ServerPort)
-getServerNameAndPort (Server (Local {}) (ServerContent p _)) = (ServerName "localhost", p)
-getServerNameAndPort (Server (Distant name) (ServerContent p _)) = (name, p)
+getServerNameAndPort :: ServerView p c -> (ServerName, ServerPort)
+getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "localhost", p)
+getServerNameAndPort (ServerView (Distant name) (ServerContent p _)) = (name, p)

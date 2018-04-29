@@ -279,7 +279,7 @@ addEventRepr e oh@(OccurencesHist h r) =
 createState :: Maybe Size
             -> Bool
             -> SuggestedPlayerName
-            -> Server ColorScheme WorldParameters
+            -> ServerView ColorScheme WorldParameters
             -> ConnectionStatus
             -> IO AppState
 createState ms dbg a b c = do

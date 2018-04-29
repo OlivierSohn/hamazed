@@ -19,9 +19,8 @@ module Imj.Server.Types
       , mkServerState
       , ClientServer(..)
       , mapState
-        -- * Client-side
-        {- | Types used by a client to represent a server, and the connection to the server. -}
-      , Server(..)
+        -- * Client-side view of a Server
+      , ServerView(..)
       , ServerType(..)
       , ServerName(..)
       , ServerPort(..)
@@ -56,7 +55,7 @@ data ConnectionStatus =
   | Connected {-# UNPACK #-} !ClientId
   | ConnectionFailed {-# UNPACK #-} !Text
 
-data Server param cached = Server {
+data ServerView param cached = ServerView {
     serverType :: !(ServerType param)
   , serverContent :: !(ServerContent cached)
 }  deriving(Generic, Show)

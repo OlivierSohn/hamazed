@@ -133,7 +133,7 @@ library
                      , Imj.Timing
                      , Imj.Util
   build-depends:       base >= 4.9 && < 4.12
-                     , ansi-terminal ==0.8.*
+                     , ansi-terminal >=0.7 && < 0.9
                      , array == 0.5.*
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
@@ -200,7 +200,7 @@ test-suite imj-base-test
                      , Test.Imj.ZigZag
   main-is:             Spec.hs
   build-depends:       base >= 4.9 && < 4.12
-                     , ansi-terminal ==0.8.*
+                     , ansi-terminal >=0.7 && < 0.9
                      , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers ==0.5.*

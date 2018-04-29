@@ -71,7 +71,6 @@ module Imj.Game.Hamazed.Network.Types
       , SharedValue(..)
       , PlayerNotif(..)
       , GameNotif(..)
-      , LeaveReason(..)
       , GameStep(..)
       , GameStatus(..)
       -- * Game

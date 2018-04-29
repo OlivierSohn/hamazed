@@ -71,15 +71,13 @@ instance Binary ServerOwnership
 instance NFData ServerOwnership
 
 data DisconnectReason =
-    BrokenClient {-# UNPACK #-} !Text
-    -- ^ One client is disconnected because its connection is unusable.
-  | ClientShutdown
-    -- ^ One client is disconnected because it decided so.
+    ClientShutdown !(Either Text ())
+    -- ^ A client is disconnected because {'Right' : it decided so, 'Left' : its connection became unusable}.
   | ServerShutdown {-# UNPACK #-} !Text
   -- ^ All clients are disconnected.
   deriving(Generic)
 instance Binary DisconnectReason
 instance Show DisconnectReason where
   show (ServerShutdown t) = unpack $ "Server shutdown < " <> t
-  show ClientShutdown   = "Client shutdown"
-  show (BrokenClient t) = unpack $ "Broken client < " <> t
+  show (ClientShutdown (Right ()))  = "Client shutdown"
+  show (ClientShutdown (Left t)) = unpack $ "Broken client < " <> t

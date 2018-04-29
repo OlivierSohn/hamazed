@@ -168,8 +168,8 @@ updateAppState (Left evt) = case evt of
   ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
  where
-  onDisconnection ClientShutdown       = liftIO exitSuccess
-  onDisconnection s@(BrokenClient _)   = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> pack (show s)
+  onDisconnection (ClientShutdown (Right ())) = liftIO exitSuccess
+  onDisconnection (ClientShutdown (Left txt)) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> txt
   onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
   toTxt i notif =

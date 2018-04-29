@@ -77,7 +77,7 @@ onBrokenClient :: (Show a, MonadIO m
                -> m ()
 onBrokenClient threadCategory infos e i = do
   log'
-  disconnect (BrokenClient $ pack $ show e) i
+  disconnect (ClientShutdown $ Left $ pack $ show e) i
  where
   log' = serverLog $
     showId i >>= \strId -> pure $ firstLine strId <> logDetailedException infos e
@@ -122,7 +122,7 @@ disconnect r i =
       showClient c
     -- If possible, notify the client about the disconnection
     case reason of
-      BrokenClient _ ->
+      ClientShutdown (Left _) ->
         -- we can't use the client connection anymore.
         -- on its side, the client will probably receive an exception when reading or sending data.
         return ()

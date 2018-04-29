@@ -25,10 +25,10 @@ translatePlatformEvent :: (MonadState AppState m)
                        -> m (Maybe (GenEvent (Env i)))
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
-  StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional
+  StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
   FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
   KeyPress key -> case key of
-    Escape      -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional
+    Escape      -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
     Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
     _ -> getChatMode >>= \case
       Editing -> return $ case key of

@@ -58,7 +58,7 @@ import           Imj.Server
 import           Imj.Server.Log
 
 
--- | A 'Server' handles one game only (for now).
+-- | 'HamazedServerState' handles a single game.
 data HamazedServerState = HamazedServerState {
     gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
   , levelSpecification :: {-# UNPACK #-} !LevelSpec
@@ -79,7 +79,8 @@ instance ClientServer HamazedServerState where
   type ConnectIdT HamazedServerState = SuggestedPlayerName
   type ServerEventT HamazedServerState = HamazedServerEvent
   type ClientEventT HamazedServerState = HamazedClientEvent
-  type ReconnectionContext HamazedServerState = Set ClientId -- Representing the players in the current paused game
+  -- Where 'Set ClientId' represents the players in the current game:
+  type ReconnectionContext HamazedServerState = Set ClientId
 
   inParallel = [gameScheduler]
 
@@ -114,11 +115,12 @@ instance ClientServer HamazedServerState where
 
   eventsOnWillAddClient i (HamazedClient name _ _ _ _ color) =
     map (RunCommand i) [AssignName name , AssignColor color]
-    -- TODO this is ClientInfo information so it could be made generic (RunCommand could have generic commands)
 
   onReconnection gameConnectedPlayers =
     gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
       Created ->
+        -- Since we are in a reconnection scenario, the game is paused, and a world was created,
+        -- so we ask one of the connected players to send it si that the newcomer can get it.
         gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
       CreationAssigned _ ->
         -- A game is in progress and a "next level" is being built:
@@ -129,30 +131,21 @@ instance ClientServer HamazedServerState where
     presentClients <-
       Map.map ((\cl -> PlayerEssence (getName cl) Present $ getColor cl) . unClient) <$> gets clientsMap
     wp <- gets' worldParameters
-    return
-      [ OnWorldParameters wp
-      , MeetThePlayers presentClients]
+    return [ OnWorldParameters wp, MeetThePlayers presentClients]
 
   handleClientEvent = handleEvent
 
-  afterClientLeft cid reason = do
-    case reason of
-      BrokenClient e ->
-        notifyEveryone $ RunCommand cid $ Leaves $ ConnectionError e
-      ClientShutdown ->
-        notifyEveryone $ RunCommand cid $ Leaves Intentional
-      ServerShutdown _ ->
-        return () -- no need to notify other clients, as they will be diconnected too,
-                  -- hence they will receive a server shutdown notification.
-    -- if needed, request a new world
-    case reason of
-      ServerShutdown _ ->
-        return ()
-      _ -> do
-        unAssign cid
-        gets' intent >>= \case
-          IntentSetup -> requestWorld
-          IntentPlayGame _ -> return ()
+  afterClientLeft cid = \case
+    ClientShutdown r -> do
+      notifyEveryone $ RunCommand cid $ Leaves r
+      unAssign cid
+      gets' intent >>= \case
+        IntentSetup -> requestWorld -- because the number of players has changed
+        IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
+    ServerShutdown _ ->
+      return () -- no need to notify other clients, as they will be diconnected too,
+                -- hence they will receive a server shutdown notification.
+
 
 --------------------------------------------------------------------------------
 -- functions used in 'inParallel' ----------------------------------------------
@@ -470,7 +463,7 @@ handleEvent = \case
   RequestApproval cmd@(Says _) ->
     acceptCmd cmd
   RequestApproval (Leaves _) ->
-    asks clientId >>= disconnect ClientShutdown -- will do the corresponding 'notifyEveryone $ RunCommand'
+    asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
   Do cmd -> do
    case cmd of
     Put (ColorSchemeCenter color) -> do
@@ -566,7 +559,6 @@ handleEvent = \case
       IntentPlayGame _ ->
         fmap levelNumber (gets' levelSpecification) >>= \ln -> do
           notifyPlayers $ GameInfo $ CannotCreateLevel errs ln
-          -- TODO before launching the game we should check that it is possible to create all levels.
           serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
     NeedMoreTime -> addStats stats wid
@@ -652,7 +644,7 @@ onDelta i key = onChangeWorldParams $ \wp -> case key of
       let adjustedSize
            | newSize < minBlockSize = minBlockSize
            | newSize > maxBlockSize = maxBlockSize
-           | otherwise = newSize -- TODO define an upper bound and use it for the slider.
+           | otherwise = newSize
            where newSize = prevSize + i
       in bool
         (Just $ wp { wallDistrib = p { blockSize' = adjustedSize } })

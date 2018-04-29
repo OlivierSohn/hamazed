@@ -53,10 +53,14 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
           p
       updateShipsText
       stateChat $ addMessage $ ChatMessage $
-        name <> colored (" " <>
-        case detail of
-          Intentional -> "leaves the game intentionally."
-          ConnectionError t -> "leaves the game due to a connection error : " <> t) chatMsgColor
+        name <>
+        colored
+          ((<>) " leaves the game " $
+          either
+            ((<>) "due to a connection error : ")
+            (const "intentionally.")
+            detail)
+          chatMsgColor
 
 
 maxOneSpace :: Text -> Text
@@ -90,7 +94,7 @@ command = do
           case cmdType of
             "name" -> Right . ClientCmd . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
             "color" -> setColorScheme
-            
+
             _ -> error "logic"
        where
         reportColorScheme =

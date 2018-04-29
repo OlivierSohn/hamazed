@@ -36,7 +36,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , SharedValue(..)
       , PlayerNotif(..)
       , GameNotif(..)
-      , LeaveReason(..)
       , GameStep(..)
       , GameStatus(..)
       -- * Game
@@ -155,7 +154,7 @@ data ClientCommand =
     AssignName {-# UNPACK #-} !PlayerName
   | AssignColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
-  | Leaves {-unpack sum-} !LeaveReason
+  | Leaves {-unpack sum-} !(Either Text ())
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
@@ -195,12 +194,6 @@ data SharedValueKey =
   | WorldShapeKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Binary SharedValueKey
-
-data LeaveReason =
-    ConnectionError !Text
-  | Intentional
-  deriving(Generic, Show, Eq)
-instance Binary LeaveReason
 
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =

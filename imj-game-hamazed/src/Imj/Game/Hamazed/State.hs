@@ -120,7 +120,7 @@ onEvent mayEvt = do
  where
   checkPlayerEndsProgram =
     playerEndsProgram >>= \end ->
-      when end $ sendToServer $ RequestApproval $ Leaves Intentional -- Note that it is safe to send this several times
+      when end $ sendToServer $ RequestApproval $ Leaves $ Right () -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (MonadState AppState m

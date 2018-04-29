@@ -33,7 +33,7 @@ import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
-import           Control.Monad.State.Strict(runStateT, execStateT, modify', state)
+import           Control.Monad.State.Strict(runStateT, execStateT, modify', state, gets)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
@@ -65,23 +65,35 @@ application :: ClientServer s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
     msg@ClientAppEvt {} -> error $ "First sent message should be 'Connect'. " ++ show msg
-    Connect connectId cliType -> either
-      (\txt ->
-          let response = ConnectionRefused connectId txt
-          in sendBinaryData conn response )
-      (\_ -> modifyMVar st (fmap swap . runStateT associateClientId) >>= \(cid,lifecycle) ->
-               runReaderT (handleClient connectId cliType lifecycle st) $ ConstClient conn cid)
+    Connect connectId cliType ->
+      either
+        refuse
+        (\_ ->
+          modifyMVar st (fmap swap . runStateT associateClientId) >>=
+            either
+              refuse
+                (\(cid,lifecycle) ->
+                  runReaderT (handleClient connectId cliType lifecycle st) $ ConstClient conn cid))
       $ acceptConnection connectId
 
      where
 
-      associateClientId =
-        tryReconnect connectId >>= maybe
-          (state $ \s ->
-            let (clients,newId) = takeClientId $ getClients s
-            in ( (newId, NewClient)
-               , s { getClients = clients } ))
-          (return . fmap ReconnectingClient)
+      refuse txt =
+        let response = ConnectionRefused connectId txt
+        in sendBinaryData conn response
+
+      associateClientId = do
+        term <- gets shouldTerminate
+        if term
+          then
+            return $ Left "Server is shutting down"
+          else
+            tryReconnect connectId >>= fmap Right . (maybe
+              (state $ \s ->
+                let (clients,newId) = takeClientId $ getClients s
+                in ( (newId, NewClient)
+                   , s { getClients = clients } ))
+              (return . fmap ReconnectingClient))
 
        where
 

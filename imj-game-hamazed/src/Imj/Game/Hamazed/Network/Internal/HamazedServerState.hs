@@ -74,12 +74,12 @@ data HamazedServerState = HamazedServerState {
 } deriving(Generic)
 instance NFData HamazedServerState
 instance ClientServer HamazedServerState where
-  
+
   type ClientT HamazedServerState = HamazedClient
   type ConnectIdT HamazedServerState = SuggestedPlayerName
   type ServerEventT HamazedServerState = HamazedServerEvent
   type ClientEventT HamazedServerState = HamazedClientEvent
-  type ReconnectionContext HamazedServerState = Set ClientId -- ^ Representing the players in the current paused game
+  type ReconnectionContext HamazedServerState = Set ClientId -- Representing the players in the current paused game
 
   inParallel = [gameScheduler]
 
@@ -87,38 +87,30 @@ instance ClientServer HamazedServerState where
 
 --  tryReconnect :: SuggestedPlayerName -> StateT (ServerState HamazedServerState) IO (Maybe (ClientId, ReonnectionContext HamazedServerState))
   tryReconnect _ =
-    get >>= \(ServerState _ _ terminate (HamazedServerState _ _ _ _ _ _ game)) ->
-      if terminate
-        then
-          return Nothing
-        else
-          liftIO (tryReadMVar game) >>= maybe
-            (do serverLog $ pure "No game is running"
-                return Nothing)
-            (\(CurrentGame _ gamePlayers status _) -> case status of
-                (Paused _ _) -> do
-                -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
-                -- - the game scheduler thread updates it every second only -
-                -- so we recompute the difference:
-                  connectedPlayers <- gets onlyPlayersMap
-                  let connectedPlayerKeys = Map.keysSet connectedPlayers
-                      mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
-                      gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
-                  maybe
-                    (do serverLog $ pure "A paused game exists, but has no disconnected player."
-                        return Nothing)
-                    (\disconnected -> do
-                        serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
-                        return $ Just (disconnected, gameConnectedPlayers))
-                    mayDisconnectedPlayerKey
-                _ -> do serverLog $ pure "A game is in progress."
-                        return Nothing)
+    gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
+      (do serverLog $ pure "No game is running"
+          return Nothing)
+      (\(CurrentGame _ gamePlayers status _) -> case status of
+          (Paused _ _) -> do
+          -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
+          -- - the game scheduler thread updates it every second only -
+          -- so we recompute the difference:
+            connectedPlayers <- gets onlyPlayersMap
+            let connectedPlayerKeys = Map.keysSet connectedPlayers
+                mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
+                gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
+            maybe
+              (do serverLog $ pure "A paused game exists, but has no disconnected player."
+                  return Nothing)
+              (\disconnected -> do
+                  serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
+                  return $ Just (disconnected, gameConnectedPlayers))
+              mayDisconnectedPlayerKey
+          _ -> do serverLog $ pure "A game is in progress."
+                  return Nothing)
 
-
-  createClient i sn = do
-    playerColor <- mkClientColorFromCenter i <$> gets' centerColor
-    name <- makePlayerName sn
-    return $ mkHamazedClient name playerColor
+  createClient i sn =
+    mkHamazedClient <$> makePlayerName sn <*> fmap (mkClientColorFromCenter i) (gets' centerColor)
 
   eventsOnWillAddClient i (HamazedClient name _ _ _ _ color) =
     map (RunCommand i) [AssignName name , AssignColor color]

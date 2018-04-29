@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Client.Class
-      ( ClientNode(..)
+      ( Client(..)
       -- * reexports
       , TQueue
       , EventsForClient
@@ -12,25 +12,25 @@ module Imj.Client.Class
 import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.ClientServer.Types
+import           Imj.Server.Types
 import           Imj.Client.Types
 
 -- | Client-side client representation.
 class
-  (ClientServer (ClientServerT a))
+  (Server (ServerT a))
  =>
-  ClientNode a
+  Client a
  where
-  type ClientServerT a
+  type ServerT a
   type CliEvtT a
 
   -- | Send a 'ClientEvent' to the server.
   sendToServer' :: (MonadIO m)
-                => a -> ClientEvent (ClientServerT a) -> m ()
+                => a -> ClientEvent (ServerT a) -> m ()
 
   -- | The queue containing events that should be handled by the client.
-  serverQueue :: a -> TQueue (EventsForClient (CliEvtT a) (ClientServerT a))
+  serverQueue :: a -> TQueue (EventsForClient (CliEvtT a) (ServerT a))
 
   -- | Fill 'serverQueue'
   writeToClient' :: (MonadIO m)
-                 => a -> EventsForClient (CliEvtT a) (ClientServerT a) -> m ()
+                 => a -> EventsForClient (CliEvtT a) (ServerT a) -> m ()

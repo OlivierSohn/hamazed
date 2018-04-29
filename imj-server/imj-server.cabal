@@ -19,18 +19,18 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.ClientServer.Class
-                     , Imj.ClientServer.Run
-                     , Imj.ClientServer.Types
-                     , Imj.ClientServer.Internal.Types
-                     , Imj.Client.Class
+  exposed-modules:     Imj.Client.Class
                      , Imj.Client
                      , Imj.Client.Types
                      , Imj.Server
+                     , Imj.Server.Class
                      , Imj.Server.Connection
-                     , Imj.Server.Types
                      , Imj.Server.Internal.Types
                      , Imj.Server.Log
+                     , Imj.Server.Run
+                     , Imj.Server.Types
+                     , Imj.ServerView
+                     , Imj.ServerView.Types
   build-depends:       base >= 4.9 && < 4.12
                      , binary ==0.8.*
                      , containers ==0.5.*

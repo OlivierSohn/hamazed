@@ -30,12 +30,13 @@ import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
 import           Imj.Client.Class
-import           Imj.ClientServer.Types
+import           Imj.Server.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types
+import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Command

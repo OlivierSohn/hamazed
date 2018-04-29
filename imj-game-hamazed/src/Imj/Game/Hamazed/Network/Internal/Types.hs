@@ -15,7 +15,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , PlayerState(..)
-      , Clients
+      , ClientViews
       , Intent(..)
       , CurrentGame(..)
       , mkCurrentGame
@@ -26,7 +26,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , PlayerEssence(..)
       , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
       , StateValue(..)
-      , Client
       , WorldRequestArg(..)
       , ServerReport(..)
       , ClientCommand(..)
@@ -51,7 +50,7 @@ import           Data.Map.Strict(Map)
 import           Data.Set(Set)
 import           Data.String(IsString)
 
-import           Imj.ClientServer.Class
+import           Imj.Server.Class
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types

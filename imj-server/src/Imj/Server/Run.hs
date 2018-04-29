@@ -10,12 +10,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Imj.ClientServer.Run
-      ( ClientServer(..)
+module Imj.Server.Run
+      ( Server(..)
       , ServerState(..)
       , ServerEvent(..)
-      , Clients(..)
-      , Client(..)
       , ClientInfo(..)
       , ClientId(..)
       , ClientEvent(..)
@@ -23,6 +21,7 @@ module Imj.ClientServer.Run
       , ServerLogs(..)
       , DisconnectReason(..)
       , appSrv
+      , shutdown
       , handlerError
       , error'
       ) where
@@ -33,7 +32,7 @@ import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Unlift(MonadIO, MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
-import           Control.Monad.State.Strict(runStateT, execStateT, modify', state, gets)
+import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', state, gets)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
@@ -42,10 +41,9 @@ import           Network.WebSockets(PendingConnection, Connection, acceptRequest
 import           UnliftIO.Exception (SomeException(..), try)
 import           UnliftIO.MVar (modifyMVar_, modifyMVar)
 
-import           Imj.ClientServer.Internal.Types
-import           Imj.ClientServer.Class
-import           Imj.ClientServer.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Server.Internal.Types
+import           Imj.Server.Class
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString(colored)
@@ -53,7 +51,7 @@ import           Imj.Server.Connection
 import           Imj.Server.Log
 import           Imj.Timing
 
-appSrv :: (ClientServer s) => MVar (ServerState s) -> PendingConnection -> IO ()
+appSrv :: (Server s) => MVar (ServerState s) -> PendingConnection -> IO ()
 appSrv st pending =
   acceptRequest pending >>= application st
 
@@ -61,7 +59,7 @@ appSrv st pending =
 -- (network failures or players disconnections) are handled so that
 -- a broken connection of /another/ client while broadcasting a message
 -- won't impact the handled client.
-application :: ClientServer s => MVar (ServerState s) -> Connection -> IO ()
+application :: Server s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
     msg@ClientAppEvt {} -> error $ "First sent message should be 'Connect'. " ++ show msg
@@ -90,18 +88,18 @@ application st conn =
           else
             tryReconnect connectId >>= fmap Right . (maybe
               (state $ \s ->
-                let (clients,newId) = takeClientId $ getClients s
+                let (clients,newId) = takeClientId $ clientsViews s
                 in ( (newId, NewClient)
-                   , s { getClients = clients } ))
+                   , s { clientsViews = clients } ))
               (return . fmap ReconnectingClient))
 
        where
 
-        takeClientId :: Clients c -> (Clients c, ClientId)
-        takeClientId (Clients c i) = (Clients c $ succ i, i)
+        takeClientId :: ClientViews c -> (ClientViews c, ClientId)
+        takeClientId (ClientViews c i) = (ClientViews c $ succ i, i)
 
 
-handleClient :: (ClientServer s)
+handleClient :: (Server s)
              => ConnectIdT s
              -> ServerOwnership
              -> ClientLifecycle (ReconnectionContext s)
@@ -131,7 +129,7 @@ handleClient connectId cliType lifecycle st = do
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
 
-handleIncomingEvent' :: (ClientServer s
+handleIncomingEvent' :: (Server s
                        , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
                      => ClientEvent s
                      -> m ()
@@ -150,7 +148,7 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ i + 1 -- it can overflow, that is ok.
 
-addClient :: (ClientServer s
+addClient :: (Server s
             , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
           => ConnectIdT s
           -> ServerOwnership
@@ -158,27 +156,27 @@ addClient :: (ClientServer s
 addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
-  c' <- createClient i connectId
-  notifyEveryoneN $ eventsOnWillAddClient i c'
+  c' <- createClientView i connectId
+  notifyEveryoneN $ announceNewcomer i c'
 
-  let c = mkClient conn cliType c'
+  let c = ClientView conn cliType c'
 
   modify' $ \ s ->
-    let clients = getClients s
-    in s { getClients =
-            clients { getClients' =
-              Map.insert i c $ getClients' clients } }
+    let clients = clientsViews s
+    in s { clientsViews =
+            clients { views =
+              Map.insert i c $ views clients } }
   serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient c) <$> showId i
 
-  greeters <- map ServerAppEvt <$> greetings
+  greeters <- map ServerAppEvt <$> greetNewcomer
   notifyClientN' $ ConnectionAccepted i : greeters
 
-handlerError :: (ClientServer s
+handlerError :: (Server s
                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
              => String -> m ()
 handlerError = error' "Handler"
 
-error' :: (ClientServer s
+error' :: (Server s
          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
        => String -> String -> m ()
 error' from msg = do
@@ -187,3 +185,11 @@ error' from msg = do
   error txt
  where
   txt = List.intercalate "|" [from, "error from Server", msg]
+
+shutdown :: Server s
+         => Text
+         -> StateT (ServerState s) IO ()
+shutdown reason = do
+  serverLog $ pure $ colored "Server shutdown" red <> "|" <> colored reason (rgb 4 1 1)
+  modify' $ \s -> s { shouldTerminate = True }
+  Map.keysSet <$> gets clientsMap >>= mapM_ (disconnect $ ServerShutdown reason)

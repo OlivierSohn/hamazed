@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
@@ -28,7 +29,6 @@ import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
-
 
 initialGame :: Maybe Size
             -> SuggestedPlayerName

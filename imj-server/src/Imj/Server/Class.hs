@@ -9,11 +9,11 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.ClientServer.Class
-      ( ClientServer(..)
+module Imj.Server.Class
+      ( Server(..)
       , ServerState(..)
-      , Clients(..)
-      , Client(..)
+      , ClientViews(..)
+      , ClientView(..)
       , ClientInfo(..)
       , ClientId(..)
       , ServerOwnership(..)
@@ -30,11 +30,11 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState)
 
-import           Imj.ClientServer.Internal.Types
+import           Imj.Server.Internal.Types
 
 import           Imj.Graphics.Color
 
--- | Server-side info concerning a client.
+-- | Info concerning a client.
 class (Show c) => ClientInfo c where
   clientLogColor :: c -> Maybe (Color8 Foreground)
   clientFriendlyName :: c -> Maybe Text
@@ -47,11 +47,11 @@ class (Show (ClientEventT s)
      , Binary (ServerEventT s)
      , Binary (ConnectIdT s)
      , NFData s
-     , NFData (ClientT s)
-     , ClientInfo (ClientT s)
+     , NFData (ClientViewT s)
+     , ClientInfo (ClientViewT s)
      )
  =>
-  ClientServer s
+  Server s
  where
 
   -------------- [Server <--> Client] Messages ---------------------------------
@@ -62,9 +62,9 @@ class (Show (ClientEventT s)
   type ConnectIdT s = (r :: *) | r -> s
   -- ^ Passed in 'ClientEvent' 'Connect'.
 
-  -------------- Server-side ---------------------------------------------------
   -- | "Server-side" client definition.
-  type ClientT s = (r :: *) | r -> s
+  type ClientViewT s = (r :: *) | r -> s
+  -- | Some data used when a client is reconnecting.
   type ReconnectionContext s
 
   -- | Returns actions that are not associated to a particular client, and that
@@ -80,37 +80,38 @@ class (Show (ClientEventT s)
                => ConnectIdT s
                -> m (Maybe (ClientId, ReconnectionContext s))
 
-  createClient :: (MonadIO m, MonadState (ServerState s) m)
-               => ClientId
-               -> ConnectIdT s
-               -> m (ClientT s)
+  -- | Creates the client view, given the 'ClientId' and 'ConnectIdT'.
+  createClientView :: (MonadIO m, MonadState (ServerState s) m)
+                   => ClientId
+                   -> ConnectIdT s
+                   -> m (ClientViewT s)
 
-  -- | These events are sent to connected clients when a new client is about
+  -- | These events are sent to every connected clients when a new client is about
   -- to be added.
-  eventsOnWillAddClient :: ClientId -> ClientT s -> [ServerEventT s]
+  announceNewcomer :: ClientId -> ClientViewT s -> [ServerEventT s]
 
   -- | These events are sent to the newly added client.
-  greetings :: (MonadIO m, MonadState (ServerState s) m)
-            => m [ServerEventT s]
+  greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
+                => m [ServerEventT s]
 
-  -- | Called once, when 'tryReconnect' returned a 'Just', and before any call to
-  -- 'handleClientEvent'
+  -- | For reconnection scenario : called once, only if 'tryReconnect' returned a 'Just'.
   onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
                  => ReconnectionContext s -> m ()
 
+  -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
                     => ClientEventT s -> m ()
 
-  -- | Called after a client was disconnected.
+  -- | Called after a client has been disconnected (either intentionally or on connection error).
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)
                   => ClientId
                   -> DisconnectReason -> m ()
 
 data ServerState s = ServerState {
     serverLogs :: {-unpack sum-} !ServerLogs
-  , getClients :: {-# UNPACK #-} !(Clients (ClientT s))
+  , clientsViews :: {-# UNPACK #-} !(ClientViews (ClientViewT s))
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
   , unServerState :: !s
 } deriving(Generic)
-instance (ClientServer s) => NFData (ServerState s)
+instance (Server s) => NFData (ServerState s)

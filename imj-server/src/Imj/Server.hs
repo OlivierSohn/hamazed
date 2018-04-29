@@ -5,31 +5,26 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Server
-      (
-      -- * For server
-        adjustClient
+      ( adjustClient
       , adjustAllWithKey
       , adjustAll
       , adjustAll'
       , ServerState
       , serverError
       , clientsMap
-      , shutdown
-      -- * For client
-      , getServerNameAndPort
+      , mapState
       ) where
 
 import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader(asks)
-import           Control.Monad.State.Strict(StateT, MonadState, modify', gets, state)
+import           Control.Monad.State.Strict(MonadState, modify', state)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import           Data.Text(pack)
 
-import           Imj.ClientServer.Class
-import           Imj.ClientServer.Types
+import           Imj.Server.Class
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString
@@ -37,72 +32,65 @@ import           Imj.Graphics.Color
 import           Imj.Server.Connection
 import           Imj.Server.Log
 
---------------------------------------------------------------------------------
----------- Seen from a server's perspective ------------------------------------
---------------------------------------------------------------------------------
+{-# INLINE mapState #-}
+mapState :: (s -> s) -> ServerState s -> ServerState s
+mapState f s = s { unServerState = f $ unServerState s }
 
 {-# INLINABLE adjustAllWithKey #-}
 adjustAllWithKey :: (MonadState (ServerState s) m)
-                 => (ClientId -> ClientT s -> ClientT s) -> m ()
+                 => (ClientId -> ClientViewT s -> ClientViewT s) -> m ()
 adjustAllWithKey f =
   modify' $ \s ->
-    let clients = getClients s
-    in s { getClients =
-            clients { getClients' =
+    let clients = clientsViews s
+    in s { clientsViews =
+            clients { views =
                         Map.mapWithKey
                           (\k -> fmap (f k)) $
-                          getClients' clients
+                          views clients
                     }
           }
 
 {-# INLINABLE adjustAll #-}
 adjustAll :: (MonadState (ServerState s) m)
-          => (ClientT s -> ClientT s) -> m ()
+          => (ClientViewT s -> ClientViewT s) -> m ()
 adjustAll f =
   modify' $ \s ->
-    let clients = getClients s
-    in s { getClients =
-            clients { getClients' =
-                        Map.map (fmap f) $ getClients' clients
+    let clients = clientsViews s
+    in s { clientsViews =
+            clients { views =
+                        Map.map (fmap f) $ views clients
                     }
           }
 
 {-# INLINABLE adjustAll' #-}
 adjustAll' :: (MonadState (ServerState s) m)
-           => (ClientT s -> Maybe (ClientT s)) -> m (Set ClientId)
+           => (ClientViewT s -> Maybe (ClientViewT s)) -> m (Set ClientId)
 adjustAll' f =
   state $ \s ->
-    let clients = getClients s
-        m = getClients' clients
+    let clients = clientsViews s
+        m = views clients
         changed = Map.mapMaybe
-          (\c -> maybe Nothing (\r -> Just $ c {unClient = r}) $ f $ unClient c)
+          (\c -> maybe Nothing (\r -> Just $ c {unClientView = r}) $ f $ unClientView c)
           m
         newM = Map.union changed m -- left biased, so new elements will delete old ones.
     in (Map.keysSet changed
-      , s { getClients = clients { getClients' = newM } })
+      , s { clientsViews = clients { views = newM } })
 
 {-# INLINABLE adjustClient #-}
 adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
-             => (ClientT s -> ClientT s) -> m ()
+             => (ClientViewT s -> ClientViewT s) -> m ()
 adjustClient f = do
   i <- asks clientId
   modify' $ \s ->
-    let clients = getClients s
-    in s { getClients =
-            clients { getClients' =
-                        Map.adjust (fmap f) i $ getClients' clients
+    let clients = clientsViews s
+    in s { clientsViews =
+            clients { views =
+                        Map.adjust (fmap f) i $ views clients
                     }
           }
 
-shutdown :: ClientServer s
-         => Text -> StateT (ServerState s) IO ()
-shutdown reason = do
-  serverLog $ pure $ colored "Server shutdown" red <> "|" <> colored reason (rgb 4 1 1)
-  modify' $ \s -> s { shouldTerminate = True }
-  Map.keysSet <$> gets clientsMap >>= mapM_ (disconnect $ ServerShutdown reason)
-
 serverError ::(MonadIO m
-          , ClientServer s
+          , Server s
           , MonadState (ServerState s) m)
           => String
             -> m ()
@@ -112,11 +100,3 @@ serverError msg = do
   error txt
  where
   txt = List.intercalate "|" ["Server error from Server", msg]
-
---------------------------------------------------------------------------------
----------- Seen from a client's perspective ------------------------------------
---------------------------------------------------------------------------------
-
-getServerNameAndPort :: ServerView p c -> (ServerName, ServerPort)
-getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "localhost", p)
-getServerNameAndPort (ServerView (Distant name) (ServerContent p _)) = (name, p)

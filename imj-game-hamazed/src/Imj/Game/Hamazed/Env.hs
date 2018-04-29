@@ -80,8 +80,8 @@ instance Render (Env i) where
   {-# INLINE renderToScreen' #-}
   {-# INLINE cycleRenderingOptions' #-}
 
-instance ClientNode (Env i) where
-  type ClientServerT (Env i) = Hamazed
+instance Client (Env i) where
+  type ServerT (Env i) = Hamazed
   type CliEvtT (Env i) = Event
   sendToServer'  (Env _ _ q _ _) = sendToServer' q
   writeToClient' (Env _ _ q _ _) = writeToClient' q

@@ -42,12 +42,14 @@ import           Text.Read(readMaybe)
 
 import           Imj.Client.Class
 import           Imj.Client.Types
-import           Imj.ClientServer.Class
+import           Imj.Server.Class
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Input.Types
+import           Imj.ServerView.Types
+import           Imj.ServerView
 
 import           Imj.Audio
 import           Imj.Game.Hamazed.Env
@@ -55,7 +57,6 @@ import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Network.GameNode
-import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Class.HasSizedFace
@@ -394,6 +395,19 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith debug queues srv player)
+
+defaultPort :: ServerPort
+defaultPort = ServerPort 10052
+
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> HamazedView
+mkServer color logs Nothing =
+  mkLocalServerView (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color)
+mkServer Nothing Nothing (Just (ServerName n)) =
+  mkDistantServerView (ServerName $ map toLower n)
+mkServer _ (Just _) (Just _) =
+  error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
+mkServer (Just _) _ (Just _) =
+  error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
 
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)

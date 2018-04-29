@@ -24,7 +24,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
-import           Imj.ClientServer.Types
+import           Imj.Server.Types
 import           Imj.Client.Class
 import           Imj.Client.Types
 import           Imj.Game.Hamazed.State.Types
@@ -32,6 +32,7 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
+import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create

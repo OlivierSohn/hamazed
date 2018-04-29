@@ -2,66 +2,77 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Server.Types
-      ( -- * Server-side
-        {- | Types used by a server to represent itself. -}
-        ClientId
-      , Clients
-      , Client, mkClient, unClient
-      , ServerLogs(..)
-      , ServerOwnership(..)
-      , DisconnectReason(..)
+      ( Server(..)
       , ServerState, unServerState, clientsMap
       , mkServerState
-      , ClientServer(..)
-      , mapState
-        -- * Client-side view of a Server
-      , ServerView(..)
-      , ServerType(..)
-      , ServerName(..)
-      , ServerPort(..)
-      , ServerContent(..)
-      , ConnectionStatus(..)
+      , ServerEvent(..)
+      , ClientViews(..)
+      , ClientView, unClientView
+      , ClientInfo(..)
+      , ClientId(..)
+      , ClientEvent(..)
+      , ConstClient(..)
+      , ServerOwnership(..)
+      , ServerLogs(..)
+      , DisconnectReason(..)
       ) where
 
 import           Imj.Prelude
+import qualified Data.Binary as Bin
 import qualified Data.Map.Strict as Map
+import           Data.Map.Strict(Map)
+import           Data.Text.Lazy.Encoding as LazyT
+import qualified Data.Text.Lazy as LazyT
+import           Network.WebSockets
 
-import           Imj.ClientServer.Class
 import           Imj.Server.Internal.Types
+import           Imj.Server.Class
 
---------------------------------------------------------------------------------
----------- Seen from a server's perspective ------------------------------------
---------------------------------------------------------------------------------
+data ClientEvent s =
+    ClientAppEvt !(ClientEventT s)
+  | Connect !(ConnectIdT s) {-unpack sum-} !ServerOwnership
+  deriving(Generic)
+instance Server s => Binary (ClientEvent s)
+instance Server s => WebSocketsData (ClientEvent s) where
+  fromDataMessage (Text t _) =
+    error $ "Text was received for ClientEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
+  fromDataMessage (Binary bytes) = Bin.decode bytes
+  fromLazyByteString = Bin.decode
+  toLazyByteString = Bin.encode
+  {-# INLINABLE fromDataMessage #-}
+  {-# INLINABLE fromLazyByteString #-}
+  {-# INLINABLE toLazyByteString #-}
+instance Server s => Show (ClientEvent s) where
+  show (ClientAppEvt e) = show ("ClientAppEvt" :: String,e)
+  show (Connect s e) = show ("Connect" :: String,s,e)
 
-mkEmptyClients :: Clients c
-mkEmptyClients = Clients Map.empty (ClientId 0)
+data ServerEvent s =
+    ServerAppEvt !(ServerEventT s)
+  | ConnectionAccepted {-# UNPACK #-} !ClientId
+  | ConnectionRefused !(ConnectIdT s) {-# UNPACK #-} !Text
+  | Disconnected {-unpack sum-} !DisconnectReason
+  | ServerError !String
+  -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
+  deriving(Generic)
+instance Server s => Show (ServerEvent s) where
+  show _ = ""
+instance Server s => Binary (ServerEvent s)
+instance Server s => WebSocketsData (ServerEvent s) where
+  fromDataMessage (Text t _) =
+    error $ "Text was received for ServerEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
+  fromDataMessage (Binary bytes) = Bin.decode bytes
+  fromLazyByteString = Bin.decode
+  toLazyByteString = Bin.encode
+  {-# INLINABLE fromDataMessage #-}
+  {-# INLINABLE fromLazyByteString #-}
+  {-# INLINABLE toLazyByteString #-}
 
 mkServerState :: ServerLogs -> s -> ServerState s
 mkServerState logs s =
-  ServerState logs mkEmptyClients False s
+  ServerState logs (ClientViews Map.empty (ClientId 0)) False s
 
-
---------------------------------------------------------------------------------
----------- Seen from a client's perspective ------------------------------------
---------------------------------------------------------------------------------
-
-data ConnectionStatus =
-    NotConnected
-  | Connected {-# UNPACK #-} !ClientId
-  | ConnectionFailed {-# UNPACK #-} !Text
-
-data ServerView param cached = ServerView {
-    serverType :: !(ServerType param)
-  , serverContent :: !(ServerContent cached)
-}  deriving(Generic, Show)
-
-data ServerContent cached = ServerContent {
-    serverPort :: {-# UNPACK #-} !ServerPort
-  , cachedContent :: !(Maybe cached)
-    -- ^ To avoid querying the server when we know that the content didn't change.
-}  deriving(Generic, Show)
+{-# INLINE clientsMap #-}
+clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))
+clientsMap = views . clientsViews

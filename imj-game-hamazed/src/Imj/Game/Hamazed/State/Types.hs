@@ -60,6 +60,7 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.UI.Animation
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities

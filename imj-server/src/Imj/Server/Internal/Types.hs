@@ -2,54 +2,82 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
 
 module Imj.Server.Internal.Types
-      ( ClientId(..)
-      , ServerState(..)
-      , mapState
-      , clientsMap
-      , Clients(..)
-      , Client(..)
-      , mkClient
+      ( ClientViews(..)
+      , ClientView(..)
+      , ConstClient(..)
+      , ClientId(..)
       , ServerOwnership(..)
       , ServerLogs(..)
-      , ServerType(..)
-      , ServerName(..)
-      , ServerPort(..)
       , DisconnectReason(..)
+      , ClientLifecycle(..)
       ) where
 
 import           Imj.Prelude
+import           Data.Int(Int64)
 import           Data.Map.Strict(Map)
-import           Data.String(IsString)
+import           Data.Text(unpack)
 import           Network.WebSockets(Connection)
 
-import           Imj.ClientServer.Class
 
-{-# INLINE clientsMap #-}
-clientsMap :: ServerState s -> Map ClientId (Client (ClientT s))
-clientsMap = getClients' . getClients
+data ClientLifecycle c =
+    NewClient
+  | ReconnectingClient !c
+  deriving(Show)
 
-{-# INLINE mapState #-}
-mapState :: (s -> s) -> ServerState s -> ServerState s
-mapState f s = s { unServerState = f $ unServerState s }
+-- | Immutable data associated to a client.
+data ConstClient = ConstClient {
+    connection :: {-# UNPACK #-} !Connection
+  , clientId :: {-# UNPACK #-} !ClientId
+}
 
-data ServerType p =
-    Distant !ServerName
-  | Local !ServerLogs !p
+data ClientViews c = ClientViews {
+    views :: !(Map ClientId (ClientView c))
+    -- ^ Only connected clients are here: once a client is disconnected, it is removed from the Map.
+  , getNextClientId :: !ClientId
+    -- ^ The 'ClientId' that will be assigned to the next new client.
+} deriving(Generic)
+instance (NFData c) => NFData (ClientViews c)
+
+data ServerLogs =
+    NoLogs
+  | ConsoleLogs
   deriving(Generic, Show)
+instance NFData ServerLogs
 
-newtype ServerName = ServerName String
-  deriving (Show, IsString, Eq)
+newtype ClientId = ClientId Int64
+  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData, Integral, Real, Num)
 
-newtype ServerPort = ServerPort Int
-  deriving (Generic, Show, Num, Integral, Real, Ord, Eq, Enum)
+data ClientView c = ClientView {
+    getConnection :: {-# UNPACK #-} !Connection
+  , getServerOwnership :: {-unpack sum-} !ServerOwnership
+  , unClientView :: !c
+} deriving(Generic)
+instance NFData c => NFData (ClientView c) where
+  rnf (ClientView _ a b) = rnf a `seq` rnf b
+instance Show c => Show (ClientView c) where
+  show (ClientView _ a b) = show ("ClientView" :: String,a,b)
+instance Functor ClientView where
+  {-# INLINE fmap #-}
+  fmap f c = c { unClientView = f $ unClientView c}
 
+data ServerOwnership =
+    ClientOwnsServer
+    -- ^ Implies that if the client is shutdown, the server is shutdown too.
+  | ClientDoesntOwnServer
+  deriving(Generic, Show, Eq)
+instance Binary ServerOwnership
+instance NFData ServerOwnership
 
-mkClient :: Connection -> ServerOwnership -> c -> Client c
-mkClient a b c = Client a b c
+data DisconnectReason =
+    ClientShutdown !(Either Text ())
+    -- ^ A client is disconnected because {'Right' : it decided so, 'Left' : its connection became unusable}.
+  | ServerShutdown {-# UNPACK #-} !Text
+  -- ^ All clients are disconnected.
+  deriving(Generic)
+instance Binary DisconnectReason
+instance Show DisconnectReason where
+  show (ServerShutdown t) = unpack $ "Server shutdown < " <> t
+  show (ClientShutdown (Right ()))  = "Client shutdown"
+  show (ClientShutdown (Left t)) = unpack $ "Broken client < " <> t

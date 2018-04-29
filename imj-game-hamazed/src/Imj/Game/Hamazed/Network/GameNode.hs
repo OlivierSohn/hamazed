@@ -27,14 +27,15 @@ import           Imj.Client.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.ServerView.Types
+import           Imj.ServerView
 
-import           Imj.ClientServer.Run
+import           Imj.Server.Run
 import           Imj.Client
 import           Imj.Game.Hamazed.Network.Client(appCli)
-import           Imj.Server
 
-startServerIfLocal :: (Show c, Show a, ClientServer s)
-                   => ServerView a c -- TODO unify with ClientServer
+startServerIfLocal :: (Show c, Show a, Server s)
+                   => ServerView a c -- TODO unify with Server
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> (ServerLogs -> a -> IO (ServerState s))
@@ -92,11 +93,11 @@ mkQueues :: IO (ClientQueues c s)
 mkQueues =
   ClientQueues <$> newTQueueIO <*> newTQueueIO
 
-installOneHandler :: ClientServer s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
+installOneHandler :: Server s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =
   void $ installHandler sig (Catch $ handleTermination sigName state serverThreadId) Nothing
  where
-  handleTermination :: ClientServer s => Text -> MVar (ServerState s) -> ThreadId -> IO ()
+  handleTermination :: Server s => Text -> MVar (ServerState s) -> ThreadId -> IO ()
   handleTermination signalName s serverMainThreadId = do
     modifyMVar_ s $ execStateT (shutdown $ "received " <> signalName)
     -- we are in a forked thread, so to end the server :

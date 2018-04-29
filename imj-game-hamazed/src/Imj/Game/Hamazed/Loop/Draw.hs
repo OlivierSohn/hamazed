@@ -20,6 +20,7 @@ import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable
+import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Priorities

@@ -23,22 +23,22 @@ import           Control.Monad.State.Strict(MonadState, gets)
 import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
 
-import           Imj.ClientServer.Class
-import           Imj.ClientServer.Internal.Types
+import           Imj.Server.Class
+import           Imj.Server.Internal.Types
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Color
 import           Imj.Log
 
-findClient :: ClientId -> ServerState s -> Maybe (Client (ClientT s))
+findClient :: ClientId -> ServerState s -> Maybe (ClientView (ClientViewT s))
 findClient i s = Map.lookup i $ clientsMap s
 
-showId :: (ClientServer s, MonadState (ServerState s) m)
+showId :: (Server s, MonadState (ServerState s) m)
        => ClientId
        -> m ColorString
 showId i =
-  colored (pack $ show i) . fromMaybe (gray 16) . join . fmap clientLogColor . fmap unClient <$> gets (findClient i)
+  colored (pack $ show i) . fromMaybe (gray 16) . join . fmap clientLogColor . fmap unClientView <$> gets (findClient i)
 
 serverLog :: (MonadIO m, MonadState (ServerState s) m)
           => m ColorString
@@ -56,7 +56,7 @@ showClient :: (Show c) => c -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
 log :: (MonadIO m
-      , ClientServer s, MonadState (ServerState s) m, MonadReader ConstClient m)
+      , Server s, MonadState (ServerState s) m, MonadReader ConstClient m)
     => ColorString -> m ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -69,7 +69,7 @@ log msg = gets serverLogs >>= \case
       ]
 
 warning :: (MonadIO m
-          , ClientServer s, MonadState (ServerState s) m, MonadReader ConstClient m)
+          , Server s, MonadState (ServerState s) m, MonadReader ConstClient m)
         => Text -> m ()
 warning msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -82,7 +82,7 @@ warning msg = gets serverLogs >>= \case
       ]
 
 {-# INLINABLE logArg #-}
-logArg :: (Show a, ClientServer s
+logArg :: (Show a, Server s
           , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
        => (a -> m b)
        -> a

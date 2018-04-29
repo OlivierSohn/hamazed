@@ -84,7 +84,7 @@ import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
-import           Imj.Server.Types(ClientId)
+import           Imj.ClientView.Types(ClientId)
 import           Imj.Physics.Discrete
 import           Imj.Timing
 

@@ -36,10 +36,10 @@ import           Network.WebSockets
 import           Network.WebSockets.Connection(sendDataMessages)
 import           UnliftIO.Exception (SomeException(..), try)
 
+import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString(intercalate, colored)
 import           Imj.Server.Class
-import           Imj.Server.Internal.Types
 import           Imj.Server.Types
 
 import           Imj.Log
@@ -161,14 +161,14 @@ notify conn sid evt =
 
 {-# INLINABLE notifyClientN #-}
 notifyClientN :: (Server s
-                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => [ServerEventT s]
              -> m ()
 notifyClientN = notifyClientN' . map ServerAppEvt
 
 {-# INLINABLE notifyClientN' #-}
 notifyClientN' :: (Server s
-                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => [ServerEvent s]
              -> m ()
 notifyClientN' evts = do
@@ -178,14 +178,14 @@ notifyClientN' evts = do
 
 {-# INLINABLE notifyClient #-}
 notifyClient :: (Server s
-                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => ServerEventT s
              -> m ()
 notifyClient = notifyClient' . ServerAppEvt
 
 {-# INLINABLE notifyClient' #-}
 notifyClient' :: (Server s
-                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => ServerEvent s
              -> m ()
 notifyClient' evt = do

@@ -24,6 +24,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import           Data.Text(pack)
 
+import           Imj.ClientView.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
 
@@ -77,7 +78,7 @@ adjustAll' f =
       , s { clientsViews = clients { views = newM } })
 
 {-# INLINABLE adjustClient #-}
-adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => (ClientViewT s -> ClientViewT s) -> m ()
 adjustClient f = do
   i <- asks clientId

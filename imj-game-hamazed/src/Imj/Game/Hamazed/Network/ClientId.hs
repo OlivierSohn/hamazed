@@ -13,8 +13,8 @@ import           Imj.Prelude
 import           Data.Char (isPunctuation, isSpace)
 import           Data.Text(Text)
 
+import           Imj.ClientView.Types
 import           Imj.Graphics.Color.Types
-import           Imj.Server.Types
 
 import           Imj.Graphics.Color
 

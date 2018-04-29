@@ -31,6 +31,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState)
 
 import           Imj.Server.Internal.Types
+import           Imj.ClientView.Internal.Types
 
 import           Imj.Graphics.Color
 
@@ -95,11 +96,11 @@ class (Show (ClientEventT s)
                 => m [ServerEventT s]
 
   -- | For reconnection scenario : called once, only if 'tryReconnect' returned a 'Just'.
-  onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+  onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                  => ReconnectionContext s -> m ()
 
   -- | Handle an incoming client event.
-  handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+  handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                     => ClientEventT s -> m ()
 
   -- | Called after a client has been disconnected (either intentionally or on connection error).

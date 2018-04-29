@@ -22,6 +22,8 @@ library
   exposed-modules:     Imj.Client.Class
                      , Imj.Client
                      , Imj.Client.Types
+                     , Imj.ClientView.Internal.Types
+                     , Imj.ClientView.Types
                      , Imj.Server
                      , Imj.Server.Class
                      , Imj.Server.Connection

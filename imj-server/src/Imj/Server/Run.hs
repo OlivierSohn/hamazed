@@ -41,6 +41,7 @@ import           Network.WebSockets(PendingConnection, Connection, acceptRequest
 import           UnliftIO.Exception (SomeException(..), try)
 import           UnliftIO.MVar (modifyMVar_, modifyMVar)
 
+import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
@@ -71,7 +72,7 @@ application st conn =
             either
               refuse
                 (\(cid,lifecycle) ->
-                  runReaderT (handleClient connectId cliType lifecycle st) $ ConstClient conn cid))
+                  runReaderT (handleClient connectId cliType lifecycle st) $ ConstClientView conn cid))
       $ acceptConnection connectId
 
      where
@@ -104,7 +105,7 @@ handleClient :: (Server s)
              -> ServerOwnership
              -> ClientLifecycle (ReconnectionContext s)
              -> MVar (ServerState s)
-             -> ReaderT ConstClient IO ()
+             -> ReaderT ConstClientView IO ()
 handleClient connectId cliType lifecycle st = do
   i <- asks clientId
   let disconnectOnException :: (MonadUnliftIO m) => Text -> m () -> m ()
@@ -130,7 +131,7 @@ handleClient connectId cliType lifecycle st = do
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
 
 handleIncomingEvent' :: (Server s
-                       , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                       , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                      => ClientEvent s
                      -> m ()
 handleIncomingEvent' = \case
@@ -149,7 +150,7 @@ pingPong conn dt =
     go $ i + 1 -- it can overflow, that is ok.
 
 addClient :: (Server s
-            , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+            , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
           => ConnectIdT s
           -> ServerOwnership
           -> m ()
@@ -172,12 +173,12 @@ addClient connectId cliType = do
   notifyClientN' $ ConnectionAccepted i : greeters
 
 handlerError :: (Server s
-                , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+                , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => String -> m ()
 handlerError = error' "Handler"
 
 error' :: (Server s
-         , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+         , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
        => String -> String -> m ()
 error' from msg = do
   log $ colored (pack txt) red

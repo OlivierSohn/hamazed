@@ -24,7 +24,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
 
 import           Imj.Server.Class
-import           Imj.Server.Internal.Types
+import           Imj.ClientView.Internal.Types
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString
@@ -56,7 +56,7 @@ showClient :: (Show c) => c -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
 log :: (MonadIO m
-      , Server s, MonadState (ServerState s) m, MonadReader ConstClient m)
+      , Server s, MonadState (ServerState s) m, MonadReader ConstClientView m)
     => ColorString -> m ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -69,7 +69,7 @@ log msg = gets serverLogs >>= \case
       ]
 
 warning :: (MonadIO m
-          , Server s, MonadState (ServerState s) m, MonadReader ConstClient m)
+          , Server s, MonadState (ServerState s) m, MonadReader ConstClientView m)
         => Text -> m ()
 warning msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -83,7 +83,7 @@ warning msg = gets serverLogs >>= \case
 
 {-# INLINABLE logArg #-}
 logArg :: (Show a, Server s
-          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClient m)
+          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
        => (a -> m b)
        -> a
        -> m b

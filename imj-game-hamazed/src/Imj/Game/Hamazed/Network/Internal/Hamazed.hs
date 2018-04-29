@@ -36,6 +36,7 @@ import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar)
 
+import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types
@@ -416,7 +417,7 @@ checkNameAvailability name =
 -- functions used in 'afterClientWasAdded' -------------------------------------
 --------------------------------------------------------------------------------
 
-participateToWorldCreation :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
+participateToWorldCreation :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
                            => WorldId
                            -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
                            -- nothing is done because it is obsolete (eventhough the server cancels obsolete requests,
@@ -448,7 +449,7 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 -- functions used in 'handleClientEvent' ---------------------------------------
 --------------------------------------------------------------------------------
 
-handleEvent :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
+handleEvent :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
             => ClientEventT Hamazed -> m ()
 handleEvent = \case
   RequestApproval cmd@(AssignName name) -> either
@@ -681,7 +682,7 @@ onChangeWorldParams f =
     notifyEveryone $ OnWorldParameters p
     requestWorld
 
-addStats :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
+addStats :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
          => Map Properties Statistics
          -> WorldId
          -- ^ if this 'WorldId' doesn't match with the 'WorldId' of 'worldCreation',
@@ -702,7 +703,7 @@ addStats stats key =
           modify' $ mapState $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
       $ wid == key
 
-gameError :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClient m)
+gameError :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
           => String -> m ()
 gameError = error' "Game"
 

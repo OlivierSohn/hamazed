@@ -4,21 +4,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Server.Internal.Types
-      ( ClientViews(..)
-      , ClientView(..)
-      , ConstClient(..)
-      , ClientId(..)
-      , ServerOwnership(..)
-      , ServerLogs(..)
+      ( ServerLogs(..)
       , DisconnectReason(..)
       , ClientLifecycle(..)
       ) where
 
 import           Imj.Prelude
-import           Data.Int(Int64)
-import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
-import           Network.WebSockets(Connection)
 
 
 data ClientLifecycle c =
@@ -26,49 +18,11 @@ data ClientLifecycle c =
   | ReconnectingClient !c
   deriving(Show)
 
--- | Immutable data associated to a client.
-data ConstClient = ConstClient {
-    connection :: {-# UNPACK #-} !Connection
-  , clientId :: {-# UNPACK #-} !ClientId
-}
-
-data ClientViews c = ClientViews {
-    views :: !(Map ClientId (ClientView c))
-    -- ^ Only connected clients are here: once a client is disconnected, it is removed from the Map.
-  , getNextClientId :: !ClientId
-    -- ^ The 'ClientId' that will be assigned to the next new client.
-} deriving(Generic)
-instance (NFData c) => NFData (ClientViews c)
-
 data ServerLogs =
     NoLogs
   | ConsoleLogs
   deriving(Generic, Show)
 instance NFData ServerLogs
-
-newtype ClientId = ClientId Int64
-  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData, Integral, Real, Num)
-
-data ClientView c = ClientView {
-    getConnection :: {-# UNPACK #-} !Connection
-  , getServerOwnership :: {-unpack sum-} !ServerOwnership
-  , unClientView :: !c
-} deriving(Generic)
-instance NFData c => NFData (ClientView c) where
-  rnf (ClientView _ a b) = rnf a `seq` rnf b
-instance Show c => Show (ClientView c) where
-  show (ClientView _ a b) = show ("ClientView" :: String,a,b)
-instance Functor ClientView where
-  {-# INLINE fmap #-}
-  fmap f c = c { unClientView = f $ unClientView c}
-
-data ServerOwnership =
-    ClientOwnsServer
-    -- ^ Implies that if the client is shutdown, the server is shutdown too.
-  | ClientDoesntOwnServer
-  deriving(Generic, Show, Eq)
-instance Binary ServerOwnership
-instance NFData ServerOwnership
 
 data DisconnectReason =
     ClientShutdown !(Either Text ())

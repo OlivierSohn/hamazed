@@ -8,12 +8,8 @@ module Imj.Server.Types
       , ServerState, unServerState, clientsMap
       , mkServerState
       , ServerEvent(..)
-      , ClientViews(..)
-      , ClientView, unClientView
       , ClientInfo(..)
-      , ClientId(..)
       , ClientEvent(..)
-      , ConstClient(..)
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)

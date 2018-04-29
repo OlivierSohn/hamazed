@@ -24,6 +24,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
+import           Imj.ClientServer.Types
 import           Imj.Client.Class
 import           Imj.Client.Types
 import           Imj.Game.Hamazed.State.Types
@@ -50,7 +51,7 @@ representation (Left srv) = case srv of
   ServerError _ -> Error'
   Disconnected _ -> Disconnected'
   ConnectionAccepted {} -> ConnectionAccepted'
-  ConnectionRefused _ -> ConnectionRefused'
+  ConnectionRefused {} -> ConnectionRefused'
   ServerAppEvt e -> case e of
     GameEvent LaserShot{} -> Laser'
     GameEvent PeriodicMotion{} -> PeriodicMotion'

@@ -13,7 +13,7 @@ import           Imj.Prelude
 import           Control.Concurrent.STM(TQueue, atomically, writeTQueue)
 
 import           Imj.Client.Class
-import           Imj.Server.Types
+import           Imj.ClientServer.Types
 
 -- | Allows the client to communicate with the server asynchronously.
 data ClientQueues c s = ClientQueues {

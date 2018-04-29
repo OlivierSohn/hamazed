@@ -26,34 +26,34 @@ import           Imj.Client.Class
 import           Imj.Client.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Hamazed.Network.Scheduler
-import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
+import           Imj.ClientServer.Run
 import           Imj.Client
 import           Imj.Game.Hamazed.Network.Client(appCli)
-import           Imj.Game.Hamazed.Network.Server
 import           Imj.Server
 
-startServerIfLocal :: (Show c) => Server ColorScheme c
+startServerIfLocal :: (Show c, Show a, ClientServer s)
+                   => Server a c -- TODO unify with ClientServer
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
+                   -> (ServerLogs -> a -> IO (ServerState s))
                    -> IO ()
-startServerIfLocal srv@(Server (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal srv@(Server (Local logs color) _) v = do
+startServerIfLocal srv@(Server (Distant _) _) v _ = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal srv@(Server (Local logs a) _) v createServerState = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
-  newServerState logs color >>= newMVar >>= \state -> do
+  createServerState logs a >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")
          , (sigTERM, "sigTERM")]
-    -- fork 1 thread to schedule the game
-    _ <- forkIO $ gameScheduler state
+    mapM_ (\parallel -> void $ forkIO $ parallel state) inParallel
     -- the current thread listens for incomming connections, 1 thread is forked per client
     runServer' listen $ appSrv state
+    -- appSrv :: MVar (ServerState HamazedServerState) -> PendingConnection -> IO ()
  where
   msg x = "Hamazed GameServer " ++ st x ++ show srv ++ ")"
    where

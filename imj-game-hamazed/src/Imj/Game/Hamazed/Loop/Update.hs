@@ -9,7 +9,6 @@
 module Imj.Game.Hamazed.Loop.Update
       ( updateAppState
       , sendToServer
-      , send'ToServer
       ) where
 
 import           Imj.Prelude
@@ -31,6 +30,7 @@ import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
 import           Imj.Client.Class
+import           Imj.ClientServer.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -157,8 +157,13 @@ updateAppState (Left evt) = case evt of
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
     putGameConnection $ Connected i
-  ConnectionRefused reason ->
-    putGameConnection $ ConnectionFailed reason
+  ConnectionRefused sn reason ->
+    putGameConnection $ ConnectionFailed $
+      "[" <>
+      pack (show sn) <>
+      "]" <>
+      pack " is invalid:" <>
+      reason
   Disconnected reason -> onDisconnection reason
   ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
@@ -216,16 +221,8 @@ sendToServer :: (MonadState AppState m
                , MonadIO m)
              => HamazedClientEvent
              -> m ()
-sendToServer = send'ToServer . ClientAppEvt
-
-{-# INLINABLE send'ToServer #-}
-send'ToServer :: (MonadState AppState m
-               , MonadReader (Env i) m
-               , MonadIO m)
-             => ClientEvent HamazedServerState
-             -> m ()
-send'ToServer e =
-  asks sendToServer' >>= \f -> f e
+sendToServer e =
+  asks sendToServer' >>= \f -> f (ClientAppEvt e)
 
 onSendChatMessage :: (MonadState AppState m
                     , MonadReader (Env i) m

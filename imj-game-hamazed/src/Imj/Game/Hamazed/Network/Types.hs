@@ -61,8 +61,6 @@ module Imj.Game.Hamazed.Network.Types
       , StateNature(..)
       , StateValue(..)
       -- * Client / Server communication
-      , ClientEvent(..)
-      , ServerEvent(..)
       , WorldRequestArg(..)
       , ServerReport(..)
       , Command(..)
@@ -101,6 +99,7 @@ import           Data.Text(unpack)
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.Network.Internal.HamazedServerState
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString(ColorString)

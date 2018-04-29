@@ -20,6 +20,9 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.ClientServer.Class
+                     , Imj.ClientServer.Run
+                     , Imj.ClientServer.Types
+                     , Imj.ClientServer.Internal.Types
                      , Imj.Client.Class
                      , Imj.Client
                      , Imj.Client.Types

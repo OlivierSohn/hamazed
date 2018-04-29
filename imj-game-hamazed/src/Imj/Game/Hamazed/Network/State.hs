@@ -12,6 +12,7 @@ import           UnliftIO.MVar (newEmptyMVar)
 
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
+import           Imj.Game.Hamazed.Network.Internal.HamazedServerState
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types

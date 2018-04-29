@@ -7,10 +7,10 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.ClientServer.Class
       ( ClientServer(..)
-      -- * Server-side types
       , ServerState(..)
       , Clients(..)
       , Client(..)
@@ -19,16 +19,15 @@ module Imj.ClientServer.Class
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
-      -- * Client-side types
+      , ClientHandlerIO
       ) where
 
 import           Imj.Prelude
+import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
-import           Control.Monad.State.Strict(MonadState)
-import           Data.Int(Int64)
-import           Data.Map.Strict(Map)
-import           Data.Text(unpack)
-import           Network.WebSockets
+import           Control.Monad.State.Strict(MonadState, StateT)
+
+import           Imj.ClientServer.Internal.Types
 
 import           Imj.Graphics.Color
 
@@ -36,6 +35,8 @@ import           Imj.Graphics.Color
 class (Show c) => ClientInfo c where
   clientLogColor :: c -> Maybe (Color8 Foreground)
   clientFriendlyName :: c -> Maybe Text
+
+type ClientHandlerIO s = StateT (ServerState s) (ReaderT ConstClient IO)
 
 class (Show (ClientEventT s)
      , Show (ServerEventT s)
@@ -48,7 +49,8 @@ class (Show (ClientEventT s)
      , ClientInfo (ClientT s)
      )
  =>
-  ClientServer s
+  ClientServer s -- TODO rename to Server? only the server needs an instance of this, eventhough
+  -- some of the types concern both the client and the server.
  where
 
   -------------- [Server <--> Client] Messages ---------------------------------
@@ -56,37 +58,47 @@ class (Show (ClientEventT s)
   -- ^ [Server --> Client] events
   type ClientEventT s = (r :: *)| r -> s
   -- ^ [Client --> Server] events
-  type ConnectIdT s = (r :: *) | r -> s -- TODO this should be part of 'ClientEventT'
+  type ConnectIdT s = (r :: *) | r -> s -- TODO make implicit or should be part of 'ClientEventT'
   -- ^ Some optional data that is used by the application to create the identity of the client,
   -- passed in 'ClientEventT' 'Connect'.
 
   -------------- Server-side ---------------------------------------------------
   -- | "Server-side" client definition.
   type ClientT s = (r :: *) | r -> s
+  type ConnectionContext s
 
-  -- TODO use this:
-{-
-  connectIdIsValid :: ConnectIdT s -> Either Text ()
+  -- | Returns actions that are not associated to a particular client, and that
+  -- need to be run as long as the server is running. For a game server,
+  -- the list will typically contain a game scheduling action.
+  inParallel :: [MVar (ServerState s) -> IO ()]
 
-  makeClientId :: (MonadIO m, MonadState (ServerState s) m) => m (ClientId,a)
+  acceptConnection :: ConnectIdT s -> Either Text ()
 
-  handleClient :: ConnectIdT s -> ServerOwnership -> a ->
+  associateClientId :: (MonadIO m, MonadState (ServerState s) m)
+                    => ConnectIdT s -- TODO make more granular by exposing the notion of lifecycle, ConnectionContext becoming ReconnectionContext inside lifecycle
+                    -> m (ClientId, ConnectionContext s)
 
+  createClient :: (MonadIO m, MonadState (ServerState s) m)
+               => ClientId
+               -> ConnectIdT s
+               -> m (ClientT s)
 
+  -- | These events are sent to connected clients when a new client is about
+  -- to be added.
+  eventsOnWillAddClient :: ClientId -> ClientT s -> [ServerEventT s]
 
-  onConnectionEvent :: (MonadIO m, MonadState (ServerState s) m)
-                    => ServerOwnerShip
-                    -> ConnectIdT s
-                    -> m ()
-  onApplicationEvent :: (MonadIO m, MonadState (ServerState s) m)
-                     => ClientEventT s
-                     -> m ()
--}
-  -- | Called server-side, after a client was disconnected.
+  -- | These events are sent to the newly added client.
+  greetings :: (MonadIO m, MonadState (ServerState s) m)
+            => m [ServerEventT s]
+
+  afterClientWasAdded :: ConnectionContext s -> (ClientHandlerIO s) ()
+  handleClientEvent   :: ClientEventT s      -> (ClientHandlerIO s) ()
+
+  -- | Called after a client was disconnected.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)
-                  => ClientId -> DisconnectReason -> m ()
+                  => ClientId
+                  -> DisconnectReason -> m ()
 
--- | A 'Server' handles one game only (for now).
 data ServerState s = ServerState {
     serverLogs :: {-unpack sum-} !ServerLogs
   , getClients :: {-# UNPACK #-} !(Clients (ClientT s))
@@ -95,55 +107,3 @@ data ServerState s = ServerState {
   , unServerState :: !s
 } deriving(Generic)
 instance (ClientServer s) => NFData (ServerState s)
-
-data Clients c = Clients {
-    getClients' :: !(Map ClientId (Client c))
-    -- ^ Only connected clients are here: once a client is disconnected, it is removed from the Map.
-  , getNextClientId :: !ClientId
-    -- ^ The 'ClientId' that will be assigned to the next new client.
-} deriving(Generic)
-instance (NFData c) => NFData (Clients c)
-
-data ServerLogs =
-    NoLogs
-  | ConsoleLogs
-  deriving(Generic, Show)
-instance NFData ServerLogs
-
-newtype ClientId = ClientId Int64
-  deriving(Generic, Binary, Eq, Ord, Show, Enum, NFData)
-
-data Client c = Client {
-    getConnection :: {-# UNPACK #-} !Connection
-  , getServerOwnership :: {-unpack sum-} !ServerOwnership
-  , unClient :: !c
-} deriving(Generic)
-instance NFData c => NFData (Client c) where
-  rnf (Client _ a b) = rnf a `seq` rnf b
-instance Show c => Show (Client c) where
-  show (Client _ a b) = show ("Client" :: String,a,b)
-instance Functor Client where
-  {-# INLINE fmap #-}
-  fmap f c = c { unClient = f $ unClient c}
-
-data ServerOwnership =
-    ClientOwnsServer
-    -- ^ Implies that if the client is shutdown, the server is shutdown too.
-  | ClientDoesntOwnServer
-  deriving(Generic, Show, Eq)
-instance Binary ServerOwnership
-instance NFData ServerOwnership
-
-data DisconnectReason =
-    BrokenClient {-# UNPACK #-} !Text
-    -- ^ One client is disconnected because its connection is unusable.
-  | ClientShutdown
-    -- ^ One client is disconnected because it decided so.
-  | ServerShutdown {-# UNPACK #-} !Text
-  -- ^ All clients are disconnected.
-  deriving(Generic)
-instance Binary DisconnectReason
-instance Show DisconnectReason where
-  show (ServerShutdown t) = unpack $ "Server shutdown < " <> t
-  show ClientShutdown   = "Client shutdown"
-  show (BrokenClient t) = unpack $ "Broken client < " <> t

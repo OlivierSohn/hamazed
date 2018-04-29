@@ -56,6 +56,7 @@ import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.Server
+import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.State
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Font
@@ -359,7 +360,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
   newEmptyMVar >>= \ready ->
     if serverOnly
       then
-        startServerIfLocal srv ready
+        startServerIfLocal srv ready newServerState
       else do
         printClientArgs
         let backend = fromMaybe OpenGLWindow maybeBackend
@@ -373,7 +374,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
                 "Please use the opengl backend instead, or remove --screenSize from the command line."
           _ -> return ()
 
-        void $ forkIO $ try (startServerIfLocal srv ready) >>= \case
+        void $ forkIO $ try (startServerIfLocal srv ready newServerState) >>= \case
           -- when exceptions propagate past forkIO, they are reported to stderr:
           -- https://ghc.haskell.org/trac/ghc/ticket/3628
           -- That is annoying when playing in the terminal, so we mute "normal" exceptions.

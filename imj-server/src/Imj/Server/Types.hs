@@ -5,17 +5,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 module Imj.Server.Types
-      (
-        -- * Server-side
+      ( -- * Server-side
         {- | Types used by a server to represent itself. -}
         ClientId
-      , ConstClient
       , Clients
       , Client, mkClient, unClient
       , takeClientId
       , ServerLogs(..)
-      , ClientHandlerIO
       , ServerOwnership(..)
       , DisconnectReason(..)
       , ServerState, unServerState, clientsMap
@@ -30,18 +28,10 @@ module Imj.Server.Types
       , ServerPort(..)
       , ServerContent(..)
       , ConnectionStatus(..)
-        -- * Events
-      , ClientEvent(..)
-      , ServerEvent(..)
       ) where
 
 import           Imj.Prelude
-import           Control.Monad.State.Strict(StateT)
-import qualified Data.Binary as Bin
 import qualified Data.Map.Strict as Map
-import           Data.Text.Lazy.Encoding as LazyT
-import qualified Data.Text.Lazy as LazyT
-import           Network.WebSockets
 
 import           Imj.ClientServer.Class
 import           Imj.Server.Internal.Types
@@ -59,47 +49,6 @@ mkServerState logs s =
 
 takeClientId :: Clients c -> (Clients c, ClientId)
 takeClientId (Clients c i) = (Clients c $ succ i, i)
-
-type ClientHandlerIO s = StateT (ServerState s) (ReaderT ConstClient IO)
-
-data ClientEvent s =
-    ClientAppEvt !(ClientEventT s)
-  | Connect !(ConnectIdT s) {-unpack sum-} !ServerOwnership
-  deriving(Generic)
-instance ClientServer s => Binary (ClientEvent s)
-instance ClientServer s => WebSocketsData (ClientEvent s) where
-  fromDataMessage (Text t _) =
-    error $ "Text was received for ClientEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
-  fromDataMessage (Binary bytes) = Bin.decode bytes
-  fromLazyByteString = Bin.decode
-  toLazyByteString = Bin.encode
-  {-# INLINABLE fromDataMessage #-}
-  {-# INLINABLE fromLazyByteString #-}
-  {-# INLINABLE toLazyByteString #-}
-instance ClientServer s => Show (ClientEvent s) where
-  show (ClientAppEvt e) = show ("ClientAppEvt" :: String,e)
-  show (Connect s e) = show ("Connect" :: String,s,e)
-
-data ServerEvent s =
-    ServerAppEvt !(ServerEventT s)
-  | ConnectionAccepted {-# UNPACK #-} !ClientId
-  | ConnectionRefused {-# UNPACK #-} !Text
-  | Disconnected {-unpack sum-} !DisconnectReason
-  | ServerError !String
-  -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
-  deriving(Generic)
-instance ClientServer s => Show (ServerEvent s) where
-  show _ = ""
-instance ClientServer s => Binary (ServerEvent s)
-instance ClientServer s => WebSocketsData (ServerEvent s) where
-  fromDataMessage (Text t _) =
-    error $ "Text was received for ServerEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
-  fromDataMessage (Binary bytes) = Bin.decode bytes
-  fromLazyByteString = Bin.decode
-  toLazyByteString = Bin.encode
-  {-# INLINABLE fromDataMessage #-}
-  {-# INLINABLE fromLazyByteString #-}
-  {-# INLINABLE toLazyByteString #-}
 
 
 --------------------------------------------------------------------------------

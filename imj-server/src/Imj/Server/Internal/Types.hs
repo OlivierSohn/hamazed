@@ -10,7 +10,6 @@
 
 module Imj.Server.Internal.Types
       ( ClientId(..)
-      , ConstClient(..)
       , ServerState(..)
       , mapState
       , clientsMap
@@ -51,12 +50,6 @@ newtype ServerName = ServerName String
 newtype ServerPort = ServerPort Int
   deriving (Generic, Show, Num, Integral, Real, Ord, Eq, Enum)
 
-
--- | Immutable data associated to a client.
-data ConstClient = ConstClient {
-    connection :: {-# UNPACK #-} !Connection
-  , clientId :: {-# UNPACK #-} !ClientId
-}
 
 mkClient :: Connection -> ServerOwnership -> c -> Client c
 mkClient a b c = Client a b c

@@ -8,6 +8,7 @@ module Imj.Client.Types
 import           Imj.Prelude
 
 import           Imj.Server.Types
+import           Imj.ClientServer.Types
 
 data EventsForClient c s =
     FromClient !c

@@ -11,7 +11,8 @@ module Imj.Client.Class
 
 import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.IO.Class(MonadIO)
-import           Imj.Server.Types
+
+import           Imj.ClientServer.Types
 import           Imj.Client.Types
 
 -- | Client-side client representation.

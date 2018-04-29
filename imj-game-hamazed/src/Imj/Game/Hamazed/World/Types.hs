@@ -39,6 +39,18 @@ module Imj.Game.Hamazed.World.Types
         , environmentInteraction
         , scopedLocation
         , mkScreen
+        -- * World constants
+        , initialParameters
+        , initialBlockSize
+        , minBlockSize
+        , maxBlockSize
+        , allBlockSizes
+        , initialWallProba
+        , minWallProba
+        , maxWallProba
+        , wallProbaIncrements
+        , allProbasForGame
+        , nProbaSteps
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -58,6 +70,7 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(lookup, filter)
 import           Data.Set(Set)
 
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Geo.Continuous.Types
@@ -335,3 +348,38 @@ findShip :: ShipId -> Map ShipId BattleShip -> BattleShip
 findShip i =
   fromMaybe (error $ "ship not found : " ++ show i)
   . Map.lookup i
+
+
+initialBlockSize, minBlockSize, maxBlockSize :: Int
+initialBlockSize = maxBlockSize
+minBlockSize = 1
+maxBlockSize = 6
+
+allBlockSizes :: [Int]
+allBlockSizes = [minBlockSize..maxBlockSize]
+
+wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
+initialWallProba = maxWallProba
+minWallProba = 0.1
+maxWallProba = 0.9
+wallProbaIncrements = 0.1
+
+allProbasForGame :: [AlmostFloat]
+allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
+
+nProbaSteps :: Int
+nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
+
+initialParameters :: WorldParameters
+initialParameters =
+  WorldParameters Rectangle'2x1 defaultRandom
+
+defaultRandom :: WallDistribution -- below 0.1, it's difficult to have 2 or more connected components.
+                                  -- 0.1 : on avg, 1 cc
+                                  -- 0.2 : on avg, 1 cc
+                                  -- 0.3 : on avg, 2 cc
+                                  -- 0.4 : on avg, 5 cc
+                                  -- 0.5 : on avg, 8 cc
+                                  -- 0.6 : on avg, 10 cc
+                                  -- above 0.6, it's difficult to have a single connected component
+defaultRandom = WallDistribution initialBlockSize initialWallProba

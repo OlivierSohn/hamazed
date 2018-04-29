@@ -9,7 +9,7 @@ module Imj.Server.Log
       ( log
       , warning
       , serverLog
-      , withArgLogged
+      , logArg
       , showId
       , showClient
       , logColor
@@ -24,13 +24,12 @@ import qualified Data.Map.Strict as Map
 import           Data.Text(pack)
 
 import           Imj.ClientServer.Class
+import           Imj.ClientServer.Internal.Types
 import           Imj.Server.Types
-import           Imj.Server.Internal.Types
 
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Color
 import           Imj.Log
-
 
 findClient :: ClientId -> ServerState s -> Maybe (Client (ClientT s))
 findClient i s = Map.lookup i $ clientsMap s
@@ -80,12 +79,12 @@ warning msg = gets serverLogs >>= \case
       , colored msg orange
       ]
 
-{-# INLINABLE withArgLogged #-}
-withArgLogged :: (Show a, ClientServer s)
-              => (a -> ClientHandlerIO s b)
-              -> a
-              -> ClientHandlerIO s b
-withArgLogged act arg = do
+{-# INLINABLE logArg #-}
+logArg :: (Show a, ClientServer s)
+       => (a -> ClientHandlerIO s b)
+       -> a
+       -> ClientHandlerIO s b
+logArg act arg = do
   log $ colored " >> " (gray 18) <> keepExtremities (show arg)
   res <- act arg
   log $ colored " <<" (gray 18)

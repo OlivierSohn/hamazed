@@ -39,8 +39,9 @@ import           UnliftIO.Exception (SomeException(..), try)
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColorString(intercalate, colored)
 import           Imj.ClientServer.Class
+import           Imj.ClientServer.Internal.Types
+import           Imj.ClientServer.Types
 import           Imj.Server.Types
-import           Imj.Server.Internal.Types
 
 import           Imj.Log
 import           Imj.Server.Log

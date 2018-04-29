@@ -18,10 +18,13 @@ import           Network.WebSockets(ClientApp, ConnectionException(..), receiveD
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 
-import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Client.Types
+import           Imj.Client.Class
+import           Imj.Client
 
-appCli :: (ClientServer s) => ClientQueues s -> ClientApp ()
-appCli q@(ClientQueues toClient toServer _) conn = do
+-- TODO split Event between what is generic ('Log') and the rest, like we did for other events.
+appCli :: ClientServer s => ClientQueues Event s -> ClientApp ()
+appCli q@(ClientQueues toClient toServer) conn = do
   void $ forkIO $
     safeForever $
       receiveData conn >>= writeToClient' q . FromServer

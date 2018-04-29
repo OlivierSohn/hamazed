@@ -32,6 +32,7 @@ import           Network.WebSockets
 
 import           Imj.Graphics.Color
 
+-- | Server-side info concerning a client.
 class (Show c) => ClientInfo c where
   clientLogColor :: c -> Maybe (Color8 Foreground)
   clientFriendlyName :: c -> Maybe Text
@@ -45,7 +46,10 @@ class (Show (ClientEventT s)
      , NFData s
      , NFData (ClientT s)
      , ClientInfo (ClientT s)
-     ) => ClientServer s where
+     )
+ =>
+  ClientServer s
+ where
 
   -------------- [Server <--> Client] Messages ---------------------------------
   type ServerEventT s = (r :: *) | r -> s
@@ -78,7 +82,7 @@ class (Show (ClientEventT s)
                      => ClientEventT s
                      -> m ()
 -}
-  -- | Called after a client was disconnected.
+  -- | Called server-side, after a client was disconnected.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)
                   => ClientId -> DisconnectReason -> m ()
 

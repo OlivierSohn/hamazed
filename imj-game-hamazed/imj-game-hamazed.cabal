@@ -48,7 +48,7 @@ library
                      , Imj.Game.Hamazed.Loop.Timing
                      , Imj.Game.Hamazed.Loop.Update
                      , Imj.Game.Hamazed.Music
-                     , Imj.Game.Hamazed.Network.Class.ClientNode
+                     , Imj.Game.Hamazed.Network.Class.AsyncGroups
                      , Imj.Game.Hamazed.Network.Client
                      , Imj.Game.Hamazed.Network.GameNode
                      , Imj.Game.Hamazed.Network.Internal.Types

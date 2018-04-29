@@ -24,9 +24,10 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
+import           Imj.Client.Class
+import           Imj.Client.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
@@ -44,7 +45,7 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
-representation :: UpdateEvent HamazedServerState -> EventRepr
+representation :: UpdateEvent HamazedServerState Event -> EventRepr
 representation (Left srv) = case srv of
   ServerError _ -> Error'
   Disconnected _ -> Disconnected'
@@ -108,7 +109,7 @@ reprToCS PeriodicMotion'        = colored "S" blue
 onEvent :: (MonadState AppState m
           , MonadReader (Env i) m, PlayerInput i
           , MonadIO m)
-        => Maybe (GenEvent HamazedServerState) -> m ()
+        => Maybe (GenEvent (Env i)) -> m ()
 onEvent mayEvt = do
   checkPlayerEndsProgram
   debug >>= \case
@@ -124,7 +125,7 @@ onEvent mayEvt = do
 onEvent' :: (MonadState AppState m
            , MonadReader (Env i) m
            , MonadIO m)
-         => Maybe (GenEvent HamazedServerState) -> m ()
+         => Maybe (GenEvent (Env i)) -> m ()
 onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
 onEvent' (Just (CliEvt clientEvt)) = sendToServer clientEvt
 onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
@@ -135,7 +136,7 @@ onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 onUpdateEvent :: (MonadState AppState m
                 , MonadReader (Env i) m
                 , MonadIO m)
-              => UpdateEvent HamazedServerState -> m ()
+              => UpdateEvent HamazedServerState Event -> m ()
 onUpdateEvent e = do
   getRecording >>= \case
     Record -> state $ addEvent e
@@ -146,7 +147,7 @@ onUpdateEvent e = do
 handleEvent :: (MonadState AppState m
               , MonadReader (Env i) m
               , MonadIO m)
-            => Maybe (UpdateEvent HamazedServerState) -> m ()
+            => Maybe (UpdateEvent HamazedServerState Event) -> m ()
 handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
@@ -167,9 +168,9 @@ addUpdateTime add =
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
-                                            , MonadReader e m, Render e, ClientNode e
+                                            , MonadReader (Env i) m
                                             , MonadIO m)
-                                          => Maybe (UpdateEvent HamazedServerState) -> m ()
+                                          => Maybe (UpdateEvent HamazedServerState Event) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
@@ -186,7 +187,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
     >>= \(t,g) -> get >>= \(AppState _ a _ b c d e) -> put $ AppState t a g b c d e
 
 
-groupStats :: EventGroup s -> String
+groupStats :: EventGroup s c -> String
 groupStats (EventGroup l _ t _) =
   replicate (pred $ length l) ' ' ++
   "|" ++
@@ -196,7 +197,7 @@ groupStats (EventGroup l _ t _) =
 
 {-# INLINABLE renderAll #-}
 renderAll :: (MonadState AppState m
-            , MonadReader e m, Render e, ClientNode e
+            , MonadReader (Env i) m
             , MonadIO m)
           => m ()
 renderAll = do
@@ -240,7 +241,7 @@ getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: UpdateEvent HamazedServerState -> AppState -> ((), AppState)
+addEvent :: UpdateEvent HamazedServerState Event -> AppState -> ((), AppState)
 addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (representation e) es
   in ((), AppState t g evts es' r b d)

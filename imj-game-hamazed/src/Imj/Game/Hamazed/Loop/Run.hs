@@ -40,6 +40,9 @@ import           System.Environment(getArgs)
 import           System.Info(os)
 import           Text.Read(readMaybe)
 
+import           Imj.Client.Class
+import           Imj.Client.Types
+import           Imj.ClientServer.Class
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Geo.Discrete.Types
@@ -51,7 +54,6 @@ import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.State
@@ -62,6 +64,7 @@ import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..
 import           Imj.Graphics.Text.ColorString hiding(putStr)
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.Render
+import           Imj.Client
 import           Imj.Log
 
 {- | Runs the Hamazed game.
@@ -394,7 +397,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool
-        -> ClientQueues HamazedServerState
+        -> ClientQueues Event HamazedServerState
         -> HamazedClientSideServer
         -> SuggestedPlayerName
         -> a
@@ -403,8 +406,9 @@ runWith debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
       sz <- getDiscreteSize backend
+      env <- mkEnv drawEnv backend queues face
       void $ createState sz debug player srv NotConnected >>=
-        runStateT (runReaderT (loop translatePlatformEvent onEvent) $ Env drawEnv backend queues face)
+        runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
  where
   (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
   look _ [] = Nothing
@@ -415,9 +419,9 @@ runWith debug queues srv player backend =
 
 loop :: (MonadState AppState m
        , MonadIO m
-       , MonadReader e m, ClientNode e, PlayerInput e)
-     => (PlatformEvent -> m (Maybe (GenEvent (ClientServerT e))))
-     -> (Maybe (GenEvent (ClientServerT e)) -> m ())
+       , MonadReader (Env i) m, PlayerInput i)
+     => (PlatformEvent -> m (Maybe (GenEvent (Env i))))
+     -> (Maybe (GenEvent (Env i)) -> m ())
      -> m ()
 loop liftPlatformEvent onEventF =
   forever $ nextEvent >>= onEventF
@@ -431,7 +435,7 @@ loop liftPlatformEvent onEventF =
       (return . Just))
 
 
-type AnyEvent s = Either PlatformEvent (GenEvent s)
+type AnyEvent e = Either PlatformEvent (GenEvent e)
 
 -- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':
 -- 10000 ->   3.5% -- ok but 10 ms is a lot
@@ -456,8 +460,8 @@ type AnyEvent s = Either PlatformEvent (GenEvent s)
 
 -- | MonadState AppState is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
-produceEvent :: (MonadState AppState m, MonadIO m, MonadReader e m, PlayerInput e, ClientNode e)
-             => m (Maybe (AnyEvent (ClientServerT e)))
+produceEvent :: (MonadState AppState m, MonadIO m, MonadReader (Env i) m, PlayerInput i)
+             => m (Maybe (AnyEvent (Env i)))
 produceEvent = do
   server <- asks serverQueue
   platform <- asks plaformQueue
@@ -484,8 +488,8 @@ produceEvent = do
 
 triggerRenderOr :: (MonadState AppState m, MonadIO m, MonadReader e m
                   , PlayerInput e)
-                => IO (Maybe (AnyEvent s))
-                -> m (Maybe (AnyEvent s))
+                => IO (Maybe (AnyEvent e))
+                -> m (Maybe (AnyEvent e))
 triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
@@ -525,16 +529,17 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
                 Right r -> return r)
         -}
 
-
-tryAtomically :: STM (AnyEvent s)
-              -> IO (Maybe (AnyEvent s))
+{-# INLINABLE tryAtomically #-}
+tryAtomically :: STM (AnyEvent e)
+              -> IO (Maybe (AnyEvent e))
 tryAtomically a =
   atomically $ fmap Just a
            <|> return Nothing
 
+{-# INLINABLE tryAtomicallyBefore #-}
 tryAtomicallyBefore :: Time Point System
-                    -> STM (AnyEvent s)
-                    -> IO (Maybe (AnyEvent s))
+                    -> STM (AnyEvent e)
+                    -> IO (Maybe (AnyEvent e))
 tryAtomicallyBefore t a =
   getDurationFromNowTo t >>= \allowed ->
     if strictlyNegative allowed

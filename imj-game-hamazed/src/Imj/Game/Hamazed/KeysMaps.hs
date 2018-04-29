@@ -12,6 +12,7 @@ import           Imj.Prelude
 
 import qualified Data.Map as Map(lookup)
 
+import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
@@ -21,7 +22,7 @@ import           Imj.Input.Types
 
 translatePlatformEvent :: (MonadState AppState m)
                        => PlatformEvent
-                       -> m (Maybe (GenEvent HamazedServerState))
+                       -> m (Maybe (GenEvent (Env i)))
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves Intentional

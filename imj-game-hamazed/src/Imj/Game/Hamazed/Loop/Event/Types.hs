@@ -47,6 +47,7 @@ data DeadlineType = AnimateParticleSystem {-# UNPACK #-} !ParticleSystemKey
                   -- ^ The status is being progressively displayed, with line index.
                   deriving(Eq, Show)
 
+-- TODO Log and Timeout should be handled generically
 data Event = CycleRenderingOptions {-# UNPACK #-} !CycleFont {-# UNPACK #-} !CycleFontSize
            -- ^ Changes the font used to render
            | ApplyPPUDelta {-# UNPACK #-} !Size

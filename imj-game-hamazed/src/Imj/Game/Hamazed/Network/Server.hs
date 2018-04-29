@@ -6,8 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Game.Hamazed.Network.Server
-      ( ClientNode(..)
-      , Server
+      ( Server
       , shutdown
       , mkServer
       , appSrv
@@ -46,7 +45,6 @@ import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.Network.Class.ClientNode
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Internal.Types
 

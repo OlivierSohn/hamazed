@@ -42,11 +42,7 @@ module Imj.Game.Hamazed.Network.Types
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , HamazedClient
-      -- * ClientQueues
-      , ClientQueues(..)
-      , addRequestAsync
-      , removeRequestAsync
-      , releaseRequestResources
+      , RequestsAsyncs(..)
       -- * Player
       , SuggestedPlayerName(..)
       , PlayerName(..)
@@ -65,7 +61,6 @@ module Imj.Game.Hamazed.Network.Types
       , StateNature(..)
       , StateValue(..)
       -- * Client / Server communication
-      , EventsForClient(..)
       , ClientEvent(..)
       , ServerEvent(..)
       , WorldRequestArg(..)
@@ -94,14 +89,12 @@ module Imj.Game.Hamazed.Network.Types
 
 import           Imj.Prelude
 
-import           Control.Concurrent.Async (Async, cancel)
-import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
-import           Control.Concurrent.STM(TQueue)
-import qualified Data.Map.Strict as Map(elems, alter, updateLookupWithKey)
+import           Control.Concurrent.Async (Async)
+import qualified Control.Concurrent.MVar as Lazy -- not using strict version, because Async misses NFData.
+import qualified Data.Map.Strict as Map
 import           Data.Map.Strict(Map)
 import           Data.List(foldl')
 import           Data.Set(Set)
-import qualified Data.Set as Set(insert, delete, empty, null)
 import           Data.String(IsString)
 import           Data.Text(unpack)
 
@@ -129,50 +122,7 @@ data StateNature = Ongoing | Over
   deriving(Generic, Show, Eq)
 instance Binary StateNature
 
--- | A client communicates with the server asynchronously, that-is, wrt the thread where
--- game state update and rendering occurs. Using 'TQueue' as a mean of communication
--- instead of 'MVar' has the benefit that in case of the connection being closed,
--- the main thread won't block.
-data ClientQueues s = ClientQueues {
-    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient s))
-  , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent s))
-  , requestsAsyncs :: !(Lazy.MVar RequestsAsyncs)
-}
-
-type RequestId = WorldId
-type RequestsAsyncs = Map RequestId (Set (Async ()))
-
-addRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
-addRequestAsync r a wid =
-  Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
- where
-  alt = Just . Set.insert a . fromMaybe Set.empty
-
-removeRequestAsync :: Lazy.MVar RequestsAsyncs -> Async () -> RequestId -> IO ()
-removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
- where
-  alt = maybe
-    Nothing
-    (\set ->
-      let s = Set.delete a set
-      in bool (Just s) Nothing $ Set.null s)
-
-releaseRequestResources :: Lazy.MVar RequestsAsyncs -> RequestId -> IO ()
-releaseRequestResources r wid = Lazy.modifyMVar_ r $ \m -> do
-  let (e, m') = Map.updateLookupWithKey (\_ _ -> Nothing) wid m
-  maybe
-    (return ())
-    (mapM_ cancel)
-    e
-  return $! m'
-
-data EventsForClient s =
-    FromClient !Event
-  | FromServer !(ServerEvent s)
-  deriving(Generic)
-instance (ClientServer s) => Show (EventsForClient s) where
-  show (FromClient e) = show ("FromClient" :: String, e)
-  show (FromServer e) = show ("FromServer" :: String, e)
+newtype RequestsAsyncs k = RequestsAsyncs (Lazy.MVar (Map k (Set (Async ()))))
 
 data Player = Player {
     getPlayerName :: {-# UNPACK #-} !PlayerName

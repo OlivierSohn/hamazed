@@ -23,24 +23,24 @@ import           Imj.Graphics.ParticleSystem.Design.Timing
 
 -- | No 2 principal events can be part of the same 'EventGroup'.
 -- It allows to separate important game action on different rendered frames.
-isPrincipal :: UpdateEvent s -> Bool
+isPrincipal :: UpdateEvent s Event -> Bool
 isPrincipal (Right e) = case e of
   (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
   (Timeout (Deadline _ _ AnimateUI)) -> False
   _ -> True
 isPrincipal (Left _) = True
 
-mkEmptyGroup :: EventGroup s
+mkEmptyGroup :: EventGroup s c
 mkEmptyGroup = EventGroup [] False zeroDuration Nothing
 
-visible :: EventGroup s -> Bool
+visible :: EventGroup s c -> Bool
 visible (EventGroup _ _ _ Nothing) = False
 visible _ = True
 
-count :: EventGroup s -> Int
+count :: EventGroup s c -> Int
 count (EventGroup l _ _ _) = length l
 
-tryGrow :: Maybe (UpdateEvent s) -> EventGroup s -> IO (Maybe (EventGroup s))
+tryGrow :: Maybe (UpdateEvent s Event) -> EventGroup s Event -> IO (Maybe (EventGroup s Event))
 tryGrow Nothing group
  | null $ events group = return $ Just group -- Keep the group opened to NOT do a render
  | otherwise = return Nothing -- to do a render

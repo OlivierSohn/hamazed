@@ -10,11 +10,9 @@ module Imj.Game.Hamazed.Network.GameNode
 import           Imj.Prelude
 import           Control.Concurrent(ThreadId, forkIO, myThreadId, throwTo)
 import           Control.Concurrent.STM(newTQueueIO)
-import qualified Control.Concurrent.MVar as Lazy(newMVar)
-import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
+import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Monad.State.Strict(execStateT)
-import qualified Data.Map as Map (empty)
 import           Data.Text(pack)
 import           Foreign.C.Types(CInt)
 import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
@@ -24,12 +22,14 @@ import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
+import           Imj.Client.Class
+import           Imj.Client.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Client
 import           Imj.Game.Hamazed.Network.Client(appCli)
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Server
@@ -59,7 +59,7 @@ startServerIfLocal srv@(Server (Local logs color) _) v = do
     st True = "starts listening ("
 
 startClient :: (Show p, Show c)
-            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues HamazedServerState)
+            => SuggestedPlayerName -> (Server p c) -> IO (ClientQueues Event HamazedServerState)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues
@@ -87,9 +87,9 @@ startClient playerName srv = do
  where
   msg x = x <> " to server " <> pack (show srv)
 
-mkQueues :: IO (ClientQueues s)
+mkQueues :: IO (ClientQueues c s)
 mkQueues =
-  ClientQueues <$> newTQueueIO <*> newTQueueIO <*> Lazy.newMVar Map.empty
+  ClientQueues <$> newTQueueIO <*> newTQueueIO
 
 installOneHandler :: ClientServer s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =

@@ -30,6 +30,7 @@ import qualified Data.Text as Text(length, intercalate)
 import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
+import           Imj.Client.Class
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -43,7 +44,7 @@ import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Hamazed.Network.Class.ClientNode
+import           Imj.Game.Hamazed.Network.Class.AsyncGroups
 import           Imj.Game.Hamazed.Sound
 import           Imj.Game.Hamazed.World
 import           Imj.Game.Hamazed.World.Create
@@ -63,7 +64,7 @@ import           Imj.Music hiding(Do)
 updateAppState :: (MonadState AppState m
                  , MonadReader (Env i) m
                  , MonadIO m)
-               => UpdateEvent HamazedServerState
+               => UpdateEvent HamazedServerState Event
                -- ^ The 'Event' that should be handled here.
                -> m ()
 updateAppState (Right evt) = case evt of

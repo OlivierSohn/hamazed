@@ -1,3 +1,11 @@
+- make the client logic more generic to share common logic across games without having to rewrite:
+event acquisition, timeouts, "draw groups".
+  - AppState should be made more generic
+
+Imj.Event -- TODO move to imj-engine
+
+- imj-server could depend on a smaller version of imj-base
+
 - make a synth app.
 
 - (while looking at imj-server dependencies):
@@ -136,7 +144,7 @@ maybe we need to move + and - to make them be in the center.
 : this allows to become aware of when a number is shot.
 
 - chat : make it easier to use
-- in AppState we could have arrays of random numbers, and a particle system would pass
+- in (AppState evt) we could have arrays of random numbers, and a particle system would pass
 the index of the animated point.
 
 Hence, either the color could rely on the random part or on the frame or both.

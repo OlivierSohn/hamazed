@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Game.Hamazed
+  exposed-modules:     Imj.Event
+                     , Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Chat
                      , Imj.Game.Hamazed.Color
                      , Imj.Game.Hamazed.Command

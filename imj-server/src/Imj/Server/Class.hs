@@ -30,6 +30,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState)
 
+import           Imj.Categorized
 import           Imj.Server.Internal.Types
 import           Imj.ClientView.Internal.Types
 
@@ -42,8 +43,8 @@ class (Show c) => ClientInfo c where
 
 
 class (Show (ClientEventT s)
-     , Show (ServerEventT s)
      , Show (ConnectIdT s)
+     , Categorized (ServerEventT s)
      , Binary (ClientEventT s)
      , Binary (ServerEventT s)
      , Binary (ConnectIdT s)

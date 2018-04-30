@@ -28,7 +28,7 @@ import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Text.ColorString
 
-runClientCommand :: (MonadState AppState m)
+runClientCommand :: (MonadState (AppState evt) m)
                  => ShipId
                  -> ClientCommand
                  -> m ()

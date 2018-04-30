@@ -13,6 +13,7 @@ import           Imj.Prelude
 import           Control.Concurrent.STM(TQueue, atomically, writeTQueue)
 
 import           Imj.Client.Class
+import           Imj.Categorized
 import           Imj.Server.Types
 
 -- | Allows the client to communicate with the server asynchronously.
@@ -21,7 +22,7 @@ data ClientQueues c s = ClientQueues {
   , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent s))
 }
 
-instance (Server s) => Client (ClientQueues c s) where
+instance (Server s, Categorized c) => Client (ClientQueues c s) where
   type ServerT (ClientQueues c s) = s
   type CliEvtT (ClientQueues c s) = c
 

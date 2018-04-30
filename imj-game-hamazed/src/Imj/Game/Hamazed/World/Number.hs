@@ -30,7 +30,7 @@ import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.ParticleSystem.Design.Timing
 
 
-destroyedNumbersParticleSystems :: (MonadState AppState m)
+destroyedNumbersParticleSystems :: (MonadState (AppState evt) m)
                                 => Time Point ParticleSyst
                                 -> ShipId
                                 -> Direction -- ^ 'Direction' of the laser shot
@@ -41,7 +41,7 @@ destroyedNumbersParticleSystems keyTime shipId dir nums = do
   ps <- mapM (destroyedNumberParticleSystems keyTime shipId laserSpeed) $ Map.elems nums
   return $ concat ps
 
-destroyedNumberParticleSystems :: (MonadState AppState m)
+destroyedNumberParticleSystems :: (MonadState (AppState evt) m)
                                => Time Point ParticleSyst
                                -> ShipId
                                -> Vec2 Vel

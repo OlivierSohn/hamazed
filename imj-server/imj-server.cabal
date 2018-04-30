@@ -24,6 +24,7 @@ library
                      , Imj.Client.Types
                      , Imj.ClientView.Internal.Types
                      , Imj.ClientView.Types
+                     , Imj.Categorized
                      , Imj.Server
                      , Imj.Server.Class
                      , Imj.Server.Connection

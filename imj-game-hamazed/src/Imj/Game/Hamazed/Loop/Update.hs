@@ -5,9 +5,14 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Hamazed.Loop.Update
-      ( updateAppState
+      ( -- * Specific to Hamazed game  -- TODO split module
+        hamazedEventUpdate
+      , hamazedSrvEvtUpdate
+      -- * Generic
+      , updateAppState
       , sendToServer
       ) where
 
@@ -40,7 +45,6 @@ import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Command
-import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
@@ -61,117 +65,87 @@ import           Imj.Graphics.UI.RectContainer
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 import           Imj.Music hiding(Do)
 
-{-# INLINABLE updateAppState #-}
-updateAppState :: (MonadState AppState m
-                 , MonadReader (Env i) m
-                 , MonadIO m)
-               => UpdateEvent Hamazed Event
-               -- ^ The 'Event' that should be handled here.
-               -> m ()
-updateAppState (Right evt) = case evt of
+{-# INLINABLE hamazedEventUpdate #-}
+hamazedEventUpdate :: (ServerT e ~ Hamazed
+                     , MonadState (AppState evt) m
+                     , MonadReader e m, Client e
+                     , MonadIO m)
+                   => HamazedEvent
+                   -> m ()
+hamazedEventUpdate e = case e of
   Interrupt Help -> error "not implemented"
-  Log Error txt -> error $ unpack txt
-  Log msgLevel txt -> stateChat $ addMessage $ Information msgLevel txt
-  CycleRenderingOptions i j -> do
-    cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
-    onTargetSize
-  ApplyPPUDelta deltaPPU -> do
-    -- the font calculation is done according to the current screen size,
-    -- so there may be some partial unit rectangles. If we wanted to have only
-    -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
-    -- then adjust the font.
-    asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
-    onTargetSize
-  ApplyFontMarginDelta d ->
-    asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
-  CanvasSizeChanged ->
-    onTargetSize
-  RenderingTargetChanged -> do
-    onTargetChanged >>= either (liftIO . putStrLn) return
-    onTargetSize
-  Timeout (Deadline t _ AnimateUI) -> updateUIAnim t
-  Timeout (Deadline _ _ (AnimateParticleSystem key)) -> liftIO getSystemTime >>= updateOneParticleSystem key
-  Timeout (Deadline t _ (RedrawStatus f)) -> updateStatus (Just f) t
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
   SendChatMessage -> onSendChatMessage
   PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
-  ToggleEventRecording -> error "should be handled by caller"
-updateAppState (Left evt) = case evt of
-  ServerAppEvt e -> case e of
-    RunCommand i cmd -> runClientCommand i cmd
-    CommandError cmd err ->
-      stateChat $ addMessage $ Information Warning $
-        pack (show cmd) <> " failed:" <> err
-    Reporting cmd ->
-      stateChat $ addMessage $ Information Info $ showReport cmd
-    PlayMusic music instr -> liftIO $ play music instr
-    WorldRequest wid arg -> case arg of
-      GetGameState ->
-        mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
-      Build dt spec ->
-        asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
-          void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
-            -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
-            -- and to have no more than one worker per capability.
-            mkOneGenPerCapability >>= \gens -> do
-              let go = do
-                    deadline <- addDuration dt <$> liftIO getSystemTime
-                    -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
-                    -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
-                    -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
-                    let continue = getSystemTime >>= \t -> return (t < deadline)
-                    mkWorldEssence spec continue gens >>= \res -> do
-                      send $ ClientAppEvt $ uncurry (WorldProposal wid) res
-                      case fst res of
-                        NeedMoreTime{} -> go
-                        _ -> return ()
-              go
-      Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
-    ChangeLevel levelEssence worldEssence wid ->
-      getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-        mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
-          >>= putGameState
-    PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-      getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-        mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
-          >>= putGameState
-    OnWorldParameters worldParameters ->
-      putWorldParameters worldParameters
-    GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
-      onMove accelerations shipsLosingArmor
-    GameEvent (LaserShot dir shipId) -> do
-      liftIO laserSound
-      onLaser shipId dir Add
-    MeetThePlayers eplayers -> do
-      let p = Map.map mkPlayer eplayers
-      putPlayers p
-      stateChat $ addMessage $ ChatMessage $ welcome p
-    PlayerInfo notif i ->
-      stateChat . addMessage . ChatMessage =<< toTxt i notif
-    GameInfo notif ->
-      stateChat $ addMessage $ ChatMessage $ toTxt' notif
-    EnterState s ->
-      putClientState $ ClientState Ongoing s
-    ExitState s  ->
-      putClientState $ ClientState Over s
-  ConnectionAccepted i -> do
+
+{-# INLINABLE hamazedSrvEvtUpdate #-}
+hamazedSrvEvtUpdate :: (KeyT e ~ WorldId, ServerT e ~ Hamazed
+                     , MonadState (AppState evt) m
+                     , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e
+                     , MonadIO m)
+                   => HamazedServerEvent
+                   -> m ()
+hamazedSrvEvtUpdate = \case
+  RunCommand i cmd -> runClientCommand i cmd
+  CommandError cmd err ->
+    stateChat $ addMessage $ Information Warning $
+      pack (show cmd) <> " failed:" <> err
+  Reporting cmd ->
+    stateChat $ addMessage $ Information Info $ showReport cmd
+  PlayMusic music instr -> liftIO $ play music instr
+  WorldRequest wid arg -> case arg of
+    GetGameState ->
+      mkGameStateEssence wid <$> getGameState >>= sendToServer . CurrentGameState wid
+    Build dt spec ->
+      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` wid) $
+          -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
+          -- and to have no more than one worker per capability.
+          mkOneGenPerCapability >>= \gens -> do
+            let go = do
+                  deadline <- addDuration dt <$> liftIO getSystemTime
+                  -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+                  -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
+                  -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
+                  let continue = getSystemTime >>= \t -> return (t < deadline)
+                  mkWorldEssence spec continue gens >>= \res -> do
+                    send $ ClientAppEvt $ uncurry (WorldProposal wid) res
+                    case fst res of
+                      NeedMoreTime{} -> go
+                      _ -> return ()
+            go
+    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
+  ChangeLevel levelEssence worldEssence wid ->
+    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+        >>= putGameState
+  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
+    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
+      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+        >>= putGameState
+  OnWorldParameters worldParameters ->
+    putWorldParameters worldParameters
+  GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
+    onMove accelerations shipsLosingArmor
+  GameEvent (LaserShot dir shipId) -> do
+    liftIO laserSound
+    onLaser shipId dir Add
+  MeetThePlayers eplayers -> do
     sendToServer $ ExitedState Excluded
     putClientState $ ClientState Over Excluded
-    putGameConnection $ Connected i
-  ConnectionRefused sn reason ->
-    putGameConnection $ ConnectionFailed $
-      "[" <>
-      pack (show sn) <>
-      "]" <>
-      pack " is invalid:" <>
-      reason
-  Disconnected reason -> onDisconnection reason
-  ServerError txt ->
-    liftIO $ throwIO $ ErrorFromServer txt
+    let p = Map.map mkPlayer eplayers
+    putPlayers p
+    stateChat $ addMessage $ ChatMessage $ welcome p
+  PlayerInfo notif i ->
+    stateChat . addMessage . ChatMessage =<< toTxt i notif
+  GameInfo notif ->
+    stateChat $ addMessage $ ChatMessage $ toTxt' notif
+  EnterState s ->
+    putClientState $ ClientState Ongoing s
+  ExitState s  ->
+    putClientState $ ClientState Over s
+
  where
-  onDisconnection (ClientShutdown (Right ())) = liftIO exitSuccess
-  onDisconnection (ClientShutdown (Left txt)) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> txt
-  onDisconnection s@(ServerShutdown _) = liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
 
   toTxt i notif =
     (`mappend` colored (toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i
@@ -202,8 +176,74 @@ updateAppState (Left evt) = case evt of
   showReport (Pred x) =
     "decremented " <> pack (show x)
 
+{-# INLINABLE updateAppState #-} -- TODO make more generic by abstracting ServerT
+updateAppState :: (ServerT e ~ Hamazed
+                 , MonadState (AppState evt) m
+                 , MonadReader e m, Client e, Render e, HasSizedFace e
+                 , MonadIO m)
+               => UpdateEvent Hamazed (Event evt)
+               -- ^ The 'Event' that should be handled here.
+               -> (evt -> m ())
+               -- ^ Application event handling
+               -> (ServerEventT (ServerT e) -> m ())
+               -- ^ Server event handling
+               -> m ()
+updateAppState (Right evt) appEvtUpdate _ = case evt of
+  AppEvent e ->
+    appEvtUpdate e
+  ToggleEventRecording ->
+    error "should be handled by caller"
+  Timeout (Deadline t _ (RedrawStatus f)) ->
+    updateStatus (Just f) t
+  Timeout (Deadline t _ AnimateUI) ->
+    updateUIAnim t
+  Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
+    liftIO getSystemTime >>= updateOneParticleSystem key
+  CanvasSizeChanged ->
+    onTargetSize
+  RenderingTargetChanged -> do
+    onTargetChanged >>= either (liftIO . putStrLn) return
+    onTargetSize
+  CycleRenderingOptions i j -> do
+    cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
+    onTargetSize
+  ApplyPPUDelta deltaPPU -> do
+    -- the font calculation is done according to the current screen size,
+    -- so there may be some partial unit rectangles. If we wanted to have only
+    -- full unit rectangles, we could recompute the screen size based on preferred size and new ppu,
+    -- then adjust the font.
+    asks applyPPUDelta >>= \f -> f deltaPPU >>= either (liftIO . putStrLn) return
+    onTargetSize
+  ApplyFontMarginDelta d ->
+    asks applyFontMarginDelta >>= \f -> f d >>= either (liftIO . putStrLn) return
+  Log Error txt ->
+    error $ unpack txt
+  Log msgLevel txt ->
+    stateChat $ addMessage $ Information msgLevel txt
+updateAppState (Left evt) _ appSrvEvtUpdate = case evt of
+  ServerAppEvt e ->
+    appSrvEvtUpdate e
+  ConnectionAccepted i -> do
+    putGameConnection $ Connected i
+  ConnectionRefused sn reason ->
+    putGameConnection $ ConnectionFailed $
+      "[" <>
+      pack (show sn) <>
+      "]" <>
+      pack " is invalid:" <>
+      reason
+  Disconnected (ClientShutdown (Right ())) ->
+    liftIO $ exitSuccess
+  Disconnected (ClientShutdown (Left txt)) ->
+    liftIO $ throwIO $ UnexpectedProgramEnd $ "Broken Client : " <> txt
+  Disconnected s@(ServerShutdown _) ->
+    liftIO $ throwIO $ UnexpectedProgramEnd $ "Disconnected by Server: " <> pack (show s)
+  ServerError txt ->
+    liftIO $ throwIO $ ErrorFromServer txt
+
+
 {-# INLINABLE onTargetSize #-}
-onTargetSize :: (MonadState AppState m
+onTargetSize :: (MonadState (AppState evt) m
                , MonadReader e m, Canvas e
                , MonadIO m)
              => m ()
@@ -217,16 +257,17 @@ onTargetSize = getTargetSize >>= maybe (return ()) (\sz ->
                        getScreen = screen })
 
 {-# INLINABLE sendToServer #-}
-sendToServer :: (MonadState AppState m
-               , MonadReader (Env i) m
+sendToServer :: (MonadState (AppState evt) m
+               , MonadReader e m, Client e
                , MonadIO m)
-             => HamazedClientEvent
+             => ClientEventT (ServerT e)
              -> m ()
 sendToServer e =
   asks sendToServer' >>= \f -> f (ClientAppEvt e)
 
-onSendChatMessage :: (MonadState AppState m
-                    , MonadReader (Env i) m
+onSendChatMessage :: (ServerT e ~ Hamazed
+                    , MonadState (AppState evt) m
+                    , MonadReader e m, Client e
                     , MonadIO m)
                   => m ()
 onSendChatMessage =
@@ -244,8 +285,9 @@ onSendChatMessage =
       p
 
 {-# INLINABLE onLaser #-}
-onLaser :: (MonadState AppState m
-          , MonadReader (Env i) m
+onLaser :: (ServerT e ~ Hamazed
+          , MonadState (AppState evt) m
+          , MonadReader e m, Client e
           , MonadIO m)
         => ShipId
         -> Direction
@@ -270,8 +312,9 @@ onLaser ship dir op =
 
 
 {-# INLINABLE onMove #-}
-onMove :: (MonadState AppState m
-         , MonadReader (Env i) m
+onMove :: (ServerT e ~ Hamazed
+         , MonadState (AppState evt) m
+         , MonadReader e m, Client e
          , MonadIO m)
        => Map ShipId (Coords Vel)
        -> Set ShipId
@@ -281,8 +324,9 @@ onMove accelerations shipsLosingArmor = do
   onHasMoved
 
 {-# INLINABLE onHasMoved #-}
-onHasMoved :: (MonadState AppState m
-             , MonadReader (Env i) m
+onHasMoved :: (ServerT e ~ Hamazed
+             , MonadState (AppState evt) m
+             , MonadReader e m, Client e
              , MonadIO m)
            => m ()
 onHasMoved =
@@ -318,8 +362,9 @@ onHasMoved =
       updateShipsText
 
 {-# INLINABLE updateUIAnim #-}
-updateUIAnim :: (MonadState AppState m
-               , MonadReader (Env i) m
+updateUIAnim :: (ServerT e ~ Hamazed
+               , MonadState (AppState evt) m
+               , MonadReader e m, Client e
                , MonadIO m)
              => Time Point System -> m ()
 updateUIAnim t =
@@ -341,7 +386,7 @@ updateUIAnim t =
       maybe (return ()) (sendToServer . IsReady) $ getId world
 
 {-# INLINABLE putClientState #-}
-putClientState :: (MonadState AppState m
+putClientState :: (MonadState (AppState evt) m
                  , MonadReader e m, HasSizedFace e
                  , MonadIO m)
                => ClientState
@@ -351,7 +396,7 @@ putClientState i = do
   liftIO getSystemTime >>= updateStatus Nothing
 
 {-# INLINABLE updateStatus #-}
-updateStatus :: (MonadState AppState m
+updateStatus :: (MonadState (AppState evt) m
                , MonadReader e m, HasSizedFace e
                , MonadIO m)
              => Maybe (Frame, Int)
@@ -400,7 +445,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
   putDrawnState $ part1 ++ part2 ++ part3
   updateStatusDeadline
  where
-  updateStatusDeadline :: MonadState AppState m => m ()
+  updateStatusDeadline :: MonadState (AppState evt) m => m ()
   updateStatusDeadline =
     zip [0..] . getDrawnClientState <$> getGameState >>= mapM
       (\(i, (str, AnimatedLine recordEvolution curFrame _)) -> do

@@ -38,7 +38,7 @@ this function creates an animation where the ship and the colliding number explo
 
 The ship 'ParticleSystem' will have the initial speed of the number and vice-versa,
 to mimic the rebound due to the collision. -}
-shipParticleSystems :: (MonadState AppState m)
+shipParticleSystems :: (MonadState (AppState evt) m)
                     => Time Point System
                     -> m [Prioritized ParticleSystem]
 shipParticleSystems k =
@@ -88,7 +88,7 @@ countLiveAmmo (BattleShip _ ammo status _ _) =
       0
 
 {-# INLINABLE updateShipsText #-}
-updateShipsText :: (MonadState AppState m)
+updateShipsText :: (MonadState (AppState evt) m)
                 => m ()
 updateShipsText =
   getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)

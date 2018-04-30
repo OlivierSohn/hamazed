@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Hamazed.KeysMaps
     ( translatePlatformEvent
@@ -12,31 +13,34 @@ import           Imj.Prelude
 
 import qualified Data.Map as Map(lookup)
 
-import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
+import           Imj.Client.Class
 
-translatePlatformEvent :: (MonadState AppState m)
+-- TODO split in 2: generic translation, specialized translation
+translatePlatformEvent :: (ServerT e ~ Hamazed
+                         , CliEvtT e ~ Event HamazedEvent
+                         , MonadState (AppState evt) m)
                        => PlatformEvent
-                       -> m (Maybe (GenEvent (Env i)))
+                       -> m (Maybe (GenEvent e))
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
   FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
   KeyPress key -> case key of
     Escape      -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
-    Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
+    Tab -> return $ Just $ Evt $ AppEvent $ ChatCmd ToggleEditing
     _ -> getChatMode >>= \case
       Editing -> return $ case key of
-        Delete     -> Just $ Evt $ ChatCmd DeleteAtEditingPosition
-        BackSpace  -> Just $ Evt $ ChatCmd DeleteBeforeEditingPosition
-        AlphaNum c -> Just $ Evt $ ChatCmd $ Insert c
-        Arrow dir  -> Just $ Evt $ ChatCmd $ Navigate dir
-        Enter      -> Just $ Evt SendChatMessage
+        Delete     -> Just $ Evt $ AppEvent $ ChatCmd DeleteAtEditingPosition
+        BackSpace  -> Just $ Evt $ AppEvent $ ChatCmd DeleteBeforeEditingPosition
+        AlphaNum c -> Just $ Evt $ AppEvent $ ChatCmd $ Insert c
+        Arrow dir  -> Just $ Evt $ AppEvent $ ChatCmd $ Navigate dir
+        Enter      -> Just $ Evt $ AppEvent SendChatMessage
         _ -> Nothing
       NotEditing -> case key of
         {-

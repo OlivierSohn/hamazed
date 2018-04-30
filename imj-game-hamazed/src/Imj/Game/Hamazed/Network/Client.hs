@@ -23,7 +23,8 @@ import           Imj.Client.Class
 import           Imj.Client
 
 -- TODO split Event between what is generic ('Log') and the rest, like we did for other events.
-appCli :: Server s => ClientQueues Event s -> ClientApp ()
+appCli :: (Server s, Categorized e)
+       => ClientQueues (Event e) s -> ClientApp ()
 appCli q@(ClientQueues toClient toServer) conn = do
   void $ forkIO $
     safeForever $

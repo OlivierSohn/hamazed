@@ -116,7 +116,7 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
-  , getDrawnClientState :: [( ColorString -- The raw message, just used to compare with new messages. For rendering,
+  , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages. For rendering,
                                           -- AnimatedLine is used.
                           , AnimatedLine)]
   , getScreen :: {-# UNPACK #-} !Screen
@@ -127,7 +127,7 @@ data GameState = GameState {
 data AnimatedLine = AnimatedLine {
     getRecordDrawEvolution :: !(Evolution RecordDraw)
   , getALFrame :: !Frame
-  , getALDeadline :: Maybe Deadline
+  , getALDeadline :: !(Maybe Deadline)
 } deriving(Generic, Show)
 
 initialViewMode :: ViewMode

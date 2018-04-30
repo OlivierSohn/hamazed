@@ -12,15 +12,18 @@ module Imj.Client.Class
 import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.Server.Types
 import           Imj.Client.Types
+import           Imj.Categorized
+import           Imj.Server.Types
 
 -- | Client-side client representation.
 class
-  (Server (ServerT a))
+  (Server (ServerT a), Categorized (CliEvtT a))
  =>
   Client a
+
  where
+
   type ServerT a
   type CliEvtT a
 

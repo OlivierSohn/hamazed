@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Server.Types
       ( Server(..)
@@ -23,6 +24,7 @@ import           Data.Text.Lazy.Encoding as LazyT
 import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
 
+import           Imj.Categorized
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
 
@@ -64,6 +66,13 @@ instance Server s => WebSocketsData (ServerEvent s) where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
+instance Server s => Categorized (ServerEvent s) where
+  evtCategory = \case
+    ServerError _ -> Error'
+    Disconnected _ -> Disconnected'
+    ConnectionAccepted {} -> ConnectionAccepted'
+    ConnectionRefused {} -> ConnectionRefused'
+    ServerAppEvt e -> evtCategory e
 
 mkServerState :: ServerLogs -> s -> ServerState s
 mkServerState logs s =

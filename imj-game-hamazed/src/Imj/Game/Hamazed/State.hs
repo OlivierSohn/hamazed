@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Hamazed.State
       (
@@ -24,7 +25,7 @@ import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
-import           Imj.Server.Types
+import           Imj.Categorized
 import           Imj.Client.Class
 import           Imj.Client.Types
 import           Imj.Game.Hamazed.State.Types
@@ -34,12 +35,12 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
-import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
 import           Imj.Game.Hamazed.Loop.Event
 import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
@@ -47,132 +48,93 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
-representation :: UpdateEvent Hamazed Event -> EventRepr
-representation (Left srv) = case srv of
-  ServerError _ -> Error'
-  Disconnected _ -> Disconnected'
-  ConnectionAccepted {} -> ConnectionAccepted'
-  ConnectionRefused {} -> ConnectionRefused'
-  ServerAppEvt e -> case e of
-    GameEvent LaserShot{} -> Laser'
-    GameEvent PeriodicMotion{} -> PeriodicMotion'
-    CommandError _ _ -> Error'
-    EnterState _ -> EnterState'
-    ExitState _ -> ExitState'
-    RunCommand _ _ -> WorldRequest'
-    WorldRequest{} -> WorldRequest'
-    ChangeLevel{} -> ChangeLevel'
-    PutGameState{} -> ChangeLevel'
-    MeetThePlayers{} -> Chat'
-    OnWorldParameters _ -> Chat'
-    PlayerInfo _ _ -> Chat'
-    GameInfo _ -> Chat'
-    Reporting _ -> Chat'
-    PlayMusic{} -> Command'
-representation (Right e) = case e of
-  ApplyPPUDelta _           -> CycleRenderingOptions'
-  ApplyFontMarginDelta _    -> CycleRenderingOptions'
-  CycleRenderingOptions _ _ -> CycleRenderingOptions'
-  CanvasSizeChanged         -> CycleRenderingOptions'
-  RenderingTargetChanged    -> CycleRenderingOptions'
-  PlayProgram{}   -> Command'
-  Log _ _         -> Command'
-  SendChatMessage -> Command'
-  ChatCmd _       -> Command'
-  Interrupt _ -> Interrupt'
-  Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
-  Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
-  Timeout (Deadline _ _ (RedrawStatus _)) -> AnimateUI'
-  ToggleEventRecording -> ToggleEventRecording'
-
-reprToCS :: EventRepr -> ColorString
-reprToCS IgnoredOverdue = colored "X" red
-reprToCS ChangeLevel'  = colored "C" magenta
-reprToCS WorldRequest' = colored "R" magenta
-reprToCS AnimateUI'    = colored "U" magenta
-reprToCS ConnectionAccepted'    = colored "A" cyan
-reprToCS Chat'                  = colored "C" cyan
-reprToCS Disconnected'          = colored "D" cyan
-reprToCS EndLevel'              = colored "E" cyan
-reprToCS EnterState'            = colored "I" cyan
-reprToCS Laser'                 = colored "L" cyan
-reprToCS ExitState'             = colored "O" cyan
-reprToCS ConnectionRefused'     = colored "R" cyan
-reprToCS Error'                 = colored "X" cyan
-reprToCS Command'         = colored "C" yellow
-reprToCS Interrupt'             = colored "I" yellow
-reprToCS CycleRenderingOptions' = colored "R" yellow
-reprToCS ToggleEventRecording'  = colored "T" yellow
-reprToCS MoveFlyingItems' = colored "M" green
-reprToCS AnimateParticleSystem' = colored "P" blue
-reprToCS PeriodicMotion'        = colored "S" blue
-
 {-# INLINABLE onEvent #-}
-onEvent :: (MonadState AppState m
-          , MonadReader (Env i) m, PlayerInput i
+onEvent :: (ServerT e ~ Hamazed
+          , CliEvtT e ~ Event evt
+          , Categorized evt
+          , MonadState (AppState evt) m
+          , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e
           , MonadIO m)
-        => Maybe (GenEvent (Env i)) -> m ()
-onEvent mayEvt = do
+        => (evt -> m ())
+        -> (ServerEventT (ServerT e) -> m ())
+        -> Maybe (GenEvent e)
+        -> m ()
+onEvent f f' mayEvt = do
   checkPlayerEndsProgram
   debug >>= \case
     True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
     False -> return ()
-  onEvent' mayEvt
+  onEvent' f f' mayEvt
  where
   checkPlayerEndsProgram =
     playerEndsProgram >>= \end ->
       when end $ sendToServer $ RequestApproval $ Leaves $ Right () -- Note that it is safe to send this several times
 
 {-# INLINABLE onEvent' #-}
-onEvent' :: (MonadState AppState m
-           , MonadReader (Env i) m
-           , MonadIO m)
-         => Maybe (GenEvent (Env i)) -> m ()
-onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
-onEvent' (Just (CliEvt clientEvt)) = sendToServer clientEvt
-onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
-onEvent' (Just (Evt    evt)) = onUpdateEvent $ Right evt
-onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
+onEvent' :: (ServerT e ~ Hamazed
+            , CliEvtT e ~ Event evt
+            , Categorized evt
+            , MonadState (AppState evt) m
+            , MonadReader e m, Client e, Render e, HasSizedFace e
+            , MonadIO m)
+         => (evt -> m ())
+         -> (ServerEventT (ServerT e) -> m ())
+         -> Maybe (GenEvent e) -> m ()
+onEvent' f f' Nothing = handleEvent f f' Nothing -- if a rendergroup exists, render and reset the group
+onEvent' _ _ (Just (CliEvt clientEvt)) = sendToServer clientEvt
+onEvent' _ _ (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
+onEvent' f f' (Just (Evt    evt)) = onUpdateEvent f f' $ Right evt
+onEvent' f f' (Just (SrvEvt evt)) = onUpdateEvent f f' $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
-onUpdateEvent :: (MonadState AppState m
-                , MonadReader (Env i) m
+onUpdateEvent :: (ServerT e ~ Hamazed
+                , CliEvtT e ~ Event evt
+                , Categorized evt
+                , MonadState (AppState evt) m
+                , MonadReader e m, Client e, Render e, HasSizedFace e
                 , MonadIO m)
-              => UpdateEvent Hamazed Event -> m ()
-onUpdateEvent e = do
+              => (evt -> m ())
+              -> (ServerEventT (ServerT e) -> m ())
+              -> UpdateEvent Hamazed (CliEvtT e) -> m ()
+onUpdateEvent f f' e = do
   getRecording >>= \case
     Record -> state $ addEvent e
     DontRecord -> return ()
-  handleEvent $ Just e
+  handleEvent f f' $ Just e
 
 {-# INLINABLE handleEvent #-}
-handleEvent :: (MonadState AppState m
-              , MonadReader (Env i) m
+handleEvent :: (ServerT e ~ Hamazed
+              , CliEvtT e ~ Event evt
+              , MonadState (AppState evt) m
+              , MonadReader e m, Client e, Render e, HasSizedFace e
               , MonadIO m)
-            => Maybe (UpdateEvent Hamazed Event) -> m ()
-handleEvent e = do
+            => (evt -> m ())
+            -> (ServerEventT (ServerT e) -> m ())
+            -> Maybe (UpdateEvent Hamazed (CliEvtT e)) -> m ()
+handleEvent f f' e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
     (return ())
     (\evt -> do
       t1 <- liftIO getSystemTime
-      updateAppState evt
+      updateAppState evt f f'
       t2 <- liftIO getSystemTime
       addUpdateTime $!! t1...t2)
     e
 
 {-# INLINE addUpdateTime #-}
-addUpdateTime :: MonadState AppState m
+addUpdateTime :: MonadState (AppState evt) m
               => Time Duration System -> m ()
 addUpdateTime add =
   get >>= \(AppState t a (EventGroup d e prevT f) b c g de) ->
     put $ AppState t a (EventGroup d e (add |+| prevT) f) b c g de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
-addToCurrentGroupOrRenderAndStartNewGroup :: (MonadState AppState m
-                                            , MonadReader (Env i) m
+addToCurrentGroupOrRenderAndStartNewGroup :: (CliEvtT e ~ Event evt
+                                            , MonadState (AppState evt) m
+                                            , MonadReader e m, Render e, Client e
                                             , MonadIO m)
-                                          => Maybe (UpdateEvent Hamazed Event) -> m ()
+                                          => Maybe (UpdateEvent Hamazed (Event evt)) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
@@ -198,8 +160,9 @@ groupStats (EventGroup l _ t _) =
   showTime t
 
 {-# INLINABLE renderAll #-}
-renderAll :: (MonadState AppState m
-            , MonadReader (Env i) m
+renderAll :: (CliEvtT e ~ Event evt -- TODO remove by passing Hamazed as parameter in Env and AppState
+            , MonadState (AppState evt) m
+            , MonadReader e m, Render e, Client e
             , MonadIO m)
           => m ()
 renderAll = do
@@ -228,7 +191,7 @@ renderAll = do
   showTime' = justifyR 11 . showTime
 
 {-# INLINABLE getEvtStrs #-}
-getEvtStrs :: MonadState AppState m
+getEvtStrs :: MonadState (AppState evt) m
               => m [ColorString]
 getEvtStrs =
   get >>= \(AppState _ _ _ h r _ _) ->
@@ -237,25 +200,26 @@ getEvtStrs =
       DontRecord -> []
 
 {-# INLINABLE getRecording #-}
-getRecording :: MonadState AppState m
+getRecording :: MonadState (AppState evt) m
              => m RecordMode
 getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: UpdateEvent Hamazed Event -> AppState -> ((), AppState)
+addEvent :: Categorized evt
+         => UpdateEvent Hamazed (Event evt) -> (AppState evt) -> ((), (AppState evt))
 addEvent e (AppState t g evts es r b d) =
-  let es' = addEventRepr (representation e) es
+  let es' = addEventRepr (evtCategory e) es
   in ((), AppState t g evts es' r b d)
 
-toggleRecordEvent :: AppState -> ((), AppState)
+toggleRecordEvent :: (AppState evt) -> ((), (AppState evt))
 toggleRecordEvent (AppState t g e _ r b d) =
   let r' = case r of
         Record -> DontRecord
         DontRecord -> Record
   in ((), AppState t g e mkEmptyOccurencesHist r' b d)
 
-addIgnoredOverdues :: MonadState AppState m
+addIgnoredOverdues :: MonadState (AppState evt) m
                    => Int -> m ()
 addIgnoredOverdues n =
   get >>= \(AppState t a e hist record b d) -> do
@@ -266,7 +230,7 @@ toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
 toColorStr (OccurencesHist (x:_) tailStr) = tailStr <> toColorStr' x
 
-addEventRepr :: EventRepr -> OccurencesHist -> OccurencesHist
+addEventRepr :: EventCategory -> OccurencesHist -> OccurencesHist
 addEventRepr e oh@(OccurencesHist h r) =
   case h of
     [] -> mkOccurencesHist (Occurences 1 e)
@@ -282,26 +246,26 @@ createState :: Maybe Size
             -> SuggestedPlayerName
             -> ServerView ColorScheme WorldParameters
             -> ConnectionStatus
-            -> IO AppState
+            -> IO (AppState evt)
 createState ms dbg a b c = do
   g <- initialGame ms a b c
   t <- getSystemTime
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 
 {-# INLINABLE debug #-}
-debug :: MonadState AppState m => m Bool
+debug :: MonadState (AppState evt) m => m Bool
 debug =
   get >>= \(AppState _ _ _ _ _ _ d) -> return d
 
-toColorStr' :: Occurences EventRepr -> ColorString
+toColorStr' :: Occurences EventCategory -> ColorString
 toColorStr' (Occurences n e) =
-  let r@(ColorString l) = reprToCS e
+  let r@(ColorString l) = evtRepToCS $ evtCatToRep e
       col = case l of
         [] -> white
         ((_,LayeredColor _ fg):_) -> fg
   in r <> colored (pack $ replicate (pred n) '.' ) col
 
-mkOccurencesHist :: Occurences EventRepr -> OccurencesHist
+mkOccurencesHist :: Occurences EventCategory -> OccurencesHist
 mkOccurencesHist o =
   OccurencesHist [o] mempty
 

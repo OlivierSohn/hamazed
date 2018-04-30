@@ -22,15 +22,15 @@ import qualified Data.Map.Strict as Map
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 
-class (Ord (Key a)) => AsyncGroups a where
-  type Key a
+class (Ord (KeyT a)) => AsyncGroups a where
+  type KeyT a
   -- | Attaches an 'Async' to the group, detaches it when the Async is done.
-  belongsTo' :: (MonadIO m) => a -> Async () -> Key a -> m ()
+  belongsTo' :: (MonadIO m) => a -> Async () -> KeyT a -> m ()
   -- | Cancels every 'Async' currently in the group
-  cancel' :: (MonadIO m) => a -> Key a -> m ()
+  cancel' :: (MonadIO m) => a -> KeyT a -> m ()
 
 instance (Ord k) => AsyncGroups (RequestsAsyncs k) where
-  type Key (RequestsAsyncs k) = k
+  type KeyT (RequestsAsyncs k) = k
   belongsTo' (RequestsAsyncs m) a w =
     liftIO $ do
       addRequestAsync m a w

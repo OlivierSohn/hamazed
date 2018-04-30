@@ -155,7 +155,7 @@ import           Imj.Sums
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
-moveWorld :: MonadState AppState m
+moveWorld :: MonadState (AppState evt) m
           => Map ShipId (Coords Vel)
           -> Set ShipId
           -> m ()
@@ -198,7 +198,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
   mapM_ checkComponentStatus changedComponents
 
 -- | Computes the effect of a laser shot on the 'World'.
-laserEventAction :: (MonadState AppState m)
+laserEventAction :: (MonadState (AppState evt) m)
                  => ShipId
                  -> Direction
                  -- ^ The direction of the laser shot
@@ -240,7 +240,7 @@ laserEventAction shipId dir t =
     when (countLiveAmmo newShip == 0) $ checkComponentStatus component
     return (destroyedBalls, isJust maybeLaserRay)
 
-checkComponentStatus :: (MonadState AppState m)
+checkComponentStatus :: (MonadState (AppState evt) m)
                      => ComponentIdx
                      -> m ()
 checkComponentStatus i = countComponentAmmo i >>= \case
@@ -258,7 +258,7 @@ checkComponentStatus i = countComponentAmmo i >>= \case
     _ ->
       return ()
 
-checkAllComponentStatus :: (MonadState AppState m)
+checkAllComponentStatus :: (MonadState (AppState evt) m)
                         => m ()
 checkAllComponentStatus = countComponentsAmmo >>= \ammos ->
   getWorld >>= \w -> do
@@ -267,7 +267,7 @@ checkAllComponentStatus = countComponentsAmmo >>= \ammos ->
           _ -> n) $ getWorldNumbers w
     putWorld $ w { getWorldNumbers = nums }
 
-countComponentAmmo :: (MonadState AppState m)
+countComponentAmmo :: (MonadState (AppState evt) m)
                      => ComponentIdx
                      -> m Int
 countComponentAmmo i =
@@ -281,7 +281,7 @@ countComponentAmmo i =
     0 . getWorldShips <$> getWorld
 
 
-countComponentsAmmo :: (MonadState AppState m)
+countComponentsAmmo :: (MonadState (AppState evt) m)
                     => m (Map ComponentIdx Int)
 countComponentsAmmo =
   Map.foldl'
@@ -294,7 +294,7 @@ countComponentsAmmo =
 
 -- | Discard sums that don't match the live ammo per connex components.
 -- If a reachable number is in no sum, draw it in red.
-checkSums :: (MonadState AppState m)
+checkSums :: (MonadState (AppState evt) m)
           => m ()
 checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
                                          (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _ _) ->
@@ -346,7 +346,7 @@ checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ 
       putWorld $ w { getWorldNumbers = newNumbers }
 
 
-outerSpaceParticleSystems :: (MonadState AppState m)
+outerSpaceParticleSystems :: (MonadState (AppState evt) m)
                           => Time Point ParticleSyst
                           -> ShipId
                           -> LaserRay Actual
@@ -388,7 +388,7 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                 outerSpaceParticleSystems' (WorldScope Wall) laserTarget
                      dir speedAttenuation nRebounds color glyph t)
 
-outerSpaceParticleSystems' :: (MonadState AppState m)
+outerSpaceParticleSystems' :: (MonadState (AppState evt) m)
                            => Scope
                            -> Coords Pos
                            -> Direction
@@ -407,7 +407,7 @@ outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nReboun
       speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs glyph
       (Speed 1) envFuncs t
 
-laserParticleSystems :: (MonadState AppState m)
+laserParticleSystems :: (MonadState (AppState evt) m)
                      => Time Point ParticleSyst
                      -> ShipId
                      -> LaserRay Actual

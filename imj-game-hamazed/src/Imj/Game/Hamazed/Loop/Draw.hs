@@ -33,7 +33,7 @@ import           Imj.Graphics.UI.Slider
 
 -- | Draws the game content.
 {-# INLINABLE draw #-}
-draw :: (MonadState AppState m
+draw :: (MonadState (AppState evt) m
        , MonadReader e m, Draw e
        , MonadIO m)
      => m ()
@@ -64,7 +64,7 @@ draw =
 
 
 {-# INLINABLE drawStatus #-}
-drawStatus :: (MonadState AppState m
+drawStatus :: (MonadState (AppState evt) m
              , MonadReader e m, Draw e
              , MonadIO m)
            => m ()

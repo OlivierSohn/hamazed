@@ -60,8 +60,10 @@ startServerIfLocal srv@(ServerView (Local logs a) _) v createServerState = do
     st False = "failed to start ("
     st True = "starts listening ("
 
-startClient :: (Show p, Show c)
-            => SuggestedPlayerName -> (ServerView p c) -> IO (ClientQueues Event Hamazed)
+startClient :: (Show p, Show c, Categorized e)
+            => SuggestedPlayerName
+            -> ServerView p c
+            -> IO (ClientQueues (Event e) Hamazed)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues

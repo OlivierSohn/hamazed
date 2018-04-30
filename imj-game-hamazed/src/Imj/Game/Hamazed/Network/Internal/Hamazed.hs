@@ -131,7 +131,7 @@ instance Server Hamazed where
     presentClients <-
       Map.map ((\cl -> PlayerEssence (getName cl) Present $ getColor cl) . unClientView) <$> gets clientsMap
     wp <- gets' worldParameters
-    return [ OnWorldParameters wp, MeetThePlayers presentClients]
+    return [MeetThePlayers presentClients, OnWorldParameters wp]
 
   handleClientEvent = handleEvent
 

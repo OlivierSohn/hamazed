@@ -5,6 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Hamazed.Loop.Run
       ( run
@@ -56,6 +57,7 @@ import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
 import           Imj.Game.Hamazed.Loop.Event
+import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.State
@@ -386,7 +388,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
           (\e -> baseLog (colored (pack e) red) >> error e)
           (baseLog . flip colored chartreuse . pack)
         -- the listening socket is available, we can continue.
-        queues <- startClient player srv
+        queues <- startClient player srv :: IO (ClientQueues (Event HamazedEvent) Hamazed)
         case backend of
           Console ->
             newConsoleBackend >>= runWith debug queues srv player
@@ -412,7 +414,7 @@ mkServer (Just _) _ (Just _) =
 {-# INLINABLE runWith #-}
 runWith :: (PlayerInput a, DeltaRenderBackend a)
         => Bool
-        -> ClientQueues Event Hamazed
+        -> ClientQueues (Event HamazedEvent) Hamazed
         -> HamazedView
         -> SuggestedPlayerName
         -> a
@@ -423,20 +425,26 @@ runWith debug queues srv player backend =
       sz <- getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face
       void $ createState sz debug player srv NotConnected >>=
-        runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+        runStateT (runReaderT (loop translatePlatformEvent handleGenEvent) env)
  where
+  handleGenEvent = onEvent hamazedEventUpdate hamazedSrvEvtUpdate
+
   (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
+
   look _ [] = Nothing
   look name ((f,ftName,_):rest) =
     if ftName == name
       then Just (f,ftName)
       else look name rest
 
-loop :: (MonadState AppState m
-       , MonadIO m
-       , MonadReader (Env i) m, PlayerInput i)
-     => (PlatformEvent -> m (Maybe (GenEvent (Env i))))
-     -> (Maybe (GenEvent (Env i)) -> m ())
+loop ::(CliEvtT e ~ Event evt
+      , MonadState (AppState evt) m
+      , MonadReader e m, Client e, PlayerInput e
+      , MonadIO m)
+     => (PlatformEvent -> m (Maybe (GenEvent e)))
+       -- ^ Translates a 'PlatformEvent' to a 'GenEvent'
+     -> (Maybe (GenEvent e) -> m ())
+       -- ^ Handles a 'GenEvent'
      -> m ()
 loop liftPlatformEvent onEventF =
   forever $ nextEvent >>= onEventF
@@ -473,10 +481,11 @@ type AnyEvent e = Either PlatformEvent (GenEvent e)
 -- using poll + threadDelay    10 ->  82.0%
 -- using poll + threadDelay    1  -> 111.0%
 
--- | MonadState AppState is needed to know if the level is finished or not.
+-- | MonadState (AppState evt) is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
-produceEvent :: (MonadState AppState m, MonadIO m, MonadReader (Env i) m, PlayerInput i)
-             => m (Maybe (AnyEvent (Env i)))
+produceEvent :: (Event evt ~ CliEvtT e
+               , MonadState (AppState evt) m, MonadIO m, MonadReader e m, PlayerInput e, Client e)
+             => m (Maybe (AnyEvent e))
 produceEvent = do
   server <- asks serverQueue
   platform <- asks plaformQueue
@@ -501,7 +510,7 @@ produceEvent = do
           triggerRenderOr $ tryAtomicallyBefore deadlineTime readInput))
     (return . Just)
 
-triggerRenderOr :: (MonadState AppState m, MonadIO m, MonadReader e m
+triggerRenderOr :: (MonadState (AppState evt) m, MonadIO m, MonadReader e m
                   , PlayerInput e)
                 => IO (Maybe (AnyEvent e))
                 -> m (Maybe (AnyEvent e))

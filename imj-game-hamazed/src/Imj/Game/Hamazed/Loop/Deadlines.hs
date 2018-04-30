@@ -57,7 +57,7 @@ will happen in-time and not be delayed by a potentially heavy animation update.
 But it's very unlikely that it will make a difference, except if updating
 the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
-getNextDeadline :: (MonadState AppState m)
+getNextDeadline :: (MonadState (AppState evt) m)
                 => Time Point System
                 -- ^ The current time.
                 -> m (Maybe TypedDeadline)

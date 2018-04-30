@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Screen
 import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
@@ -30,21 +31,21 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 
-initialGame :: Maybe Size
+initialGame :: Screen
             -> SuggestedPlayerName
             -> HamazedView
             -> ConnectionStatus
             -> IO Game
-initialGame ms suggPlayerName server connectionStatus =
-  initialGameState initialParameters initialViewMode ms >>= \s ->
-    return $ Game (ClientState Ongoing Excluded) s suggPlayerName server connectionStatus mkChat
+initialGame screen suggPlayerName server connectionStatus =
+  initialGameState initialParameters initialViewMode screen >>= \s ->
+    return $ Game (ClientState Ongoing Excluded) screen s [] mempty suggPlayerName server connectionStatus mkChat
 
 initialGameState :: WorldParameters
                  -> ViewMode
-                 -> Maybe Size
+                 -> Screen
                  -> IO GameState
-initialGameState _ mode ms =
-  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing mempty mode ms Nothing
+initialGameState _ mode s =
+  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing mempty mode s Nothing
 
 mkInitialState :: (MonadIO m)
                => LevelEssence
@@ -52,7 +53,7 @@ mkInitialState :: (MonadIO m)
                -> Maybe WorldId
                -> Map ShipId Player
                -> ViewMode
-               -> Maybe Size
+               -> Screen
                -> Maybe GameState
                -> m GameState
 mkInitialState = mkIntermediateState []
@@ -64,17 +65,16 @@ mkIntermediateState :: (MonadIO m)
                     -> Maybe WorldId
                     -> Map ShipId Player
                     -> ViewMode
-                    -> Maybe Size
+                    -> Screen
                     -> Maybe GameState
                     -> m GameState
-mkIntermediateState newShotNums newLevel essence wid names mode maySz mayState = do
-  let screen@(Screen _ newScreenCenter) = mkScreen maySz
-      newWorld@(World _ _ space _ _ _) = mkWorld essence wid
-      (curWorld@(World _ _ curSpace _ _ _), curScreenCenter, level, shotNums, stAnim) =
+mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screenCenter) mayState = do
+  let newWorld@(World _ _ space _ _ _) = mkWorld essence wid
+      (curWorld@(World _ _ curSpace _ _ _), level, shotNums) =
         maybe
-        (newWorld, newScreenCenter, newLevel, [], [])
-        (\(GameState w _ curShotNums (Level curLevel _) _ stateAnim (Screen _ center) _ _) ->
-            (w, center, curLevel, curShotNums, stateAnim))
+        (newWorld, newLevel, [])
+        (\(GameState w _ curShotNums (Level curLevel _) _ _) ->
+            (w, curLevel, curShotNums))
           mayState
       curInfos = mkInfos Normal        (getWorldShips curWorld) names shotNums    level
       newInfos = mkInfos ColorAnimated (getWorldShips newWorld) names newShotNums newLevel
@@ -83,16 +83,16 @@ mkIntermediateState newShotNums newLevel essence wid names mode maySz mayState =
   let uiAnimation =
         mkUIAnimation
           (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize curScreenCenter (getSize curSpace), curInfos)
+          $ mkRectContainerWithCenterAndInnerSize screenCenter (getSize curSpace), curInfos)
           (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize newScreenCenter (getSize space), newInfos)
+          $ mkRectContainerWithCenterAndInnerSize screenCenter (getSize space), newInfos)
           horizontalDist verticalDist kt
           -- only when UIAnimation is over, curWorld will be replaced by newWorld.
           -- during UIAnimation, we need the two worlds.
-  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation stAnim screen mode names
+  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation mode
 
 mkGameStateEssence :: WorldId -> GameState -> Maybe GameStateEssence
-mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _ _ _ _) =
+mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _) =
   let (essence, mayWid) = worldToEssence $ fromMaybe curWorld mayNewWorld
   in maybe
     Nothing

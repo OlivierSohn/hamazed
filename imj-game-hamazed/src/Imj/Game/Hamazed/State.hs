@@ -32,6 +32,7 @@ import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Types
+import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
@@ -241,14 +242,14 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Maybe Size
+createState :: Screen
             -> Bool
             -> SuggestedPlayerName
             -> ServerView ColorScheme WorldParameters
             -> ConnectionStatus
             -> IO (AppState evt)
-createState ms dbg a b c = do
-  g <- initialGame ms a b c
+createState screen dbg a b c = do
+  g <- initialGame screen a b c
   t <- getSystemTime
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 

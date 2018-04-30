@@ -43,6 +43,7 @@ import           Imj.ServerView.Types
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString
 
 -- Note that we don't have GracefulClientEnd, because we use exitSuccess in that case
@@ -90,21 +91,26 @@ instance (Show (CliEvtT e), Server (ServerT e)) => Show (GenEvent e) where
   show (CliEvt e) = show("CliEvt",e)
   show (SrvEvt e) = show("SrvEvt",e)
 
-type HamazedView = ServerView ColorScheme WorldParameters
+type HamazedView = ServerView ColorScheme WorldParameters -- TODO on Server: ServerViewParamT, ServerViewContentT
 
 data Game = Game {
-    getClientState :: {-# UNPACK #-} !ClientState
-  , getGameState' :: !GameState
-  , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName
-  , getServerView' :: {-unpack sum-} !HamazedView
+    getClientState :: {-# UNPACK #-} !ClientState -- can be seen as generic
+  , getScreen :: {-# UNPACK #-} !Screen
+  , getGameState' :: !GameState -- TODO extract the generic part : Screen, players, drawn client state
+  , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages. For rendering,
+                                          -- AnimatedLine is used.
+                          , AnimatedLine)]
+  , getPlayers' :: !(Map ShipId Player)
+  , _gameSuggestedPlayerName :: {-unpack sum-} !SuggestedPlayerName -- ConnectIdT s
+  , getServerView' :: {-unpack sum-} !HamazedView -- TODO on Server: ServerViewT = ServerView ServerViewParamT ServerViewContentT
   -- ^ The server that runs the game
-  , connection' :: {-unpack sum-} !ConnectionStatus
-  , getChat' :: !Chat
+  , connection' :: {-unpack sum-} !ConnectionStatus -- generic
+  , getChat' :: !Chat -- can be seen as generic ?
 }
 
-{-| 'GameState' has two fields of type 'World' : during 'Level' transitions,
-we draw the /old/ 'World' while using the /new/ 'World' 's
-dimensions to animate the UI accordingly. -}
+{-| 'GameState' has two 'World's : during 'Level' transitions,
+we draw the /old/ 'World' while using the dimensions of the /new/ 'World'
+to animate the UI accordingly. -}
 data GameState = GameState {
     currentWorld :: !World
   , mayFutureWorld :: !(Maybe World)
@@ -116,12 +122,7 @@ data GameState = GameState {
     -- ^ The current 'Level'
   , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
-  , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages. For rendering,
-                                          -- AnimatedLine is used.
-                          , AnimatedLine)]
-  , getScreen :: {-# UNPACK #-} !Screen
   , getViewMode' :: {-unpack sum-} !ViewMode
-  , getPlayers' :: !(Map ShipId Player)
 }
 
 data AnimatedLine = AnimatedLine {

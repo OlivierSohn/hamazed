@@ -20,6 +20,7 @@ import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Screen
 import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
@@ -38,10 +39,10 @@ draw :: (MonadState (AppState evt) m
        , MonadIO m)
      => m ()
 draw =
-  gets game >>= \(Game _
+  gets game >>= \(Game _ (Screen _ screenCenter@(Coords rowCenter _))
                      (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld
-                                _ _ wa _ (Screen _ screenCenter@(Coords rowCenter _)) mode _)
-                     _ _ _ chat) -> do
+                                _ _ wa mode)
+                     _ _ _ _ _ chat) -> do
     let offset = getWorldOffset mode world
         worldCorner = getWorldCorner world screenCenter offset
     -- draw the walls outside the matrix:
@@ -69,13 +70,13 @@ drawStatus :: (MonadState (AppState evt) m
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state gs _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
+  gets game >>= \(Game state _ _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       (ClientState Ongoing Setup) ->
         getCurScreen >>= \(Screen _ center) -> getWorld >>=
           drawSetup worldParams . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace -- TODO using progressivelyInform
       _ -> return ()
-    forM_ (getDrawnClientState gs) $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
+    forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}
 drawSetup :: (MonadReader e m, Draw e

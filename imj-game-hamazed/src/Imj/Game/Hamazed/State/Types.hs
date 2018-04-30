@@ -30,6 +30,7 @@ module Imj.Game.Hamazed.State.Types
       , envFunctions
       -- * Modify
       , putGame
+      , putCurScreen
       , putGameState
       , putPlayer
       , putPlayers
@@ -57,6 +58,7 @@ import           Control.Monad.State.Strict(gets, state, modify')
 import           Data.Map.Strict(fromDistinctAscList, union, updateWithKey, insert, (!?))
 
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
@@ -122,7 +124,11 @@ getWorld = currentWorld <$> getGameState
 
 {-# INLINABLE getCurScreen #-}
 getCurScreen :: MonadState (AppState evt) m => m Screen
-getCurScreen = getScreen <$> getGameState
+getCurScreen = getScreen <$> gets game
+
+{-# INLINABLE putCurScreen #-}
+putCurScreen :: MonadState (AppState evt) m => Screen -> m ()
+putCurScreen s = gets game >>= \g -> putGame $ g { getScreen = s }
 
 {-# INLINABLE getLevel #-}
 getLevel :: MonadState (AppState evt) m => m Level
@@ -201,7 +207,7 @@ getWorldParameters =
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState (AppState evt) m => m (Map ShipId Player)
-getPlayers = getPlayers' <$> getGameState
+getPlayers = getPlayers' <$> gets game
 
 {-# INLINABLE getPlayer #-}
 getPlayer :: MonadState (AppState evt) m => ShipId -> m (Maybe Player)
@@ -209,7 +215,7 @@ getPlayer i = flip (!?) i <$> getPlayers
 
 {-# INLINABLE putPlayers #-}
 putPlayers :: MonadState (AppState evt) m => Map ShipId Player -> m ()
-putPlayers m = getGameState >>= \g -> putGameState g {getPlayers' = m}
+putPlayers m = gets game >>= \g -> putGame g {getPlayers' = m}
 
 {-# INLINABLE putPlayer #-}
 putPlayer :: MonadState (AppState evt) m => ShipId -> Player -> m ()
@@ -253,7 +259,7 @@ putDrawnState :: (MonadState (AppState evt) m)
               => [(ColorString, AnimatedLine)]
               -> m ()
 putDrawnState i =
-  getGameState >>= \gs -> putGameState $ gs { getDrawnClientState = i }
+  gets game >>= \g -> putGame $ g { getDrawnClientState = i }
 
 {-# INLINABLE stateChat #-}
 stateChat :: MonadState (AppState evt) m => (Chat -> (Chat, a)) -> m a

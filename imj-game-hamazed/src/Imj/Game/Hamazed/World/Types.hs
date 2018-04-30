@@ -30,7 +30,6 @@ module Imj.Game.Hamazed.World.Types
         , getCurrentColor
         , Scope(..)
         , ViewMode(..)
-        , Screen(..)
         , getColliding
         , computeViewDistances
         , getWorldCorner
@@ -38,7 +37,6 @@ module Imj.Game.Hamazed.World.Types
         , envDistance
         , environmentInteraction
         , scopedLocation
-        , mkScreen
         -- * World constants
         , initialParameters
         , initialBlockSize
@@ -80,6 +78,7 @@ import           Imj.Physics.Discrete.Types
 
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Color
+import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
 import           Imj.Graphics.UI.RectContainer
@@ -326,22 +325,6 @@ scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCent
  where
   worldArea = mkRectArea zeroCoords $ getSize space
   worldViewArea = growRectArea 1 worldArea
-
-data Screen = Screen {
-    _screenSize :: {-unpack sum-} !(Maybe Size)
-  -- ^ Maybe we couldn't get the screen size.
-  , _screenCenter :: {-# UNPACK #-} !(Coords Pos)
-  -- ^ The center is deduced from screen size, if any, or guessed.
-}
-
-mkScreen :: Maybe Size -> Screen
-mkScreen sz =
-  let center = maybe
-                (Coords 40 80)
-                (\(Size h w) -> Coords (fromIntegral $ quot h 2)
-                                       (fromIntegral $ quot w 2))
-                  sz
-  in Screen sz center
 
 {-# INLINE findShip #-}
 findShip :: ShipId -> Map ShipId BattleShip -> BattleShip

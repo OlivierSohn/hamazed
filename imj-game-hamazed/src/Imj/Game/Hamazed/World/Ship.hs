@@ -29,6 +29,7 @@ import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Geo.Continuous
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
 
@@ -91,8 +92,9 @@ countLiveAmmo (BattleShip _ ammo status _ _) =
 updateShipsText :: (MonadState (AppState evt) m)
                 => m ()
 updateShipsText =
-  getGameState >>= \(GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
-                               (UIAnimation (UIEvolutions j upDown _) p) _ (Screen _ center) mode names) -> do
+  gets game >>= \(Game _ (Screen _ center)
+    (GameState (World _ ships space _ _ _) _ shotNumbers (Level level _)
+               (UIAnimation (UIEvolutions j upDown _) p) mode ) _ names _ _ _ _) -> do
     let newLeft =
           let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space
               (horizontalDist, verticalDist) = computeViewDistances mode

@@ -74,6 +74,7 @@ library
                      , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
+                     , Imj.Graphics.Screen
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3

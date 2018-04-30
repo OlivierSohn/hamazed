@@ -297,7 +297,7 @@ countComponentsAmmo =
 checkSums :: (MonadState (AppState evt) m)
           => m ()
 checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
-                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _ _ _ _) ->
+                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _) ->
   case constraint of
     CanOvershoot -> return ()
     CannotOvershoot -> do

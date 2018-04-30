@@ -41,6 +41,7 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Screen
 import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
@@ -116,12 +117,12 @@ hamazedSrvEvtUpdate = \case
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest wid
   ChangeLevel levelEssence worldEssence wid ->
-    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkInitialState levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ names _ _ _ _) ->
+      mkInitialState levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    getGameState >>= \state@(GameState _ _ _ _ _ _ (Screen sz _) viewMode names) ->
-      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode sz (Just state)
+    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ names _ _ _ _) ->
+      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   OnWorldParameters worldParameters ->
     putWorldParameters worldParameters
@@ -248,13 +249,13 @@ onTargetSize :: (MonadState (AppState evt) m
                , MonadIO m)
              => m ()
 onTargetSize = getTargetSize >>= maybe (return ()) (\sz ->
-  getGameState >>= \g@(GameState curWorld mayNewWorld _ _ uiAnimation _ _ _ _) -> do
+  getGameState >>= \g@(GameState curWorld mayNewWorld _ _ uiAnimation _) -> do
     let screen@(Screen _ newScreenCenter) = mkScreen $ Just sz
         sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
         newPosition = upperLeftFromCenterAndSize newScreenCenter sizeSpace
         newAnim = setPosition newPosition uiAnimation
-    putGameState $ g { getUIAnimation = newAnim,
-                       getScreen = screen })
+    putCurScreen screen
+    putGameState $ g { getUIAnimation = newAnim })
 
 {-# INLINABLE sendToServer #-}
 sendToServer :: (MonadState (AppState evt) m
@@ -297,7 +298,7 @@ onLaser ship dir op =
   (liftIO getSystemTime >>= laserEventAction ship dir) >>= onDestroyedNumbers
  where
   onDestroyedNumbers (destroyedBalls, ammoChanged) =
-    getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a s b m na) -> do
+    getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
       let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
           newFinished = finished <|> finishIfNoAmmo
@@ -306,7 +307,7 @@ onLaser ship dir op =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ GameState w f allShotNumbers newLevel a s b m na
+      putGameState $ GameState w f allShotNumbers newLevel a m
       updateShipsText
       when ammoChanged checkSums
 
@@ -331,7 +332,7 @@ onHasMoved :: (ServerT e ~ Hamazed
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim b o m n) -> do
+    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions = Set.unions $ mapMaybe
             (\(BattleShip _ _ shipStatus collisions _) ->
@@ -357,7 +358,7 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim b o m n
+      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim m
       when numbersChanged checkSums
       updateShipsText
 
@@ -368,7 +369,7 @@ updateUIAnim :: (ServerT e ~ Hamazed
                , MonadIO m)
              => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) b s m names) -> do
+  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) m) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, futWorld, worldAnimDeadline) = maybe
           (fromMaybe
@@ -379,7 +380,7 @@ updateUIAnim t =
           (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
           $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-    putGameState $ GameState world futWorld j k anims b s m names
+    putGameState $ GameState world futWorld j k anims m
     when (isFinished anims) $ do
       checkAllComponentStatus
       checkSums
@@ -403,7 +404,7 @@ updateStatus :: (MonadState (AppState evt) m
              -- ^ When Nothing, the current frame should be used.
              -> Time Point System
              -> m ()
-updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnState' (Screen _ ref) _ _) _ _ _ _) -> do
+updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ drawnState' _ _ _ _ _) -> do
   let drawnState = zip [0 :: Int ..] drawnState'
   newStrs <- zip [0 :: Int ..] <$> go state
   -- return the same evolution when the string didn't change.
@@ -447,7 +448,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (GameState _ _ _ _ _ drawnS
  where
   updateStatusDeadline :: MonadState (AppState evt) m => m ()
   updateStatusDeadline =
-    zip [0..] . getDrawnClientState <$> getGameState >>= mapM
+    zip [0..] . getDrawnClientState <$> gets game >>= mapM
       (\(i, (str, AnimatedLine recordEvolution curFrame _)) -> do
         let frame = fromMaybe curFrame $ maybe
               Nothing

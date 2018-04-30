@@ -62,8 +62,8 @@ getNextDeadline :: (MonadState (AppState evt) m)
                 -- ^ The current time.
                 -> m (Maybe TypedDeadline)
 getNextDeadline t =
-  getGameState >>= \st -> do
-    let l = getDeadlinesByDecreasingPriority st
+  gets game >>= \g -> do
+    let l = getDeadlinesByDecreasingPriority g
         overdues = filter (\(Deadline t' _ _) -> t' < t) l
     return $ case overdues of
           [] ->
@@ -81,19 +81,18 @@ earliestDeadline' [] = Nothing
 earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) -> compare t1 t2 ) l
 
 
-getDeadlinesByDecreasingPriority :: GameState -> [Deadline]
-getDeadlinesByDecreasingPriority s =
+getDeadlinesByDecreasingPriority :: Game -> [Deadline]
+getDeadlinesByDecreasingPriority (Game _ _ s dcs _ _ _ _ _) =
   -- sort from highest to lowest
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     catMaybes [uiAnimationDeadline s]
-    ++ stateAnimDeadlines s
+    ++ stateAnimDeadlines dcs
     ++ getParticleSystemsDeadlines s
 
-stateAnimDeadlines :: GameState -> [Deadline]
-stateAnimDeadlines gs =
+stateAnimDeadlines :: [(a,AnimatedLine)] -> [Deadline]
+stateAnimDeadlines =
   mapMaybe
     (\(_,AnimatedLine _ _ mayD) -> mayD)
-    $ getDrawnClientState gs
 
 getParticleSystemsDeadlines :: GameState -> [Deadline]
 getParticleSystemsDeadlines =

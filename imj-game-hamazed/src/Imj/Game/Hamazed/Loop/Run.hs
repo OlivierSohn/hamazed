@@ -48,6 +48,7 @@ import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 import           Imj.ServerView
@@ -422,9 +423,9 @@ runWith :: (PlayerInput a, DeltaRenderBackend a)
 runWith debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
-      sz <- getDiscreteSize backend
+      screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face
-      void $ createState sz debug player srv NotConnected >>=
+      void $ createState screen debug player srv NotConnected >>=
         runStateT (runReaderT (loop translatePlatformEvent handleGenEvent) env)
  where
   handleGenEvent = onEvent hamazedEventUpdate hamazedSrvEvtUpdate

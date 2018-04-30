@@ -2,7 +2,9 @@
 event acquisition, timeouts, "draw groups".
   - AppState should be made more generic
 
-Imj.Event -- TODO move to imj-engine
+move to imj-engine or base:
+Imj.Event
+Imj.Graphics.Screen
 
 - imj-server could depend on a smaller version of imj-base
 

@@ -24,7 +24,7 @@ module Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar)
-import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, get, state, runStateT)
 import           Data.Map.Strict(Map)
@@ -34,7 +34,7 @@ import qualified Data.Set as Set
 import           Data.Text(pack, unpack)
 import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
-import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar)
+import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
 
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Space.Types
@@ -44,6 +44,7 @@ import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.ClientId
 import           Imj.Game.Hamazed.Network.Setup
+import           Imj.Game.Hamazed.Network.State
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
@@ -88,7 +89,14 @@ instance Server Hamazed where
   type ServerViewParamT Hamazed = ColorScheme
   type ServerViewContentT Hamazed = WorldParameters
 
-  getInitialContent = initialParameters
+  mkInitial colorScheme = do
+    c <- liftIO $ mkCenterColor colorScheme
+    let lvSpec = LevelSpec firstServerLevel CannotOvershoot
+        params = initialParameters
+        wc = mkWorldCreation $ WorldSpec lvSpec Set.empty params
+    (,) params .
+      Hamazed mkGameTiming lvSpec wc IntentSetup c <$> newEmptyMVar
+
 
   inParallel = [gameScheduler]
 

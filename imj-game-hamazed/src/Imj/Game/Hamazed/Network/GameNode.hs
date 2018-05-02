@@ -38,14 +38,13 @@ startServerIfLocal :: Server s
                    => ServerView s
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
-                   -> (ServerLogs -> ServerViewParamT s -> IO (ServerState s))
                    -> IO ()
-startServerIfLocal srv@(ServerView (Distant _) _) v _ = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal srv@(ServerView (Local logs a) _) v createServerState = do
+startServerIfLocal srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal srv@(ServerView (Local logs a) _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
-  createServerState logs a >>= newMVar >>= \state -> do
+  uncurry (mkServerState logs) <$> mkInitial a >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")

@@ -92,11 +92,11 @@ class (Show (ClientEventT s)
   type ReconnectionContext s
 
   ---------------- Server, as viewed by the client -----------------------------
-  type ServerViewParamT s
+  type ServerViewParamT s = (r :: *) | r -> s
   type ServerViewContentT s = (r :: *) | r -> s
 
-  -- | Called once to initialize the server.
-  getInitialContent :: ServerViewContentT s
+  -- | Called to create the server.
+  mkInitial :: (MonadIO m) => ServerViewParamT s -> m (ServerViewContentT s, s)
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,

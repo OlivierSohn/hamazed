@@ -15,11 +15,11 @@ import           Control.Exception (try)
 import           Data.Text(pack)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
-import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.State.Types
 
 import           Imj.Event
 import           Imj.Client
+import           Imj.Log
 
 appCli :: GameLogic g
        => ClientQueues g

@@ -24,6 +24,7 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 
+import           Imj.Graphics.UI.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Text.ColorString
 
@@ -97,6 +98,6 @@ command = do
               return ())
       skipSpace
       case cmdName of
-        "name" -> Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
+        "name" -> Right . RequestApproval . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
         _ -> cmdParser cmdName
-    _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)
+    _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)

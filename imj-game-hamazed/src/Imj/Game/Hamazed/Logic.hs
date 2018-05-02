@@ -50,10 +50,10 @@ import qualified Data.Text as Text
 import           Imj.ClientView.Types
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Hamazed.Level.Types
-import           Imj.Game.Hamazed.Loop.Event.Priorities
+import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
@@ -63,17 +63,18 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.UI.Animation.Types
 import           Imj.Input.Types
 import           Imj.Network
+import           Imj.Server.Class
 
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Event
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
-import           Imj.Game.Hamazed.Loop.Create
-import           Imj.Game.Hamazed.Network.Class.AsyncGroups
 import           Imj.Game.Hamazed.Sound
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Timing
 import           Imj.Game.Update
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
@@ -84,6 +85,7 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Music hiding(Do)
@@ -126,14 +128,14 @@ instance GameLogic HamazedGame where
    where
     tryReport = do
       void endOfInput
-      return $ Right $ ServerRep $ Get ColorSchemeCenterKey
+      return $ Right $ Report $ Get ColorSchemeCenterKey
     tryCmd = do
       r <- decimal
       skipSpace
       g <- decimal
       skipSpace
       b <- decimal
-      return $ ServerCmd . Put . ColorSchemeCenter <$> userRgb r g b
+      return $ Do . Put . ColorSchemeCenter <$> userRgb r g b
 
   initialGame = liftIO . initialGameState initialParameters CenterSpace
 
@@ -156,7 +158,7 @@ instance GameLogic HamazedGame where
   getViewport (Screen _ center) (HamazedGame world _ _ _ _ mode) =
       let offset = getWorldOffset mode world
           worldCorner = getWorldCorner world center offset
-      in flip RectContainer worldCorner $ getSize $ getWorldSpace world
+      in flip RectContainer (sumCoords (Coords (-1) (-1)) worldCorner) $ getSize $ getWorldSpace world
 
   {-# INLINABLE getDeadlines #-}
   getDeadlines (HamazedGame _ _ _ _ uiAnim _) =
@@ -176,21 +178,21 @@ instance GameLogic HamazedGame where
       drawWorld world worldCorner
       drawUIAnimation offset wa -- draw animation after the world so that when it morphs
                                 -- it goes over numbers and ship
-      flip RectContainer worldCorner . getSize . getWorldSpace <$> getWorld
+      flip RectContainer (sumCoords (Coords (-1) (-1)) worldCorner) . getSize . getWorldSpace <$> getWorld
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
     Setup -> return $ case key of
       AlphaNum c -> case c of
         ' ' -> Just $ ClientAppEvt $ ExitedState Setup
-        '1' -> Just $ Do $ Put $ WorldShape Square
-        '2' -> Just $ Do $ Put $ WorldShape Rectangle'2x1
-        --'e' -> Just $ Do $ Put $ WallDistribution None
-        --'r' -> Just $ Do $ Put $ WallDistribution $ minRandomBlockSize 0.5
-        'y' -> Just $ Do $ Succ BlockSize
-        'g' -> Just $ Do $ Pred BlockSize
-        'u' -> Just $ Do $ Succ WallProbability
-        'h' -> Just $ Do $ Pred WallProbability
+        '1' -> Just $ OnCommand $ Do $ Put $ WorldShape Square
+        '2' -> Just $ OnCommand $ Do $ Put $ WorldShape Rectangle'2x1
+        --'e' -> Just $ OnCommand $ Do $ Put $ WallDistribution None
+        --'r' -> Just $ OnCommand $ Do $ Put $ WallDistribution $ minRandomBlockSize 0.5
+        'y' -> Just $ OnCommand $ Do $ Succ BlockSize
+        'g' -> Just $ OnCommand $ Do $ Pred BlockSize
+        'u' -> Just $ OnCommand $ Do $ Succ WallProbability
+        'h' -> Just $ OnCommand $ Do $ Pred WallProbability
         _ -> Nothing
       _ -> Nothing
     PlayLevel status -> case status of

@@ -102,7 +102,7 @@ import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Logic
-import           Imj.Game.Hamazed.Loop.Draw
+import           Imj.Game.Draw
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Loop.Run
 import           Imj.Game.Hamazed.Loop.Timing

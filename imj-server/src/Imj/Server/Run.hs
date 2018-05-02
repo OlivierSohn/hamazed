@@ -141,22 +141,24 @@ handleIncomingEvent' = \case
   Connect i _ ->
     handlerError $ "already connected : " ++ show i
   ClientAppEvt e -> handleClientEvent e
-  RequestApproval cmd@(AssignName name) -> either
-    (notifyClient' . CommandError cmd)
-    (\_ -> checkNameAvailability name >>= either
-      (notifyClient' . CommandError cmd)
-      (\_ -> do
-        adjustClient' $ \c -> c { getName = name }
-        acceptCmd cmd)
-    ) $ checkName $ unpack $ unClientName name
-  RequestApproval cmd@(AssignColor _) ->
-    notifyClient' $ CommandError cmd "You cannot set an individual player color, please use 'Do PutColorSchemeCenter'"
-  RequestApproval cmd@(Says _) ->
-    acceptCmd cmd
-  RequestApproval (Leaves _) ->
-    asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
-  Do x -> onDo x
-  Report x -> onReport x
+  OnCommand c -> case c of
+    RequestApproval cmd -> case cmd of
+      AssignName name -> either
+        (notifyClient' . CommandError cmd)
+        (\_ -> checkNameAvailability name >>= either
+          (notifyClient' . CommandError cmd)
+          (\_ -> do
+            adjustClient' $ \cl -> cl { getName = name }
+            acceptCmd cmd)
+        ) $ checkName $ unpack $ unClientName name
+      AssignColor _ ->
+        notifyClient' $ CommandError cmd "You cannot set an individual player color, please use 'Do PutColorSchemeCenter'"
+      Says _ ->
+        acceptCmd cmd
+      Leaves _ ->
+        asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
+    Do x -> onDo x
+    Report x -> onReport x
 
  where
 

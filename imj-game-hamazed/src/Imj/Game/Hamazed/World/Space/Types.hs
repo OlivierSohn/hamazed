@@ -111,7 +111,7 @@ import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.UI.Slider
 
-import           Imj.Game.Hamazed.Color
+import           Imj.Game.Color
 import           Imj.Geo.Discrete.Interleave
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.Font

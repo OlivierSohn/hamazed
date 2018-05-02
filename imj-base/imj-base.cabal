@@ -32,6 +32,8 @@ library
   include-dirs:        include
   other-modules:
   exposed-modules:     Imj.Control.Concurrent
+                     , Imj.Control.Concurrent.AsyncGroups.Class
+                     , Imj.Control.Concurrent.AsyncGroups.Impl
                      , Imj.Data.AlmostFloat
                      , Imj.Data.Class.Quantifiable
                      , Imj.Data.Graph
@@ -111,6 +113,7 @@ library
                      , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Animation.Types
+                     , Imj.Graphics.UI.Chat
                      , Imj.Graphics.UI.Colored
                      , Imj.Graphics.UI.RectArea
                      , Imj.Graphics.UI.RectContainer
@@ -124,6 +127,7 @@ library
                      , Imj.Input.Types
                      , Imj.Iteration
                      , Imj.Log
+                     , Imj.Network
                      , Imj.Physics
                      , Imj.Physics.Continuous.Types
                      , Imj.Physics.Discrete
@@ -136,6 +140,7 @@ library
   build-depends:       base >= 4.9 && < 4.12
                      , ansi-terminal >=0.7 && < 0.9
                      , array == 0.5.*
+                     , async >=2.1 && < 2.3
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*

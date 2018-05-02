@@ -42,9 +42,7 @@ module Imj.Game.Hamazed.Network.Types
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , HamazedClient
-      , RequestsAsyncs(..)
       -- * Player
-      , SuggestedPlayerName(..)
       , Player(..)
       , PlayerEssence(..)
       , mkPlayer
@@ -53,19 +51,12 @@ module Imj.Game.Hamazed.Network.Types
       , mkPlayerColors
       , getPlayerUIName'
       , getPlayerUIName''
-      -- * Colors
-      , ColorScheme(..)
       -- * Client
       , ClientState(..)
       , StateNature(..)
       , StateValue(..)
       -- * Client / Server communication
       , WorldRequestArg(..)
-      , ServerReport(..)
-      , Command(..)
-      , ClientCommand(..)
-      , ServerCommand(..)
-      , SharedValueKey(..)
       , SharedEnumerableValueKey(..)
       , SharedValue(..)
       , PlayerNotif(..)
@@ -84,17 +75,13 @@ module Imj.Game.Hamazed.Network.Types
 
 import           Imj.Prelude
 
-import           Control.Concurrent.Async (Async)
-import qualified Control.Concurrent.MVar as Lazy -- not using strict version, because Async misses NFData.
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict(Map)
-import           Data.IntMap.Strict(IntMap)
-import           Data.Set(Set)
 import           Data.String(IsString)
 import           Data.Text(unpack)
 
 import           Imj.ClientView.Types
-import           Imj.Game.Hamazed.Chat
+import           Imj.Graphics.UI.Chat
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Game.Hamazed.Network.Internal.Types
@@ -111,8 +98,6 @@ data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !State
 data StateNature = Ongoing | Over
   deriving(Generic, Show, Eq)
 instance Binary StateNature
-
-newtype RequestsAsyncs = RequestsAsyncs (Lazy.MVar (IntMap (Set (Async ()))))
 
 data Player = Player {
     getPlayerName :: {-# UNPACK #-} !ClientName
@@ -155,13 +140,6 @@ getPlayerUIName f (Just (Player (ClientName name) status (PlayerColors c _))) =
     Absent  -> n <> f " (away)" chatMsgColor
  where
   n = f name c
-
-data Command s =
-    ClientCmd !ClientCommand
-  | ServerCmd !(ServerCommand s)
-  | ServerRep !(ServerReport s)
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Server s => Binary (Command s)
 
 welcome :: Map ClientId Player -> ColorString
 welcome l =

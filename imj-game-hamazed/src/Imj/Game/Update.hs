@@ -31,7 +31,7 @@ import           Imj.Server.Class
 import           Imj.Server.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Class.AsyncGroups
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types
@@ -42,9 +42,8 @@ import           Imj.ServerView.Types
 import           Imj.Event
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Command
-import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Priorities
+import           Imj.Game.Timing
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Render
@@ -52,7 +51,8 @@ import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.RasterizedString
-
+import           Imj.Log
+import           Imj.Graphics.UI.Chat
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e
@@ -326,8 +326,5 @@ onSendChatMessage =
       (left . pack)
       (either
         left
-        (f . (\case
-          ServerRep rep -> Report rep
-          ServerCmd cmd -> Do cmd
-          ClientCmd cmd -> RequestApproval cmd)))
+        (f . OnCommand))
       p

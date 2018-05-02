@@ -18,6 +18,7 @@ import qualified Data.Map.Strict as Map
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
+import           Imj.Game.Color
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font

@@ -24,13 +24,7 @@ module Imj.Game.Hamazed.Color (
   , worldFrameColors
   , ammoColor
   , bracketsColor
-  , pendingTextColors
-  , pendingTextColorsInactive
-  , pendingTextColorsEdited
   -- ** Text colors
-  , configColors
-  , configFgColor
-  , darkConfigFgColor
   , messageColor
   , neutralMessageColor
   , neutralMessageColorFg
@@ -110,18 +104,12 @@ wall1ColorCycle  = ColorCycle (rgb 3 2 2) (rgb 3 1 0)
 wall2ColorCycle  = ColorCycle (rgb 4 2 1) (rgb 3 2 2)
 laserColorCycle  = ColorCycle (rgb 3 2 4) (rgb 3 2 2)
 
-darkConfigFgColor, configFgColor, neutralMessageColorFg, ammoColor :: Color8 Foreground
-darkConfigFgColor = gray 4
-configFgColor = gray 8
+neutralMessageColorFg, ammoColor :: Color8 Foreground
 neutralMessageColorFg = gray 10
 ammoColor = gray 14
 
 neutralMessageColor :: LayeredColor
 neutralMessageColor = onBlack neutralMessageColorFg
-
-
-configColors :: LayeredColor
-configColors = LayeredColor black configFgColor
 
 wallColors :: LayeredColor
 wallColors = LayeredColor (gray 0) (gray 3)
@@ -139,15 +127,6 @@ bracketsColor = worldFrameFgColor
 messageColor :: LevelOutcome -> LayeredColor
 messageColor Won      = onBlack $ rgb 4 3 1
 messageColor (Lost _) = onBlack $ gray 6
-
-pendingTextColors :: LayeredColor
-pendingTextColors = onBlack $ gray 12
-
-pendingTextColorsInactive :: LayeredColor
-pendingTextColorsInactive = pendingTextColors
-
-pendingTextColorsEdited :: LayeredColor
-pendingTextColorsEdited = LayeredColor (gray 5) $ gray 12
 
 shipColors :: LayeredColor
 shipColors = LayeredColor shipBgColor shipColor

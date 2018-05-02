@@ -3,7 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Chat
+module Imj.Graphics.UI.Chat
   ( Chat(..)
   , mkChat
   , takeMessage
@@ -21,15 +21,14 @@ import           Imj.Prelude hiding (drop, null)
 import qualified Prelude as P(length)
 import           Data.Text(Text, snoc, length, splitAt, dropEnd, drop, null)
 
-import           Imj.ClientView.Types
-
-import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.Positionable
 import qualified Imj.Graphics.Class.Words as Words
+import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.TextBox
 import           Imj.Geo.Discrete
 import           Imj.Log
+import           Imj.Network
 
 data Chat = Chat {
     editableText :: !EditableText
@@ -156,3 +155,8 @@ runChat (Navigate dir) c@(Chat e@(EditableText txt pos) _ _ _) =
         Up -> 0
         Down -> length txt
   in c { editableText = e { editingPos = newPos } }
+
+pendingTextColors, pendingTextColorsInactive, pendingTextColorsEdited :: LayeredColor
+pendingTextColors = onBlack $ gray 12
+pendingTextColorsInactive = pendingTextColors
+pendingTextColorsEdited = LayeredColor (gray 5) $ gray 12

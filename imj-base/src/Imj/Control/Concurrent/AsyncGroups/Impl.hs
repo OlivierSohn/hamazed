@@ -6,37 +6,35 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Imj.Game.Hamazed.Network.Class.AsyncGroups
-    ( AsyncGroups(..)
+module Imj.Control.Concurrent.AsyncGroups.Impl
+    ( AsyncGroupsImpl(..)
+    -- * reexport
+    , AsyncGroups(..)
     ) where
 
 import           Imj.Prelude
 
 import           Control.Concurrent.Async (Async, cancel, wait)
 import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using strict version, because Async misses NFData.
-import           Control.Monad.IO.Class(MonadIO, liftIO)
+import           Control.Monad.IO.Class(liftIO)
 
 import qualified Data.Set as Set
+import           Data.Set(Set)
 import qualified Data.IntMap.Strict as Map
 import           Data.IntMap.Strict(IntMap)
 
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.World.Types
+import           Imj.Control.Concurrent.AsyncGroups.Class
 
-class AsyncGroups a where
-  -- | Attaches an 'Async' to the group, detaches it when the Async is done.
-  belongsTo' :: (MonadIO m) => a -> Async () -> Int -> m ()
-  -- | Cancels every 'Async' currently in the group
-  cancel' :: (MonadIO m) => a -> Int -> m ()
+newtype AsyncGroupsImpl = AsyncGroupsImpl (Lazy.MVar (IntMap (Set (Async ()))))
 
-instance AsyncGroups RequestsAsyncs where
-  belongsTo' (RequestsAsyncs m) a w =
+instance AsyncGroups AsyncGroupsImpl where
+  belongsTo' (AsyncGroupsImpl m) a w =
     liftIO $ do
       addRequestAsync m a w
       void $ wait a
       removeRequestAsync m a w
 
-  cancel' (RequestsAsyncs m) = liftIO . releaseRequestResources m
+  cancel' (AsyncGroupsImpl m) = liftIO . releaseRequestResources m
 
   {-# INLINABLE belongsTo' #-}
   {-# INLINABLE cancel' #-}

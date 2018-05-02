@@ -28,15 +28,15 @@ import           Data.Text(pack)
 import           Imj.Categorized
 import           Imj.Event
 import           Imj.Game.Hamazed.State.Types
-import           Imj.Game.Hamazed.Network.Class.AsyncGroups
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
-import           Imj.Game.Hamazed.Loop.Create
-import           Imj.Game.Hamazed.Loop.Draw
+import           Imj.Game.Draw
+import           Imj.Graphics.UI.Chat
 import           Imj.Game.Update
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.HasSizedFace
@@ -65,7 +65,7 @@ onEvent mayEvt = do
     playerEndsProgram >>= \end ->
       when end $ do
         -- Note that it is safe to send this several times
-        asks sendToServer' >>= \f -> f $ RequestApproval $ Leaves $ Right ()
+        asks sendToServer' >>= \f -> f $ OnCommand $ RequestApproval $ Leaves $ Right ()
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (GameLogicT e ~ g
@@ -231,9 +231,15 @@ createState :: GameLogic g
             -> ConnectionStatus
             -> IO (AppState g)
 createState screen dbg a b c = do
-  g <- mkGame screen a b c <$> initialGame screen
+  g <- mkGame <$> initialGame screen
   t <- getSystemTime
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
+
+ where
+
+  mkGame initial =
+    Game (ClientState Ongoing Excluded) screen initial mempty [] mempty a b c mkChat
+
 
 {-# INLINABLE debug #-}
 debug :: MonadState (AppState g) m => m Bool

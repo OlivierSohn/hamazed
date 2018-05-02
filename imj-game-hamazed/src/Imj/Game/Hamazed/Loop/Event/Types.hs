@@ -6,9 +6,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.Loop.Event.Types
-        ( MessageLevel(..)
-        , ChatCommand(..)
-        , GameStatus(..)
+        ( GameStatus(..)
         , ActionTarget(..)
         , MetaAction(..)
         , HamazedEvent(..)
@@ -22,8 +20,6 @@ import           Imj.Game.Hamazed.Level.Types
 
 import           Imj.ClientView.Types
 import           Imj.Event
-import           Imj.Game.Hamazed.Chat
-import           Imj.Log
 
 data HamazedEvent =
      Interrupt !MetaAction

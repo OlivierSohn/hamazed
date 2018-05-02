@@ -14,11 +14,10 @@ import           Imj.Prelude
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Event
-import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Graphics.UI.Chat
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.Types
 import           Imj.Input.Types
 
 translatePlatformEvent :: (GameLogicT e ~ g
@@ -28,10 +27,10 @@ translatePlatformEvent :: (GameLogicT e ~ g
                        -> m (Maybe (GenEvent g))
 translatePlatformEvent k = case k of
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
-  StopProgram -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
+  StopProgram -> return $ Just $ CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()
   FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
   KeyPress key -> case key of
-    Escape      -> return $ Just $ CliEvt $ RequestApproval $ Leaves $ Right ()
+    Escape      -> return $ Just $ CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()
     Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
     _ -> getChatMode >>= \case
       Editing -> return $ case key of

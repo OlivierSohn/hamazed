@@ -15,7 +15,6 @@ module Imj.Game.Hamazed.Env
 import qualified Control.Concurrent.MVar as Lazy(newMVar)
 import qualified Data.IntMap as Map(empty)
 
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw
@@ -23,16 +22,16 @@ import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Input.Types
 
-import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Client
-import           Imj.Game.Hamazed.Network.Class.AsyncGroups
+import           Imj.Graphics.Render.Delta(DeltaEnv)
+import           Imj.Control.Concurrent.AsyncGroups.Impl
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
 data Env i g = Env {
     _envDeltaEnv :: !DeltaEnv
   , _envPlayerInput :: !i
   , _envClientQueues :: !(ClientQueues g)
-  , asyncGroups :: !RequestsAsyncs
+  , asyncGroups :: !AsyncGroupsImpl
   , getSizedFace' :: !SizedFace
   -- ^ Font to draw 'RasterizedString's
 }
@@ -41,7 +40,7 @@ instance HasSizedFace (Env i g) where
 
 mkEnv :: DeltaEnv -> i -> ClientQueues g -> SizedFace -> IO (Env i g)
 mkEnv a b c d = do
-  m <- RequestsAsyncs <$> Lazy.newMVar Map.empty
+  m <- AsyncGroupsImpl <$> Lazy.newMVar Map.empty
   return $ Env a b c m d
 
 

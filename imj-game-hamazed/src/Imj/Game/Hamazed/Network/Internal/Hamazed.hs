@@ -50,6 +50,7 @@ import           Imj.Server.Class
 import           Imj.Server.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Server
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Music hiding(Do)
 import           Imj.Server.Connection

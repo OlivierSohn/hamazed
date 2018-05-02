@@ -9,7 +9,6 @@ module Imj.ClientView.Internal.Types
       , ConstClientView(..)
       , ClientId(..)
       , ServerOwnership(..)
-      , ClientName(..), unClientName
       ) where
 
 import           Imj.Prelude
@@ -17,6 +16,7 @@ import           Data.Int(Int64)
 import           Data.Map.Strict(Map)
 import           Network.WebSockets(Connection)
 
+import           Imj.Network
 import           Imj.Graphics.Color
 
 -- | Immutable data associated to a client.
@@ -58,9 +58,3 @@ data ServerOwnership =
   deriving(Generic, Show, Eq)
 instance Binary ServerOwnership
 instance NFData ServerOwnership
-
-
-newtype ClientName = ClientName Text
-  deriving(Generic, Show, Binary, Eq, NFData)
-unClientName :: ClientName -> Text
-unClientName (ClientName t) = t

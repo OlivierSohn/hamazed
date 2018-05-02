@@ -40,6 +40,7 @@ import           Imj.Graphics.Class.UIInstructions
 import           Imj.Server.Internal.Types
 
 import           Imj.Graphics.Color
+import           Imj.Network
 
 class (Show (ClientEventT s)
      , Show (ConnectIdT s)

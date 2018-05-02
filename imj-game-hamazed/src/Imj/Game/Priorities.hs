@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Hamazed.Loop.Event.Priorities
+module Imj.Game.Priorities
         ( playerPriority
         , animateUIPriority
         , redrawStatusPriority

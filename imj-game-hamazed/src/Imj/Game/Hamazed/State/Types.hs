@@ -74,8 +74,8 @@ import           Data.Text(unpack)
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
-import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Network.Class.AsyncGroups
+import           Imj.Game.Priorities
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
@@ -88,8 +88,8 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
-import           Imj.Game.Hamazed.Chat
-import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Graphics.UI.Chat
+import           Imj.Game.Timing
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Text.ColorString
 

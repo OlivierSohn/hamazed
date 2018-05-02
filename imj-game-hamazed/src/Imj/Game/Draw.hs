@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Imj.Game.Hamazed.Loop.Draw
+module Imj.Game.Draw
       ( draw
       ) where
 
@@ -23,7 +23,7 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Screen
 import           Imj.ServerView.Types
 
-import           Imj.Game.Hamazed.Color
+import           Imj.Game.Color
 import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.UI.Colored

@@ -9,6 +9,7 @@ module Imj.Server.Types
       , mkServerState
       , ServerEvent(..)
       , ClientEvent(..)
+      , Command(..)
       , ClientCommand(..)
       , ClientName(..), unClientName
       , ServerOwnership(..)
@@ -30,11 +31,8 @@ import           Imj.Server.Internal.Types
 import           Imj.Server.Class
 import           Imj.Graphics.Color
 
-data ClientEvent s =
-    ClientAppEvt !(ClientEventT s)
-  | Connect !(ConnectIdT s) {-unpack sum-} !ServerOwnership
-  -- NOTE RequestApproval, Do and Report could be factored as 'OnCommand' 'Command'
-  | RequestApproval {-unpack sum-} !ClientCommand
+data Command s =
+    RequestApproval !ClientCommand
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
   | Do !(ServerCommand s)
@@ -43,6 +41,13 @@ data ClientEvent s =
   | Report !(ServerReport s)
   -- ^ A client want to know an information on the server state. The server will answer by
   -- sending a 'Report'.
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Server s => Binary (Command s)
+
+data ClientEvent s =
+    ClientAppEvt !(ClientEventT s)
+  | Connect !(ConnectIdT s) {-unpack sum-} !ServerOwnership
+  | OnCommand !(Command s)
   deriving(Generic)
 instance Server s => Binary (ClientEvent s)
 instance Server s => WebSocketsData (ClientEvent s) where
@@ -57,9 +62,7 @@ instance Server s => WebSocketsData (ClientEvent s) where
 instance Server s => Show (ClientEvent s) where
   show (ClientAppEvt e) = show ("ClientAppEvt" ,e)
   show (Connect s e) = show ("Connect" ,s,e)
-  show (RequestApproval x) = show ("RequestApproval" ,x)
-  show (Do x) = show ("Do" ,x)
-  show (Report x) = show ("Report" ,x)
+  show (OnCommand x) = show ("OnCommand" ,x)
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)

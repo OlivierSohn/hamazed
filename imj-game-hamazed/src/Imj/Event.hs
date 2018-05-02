@@ -23,7 +23,7 @@ import           Imj.Prelude
 import           Imj.Geo.Discrete.Types
 import           Imj.Categorized
 
-import           Imj.Game.Hamazed.Chat
+import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Graphics.Font
 import           Imj.Iteration

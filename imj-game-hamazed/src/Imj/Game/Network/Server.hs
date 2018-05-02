@@ -2,11 +2,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Imj.Game.Server
+module Imj.Game.Network.Server
       ( srvColorSchemeArg
       , ColorScheme(..)
       , mkCenterColor
       , SuggestedPlayerName(..)
+      , mkClientColorFromCenter
       ) where
 
 import           Imj.Prelude
@@ -20,6 +21,7 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Color.Types
 import           Imj.Game.Color
 import           Imj.Timing
+import           Imj.ClientView.Types
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)
@@ -59,3 +61,19 @@ srvColorSchemeArg = map toLower <$> str >>= \lowercase -> do
       _ -> err)
     (return . ColorScheme)
     $ predefinedColor lowercase
+
+-- | This function assumes that ClientId's start at 0 and are ascending.
+mkClientColorFromCenter :: ClientId -> Color8 Foreground -> Color8 Foreground
+mkClientColorFromCenter i ref =
+  let nColors = countHuesOfSameIntensity ref
+      -- we want the following mapping:
+      -- 0 -> 0
+      -- 1 -> 1
+      -- 2 -> -1
+      -- 3 -> 2
+      -- 4 -> -2
+      -- ...
+      dist = quot (succ i) 2
+      n' = fromIntegral dist `mod` nColors
+      n = if odd i then n' else -n'
+  in rotateHue (fromIntegral n / fromIntegral nColors) ref

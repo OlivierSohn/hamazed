@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Hamazed.State
+module Imj.Game.State
       (
       -- * Create
         createState
@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.State
       , toggleRecordEvent
       , addIgnoredOverdues
       -- * reexports
-      , module Imj.Game.Hamazed.State.Types
+      , module Imj.Game.Types
       ) where
 
 import           Imj.Prelude
@@ -27,7 +27,7 @@ import           Data.Text(pack)
 
 import           Imj.Categorized
 import           Imj.Event
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types

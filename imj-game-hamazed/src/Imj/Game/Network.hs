@@ -2,7 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Network.GameNode
+module Imj.Game.Network
       ( startClient
       , startServerIfLocal
       ) where
@@ -23,14 +23,14 @@ import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.ServerView.Types
 import           Imj.ServerView
 
 import           Imj.Event
-import           Imj.Client
-import           Imj.Game.Hamazed.Network.Client(appCli)
+import           Imj.Game.Network.ClientQueues
+import           Imj.Game.Network.Client(appCli)
 import           Imj.Log
 import           Imj.Server.Run
 

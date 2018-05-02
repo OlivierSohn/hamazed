@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Imj.Game.Hamazed.Network.Client
+module Imj.Game.Network.Client
       ( appCli
       ) where
 
@@ -15,10 +15,10 @@ import           Control.Exception (try)
 import           Data.Text(pack)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 
 import           Imj.Event
-import           Imj.Client
+import           Imj.Game.Network.ClientQueues
 import           Imj.Log
 
 appCli :: GameLogic g

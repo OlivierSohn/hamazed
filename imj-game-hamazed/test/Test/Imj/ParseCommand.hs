@@ -10,11 +10,11 @@ import           Data.Text
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Logic
 import           Imj.Server.Class
 
-import           Imj.Game.Hamazed.Command
+import           Imj.Game.Command
 import           Imj.Graphics.Color
 
 testMaxOneSpace :: IO ()

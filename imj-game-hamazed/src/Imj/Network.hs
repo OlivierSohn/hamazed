@@ -15,7 +15,7 @@ import           Imj.Prelude
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Server.Types
 
 {-# INLINABLE sendToServer #-}

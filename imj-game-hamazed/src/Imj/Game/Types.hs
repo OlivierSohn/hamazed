@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Imj.Game.Hamazed.State.Types
+module Imj.Game.Types -- TODO split
       (
       -- * Client / GameLogic
         Client(..)

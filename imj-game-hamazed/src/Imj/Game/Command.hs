@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.Command
+module Imj.Game.Command
       ( Command(..)
       , command
       , runClientCommand
@@ -21,7 +21,7 @@ import           Data.Text(pack, unsnoc)
 import qualified Data.Text as Text
 
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 
 import           Imj.Graphics.UI.Chat

@@ -5,7 +5,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Hamazed.KeysMaps
+module Imj.Game.KeysMaps
     ( translatePlatformEvent
     ) where
 
@@ -15,7 +15,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Event
 import           Imj.Graphics.UI.Chat
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Input.Types

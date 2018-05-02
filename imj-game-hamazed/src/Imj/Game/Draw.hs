@@ -16,7 +16,7 @@ import           Control.Monad.IO.Class(MonadIO)
 
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable

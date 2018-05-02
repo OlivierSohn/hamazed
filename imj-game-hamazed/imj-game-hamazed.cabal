@@ -30,34 +30,31 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Client
-                     , Imj.Event
+  exposed-modules:     Imj.Event
                      , Imj.Game.Color
                      , Imj.Game.Deadlines
                      , Imj.Game.Draw
                      , Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Color
-                     , Imj.Game.Hamazed.Command
-                     , Imj.Game.Hamazed.Env
+                     , Imj.Game.Command
+                     , Imj.Game.Env
                      , Imj.Game.Hamazed.Infos
-                     , Imj.Game.Hamazed.KeysMaps
+                     , Imj.Game.KeysMaps
                      , Imj.Game.Hamazed.Level.Types
                      , Imj.Game.Hamazed.Logic
                      , Imj.Game.Hamazed.Loop.Event.Types
                      , Imj.Game.Hamazed.Loop.Run
                      , Imj.Game.Hamazed.Loop.Timing
                      , Imj.Game.Hamazed.Music
-                     , Imj.Game.Hamazed.Network.Client
-                     , Imj.Game.Hamazed.Network.ClientId
-                     , Imj.Game.Hamazed.Network.GameNode
+                     , Imj.Game.Network
                      , Imj.Game.Hamazed.Network.Internal.Hamazed
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
                      , Imj.Game.Hamazed.Sound
-                     , Imj.Game.Hamazed.State
-                     , Imj.Game.Hamazed.State.Types
+                     , Imj.Game.State
+                     , Imj.Game.Types
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -69,9 +66,11 @@ library
                      , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
+                     , Imj.Game.Network.Client
+                     , Imj.Game.Network.ClientQueues
+                     , Imj.Game.Network.Server
                      , Imj.Game.Priorities
                      , Imj.Game.Run
-                     , Imj.Game.Server
                      , Imj.Game.Timing
                      , Imj.Game.Update
                      , Imj.Graphics.Screen

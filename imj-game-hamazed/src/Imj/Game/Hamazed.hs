@@ -88,7 +88,7 @@ module Imj.Game.Hamazed
         -- * Keyboard layout
       , translatePlatformEvent
         -- * Reexport
-      , module Imj.Game.Hamazed.Env
+      , module Imj.Game.Env
       , module Imj.Game.Hamazed.World
       , UIAnimation(..)
       ) where
@@ -98,8 +98,8 @@ import           Imj.Prelude
 import           Imj.Event
 import           Imj.Game.Update
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Env
-import           Imj.Game.Hamazed.KeysMaps
+import           Imj.Game.Env
+import           Imj.Game.KeysMaps
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Logic
 import           Imj.Game.Draw

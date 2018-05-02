@@ -30,15 +30,15 @@ import           Imj.Input.Types
 import           Imj.ServerView.Types
 
 import           Imj.Event
-import           Imj.Game.Hamazed.Env
-import           Imj.Game.Hamazed.KeysMaps
+import           Imj.Game.Env
+import           Imj.Game.KeysMaps
 import           Imj.Game.Deadlines
-import           Imj.Game.Hamazed.State
+import           Imj.Game.State
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Text.RasterizedString
-import           Imj.Client
+import           Imj.Game.Network.ClientQueues
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, PlayerInput i, DeltaRenderBackend i)

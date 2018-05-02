@@ -7,7 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Hamazed.Env
+module Imj.Game.Env
       ( Env(..)
       , mkEnv
       ) where
@@ -15,14 +15,14 @@ module Imj.Game.Hamazed.Env
 import qualified Control.Concurrent.MVar as Lazy(newMVar)
 import qualified Data.IntMap as Map(empty)
 
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Input.Types
 
-import           Imj.Client
+import           Imj.Game.Network.ClientQueues
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Control.Concurrent.AsyncGroups.Impl
 

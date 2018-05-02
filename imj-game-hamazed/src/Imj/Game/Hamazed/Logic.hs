@@ -54,7 +54,7 @@ import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.HasSizedFace

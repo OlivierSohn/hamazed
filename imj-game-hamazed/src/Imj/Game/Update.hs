@@ -32,7 +32,7 @@ import           Imj.Server.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Control.Concurrent.AsyncGroups.Class
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
@@ -41,7 +41,7 @@ import           Imj.ServerView.Types
 
 import           Imj.Event
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Command
+import           Imj.Game.Command
 import           Imj.Game.Priorities
 import           Imj.Game.Timing
 import           Imj.Graphics.Class.HasSizedFace

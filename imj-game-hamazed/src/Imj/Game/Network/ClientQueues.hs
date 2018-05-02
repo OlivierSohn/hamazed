@@ -5,7 +5,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Client
+module Imj.Game.Network.ClientQueues
       ( ClientQueues(..)
       ) where
 
@@ -13,7 +13,7 @@ import           Imj.Prelude
 import           Control.Concurrent.STM(TQueue, writeTQueue, atomically)
 import           Control.Monad.IO.Class(liftIO)
 
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Server.Types
 
 

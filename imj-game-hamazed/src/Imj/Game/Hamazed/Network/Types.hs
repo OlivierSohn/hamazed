@@ -4,8 +4,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+
 {-|
-This module exports types related to networking.
+This module exports types related to networking for Hamazed game.
 
 Game events are sent by the clients, proccessed by the server. For example, if two players
 play the game:
@@ -59,7 +60,6 @@ module Imj.Game.Hamazed.Network.Types
       , WorldRequestArg(..)
       , SharedEnumerableValueKey(..)
       , SharedValue(..)
-      , PlayerNotif(..)
       , GameNotif(..)
       , GameStep(..)
       , GameStatus(..)

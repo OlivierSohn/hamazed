@@ -42,16 +42,16 @@ import           Imj.ServerView.Types
 import           Imj.ServerView
 
 import           Imj.Audio
-import           Imj.Game.Hamazed.Network.GameNode
+import           Imj.Game.Network
 import           Imj.Game.Run
 import           Imj.Game.Color
-import           Imj.Game.Server
+import           Imj.Game.Network.Server
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 import           Imj.Graphics.Text.ColorString hiding(putStr)
 import           Imj.Graphics.Text.Render
-import           Imj.Client
+import           Imj.Game.Network.ClientQueues
 import           Imj.Log
 
 {- | Runs the Hamazed game.

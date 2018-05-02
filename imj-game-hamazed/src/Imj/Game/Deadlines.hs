@@ -16,7 +16,7 @@ import           Data.List( minimumBy, sortBy)
 import           Data.Maybe( mapMaybe )
 
 import           Imj.Game.Priorities
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
 
 import           Imj.Event

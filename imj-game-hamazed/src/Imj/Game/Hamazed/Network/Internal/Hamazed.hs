@@ -42,7 +42,6 @@ import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Hamazed.Network.ClientId
 import           Imj.Game.Hamazed.Network.Setup
 import           Imj.Game.Hamazed.Network.State
 import           Imj.Graphics.Color.Types
@@ -50,7 +49,7 @@ import           Imj.Server.Class
 import           Imj.Server.Types
 
 import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Game.Server
+import           Imj.Game.Network.Server
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Music hiding(Do)
 import           Imj.Server.Connection

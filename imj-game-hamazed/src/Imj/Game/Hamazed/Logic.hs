@@ -120,7 +120,7 @@ instance GameLogic GameState where
   type ServerT GameState = Hamazed
   type ClientOnlyEvtT GameState = HamazedEvent
 
-  mkCmdArgParser cmd = case cmd of
+  cmdParser cmd = case cmd of
     "color" -> tryReport <|> tryCmd
     _ -> fail $ "'" <> unpack cmd <> "' is an unknown command."
    where
@@ -137,7 +137,7 @@ instance GameLogic GameState where
 
   initialGame = liftIO . initialGameState initialParameters CenterSpace
 
-  onTargetSizeChanged _ =
+  onResizedWindow _ =
     gets game >>= \(Game _ (Screen _ screenCenter) g@(GameState curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _) -> do
       let sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
           newPosition = upperLeftFromCenterAndSize screenCenter sizeSpace
@@ -149,12 +149,8 @@ instance GameLogic GameState where
   {-# INLINABLE onUpdateUIAnim #-}
   onUpdateUIAnim = updateUIAnim
 
-  {-# INLINABLE onServerEvent #-}
-  onServerEvent = hamazedSrvEvtUpdate
-
-  onClientEvent = \case
-    Interrupt Help -> error "not implemented"
-    PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
+  {-# INLINABLE onUpdateEvent #-}
+  onUpdateEvent = hamazedEvtUpdate
 
   {-# INLINABLE getGameSize #-}
   getGameSize = getSize . getWorldSpace <$> getWorld
@@ -163,13 +159,13 @@ instance GameLogic GameState where
   getDeadlines (GameState _ _ _ _ uiAnim _) =
     maybeToList $ uiAnimationDeadline uiAnim
 
-  {-# INLINE particleSystems #-}
-  particleSystems (GameState w _ _ _ _ _) =
-    getParticleSystems w
+  {-# INLINE getParticleSystems #-}
+  getParticleSystems (GameState w _ _ _ _ _) =
+    worldParticleSystems w
 
   {-# INLINE putParticleSystems #-}
   putParticleSystems s g@(GameState w _ _ _ _ _) =
-    g { currentWorld = w {getParticleSystems = s} }
+    g { currentWorld = w {worldParticleSystems = s} }
 
   {-# INLINABLE drawGame #-}
   drawGame = gets game >>=
@@ -188,7 +184,7 @@ instance GameLogic GameState where
                                 -- it goes over numbers and ship
       flip RectContainer worldCorner <$> getGameSize
 
-  keyMapForOngoingState key val = fmap CliEvt <$> (case val of
+  keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
     Setup -> return $ case key of
       AlphaNum c -> case c of
@@ -296,14 +292,17 @@ mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screen
   return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation mode
 
 
-{-# INLINABLE hamazedSrvEvtUpdate #-}
-hamazedSrvEvtUpdate :: (GameLogicT e ~ GameState
-                     , MonadState (AppState GameState) m
-                     , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e
-                     , MonadIO m)
-                   => HamazedServerEvent
+{-# INLINABLE hamazedEvtUpdate #-}
+hamazedEvtUpdate :: (GameLogicT e ~ GameState
+                   , MonadState (AppState GameState) m
+                   , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e
+                   , MonadIO m)
+                   => CustomUpdateEvent GameState
                    -> m ()
-hamazedSrvEvtUpdate = \case
+hamazedEvtUpdate (Right cliEvt) = case cliEvt of
+  Interrupt Help -> error "not implemented"
+  PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
+hamazedEvtUpdate (Left srvEvt) = case srvEvt of
   PlayMusic music instr -> liftIO $ play music instr
   WorldRequest wid arg -> case arg of
     GetGameState ->
@@ -440,8 +439,9 @@ onHasMoved =
       when numbersChanged checkSums
       updateShipsText
 
+-- | When the animation is over, swaps the future world with the current one.
 {-# INLINABLE updateUIAnim #-}
-updateUIAnim :: (GameLogicT e ~ GameState
+updateUIAnim :: (GameLogicT e ~ GameState -- TODO split
                , MonadState (AppState GameState) m
                , MonadReader e m, Client e
                , MonadIO m)
@@ -510,11 +510,11 @@ updateShipsText :: (MonadState (AppState GameState) m)
                 => m ()
 updateShipsText =
   gets game >>= \(Game _ (Screen _ center)
-    (GameState (World _ ships space' _ _ _) _ shotNumbers (Level level _)
+    (GameState (World _ ships _ _ _ _) _ shotNumbers (Level level _)
                (UIAnimation (UIEvolutions j upDown _) p) mode ) _ names _ _ _ _) -> do
+    frameSpace <- mkRectContainerWithCenterAndInnerSize center <$> getGameSize
     let newLeft =
-          let frameSpace = mkRectContainerWithCenterAndInnerSize center $ getSize space'
-              (horizontalDist, verticalDist) = computeViewDistances mode
+          let (horizontalDist, verticalDist) = computeViewDistances mode
               (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
               infos = mkLeftInfo Normal ships names shotNumbers level
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
@@ -902,7 +902,7 @@ addParticleSystems :: MonadState (AppState GameState) m
 addParticleSystems l = do
   keys <- takeKeys $ length l
   let ps2 = Map.fromDistinctAscList $ zip keys l
-  getWorld >>= \w -> putWorld $ w {getParticleSystems = Map.union (getParticleSystems w) ps2}
+  getWorld >>= \w -> putWorld $ w {worldParticleSystems = Map.union (worldParticleSystems w) ps2}
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}

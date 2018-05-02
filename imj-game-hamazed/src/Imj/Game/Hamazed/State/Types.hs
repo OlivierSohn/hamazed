@@ -15,6 +15,7 @@ module Imj.Game.Hamazed.State.Types
       , AnimatedLine(..)
       , GenEvent(..)
       , UpdateEvent
+      , CustomUpdateEvent
       , EventGroup(..)
       -- * AppState type
       , AppState(..)
@@ -134,8 +135,7 @@ instance GameLogic g => Show (GenEvent g) where
 
 type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 
--- | 'GameLogic' Formalizes the client-side logic of the game.
--- (The server-side dual is 'Server').
+-- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g))
@@ -144,92 +144,79 @@ class (Server (ServerT g)
      where
 
   type ServerT g = (r :: *) | r -> g
+  -- ^ Server-side dual of 'GameLogic'
 
   type ClientOnlyEvtT g = (r :: *) | r -> g
   -- ^ Events generated on the client and handled by the client.
 
-  {- | Parse command parameters.
+  {- |
+This method can be implemented to make /custom/ commands available in the chat window.
 
-  Players can issue commands in the chat window. Command names are composed of
-  alpha-numerical characters, and preceeded by @/@ in the chat. For example:
+Commands issued in the chat have the following syntax:
 
-@
-/play game1
-@
+  * First, @/@ indicates that we will write a command
+  * then we write the command name (all alphanumerical characters)
+  * then we write command parameters, separated by spaces.
 
-The command name can be followed by an optional colon to separate the command name from its parameters.
-Also, spaces can be added:
-
-@
-/play:game1
-/play : game1
-/ play :game1
-@
-
-
-  When this method is called, the input has been consumed
-  up until the /beginning/ of the command parameters:
+When this method is called, the command name has not matched with any of the default commands
+(the only defaut command today is '@name@'),
+and the input has been consumed up until the /beginning/ of the command parameters:
 
 @
-/play game1
+'^' indicates the parse position when this method is called
+
+/color 2 3 4
+       ^
+/color
       ^
-      parse position when this methid is called
 @
-
-  So the purpose of this method is to return a parser that will parse the command
-  parameters.
-
-  If the command name (passed as parameter to the method) is not recognized,
-  the parser should fail.
-
-  NOTE The default implementation returns a parser that fails for every command name.
   -}
-  mkCmdArgParser :: Text
-                -- ^ Command name (lowercased)
-                -> Parser (Either Text (Command (ServerT g)))
-  mkCmdArgParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
+  cmdParser :: Text
+            -- ^ Command name (lowercased)
+            -> Parser (Either Text (Command (ServerT g)))
+  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
   initialGame :: (MonadIO m)
               => Screen -> m g
 
-  -- | Called on each change in screen dimensions.
-  onTargetSizeChanged :: (MonadState (AppState g) m
-                        , MonadReader e m, Canvas e
-                        , MonadIO m)
-                      => Size -> m ()
+  onResizedWindow :: (MonadState (AppState g) m
+                    , MonadReader e m, Canvas e
+                    , MonadIO m)
+                  => Size
+                  -- ^ The new window size, homogenous to 'Coords' 'Pos' (i.e these are /not/ pixels).
+                  -> m ()
 
   -- | Either the count of players, or the name / color of some player changed.
-  onPlayersChanged :: MonadState (AppState g) m => m ()
-
-  -- | Maps a 'Key' to a 'GenEvent'
-  keyMapForOngoingState :: (GameLogicT e ~ g
-                           , MonadState (AppState g) m
-                           , MonadReader e m, Client e)
-                           => Key -> StateValue -> m (Maybe (GenEvent g))
-
-  -- | Handle events sent by the server.
-  onServerEvent :: (g ~ GameLogicT e
-                  , MonadState (AppState g) m
-                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
-                  , MonadIO m)
-                => ServerEventT (ServerT g) -> m ()
-
-  onClientEvent :: (g ~ GameLogicT e
-                  , MonadState (AppState g) m
-                  , MonadReader e m, Client e, Render e, HasSizedFace e
-                  , MonadIO m)
-              => ClientOnlyEvtT g -> m ()
-
-  onUpdateUIAnim :: (GameLogicT e ~ g
+  onPlayersChanged :: MonadState (AppState g) m => m () -- TODO replace by mkLeftInfo (with a better name)
+  onUpdateUIAnim :: (GameLogicT e ~ g -- TODO replace by onUIAnimationFinished
                    , MonadState (AppState (GameLogicT e)) m
                    , MonadReader e m, Client e
                    , MonadIO m)
                  => Time Point System
                  -> m ()
 
+  -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
+  --
+  -- This method is called only when the client 'StateNature' is 'Ongoing'. Hence,
+  -- key presses while the client 'StateNature' is 'Over' are ignored.
+  keyMaps :: (GameLogicT e ~ g
+            , MonadState (AppState g) m
+            , MonadReader e m, Client e)
+           => Key
+           -> StateValue
+           -- ^ The current client state.
+           -> m (Maybe (GenEvent g))
+
+  -- | Handle events
+  onUpdateEvent :: (g ~ GameLogicT e
+                  , MonadState (AppState g) m
+                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+                  , MonadIO m)
+                => CustomUpdateEvent g -> m ()
+
   getDeadlines :: g -> [Deadline]
 
-  particleSystems :: g -> ParticleSystems
+  getParticleSystems :: g -> ParticleSystems
   putParticleSystems :: ParticleSystems -> g -> g
 
   getGameSize :: (MonadState (AppState g) m)
@@ -251,7 +238,8 @@ data EventGroup g = EventGroup {
 }
 
 -- | Regroups events that can be handled immediately by the client.
-type UpdateEvent g = Either (ServerEvent (ServerT g)) (Event (ClientOnlyEvtT g))
+type UpdateEvent g  = Either (ServerEvent (ServerT g)) (Event (ClientOnlyEvtT g))
+type CustomUpdateEvent g = Either (ServerEventT (ServerT g)) (ClientOnlyEvtT g)
 
 -- | No 2 principal events can be part of the same 'EventGroup'.
 -- It allows to separate important game action on different rendered frames.

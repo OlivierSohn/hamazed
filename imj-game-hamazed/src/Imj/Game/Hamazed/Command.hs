@@ -98,5 +98,5 @@ command = do
       skipSpace
       case cmdName of
         "name" -> Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
-        _ -> mkCmdArgParser cmdName
+        _ -> cmdParser cmdName
     _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)

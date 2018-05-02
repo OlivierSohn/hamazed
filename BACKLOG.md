@@ -1,3 +1,8 @@
+- move UIAnimation to the generic part:
+
+replace onUpdateUIAnim by onAnimationEnd
+replace onPlayersChanged by mkLeftInfo
+
 - rename :
 Hamazed to HamazedServer
 GameState to Hamazed

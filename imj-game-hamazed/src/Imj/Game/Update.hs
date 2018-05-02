@@ -64,7 +64,7 @@ updateAppState :: (g ~ GameLogicT e
                -> m ()
 updateAppState (Right evt) = case evt of
   AppEvent e ->
-    onClientEvent e
+    onUpdateEvent $ Right e
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording ->
@@ -77,7 +77,7 @@ updateAppState (Right evt) = case evt of
       getGameState >>= \g ->
         putGameState (putParticleSystems (Map.updateWithKey
           (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
-          key $ particleSystems g) g)
+          key $ getParticleSystems g) g)
   CanvasSizeChanged ->
     onTargetSize
   RenderingTargetChanged -> do
@@ -101,7 +101,7 @@ updateAppState (Right evt) = case evt of
     stateChat $ addMessage $ Information msgLevel txt
 updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
-    onServerEvent e
+    onUpdateEvent $ Left e
   OnContent worldParameters ->
     putWorldParameters worldParameters
   RunCommand i cmd -> runClientCommand i cmd
@@ -153,7 +153,7 @@ onTargetSize :: (GameLogic g
 onTargetSize = getTargetSize >>= maybe (return ()) (\sz -> do
   let screen = mkScreen $ Just sz
   putCurScreen screen
-  onTargetSizeChanged sz)
+  onResizedWindow sz)
 
 {-# INLINABLE putClientState #-}
 putClientState :: (MonadState (AppState s) m

@@ -71,4 +71,4 @@ translatePlatformEvent k = case k of
           (ClientState activity state) <- getClientState <$> gets game
           case activity of
             Over -> return Nothing
-            Ongoing -> keyMapForOngoingState key state
+            Ongoing -> keyMaps key state

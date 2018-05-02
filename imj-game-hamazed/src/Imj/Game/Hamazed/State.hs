@@ -73,23 +73,18 @@ onEvent' :: (GameLogicT e ~ g
             , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
             , MonadIO m)
          => Maybe (GenEvent g) -> m ()
-onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
-onEvent' (Just (CliEvt e)) = asks sendToServer' >>= \f -> f e
-onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
-onEvent' (Just (Evt    evt)) = onUpdateEvent $ Right evt
-onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
-
-{-# INLINABLE onUpdateEvent #-}
-onUpdateEvent :: (GameLogicT e ~ g
-                , MonadState (AppState g) m
-                , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
-                , MonadIO m)
-              => UpdateEvent g -> m ()
-onUpdateEvent e = do
-  getRecording >>= \case
-    Record -> state $ addEvent e
-    DontRecord -> return ()
-  handleEvent $ Just e
+onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and reset the group
+  (\case
+    CliEvt e -> asks sendToServer' >>= \f -> f e
+    Evt ToggleEventRecording -> state toggleRecordEvent
+    Evt    evt -> onUpdate $ Right evt
+    SrvEvt evt -> onUpdate $ Left evt)
+ where
+  onUpdate e = do
+    getRecording >>= \case
+      Record -> state $ addEvent e
+      DontRecord -> return ()
+    handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (GameLogicT e ~ g
@@ -228,7 +223,7 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: (GameLogic g)
+createState :: GameLogic g
             => Screen
             -> Bool
             -> ConnectIdT (ServerT g)

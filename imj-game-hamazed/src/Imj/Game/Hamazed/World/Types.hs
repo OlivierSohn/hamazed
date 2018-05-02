@@ -147,7 +147,7 @@ data World = World {
   , getWorldSpace :: {-# UNPACK #-} !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
-  , getParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
+  , worldParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
     -- ^ Animated particle systems, illustrating player actions and important game events.
   , getId :: {-unpack sum-} !(Maybe WorldId)
 } deriving (Generic)

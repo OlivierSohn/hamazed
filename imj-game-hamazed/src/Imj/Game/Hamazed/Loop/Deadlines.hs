@@ -87,7 +87,7 @@ getDeadlinesByDecreasingPriority (Game _ _ g dcs _ _ _ _ _) =
   -- sort from highest to lowest priority
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     getDeadlines g ++
-    (getParticleSystemsDeadlines $ particleSystems g) ++
+    (getParticleSystemsDeadlines $ getParticleSystems g) ++
     stateAnimDeadlines dcs
  where
   getParticleSystemsDeadlines =

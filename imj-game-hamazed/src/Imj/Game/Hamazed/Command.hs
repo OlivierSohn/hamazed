@@ -93,6 +93,7 @@ command =
   setName = do
     char '/' *> skipSpace
     void $ string "name"
-    void $ space <|> (skipSpace *> char ':')
+    (skipSpace *> void (char ':')) <|>
+      (space *> skipSpace) -- NOTE the order matters
     skipSpace
     Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput

@@ -145,7 +145,7 @@ data ServerState s = ServerState {
   , clientsViews :: {-# UNPACK #-} !(ClientViews (ClientViewT s))
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
-  , content :: {-# UNPACK #-} !(ServerViewContentT s)
+  , content :: !(ServerViewContentT s)
   , unServerState :: !s
 } deriving(Generic)
 instance (Server s) => NFData (ServerState s)

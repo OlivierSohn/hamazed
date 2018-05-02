@@ -54,10 +54,10 @@ drawStatus :: (GameLogic g
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state _ _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
+  gets game >>= \(Game state screen g dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       ClientState Ongoing Setup ->
-        getGameViewport >>= drawSetup worldParams -- TODO using progressivelyInform
+        drawSetup worldParams $ getViewport screen g -- TODO using progressivelyInform
       _ ->
         return ()
     forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame

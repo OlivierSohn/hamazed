@@ -152,12 +152,11 @@ instance GameLogic GameState where
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
 
-  {-# INLINABLE getGameViewport #-}
-  getGameViewport =
-    gets game >>= \(Game _ (Screen _ center) (GameState world _ _ _ _ mode) _ _ _ _ _ _) -> do
+  {-# INLINABLE getViewport #-}
+  getViewport (Screen _ center) (GameState world _ _ _ _ mode) =
       let offset = getWorldOffset mode world
           worldCorner = getWorldCorner world center offset
-      flip RectContainer worldCorner . getSize . getWorldSpace <$> getWorld
+      in flip RectContainer worldCorner $ getSize $ getWorldSpace world
 
   {-# INLINABLE getDeadlines #-}
   getDeadlines (GameState _ _ _ _ uiAnim _) =
@@ -222,13 +221,12 @@ instance GameLogic GameState where
         <$> getLevelOutcome
       WhenAllPressedAKey _ (Just _) _ -> return Nothing
       WhenAllPressedAKey x Nothing havePressed ->
-        getMyId >>= maybe
-          (return Nothing)
-          (\me -> maybe (error "logic") (\iHavePressed ->
-                  if iHavePressed
-                    then return Nothing
-                    else return $ Just $ ClientAppEvt $ CanContinue x)
-                    $ Map.lookup me havePressed)
+        (maybe
+          Nothing
+          (maybe
+            (error "logic")
+            (bool Nothing (Just $ ClientAppEvt $ CanContinue x))
+            . flip Map.lookup havePressed)) <$> getMyId
       New -> return Nothing
       Paused _ _ -> return Nothing
       Countdown _ _ -> return Nothing
@@ -513,13 +511,13 @@ shipParticleSystems k =
 updateShipsText :: (MonadState (AppState GameState) m)
                 => m ()
 updateShipsText =
-  gets game >>= \(Game _ _
-    (GameState (World _ ships _ _ _ _) _ shotNumbers (Level level _)
+  gets game >>= \(Game _ screen
+    g@(GameState (World _ ships _ _ _ _) _ shotNumbers (Level level _)
                (UIAnimation (UIEvolutions j upDown _) p) mode ) _ names _ _ _ _) -> do
-    frameSpace <- getGameViewport
     let newLeft =
           let (horizontalDist, verticalDist) = computeViewDistances mode
-              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist
+              vp = getViewport screen g
+              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance vp horizontalDist verticalDist
               infos = mkLeftInfo Normal ships names shotNumbers level
           in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
         newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition

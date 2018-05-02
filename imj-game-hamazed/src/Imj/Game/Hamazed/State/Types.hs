@@ -220,16 +220,16 @@ and the input has been consumed up until the /beginning/ of the command paramete
   getParticleSystems :: g -> ParticleSystems
   putParticleSystems :: ParticleSystems -> g -> g
 
-  getGameViewport :: (MonadState (AppState g) m)
-                  => m RectContainer
-                  -- ^ The screen region used to draw the game in 'drawGame'
+  getViewport :: Screen
+              -> g
+              -> RectContainer -- ^ The screen region used to draw the game in 'drawGame'
 
   drawGame :: (GameLogicT e ~ g
              , MonadState (AppState (GameLogicT e)) m
              , MonadReader e m, Draw e
              , MonadIO m)
            => m RectContainer
-           -- ^ Returns the drawn region
+           -- ^ Returns the drawn region (it should return the same value as 'getViewport')
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]

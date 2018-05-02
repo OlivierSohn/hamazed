@@ -19,10 +19,7 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Client.Class
-                     , Imj.Client
-                     , Imj.Client.Types
-                     , Imj.ClientView.Internal.Types
+  exposed-modules:     Imj.ClientView.Internal.Types
                      , Imj.ClientView.Types
                      , Imj.Categorized
                      , Imj.Server

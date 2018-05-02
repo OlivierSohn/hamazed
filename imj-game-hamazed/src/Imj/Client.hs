@@ -10,21 +10,21 @@ module Imj.Client
       ) where
 
 import           Imj.Prelude
-import           Control.Concurrent.STM(TQueue, atomically, writeTQueue)
+import           Control.Concurrent.STM(TQueue, writeTQueue, atomically)
+import           Control.Monad.IO.Class(liftIO)
 
-import           Imj.Client.Class
-import           Imj.Categorized
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Server.Types
 
+
 -- | Allows the client to communicate with the server asynchronously.
-data ClientQueues c s = ClientQueues {
-    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient c s))
-  , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent s))
+data ClientQueues g = ClientQueues {
+    inputQueue :: {-# UNPACK #-} !(TQueue (EventsForClient g))
+  , outputQueue :: {-# UNPACK #-} !(TQueue (ClientEvent (ServerT g)))
 }
 
-instance (Server s, Categorized c) => Client (ClientQueues c s) where
-  type ServerT (ClientQueues c s) = s
-  type CliEvtT (ClientQueues c s) = c
+instance (GameLogic g) => Client (ClientQueues g) where
+  type GameLogicT (ClientQueues g) = g
 
   sendToServer' q = liftIO . atomically . writeTQueue (outputQueue q)
   writeToClient' q = liftIO . atomically . writeTQueue (inputQueue q)

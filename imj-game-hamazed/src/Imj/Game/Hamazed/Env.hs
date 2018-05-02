@@ -13,11 +13,10 @@ module Imj.Game.Hamazed.Env
       ) where
 
 import qualified Control.Concurrent.MVar as Lazy(newMVar)
-import qualified Data.Map as Map(empty)
+import qualified Data.IntMap as Map(empty)
 
-import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.World.Types(WorldId)
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
@@ -25,30 +24,29 @@ import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Input.Types
 
 import           Imj.Graphics.Render.Delta(DeltaEnv)
-import           Imj.Client.Class
 import           Imj.Client
 import           Imj.Game.Hamazed.Network.Class.AsyncGroups
 
 -- | The environment of <https://github.com/OlivierSohn/hamazed Hamazed> program
-data Env i e = Env {
+data Env i g = Env {
     _envDeltaEnv :: !DeltaEnv
   , _envPlayerInput :: !i
-  , _envClientQueues :: !(ClientQueues (Event e) Hamazed) -- TODO Hamazed should define the event type
-  , asyncGroups :: !(RequestsAsyncs WorldId)
+  , _envClientQueues :: !(ClientQueues g)
+  , asyncGroups :: !RequestsAsyncs
   , getSizedFace' :: !SizedFace
   -- ^ Font to draw 'RasterizedString's
 }
-instance HasSizedFace (Env i e) where
+instance HasSizedFace (Env i g) where
   getSizedFace = getSizedFace'
 
-mkEnv :: DeltaEnv -> i -> ClientQueues (Event e) Hamazed -> SizedFace -> IO (Env i e)
+mkEnv :: DeltaEnv -> i -> ClientQueues g -> SizedFace -> IO (Env i g)
 mkEnv a b c d = do
   m <- RequestsAsyncs <$> Lazy.newMVar Map.empty
   return $ Env a b c m d
 
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
-instance Draw (Env i e) where
+instance Draw (Env i g) where
   setScissor     (Env a _ _ _ _) = setScissor     a
   getScissor'    (Env a _ _ _ _) = getScissor'    a
   fill'          (Env a _ _ _ _) = fill'          a
@@ -65,14 +63,14 @@ instance Draw (Env i e) where
   {-# INLINE drawStr' #-}
 
 -- | Forwards to the 'Canvas' instance of 'DeltaEnv'.
-instance Canvas (Env i e) where
+instance Canvas (Env i g) where
   getTargetSize'   (Env a _ _ _ _) = getTargetSize' a
   onTargetChanged' (Env a _ _ _ _) = onTargetChanged' a
   {-# INLINE getTargetSize' #-}
   {-# INLINE onTargetChanged' #-}
 
 -- | Forwards to the 'Render' instance of 'DeltaEnv'.
-instance Render (Env i e) where
+instance Render (Env i g) where
   renderToScreen'        (Env a _ _ _ _) = renderToScreen' a
   cycleRenderingOptions' (Env a _ _ _ _) = cycleRenderingOptions' a
   applyFontMarginDelta   (Env a _ _ _ _) = applyFontMarginDelta a
@@ -80,9 +78,8 @@ instance Render (Env i e) where
   {-# INLINE renderToScreen' #-}
   {-# INLINE cycleRenderingOptions' #-}
 
-instance (Categorized e) => Client (Env i e) where
-  type ServerT (Env i e) = Hamazed
-  type CliEvtT (Env i e) = Event e -- TODO Hamazed should define the CliEvtT
+instance (GameLogic g) => Client (Env i g) where
+  type GameLogicT (Env i g) = g
   sendToServer'  (Env _ _ q _ _) = sendToServer' q
   writeToClient' (Env _ _ q _ _) = writeToClient' q
   serverQueue    (Env _ _ q _ _) = serverQueue q
@@ -90,14 +87,13 @@ instance (Categorized e) => Client (Env i e) where
   {-# INLINABLE writeToClient' #-}
   {-# INLINABLE serverQueue #-}
 
-instance AsyncGroups (Env i e) where
-  type KeyT (Env i e) = WorldId
+instance AsyncGroups (Env i g) where
   belongsTo' (Env _ _ _ g _) = belongsTo' g
   cancel' (Env _ _ _ g _) = cancel' g
   {-# INLINABLE belongsTo' #-}
   {-# INLINABLE cancel' #-}
 
-instance PlayerInput i => PlayerInput (Env i e) where
+instance PlayerInput i => PlayerInput (Env i g) where
   plaformQueue     (Env _ a _ _ _) = plaformQueue a
   programShouldEnd (Env _ a _ _ _) = programShouldEnd a
   pollKeys         (Env _ a _ _ _) = pollKeys a

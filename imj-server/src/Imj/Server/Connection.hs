@@ -12,6 +12,7 @@ module Imj.Server.Connection
       , notifyEveryone
       , notifyEveryone'
       , notifyEveryoneN
+      , notifyEveryoneN'
       , notifyClient
       , notifyClient'
       , notifyClientN
@@ -94,13 +95,13 @@ disconnect r i =
   tryRemoveClient >>= maybe
     (do serverLog $ (<> " was already removed.") <$> showId i
         return ())
-    (\c@(ClientView _ ownership innerC) -> do
+    (\c@(ClientView _ ownership name _ _) -> do
         -- If the client owns the server, we shutdown connections to /other/ clients first.
         when (ownership == ClientOwnsServer) $ do
           gets clientsMap >>= void . Map.traverseWithKey
             (\j client' -> do
                 let msg = "[" <>
-                      nameWithFallback i innerC <>
+                      unClientName name <>
                       "] disconnection (hosts the Server) < " <> pack (show r)
                 -- Because we pass a 'ServerShutdown', 'closeConnection' won't
                 -- use the clients map so it's safe to just clear the client map
@@ -112,11 +113,11 @@ disconnect r i =
  where
   closeConnection :: (MonadIO m, Server s, MonadState (ServerState s) m)
                   => DisconnectReason -> ClientId -> ClientView (ClientViewT s) -> m ()
-  closeConnection reason cid c@(ClientView conn _ c') = do
+  closeConnection reason cid c@(ClientView conn _ name color _) = do
     serverLog $ pure $
       colored "Close connection" yellow <>
       "|" <>
-      colored (pack $ show cid) (logColor c') <>
+      colored (pack $ show cid) color <>
       "|" <>
       showClient c
     -- If possible, notify the client about the disconnection
@@ -130,7 +131,7 @@ disconnect r i =
         notify conn cid e
         liftIO $ sendClose conn $
           "[" <>
-          nameWithFallback cid c' <>
+          unClientName name <>
           "] disconnection < " <> pack (show reason)
 
     afterClientLeft cid reason
@@ -146,8 +147,6 @@ disconnect r i =
 
   removeAllClients = modify' $ \s ->
     s { clientsViews = (clientsViews s) { views = Map.empty } }
-
-  nameWithFallback cid c = fromMaybe (pack $ show cid) $ clientFriendlyName c
 
 {-# INLINABLE notify #-}
 notify :: (MonadIO m
@@ -213,6 +212,13 @@ notifyEveryoneN :: (MonadIO m, Server s, MonadState (ServerState s) m)
                 -> m ()
 notifyEveryoneN evts =
   notifyN evts =<< gets clientsMap
+
+{-# INLINABLE notifyEveryoneN' #-}
+notifyEveryoneN' :: (MonadIO m, Server s, MonadState (ServerState s) m)
+                => [ServerEvent s]
+                -> m ()
+notifyEveryoneN' evts =
+  notifyN' evts =<< gets clientsMap
 
 -- | Uses sendDataMessage which is at a lower-level than sendBinaryData
 -- to factorize serialization.

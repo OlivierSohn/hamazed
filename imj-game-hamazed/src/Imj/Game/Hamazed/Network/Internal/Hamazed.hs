@@ -48,21 +48,19 @@ import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
 
-import           Imj.Server.Run
-import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Loop.Timing
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Music hiding(Do)
 import           Imj.Server.Connection
-import           Imj.Server
 import           Imj.Server.Log
+import           Imj.Server.Run
+import           Imj.Server
 
 
 -- | 'Hamazed' handles a single game.
 data Hamazed = Hamazed {
     gameTiming :: !GameTiming -- could / should this be part of CurrentGame?
   , levelSpecification :: {-# UNPACK #-} !LevelSpec
-  , worldParameters :: {-# UNPACK #-} !WorldParameters
   -- ^ The actual 'World' is stored on the clients
   , worldCreation :: {-unpack sum-} !WorldCreation
   , intent :: {-unpack sum-} !Intent
@@ -75,12 +73,22 @@ data Hamazed = Hamazed {
 instance NFData Hamazed
 instance Server Hamazed where
 
-  type ClientViewT Hamazed = HamazedClient
-  type ConnectIdT Hamazed = SuggestedPlayerName
+  type SharedEnumerableValueKeyT Hamazed = SharedEnumerableValueKey
+  type SharedValueT Hamazed = SharedValue
+  type SharedValueKeyT Hamazed = SharedValueKey
+
   type ServerEventT Hamazed = HamazedServerEvent
   type ClientEventT Hamazed = HamazedClientEvent
+  type ConnectIdT Hamazed = SuggestedPlayerName
+
+  type ClientViewT Hamazed = HamazedClient
   -- Where 'Set ClientId' represents the players in the current game:
   type ReconnectionContext Hamazed = Set ClientId
+
+  type ServerViewParamT Hamazed = ColorScheme
+  type ServerViewContentT Hamazed = WorldParameters
+
+  getInitialContent = initialParameters
 
   inParallel = [gameScheduler]
 
@@ -110,11 +118,10 @@ instance Server Hamazed where
           _ -> do serverLog $ pure "A game is in progress."
                   return Nothing)
 
-  createClientView i sn =
-    mkHamazedClient <$> makePlayerName sn <*> fmap (mkClientColorFromCenter i) (gets' centerColor)
-
-  announceNewcomer i (HamazedClient name _ _ _ _ color) =
-    map (RunCommand i) [AssignName name , AssignColor color]
+  createClientView i sn = do
+    color <- fmap (mkClientColorFromCenter i) (gets' centerColor)
+    name <- makePlayerName sn
+    return (mkHamazedClient, name, color)
 
   onReconnection gameConnectedPlayers =
     gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
@@ -127,17 +134,37 @@ instance Server Hamazed where
         -- add the newcomer to the assigned builders.
         participateToWorldCreation wid
 
+  onReport (Get x) = case x of
+    ColorSchemeCenterKey ->
+      gets' centerColor >>= notifyClient' . Reporting . Put . ColorSchemeCenter
+    WorldShapeKey ->
+      worldShape <$> gets content >>= notifyClient' . Reporting . Put . WorldShape
+
+  onDo cmd = do
+    case cmd of
+      Put (ColorSchemeCenter color) -> do
+        modify' $ mapState $ \s -> s { centerColor = color }
+        adjustAllWithKey' $ \i c -> c { getColor = mkClientColorFromCenter i color }
+        gets clientsMap >>=
+          notifyEveryoneN' .
+            map (\(k, c) -> RunCommand k (AssignColor $ getColor c)) .
+            Map.assocs
+      Put (WorldShape s) ->
+        onChangeWorldParams $ changeWorldShape s
+      Succ x -> onDelta 1    x
+      Pred x -> onDelta (-1) x
+    publish $ Done cmd
+
   greetNewcomer = do
     presentClients <-
-      Map.map ((\cl -> PlayerEssence (getName cl) Present $ getColor cl) . unClientView) <$> gets clientsMap
-    wp <- gets' worldParameters
-    return [MeetThePlayers presentClients, OnWorldParameters wp]
+      Map.map ((\c -> PlayerEssence (getName c) Present $ getColor c)) <$> gets clientsMap
+    return [MeetThePlayers presentClients]
 
   handleClientEvent = handleEvent
 
   afterClientLeft cid = \case
     ClientShutdown r -> do
-      notifyEveryone $ RunCommand cid $ Leaves r
+      notifyEveryone' $ RunCommand cid $ Leaves r
       unAssign cid
       gets' intent >>= \case
         IntentSetup -> requestWorld -- because the number of players has changed
@@ -179,7 +206,7 @@ onLevelOutcome outcome =
           Just (Playing _) -> error "inconsistent"
           Just ReadyToPlay -> Nothing
           Nothing -> Just $ c { getState = Just ReadyToPlay })
-          >>= notifyEveryoneN . map (PlayerInfo Joins) . Set.toList
+          >>= notifyEveryoneN' . map (PlayerInfo Joins) . Set.toList
       IntentPlayGame _ -> return ()
 
 -- | To avoid deadlocks, this function should be called only from inside a
@@ -251,7 +278,7 @@ onChangeStatus notified status newStatus = gets' scheduledGame >>= \game -> tryR
 
 gameScheduler :: MVar (ServerState Hamazed) -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ terminate (Hamazed _ _ _ _ _ _ mayGame)) ->
+  readMVar st >>= \(ServerState _ _ terminate _ (Hamazed _ _ _ _ _ mayGame)) ->
     if terminate
       then return ()
       else
@@ -298,7 +325,7 @@ gameScheduler st =
       return res
 
    where
-    stopMusic = gets unServerState >>= \(Hamazed _ _ _ _ _ _ game) ->
+    stopMusic = gets unServerState >>= \(Hamazed _ _ _ _ _ game) ->
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
@@ -308,7 +335,7 @@ gameScheduler st =
             _:_ -> notifyPlayersN $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
-    go = get >>= \(ServerState _ _ terminate (Hamazed _ _ _ _ _ _ game)) ->
+    go = get >>= \(ServerState _ _ terminate _ (Hamazed _ _ _ _ _ game)) ->
       if terminate
         then do
           serverLog $ pure $ colored "Terminating game" yellow
@@ -380,7 +407,7 @@ gameScheduler st =
           (scheduledGame s)
           (\g -> let (newScore, noteChange) = stepScore $ score g in return (g {score = newScore}, noteChange))
 
-    updateSafeShips = adjustAll' $ \c@(HamazedClient _ _ mayTimeUnsafe _ _ _) ->
+    updateSafeShips = adjustAll' $ \c@(HamazedClient _ mayTimeUnsafe _ _) ->
       maybe
         Nothing
         (\timeUnsafe ->
@@ -397,21 +424,14 @@ gameScheduler st =
 --------------------------------------------------------------------------------
 
 makePlayerName :: (MonadIO m, MonadState (ServerState Hamazed) m)
-               => SuggestedPlayerName -> m PlayerName
+               => SuggestedPlayerName -> m ClientName
 makePlayerName (SuggestedPlayerName sn) = do
   let go mayI = do
-        let proposal = PlayerName $ pack $ maybe sn ((++) sn . show) mayI
+        let proposal = ClientName $ pack $ maybe sn ((++) sn . show) mayI
         checkNameAvailability proposal >>= either
           (\_ -> go $ Just $ maybe (2::Int) succ mayI)
           (\_ -> return proposal)
   go Nothing
-
-checkNameAvailability :: (MonadIO m, MonadState (ServerState Hamazed) m)
-                      => PlayerName -> m (Either Text ())
-checkNameAvailability name =
-  any ((== name) . getName . unClientView) <$> gets clientsMap >>= \case
-    True  -> return $ Left "Name is already taken"
-    False -> return $ Right ()
 
 --------------------------------------------------------------------------------
 -- functions used in 'afterClientWasAdded' -------------------------------------
@@ -452,40 +472,6 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 handleEvent :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
             => ClientEventT Hamazed -> m ()
 handleEvent = \case
-  RequestApproval cmd@(AssignName name) -> either
-    (notifyClient . CommandError cmd)
-    (\_ -> checkNameAvailability name >>= either
-      (notifyClient . CommandError cmd)
-      (\_ -> do
-        adjustClient $ \c -> c { getName = name }
-        acceptCmd cmd)
-    ) $ checkName $ unpack $ unPlayerName name
-  RequestApproval cmd@(AssignColor _) ->
-    notifyClient $ CommandError cmd "use Do PutColorSchemeCenter instead"
-  RequestApproval cmd@(Says _) ->
-    acceptCmd cmd
-  RequestApproval (Leaves _) ->
-    asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
-  Do cmd -> do
-   case cmd of
-    Put (ColorSchemeCenter color) -> do
-      modify' $ mapState $ \s -> s { centerColor = color }
-      adjustAllWithKey $ \i c -> c { getColor = mkClientColorFromCenter i color }
-      gets clientsMap >>=
-        notifyEveryoneN .
-          map (\(k, c) -> RunCommand k (AssignColor $ getColor $ unClientView c)) .
-          Map.assocs
-    Put (WorldShape s) ->
-      onChangeWorldParams $ changeWorldShape s
-    Succ x -> onDelta 1    x
-    Pred x -> onDelta (-1) x
-   publish $ Done cmd
-
-  Report (Get ColorSchemeCenterKey) ->
-    gets' centerColor >>= notifyClient . Reporting . Put . ColorSchemeCenter
-  Report (Get WorldShapeKey) ->
-    worldShape <$> gets' worldParameters >>= notifyClient . Reporting . Put . WorldShape
-
   ExitedState Excluded -> gets' intent >>= \case
     IntentSetup -> do
       -- change client state to make it playable
@@ -564,7 +550,7 @@ handleEvent = \case
           serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
     NeedMoreTime -> addStats stats wid
-    Success essence -> gets unServerState >>= \(Hamazed _ levelSpec _ (WorldCreation st key spec prevStats) _ _ _) -> bool
+    Success essence -> gets unServerState >>= \(Hamazed _ levelSpec (WorldCreation st key spec prevStats) _ _ _) -> bool
       (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
       (case st of
         Created ->
@@ -596,7 +582,7 @@ handleEvent = \case
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient $ EnterState Setup
       IntentPlayGame maybeOutcome ->
-        gets unServerState >>= \(Hamazed _ _ _ (WorldCreation _ lastWId _ _) _ _ game) ->
+        gets unServerState >>= \(Hamazed _ _ (WorldCreation _ lastWId _ _) _ _ game) ->
          liftIO (tryReadMVar game) >>= maybe
           (do
             adjustClient $ \c -> c { getState = Just ReadyToPlay }
@@ -632,9 +618,11 @@ handleEvent = \case
     asks clientId >>= notifyPlayers . GameEvent . LaserShot dir
   Action Ship dir ->
     adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
- where
-  publish a = asks clientId >>= notifyEveryone . PlayerInfo a
-  acceptCmd cmd = asks clientId >>= notifyEveryone . flip RunCommand cmd
+
+publish :: (MonadReader ConstClientView m, MonadIO m, Server s,
+            MonadState (ServerState s) m)
+        => PlayerNotif s -> m ()
+publish a = asks clientId >>= notifyEveryone' . PlayerInfo a
 
 onDelta :: (MonadIO m, MonadState (ServerState Hamazed) m)
         => Int
@@ -673,13 +661,13 @@ onChangeWorldParams :: (MonadIO m, MonadState (ServerState Hamazed) m)
 onChangeWorldParams f =
   state (\s ->
     let mayNewParams = f prevParams
-        prevParams = worldParameters $ unServerState s
+        prevParams = content s
     in (mayNewParams
-      , maybe id (\newParams -> mapState (\s' -> s' { worldParameters = newParams })) mayNewParams s))
+      , maybe s (\newParams -> s { content = newParams }) mayNewParams))
     >>= maybe (return ()) onChange
  where
   onChange p = do
-    notifyEveryone $ OnWorldParameters p
+    notifyEveryone' $ OnContent p
     requestWorld
 
 addStats :: (MonadIO m, MonadState (ServerState Hamazed) m, MonadReader ConstClientView m)
@@ -715,9 +703,8 @@ requestWorld :: (MonadIO m, MonadState (ServerState Hamazed) m)
              => m ()
 requestWorld = do
   cancelWorldRequest
-  modify' $ (\s ->
-    let (Hamazed _ level params creation _ _ _) = unServerState s
-        nextWid = succ $ creationKey creation
+  modify' $ \s@(ServerState _ _ _ params (Hamazed _ level creation _ _ _)) ->
+    let nextWid = succ $ creationKey creation
     in mapState
       (\v -> v {
         worldCreation = WorldCreation
@@ -726,7 +713,7 @@ requestWorld = do
           (WorldSpec level (Map.keysSet $ onlyPlayersMap s) params)
           Map.empty
               })
-      s )
+      s
   gets clientsMap >>= requestWorldBy
 
 requestWorldBy :: (MonadIO m, MonadState (ServerState Hamazed) m)

@@ -2,7 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE LambdaCase #-}
@@ -12,6 +12,7 @@ module Imj.Event -- TODO move to imj-engine
         , Deadline(..)
         , DeadlineType(..)
         , EventCategory(..)
+        , ParticleSystemKey(..)
         -- * Reexports (for haddock hyperlinks)
         , Categorized(..) -- TODO remove
         , module Imj.Graphics.ParticleSystem.Design.Create
@@ -19,10 +20,10 @@ module Imj.Event -- TODO move to imj-engine
 
 import           Imj.Prelude
 
-import           Imj.Game.Hamazed.World.Types(ParticleSystemKey)
 import           Imj.Geo.Discrete.Types
 import           Imj.Categorized
 
+import           Imj.Game.Hamazed.Chat
 import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Graphics.Font
 import           Imj.Iteration
@@ -59,11 +60,16 @@ data Event e =
   | ApplyPPUDelta {-# UNPACK #-} !Size
   | ApplyFontMarginDelta {-# UNPACK #-} !FontMargin
   -- ^ Produced by the platform
+  | ChatCmd {-unpack sum-} !ChatCommand
+  | SendChatMessage
+  -- ^ Send message or execute command if the message starts with a '/'
   | AppEvent !e
   deriving(Generic, Show, Eq)
 instance (Categorized e) => Categorized (Event e) where
   evtCategory = \case
     Log _ _         -> Command'
+    SendChatMessage -> Command'
+    ChatCmd _       -> Command'
     Timeout (Deadline _ _ (AnimateParticleSystem _)) -> AnimateParticleSystem'
     Timeout (Deadline _ _ AnimateUI)    -> AnimateUI'
     Timeout (Deadline _ _ (RedrawStatus _)) -> AnimateUI'
@@ -74,3 +80,6 @@ instance (Categorized e) => Categorized (Event e) where
     ApplyFontMarginDelta _    -> CycleRenderingOptions'
     CycleRenderingOptions _ _ -> CycleRenderingOptions'
     AppEvent e -> evtCategory e
+
+newtype ParticleSystemKey = ParticleSystemKey Int
+  deriving (Eq, Ord, Enum, Show, Num)

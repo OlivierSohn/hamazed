@@ -15,13 +15,13 @@ module Imj.Game.Hamazed.Chat
   , addMessage
   , runChat
   , ChatCommand(..)
-  , PlayerName(..)
-  , unPlayerName
   ) where
 
 import           Imj.Prelude hiding (drop, null)
 import qualified Prelude as P(length)
 import           Data.Text(Text, snoc, length, splitAt, dropEnd, drop, null)
+
+import           Imj.ClientView.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.Positionable
@@ -36,7 +36,7 @@ data Chat = Chat {
   -- ^ The message that is being typed
   , getIsEditing :: !IsEditing
   -- ^ Whether chat is in edit mode or not.
-  , _otherPlayersTyping :: ![PlayerName]
+  , _otherPlayersTyping :: ![ClientName]
   -- ^ Players currently having a pending (unsent) message.
   , renderedChat :: !(TextBox ColorString)
 }
@@ -110,10 +110,6 @@ mkChat = Chat mkEditableText NotEditing [] (mkTextBox (Size 10 30) $ Alternate F
 mkEditableText :: EditableText
 mkEditableText = EditableText mempty 0
 
-newtype PlayerName = PlayerName Text
-  deriving(Generic, Show, Binary, Eq, NFData)
-unPlayerName :: PlayerName -> Text
-unPlayerName (PlayerName t) = t
 
 data ChatMessage =
     ChatMessage !ColorString

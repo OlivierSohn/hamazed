@@ -1,10 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.ServerView.Types
       ( ServerView(..)
@@ -18,18 +14,21 @@ module Imj.ServerView.Types
 import           Imj.Prelude
 import           Data.String(IsString)
 
+import           Imj.ClientView.Internal.Types
+import           Imj.Server.Internal.Types
 import           Imj.Server.Class
-
 
 data ConnectionStatus =
     NotConnected
   | Connected {-# UNPACK #-} !ClientId
   | ConnectionFailed {-# UNPACK #-} !Text
 
-data ServerView param cached = ServerView {
-    serverType :: !(ServerType param)
-  , serverContent :: !(ServerContent cached)
-}  deriving(Generic, Show)
+data ServerView s = ServerView {
+    serverType :: !(ServerType (ServerViewParamT s))
+  , serverContent :: !(ServerContent (ServerViewContentT s))
+}  deriving(Generic)
+instance Server s => Show (ServerView s) where
+  show (ServerView t c) = show ("ServerView",t,c)
 
 data ServerContent cached = ServerContent {
     serverPort :: {-# UNPACK #-} !ServerPort

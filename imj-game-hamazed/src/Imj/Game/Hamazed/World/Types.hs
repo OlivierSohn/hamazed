@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.World.Types
         ( WorldId(..)
@@ -11,7 +12,6 @@ module Imj.Game.Hamazed.World.Types
         , WorldEssence(..)
         , World(..)
         , findShip
-        , ParticleSystemKey(..)
         , WorldParameters(..)
         , WorldShape(..)
         , BattleShip(..)
@@ -39,16 +39,6 @@ module Imj.Game.Hamazed.World.Types
         , scopedLocation
         -- * World constants
         , initialParameters
-        , initialBlockSize
-        , minBlockSize
-        , maxBlockSize
-        , allBlockSizes
-        , initialWallProba
-        , minWallProba
-        , maxWallProba
-        , wallProbaIncrements
-        , allProbasForGame
-        , nProbaSteps
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -63,19 +53,21 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
-import           Data.List(take)
+import           Data.List(take, splitAt, concat)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(lookup, filter)
 import           Data.Set(Set)
+import           Data.Text(pack)
 
-import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Geo.Continuous.Types
+import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
 
+import           Imj.Event
 import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Screen
@@ -91,15 +83,39 @@ data WorldParameters = WorldParameters {
     worldShape :: !WorldShape
   , wallDistrib :: !WallDistribution
 } deriving(Generic, Show, Eq)
-
 instance Binary WorldParameters
 instance NFData WorldParameters
+instance UIInstructions WorldParameters where
+  instructions (WorldParameters shape distrib) =
+    concat
+      [ instructions shape
+      , instructions distrib
+      ]
 
 data WorldShape = Square
                 -- ^ Width = Height
                 | Rectangle'2x1
                 -- ^ Width = 2 * Height
                 deriving(Generic, Show, Eq)
+instance UIInstructions WorldShape where
+  instructions shape =
+    [ ConfigUI "World shape" $ Choice $ map pack withCursor ]
+   where
+    i = case shape of
+      Square -> 0
+      Rectangle'2x1 -> 1
+
+    l =
+      [ "'1' : width = height    "
+      , "'2' : width = 2 x height"
+      ]
+
+    cursor = " <-"
+
+    withCursor =
+      case splitAt i l of
+        (_,[]) -> error "logic"
+        (l1,e:l2) -> l1 ++ ((e ++ cursor):l2)
 
 instance Binary WorldShape
 instance NFData WorldShape
@@ -122,7 +138,7 @@ data WorldEssence = WorldEssence {
 instance Binary WorldEssence
 
 newtype WorldId = WorldId Int64
-  deriving(Generic, Show, Binary, Enum, Eq, Ord, NFData)
+  deriving(Generic, Show, Binary, Enum, Eq, Ord, NFData, Integral, Real, Num)
 
 data World = World {
     getWorldNumbers :: !(Map NumId Number)
@@ -138,9 +154,6 @@ data World = World {
 
 newtype NumId = NumId Int
   deriving (Generic, Ord, Eq, Binary, Show)
-
-newtype ParticleSystemKey = ParticleSystemKey Int
-  deriving (Eq, Ord, Enum, Show, Num)
 
 data ViewMode = CenterShip {-# UNPACK #-} !ShipId
               -- ^ the 'BattleShip' position is fixed w.r.t the screen.
@@ -332,26 +345,6 @@ findShip i =
   fromMaybe (error $ "ship not found : " ++ show i)
   . Map.lookup i
 
-
-initialBlockSize, minBlockSize, maxBlockSize :: Int
-initialBlockSize = maxBlockSize
-minBlockSize = 1
-maxBlockSize = 6
-
-allBlockSizes :: [Int]
-allBlockSizes = [minBlockSize..maxBlockSize]
-
-wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
-initialWallProba = maxWallProba
-minWallProba = 0.1
-maxWallProba = 0.9
-wallProbaIncrements = 0.1
-
-allProbasForGame :: [AlmostFloat]
-allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
-
-nProbaSteps :: Int
-nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
 
 initialParameters :: WorldParameters
 initialParameters =

@@ -26,7 +26,7 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Physics.Discrete.Collision
 
 {-# INLINABLE drawWorld #-}
-drawWorld :: (MonadState (AppState evt) m, Draw e, MonadReader e m, MonadIO m)
+drawWorld :: (MonadState (AppState s) m, Draw e, MonadReader e m, MonadIO m)
           => World
           -> Coords Pos
           -> m ()

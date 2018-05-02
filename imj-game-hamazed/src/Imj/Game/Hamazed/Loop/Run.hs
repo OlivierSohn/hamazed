@@ -41,11 +41,10 @@ import           System.Environment(getArgs)
 import           System.Info(os)
 import           Text.Read(readMaybe)
 
-import           Imj.Client.Class
-import           Imj.Client.Types
 import           Imj.Server.Class
 import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Logic
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Screen
@@ -54,11 +53,10 @@ import           Imj.ServerView.Types
 import           Imj.ServerView
 
 import           Imj.Audio
+import           Imj.Event
 import           Imj.Game.Hamazed.Env
 import           Imj.Game.Hamazed.KeysMaps
 import           Imj.Game.Hamazed.Loop.Deadlines
-import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Loop.Update
 import           Imj.Game.Hamazed.Network.GameNode
 import           Imj.Game.Hamazed.Network.State
 import           Imj.Game.Hamazed.State
@@ -389,7 +387,9 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
           (\e -> baseLog (colored (pack e) red) >> error e)
           (baseLog . flip colored chartreuse . pack)
         -- the listening socket is available, we can continue.
-        queues <- startClient player srv :: IO (ClientQueues (Event HamazedEvent) Hamazed)
+
+        -- The type here determines which game we are playing.
+        queues <- startClient player srv :: IO (ClientQueues GameState)
         case backend of
           Console ->
             newConsoleBackend >>= runWith debug queues srv player
@@ -402,7 +402,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> HamazedView
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> ServerView Hamazed
 mkServer color logs Nothing =
   mkLocalServerView (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color)
 mkServer Nothing Nothing (Just (ServerName n)) =
@@ -413,12 +413,12 @@ mkServer (Just _) _ (Just _) =
   error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
 
 {-# INLINABLE runWith #-}
-runWith :: (PlayerInput a, DeltaRenderBackend a)
+runWith :: (GameLogic g, PlayerInput i, DeltaRenderBackend i)
         => Bool
-        -> ClientQueues (Event HamazedEvent) Hamazed
-        -> HamazedView
-        -> SuggestedPlayerName
-        -> a
+        -> ClientQueues g
+        -> ServerView (ServerT g)
+        -> ConnectIdT (ServerT g)
+        -> i
         -> IO ()
 runWith debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
@@ -426,9 +426,9 @@ runWith debug queues srv player backend =
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face
       void $ createState screen debug player srv NotConnected >>=
-        runStateT (runReaderT (loop translatePlatformEvent handleGenEvent) env)
+        runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+
  where
-  handleGenEvent = onEvent hamazedEventUpdate hamazedSrvEvtUpdate
 
   (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
 
@@ -438,13 +438,13 @@ runWith debug queues srv player backend =
       then Just (f,ftName)
       else look name rest
 
-loop ::(CliEvtT e ~ Event evt
-      , MonadState (AppState evt) m
-      , MonadReader e m, Client e, PlayerInput e
-      , MonadIO m)
-     => (PlatformEvent -> m (Maybe (GenEvent e)))
+loop :: (MonadIO m
+       , g ~ GameLogicT e
+       , MonadState (AppState g) m
+       , MonadReader e m, PlayerInput e, Client e)
+     => (PlatformEvent -> m (Maybe (GenEvent g)))
        -- ^ Translates a 'PlatformEvent' to a 'GenEvent'
-     -> (Maybe (GenEvent e) -> m ())
+     -> (Maybe (GenEvent g) -> m ())
        -- ^ Handles a 'GenEvent'
      -> m ()
 loop liftPlatformEvent onEventF =
@@ -459,7 +459,7 @@ loop liftPlatformEvent onEventF =
       (return . Just))
 
 
-type AnyEvent e = Either PlatformEvent (GenEvent e)
+type AnyEvent g = Either PlatformEvent (GenEvent g)
 
 -- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':
 -- 10000 ->   3.5% -- ok but 10 ms is a lot
@@ -482,11 +482,13 @@ type AnyEvent e = Either PlatformEvent (GenEvent e)
 -- using poll + threadDelay    10 ->  82.0%
 -- using poll + threadDelay    1  -> 111.0%
 
--- | MonadState (AppState evt) is needed to know if the level is finished or not.
+-- | MonadState (AppState s) is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
-produceEvent :: (Event evt ~ CliEvtT e
-               , MonadState (AppState evt) m, MonadIO m, MonadReader e m, PlayerInput e, Client e)
-             => m (Maybe (AnyEvent e))
+produceEvent :: (MonadIO m
+               , g ~ GameLogicT e
+               , MonadState (AppState g) m
+               , MonadReader e m, PlayerInput e, Client e)
+             => m (Maybe (AnyEvent g))
 produceEvent = do
   server <- asks serverQueue
   platform <- asks plaformQueue
@@ -511,10 +513,11 @@ produceEvent = do
           triggerRenderOr $ tryAtomicallyBefore deadlineTime readInput))
     (return . Just)
 
-triggerRenderOr :: (MonadState (AppState evt) m, MonadIO m, MonadReader e m
-                  , PlayerInput e)
-                => IO (Maybe (AnyEvent e))
-                -> m (Maybe (AnyEvent e))
+triggerRenderOr :: (MonadIO m
+                  , MonadState (AppState g) m
+                  , MonadReader e m, PlayerInput e)
+                => IO (Maybe (AnyEvent g))
+                -> m (Maybe (AnyEvent g))
 triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
@@ -555,16 +558,16 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
         -}
 
 {-# INLINABLE tryAtomically #-}
-tryAtomically :: STM (AnyEvent e)
-              -> IO (Maybe (AnyEvent e))
+tryAtomically :: STM (AnyEvent g)
+              -> IO (Maybe (AnyEvent g))
 tryAtomically a =
   atomically $ fmap Just a
            <|> return Nothing
 
 {-# INLINABLE tryAtomicallyBefore #-}
 tryAtomicallyBefore :: Time Point System
-                    -> STM (AnyEvent e)
-                    -> IO (Maybe (AnyEvent e))
+                    -> STM (AnyEvent g)
+                    -> IO (Maybe (AnyEvent g))
 tryAtomicallyBefore t a =
   getDurationFromNowTo t >>= \allowed ->
     if strictlyNegative allowed

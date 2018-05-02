@@ -1,10 +1,14 @@
-- make the client logic more generic to share common logic across games without having to rewrite:
-event acquisition, timeouts, "draw groups".
-  - AppState should be made more generic
+- rename :
+Hamazed to HamazedServer
+GameState to Hamazed
 
+- move Categorized out of server (to game, and create instances in the file of the class definition)
 move to imj-engine or base:
 Imj.Event
 Imj.Graphics.Screen
+
+- using imj-engine, create a mini game that displays a timer in the center of the screen,
+that starts when space is hit and stops when space is hit again.
 
 - imj-server could depend on a smaller version of imj-base
 
@@ -146,7 +150,7 @@ maybe we need to move + and - to make them be in the center.
 : this allows to become aware of when a number is shot.
 
 - chat : make it easier to use
-- in (AppState evt) we could have arrays of random numbers, and a particle system would pass
+- in (AppState s) we could have arrays of random numbers, and a particle system would pass
 the index of the animated point.
 
 Hence, either the color could rely on the random part or on the frame or both.

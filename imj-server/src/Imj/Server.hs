@@ -6,7 +6,9 @@
 
 module Imj.Server
       ( adjustClient
+      , adjustClient'
       , adjustAllWithKey
+      , adjustAllWithKey'
       , adjustAll
       , adjustAll'
       , ServerState
@@ -45,9 +47,19 @@ adjustAllWithKey f =
     let clients = clientsViews s
     in s { clientsViews =
             clients { views =
-                        Map.mapWithKey
-                          (\k -> fmap (f k)) $
-                          views clients
+                        Map.mapWithKey (\k -> fmap (f k)) $ views clients
+                    }
+          }
+
+{-# INLINABLE adjustAllWithKey' #-}
+adjustAllWithKey' :: (MonadState (ServerState s) m)
+                 => (ClientId -> ClientView (ClientViewT s) -> ClientView (ClientViewT s)) -> m ()
+adjustAllWithKey' f =
+  modify' $ \s ->
+    let clients = clientsViews s
+    in s { clientsViews =
+            clients { views =
+                        Map.mapWithKey (\k -> f k) $ views clients
                     }
           }
 
@@ -80,13 +92,18 @@ adjustAll' f =
 {-# INLINABLE adjustClient #-}
 adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => (ClientViewT s -> ClientViewT s) -> m ()
-adjustClient f = do
+adjustClient = adjustClient' . fmap
+
+{-# INLINABLE adjustClient' #-}
+adjustClient' :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+             => (ClientView (ClientViewT s) -> ClientView (ClientViewT s)) -> m ()
+adjustClient' f = do
   i <- asks clientId
   modify' $ \s ->
     let clients = clientsViews s
     in s { clientsViews =
             clients { views =
-                        Map.adjust (fmap f) i $ views clients
+                        Map.adjust f i $ views clients
                     }
           }
 

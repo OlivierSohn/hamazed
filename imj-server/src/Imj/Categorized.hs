@@ -1,5 +1,3 @@
-{-# OPTIONS_HADDOCK hide #-}
-
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}

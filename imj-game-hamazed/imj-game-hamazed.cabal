@@ -30,7 +30,8 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Event
+  exposed-modules:     Imj.Client
+                     , Imj.Event
                      , Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Chat
                      , Imj.Game.Hamazed.Color
@@ -39,15 +40,14 @@ library
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.KeysMaps
                      , Imj.Game.Hamazed.Level.Types
+                     , Imj.Game.Hamazed.Logic
                      , Imj.Game.Hamazed.Loop.Create
                      , Imj.Game.Hamazed.Loop.Deadlines
                      , Imj.Game.Hamazed.Loop.Draw
                      , Imj.Game.Hamazed.Loop.Event.Priorities
                      , Imj.Game.Hamazed.Loop.Event.Types
-                     , Imj.Game.Hamazed.Loop.Event
                      , Imj.Game.Hamazed.Loop.Run
                      , Imj.Game.Hamazed.Loop.Timing
-                     , Imj.Game.Hamazed.Loop.Update
                      , Imj.Game.Hamazed.Music
                      , Imj.Game.Hamazed.Network.Class.AsyncGroups
                      , Imj.Game.Hamazed.Network.Client
@@ -65,8 +65,6 @@ library
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
-                     , Imj.Game.Hamazed.World.Number
-                     , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
@@ -74,7 +72,9 @@ library
                      , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
+                     , Imj.Game.Update
                      , Imj.Graphics.Screen
+                     , Imj.Network
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3
@@ -128,6 +128,7 @@ test-suite imj-game-hamazed-test
                      , imj-prelude ==0.1.*
                      , mwc-random ==0.13.*
                      , primitive ==0.6.*
+                     , text >=1.2.3 && < 1.3
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 

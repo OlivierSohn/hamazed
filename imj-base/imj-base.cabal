@@ -70,6 +70,7 @@ library
                      , Imj.Graphics.Class.HasSizedFace
                      , Imj.Graphics.Class.Positionable
                      , Imj.Graphics.Class.Render
+                     , Imj.Graphics.Class.UIInstructions
                      , Imj.Graphics.Class.UncoloredTextual
                      , Imj.Graphics.Class.Words
                      , Imj.Graphics.Color

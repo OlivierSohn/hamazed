@@ -26,20 +26,18 @@ import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
 import           Imj.Categorized
-import           Imj.Client.Class
-import           Imj.Client.Types
+import           Imj.Event
 import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.Network.Class.AsyncGroups
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.Types
 import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Loop.Create
 import           Imj.Game.Hamazed.Loop.Draw
-import           Imj.Game.Hamazed.Loop.Event
-import           Imj.Game.Hamazed.Loop.Update
+import           Imj.Game.Update
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Words hiding (length)
@@ -50,92 +48,79 @@ import           Imj.Graphics.Text.Render
 import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
-onEvent :: (ServerT e ~ Hamazed
-          , CliEvtT e ~ Event evt
-          , Categorized evt
-          , MonadState (AppState evt) m
-          , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e
+onEvent :: (GameLogicT e ~ g
+          , MonadState (AppState g) m
+          , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e, AsyncGroups e
           , MonadIO m)
-        => (evt -> m ())
-        -> (ServerEventT (ServerT e) -> m ())
-        -> Maybe (GenEvent e)
+        => Maybe (GenEvent g)
         -> m ()
-onEvent f f' mayEvt = do
+onEvent mayEvt = do
   checkPlayerEndsProgram
   debug >>= \case
     True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
     False -> return ()
-  onEvent' f f' mayEvt
+  onEvent' mayEvt
  where
   checkPlayerEndsProgram =
     playerEndsProgram >>= \end ->
-      when end $ sendToServer $ RequestApproval $ Leaves $ Right () -- Note that it is safe to send this several times
+      when end $ do
+        -- Note that it is safe to send this several times
+        asks sendToServer' >>= \f -> f $ RequestApproval $ Leaves $ Right ()
 
 {-# INLINABLE onEvent' #-}
-onEvent' :: (ServerT e ~ Hamazed
-            , CliEvtT e ~ Event evt
-            , Categorized evt
-            , MonadState (AppState evt) m
-            , MonadReader e m, Client e, Render e, HasSizedFace e
+onEvent' :: (GameLogicT e ~ g
+            , MonadState (AppState g) m
+            , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
             , MonadIO m)
-         => (evt -> m ())
-         -> (ServerEventT (ServerT e) -> m ())
-         -> Maybe (GenEvent e) -> m ()
-onEvent' f f' Nothing = handleEvent f f' Nothing -- if a rendergroup exists, render and reset the group
-onEvent' _ _ (Just (CliEvt clientEvt)) = sendToServer clientEvt
-onEvent' _ _ (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
-onEvent' f f' (Just (Evt    evt)) = onUpdateEvent f f' $ Right evt
-onEvent' f f' (Just (SrvEvt evt)) = onUpdateEvent f f' $ Left evt
+         => Maybe (GenEvent g) -> m ()
+onEvent' Nothing = handleEvent Nothing -- if a rendergroup exists, render and reset the group
+onEvent' (Just (CliEvt e)) = asks sendToServer' >>= \f -> f e
+onEvent' (Just (Evt ToggleEventRecording)) = state toggleRecordEvent
+onEvent' (Just (Evt    evt)) = onUpdateEvent $ Right evt
+onEvent' (Just (SrvEvt evt)) = onUpdateEvent $ Left evt
 
 {-# INLINABLE onUpdateEvent #-}
-onUpdateEvent :: (ServerT e ~ Hamazed
-                , CliEvtT e ~ Event evt
-                , Categorized evt
-                , MonadState (AppState evt) m
-                , MonadReader e m, Client e, Render e, HasSizedFace e
+onUpdateEvent :: (GameLogicT e ~ g
+                , MonadState (AppState g) m
+                , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
                 , MonadIO m)
-              => (evt -> m ())
-              -> (ServerEventT (ServerT e) -> m ())
-              -> UpdateEvent Hamazed (CliEvtT e) -> m ()
-onUpdateEvent f f' e = do
+              => UpdateEvent g -> m ()
+onUpdateEvent e = do
   getRecording >>= \case
     Record -> state $ addEvent e
     DontRecord -> return ()
-  handleEvent f f' $ Just e
+  handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
-handleEvent :: (ServerT e ~ Hamazed
-              , CliEvtT e ~ Event evt
-              , MonadState (AppState evt) m
-              , MonadReader e m, Client e, Render e, HasSizedFace e
+handleEvent :: (GameLogicT e ~ g
+              , MonadState (AppState g) m
+              , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
               , MonadIO m)
-            => (evt -> m ())
-            -> (ServerEventT (ServerT e) -> m ())
-            -> Maybe (UpdateEvent Hamazed (CliEvtT e)) -> m ()
-handleEvent f f' e = do
+            => Maybe (UpdateEvent g) -> m ()
+handleEvent e = do
   addToCurrentGroupOrRenderAndStartNewGroup e
   maybe
     (return ())
     (\evt -> do
       t1 <- liftIO getSystemTime
-      updateAppState evt f f'
+      updateAppState evt
       t2 <- liftIO getSystemTime
       addUpdateTime $!! t1...t2)
     e
 
 {-# INLINE addUpdateTime #-}
-addUpdateTime :: MonadState (AppState evt) m
+addUpdateTime :: MonadState (AppState g) m
               => Time Duration System -> m ()
 addUpdateTime add =
   get >>= \(AppState t a (EventGroup d e prevT f) b c g de) ->
     put $ AppState t a (EventGroup d e (add |+| prevT) f) b c g de
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
-addToCurrentGroupOrRenderAndStartNewGroup :: (CliEvtT e ~ Event evt
-                                            , MonadState (AppState evt) m
+addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
+                                            , MonadState (AppState g) m
                                             , MonadReader e m, Render e, Client e
                                             , MonadIO m)
-                                          => Maybe (UpdateEvent Hamazed (Event evt)) -> m ()
+                                          => Maybe (UpdateEvent g) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
@@ -152,7 +137,7 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
     >>= \(t,g) -> get >>= \(AppState _ a _ b c d e) -> put $ AppState t a g b c d e
 
 
-groupStats :: EventGroup s c -> String
+groupStats :: EventGroup s -> String
 groupStats (EventGroup l _ t _) =
   replicate (pred $ length l) ' ' ++
   "|" ++
@@ -161,8 +146,8 @@ groupStats (EventGroup l _ t _) =
   showTime t
 
 {-# INLINABLE renderAll #-}
-renderAll :: (CliEvtT e ~ Event evt -- TODO remove by passing Hamazed as parameter in Env and AppState
-            , MonadState (AppState evt) m
+renderAll :: (GameLogicT e ~ g
+            , MonadState (AppState g) m
             , MonadReader e m, Render e, Client e
             , MonadIO m)
           => m ()
@@ -192,7 +177,7 @@ renderAll = do
   showTime' = justifyR 11 . showTime
 
 {-# INLINABLE getEvtStrs #-}
-getEvtStrs :: MonadState (AppState evt) m
+getEvtStrs :: MonadState (AppState g) m
               => m [ColorString]
 getEvtStrs =
   get >>= \(AppState _ _ _ h r _ _) ->
@@ -201,26 +186,27 @@ getEvtStrs =
       DontRecord -> []
 
 {-# INLINABLE getRecording #-}
-getRecording :: MonadState (AppState evt) m
+getRecording :: MonadState (AppState g) m
              => m RecordMode
 getRecording = do
   (AppState _ _ _ _ record _ _) <- get
   return record
 
-addEvent :: Categorized evt
-         => UpdateEvent Hamazed (Event evt) -> (AppState evt) -> ((), (AppState evt))
+{-# INLINABLE addEvent #-}
+addEvent :: (GameLogic g)
+         => UpdateEvent g -> AppState g -> ((), AppState g)
 addEvent e (AppState t g evts es r b d) =
   let es' = addEventRepr (evtCategory e) es
   in ((), AppState t g evts es' r b d)
 
-toggleRecordEvent :: (AppState evt) -> ((), (AppState evt))
+toggleRecordEvent :: AppState g -> ((), AppState g)
 toggleRecordEvent (AppState t g e _ r b d) =
   let r' = case r of
         Record -> DontRecord
         DontRecord -> Record
   in ((), AppState t g e mkEmptyOccurencesHist r' b d)
 
-addIgnoredOverdues :: MonadState (AppState evt) m
+addIgnoredOverdues :: MonadState (AppState g) m
                    => Int -> m ()
 addIgnoredOverdues n =
   get >>= \(AppState t a e hist record b d) -> do
@@ -242,19 +228,20 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: Screen
+createState :: (GameLogic g)
+            => Screen
             -> Bool
-            -> SuggestedPlayerName
-            -> ServerView ColorScheme WorldParameters
+            -> ConnectIdT (ServerT g)
+            -> ServerView (ServerT g)
             -> ConnectionStatus
-            -> IO (AppState evt)
+            -> IO (AppState g)
 createState screen dbg a b c = do
-  g <- initialGame screen a b c
+  g <- mkGame screen a b c <$> initialGame screen
   t <- getSystemTime
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 
 {-# INLINABLE debug #-}
-debug :: MonadState (AppState evt) m => m Bool
+debug :: MonadState (AppState g) m => m Bool
 debug =
   get >>= \(AppState _ _ _ _ _ _ d) -> return d
 

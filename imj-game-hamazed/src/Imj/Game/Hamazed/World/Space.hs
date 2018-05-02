@@ -292,7 +292,7 @@ mkSmallWorld :: NonEmpty GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userWallProba) variants eitherLowerBounds) continue
+mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userP) variants eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -307,9 +307,9 @@ mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userWallProba) 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
     mkMatrixPipeline nComponents wallProba sz lowerBounds variants >>= runPipeline (area sz) gens continue
    where
-    wallProba = fromMaybe (error "logic") $ mapRange 0 1 minWallProba maxWallProba userWallProba
-    minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
-    maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
+    wallProba = fromMaybe (error "logic") $ mapRange 0 1 minP maxP userP
+    minP =     fromIntegral minWallCount / fromIntegral totalCount
+    maxP = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
   !nComponents = -- relax the constraint on number of components if the size is too small
     min

@@ -14,7 +14,7 @@ module Imj.Game.Hamazed.Command
 
 import           Imj.Prelude
 
-import           Data.Attoparsec.Text(Parser, takeText, decimal, endOfInput, string, char
+import           Data.Attoparsec.Text(Parser, takeText, endOfInput, string, char
                                     , peekChar', skipSpace, space)
 import           Data.Char(isSpace)
 import           Data.Text(pack, unsnoc)
@@ -22,13 +22,11 @@ import           Data.Text(pack, unsnoc)
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
-import           Imj.Graphics.Color.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Ship
 import           Imj.Graphics.Text.ColorString
 
-runClientCommand :: (MonadState (AppState evt) m)
+runClientCommand :: (GameLogic g, MonadState (AppState g) m)
                  => ShipId
                  -> ClientCommand
                  -> m ()
@@ -38,11 +36,11 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
     AssignName name' -> do
       let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
       putPlayer sid $ Player name' Present colors
-      updateShipsText
+      onPlayersChanged
     AssignColor color -> do
-      let n = maybe (PlayerName "no name") getPlayerName p
+      let n = maybe (ClientName "no name") getPlayerName p
       putPlayer sid $ Player n Present $ mkPlayerColors color
-      updateShipsText
+      onPlayersChanged
     Says what ->
       stateChat $ addMessage $ ChatMessage $
         name <> colored (":" <> what) chatMsgColor
@@ -51,7 +49,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
         (return ())
         (\n -> putPlayer sid $ n { getPlayerStatus = Absent })
           p
-      updateShipsText
+      onPlayersChanged
       stateChat $ addMessage $ ChatMessage $
         name <>
         colored
@@ -80,32 +78,21 @@ maxOneSpace t = go t False []
                 else c:res
 
 
-command :: Parser (Either Text Command)
-command = do
-  skipSpace
-  peekChar' >>= \case
-    '/' ->
-      char '/' *> do
-        skipSpace
-        reportColorScheme <|> do
-          cmdType <- string "name" <|> string "color"
-          void $ char ':' <|> space
-          skipSpace
-          case cmdType of
-            "name" -> Right . ClientCmd . AssignName . PlayerName . maxOneSpace <$> takeText <* endOfInput
-            "color" -> setColorScheme
+command :: GameLogic g => Parser (Either Text (Command (ServerT g)))
+command =
+  defaultCommand <|> commandParser
 
-            _ -> error "logic"
-       where
-        reportColorScheme =
-          do void $ string "color" <* endOfInput
-             return $ Right $ ServerRep $ Get ColorSchemeCenterKey
-        setColorScheme = do
-          skipSpace
-          r <- decimal
-          skipSpace
-          g <- decimal
-          skipSpace
-          b <- decimal
-          return $ ServerCmd . Put . ColorSchemeCenter <$> userRgb r g b
-    _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)
+ where
+
+  defaultCommand = skipSpace *> peekChar' >>= \case
+    '/' -> setName
+    _   -> speak
+
+  speak = Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)
+
+  setName = do
+    char '/' *> skipSpace
+    void $ string "name"
+    void $ space <|> (skipSpace *> char ':')
+    skipSpace
+    Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput

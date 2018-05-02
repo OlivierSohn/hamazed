@@ -14,7 +14,6 @@ module Imj.Server.Run
       ( Server(..)
       , ServerState(..)
       , ServerEvent(..)
-      , ClientInfo(..)
       , ClientId(..)
       , ClientEvent(..)
       , ServerOwnership(..)
@@ -24,6 +23,8 @@ module Imj.Server.Run
       , shutdown
       , handlerError
       , error'
+      , checkNameAvailability
+      , checkName
       ) where
 
 import           Imj.Prelude
@@ -33,9 +34,10 @@ import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Unlift(MonadIO, MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', state, gets)
+import           Data.Char (isPunctuation, isSpace)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
-import           Data.Text(pack)
+import           Data.Text(pack, unpack)
 import           Data.Tuple(swap)
 import           Network.WebSockets(PendingConnection, Connection, acceptRequest, receiveData, sendBinaryData, sendPing)
 import           UnliftIO.Exception (SomeException(..), try)
@@ -49,6 +51,7 @@ import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Server.Connection
+import           Imj.Server
 import           Imj.Server.Log
 import           Imj.Timing
 
@@ -63,7 +66,6 @@ appSrv st pending =
 application :: Server s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
-    msg@ClientAppEvt {} -> error $ "First sent message should be 'Connect'. " ++ show msg
     Connect connectId cliType ->
       either
         refuse
@@ -74,7 +76,6 @@ application st conn =
                 (\(cid,lifecycle) ->
                   runReaderT (handleClient connectId cliType lifecycle st) $ ConstClientView conn cid))
       $ acceptConnection connectId
-
      where
 
       refuse txt =
@@ -98,6 +99,8 @@ application st conn =
 
         takeClientId :: ClientViews c -> (ClientViews c, ClientId)
         takeClientId (ClientViews c i) = (ClientViews c $ succ i, i)
+
+    msg -> error $ "First sent message should be 'Connect'. " ++ show msg
 
 
 handleClient :: (Server s)
@@ -138,6 +141,42 @@ handleIncomingEvent' = \case
   Connect i _ ->
     handlerError $ "already connected : " ++ show i
   ClientAppEvt e -> handleClientEvent e
+  RequestApproval cmd@(AssignName name) -> either
+    (notifyClient' . CommandError cmd)
+    (\_ -> checkNameAvailability name >>= either
+      (notifyClient' . CommandError cmd)
+      (\_ -> do
+        adjustClient' $ \c -> c { getName = name }
+        acceptCmd cmd)
+    ) $ checkName $ unpack $ unClientName name
+  RequestApproval cmd@(AssignColor _) ->
+    notifyClient' $ CommandError cmd "You cannot set an individual player color, please use 'Do PutColorSchemeCenter'"
+  RequestApproval cmd@(Says _) ->
+    acceptCmd cmd
+  RequestApproval (Leaves _) ->
+    asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
+  Do x -> onDo x
+  Report x -> onReport x
+
+ where
+
+  acceptCmd cmd = asks clientId >>= notifyEveryone' . flip RunCommand cmd
+
+
+checkNameAvailability :: (MonadIO m, MonadState (ServerState g) m)
+                      => ClientName -> m (Either Text ())
+checkNameAvailability name =
+  any ((== name) . getName) <$> gets clientsMap >>= \case
+    True  -> return $ Left "Name is already taken"
+    False -> return $ Right ()
+
+
+checkName :: String -> Either Text ()
+checkName name
+  | any ($ name) [ null, any isPunctuation, any isSpace] =
+      Left "Name cannot contain punctuation or whitespace, and cannot be empty"
+  | otherwise =
+      Right ()
 
 pingPong :: Connection -> Time Duration System -> IO ()
 pingPong conn dt =
@@ -157,10 +196,11 @@ addClient :: (Server s
 addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
-  c' <- createClientView i connectId
-  notifyEveryoneN $ announceNewcomer i c'
+  (c',name,color) <- createClientView i connectId
 
-  let c = ClientView conn cliType c'
+  notifyEveryoneN' $ map (RunCommand i) [AssignName name , AssignColor color]
+
+  let c = ClientView conn cliType name color c'
 
   modify' $ \ s ->
     let clients = clientsViews s
@@ -170,7 +210,11 @@ addClient connectId cliType = do
   serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient c) <$> showId i
 
   greeters <- map ServerAppEvt <$> greetNewcomer
-  notifyClientN' $ ConnectionAccepted i : greeters
+  wp <- gets content
+  notifyClientN' $
+    ConnectionAccepted i :
+    greeters ++
+    [OnContent wp]
 
 handlerError :: (Server s
                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)

@@ -12,7 +12,6 @@ module Imj.Server.Log
       , logArg
       , showId
       , showClient
-      , logColor
       ) where
 
 import           Imj.Prelude
@@ -34,11 +33,11 @@ import           Imj.Log
 findClient :: ClientId -> ServerState s -> Maybe (ClientView (ClientViewT s))
 findClient i s = Map.lookup i $ clientsMap s
 
-showId :: (Server s, MonadState (ServerState s) m)
+showId :: (MonadState (ServerState s) m)
        => ClientId
        -> m ColorString
 showId i =
-  colored (pack $ show i) . fromMaybe (gray 16) . join . fmap clientLogColor . fmap unClientView <$> gets (findClient i)
+  colored (pack $ show i) . fromMaybe (gray 16) . fmap getColor <$> gets (findClient i)
 
 serverLog :: (MonadIO m, MonadState (ServerState s) m)
           => m ColorString
@@ -48,15 +47,12 @@ serverLog msg = gets serverLogs >>= \case
   ConsoleLogs ->
     msg >>= baseLog
 
-logColor :: (ClientInfo c) => c -> Color8 Foreground
-logColor c = fromMaybe (gray 16) $ clientLogColor c
-
 {-# INLINABLE showClient #-}
 showClient :: (Show c) => c -> ColorString
 showClient c = colored (pack $ show c) $ gray 16
 
 log :: (MonadIO m
-      , Server s, MonadState (ServerState s) m, MonadReader ConstClientView m)
+      , MonadState (ServerState s) m, MonadReader ConstClientView m)
     => ColorString -> m ()
 log msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -69,7 +65,7 @@ log msg = gets serverLogs >>= \case
       ]
 
 warning :: (MonadIO m
-          , Server s, MonadState (ServerState s) m, MonadReader ConstClientView m)
+          , MonadState (ServerState s) m, MonadReader ConstClientView m)
         => Text -> m ()
 warning msg = gets serverLogs >>= \case
   NoLogs -> return ()
@@ -82,7 +78,7 @@ warning msg = gets serverLogs >>= \case
       ]
 
 {-# INLINABLE logArg #-}
-logArg :: (Show a, Server s
+logArg :: (Show a
           , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
        => (a -> m b)
        -> a

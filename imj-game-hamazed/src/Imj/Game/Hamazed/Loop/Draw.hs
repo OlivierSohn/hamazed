@@ -24,48 +24,32 @@ import           Imj.Graphics.Screen
 import           Imj.ServerView.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World
-import           Imj.Graphics.ParticleSystem.Design.Draw
+import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Graphics.UI.Slider
 
 -- | Draws the game content.
 {-# INLINABLE draw #-}
-draw :: (MonadState (AppState evt) m
+draw :: (GameLogic (GameLogicT e)
+       , MonadState (AppState (GameLogicT e)) m
        , MonadReader e m, Draw e
        , MonadIO m)
      => m ()
-draw =
-  gets game >>= \(Game _ (Screen _ screenCenter@(Coords rowCenter _))
-                     (GameState world@(World _ _ _ renderedSpace animations _) mayFutWorld
-                                _ _ wa mode)
-                     _ _ _ _ _ chat) -> do
-    let offset = getWorldOffset mode world
-        worldCorner = getWorldCorner world screenCenter offset
-    -- draw the walls outside the matrix:
-    fill (materialGlyph Wall) outerWallsColors
-    -- draw the matrix:
-    drawSpace renderedSpace worldCorner
-    mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
-    drawWorld world worldCorner
-    drawUIAnimation offset wa -- draw it after the world so that when it morphs
-                              -- it goes over numbers and ship
-    -- draw last so that the message is clearly visible:
-    let w = fromMaybe world mayFutWorld
-        offset' = getWorldOffset mode w
-        (Coords _ col) = getWorldCorner w screenCenter offset'
-        chatUpperLeft =
-          Coords (rowCenter - fromIntegral (quot (height chat) 2))
-            $ col + 4 + 2 + fromIntegral (getWidth (getSize $ getWorldSpace w))
+draw = do
+  (_,_,_,Coords _ col) <- getSideCenters <$> drawGame
+  gets game >>= \(Game _ (Screen _ (Coords rowCenter _)) _ _ _ _ _ _ chat) -> do
+    let chatUpperLeft =
+          Coords
+            (rowCenter - fromIntegral (quot (height chat) 2))
+            $ col + 4 + 2
     drawAt chat chatUpperLeft
     drawStatus
 
 
 {-# INLINABLE drawStatus #-}
-drawStatus :: (MonadState (AppState evt) m
+drawStatus :: (GameLogic g
+             , MonadState (AppState g) m
              , MonadReader e m, Draw e
              , MonadIO m)
            => m ()
@@ -73,43 +57,30 @@ drawStatus =
   gets game >>= \(Game state _ _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       (ClientState Ongoing Setup) ->
-        getCurScreen >>= \(Screen _ center) -> getWorld >>=
-          drawSetup worldParams . mkRectContainerWithCenterAndInnerSize center . getSize . getWorldSpace -- TODO using progressivelyInform
+        getCurScreen >>= \(Screen _ center) -> getGameSize >>=
+          drawSetup worldParams . mkRectContainerWithCenterAndInnerSize center -- TODO using progressivelyInform
       _ -> return ()
     forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}
-drawSetup :: (MonadReader e m, Draw e
+drawSetup :: (Server s
+            , MonadReader e m, Draw e
             , MonadIO m)
-          => Maybe WorldParameters
+          => Maybe (ServerViewContentT s)
           -> RectContainer
           -> m ()
 drawSetup mayWorldParams cont = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
         getSideCenters cont
       left = move 12 LEFT (Coords r c)
-      wallsSizeSlider = maybe
-        return
-        (\(WorldParameters _ (WallDistribution size _)) ->
-            drawSlider $ Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize) 'y' 'g' configColors Compact)
-        mayWorldParams
-      wallsProbaSlider = maybe
-        return
-        (\(WorldParameters _ (WallDistribution _ proba)) ->
-            drawSlider $ Slider proba minWallProba maxWallProba nProbaSteps 'u' 'h' configColors Compact)
-        mayWorldParams
   dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"
   dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
-  void $ section "World shape"
-      [ "'1' : width = height"
-      , "'2' : width = 2 x height"
-      ] (move 5 Up left)
-    >>= section "Walls size" []
-    >>= wallsSizeSlider
-    >>= section "Walls probability" []
-    >>= wallsProbaSlider
+  let initialPos = move 5 Up left
+
+  void $ return initialPos
+    >>= maybe return drawInstructions mayWorldParams
       {-
     >>= section "Center view"
       [ "'d' : On space"
@@ -120,7 +91,21 @@ drawSetup mayWorldParams cont = do
       [ "'Up' 'Down' : Change font"
       , "'Left' 'Right' : Change font size"
       ]
+
  where
+
+  drawInstructions li pos =
+    foldM
+      (\p (ConfigUI title i) -> case i of
+        Choice l ->
+          section title l p
+        Continuous slider ->
+          section title [] p >>= drawSlider slider
+        Discrete slider ->
+          section title [] p >>= drawSlider slider)
+      pos
+      $ instructions li
+
   section title elts pos = do
     dText_ ("[" <> title <> "]") pos
     foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts

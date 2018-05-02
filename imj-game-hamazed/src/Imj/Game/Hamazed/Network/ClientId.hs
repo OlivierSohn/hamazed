@@ -5,25 +5,14 @@
 
 module Imj.Game.Hamazed.Network.ClientId
       ( mkClientColorFromCenter
-      , checkName
       ) where
 
 import           Imj.Prelude
-
-import           Data.Char (isPunctuation, isSpace)
-import           Data.Text(Text)
 
 import           Imj.ClientView.Types
 import           Imj.Graphics.Color.Types
 
 import           Imj.Graphics.Color
-
-checkName :: String -> Either Text ()
-checkName name
-  | any ($ name) [ null, any isPunctuation, any isSpace] =
-      Left "Name cannot contain punctuation or whitespace, and cannot be empty"
-  | otherwise =
-      Right ()
 
 -- | This function assumes that ClientId's start at 0 and are ascending.
 mkClientColorFromCenter :: ClientId -> Color8 Foreground -> Color8 Foreground

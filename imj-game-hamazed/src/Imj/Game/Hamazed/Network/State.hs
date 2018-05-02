@@ -10,7 +10,6 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import           UnliftIO.MVar (newEmptyMVar)
 
-import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Game.Hamazed.Network.Types
@@ -24,8 +23,8 @@ newServerState :: ServerLogs -> ColorScheme -> IO (ServerState Hamazed)
 newServerState logs colorScheme = do
   c <- mkCenterColor colorScheme
   let lvSpec = LevelSpec firstServerLevel CannotOvershoot
-      params = initialParameters
-  mkServerState logs . Hamazed mkGameTiming lvSpec params
+      params = getInitialContent
+  mkServerState logs params . Hamazed mkGameTiming lvSpec
             (mkWorldCreation $ WorldSpec lvSpec Set.empty params)
             IntentSetup c <$> newEmptyMVar
 

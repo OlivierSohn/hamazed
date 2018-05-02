@@ -12,35 +12,27 @@ module Imj.Game.Hamazed.Loop.Event.Types
         , ActionTarget(..)
         , MetaAction(..)
         , HamazedEvent(..)
-        -- * Reexports (for haddock hyperlinks)
-        , module Imj.Event -- TODO remove
-        , module Imj.Game.Hamazed.World.Types
-        , module Imj.Graphics.ParticleSystem.Design.Create
         ) where
 
 import           Imj.Prelude
+import           Data.Set(Set)
+import           Data.Map(Map)
 
-import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level.Types
 
+import           Imj.ClientView.Types
 import           Imj.Event
 import           Imj.Game.Hamazed.Chat
-import           Imj.Graphics.ParticleSystem.Design.Create
 import           Imj.Log
 
 data HamazedEvent =
      Interrupt !MetaAction
    -- ^ A game interruption.
-   | ChatCmd {-unpack sum-} !ChatCommand
-   | SendChatMessage
-   -- ^ Send message or execute command if the message starts with a '/'
    | PlayProgram !Int
    deriving(Eq, Show)
 instance Categorized HamazedEvent where
   evtCategory = \case
     PlayProgram{}   -> Command'
-    SendChatMessage -> Command'
-    ChatCmd _       -> Command'
     Interrupt _ -> Interrupt'
 
 data MetaAction = Help
@@ -50,14 +42,14 @@ data MetaAction = Help
 data GameStatus =
     New
   | Running
-  | Paused !(Set ShipId) !GameStatus
+  | Paused !(Set ClientId) !GameStatus
   -- ^ with the list of disconnected clients and status before pause.
-  | WaitingForOthersToEndLevel !(Set ShipId)
+  | WaitingForOthersToEndLevel !(Set ClientId)
   | OutcomeValidated !LevelOutcome
   | WhenAllPressedAKey {
       _status :: !GameStatus
     , countdown :: !(Maybe Int)
-    , _havePressed :: !(Map ShipId Bool) }
+    , _havePressed :: !(Map ClientId Bool) }
   -- ^ Maybe Int is a countdown : when Nothing, the message is displayed.
   -- A 'True' in the 'Map' means the key was pressed.
   | Countdown !Int !GameStatus

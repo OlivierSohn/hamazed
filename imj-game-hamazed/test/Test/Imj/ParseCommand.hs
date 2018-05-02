@@ -5,10 +5,12 @@ module Test.Imj.ParseCommand
           , testMaxOneSpace
           ) where
 
-import           Data.Attoparsec.Text(parseOnly)
+import           Data.Attoparsec.Text(parseOnly, Parser)
+import           Data.Text
 
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Hamazed.Logic
 
 import           Imj.Game.Hamazed.Command
 import           Imj.Graphics.Color
@@ -31,16 +33,18 @@ testParseCommand = do
   parse "a  a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a a")
 
   parse "/a" `shouldBe` Left "string"
-  let cmd = Right $ Right $ ClientCmd $ AssignName $ PlayerName "Newname"
+  let cmd = Right $ Right $ ClientCmd $ AssignName $ ClientName "Newname"
   parse "/name Newname" `shouldBe` cmd
   parse "/name:Newname" `shouldBe` cmd
+  parse "/name :Newname" `shouldBe` cmd
+  parse "/name : Newname" `shouldBe` cmd
   parse "/name:  Newname  " `shouldBe` cmd
   parse "    /name:  Newname  " `shouldBe` cmd
 
   parse "/color" `shouldBe` (Right $ Right $ ServerRep $ Get ColorSchemeCenterKey)
   parse "/color 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
  where
-  parse = parseOnly command
+  parse = parseOnly (command :: Parser (Either Text (Command (ServerT GameState))))
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

@@ -10,19 +10,18 @@ module Imj.Game.Hamazed.Loop.Deadlines
     ) where
 
 import           Imj.Prelude
+import qualified Data.Map.Strict as Map
 
 import           Data.List( minimumBy, sortBy)
-import           Data.Map (toList)
-import           Data.Maybe( catMaybes, mapMaybe )
-
-import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Loop.Event.Types
-import           Imj.Game.Hamazed.State.Types
+import           Data.Maybe( mapMaybe )
 
 import           Imj.Game.Hamazed.Loop.Event.Priorities
-import           Imj.Game.Hamazed.Loop.Timing
-import           Imj.Graphics.UI.Animation
+import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
+
+import           Imj.Event
+import           Imj.Game.Hamazed.Loop.Timing
 
 
 {- | Returns the next 'Deadline' to handle.
@@ -57,7 +56,8 @@ will happen in-time and not be delayed by a potentially heavy animation update.
 But it's very unlikely that it will make a difference, except if updating
 the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
-getNextDeadline :: (MonadState (AppState evt) m)
+{-# INLINE getNextDeadline #-}
+getNextDeadline :: (GameLogic g, MonadState (AppState g) m)
                 => Time Point System
                 -- ^ The current time.
                 -> m (Maybe TypedDeadline)
@@ -65,7 +65,7 @@ getNextDeadline t =
   gets game >>= \g -> do
     let l = getDeadlinesByDecreasingPriority g
         overdues = filter (\(Deadline t' _ _) -> t' < t) l
-    return $ case overdues of
+    return $! case overdues of
           [] ->
             Future <$> earliestDeadline' l
           highPriorityOverdue:_ ->
@@ -81,29 +81,22 @@ earliestDeadline' [] = Nothing
 earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) -> compare t1 t2 ) l
 
 
-getDeadlinesByDecreasingPriority :: Game -> [Deadline]
-getDeadlinesByDecreasingPriority (Game _ _ s dcs _ _ _ _ _) =
-  -- sort from highest to lowest
+{-# INLINE getDeadlinesByDecreasingPriority #-}
+getDeadlinesByDecreasingPriority :: (GameLogic g) => Game g -> [Deadline]
+getDeadlinesByDecreasingPriority (Game _ _ g dcs _ _ _ _ _) =
+  -- sort from highest to lowest priority
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
-    catMaybes [uiAnimationDeadline s]
-    ++ stateAnimDeadlines dcs
-    ++ getParticleSystemsDeadlines s
+    getDeadlines g ++
+    (getParticleSystemsDeadlines $ particleSystems g) ++
+    stateAnimDeadlines dcs
+ where
+  getParticleSystemsDeadlines =
+    map (\(key, Prioritized p a) ->
+          Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
+            $ AnimateParticleSystem key)
+      . Map.toList
 
 stateAnimDeadlines :: [(a,AnimatedLine)] -> [Deadline]
 stateAnimDeadlines =
   mapMaybe
     (\(_,AnimatedLine _ _ mayD) -> mayD)
-
-getParticleSystemsDeadlines :: GameState -> [Deadline]
-getParticleSystemsDeadlines =
-  map (\(key, Prioritized p a) ->
-        Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
-          $ AnimateParticleSystem key)
-    . toList . getParticleSystems . currentWorld
-
-uiAnimationDeadline :: GameState -> Maybe Deadline
-uiAnimationDeadline =
-  maybe
-    Nothing
-    (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)
-    . getUIAnimationDeadline . getUIAnimation

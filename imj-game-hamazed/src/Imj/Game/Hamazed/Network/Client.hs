@@ -15,16 +15,15 @@ import           Control.Exception (try)
 import           Data.Text(pack)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.State.Types
 
-import           Imj.Client.Types
-import           Imj.Client.Class
+import           Imj.Event
 import           Imj.Client
 
--- TODO split Event between what is generic ('Log') and the rest, like we did for other events.
-appCli :: (Server s, Categorized e)
-       => ClientQueues (Event e) s -> ClientApp ()
+appCli :: GameLogic g
+       => ClientQueues g
+       -> ClientApp ()
 appCli q@(ClientQueues toClient toServer) conn = do
   void $ forkIO $
     safeForever $
@@ -39,5 +38,5 @@ appCli q@(ClientQueues toClient toServer) conn = do
       (\(e :: ConnectionException) ->
         -- Maybe noone is reading at the end of the queue if the client already disconnected.
         -- That's ok.
-        atomically . writeTQueue toClient $ FromClient $ Log Info $ "Client disconnects:" <> pack (show e))
+        atomically . writeTQueue toClient $ FromClient $ (Log Info $ "Client disconnects:" <> pack (show e)))
       return

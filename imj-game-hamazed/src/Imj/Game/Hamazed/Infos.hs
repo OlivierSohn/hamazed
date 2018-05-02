@@ -44,7 +44,7 @@ mkLevelCS t (LevelNumber level) =
       ColorAnimated -> [red, neutralColor]
 
 mkShipCS :: InfoType
-         -> Map ShipId Player -- TODO use the (AppState evt) monad instead of passing this ?
+         -> Map ShipId Player -- TODO use the (AppState s) monad instead of passing this ?
          -> ShipId
          -> BattleShip
          -> Successive ColoredGlyphList

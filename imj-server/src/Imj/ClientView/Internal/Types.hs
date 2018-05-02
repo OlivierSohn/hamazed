@@ -9,6 +9,7 @@ module Imj.ClientView.Internal.Types
       , ConstClientView(..)
       , ClientId(..)
       , ServerOwnership(..)
+      , ClientName(..), unClientName
       ) where
 
 import           Imj.Prelude
@@ -16,6 +17,7 @@ import           Data.Int(Int64)
 import           Data.Map.Strict(Map)
 import           Network.WebSockets(Connection)
 
+import           Imj.Graphics.Color
 
 -- | Immutable data associated to a client.
 data ConstClientView = ConstClientView {
@@ -37,12 +39,14 @@ newtype ClientId = ClientId Int64
 data ClientView c = ClientView {
     getConnection :: {-# UNPACK #-} !Connection
   , getServerOwnership :: {-unpack sum-} !ServerOwnership
+  , getName :: {-# UNPACK #-} !ClientName
+  , getColor :: {-# UNPACK #-} !(Color8 Foreground)
   , unClientView :: !c
 } deriving(Generic)
 instance NFData c => NFData (ClientView c) where
-  rnf (ClientView _ a b) = rnf a `seq` rnf b
+  rnf (ClientView _ a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 instance Show c => Show (ClientView c) where
-  show (ClientView _ a b) = show ("ClientView" :: String,a,b)
+  show (ClientView _ a b c d ) = show ("ClientView" :: String,a,b,c,d)
 instance Functor ClientView where
   {-# INLINE fmap #-}
   fmap f c = c { unClientView = f $ unClientView c}
@@ -54,3 +58,9 @@ data ServerOwnership =
   deriving(Generic, Show, Eq)
 instance Binary ServerOwnership
 instance NFData ServerOwnership
+
+
+newtype ClientName = ClientName Text
+  deriving(Generic, Show, Binary, Eq, NFData)
+unClientName :: ClientName -> Text
+unClientName (ClientName t) = t

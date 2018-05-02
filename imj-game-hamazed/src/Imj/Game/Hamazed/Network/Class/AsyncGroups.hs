@@ -17,20 +17,19 @@ import qualified Control.Concurrent.MVar as Lazy(MVar, modifyMVar_) -- not using
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 
 import qualified Data.Set as Set
-import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as Map
+import           Data.IntMap.Strict(IntMap)
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 
-class (Ord (KeyT a)) => AsyncGroups a where
-  type KeyT a
+class AsyncGroups a where
   -- | Attaches an 'Async' to the group, detaches it when the Async is done.
-  belongsTo' :: (MonadIO m) => a -> Async () -> KeyT a -> m ()
+  belongsTo' :: (MonadIO m) => a -> Async () -> Int -> m ()
   -- | Cancels every 'Async' currently in the group
-  cancel' :: (MonadIO m) => a -> KeyT a -> m ()
+  cancel' :: (MonadIO m) => a -> Int -> m ()
 
-instance (Ord k) => AsyncGroups (RequestsAsyncs k) where
-  type KeyT (RequestsAsyncs k) = k
+instance AsyncGroups RequestsAsyncs where
   belongsTo' (RequestsAsyncs m) a w =
     liftIO $ do
       addRequestAsync m a w
@@ -43,14 +42,14 @@ instance (Ord k) => AsyncGroups (RequestsAsyncs k) where
   {-# INLINABLE cancel' #-}
 
 {-# INLINE addRequestAsync #-}
-addRequestAsync :: (Ord k) => Lazy.MVar (Map k (Set (Async ()))) -> Async () -> k -> IO ()
+addRequestAsync :: Lazy.MVar (IntMap (Set (Async ()))) -> Async () -> Int -> IO ()
 addRequestAsync r a wid =
   Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
  where
   alt = Just . Set.insert a . fromMaybe Set.empty
 
 {-# INLINE removeRequestAsync #-}
-removeRequestAsync :: (Ord k) => Lazy.MVar (Map k (Set (Async ()))) -> Async () -> k -> IO ()
+removeRequestAsync :: Lazy.MVar (IntMap (Set (Async ()))) -> Async () -> Int -> IO ()
 removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wid
  where
   alt = maybe
@@ -60,7 +59,7 @@ removeRequestAsync r a wid = Lazy.modifyMVar_ r $ return . ($!) Map.alter alt wi
       in bool (Just s) Nothing $ Set.null s)
 
 {-# INLINABLE releaseRequestResources #-}
-releaseRequestResources :: (Ord k) => Lazy.MVar (Map k (Set (Async ()))) -> k -> IO ()
+releaseRequestResources :: Lazy.MVar (IntMap (Set (Async ()))) -> Int -> IO ()
 releaseRequestResources r wid = Lazy.modifyMVar_ r $ \m -> do
   let (e, m') = Map.updateLookupWithKey (\_ _ -> Nothing) wid m
   maybe

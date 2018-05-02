@@ -22,23 +22,23 @@ import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
-import           Imj.Client.Class
-import           Imj.Client.Types
 import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.State.Types
 import           Imj.Game.Hamazed.Types
 import           Imj.ServerView.Types
 import           Imj.ServerView
 
-import           Imj.Server.Run
+import           Imj.Event
 import           Imj.Client
 import           Imj.Game.Hamazed.Network.Client(appCli)
+import           Imj.Server.Run
 
-startServerIfLocal :: (Show c, Show a, Server s)
-                   => ServerView a c -- TODO unify with Server
+startServerIfLocal :: Server s
+                   => ServerView s
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
-                   -> (ServerLogs -> a -> IO (ServerState s))
+                   -> (ServerLogs -> ServerViewParamT s -> IO (ServerState s))
                    -> IO ()
 startServerIfLocal srv@(ServerView (Distant _) _) v _ = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
 startServerIfLocal srv@(ServerView (Local logs a) _) v createServerState = do
@@ -60,10 +60,10 @@ startServerIfLocal srv@(ServerView (Local logs a) _) v createServerState = do
     st False = "failed to start ("
     st True = "starts listening ("
 
-startClient :: (Show p, Show c, Categorized e)
-            => SuggestedPlayerName
-            -> ServerView p c
-            -> IO (ClientQueues (Event e) Hamazed)
+startClient :: GameLogic g
+            => ConnectIdT (ServerT g)
+            -> ServerView (ServerT g)
+            -> IO (ClientQueues g)
 startClient playerName srv = do
   -- by now, if the server is local, the listening socket has been created.
   qs <- mkQueues
@@ -91,7 +91,7 @@ startClient playerName srv = do
  where
   msg x = x <> " to server " <> pack (show srv)
 
-mkQueues :: IO (ClientQueues c s)
+mkQueues :: IO (ClientQueues s)
 mkQueues =
   ClientQueues <$> newTQueueIO <*> newTQueueIO
 

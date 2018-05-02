@@ -11,8 +11,7 @@ module Imj.Graphics.Screen
         ) where
 
 import           Imj.Prelude
-
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Geo.Discrete.Types
 
 data Screen = Screen {
     _screenSize :: {-unpack sum-} !(Maybe Size)

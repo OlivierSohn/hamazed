@@ -45,7 +45,6 @@ module Imj.Game.Hamazed.Network.Types
       , RequestsAsyncs(..)
       -- * Player
       , SuggestedPlayerName(..)
-      , PlayerName(..)
       , Player(..)
       , PlayerEssence(..)
       , mkPlayer
@@ -77,7 +76,6 @@ module Imj.Game.Hamazed.Network.Types
       , GameStateEssence(..)
       , ShotNumber(..)
       , Operation(..)
-      , applyOperations
       -- * Utils
       , welcome
       -- * reexport
@@ -90,14 +88,14 @@ import           Control.Concurrent.Async (Async)
 import qualified Control.Concurrent.MVar as Lazy -- not using strict version, because Async misses NFData.
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict(Map)
-import           Data.List(foldl')
+import           Data.IntMap.Strict(IntMap)
 import           Data.Set(Set)
 import           Data.String(IsString)
 import           Data.Text(unpack)
 
+import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.Chat
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.Loop.Event.Types
 import           Imj.Game.Hamazed.Network.Internal.Hamazed
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Graphics.Font
@@ -107,12 +105,6 @@ import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
 import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
 import           Imj.Server.Types
 
-data ColorScheme =
-    UseServerStartTime
-  | ColorScheme {-# UNPACK #-} !(Color8 Foreground)
-  deriving(Generic, Show)
-instance NFData ColorScheme
-
 data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !StateValue
   deriving(Generic, Show, Eq)
 
@@ -120,10 +112,10 @@ data StateNature = Ongoing | Over
   deriving(Generic, Show, Eq)
 instance Binary StateNature
 
-newtype RequestsAsyncs k = RequestsAsyncs (Lazy.MVar (Map k (Set (Async ()))))
+newtype RequestsAsyncs = RequestsAsyncs (Lazy.MVar (IntMap (Set (Async ()))))
 
 data Player = Player {
-    getPlayerName :: {-# UNPACK #-} !PlayerName
+    getPlayerName :: {-# UNPACK #-} !ClientName
   , getPlayerStatus :: {-unpack sum-} !PlayerStatus
   , getPlayerColors :: {-# UNPACK #-} !PlayerColors
 } deriving(Generic, Show)
@@ -157,28 +149,21 @@ getPlayerUIName :: (IsString a, Semigroup a)
 -- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
 -- know about the name of the other disconnected player, until the other player reconnects (TODO is it still the case?).
 getPlayerUIName _ Nothing = "? (away)"
-getPlayerUIName f (Just (Player (PlayerName name) status (PlayerColors c _))) =
+getPlayerUIName f (Just (Player (ClientName name) status (PlayerColors c _))) =
   case status of
     Present -> n
     Absent  -> n <> f " (away)" chatMsgColor
  where
   n = f name c
 
-data Command =
+data Command s =
     ClientCmd !ClientCommand
-  | ServerCmd !ServerCommand
-  | ServerRep !ServerReport
+  | ServerCmd !(ServerCommand s)
+  | ServerRep !(ServerReport s)
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary Command
+instance Server s => Binary (Command s)
 
-applyOperations :: [ShotNumber] -> Int
-applyOperations =
-  foldl' (\v (ShotNumber n op) ->
-            case op of
-              Add -> v + n
-              Substract -> v - n) 0
-
-welcome :: Map ShipId Player -> ColorString
+welcome :: Map ClientId Player -> ColorString
 welcome l =
   text "Welcome! Players are: "
   <> ColorString.intercalate

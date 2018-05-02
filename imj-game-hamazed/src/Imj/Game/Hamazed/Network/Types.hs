@@ -38,7 +38,7 @@ perceptually earlier shot.
 -}
 
 module Imj.Game.Hamazed.Network.Types
-      ( Hamazed
+      ( HamazedServer
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , HamazedClient

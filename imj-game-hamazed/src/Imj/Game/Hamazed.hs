@@ -83,8 +83,8 @@ module Imj.Game.Hamazed
       , Event(..)
       , ActionTarget(..)
       , MetaAction(..)
-        -- * GameState
-      , GameState(..)
+        -- * HamazedGame
+      , HamazedGame(..)
         -- * Keyboard layout
       , translatePlatformEvent
         -- * Reexport

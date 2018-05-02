@@ -388,7 +388,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
         -- the listening socket is available, we can continue.
 
         -- The type here determines which game we are playing.
-        queues <- startClient player srv :: IO (ClientQueues GameState)
+        queues <- startClient player srv :: IO (ClientQueues HamazedGame)
         case backend of
           Console ->
             newConsoleBackend >>= runWith debug queues srv player
@@ -401,7 +401,7 @@ runWithBackend serverOnly maySrvName maySrvPort maySrvLogs mayColorScheme mayPla
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052
 
-mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> ServerView Hamazed
+mkServer :: Maybe ColorScheme -> Maybe ServerLogs -> Maybe ServerName -> ServerContent WorldParameters -> ServerView HamazedServer
 mkServer color logs Nothing =
   mkLocalServerView (fromMaybe NoLogs logs) (fromMaybe (ColorScheme $ rgb 3 2 2) color)
 mkServer Nothing Nothing (Just (ServerName n)) =

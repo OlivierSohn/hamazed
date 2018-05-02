@@ -51,7 +51,7 @@ testParseCommand = do
   parse "/ color : 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
   parse "/color 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
  where
-  parse = parseOnly (command :: Parser (Either Text (Command (ServerT GameState))))
+  parse = parseOnly (command :: Parser (Either Text (Command (ServerT HamazedGame))))
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

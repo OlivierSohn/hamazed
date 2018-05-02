@@ -140,6 +140,10 @@ class (Show (ClientEventT s)
                   => ClientId
                   -> DisconnectReason -> m ()
 
+class ChatShow a where
+  -- | Returns the 'String' to display in the chat window.
+  chatShow :: a -> String
+
 data ServerState s = ServerState {
     serverLogs :: {-unpack sum-} !ServerLogs
   , clientsViews :: {-# UNPACK #-} !(ClientViews (ClientViewT s))
@@ -172,10 +176,6 @@ instance (Server s) => ChatShow (ServerCommand s) where
     unwords ["incremented", show x]
   chatShow (Pred x) =
     unwords ["decremented", show x]
-
--- | Defines how a value shows in the chat.
-class ChatShow a where
-  chatShow :: a -> String
 
 -- | Describes what the client wants to know about the server.
 data ServerReport s =

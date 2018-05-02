@@ -1,7 +1,8 @@
 - move UIAnimation to the generic part:
 
-replace onUpdateUIAnim by onAnimationEnd
 replace onPlayersChanged by mkLeftInfo
+replace onUpdateUIAnim by onAnimationEnd
+remove onResizedWindow (the code will be handled generically)
 
 - rename :
 Hamazed to HamazedServer

@@ -7,7 +7,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module Imj.Game.Hamazed.Logic
-    ( GameState(..)
+    ( HamazedGame(..)
     , checkComponentStatus
     , checkAllComponentStatus
     , checkSums
@@ -92,10 +92,10 @@ import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 import           Imj.Sums
 
 
-{-| 'GameState' has two 'World's : during 'Level' transitions,
+{-| 'HamazedGame' has two 'World's : during 'Level' transitions,
 we draw the /old/ 'World' while using the dimensions of the /new/ 'World'
 to animate the UI accordingly. -}
-data GameState = GameState {
+data HamazedGame = HamazedGame {
     currentWorld :: !World
   , mayFutureWorld :: !(Maybe World)
     -- ^ Maybe the world that we transition to (when a level is over).
@@ -116,9 +116,9 @@ uiAnimationDeadline =
     (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)
     . getUIAnimationDeadline
 
-instance GameLogic GameState where
-  type ServerT GameState = Hamazed
-  type ClientOnlyEvtT GameState = HamazedEvent
+instance GameLogic HamazedGame where
+  type ServerT        HamazedGame = HamazedServer
+  type ClientOnlyEvtT HamazedGame = HamazedEvent
 
   cmdParser cmd = case cmd of
     "color" -> tryReport <|> tryCmd
@@ -138,7 +138,7 @@ instance GameLogic GameState where
   initialGame = liftIO . initialGameState initialParameters CenterSpace
 
   onResizedWindow _ =
-    gets game >>= \(Game _ (Screen _ screenCenter) g@(GameState curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _ _) -> do
+    gets game >>= \(Game _ (Screen _ screenCenter) g@(HamazedGame curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _ _) -> do
       let sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
           newPosition = upperLeftFromCenterAndSize screenCenter sizeSpace
           newAnim = setPosition newPosition uiAnimation
@@ -153,18 +153,18 @@ instance GameLogic GameState where
   onCustomEvent = hamazedEvtUpdate
 
   {-# INLINABLE getViewport #-}
-  getViewport (Screen _ center) (GameState world _ _ _ _ mode) =
+  getViewport (Screen _ center) (HamazedGame world _ _ _ _ mode) =
       let offset = getWorldOffset mode world
           worldCorner = getWorldCorner world center offset
       in flip RectContainer worldCorner $ getSize $ getWorldSpace world
 
   {-# INLINABLE getDeadlines #-}
-  getDeadlines (GameState _ _ _ _ uiAnim _) =
+  getDeadlines (HamazedGame _ _ _ _ uiAnim _) =
     maybeToList $ uiAnimationDeadline uiAnim
 
   {-# INLINABLE drawGame #-}
   drawGame = gets game >>=
-    \(Game _ (Screen _ screenCenter) (GameState world@(World _ _ _ renderedSpace _) _ _ _ wa mode)
+    \(Game _ (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _ wa mode)
              animations _ _ _ _ _ _) -> do
       let offset = getWorldOffset mode world
           worldCorner = getWorldCorner world screenCenter offset
@@ -225,8 +225,8 @@ instance GameLogic GameState where
       CancelledNoConnectedPlayer -> return Nothing
       WaitingForOthersToEndLevel _ -> return Nothing)
 
-mkGameStateEssence :: WorldId -> GameState -> Maybe GameStateEssence
-mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEssence _) _ _) =
+mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
+mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _) _ _) =
   let (essence, mayWid) = worldToEssence $ fromMaybe curWorld mayNewWorld
   in maybe
     Nothing
@@ -236,7 +236,7 @@ mkGameStateEssence wid' (GameState curWorld mayNewWorld shotNums (Level levelEss
 initialGameState :: WorldParameters
                  -> ViewMode
                  -> Screen
-                 -> IO GameState
+                 -> IO HamazedGame
 initialGameState _ mode s =
   mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing mempty mode s Nothing
 
@@ -247,8 +247,8 @@ mkInitialState :: (MonadIO m)
                -> Map ShipId Player
                -> ViewMode
                -> Screen
-               -> Maybe GameState
-               -> m GameState
+               -> Maybe HamazedGame
+               -> m HamazedGame
 mkInitialState = mkIntermediateState []
 
 mkIntermediateState :: (MonadIO m)
@@ -259,14 +259,14 @@ mkIntermediateState :: (MonadIO m)
                     -> Map ClientId Player
                     -> ViewMode
                     -> Screen
-                    -> Maybe GameState
-                    -> m GameState
+                    -> Maybe HamazedGame
+                    -> m HamazedGame
 mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screenCenter) mayState = do
   let newWorld@(World _ _ space' _ _) = mkWorld essence wid
       (curWorld@(World _ _ curSpace _ _), level, shotNums) =
         maybe
         (newWorld, newLevel, [])
-        (\(GameState w _ curShotNums (Level curLevel _) _ _) ->
+        (\(HamazedGame w _ curShotNums (Level curLevel _) _ _) ->
             (w, curLevel, curShotNums))
           mayState
       curInfos = mkInfos Normal        (getWorldShips curWorld) names shotNums    level
@@ -282,15 +282,15 @@ mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screen
           horizontalDist verticalDist kt
           -- only when UIAnimation is over, curWorld will be replaced by newWorld.
           -- during UIAnimation, we need the two worlds.
-  return $ GameState curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation mode
+  return $ HamazedGame curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation mode
 
 
 {-# INLINABLE hamazedEvtUpdate #-}
-hamazedEvtUpdate :: (GameLogicT e ~ GameState
-                   , MonadState (AppState GameState) m
+hamazedEvtUpdate :: (GameLogicT e ~ HamazedGame
+                   , MonadState (AppState HamazedGame) m
                    , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e
                    , MonadIO m)
-                   => CustomUpdateEvent GameState
+                   => CustomUpdateEvent HamazedGame
                    -> m ()
 hamazedEvtUpdate (Right cliEvt) = case cliEvt of
   Interrupt Help -> error "not implemented"
@@ -320,11 +320,11 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
   ChangeLevel levelEssence worldEssence wid ->
-    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
+    gets game >>= \(Game _ screen state@(HamazedGame _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
       mkInitialState levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
+    gets game >>= \(Game _ screen state@(HamazedGame _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
       mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
@@ -357,8 +357,8 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
     colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
 {-# INLINABLE onLaser #-}
-onLaser :: (GameLogicT e ~ GameState
-          , MonadState (AppState GameState) m
+onLaser :: (GameLogicT e ~ HamazedGame
+          , MonadState (AppState HamazedGame) m
           , MonadReader e m, Client e
           , MonadIO m)
         => ShipId
@@ -369,7 +369,7 @@ onLaser ship dir op =
   (liftIO getSystemTime >>= laserEventAction ship dir) >>= onDestroyedNumbers
  where
   onDestroyedNumbers (destroyedBalls, ammoChanged) =
-    getGameState >>= \(GameState w@(World _ ships _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
+    getGameState >>= \(HamazedGame w@(World _ ships _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
       let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
           newFinished = finished <|> finishIfNoAmmo
@@ -378,13 +378,13 @@ onLaser ship dir op =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ GameState w f allShotNumbers newLevel a m
+      putGameState $ HamazedGame w f allShotNumbers newLevel a m
       updateShipsText
       when ammoChanged checkSums
 
 {-# INLINABLE onMove #-}
-onMove :: (GameLogicT e ~ GameState
-         , MonadState (AppState GameState) m
+onMove :: (GameLogicT e ~ HamazedGame
+         , MonadState (AppState HamazedGame) m
          , MonadReader e m, Client e
          , MonadIO m)
        => Map ShipId (Coords Vel)
@@ -395,14 +395,14 @@ onMove accelerations shipsLosingArmor = do
   onHasMoved
 
 {-# INLINABLE onHasMoved #-}
-onHasMoved :: (GameLogicT e ~ GameState
-             , MonadState (AppState GameState) m
+onHasMoved :: (GameLogicT e ~ HamazedGame
+             , MonadState (AppState HamazedGame) m
              , MonadReader e m, Client e
              , MonadIO m)
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
+    >>= \(HamazedGame world@(World balls ships _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions = Set.unions $ mapMaybe
             (\(BattleShip _ _ shipStatus collisions _) ->
@@ -428,19 +428,19 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ assert (isFinished anim) $ GameState newWorld f shotNums newLevel anim m
+      putGameState $ assert (isFinished anim) $ HamazedGame newWorld f shotNums newLevel anim m
       when numbersChanged checkSums
       updateShipsText
 
 -- | When the animation is over, swaps the future world with the current one.
 {-# INLINABLE updateUIAnim #-}
-updateUIAnim :: (GameLogicT e ~ GameState -- TODO split
-               , MonadState (AppState GameState) m
+updateUIAnim :: (GameLogicT e ~ HamazedGame -- TODO split
+               , MonadState (AppState HamazedGame) m
                , MonadReader e m, Client e
                , MonadIO m)
              => Time Point System -> m ()
 updateUIAnim t =
-  getGameState >>= \(GameState curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) m) -> do
+  getGameState >>= \(HamazedGame curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) m) -> do
     let nextIt@(Iteration _ nextFrame) = nextIteration it
         (world, futWorld, worldAnimDeadline) = maybe
           (fromMaybe
@@ -451,7 +451,7 @@ updateUIAnim t =
           (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
           $ getDeltaTime evolutions nextFrame
         anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-    putGameState $ GameState world futWorld j k anims m
+    putGameState $ HamazedGame world futWorld j k anims m
     when (isFinished anims) $ do
       checkAllComponentStatus
       checkSums
@@ -463,7 +463,7 @@ this function creates an animation where the ship and the colliding number explo
 
 The ship 'ParticleSystem' will have the initial speed of the number and vice-versa,
 to mimic the rebound due to the collision. -}
-shipParticleSystems :: (MonadState (AppState GameState) m)
+shipParticleSystems :: (MonadState (AppState HamazedGame) m)
                     => Time Point System
                     -> m [Prioritized ParticleSystem]
 shipParticleSystems k =
@@ -499,10 +499,10 @@ shipParticleSystems k =
 
 
 {-# INLINABLE updateShipsText #-}
-updateShipsText :: (MonadState (AppState GameState) m)
+updateShipsText :: (MonadState (AppState HamazedGame) m)
                 => m ()
 updateShipsText =
-  gets game >>= \(Game _ screen g@(GameState (World _ ships _ _ _) _ shotNumbers (Level level _)
+  gets game >>= \(Game _ screen g@(HamazedGame (World _ ships _ _ _) _ shotNumbers (Level level _)
                     (UIAnimation (UIEvolutions j upDown _) p) mode ) _ _ names _ _ _ _) -> do
     let newLeft =
           let (horizontalDist, verticalDist) = computeViewDistances mode
@@ -517,7 +517,7 @@ updateShipsText =
 -- | Moves elements of game logic ('Number's, 'BattleShip').
 --
 -- Note that 'ParticleSystem's are not updated.
-moveWorld :: MonadState (AppState GameState) m
+moveWorld :: MonadState (AppState HamazedGame) m
           => Map ShipId (Coords Vel)
           -> Set ShipId
           -> m ()
@@ -558,7 +558,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
   mapM_ checkComponentStatus changedComponents
 
 -- | Computes the effect of a laser shot on the 'World'.
-laserEventAction :: (MonadState (AppState GameState) m)
+laserEventAction :: (MonadState (AppState HamazedGame) m)
                  => ShipId
                  -> Direction
                  -- ^ The direction of the laser shot
@@ -601,7 +601,7 @@ laserEventAction shipId dir t =
     return (destroyedBalls, isJust maybeLaserRay)
 
 
-destroyedNumbersParticleSystems :: (MonadState (AppState GameState) m)
+destroyedNumbersParticleSystems :: (MonadState (AppState HamazedGame) m)
                                 => Time Point ParticleSyst
                                 -> ShipId
                                 -> Direction -- ^ 'Direction' of the laser shot
@@ -612,7 +612,7 @@ destroyedNumbersParticleSystems keyTime shipId dir nums = do
   ps <- mapM (destroyedNumberParticleSystems keyTime shipId laserSpeed) $ Map.elems nums
   return $ List.concat ps
 
-destroyedNumberParticleSystems :: (MonadState (AppState GameState) m)
+destroyedNumberParticleSystems :: (MonadState (AppState HamazedGame) m)
                                => Time Point ParticleSyst
                                -> ShipId
                                -> Vec2 Vel
@@ -632,7 +632,7 @@ destroyedNumberParticleSystems k shipId laserSpeed (Number (NumberEssence (PosSp
       $ catMaybes [expandShrinkPolygon n pos color' (Speed 1) envFuncs k]
        ++ fragmentsFreeFallThenExplode (scalarProd 0.8 laserSpeed) pos color (gameGlyph $ intToDigit n) (Speed 2) envFuncs k)
 
-outerSpaceParticleSystems :: (MonadState (AppState GameState) m)
+outerSpaceParticleSystems :: (MonadState (AppState HamazedGame) m)
                           => Time Point ParticleSyst
                           -> ShipId
                           -> LaserRay Actual
@@ -674,7 +674,7 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                 outerSpaceParticleSystems' (WorldScope Wall) laserTarget
                      dir speedAttenuation nRebounds color glyph t)
 
-outerSpaceParticleSystems' :: (MonadState (AppState GameState) m)
+outerSpaceParticleSystems' :: (MonadState (AppState HamazedGame) m)
                            => Scope
                            -> Coords Pos
                            -> Direction
@@ -693,7 +693,7 @@ outerSpaceParticleSystems' scope afterLaserEndPoint dir speedAttenuation nReboun
       speed afterLaserEndPoint speedAttenuation nRebounds colorFuncs glyph
       (Speed 1) envFuncs t
 
-laserParticleSystems :: (MonadState (AppState GameState) m)
+laserParticleSystems :: (MonadState (AppState HamazedGame) m)
                      => Time Point ParticleSyst
                      -> ShipId
                      -> LaserRay Actual
@@ -724,7 +724,7 @@ checkTargetAndAmmo ammo currentNumber (LevelTarget goal constraint) =
       | ammo <= 0 = Just $ Lost $ pack "no ammo left"
       | otherwise = Nothing
 
-checkComponentStatus :: (MonadState (AppState GameState) m)
+checkComponentStatus :: (MonadState (AppState HamazedGame) m)
                      => ComponentIdx
                      -> m ()
 checkComponentStatus i = countComponentAmmo i >>= \case
@@ -742,7 +742,7 @@ checkComponentStatus i = countComponentAmmo i >>= \case
     _ ->
       return ()
 
-checkAllComponentStatus :: (MonadState (AppState GameState) m)
+checkAllComponentStatus :: (MonadState (AppState HamazedGame) m)
                         => m ()
 checkAllComponentStatus = countComponentsAmmo >>= \ammos ->
   getWorld >>= \w -> do
@@ -752,7 +752,7 @@ checkAllComponentStatus = countComponentsAmmo >>= \ammos ->
     putWorld $ w { getWorldNumbers = nums }
 
 
-countComponentAmmo :: (MonadState (AppState GameState) m)
+countComponentAmmo :: (MonadState (AppState HamazedGame) m)
                      => ComponentIdx
                      -> m Int
 countComponentAmmo i =
@@ -766,7 +766,7 @@ countComponentAmmo i =
     0 . getWorldShips <$> getWorld
 
 
-countComponentsAmmo :: (MonadState (AppState GameState) m)
+countComponentsAmmo :: (MonadState (AppState HamazedGame) m)
                     => m (Map ComponentIdx Int)
 countComponentsAmmo =
   Map.foldl'
@@ -791,9 +791,9 @@ countLiveAmmo (BattleShip _ ammo status _ _) =
 
 -- | Discard sums that don't match the live ammo per connex components.
 -- If a reachable number is in no sum, draw it in red.
-checkSums :: (MonadState (AppState GameState) m)
+checkSums :: (MonadState (AppState HamazedGame) m)
           => m ()
-checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _) _ shotNumbers
+checkSums = getGameState >>= \(HamazedGame w@(World remainingNumbers _ _ _ _) _ shotNumbers
                                          (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _) ->
   case constraint of
     CanOvershoot -> return ()
@@ -850,45 +850,45 @@ applyOperations =
               Substract -> v - n) 0
 
 {-# INLINABLE getLevelOutcome #-}
-getLevelOutcome :: MonadState (AppState GameState) m => m (Maybe LevelOutcome)
+getLevelOutcome :: MonadState (AppState HamazedGame) m => m (Maybe LevelOutcome)
 getLevelOutcome = getLevelOutcome' <$> getLevel
 
 {-# INLINABLE putLevelOutcome #-}
-putLevelOutcome :: MonadState (AppState GameState) m => Maybe LevelOutcome -> m ()
+putLevelOutcome :: MonadState (AppState HamazedGame) m => Maybe LevelOutcome -> m ()
 putLevelOutcome l = getLevel >>= \s -> putLevel s { getLevelOutcome' = l }
 
 {-# INLINABLE getLevel #-}
-getLevel :: MonadState (AppState GameState) m => m Level
+getLevel :: MonadState (AppState HamazedGame) m => m Level
 getLevel = getGameLevel <$> getGameState
 
 {-# INLINABLE putLevel #-}
-putLevel :: MonadState (AppState GameState) m => Level -> m ()
+putLevel :: MonadState (AppState HamazedGame) m => Level -> m ()
 putLevel l = getGameState >>= \s -> putGameState s { getGameLevel = l }
 
 {-# INLINABLE getViewMode #-}
-getViewMode :: MonadState (AppState GameState) m => m ViewMode
+getViewMode :: MonadState (AppState HamazedGame) m => m ViewMode
 getViewMode = getViewMode' <$> getGameState
 
 {-# INLINABLE putAnimation #-}
-putAnimation :: MonadState (AppState GameState) m => UIAnimation -> m ()
+putAnimation :: MonadState (AppState HamazedGame) m => UIAnimation -> m ()
 putAnimation a =
   getGameState >>= \s -> putGameState $ s {getUIAnimation = a}
 
 {-# INLINABLE putViewMode #-}
-putViewMode :: MonadState (AppState GameState) m => ViewMode -> m ()
+putViewMode :: MonadState (AppState HamazedGame) m => ViewMode -> m ()
 putViewMode p =
   getGameState >>= \g -> putGameState $ g {getViewMode' = p}
 
 {-# INLINABLE putWorld #-}
-putWorld :: MonadState (AppState GameState) m => World -> m ()
+putWorld :: MonadState (AppState HamazedGame) m => World -> m ()
 putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
 
 {-# INLINABLE getWorld #-}
-getWorld :: MonadState (AppState GameState) m => m World
+getWorld :: MonadState (AppState HamazedGame) m => m World
 getWorld = currentWorld <$> getGameState
 
 {-# INLINABLE addParticleSystems #-}
-addParticleSystems :: MonadState (AppState GameState) m
+addParticleSystems :: MonadState (AppState HamazedGame) m
                    => [Prioritized ParticleSystem]
                    -> m ()
 addParticleSystems l = do
@@ -898,7 +898,7 @@ addParticleSystems l = do
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}
-envFunctions :: (MonadState (AppState GameState) m)
+envFunctions :: (MonadState (AppState HamazedGame) m)
              => Scope -> m EnvFunctions
 envFunctions scope = do
   world <- getWorld

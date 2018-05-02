@@ -68,6 +68,7 @@ import           Control.Monad.State.Strict(gets, state, modify')
 import           Data.Attoparsec.Text(Parser)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
+import           Data.Text(unpack)
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
@@ -134,7 +135,7 @@ instance GameLogic g => Show (GenEvent g) where
 type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 
 -- | 'GameLogic' Formalizes the client-side logic of the game.
--- The dual (server-side logic of the game) is 'Server'.
+-- (The server-side dual is 'Server').
 class (Server (ServerT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g))
@@ -147,7 +148,46 @@ class (Server (ServerT g)
   type ClientOnlyEvtT g = (r :: *) | r -> g
   -- ^ Events generated on the client and handled by the client.
 
-  commandParser :: Parser (Either Text (Command (ServerT g)))
+  {- | Parse command parameters.
+
+  Players can issue commands in the chat window. Command names are composed of
+  alpha-numerical characters, and preceeded by @/@ in the chat. For example:
+
+@
+/play game1
+@
+
+The command name can be followed by an optional colon to separate the command name from its parameters.
+Also, spaces can be added:
+
+@
+/play:game1
+/play : game1
+/ play :game1
+@
+
+
+  When this method is called, the input has been consumed
+  up until the /beginning/ of the command parameters:
+
+@
+/play game1
+      ^
+      parse position when this methid is called
+@
+
+  So the purpose of this method is to return a parser that will parse the command
+  parameters.
+
+  If the command name (passed as parameter to the method) is not recognized,
+  the parser should fail.
+
+  NOTE The default implementation returns a parser that fails for every command name.
+  -}
+  mkCmdArgParser :: Text
+                -- ^ Command name (lowercased)
+                -> Parser (Either Text (Command (ServerT g)))
+  mkCmdArgParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
   initialGame :: (MonadIO m)
               => Screen -> m g

@@ -14,10 +14,11 @@ module Imj.Game.Hamazed.Command
 
 import           Imj.Prelude
 
-import           Data.Attoparsec.Text(Parser, takeText, endOfInput, string, char
-                                    , peekChar', skipSpace, space)
-import           Data.Char(isSpace)
+import           Data.Attoparsec.Text(Parser, takeText, endOfInput, char
+                                    , peekChar, peekChar', skipSpace, takeWhile1)
+import           Data.Char(isSpace, toLower, isAlphaNum)
 import           Data.Text(pack, unsnoc)
+import qualified Data.Text as Text
 
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.State.Types
@@ -77,23 +78,25 @@ maxOneSpace t = go t False []
                 then c:' ':res
                 else c:res
 
-
+{- Returns a parser of commands.
+-}
 command :: GameLogic g => Parser (Either Text (Command (ServerT g)))
-command =
-  defaultCommand <|> commandParser
-
- where
-
-  defaultCommand = skipSpace *> peekChar' >>= \case
-    '/' -> setName
-    _   -> speak
-
-  speak = Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)
-
-  setName = do
-    char '/' *> skipSpace
-    void $ string "name"
-    (skipSpace *> void (char ':')) <|>
-      (space *> skipSpace) -- NOTE the order matters
-    skipSpace
-    Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
+command = do
+  skipSpace
+  peekChar' >>= \case -- we peek to issue an error on wrong commands (instead of interpreting them as a message)
+    '/' -> do
+      char '/' *> skipSpace
+      cmdName <- Text.map toLower <$> takeWhile1 isAlphaNum
+      skipSpace
+      peekChar >>= maybe
+        (return ())
+        (\c -> if c == ':'
+            then
+              void $ char ':'
+            else
+              return ())
+      skipSpace
+      case cmdName of
+        "name" -> Right . ClientCmd . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
+        _ -> mkCmdArgParser cmdName
+    _ -> Right . ClientCmd . Says . maxOneSpace <$> (takeText <* endOfInput)

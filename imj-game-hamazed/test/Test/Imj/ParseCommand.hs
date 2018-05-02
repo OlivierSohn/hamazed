@@ -32,7 +32,7 @@ testParseCommand = do
   parse "a a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a a")
   parse "a  a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a a")
 
-  parse "/a" `shouldBe` Left "string"
+  parse "/a" `shouldBe` Left "Failed reading: 'a' is an unknown command."
   let cmd = Right $ Right $ ClientCmd $ AssignName $ ClientName "Newname"
   parse "/name Newname" `shouldBe` cmd
   parse "/name:Newname" `shouldBe` cmd
@@ -42,6 +42,13 @@ testParseCommand = do
   parse "    /name:  Newname  " `shouldBe` cmd
 
   parse "/color" `shouldBe` (Right $ Right $ ServerRep $ Get ColorSchemeCenterKey)
+  parse "/color " `shouldBe` (Right $ Right $ ServerRep $ Get ColorSchemeCenterKey)
+
+  parse "/ color 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color    1   2     3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color 1 2 3 " `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color:1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color : 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
   parse "/color 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
  where
   parse = parseOnly (command :: Parser (Either Text (Command (ServerT GameState))))

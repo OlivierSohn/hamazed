@@ -36,7 +36,7 @@ import           Control.Concurrent.Async(withAsync)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Attoparsec.Text(decimal, endOfInput, string, char, skipSpace, space)
+import           Data.Attoparsec.Text(decimal, endOfInput, skipSpace)
 import           Data.Char(intToDigit)
 import qualified Data.IntSet as ISet
 import qualified Data.List as List
@@ -44,7 +44,7 @@ import           Data.List(elem)
 import           Data.Maybe(isJust)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import           Data.Text(pack)
+import           Data.Text(pack, unpack)
 import qualified Data.Text as Text
 
 import           Imj.ClientView.Types
@@ -120,18 +120,14 @@ instance GameLogic GameState where
   type ServerT GameState = Hamazed
   type ClientOnlyEvtT GameState = HamazedEvent
 
-  commandParser = do
-    skipSpace
-    char '/' *> skipSpace
-    void $ string "color"
-    tryReport <|> tryCmd
+  mkCmdArgParser cmd = case cmd of
+    "color" -> tryReport <|> tryCmd
+    _ -> fail $ "'" <> unpack cmd <> "' is an unknown command."
    where
     tryReport = do
       void endOfInput
       return $ Right $ ServerRep $ Get ColorSchemeCenterKey
     tryCmd = do
-      void $ char ':' <|> space
-      skipSpace
       r <- decimal
       skipSpace
       g <- decimal

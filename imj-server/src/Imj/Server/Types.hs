@@ -14,7 +14,7 @@ module Imj.Server.Types
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
-      , PlayerNotif(..)      
+      , PlayerNotif(..)
       ) where
 
 import           Imj.Prelude

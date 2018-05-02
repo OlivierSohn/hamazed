@@ -138,7 +138,7 @@ instance GameLogic GameState where
   initialGame = liftIO . initialGameState initialParameters CenterSpace
 
   onResizedWindow _ =
-    gets game >>= \(Game _ (Screen _ screenCenter) g@(GameState curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _) -> do
+    gets game >>= \(Game _ (Screen _ screenCenter) g@(GameState curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _ _) -> do
       let sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
           newPosition = upperLeftFromCenterAndSize screenCenter sizeSpace
           newAnim = setPosition newPosition uiAnimation
@@ -162,19 +162,10 @@ instance GameLogic GameState where
   getDeadlines (GameState _ _ _ _ uiAnim _) =
     maybeToList $ uiAnimationDeadline uiAnim
 
-  {-# INLINE getParticleSystems #-}
-  getParticleSystems (GameState w _ _ _ _ _) =
-    worldParticleSystems w
-
-  {-# INLINE putParticleSystems #-}
-  putParticleSystems s g@(GameState w _ _ _ _ _) =
-    g { currentWorld = w {worldParticleSystems = s} }
-
   {-# INLINABLE drawGame #-}
   drawGame = gets game >>=
-    \(Game _ (Screen _ screenCenter)
-             (GameState world@(World _ _ _ renderedSpace animations _) _ _ _ wa mode)
-             _ _ _ _ _ _) -> do
+    \(Game _ (Screen _ screenCenter) (GameState world@(World _ _ _ renderedSpace _) _ _ _ wa mode)
+             animations _ _ _ _ _ _) -> do
       let offset = getWorldOffset mode world
           worldCorner = getWorldCorner world screenCenter offset
       -- draw the walls outside the matrix:
@@ -225,7 +216,7 @@ instance GameLogic GameState where
           Nothing
           (maybe
             (error "logic")
-            (bool Nothing (Just $ ClientAppEvt $ CanContinue x))
+            (bool (Just $ ClientAppEvt $ CanContinue x) Nothing)
             . flip Map.lookup havePressed)) <$> getMyId
       New -> return Nothing
       Paused _ _ -> return Nothing
@@ -271,8 +262,8 @@ mkIntermediateState :: (MonadIO m)
                     -> Maybe GameState
                     -> m GameState
 mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screenCenter) mayState = do
-  let newWorld@(World _ _ space' _ _ _) = mkWorld essence wid
-      (curWorld@(World _ _ curSpace _ _ _), level, shotNums) =
+  let newWorld@(World _ _ space' _ _) = mkWorld essence wid
+      (curWorld@(World _ _ curSpace _ _), level, shotNums) =
         maybe
         (newWorld, newLevel, [])
         (\(GameState w _ curShotNums (Level curLevel _) _ _) ->
@@ -329,11 +320,11 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
   ChangeLevel levelEssence worldEssence wid ->
-    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ names _ _ _ _) ->
+    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
       mkInitialState levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ names _ _ _ _) ->
+    gets game >>= \(Game _ screen state@(GameState _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
       mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode screen (Just state)
         >>= putGameState
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
@@ -378,7 +369,7 @@ onLaser ship dir op =
   (liftIO getSystemTime >>= laserEventAction ship dir) >>= onDestroyedNumbers
  where
   onDestroyedNumbers (destroyedBalls, ammoChanged) =
-    getGameState >>= \(GameState w@(World _ ships _ _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
+    getGameState >>= \(GameState w@(World _ ships _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
       let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
           newFinished = finished <|> finishIfNoAmmo
@@ -411,7 +402,7 @@ onHasMoved :: (GameLogicT e ~ GameState
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
-    >>= \(GameState world@(World balls ships _ _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
+    >>= \(GameState world@(World balls ships _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions = Set.unions $ mapMaybe
             (\(BattleShip _ _ shipStatus collisions _) ->
@@ -511,9 +502,8 @@ shipParticleSystems k =
 updateShipsText :: (MonadState (AppState GameState) m)
                 => m ()
 updateShipsText =
-  gets game >>= \(Game _ screen
-    g@(GameState (World _ ships _ _ _ _) _ shotNumbers (Level level _)
-               (UIAnimation (UIEvolutions j upDown _) p) mode ) _ names _ _ _ _) -> do
+  gets game >>= \(Game _ screen g@(GameState (World _ ships _ _ _) _ shotNumbers (Level level _)
+                    (UIAnimation (UIEvolutions j upDown _) p) mode ) _ _ names _ _ _ _) -> do
     let newLeft =
           let (horizontalDist, verticalDist) = computeViewDistances mode
               vp = getViewport screen g
@@ -531,7 +521,7 @@ moveWorld :: MonadState (AppState GameState) m
           => Map ShipId (Coords Vel)
           -> Set ShipId
           -> m ()
-moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships space' rs anims f) -> do
+moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships space' rs f) -> do
   let newBalls =
         Map.map (\n@(Number e@(NumberEssence ps _ _) colors _) ->
                             n{ getNumEssence = e{ getNumPosSpeed = updateMovableItem space' ps }
@@ -564,7 +554,7 @@ moveWorld accelerations shipsLosingArmor = getWorld >>= \(World balls ships spac
             newPosSpeed@(PosSpeed pos _) = updateMovableItem space' $ PosSpeed prevPos newSpeed
         in (newComps, BattleShip newPosSpeed ammo newStatus collisions i)
       (changedComponents, newShips) = Map.mapAccumWithKey moveShip [] ships
-  putWorld $ World newBalls newShips space' rs anims f
+  putWorld $ World newBalls newShips space' rs f
   mapM_ checkComponentStatus changedComponents
 
 -- | Computes the effect of a laser shot on the 'World'.
@@ -576,7 +566,7 @@ laserEventAction :: (MonadState (AppState GameState) m)
                  -> m (Map NumId Number, Bool)
                  -- ^ 'Number's destroyed + ammo changed
 laserEventAction shipId dir t =
-  getWorld >>= \(World balls ships space' rs d e) -> do
+  getWorld >>= \(World balls ships space' rs e) -> do
     let ship@(BattleShip (PosSpeed shipCoords _) ammo status _ component) = findShip shipId ships
         (maybeLaserRayTheoretical, newAmmo) =
           if ammo > 0 && shipIsAlive status
@@ -594,7 +584,7 @@ laserEventAction shipId dir t =
                maybeLaserRayTheoretical
         newShip = ship { getAmmo = newAmmo }
         newShips = Map.insert shipId newShip ships
-    putWorld $ World remainingBalls newShips space' rs d e
+    putWorld $ World remainingBalls newShips space' rs e
 
     let tps = systemTimePointToParticleSystemTimePoint t
     outerSpaceParticleSystems_ <-
@@ -803,7 +793,7 @@ countLiveAmmo (BattleShip _ ammo status _ _) =
 -- If a reachable number is in no sum, draw it in red.
 checkSums :: (MonadState (AppState GameState) m)
           => m ()
-checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _ _) _ shotNumbers
+checkSums = getGameState >>= \(GameState w@(World remainingNumbers _ _ _ _) _ shotNumbers
                                          (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _) ->
   case constraint of
     CanOvershoot -> return ()
@@ -904,7 +894,7 @@ addParticleSystems :: MonadState (AppState GameState) m
 addParticleSystems l = do
   keys <- takeKeys $ length l
   let ps2 = Map.fromDistinctAscList $ zip keys l
-  getWorld >>= \w -> putWorld $ w {worldParticleSystems = Map.union (worldParticleSystems w) ps2}
+  gets game >>= \g -> putGame $ g {gameParticleSystems = Map.union (gameParticleSystems g) ps2}
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}

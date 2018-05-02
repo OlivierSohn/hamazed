@@ -28,13 +28,13 @@ mkGame :: Screen
        -> g
        -> Game g
 mkGame screen suggPlayerName server connectionStatus g =
-  Game (ClientState Ongoing Excluded) screen g [] mempty suggPlayerName server connectionStatus mkChat
+  Game (ClientState Ongoing Excluded) screen g mempty [] mempty suggPlayerName server connectionStatus mkChat
 
 mkWorld :: WorldEssence -> Maybe WorldId -> World
 mkWorld (WorldEssence balls ships space) wid =
   let renderedSpace = mkRenderedSpace space
-  in World (Map.map mkNumber balls) ships space renderedSpace mempty wid
+  in World (Map.map mkNumber balls) ships space renderedSpace wid
 
 worldToEssence :: World -> (WorldEssence, Maybe WorldId)
-worldToEssence (World balls ships space _ _ wid) =
+worldToEssence (World balls ships space _ wid) =
   (WorldEssence (Map.map getNumEssence balls) ships space, wid)

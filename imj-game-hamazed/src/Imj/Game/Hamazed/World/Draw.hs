@@ -30,7 +30,7 @@ drawWorld :: (MonadState (AppState s) m, Draw e, MonadReader e m, MonadIO m)
           => World
           -> Coords Pos
           -> m ()
-drawWorld (World balls ships space _ _ _) s  = do
+drawWorld (World balls ships space _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (drawNumber space s) balls
   let drawShip (i, BattleShip (PosSpeed shipCoords _) _ status _ _) = do

@@ -74,10 +74,13 @@ updateAppState (Right evt) = case evt of
   Timeout (Deadline t _ AnimateUI) -> onUpdateUIAnim t
   Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
     fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
-      getGameState >>= \g ->
-        putGameState (putParticleSystems (Map.updateWithKey
-          (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
-          key $ getParticleSystems g) g)
+      gets game >>= \g ->
+        putGame (g {
+          gameParticleSystems =
+            Map.updateWithKey
+              (\_ (Prioritized p ps) -> fmap (Prioritized p) $ updateParticleSystem tps ps)
+              key
+              $ gameParticleSystems g })
   CanvasSizeChanged ->
     onTargetSize
   RenderingTargetChanged -> do
@@ -173,7 +176,7 @@ updateStatus :: (MonadState (AppState s) m
              -- ^ When Nothing, the current frame should be used.
              -> Time Point System
              -> m ()
-updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ drawnState' _ _ _ _ _) -> do
+updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnState' _ _ _ _ _) -> do
   let drawnState = zip [0 :: Int ..] drawnState'
   newStrs <- zip [0 :: Int ..] <$> go state
   -- return the same evolution when the string didn't change.

@@ -38,7 +38,7 @@ draw :: (GameLogic (GameLogicT e)
      => m ()
 draw = do
   (_,_,_,Coords _ col) <- getSideCenters <$> drawGame
-  gets game >>= \(Game _ (Screen _ (Coords rowCenter _)) _ _ _ _ _ _ chat) -> do
+  gets game >>= \(Game _ (Screen _ (Coords rowCenter _)) _ _ _ _ _ _ _ chat) -> do
     let chatUpperLeft =
           Coords
             (rowCenter - fromIntegral (quot (height chat) 2))
@@ -54,7 +54,7 @@ drawStatus :: (GameLogic g
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state screen g dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
+  gets game >>= \(Game state screen g _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       ClientState Ongoing Setup ->
         drawSetup worldParams $ getViewport screen g -- TODO using progressivelyInform

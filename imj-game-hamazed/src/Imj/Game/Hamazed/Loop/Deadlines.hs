@@ -83,11 +83,11 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 {-# INLINE getDeadlinesByDecreasingPriority #-}
 getDeadlinesByDecreasingPriority :: (GameLogic g) => Game g -> [Deadline]
-getDeadlinesByDecreasingPriority (Game _ _ g dcs _ _ _ _ _) =
+getDeadlinesByDecreasingPriority (Game _ _ g ps dcs _ _ _ _ _) =
   -- sort from highest to lowest priority
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     getDeadlines g ++
-    (getParticleSystemsDeadlines $ getParticleSystems g) ++
+    (getParticleSystemsDeadlines ps) ++
     stateAnimDeadlines dcs
  where
   getParticleSystemsDeadlines =

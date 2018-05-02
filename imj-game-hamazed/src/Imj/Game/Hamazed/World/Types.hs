@@ -67,8 +67,6 @@ import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Physics.Discrete.Types
 
-import           Imj.Event
-import           Imj.Game.Hamazed.Loop.Event.Priorities
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.Animation
@@ -147,8 +145,6 @@ data World = World {
   , getWorldSpace :: {-# UNPACK #-} !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
-  , worldParticleSystems :: !(Map ParticleSystemKey (Prioritized ParticleSystem))
-    -- ^ Animated particle systems, illustrating player actions and important game events.
   , getId :: {-unpack sum-} !(Maybe WorldId)
 } deriving (Generic)
 
@@ -274,7 +270,7 @@ envDistance (Vec2 x y) =
       DistanceOK
 
 getWorldOffset :: ViewMode -> World -> Coords Pos
-getWorldOffset mode (World _ ships space _ _ _) =
+getWorldOffset mode (World _ ships space _ _) =
   case mode of
     CenterSpace -> zeroCoords
     CenterShip myId ->
@@ -309,7 +305,7 @@ scopedLocation :: World
                -> Coords Pos
                -- ^ The coordinates to test
                -> Location
-scopedLocation world@(World _ _ space _ _ _) mode (Screen mayTermSize screenCenter) scope pos =
+scopedLocation world@(World _ _ space _ _) mode (Screen mayTermSize screenCenter) scope pos =
   let termContains (Size h w) =
         let corner = getWorldCorner world screenCenter $ getWorldOffset mode world
             (Coords r c) = sumCoords pos corner

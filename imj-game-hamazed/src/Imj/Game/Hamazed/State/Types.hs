@@ -132,8 +132,6 @@ instance GameLogic g => Show (GenEvent g) where
   show (CliEvt e) = show("CliEvt",e)
   show (SrvEvt e) = show("SrvEvt",e)
 
-type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
-
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
      , Categorized (ClientOnlyEvtT g)
@@ -216,10 +214,6 @@ and the input has been consumed up until the /beginning/ of the command paramete
                   , MonadIO m)
                 => CustomUpdateEvent g -> m ()
 
-  -- TODO replace by providing acccess to particle systems in AppState.
-  getParticleSystems :: g -> ParticleSystems
-  putParticleSystems :: ParticleSystems -> g -> g
-
   getViewport :: Screen
               -> g
               -> RectContainer -- ^ The screen region used to draw the game in 'drawGame'
@@ -284,11 +278,13 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
     Right (Timeout (Deadline t _ _)) -> return t
     _ -> getSystemTime
 
+type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 
 data Game g = Game {
     getClientState :: {-# UNPACK #-} !ClientState
   , getScreen :: {-# UNPACK #-} !Screen
   , getGameState' :: !g
+  , gameParticleSystems :: !ParticleSystems
   , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages.
                                           -- For rendering, 'AnimatedLine' is used.
                           , AnimatedLine)]

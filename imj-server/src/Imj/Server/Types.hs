@@ -80,9 +80,7 @@ data ServerEvent s =
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
-  deriving(Generic)
-instance Server s => Show (ServerEvent s) where
-  show _ = ""
+  deriving(Generic, Show)
 instance Server s => Binary (ServerEvent s)
 instance Server s => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =

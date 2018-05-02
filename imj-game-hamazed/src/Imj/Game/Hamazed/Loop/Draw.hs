@@ -56,10 +56,10 @@ drawStatus :: (GameLogic g
 drawStatus =
   gets game >>= \(Game state _ _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
-      (ClientState Ongoing Setup) ->
-        getCurScreen >>= \(Screen _ center) -> getGameSize >>=
-          drawSetup worldParams . mkRectContainerWithCenterAndInnerSize center -- TODO using progressivelyInform
-      _ -> return ()
+      ClientState Ongoing Setup ->
+        getGameViewport >>= drawSetup worldParams -- TODO using progressivelyInform
+      _ ->
+        return ()
     forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}

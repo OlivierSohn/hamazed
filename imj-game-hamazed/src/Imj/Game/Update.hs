@@ -64,7 +64,7 @@ updateAppState :: (g ~ GameLogicT e
                -> m ()
 updateAppState (Right evt) = case evt of
   AppEvent e ->
-    onUpdateEvent $ Right e
+    onCustomEvent $ Right e
   ChatCmd chatCmd -> stateChat $ flip (,) () . runChat chatCmd
   SendChatMessage -> onSendChatMessage
   ToggleEventRecording ->
@@ -101,7 +101,7 @@ updateAppState (Right evt) = case evt of
     stateChat $ addMessage $ Information msgLevel txt
 updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
-    onUpdateEvent $ Left e
+    onCustomEvent $ Left e
   OnContent worldParameters ->
     putWorldParameters worldParameters
   RunCommand i cmd -> runClientCommand i cmd

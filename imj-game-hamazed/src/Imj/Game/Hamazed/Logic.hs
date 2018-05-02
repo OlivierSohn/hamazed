@@ -149,11 +149,15 @@ instance GameLogic GameState where
   {-# INLINABLE onUpdateUIAnim #-}
   onUpdateUIAnim = updateUIAnim
 
-  {-# INLINABLE onUpdateEvent #-}
-  onUpdateEvent = hamazedEvtUpdate
+  {-# INLINABLE onCustomEvent #-}
+  onCustomEvent = hamazedEvtUpdate
 
-  {-# INLINABLE getGameSize #-}
-  getGameSize = getSize . getWorldSpace <$> getWorld
+  {-# INLINABLE getGameViewport #-}
+  getGameViewport =
+    gets game >>= \(Game _ (Screen _ center) (GameState world _ _ _ _ mode) _ _ _ _ _ _) -> do
+      let offset = getWorldOffset mode world
+          worldCorner = getWorldCorner world center offset
+      flip RectContainer worldCorner . getSize . getWorldSpace <$> getWorld
 
   {-# INLINABLE getDeadlines #-}
   getDeadlines (GameState _ _ _ _ uiAnim _) =
@@ -182,7 +186,7 @@ instance GameLogic GameState where
       drawWorld world worldCorner
       drawUIAnimation offset wa -- draw animation after the world so that when it morphs
                                 -- it goes over numbers and ship
-      flip RectContainer worldCorner <$> getGameSize
+      flip RectContainer worldCorner . getSize . getWorldSpace <$> getWorld
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
@@ -509,10 +513,10 @@ shipParticleSystems k =
 updateShipsText :: (MonadState (AppState GameState) m)
                 => m ()
 updateShipsText =
-  gets game >>= \(Game _ (Screen _ center)
+  gets game >>= \(Game _ _
     (GameState (World _ ships _ _ _ _) _ shotNumbers (Level level _)
                (UIAnimation (UIEvolutions j upDown _) p) mode ) _ names _ _ _ _) -> do
-    frameSpace <- mkRectContainerWithCenterAndInnerSize center <$> getGameSize
+    frameSpace <- getGameViewport
     let newLeft =
           let (horizontalDist, verticalDist) = computeViewDistances mode
               (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance frameSpace horizontalDist verticalDist

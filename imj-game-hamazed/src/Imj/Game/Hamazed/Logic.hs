@@ -278,10 +278,10 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
   ChangeLevel levelEssence worldEssence wid ->
-    withGameInfoAnimation $
+    withGameInfoAnimation ColorAnimated $
       getGameState >>= putGameState . mkInitialState levelEssence worldEssence (Just wid) . Just
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    withGameInfoAnimation $
+    withGameInfoAnimation ColorAnimated $
       getGameState >>= putGameState . mkIntermediateState shotNums levelEssence worldEssence (Just wid) . Just
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
@@ -334,7 +334,7 @@ onLaser ship dir op =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      withGameInfoAnimationIf ammoChanged $
+      withGameInfoAnimationIf ammoChanged Normal $
         putGameState $ HamazedGame w f allShotNumbers newLevel
       when ammoChanged checkSums
 
@@ -384,7 +384,7 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      withGameInfoAnimationIf numbersChanged $
+      withGameInfoAnimationIf numbersChanged Normal $
         putGameState $ HamazedGame newWorld f shotNums newLevel
       when numbersChanged checkSums
 

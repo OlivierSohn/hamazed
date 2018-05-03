@@ -38,6 +38,7 @@ import           Imj.Input.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Command
+import Imj.Game.Hamazed.Infos
 import           Imj.Game.Draw
 import           Imj.Graphics.UI.Chat
 import           Imj.Game.Update
@@ -243,7 +244,7 @@ createState screen dbg a b c = do
   mkGame t initial =
     let names = mempty
         final = initial
-        anim = mkAnim t screen names names initial final
+        anim = mkAnim Normal t screen names names initial final
     in Game (ClientState Ongoing Excluded) screen initial mempty anim [] names a b c mkChat
 
 {-# INLINABLE debug #-}

@@ -18,6 +18,7 @@ module Imj.Graphics.Text.ColoredGlyphList
             , take
             -- * Reexports
             , LayeredColor(..)
+            , IsString(..)
             ) where
 
 import           Imj.Prelude

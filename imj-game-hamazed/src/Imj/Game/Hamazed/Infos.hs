@@ -42,7 +42,7 @@ mkLevelCS t (LevelNumber level) =
       txt x = text "Level " <> number (show level) x <> text " / " <> number (show lastLev) neutralColor
   in Successive $ map txt $ case t of
       Normal        -> [neutralColor]
-      ColorAnimated -> [red, neutralColor]
+      ColorAnimated -> [black, neutralColor]
 
 mkShipCS :: InfoType
          -> Map ShipId Player -- TODO use the (AppState s) monad instead of passing this ?
@@ -62,10 +62,11 @@ mkShipCS _ names sid (BattleShip _ ammo status _ _) =
 
 mkObjectiveCS :: InfoType -> Int -> Successive ColoredGlyphList
 mkObjectiveCS t target =
-  let txt c = text "Objective : " <> number (show target) c
+  let txt x = text "Objective : " <> x
+      n c = number (show target) c
   in Successive $ case t of
-    Normal -> [txt white]
-    ColorAnimated -> [txt red, txt white]
+    Normal -> [txt $ n white]
+    ColorAnimated -> map txt ["", n black, n white]
 
 
 mkShotNumbersCS :: InfoType -> [ShotNumber] -> Successive ColoredGlyphList
@@ -96,7 +97,9 @@ mkLeftInfo t ships names shotNums (LevelEssence level (LevelTarget target _) _)=
   , mkShotNumbersCS t shotNums
   ]
   ++
-  map (uncurry $ mkShipCS t names) (Map.assocs ships)
+  case Map.assocs ships of
+    [] -> [Successive [colorize (onBlack $ gray 10) $ fromString ""]] -- for initial state when we were not given an id yet
+    l -> map (uncurry $ mkShipCS t names) l
   ++
   [ mkLevelCS t level
   ]

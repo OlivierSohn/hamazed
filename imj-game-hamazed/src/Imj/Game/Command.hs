@@ -47,10 +47,10 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
   case cmd of
     AssignName name' ->
-      withGameInfoAnimation $
+      withGameInfoAnimation Normal $
         putPlayer sid $ Player name' Present $ maybe (mkPlayerColors refShipColor) getPlayerColors p
     AssignColor color ->
-      withGameInfoAnimation $
+      withGameInfoAnimation Normal $
         putPlayer sid $ Player (maybe (ClientName "") getPlayerName p) Present $ mkPlayerColors color
     Says what ->
       stateChat $ addMessage $ ChatMessage $
@@ -58,7 +58,9 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
     Leaves detail -> do
       maybe
         (return ())
-        (\n -> withGameInfoAnimation $ putPlayer sid $ n { getPlayerStatus = Absent })
+        (\n ->
+            withGameInfoAnimation Normal $
+              putPlayer sid $ n { getPlayerStatus = Absent })
           p
       stateChat $ addMessage $ ChatMessage $
         name <>
@@ -114,28 +116,31 @@ withGameInfoAnimationIf :: (MonadState (AppState s) m
                           , MonadIO m
                           , GameLogic s)
                         => Bool
+                        -> InfoType
                         -> m a
                         -> m a
-withGameInfoAnimationIf condition act =
+withGameInfoAnimationIf condition it act =
   f act
  where
-  f = bool id withGameInfoAnimation condition
+  f = bool id (withGameInfoAnimation it) condition
 
 withGameInfoAnimation :: (MonadState (AppState s) m
                         , MonadIO m
                         , GameLogic s)
-                      => m a
+                      => InfoType
                       -> m a
-withGameInfoAnimation act = do
+                      -> m a
+withGameInfoAnimation it act = do
   gets game >>= \(Game _ _ g1 _ _ _ names1 _ _ _ _) -> do
     res <- act
     gets game >>= \(Game _ screen g2 _ _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
-      putAnimation $ mkAnim t screen names1 names2 g1 g2
+      putAnimation $ mkAnim it t screen names1 names2 g1 g2
     return res
 
 mkAnim :: (GameLogic g1, GameLogic g2)
-       => Time Point System
+       => InfoType
+       -> Time Point System
        -> Screen
        -> Map ClientId Player
        -- ^ from
@@ -146,8 +151,8 @@ mkAnim :: (GameLogic g1, GameLogic g2)
        -> g2
        -- ^ to
        -> UIAnimation
-mkAnim t screen namesI namesF gI gF =
+mkAnim it t screen namesI namesF gI gF =
   let (hDist, vDist) = computeViewDistances
-      from = mkWorldInfos Normal        From screen namesI gI
-      to   = mkWorldInfos ColorAnimated To   screen namesF gF
+      from = mkWorldInfos Normal From screen namesI gI
+      to   = mkWorldInfos it     To   screen namesF gF
   in mkUIAnimation from to hDist vDist t

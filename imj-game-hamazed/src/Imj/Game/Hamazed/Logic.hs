@@ -69,7 +69,6 @@ import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.State
 import           Imj.Game.Timing
 import           Imj.Game.Update
 import           Imj.GameItem.Weapon.Laser
@@ -125,14 +124,14 @@ instance GameLogic HamazedGame where
   initialGame = mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing Nothing
 
   onUIAnimFinished = -- Swap the future world with the current one, and notifies the server using 'IsReady'
-    getGameState >>= \(HamazedGame _ future j k) -> do
-      let world = fromMaybe
-            (error "ongoing UIAnimation terminated with no future world")
-            future
-      putGameState $ HamazedGame world Nothing j k
-      checkAllComponentStatus
-      checkSums
-      maybe (return ()) (sendToServer . IsReady) $ getId world
+    getGameState >>= \(HamazedGame _ future j k) -> maybe
+      (return ())
+      (\world -> do
+          putGameState $ HamazedGame world Nothing j k
+          checkAllComponentStatus
+          checkSums
+          maybe (return ()) (sendToServer . IsReady) $ getId world)
+      future
 
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
@@ -279,19 +278,11 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
   ChangeLevel levelEssence worldEssence wid ->
-    gets game >>= \(Game _ screen state _ _ _ names _ _ _ _) -> do
-      let state2 = mkInitialState levelEssence worldEssence (Just wid) (Just state)
-      t <- liftIO getSystemTime
-      let anim = mkAnim t screen names state state2
-      putGameState state2
-      putAnimation anim
+    withGameInfoAnimation $
+      getGameState >>= putGameState . mkInitialState levelEssence worldEssence (Just wid) . Just
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    gets game >>= \(Game _ screen state _ _ _ names _ _ _ _) -> do
-      let state2 = mkIntermediateState shotNums levelEssence worldEssence (Just wid) (Just state)
-      t <- liftIO getSystemTime
-      let anim = mkAnim t screen names state state2
-      putGameState state2
-      putAnimation anim
+    withGameInfoAnimation $
+      getGameState >>= putGameState . mkIntermediateState shotNums levelEssence worldEssence (Just wid) . Just
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) -> do
@@ -343,8 +334,8 @@ onLaser ship dir op =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ HamazedGame w f allShotNumbers newLevel
-      onWorldInfosChanged
+      withGameInfoAnimationIf ammoChanged $
+        putGameState $ HamazedGame w f allShotNumbers newLevel
       when ammoChanged checkSums
 
 {-# INLINABLE onMove #-}
@@ -393,9 +384,9 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ HamazedGame newWorld f shotNums newLevel
+      withGameInfoAnimationIf numbersChanged $
+        putGameState $ HamazedGame newWorld f shotNums newLevel
       when numbersChanged checkSums
-      onWorldInfosChanged
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.

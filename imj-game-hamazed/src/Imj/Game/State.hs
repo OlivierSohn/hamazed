@@ -26,10 +26,8 @@ import           Control.Monad.State.Strict(state, get, put)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
-import           Data.Map.Strict(Map)
 
 import           Imj.Categorized
-import           Imj.ClientView.Types
 import           Imj.Event
 import           Imj.Game.Types
 import           Imj.Control.Concurrent.AsyncGroups.Class
@@ -39,9 +37,9 @@ import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
+import           Imj.Game.Command
 import           Imj.Game.Draw
 import           Imj.Graphics.UI.Chat
-import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Update
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.HasSizedFace
@@ -50,7 +48,6 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
-import           Imj.Graphics.UI.Animation
 import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
@@ -246,23 +243,8 @@ createState screen dbg a b c = do
   mkGame t initial =
     let names = mempty
         final = initial
-        anim = mkAnim t screen names initial final
+        anim = mkAnim t screen names names initial final
     in Game (ClientState Ongoing Excluded) screen initial mempty anim [] names a b c mkChat
-
-mkAnim :: (GameLogic g1, GameLogic g2)
-       => Time Point System
-       -> Screen
-       -> Map ClientId Player
-       -> g1
-       -- ^ from
-       -> g2
-       -- ^ to
-       -> UIAnimation
-mkAnim t screen names initial final =
-  let (hDist, vDist) = computeViewDistances
-      from = mkWorldInfos Normal        From screen names initial
-      to   = mkWorldInfos ColorAnimated To   screen names final
-  in mkUIAnimation from to hDist vDist t
 
 {-# INLINABLE debug #-}
 debug :: MonadState (AppState g) m => m Bool

@@ -32,6 +32,8 @@ str = colored \"Hello\" white <> colored \" World\" yellow
             -- * Convert to colored Text
             , buildTxt
             , safeBuildTxt
+            -- * Convert to String
+            , toString
             -- * IO
             , putStrLn
             , putStr
@@ -226,9 +228,8 @@ instance DiscreteDistance ColorString where
                                      -- we compare colors with result of char interpolation
         colorDistance = fromMaybe 1 $ maximumMaybe l
 
-        toString = map fst
-        str1 = toString s1
-        str2 = toString s2
+        str1 = map fst s1
+        str2 = map fst s2
         lPref = List.length $ commonPrefix str1 str2
         lSuff = List.length $ commonSuffix (drop lPref str1) (drop lPref str2)
         countTextChanges = max n1 n2 - (lPref + lSuff)
@@ -276,6 +277,8 @@ replaceBackground :: Color8 Background -> ColorString -> ColorString
 replaceBackground bg (ColorString l) =
   ColorString $ map (\(t, LayeredColor _ fg) -> (t, LayeredColor bg fg)) l
 
+toString :: ColorString -> String
+toString = map fst . destructure
 
 -- | Maps a 'ColorString' to a list of 'Char' and 'LayeredColor'.
 destructure :: ColorString -> [(Char, LayeredColor)]

@@ -11,11 +11,14 @@ module Imj.Game.Command
       , runClientCommand
       , maxOneSpace
       -- * utilities
-      , onWorldInfosChanged
+      , withGameInfoAnimation
+      , withGameInfoAnimationIf
+      , mkAnim
       ) where
 
 import           Imj.Prelude
 
+import           Control.Monad.IO.Class(MonadIO)
 import           Data.Attoparsec.Text(Parser, takeText, endOfInput, char
                                     , peekChar, peekChar', skipSpace, takeWhile1)
 import           Data.Char(isSpace, toLower, isAlphaNum)
@@ -26,39 +29,37 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 
+import           Imj.ClientView.Types
 import           Imj.Game.Draw
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Chat
-import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-runClientCommand :: (GameLogic g, MonadState (AppState g) m)
+runClientCommand :: (GameLogic g, MonadState (AppState g) m, MonadIO m)
                  => ShipId
                  -> ClientCommand
                  -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
   case cmd of
-    AssignName name' -> do
-      let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
-      putPlayer sid $ Player name' Present colors
-      onWorldInfosChanged
-    AssignColor color -> do
-      let n = maybe (ClientName "no name") getPlayerName p
-      putPlayer sid $ Player n Present $ mkPlayerColors color
-      onWorldInfosChanged
+    AssignName name' ->
+      withGameInfoAnimation $
+        putPlayer sid $ Player name' Present $ maybe (mkPlayerColors refShipColor) getPlayerColors p
+    AssignColor color ->
+      withGameInfoAnimation $
+        putPlayer sid $ Player (maybe (ClientName "") getPlayerName p) Present $ mkPlayerColors color
     Says what ->
       stateChat $ addMessage $ ChatMessage $
         name <> colored (":" <> what) chatMsgColor
     Leaves detail -> do
       maybe
         (return ())
-        (\n -> putPlayer sid $ n { getPlayerStatus = Absent })
+        (\n -> withGameInfoAnimation $ putPlayer sid $ n { getPlayerStatus = Absent })
           p
-      onWorldInfosChanged
       stateChat $ addMessage $ ChatMessage $
         name <>
         colored
@@ -109,19 +110,44 @@ command = do
         _ -> cmdParser cmdName
     _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)
 
+withGameInfoAnimationIf :: (MonadState (AppState s) m
+                          , MonadIO m
+                          , GameLogic s)
+                        => Bool
+                        -> m a
+                        -> m a
+withGameInfoAnimationIf condition act =
+  f act
+ where
+  f = bool id withGameInfoAnimation condition
 
--- TODO replace by withWorldINfoChange, that animates the change
--- | This function should be called to force an update of displayed world informations.
-{-# INLINABLE onWorldInfosChanged #-}
-onWorldInfosChanged :: (GameLogic s, MonadState (AppState s) m)
-                    => m ()
-onWorldInfosChanged =
-  gets game >>= \(Game _ screen g _ (UIAnimation (UIEvolutions j upDown _) p) _ names _ _ _ _) -> do
-    let newLeft =
-          let (horizontalDist, verticalDist) = computeViewDistances
-              vp = getViewport To screen g
-              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance vp horizontalDist verticalDist
-              (_, (_,infos)) = mkWorldInfos Normal From screen names g
-          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
-    putAnimation newAnim
+withGameInfoAnimation :: (MonadState (AppState s) m
+                        , MonadIO m
+                        , GameLogic s)
+                      => m a
+                      -> m a
+withGameInfoAnimation act = do
+  gets game >>= \(Game _ _ g1 _ _ _ names1 _ _ _ _) -> do
+    res <- act
+    gets game >>= \(Game _ screen g2 _ _ _ names2 _ _ _ _) -> do
+      t <- liftIO getSystemTime
+      putAnimation $ mkAnim t screen names1 names2 g1 g2
+    return res
+
+mkAnim :: (GameLogic g1, GameLogic g2)
+       => Time Point System
+       -> Screen
+       -> Map ClientId Player
+       -- ^ from
+       -> Map ClientId Player
+       -- ^ to
+       -> g1
+       -- ^ from
+       -> g2
+       -- ^ to
+       -> UIAnimation
+mkAnim t screen namesI namesF gI gF =
+  let (hDist, vDist) = computeViewDistances
+      from = mkWorldInfos Normal        From screen namesI gI
+      to   = mkWorldInfos ColorAnimated To   screen namesF gF
+  in mkUIAnimation from to hDist vDist t

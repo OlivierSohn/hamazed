@@ -5,9 +5,7 @@
 module Imj.Graphics.UI.Animation
            ( mkUIAnimation
            , getDeltaTime
-           , getUIAnimationDeadline
            , drawUIAnimation
-           , isFinished
            , mkTextAnimRightAligned
            -- reexports
            , module Imj.Graphics.UI.Animation.Types
@@ -34,15 +32,6 @@ import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
-
-getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
-getUIAnimationDeadline (UIAnimation _ (UIAnimProgress mayDeadline _)) =
-  mayDeadline
-
--- | Is the 'UIAnimation' finished?
-isFinished :: UIAnimation -> Bool
-isFinished (UIAnimation _ (UIAnimProgress Nothing _)) = True
-isFinished _ = False
 
 {-# INLINABLE drawUIAnimation #-}
 drawUIAnimation :: (Draw e, MonadReader e m, MonadIO m)

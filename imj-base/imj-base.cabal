@@ -103,6 +103,7 @@ library
                      , Imj.Graphics.Render.Delta.Types
                      , Imj.Graphics.Render.FromMonadReader
                      , Imj.Graphics.Render.Naive
+                     , Imj.Graphics.Screen
                      , Imj.Graphics.Text.Animation
                      , Imj.Graphics.Text.Animation.Types
                      , Imj.Graphics.Text.ColorString

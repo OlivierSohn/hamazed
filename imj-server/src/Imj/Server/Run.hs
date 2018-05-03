@@ -200,7 +200,7 @@ addClient connectId cliType = do
   i <- asks clientId
   (c',name,color) <- createClientView i connectId
 
-  notifyEveryoneN' $ map (RunCommand i) [AssignName name , AssignColor color]
+  notifyEveryoneN' $ map (RunCommand i) [AssignColor color, AssignName name] -- elts order is important for animations.
 
   let c = ClientView conn cliType name color c'
 

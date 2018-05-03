@@ -1,4 +1,7 @@
-- withWorldInfoChange
+- Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
+
+- Wait for all players to press a key before starting the game.
+
 - move Categorized out of server (to game, and create instances in the file of the class definition)
 move to imj-engine or base:
 Imj.Event

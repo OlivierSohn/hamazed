@@ -73,7 +73,6 @@ library
                      , Imj.Game.Run
                      , Imj.Game.Timing
                      , Imj.Game.Update
-                     , Imj.Graphics.Screen
                      , Imj.Network
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*

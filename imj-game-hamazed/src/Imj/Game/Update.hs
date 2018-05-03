@@ -79,7 +79,7 @@ updateAppState (Right evt) = case evt of
           worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
           anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
       putAnimation anims
-      when (isFinished anims) onUIAnimFinished
+      maybe onUIAnimFinished (const $ return ()) worldAnimDeadline
   Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
     fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
       gets game >>= \g ->
@@ -291,9 +291,17 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ _ drawnS
       intercalate ", " <$> showPlayerNames disconnectedPlayers >>= \them ->
         flip (++) [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]  <$> statusMsg x
     Running -> return []
-    WaitingForOthersToEndLevel stillPlaying ->
-      intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
-        return [color "Waiting for [" <> them <> color "] to finish..."]
+    WaitingForOthersToEndLevel _ ->
+      -- We silent it because in real life with good connections we won't wait more than typical network latency,
+      --  and we don't want to make an exception to the "display in full before transitionning" policy.
+      -- Note that if the connection of another player is broken, we are in the 'Paused' branch
+      -- NOTE (TODO) The server could test latencies of clients using pings, and take it into account.
+      --    It would be interesting to find a technique to prevent clients from intentionally being slow to reply
+      --    to such pings.
+      return []
+      -- Original unsilenced message:
+      --intercalate ", " <$> showPlayerNames stillPlaying >>= \them ->
+        --return [color "Waiting for [" <> them <> color "] to finish..."]
     Countdown n x ->
       flip (++) [colored ("(" <> pack (show n) <> ")") neutralMessageColorFg] <$> statusMsg x
     OutcomeValidated o -> return $ map (flip colored' $ messageColor o) $ case o of

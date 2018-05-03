@@ -21,7 +21,7 @@ import           Imj.Graphics.ParticleSystem.Design.Update
 
 import           Imj.Event
 import           Imj.Game.Timing
-
+import           Imj.Graphics.UI.Animation
 
 {- | Returns the next 'Deadline' to handle.
 
@@ -56,7 +56,7 @@ But it's very unlikely that it will make a difference, except if updating
 the 'ParticleSystem's becomes /very/ slow for some reason.
 -}
 {-# INLINE getNextDeadline #-}
-getNextDeadline :: (GameLogic g, MonadState (AppState g) m)
+getNextDeadline :: MonadState (AppState g) m
                 => Time Point System
                 -- ^ The current time.
                 -> m (Maybe TypedDeadline)
@@ -81,11 +81,11 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 
 {-# INLINE getDeadlinesByDecreasingPriority #-}
-getDeadlinesByDecreasingPriority :: (GameLogic g) => Game g -> [Deadline]
-getDeadlinesByDecreasingPriority (Game _ _ g ps dcs _ _ _ _ _) =
+getDeadlinesByDecreasingPriority :: Game g -> [Deadline]
+getDeadlinesByDecreasingPriority (Game _ _ _ ps uiAnim dcs _ _ _ _ _) =
   -- sort from highest to lowest priority
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
-    getDeadlines g ++
+    uiAnimationDeadline ++
     (getParticleSystemsDeadlines ps) ++
     stateAnimDeadlines dcs
  where
@@ -94,6 +94,12 @@ getDeadlinesByDecreasingPriority (Game _ _ g ps dcs _ _ _ _ _) =
           Deadline (particleSystemTimePointToSystemTimePoint $ getDeadline a) p
             $ AnimateParticleSystem key)
       . Map.toList
+
+  uiAnimationDeadline =
+    maybeToList $
+      fmap (\deadline -> Deadline deadline animateUIPriority AnimateUI)
+      $ getUIAnimationDeadline uiAnim
+
 
 stateAnimDeadlines :: [(a,AnimatedLine)] -> [Deadline]
 stateAnimDeadlines =

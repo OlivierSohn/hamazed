@@ -46,26 +46,15 @@ isFinished _ = False
 
 {-# INLINABLE drawUIAnimation #-}
 drawUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
-                => Coords Pos
-                -- ^ Offset for container
-                -> UIAnimation
+                => UIAnimation
                 -> m ()
-drawUIAnimation containerOffset
+drawUIAnimation
  (UIAnimation we@(UIEvolutions containerEvolution upDown left) (UIAnimProgress _ (Iteration _ frame))) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
-  drawMorphingAt (moveContainerEvolution containerEvolution containerOffset) relFrameFrameE
+  drawMorphingAt containerEvolution relFrameFrameE
   drawAnimatedTextCharAnchored upDown relFrameUD
   drawAnimatedTextStringAnchored left relFrameLeft
 
-moveContainerEvolution :: Evolution (Colored RectContainer)
-                       -> Coords Pos
-                       -> Evolution (Colored RectContainer)
-moveContainerEvolution ev' offset =
-  if zeroCoords /= offset
-    then
-      fmap (fmap (translateRectContainer offset)) ev'
-    else
-      ev'
 
 
 -- | Compute the time interval between the current frame and the next.

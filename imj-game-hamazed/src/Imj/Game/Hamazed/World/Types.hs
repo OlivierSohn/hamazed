@@ -29,11 +29,8 @@ module Imj.Game.Hamazed.World.Types
         , makeDangerous
         , getCurrentColor
         , Scope(..)
-        , ViewMode(..)
         , getColliding
-        , computeViewDistances
         , getWorldCorner
-        , getWorldOffset
         , envDistance
         , environmentInteraction
         , scopedLocation
@@ -151,17 +148,6 @@ data World = World {
 newtype NumId = NumId Int
   deriving (Generic, Ord, Eq, Binary, Show)
 
-data ViewMode = CenterShip {-# UNPACK #-} !ShipId
-              -- ^ the 'BattleShip' position is fixed w.r.t the screen.
-              | CenterSpace
-              -- ^ the 'Space' frame is fixed w.r.t the screen.
-              deriving(Show)
-
-computeViewDistances :: ViewMode -> (Length Width, Length Height)
-computeViewDistances (CenterShip _) = (30, 2) -- it will overlapp for large worlds but that's okay:
-                                          -- the overlap is far away from where the ship is
-computeViewDistances CenterSpace = (20, 2)
-
 data BattleShip = BattleShip {
     shipPosSpeed :: !PosSpeed
   -- ^ Discrete position and speed.
@@ -269,45 +255,34 @@ envDistance (Vec2 x y) =
     else
       DistanceOK
 
-getWorldOffset :: ViewMode -> World -> Coords Pos
-getWorldOffset mode (World _ ships space _ _) =
-  case mode of
-    CenterSpace -> zeroCoords
-    CenterShip myId ->
-      let worldCenter = Coords (fromIntegral $ quot h 2) (fromIntegral $ quot w 2)
-          (Size h w) = getSize space
-      in diffCoords worldCenter $ getPos $ shipPosSpeed $ findShip myId ships
-
-getWorldCorner :: World -> Coords Pos -> Coords Pos -> Coords Pos
-getWorldCorner world screenCenter offset =
+getWorldCorner :: World -> Coords Pos -> Coords Pos
+getWorldCorner world screenCenter =
   let (h',w') = (quot h 2, quot w 2)
       (Size h w) = getSize $ getWorldSpace world
-  in sumCoords offset $ sumCoords screenCenter $ toCoords (-h') (-w')
+  in sumCoords screenCenter $ toCoords (-h') (-w')
 
 
 -- | An interaction function taking into account a 'World' and 'Scope'
 environmentInteraction :: World
-                       -> ViewMode
                        -> Screen
                        -> Scope
                        -> Coords Pos
                        -> InteractionResult
-environmentInteraction world mode screen scope =
-  scopedLocation world mode screen scope >>> \case
+environmentInteraction world screen scope =
+  scopedLocation world screen scope >>> \case
     InsideWorld  -> Stable
     OutsideWorld -> Mutation
 
 scopedLocation :: World
-               -> ViewMode
                -> Screen
                -> Scope
                -- ^ The scope
                -> Coords Pos
                -- ^ The coordinates to test
                -> Location
-scopedLocation world@(World _ _ space _ _) mode (Screen mayTermSize screenCenter) scope pos =
+scopedLocation world@(World _ _ space _ _) (Screen mayTermSize screenCenter) scope pos =
   let termContains (Size h w) =
-        let corner = getWorldCorner world screenCenter $ getWorldOffset mode world
+        let corner = getWorldCorner world screenCenter
             (Coords r c) = sumCoords pos corner
         in r < fromIntegral h && c >= 0 && c < fromIntegral w
   in case scope of

@@ -20,10 +20,8 @@ module Imj.Game.Hamazed
 
       * 'WorldShape' : square or rectangular 'World' where the width is twice the height
       * 'WallDistribution' : Should the 'World' have walls, and what kind of walls.
-      * 'ViewMode' : Should the view be centered on the 'BattleShip' or not.
        -}
       , WorldParameters(..)
-      , ViewMode(..)
         -- * Game loop
         {-| Hamazed is a /synchronous/, /event-driven/ program. Its /simplified/ main loop is:
 

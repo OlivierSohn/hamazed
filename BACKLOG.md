@@ -1,13 +1,4 @@
-- move UIAnimation to the generic part:
-
-replace onPlayersChanged by mkLeftInfo
-replace onUpdateUIAnim by onAnimationEnd
-remove onResizedWindow (the code will be handled generically)
-
-- rename :
-Hamazed to HamazedServer
-GameState to Hamazed
-
+- withWorldInfoChange
 - move Categorized out of server (to game, and create instances in the file of the class definition)
 move to imj-engine or base:
 Imj.Event

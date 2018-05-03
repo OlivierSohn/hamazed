@@ -10,6 +10,8 @@ module Imj.Game.Command
       , command
       , runClientCommand
       , maxOneSpace
+      -- * utilities
+      , onWorldInfosChanged
       ) where
 
 import           Imj.Prelude
@@ -24,9 +26,14 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Types
 import           Imj.Game.Hamazed.Types
 
-import           Imj.Graphics.UI.Chat
+import           Imj.Game.Draw
+import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Text.ColorString
+import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.Chat
+import           Imj.Graphics.UI.RectContainer
+import           Imj.Timing
 
 runClientCommand :: (GameLogic g, MonadState (AppState g) m)
                  => ShipId
@@ -38,11 +45,11 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
     AssignName name' -> do
       let colors = maybe (mkPlayerColors refShipColor) getPlayerColors p
       putPlayer sid $ Player name' Present colors
-      onPlayersChanged
+      onWorldInfosChanged
     AssignColor color -> do
       let n = maybe (ClientName "no name") getPlayerName p
       putPlayer sid $ Player n Present $ mkPlayerColors color
-      onPlayersChanged
+      onWorldInfosChanged
     Says what ->
       stateChat $ addMessage $ ChatMessage $
         name <> colored (":" <> what) chatMsgColor
@@ -51,7 +58,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
         (return ())
         (\n -> putPlayer sid $ n { getPlayerStatus = Absent })
           p
-      onPlayersChanged
+      onWorldInfosChanged
       stateChat $ addMessage $ ChatMessage $
         name <>
         colored
@@ -101,3 +108,20 @@ command = do
         "name" -> Right . RequestApproval . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
         _ -> cmdParser cmdName
     _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)
+
+
+-- TODO replace by withWorldINfoChange, that animates the change
+-- | This function should be called to force an update of displayed world informations.
+{-# INLINABLE onWorldInfosChanged #-}
+onWorldInfosChanged :: (GameLogic s, MonadState (AppState s) m)
+                    => m ()
+onWorldInfosChanged =
+  gets game >>= \(Game _ screen g _ (UIAnimation (UIEvolutions j upDown _) p) _ names _ _ _ _) -> do
+    let newLeft =
+          let (horizontalDist, verticalDist) = computeViewDistances
+              vp = getViewport To screen g
+              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance vp horizontalDist verticalDist
+              (_, (_,infos)) = mkWorldInfos Normal From screen names g
+          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
+        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
+    putAnimation newAnim

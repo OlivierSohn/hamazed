@@ -23,6 +23,8 @@ module Imj.Game.Types -- TODO split
       , OccurencesHist(..)
       , Occurences(..)
       , EventCategory(..)
+      -- * Helper types
+      , Transitioning(..)
       -- * EventGroup
       , isPrincipal
       , mkEmptyGroup
@@ -43,6 +45,7 @@ module Imj.Game.Types -- TODO split
       , hasVisibleNonRenderedUpdates
       -- * Modify
       , putGame
+      , putAnimation
       , putCurScreen
       , putGameState
       , putPlayer
@@ -76,6 +79,7 @@ import           Imj.ClientView.Types
 import           Imj.Event
 import           Imj.Game.Priorities
 import           Imj.Control.Concurrent.AsyncGroups.Class
+import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
@@ -83,14 +87,17 @@ import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Screen
+import           Imj.Graphics.UI.Animation
+import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Input.Types
 import           Imj.ServerView.Types
 
 import           Imj.Graphics.UI.Chat
+import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Timing
-import           Imj.Geo.Discrete.Types
+import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.Text.ColorString
 
 class GameLogic (GameLogicT c)
@@ -131,6 +138,10 @@ instance GameLogic g => Show (GenEvent g) where
   show (Evt e) = show("Evt",e)
   show (CliEvt e) = show("CliEvt",e)
   show (SrvEvt e) = show("SrvEvt",e)
+
+-- | Specifies which world we want information about (the one that is already displayed
+-- is 'From', the new one is 'To'.)
+data Transitioning = From | To
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
@@ -173,26 +184,31 @@ and the input has been consumed up until the /beginning/ of the command paramete
             -> Parser (Either Text (Command (ServerT g)))
   cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
-  initialGame :: (MonadIO m)
-              => Screen -> m g
+  initialGame :: g
 
-  onResizedWindow :: (MonadState (AppState g) m
-                    , MonadReader e m, Canvas e
-                    , MonadIO m)
-                  => Size
-                  -- ^ The new window size, homogenous to 'Coords' 'Pos' (i.e these are /not/ pixels).
-                  -> m ()
+  getViewport :: Transitioning
+              -> Screen
+              -> g
+              -> RectContainer -- ^ The screen region used to draw the game in 'drawGame'
 
-  -- | Either the count of players, or the name / color of some player changed.
-  onPlayersChanged :: MonadState (AppState g) m => m () -- TODO replace by mkLeftInfo (with a better name)
-  onUpdateUIAnim :: (GameLogicT e ~ g                   -- TODO replace by onUIAnimationFinished
-                   , MonadState (AppState (GameLogicT e)) m
-                   , MonadReader e m, Client e
-                   , MonadIO m)
-                 => Time Point System
-                 -> m ()
+  -- TODO doc + should we split it in 2?
+  mkWorldInfos :: InfoType
+               -> Transitioning
+               -> Screen
+               -> Map ClientId Player
+               -> g
+               -> (Colored RectContainer
+                  ,((Successive ColoredGlyphList
+                    ,Successive ColoredGlyphList
+                    )
+                    ,[Successive ColoredGlyphList])
+                  )
 
-  getDeadlines :: g -> [Deadline]
+  onUIAnimFinished :: (GameLogicT e ~ g
+                     , MonadState (AppState (GameLogicT e)) m
+                     , MonadReader e m, Client e
+                     , MonadIO m)
+                   => m ()
 
   -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
   --
@@ -213,10 +229,6 @@ and the input has been consumed up until the /beginning/ of the command paramete
                   , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
                   , MonadIO m)
                 => CustomUpdateEvent g -> m ()
-
-  getViewport :: Screen
-              -> g
-              -> RectContainer -- ^ The screen region used to draw the game in 'drawGame'
 
   drawGame :: (GameLogicT e ~ g
              , MonadState (AppState (GameLogicT e)) m
@@ -285,6 +297,8 @@ data Game g = Game {
   , getScreen :: {-# UNPACK #-} !Screen
   , getGameState' :: !g
   , gameParticleSystems :: !ParticleSystems
+  , getUIAnimation :: !UIAnimation
+    -- ^ Inter-level animation.
   , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages.
                                           -- For rendering, 'AnimatedLine' is used.
                           , AnimatedLine)]
@@ -362,6 +376,11 @@ getLastRenderTime = gets timeAfterRender
 {-# INLINABLE putGame #-}
 putGame :: MonadState (AppState g) m => Game g -> m ()
 putGame g = modify' $ \s -> s { game = g }
+
+{-# INLINABLE putAnimation #-}
+putAnimation :: MonadState (AppState s) m => UIAnimation -> m ()
+putAnimation a =
+  gets game >>= \g -> putGame $ g {getUIAnimation = a}
 
 {-# INLINABLE putServer #-}
 putServer :: MonadState (AppState g) m => (ServerView (ServerT g)) -> m ()

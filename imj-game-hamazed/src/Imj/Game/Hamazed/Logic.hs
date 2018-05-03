@@ -18,10 +18,7 @@ module Imj.Game.Hamazed.Logic
     , putLevelOutcome
     , addParticleSystems
     , envFunctions
-    , putViewMode
     , putWorld
-    , putAnimation
-    , getViewMode
     , getWorld
     , mkGameStateEssence
     , moveWorld
@@ -47,7 +44,6 @@ import qualified Data.Set as Set
 import           Data.Text(pack, unpack)
 import qualified Data.Text as Text
 
-import           Imj.ClientView.Types
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Hamazed.Level.Types
 import           Imj.Game.Priorities
@@ -60,13 +56,12 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
-import           Imj.Graphics.UI.Animation.Types
 import           Imj.Input.Types
 import           Imj.Network
 import           Imj.Server.Class
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
-import           Imj.Event
+import           Imj.Game.Command
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Sound
@@ -74,6 +69,7 @@ import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.State
 import           Imj.Game.Timing
 import           Imj.Game.Update
 import           Imj.GameItem.Weapon.Laser
@@ -84,7 +80,6 @@ import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
-import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
@@ -106,17 +101,7 @@ data HamazedGame = HamazedGame {
     -- ^ Which 'Number's were shot
   , getGameLevel :: !Level
     -- ^ The current 'Level'
-  , getUIAnimation :: !UIAnimation
-    -- ^ Inter-level animation.
-  , getViewMode' :: {-unpack sum-} !ViewMode
 }
-
-uiAnimationDeadline :: UIAnimation -> Maybe Deadline
-uiAnimationDeadline =
-  maybe
-    Nothing
-    (\deadline -> Just $ Deadline deadline animateUIPriority AnimateUI)
-    . getUIAnimationDeadline
 
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
@@ -137,46 +122,49 @@ instance GameLogic HamazedGame where
       b <- decimal
       return $ Do . Put . ColorSchemeCenter <$> userRgb r g b
 
-  initialGame = liftIO . initialGameState initialParameters CenterSpace
+  initialGame = mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing Nothing
 
-  onResizedWindow _ =
-    gets game >>= \(Game _ (Screen _ screenCenter) g@(HamazedGame curWorld mayNewWorld _ _ uiAnimation _) _ _ _ _ _ _ _) -> do
-      let sizeSpace = getSize $ getWorldSpace $ fromMaybe curWorld mayNewWorld
-          newPosition = upperLeftFromCenterAndSize screenCenter sizeSpace
-          newAnim = setPosition newPosition uiAnimation
-      putGameState $ g { getUIAnimation = newAnim }
-
-  onPlayersChanged = updateShipsText
-
-  {-# INLINABLE onUpdateUIAnim #-}
-  onUpdateUIAnim = updateUIAnim
+  onUIAnimFinished = -- Swap the future world with the current one, and notifies the server using 'IsReady'
+    getGameState >>= \(HamazedGame _ future j k) -> do
+      let world = fromMaybe
+            (error "ongoing UIAnimation terminated with no future world")
+            future
+      putGameState $ HamazedGame world Nothing j k
+      checkAllComponentStatus
+      checkSums
+      maybe (return ()) (sendToServer . IsReady) $ getId world
 
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
 
-  {-# INLINABLE getViewport #-}
-  getViewport (Screen _ center) (HamazedGame world _ _ _ _ mode) =
-      let offset = getWorldOffset mode world
-          worldCorner = getWorldCorner world center offset
-      in flip RectContainer (sumCoords (Coords (-1) (-1)) worldCorner) $ getSize $ getWorldSpace world
+  mkWorldInfos t trans (Screen _ center) names (HamazedGame current future shotNumbers (Level level _)) =
+    let (World _ ships space _ _) =
+          case trans of
+            From -> current
+            To -> fromMaybe current future
+    in (Colored worldFrameColors $ mkRectContainerWithCenterAndInnerSize center $ getSize space
+       ,mkInfos t ships names shotNumbers level)
 
-  {-# INLINABLE getDeadlines #-}
-  getDeadlines (HamazedGame _ _ _ _ uiAnim _) =
-    maybeToList $ uiAnimationDeadline uiAnim
+  {-# INLINABLE getViewport #-}
+  getViewport trans (Screen _ center) (HamazedGame current future _ _) =
+    let (World _ _ space _ _) =
+          case trans of
+            From -> current
+            To -> fromMaybe current future
+    in mkRectContainerWithCenterAndInnerSize center $ getSize space
 
   {-# INLINABLE drawGame #-}
   drawGame = gets game >>=
-    \(Game _ (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _ wa mode)
-             animations _ _ _ _ _ _) -> do
-      let offset = getWorldOffset mode world
-          worldCorner = getWorldCorner world screenCenter offset
+    \(Game _ (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _)
+             animations wa _ _ _ _ _ _) -> do
+      let worldCorner = getWorldCorner world screenCenter
       -- draw the walls outside the matrix:
       fill (materialGlyph Wall) outerWallsColors
       -- draw the matrix:
       drawSpace renderedSpace worldCorner
       mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
       drawWorld world worldCorner
-      drawUIAnimation offset wa -- draw animation after the world so that when it morphs
+      drawUIAnimation wa -- draw animation after the world so that when it morphs
                                 -- it goes over numbers and ship
       flip RectContainer (sumCoords (Coords (-1) (-1)) worldCorner) . getSize . getWorldSpace <$> getWorld
 
@@ -228,63 +216,32 @@ instance GameLogic HamazedGame where
       WaitingForOthersToEndLevel _ -> return Nothing)
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
-mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _) _ _) =
+mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _)) =
   let (essence, mayWid) = worldToEssence $ fromMaybe curWorld mayNewWorld
   in maybe
     Nothing
     (\wid -> bool Nothing (Just $ GameStateEssence essence shotNums levelEssence) $ wid == wid')
     mayWid
 
-initialGameState :: WorldParameters
-                 -> ViewMode
-                 -> Screen
-                 -> IO HamazedGame
-initialGameState _ mode s =
-  mkInitialState mkEmptyLevelEssence mkMinimalWorldEssence Nothing mempty mode s Nothing
-
-mkInitialState :: (MonadIO m)
-               => LevelEssence
+mkInitialState :: LevelEssence
                -> WorldEssence
                -> Maybe WorldId
-               -> Map ShipId Player
-               -> ViewMode
-               -> Screen
                -> Maybe HamazedGame
-               -> m HamazedGame
+               -> HamazedGame
 mkInitialState = mkIntermediateState []
 
-mkIntermediateState :: (MonadIO m)
-                    => [ShotNumber]
+mkIntermediateState :: [ShotNumber]
                     -> LevelEssence
                     -> WorldEssence
                     -> Maybe WorldId
-                    -> Map ClientId Player
-                    -> ViewMode
-                    -> Screen
                     -> Maybe HamazedGame
-                    -> m HamazedGame
-mkIntermediateState newShotNums newLevel essence wid names mode (Screen _ screenCenter) mayState = do
-  let newWorld@(World _ _ space' _ _) = mkWorld essence wid
-      (curWorld@(World _ _ curSpace _ _), level, shotNums) =
-        maybe
-        (newWorld, newLevel, [])
-        (\(HamazedGame w _ curShotNums (Level curLevel _) _ _) ->
-            (w, curLevel, curShotNums))
-          mayState
-      curInfos = mkInfos Normal        (getWorldShips curWorld) names shotNums    level
-      newInfos = mkInfos ColorAnimated (getWorldShips newWorld) names newShotNums newLevel
-      (horizontalDist, verticalDist) = computeViewDistances mode
-  kt <- liftIO getSystemTime
-  let uiAnimation =
-        mkUIAnimation
-          (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize screenCenter (getSize curSpace), curInfos)
-          (Colored worldFrameColors
-          $ mkRectContainerWithCenterAndInnerSize screenCenter (getSize space'), newInfos)
-          horizontalDist verticalDist kt
-          -- only when UIAnimation is over, curWorld will be replaced by newWorld.
-          -- during UIAnimation, we need the two worlds.
-  return $ HamazedGame curWorld (Just newWorld) newShotNums (mkLevel newLevel) uiAnimation mode
+                    -> HamazedGame
+mkIntermediateState newShotNums newLevel essence wid mayState =
+  let newWorld = mkWorld essence wid
+      curWorld = maybe newWorld (\(HamazedGame w _ _ _) -> w) mayState
+  -- only when UIAnimation is over, curWorld will be replaced by newWorld.
+  -- during UIAnimation, we need the two worlds.
+  in HamazedGame curWorld (Just newWorld) newShotNums (mkLevel newLevel)
 
 
 {-# INLINABLE hamazedEvtUpdate #-}
@@ -322,13 +279,19 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
             go
     Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
   ChangeLevel levelEssence worldEssence wid ->
-    gets game >>= \(Game _ screen state@(HamazedGame _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
-      mkInitialState levelEssence worldEssence (Just wid) names viewMode screen (Just state)
-        >>= putGameState
+    gets game >>= \(Game _ screen state _ _ _ names _ _ _ _) -> do
+      let state2 = mkInitialState levelEssence worldEssence (Just wid) (Just state)
+      t <- liftIO getSystemTime
+      let anim = mkAnim t screen names state state2
+      putGameState state2
+      putAnimation anim
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    gets game >>= \(Game _ screen state@(HamazedGame _ _ _ _ _ viewMode) _ _ names _ _ _ _) ->
-      mkIntermediateState shotNums levelEssence worldEssence (Just wid) names viewMode screen (Just state)
-        >>= putGameState
+    gets game >>= \(Game _ screen state _ _ _ names _ _ _ _) -> do
+      let state2 = mkIntermediateState shotNums levelEssence worldEssence (Just wid) (Just state)
+      t <- liftIO getSystemTime
+      let anim = mkAnim t screen names state state2
+      putGameState state2
+      putAnimation anim
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) -> do
@@ -371,7 +334,7 @@ onLaser ship dir op =
   (liftIO getSystemTime >>= laserEventAction ship dir) >>= onDestroyedNumbers
  where
   onDestroyedNumbers (destroyedBalls, ammoChanged) =
-    getGameState >>= \(HamazedGame w@(World _ ships _ _ _) f g (Level level@(LevelEssence _ target _) finished) a m) -> do
+    getGameState >>= \(HamazedGame w@(World _ ships _ _ _) f g (Level level@(LevelEssence _ target _) finished)) -> do
       let allShotNumbers = g ++ map (flip ShotNumber op . getNumber . getNumEssence) (Map.elems destroyedBalls)
           finishIfNoAmmo = checkTargetAndAmmo (countAmmo $ Map.elems ships) (applyOperations $ reverse allShotNumbers) target
           newFinished = finished <|> finishIfNoAmmo
@@ -380,8 +343,8 @@ onLaser ship dir op =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ HamazedGame w f allShotNumbers newLevel a m
-      updateShipsText
+      putGameState $ HamazedGame w f allShotNumbers newLevel
+      onWorldInfosChanged
       when ammoChanged checkSums
 
 {-# INLINABLE onMove #-}
@@ -404,7 +367,7 @@ onHasMoved :: (GameLogicT e ~ HamazedGame
            => m ()
 onHasMoved =
   liftIO getSystemTime >>= shipParticleSystems >>= addParticleSystems >> getGameState
-    >>= \(HamazedGame world@(World balls ships _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished) anim m) -> do
+    >>= \(HamazedGame world@(World balls ships _ _ _) f shotNums (Level level@(LevelEssence _ target _) finished)) -> do
       let oneShipAlive = any (shipIsAlive . getShipStatus) ships
           allCollisions = Set.unions $ mapMaybe
             (\(BattleShip _ _ shipStatus collisions _) ->
@@ -430,35 +393,9 @@ onHasMoved =
         (return ())
         (when (isNothing finished) . sendToServer . LevelEnded)
         newFinished
-      putGameState $ assert (isFinished anim) $ HamazedGame newWorld f shotNums newLevel anim m
+      putGameState $ HamazedGame newWorld f shotNums newLevel
       when numbersChanged checkSums
-      updateShipsText
-
--- | When the animation is over, swaps the future world with the current one.
-{-# INLINABLE updateUIAnim #-}
-updateUIAnim :: (GameLogicT e ~ HamazedGame -- TODO split
-               , MonadState (AppState HamazedGame) m
-               , MonadReader e m, Client e
-               , MonadIO m)
-             => Time Point System -> m ()
-updateUIAnim t =
-  getGameState >>= \(HamazedGame curWorld mayFutWorld j k a@(UIAnimation evolutions (UIAnimProgress _ it)) m) -> do
-    let nextIt@(Iteration _ nextFrame) = nextIteration it
-        (world, futWorld, worldAnimDeadline) = maybe
-          (fromMaybe
-            (error "ongoing UIAnimation with no future world")
-            mayFutWorld
-          , Nothing
-          , Nothing)
-          (\dt -> (curWorld, mayFutWorld, Just $ addDuration dt t))
-          $ getDeltaTime evolutions nextFrame
-        anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-    putGameState $ HamazedGame world futWorld j k anims m
-    when (isFinished anims) $ do
-      checkAllComponentStatus
-      checkSums
-      maybe (return ()) (sendToServer . IsReady) $ getId world
-
+      onWorldInfosChanged
 
 {- | If the ship is colliding and not in "safe time", and the event is a gamestep,
 this function creates an animation where the ship and the colliding number explode.
@@ -498,22 +435,6 @@ shipParticleSystems k =
                   $ fragmentsFreeFallThenExplode numSpeed shipCoords color (gameGlyph '|') (Speed 1) envFuncs k' ++
                     fragmentsFreeFallThenExplode shipSpeed2 shipCoords color (gameGlyph n) (Speed 1) envFuncs k')
     List.concat <$> Map.traverseWithKey sps (getWorldShips w)
-
-
-{-# INLINABLE updateShipsText #-}
-updateShipsText :: (MonadState (AppState HamazedGame) m)
-                => m ()
-updateShipsText =
-  gets game >>= \(Game _ screen g@(HamazedGame (World _ ships _ _ _) _ shotNumbers (Level level _)
-                    (UIAnimation (UIEvolutions j upDown _) p) mode ) _ _ names _ _ _ _) -> do
-    let newLeft =
-          let (horizontalDist, verticalDist) = computeViewDistances mode
-              vp = getViewport screen g
-              (_, _, leftMiddle, _) = getSideCenters $ mkRectContainerAtDistance vp horizontalDist verticalDist
-              infos = mkLeftInfo Normal ships names shotNumbers level
-          in mkTextAnimRightAligned leftMiddle leftMiddle infos 1 (fromSecs 1)
-        newAnim = UIAnimation (UIEvolutions j upDown newLeft) p -- TODO use mkUIAnimation to have a smooth transition
-    putAnimation newAnim
 
 
 -- | Moves elements of game logic ('Number's, 'BattleShip').
@@ -659,9 +580,8 @@ outerSpaceParticleSystems t shipId ray@(LaserRay dir _ _) = getPlayer shipId >>=
                           cycleColors sumFrameParticleIndex (outer2 cycles) $ quot _frame 4
                     pos = translateInDir dir laserTarget
                     (speedAttenuation, nRebounds) = (0.3, 3)
-                mode <- getViewMode
                 screen <- getCurScreen
-                case scopedLocation world mode screen NegativeWorldContainer pos of
+                case scopedLocation world screen NegativeWorldContainer pos of
                     InsideWorld -> outerSpaceParticleSystems' NegativeWorldContainer pos
                                     dir speedAttenuation nRebounds color glyph t
                     OutsideWorld -> return []
@@ -796,7 +716,7 @@ countLiveAmmo (BattleShip _ ammo status _ _) =
 checkSums :: (MonadState (AppState HamazedGame) m)
           => m ()
 checkSums = getGameState >>= \(HamazedGame w@(World remainingNumbers _ _ _ _) _ shotNumbers
-                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _) _ _) ->
+                                         (Level (LevelEssence _ (LevelTarget totalQty constraint) _) _)) ->
   case constraint of
     CanOvershoot -> return ()
     CannotOvershoot -> do
@@ -867,20 +787,6 @@ getLevel = getGameLevel <$> getGameState
 putLevel :: MonadState (AppState HamazedGame) m => Level -> m ()
 putLevel l = getGameState >>= \s -> putGameState s { getGameLevel = l }
 
-{-# INLINABLE getViewMode #-}
-getViewMode :: MonadState (AppState HamazedGame) m => m ViewMode
-getViewMode = getViewMode' <$> getGameState
-
-{-# INLINABLE putAnimation #-}
-putAnimation :: MonadState (AppState HamazedGame) m => UIAnimation -> m ()
-putAnimation a =
-  getGameState >>= \s -> putGameState $ s {getUIAnimation = a}
-
-{-# INLINABLE putViewMode #-}
-putViewMode :: MonadState (AppState HamazedGame) m => ViewMode -> m ()
-putViewMode p =
-  getGameState >>= \g -> putGameState $ g {getViewMode' = p}
-
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState (AppState HamazedGame) m => World -> m ()
 putWorld w = getGameState >>= \g -> putGameState g {currentWorld = w}
@@ -904,6 +810,5 @@ envFunctions :: (MonadState (AppState HamazedGame) m)
              => Scope -> m EnvFunctions
 envFunctions scope = do
   world <- getWorld
-  mode <- getViewMode
   screen <- getCurScreen
-  return $ EnvFunctions (environmentInteraction world mode screen scope) envDistance
+  return $ EnvFunctions (environmentInteraction world screen scope) envDistance

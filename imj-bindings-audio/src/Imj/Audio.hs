@@ -40,7 +40,7 @@ foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.
 withAudio :: IO () -> IO ()
-withAudio = do
+withAudio =
 
   bracket bra ket . const
 
@@ -49,9 +49,9 @@ withAudio = do
   bra = initializeAudio
 
   ket _ = do
-    stopAudioGracefully -- takes max. 500 samples * 1/44100 secs < 12 ms
+    stopAudioGracefully
     threadDelay maxShutdownDurationMicros
-    teardownAudio -- stops audio immediately.
+    teardownAudio
 
 -- | An upperbound on the time it will take for audio to shutdown gracefully (see 'stopAudioGracefully').
 maxShutdownDurationMicros :: Int

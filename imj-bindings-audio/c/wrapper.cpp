@@ -56,17 +56,6 @@ namespace imajuscule {
       , EventIterator<IEventList>
       , NoteOnEvent
       , NoteOffEvent>;
-
-      AudioOutSynth & getSynth() {
-        static AudioOutSynth s;
-        return s;
-      }
-
-      void onSynthEvent(imajuscule::audio::Event const & e) {
-        if(auto a = Audio::getInstance()) {
-          getSynth().onEvent2(e, a->out().getChannelHandler());
-        }
-      }
     }
 
     namespace vasine {
@@ -78,47 +67,60 @@ namespace imajuscule {
       , EventIterator<IEventList>
       , NoteOnEvent
       , NoteOffEvent>;
+    }
+  }
+}
 
-      AudioOutSynth & getSynth() {
-        static AudioOutSynth s;
+
+// functions herein are /not/ part of the interface
+namespace imajuscule {
+  namespace audio {
+    namespace detail {
+
+      namespace mySynth = imajuscule::audio::vasine;
+      //namespace mySynth = imajuscule::audio::sine;
+
+      mySynth::AudioOutSynth & getSynth() {
+        static mySynth::AudioOutSynth s;
         return s;
       }
 
-      void onSynthEvent(imajuscule::audio::Event const & e) {
+      void midiEvent(Event e) {
+        using namespace imajuscule::audio;
+        using namespace mySynth;
         if(auto a = Audio::getInstance()) {
           getSynth().onEvent2(e, a->out().getChannelHandler());
         }
       }
+
+      /*
+      * Denormals can appear in reverb algorithm, when signal becomes close to 0.
+      */
+      void disableDenormals() {
+        #if __APPLE__
+            fesetenv(FE_DFL_DISABLE_SSE_DENORMS_ENV);
+        #else
+        #define CSR_FLUSH_TO_ZERO         (1 << 15)
+            unsigned csr = __builtin_ia32_stmxcsr();
+            csr |= CSR_FLUSH_TO_ZERO;
+            __builtin_ia32_ldmxcsr(csr);
+        #endif
+      }
     }
   }
 }
-namespace mySynth = imajuscule::audio::vasine;
 
+// functions herein are part of the interface
 extern "C" {
 
-  void disableDenormals() {
-    #if __APPLE__
-        fesetenv(FE_DFL_DISABLE_SSE_DENORMS_ENV);
-    #else
-    #define CSR_FLUSH_TO_ZERO         (1 << 15)
-        unsigned csr = __builtin_ia32_stmxcsr();
-        csr |= CSR_FLUSH_TO_ZERO;
-        __builtin_ia32_ldmxcsr(csr);
-    #endif
-  }
-
   void initializeAudio () {
-    using namespace imajuscule;
     using namespace std;
+    using namespace imajuscule;
+    using namespace imajuscule::audio::detail;
 #ifndef NDEBUG
-    cout << "WARNING : C++ sources were built without NDEBUG" << endl;
+    cout << "WARNING : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
 
-    /*
-    Denormals can appear in reverbs, when signal becomes close to 0.
-    We disable denormals handling because the signal is too low for it to have any
-    audible effect, and it is (said to be) very slow.
-    */
     disableDenormals();
 
     // We know we're going to use audio so we force initialization.
@@ -141,14 +143,13 @@ extern "C" {
 
   void midiNoteOn(int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
-    using namespace mySynth;
-    onSynthEvent(mkNoteOn(pitch,velocity));
+    using namespace imajuscule::audio::detail;
+    midiEvent(mkNoteOn(pitch,velocity));
   }
-
   void midiNoteOff(int16_t pitch) {
     using namespace imajuscule::audio;
-    using namespace mySynth;
-    onSynthEvent(mkNoteOff(pitch));
+    using namespace imajuscule::audio::detail;
+    midiEvent(mkNoteOff(pitch));
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {
@@ -165,10 +166,10 @@ extern "C" {
     }
   }
 
-  // Opens a 'Channel', and plays a Request in it.
+  // Test function to verify that audio can be played : you should hear a beep sound
+  // if audio is well initialized, or see a log in the console describing the issue.
   void beep () {
     if(auto a = Audio::getInstance()) {
-      // copy/pasted parts of scriptinterpreter.cpp
         auto xfade = 401;
         auto c = a->out().openChannel(1.f,
                                       ChannelClosingPolicy::AutoClose,
@@ -187,7 +188,6 @@ extern "C" {
                 return;
             }
             auto half_tone = compute_half_tone(1.f);
-            //float transpose_factor = expt(half_tone, 0);
             auto r = to_request<Audio::nAudioOut>(s,
                                                   time_unit,
                                                   1.f,

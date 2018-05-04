@@ -1,12 +1,6 @@
-- --silent to disable audio : doesn't work yet, we don't want to create pink noise
-
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 
 - Wait for all players to press a key before starting the game.
-
-- create imj-game-engine
-Imj.Event
-Imj.Graphics.Screen
 
 - using imj-engine, create a mini game that displays a timer in the center of the screen,
 that starts when space is hit and stops when space is hit again.

@@ -34,8 +34,8 @@ import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState)
-import           Options.Applicative(Parser)
 
+import           Imj.Arg.Class
 import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
@@ -53,6 +53,7 @@ class (Show (ClientEventT s)
      , Show (SharedValueT s)
      , Show (SharedEnumerableValueKeyT s)
      , ChatShow (SharedValueT s)
+     , Arg (ServerConfigT s)
      , Eq (SharedValueKeyT s)
      , Eq (SharedValueT s)
      , Eq (SharedEnumerableValueKeyT s)
@@ -98,8 +99,6 @@ class (Show (ClientEventT s)
   ---------------- Server, as viewed by the client -----------------------------
   type ServerConfigT s = (r :: *) | r -> s
   type ServerContentT s = (r :: *) | r -> s
-
-  parseConfig :: Parser (ServerConfigT s)
 
   -- | Called to create the server.
   mkInitial :: (MonadIO m) => Maybe (ServerConfigT s) -> m (ServerContentT s, s)

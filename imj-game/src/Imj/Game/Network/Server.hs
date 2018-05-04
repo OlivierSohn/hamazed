@@ -6,7 +6,7 @@ module Imj.Game.Network.Server
       ( srvColorSchemeArg
       , ColorScheme(..)
       , mkCenterColor
-      , SuggestedPlayerName(..)
+      , SuggestedPlayerName(..), unSuggestedPlayerName
       , mkClientColorFromCenter
       ) where
 
@@ -14,9 +14,10 @@ import           Imj.Prelude
 
 import           Data.Char(toLower)
 import           Data.String(IsString(..))
-import           Options.Applicative(str, ReadM, readerError)
+import           Options.Applicative(short, long, option, help, str, ReadM, readerError)
 import           Text.Read(readMaybe)
 
+import           Imj.Arg.Class
 import           Imj.ClientView.Types
 import           Imj.Game.Color
 import           Imj.Graphics.Color.Types
@@ -25,12 +26,27 @@ import           Imj.Timing
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)
+unSuggestedPlayerName :: SuggestedPlayerName -> String
+unSuggestedPlayerName (SuggestedPlayerName n) = n
 
 data ColorScheme =
     UseServerStartTime
   | ColorScheme {-# UNPACK #-} !(Color8 Foreground)
   deriving(Generic, Show)
 instance NFData ColorScheme
+instance Arg ColorScheme where
+  parseArg =
+    (option srvColorSchemeArg
+       (  long "colorScheme"
+       <> short 'c'
+       <> help (
+       "Defines a \"center\" color from which player colors are deduced. Possible values are: " ++
+       descPredefinedColors ++
+       ", " ++
+       "'rgb' | '\"r g b\"' where r,g,b are one of {0,1,2,3,4,5}, " ++
+       "'time' to chose colors based on server start time. " ++
+       "Default is 322 / \"3 2 2\". Incompatible with --serverName."
+       )))
 
 mkCenterColor :: ColorScheme -> IO (Color8 Foreground)
 mkCenterColor (ColorScheme c) = return c

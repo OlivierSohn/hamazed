@@ -87,7 +87,6 @@ data HamazedServerEvent =
   | MeetThePlayers !(Map ClientId PlayerEssence)
   -- ^ (reconnection scenario) Upon reception, the client should set its gamestate accordingly.
   | GameEvent {-unpack sum-} !GameStep
-  | PlayMusic !Music !Instrument
   deriving(Generic, Show)
 instance Binary HamazedServerEvent
 instance Categorized HamazedServerEvent where
@@ -101,7 +100,6 @@ instance Categorized HamazedServerEvent where
     PutGameState{} -> ChangeLevel'
     MeetThePlayers{} -> Chat'
     GameInfo _ -> Chat'
-    PlayMusic{} -> Command'
 
 data WorldRequestArg =
     Build {-# UNPACK #-} !(Time Duration System)

@@ -27,9 +27,10 @@ import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
 
 import           Imj.Categorized
+import           Imj.Graphics.Color
+import           Imj.Music
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
-import           Imj.Graphics.Color
 
 data Command s =
     RequestApproval !ClientCommand
@@ -66,6 +67,7 @@ instance Server s => Show (ClientEvent s) where
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
+  | PlayMusic !Music !Instrument
   | CommandError {-unpack sum-} !ClientCommand
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
@@ -96,6 +98,7 @@ instance Server s => WebSocketsData (ServerEvent s) where
   {-# INLINABLE toLazyByteString #-}
 instance Server s => Categorized (ServerEvent s) where
   evtCategory = \case
+    PlayMusic{} -> Command'
     Reporting _ -> Chat'
     PlayerInfo _ _ -> Chat'
     ServerError _ -> Error'

@@ -252,7 +252,6 @@ hamazedEvtUpdate (Right cliEvt) = case cliEvt of
   Interrupt Help -> error "not implemented"
   PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
 hamazedEvtUpdate (Left srvEvt) = case srvEvt of
-  PlayMusic music instr -> liftIO $ play music instr
   WorldRequest wid arg -> case arg of
     GetGameState ->
       maybe Nothing (mkGameStateEssence wid) <$> getIGame >>= sendToServer . CurrentGameState wid

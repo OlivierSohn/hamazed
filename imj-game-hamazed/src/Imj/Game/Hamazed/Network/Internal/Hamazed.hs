@@ -339,7 +339,7 @@ gameScheduler st =
           let (newScore, notesChanges) = stopScore s
           case notesChanges of
             [] -> return ()
-            _:_ -> notifyPlayersN $ map (flip PlayMusic SineSynth) notesChanges
+            _:_ -> notifyPlayersN' $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
     go = get >>= \(ServerState _ _ terminate _ (HamazedServer _ _ _ _ _ game)) ->
@@ -402,7 +402,9 @@ gameScheduler st =
       <$> gets onlyPlayersMap
     updateSafeShips >>= \shipsLostArmor ->
       updateVoice >>= \noteChange ->
-        notifyPlayersN (map (flip PlayMusic SineSynth) noteChange ++ [GameEvent $ PeriodicMotion accs shipsLostArmor])
+        notifyPlayersN'
+          (map (flip PlayMusic SineSynth) noteChange ++
+          [ServerAppEvt $ GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
 
@@ -767,6 +769,12 @@ notifyPlayersN :: (MonadIO m, MonadState (ServerState HamazedServer) m)
                => [ServerEventT HamazedServer] -> m ()
 notifyPlayersN evts =
   notifyN evts =<< gets onlyPlayersMap
+
+{-# INLINABLE notifyPlayersN' #-}
+notifyPlayersN' :: (MonadIO m, MonadState (ServerState HamazedServer) m)
+               => [ServerEvent HamazedServer] -> m ()
+notifyPlayersN' evts =
+  notifyN' evts =<< gets onlyPlayersMap
 
 {-# INLINABLE notifyPlayers #-}
 notifyPlayers :: (MonadIO m, MonadState (ServerState HamazedServer) m)

@@ -53,8 +53,9 @@ import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Log
+import           Imj.Music
+import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Chat
-import Imj.Graphics.UI.Animation
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e
@@ -113,6 +114,8 @@ updateAppState (Right evt) = case evt of
 updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
     onCustomEvent $ Left e
+  PlayMusic music instr ->
+    liftIO $ play music instr
   OnContent worldParameters ->
     putServerContent worldParameters
   RunCommand i cmd -> runClientCommand i cmd

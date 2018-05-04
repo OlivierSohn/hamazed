@@ -20,10 +20,10 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString
 
 class (Show e) => Categorized e where
-  -- | 'evtCategory' is used for debugging purposes, to provide a visual single-character,
-  -- colored representations of handled events.
+  -- | 'evtCategory' is used for debugging purposes, to provide a single-character
+  -- representations of events.
   --
-  -- The default implementation assigns all to the same category.
+  -- The default implementation assigns all event values to the same category.
   evtCategory :: e -> EventCategory
   evtCategory _ = Command'
 

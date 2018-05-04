@@ -1,5 +1,3 @@
-- make PlayMusic generic
-
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 
 - Wait for all players to press a key before starting the game.

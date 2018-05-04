@@ -36,7 +36,7 @@ import           System.Info(os)
 import           Imj.Audio
 import           Imj.Game.Exceptions
 import           Imj.Game.Env
-import           Imj.Game.Internal.Types
+import           Imj.Game.Configuration
 import           Imj.Game.Internal.ArgParse
 import           Imj.Game.Network
 import           Imj.Game.Network.ClientQueues
@@ -74,8 +74,7 @@ runOnPlatform p app = withSocketsDo $
         "Windows is not currently supported:" ++
         "https://ghc.haskell.org/trac/ghc/ticket/7353"
     else
-      withAudio
-        $ withArgs (parserGameArgs p) app
+      withArgs (parserGameArgs p) app
 
 withArgs :: Parser x -> (x -> IO a) -> IO a
 withArgs parser app = do
@@ -99,7 +98,8 @@ withArgs parser app = do
 run :: GameLogic g => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
-    serverOnly maySrvName maySrvPort maySrvLogs mayConfig mayPlayerName maybeBackend mayPPU mayScreenSize debug) = do
+    (ServerOnly serverOnly)
+    maySrvName maySrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug useAudio) = do
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
         , ("Server name", show maySrvName)
@@ -110,8 +110,9 @@ run prox
       printClientArgs = putStr $ List.unlines $ showArray (Just ("Client Arg", ""))
         [ ("Client Rendering", show maybeBackend)
         , ("PPU             ", show mayPPU)
-        , ("Player name     ", show mayPlayerName)
+        , ("Player name     ", show mayConnectId)
         , ("Client Debug    ", show debug)
+        , ("Client Audio    ", show useAudio)
         ]
   printServerArgs
   when serverOnly $ do
@@ -120,7 +121,7 @@ run prox
     when (isJust maySrvName)    $ conflict "--serverName"
     when (isJust mayPPU)        $ conflict "--ppu"
     when (isJust mayScreenSize) $ conflict "--screenSize"
-    when (isJust mayPlayerName) $ conflict "--playerName"
+    when (isJust mayConnectId) $ conflict "--connectId"
     when (isJust maybeBackend)  $ conflict "--render"
   when (isJust mayConfig && isJust maySrvName) $
     error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
@@ -160,15 +161,15 @@ run prox
         -- the listening socket is available, we can continue.
 
         -- The type here determines which game we are playing.
-        queues <- startClient prox mayPlayerName srv
+        queues <- startClient prox mayConnectId srv
         case backend of
           Console ->
-            newConsoleBackend >>= runWith debug queues srv mayPlayerName
+            newConsoleBackend >>= runWith useAudio debug queues srv mayConnectId
           OpenGLWindow ->
             newOpenGLBackend (gameName prox)
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
-              >>= either error (runWith debug queues srv mayPlayerName)
+              >>= either error (runWith useAudio debug queues srv mayConnectId)
 
 mkServer :: Maybe ServerName
          -> Maybe (ServerConfigT s)
@@ -184,19 +185,21 @@ mkServer (Just (ServerName n)) _ _ =
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g
           , PlayerInput i, DeltaRenderBackend i)
-        => Bool
+        => WithAudio
+        -> Debug
         -> ClientQueues g
         -> ServerView (ServerT g)
         -> Maybe (ConnectIdT (ServerT g))
         -> i
         -> IO ()
-runWith debug queues srv player backend =
+runWith au@(WithAudio useAudio) debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
-      env <- mkEnv drawEnv backend queues face
+      env <- mkEnv drawEnv backend queues face au
+      let mayAudio = if useAudio then withAudio else id
       void $ createState screen debug player srv NotConnected >>=
-        runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+        mayAudio . runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
 
  where
 

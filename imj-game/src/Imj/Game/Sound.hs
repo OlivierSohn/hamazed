@@ -1,6 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
-module Imj.Game.Hamazed.Sound
+module Imj.Game.Sound
   ( laserSound
   ) where
 

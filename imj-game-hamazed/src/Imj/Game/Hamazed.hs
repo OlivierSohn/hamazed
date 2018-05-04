@@ -45,6 +45,7 @@ import           Data.Text(pack, unpack)
 import qualified Data.Text as Text
 
 import qualified Imj.Data.Tree as Tree(toList)
+import           Imj.Game.Audio.Class
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
@@ -65,7 +66,6 @@ import           Imj.Game.Command
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Network.Server
-import           Imj.Game.Hamazed.Sound
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Size
@@ -253,7 +253,7 @@ mkIntermediateState newShotNums newLevel essence wid mayState =
 {-# INLINABLE hamazedEvtUpdate #-}
 hamazedEvtUpdate :: (GameLogicT e ~ HamazedGame
                    , MonadState (AppState HamazedGame) m
-                   , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e
+                   , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e, Audio e
                    , MonadIO m)
                    => CustomUpdateEvent HamazedGame
                    -> m ()
@@ -294,7 +294,7 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) -> do
-    liftIO laserSound
+    join (asks triggerLaserSound)
     onLaser shipId dir Add
   MeetThePlayers eplayers -> do
     sendToServer $ ExitedState Excluded

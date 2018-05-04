@@ -24,12 +24,12 @@ import           Data.Proxy
 import           Data.String(IsString(..))
 import           Options.Applicative
                    (Parser, short, long, option, str, help, optional
-                  , ReadM, readerError, (<*>), switch)
+                  , ReadM, readerError, (<*>), flag)
 import           Text.Read(readMaybe)
 
 import           Imj.Server.Class
 import           Imj.Geo.Discrete.Types
-import           Imj.Game.Internal.Types
+import           Imj.Game.Configuration
 import           Imj.ServerView.Types
 
 import           Imj.Game.Types
@@ -48,10 +48,11 @@ parserGameArgs prox = GameArgs
   <*> parserPPU
   <*> parserScreenSize
   <*> parserDebug
+  <*> parserWithAudio
 
-parserServerOnly :: Parser Bool
+parserServerOnly :: Parser ServerOnly
 parserServerOnly =
-  switch
+  flag (ServerOnly False) (ServerOnly True)
     (  long "serverOnly"
     <> short 's'
     <> help
@@ -137,13 +138,22 @@ parserPPU =
       )
       ))
 
-parserDebug :: Parser Bool
+
+parserDebug :: Parser Debug
 parserDebug =
-  switch
+  flag (Debug False) (Debug True)
     (  long "debug"
     <> short 'd'
     <> help
     "[Client] print debug infos in the terminal."
+    )
+
+parserWithAudio :: Parser WithAudio
+parserWithAudio =
+  flag (WithAudio True) (WithAudio False)
+    (  long "silent"
+    <> help
+    "[Client] disables music and audio effects."
     )
 
 renderHelp :: String

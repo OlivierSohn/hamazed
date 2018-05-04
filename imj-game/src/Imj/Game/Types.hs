@@ -32,6 +32,7 @@ module Imj.Game.Types
       , ColorTheme(..)
       -- * Helper types
       , Transitioning(..)
+      , GameArgs(..)
       -- * EventGroup
       , isPrincipal
       , mkEmptyGroup
@@ -87,6 +88,8 @@ import           Data.Text(unpack)
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
+import           Imj.Game.Audio.Class
+import           Imj.Game.Configuration
 import           Imj.Game.ColorTheme.Class
 import           Imj.Game.Infos
 import           Imj.Game.Player
@@ -100,12 +103,14 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
+import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..))
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
+import           Imj.Server.Class
 import           Imj.Server.Types
 import           Imj.ServerView.Types
 
@@ -233,7 +238,7 @@ and the input has been consumed up until the /beginning/ of the command paramete
   (see 'keyMaps') -}
   onCustomEvent :: (g ~ GameLogicT e
                   , MonadState (AppState g) m
-                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                   , MonadIO m)
                 => CustomUpdateEvent g
                 -> m ()
@@ -380,7 +385,7 @@ data AppState g = AppState {
   , _appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
   , nextParticleSystemKey :: !ParticleSystemKey
-  , _appStateDebug :: {-unpack sum-} !Bool
+  , _appStateDebug :: {-unpack sum-} !Debug
   -- ^ Print times and group information in the terminal.
 }
 
@@ -392,6 +397,20 @@ data OccurencesHist = OccurencesHist {
     _occurencesHistList :: ![Occurences EventCategory]
   , _occurencesHistTailStr :: !ColorString
 } deriving(Generic, Show)
+
+
+data GameArgs g = GameArgs
+  !ServerOnly
+  !(Maybe ServerName)
+  !(Maybe ServerPort)
+  !(Maybe ServerLogs)
+  !(Maybe (ServerConfigT (ServerT g)))
+  !(Maybe (ConnectIdT (ServerT g)))
+  !(Maybe BackendType)
+  !(Maybe PPU)
+  !(Maybe PreferredScreenSize)
+  !Debug
+  !WithAudio
 
 
 {-# INLINABLE getGameState #-}

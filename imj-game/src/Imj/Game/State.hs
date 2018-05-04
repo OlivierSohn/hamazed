@@ -31,6 +31,7 @@ import           Imj.Categorized
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Geo.Discrete.Types
 import           Imj.Event
+import           Imj.Game.Configuration
 import           Imj.Game.Types
 import           Imj.Graphics.Screen
 import           Imj.Input.Types
@@ -38,6 +39,7 @@ import           Imj.Server.Class
 import           Imj.Server.Types
 import           Imj.ServerView.Types
 
+import           Imj.Game.Audio.Class
 import           Imj.Game.Command
 import           Imj.Game.Draw
 import           Imj.Game.Status
@@ -56,15 +58,15 @@ import           Imj.Input.FromMonadReader
 {-# INLINABLE onEvent #-}
 onEvent :: (GameLogicT e ~ g
           , MonadState (AppState g) m
-          , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e, AsyncGroups e
+          , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e, AsyncGroups e, Audio e
           , MonadIO m)
         => Maybe (GenEvent g)
         -> m ()
 onEvent mayEvt = do
   checkPlayerEndsProgram
   debug >>= \case
-    True -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
-    False -> return ()
+    (Debug True) -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
+    (Debug False) -> return ()
   onEvent' mayEvt
  where
   checkPlayerEndsProgram =
@@ -76,7 +78,7 @@ onEvent mayEvt = do
 {-# INLINABLE onEvent' #-}
 onEvent' :: (GameLogicT e ~ g
            , MonadState (AppState g) m
-           , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+           , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
            , MonadIO m)
          => Maybe (GenEvent g) -> m ()
 onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and reset the group
@@ -95,7 +97,7 @@ onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and re
 {-# INLINABLE handleEvent #-}
 handleEvent :: (GameLogicT e ~ g
               , MonadState (AppState g) m
-              , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+              , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
               , MonadIO m)
             => Maybe (UpdateEvent g) -> m ()
 handleEvent e = do
@@ -126,8 +128,8 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
   get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
     let onRender = do
           debug >>= \case
-            True -> liftIO $ putStr $ groupStats prevGroup
-            False -> return ()
+            (Debug True) -> liftIO $ putStr $ groupStats prevGroup
+            (Debug False) -> return ()
           renderAll
           liftIO (tryGrow evt mkEmptyGroup) >>= maybe
             (error "growing an empty group never fails")
@@ -164,11 +166,11 @@ renderAll = do
       drawAt msg $ Coords 0 0
       liftIO $ putStrLn msg)
     (\(dtDelta, dtCmds, dtFlush) -> debug >>= \case
-        True -> liftIO $ putStrLn $ " d "   ++ showTime' (t1...t2)
+        (Debug True) -> liftIO $ putStrLn $ " d "   ++ showTime' (t1...t2)
                                  ++ " de "  ++ showTime' dtDelta
                                  ++ " cmd " ++ showTime' dtCmds
                                  ++ " fl "  ++ showTime' dtFlush
-        False -> return ())
+        (Debug False) -> return ())
     res
   maybe
     (return ())
@@ -230,7 +232,7 @@ addEventRepr e oh@(OccurencesHist h r) =
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
 createState :: Screen
-            -> Bool
+            -> Debug
             -> Maybe (ConnectIdT (ServerT g))
             -> ServerView (ServerT g)
             -> ConnectionStatus
@@ -241,7 +243,7 @@ createState screen dbg a b c = do
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
 
 {-# INLINABLE debug #-}
-debug :: MonadState (AppState g) m => m Bool
+debug :: MonadState (AppState g) m => m Debug
 debug =
   get >>= \(AppState _ _ _ _ _ _ d) -> return d
 

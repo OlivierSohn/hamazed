@@ -1,4 +1,4 @@
-- --silent to disable audio
+- --silent to disable audio : doesn't work yet, we don't want to create pink noise
 
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 

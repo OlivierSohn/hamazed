@@ -28,6 +28,7 @@ import           System.Exit(exitSuccess)
 import           System.IO(putStrLn)
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
+import           Imj.Game.Audio.Class
 import           Imj.Game.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteDistance
@@ -61,12 +62,11 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Log
-import           Imj.Music
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e
                  , MonadState (AppState g) m
-                 , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+                 , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                  , MonadIO m)
                => UpdateEvent g
                -- ^ The 'Event' that should be handled here.
@@ -121,7 +121,7 @@ updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
     onCustomEvent $ Left e
   PlayMusic music instr ->
-    liftIO $ play music instr
+    asks playMusic >>= \f -> f music instr
   OnContent worldParameters ->
     putServerContent worldParameters
   RunCommand i cmd -> runClientCommand i cmd

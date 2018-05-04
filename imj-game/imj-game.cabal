@@ -22,26 +22,28 @@ library
   other-modules:
   exposed-modules:     Imj.Event
                      , Imj.Game.App
+                     , Imj.Game.Audio.Class
                      , Imj.Game.Color
                      , Imj.Game.ColorTheme.Class
                      , Imj.Game.Command
+                     , Imj.Game.Configuration
                      , Imj.Game.Deadlines
                      , Imj.Game.Draw
                      , Imj.Game.Env
                      , Imj.Game.Exceptions
                      , Imj.Game.Infos
-                     , Imj.Game.Internal.Types
                      , Imj.Game.Internal.ArgParse
                      , Imj.Game.KeysMaps
                      , Imj.Game.Level
+                     , Imj.Game.Loop
                      , Imj.Game.Network
                      , Imj.Game.Network.Client
                      , Imj.Game.Network.ClientQueues
                      , Imj.Game.Network.Server
                      , Imj.Game.Player
                      , Imj.Game.Priorities
-                     , Imj.Game.Loop
                      , Imj.Game.Show
+                     , Imj.Game.Sound
                      , Imj.Game.State
                      , Imj.Game.Status
                      , Imj.Game.Types

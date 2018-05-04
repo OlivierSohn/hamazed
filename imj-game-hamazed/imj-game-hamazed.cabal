@@ -41,7 +41,6 @@ library
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
-                     , Imj.Game.Hamazed.Sound
                      , Imj.Game.Hamazed.Timing
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -63,7 +62,6 @@ library
                      , deepseq ==1.4.*
                      , file-embed ==0.0.*
                      , imj-base ==0.1.*
-                     , imj-bindings-audio ==0.1.*
                      , imj-game ==0.1.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
@@ -71,7 +69,6 @@ library
                      , imj-server ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
-                     , network ==2.6.*
                      , optparse-applicative == 0.14.*
                      , primitive ==0.6.*
                      , strict-concurrency ==0.2.*

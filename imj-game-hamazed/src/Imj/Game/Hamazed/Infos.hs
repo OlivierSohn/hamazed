@@ -6,23 +6,26 @@
 module Imj.Game.Hamazed.Infos
       ( mkInfos
       , mkLeftInfo
-      , InfoType(..)
       ) where
 
 import           Imj.Prelude
 
 import           Data.Char( intToDigit )
 import           Data.Map.Strict((!?))
+import qualified Data.Map.Strict as Map
 
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.World.Types
 
+import           Imj.Game.Color
+import           Imj.Game.Infos
+import           Imj.Game.Show
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Color
+import           Imj.Game.Hamazed.Level
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColoredGlyphList
-
-data InfoType = Normal | ColorAnimated
 
 text :: String -> ColoredGlyphList
 text x = text' x configFgColor
@@ -40,13 +43,14 @@ mkLevelCS t (LevelNumber level) =
       txt x = text "Level " <> number (show level) x <> text " / " <> number (show lastLev) neutralColor
   in Successive $ map txt $ case t of
       Normal        -> [neutralColor]
-      ColorAnimated -> [red, neutralColor]
+      ColorAnimated -> [black, neutralColor]
 
 mkShipCS :: InfoType
-         -> Map ShipId Player -- TODO use the AppState monad instead of passing this ?
+         -> Map ShipId (Player g)
+         -> ShipId
          -> BattleShip
          -> Successive ColoredGlyphList
-mkShipCS _ names (BattleShip sid _ ammo status _ _) =
+mkShipCS _ names sid (BattleShip _ ammo status _ _) =
   let name = getPlayerUIName'' $ names !? sid
       pad = initialLaserAmmo - ammo
       ammoColor' Destroyed = darkConfigFgColor
@@ -59,10 +63,11 @@ mkShipCS _ names (BattleShip sid _ ammo status _ _) =
 
 mkObjectiveCS :: InfoType -> Int -> Successive ColoredGlyphList
 mkObjectiveCS t target =
-  let txt c = text "Objective : " <> number (show target) c
+  let txt x = text "Objective : " <> x
+      n c = number (show target) c
   in Successive $ case t of
-    Normal -> [txt white]
-    ColorAnimated -> [txt red, txt white]
+    Normal -> [txt $ n white]
+    ColorAnimated -> map txt ["", n black, n white]
 
 
 mkShotNumbersCS :: InfoType -> [ShotNumber] -> Successive ColoredGlyphList
@@ -83,8 +88,8 @@ insideBrackets a =
   text' "]" bracketsColor
 
 mkLeftInfo :: InfoType
-           -> [BattleShip]
-           -> Map ShipId Player
+           -> Map ShipId BattleShip
+           -> Map ShipId (Player g)
            -> [ShotNumber]
            -> LevelEssence
            -> [Successive ColoredGlyphList]
@@ -93,7 +98,9 @@ mkLeftInfo t ships names shotNums (LevelEssence level (LevelTarget target _) _)=
   , mkShotNumbersCS t shotNums
   ]
   ++
-  map (mkShipCS t names) ships
+  case Map.assocs ships of
+    [] -> [Successive [colorize (onBlack $ gray 10) $ fromString ""]] -- for initial state when we were not given an id yet
+    l -> map (uncurry $ mkShipCS t names) l
   ++
   [ mkLevelCS t level
   ]
@@ -103,8 +110,8 @@ mkUpDownInfo =
   (Successive [],Successive [])
 
 mkInfos :: InfoType
-        -> [BattleShip]
-        -> Map ShipId Player
+        -> Map ShipId BattleShip
+        -> Map ShipId (Player g)
         -> [ShotNumber]
         -> LevelEssence
         -> ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList])

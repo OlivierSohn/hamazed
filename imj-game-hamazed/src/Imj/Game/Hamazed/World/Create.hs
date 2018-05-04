@@ -4,7 +4,9 @@
 {-# LANGUAGE BangPatterns #-}
 
 module Imj.Game.Hamazed.World.Create
-        ( mkWorldEssence
+        ( mkWorld
+        , worldToEssence
+        , mkWorldEssence
         , mkMinimalWorldEssence
         , updateMovableItem
         ) where
@@ -16,19 +18,30 @@ import qualified Prelude as Unsafe(last)
 import           Control.Monad.IO.Class(liftIO)
 import           Data.List(sortOn, concat)
 import           Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Map.Strict as Map(empty, fromDistinctAscList)
-import qualified Data.Set as Set(size, toAscList, empty)
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import           System.Random.MWC(GenIO)
 
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
 
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
+import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 import           Imj.Util
+
+
+mkWorld :: WorldEssence -> WorldId -> World
+mkWorld (WorldEssence balls ships space) wid =
+  let renderedSpace = mkRenderedSpace space
+  in World (Map.map mkNumber balls) ships space renderedSpace wid
+
+worldToEssence :: World -> (WorldEssence, WorldId)
+worldToEssence (World balls ships space _ wid) =
+  (WorldEssence (Map.map getNumEssence balls) ships space, wid)
 
 data Association = Association {
     _shipId :: {-# UNPACK #-} !ShipId
@@ -38,7 +51,6 @@ data Association = Association {
 
 mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence Map.empty Map.empty mkZeroSpace
-
 
 mkWorldEssence :: WorldSpec -> IO Bool -> NonEmpty GenIO -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
 mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDist@(WallDistribution _ proba))) continue gens@(gen:|_) =
@@ -69,7 +81,7 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
              positions <- randomCCCoords gen (1 + length nums) componentIdx topology NoOverlap
              (shipPS:numPS) <- mapM (mkRandomPosSpeed gen space) positions
              let collisions = Set.empty -- no collision because we passed 'NoOverlap' to randomCCCoords
-                 ship = BattleShip shipId shipPS initialLaserAmmo Armored collisions componentIdx
+                 ship = BattleShip shipPS initialLaserAmmo Armored collisions componentIdx
                  ns = map (\(num,posSpeed) -> NumberEssence posSpeed num componentIdx) $ zip nums numPS
              return ((shipId,ship),ns)
           ) associations

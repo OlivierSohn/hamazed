@@ -7,17 +7,17 @@ resolver: nightly-2018-04-20
 #   8.2.2:  lts-11.5
 
 packages:
-- './imj-prelude'
 - './imj-base'
-- './imj-particlesystem'
+- './imj-bindings-audio'
+- './imj-game'
 - './imj-game-hamazed'
-- './imj-profile'
 - './imj-measure-stdout'
+- './imj-music'
+- './imj-particlesystem'
+- './imj-prelude'
+- './imj-profile'
+- './imj-server'
 
-- location:
-    git: https://github.com/OlivierSohn/GLFW-b.git
-    commit: b271c2dda33f3d2eccc49ecbac1a4257580acb52
-  extra-dep: true
 - location:
     git: https://github.com/OlivierSohn/clay.git
     commit: 954476940190873094847939c5f0e6242e324000
@@ -36,7 +36,8 @@ packages:
 
 extra-deps:
 - FTGL-2.1
-- bindings-GLFW-3.2.1.0
+- GLFW-b-3.2.1.0
+- bindings-GLFW-3.2.1.1
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

@@ -1,3 +1,46 @@
+- --silent to disable audio : doesn't work yet, we don't want to create pink noise
+
+- Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
+
+- Wait for all players to press a key before starting the game.
+
+- create imj-game-engine
+Imj.Event
+Imj.Graphics.Screen
+
+- using imj-engine, create a mini game that displays a timer in the center of the screen,
+that starts when space is hit and stops when space is hit again.
+
+- imj-server could depend on a smaller version of imj-base
+
+- make a synth app.
+
+- (while looking at imj-server dependencies):
+GameItem should be moved out of imj-base, it is too game-specific.
+
+- develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
+we can reduce the xfade amount : 0 (or small, for fast attacks?)
+
+- make music evolve with the numbers shot in the game.
+
+- use 'Communication' sound while computing the world.
+
+- laser should have a sound, maybe depending on the music, it could be a chord.
+- winning or losing should change the music
+
+- when the client is computing the world, we could make audioout sleep to have more CPU available.
+
+- on client termination, sound should close gracefully, i.e fade out.
+- add a keyboard so that players can play music collaboratively:
+the note should transit through the server before being played so that both players have the latency.
+
+- on linux glfw (or is it due to the graphic driver?), some fonts are too big.
+
+- animate on rebound on Z wall : wave
+on frame: ?
+
+- update readme demos with new UI: add a demo with 2 players.
+
 - make a standalone library for generating rectangle binary random (small) worlds.
 (move tests of topology there)
 
@@ -5,9 +48,6 @@
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 (On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
 When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
-
-- music:
-https://downloads.haskell.org/~ghc/8.4.2-rc1/docs/html/users_guide/ffi-chap.html
 
 - Add music :
   slow (ternary) :
@@ -111,7 +151,7 @@ maybe we need to move + and - to make them be in the center.
 : this allows to become aware of when a number is shot.
 
 - chat : make it easier to use
-- in AppState we could have arrays of random numbers, and a particle system would pass
+- in (AppState s) we could have arrays of random numbers, and a particle system would pass
 the index of the animated point.
 
 Hence, either the color could rely on the random part or on the frame or both.

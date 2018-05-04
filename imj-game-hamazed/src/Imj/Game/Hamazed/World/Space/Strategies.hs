@@ -31,7 +31,6 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Strategies.Internal
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words hiding(intercalate, length)

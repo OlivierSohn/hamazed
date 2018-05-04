@@ -4,6 +4,7 @@
 
 module Imj.Prelude
           ( safeMergeWithKey, safeMerge
+          , fmapM
           -- * Reexports
           , module Exported
           ) where
@@ -72,3 +73,8 @@ safeMerge f = safeMergeWithKey (const f)
 -- | Same as 'safeMerge', but the key is passed to the merge function.
 safeMergeWithKey :: (Ord a) => (a -> b -> b -> b) -> Map a b -> Map a b -> Map a b
 safeMergeWithKey = merge preserveMissing preserveMissing . zipWithMatched
+
+
+{-# INLINE fmapM #-}
+fmapM :: Monad m => (a -> m ()) -> Maybe a -> m ()
+fmapM f v = maybe (return ()) f v

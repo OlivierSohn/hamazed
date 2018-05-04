@@ -5,12 +5,17 @@ module Test.Imj.ParseCommand
           , testMaxOneSpace
           ) where
 
-import           Data.Attoparsec.Text(parseOnly)
+import           Data.Attoparsec.Text(parseOnly, Parser)
+import           Data.Text
 
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Hamazed.Network.Internal.Types
+import           Imj.Game.Types
+import           Imj.Game.Hamazed
+import           Imj.Server.Class
+import           Imj.Server.Types
 
-import           Imj.Game.Hamazed.Command
+import           Imj.Game.Command
 import           Imj.Graphics.Color
 
 testMaxOneSpace :: IO ()
@@ -24,23 +29,32 @@ testMaxOneSpace = do
 
 testParseCommand :: IO ()
 testParseCommand = do
-  parse "Hello!" `shouldBe` (Right $ Right $ ClientCmd $ Says "Hello!")
-  parse "  a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a")
-  parse "a  " `shouldBe` (Right $ Right $ ClientCmd $ Says "a")
-  parse "a a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a a")
-  parse "a  a" `shouldBe` (Right $ Right $ ClientCmd $ Says "a a")
+  parse "Hello!" `shouldBe` (Right $ Right $ RequestApproval $ Says "Hello!")
+  parse "  a" `shouldBe` (Right $ Right $ RequestApproval $ Says "a")
+  parse "a  " `shouldBe` (Right $ Right $ RequestApproval $ Says "a")
+  parse "a a" `shouldBe` (Right $ Right $ RequestApproval $ Says "a a")
+  parse "a  a" `shouldBe` (Right $ Right $ RequestApproval $ Says "a a")
 
-  parse "/a" `shouldBe` Left "string"
-  let cmd = Right $ Right $ ClientCmd $ AssignName $ PlayerName "Newname"
+  parse "/a" `shouldBe` Left "Failed reading: 'a' is an unknown command."
+  let cmd = Right $ Right $ RequestApproval $ AssignName $ ClientName "Newname"
   parse "/name Newname" `shouldBe` cmd
   parse "/name:Newname" `shouldBe` cmd
+  parse "/name :Newname" `shouldBe` cmd
+  parse "/name : Newname" `shouldBe` cmd
   parse "/name:  Newname  " `shouldBe` cmd
   parse "    /name:  Newname  " `shouldBe` cmd
 
-  parse "/color" `shouldBe` (Right $ Right $ ServerRep $ Get ColorSchemeCenterKey)
-  parse "/color 1 2 3" `shouldBe` (Right $ Right $ ServerCmd $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/color" `shouldBe` (Right $ Right $ Report $ Get ColorSchemeCenterKey)
+  parse "/color " `shouldBe` (Right $ Right $ Report $ Get ColorSchemeCenterKey)
+
+  parse "/ color 1 2 3" `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color    1   2     3" `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color 1 2 3 " `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color:1 2 3" `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/ color : 1 2 3" `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
+  parse "/color 1 2 3" `shouldBe` (Right $ Right $ Do $ Put $ ColorSchemeCenter $ rgb 1 2 3)
  where
-  parse = parseOnly command
+  parse = parseOnly (command :: Parser (Either Text (Command (ServerT HamazedGame))))
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

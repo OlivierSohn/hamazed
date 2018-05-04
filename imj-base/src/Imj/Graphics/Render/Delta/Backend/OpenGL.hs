@@ -236,10 +236,10 @@ createWindow title s = do
         (\mon -> GLFW.getVideoMode mon >>= maybe
           (return (Nothing, Size 600 1200))
           (\mode -> do
-              GLFW.windowHint $ GLFW.WindowHint'RedBits     $ GLFW.videoModeRedBits mode
-              GLFW.windowHint $ GLFW.WindowHint'GreenBits   $ GLFW.videoModeGreenBits mode
-              GLFW.windowHint $ GLFW.WindowHint'BlueBits    $ GLFW.videoModeBlueBits mode
-              GLFW.windowHint $ GLFW.WindowHint'RefreshRate $ GLFW.videoModeRefreshRate mode
+              GLFW.windowHint $ GLFW.WindowHint'RedBits     $ Just $ GLFW.videoModeRedBits mode
+              GLFW.windowHint $ GLFW.WindowHint'GreenBits   $ Just $ GLFW.videoModeGreenBits mode
+              GLFW.windowHint $ GLFW.WindowHint'BlueBits    $ Just $ GLFW.videoModeBlueBits mode
+              GLFW.windowHint $ GLFW.WindowHint'RefreshRate $ Just $ GLFW.videoModeRefreshRate mode
               return (Just mon
                     , Size (fromIntegral $ GLFW.videoModeHeight mode)
                            (fromIntegral $ GLFW.videoModeWidth mode))

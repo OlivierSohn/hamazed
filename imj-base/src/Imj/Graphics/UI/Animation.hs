@@ -5,9 +5,7 @@
 module Imj.Graphics.UI.Animation
            ( mkUIAnimation
            , getDeltaTime
-           , getUIAnimationDeadline
            , drawUIAnimation
-           , isFinished
            , mkTextAnimRightAligned
            -- reexports
            , module Imj.Graphics.UI.Animation.Types
@@ -35,38 +33,16 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-getUIAnimationDeadline :: UIAnimation -> Maybe (Time Point System)
-getUIAnimationDeadline (UIAnimation _ (UIAnimProgress mayDeadline _)) =
-  mayDeadline
-
--- | Is the 'UIAnimation' finished?
-isFinished :: UIAnimation -> Bool
-isFinished (UIAnimation _ (UIAnimProgress Nothing _)) = True
-isFinished _ = False
-
 {-# INLINABLE drawUIAnimation #-}
 drawUIAnimation :: (Draw e, MonadReader e m, MonadIO m)
-                => Coords Pos
-                -- ^ Offset for container
-                -> UIAnimation
+                => UIAnimation
                 -> m ()
-drawUIAnimation containerOffset
+drawUIAnimation
  (UIAnimation we@(UIEvolutions containerEvolution upDown left) (UIAnimProgress _ (Iteration _ frame))) = do
   let (relFrameFrameE, relFrameUD, relFrameLeft) = getRelativeFrames we frame
-  drawMorphingAt (moveContainerEvolution containerEvolution containerOffset) relFrameFrameE
+  drawMorphingAt containerEvolution relFrameFrameE
   drawAnimatedTextCharAnchored upDown relFrameUD
   drawAnimatedTextStringAnchored left relFrameLeft
-
-moveContainerEvolution :: Evolution (Colored RectContainer)
-                       -> Coords Pos
-                       -> Evolution (Colored RectContainer)
-moveContainerEvolution ev' offset =
-  if zeroCoords /= offset
-    then
-      fmap (fmap (translateRectContainer offset)) ev'
-    else
-      ev'
-
 
 -- | Compute the time interval between the current frame and the next.
 getDeltaTime :: UIEvolutions -> Frame -> Maybe (Time Duration System)
@@ -87,7 +63,6 @@ getRelativeFrames
       relFrameLeft = max 0 (relFrameUD - lastFrameUD)
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
-
 mkUIAnimation :: (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
               -- ^ From
               -> (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
@@ -100,11 +75,15 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColoredGlyphList, Successi
 mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f3))
               (to@(Colored _ toR@(RectContainer (Size th tw) _)), ((t1,t2),t3))
               horizontalDistance verticalDistance time =
-  UIAnimation evolutions $ UIAnimProgress deadline (Iteration (Speed 1) zeroFrame)
+  UIAnimation evolutions $ UIAnimProgress deadline $ Iteration (Speed 1) zeroFrame
+
  where
+
   dx = max (abs $ fromIntegral fw - fromIntegral tw)
            (abs $ fromIntegral fh - fromIntegral th)
+
   duration = fromSecs $ 1 + max 0 (dx - 2) / 80 -- slow down if distances are bigger
+
   frameE = mkEvolutionEaseQuart (Successive [from, to]) duration
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
@@ -113,7 +92,9 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
                                                   (f3 ++ repeat (Successive []))
                                                   t3)
                                      horizontalDistance verticalDistance duration
+
   evolutions = UIEvolutions frameE ta1 ta2
+
   deadline =
     maybe
       Nothing

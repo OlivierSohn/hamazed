@@ -1,0 +1,46 @@
+name:                imj-bindings-audio
+version:             0.1.0.3
+Category:            Audio
+Synopsis:            Bindings to a C++ audio engine.
+Description:         Bindings to a C++ audio engine allowing to play music in real time.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-bindings-audio//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+library
+  hs-source-dirs:      src
+  other-modules:
+  c-sources:           c/library.cpp
+                     , c/wrapper.cpp
+  exposed-modules:     Imj.Audio
+  build-depends:       base >= 4.9 && < 4.12
+  default-language:    Haskell2010
+
+  extra-libraries:     stdc++
+                     , portaudio
+  if os(darwin)
+    extra-libraries:   vDSP
+    -- This path is valid on OSX 10.13.3:
+    extra-lib-dirs:    /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A
+  else
+    extra-libraries:   uuid
+
+  cc-options:          -std=c++14 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
+  if os(linux)
+    -- -static-libstdc++ is not absolutely necessary.
+    cc-options:        -fpermissive -static-libstdc++
+
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-bindings-audio

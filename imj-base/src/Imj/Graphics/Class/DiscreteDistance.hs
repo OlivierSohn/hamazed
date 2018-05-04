@@ -54,7 +54,7 @@ class DiscreteDistance v where
   distanceSuccessive :: Successive v
                      -> Int
   distanceSuccessive (Successive []) =
-    error "empty successive"
+    0
   distanceSuccessive (Successive l@(_:rest)) =
     1 + sum (zipWith (\a b -> distance a b - 1) l rest)
 

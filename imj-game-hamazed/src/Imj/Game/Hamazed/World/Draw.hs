@@ -13,8 +13,7 @@ import           Imj.Prelude
 import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)
 
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.State.Types
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 
@@ -26,23 +25,28 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Physics.Discrete.Collision
 
 {-# INLINABLE drawWorld #-}
-drawWorld :: (MonadState AppState m, Draw e, MonadReader e m, MonadIO m)
+drawWorld :: (MonadState (AppState s) m, Draw e, MonadReader e m, MonadIO m)
           => World
           -> Coords Pos
           -> m ()
-drawWorld (World balls ships space _ _ _) s  = do
+drawWorld (World balls ships space _ _) s  = do
   -- draw numbers, including the ones that will be destroyed, if any
   mapM_ (drawNumber space s) balls
-  let drawShip (i, BattleShip _ (PosSpeed shipCoords _) _ status _ _) = do
-        let absPos = sumCoords shipCoords s
-            inWorld = InsideWorld == location shipCoords space
-            go bg = when inWorld $ maybe shipColor (getPlayerColor . getPlayerColors) <$> getPlayer i >>=
-              drawGlyph (gameGlyph '+') absPos . LayeredColor bg
-        case status of
-          Armored   -> go shipBgColorSafe
-          Unarmored -> go shipBgColor
-          Destroyed -> return ()
   mapM_ drawShip $ Map.assocs ships
+ where
+  drawShip (i, BattleShip (PosSpeed shipCoords _) _ status _ _) = do
+    let absPos = sumCoords shipCoords s
+        inWorld = InsideWorld == location shipCoords space
+        f bg =
+          when inWorld $
+            maybe
+              shipColor
+              (getPlayerColor . getPlayerColors)
+              <$> getPlayer i >>= drawGlyph (gameGlyph '+') absPos . LayeredColor bg
+    case status of
+      Armored   -> f shipBgColorSafe
+      Unarmored -> f shipBgColor
+      Destroyed -> return ()
 
 {-# INLINABLE drawNumber #-}
 drawNumber :: (Draw e, MonadReader e m, MonadIO m)

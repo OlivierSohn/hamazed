@@ -1,0 +1,61 @@
+name:                imj-server
+version:             0.1.0.3
+Category:            Networking
+Synopsis:            A library factorizing common server aspects.
+Description:         A library handling client connections, communication wuth clients.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-server//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md CHANGELOG.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+library
+  hs-source-dirs:      src
+  other-modules:
+  exposed-modules:     Imj.ClientView.Internal.Types
+                     , Imj.ClientView.Types
+                     , Imj.Categorized
+                     , Imj.Server
+                     , Imj.Server.Class
+                     , Imj.Server.Connection
+                     , Imj.Server.Internal.Types
+                     , Imj.Server.Log
+                     , Imj.Server.Run
+                     , Imj.Server.Types
+                     , Imj.ServerView
+                     , Imj.ServerView.Types
+  build-depends:       base >= 4.9 && < 4.12
+                     , binary ==0.8.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , imj-base ==0.1.*
+                     , imj-music ==0.1.*
+                     , imj-prelude ==0.1.*
+                     , mtl >= 2.2.1 && < 2.3
+                     , optparse-applicative == 0.14.*
+                     , strict-concurrency ==0.2.*
+                     , text >=1.2.3 && < 1.3
+                     , unliftio ==0.2.*
+                     , unliftio-core ==0.1.*
+                     , websockets ==0.12.*
+  default-language:    Haskell2010
+
+test-suite imj-server-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:
+  main-is:             Spec.hs
+  build-depends:       base >= 4.9 && < 4.12
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-server

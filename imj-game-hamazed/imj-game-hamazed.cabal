@@ -31,36 +31,20 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Game.Hamazed
-                     , Imj.Game.Hamazed.Chat
                      , Imj.Game.Hamazed.Color
-                     , Imj.Game.Hamazed.Command
-                     , Imj.Game.Hamazed.Env
                      , Imj.Game.Hamazed.Infos
-                     , Imj.Game.Hamazed.KeysMaps
-                     , Imj.Game.Hamazed.Level.Types
-                     , Imj.Game.Hamazed.Loop.Create
-                     , Imj.Game.Hamazed.Loop.Deadlines
-                     , Imj.Game.Hamazed.Loop.Draw
-                     , Imj.Game.Hamazed.Loop.Event.Priorities
-                     , Imj.Game.Hamazed.Loop.Event.Types
-                     , Imj.Game.Hamazed.Loop.Event
-                     , Imj.Game.Hamazed.Loop.Run
-                     , Imj.Game.Hamazed.Loop.Timing
-                     , Imj.Game.Hamazed.Loop.Update
-                     , Imj.Game.Hamazed.Network.Class.ClientNode
-                     , Imj.Game.Hamazed.Network.Client
-                     , Imj.Game.Hamazed.Network.GameNode
+                     , Imj.Game.Hamazed.Level
+                     , Imj.Game.Hamazed.Event
+                     , Imj.Game.Hamazed.Music
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server
+                     , Imj.Game.Hamazed.Network.Setup
+                     , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
-                     , Imj.Game.Hamazed.State
-                     , Imj.Game.Hamazed.State.Types
-                     , Imj.Game.Hamazed.Types
+                     , Imj.Game.Hamazed.Timing
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
-                     , Imj.Game.Hamazed.World.Number
-                     , Imj.Game.Hamazed.World.Ship
                      , Imj.Game.Hamazed.World.Size
                      , Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
@@ -77,25 +61,22 @@ library
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , file-embed ==0.0.*
-                     , imj-particlesystem ==0.1.*
-                     , imj-particlesystem ==0.1.*
                      , imj-base ==0.1.*
+                     , imj-game ==0.1.*
+                     , imj-music ==0.1.*
+                     , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
+                     , imj-server ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
-                     , network ==2.6.*
                      , optparse-applicative == 0.14.*
                      , primitive ==0.6.*
-                     , stm ==2.4.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3
-                     , unix ==2.7.*
                      , unliftio ==0.2.*
-                     , unliftio-core ==0.1.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-th-unbox == 0.2.*
-                     , websockets ==0.12.*
   default-language:    Haskell2010
 
 executable imj-game-hamazed-exe
@@ -103,6 +84,7 @@ executable imj-game-hamazed-exe
   main-is:             Main.hs
   build-depends:       base >= 4.9 && < 4.12
                      , imj-base ==0.1.*
+                     , imj-game ==0.1.*
                      , imj-game-hamazed
   default-language:    Haskell2010
 
@@ -115,10 +97,13 @@ test-suite imj-game-hamazed-test
   build-depends:       base >= 4.9 && < 4.12
                      , attoparsec ==0.13.*
                      , imj-base ==0.1.*
+                     , imj-game ==0.1.*
                      , imj-game-hamazed
                      , imj-prelude ==0.1.*
+                     , imj-server ==0.1.*
                      , mwc-random ==0.13.*
                      , primitive ==0.6.*
+                     , text >=1.2.3 && < 1.3
                      , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 

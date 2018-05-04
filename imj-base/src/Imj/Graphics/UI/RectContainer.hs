@@ -50,7 +50,7 @@ l = RectContainer's lower left corner, at (5,4)
 data RectContainer = RectContainer {
     _rectFrameContentSize :: {-# UNPACK #-} !Size
     -- ^ /Content/ size.
-  , _rectFrameUpperLeft :: {-# UNPACK #-} !(Coords Pos)
+  , _upperLeft :: {-# UNPACK #-} !(Coords Pos)
     -- ^ Upper left corner.
 } deriving(Eq, Show, Generic, PrettyVal)
 instance HasReferencePosition RectContainer where

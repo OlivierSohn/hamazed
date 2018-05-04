@@ -32,6 +32,8 @@ library
   include-dirs:        include
   other-modules:
   exposed-modules:     Imj.Control.Concurrent
+                     , Imj.Control.Concurrent.AsyncGroups.Class
+                     , Imj.Control.Concurrent.AsyncGroups.Impl
                      , Imj.Data.AlmostFloat
                      , Imj.Data.Class.Quantifiable
                      , Imj.Data.Graph
@@ -70,6 +72,7 @@ library
                      , Imj.Graphics.Class.HasSizedFace
                      , Imj.Graphics.Class.Positionable
                      , Imj.Graphics.Class.Render
+                     , Imj.Graphics.Class.UIInstructions
                      , Imj.Graphics.Class.UncoloredTextual
                      , Imj.Graphics.Class.Words
                      , Imj.Graphics.Color
@@ -100,6 +103,7 @@ library
                      , Imj.Graphics.Render.Delta.Types
                      , Imj.Graphics.Render.FromMonadReader
                      , Imj.Graphics.Render.Naive
+                     , Imj.Graphics.Screen
                      , Imj.Graphics.Text.Animation
                      , Imj.Graphics.Text.Animation.Types
                      , Imj.Graphics.Text.ColorString
@@ -110,6 +114,7 @@ library
                      , Imj.Graphics.UI
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Animation.Types
+                     , Imj.Graphics.UI.Chat
                      , Imj.Graphics.UI.Colored
                      , Imj.Graphics.UI.RectArea
                      , Imj.Graphics.UI.RectContainer
@@ -123,6 +128,7 @@ library
                      , Imj.Input.Types
                      , Imj.Iteration
                      , Imj.Log
+                     , Imj.Network
                      , Imj.Physics
                      , Imj.Physics.Continuous.Types
                      , Imj.Physics.Discrete
@@ -133,8 +139,9 @@ library
                      , Imj.Timing
                      , Imj.Util
   build-depends:       base >= 4.9 && < 4.12
-                     , ansi-terminal ==0.8.*
+                     , ansi-terminal >=0.7 && < 0.9
                      , array == 0.5.*
+                     , async >=2.1 && < 2.3
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
@@ -144,7 +151,7 @@ library
                      , file-embed ==0.0.*
                      , freetype2 ==0.1.*
                      , FTGL ==2.1.*
-                     , GLFW-b ==1.4.*
+                     , GLFW-b ==3.2.*
                      , imj-prelude ==0.1.*
                      , loop ==0.3.*
                      , matrix >= 0.3.5.0
@@ -200,7 +207,7 @@ test-suite imj-base-test
                      , Test.Imj.ZigZag
   main-is:             Spec.hs
   build-depends:       base >= 4.9 && < 4.12
-                     , ansi-terminal ==0.8.*
+                     , ansi-terminal >=0.7 && < 0.9
                      , bytestring == 0.10.*
                      , clock ==0.7.*
                      , containers ==0.5.*

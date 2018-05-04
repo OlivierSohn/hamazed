@@ -40,7 +40,7 @@ import           Data.Primitive.ByteArray
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Bits(shiftR, shiftL, (.|.))
 import           Data.Either(isLeft)
-import           Data.List(unwords, length, sortOn, replicate, take, foldl')
+import           Data.List(length, sortOn, replicate, take, foldl')
 import           Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
@@ -153,12 +153,14 @@ mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
-      (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy dt) <- go blockSize
+      (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
+      {-
       putStrLn $ unwords
         [ "Found\n"
         , prettyShowSWCharacteristics closeWorld]
       putStrLn $ "Strategy:" ++ show strategy
       putStrLn $ "Estimated duration:" ++ showTime dt
+      -}
       let property = mkProperties closeWorld $ fmap (toVariants smallSz) strategy
       mkSmallWorld gens property continue >>= \(res, stats) ->
         return
@@ -292,7 +294,7 @@ mkSmallWorld :: NonEmpty GenIO
              -- ^ Can continue?
              -> IO (MkSpaceResult SmallWorld, Statistics)
              -- ^ the "small world"
-mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userWallProba) variants eitherLowerBounds) continue
+mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userP) variants eitherLowerBounds) continue
   | nComponents' == 0 = error "should be handled by caller"
   | otherwise = either
       (\err ->
@@ -307,9 +309,9 @@ mkSmallWorld gens (Properties (SWCharacteristics sz nComponents' userWallProba) 
   go lowerBounds@(LowerBounds minAirCount minWallCount totalCount) =
     mkMatrixPipeline nComponents wallProba sz lowerBounds variants >>= runPipeline (area sz) gens continue
    where
-    wallProba = fromMaybe (error "logic") $ mapRange 0 1 minWallProba maxWallProba userWallProba
-    minWallProba =     fromIntegral minWallCount / fromIntegral totalCount
-    maxWallProba = 1 - fromIntegral minAirCount / fromIntegral totalCount
+    wallProba = fromMaybe (error "logic") $ mapRange 0 1 minP maxP userP
+    minP =     fromIntegral minWallCount / fromIntegral totalCount
+    maxP = 1 - fromIntegral minAirCount / fromIntegral totalCount
 
   !nComponents = -- relax the constraint on number of components if the size is too small
     min

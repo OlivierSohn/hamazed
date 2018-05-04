@@ -113,9 +113,9 @@ module Imj.Game.Hamazed.World
 
 import           Imj.Prelude
 
-
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color.Types
 

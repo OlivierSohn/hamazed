@@ -41,10 +41,8 @@ library
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
-                     , Imj.Game.Hamazed.Run
                      , Imj.Game.Hamazed.Sound
                      , Imj.Game.Hamazed.Timing
-                     , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
@@ -89,6 +87,7 @@ executable imj-game-hamazed-exe
   main-is:             Main.hs
   build-depends:       base >= 4.9 && < 4.12
                      , imj-base ==0.1.*
+                     , imj-game ==0.1.*
                      , imj-game-hamazed
   default-language:    Haskell2010
 

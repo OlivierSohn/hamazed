@@ -50,9 +50,9 @@ import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Network.Internal.Types
-import           Imj.Game.Types
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Types
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types

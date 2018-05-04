@@ -20,11 +20,12 @@ import           Data.Vector(fromList)
 import           System.Random.MWC
 import           System.Timeout(timeout)
 
-import           Imj.Game.Hamazed.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
+import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Text.Render

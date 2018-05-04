@@ -15,13 +15,14 @@ import           Data.Map.Strict((!?))
 import qualified Data.Map.Strict as Map
 
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Types
+import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Game.Color
 import           Imj.Game.Infos
 import           Imj.Game.Show
 import           Imj.Game.Types
 import           Imj.Game.Hamazed.Color
+import           Imj.Game.Hamazed.Level
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColoredGlyphList

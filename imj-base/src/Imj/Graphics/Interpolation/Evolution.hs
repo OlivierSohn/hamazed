@@ -21,6 +21,7 @@ computes the next time at which the interpolation should be updated (for interpo
 or rendered (for morphings), based on the current frame and the inverse ease function.
 -}
            Evolution(..)
+         , mkEmptyEvolution
          , mkEvolutionEaseQuart
          , mkEvolutionEaseInQuart
          , mkEvolution
@@ -80,6 +81,8 @@ instance (Show v) => Show (Evolution v) where
 instance (PrettyVal v) => PrettyVal (Evolution v) where
   prettyVal (Evolution a b c _) = prettyVal (a,b,c)
 
+mkEmptyEvolution :: Evolution v
+mkEmptyEvolution = Evolution (Successive []) 0 zeroDuration id
 
 {-# INLINABLE mkEvolutionEaseQuart #-}
 -- | An evolution between n 'DiscreteDistance's. With a 4th order ease in & out.

@@ -11,7 +11,7 @@ module Imj.Game.Command
       , runClientCommand
       , maxOneSpace
       -- * utilities
-      , withGameInfoAnimation
+      , withAnim
       , withGameInfoAnimationIf
       , mkAnim
       ) where
@@ -39,7 +39,8 @@ import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Chat
 import           Imj.Timing
 
-runClientCommand :: (GameLogic g, MonadState (AppState g) m, MonadIO m)
+runClientCommand :: (GameLogic g
+                   , MonadState (AppState g) m, MonadIO m)
                  => ShipId
                  -> ClientCommand
                  -> m ()
@@ -47,10 +48,10 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
   case cmd of
     AssignName name' ->
-      withGameInfoAnimation Normal $
+      withAnim Normal (pure ()) $
         putPlayer sid $ Player name' Present $ maybe (mkPlayerColors refShipColor) getPlayerColors p
     AssignColor color ->
-      withGameInfoAnimation Normal $
+      withAnim Normal (pure ()) $
         putPlayer sid $ Player (maybe (ClientName "") getPlayerName p) Present $ mkPlayerColors color
     Says what ->
       stateChat $ addMessage $ ChatMessage $
@@ -59,7 +60,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
       maybe
         (return ())
         (\n ->
-            withGameInfoAnimation Normal $
+            withAnim Normal (pure ()) $
               putPlayer sid $ n { getPlayerStatus = Absent })
           p
       stateChat $ addMessage $ ChatMessage $
@@ -112,33 +113,34 @@ command = do
         _ -> cmdParser cmdName
     _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)
 
-withGameInfoAnimationIf :: (MonadState (AppState s) m
+withGameInfoAnimationIf :: (MonadState (AppState g) m
                           , MonadIO m
-                          , GameLogic s)
+                          , GameLogic g)
                         => Bool
-                        -> InfoType
                         -> m a
                         -> m a
-withGameInfoAnimationIf condition it act =
+withGameInfoAnimationIf condition act =
   f act
  where
-  f = bool id (withGameInfoAnimation it) condition
+  f = bool id (withAnim Normal (pure ())) condition
 
-withGameInfoAnimation :: (MonadState (AppState s) m
+withAnim :: (MonadState (AppState g) m
                         , MonadIO m
-                        , GameLogic s)
+                        , GameLogic g)
                       => InfoType
+                      -> m ()
+                      -- ^ This action will be run at the end of the animation.
                       -> m a
                       -> m a
-withGameInfoAnimation it act = do
-  gets game >>= \(Game _ _ g1 _ _ _ names1 _ _ _ _) -> do
+withAnim it finalize act = do
+  gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
-    gets game >>= \(Game _ screen g2 _ _ _ names2 _ _ _ _) -> do
+    gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
-      putAnimation $ mkAnim it t screen names1 names2 g1 g2
+      putAnimation =<< mkAnim it t screen names1 names2 g1 g2 finalize
     return res
 
-mkAnim :: (GameLogic g1, GameLogic g2)
+mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
        => InfoType
        -> Time Point System
        -> Screen
@@ -146,13 +148,17 @@ mkAnim :: (GameLogic g1, GameLogic g2)
        -- ^ from
        -> Map ClientId Player
        -- ^ to
-       -> g1
+       -> Maybe g1
        -- ^ from
-       -> g2
+       -> Maybe g2
        -- ^ to
-       -> UIAnimation
-mkAnim it t screen namesI namesF gI gF =
+       -> m ()
+       -- ^ action to run when the animation is over
+       -> m UIAnimation
+mkAnim it t screen namesI namesF gI gF finalizer = do
   let (hDist, vDist) = computeViewDistances
       from = mkWorldInfos Normal From screen namesI gI
       to   = mkWorldInfos it     To   screen namesF gF
-  in mkUIAnimation from to hDist vDist t
+      anim = mkUIAnimation from to hDist vDist t
+  when (isNothing $ _deadline $ getProgress $ anim) finalizer
+  return anim

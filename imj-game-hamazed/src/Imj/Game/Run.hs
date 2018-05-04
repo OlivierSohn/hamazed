@@ -41,7 +41,8 @@ import           Imj.Graphics.Text.RasterizedString
 import           Imj.Game.Network.ClientQueues
 
 {-# INLINABLE runWith #-}
-runWith :: (GameLogic g, PlayerInput i, DeltaRenderBackend i)
+runWith :: (GameLogic g
+          , PlayerInput i, DeltaRenderBackend i)
         => Bool
         -> ClientQueues g
         -> ServerView (ServerT g)

@@ -74,12 +74,12 @@ updateAppState (Right evt) = case evt of
   Timeout (Deadline t _ (RedrawStatus f)) ->
     updateStatus (Just f) t
   Timeout (Deadline t _ AnimateUI) -> do
-    getUIAnimation <$> gets game >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
+    _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
       let nextIt@(Iteration _ nextFrame) = nextIteration it
           worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
           anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
       putAnimation anims
-      maybe onUIAnimFinished (const $ return ()) worldAnimDeadline
+      maybe onAnimFinished (const $ return ()) worldAnimDeadline
   Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
     fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
       gets game >>= \g ->
@@ -114,7 +114,7 @@ updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
     onCustomEvent $ Left e
   OnContent worldParameters ->
-    putWorldParameters worldParameters
+    putServerContent worldParameters
   RunCommand i cmd -> runClientCommand i cmd
   CommandError cmd err ->
     stateChat $ addMessage $ Information Warning $
@@ -161,13 +161,15 @@ onTargetSize :: (GameLogic g
                , MonadReader e m, Canvas e
                , MonadIO m)
              => m ()
-onTargetSize = getTargetSize >>= maybe (return ()) (\sz -> do
-  let screen = mkScreen $ Just sz
-  putCurScreen screen
-  gets game >>= \ga@(Game _ _ g _ uiAnimation _ _ _ _ _ _) -> do
-    let (RectContainer _ ul) = getViewport To screen g
-        newAnim = setPosition ul uiAnimation
-    putGame $ ga { getUIAnimation = newAnim })
+onTargetSize = getTargetSize >>= maybe
+  (return ())
+  (\sz -> do
+    let screen@(Screen _ center) = mkScreen $ Just sz
+    putCurScreen screen
+    getGameState >>= \gs@(GameState mayG anim) -> do
+      let ul = maybe center (_upperLeft . getViewport To screen) mayG
+          newAnim = setPosition ul anim
+      putGameState (gs { _anim = newAnim }))
 
 {-# INLINABLE putClientState #-}
 putClientState :: (MonadState (AppState s) m
@@ -187,7 +189,7 @@ updateStatus :: (MonadState (AppState s) m
              -- ^ When Nothing, the current frame should be used.
              -> Time Point System
              -> m ()
-updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ _ drawnState' _ _ _ _ _) -> do
+updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnState' _ _ _ _ _) -> do
   let drawnState = zip [0 :: Int ..] drawnState'
   newStrs <- zip [0 :: Int ..] <$> go state
   -- return the same evolution when the string didn't change.

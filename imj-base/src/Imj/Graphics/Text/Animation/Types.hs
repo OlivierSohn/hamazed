@@ -40,5 +40,5 @@ data TextAnimation b a = TextAnimation {
 instance GeoTransform (TextAnimation a b) where
   transform f (TextAnimation c d e) = TextAnimation c (transform f d) e
 
-mkEmptyTextAnimation :: TextAnimation a AnchorChars
+mkEmptyTextAnimation :: TextAnimation a b
 mkEmptyTextAnimation = TextAnimation [] (Evolution (Successive []) 0 zeroDuration id) (mkEaseClock zeroDuration 0 id)

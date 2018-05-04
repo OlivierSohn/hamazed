@@ -44,8 +44,6 @@ drawUIAnimation
   drawAnimatedTextCharAnchored upDown relFrameUD
   drawAnimatedTextStringAnchored left relFrameLeft
 
-
-
 -- | Compute the time interval between the current frame and the next.
 getDeltaTime :: UIEvolutions -> Frame -> Maybe (Time Duration System)
 getDeltaTime we@(UIEvolutions containerEvolution (TextAnimation _ _ (EaseClock upDown)) (TextAnimation _ _ (EaseClock left))) frame =
@@ -65,7 +63,6 @@ getRelativeFrames
       relFrameLeft = max 0 (relFrameUD - lastFrameUD)
   in (relFrameRectFrameEvol, relFrameUD, relFrameLeft)
 
-
 mkUIAnimation :: (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
               -- ^ From
               -> (Colored RectContainer, ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList]))
@@ -78,11 +75,15 @@ mkUIAnimation :: (Colored RectContainer, ((Successive ColoredGlyphList, Successi
 mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f3))
               (to@(Colored _ toR@(RectContainer (Size th tw) _)), ((t1,t2),t3))
               horizontalDistance verticalDistance time =
-  UIAnimation evolutions $ UIAnimProgress deadline (Iteration (Speed 1) zeroFrame)
+  UIAnimation evolutions $ UIAnimProgress deadline $ Iteration (Speed 1) zeroFrame
+
  where
+
   dx = max (abs $ fromIntegral fw - fromIntegral tw)
            (abs $ fromIntegral fh - fromIntegral th)
+
   duration = fromSecs $ 1 + max 0 (dx - 2) / 80 -- slow down if distances are bigger
+
   frameE = mkEvolutionEaseQuart (Successive [from, to]) duration
 
   (ta1,ta2) = createUITextAnimations fromR toR (concatSuccessive f1 t1,
@@ -91,7 +92,9 @@ mkUIAnimation (from@(Colored _ fromR@(RectContainer (Size fh fw) _)), ((f1,f2),f
                                                   (f3 ++ repeat (Successive []))
                                                   t3)
                                      horizontalDistance verticalDistance duration
+
   evolutions = UIEvolutions frameE ta1 ta2
+
   deadline =
     maybe
       Nothing

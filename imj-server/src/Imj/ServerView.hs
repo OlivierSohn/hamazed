@@ -11,13 +11,13 @@ import           Imj.Server.Types
 
 
 mkLocalServerView :: ServerLogs
-                  -> ServerViewParamT s
-                  -> ServerContent (ServerViewContentT s)
+                  -> ServerConfigT s
+                  -> ServerContent (ServerContentT s)
                   -> ServerView s
 mkLocalServerView l p = ServerView (Local l p)
 
 mkDistantServerView :: ServerName
-                    -> ServerContent (ServerViewContentT s)
+                    -> ServerContent (ServerContentT s)
                     -> ServerView s
 mkDistantServerView n = ServerView (Distant n)
 

@@ -142,7 +142,7 @@ data World = World {
   , getWorldSpace :: {-# UNPACK #-} !Space
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
-  , getId :: {-unpack sum-} !(Maybe WorldId)
+  , getId :: {-unpack sum-} !WorldId
 } deriving (Generic)
 
 newtype NumId = NumId Int

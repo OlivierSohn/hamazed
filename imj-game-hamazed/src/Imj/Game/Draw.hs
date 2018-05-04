@@ -22,6 +22,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Screen
+import           Imj.Graphics.UI.Animation
 import           Imj.ServerView.Types
 
 import           Imj.Game.Color
@@ -42,15 +43,19 @@ draw :: (GameLogic (GameLogicT e)
        , MonadIO m)
      => m ()
 draw = do
-  (_,_,_,Coords _ col) <- getSideCenters <$> drawGame
-  gets game >>= \(Game _ (Screen _ (Coords rowCenter _)) _ _ _ _ _ _ _ _ chat) -> do
+  drawGame
+  gets game >>= \(Game _ screen@(Screen _ center@(Coords rowCenter _)) (GameState mayG anim) _ _ _ _ _ _ chat) -> do
+    let (_, _, _, Coords _ col) = getSideCenters $ maybe
+          (mkRectContainerWithCenterAndInnerSize center (Size 0 0))
+          (getViewport To screen)
+          mayG
+    drawUIAnimation anim
     let chatUpperLeft =
           Coords
             (rowCenter - fromIntegral (quot (height chat) 2))
             $ col + 4 + 2
     drawAt chat chatUpperLeft
     drawStatus
-
 
 {-# INLINABLE drawStatus #-}
 drawStatus :: (GameLogic g
@@ -59,10 +64,10 @@ drawStatus :: (GameLogic g
              , MonadIO m)
            => m ()
 drawStatus =
-  gets game >>= \(Game state screen g _ _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
+  gets game >>= \(Game state screen (GameState g _) _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
       ClientState Ongoing Setup ->
-        drawSetup worldParams $ getViewport To screen g -- TODO using progressivelyInform
+        fmapM (drawSetup worldParams . getViewport To screen) g -- TODO using progressivelyInform
       _ ->
         return ()
     forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
@@ -71,7 +76,7 @@ drawStatus =
 drawSetup :: (Server s
             , MonadReader e m, Draw e
             , MonadIO m)
-          => Maybe (ServerViewContentT s)
+          => Maybe (ServerContentT s)
           -> RectContainer
           -> m ()
 drawSetup mayWorldParams cont = do

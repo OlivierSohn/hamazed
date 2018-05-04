@@ -19,6 +19,7 @@ module Imj.Game.Types -- TODO split
       , EventGroup(..)
       -- * AppState type
       , AppState(..)
+      , GameState(..)
       , RecordMode(..)
       , OccurencesHist(..)
       , Occurences(..)
@@ -33,13 +34,14 @@ module Imj.Game.Types -- TODO split
       , tryGrow
       -- * Access
       , getGameState
+      , getIGame
       , getPlayers
       , getPlayer
       , getChatMode
       , getMyId
       , getGameConnection
       , getChat
-      , getWorldParameters
+      , getServerContent
       , getCurScreen
       , getLastRenderTime
       , hasVisibleNonRenderedUpdates
@@ -48,10 +50,11 @@ module Imj.Game.Types -- TODO split
       , putAnimation
       , putCurScreen
       , putGameState
+      , putIGame
       , putPlayer
       , putPlayers
       , putGameConnection
-      , putWorldParameters
+      , putServerContent
       , putDrawnState
       , stateChat
       , takeKeys
@@ -146,7 +149,8 @@ data Transitioning = From | To
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
      , Categorized (ClientOnlyEvtT g)
-     , Show (ClientOnlyEvtT g))
+     , Show (ClientOnlyEvtT g)
+     )
       =>
      GameLogic g
      where
@@ -184,31 +188,36 @@ and the input has been consumed up until the /beginning/ of the command paramete
             -> Parser (Either Text (Command (ServerT g)))
   cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
-  initialGame :: g
-
   getViewport :: Transitioning
               -> Screen
               -> g
-              -> RectContainer -- ^ The screen region used to draw the game in 'drawGame'
+              -> RectContainer
+              -- ^ The screen region used to draw the game in 'drawGame'
 
   -- TODO doc + should we split it in 2?
   mkWorldInfos :: InfoType
                -> Transitioning
                -> Screen
                -> Map ClientId Player
-               -> g
+               -> Maybe g
                -> (Colored RectContainer
-                  ,((Successive ColoredGlyphList
-                    ,Successive ColoredGlyphList
-                    )
-                    ,[Successive ColoredGlyphList])
-                  )
+                  ,((Successive ColoredGlyphList,Successive ColoredGlyphList)
+                    ,[Successive ColoredGlyphList])) -- TODO use a better type
 
-  onUIAnimFinished :: (GameLogicT e ~ g
-                     , MonadState (AppState (GameLogicT e)) m
-                     , MonadReader e m, Client e
-                     , MonadIO m)
-                   => m ()
+  onAnimFinished :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadReader e m, Client e
+                   , MonadIO m)
+                 => m ()
+
+  {- Handle your game's events. These are triggered either by a 'ServerT', or by a key press
+  (see 'keyMaps') -}
+  onCustomEvent :: (g ~ GameLogicT e
+                  , MonadState (AppState g) m
+                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+                  , MonadIO m)
+                => CustomUpdateEvent g
+                -> m ()
 
   -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
   --
@@ -222,20 +231,11 @@ and the input has been consumed up until the /beginning/ of the command paramete
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 
-  {- Handle your game's events. These are triggered either by a 'ServerT', or by a key press
-  (see 'keyMaps') -}
-  onCustomEvent :: (g ~ GameLogicT e
-                  , MonadState (AppState g) m
-                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
-                  , MonadIO m)
-                => CustomUpdateEvent g -> m ()
-
   drawGame :: (GameLogicT e ~ g
              , MonadState (AppState (GameLogicT e)) m
              , MonadReader e m, Draw e
              , MonadIO m)
-           => m RectContainer
-           -- ^ Returns the drawn region (it should return the same value as 'getViewport')
+           => m ()
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
@@ -295,13 +295,11 @@ type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 data Game g = Game {
     getClientState :: {-# UNPACK #-} !ClientState
   , getScreen :: {-# UNPACK #-} !Screen
-  , getGameState' :: !g
+  , getGameState' :: !(GameState g)
   , gameParticleSystems :: !ParticleSystems
-  , getUIAnimation :: !UIAnimation
     -- ^ Inter-level animation.
-  , getDrawnClientState :: ![( ColorString -- The raw message, just used to compare with new messages.
-                                          -- For rendering, 'AnimatedLine' is used.
-                          , AnimatedLine)]
+  , getDrawnClientState :: ![(ColorString    -- 'ColorString' is used to compare with new messages.
+                             ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
   , getPlayers' :: !(Map ClientId Player)
   , _gameSuggestedPlayerName :: !(ConnectIdT (ServerT g))
   , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
@@ -310,6 +308,10 @@ data Game g = Game {
   , getChat' :: !Chat
 }
 
+data GameState g = GameState {
+    _game :: !(Maybe g)
+  , _anim :: !UIAnimation
+}
 
 data AnimatedLine = AnimatedLine {
     getRecordDrawEvolution :: !(Evolution RecordDraw)
@@ -346,8 +348,12 @@ data OccurencesHist = OccurencesHist {
 
 
 {-# INLINABLE getGameState #-}
-getGameState :: MonadState (AppState g) m => m g
+getGameState :: MonadState (AppState g) m => m (GameState g)
 getGameState = getGameState' <$> gets game
+
+{-# INLINABLE getIGame #-}
+getIGame :: MonadState (AppState g) m => m (Maybe g)
+getIGame = _game <$> getGameState
 
 {-# INLINABLE getServerView #-}
 getServerView :: MonadState (AppState g) m => m (ServerView (ServerT g))
@@ -380,7 +386,12 @@ putGame g = modify' $ \s -> s { game = g }
 {-# INLINABLE putAnimation #-}
 putAnimation :: MonadState (AppState s) m => UIAnimation -> m ()
 putAnimation a =
-  gets game >>= \g -> putGame $ g {getUIAnimation = a}
+  getGameState >>= \g -> putGameState $ g {_anim = a}
+
+{-# INLINABLE putIGame #-}
+putIGame :: MonadState (AppState s) m => s -> m ()
+putIGame a =
+  getGameState >>= \g -> putGameState $ g {_game = Just a}
 
 {-# INLINABLE putServer #-}
 putServer :: MonadState (AppState g) m => (ServerView (ServerT g)) -> m ()
@@ -388,7 +399,7 @@ putServer s =
   gets game >>= \g -> putGame $ g {getServerView' = s}
 
 {-# INLINABLE putGameState #-}
-putGameState :: MonadState (AppState g) m => g -> m ()
+putGameState :: MonadState (AppState g) m => GameState g -> m ()
 putGameState s =
   gets game >>= \g -> putGame $ g {getGameState' = s}
 
@@ -408,15 +419,15 @@ getMyId =
     Connected myId -> Just myId
     _ -> Nothing) <$> getGameConnection
 
-{-# INLINABLE putWorldParameters #-}
-putWorldParameters :: MonadState (AppState g) m => ServerViewContentT (ServerT g) -> m ()
-putWorldParameters p =
+{-# INLINABLE putServerContent #-}
+putServerContent :: MonadState (AppState g) m => ServerContentT (ServerT g) -> m ()
+putServerContent p =
   getServerView >>= \s@(ServerView _ c) ->
     putServer s { serverContent = c { cachedContent = Just p } }
 
-{-# INLINABLE getWorldParameters #-}
-getWorldParameters :: MonadState (AppState g) m => m (Maybe (ServerViewContentT (ServerT g)))
-getWorldParameters =
+{-# INLINABLE getServerContent #-}
+getServerContent :: MonadState (AppState g) m => m (Maybe (ServerContentT (ServerT g)))
+getServerContent =
   cachedContent . serverContent <$> getServerView
 
 {-# INLINABLE getPlayers #-}

@@ -82,7 +82,7 @@ earliestDeadline' l  = Just $ minimumBy (\(Deadline t1 _ _) (Deadline t2 _ _) ->
 
 {-# INLINE getDeadlinesByDecreasingPriority #-}
 getDeadlinesByDecreasingPriority :: Game g -> [Deadline]
-getDeadlinesByDecreasingPriority (Game _ _ _ ps (UIAnimation _ (UIAnimProgress mayDeadline _)) dcs _ _ _ _ _) =
+getDeadlinesByDecreasingPriority (Game _ _ (GameState _ (UIAnimation _ (UIAnimProgress mayDeadline _))) ps dcs _ _ _ _ _) =
   -- sort from highest to lowest priority
   sortBy (\(Deadline _ p1 _) (Deadline _ p2 _) -> compare p2 p1) $
     uiAnimationDeadline ++
@@ -97,8 +97,8 @@ getDeadlinesByDecreasingPriority (Game _ _ _ ps (UIAnimation _ (UIAnimProgress m
 
   uiAnimationDeadline =
     maybeToList $
-      fmap (\deadline -> Deadline deadline animateUIPriority AnimateUI)
-      $ mayDeadline
+      fmap (\deadline -> Deadline deadline animateUIPriority AnimateUI) mayDeadline
+
 
 
 stateAnimDeadlines :: [(a,AnimatedLine)] -> [Deadline]

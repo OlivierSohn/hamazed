@@ -44,8 +44,8 @@ import           Imj.Network
 
 class (Show (ClientEventT s)
      , Show (ConnectIdT s)
-     , Show (ServerViewParamT s)
-     , Show (ServerViewContentT s)
+     , Show (ServerConfigT s)
+     , Show (ServerContentT s)
      , Show (ClientViewT s)
      , Show (SharedValueKeyT s)
      , Show (SharedValueT s)
@@ -54,7 +54,7 @@ class (Show (ClientEventT s)
      , Eq (SharedValueKeyT s)
      , Eq (SharedValueT s)
      , Eq (SharedEnumerableValueKeyT s)
-     , Binary (ServerViewContentT s)
+     , Binary (ServerContentT s)
      , Binary (ClientEventT s)
      , Binary (ServerEventT s)
      , Binary (ConnectIdT s)
@@ -62,12 +62,12 @@ class (Show (ClientEventT s)
      , Binary (SharedValueT s)
      , Binary (SharedEnumerableValueKeyT s)
      , NFData s
-     , NFData (ServerViewContentT s)
+     , NFData (ServerContentT s)
      , NFData (ClientViewT s)
      , NFData (SharedValueKeyT s)
      , NFData (SharedValueT s)
      , NFData (SharedEnumerableValueKeyT s)
-     , UIInstructions (ServerViewContentT s)
+     , UIInstructions (ServerContentT s)
      , Categorized (ServerEventT s)
      )
  =>
@@ -93,11 +93,11 @@ class (Show (ClientEventT s)
   type ReconnectionContext s
 
   ---------------- Server, as viewed by the client -----------------------------
-  type ServerViewParamT s = (r :: *) | r -> s
-  type ServerViewContentT s = (r :: *) | r -> s
+  type ServerConfigT s = (r :: *) | r -> s
+  type ServerContentT s = (r :: *) | r -> s
 
   -- | Called to create the server.
-  mkInitial :: (MonadIO m) => ServerViewParamT s -> m (ServerViewContentT s, s)
+  mkInitial :: (MonadIO m) => ServerConfigT s -> m (ServerContentT s, s)
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,
@@ -150,7 +150,7 @@ data ServerState s = ServerState {
   , clientsViews :: {-# UNPACK #-} !(ClientViews (ClientViewT s))
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
-  , content :: !(ServerViewContentT s)
+  , content :: !(ServerContentT s)
   , unServerState :: !s
 } deriving(Generic)
 instance (Server s) => NFData (ServerState s)

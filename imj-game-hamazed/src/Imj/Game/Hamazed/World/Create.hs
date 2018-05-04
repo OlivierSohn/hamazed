@@ -34,12 +34,12 @@ import           Imj.Physics.Discrete.Collision
 import           Imj.Util
 
 
-mkWorld :: WorldEssence -> Maybe WorldId -> World
+mkWorld :: WorldEssence -> WorldId -> World
 mkWorld (WorldEssence balls ships space) wid =
   let renderedSpace = mkRenderedSpace space
   in World (Map.map mkNumber balls) ships space renderedSpace wid
 
-worldToEssence :: World -> (WorldEssence, Maybe WorldId)
+worldToEssence :: World -> (WorldEssence, WorldId)
 worldToEssence (World balls ships space _ wid) =
   (WorldEssence (Map.map getNumEssence balls) ships space, wid)
 

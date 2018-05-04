@@ -86,8 +86,8 @@ instance Server HamazedServer where
   -- Where 'Set ClientId' represents the players in the current game:
   type ReconnectionContext HamazedServer = Set ClientId
 
-  type ServerViewParamT HamazedServer = ColorScheme
-  type ServerViewContentT HamazedServer = WorldParameters
+  type ServerConfigT HamazedServer = ColorScheme
+  type ServerContentT HamazedServer = WorldParameters
 
   mkInitial colorScheme = do
     c <- liftIO $ mkCenterColor colorScheme

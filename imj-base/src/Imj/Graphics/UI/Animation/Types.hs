@@ -8,12 +8,15 @@ module Imj.Graphics.UI.Animation.Types
            ( UIEvolutions(..)
            , UIAnimation(..)
            , UIAnimProgress(..)
+           , mkZeroAnimation
            ) where
 
 import           Imj.Prelude
 
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.Text.Animation
+import           Imj.Graphics.Text.Animation.Types
 import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
@@ -24,13 +27,20 @@ data UIAnimation = UIAnimation {
     _uiAnimationEvs :: {-# UNPACK #-} !UIEvolutions
   , getProgress :: !UIAnimProgress
   -- ^ Current 'Iteration'.
-} deriving(Show, Generic, PrettyVal)
+} deriving(Generic)
+instance PrettyVal UIAnimation where
+  prettyVal (UIAnimation a b) = prettyVal ("UIAnimation",a,b)
 instance HasReferencePosition UIAnimation where
   getPosition (UIAnimation a _) = getPosition a
   {-# INLINE getPosition #-}
+instance Show UIAnimation where
+  show (UIAnimation a b) = show ("UIAnimation",a,b)
 instance GeoTransform UIAnimation where
   transform f (UIAnimation a b) = UIAnimation (transform f a) b
   {-# INLINE transform #-}
+
+mkZeroAnimation :: UIAnimation
+mkZeroAnimation = UIAnimation mkZeroEvolutions $ UIAnimProgress Nothing $ zeroIteration 1
 
 data UIAnimProgress = UIAnimProgress {
     _deadline :: {-unpack sum-} !(Maybe (Time Point System))
@@ -54,3 +64,6 @@ instance HasReferencePosition UIEvolutions where
   getPosition (UIEvolutions container _ _) = getPosition container
 instance GeoTransform UIEvolutions where
   transform f (UIEvolutions a b c) = UIEvolutions (transform f a) (transform f b) (transform f c)
+
+mkZeroEvolutions :: UIEvolutions
+mkZeroEvolutions = UIEvolutions mkEmptyEvolution mkEmptyTextAnimation mkEmptyTextAnimation

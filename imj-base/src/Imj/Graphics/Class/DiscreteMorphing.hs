@@ -57,7 +57,7 @@ class (DiscreteDistance v, Drawable v)
                          => Successive v
                          -> Int
                          -> m ()
-  drawMorphingSuccessive (Successive []) _ = error "empty successive"
+  drawMorphingSuccessive (Successive []) _ = return ()
   drawMorphingSuccessive (Successive [a]) _ = drawMorphing a a 0
   drawMorphingSuccessive (Successive (a:rest@(b:_))) i
     | i <= 0      = drawMorphing a a 0

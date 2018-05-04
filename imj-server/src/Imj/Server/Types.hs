@@ -79,7 +79,7 @@ data ServerEvent s =
   | ConnectionAccepted {-# UNPACK #-} !ClientId
   | ConnectionRefused !(ConnectIdT s) {-# UNPACK #-} !Text
   | Disconnected {-unpack sum-} !DisconnectReason
-  | OnContent !(ServerViewContentT s)
+  | OnContent !(ServerContentT s)
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
@@ -128,7 +128,7 @@ data PlayerNotif s =
   deriving(Generic, Show)
 instance Server s => Binary (PlayerNotif s)
 
-mkServerState :: ServerLogs -> ServerViewContentT s -> s -> ServerState s
+mkServerState :: ServerLogs -> ServerContentT s -> s -> ServerState s
 mkServerState logs c s =
   ServerState logs (ClientViews Map.empty (ClientId 0)) False c s
 

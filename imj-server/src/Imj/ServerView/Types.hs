@@ -24,8 +24,8 @@ data ConnectionStatus =
   | ConnectionFailed {-# UNPACK #-} !Text
 
 data ServerView s = ServerView {
-    serverType :: !(ServerType (ServerViewParamT s))
-  , serverContent :: !(ServerContent (ServerViewContentT s))
+    serverType :: !(ServerType (ServerConfigT s))
+  , serverContent :: !(ServerContent (ServerContentT s))
 }  deriving(Generic)
 instance Server s => Show (ServerView s) where
   show (ServerView t c) = show ("ServerView",t,c)

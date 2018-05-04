@@ -38,7 +38,6 @@ import           Imj.Input.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Command
-import Imj.Game.Hamazed.Infos
 import           Imj.Game.Draw
 import           Imj.Graphics.UI.Chat
 import           Imj.Game.Update
@@ -49,6 +48,7 @@ import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
+import           Imj.Graphics.UI.Animation.Types
 import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
@@ -73,9 +73,9 @@ onEvent mayEvt = do
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (GameLogicT e ~ g
-            , MonadState (AppState g) m
-            , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
-            , MonadIO m)
+           , MonadState (AppState g) m
+           , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e
+           , MonadIO m)
          => Maybe (GenEvent g) -> m ()
 onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and reset the group
   (\case
@@ -227,25 +227,16 @@ addEventRepr e oh@(OccurencesHist h r) =
                               let prevTailStr = toColorStr oh
                               in OccurencesHist (Occurences 1 e:h) prevTailStr
 
-createState :: GameLogic g
-            => Screen
+createState :: Screen
             -> Bool
             -> ConnectIdT (ServerT g)
             -> ServerView (ServerT g)
             -> ConnectionStatus
             -> IO (AppState g)
 createState screen dbg a b c = do
+  let g  = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b c mkChat
   t <- getSystemTime
-  let g = mkGame t initialGame
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
-
- where
-
-  mkGame t initial =
-    let names = mempty
-        final = initial
-        anim = mkAnim Normal t screen names names initial final
-    in Game (ClientState Ongoing Excluded) screen initial mempty anim [] names a b c mkChat
 
 {-# INLINABLE debug #-}
 debug :: MonadState (AppState g) m => m Bool

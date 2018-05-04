@@ -24,15 +24,17 @@ import           Data.Attoparsec.Text(Parser, takeText, endOfInput, char
 import           Data.Char(isSpace, toLower, isAlphaNum)
 import           Data.Text(pack, unsnoc)
 import qualified Data.Text as Text
+import           Data.Map.Strict(Map)
 
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Types
-import           Imj.Game.Hamazed.Types
-
 import           Imj.ClientView.Types
+import           Imj.Server.Types
+
+import           Imj.Game.Color
 import           Imj.Game.Draw
-import           Imj.Game.Hamazed.Infos
-import           Imj.Game.Hamazed.Color
+import           Imj.Game.Infos
+import           Imj.Game.Show
+import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
@@ -41,7 +43,7 @@ import           Imj.Timing
 
 runClientCommand :: (GameLogic g
                    , MonadState (AppState g) m, MonadIO m)
-                 => ShipId
+                 => ClientId
                  -> ClientCommand
                  -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
@@ -49,7 +51,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
   case cmd of
     AssignName name' ->
       withAnim Normal (pure ()) $
-        putPlayer sid $ Player name' Present $ maybe (mkPlayerColors refShipColor) getPlayerColors p
+        putPlayer sid $ Player name' Present $ maybe (mkPlayerColors (rgb 3 3 3)) getPlayerColors p
     AssignColor color ->
       withAnim Normal (pure ()) $
         putPlayer sid $ Player (maybe (ClientName "") getPlayerName p) Present $ mkPlayerColors color
@@ -144,9 +146,9 @@ mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
        => InfoType
        -> Time Point System
        -> Screen
-       -> Map ClientId Player
+       -> Map ClientId (Player g1)
        -- ^ from
-       -> Map ClientId Player
+       -> Map ClientId (Player g2)
        -- ^ to
        -> Maybe g1
        -- ^ from

@@ -24,14 +24,9 @@ module Imj.Game.Hamazed.Color (
   , worldFrameColors
   , ammoColor
   , bracketsColor
-  -- ** Text colors
-  , messageColor
-  , neutralMessageColor
-  , neutralMessageColorFg
   -- ** Cyclic colors
   , ColorCycle
   , ColorCycles(..)
-  , mkColorCycles
   , rotateHues
   , cycleColors
   , refShipColor
@@ -45,7 +40,7 @@ module Imj.Game.Hamazed.Color (
 
 import           Imj.Prelude
 
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.ColorTheme.Class
 import           Imj.Graphics.ParticleSystem.Design.Types
 
 import           Imj.Graphics.Class.DiscreteInterpolation
@@ -61,13 +56,13 @@ data ColorCycles = ColorCycles {
 } deriving(Generic, Show, Eq)
 instance Binary ColorCycles
 
-mkColorCycles :: Color8 Foreground -> ColorCycles
-mkColorCycles c =
-  ColorCycles (r outer1ColorCycle) (r outer2ColorCycle) (r wall1ColorCycle) (r wall2ColorCycle) (r laserColorCycle)
- where
-  refHue = fromMaybe (error "unexpected") $ hue refShipColor
-  thisHue = fromMaybe refHue $ hue c -- gray ships are assimilated to refShipColor
-  r = rotateHues $ thisHue - refHue
+instance ColorTheme ColorCycles where
+  mkColorTheme c =
+    ColorCycles (r outer1ColorCycle) (r outer2ColorCycle) (r wall1ColorCycle) (r wall2ColorCycle) (r laserColorCycle)
+   where
+    refHue = fromMaybe (error "unexpected") $ hue refShipColor
+    thisHue = fromMaybe refHue $ hue c -- gray ships are assimilated to refShipColor
+    r = rotateHues $ thisHue - refHue
 
 rotateHues :: Float -> ColorCycle a -> ColorCycle a
 rotateHues dh (ColorCycle a b) =
@@ -104,12 +99,8 @@ wall1ColorCycle  = ColorCycle (rgb 3 2 2) (rgb 3 1 0)
 wall2ColorCycle  = ColorCycle (rgb 4 2 1) (rgb 3 2 2)
 laserColorCycle  = ColorCycle (rgb 3 2 4) (rgb 3 2 2)
 
-neutralMessageColorFg, ammoColor :: Color8 Foreground
-neutralMessageColorFg = gray 10
+ammoColor :: Color8 Foreground
 ammoColor = gray 14
-
-neutralMessageColor :: LayeredColor
-neutralMessageColor = onBlack neutralMessageColorFg
 
 wallColors :: LayeredColor
 wallColors = LayeredColor (gray 0) (gray 3)
@@ -123,10 +114,6 @@ airColors = LayeredColor black black
 
 bracketsColor :: Color8 Foreground
 bracketsColor = worldFrameFgColor
-
-messageColor :: LevelOutcome -> LayeredColor
-messageColor Won      = onBlack $ rgb 4 3 1
-messageColor (Lost _) = onBlack $ gray 6
 
 shipColors :: LayeredColor
 shipColors = LayeredColor shipBgColor shipColor

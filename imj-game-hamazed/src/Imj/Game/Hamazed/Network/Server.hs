@@ -8,17 +8,41 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Imj.Game.Hamazed.Network.Internal.Hamazed
+{-|
+This module exports types related to networking for Hamazed game.
+
+Game events are sent by the clients, proccessed by the server. For example, if two players
+play the game:
+
+@
+  - Ax = acceleration of ship x
+  - Lx = laser shot of ship x
+  - .  = end of a game period
+
+        >>> time >>>
+ . . . A1 . . A1 A2 L2 L1 .
+              ^^^^^ ^^^^^
+              |     |
+              |     laser shots can't be aggregated.
+              |
+              accelerations can be aggregated, their order within a period is unimportant.
+@
+
+The order in which L1 L2 are handled by the server is the order in which they are received.
+This is /unfair/ because one player (due to network delays) could have rendered the
+last period 100ms before the other, thus having a significant advantage over the other player.
+We could be more fair by keeping track of the /perceived/ time on the player side:
+
+when sending a game action event, we could send along the difference between the system time of the action
+and the system time at which the last motion update was presented to the player.
+
+Hence, to know how to order close laser shots, if the ships are on the same row or column,
+the server should wait a little (max. 50 ms?) to see if the other player makes a
+perceptually earlier shot.
+-}
+
+module Imj.Game.Hamazed.Network.Server
       ( HamazedServer(..)
-      -- * utilities
-      , onlyPlayersMap
-      , gets'
-      , requestWorld
-      , requestWorldBy
-      , cancelWorldRequest
-      , notifyPlayersN
-      , notifyPlayers
-      , updateCurrentStatus
       ) where
 
 import           Imj.Prelude
@@ -39,8 +63,8 @@ import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, try
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.Level.Types
-import           Imj.Game.Hamazed.Loop.Event.Types
+import           Imj.Game.Hamazed.Level
+import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Setup
 import           Imj.Game.Hamazed.Network.State
@@ -48,14 +72,18 @@ import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
 
-import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Hamazed.Timing
+import           Imj.Game.Level
 import           Imj.Game.Network.Server
+import           Imj.Game.Player
+import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Music hiding(Do)
 import           Imj.Server.Connection
 import           Imj.Server.Log
 import           Imj.Server.Run
 import           Imj.Server
+import           Imj.Timing
 
 
 -- | 'Hamazed' handles a single game.
@@ -763,12 +791,6 @@ onlyPlayersMap = Map.filter (isJust . getState . unClientView) . clientsMap
 --------------------------------------------------------------------------------
 -- functions used in multiple --------------------------------------------------
 --------------------------------------------------------------------------------
-
-{-# INLINABLE notifyPlayersN #-}
-notifyPlayersN :: (MonadIO m, MonadState (ServerState HamazedServer) m)
-               => [ServerEventT HamazedServer] -> m ()
-notifyPlayersN evts =
-  notifyN evts =<< gets onlyPlayersMap
 
 {-# INLINABLE notifyPlayersN' #-}
 notifyPlayersN' :: (MonadIO m, MonadState (ServerState HamazedServer) m)

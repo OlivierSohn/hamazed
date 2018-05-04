@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Imj.Game.Hamazed.Level.Types
+module Imj.Game.Hamazed.Level
     ( LevelSpec(..)
     , LevelEssence(..)
     , mkLevelEssence
@@ -15,13 +15,13 @@ module Imj.Game.Hamazed.Level.Types
     , TargetConstraint(..)
     , LevelNumber(..)
     , initialLaserAmmo
-    , LevelOutcome(..)
     , firstLevel
     , lastLevel
     ) where
 
 
 import           Imj.Prelude
+import           Imj.Game.Level
 
 initialLaserAmmo :: Int
 initialLaserAmmo = 10
@@ -74,14 +74,6 @@ mkLevelEssence (LevelSpec n co) =
   let numbers = [1..(3 + fromIntegral n)] -- more and more numbers as level increases
       target = sum numbers `quot` 2
   in LevelEssence n (LevelTarget target co) numbers
-
-data LevelOutcome =
-    Lost !Text
-   -- ^ 'Text' is the reason why the 'Level' was lost.
-  | Won
-  deriving(Generic, Eq, Show)
-instance Binary LevelOutcome
-instance NFData LevelOutcome
 
 -- | 12
 lastLevel :: LevelNumber

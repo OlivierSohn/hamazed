@@ -14,11 +14,12 @@ import           Imj.Prelude
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Event
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.Chat
+import           Imj.Game.Status
 import           Imj.Game.Types
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Input.Types
+import           Imj.Server.Types
 
 translatePlatformEvent :: (GameLogicT e ~ g
                          , MonadState (AppState g) m

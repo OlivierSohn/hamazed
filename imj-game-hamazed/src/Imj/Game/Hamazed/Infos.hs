@@ -6,7 +6,6 @@
 module Imj.Game.Hamazed.Infos
       ( mkInfos
       , mkLeftInfo
-      , InfoType(..)
       ) where
 
 import           Imj.Prelude
@@ -19,12 +18,13 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.Types
 
 import           Imj.Game.Color
+import           Imj.Game.Infos
+import           Imj.Game.Show
+import           Imj.Game.Types
 import           Imj.Game.Hamazed.Color
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColoredGlyphList
-
-data InfoType = Normal | ColorAnimated
 
 text :: String -> ColoredGlyphList
 text x = text' x configFgColor
@@ -45,7 +45,7 @@ mkLevelCS t (LevelNumber level) =
       ColorAnimated -> [black, neutralColor]
 
 mkShipCS :: InfoType
-         -> Map ShipId Player -- TODO use the (AppState s) monad instead of passing this ?
+         -> Map ShipId (Player g)
          -> ShipId
          -> BattleShip
          -> Successive ColoredGlyphList
@@ -88,7 +88,7 @@ insideBrackets a =
 
 mkLeftInfo :: InfoType
            -> Map ShipId BattleShip
-           -> Map ShipId Player
+           -> Map ShipId (Player g)
            -> [ShotNumber]
            -> LevelEssence
            -> [Successive ColoredGlyphList]
@@ -110,7 +110,7 @@ mkUpDownInfo =
 
 mkInfos :: InfoType
         -> Map ShipId BattleShip
-        -> Map ShipId Player
+        -> Map ShipId (Player g)
         -> [ShotNumber]
         -> LevelEssence
         -> ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList])

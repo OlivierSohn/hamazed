@@ -107,7 +107,6 @@ module Imj.Game.Hamazed.World
     , module Imj.Graphics.UI.Animation
     -- * Secondary types
     , WallDistribution(..), WorldShape(..)
-    , LevelOutcome(..)
     -- * Reexports
     , module Imj.Graphics.Render
     ) where
@@ -120,8 +119,8 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color.Types
 
-import           Imj.Game.Hamazed.Logic
-import           Imj.Game.Hamazed.Loop.Timing
+import           Imj.Game.Hamazed
+import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Size

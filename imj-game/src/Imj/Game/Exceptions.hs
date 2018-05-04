@@ -1,29 +1,17 @@
-{-# OPTIONS_HADDOCK hide #-}
--- | Contains types that the game server doesn't need to know about.
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Imj.Game.Hamazed.Types
+module Imj.Game.Exceptions
     ( GracefulProgramEnd(..)
     , UnexpectedProgramEnd(..)
-    , GameTime
-    -- * Reexports
-    , module Imj.Game.Hamazed.Level
-    , module Imj.Game.Hamazed.World.Types
     ) where
 
 import           Imj.Prelude
 import           Control.Exception.Base(Exception(..))
-import           Data.Map.Strict(Map)
 import           Data.Text(unpack)
-
-import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.World.Types
-
-import           Imj.Game.Hamazed.Timing
 
 -- Note that we don't have GracefulClientEnd, because we use 'exitSuccess' in that case
 -- and don't need an exception.

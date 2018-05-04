@@ -15,18 +15,19 @@ import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Types
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Interpolation.Evolution
+import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.ServerView.Types
+import           Imj.Server.Types
 
 import           Imj.Game.Color
-import           Imj.Game.Hamazed.World.Space.Draw
+import           Imj.Game.Status
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer

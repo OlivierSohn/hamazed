@@ -28,27 +28,29 @@ import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
 
 import           Imj.Categorized
+import           Imj.Control.Concurrent.AsyncGroups.Class
+import           Imj.Geo.Discrete.Types
 import           Imj.Event
 import           Imj.Game.Types
-import           Imj.Control.Concurrent.AsyncGroups.Class
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Screen
 import           Imj.Input.Types
+import           Imj.Server.Class
+import           Imj.Server.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Command
 import           Imj.Game.Draw
-import           Imj.Graphics.UI.Chat
+import           Imj.Game.Status
 import           Imj.Game.Update
-import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.HasSizedFace
+import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words hiding (length)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Animation.Types
+import           Imj.Graphics.UI.Chat
 import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}

@@ -1,6 +1,6 @@
 name:                imj-music
 version:             0.1.0.3
-Category:            Audio
+Category:            Audio, Music
 Synopsis:            A library to play music.
 Description:         Functions to create music scores and play them.
 homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-music//README.md

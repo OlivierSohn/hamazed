@@ -57,7 +57,7 @@ import           Data.Set(Set)
 import           Data.Text(pack)
 
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Level
 import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types

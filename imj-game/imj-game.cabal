@@ -1,0 +1,79 @@
+name:                imj-game
+version:             0.1.0.3
+Category:            GameEngine, Graphics, Music, Audio
+Synopsis:            A multi-player game-engine.
+Description:         For multiplayer games
+                     with music and terminal-like opengl rendering.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-game//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md CHANGELOG.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+library
+  hs-source-dirs:      src
+  other-modules:
+  exposed-modules:     Imj.Event
+                     , Imj.Game.Color
+                     , Imj.Game.ColorTheme.Class
+                     , Imj.Game.Deadlines
+                     , Imj.Game.Draw
+                     , Imj.Game.Command
+                     , Imj.Game.Env
+                     , Imj.Game.Exceptions
+                     , Imj.Game.Infos
+                     , Imj.Game.KeysMaps
+                     , Imj.Game.Level
+                     , Imj.Game.Network
+                     , Imj.Game.Network.Client
+                     , Imj.Game.Network.ClientQueues
+                     , Imj.Game.Network.Server
+                     , Imj.Game.Player
+                     , Imj.Game.Show
+                     , Imj.Game.State
+                     , Imj.Game.Status
+                     , Imj.Game.Types
+                     , Imj.Game.Priorities
+                     , Imj.Game.Run
+                     , Imj.Game.Timing
+                     , Imj.Game.Update
+  build-depends:       base >= 4.9 && < 4.12
+                     , async >=2.1 && < 2.3
+                     , attoparsec ==0.13.*
+                     , binary ==0.8.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , imj-base ==0.1.*
+                     , imj-music ==0.1.*
+                     , imj-particlesystem ==0.1.*
+                     , imj-prelude ==0.1.*
+                     , imj-server ==0.1.*
+                     , mtl >= 2.2.1 && < 2.3
+                     , network ==2.6.*
+                     , optparse-applicative == 0.14.*
+                     , stm ==2.4.*
+                     , strict-concurrency ==0.2.*
+                     , text >=1.2.3 && < 1.3
+                     , unix ==2.7.*
+                     , websockets ==0.12.*
+  default-language:    Haskell2010
+
+test-suite imj-game-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:
+  main-is:             Spec.hs
+  build-depends:       base >= 4.9 && < 4.12
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-game

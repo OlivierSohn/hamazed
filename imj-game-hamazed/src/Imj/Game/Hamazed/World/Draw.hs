@@ -13,7 +13,6 @@ import           Imj.Prelude
 import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)
 
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types

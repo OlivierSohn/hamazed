@@ -2,38 +2,43 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.Loop.Event.Types
+module Imj.Game.Status
         ( GameStatus(..)
-        , ActionTarget(..)
-        , MetaAction(..)
-        , HamazedEvent(..)
+        , StateValue(..)
+        , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
+        , StateNature(..)
+        , ClientState(..)
         ) where
 
 import           Imj.Prelude
 import           Data.Set(Set)
 import           Data.Map(Map)
 
-import           Imj.Game.Hamazed.Level.Types
-
 import           Imj.ClientView.Types
-import           Imj.Event
+import           Imj.Game.Level
 
-data HamazedEvent =
-     Interrupt !MetaAction
-   -- ^ A game interruption.
-   | PlayProgram !Int
-   deriving(Eq, Show)
-instance Categorized HamazedEvent where
-  evtCategory = \case
-    PlayProgram{}   -> Command'
-    Interrupt _ -> Interrupt'
+data PlayerStatus = Present | Absent
+  deriving(Generic, Show)
+instance Binary PlayerStatus
 
-data MetaAction = Help
-                -- ^ The player wants to read the help page /(Not implemented yet)/
-                deriving(Eq, Show)
+data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !StateValue
+  deriving(Generic, Show, Eq)
+
+data StateNature = Ongoing | Over
+  deriving(Generic, Show, Eq)
+instance Binary StateNature
+
+data StateValue =
+    Excluded
+    -- ^ The player is not part of the game
+  | Setup
+  -- ^ The player is configuring the game
+  | PlayLevel !GameStatus
+  -- ^ The player is playing the game
+  deriving(Generic, Show, Eq)
+instance Binary StateValue
+instance NFData StateValue
 
 data GameStatus =
     New
@@ -54,9 +59,3 @@ data GameStatus =
   deriving(Generic, Show, Eq)
 instance Binary GameStatus
 instance NFData GameStatus
-
-data ActionTarget = Ship
-                  -- ^ The player wants to accelerate the 'BattleShip'
-                  | Laser
-                  -- ^ The player wants to shoot with the laser.
-                  deriving(Generic, Eq, Show, Binary)

@@ -5,6 +5,7 @@
 module Imj.Game.Network
       ( startClient
       , startServerIfLocal
+      , sendToServer
       ) where
 
 import           Imj.Prelude
@@ -13,6 +14,8 @@ import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Monad.State.Strict(execStateT)
+import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(pack)
 import           Foreign.C.Types(CInt)
 import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
@@ -22,11 +25,11 @@ import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
-import           Imj.Game.Hamazed.Network.Types
+import           Imj.Game.Exceptions
 import           Imj.Game.Types
-import           Imj.Game.Hamazed.Types
 import           Imj.ServerView.Types
 import           Imj.ServerView
+import           Imj.Server.Types
 
 import           Imj.Event
 import           Imj.Game.Network.ClientQueues
@@ -139,3 +142,11 @@ runApp sock opts app = do
     (makePendingConnection sock opts)
     (Stream.close . pendingStream)
     app
+
+{-# INLINABLE sendToServer #-}
+sendToServer :: (MonadReader e m, Client e
+               , MonadIO m)
+             => ClientEventT (ServerT (GameLogicT e))
+             -> m ()
+sendToServer e =
+  asks sendToServer' >>= \f -> f (ClientAppEvt e)

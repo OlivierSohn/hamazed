@@ -24,6 +24,12 @@ module Imj.Game.Types -- TODO split
       , OccurencesHist(..)
       , Occurences(..)
       , EventCategory(..)
+      -- * Player
+      , Player(..)
+      , mkPlayer
+      , PlayerColors(..)
+      , mkPlayerColors
+      , ColorTheme(..)
       -- * Helper types
       , Transitioning(..)
       -- * EventGroup
@@ -80,12 +86,17 @@ import           Data.Text(unpack)
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Event
+import           Imj.Game.ColorTheme.Class
+import           Imj.Game.Infos
+import           Imj.Game.Player
 import           Imj.Game.Priorities
+import           Imj.Game.Status
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.RecordDraw
@@ -93,12 +104,11 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Game.Hamazed.Network.Types
 import           Imj.Input.Types
+import           Imj.Server.Types
 import           Imj.ServerView.Types
 
 import           Imj.Graphics.UI.Chat
-import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Timing
 import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.Text.ColorString
@@ -150,6 +160,8 @@ data Transitioning = From | To
 class (Server (ServerT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
+     , ColorTheme (ColorThemeT g)
+     , Binary (ColorThemeT g)
      )
       =>
      GameLogic g
@@ -160,6 +172,9 @@ class (Server (ServerT g)
 
   type ClientOnlyEvtT g = (r :: *) | r -> g
   -- ^ Events generated on the client and handled by the client.
+
+  type ColorThemeT g
+  -- ^ The colors used by a player
 
   {- |
 This method can be implemented to make /custom/ commands available in the chat window.
@@ -198,7 +213,7 @@ and the input has been consumed up until the /beginning/ of the command paramete
   mkWorldInfos :: InfoType
                -> Transitioning
                -> Screen
-               -> Map ClientId Player
+               -> Map ClientId (Player g)
                -> Maybe g
                -> (Colored RectContainer
                   ,((Successive ColoredGlyphList,Successive ColoredGlyphList)
@@ -236,6 +251,7 @@ and the input has been consumed up until the /beginning/ of the command paramete
              , MonadReader e m, Draw e
              , MonadIO m)
            => m ()
+
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
@@ -300,7 +316,7 @@ data Game g = Game {
     -- ^ Inter-level animation.
   , getDrawnClientState :: ![(ColorString    -- 'ColorString' is used to compare with new messages.
                              ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
-  , getPlayers' :: !(Map ClientId Player)
+  , getPlayers' :: !(Map ClientId (Player g))
   , _gameSuggestedPlayerName :: !(ConnectIdT (ServerT g))
   , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
   -- ^ The server that runs the game
@@ -312,6 +328,33 @@ data GameState g = GameState {
     _game :: !(Maybe g)
   , _anim :: !UIAnimation
 }
+
+data Player g = Player {
+    getPlayerName :: {-# UNPACK #-} !ClientName
+  , getPlayerStatus :: {-unpack sum-} !PlayerStatus
+  , getPlayerColors :: {-# UNPACK #-} !(PlayerColors g)
+} deriving(Generic, Show)
+instance GameLogic g => Binary (Player g)
+
+mkPlayer :: GameLogic g => PlayerEssence -> Player g
+mkPlayer (PlayerEssence a b color) =
+  Player a b $ mkPlayerColors color
+
+mkPlayerColors :: GameLogic g
+               => Color8 Foreground
+               -> PlayerColors g
+mkPlayerColors c = PlayerColors c $ mkColorTheme c
+
+data PlayerColors g = PlayerColors {
+    getPlayerColor :: {-# UNPACK #-} !(Color8 Foreground)
+    -- ^ Main color of player
+  , getColorCycles :: !(ColorThemeT g)
+} deriving(Generic)
+instance GameLogic g => Binary (PlayerColors g)
+instance GameLogic g => Show (PlayerColors g) where
+  show (PlayerColors c cy) = show ("PlayerColors",c,cy)
+instance GameLogic g => Eq (PlayerColors g) where
+  (PlayerColors c _) == (PlayerColors c' _) = c == c'
 
 data AnimatedLine = AnimatedLine {
     getRecordDrawEvolution :: !(Evolution RecordDraw)
@@ -431,19 +474,19 @@ getServerContent =
   cachedContent . serverContent <$> getServerView
 
 {-# INLINABLE getPlayers #-}
-getPlayers :: MonadState (AppState g) m => m (Map ClientId Player)
+getPlayers :: MonadState (AppState g) m => m (Map ClientId (Player g))
 getPlayers = getPlayers' <$> gets game
 
 {-# INLINABLE getPlayer #-}
-getPlayer :: MonadState (AppState g) m => ClientId -> m (Maybe Player)
+getPlayer :: MonadState (AppState g) m => ClientId -> m (Maybe (Player g))
 getPlayer i = flip (!?) i <$> getPlayers
 
 {-# INLINABLE putPlayers #-}
-putPlayers :: MonadState (AppState g) m => Map ClientId Player -> m ()
+putPlayers :: MonadState (AppState g) m => Map ClientId (Player g) -> m ()
 putPlayers m = gets game >>= \g -> putGame g {getPlayers' = m}
 
 {-# INLINABLE putPlayer #-}
-putPlayer :: MonadState (AppState g) m => ClientId -> Player -> m ()
+putPlayer :: MonadState (AppState g) m => ClientId -> Player g -> m ()
 putPlayer sid player = getPlayers >>= \names -> putPlayers $ Map.insert sid player names
 
 {-# INLINABLE takeKeys #-}

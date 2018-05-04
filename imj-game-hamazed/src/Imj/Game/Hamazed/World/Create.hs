@@ -22,7 +22,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import           System.Random.MWC(GenIO)
 
-import           Imj.Game.Hamazed.Level.Types
+import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
 

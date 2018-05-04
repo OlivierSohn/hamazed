@@ -9,6 +9,7 @@ resolver: nightly-2018-04-20
 packages:
 - './imj-base'
 - './imj-bindings-audio'
+- './imj-game'
 - './imj-game-hamazed'
 - './imj-measure-stdout'
 - './imj-music'

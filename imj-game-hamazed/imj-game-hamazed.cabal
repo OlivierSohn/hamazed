@@ -30,31 +30,20 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Event
-                     , Imj.Game.Color
-                     , Imj.Game.Deadlines
-                     , Imj.Game.Draw
-                     , Imj.Game.Hamazed
+  exposed-modules:     Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Color
-                     , Imj.Game.Command
-                     , Imj.Game.Env
                      , Imj.Game.Hamazed.Infos
-                     , Imj.Game.KeysMaps
-                     , Imj.Game.Hamazed.Level.Types
-                     , Imj.Game.Hamazed.Logic
-                     , Imj.Game.Hamazed.Loop.Event.Types
-                     , Imj.Game.Hamazed.Loop.Run
-                     , Imj.Game.Hamazed.Loop.Timing
+                     , Imj.Game.Hamazed.Level
+                     , Imj.Game.Hamazed.Event
                      , Imj.Game.Hamazed.Music
-                     , Imj.Game.Network
-                     , Imj.Game.Hamazed.Network.Internal.Hamazed
                      , Imj.Game.Hamazed.Network.Internal.Types
+                     , Imj.Game.Hamazed.Network.Server
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
+                     , Imj.Game.Hamazed.Run
                      , Imj.Game.Hamazed.Sound
-                     , Imj.Game.State
-                     , Imj.Game.Types
+                     , Imj.Game.Hamazed.Timing
                      , Imj.Game.Hamazed.Types
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -66,14 +55,6 @@ library
                      , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
-                     , Imj.Game.Network.Client
-                     , Imj.Game.Network.ClientQueues
-                     , Imj.Game.Network.Server
-                     , Imj.Game.Priorities
-                     , Imj.Game.Run
-                     , Imj.Game.Timing
-                     , Imj.Game.Update
-                     , Imj.Network
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3
@@ -85,6 +66,7 @@ library
                      , file-embed ==0.0.*
                      , imj-base ==0.1.*
                      , imj-bindings-audio ==0.1.*
+                     , imj-game ==0.1.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
@@ -94,15 +76,12 @@ library
                      , network ==2.6.*
                      , optparse-applicative == 0.14.*
                      , primitive ==0.6.*
-                     , stm ==2.4.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3
-                     , unix ==2.7.*
                      , unliftio ==0.2.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-th-unbox == 0.2.*
-                     , websockets ==0.12.*
   default-language:    Haskell2010
 
 executable imj-game-hamazed-exe
@@ -122,6 +101,7 @@ test-suite imj-game-hamazed-test
   build-depends:       base >= 4.9 && < 4.12
                      , attoparsec ==0.13.*
                      , imj-base ==0.1.*
+                     , imj-game ==0.1.*
                      , imj-game-hamazed
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*

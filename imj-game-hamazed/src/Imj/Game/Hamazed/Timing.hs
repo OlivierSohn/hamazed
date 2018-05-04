@@ -4,12 +4,10 @@
 
 -- | This module handles time constants of the game logic.
 
-module Imj.Game.Hamazed.Loop.Timing
+module Imj.Game.Hamazed.Timing
         ( gameMotionPeriod
         , GameTime
         , initalGameMultiplicator
-        -- reexport
-        , module Imj.Timing
         ) where
 
 import           Imj.Prelude

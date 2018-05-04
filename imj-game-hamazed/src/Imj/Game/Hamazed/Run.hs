@@ -7,7 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Hamazed.Loop.Run
+module Imj.Game.Hamazed.Run
       ( run
       , produceEvent
       ) where
@@ -34,8 +34,8 @@ import           Text.Read(readMaybe)
 
 import           Imj.Server.Class
 import           Imj.Game.Hamazed.Types
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Logic
+import           Imj.Game.Hamazed.Network.Server
+import           Imj.Game.Hamazed
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.ServerView.Types

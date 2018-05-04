@@ -2,8 +2,7 @@
 
 - Wait for all players to press a key before starting the game.
 
-- move Categorized out of server (to game, and create instances in the file of the class definition)
-move to imj-engine or base:
+- create imj-game-engine
 Imj.Event
 Imj.Graphics.Screen
 

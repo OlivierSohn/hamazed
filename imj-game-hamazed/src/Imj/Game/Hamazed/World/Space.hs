@@ -40,7 +40,7 @@ import           Data.Primitive.ByteArray
 import qualified Data.Array.Unboxed as UArray(Array, array, (!))
 import           Data.Bits(shiftR, shiftL, (.|.))
 import           Data.Either(isLeft)
-import           Data.List(unwords, length, sortOn, replicate, take, foldl')
+import           Data.List(length, sortOn, replicate, take, foldl')
 import           Data.List.NonEmpty(NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.List as List
@@ -153,12 +153,14 @@ mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
 mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
-      (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy dt) <- go blockSize
+      (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
+      {-
       putStrLn $ unwords
         [ "Found\n"
         , prettyShowSWCharacteristics closeWorld]
       putStrLn $ "Strategy:" ++ show strategy
       putStrLn $ "Estimated duration:" ++ showTime dt
+      -}
       let property = mkProperties closeWorld $ fmap (toVariants smallSz) strategy
       mkSmallWorld gens property continue >>= \(res, stats) ->
         return

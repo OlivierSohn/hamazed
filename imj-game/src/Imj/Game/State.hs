@@ -231,7 +231,7 @@ addEventRepr e oh@(OccurencesHist h r) =
 
 createState :: Screen
             -> Bool
-            -> ConnectIdT (ServerT g)
+            -> Maybe (ConnectIdT (ServerT g))
             -> ServerView (ServerT g)
             -> ConnectionStatus
             -> IO (AppState g)

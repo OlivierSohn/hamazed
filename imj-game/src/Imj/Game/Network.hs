@@ -17,6 +17,7 @@ import           Control.Monad.State.Strict(execStateT)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(pack)
+import           Data.Proxy
 import           Foreign.C.Types(CInt)
 import           Network.Socket(Socket, SocketOption(..), setSocketOption, close, accept)
 import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnectionOptions,
@@ -37,13 +38,14 @@ import           Imj.Game.Network.Client(appCli)
 import           Imj.Log
 import           Imj.Server.Run
 
-startServerIfLocal :: Server s
-                   => ServerView s
+startServerIfLocal :: GameLogic g
+                   => Proxy g
+                   -> ServerView (ServerT g)
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal srv@(ServerView (Local logs a) _) v = do
+startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal _ srv@(ServerView (Local logs a) _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
@@ -63,12 +65,13 @@ startServerIfLocal srv@(ServerView (Local logs a) _) v = do
     st True = "starts listening ("
 
 startClient :: GameLogic g
-            => ConnectIdT (ServerT g)
+            => Proxy g
+            -> Maybe (ConnectIdT (ServerT g))
             -> ServerView (ServerT g)
             -> IO (ClientQueues g)
-startClient playerName srv = do
+startClient proxy cid srv = do
   -- by now, if the server is local, the listening socket has been created.
-  qs <- mkQueues
+  qs <- mkQueues proxy
   let reportError x = try x >>= either
         (\(e :: SomeException) ->
           -- Maybe noone is reading at the end of the queue if the client already disconnected.
@@ -85,7 +88,7 @@ startClient playerName srv = do
       appCli qs x
   -- initialize the game connection
   sendToServer' qs $
-    Connect playerName $
+    Connect cid $
       case serverType srv of
         Local {} -> ClientOwnsServer
         Distant {} -> ClientDoesntOwnServer
@@ -93,8 +96,8 @@ startClient playerName srv = do
  where
   msg x = x <> " to server " <> pack (show srv)
 
-mkQueues :: IO (ClientQueues s)
-mkQueues =
+mkQueues :: Proxy g -> IO (ClientQueues g)
+mkQueues _ =
   ClientQueues <$> newTQueueIO <*> newTQueueIO
 
 installOneHandler :: Server s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()

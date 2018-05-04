@@ -20,9 +20,9 @@ import           Data.Text(unpack)
 
 import           Imj.ClientView.Types
 import           Imj.Graphics.UI.Chat
-import           Imj.Game.Color
 import           Imj.Game.Status
 import           Imj.Game.Types
+import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString(ColorString)
 import qualified Imj.Graphics.Text.ColorString as ColorString(colored, intercalate)

@@ -58,9 +58,11 @@ import qualified Data.Set as Set
 import           Data.Text(pack, unpack)
 import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
+import           Options.Applicative(short, long, option, help)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
 
 import           Imj.ClientView.Types
+import           Imj.Game.Color
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
@@ -117,8 +119,21 @@ instance Server HamazedServer where
   type ServerConfigT HamazedServer = ColorScheme
   type ServerContentT HamazedServer = WorldParameters
 
-  mkInitial colorScheme = do
-    c <- liftIO $ mkCenterColor colorScheme
+  parseConfig =
+    (option srvColorSchemeArg
+       (  long "colorScheme"
+       <> short 'c'
+       <> help (
+       "Defines a \"center\" color from which player colors are deduced. Possible values are: " ++
+       descPredefinedColors ++
+       ", " ++
+       "'rgb' | '\"r g b\"' where r,g,b are one of {0,1,2,3,4,5}, " ++
+       "'time' to chose colors based on server start time. " ++
+       "Default is 322 / \"3 2 2\". Incompatible with --serverName."
+       )))
+
+  mkInitial mayColorScheme = do
+    c <- liftIO $ mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) mayColorScheme
     let lvSpec = LevelSpec firstServerLevel CannotOvershoot
         params = initialParameters
         wc = mkWorldCreation $ WorldSpec lvSpec Set.empty params
@@ -128,7 +143,7 @@ instance Server HamazedServer where
 
   inParallel = [gameScheduler]
 
-  acceptConnection (SuggestedPlayerName name) = checkName name
+  acceptConnection = maybe (Right ()) (\(SuggestedPlayerName name) -> checkName name)
 
   tryReconnect _ =
     gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
@@ -153,9 +168,9 @@ instance Server HamazedServer where
           _ -> do serverLog $ pure "A game is in progress."
                   return Nothing)
 
-  createClientView i sn = do
+  createClientView i suggested = do
     color <- fmap (mkClientColorFromCenter i) (gets' centerColor)
-    name <- makePlayerName sn
+    name <- makePlayerName $ fromMaybe "Player" suggested
     return (mkHamazedClient, name, color)
 
   onReconnection gameConnectedPlayers =

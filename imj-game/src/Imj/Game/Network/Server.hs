@@ -17,11 +17,11 @@ import           Data.String(IsString(..))
 import           Options.Applicative(str, ReadM, readerError)
 import           Text.Read(readMaybe)
 
-import           Imj.Graphics.Color
-import           Imj.Graphics.Color.Types
-import           Imj.Game.Color
-import           Imj.Timing
 import           Imj.ClientView.Types
+import           Imj.Game.Color
+import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Color
+import           Imj.Timing
 
 newtype SuggestedPlayerName = SuggestedPlayerName String
   deriving(Generic, Eq, Show, Binary, IsString)

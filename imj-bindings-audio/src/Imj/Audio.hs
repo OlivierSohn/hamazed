@@ -39,7 +39,7 @@ foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.
-withAudio :: IO () -> IO ()
+withAudio :: IO a -> IO a
 withAudio =
 
   bracket bra ket . const

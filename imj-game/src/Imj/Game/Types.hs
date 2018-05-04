@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Imj.Game.Types -- TODO split
+module Imj.Game.Types
       (
       -- * Client / GameLogic
         Client(..)
@@ -81,6 +81,7 @@ import           Control.Monad.State.Strict(gets, state, modify')
 import           Data.Attoparsec.Text(Parser)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
+import           Data.Proxy(Proxy(..))
 import           Data.Text(unpack)
 
 import           Imj.Categorized
@@ -175,6 +176,9 @@ class (Server (ServerT g)
 
   type ColorThemeT g
   -- ^ The colors used by a player
+
+  gameName :: Proxy g -> String
+  gameName _ = "Game"
 
   {- |
 This method can be implemented to make /custom/ commands available in the chat window.
@@ -317,7 +321,7 @@ data Game g = Game {
   , getDrawnClientState :: ![(ColorString    -- 'ColorString' is used to compare with new messages.
                              ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
   , getPlayers' :: !(Map ClientId (Player g))
-  , _gameSuggestedPlayerName :: !(ConnectIdT (ServerT g))
+  , _gameSuggestedPlayerName :: !(Maybe (ConnectIdT (ServerT g)))
   , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus

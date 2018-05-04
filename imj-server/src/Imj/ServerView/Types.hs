@@ -39,7 +39,7 @@ data ServerContent cached = ServerContent {
 
 data ServerType p =
     Distant !ServerName
-  | Local !ServerLogs !p
+  | Local !ServerLogs !(Maybe p)
   deriving(Generic, Show)
 
 newtype ServerName = ServerName String

@@ -6,12 +6,13 @@ module Imj.ServerView
       , getServerNameAndPort
       ) where
 
+import           Imj.Prelude
 import           Imj.ServerView.Types
 import           Imj.Server.Types
 
 
 mkLocalServerView :: ServerLogs
-                  -> ServerConfigT s
+                  -> Maybe (ServerConfigT s)
                   -> ServerContent (ServerContentT s)
                   -> ServerView s
 mkLocalServerView l p = ServerView (Local l p)

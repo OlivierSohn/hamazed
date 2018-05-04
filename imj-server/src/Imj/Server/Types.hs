@@ -47,7 +47,7 @@ instance Server s => Binary (Command s)
 
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)
-  | Connect !(ConnectIdT s) {-unpack sum-} !ServerOwnership
+  | Connect !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
   | OnCommand !(Command s)
   deriving(Generic)
 instance Server s => Binary (ClientEvent s)
@@ -79,7 +79,7 @@ data ServerEvent s =
   | PlayerInfo !(PlayerNotif s)
                {-# UNPACK #-} !ClientId
   | ConnectionAccepted {-# UNPACK #-} !ClientId
-  | ConnectionRefused !(ConnectIdT s) {-# UNPACK #-} !Text
+  | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
   | Disconnected {-unpack sum-} !DisconnectReason
   | OnContent !(ServerContentT s)
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.

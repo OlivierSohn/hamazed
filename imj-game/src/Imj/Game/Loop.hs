@@ -7,9 +7,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Run
-      ( runWith
-      , produceEvent
+module Imj.Game.Loop
+      ( loop
       ) where
 
 import           Imj.Prelude
@@ -19,53 +18,13 @@ import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use 
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
-import           Control.Monad.Reader(runReaderT)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State.Strict(runStateT)
 
-import           Imj.Server.Class
-import           Imj.Geo.Discrete.Types
-import           Imj.Graphics.Screen
 import           Imj.Input.Types
-import           Imj.ServerView.Types
 
 import           Imj.Event
-import           Imj.Game.Env
-import           Imj.Game.KeysMaps
 import           Imj.Game.Deadlines
 import           Imj.Game.State
-import           Imj.Graphics.Class.HasSizedFace
-import           Imj.Graphics.Font
-import           Imj.Graphics.Render.Delta
-import           Imj.Graphics.Text.RasterizedString
-import           Imj.Game.Network.ClientQueues
-
-{-# INLINABLE runWith #-}
-runWith :: (GameLogic g
-          , PlayerInput i, DeltaRenderBackend i)
-        => Bool
-        -> ClientQueues g
-        -> ServerView (ServerT g)
-        -> ConnectIdT (ServerT g)
-        -> i
-        -> IO ()
-runWith debug queues srv player backend =
-  withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
-    flip withDefaultPolicies backend $ \drawEnv -> do
-      screen <- mkScreen <$> getDiscreteSize backend
-      env <- mkEnv drawEnv backend queues face
-      void $ createState screen debug player srv NotConnected >>=
-        runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
-
- where
-
-  (font,fontname) = fromMaybe (error "absent font") $ look "LCD" fontFiles
-
-  look _ [] = Nothing
-  look name ((f,ftName,_):rest) =
-    if ftName == name
-      then Just (f,ftName)
-      else look name rest
 
 loop :: (MonadIO m
        , g ~ GameLogicT e

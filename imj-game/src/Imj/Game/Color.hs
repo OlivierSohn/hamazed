@@ -15,8 +15,6 @@ module Imj.Game.Color
   , predefinedColor
   , predefinedColors
   , descPredefinedColors
-  -- * Reexports
-  , module Imj.Graphics.Color
   ) where
 
 

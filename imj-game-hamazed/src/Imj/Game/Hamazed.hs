@@ -114,6 +114,8 @@ instance GameLogic HamazedGame where
   type ClientOnlyEvtT HamazedGame = HamazedEvent
   type ColorThemeT    HamazedGame = ColorCycles
 
+  gameName _ = "Hamazed - a game with flying numbers."
+
   cmdParser cmd = case cmd of
     "color" -> tryReport <|> tryCmd
     _ -> fail $ "'" <> unpack cmd <> "' is an unknown command."

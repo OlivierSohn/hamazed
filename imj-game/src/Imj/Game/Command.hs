@@ -30,7 +30,7 @@ import           Imj.Game.Types
 import           Imj.ClientView.Types
 import           Imj.Server.Types
 
-import           Imj.Game.Color
+import           Imj.Graphics.Color
 import           Imj.Game.Draw
 import           Imj.Game.Infos
 import           Imj.Game.Show

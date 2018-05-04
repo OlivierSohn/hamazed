@@ -21,14 +21,17 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Event
+                     , Imj.Game.App
                      , Imj.Game.Color
                      , Imj.Game.ColorTheme.Class
+                     , Imj.Game.Command
                      , Imj.Game.Deadlines
                      , Imj.Game.Draw
-                     , Imj.Game.Command
                      , Imj.Game.Env
                      , Imj.Game.Exceptions
                      , Imj.Game.Infos
+                     , Imj.Game.Internal.Types
+                     , Imj.Game.Internal.ArgParse
                      , Imj.Game.KeysMaps
                      , Imj.Game.Level
                      , Imj.Game.Network
@@ -36,12 +39,12 @@ library
                      , Imj.Game.Network.ClientQueues
                      , Imj.Game.Network.Server
                      , Imj.Game.Player
+                     , Imj.Game.Priorities
+                     , Imj.Game.Loop
                      , Imj.Game.Show
                      , Imj.Game.State
                      , Imj.Game.Status
                      , Imj.Game.Types
-                     , Imj.Game.Priorities
-                     , Imj.Game.Run
                      , Imj.Game.Timing
                      , Imj.Game.Update
   build-depends:       base >= 4.9 && < 4.12
@@ -51,6 +54,7 @@ library
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
+                     , imj-bindings-audio ==0.1.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*

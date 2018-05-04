@@ -104,7 +104,7 @@ application st conn =
 
 
 handleClient :: (Server s)
-             => ConnectIdT s
+             => Maybe (ConnectIdT s)
              -> ServerOwnership
              -> ClientLifecycle (ReconnectionContext s)
              -> MVar (ServerState s)
@@ -192,7 +192,7 @@ pingPong conn dt =
 
 addClient :: (Server s
             , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-          => ConnectIdT s
+          => Maybe (ConnectIdT s)
           -> ServerOwnership
           -> m ()
 addClient connectId cliType = do

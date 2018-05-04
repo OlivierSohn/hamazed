@@ -29,10 +29,12 @@ module Imj.Server.Class
 
 import           Imj.Prelude
 import           Data.List(unwords)
+import           Data.String(IsString)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState)
+import           Options.Applicative(Parser)
 
 import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
@@ -54,6 +56,7 @@ class (Show (ClientEventT s)
      , Eq (SharedValueKeyT s)
      , Eq (SharedValueT s)
      , Eq (SharedEnumerableValueKeyT s)
+     , IsString (ConnectIdT s)
      , Binary (ServerContentT s)
      , Binary (ClientEventT s)
      , Binary (ServerEventT s)
@@ -96,8 +99,10 @@ class (Show (ClientEventT s)
   type ServerConfigT s = (r :: *) | r -> s
   type ServerContentT s = (r :: *) | r -> s
 
+  parseConfig :: Parser (ServerConfigT s)
+
   -- | Called to create the server.
-  mkInitial :: (MonadIO m) => ServerConfigT s -> m (ServerContentT s, s)
+  mkInitial :: (MonadIO m) => Maybe (ServerConfigT s) -> m (ServerContentT s, s)
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,
@@ -105,17 +110,17 @@ class (Show (ClientEventT s)
   inParallel :: [MVar (ServerState s) -> IO ()]
 
   -- | When returning Left, the corresponding client connection is rejected.
-  acceptConnection :: ConnectIdT s -> Either Text ()
+  acceptConnection :: Maybe (ConnectIdT s) -> Either Text ()
 
   -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
   tryReconnect :: (MonadIO m, MonadState (ServerState s) m)
-               => ConnectIdT s
+               => Maybe (ConnectIdT s)
                -> m (Maybe (ClientId, ReconnectionContext s))
 
   -- | Creates the client view, given the 'ClientId' and 'ConnectIdT'.
   createClientView :: (MonadIO m, MonadState (ServerState s) m)
                    => ClientId
-                   -> ConnectIdT s
+                   -> Maybe (ConnectIdT s)
                    -> m (ClientViewT s, ClientName, Color8 Foreground)
 
   -- | These events are sent to the newly added client.

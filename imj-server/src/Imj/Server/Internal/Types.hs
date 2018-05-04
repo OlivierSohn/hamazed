@@ -12,7 +12,6 @@ module Imj.Server.Internal.Types
 import           Imj.Prelude
 import           Data.Text(unpack)
 
-
 data ClientLifecycle c =
     NewClient
   | ReconnectingClient !c

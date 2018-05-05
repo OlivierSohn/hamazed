@@ -25,6 +25,7 @@ import           Data.String(IsString(..))
 import           Options.Applicative
                    (Parser, short, long, option, str, help, optional
                   , ReadM, readerError, (<*>), flag)
+import           Options.Applicative.Types(Parser(..))
 import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
@@ -94,8 +95,7 @@ parserSrvLogs =
        )))
 
 parserSrvConfig :: GameLogic g => Proxy g -> Parser (Maybe (ServerConfigT (ServerT g)))
-parserSrvConfig _ =
-  optional $ parseArg
+parserSrvConfig _ = maybe (NilP Nothing) optional parseArg
 
 parseConnectId :: GameLogic g => Parser (Maybe (ConnectIdT (ServerT g)))
 parseConnectId =

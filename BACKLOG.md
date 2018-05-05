@@ -1,9 +1,10 @@
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 
+- remove acceptConnection, replace it by class ConnectId a where checkValidity a :: Either Text ()
 - Wait for all players to press a key before starting the game.
 
-- using imj-engine, create a mini game that displays a timer in the center of the screen,
-that starts when space is hit and stops when space is hit again.
+- as a tutorial, use imj-engine to create a mini game that displays a counter in the center of the screen.
+every connected player can increment the counter by hitting the space bar.
 
 - imj-server could depend on a smaller version of imj-base
 

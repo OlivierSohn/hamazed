@@ -19,6 +19,9 @@ import           Imj.Graphics.UI.Slider
 class UIInstructions s where
   instructions :: s -> [ConfigUI]
 
+instance UIInstructions () where
+  instructions _ = []
+
 data ConfigUI = ConfigUI {
     _title :: !Text
     -- ^ Describing the parameter

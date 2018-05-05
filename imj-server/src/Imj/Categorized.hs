@@ -27,6 +27,8 @@ class (Show e) => Categorized e where
   evtCategory :: e -> EventCategory
   evtCategory _ = Command'
 
+instance Categorized ()
+
 instance (Categorized a, Categorized b)
   => Categorized (Either a b) where
   evtCategory = either evtCategory evtCategory

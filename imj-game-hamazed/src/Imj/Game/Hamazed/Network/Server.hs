@@ -153,8 +153,8 @@ instance Server HamazedServer where
                   return Nothing)
 
   createClientView i suggested = do
-    color <- fmap (mkClientColorFromCenter i) (gets' centerColor)
-    name <- makePlayerName $ fromMaybe "Player" suggested
+    color <- fmap (mkClientColorFromCenter i) (gets' centerColor) -- TODO Generic (ColorTheme)
+    name <- makePlayerName $ fromMaybe "Player" suggested -- TODO generic (SuggestedPlayerName)
     return (mkHamazedClient, name, color)
 
   onReconnection gameConnectedPlayers =

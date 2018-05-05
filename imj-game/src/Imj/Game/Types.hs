@@ -233,6 +233,7 @@ and the input has been consumed up until the /beginning/ of the command paramete
                    , MonadReader e m, Client e
                    , MonadIO m)
                  => m ()
+  onAnimFinished = return ()
 
   {- Handle your game's events. These are triggered either by a 'ServerT', or by a key press
   (see 'keyMaps') -}

@@ -65,7 +65,7 @@ class (Show (ClientEventT s)
      , Binary (SharedValueKeyT s)
      , Binary (SharedValueT s)
      , Binary (SharedEnumerableValueKeyT s)
-     , NFData s
+     , NFData s -- because we use Control.Concurrent.MVar.Strict
      , NFData (ServerContentT s)
      , NFData (ClientViewT s)
      , NFData (SharedValueKeyT s)
@@ -107,14 +107,10 @@ class (Show (ClientEventT s)
   -- need to be run as long as the server is running. For a game server,
   -- the list will typically contain a game scheduling action.
   inParallel :: [MVar (ServerState s) -> IO ()]
+  inParallel = []
 
   -- | When returning Left, the corresponding client connection is rejected.
   acceptConnection :: Maybe (ConnectIdT s) -> Either Text ()
-
-  -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
-  tryReconnect :: (MonadIO m, MonadState (ServerState s) m)
-               => Maybe (ConnectIdT s)
-               -> m (Maybe (ClientId, ReconnectionContext s))
 
   -- | Creates the client view, given the 'ClientId' and 'ConnectIdT'.
   createClientView :: (MonadIO m, MonadState (ServerState s) m)
@@ -126,9 +122,20 @@ class (Show (ClientEventT s)
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
                 => m [ServerEventT s]
 
+  -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
+  --
+  -- The default implementation returns 'Nothing'.
+  tryReconnect :: (MonadIO m, MonadState (ServerState s) m)
+               => Maybe (ConnectIdT s)
+               -> m (Maybe (ClientId, ReconnectionContext s))
+  tryReconnect _ = return Nothing
+
   -- | For reconnection scenario : called once, only if 'tryReconnect' returned a 'Just'.
+  --
+  -- Default implementation does nothing.
   onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                  => ReconnectionContext s -> m ()
+  onReconnection _ = return ()
 
   onDo :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
        => ServerCommand s -> m ()
@@ -141,13 +148,20 @@ class (Show (ClientEventT s)
                     => ClientEventT s -> m ()
 
   -- | Called after a client has been disconnected (either intentionally or on connection error).
+  --
+  -- Default implementation does nothing.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)
                   => ClientId
                   -> DisconnectReason -> m ()
+  afterClientLeft _ _ = return ()
 
-class ChatShow a where
-  -- | Returns the 'String' to display in the chat window.
+class Show a => ChatShow a where
+  -- | Returns the 'String' to display in the chat window. The default implemention
+  -- is 'show'.
   chatShow :: a -> String
+  chatShow = show
+
+instance ChatShow ()
 
 data ServerState s = ServerState {
     serverLogs :: {-unpack sum-} !ServerLogs

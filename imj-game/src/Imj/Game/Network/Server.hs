@@ -36,7 +36,8 @@ data ColorScheme =
 instance NFData ColorScheme
 instance Arg ColorScheme where
   parseArg =
-    (option srvColorSchemeArg
+    Just $
+      option srvColorSchemeArg
        (  long "colorScheme"
        <> short 'c'
        <> help (
@@ -46,7 +47,7 @@ instance Arg ColorScheme where
        "'rgb' | '\"r g b\"' where r,g,b are one of {0,1,2,3,4,5}, " ++
        "'time' to chose colors based on server start time. " ++
        "Default is 322 / \"3 2 2\". Incompatible with --serverName."
-       )))
+       ))
 
 mkCenterColor :: ColorScheme -> IO (Color8 Foreground)
 mkCenterColor (ColorScheme c) = return c

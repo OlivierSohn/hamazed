@@ -11,7 +11,6 @@ module Imj.Server.Types
       , ClientEvent(..)
       , Command(..)
       , ClientCommand(..)
-      , ClientName(..), unClientName
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
@@ -29,11 +28,12 @@ import           Network.WebSockets
 import           Imj.Categorized
 import           Imj.Graphics.Color
 import           Imj.Music
+import           Imj.Network
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
 
 data Command s =
-    RequestApproval !ClientCommand
+    RequestApproval !(ClientCommand Proposed)
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
   | Do !(ServerCommand s)
@@ -68,11 +68,11 @@ instance Server s => Show (ClientEvent s) where
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
   | PlayMusic !Music !Instrument
-  | CommandError {-unpack sum-} !ClientCommand
+  | CommandError {-unpack sum-} !(ClientCommand Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
   | RunCommand {-# UNPACK #-} !ClientId
-               {-unpack sum-} !ClientCommand
+               {-unpack sum-} !(ClientCommand Approved)
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !(ServerCommand s)
   -- ^ Response to a 'Report'.
@@ -81,7 +81,7 @@ data ServerEvent s =
   | ConnectionAccepted {-# UNPACK #-} !ClientId
   | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
   | Disconnected {-unpack sum-} !DisconnectReason
-  | OnContent !(ServerContentT s)
+  | OnContent !(ValuesT s)
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
@@ -112,15 +112,15 @@ instance Server s => Categorized (ServerEvent s) where
 
 -- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
 --  then executed (for the final part) by /every/ client.
-data ClientCommand =
-    AssignName {-# UNPACK #-} !ClientName
+data ClientCommand a =
+    AssignName {-# UNPACK #-} !(ClientName a)
   | AssignColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !(Either Text ())
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary ClientCommand
+instance Binary (ClientCommand a)
 
 data PlayerNotif s =
     Joins
@@ -131,9 +131,9 @@ data PlayerNotif s =
   deriving(Generic, Show)
 instance Server s => Binary (PlayerNotif s)
 
-mkServerState :: ServerLogs -> ServerContentT s -> s -> ServerState s
-mkServerState logs c s =
-  ServerState logs (ClientViews Map.empty (ClientId 0)) False c s
+mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
+mkServerState logs color c s =
+  ServerState logs (ClientViews Map.empty (ClientId 0)) False c color s
 
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))

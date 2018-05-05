@@ -25,6 +25,7 @@ module Imj.Server.Run
       , error'
       , checkNameAvailability
       , checkName
+      , publish
       ) where
 
 import           Imj.Prelude
@@ -47,9 +48,11 @@ import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.Server.Types
 
 import           Imj.Graphics.Text.ColorString(colored)
+import           Imj.Network
 import           Imj.Server.Connection
 import           Imj.Server
 import           Imj.Server.Log
@@ -143,42 +146,80 @@ handleIncomingEvent' = \case
   ClientAppEvt e -> handleClientEvent e
   OnCommand c -> case c of
     RequestApproval cmd -> case cmd of
-      AssignName name -> either
+      AssignName suggested -> either
         (notifyClient' . CommandError cmd)
-        (\_ -> checkNameAvailability name >>= either
+        (\valid -> checkNameAvailability valid >>= either
           (notifyClient' . CommandError cmd)
-          (\_ -> do
-            adjustClient' $ \cl -> cl { getName = name }
-            acceptCmd cmd)
-        ) $ checkName $ unpack $ unClientName name
+          (\approved -> do
+            adjustClient' $ \cl -> cl { getName = approved }
+            acceptCmd $ AssignName approved)
+        ) $ checkName suggested
       AssignColor _ ->
         notifyClient' $ CommandError cmd "You cannot set an individual player color, please use 'Do PutColorSchemeCenter'"
-      Says _ ->
-        acceptCmd cmd
+      Says x ->
+        acceptCmd $ Says x
       Leaves _ ->
         asks clientId >>= disconnect (ClientShutdown $ Right ()) -- will do the corresponding 'notifyEveryone $ RunCommand'
-    Do x -> onDo x
-    Report x -> onReport x
+    Do cmd -> do
+      case cmd of
+        Succ x -> onDelta 1    x
+        Pred x -> onDelta (-1) x
+        Put x ->
+          case x of
+            ColorSchemeCenter color -> do
+              modify' $ \s -> s { centerColor = color }
+              adjustAllWithKey' $ \i cl -> cl { getColor = mkClientColorFromCenter i color }
+              gets clientsMap >>=
+                notifyEveryoneN' .
+                  map (\(k, cl) -> RunCommand k (AssignColor $ getColor cl)) .
+                  Map.assocs
+            AppValue y ->
+              onPut y
+      publish $ Done cmd
+    Report x ->
+      case x of
+        Get ColorSchemeCenterKey ->
+          gets centerColor >>= notifyClient' . Reporting . Put . ColorSchemeCenter
+        Get (AppValueKey y) ->
+          getValue y <$> gets content >>= notifyClient' . Reporting . Put . AppValue
 
  where
 
   acceptCmd cmd = asks clientId >>= notifyEveryone' . flip RunCommand cmd
 
+publish :: (MonadReader ConstClientView m, MonadIO m, Server s,
+            MonadState (ServerState s) m)
+        => PlayerNotif s -> m ()
+publish a = asks clientId >>= notifyEveryone' . PlayerInfo a
+
+makePlayerName :: (MonadIO m, MonadState (ServerState s) m)
+               => ClientName Proposed
+               -> m (ClientName Approved)
+makePlayerName (ClientName sn) = do
+  let go mayI = do
+        let proposal = ClientName $ maybe sn ((<>) sn . pack . show) mayI
+        checkNameAvailability proposal >>= either
+          (\_ -> go $ Just $ maybe (2::Int) succ mayI)
+          return
+  go Nothing
 
 checkNameAvailability :: (MonadIO m, MonadState (ServerState g) m)
-                      => ClientName -> m (Either Text ())
-checkNameAvailability name =
-  any ((== name) . getName) <$> gets clientsMap >>= \case
+                      => ClientName Proposed
+                      -> m (Either Text (ClientName Approved))
+checkNameAvailability (ClientName name) =
+  any ((== name) . unClientName . getName) <$> gets clientsMap >>= \case
     True  -> return $ Left "Name is already taken"
-    False -> return $ Right ()
+    False -> return $ Right $ ClientName name
 
 
-checkName :: String -> Either Text ()
-checkName name
+checkName :: ClientName Proposed -> Either Text (ClientName Proposed)
+checkName c@(ClientName txt)
   | any ($ name) [ null, any isPunctuation, any isSpace] =
       Left "Name cannot contain punctuation or whitespace, and cannot be empty"
   | otherwise =
-      Right ()
+      Right c
+ where
+  name = unpack txt
 
 pingPong :: Connection -> Time Duration System -> IO ()
 pingPong conn dt =
@@ -198,11 +239,11 @@ addClient :: (Server s
 addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
-  (c',name,color) <- createClientView i connectId
+  color <- fmap (mkClientColorFromCenter i) (gets centerColor)
+  realName <- makePlayerName $ mkClientName connectId
+  notifyEveryoneN' $ map (RunCommand i) [AssignColor color, AssignName realName] -- elts order is important for animations.
 
-  notifyEveryoneN' $ map (RunCommand i) [AssignColor color, AssignName name] -- elts order is important for animations.
-
-  let c = ClientView conn cliType name color c'
+  let c = ClientView conn cliType realName color mkInitialClient
 
   modify' $ \ s ->
     let clients = clientsViews s

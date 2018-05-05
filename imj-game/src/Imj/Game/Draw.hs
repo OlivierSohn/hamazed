@@ -77,7 +77,7 @@ drawStatus =
 drawSetup :: (Server s
             , MonadReader e m, Draw e
             , MonadIO m)
-          => Maybe (ServerContentT s)
+          => Maybe (ValuesT s)
           -> RectContainer
           -> m ()
 drawSetup mayWorldParams cont = do

@@ -50,7 +50,6 @@ import           Imj.Game.Hamazed.Level
 import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Types
@@ -68,7 +67,6 @@ import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
-import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Infos
@@ -87,7 +85,6 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Chat
-import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Music hiding(Do)
 import           Imj.Physics.Discrete.Collision
@@ -112,6 +109,7 @@ data HamazedGame = HamazedGame {
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
   type ClientOnlyEvtT HamazedGame = HamazedEvent
+  type ClientInfoT    HamazedGame = BattleShip
   type ColorThemeT    HamazedGame = ColorCycles
 
   gameName _ = "Hamazed - a game with flying numbers."
@@ -144,16 +142,18 @@ instance GameLogic HamazedGame where
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
 
-  mkWorldInfos _ _ (Screen _ center) _ Nothing =
-    (Colored worldFrameColors $ mkRectContainerWithCenterAndInnerSize center $ worldSizeFromLevel firstServerLevel Square
-    ,((Successive [""], Successive [""]),[]))
-  mkWorldInfos t trans (Screen _ center) names (Just (HamazedGame current future shotNumbers (Level level _))) =
-    let (World _ ships space _ _) =
-          case trans of
+  getFrameColor _ = worldFrameColors
+
+  mkWorldInfos t _ (HamazedGame _ _ shotNumbers (Level level _)) =
+    let (u,d) = mkUpDownInfo
+    in Infos u d (mkLeftUpInfo t shotNumbers level) (mkLeftDownInfo t level)
+
+  getClientsInfos t (HamazedGame current future _ _) =
+    let (World _ ships _ _ _) =
+          case t of
             From -> current
             To -> fromMaybe current future
-    in (Colored worldFrameColors $ mkRectContainerWithCenterAndInnerSize center $ getSize space
-       ,mkInfos t ships names shotNumbers level)
+    in ships
 
   {-# INLINABLE getViewport #-}
   getViewport trans (Screen _ center) (HamazedGame current future _ _) =
@@ -180,10 +180,10 @@ instance GameLogic HamazedGame where
     Setup -> return $ case key of
       AlphaNum c -> case c of
         ' ' -> Just $ ClientAppEvt $ ExitedState Setup
-        '1' -> Just $ OnCommand $ Do $ Put $ WorldShape Square
-        '2' -> Just $ OnCommand $ Do $ Put $ WorldShape Rectangle'2x1
-        --'e' -> Just $ OnCommand $ Do $ Put $ WallDistribution None
-        --'r' -> Just $ OnCommand $ Do $ Put $ WallDistribution $ minRandomBlockSize 0.5
+        '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
+        '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
+        --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
+        --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
         'y' -> Just $ OnCommand $ Do $ Succ BlockSize
         'g' -> Just $ OnCommand $ Do $ Pred BlockSize
         'u' -> Just $ OnCommand $ Do $ Succ WallProbability

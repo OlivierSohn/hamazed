@@ -5,6 +5,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Imj.Server.Connection
       ( notify
       , notifyN

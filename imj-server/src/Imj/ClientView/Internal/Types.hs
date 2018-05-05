@@ -39,7 +39,7 @@ newtype ClientId = ClientId Int64
 data ClientView c = ClientView {
     getConnection :: {-# UNPACK #-} !Connection
   , getServerOwnership :: {-unpack sum-} !ServerOwnership
-  , getName :: {-# UNPACK #-} !ClientName
+  , getName :: {-# UNPACK #-} !(ClientName Approved)
   , getColor :: {-# UNPACK #-} !(Color8 Foreground)
   , unClientView :: !c
 } deriving(Generic)

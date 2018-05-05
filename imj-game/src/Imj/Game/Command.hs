@@ -25,9 +25,14 @@ import           Data.Char(isSpace, toLower, isAlphaNum)
 import           Data.Text(pack, unsnoc)
 import qualified Data.Text as Text
 import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map
 
-import           Imj.Game.Types
 import           Imj.ClientView.Types
+import           Imj.Game.Types
+import           Imj.Graphics.Class.DiscreteDistance
+import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Text.ColoredGlyphList hiding (colored)
+import           Imj.Network
 import           Imj.Server.Types
 
 import           Imj.Graphics.Color
@@ -35,16 +40,19 @@ import           Imj.Game.Draw
 import           Imj.Game.Infos
 import           Imj.Game.Show
 import           Imj.Game.Status
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.Chat
+import           Imj.Graphics.UI.Colored
+import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
 runClientCommand :: (GameLogic g
                    , MonadState (AppState g) m, MonadIO m)
                  => ClientId
-                 -> ClientCommand
+                 -> ClientCommand Approved
                  -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
@@ -157,10 +165,41 @@ mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
        -> m ()
        -- ^ action to run when the animation is over
        -> m UIAnimation
-mkAnim it t screen namesI namesF gI gF finalizer = do
+mkAnim it t screen@(Screen _ center) namesI namesF gI gF finalizer = do
   let (hDist, vDist) = computeViewDistances
-      from = mkWorldInfos Normal From screen namesI gI
-      to   = mkWorldInfos it     To   screen namesF gF
-      anim = mkUIAnimation from to hDist vDist t
+      colorFrom = getFrameColor gI
+      colorTo   = getFrameColor gF
+      from = maybe mkEmptyInfos (mkWorldInfos Normal From) gI
+      to   = maybe mkEmptyInfos (mkWorldInfos it     To  ) gF
+      lI = maybe [] (\g -> mkClientsInfos (getClientsInfos From g) namesI) gI
+      lF = maybe [] (\g -> mkClientsInfos (getClientsInfos To   g) namesF) gF
+
+      from' = mergeInfos from lI
+      to'   = mergeInfos to   lF
+
+      rectFrom = Colored colorFrom $ maybe defaultRect (getViewport From screen) gI
+      rectTo   = Colored colorTo   $ maybe defaultRect (getViewport To   screen) gF
+
+      defaultRect = mkRectContainerWithCenterAndInnerSize center $ Size 10 10
+
+      anim = mkUIAnimation (rectFrom,from') (rectTo,to') hDist vDist t
   when (isNothing $ _deadline $ getProgress $ anim) finalizer
   return anim
+
+ where
+
+  mkClientsInfos :: LeftInfo a
+                 => Map ClientId a
+                 -> Map ClientId (Player g)
+                 -> [Successive ColoredGlyphList]
+  mkClientsInfos clients players =
+    case Map.elems $ safeZipMerge clients players of
+      [] -> [Successive [colorize (onBlack $ gray 10) $ fromString ""]] -- for initial state when we were not given an id yet
+      l -> map (\(client,player) ->
+        let name = getPlayerUIName'' player
+        in Successive [name <> maybe "" leftInfo client]) l
+
+  mergeInfos :: Infos
+             -> [Successive ColoredGlyphList]
+             -> ((Successive ColoredGlyphList, Successive ColoredGlyphList), [Successive ColoredGlyphList])
+  mergeInfos (Infos u d lu ld) l = ((u,d), lu ++ l ++ ld )

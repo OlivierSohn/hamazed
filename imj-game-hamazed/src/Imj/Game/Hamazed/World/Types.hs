@@ -36,6 +36,8 @@ module Imj.Game.Hamazed.World.Types
         , scopedLocation
         -- * World constants
         , initialParameters
+        -- * Strings
+        , text, text', insideBrackets
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -50,7 +52,7 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
-import           Data.List(take, splitAt, concat)
+import           Data.List(take, splitAt, concat, replicate)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(lookup, filter)
 import           Data.Set(Set)
@@ -62,9 +64,13 @@ import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Text.ColoredGlyphList hiding(take, concat)
+import           Imj.Graphics.UI.Animation.Types
 import           Imj.Physics.Discrete.Types
 
+import           Imj.Game.Color
 import           Imj.Game.Hamazed.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
@@ -160,6 +166,26 @@ data BattleShip = BattleShip {
   -- ^ The component in which the ship is located.
 } deriving(Generic, Show)
 instance Binary BattleShip
+instance LeftInfo BattleShip where
+  leftInfo (BattleShip _ ammo status _ _) =
+    let pad = initialLaserAmmo - ammo
+        ammoColor' Destroyed = darkConfigFgColor
+        ammoColor' _   = ammoColor
+    in text ("   " ++ replicate pad ' ') <>
+        insideBrackets (text' (replicate ammo '.') (ammoColor' status))
+
+
+insideBrackets :: ColoredGlyphList -> ColoredGlyphList
+insideBrackets a =
+  text' "[" bracketsColor <>
+  a <>
+  text' "]" bracketsColor
+
+text :: String -> ColoredGlyphList
+text x = text' x configFgColor
+
+text' :: String -> Color8 Foreground -> ColoredGlyphList
+text' x = colored (map textGlyph x)
 
 data ShipStatus =
     Armored

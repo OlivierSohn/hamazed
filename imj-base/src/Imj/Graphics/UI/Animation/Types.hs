@@ -9,6 +9,7 @@ module Imj.Graphics.UI.Animation.Types
            , UIAnimation(..)
            , UIAnimProgress(..)
            , mkZeroAnimation
+           , LeftInfo(..)
            ) where
 
 import           Imj.Prelude
@@ -21,6 +22,12 @@ import           Imj.Graphics.Text.ColoredGlyphList
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
+
+class LeftInfo a where
+  leftInfo :: a -> ColoredGlyphList
+
+instance LeftInfo () where
+  leftInfo _ = mempty
 
 -- | Manages the progress and deadline of 'UIEvolutions'.
 data UIAnimation = UIAnimation {

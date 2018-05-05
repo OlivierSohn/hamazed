@@ -11,7 +11,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       ( WorldState(..)
       , WorldCreation(..)
       , HamazedClient(..)
-      , mkHamazedClient
       , HamazedClientEvent(..)
       , HamazedServerEvent(..)
       , PlayerState(..)
@@ -24,9 +23,9 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , GameNotif(..)
       , GameStep(..)
       , GameStatus(..)
-      , SharedEnumerableValueKey(..)
-      , SharedValue(..)
-      , SharedValueKey(..)
+      , HamazedEnumValueKey(..)
+      , HamazedValue(..)
+      , HamazedValueKey(..)
       -- * Game
       , GameStateEssence(..)
       , ShotNumber(..)
@@ -45,7 +44,6 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Event
-import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 
 import           Imj.Game.Level
@@ -122,33 +120,29 @@ data GameNotif =
 instance Binary GameNotif
 
 -- | Identifiers of values shared by all players.
-data SharedEnumerableValueKey = -- This could be an instance of WorldParameters
+data HamazedEnumValueKey = -- This could be an instance of WorldParameters
     BlockSize
   | WallProbability
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary SharedEnumerableValueKey
-instance NFData SharedEnumerableValueKey
+instance Binary HamazedEnumValueKey
+instance NFData HamazedEnumValueKey
 
--- | Values shared by all players.
-data SharedValue =
-    ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
-  | WorldShape {-unpack sum-} !WorldShape
+-- | ServerContent shared by all players.
+data HamazedValue =
+    WorldShape {-unpack sum-} !WorldShape
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary SharedValue
-instance NFData SharedValue
-instance ChatShow SharedValue where
-  chatShow (ColorSchemeCenter c) =
-    unwords ["color scheme center:", show $ color8CodeToXterm256 c]
+instance Binary HamazedValue
+instance NFData HamazedValue
+instance ChatShow HamazedValue where
   chatShow (WorldShape shape) =
     unwords ["world shape:", show shape]
 
 -- | Identifiers of values shared by all players.
-data SharedValueKey =
-    ColorSchemeCenterKey
-  | WorldShapeKey
+data HamazedValueKey =
+    WorldShapeKey
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary SharedValueKey
-instance NFData SharedValueKey
+instance Binary HamazedValueKey
+instance NFData HamazedValueKey
 
 -- | 'PeriodicMotion' aggregates the accelerations of all ships during a game period.
 data GameStep =
@@ -191,10 +185,6 @@ data HamazedClient = HamazedClient {
 } deriving(Generic, Show)
 instance NFData HamazedClient
 
-
-mkHamazedClient :: HamazedClient
-mkHamazedClient =
-  HamazedClient Nothing Nothing zeroCoords Nothing
 
 data PlayerState =
     Playing {-unpack sum-} !(Maybe LevelOutcome)

@@ -56,6 +56,7 @@ import           Imj.Graphics.Text.Render
 import           Imj.Input.Types
 import           Imj.Log
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.ServerView.Types
 import           Imj.ServerView
 
@@ -172,9 +173,9 @@ run prox
               >>= either error (runWith useAudio debug queues srv mayConnectId)
 
 mkServer :: Maybe ServerName
-         -> Maybe (ServerConfigT s)
+         -> Maybe ColorScheme
          -> Maybe ServerLogs
-         -> ServerContent (ServerContentT s)
+         -> ServerContent (ValuesT s)
          -> ServerView s
 mkServer Nothing conf logs =
   mkLocalServerView (fromMaybe NoLogs logs) conf

@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
@@ -33,6 +33,8 @@ module Imj.Game.Types
       -- * Helper types
       , Transitioning(..)
       , GameArgs(..)
+      , Infos(..)
+      , mkEmptyInfos
       -- * EventGroup
       , isPrincipal
       , mkEmptyGroup
@@ -87,6 +89,7 @@ import           Data.Text(unpack)
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Event
 import           Imj.Game.Audio.Class
 import           Imj.Game.Configuration
@@ -95,7 +98,6 @@ import           Imj.Game.Infos
 import           Imj.Game.Player
 import           Imj.Game.Priorities
 import           Imj.Game.Status
-import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
@@ -107,10 +109,11 @@ import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
-import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
+import           Imj.Network
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.Server.Types
 import           Imj.ServerView.Types
 
@@ -168,6 +171,7 @@ class (Server (ServerT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
      , Binary (ColorThemeT g)
+     , LeftInfo (ClientInfoT g)
      )
       =>
      GameLogic g
@@ -181,6 +185,8 @@ class (Server (ServerT g)
 
   type ColorThemeT g
   -- ^ The colors used by a player
+
+  type ClientInfoT g
 
   gameName :: Proxy g -> String
   gameName _ = "Game"
@@ -218,15 +224,19 @@ and the input has been consumed up until the /beginning/ of the command paramete
               -> RectContainer
               -- ^ The screen region used to draw the game in 'drawGame'
 
-  -- TODO doc + should we split it in 2?
+  getClientsInfos :: Transitioning
+                  -> g
+                  -> Map ClientId (ClientInfoT g)
+  getClientsInfos _ _ = mempty
+
+  getFrameColor :: Maybe g
+                -> LayeredColor
+
   mkWorldInfos :: InfoType
                -> Transitioning
-               -> Screen
-               -> Map ClientId (Player g)
-               -> Maybe g
-               -> (Colored RectContainer
-                  ,((Successive ColoredGlyphList,Successive ColoredGlyphList)
-                    ,[Successive ColoredGlyphList])) -- TODO use a better type
+               -> g
+               -> Infos
+  mkWorldInfos _ _ _ = mkEmptyInfos
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m
@@ -262,6 +272,14 @@ and the input has been consumed up until the /beginning/ of the command paramete
              , MonadIO m)
            => m ()
 
+data Infos = Infos {
+    upInfos, downInfos :: !(Successive ColoredGlyphList)
+  , leftUpInfos :: [Successive ColoredGlyphList]
+  , leftDownInfos :: [Successive ColoredGlyphList]
+}
+
+mkEmptyInfos :: Infos
+mkEmptyInfos = Infos (Successive [fromString ""]) (Successive [fromString ""]) [] []
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
@@ -327,7 +345,7 @@ data Game g = Game {
   , getDrawnClientState :: ![(ColorString    -- 'ColorString' is used to compare with new messages.
                              ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
   , getPlayers' :: !(Map ClientId (Player g))
-  , _gameSuggestedPlayerName :: !(Maybe (ConnectIdT (ServerT g)))
+  , _gameSuggestedClientName :: !(Maybe (ConnectIdT (ServerT g)))
   , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
@@ -340,7 +358,7 @@ data GameState g = GameState {
 }
 
 data Player g = Player {
-    getPlayerName :: {-# UNPACK #-} !ClientName
+    getPlayerName :: {-# UNPACK #-} !(ClientName Approved)
   , getPlayerStatus :: {-unpack sum-} !PlayerStatus
   , getPlayerColors :: {-# UNPACK #-} !(PlayerColors g)
 } deriving(Generic, Show)
@@ -405,7 +423,7 @@ data GameArgs g = GameArgs
   !(Maybe ServerName)
   !(Maybe ServerPort)
   !(Maybe ServerLogs)
-  !(Maybe (ServerConfigT (ServerT g)))
+  !(Maybe ColorScheme)
   !(Maybe (ConnectIdT (ServerT g)))
   !(Maybe BackendType)
   !(Maybe PPU)
@@ -487,15 +505,15 @@ getMyId =
     _ -> Nothing) <$> getGameConnection
 
 {-# INLINABLE putServerContent #-}
-putServerContent :: MonadState (AppState g) m => ServerContentT (ServerT g) -> m ()
+putServerContent :: MonadState (AppState g) m => ValuesT (ServerT g) -> m ()
 putServerContent p =
   getServerView >>= \s@(ServerView _ c) ->
-    putServer s { serverContent = c { cachedContent = Just p } }
+    putServer s { serverContent = c { cachedValues = Just p } }
 
 {-# INLINABLE getServerContent #-}
-getServerContent :: MonadState (AppState g) m => m (Maybe (ServerContentT (ServerT g)))
+getServerContent :: MonadState (AppState g) m => m (Maybe (ValuesT (ServerT g)))
 getServerContent =
-  cachedContent . serverContent <$> getServerView
+  cachedValues . serverContent <$> getServerView
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState (AppState g) m => m (Map ClientId (Player g))

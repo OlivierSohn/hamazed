@@ -10,6 +10,8 @@
 
 module Imj.Server.Class
       ( Server(..)
+      , Value(..)
+      , ValueKey(..)
       , ServerReport(..)
       , ServerCommand(..)
       , ServerState(..)
@@ -22,67 +24,69 @@ module Imj.Server.Class
       , ClientName(..)
       , unClientName
       , ChatShow(..)
+      , gets'
       -- * reexports
       , MonadReader
       , MonadState
       ) where
 
 import           Imj.Prelude
+import           Data.Proxy(Proxy)
 import           Data.List(unwords)
-import           Data.String(IsString)
+import           Data.String(IsString(..))
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Strict(MonadState)
+import           Control.Monad.State.Strict(MonadState, gets)
 
 import           Imj.Arg.Class
 import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
+import           Imj.Graphics.Color.Types
 import           Imj.Server.Internal.Types
 
-import           Imj.Graphics.Color
 import           Imj.Network
 
 class (Show (ClientEventT s)
      , Show (ConnectIdT s)
-     , Show (ServerConfigT s)
-     , Show (ServerContentT s)
+     , Show (ValuesT s)
      , Show (ClientViewT s)
-     , Show (SharedValueKeyT s)
-     , Show (SharedValueT s)
-     , Show (SharedEnumerableValueKeyT s)
-     , ChatShow (SharedValueT s)
-     , Arg (ServerConfigT s)
-     , Eq (SharedValueKeyT s)
-     , Eq (SharedValueT s)
-     , Eq (SharedEnumerableValueKeyT s)
-     , IsString (ConnectIdT s)
-     , Binary (ServerContentT s)
+     , Show (ValueKeyT s)
+     , Show (ValueT s)
+     , Show (EnumValueKeyT s)
+     , ChatShow (ValueT s)
+     , Arg (ConnectIdT s)
+     , ClientNameSuggestion (ConnectIdT s)
+     , Eq (ValueKeyT s)
+     , Eq (ValueT s)
+     , Eq (EnumValueKeyT s)
+     , Binary (ValuesT s)
      , Binary (ClientEventT s)
      , Binary (ServerEventT s)
      , Binary (ConnectIdT s)
-     , Binary (SharedValueKeyT s)
-     , Binary (SharedValueT s)
-     , Binary (SharedEnumerableValueKeyT s)
+     , Binary (ValueKeyT s)
+     , Binary (ValueT s)
+     , Binary (EnumValueKeyT s)
      , NFData s -- because we use Control.Concurrent.MVar.Strict
-     , NFData (ServerContentT s)
+     , NFData (ValuesT s)
      , NFData (ClientViewT s)
-     , NFData (SharedValueKeyT s)
-     , NFData (SharedValueT s)
-     , NFData (SharedEnumerableValueKeyT s)
-     , UIInstructions (ServerContentT s)
+     , NFData (ValueKeyT s)
+     , NFData (ValueT s)
+     , NFData (EnumValueKeyT s)
+     , UIInstructions (ValuesT s)
      , Categorized (ServerEventT s)
      )
  =>
   Server s
  where
 
-  type SharedValueKeyT s
-  type SharedValueT s
-  type SharedEnumerableValueKeyT s
+  type ValueKeyT s
+  type ValueT s
+  type EnumValueKeyT s
 
-  -------------- [Server <--> Client] Events -----------------------------------
+  type ValuesT s = (r :: *) | r -> s
+
   type ServerEventT s = (r :: *) | r -> s
   -- ^ Events sent by the server that must be handled by the client.
   type ClientEventT s = (r :: *)| r -> s
@@ -90,18 +94,13 @@ class (Show (ClientEventT s)
   type ConnectIdT s = (r :: *) | r -> s
   -- ^ Data passed in 'ClientEvent' 'Connect'.
 
-  --------------- Client, as viewed by the server ------------------------------
   -- | "Server-side" client definition.
   type ClientViewT s = (r :: *) | r -> s
   -- | Some data used when a client is reconnecting.
   type ReconnectionContext s
 
-  ---------------- Server, as viewed by the client -----------------------------
-  type ServerConfigT s = (r :: *) | r -> s
-  type ServerContentT s = (r :: *) | r -> s
-
   -- | Called to create the server.
-  mkInitial :: (MonadIO m) => Maybe (ServerConfigT s) -> m (ServerContentT s, s)
+  mkInitial :: MonadIO m => Proxy s -> m (ValuesT s, s)
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,
@@ -112,11 +111,11 @@ class (Show (ClientEventT s)
   -- | When returning Left, the corresponding client connection is rejected.
   acceptConnection :: Maybe (ConnectIdT s) -> Either Text ()
 
-  -- | Creates the client view, given the 'ClientId' and 'ConnectIdT'.
-  createClientView :: (MonadIO m, MonadState (ServerState s) m)
-                   => ClientId
-                   -> Maybe (ConnectIdT s)
-                   -> m (ClientViewT s, ClientName, Color8 Foreground)
+  -- | Creates the client view
+  mkInitialClient :: ClientViewT s
+
+  mkClientName :: Maybe (ConnectIdT s) -> ClientName Proposed
+  mkClientName = maybe (fromString "Player") extractName
 
   -- | These events are sent to the newly added client.
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
@@ -137,11 +136,17 @@ class (Show (ClientEventT s)
                  => ReconnectionContext s -> m ()
   onReconnection _ = return ()
 
-  onDo :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-       => ServerCommand s -> m ()
-
-  onReport :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-           => ServerReport s -> m ()
+  -- NOTE the signatures of getValue / onPut / onDelta will be unified later on
+  getValue :: ValueKeyT s
+           -> ValuesT s
+           -> ValueT s
+  onPut :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+        => ValueT s
+        -> m ()
+  onDelta :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+          => Int
+          -> EnumValueKeyT s
+          -> m ()
 
   -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -168,16 +173,24 @@ data ServerState s = ServerState {
   , clientsViews :: {-# UNPACK #-} !(ClientViews (ClientViewT s))
   , shouldTerminate :: {-unpack sum-} !Bool
   -- ^ Set on server shutdown
-  , content :: !(ServerContentT s)
+  , content :: !(ValuesT s)
+  , centerColor :: {-# UNPACK #-} !(Color8 Foreground)
+  -- ^ The color scheme.
   , unServerState :: !s
 } deriving(Generic)
 instance (Server s) => NFData (ServerState s)
 
+{-# INLINABLE gets' #-}
+gets' :: (MonadState (ServerState s) m)
+      => (s -> a)
+      -> m a
+gets' f = gets (f . unServerState)
+
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand s =
-    Put !(SharedValueT s)
-  | Succ !(SharedEnumerableValueKeyT s)
-  | Pred !(SharedEnumerableValueKeyT s)
+    Put !(Value s)
+  | Succ !(EnumValueKeyT s)
+  | Pred !(EnumValueKeyT s)
   deriving(Generic) -- Eq needed for parse tests
 instance Server s => Binary (ServerCommand s)
 instance Server s => Show (ServerCommand s) where
@@ -198,10 +211,47 @@ instance (Server s) => ChatShow (ServerCommand s) where
 
 -- | Describes what the client wants to know about the server.
 data ServerReport s =
-    Get !(SharedValueKeyT s)
+    Get !(ValueKey s)
   deriving(Generic)
 instance Server s => Binary (ServerReport s)
 instance Server s => Show (ServerReport s) where
   show (Get a) = show ("Get",a)
 instance Server s => Eq (ServerReport s) where -- Eq needed for parse tests
   (Get a) == (Get b) = a == b
+
+-- | Value shared by all clients.
+data Value s =
+    ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
+  | AppValue !(ValueT s)
+  deriving(Generic) -- Eq needed for parse tests
+instance Server s => Eq (Value s) where
+  ColorSchemeCenter x == ColorSchemeCenter y = x == y
+  AppValue x == AppValue y = x == y
+  ColorSchemeCenter _ == AppValue _ = False
+  AppValue _ == ColorSchemeCenter _ = False
+instance Server s => Show (Value s) where
+  show (ColorSchemeCenter x) = show ("ColorSchemeCenter",x)
+  show (AppValue x) = show ("AppValue",x)
+instance Server s => Binary (Value s)
+instance Server s => NFData (Value s)
+instance Server s => ChatShow (Value s) where
+  chatShow (ColorSchemeCenter c) =
+    unwords ["color scheme center:", show $ color8CodeToXterm256 c]
+  chatShow (AppValue x) =
+    chatShow x
+
+-- | Identifiers of values shared by all clients.
+data ValueKey s =
+    ColorSchemeCenterKey
+  | AppValueKey (ValueKeyT s)
+  deriving(Generic) -- Eq needed for parse tests
+instance Server s => Binary (ValueKey s)
+instance Server s => NFData (ValueKey s)
+instance Server s => Eq (ValueKey s) where
+  ColorSchemeCenterKey == ColorSchemeCenterKey = True
+  AppValueKey x == AppValueKey y = x == y
+  ColorSchemeCenterKey == AppValueKey _ = False
+  AppValueKey _ == ColorSchemeCenterKey = False
+instance Server s => Show (ValueKey s) where
+  show ColorSchemeCenterKey = "ColorSchemeCenterKey"
+  show (AppValueKey x) = show ("AppValueKey",x)

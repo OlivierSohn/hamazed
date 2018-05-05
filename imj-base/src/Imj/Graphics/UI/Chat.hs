@@ -35,7 +35,7 @@ data Chat = Chat {
   -- ^ The message that is being typed
   , getIsEditing :: !IsEditing
   -- ^ Whether chat is in edit mode or not.
-  , _otherPlayersTyping :: ![ClientName]
+  , _otherPlayersTyping :: ![ClientName Approved]
   -- ^ Players currently having a pending (unsent) message.
   , renderedChat :: !(TextBox ColorString)
 }

@@ -38,6 +38,7 @@ import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modif
 import           Data.Char (isPunctuation, isSpace)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
+import           Data.Proxy(Proxy(..))
 import           Data.Text(pack, unpack)
 import           Data.Tuple(swap)
 import           Network.WebSockets(PendingConnection, Connection, acceptRequest, receiveData, sendBinaryData, sendPing)
@@ -144,6 +145,14 @@ handleIncomingEvent' = \case
   Connect i _ ->
     handlerError $ "already connected : " ++ show i
   ClientAppEvt e -> handleClientEvent e
+  ExitedState Excluded -> clientCanJoin (Proxy :: Proxy s) >>= bool
+    (do
+      notifyClient' $ EnterState Excluded
+      publish WaitsToJoin)
+    (publish Joins)
+  ExitedState (Included x) -> clientCanTransition x >>= bool
+    (return ())
+    (publish StartsGame)
   OnCommand c -> case c of
     RequestApproval cmd -> case cmd of
       AssignName suggested -> either
@@ -241,7 +250,8 @@ addClient connectId cliType = do
   i <- asks clientId
   color <- fmap (mkClientColorFromCenter i) (gets centerColor)
   realName <- makePlayerName $ mkClientName connectId
-  notifyEveryoneN' $ map (RunCommand i) [AssignColor color, AssignName realName] -- elts order is important for animations.
+  notifyEveryoneN' $
+    map (RunCommand i) [AssignColor color, AssignName realName] -- elts order is important for animations.
 
   let c = ClientView conn cliType realName color mkInitialClient
 
@@ -252,12 +262,17 @@ addClient connectId cliType = do
               Map.insert i c $ views clients } }
   serverLog $ (\strId -> colored "Add client" green <> "|" <> strId <> "|" <> showClient c) <$> showId i
 
-  greeters <- map ServerAppEvt <$> greetNewcomer
+  presentClients <-
+    Map.map (\(ClientView _ _ n co _) -> ClientEssence n Present co) <$> gets clientsMap
   wp <- gets content
+  greeters <- greetNewcomer
+
   notifyClientN' $
-    ConnectionAccepted i :
-    greeters ++
-    [OnContent wp]
+    [ ConnectionAccepted i
+    , AllClients presentClients
+    , OnContent wp
+    ] ++
+    map ServerAppEvt greeters
 
 handlerError :: (Server s
                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)

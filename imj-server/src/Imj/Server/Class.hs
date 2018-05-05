@@ -55,6 +55,7 @@ class (Show (ClientEventT s)
      , Show (ValueKeyT s)
      , Show (ValueT s)
      , Show (EnumValueKeyT s)
+     , Show (StateValueT s)
      , ChatShow (ValueT s)
      , Arg (ConnectIdT s)
      , ClientNameSuggestion (ConnectIdT s)
@@ -68,6 +69,7 @@ class (Show (ClientEventT s)
      , Binary (ValueKeyT s)
      , Binary (ValueT s)
      , Binary (EnumValueKeyT s)
+     , Binary (StateValueT s)
      , NFData s -- because we use Control.Concurrent.MVar.Strict
      , NFData (ValuesT s)
      , NFData (ClientViewT s)
@@ -99,6 +101,8 @@ class (Show (ClientEventT s)
   -- | Some data used when a client is reconnecting.
   type ReconnectionContext s
 
+  type StateValueT s
+
   -- | Called to create the server.
   mkInitial :: MonadIO m => Proxy s -> m (ValuesT s, s)
 
@@ -120,6 +124,7 @@ class (Show (ClientEventT s)
   -- | These events are sent to the newly added client.
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
                 => m [ServerEventT s]
+  greetNewcomer = return []
 
   -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
   --
@@ -151,6 +156,16 @@ class (Show (ClientEventT s)
   -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                     => ClientEventT s -> m ()
+
+  -- | Returns True if the client was included in the game that is being setup.
+  clientCanJoin :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                => Proxy s -> m Bool
+  clientCanJoin _ = return True
+
+  -- | Returns True if the client starts the game.
+  clientCanTransition :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                      => StateValueT s -> m Bool
+  clientCanTransition _ = return True
 
   -- | Called after a client has been disconnected (either intentionally or on connection error).
   --

@@ -67,7 +67,7 @@ drawStatus :: (GameLogic g
 drawStatus =
   gets game >>= \(Game state screen (GameState g _) _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
-      ClientState Ongoing Setup ->
+      ClientState Ongoing (Included Setup) ->
         fmapM (drawSetup worldParams . getViewport To screen) g -- TODO using progressivelyInform
       _ ->
         return ()

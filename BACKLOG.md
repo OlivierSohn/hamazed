@@ -1,4 +1,9 @@
-- MeetThePlayers should be generic
+- some games have no setup phase, and no win or lose : music playing.
+
+when a new client enters, it should go from excluded to included PlayLevel
+
+- make audio enabled / disabled by game to avoid initialization when it's not needed,
+and not show audio-related parameters.
 
 - Game/Network , Game/Network/* belong to imj-server.
 

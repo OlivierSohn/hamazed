@@ -15,6 +15,7 @@ module Imj.Server.Types
       , ServerLogs(..)
       , DisconnectReason(..)
       , PlayerNotif(..)
+      , StateValue(..)
       ) where
 
 import           Imj.Prelude
@@ -26,6 +27,7 @@ import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
 
 import           Imj.Categorized
+import           Imj.ClientView.Types
 import           Imj.Graphics.Color
 import           Imj.Music
 import           Imj.Network
@@ -48,6 +50,7 @@ instance Server s => Binary (Command s)
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)
   | Connect !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
+  | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
   deriving(Generic)
 instance Server s => Binary (ClientEvent s)
@@ -64,6 +67,7 @@ instance Server s => Show (ClientEvent s) where
   show (ClientAppEvt e) = show ("ClientAppEvt" ,e)
   show (Connect s e) = show ("Connect" ,s,e)
   show (OnCommand x) = show ("OnCommand" ,x)
+  show (ExitedState x) = show ("ExitedState" ,x)
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
@@ -83,6 +87,9 @@ data ServerEvent s =
   | Disconnected {-unpack sum-} !DisconnectReason
   | OnContent !(ValuesT s)
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
+  | AllClients !(Map ClientId ClientEssence)
+  | EnterState {-unpack sum-} !(StateValue (StateValueT s))
+  | ExitState {-unpack sum-} !(StateValue (StateValueT s))
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)
@@ -108,7 +115,27 @@ instance Server s => Categorized (ServerEvent s) where
     CommandError _ _ -> Error'
     RunCommand _ _ -> WorldRequest'
     OnContent _ -> Chat'
+    AllClients{} -> Chat'
+    EnterState _ -> EnterState'
+    ExitState _ -> ExitState'
     ServerAppEvt e -> evtCategory e
+
+data StateValue s =
+    Excluded
+    -- ^ The client is not part of the game
+  | Included !s
+  -- ^ The client is part of the game
+  deriving(Generic)
+instance Show s => Show (StateValue s) where
+  show Excluded = "Excluded"
+  show (Included s) = show ("Included",s)
+instance Eq s => Eq (StateValue s) where
+  Excluded == Excluded = True
+  (Included a) == (Included b) = a == b
+  Excluded == (Included _) = False
+  (Included _) == Excluded = False
+instance Binary s => Binary (StateValue s)
+instance NFData s => NFData (StateValue s)
 
 -- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
 --  then executed (for the final part) by /every/ client.

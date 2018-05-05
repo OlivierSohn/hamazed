@@ -74,7 +74,6 @@ import           Imj.Server.Types
 
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level
-import           Imj.Game.Player
 import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored)
 import           Imj.Music hiding(Do)
@@ -99,6 +98,8 @@ data HamazedServer = HamazedServer {
 } deriving(Generic)
 instance NFData HamazedServer
 instance Server HamazedServer where
+
+  type StateValueT   HamazedServer = GameStateValue
 
   type ValueT        HamazedServer = HamazedValue
   type ValueKeyT     HamazedServer = HamazedValueKey
@@ -160,17 +161,36 @@ instance Server HamazedServer where
         -- add the newcomer to the assigned builders.
         participateToWorldCreation wid
 
+  clientCanJoin _ = gets' intent >>= \case
+    IntentSetup -> do
+      -- change client state to make it playable
+      adjustClient $ \c -> c { getState = Just ReadyToPlay }
+      -- The number of players just changed, so we need a new world.
+      requestWorld
+      return True
+    IntentPlayGame _ ->
+      return False
+  clientCanTransition = \case
+    Setup -> gets' intent >>= \case
+      IntentSetup -> do
+        modify' $ mapState $ \s -> s { intent = IntentPlayGame Nothing }
+        notifyPlayersN' [ExitState $ Included Setup]
+        -- we need a new world so that the game starts on a world
+        -- that players didn't have time to visually analyze yet.
+        requestWorld
+        return True
+      IntentPlayGame _ ->
+        return False
+    PlayLevel _ ->
+      return False
+
+
   getValue WorldShapeKey =
     WorldShape . worldShape
   onPut (WorldShape s) =
     onChangeWorldParams $ changeWorldShape s
   onDelta =
     onDelta'
-
-  greetNewcomer = do
-    presentClients <-
-      Map.map ((\c -> PlayerEssence (getName c) Present $ getColor c)) <$> gets clientsMap
-    return [MeetThePlayers presentClients]
 
   handleClientEvent = handleEvent
 
@@ -286,7 +306,7 @@ onChangeStatus notified status newStatus = gets' scheduledGame >>= \game -> tryR
     -- returned a 'Just'.
     liftIO $ void $ swapMVar game $! g {status' = newStatus}
     serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
-    notifyN [EnterState $ PlayLevel newStatus] notified)
+    notifyN' [EnterState $ Included $ PlayLevel newStatus] notified)
 
 gameScheduler :: MVar (ServerState HamazedServer) -> IO ()
 gameScheduler st =
@@ -471,29 +491,6 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 handleEvent :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader ConstClientView m)
             => ClientEventT HamazedServer -> m ()
 handleEvent = \case
-  ExitedState Excluded -> gets' intent >>= \case
-    IntentSetup -> do
-      -- change client state to make it playable
-      adjustClient $ \c -> c { getState = Just ReadyToPlay }
-      publish Joins
-      -- The number of players just changed, so we need a new world.
-      requestWorld
-      -- next step when client 'IsReady'
-    IntentPlayGame _ -> do
-      notifyClient $ EnterState Excluded
-      publish WaitsToJoin
-  ExitedState Setup -> gets' intent >>= \case
-    IntentSetup -> do
-      modify' $ mapState $ \s -> s { intent = IntentPlayGame Nothing }
-      publish StartsGame
-      notifyPlayers $ ExitState Setup
-      -- we need a new world so that the game starts on a world
-      -- that players didn't have time to visually analyze yet.
-      requestWorld
-    IntentPlayGame _ -> return ()
-  ExitedState (PlayLevel _) ->
-    return ()
-
   LevelEnded outcome -> do
     adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
     gets' intent >>= \case
@@ -520,7 +517,7 @@ handleEvent = \case
                 WhenAllPressedAKey (OutcomeValidated outcome) (Just 2) $ Map.map (const False) playersDonePlaying
               else
                 WaitingForOthersToEndLevel $ Map.keysSet playersPlaying
-      notifyN [EnterState $ PlayLevel gameStatus] playersDonePlaying
+      notifyN' [EnterState $ Included $ PlayLevel gameStatus] playersDonePlaying
       gets' scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
         (warning "LevelEnded sent while game is Nothing")
         (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
@@ -577,9 +574,8 @@ handleEvent = \case
     adjustClient $ \c -> c { getCurrentWorld = Just wid }
     gets' intent >>= \case
       IntentSetup ->
-        -- (follow-up from 'ExitedState Excluded')
         -- Allow the client to setup the world, now that the world contains its ship.
-        notifyClient $ EnterState Setup
+        notifyClient' $ EnterState $ Included Setup
       IntentPlayGame maybeOutcome ->
         gets unServerState >>= \(HamazedServer _ _ (WorldCreation _ lastWId _ _) _ game) ->
          liftIO (tryReadMVar game) >>= maybe

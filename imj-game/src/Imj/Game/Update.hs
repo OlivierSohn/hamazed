@@ -132,6 +132,16 @@ updateAppState (Left evt) = case evt of
     stateChat $ addMessage $ Information Info $ pack $ chatShow cmd
   PlayerInfo notif i ->
     stateChat . addMessage . ChatMessage =<< toTxt i notif
+  EnterState s ->
+    putClientState $ ClientState Ongoing s
+  ExitState s  ->
+    putClientState $ ClientState Over s
+  AllClients eplayers -> do
+    asks sendToServer' >>= \f -> f $ ExitedState Excluded
+    putClientState $ ClientState Over Excluded
+    let p = Map.map mkPlayer eplayers
+    putPlayers p
+    stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionAccepted i -> do
     putGameConnection $ Connected i
   ConnectionRefused sn reason ->
@@ -181,10 +191,10 @@ onTargetSize = getTargetSize >>= maybe
       putGameState (gs { _anim = newAnim }))
 
 {-# INLINABLE putClientState #-}
-putClientState :: (MonadState (AppState s) m
+putClientState :: (MonadState (AppState g) m
                  , MonadReader e m, HasSizedFace e
                  , MonadIO m)
-               => ClientState
+               => ClientState GameStateValue
                -> m ()
 putClientState i = do
   gets game >>= \g -> putGame $ g { getClientState = i}
@@ -280,21 +290,24 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
     liftIO (x face) >>= flip runReaderT e . drawVerticallyCentered ref
     liftIO $ finalizeRecord e
   go = \case
-    ClientState Over Excluded ->
-      inform "Joining..."
-    ClientState Over Setup ->
-      inform "..."
-    ClientState Over (PlayLevel _) ->
-      inform "Please wait..."
-    ClientState Ongoing s -> case s of
+    ClientState Over x -> case x of
+      Excluded ->
+        inform "Joining..."
+      Included y -> case y of
+        Setup ->
+          inform "..."
+        (PlayLevel _) ->
+          inform "Please wait..."
+    ClientState Ongoing x -> case x of
       Excluded ->
         inform "A game is currently running on the server, please wait..."
-      Setup ->
-        return []
-      PlayLevel (Countdown n Running) ->
-        inform $ pack $ show n
-      PlayLevel status ->
-        statusMsg status
+      Included y -> case y of
+        Setup ->
+          return []
+        PlayLevel (Countdown n Running) ->
+          inform $ pack $ show n
+        PlayLevel status ->
+          statusMsg status
   statusMsg = \case
     New -> return [color "Waiting for game start..."]
     CancelledNoConnectedPlayer -> return [color "Game cancelled, all players left."]

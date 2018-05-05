@@ -6,9 +6,9 @@
 module Imj.Game.Status
         ( GameStatus(..)
         , StateValue(..)
-        , PlayerStatus(..) -- TODO should we merge with 'StateValue' ?
         , StateNature(..)
         , ClientState(..)
+        , GameStateValue(..)
         ) where
 
 import           Imj.Prelude
@@ -17,28 +17,23 @@ import           Data.Map(Map)
 
 import           Imj.ClientView.Types
 import           Imj.Game.Level
+import           Imj.Server.Types
 
-data PlayerStatus = Present | Absent
-  deriving(Generic, Show)
-instance Binary PlayerStatus
-
-data ClientState = ClientState {-unpack sum-} !StateNature {-unpack sum-} !StateValue
+data ClientState s = ClientState {-unpack sum-} !StateNature {-unpack sum-} !(StateValue s)
   deriving(Generic, Show, Eq)
 
 data StateNature = Ongoing | Over
   deriving(Generic, Show, Eq)
 instance Binary StateNature
 
-data StateValue =
-    Excluded
-    -- ^ The player is not part of the game
-  | Setup
+data GameStateValue =
+    Setup
   -- ^ The player is configuring the game
   | PlayLevel !GameStatus
   -- ^ The player is playing the game
   deriving(Generic, Show, Eq)
-instance Binary StateValue
-instance NFData StateValue
+instance Binary GameStateValue
+instance NFData GameStateValue
 
 data GameStatus =
     New

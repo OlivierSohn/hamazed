@@ -95,7 +95,6 @@ import           Imj.Game.Audio.Class
 import           Imj.Game.Configuration
 import           Imj.Game.ColorTheme.Class
 import           Imj.Game.Infos
-import           Imj.Game.Player
 import           Imj.Game.Priorities
 import           Imj.Game.Status
 import           Imj.Graphics.Class.DiscreteDistance
@@ -167,6 +166,7 @@ data Transitioning = From | To
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
+     , GameStateValue ~ StateValueT (ServerT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
@@ -262,7 +262,7 @@ and the input has been consumed up until the /beginning/ of the command paramete
             , MonadState (AppState g) m
             , MonadReader e m, Client e)
            => Key
-           -> StateValue
+           -> StateValue GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 
@@ -337,7 +337,7 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
 type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 
 data Game g = Game {
-    getClientState :: {-# UNPACK #-} !ClientState
+    getClientState :: {-# UNPACK #-} !(ClientState GameStateValue)
   , getScreen :: {-# UNPACK #-} !Screen
   , getGameState' :: !(GameState g)
   , gameParticleSystems :: !ParticleSystems
@@ -359,13 +359,13 @@ data GameState g = GameState {
 
 data Player g = Player {
     getPlayerName :: {-# UNPACK #-} !(ClientName Approved)
-  , getPlayerStatus :: {-unpack sum-} !PlayerStatus
+  , getClientStatus :: {-unpack sum-} !ClientStatus
   , getPlayerColors :: {-# UNPACK #-} !(PlayerColors g)
 } deriving(Generic, Show)
 instance GameLogic g => Binary (Player g)
 
-mkPlayer :: GameLogic g => PlayerEssence -> Player g
-mkPlayer (PlayerEssence a b color) =
+mkPlayer :: GameLogic g => ClientEssence -> Player g
+mkPlayer (ClientEssence a b color) =
   Player a b $ mkPlayerColors color
 
 mkPlayerColors :: GameLogic g

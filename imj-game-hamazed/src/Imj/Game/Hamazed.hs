@@ -53,7 +53,6 @@ import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Types
-import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Input.Types
@@ -72,10 +71,8 @@ import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Infos
 import           Imj.Game.Level
 import           Imj.Game.Network
-import           Imj.Game.Show
 import           Imj.Game.Status
 import           Imj.Game.Timing
-import           Imj.Game.Update
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
 import           Imj.Graphics.Color.Types
@@ -177,50 +174,51 @@ instance GameLogic HamazedGame where
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
-    Setup -> return $ case key of
-      AlphaNum c -> case c of
-        ' ' -> Just $ ClientAppEvt $ ExitedState Setup
-        '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
-        '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
-        --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
-        --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
-        'y' -> Just $ OnCommand $ Do $ Succ BlockSize
-        'g' -> Just $ OnCommand $ Do $ Pred BlockSize
-        'u' -> Just $ OnCommand $ Do $ Succ WallProbability
-        'h' -> Just $ OnCommand $ Do $ Pred WallProbability
+    Included x -> case x of
+      Setup -> return $ case key of
+        AlphaNum c -> case c of
+          ' ' -> Just $ ExitedState $ Included Setup
+          '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
+          '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
+          --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
+          --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
+          'y' -> Just $ OnCommand $ Do $ Succ BlockSize
+          'g' -> Just $ OnCommand $ Do $ Pred BlockSize
+          'u' -> Just $ OnCommand $ Do $ Succ WallProbability
+          'h' -> Just $ OnCommand $ Do $ Pred WallProbability
+          _ -> Nothing
         _ -> Nothing
-      _ -> Nothing
-    PlayLevel status -> case status of
-      Running -> maybe
-        (case key of
-          AlphaNum c -> case c of
-            'k' -> Just $ ClientAppEvt $ Action Laser Down
-            'i' -> Just $ ClientAppEvt $ Action Laser Up
-            'j' -> Just $ ClientAppEvt $ Action Laser LEFT
-            'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
-            'd' -> Just $ ClientAppEvt $ Action Ship Down
-            'e' -> Just $ ClientAppEvt $ Action Ship Up
-            's' -> Just $ ClientAppEvt $ Action Ship LEFT
-            'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
-            --'r'-> Just $ Evt ToggleEventRecording
-            _   -> Nothing
-          _ -> Nothing)
-        (const Nothing)
-        <$> getLevelOutcome
-      WhenAllPressedAKey _ (Just _) _ -> return Nothing
-      WhenAllPressedAKey x Nothing havePressed ->
-        (maybe
-          Nothing
+      PlayLevel status -> case status of
+        Running -> maybe
+          (case key of
+            AlphaNum c -> case c of
+              'k' -> Just $ ClientAppEvt $ Action Laser Down
+              'i' -> Just $ ClientAppEvt $ Action Laser Up
+              'j' -> Just $ ClientAppEvt $ Action Laser LEFT
+              'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
+              'd' -> Just $ ClientAppEvt $ Action Ship Down
+              'e' -> Just $ ClientAppEvt $ Action Ship Up
+              's' -> Just $ ClientAppEvt $ Action Ship LEFT
+              'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
+              --'r'-> Just $ Evt ToggleEventRecording
+              _   -> Nothing
+            _ -> Nothing)
+          (const Nothing)
+          <$> getLevelOutcome
+        WhenAllPressedAKey _ (Just _) _ -> return Nothing
+        WhenAllPressedAKey y Nothing havePressed ->
           (maybe
-            (error "logic")
-            (bool (Just $ ClientAppEvt $ CanContinue x) Nothing)
-            . flip Map.lookup havePressed)) <$> getMyId
-      New -> return Nothing
-      Paused _ _ -> return Nothing
-      Countdown _ _ -> return Nothing
-      OutcomeValidated _ -> return Nothing
-      CancelledNoConnectedPlayer -> return Nothing
-      WaitingForOthersToEndLevel _ -> return Nothing)
+            Nothing
+            (maybe
+              (error "logic")
+              (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
+              . flip Map.lookup havePressed)) <$> getMyId
+        New -> return Nothing
+        Paused _ _ -> return Nothing
+        Countdown _ _ -> return Nothing
+        OutcomeValidated _ -> return Nothing
+        CancelledNoConnectedPlayer -> return Nothing
+        WaitingForOthersToEndLevel _ -> return Nothing)
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
 mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _))
@@ -253,7 +251,7 @@ mkIntermediateState newShotNums newLevel essence wid mayState =
 {-# INLINABLE hamazedEvtUpdate #-}
 hamazedEvtUpdate :: (GameLogicT e ~ HamazedGame
                    , MonadState (AppState HamazedGame) m
-                   , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e, Audio e
+                   , MonadReader e m, Client e, AsyncGroups e, Audio e
                    , MonadIO m)
                    => CustomUpdateEvent HamazedGame
                    -> m ()
@@ -296,18 +294,8 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
   GameEvent (LaserShot dir shipId) -> do
     join (asks triggerLaserSound)
     onLaser shipId dir Add
-  MeetThePlayers eplayers -> do
-    sendToServer $ ExitedState Excluded
-    putClientState $ ClientState Over Excluded
-    let p = Map.map mkPlayer eplayers
-    putPlayers p
-    stateChat $ addMessage $ ChatMessage $ welcome p
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
-  EnterState s ->
-    putClientState $ ClientState Ongoing s
-  ExitState s  ->
-    putClientState $ ClientState Over s
 
  where
 

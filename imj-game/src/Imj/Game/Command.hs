@@ -39,7 +39,6 @@ import           Imj.Graphics.Color
 import           Imj.Game.Draw
 import           Imj.Game.Infos
 import           Imj.Game.Show
-import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Screen
@@ -71,7 +70,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
         (return ())
         (\n ->
             withAnim Normal (pure ()) $
-              putPlayer sid $ n { getPlayerStatus = Absent })
+              putPlayer sid $ n { getClientStatus = Absent })
           p
       stateChat $ addMessage $ ChatMessage $
         name <>

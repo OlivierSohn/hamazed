@@ -13,6 +13,7 @@ import           GHC.Generics(Generic)
 
 import           Imj.Categorized
 import           Imj.Game.App(runGame)
+import           Imj.Game.Status
 import           Imj.Game.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
@@ -69,6 +70,7 @@ data IncServer = IncServer {
 } deriving(NFData, Generic)
 
 instance Server IncServer where
+  type StateValueT      IncServer = GameStateValue
 
   type ConnectIdT                IncServer = ClientName Proposed
   type ReconnectionContext       IncServer = ()

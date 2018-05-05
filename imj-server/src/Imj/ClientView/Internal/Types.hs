@@ -8,6 +8,8 @@ module Imj.ClientView.Internal.Types
       , ClientView(..)
       , ConstClientView(..)
       , ClientId(..)
+      , ClientStatus(..)
+      , ClientEssence(..)
       , ServerOwnership(..)
       ) where
 
@@ -58,3 +60,14 @@ data ServerOwnership =
   deriving(Generic, Show, Eq)
 instance Binary ServerOwnership
 instance NFData ServerOwnership
+
+data ClientEssence = ClientEssence {
+    clientEssenceName :: {-# UNPACK #-} !(ClientName Approved)
+  , clientEssenceStatus :: {-unpack sum-} !ClientStatus
+  , clientEssenceColor :: {-# UNPACK #-} !(Color8 Foreground)
+} deriving(Generic, Show)
+instance Binary ClientEssence
+
+data ClientStatus = Present | Absent
+  deriving(Generic, Show)
+instance Binary ClientStatus

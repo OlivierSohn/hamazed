@@ -10,6 +10,7 @@ module Imj.Game.Command
       , runClientCommand
       -- * utilities
       , withAnim
+      , withAnim'
       , withGameInfoAnimationIf
       , mkAnim
       ) where
@@ -50,10 +51,10 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
   case cmd of
     CustomCmd x -> onClientCustomCmd x -- TODO generically distinguish commands that need an animation and chat reporting commands
     AssignName name' ->
-      withAnim Normal (pure ()) $
+      withAnim $
         putPlayer sid $ Player name' Present $ maybe (mkPlayerColors (rgb 3 3 3)) getPlayerColors p
     AssignColor color ->
-      withAnim Normal (pure ()) $
+      withAnim $
         putPlayer sid $ Player (maybe (ClientName "") getPlayerName p) Present $ mkPlayerColors color
     Says what ->
       stateChat $ addMessage $ ChatMessage $
@@ -62,7 +63,7 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
       maybe
         (return ())
         (\n ->
-            withAnim Normal (pure ()) $
+            withAnim $
               putPlayer sid $ n { getClientStatus = Absent })
           p
       stateChat $ addMessage $ ChatMessage $
@@ -85,20 +86,30 @@ withGameInfoAnimationIf :: (MonadState (AppState g) m
 withGameInfoAnimationIf condition act =
   f act
  where
-  f = bool id (withAnim Normal (pure ())) condition
+  f = bool id withAnim condition
 
 -- | Runs an action that may change the result of one of 'getClientsInfos', 'getViewport' or 'mkWorldInfos'
 -- and schedules an animation 'UIAnimation' that will make the changes appear progressively.
 withAnim :: (MonadState (AppState g) m
-           , MonadIO m
-           , GameLogic g)
-         => InfoType
-         -> m ()
-         -- ^ This action will be run at the end of the animation.
-         -> m a
-         -- ^ The action to run.
-         -> m a
-withAnim infoType finalize act = do
+            , MonadIO m
+            , GameLogic g)
+          => m a
+          -- ^ The action to run.
+          -> m a
+withAnim = withAnim' Normal (return ())
+
+-- | Runs an action that may change the result of one of 'getClientsInfos', 'getViewport' or 'mkWorldInfos'
+-- and schedules an animation 'UIAnimation' that will make the changes appear progressively.
+withAnim' :: (MonadState (AppState g) m
+            , MonadIO m
+            , GameLogic g)
+          => InfoType
+          -> m ()
+          -- ^ This action will be run at the end of the animation.
+          -> m a
+          -- ^ The action to run.
+          -> m a
+withAnim' infoType finalize act = do
   gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
     gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do

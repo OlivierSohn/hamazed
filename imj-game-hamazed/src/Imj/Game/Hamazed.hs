@@ -271,10 +271,10 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
   ChangeLevel levelEssence worldEssence wid ->
     getIGame >>= \s -> do
       let sameLevels = Just (getLevelNumber' levelEssence) == (fmap (getLevelNumber' . _levelSpec . getGameLevel) s)
-      withAnim (bool ColorAnimated Normal sameLevels) onAnimFinished $
+      withAnim' (bool ColorAnimated Normal sameLevels) onAnimFinished $
         putIGame $ mkInitialState levelEssence worldEssence wid s
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    withAnim ColorAnimated onAnimFinished $
+    withAnim' ColorAnimated onAnimFinished $
       getIGame >>= putIGame . mkIntermediateState shotNums levelEssence worldEssence wid
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor

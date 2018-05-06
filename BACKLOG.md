@@ -5,11 +5,6 @@ Take as parameters:
   - world parameters
   - opStrat.bin file location
 
-- ClientCommand should have a "CustomCommand" type so that a client can define custom commands.
-
-- tutorial : reset counter with optional parameter for the number.
-'r' resets to 0.
-
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
 

@@ -47,7 +47,6 @@ import           Imj.Event
 import           Imj.Game.Command
 import           Imj.Game.Color
 import           Imj.Game.Exceptions
-import           Imj.Game.Infos
 import           Imj.Game.Level
 import           Imj.Game.Priorities
 import           Imj.Game.Status
@@ -146,7 +145,7 @@ updateAppState (Left evt) = case evt of
     putPlayers p
     stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionAccepted i -> do
-    withAnim Normal (return ()) $ -- to make the frame take its initial size
+    withAnim $ -- to make the frame take its initial size
       putGameConnection $ Connected i
   ConnectionRefused sn reason ->
     putGameConnection $ ConnectionFailed $

@@ -66,15 +66,12 @@ instance GameLogic IncGame where
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
 
-  -- Handle 'ClientOnlyEvtT' :
   onCustomEvent (Right ()) =
     return ()
-  -- Handle 'IncServerEvent' :
   onCustomEvent (Left (CounterValue value)) =
-    -- 'withAnim' allows the frame to animate:
-    withAnim Normal (return ()) $
-      -- Update the client counter:
+    withAnim $
       putIGame $ IncGame value
+
   onClientCustomCmd ResetCounter = stateChat $ addMessage $ ChatMessage $ "The counter has been reset."
 
   drawForeground (Screen _ screenCenter) _ (IncGame counterValue) =

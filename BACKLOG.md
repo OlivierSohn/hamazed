@@ -1,10 +1,3 @@
-- use "Do" to reset the counter, the semantics seems to be more defined than custom command.
-
-- optimal strategies creation :
-Take as parameters:
-  - world parameters
-  - opStrat.bin file location
-
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
 

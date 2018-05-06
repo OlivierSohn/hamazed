@@ -40,23 +40,20 @@ import           Imj.Log
 import           Imj.Server.Color
 import           Imj.Server.Run
 
-toSrv :: Proxy g
-      -> Proxy (ServerT g)
-toSrv _ = Proxy :: Proxy (ServerT g)
 
-startServerIfLocal :: GameLogic g
-                   => Proxy g
-                   -> ServerView (ServerT g)
+startServerIfLocal :: Server s
+                   => Proxy s
+                   -> ServerView s
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal _    srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
 startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
-  uncurry (mkServerState logs c) <$> mkInitial (toSrv prox) >>= newMVar >>= \state -> do
+  uncurry (mkServerState logs c) <$> mkInitial prox >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")

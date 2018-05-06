@@ -137,7 +137,7 @@ run prox
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName mayConfig maySrvLogs (ServerContent srvPort Nothing)
   newEmptyMVar >>= \ready -> do
-    let srvIfLocal = startServerIfLocal prox srv ready
+    let srvIfLocal = startServerIfLocal (toSrv prox) srv ready
     if serverOnly
       then
         srvIfLocal
@@ -176,6 +176,10 @@ run prox
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
+
+toSrv :: Proxy g
+      -> Proxy (ServerT g)
+toSrv _ = Proxy :: Proxy (ServerT g)
 
 mkServer :: Maybe ServerName
          -> Maybe ColorScheme

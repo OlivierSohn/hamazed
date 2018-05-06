@@ -14,8 +14,8 @@ module Imj.Graphics.Class.UIInstructions
 import           Imj.Prelude
 
 import           Imj.Data.AlmostFloat
-import           Imj.Graphics.UI.Slider
 import           Imj.Graphics.Color.Types
+import           Imj.Graphics.UI.Slider
 
 class UIInstructions s where
   instructions :: LayeredColor

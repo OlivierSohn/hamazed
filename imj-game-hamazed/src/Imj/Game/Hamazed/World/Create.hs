@@ -69,7 +69,7 @@ mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence Map.empty Map.empty mkZeroSpace
 
 mkWorldEssence :: WorldSpec -> IO Bool -> NonEmpty GenIO -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDist@(WallDistribution _ proba))) continue gens@(gen:|_) =
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape (WallDistribution blockSize wallProba))) continue gens@(gen:|_) =
   -- 4 is the max number of components in the file containing optimal strategies.
   go (min 4 $ max 1 $ fromIntegral nShips) [] Map.empty
  where
@@ -110,11 +110,13 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
                 , newStats)
    where
     mkSpace
-     | proba > 0 =
+     | wallProba > 0 =
         fmap (Map.fromDistinctAscList . maybeToList) <$>
-          liftIO (mkRandomlyFilledSpace wallDist size n continue gens)
+          liftIO (mkRandomlyFilledSpace blockSize scaledWallProba size n continue gens)
       -- with 0 probability, we can't do anything else but return an empty space:
      | otherwise = return (Success $ mkEmptySpace size, Map.empty)
+     where
+      scaledWallProba = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 wallProba
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

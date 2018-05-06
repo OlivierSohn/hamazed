@@ -75,10 +75,10 @@ instance Show StrategyTag where
 -- of the 'SmallWorldCharacteristics' 'User' passed as parameter, and that can be built within budget.
 --
 -- Note that the 'AlmostFloat' probability of 'SmallWorldCharacteristics' 'User'
--- will not be exactly matched, instead, it
--- will be adapted by mapping ['minWallProba' 'maxWallProba'] to [l h],
+-- will not be exactly matched, instead, it will be adapted by mapping [0,1] to [l,h],
 -- where l == min probability where duration < budget
 --       h == max probability where duration < budget
+-- and then we'll look for the closest sample, by probability.
 --
 -- Currently, the optimal strategies file contains only values used in imj-game-hamazed:
 -- we sampled exactly the world characteristics that we use in the game using imj-profile / 'mkOptimalStrategies'.
@@ -87,9 +87,9 @@ instance Show StrategyTag where
 -- version of 'mkOptimalStrategies' so that it creates the optimal strategy file
 -- for the values you need.
 lookupOptimalStrategy :: SmallWorldCharacteristics User
-                       -> Time Duration System
-                       -- ^ The budget duration to create the world.
-                       -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
+                      -> Time Duration System
+                      -- ^ The budget duration to create the world.
+                      -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
 lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
   case embeddedOptimalStrategies of
     (OptimalStrategies m) ->
@@ -103,9 +103,8 @@ lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
           l@((minProba,_):_) ->
             let (maxProba,_) = Unsafe.last l
                 len = length l
-                p = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 proba
-                (_,strategy) = l !! round (p * (fromIntegral $ len - 1))
-                adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba p
+                (_,strategy) = l !! round (proba * (fromIntegral $ len - 1))
+                adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba proba
             in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
 
 encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()

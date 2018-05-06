@@ -117,11 +117,6 @@ lookupMax (Bin _ m l r)
           go (Bin _ _ _ r') = go r'
           go Nil            = Nothing
 
-canonicalize :: Size -> Size
-canonicalize sz@(Size (Length h) (Length w))
-  | h <= w = sz
-  | otherwise = Size (fromIntegral w) (fromIntegral h)
-
 -- returns 'Nothing' when height and width change in opposite directions.
 homogenousDist :: Size -> Size -> Maybe Int
 homogenousDist s1 s2 = hDist (canonicalize s1) (canonicalize s2)

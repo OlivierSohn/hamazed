@@ -71,25 +71,6 @@ data TestProgress = TestProgress {
 } deriving (Generic)
 instance Binary TestProgress
 
-{-
-fixProgress :: TestProgress -> TestProgress
-fixProgress (TestProgress a _ b c this next res) =
-  TestProgress a (fromSecs 0.01) b c (sortA $ map sortP $ this ++ next) [] res
- where
-  sortA = sortOn g
-  g [] = -1
-  g (SWCharacteristics sz _ _:_) = area sz
-
-  sortP [] = []
-  sortP l@(SWCharacteristics _ ncomps proba:_) =
-    f $ sortOn userWallProbability l
-   where
-     f
-      | ncomps == 2 && proba < 0.39 = reverse
-      | ncomps >= 3 && proba < 0.49 = reverse
-      | otherwise = id
--}
-
 mkZeroProgress :: [[SmallWorldCharacteristics Program]]
                -> Set (Maybe MatrixVariantsSpec)
                -> IO TestProgress

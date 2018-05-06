@@ -18,6 +18,7 @@ module Imj.Geo.Discrete.Types
     , zeroCoords, diffCoords, sumCoords, coordsForDirection, multiply
     -- ** Size
     , Size(..)
+    , canonicalize
     , Length(..)
     , Width
     , Height
@@ -132,6 +133,11 @@ data Size = Size {
 instance PrettyVal Size
 instance NFData Size
 instance Binary Size
+
+canonicalize :: Size -> Size
+canonicalize sz@(Size (Length h) (Length w))
+  | h <= w = sz
+  | otherwise = Size (fromIntegral w) (fromIntegral h)
 
 {-# INLINE sumSizes #-}
 sumSizes :: Size -> Size -> Size

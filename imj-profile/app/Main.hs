@@ -20,12 +20,12 @@ import           Data.Vector(fromList)
 import           System.Random.MWC
 import           System.Timeout(timeout)
 
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 
 import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
-import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Text.Render
@@ -41,7 +41,6 @@ import           Imj.Random.MWC.Util
 import           Imj.Random.Test
 import           Imj.Random.Util
 import           Imj.Timing
-import           Imj.Util
 
 -- commands used to profile:
 --
@@ -148,40 +147,48 @@ someWorlds =
     (Size  8 18, ComponentCount 1, 0.7):
     []
 
--- | Inner lists are sorted by estimated probability difficulty.
+data TestAssumption =
+    DifficultyIncreasesWithProbability
+  | MinimalDifficultyAt !AlmostFloat
+
+-- | Based on observed behaviour for 1,2,3 and 4 components.
+-- You may need to add values if you need a bigger number of components,
+-- and improve the efficiency of optimal strategies precomputation.
+mkAssumption :: ComponentCount -> TestAssumption
+mkAssumption (ComponentCount n)
+  | n <= 1 = DifficultyIncreasesWithProbability
+  | n == 2 = MinimalDifficultyAt $ almost 0.49
+  | otherwise = MinimalDifficultyAt $ almost 0.39
+
+-- | Inner lists are sorted by estimated difficulty.
 -- The outer list, when filtered on a single 'ComponentCount', is sorted by increasing areas of the inner list 'SmallWorldCharacteristics' sizes
-exhaustiveWorlds :: [[SmallWorldCharacteristics Program]]
-exhaustiveWorlds =
+exhaustiveWorlds :: [Size]
+                 -- ^ The worlds sizes
+                 -> [AlmostFloat]
+                 -- ^ The wall probabilities
+                 -> [[SmallWorldCharacteristics Program]]
+exhaustiveWorlds smallSizes probas =
   concatMap
     (\cc ->
       concatMap
         (\sz ->
           map
             (filter isPossible . map (SWCharacteristics sz cc)) $
-            probas cc)
-        $ sortOn area $ exhaustiveSmallSizes)
+            orderProbas $ mkAssumption cc)
+        $ sortOn area $ smallSizes)
     [1 :: ComponentCount ..4]
 
  where
-  -- Returns probabilities sorted by difficulty, according to the number of components.
-  probas (ComponentCount 1) = [allProbasForGame]
-  probas _ =
-    let (l,h) = partition (< 0.49) allProbasForGame
-    in [reverse l,h]
+  orderProbas = \case
+    DifficultyIncreasesWithProbability -> [probas]
+    MinimalDifficultyAt t -> [reverse lows,highs]
+      where (lows,highs) = partition (< t) probas
 
   isPossible ch@(SWCharacteristics _ nComponents _) =
     -- we remove impossible worlds : in the game when an impossible configuration
     -- is encountered, we reduce the count of components. Hence
     -- we make sure removed worlds have more than one component.
         isRight (mkLowerBounds ch) || ((nComponents == 1) && error "logic")
-
-  exhaustiveSmallSizes =
-    dedup $ map canonicalize $
-      concatMap (\s -> map (bigToSmall s) allBlockSizes) bigSizes
-   where
-    bigSizes = concatMap
-      (\l -> map (worldSizeFromLevel l) [Square, Rectangle'2x1])
-      [firstLevel..lastLevel]
 
 withTestScheduler :: UUID
                    -- ^ Test unique identifier
@@ -235,7 +242,7 @@ mkOptimalStrategies = do
         let f = profile property seedGroup
         maybe (fmap Just) (timeout . fromIntegral . toMicros) mayDt f
 
-  progress <- decodeProgressFile >>= maybe (mkZeroProgress exhaustiveWorlds allStrategies) return
+  progress <- decodeProgressFile >>= maybe (mkZeroProgress (exhaustiveWorlds exhaustiveSmallSizes allProbasForGame) allStrategies) return
   (totalDt, _) <- withDuration $ withTestScheduler' intent testF progress
 
   putStrLn $ "Test duration = " ++ show totalDt

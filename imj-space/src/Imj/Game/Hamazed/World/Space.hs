@@ -58,10 +58,11 @@ import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
 import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
-import qualified Imj.Data.UndirectedGraph as Undirected
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
+import qualified Imj.Data.UndirectedGraph as Undirected
 import           Imj.Game.Hamazed.World.Space.Types
+
 import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Class.Positionable
 import           Imj.Physics.Discrete
@@ -142,15 +143,16 @@ mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
 
 -- | Creates a rectangular random space of size specified in parameters.
 -- 'IO' is used for random numbers generation.
-mkRandomlyFilledSpace :: WallDistribution
+mkRandomlyFilledSpace :: Int
+                      -> AlmostFloat
+                      -- ^ Expected to be between 0 and 1.
                       -> Size
                       -> ComponentCount
                       -> IO Bool
                       -- ^ Computation stops when it returns False
                       -> NonEmpty GenIO
                       -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
-mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
-mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
+mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
       (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
@@ -181,6 +183,12 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
     userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
 
 
+bigToSmall :: Size -> Int -> Size
+bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
+  let nCols = quot widthEmptySpace $ fromIntegral blockSize
+      nRows = quot heightEmptySpace $ fromIntegral blockSize
+  in Size nRows nCols
+
 smallWorldToBigWorld :: Size
                      -> Int
                      -> SmallWorld
@@ -191,13 +199,6 @@ smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat
   replicateElems :: [a] -> [a]
   replicateElems = replicateElements blockSize
   innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
-
-bigToSmall :: Size -> Int -> Size
-bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
-  let nCols = quot widthEmptySpace $ fromIntegral blockSize
-      nRows = quot heightEmptySpace $ fromIntegral blockSize
-  in Size nRows nCols
-
 
 data MatrixPipeline = MatrixPipeline !MatrixSource !MatrixTransformer
 

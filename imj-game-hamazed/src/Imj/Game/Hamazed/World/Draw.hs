@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.World.Draw
         ) where
 
 import           Imj.Prelude
+import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)
@@ -16,9 +17,9 @@ import qualified Data.Map.Strict as Map(assocs)
 import           Imj.Game.Types
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
+import           Imj.Graphics.Render
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Space.Draw
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Font
 import           Imj.Graphics.UI.Animation

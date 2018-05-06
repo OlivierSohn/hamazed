@@ -132,7 +132,7 @@ encodeOptimalStrategiesFile s = do
   encodeFile path s
   putStrLn $ "Wrote optimal strategies file:" ++ show path
  where
-  path = "./imj-game-hamazed/" <> optimalStrategiesFile
+  path = "./imj-space/" <> optimalStrategiesFile
 
 embeddedOptimalStrategies :: OptimalStrategies
 embeddedOptimalStrategies =

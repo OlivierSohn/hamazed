@@ -22,7 +22,7 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     , bigToSmall
-    -- for tests
+    -- for white-box tests
     , matchAndVariate
     , mkSmallWorld
     , fillSmallVector

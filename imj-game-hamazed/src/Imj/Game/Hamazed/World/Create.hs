@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World.Create
         ( mkWorld
@@ -9,6 +10,7 @@ module Imj.Game.Hamazed.World.Create
         , mkWorldEssence
         , mkMinimalWorldEssence
         , updateMovableItem
+        , materialGlyph
         ) where
 
 import           Imj.Prelude
@@ -25,18 +27,32 @@ import           System.Random.MWC(GenIO)
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Color.Types
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Hamazed.World.Space.Draw
+import           Imj.Graphics.Font
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 import           Imj.Util
 
+{-# INLINE materialColor #-}
+materialColor :: Material -> LayeredColor
+materialColor = \case
+  Wall -> wallColors
+  Air  -> airColors
+
+{-# INLINE materialGlyph #-}
+materialGlyph :: Material -> Glyph
+materialGlyph = gameGlyph . (\case
+  Wall -> 'Z'
+  Air  -> ' ')
 
 mkWorld :: WorldEssence -> WorldId -> World
 mkWorld (WorldEssence balls ships space) wid =
-  let renderedSpace = mkRenderedSpace space
+  let renderedSpace = mkRenderedSpace materialColor materialGlyph space
   in World (Map.map mkNumber balls) ships space renderedSpace wid
 
 worldToEssence :: World -> (WorldEssence, WorldId)

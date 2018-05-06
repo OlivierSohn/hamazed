@@ -55,6 +55,7 @@ import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Render
 import           Imj.Input.Types
 import           Imj.Server.Class
 import           Imj.Server.Types

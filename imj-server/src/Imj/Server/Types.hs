@@ -9,8 +9,6 @@ module Imj.Server.Types
       , mkServerState
       , ServerEvent(..)
       , ClientEvent(..)
-      , Command(..)
-      , ClientCommand(..)
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
@@ -33,19 +31,6 @@ import           Imj.Music
 import           Imj.Network
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
-
-data Command s =
-    RequestApproval !(ClientCommand Proposed)
-  -- ^ A Client asks for authorization to run a 'ClientCommand'.
-  -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
-  | Do !(ServerCommand s)
-  -- ^ A Client asks the server to run a 'ServerCommand'.
-  -- In response, the server runs the 'ServerCommand' then publishes a 'PlayerNotif' 'Done' 'ServerCommand'.
-  | Report !(ServerReport s)
-  -- ^ A client want to know an information on the server state. The server will answer by
-  -- sending a 'Report'.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Server s => Binary (Command s)
 
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)
@@ -136,18 +121,6 @@ instance Eq s => Eq (StateValue s) where
   (Included _) == Excluded = False
 instance Binary s => Binary (StateValue s)
 instance NFData s => NFData (StateValue s)
-
--- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
---  then executed (for the final part) by /every/ client.
-data ClientCommand a =
-    AssignName {-# UNPACK #-} !(ClientName a)
-  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
-  | Says {-# UNPACK #-} !Text
-  | Leaves {-unpack sum-} !(Either Text ())
-  -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
-  -- will also gracefully shutdown the server.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary (ClientCommand a)
 
 data PlayerNotif s =
     Joins

@@ -8,7 +8,6 @@
 module Imj.Game.Draw
       ( draw
       , computeViewDistances
-      , defaultFrameSize
       ) where
 
 import           Imj.Prelude
@@ -38,9 +37,6 @@ import           Imj.Graphics.UI.RectContainer
 -- | Margins between the world's rectangular container and other elements
 computeViewDistances :: (Length Width, Length Height)
 computeViewDistances = (20, 2)
-
-defaultFrameSize :: Size
-defaultFrameSize = Size 20 20
 
 -- | Draws the game content.
 {-# INLINABLE draw #-}
@@ -127,7 +123,7 @@ drawSetup mayWorldParams cont = do
         Discrete slider ->
           section title [] p >>= drawSlider slider)
       pos
-      $ instructions li
+      $ instructions configColors li
 
   section title elts pos = do
     dText_ ("[" <> title <> "]") pos

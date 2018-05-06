@@ -33,7 +33,6 @@ import           Control.Concurrent.Async(withAsync)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Attoparsec.Text(decimal, endOfInput, skipSpace)
 import           Data.Char(intToDigit)
 import qualified Data.IntSet as ISet
 import qualified Data.List as List
@@ -41,8 +40,8 @@ import           Data.List(elem)
 import           Data.Maybe(isJust)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import           Data.Text(pack, unpack)
 import qualified Data.Text as Text
+import           Data.Text(pack)
 
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
@@ -76,7 +75,6 @@ import           Imj.Game.Status
 import           Imj.Game.Timing
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Screen
@@ -111,21 +109,6 @@ instance GameLogic HamazedGame where
   type ColorThemeT    HamazedGame = ColorCycles
 
   gameName _ = "Hamazed"
-
-  cmdParser cmd = case cmd of
-    "color" -> tryReport <|> tryCmd
-    _ -> fail $ "'" <> unpack cmd <> "' is an unknown command."
-   where
-    tryReport = do
-      void endOfInput
-      return $ Right $ Report $ Get ColorSchemeCenterKey
-    tryCmd = do
-      r <- decimal
-      skipSpace
-      g <- decimal
-      skipSpace
-      b <- decimal
-      return $ Do . Put . ColorSchemeCenter <$> userRgb r g b
 
   onAnimFinished = -- Swap the future world with the current one, and notifies the server using 'IsReady'
     getIGame >>= fmapM (\(HamazedGame _ future j k) -> maybe

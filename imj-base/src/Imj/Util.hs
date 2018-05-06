@@ -15,7 +15,9 @@ module Imj.Util
     , commonPrefix
     , commonSuffix
     , maximumMaybe
-      -- * Math utilities
+    -- * Text manipulation
+    , maxOneSpace
+    -- * Math utilities
     , clamp
     , zigzag
     , lastAbove
@@ -31,9 +33,21 @@ import           Imj.Prelude
 import qualified Prelude as Unsafe(maximum)
 
 import           Data.Bits(finiteBitSize, countLeadingZeros)
+import           Data.Char(isSpace)
 import           Data.Int(Int64)
 import           Data.List(reverse, length, splitAt, foldl', replicate)
 import qualified Data.Set as Set
+import           Data.Text(pack, unpack)
+
+-- | Removes spaces on extremities and converts every inner consecutive spaces to a single space.
+maxOneSpace :: Text -> Text
+maxOneSpace t = pack $ go (unpack t) False []
+ where
+  go [] _ res = reverse res
+  go (c:rest) prevSpace res
+    | isSpace c = go rest (not $ null res) res
+    | prevSpace = go rest False $ c:' ':res
+    | otherwise = go rest False $ c:res
 
 -- | removes duplicates, and returns elements in ascending order.
 {-# INLINABLE dedup #-}

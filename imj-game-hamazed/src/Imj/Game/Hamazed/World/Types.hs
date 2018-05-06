@@ -87,10 +87,10 @@ data WorldParameters = WorldParameters {
 instance Binary WorldParameters
 instance NFData WorldParameters
 instance UIInstructions WorldParameters where
-  instructions (WorldParameters shape distrib) =
+  instructions color (WorldParameters shape distrib) =
     concat
-      [ instructions shape
-      , instructions distrib
+      [ instructions color shape
+      , instructions color distrib
       ]
 
 data WorldShape = Square
@@ -99,7 +99,7 @@ data WorldShape = Square
                 -- ^ Width = 2 * Height
                 deriving(Generic, Show, Eq)
 instance UIInstructions WorldShape where
-  instructions shape =
+  instructions _ shape =
     [ ConfigUI "World shape" $ Choice $ map pack withCursor ]
    where
     i = case shape of

@@ -1,9 +1,7 @@
+- ClientCommand should have a "CustomCommand" type and cmdParser should return commands of that type.
+
 - tutorial : reset counter with optional parameter for the number.
 'r' resets to 0.
-
-ClientCommand should have a "CustomCommand" type and cmdParser should return commands of that type.
-
-the commands of hamazed are now generic so move them.
 
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.

@@ -1,3 +1,6 @@
+import Test.Imj.ParseCommand
 
 main :: IO ()
-main = return ()
+main = do
+  testMaxOneSpace
+  testParseCommand

@@ -43,6 +43,7 @@ import           Imj.Game.Network.ClientQueues
 import           Imj.Game.KeysMaps
 import           Imj.Game.Loop
 import           Imj.Game.State
+import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Class.HasSizedFace
@@ -64,7 +65,9 @@ import           Imj.ServerView
 
 The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
-runGame :: (GameLogic g) => Proxy g -> IO ()
+runGame :: (GameLogic g
+          , StateValueT (ServerT g) ~ GameStateValue)
+        => Proxy g -> IO ()
 runGame p = runOnPlatform p $ run p
 
 runOnPlatform :: GameLogic g => Proxy g -> (GameArgs g -> IO a) -> IO a
@@ -96,7 +99,9 @@ withArgs parser app = do
        "(3) Create both a game server and a client connected to it, use optionally [--serverPort]."
        ))
 
-run :: GameLogic g => Proxy g -> GameArgs g -> IO ()
+run :: (GameLogic g
+      , StateValueT (ServerT g) ~ GameStateValue)
+    => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
     (ServerOnly serverOnly)
@@ -185,6 +190,7 @@ mkServer (Just (ServerName n)) _ _ =
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g
+          , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
         => WithAudio
         -> Debug

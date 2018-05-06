@@ -33,7 +33,6 @@ library
                      , deepseq ==1.4.*
                      , file-embed ==0.0.*
                      , imj-base ==0.1.*
-                     , imj-game ==0.1.*
                      , imj-prelude ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3

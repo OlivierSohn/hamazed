@@ -52,9 +52,6 @@ instance GameLogic IncGame where
   type ColorThemeT    IncGame = ()
   type ClientInfoT    IncGame = ()
 
-  -- This defines the color of the outer frame:
-  getFrameColor _ = onBlack $ rgb 2 1 1
-
   -- This defines the size of the outer frame:
   getViewport _ (Screen _ center) (IncGame n) =
     let i = evenTriangle n

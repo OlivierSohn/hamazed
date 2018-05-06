@@ -17,6 +17,7 @@ module Imj.Game.Types
       , UpdateEvent
       , CustomUpdateEvent
       , EventGroup(..)
+      , defaultFrameSize
       -- * AppState type
       , AppState(..)
       , GameState(..)
@@ -81,11 +82,9 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(gets, state, modify')
-import           Data.Attoparsec.Text(Parser)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
 import           Data.Proxy(Proxy(..))
-import           Data.Text(unpack)
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
@@ -97,11 +96,12 @@ import           Imj.Game.ColorTheme.Class
 import           Imj.Game.Infos
 import           Imj.Game.Priorities
 import           Imj.Game.Status
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
-import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Color
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..))
@@ -166,7 +166,6 @@ data Transitioning = From | To
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
-     , GameStateValue ~ StateValueT (ServerT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
@@ -192,39 +191,6 @@ class (Server (ServerT g)
   gameName :: Proxy g -> String
   gameName _ = "Game"
 
-  {- |
-This method makes /custom/ commands available in the chat window : it returns a
-'Parser' parsing the /parameters/ of the command whose name was passed as argument.
-
-Commands issued in the chat start with a forward slash, followed by the command name
-and optional parameters.
-
-The command name must be composed exclusively of alphanumerical characters.
-
-When this method is called, the input has been consumed up until the beginning
-of the parameters, and the parsed command name didn't match with any default command.
-
-For example:
-
-@
-/color 2 3 4
-       ^
-/color
-      ^
-
-'^' : parse position when this method is called
-@
-
-For an unknown command name, this method returns a parser failing with an
-informative error message which will be displayed in the chat window.
-
-The default implementation returns a parser that fails for every command name.
-  -}
-  cmdParser :: Text
-            -- ^ Command name (lowercased, only alpha numerical characters)
-            -> Parser (Either Text (Command (ServerT g)))
-  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
-
   getViewport :: Transitioning
               -> Screen
               -> g
@@ -238,6 +204,7 @@ The default implementation returns a parser that fails for every command name.
 
   getFrameColor :: Maybe g
                 -> LayeredColor
+  getFrameColor _ = onBlack $ rgb 2 1 1
 
   mkWorldInfos :: InfoType
                -> Transitioning
@@ -295,6 +262,9 @@ The default implementation returns a parser that fails for every command name.
                  -> g
                  -> m ()
   drawForeground _ _ _ = return ()
+
+defaultFrameSize :: Size
+defaultFrameSize = Size 20 20
 
 data Infos = Infos {
     upInfos, downInfos :: !(Successive ColoredGlyphList)

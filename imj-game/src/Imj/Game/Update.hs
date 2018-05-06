@@ -63,9 +63,11 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Log
+import           Imj.Server.Command
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e
+                 , StateValueT (ServerT g) ~ GameStateValue
                  , MonadState (AppState g) m
                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                  , MonadIO m)

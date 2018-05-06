@@ -7,9 +7,7 @@
 
 module Imj.Game.Command
       ( Command(..)
-      , command
       , runClientCommand
-      , maxOneSpace
       -- * utilities
       , withAnim
       , withGameInfoAnimationIf
@@ -19,11 +17,6 @@ module Imj.Game.Command
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Attoparsec.Text(Parser, takeText, endOfInput, char
-                                    , peekChar, peekChar', skipSpace, takeWhile1)
-import           Data.Char(isSpace, toLower, isAlphaNum)
-import           Data.Text(pack, unsnoc)
-import qualified Data.Text as Text
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 
@@ -31,11 +24,11 @@ import           Imj.ClientView.Types
 import           Imj.Game.Types
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Words
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Text.ColoredGlyphList hiding (colored)
 import           Imj.Network
-import           Imj.Server.Types
+import           Imj.Server.Class
 
-import           Imj.Graphics.Color
 import           Imj.Game.Draw
 import           Imj.Game.Infos
 import           Imj.Game.Show
@@ -81,45 +74,6 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
             detail)
           chatMsgColor
 
-
-maxOneSpace :: Text -> Text
-maxOneSpace t = go t False []
- where
-  go txt prevSpace res =
-    case unsnoc txt of
-      Nothing -> pack res
-      Just (rest, c) ->
-        if isSpace c
-          then
-            go rest (not $ null res) res
-          else
-            go rest False $
-              if prevSpace
-                then c:' ':res
-                else c:res
-
-{- Returns a parser of commands.
--}
-command :: GameLogic g => Parser (Either Text (Command (ServerT g)))
-command = do
-  skipSpace
-  peekChar' >>= \case -- we peek to issue an error on wrong commands (instead of interpreting them as a message)
-    '/' -> do
-      char '/' *> skipSpace
-      cmdName <- Text.map toLower <$> takeWhile1 isAlphaNum
-      skipSpace
-      peekChar >>= maybe
-        (return ())
-        (\c -> if c == ':'
-            then
-              void $ char ':'
-            else
-              return ())
-      skipSpace
-      case cmdName of
-        "name" -> Right . RequestApproval . AssignName . ClientName . maxOneSpace <$> takeText <* endOfInput
-        _ -> cmdParser cmdName
-    _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)
 
 withGameInfoAnimationIf :: (MonadState (AppState g) m
                           , MonadIO m

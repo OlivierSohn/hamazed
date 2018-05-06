@@ -12,8 +12,10 @@ module Imj.Server.Class
       ( Server(..)
       , Value(..)
       , ValueKey(..)
-      , ServerReport(..)
+      , Command(..)
+      , ClientCommand(..)
       , ServerCommand(..)
+      , ServerReport(..)
       , ServerState(..)
       , ClientViews(..)
       , ClientView(..)
@@ -33,11 +35,13 @@ module Imj.Server.Class
 import           Imj.Prelude
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
+import           Data.Text(unpack)
 import           Data.String(IsString(..))
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(MonadState, gets)
+import           Data.Attoparsec.Text(Parser)
 
 import           Imj.Arg.Class
 import           Imj.Categorized
@@ -102,6 +106,39 @@ class (Show (ClientEventT s)
   type ReconnectionContext s
 
   type StateValueT s
+
+  {- |
+This method makes /custom/ commands available in the chat window : it returns a
+'Parser' parsing the /parameters/ of the command whose name was passed as argument.
+
+Commands issued in the chat start with a forward slash, followed by the command name
+and optional parameters.
+
+The command name must be composed exclusively of alphanumerical characters.
+
+When this method is called, the input has been consumed up until the beginning
+of the parameters, and the parsed command name didn't match with any default command.
+
+For example:
+
+@
+/color 2 3 4
+       ^
+/color
+      ^
+
+'^' : parse position when this method is called
+@
+
+For an unknown command name, this method returns a parser failing with an
+informative error message which will be displayed in the chat window.
+
+The default implementation returns a parser that fails for every command name.
+  -}
+  cmdParser :: Text
+            -- ^ Command name (lowercased, only alpha numerical characters)
+            -> Parser (Either Text (Command s))
+  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
   -- | Called to create the server.
   mkInitial :: MonadIO m => Proxy s -> m (ValuesT s, s)
@@ -200,6 +237,33 @@ gets' :: (MonadState (ServerState s) m)
       => (s -> a)
       -> m a
 gets' f = gets (f . unServerState)
+
+
+data Command s =
+    RequestApproval !(ClientCommand Proposed)
+  -- ^ A Client asks for authorization to run a 'ClientCommand'.
+  -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
+  | Do !(ServerCommand s)
+  -- ^ A Client asks the server to run a 'ServerCommand'.
+  -- In response, the server runs the 'ServerCommand' then publishes a 'PlayerNotif' 'Done' 'ServerCommand'.
+  | Report !(ServerReport s)
+  -- ^ A client want to know an information on the server state. The server will answer by
+  -- sending a 'Report'.
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Server s => Binary (Command s)
+
+-- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
+--  then executed (for the final part) by /every/ client. The 'a' phantom type tracks if the
+-- command was approved by the server or not.
+data ClientCommand a =
+    AssignName {-# UNPACK #-} !(ClientName a)
+  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
+  | Says {-# UNPACK #-} !Text
+  | Leaves {-unpack sum-} !(Either Text ())
+  -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
+  -- will also gracefully shutdown the server.
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary (ClientCommand a)
 
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand s =

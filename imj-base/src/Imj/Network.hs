@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Network
     ( ClientName(..), unClientName
@@ -29,8 +30,12 @@ unClientName (ClientName t) = t
 class ClientNameSuggestion a where
   extractName :: a -> ClientName Proposed
 
+instance ClientNameSuggestion () where
+  extractName = const $ ClientName "void"
+
 instance ClientNameSuggestion (ClientName a) where
   extractName = ClientName . unClientName
+
 
 instance Arg (ClientName Proposed) where
   parseArg =

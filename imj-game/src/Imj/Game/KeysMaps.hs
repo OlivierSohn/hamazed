@@ -19,6 +19,7 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Game.Status
 import           Imj.Game.Types
 import           Imj.Input.Types
+import           Imj.Server.Class
 import           Imj.Server.Types
 
 translatePlatformEvent :: (GameLogicT e ~ g

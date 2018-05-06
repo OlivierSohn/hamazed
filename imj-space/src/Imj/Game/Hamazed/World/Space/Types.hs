@@ -111,7 +111,6 @@ import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.UI.Slider
 
-import           Imj.Game.Color
 import           Imj.Geo.Discrete.Interleave
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.Font
@@ -129,13 +128,13 @@ data WallDistribution = WallDistribution {
 instance Binary WallDistribution
 instance NFData WallDistribution
 instance UIInstructions WallDistribution where
-  instructions (WallDistribution size wallProba) =
+  instructions color (WallDistribution size wallProba) =
     [ ConfigUI "Walls size" $ Discrete $
         Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize)
-              'y' 'g' configColors Compact
+              'y' 'g' color Compact
     , ConfigUI "Walls probability" $ Continuous $
         Slider wallProba minWallProba maxWallProba nProbaSteps
-              'u' 'h' configColors Compact
+              'u' 'h' color Compact
     ]
 
 

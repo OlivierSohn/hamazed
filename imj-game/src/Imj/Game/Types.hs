@@ -228,6 +228,11 @@ class (Server (ServerT g)
                 => CustomUpdateEvent g
                 -> m ()
 
+  onClientCustomCmd :: (MonadState (AppState g) m
+                      , MonadIO m)
+                    => CustomCmdT (ServerT g)
+                    -> m ()
+
   -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing'. Hence,

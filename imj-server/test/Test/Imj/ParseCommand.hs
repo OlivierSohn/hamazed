@@ -29,6 +29,7 @@ instance Server VoidServer where
   type ReconnectionContext VoidServer = ()
   type ClientEventT        VoidServer = ()
   type ServerEventT        VoidServer = ()
+  type CustomCmdT          VoidServer = ()
 
   type ValuesT       VoidServer = ()
   type ClientViewT   VoidServer = ()
@@ -44,6 +45,7 @@ instance Server VoidServer where
   onPut _ = return ()
   onDelta _ _ = return ()
   handleClientEvent _ = return ()
+  acceptCommand _ = return ()
 {-
 data VoidGame
 instance GameLogic VoidGame where

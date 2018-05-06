@@ -57,11 +57,11 @@ instance Server s => Show (ClientEvent s) where
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
   | PlayMusic !Music !Instrument
-  | CommandError {-unpack sum-} !(ClientCommand Proposed)
+  | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
   | RunCommand {-# UNPACK #-} !ClientId
-               {-unpack sum-} !(ClientCommand Approved)
+               {-unpack sum-} !(ClientCommand (CustomCmdT s) Approved)
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !(ServerCommand s)
   -- ^ Response to a 'Report'.

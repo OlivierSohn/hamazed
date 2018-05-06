@@ -43,11 +43,12 @@ import           Imj.Timing
 runClientCommand :: (GameLogic g
                    , MonadState (AppState g) m, MonadIO m)
                  => ClientId
-                 -> ClientCommand Approved
+                 -> ClientCommand (CustomCmdT (ServerT g)) Approved
                  -> m ()
 runClientCommand sid cmd = getPlayer sid >>= \p -> do
   let name = getPlayerUIName' p
   case cmd of
+    CustomCmd x -> onClientCustomCmd x -- TODO generically distinguish commands that need an animation and chat reporting commands
     AssignName name' ->
       withAnim Normal (pure ()) $
         putPlayer sid $ Player name' Present $ maybe (mkPlayerColors (rgb 3 3 3)) getPlayerColors p

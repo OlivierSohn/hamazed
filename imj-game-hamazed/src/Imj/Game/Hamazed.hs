@@ -123,6 +123,8 @@ instance GameLogic HamazedGame where
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
 
+  onClientCustomCmd = undefined -- we don't have custom commands
+
   getFrameColor _ = worldFrameColors
 
   mkWorldInfos t _ (HamazedGame _ _ shotNumbers (Level level _)) =

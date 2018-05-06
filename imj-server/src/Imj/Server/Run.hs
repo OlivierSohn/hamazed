@@ -157,6 +157,10 @@ handleIncomingEvent' = \case
       (publish StartsGame)
   OnCommand c -> case c of
     RequestApproval cmd -> case cmd of
+      CustomCmd s -> do
+        acceptCommand s >>= either
+          (notifyClient' . CommandError cmd)
+          (const $ acceptCmd $ CustomCmd s)
       AssignName suggested -> either
         (notifyClient' . CommandError cmd)
         (\valid -> checkNameAvailability valid >>= either

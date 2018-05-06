@@ -108,6 +108,7 @@ instance Server HamazedServer where
   type ServerEventT HamazedServer = HamazedServerEvent
   type ClientEventT HamazedServer = HamazedClientEvent
   type ConnectIdT   HamazedServer = ClientName Proposed
+  type CustomCmdT   HamazedServer = ()
 
   type ValuesT HamazedServer = WorldParameters
   type ClientViewT    HamazedServer = HamazedClient
@@ -198,6 +199,8 @@ instance Server HamazedServer where
     gets' intent >>= \case
       IntentSetup -> requestWorld -- because the number of players has changed
       IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
+
+  acceptCommand = undefined -- we don't have custom commands
 
 --------------------------------------------------------------------------------
 -- functions used in 'inParallel' ----------------------------------------------

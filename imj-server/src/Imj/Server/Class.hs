@@ -60,12 +60,23 @@ class (Show (ClientEventT s)
      , Show (ValueT s)
      , Show (EnumValueKeyT s)
      , Show (StateValueT s)
+     , Show (CustomCmdT s)
+     , Show (ClientEventT s)
+     , Generic (ConnectIdT s)
+     , Generic (ValuesT s)
+     , Generic (ClientViewT s)
+     , Generic (ValueKeyT s)
+     , Generic (ValueT s)
+     , Generic (EnumValueKeyT s)
+     , Generic (StateValueT s)
+     , Generic (CustomCmdT s)
      , ChatShow (ValueT s)
      , Arg (ConnectIdT s)
      , ClientNameSuggestion (ConnectIdT s)
      , Eq (ValueKeyT s)
      , Eq (ValueT s)
      , Eq (EnumValueKeyT s)
+     , Eq (CustomCmdT s)
      , Binary (ValuesT s)
      , Binary (ClientEventT s)
      , Binary (ServerEventT s)
@@ -74,6 +85,7 @@ class (Show (ClientEventT s)
      , Binary (ValueT s)
      , Binary (EnumValueKeyT s)
      , Binary (StateValueT s)
+     , Binary (CustomCmdT s)
      , NFData s -- because we use Control.Concurrent.MVar.Strict
      , NFData (ValuesT s)
      , NFData (ClientViewT s)
@@ -99,6 +111,8 @@ class (Show (ClientEventT s)
   -- ^ Events sent by the client that must be handled by the server.
   type ConnectIdT s = (r :: *) | r -> s
   -- ^ Data passed in 'ClientEvent' 'Connect'.
+
+  type CustomCmdT s
 
   -- | "Server-side" client definition.
   type ClientViewT s = (r :: *) | r -> s
@@ -194,6 +208,11 @@ The default implementation returns a parser that fails for every command name.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                     => ClientEventT s -> m ()
 
+  -- | Returns 'Left' to disallow the command, 'Right' to allow it.
+  acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                => CustomCmdT s
+                -> m (Either Text ())
+
   -- | Returns True if the client was included in the game that is being setup.
   clientCanJoin :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => Proxy s -> m Bool
@@ -240,7 +259,7 @@ gets' f = gets (f . unServerState)
 
 
 data Command s =
-    RequestApproval !(ClientCommand Proposed)
+    RequestApproval !(ClientCommand (CustomCmdT s) Proposed)
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
   | Do !(ServerCommand s)
@@ -255,32 +274,24 @@ instance Server s => Binary (Command s)
 -- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
 --  then executed (for the final part) by /every/ client. The 'a' phantom type tracks if the
 -- command was approved by the server or not.
-data ClientCommand a =
-    AssignName {-# UNPACK #-} !(ClientName a)
+data ClientCommand b a =
+    CustomCmd !b
+  | AssignName {-# UNPACK #-} !(ClientName a)
   | AssignColor {-# UNPACK #-} !(Color8 Foreground)
   | Says {-# UNPACK #-} !Text
   | Leaves {-unpack sum-} !(Either Text ())
   -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
   -- will also gracefully shutdown the server.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary (ClientCommand a)
+  deriving(Generic, Show, Eq)
+instance Binary b => Binary (ClientCommand b a)
 
 -- | Commands initiated by a client, executed by the server.
 data ServerCommand s =
     Put !(Value s)
   | Succ !(EnumValueKeyT s)
   | Pred !(EnumValueKeyT s)
-  deriving(Generic) -- Eq needed for parse tests
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
 instance Server s => Binary (ServerCommand s)
-instance Server s => Show (ServerCommand s) where
-  show (Put a) = show ("Put",a)
-  show (Succ a) = show ("Succ",a)
-  show (Pred a) = show ("Pred",a)
-instance (Server s) => Eq (ServerCommand s) where
-  (Put a) == (Put b) = a == b
-  (Succ a) == (Succ b) = a == b
-  (Pred a) == (Pred b) = a == b
-  _ == _ = False
 instance (Server s) => ChatShow (ServerCommand s) where
   chatShow (Put x) = chatShow x
   chatShow (Succ x) =

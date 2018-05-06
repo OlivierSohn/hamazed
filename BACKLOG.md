@@ -1,3 +1,5 @@
+- use "Do" to reset the counter, the semantics seems to be more defined than custom command.
+
 - optimal strategies creation :
 Take as parameters:
   - world parameters

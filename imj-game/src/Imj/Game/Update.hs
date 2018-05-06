@@ -86,9 +86,7 @@ updateAppState (Right evt) = case evt of
     _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
       let nextIt@(Iteration _ nextFrame) = nextIteration it
           worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
-          anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-      putAnimation anims
-      maybe onAnimFinished (const $ return ()) worldAnimDeadline
+      putAnimation $ a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
   Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
     fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
       gets game >>= \g ->

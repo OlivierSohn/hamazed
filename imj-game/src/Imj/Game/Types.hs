@@ -468,9 +468,15 @@ putGame :: MonadState (AppState g) m => Game g -> m ()
 putGame g = modify' $ \s -> s { game = g }
 
 {-# INLINABLE putAnimation #-}
-putAnimation :: MonadState (AppState s) m => UIAnimation -> m ()
-putAnimation a =
+putAnimation :: (GameLogicT e ~ g
+               , MonadState (AppState (GameLogicT e)) m
+               , MonadReader e m, Client e
+               , MonadIO m)
+             => UIAnimation
+             -> m ()
+putAnimation a = do
   getGameState >>= \g -> putGameState $ g {_anim = a}
+  maybe onAnimFinished (const $ return ()) $ _deadline $ getProgress a
 
 {-# INLINABLE putIGame #-}
 putIGame :: MonadState (AppState s) m => s -> m ()

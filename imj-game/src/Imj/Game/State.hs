@@ -12,8 +12,6 @@ module Imj.Game.State
       , onEvent
       , toggleRecordEvent
       , addIgnoredOverdues
-      -- * utilities
-      , mkAnim
       -- * reexports
       , module Imj.Game.Types
       ) where
@@ -40,7 +38,6 @@ import           Imj.Server.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Audio.Class
-import           Imj.Game.Command
 import           Imj.Game.Draw
 import           Imj.Game.Status
 import           Imj.Game.Update

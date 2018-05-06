@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Command
       ( Command(..)
@@ -12,7 +13,6 @@ module Imj.Game.Command
       , withAnim
       , withAnim'
       , withGameInfoAnimationIf
-      , mkAnim
       ) where
 
 import           Imj.Prelude
@@ -41,8 +41,10 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Timing
 
-runClientCommand :: (GameLogic g
-                   , MonadState (AppState g) m, MonadIO m)
+runClientCommand :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadReader e m, Client e
+                   , MonadIO m)
                  => ClientId
                  -> ClientCommand (CustomCmdT (ServerT g)) Approved
                  -> m ()
@@ -62,10 +64,8 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
     Leaves detail -> do
       maybe
         (return ())
-        (\n ->
-            withAnim $
-              putPlayer sid $ n { getClientStatus = Absent })
-          p
+        (\n -> withAnim $ putPlayer sid $ n { getClientStatus = Absent })
+        p
       stateChat $ addMessage $ ChatMessage $
         name <>
         colored
@@ -77,9 +77,10 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
           chatMsgColor
 
 
-withGameInfoAnimationIf :: (MonadState (AppState g) m
-                          , MonadIO m
-                          , GameLogic g)
+withGameInfoAnimationIf :: (GameLogicT e ~ g
+                          , MonadState (AppState (GameLogicT e)) m
+                          , MonadReader e m, Client e
+                          , MonadIO m)
                         => Bool
                         -> m a
                         -> m a
@@ -90,35 +91,33 @@ withGameInfoAnimationIf condition act =
 
 -- | Runs an action that may change the result of one of 'getClientsInfos', 'getViewport' or 'mkWorldInfos'
 -- and schedules an animation 'UIAnimation' that will make the changes appear progressively.
-withAnim :: (MonadState (AppState g) m
-            , MonadIO m
-            , GameLogic g)
+withAnim :: (GameLogicT e ~ g
+           , MonadState (AppState (GameLogicT e)) m
+           , MonadReader e m, Client e
+           , MonadIO m)
           => m a
           -- ^ The action to run.
           -> m a
-withAnim = withAnim' Normal (return ())
+withAnim = withAnim' Normal
 
 -- | Runs an action that may change the result of one of 'getClientsInfos', 'getViewport' or 'mkWorldInfos'
 -- and schedules an animation 'UIAnimation' that will make the changes appear progressively.
-withAnim' :: (MonadState (AppState g) m
-            , MonadIO m
-            , GameLogic g)
+withAnim' :: (GameLogicT e ~ g
+            , MonadState (AppState (GameLogicT e)) m
+            , MonadReader e m, Client e
+            , MonadIO m)
           => InfoType
-          -> m ()
-          -- ^ This action will be run at the end of the animation.
           -> m a
-          -- ^ The action to run.
           -> m a
-withAnim' infoType finalize act = do
+withAnim' infoType act = do
   gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
     gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
-      putAnimation =<< mkAnim infoType t screen names1 names2 g1 g2 finalize
-
+      putAnimation $ mkAnim infoType t screen names1 names2 g1 g2
     return res
 
-mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
+mkAnim :: (GameLogic g1, GameLogic g2)
        => InfoType
        -> Time Point System
        -> Screen
@@ -130,10 +129,8 @@ mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
        -- ^ from
        -> Maybe g2
        -- ^ to
-       -> m ()
-       -- ^ action to run when the animation is over
-       -> m UIAnimation
-mkAnim it t screen@(Screen _ center) namesI namesF gI gF finalizer = do
+       -> UIAnimation
+mkAnim it t screen@(Screen _ center) namesI namesF gI gF =
   let (hDist, vDist) = computeViewDistances
       colorFrom = getFrameColor gI
       colorTo   = getFrameColor gF
@@ -149,10 +146,7 @@ mkAnim it t screen@(Screen _ center) namesI namesF gI gF finalizer = do
       rectTo   = Colored colorTo   $ maybe defaultRect (getViewport To   screen) gF
 
       defaultRect = mkCenteredRectContainer center defaultFrameSize
-
-      anim = mkUIAnimation (rectFrom,from') (rectTo,to') hDist vDist t
-  when (isNothing $ _deadline $ getProgress $ anim) finalizer
-  return anim
+  in mkUIAnimation (rectFrom,from') (rectTo,to') hDist vDist t
 
  where
 

@@ -1,5 +1,18 @@
+- tutorial : reset counter with optional parameter for the number.
+'r' resets to 0.
+
+ClientCommand should have a "CustomCommand" type and cmdParser should return commands of that type.
+
+the commands of hamazed are now generic so move them.
+
+- using withAnim requires a bit of thinking, and is not robust because we need to use it
+for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
+
+We should come up with a better design where the library user doesn't have to care about these aspects.
+For example, on every action run in the state monad, we could use it and run the animation only if something
+changed.
+
 - Joining... should not appear in tutorial
-- split drawGame in 2 : background, foreground (animations are drawn in-between)
 - make reconnection work for tutorial (maybe we need to keep track of which client already connected, and
   is now deconnected, then on reconnection chose an old deconnected client based on a distance (name, ip, ...))
 

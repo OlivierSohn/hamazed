@@ -110,7 +110,7 @@ instance GameLogic HamazedGame where
   type ClientInfoT    HamazedGame = BattleShip
   type ColorThemeT    HamazedGame = ColorCycles
 
-  gameName _ = "Hamazed - a game with flying numbers."
+  gameName _ = "Hamazed"
 
   cmdParser cmd = case cmd of
     "color" -> tryReport <|> tryCmd

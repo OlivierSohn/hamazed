@@ -132,6 +132,8 @@ withGameInfoAnimationIf condition act =
  where
   f = bool id (withAnim Normal (pure ())) condition
 
+-- | Runs an action that may change the result of one of 'getClientsInfos', 'getViewport' or 'mkWorldInfos'
+-- and schedules an animation 'UIAnimation' that will make the changes appear progressively.
 withAnim :: (MonadState (AppState g) m
            , MonadIO m
            , GameLogic g)
@@ -139,13 +141,14 @@ withAnim :: (MonadState (AppState g) m
          -> m ()
          -- ^ This action will be run at the end of the animation.
          -> m a
+         -- ^ The action to run.
          -> m a
-withAnim it finalize act = do
+withAnim infoType finalize act = do
   gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
     gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
-      putAnimation =<< mkAnim it t screen names1 names2 g1 g2 finalize
+      putAnimation =<< mkAnim infoType t screen names1 names2 g1 g2 finalize
 
     return res
 

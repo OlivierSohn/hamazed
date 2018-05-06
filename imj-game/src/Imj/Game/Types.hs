@@ -188,33 +188,40 @@ class (Server (ServerT g)
 
   type ClientInfoT g
 
+  -- | The name is used to set the title of the game window.
   gameName :: Proxy g -> String
   gameName _ = "Game"
 
   {- |
-This method can be implemented to make /custom/ commands available in the chat window.
+This method makes /custom/ commands available in the chat window : it returns a
+'Parser' parsing the /parameters/ of the command whose name was passed as argument.
 
-Commands issued in the chat have the following syntax:
+Commands issued in the chat start with a forward slash, followed by the command name
+and optional parameters.
 
-  * First, @/@ indicates that we will write a command
-  * then we write the command name (all alphanumerical characters)
-  * then we write command parameters, separated by spaces.
+The command name must be composed exclusively of alphanumerical characters.
 
-When this method is called, the command name has not matched with any of the default commands
-(the only defaut command today is '@name@'),
-and the input has been consumed up until the /beginning/ of the command parameters:
+When this method is called, the input has been consumed up until the beginning
+of the parameters, and the parsed command name didn't match with any default command.
+
+For example:
 
 @
-'^' indicates the parse position when this method is called
-
 /color 2 3 4
        ^
 /color
       ^
+
+'^' : parse position when this method is called
 @
+
+For an unknown command name, this method returns a parser failing with an
+informative error message which will be displayed in the chat window.
+
+The default implementation returns a parser that fails for every command name.
   -}
   cmdParser :: Text
-            -- ^ Command name (lowercased)
+            -- ^ Command name (lowercased, only alpha numerical characters)
             -> Parser (Either Text (Command (ServerT g)))
   cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 

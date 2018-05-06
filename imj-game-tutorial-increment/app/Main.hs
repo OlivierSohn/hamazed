@@ -32,7 +32,7 @@ import           Imj.Util
 
 main :: IO ()
 main =
-  -- we use 'Proxy' to "tell" the type system what is the type of game.
+  -- we use 'Proxy' to "tell" the type system what is the type of game:
   runGame (Proxy :: Proxy IncGame)
 
 type Counter = Int
@@ -42,6 +42,7 @@ data IncGame = IncGame {
   theClientCounter :: !Counter
 }
 
+-- 'evenTriangle' is used to make the size of the frame vary with the counter:
 evenTriangle :: Int -> Int
 evenTriangle = (*) 2 . zigzag 0 5
 
@@ -51,29 +52,32 @@ instance GameLogic IncGame where
   type ColorThemeT    IncGame = ()
   type ClientInfoT    IncGame = ()
 
+  -- This defines the color of the outer frame:
   getFrameColor _ = onBlack $ rgb 2 1 1
 
+  -- This defines the size of the outer frame:
   getViewport _ (Screen _ center) (IncGame n) =
     let i = evenTriangle n
     in mkRectContainerWithCenterAndInnerSize center $ Size (10+fromIntegral i) (10+fromIntegral i)
 
+  -- Hit the space bar to increment the counter:
   keyMaps key _ = return $ case key of
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
 
+  -- Handle 'ClientOnlyEvtT' :
   onCustomEvent (Right ()) =
     return ()
+  -- Handle 'IncServerEvent' :
   onCustomEvent (Left (CounterValue value)) =
-    -- The frame size depends on the counter (cf 'getViewport') so we use 'withAnim'
-    -- to allow the frame to animate.
+    -- 'withAnim' allows the frame to animate:
     withAnim Normal (return ()) $
+      -- Update the client counter:
       putIGame $ IncGame value
 
-  drawGame =
-    gets game >>= \(Game _ (Screen _ screenCenter) (GameState mayG _) _ _ _ _ _ _ _) ->
-      maybe (return ())
-        (\(IncGame counterValue) -> drawStr (show counterValue) screenCenter $ LayeredColor black (rgb 5 4 2))
-        mayG
+  drawForeground (Screen _ screenCenter) _ (IncGame counterValue) =
+    -- draw the counter value in the center of the screen:
+    drawStr (show counterValue) screenCenter $ LayeredColor black (rgb 5 4 2)
 
 -- | This implements the server-side logic of the game
 data IncServer = IncServer {
@@ -81,18 +85,18 @@ data IncServer = IncServer {
 } deriving(NFData, Generic)
 
 instance Server IncServer where
-  type StateValueT      IncServer = GameStateValue
+  type StateValueT   IncServer = GameStateValue
 
-  type ConnectIdT                IncServer = ClientName Proposed
-  type ReconnectionContext       IncServer = ()
-  type ClientEventT              IncServer = IncClientEvent
-  type ServerEventT              IncServer = IncServerEvent
+  type ConnectIdT          IncServer = ClientName Proposed
+  type ReconnectionContext IncServer = ()
+  type ClientEventT        IncServer = IncClientEvent
+  type ServerEventT        IncServer = IncServerEvent
 
-  type ValuesT            IncServer = ()
-  type ClientViewT               IncServer = ()
+  type ValuesT       IncServer = ()
+  type ClientViewT   IncServer = ()
 
-  type ValueKeyT           IncServer = ()
-  type ValueT              IncServer = ()
+  type ValueKeyT     IncServer = ()
+  type ValueT        IncServer = ()
   type EnumValueKeyT IncServer = ()
 
   mkInitial _ =

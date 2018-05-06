@@ -1,4 +1,7 @@
 - Joining... should not appear in tutorial
+- split drawGame in 2 : background, foreground (animations are drawn in-between)
+- make reconnection work for tutorial (maybe we need to keep track of which client already connected, and
+  is now deconnected, then on reconnection chose an old deconnected client based on a distance (name, ip, ...))
 
 - make audio enabled / disabled by game to avoid initialization when it's not needed,
 and not show audio-related parameters.

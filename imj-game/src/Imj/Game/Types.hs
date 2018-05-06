@@ -266,11 +266,28 @@ and the input has been consumed up until the /beginning/ of the command paramete
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 
-  drawGame :: (GameLogicT e ~ g
-             , MonadState (AppState (GameLogicT e)) m
-             , MonadReader e m, Draw e
-             , MonadIO m)
-           => m ()
+  -- | Draw the background layer (i.e /before/ particle system animations are drawn)
+  -- and returns a reference position that will be used to position particle systems
+  -- animations, and will be passed to 'drawForeground'.
+  drawBackground :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadIO m, MonadReader e m, Draw e)
+                 => Screen
+                 -> g
+                 -> m (Coords Pos)
+                 -- ^ The reference position for particle systems.
+  drawBackground (Screen _ center) _ = return center
+
+  -- | Draw the foreground layer (i.e /after/ particle system animations are drawn)
+  drawForeground :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadIO m, MonadReader e m, Draw e)
+                 => Screen
+                 -> Coords Pos
+                 -- ^ The reference position for particle systems as returned by 'drawBackground'.
+                 -> g
+                 -> m ()
+  drawForeground _ _ _ = return ()
 
 data Infos = Infos {
     upInfos, downInfos :: !(Successive ColoredGlyphList)

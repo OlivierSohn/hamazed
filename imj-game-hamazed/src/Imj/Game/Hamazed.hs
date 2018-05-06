@@ -160,17 +160,18 @@ instance GameLogic HamazedGame where
             To -> fromMaybe current future
     in mkRectContainerWithCenterAndInnerSize center $ getSize space
 
-  {-# INLINABLE drawGame #-}
-  drawGame = gets game >>=
-    \(Game _ (Screen _ screenCenter) (GameState mayG _) animations _ _ _ _ _ _) ->
-      flip fmapM mayG $ \(HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) -> do
-        let worldCorner = getWorldCorner world screenCenter
-        -- draw the walls outside the matrix:
-        fill (materialGlyph Wall) outerWallsColors
-        -- draw the matrix:
-        drawSpace renderedSpace worldCorner
-        mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
-        drawWorld world worldCorner
+  {-# INLINABLE drawBackground #-}
+  drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do
+    let worldCorner = getWorldCorner world screenCenter
+    -- draw the walls outside the matrix:
+    fill (materialGlyph Wall) outerWallsColors
+    -- draw the matrix:
+    drawSpace renderedSpace worldCorner
+    return worldCorner
+
+  {-# INLINABLE drawForeground #-}
+  drawForeground _ worldCorner (HamazedGame world _ _ _) =
+    drawWorld world worldCorner
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing

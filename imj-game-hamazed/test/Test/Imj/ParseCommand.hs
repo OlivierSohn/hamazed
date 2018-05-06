@@ -8,8 +8,6 @@ module Test.Imj.ParseCommand
 import           Data.Attoparsec.Text(parseOnly, Parser)
 import           Data.Text
 
-import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Types
 import           Imj.Game.Hamazed
 import           Imj.Server.Class

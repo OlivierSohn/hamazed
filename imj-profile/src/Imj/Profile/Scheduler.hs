@@ -34,7 +34,7 @@ import           System.Random.MWC
 import           System.IO(stdout, hFlush)
 import           Text.Blaze.Html5(div,Html, toHtml)
 
-
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as W
@@ -388,3 +388,29 @@ data DurationConstraints = DurationConstraints {
     _maxTotal :: !(Time Duration System)
   , _maxIndividual :: !(Time Duration System)
 } deriving(Show)
+
+
+smallWorldCharacteristicsDistance :: SmallWorldCharacteristics a -> SmallWorldCharacteristics b -> Float
+smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
+  -- These changes have the same impact on distance:
+  --   doubled area
+  --   proba 0.6 -> 0.7
+  --   2 cc -> 3 cc
+  --   4 cc -> 5 cc
+  doubleSize + 10 * almostDistance p p' + fromIntegral (dCC (min cc cc') (max cc cc'))
+ where
+   -- c1 <= c2
+   dCC c1 c2
+    | c1 == c2 = 0
+    | c1 == 1 = (c2 - c1) * 10
+    | otherwise = c2 - c1
+
+   doubleSize -- 1 when size doubles
+    | a == a' = 0
+    | a' == 0 = 1000000
+    | ratio > 1 = ratio - 1
+    | otherwise = (1 / ratio) - 1
+    where
+      a = area sz
+      a' = area sz'
+      ratio = fromIntegral a / fromIntegral a'

@@ -176,7 +176,7 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
       putStrLn "try bigger block size"
       go $ bsz + 1)
     return
-    $ closestOptimalStrategy userCharacteristics $ fromSecs 1
+    $ lookupOptimalStrategy userCharacteristics $ fromSecs 1
    where
     userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
 

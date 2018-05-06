@@ -1,4 +1,9 @@
-- ClientCommand should have a "CustomCommand" type and cmdParser should return commands of that type.
+- optimal strategies creation :
+Take as parameters:
+  - world parameters
+  - opStrat.bin file location
+
+- ClientCommand should have a "CustomCommand" type so that a client can define custom commands.
 
 - tutorial : reset counter with optional parameter for the number.
 'r' resets to 0.

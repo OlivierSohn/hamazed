@@ -13,8 +13,7 @@ module Imj.Game.Hamazed.World.Space.Strategies
     , StrategyTag(..)
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
-    , closestOptimalStrategy
-    , smallWorldCharacteristicsDistance
+    , lookupOptimalStrategy
     ) where
 
 import           Imj.Prelude
@@ -44,10 +43,6 @@ import           Imj.Util
 --
 -- if we want to take a chance, we can try strategy 1, and hope that it will behave more like p1 than p2
 -- or we can play safe and pick the one they agree on for being good.
---
--- For now, we'll just record the optimal strategies, assuming that the space of worlds is sufficiently sampled
--- to say that such situations won't occur.
--- ... of course, the safest approach is to sample exactly the world characteristics that we will use in the game.
 newtype OptimalStrategies = OptimalStrategies (Map (SmallWorldCharacteristics Program) OptimalStrategy)
   deriving(Generic)
 instance Binary OptimalStrategies
@@ -75,16 +70,27 @@ instance Show StrategyTag where
   show Refined = "Refined"
   show (Unrefined _) = "Unrefined" -- for html report
 
--- | The probability of 'SmallWorldCharacteristics' 'User'
+-- | Returns 'Right' when the embedded optimal strategies file contains at least one
+-- 'SmallWorldCharacteristics' 'Program' that matches exactly the 'Size' and 'ComponentCount'
+-- of the 'SmallWorldCharacteristics' 'User' passed as parameter, and that can be built within budget.
+--
+-- Note that the 'AlmostFloat' probability of 'SmallWorldCharacteristics' 'User'
+-- will not be exactly matched, instead, it
 -- will be adapted by mapping ['minWallProba' 'maxWallProba'] to [l h],
 -- where l == min probability where duration < budget
 --       h == max probability where duration < budget
--- 'Left' is returned if this range doesn't exist.
-closestOptimalStrategy :: SmallWorldCharacteristics User
+--
+-- Currently, the optimal strategies file contains only values used in imj-game-hamazed:
+-- we sampled exactly the world characteristics that we use in the game using imj-profile / 'mkOptimalStrategies'.
+--
+-- If you need other optimal strategies values, you will need to run a modified
+-- version of 'mkOptimalStrategies' so that it creates the optimal strategy file
+-- for the values you need.
+lookupOptimalStrategy :: SmallWorldCharacteristics User
                        -> Time Duration System
                        -- ^ The budget duration to create the world.
                        -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
-closestOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
+lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
   case embeddedOptimalStrategies of
     (OptimalStrategies m) ->
       let ok = Map.mapKeysMonotonic userWallProbability $
@@ -101,31 +107,6 @@ closestOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
                 (_,strategy) = l !! round (p * (fromIntegral $ len - 1))
                 adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba p
             in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
-
-smallWorldCharacteristicsDistance :: SmallWorldCharacteristics a -> SmallWorldCharacteristics b -> Float
-smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
-  -- These changes have the same impact on distance:
-  --   doubled area
-  --   proba 0.6 -> 0.7
-  --   2 cc -> 3 cc
-  --   4 cc -> 5 cc
-  doubleSize + 10 * almostDistance p p' + fromIntegral (dCC (min cc cc') (max cc cc'))
- where
-   -- c1 <= c2
-   dCC c1 c2
-    | c1 == c2 = 0
-    | c1 == 1 = (c2 - c1) * 10
-    | otherwise = c2 - c1
-
-   doubleSize -- 1 when size doubles
-    | a == a' = 0
-    | a' == 0 = 1000000
-    | ratio > 1 = ratio - 1
-    | otherwise = (1 / ratio) - 1
-    where
-      a = area sz
-      a' = area sz'
-      ratio = fromIntegral a / fromIntegral a'
 
 encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()
 encodeOptimalStrategiesFile s = do

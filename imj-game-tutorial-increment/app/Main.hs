@@ -17,7 +17,6 @@ import           GHC.Generics(Generic)
 import           Imj.Categorized
 import           Imj.Game.App(runGame)
 import           Imj.Game.Command
-import           Imj.Game.Infos
 import           Imj.Game.Status
 import           Imj.Game.Types
 import           Imj.Geo.Discrete.Types
@@ -59,10 +58,10 @@ instance GameLogic IncGame where
   -- This defines the size of the outer frame:
   getViewport _ (Screen _ center) (IncGame n) =
     let i = evenTriangle n
-    in mkRectContainerWithCenterAndInnerSize center $ Size (10+fromIntegral i) (10+fromIntegral i)
+    in mkCenteredRectContainer center $ Size (10+fromIntegral i) (10+fromIntegral i)
 
-  -- Hit the space bar to increment the counter:
   keyMaps key _ = return $ case key of
+    -- the space bar increments the counter
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
 
@@ -72,10 +71,11 @@ instance GameLogic IncGame where
     withAnim $
       putIGame $ IncGame value
 
-  onClientCustomCmd ResetCounter = stateChat $ addMessage $ ChatMessage $ "The counter has been reset."
+  onClientCustomCmd ResetCounter =
+    stateChat $ addMessage $ ChatMessage $ "The counter has been reset."
 
   drawForeground (Screen _ screenCenter) _ (IncGame counterValue) =
-    -- draw the counter value in the center of the screen:
+    -- The counter value is drawn in the center of the screen:
     drawStr (show counterValue) screenCenter $ LayeredColor black (rgb 5 4 2)
 
 -- | This implements the server-side logic of the game

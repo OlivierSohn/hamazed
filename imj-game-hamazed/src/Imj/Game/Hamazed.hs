@@ -144,7 +144,7 @@ instance GameLogic HamazedGame where
           case trans of
             From -> current
             To -> fromMaybe current future
-    in mkRectContainerWithCenterAndInnerSize center $ getSize space
+    in mkCenteredRectContainer center $ getSize space
 
   {-# INLINABLE drawBackground #-}
   drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do

@@ -55,7 +55,7 @@ draw =
         drawForeground screen worldCorner g)
       mayG
     let (_, _, _, Coords _ col) = getSideCenters $ maybe
-          (mkRectContainerWithCenterAndInnerSize center defaultFrameSize)
+          (mkCenteredRectContainer center defaultFrameSize)
           (getViewport To screen)
           mayG
     drawUIAnimation anim

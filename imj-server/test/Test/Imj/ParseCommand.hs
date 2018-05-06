@@ -45,7 +45,7 @@ instance Server VoidServer where
   onPut _ = return ()
   onDelta _ _ = return ()
   handleClientEvent _ = return ()
-  acceptCommand _ = return ()
+  acceptCommand _ = return $ Right ()
 {-
 data VoidGame
 instance GameLogic VoidGame where
@@ -55,7 +55,7 @@ instance GameLogic VoidGame where
   type ClientInfoT    VoidGame = ()
 
   getViewport _ (Screen _ center) _ =
-    mkRectContainerWithCenterAndInnerSize center defaultFrameSize
+    mkCenteredRectContainer center defaultFrameSize
 
   keyMaps _ _ = return Nothing
 

@@ -148,7 +148,7 @@ mkAnim it t screen@(Screen _ center) namesI namesF gI gF finalizer = do
       rectFrom = Colored colorFrom $ maybe defaultRect (getViewport From screen) gI
       rectTo   = Colored colorTo   $ maybe defaultRect (getViewport To   screen) gF
 
-      defaultRect = mkRectContainerWithCenterAndInnerSize center defaultFrameSize
+      defaultRect = mkCenteredRectContainer center defaultFrameSize
 
       anim = mkUIAnimation (rectFrom,from') (rectTo,to') hDist vDist t
   when (isNothing $ _deadline $ getProgress $ anim) finalizer

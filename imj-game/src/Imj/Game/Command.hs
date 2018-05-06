@@ -39,7 +39,6 @@ import           Imj.Graphics.Color
 import           Imj.Game.Draw
 import           Imj.Game.Infos
 import           Imj.Game.Show
-import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
@@ -134,19 +133,20 @@ withGameInfoAnimationIf condition act =
   f = bool id (withAnim Normal (pure ())) condition
 
 withAnim :: (MonadState (AppState g) m
-                        , MonadIO m
-                        , GameLogic g)
-                      => InfoType
-                      -> m ()
-                      -- ^ This action will be run at the end of the animation.
-                      -> m a
-                      -> m a
+           , MonadIO m
+           , GameLogic g)
+         => InfoType
+         -> m ()
+         -- ^ This action will be run at the end of the animation.
+         -> m a
+         -> m a
 withAnim it finalize act = do
   gets game >>= \(Game _ _ (GameState g1 _) _ _ names1 _ _ _ _) -> do
     res <- act
     gets game >>= \(Game _ screen (GameState g2 _) _ _ names2 _ _ _ _) -> do
       t <- liftIO getSystemTime
       putAnimation =<< mkAnim it t screen names1 names2 g1 g2 finalize
+
     return res
 
 mkAnim :: (Monad m, GameLogic g1, GameLogic g2)
@@ -179,7 +179,7 @@ mkAnim it t screen@(Screen _ center) namesI namesF gI gF finalizer = do
       rectFrom = Colored colorFrom $ maybe defaultRect (getViewport From screen) gI
       rectTo   = Colored colorTo   $ maybe defaultRect (getViewport To   screen) gF
 
-      defaultRect = mkRectContainerWithCenterAndInnerSize center $ Size 10 10
+      defaultRect = mkRectContainerWithCenterAndInnerSize center defaultFrameSize
 
       anim = mkUIAnimation (rectFrom,from') (rectTo,to') hDist vDist t
   when (isNothing $ _deadline $ getProgress $ anim) finalizer

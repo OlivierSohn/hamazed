@@ -184,7 +184,6 @@ instance Server HamazedServer where
     PlayLevel _ ->
       return False
 
-
   getValue WorldShapeKey =
     WorldShape . worldShape
   onPut (WorldShape s) =
@@ -194,17 +193,11 @@ instance Server HamazedServer where
 
   handleClientEvent = handleEvent
 
-  afterClientLeft cid = \case
-    ClientShutdown r -> do
-      notifyEveryone' $ RunCommand cid $ Leaves r
-      unAssign cid
-      gets' intent >>= \case
-        IntentSetup -> requestWorld -- because the number of players has changed
-        IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
-    ServerShutdown _ ->
-      return () -- no need to notify other clients, as they will be diconnected too,
-                -- hence they will receive a server shutdown notification.
-
+  afterClientLeft cid = do
+    unAssign cid
+    gets' intent >>= \case
+      IntentSetup -> requestWorld -- because the number of players has changed
+      IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
 
 --------------------------------------------------------------------------------
 -- functions used in 'inParallel' ----------------------------------------------

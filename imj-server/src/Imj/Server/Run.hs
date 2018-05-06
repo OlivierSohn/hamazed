@@ -145,14 +145,16 @@ handleIncomingEvent' = \case
   Connect i _ ->
     handlerError $ "already connected : " ++ show i
   ClientAppEvt e -> handleClientEvent e
-  ExitedState Excluded -> clientCanJoin (Proxy :: Proxy s) >>= bool
-    (do
-      notifyClient' $ EnterState Excluded
-      publish WaitsToJoin)
-    (publish Joins)
-  ExitedState (Included x) -> clientCanTransition x >>= bool
-    (return ())
-    (publish StartsGame)
+  ExitedState Excluded ->
+    clientCanJoin (Proxy :: Proxy s) >>= bool
+      (do
+        notifyClient' $ EnterState Excluded
+        publish WaitsToJoin)
+      (publish Joins)
+  ExitedState (Included x) ->
+    clientCanTransition x >>= bool
+      (return ())
+      (publish StartsGame)
   OnCommand c -> case c of
     RequestApproval cmd -> case cmd of
       AssignName suggested -> either

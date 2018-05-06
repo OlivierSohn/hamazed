@@ -167,13 +167,13 @@ class (Show (ClientEventT s)
                       => StateValueT s -> m Bool
   clientCanTransition _ = return True
 
-  -- | Called after a client has been disconnected (either intentionally or on connection error).
+  -- | Called after a client has disconnected (either intentionally or on connection error).
   --
   -- Default implementation does nothing.
   afterClientLeft :: (MonadIO m, MonadState (ServerState s) m)
                   => ClientId
-                  -> DisconnectReason -> m ()
-  afterClientLeft _ _ = return ()
+                  -> m ()
+  afterClientLeft _ = return ()
 
 class Show a => ChatShow a where
   -- | Returns the 'String' to display in the chat window. The default implemention

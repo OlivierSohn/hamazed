@@ -72,4 +72,4 @@ mkLeftDownInfo t (LevelEssence level _ _) =
 
 mkUpDownInfo :: (Successive ColoredGlyphList, Successive ColoredGlyphList)
 mkUpDownInfo =
-  (Successive [],Successive [])
+  (Successive [""],Successive [""])

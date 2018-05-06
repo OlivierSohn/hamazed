@@ -1,6 +1,4 @@
-- some games have no setup phase, and no win or lose : music playing.
-
-when a new client enters, it should go from excluded to included PlayLevel
+- Joining... should not appear in tutorial
 
 - make audio enabled / disabled by game to avoid initialization when it's not needed,
 and not show audio-related parameters.

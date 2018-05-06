@@ -8,6 +8,7 @@
 module Imj.Game.Draw
       ( draw
       , computeViewDistances
+      , defaultFrameSize
       ) where
 
 import           Imj.Prelude
@@ -36,6 +37,9 @@ import           Imj.Graphics.UI.RectContainer
 computeViewDistances :: (Length Width, Length Height)
 computeViewDistances = (20, 2)
 
+defaultFrameSize :: Size
+defaultFrameSize = Size 20 20
+
 -- | Draws the game content.
 {-# INLINABLE draw #-}
 draw :: (GameLogic (GameLogicT e)
@@ -47,7 +51,7 @@ draw = do
   drawGame
   gets game >>= \(Game _ screen@(Screen _ center@(Coords rowCenter _)) (GameState mayG anim) _ _ _ _ _ _ chat) -> do
     let (_, _, _, Coords _ col) = getSideCenters $ maybe
-          (mkRectContainerWithCenterAndInnerSize center (Size 0 0))
+          (mkRectContainerWithCenterAndInnerSize center defaultFrameSize)
           (getViewport To screen)
           mayG
     drawUIAnimation anim

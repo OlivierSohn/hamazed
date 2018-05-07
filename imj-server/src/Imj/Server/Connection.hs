@@ -5,6 +5,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+
 module Imj.Server.Connection
       ( notify
       , notifyN
@@ -134,7 +135,14 @@ disconnect r i =
           unClientName name <>
           "] disconnection < " <> pack (show reason)
 
-    afterClientLeft cid reason
+    case reason of
+      ClientShutdown re -> do
+        notifyEveryone' $ RunCommand cid $ Leaves re
+        afterClientLeft cid
+      ServerShutdown _ ->
+        return () -- no need to notify other clients, as they will be diconnected too,
+                  -- hence they will receive a server shutdown notification.
+
 
   tryRemoveClient = state $ \s ->
     let clients = clientsViews s

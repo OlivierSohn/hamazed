@@ -1,7 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
@@ -17,6 +17,7 @@ module Imj.Game.Types
       , UpdateEvent
       , CustomUpdateEvent
       , EventGroup(..)
+      , defaultFrameSize
       -- * AppState type
       , AppState(..)
       , GameState(..)
@@ -33,6 +34,8 @@ module Imj.Game.Types
       -- * Helper types
       , Transitioning(..)
       , GameArgs(..)
+      , Infos(..)
+      , mkEmptyInfos
       -- * EventGroup
       , isPrincipal
       , mkEmptyGroup
@@ -79,38 +82,37 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(gets, state, modify')
-import           Data.Attoparsec.Text(Parser)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
 import           Data.Proxy(Proxy(..))
-import           Data.Text(unpack)
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
+import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Event
 import           Imj.Game.Audio.Class
 import           Imj.Game.Configuration
 import           Imj.Game.ColorTheme.Class
 import           Imj.Game.Infos
-import           Imj.Game.Player
 import           Imj.Game.Priorities
 import           Imj.Game.Status
-import           Imj.Control.Concurrent.AsyncGroups.Class
+import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
-import           Imj.Graphics.Color.Types
+import           Imj.Graphics.Color
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..))
 import           Imj.Graphics.RecordDraw
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
-import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
+import           Imj.Network
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.Server.Types
 import           Imj.ServerView.Types
 
@@ -168,6 +170,7 @@ class (Server (ServerT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
      , Binary (ColorThemeT g)
+     , LeftInfo (ClientInfoT g)
      )
       =>
      GameLogic g
@@ -182,35 +185,11 @@ class (Server (ServerT g)
   type ColorThemeT g
   -- ^ The colors used by a player
 
+  type ClientInfoT g
+
+  -- | The name is used to set the title of the game window.
   gameName :: Proxy g -> String
   gameName _ = "Game"
-
-  {- |
-This method can be implemented to make /custom/ commands available in the chat window.
-
-Commands issued in the chat have the following syntax:
-
-  * First, @/@ indicates that we will write a command
-  * then we write the command name (all alphanumerical characters)
-  * then we write command parameters, separated by spaces.
-
-When this method is called, the command name has not matched with any of the default commands
-(the only defaut command today is '@name@'),
-and the input has been consumed up until the /beginning/ of the command parameters:
-
-@
-'^' indicates the parse position when this method is called
-
-/color 2 3 4
-       ^
-/color
-      ^
-@
-  -}
-  cmdParser :: Text
-            -- ^ Command name (lowercased)
-            -> Parser (Either Text (Command (ServerT g)))
-  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
   getViewport :: Transitioning
               -> Screen
@@ -218,21 +197,27 @@ and the input has been consumed up until the /beginning/ of the command paramete
               -> RectContainer
               -- ^ The screen region used to draw the game in 'drawGame'
 
-  -- TODO doc + should we split it in 2?
+  getClientsInfos :: Transitioning
+                  -> g
+                  -> Map ClientId (ClientInfoT g)
+  getClientsInfos _ _ = mempty
+
+  getFrameColor :: Maybe g
+                -> LayeredColor
+  getFrameColor _ = onBlack $ rgb 2 1 1
+
   mkWorldInfos :: InfoType
                -> Transitioning
-               -> Screen
-               -> Map ClientId (Player g)
-               -> Maybe g
-               -> (Colored RectContainer
-                  ,((Successive ColoredGlyphList,Successive ColoredGlyphList)
-                    ,[Successive ColoredGlyphList])) -- TODO use a better type
+               -> g
+               -> Infos
+  mkWorldInfos _ _ _ = mkEmptyInfos
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m
                    , MonadReader e m, Client e
                    , MonadIO m)
                  => m ()
+  onAnimFinished = return ()
 
   {- Handle your game's events. These are triggered either by a 'ServerT', or by a key press
   (see 'keyMaps') -}
@@ -243,6 +228,11 @@ and the input has been consumed up until the /beginning/ of the command paramete
                 => CustomUpdateEvent g
                 -> m ()
 
+  onClientCustomCmd :: (MonadState (AppState g) m
+                      , MonadIO m)
+                    => CustomCmdT (ServerT g)
+                    -> m ()
+
   -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing'. Hence,
@@ -251,16 +241,44 @@ and the input has been consumed up until the /beginning/ of the command paramete
             , MonadState (AppState g) m
             , MonadReader e m, Client e)
            => Key
-           -> StateValue
+           -> StateValue GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 
-  drawGame :: (GameLogicT e ~ g
-             , MonadState (AppState (GameLogicT e)) m
-             , MonadReader e m, Draw e
-             , MonadIO m)
-           => m ()
+  -- | Draw the background layer (i.e /before/ particle system animations are drawn)
+  -- and returns a reference position that will be used to position particle systems
+  -- animations, and will be passed to 'drawForeground'.
+  drawBackground :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadIO m, MonadReader e m, Draw e)
+                 => Screen
+                 -> g
+                 -> m (Coords Pos)
+                 -- ^ The reference position for particle systems.
+  drawBackground (Screen _ center) _ = return center
 
+  -- | Draw the foreground layer (i.e /after/ particle system animations are drawn)
+  drawForeground :: (GameLogicT e ~ g
+                   , MonadState (AppState (GameLogicT e)) m
+                   , MonadIO m, MonadReader e m, Draw e)
+                 => Screen
+                 -> Coords Pos
+                 -- ^ The reference position for particle systems as returned by 'drawBackground'.
+                 -> g
+                 -> m ()
+  drawForeground _ _ _ = return ()
+
+defaultFrameSize :: Size
+defaultFrameSize = Size 20 20
+
+data Infos = Infos {
+    upInfos, downInfos :: !(Successive ColoredGlyphList)
+  , leftUpInfos :: [Successive ColoredGlyphList]
+  , leftDownInfos :: [Successive ColoredGlyphList]
+}
+
+mkEmptyInfos :: Infos
+mkEmptyInfos = Infos (Successive [fromString ""]) (Successive [fromString ""]) [] []
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
@@ -318,7 +336,7 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
 type ParticleSystems = Map ParticleSystemKey (Prioritized ParticleSystem)
 
 data Game g = Game {
-    getClientState :: {-# UNPACK #-} !ClientState
+    getClientState :: {-# UNPACK #-} !(ClientState GameStateValue)
   , getScreen :: {-# UNPACK #-} !Screen
   , getGameState' :: !(GameState g)
   , gameParticleSystems :: !ParticleSystems
@@ -326,7 +344,7 @@ data Game g = Game {
   , getDrawnClientState :: ![(ColorString    -- 'ColorString' is used to compare with new messages.
                              ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
   , getPlayers' :: !(Map ClientId (Player g))
-  , _gameSuggestedPlayerName :: !(Maybe (ConnectIdT (ServerT g)))
+  , _gameSuggestedClientName :: !(Maybe (ConnectIdT (ServerT g)))
   , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
@@ -339,14 +357,14 @@ data GameState g = GameState {
 }
 
 data Player g = Player {
-    getPlayerName :: {-# UNPACK #-} !ClientName
-  , getPlayerStatus :: {-unpack sum-} !PlayerStatus
+    getPlayerName :: {-# UNPACK #-} !(ClientName Approved)
+  , getClientStatus :: {-unpack sum-} !ClientStatus
   , getPlayerColors :: {-# UNPACK #-} !(PlayerColors g)
 } deriving(Generic, Show)
 instance GameLogic g => Binary (Player g)
 
-mkPlayer :: GameLogic g => PlayerEssence -> Player g
-mkPlayer (PlayerEssence a b color) =
+mkPlayer :: GameLogic g => ClientEssence -> Player g
+mkPlayer (ClientEssence a b color) =
   Player a b $ mkPlayerColors color
 
 mkPlayerColors :: GameLogic g
@@ -404,7 +422,7 @@ data GameArgs g = GameArgs
   !(Maybe ServerName)
   !(Maybe ServerPort)
   !(Maybe ServerLogs)
-  !(Maybe (ServerConfigT (ServerT g)))
+  !(Maybe ColorScheme)
   !(Maybe (ConnectIdT (ServerT g)))
   !(Maybe BackendType)
   !(Maybe PPU)
@@ -450,9 +468,15 @@ putGame :: MonadState (AppState g) m => Game g -> m ()
 putGame g = modify' $ \s -> s { game = g }
 
 {-# INLINABLE putAnimation #-}
-putAnimation :: MonadState (AppState s) m => UIAnimation -> m ()
-putAnimation a =
+putAnimation :: (GameLogicT e ~ g
+               , MonadState (AppState (GameLogicT e)) m
+               , MonadReader e m, Client e
+               , MonadIO m)
+             => UIAnimation
+             -> m ()
+putAnimation a = do
   getGameState >>= \g -> putGameState $ g {_anim = a}
+  maybe onAnimFinished (const $ return ()) $ _deadline $ getProgress a
 
 {-# INLINABLE putIGame #-}
 putIGame :: MonadState (AppState s) m => s -> m ()
@@ -486,15 +510,15 @@ getMyId =
     _ -> Nothing) <$> getGameConnection
 
 {-# INLINABLE putServerContent #-}
-putServerContent :: MonadState (AppState g) m => ServerContentT (ServerT g) -> m ()
+putServerContent :: MonadState (AppState g) m => ValuesT (ServerT g) -> m ()
 putServerContent p =
   getServerView >>= \s@(ServerView _ c) ->
-    putServer s { serverContent = c { cachedContent = Just p } }
+    putServer s { serverContent = c { cachedValues = Just p } }
 
 {-# INLINABLE getServerContent #-}
-getServerContent :: MonadState (AppState g) m => m (Maybe (ServerContentT (ServerT g)))
+getServerContent :: MonadState (AppState g) m => m (Maybe (ValuesT (ServerT g)))
 getServerContent =
-  cachedContent . serverContent <$> getServerView
+  cachedValues . serverContent <$> getServerView
 
 {-# INLINABLE getPlayers #-}
 getPlayers :: MonadState (AppState g) m => m (Map ClientId (Player g))

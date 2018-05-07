@@ -19,8 +19,6 @@ import           Data.String(IsString)
 import           Data.Text(unpack)
 
 import           Imj.ClientView.Types
-import           Imj.Graphics.UI.Chat
-import           Imj.Game.Status
 import           Imj.Game.Types
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
@@ -28,22 +26,23 @@ import           Imj.Graphics.Text.ColorString(ColorString)
 import qualified Imj.Graphics.Text.ColorString as ColorString(colored, intercalate)
 import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
 import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
-import           Imj.Server.Types
+import           Imj.Graphics.UI.Chat
+import           Imj.Network
 
 getPlayerUIName' :: Maybe (Player g) -> ColorString
-getPlayerUIName' = getPlayerUIName ColorString.colored
+getPlayerUIName' = getPlayerUIName (ColorString.colored . unClientName)
 
 getPlayerUIName'' :: Maybe (Player g) -> ColoredGlyphList
-getPlayerUIName'' = getPlayerUIName (ColoredGlyphList.colored . map textGlyph . unpack)
+getPlayerUIName'' = getPlayerUIName (ColoredGlyphList.colored . map textGlyph . unpack . unClientName)
 
 getPlayerUIName :: (IsString a, Semigroup a)
-                => (Text -> Color8 Foreground -> a)
+                => (ClientName Approved -> Color8 Foreground -> a)
                 -> Maybe (Player g)
                 -> a
 -- 'Nothing' happens when 2 players disconnect while playing: the first one to reconnect will not
 -- know about the name of the other disconnected player, until the other player reconnects (TODO is it still the case?).
 getPlayerUIName _ Nothing = "? (away)"
-getPlayerUIName f (Just (Player (ClientName name) status (PlayerColors c _))) =
+getPlayerUIName f (Just (Player name status (PlayerColors c _))) =
   case status of
     Present -> n
     Absent  -> n <> f " (away)" chatMsgColor

@@ -16,6 +16,10 @@ cabal-helper*
 *.prof
 
 # profile report folder
-report*
+/report-*
+/report
+
+# profile progress
+testState.bin
 
 *.png

@@ -38,14 +38,14 @@ import           Data.Text(pack)
 import           Text.Blaze.Html5 hiding(map)
 import qualified Text.Blaze.Html5.Attributes as A
 
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Space.Types
 
-import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Text.ColorString
 import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
+import           Imj.Space.Strategies
 import           Imj.Timing
 
 newtype OldMaybeResults k = OldMaybeResults
@@ -116,11 +116,6 @@ lookupMax (Bin _ m l r)
     where go (Tip k v)      = Just (k,v)
           go (Bin _ _ _ r') = go r'
           go Nil            = Nothing
-
-canonicalize :: Size -> Size
-canonicalize sz@(Size (Length h) (Length w))
-  | h <= w = sz
-  | otherwise = Size (fromIntegral w) (fromIntegral h)
 
 -- returns 'Nothing' when height and width change in opposite directions.
 homogenousDist :: Size -> Size -> Maybe Int

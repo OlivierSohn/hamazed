@@ -2,6 +2,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Hamazed.World.Create
         ( mkWorld
@@ -9,6 +10,7 @@ module Imj.Game.Hamazed.World.Create
         , mkWorldEssence
         , mkMinimalWorldEssence
         , updateMovableItem
+        , materialGlyph
         ) where
 
 import           Imj.Prelude
@@ -24,19 +26,35 @@ import           System.Random.MWC(GenIO)
 
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Graphics.Color.Types
+import           Imj.Space.Types
 
+import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Space.Draw
+import           Imj.Game.Hamazed.Space.Strategies
+import           Imj.Graphics.Font
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
+import           Imj.Space
+import           Imj.Space.Draw
+import           Imj.Space.Strategies
 import           Imj.Util
 
+{-# INLINE materialColor #-}
+materialColor :: Material -> LayeredColor
+materialColor = \case
+  Wall -> wallColors
+  Air  -> airColors
+
+{-# INLINE materialGlyph #-}
+materialGlyph :: Material -> Glyph
+materialGlyph = gameGlyph . (\case
+  Wall -> 'Z'
+  Air  -> ' ')
 
 mkWorld :: WorldEssence -> WorldId -> World
 mkWorld (WorldEssence balls ships space) wid =
-  let renderedSpace = mkRenderedSpace space
+  let renderedSpace = mkRenderedSpace materialColor materialGlyph space
   in World (Map.map mkNumber balls) ships space renderedSpace wid
 
 worldToEssence :: World -> (WorldEssence, WorldId)
@@ -53,7 +71,7 @@ mkMinimalWorldEssence :: WorldEssence
 mkMinimalWorldEssence = WorldEssence Map.empty Map.empty mkZeroSpace
 
 mkWorldEssence :: WorldSpec -> IO Bool -> NonEmpty GenIO -> IO (MkSpaceResult WorldEssence, Map Properties Statistics)
-mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape wallDist@(WallDistribution _ proba))) continue gens@(gen:|_) =
+mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shape (WallDistribution blockSize wallProba))) continue gens@(gen:|_) =
   -- 4 is the max number of components in the file containing optimal strategies.
   go (min 4 $ max 1 $ fromIntegral nShips) [] Map.empty
  where
@@ -94,11 +112,14 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
                 , newStats)
    where
     mkSpace
-     | proba > 0 =
+     | wallProba > 0 =
         fmap (Map.fromDistinctAscList . maybeToList) <$>
-          liftIO (mkRandomlyFilledSpace wallDist size n continue gens)
+          liftIO (mkRandomlyFilledSpace blockSize scaledWallProba size n continue gens optStrats)
       -- with 0 probability, we can't do anything else but return an empty space:
      | otherwise = return (Success $ mkEmptySpace size, Map.empty)
+     where
+      scaledWallProba = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 wallProba
+      optStrats = embeddedOptimalStrategies optimalStrategies
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

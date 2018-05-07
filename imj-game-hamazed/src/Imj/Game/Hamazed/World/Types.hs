@@ -13,6 +13,7 @@ module Imj.Game.Hamazed.World.Types
         , World(..)
         , findShip
         , WorldParameters(..)
+        , WallDistribution(..)
         , WorldShape(..)
         , BattleShip(..)
         , ShipId
@@ -36,6 +37,17 @@ module Imj.Game.Hamazed.World.Types
         , scopedLocation
         -- * World constants
         , initialParameters
+        , initialBlockSize
+        , minBlockSize
+        , maxBlockSize
+        , initialWallProba
+        , minWallProba
+        , maxWallProba
+        , wallProbaIncrements
+        , allProbasForGame
+        , nProbaSteps
+        -- * Strings
+        , text, text', insideBrackets
         -- * Reexports
         , module Imj.Iteration
         , module Imj.Graphics.Text.Animation
@@ -50,24 +62,30 @@ module Imj.Game.Hamazed.World.Types
 import           Imj.Prelude
 
 import qualified System.Console.Terminal.Size as Terminal(Window(..))
-import           Data.List(take, splitAt, concat)
+import           Data.List(take, splitAt, concat, replicate)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map(lookup, filter)
 import           Data.Set(Set)
 import           Data.Text(pack)
 
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.Level
 import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Text.ColoredGlyphList hiding(take, concat)
+import           Imj.Graphics.UI.Animation.Types
 import           Imj.Physics.Discrete.Types
+import           Imj.Space.Types
 
+import           Imj.Game.Color
 import           Imj.Game.Hamazed.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.UI.RectArea
+import           Imj.Graphics.UI.Slider
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.ClientView.Types(ClientId)
@@ -81,10 +99,10 @@ data WorldParameters = WorldParameters {
 instance Binary WorldParameters
 instance NFData WorldParameters
 instance UIInstructions WorldParameters where
-  instructions (WorldParameters shape distrib) =
+  instructions color (WorldParameters shape distrib) =
     concat
-      [ instructions shape
-      , instructions distrib
+      [ instructions color shape
+      , instructions color distrib
       ]
 
 data WorldShape = Square
@@ -93,7 +111,7 @@ data WorldShape = Square
                 -- ^ Width = 2 * Height
                 deriving(Generic, Show, Eq)
 instance UIInstructions WorldShape where
-  instructions shape =
+  instructions _ shape =
     [ ConfigUI "World shape" $ Choice $ map pack withCursor ]
    where
     i = case shape of
@@ -160,6 +178,26 @@ data BattleShip = BattleShip {
   -- ^ The component in which the ship is located.
 } deriving(Generic, Show)
 instance Binary BattleShip
+instance LeftInfo BattleShip where
+  leftInfo (BattleShip _ ammo status _ _) =
+    let pad = initialLaserAmmo - ammo
+        ammoColor' Destroyed = darkConfigFgColor
+        ammoColor' _   = ammoColor
+    in text ("   " ++ replicate pad ' ') <>
+        insideBrackets (text' (replicate ammo '.') (ammoColor' status))
+
+
+insideBrackets :: ColoredGlyphList -> ColoredGlyphList
+insideBrackets a =
+  text' "[" bracketsColor <>
+  a <>
+  text' "]" bracketsColor
+
+text :: String -> ColoredGlyphList
+text x = text' x configFgColor
+
+text' :: String -> Color8 Foreground -> ColoredGlyphList
+text' x = colored (map textGlyph x)
 
 data ShipStatus =
     Armored
@@ -321,12 +359,44 @@ initialParameters :: WorldParameters
 initialParameters =
   WorldParameters Rectangle'2x1 defaultRandom
 
-defaultRandom :: WallDistribution -- below 0.1, it's difficult to have 2 or more connected components.
-                                  -- 0.1 : on avg, 1 cc
-                                  -- 0.2 : on avg, 1 cc
-                                  -- 0.3 : on avg, 2 cc
-                                  -- 0.4 : on avg, 5 cc
-                                  -- 0.5 : on avg, 8 cc
-                                  -- 0.6 : on avg, 10 cc
-                                  -- above 0.6, it's difficult to have a single connected component
+defaultRandom :: WallDistribution
 defaultRandom = WallDistribution initialBlockSize initialWallProba
+
+
+-- | Parameters for random walls creation.
+data WallDistribution = WallDistribution {
+    blockSize' :: {-# UNPACK #-} !Int
+    -- ^ The size of a square wall block.
+    --
+    -- Note that the smaller the block size, the harder it will be for the algorithm to find
+    -- a random world with a single component of air.
+  , wallProbability' :: {-# UNPACK #-} !AlmostFloat -- ^ 1 means only walls, 0 means no walls at all
+} deriving(Generic, Show, Eq)
+instance Binary WallDistribution
+instance NFData WallDistribution
+instance UIInstructions WallDistribution where
+  instructions color (WallDistribution size wallProba) =
+    [ ConfigUI "Walls size" $ Discrete $
+        Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize)
+              'y' 'g' color Compact
+    , ConfigUI "Walls probability" $ Continuous $
+        Slider wallProba minWallProba maxWallProba nProbaSteps
+              'u' 'h' color Compact
+    ]
+
+initialBlockSize, minBlockSize, maxBlockSize :: Int
+initialBlockSize = maxBlockSize
+minBlockSize = 1
+maxBlockSize = 6
+
+wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
+initialWallProba = maxWallProba
+minWallProba = 0.1
+maxWallProba = 0.9
+wallProbaIncrements = 0.1
+
+allProbasForGame :: [AlmostFloat]
+allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
+
+nProbaSteps :: Int
+nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)

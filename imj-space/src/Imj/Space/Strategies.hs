@@ -7,20 +7,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.World.Space.Strategies
+module Imj.Space.Strategies
     ( OptimalStrategies(..)
     , OptimalStrategy(..)
     , StrategyTag(..)
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
-    , closestOptimalStrategy
-    , smallWorldCharacteristicsDistance
+    , lookupOptimalStrategy
+    , embeddedOptimalStrategies
     ) where
 
 import           Imj.Prelude
 import qualified Prelude as Unsafe(last)
 import           Prelude(putStrLn)
-import           Data.FileEmbed(embedFile)
 import           Data.Binary
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
@@ -31,10 +30,9 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Strategies.Internal
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words hiding(intercalate, length)
 import           Imj.Graphics.Text.Render
+import           Imj.Space.Types
 import           Imj.Timing
 import           Imj.Util
 
@@ -44,10 +42,6 @@ import           Imj.Util
 --
 -- if we want to take a chance, we can try strategy 1, and hope that it will behave more like p1 than p2
 -- or we can play safe and pick the one they agree on for being good.
---
--- For now, we'll just record the optimal strategies, assuming that the space of worlds is sufficiently sampled
--- to say that such situations won't occur.
--- ... of course, the safest approach is to sample exactly the world characteristics that we will use in the game.
 newtype OptimalStrategies = OptimalStrategies (Map (SmallWorldCharacteristics Program) OptimalStrategy)
   deriving(Generic)
 instance Binary OptimalStrategies
@@ -75,67 +69,49 @@ instance Show StrategyTag where
   show Refined = "Refined"
   show (Unrefined _) = "Unrefined" -- for html report
 
--- | The probability of 'SmallWorldCharacteristics' 'User'
--- will be adapted by mapping ['minWallProba' 'maxWallProba'] to [l h],
+-- | Returns 'Right' when the 'OptimalStrategies' contain at least one
+-- 'SmallWorldCharacteristics' 'Program' that matches exactly the 'Size' and 'ComponentCount'
+-- of the 'SmallWorldCharacteristics' 'User' passed as parameter, and can be built within budget.
+--
+-- Note that the 'AlmostFloat' probability of 'SmallWorldCharacteristics' 'User'
+-- will not be exactly matched, instead, it will be adapted by mapping [0,1] to [l,h],
 -- where l == min probability where duration < budget
 --       h == max probability where duration < budget
--- 'Left' is returned if this range doesn't exist.
-closestOptimalStrategy :: SmallWorldCharacteristics User
-                       -> Time Duration System
-                       -- ^ The budget duration to create the world.
-                       -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
-closestOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
-  case embeddedOptimalStrategies of
-    (OptimalStrategies m) ->
-      let ok = Map.mapKeysMonotonic userWallProbability $
-               Map.filterWithKey
-                (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
-                  dt < maxDuration && sz' == sz && nComps' == nComps)
-                m
-      in case Map.assocs ok of
-          [] -> Left ()
-          l@((minProba,_):_) ->
-            let (maxProba,_) = Unsafe.last l
-                len = length l
-                p = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 proba
-                (_,strategy) = l !! round (p * (fromIntegral $ len - 1))
-                adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba p
-            in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
+--
+-- The returned 'SmallWorldCharacteristics Program' will be the one that has a probability
+-- closest to the mapped probability.
+--
+-- 'OptimalStrategies' should contain all combinations of 'Size' and 'ComponentCount' values
+-- used in the game. Typically, the 'OptimalStrategies' will be precalculated :
+-- see imj-profile / 'mkOptimalStrategies' (which currently precalculates for values of imj-game-hamazed).
+lookupOptimalStrategy :: SmallWorldCharacteristics User
+                      -> Time Duration System
+                      -- ^ The budget duration to create the world.
+                      -> OptimalStrategies
+                      -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
+lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration(OptimalStrategies m)  =
+  let ok = Map.mapKeysMonotonic userWallProbability $
+           Map.filterWithKey
+            (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
+              dt < maxDuration && sz' == sz && nComps' == nComps)
+            m
+  in case Map.assocs ok of
+      [] -> Left ()
+      l@((minProba,_):_) ->
+        let (maxProba,_) = Unsafe.last l
+            len = length l
+            (_,strategy) = l !! round (proba * (fromIntegral $ len - 1))
+            adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba proba
+        in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
 
-smallWorldCharacteristicsDistance :: SmallWorldCharacteristics a -> SmallWorldCharacteristics b -> Float
-smallWorldCharacteristicsDistance (SWCharacteristics sz cc p) (SWCharacteristics sz' cc' p') =
-  -- These changes have the same impact on distance:
-  --   doubled area
-  --   proba 0.6 -> 0.7
-  --   2 cc -> 3 cc
-  --   4 cc -> 5 cc
-  doubleSize + 10 * almostDistance p p' + fromIntegral (dCC (min cc cc') (max cc cc'))
- where
-   -- c1 <= c2
-   dCC c1 c2
-    | c1 == c2 = 0
-    | c1 == 1 = (c2 - c1) * 10
-    | otherwise = c2 - c1
-
-   doubleSize -- 1 when size doubles
-    | a == a' = 0
-    | a' == 0 = 1000000
-    | ratio > 1 = ratio - 1
-    | otherwise = (1 / ratio) - 1
-    where
-      a = area sz
-      a' = area sz'
-      ratio = fromIntegral a / fromIntegral a'
-
-encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()
-encodeOptimalStrategiesFile s = do
+encodeOptimalStrategiesFile :: FilePath
+                            -> OptimalStrategies -> IO ()
+encodeOptimalStrategiesFile path s = do
   encodeFile path s
   putStrLn $ "Wrote optimal strategies file:" ++ show path
- where
-  path = "./imj-game-hamazed/" <> optimalStrategiesFile
 
-embeddedOptimalStrategies :: OptimalStrategies
-embeddedOptimalStrategies =
+embeddedOptimalStrategies :: B.ByteString -> OptimalStrategies -- TODO this should happen at compile time
+embeddedOptimalStrategies content =
   either
     (\(_,offset,str) -> error $ "The embedded file optstrat.bin is corrupt:" ++ show (offset,str))
     (\(_,offset,res) ->
@@ -146,20 +122,19 @@ embeddedOptimalStrategies =
           error $ "Not all content has been used :" ++ show (len,offset) ) $
     decodeOrFail $ L.fromStrict content
  where
-   content = $(embedFile optimalStrategiesFile)
    len = B.length content
 
 {-
 decodeOptimalStrategiesFileOrFail :: IO OptimalStrategies
 decodeOptimalStrategiesFileOrFail =
-  doesFileExist optimalStrategiesFile >>= \case
-    True -> decodeFileOrFail optimalStrategiesFile >>= either
+  doesFileExist optimalStrategiesFilepath >>= \case
+    True -> decodeFileOrFail optimalStrategiesFilepath >>= either
       (\e -> do
-        putStrLn $ "File " ++ optimalStrategiesFile ++ " seems corrupt: " ++ show e
+        putStrLn $ "File " ++ optimalStrategiesFilepath ++ " seems corrupt: " ++ show e
         return fallback)
       return
     False -> do
-      putStrLn $ "File " ++ optimalStrategiesFile ++ " not found, using default strategy."
+      putStrLn $ "File " ++ optimalStrategiesFilepath ++ " not found, using default strategy."
       return fallback
  where
   fallback = OptimalStrategies mempty

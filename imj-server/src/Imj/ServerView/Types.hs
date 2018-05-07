@@ -17,6 +17,7 @@ import           Data.String(IsString)
 import           Imj.ClientView.Internal.Types
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
+import           Imj.Server.Color
 
 data ConnectionStatus =
     NotConnected
@@ -24,22 +25,22 @@ data ConnectionStatus =
   | ConnectionFailed {-# UNPACK #-} !Text
 
 data ServerView s = ServerView {
-    serverType :: !(ServerType (ServerConfigT s))
-  , serverContent :: !(ServerContent (ServerContentT s))
+    serverType :: !ServerType
+  , serverContent :: !(ServerContent (ValuesT s))
 }  deriving(Generic)
 instance Server s => Show (ServerView s) where
   show (ServerView t c) = show ("ServerView",t,c)
 
 data ServerContent cached = ServerContent {
     serverPort :: {-# UNPACK #-} !ServerPort
-  , cachedContent :: !(Maybe cached)
+  , cachedValues :: !(Maybe cached)
     -- ^ To avoid querying the server when we know that the content didn't change.
 }  deriving(Generic, Show)
 
 
-data ServerType p =
+data ServerType =
     Distant !ServerName
-  | Local !ServerLogs !(Maybe p)
+  | Local !ServerLogs !(Maybe ColorScheme)
   deriving(Generic, Show)
 
 newtype ServerName = ServerName String

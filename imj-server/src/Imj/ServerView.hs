@@ -8,17 +8,17 @@ module Imj.ServerView
 
 import           Imj.Prelude
 import           Imj.ServerView.Types
+import           Imj.Server.Color
 import           Imj.Server.Types
 
-
 mkLocalServerView :: ServerLogs
-                  -> Maybe (ServerConfigT s)
-                  -> ServerContent (ServerContentT s)
+                  -> Maybe ColorScheme
+                  -> ServerContent (ValuesT s)
                   -> ServerView s
 mkLocalServerView l p = ServerView (Local l p)
 
 mkDistantServerView :: ServerName
-                    -> ServerContent (ServerContentT s)
+                    -> ServerContent (ValuesT s)
                     -> ServerView s
 mkDistantServerView n = ServerView (Distant n)
 

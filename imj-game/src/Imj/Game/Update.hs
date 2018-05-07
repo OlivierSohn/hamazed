@@ -62,9 +62,11 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Iteration
 import           Imj.Log
+import           Imj.Server.Command
 
 {-# INLINABLE updateAppState #-}
 updateAppState :: (g ~ GameLogicT e
+                 , StateValueT (ServerT g) ~ GameStateValue
                  , MonadState (AppState g) m
                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                  , MonadIO m)
@@ -84,9 +86,7 @@ updateAppState (Right evt) = case evt of
     _anim <$> getGameState >>= \a@(UIAnimation evolutions (UIAnimProgress _ it)) -> do
       let nextIt@(Iteration _ nextFrame) = nextIteration it
           worldAnimDeadline = fmap (flip addDuration t) $ getDeltaTime evolutions nextFrame
-          anims = a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
-      putAnimation anims
-      maybe onAnimFinished (const $ return ()) worldAnimDeadline
+      putAnimation $ a { getProgress = UIAnimProgress worldAnimDeadline nextIt }
   Timeout (Deadline _ _ (AnimateParticleSystem key)) ->
     fmap systemTimePointToParticleSystemTimePoint (liftIO getSystemTime) >>= \tps ->
       gets game >>= \g ->
@@ -132,8 +132,19 @@ updateAppState (Left evt) = case evt of
     stateChat $ addMessage $ Information Info $ pack $ chatShow cmd
   PlayerInfo notif i ->
     stateChat . addMessage . ChatMessage =<< toTxt i notif
+  EnterState s ->
+    putClientState $ ClientState Ongoing s
+  ExitState s  ->
+    putClientState $ ClientState Over s
+  AllClients eplayers -> do
+    asks sendToServer' >>= \f -> f $ ExitedState Excluded
+    putClientState $ ClientState Over Excluded
+    let p = Map.map mkPlayer eplayers
+    putPlayers p
+    stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionAccepted i -> do
-    putGameConnection $ Connected i
+    withAnim $ -- to make the frame take its initial size
+      putGameConnection $ Connected i
   ConnectionRefused sn reason ->
     putGameConnection $ ConnectionFailed $
       "[" <>
@@ -181,10 +192,10 @@ onTargetSize = getTargetSize >>= maybe
       putGameState (gs { _anim = newAnim }))
 
 {-# INLINABLE putClientState #-}
-putClientState :: (MonadState (AppState s) m
+putClientState :: (MonadState (AppState g) m
                  , MonadReader e m, HasSizedFace e
                  , MonadIO m)
-               => ClientState
+               => ClientState GameStateValue
                -> m ()
 putClientState i = do
   gets game >>= \g -> putGame $ g { getClientState = i}
@@ -280,21 +291,24 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
     liftIO (x face) >>= flip runReaderT e . drawVerticallyCentered ref
     liftIO $ finalizeRecord e
   go = \case
-    ClientState Over Excluded ->
-      inform "Joining..."
-    ClientState Over Setup ->
-      inform "..."
-    ClientState Over (PlayLevel _) ->
-      inform "Please wait..."
-    ClientState Ongoing s -> case s of
+    ClientState Over x -> case x of
+      Excluded ->
+        inform "Joining..."
+      Included y -> case y of
+        Setup ->
+          inform "..."
+        (PlayLevel _) ->
+          inform "Please wait..."
+    ClientState Ongoing x -> case x of
       Excluded ->
         inform "A game is currently running on the server, please wait..."
-      Setup ->
-        return []
-      PlayLevel (Countdown n Running) ->
-        inform $ pack $ show n
-      PlayLevel status ->
-        statusMsg status
+      Included y -> case y of
+        Setup ->
+          return []
+        PlayLevel (Countdown n Running) ->
+          inform $ pack $ show n
+        PlayLevel status ->
+          statusMsg status
   statusMsg = \case
     New -> return [color "Waiting for game start..."]
     CancelledNoConnectedPlayer -> return [color "Game cancelled, all players left."]

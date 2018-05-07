@@ -43,6 +43,7 @@ import           Imj.Game.Network.ClientQueues
 import           Imj.Game.KeysMaps
 import           Imj.Game.Loop
 import           Imj.Game.State
+import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Class.HasSizedFace
@@ -56,6 +57,7 @@ import           Imj.Graphics.Text.Render
 import           Imj.Input.Types
 import           Imj.Log
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.ServerView.Types
 import           Imj.ServerView
 
@@ -63,7 +65,9 @@ import           Imj.ServerView
 
 The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
-runGame :: (GameLogic g) => Proxy g -> IO ()
+runGame :: (GameLogic g
+          , StateValueT (ServerT g) ~ GameStateValue)
+        => Proxy g -> IO ()
 runGame p = runOnPlatform p $ run p
 
 runOnPlatform :: GameLogic g => Proxy g -> (GameArgs g -> IO a) -> IO a
@@ -95,7 +99,9 @@ withArgs parser app = do
        "(3) Create both a game server and a client connected to it, use optionally [--serverPort]."
        ))
 
-run :: GameLogic g => Proxy g -> GameArgs g -> IO ()
+run :: (GameLogic g
+      , StateValueT (ServerT g) ~ GameStateValue)
+    => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
     (ServerOnly serverOnly)
@@ -131,7 +137,7 @@ run prox
   let srvPort = fromMaybe defaultPort maySrvPort
       srv = mkServer maySrvName mayConfig maySrvLogs (ServerContent srvPort Nothing)
   newEmptyMVar >>= \ready -> do
-    let srvIfLocal = startServerIfLocal prox srv ready
+    let srvIfLocal = startServerIfLocal (toSrv prox) srv ready
     if serverOnly
       then
         srvIfLocal
@@ -171,10 +177,14 @@ run prox
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
 
+toSrv :: Proxy g
+      -> Proxy (ServerT g)
+toSrv _ = Proxy :: Proxy (ServerT g)
+
 mkServer :: Maybe ServerName
-         -> Maybe (ServerConfigT s)
+         -> Maybe ColorScheme
          -> Maybe ServerLogs
-         -> ServerContent (ServerContentT s)
+         -> ServerContent (ValuesT s)
          -> ServerView s
 mkServer Nothing conf logs =
   mkLocalServerView (fromMaybe NoLogs logs) conf
@@ -184,6 +194,7 @@ mkServer (Just (ServerName n)) _ _ =
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g
+          , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
         => WithAudio
         -> Debug

@@ -39,8 +39,6 @@ library
                      , Imj.Game.Network
                      , Imj.Game.Network.Client
                      , Imj.Game.Network.ClientQueues
-                     , Imj.Game.Network.Server
-                     , Imj.Game.Player
                      , Imj.Game.Priorities
                      , Imj.Game.Show
                      , Imj.Game.Sound

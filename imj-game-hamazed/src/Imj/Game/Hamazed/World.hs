@@ -114,18 +114,18 @@ module Imj.Game.Hamazed.World
 import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color.Types
+import           Imj.Space.Types
 
 import           Imj.Game.Hamazed
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
 import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Render
 import           Imj.Graphics.UI.Animation
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Space.Draw
+import           Imj.Space

@@ -2,13 +2,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.World.Space.Draw
-    ( materialColor
-    , materialGlyph
-    , mkRenderedSpace
+module Imj.Space.Draw
+    ( mkRenderedSpace
     , drawSpace
-    -- * Reexports
-    , module Imj.Graphics.Render
     ) where
 
 import           Imj.Prelude
@@ -19,23 +15,27 @@ import           Data.List(length, group, concat, mapAccumL)
 import qualified Data.Vector.Unboxed as V ((!))
 
 import           Imj.Data.Matrix.Unboxed(Matrix, getRow)
-import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Class.Positionable
-import           Imj.Graphics.Font
 import           Imj.Graphics.Render
+import           Imj.Space.Types
 
-mkRenderedSpace :: Space -> RenderedSpace
-mkRenderedSpace s@(Space mat) = RenderedSpace $ matToDrawGroups mat $ getSize s
+mkRenderedSpace :: (Material -> LayeredColor)
+                -> (Material -> Glyph)
+                -> Space
+                -> RenderedSpace
+mkRenderedSpace fColor fGlyph s@(Space mat) = RenderedSpace $ matToDrawGroups mat fColor fGlyph $ getSize s
 
-matToDrawGroups :: Matrix Material -> Size -> [DrawGroup]
-matToDrawGroups mat s@(Size _ cs) =
+matToDrawGroups :: Matrix Material
+                -> (Material -> LayeredColor)
+                -> (Material -> Glyph)
+                -> Size
+                -> [DrawGroup]
+matToDrawGroups mat fColor fGlyph s@(Size _ cs) =
   concat $ forEachRowPure mat s $ \row accessMaterial ->
     snd $ mapAccumL
       (\col listMaterials@(material:_) ->
          let count = length listMaterials
          in (col + fromIntegral count,
-             DrawGroup (Coords row col) (materialColor material) (materialGlyph material) count))
+             DrawGroup (Coords row col) (fColor material) (fGlyph material) count))
       (Coord 0)
       $ group $ map accessMaterial [0..fromIntegral $ pred cs]
 
@@ -48,18 +48,6 @@ forEachRowPure mat (Size nRows _) f =
   in map (\rowIdx -> do
     let row = getRow (fromIntegral rowIdx) mat -- this is O(1)
     f rowIdx (\c -> row V.! fromIntegral c)) rowIndexes
-
-{-# INLINE materialColor #-}
-materialColor :: Material -> LayeredColor
-materialColor = \case
-  Wall -> wallColors
-  Air  -> airColors
-
-{-# INLINE materialGlyph #-}
-materialGlyph :: Material -> Glyph
-materialGlyph = gameGlyph . (\case
-  Wall -> 'Z'
-  Air  -> ' ')
 
 
 {-# INLINABLE drawSpace #-}

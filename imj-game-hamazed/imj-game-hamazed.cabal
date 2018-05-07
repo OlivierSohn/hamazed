@@ -41,19 +41,15 @@ library
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
+                     , Imj.Game.Hamazed.Space.Strategies
+                     , Imj.Game.Hamazed.Space.Strategies.Internal
                      , Imj.Game.Hamazed.Timing
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
                      , Imj.Game.Hamazed.World.Draw
                      , Imj.Game.Hamazed.World.Size
-                     , Imj.Game.Hamazed.World.Space
-                     , Imj.Game.Hamazed.World.Space.Draw
-                     , Imj.Game.Hamazed.World.Space.Strategies
-                     , Imj.Game.Hamazed.World.Space.Strategies.Internal
-                     , Imj.Game.Hamazed.World.Space.Types
                      , Imj.Game.Hamazed.World.Types
   build-depends:       base >= 4.9 && < 4.12
-                     , array == 0.5.*
                      , async >=2.1 && < 2.3
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
@@ -67,16 +63,13 @@ library
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
+                     , imj-space ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
-                     , optparse-applicative == 0.14.*
-                     , primitive ==0.6.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3
                      , unliftio ==0.2.*
-                     , vector >= 0.12.0.1 && < 0.13
-                     , vector-th-unbox == 0.2.*
   default-language:    Haskell2010
 
 executable imj-game-hamazed-exe
@@ -91,20 +84,9 @@ executable imj-game-hamazed-exe
 test-suite imj-game-hamazed-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
-  other-modules:       Test.Imj.ParseCommand
-                     , Test.Imj.Topology
+  other-modules:
   main-is:             Spec.hs
   build-depends:       base >= 4.9 && < 4.12
-                     , attoparsec ==0.13.*
-                     , imj-base ==0.1.*
-                     , imj-game ==0.1.*
-                     , imj-game-hamazed
-                     , imj-prelude ==0.1.*
-                     , imj-server ==0.1.*
-                     , mwc-random ==0.13.*
-                     , primitive ==0.6.*
-                     , text >=1.2.3 && < 1.3
-                     , vector >= 0.12.0.1 && < 0.13
   default-language:    Haskell2010
 
 source-repository head

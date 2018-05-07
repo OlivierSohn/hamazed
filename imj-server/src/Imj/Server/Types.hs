@@ -9,13 +9,11 @@ module Imj.Server.Types
       , mkServerState
       , ServerEvent(..)
       , ClientEvent(..)
-      , Command(..)
-      , ClientCommand(..)
-      , ClientName(..), unClientName
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
       , PlayerNotif(..)
+      , StateValue(..)
       ) where
 
 import           Imj.Prelude
@@ -27,27 +25,17 @@ import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
 
 import           Imj.Categorized
+import           Imj.ClientView.Types
 import           Imj.Graphics.Color
 import           Imj.Music
+import           Imj.Network
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
-
-data Command s =
-    RequestApproval !ClientCommand
-  -- ^ A Client asks for authorization to run a 'ClientCommand'.
-  -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
-  | Do !(ServerCommand s)
-  -- ^ A Client asks the server to run a 'ServerCommand'.
-  -- In response, the server runs the 'ServerCommand' then publishes a 'PlayerNotif' 'Done' 'ServerCommand'.
-  | Report !(ServerReport s)
-  -- ^ A client want to know an information on the server state. The server will answer by
-  -- sending a 'Report'.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Server s => Binary (Command s)
 
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)
   | Connect !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
+  | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
   deriving(Generic)
 instance Server s => Binary (ClientEvent s)
@@ -64,15 +52,16 @@ instance Server s => Show (ClientEvent s) where
   show (ClientAppEvt e) = show ("ClientAppEvt" ,e)
   show (Connect s e) = show ("Connect" ,s,e)
   show (OnCommand x) = show ("OnCommand" ,x)
+  show (ExitedState x) = show ("ExitedState" ,x)
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
   | PlayMusic !Music !Instrument
-  | CommandError {-unpack sum-} !ClientCommand
+  | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
   | RunCommand {-# UNPACK #-} !ClientId
-               {-unpack sum-} !ClientCommand
+               {-unpack sum-} !(ClientCommand (CustomCmdT s) Approved)
   -- ^ The server validated the use of the command, now it must be executed.
   | Reporting {-unpack sum-} !(ServerCommand s)
   -- ^ Response to a 'Report'.
@@ -81,8 +70,11 @@ data ServerEvent s =
   | ConnectionAccepted {-# UNPACK #-} !ClientId
   | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
   | Disconnected {-unpack sum-} !DisconnectReason
-  | OnContent !(ServerContentT s)
+  | OnContent !(ValuesT s)
   -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
+  | AllClients !(Map ClientId ClientEssence)
+  | EnterState {-unpack sum-} !(StateValue (StateValueT s))
+  | ExitState {-unpack sum-} !(StateValue (StateValueT s))
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic, Show)
@@ -108,19 +100,27 @@ instance Server s => Categorized (ServerEvent s) where
     CommandError _ _ -> Error'
     RunCommand _ _ -> WorldRequest'
     OnContent _ -> Chat'
+    AllClients{} -> Chat'
+    EnterState _ -> EnterState'
+    ExitState _ -> ExitState'
     ServerAppEvt e -> evtCategory e
 
--- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
---  then executed (for the final part) by /every/ client.
-data ClientCommand =
-    AssignName {-# UNPACK #-} !ClientName
-  | AssignColor {-# UNPACK #-} !(Color8 Foreground)
-  | Says {-# UNPACK #-} !Text
-  | Leaves {-unpack sum-} !(Either Text ())
-  -- ^ The client shuts down. Note that clients that are 'ClientOwnsServer',
-  -- will also gracefully shutdown the server.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Binary ClientCommand
+data StateValue s =
+    Excluded
+    -- ^ The client is not part of the game
+  | Included !s
+  -- ^ The client is part of the game
+  deriving(Generic)
+instance Show s => Show (StateValue s) where
+  show Excluded = "Excluded"
+  show (Included s) = show ("Included",s)
+instance Eq s => Eq (StateValue s) where
+  Excluded == Excluded = True
+  (Included a) == (Included b) = a == b
+  Excluded == (Included _) = False
+  (Included _) == Excluded = False
+instance Binary s => Binary (StateValue s)
+instance NFData s => NFData (StateValue s)
 
 data PlayerNotif s =
     Joins
@@ -131,9 +131,9 @@ data PlayerNotif s =
   deriving(Generic, Show)
 instance Server s => Binary (PlayerNotif s)
 
-mkServerState :: ServerLogs -> ServerContentT s -> s -> ServerState s
-mkServerState logs c s =
-  ServerState logs (ClientViews Map.empty (ClientId 0)) False c s
+mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
+mkServerState logs color c s =
+  ServerState logs (ClientViews Map.empty (ClientId 0)) False c color s
 
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))

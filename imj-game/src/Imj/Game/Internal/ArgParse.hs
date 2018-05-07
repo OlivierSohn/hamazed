@@ -21,13 +21,15 @@ import           Prelude (toInteger)
 import           Data.Char(toLower)
 import qualified Data.List as List
 import           Data.Proxy
-import           Data.String(IsString(..))
 import           Options.Applicative
                    (Parser, short, long, option, str, help, optional
                   , ReadM, readerError, (<*>), flag)
+import           Options.Applicative.Types(Parser(..))
 import           Text.Read(readMaybe)
 
+import           Imj.Arg.Class
 import           Imj.Server.Class
+import           Imj.Server.Color
 import           Imj.Geo.Discrete.Types
 import           Imj.Game.Configuration
 import           Imj.ServerView.Types
@@ -37,12 +39,12 @@ import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 
 parserGameArgs :: GameLogic g => Proxy g -> Parser (GameArgs g)
-parserGameArgs prox = GameArgs
+parserGameArgs _ = GameArgs
   <$> parserServerOnly
   <*> parserSrvName
   <*> parserSrvPort
   <*> parserSrvLogs
-  <*> parserSrvConfig prox
+  <*> parserSrvColorScheme
   <*> parseConnectId
   <*> parserBackend
   <*> parserPPU
@@ -92,18 +94,12 @@ parserSrvLogs =
        "Default is 'none'. Incompatible with --serverName."
        )))
 
-parserSrvConfig :: GameLogic g => Proxy g -> Parser (Maybe (ServerConfigT (ServerT g)))
-parserSrvConfig _ =
-  optional $ parseConfig
+parserSrvColorScheme :: Parser (Maybe (ColorScheme))
+parserSrvColorScheme = maybe (NilP Nothing) optional parseArg
 
 parseConnectId :: GameLogic g => Parser (Maybe (ConnectIdT (ServerT g)))
-parseConnectId =
-  optional
-    (option connectId
-      (  long "connectId"
-      <> help (
-      "[Client] The connection identifier used to connect to the server.")
-      ))
+parseConnectId = maybe (NilP Nothing) optional parseArg
+
 parserBackend :: Parser (Maybe BackendType)
 parserBackend =
   optional
@@ -235,12 +231,6 @@ srvPortArg =
         (error $ "invalid number : " ++ show name)
         (return . ServerPort)
           (readMaybe name)
-
-connectId :: GameLogic g => ReadM (ConnectIdT (ServerT g))
-connectId =
-  str >>= \case
-    [] -> readerError $ "Encountered an empty connection id."
-    name -> return $ fromString name
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052

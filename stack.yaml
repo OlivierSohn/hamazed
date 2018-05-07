@@ -10,6 +10,7 @@ packages:
 - './imj-base'
 - './imj-bindings-audio'
 - './imj-game'
+- './imj-game-tutorial-increment'
 - './imj-game-hamazed'
 - './imj-measure-stdout'
 - './imj-music'
@@ -17,6 +18,7 @@ packages:
 - './imj-prelude'
 - './imj-profile'
 - './imj-server'
+- './imj-space'
 
 - location:
     git: https://github.com/OlivierSohn/clay.git

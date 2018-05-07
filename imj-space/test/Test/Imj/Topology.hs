@@ -19,10 +19,10 @@ import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 
-import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Text.Render
 import           Imj.Util
+import           Imj.Space.Types
+import           Imj.Space
 
 testTopology :: IO ()
 testTopology = do

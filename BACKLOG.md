@@ -1,15 +1,26 @@
-- --silent to disable audio : doesn't work yet, we don't want to create pink noise
+- embedded optimal strategies file should be interpreted at compile time.
+
+- using withAnim requires a bit of thinking, and is not robust because we need to use it
+for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
+
+We should come up with a better design where the library user doesn't have to care about these aspects.
+For example, on every action run in the state monad, we could use it and run the animation only if something
+changed.
+
+- Joining... should not appear in tutorial
+- make reconnection work for tutorial : keep track of which client already connected, and
+  is now deconnected, then on reconnection chose an old deconnected client based on maccatcher)
+
+- make audio enabled / disabled by game to avoid initialization when it's not needed,
+and not show audio-related parameters.
+
+- Game/Network , Game/Network/* belong to imj-server.
 
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 
+- remove acceptConnection, replace it by class ConnectId a where checkValidity a :: Either Text ()
+
 - Wait for all players to press a key before starting the game.
-
-- create imj-game-engine
-Imj.Event
-Imj.Graphics.Screen
-
-- using imj-engine, create a mini game that displays a timer in the center of the screen,
-that starts when space is hit and stops when space is hit again.
 
 - imj-server could depend on a smaller version of imj-base
 

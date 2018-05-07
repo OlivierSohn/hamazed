@@ -14,10 +14,17 @@ module Imj.Graphics.Class.UIInstructions
 import           Imj.Prelude
 
 import           Imj.Data.AlmostFloat
+import           Imj.Graphics.Color.Types
 import           Imj.Graphics.UI.Slider
 
 class UIInstructions s where
-  instructions :: s -> [ConfigUI]
+  instructions :: LayeredColor
+               -- ^ The color to use to draw instructions
+               -> s
+               -> [ConfigUI]
+
+instance UIInstructions () where
+  instructions _ _ = []
 
 data ConfigUI = ConfigUI {
     _title :: !Text

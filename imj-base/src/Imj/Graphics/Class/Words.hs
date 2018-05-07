@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+
 module Imj.Graphics.Class.Words
             ( Characters(..)
             , multiLineTrivial

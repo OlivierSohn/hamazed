@@ -11,3 +11,6 @@ import           Imj.Graphics.Color
 
 class (Show p) => ColorTheme p where
   mkColorTheme :: Color8 Foreground -> p
+
+instance ColorTheme () where
+  mkColorTheme _ = ()

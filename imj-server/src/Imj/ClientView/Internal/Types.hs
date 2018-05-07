@@ -8,6 +8,8 @@ module Imj.ClientView.Internal.Types
       , ClientView(..)
       , ConstClientView(..)
       , ClientId(..)
+      , ClientStatus(..)
+      , ClientEssence(..)
       , ServerOwnership(..)
       ) where
 
@@ -28,6 +30,10 @@ data ConstClientView = ConstClientView {
 data ClientViews c = ClientViews {
     views :: !(Map ClientId (ClientView c))
     -- ^ Only connected clients are here: once a client is disconnected, it is removed from the Map.
+    -- TODO use another Map to map MacAddress to ClientId. When a client wants to connect, check if its mac adress
+    -- is known , if so , and only if the ClientId is not present in the other Map, use this ClientId (else there
+    -- is a Mac adress collision).
+    -- See how to adapt current reconnection strategy in hamazed.
   , getNextClientId :: !ClientId
     -- ^ The 'ClientId' that will be assigned to the next new client.
 } deriving(Generic)
@@ -39,7 +45,7 @@ newtype ClientId = ClientId Int64
 data ClientView c = ClientView {
     getConnection :: {-# UNPACK #-} !Connection
   , getServerOwnership :: {-unpack sum-} !ServerOwnership
-  , getName :: {-# UNPACK #-} !ClientName
+  , getName :: {-# UNPACK #-} !(ClientName Approved)
   , getColor :: {-# UNPACK #-} !(Color8 Foreground)
   , unClientView :: !c
 } deriving(Generic)
@@ -58,3 +64,14 @@ data ServerOwnership =
   deriving(Generic, Show, Eq)
 instance Binary ServerOwnership
 instance NFData ServerOwnership
+
+data ClientEssence = ClientEssence {
+    clientEssenceName :: {-# UNPACK #-} !(ClientName Approved)
+  , clientEssenceStatus :: {-unpack sum-} !ClientStatus
+  , clientEssenceColor :: {-# UNPACK #-} !(Color8 Foreground)
+} deriving(Generic, Show)
+instance Binary ClientEssence
+
+data ClientStatus = Present | Absent
+  deriving(Generic, Show)
+instance Binary ClientStatus

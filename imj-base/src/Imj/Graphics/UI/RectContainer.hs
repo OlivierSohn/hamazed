@@ -10,7 +10,7 @@ module Imj.Graphics.UI.RectContainer
         , translateRectContainer
         , mkRectContainerWithTotalArea
         , mkRectContainerAtDistance
-        , mkRectContainerWithCenterAndInnerSize
+        , mkCenteredRectContainer
         , upperLeftFromCenterAndSize
         , getSideCenters
           -- * Reexports
@@ -299,8 +299,8 @@ mkRectContainerWithTotalArea rectArea@(RectArea upperLeft _) =
   in RectContainer (Size (h-2) (w-2)) upperLeft
 
 -- | Create a 'RectContainer' whose inner /content/ matches a 'RectArea'.
-mkRectContainerWithCenterAndInnerSize :: Coords Pos -> Size -> RectContainer
-mkRectContainerWithCenterAndInnerSize center s =
+mkCenteredRectContainer :: Coords Pos -> Size -> RectContainer
+mkCenteredRectContainer center s =
   RectContainer s $ upperLeftFromCenterAndSize center s
 
 upperLeftFromCenterAndSize :: Coords Pos -> Size -> Coords Pos

@@ -28,6 +28,7 @@ import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigT
 
 import           Imj.Game.Exceptions
 import           Imj.Game.Types
+import           Imj.Graphics.Color
 import           Imj.ServerView.Types
 import           Imj.ServerView
 import           Imj.Server.Types
@@ -36,20 +37,23 @@ import           Imj.Event
 import           Imj.Game.Network.ClientQueues
 import           Imj.Game.Network.Client(appCli)
 import           Imj.Log
+import           Imj.Server.Color
 import           Imj.Server.Run
 
-startServerIfLocal :: GameLogic g
-                   => Proxy g
-                   -> ServerView (ServerT g)
+
+startServerIfLocal :: Server s
+                   => Proxy s
+                   -> ServerView s
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
 startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal _ srv@(ServerView (Local logs a) _) v = do
+startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
   let (ServerName host, ServerPort port) = getServerNameAndPort srv
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
-  uncurry (mkServerState logs) <$> mkInitial a >>= newMVar >>= \state -> do
+  c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
+  uncurry (mkServerState logs c) <$> mkInitial prox >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")
@@ -59,7 +63,7 @@ startServerIfLocal _ srv@(ServerView (Local logs a) _) v = do
     runServer' listen $ appSrv state
     -- appSrv :: MVar (ServerState Hamazed) -> PendingConnection -> IO ()
  where
-  msg x = "Hamazed GameServer " ++ st x ++ show srv ++ ")"
+  msg x = "Server " ++ st x ++ show srv ++ ")"
    where
     st False = "failed to start ("
     st True = "starts listening ("

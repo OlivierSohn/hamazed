@@ -12,8 +12,6 @@ module Imj.Game.State
       , onEvent
       , toggleRecordEvent
       , addIgnoredOverdues
-      -- * utilities
-      , mkAnim
       -- * reexports
       , module Imj.Game.Types
       ) where
@@ -40,7 +38,6 @@ import           Imj.Server.Types
 import           Imj.ServerView.Types
 
 import           Imj.Game.Audio.Class
-import           Imj.Game.Command
 import           Imj.Game.Draw
 import           Imj.Game.Status
 import           Imj.Game.Update
@@ -57,6 +54,7 @@ import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
 onEvent :: (GameLogicT e ~ g
+          , StateValueT (ServerT g) ~ GameStateValue
           , MonadState (AppState g) m
           , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e, AsyncGroups e, Audio e
           , MonadIO m)
@@ -77,6 +75,7 @@ onEvent mayEvt = do
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (GameLogicT e ~ g
+           , StateValueT (ServerT g) ~ GameStateValue
            , MonadState (AppState g) m
            , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
            , MonadIO m)
@@ -96,6 +95,7 @@ onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and re
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (GameLogicT e ~ g
+              , StateValueT (ServerT g) ~ GameStateValue
               , MonadState (AppState g) m
               , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
               , MonadIO m)

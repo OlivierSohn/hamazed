@@ -18,12 +18,12 @@ import qualified Data.Vector.Storable.Mutable as MS
 import           Data.Word(Word32)
 import           System.Random.MWC(uniform)
 
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Space.Types
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Profile.Result
 import           Imj.Random.MWC.Util
+import           Imj.Space
 import           Imj.Util
 
 mkMWC256Image :: SeedNumber -> Size -> AlmostFloat -> IO (Image Word8)

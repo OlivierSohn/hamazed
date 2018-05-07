@@ -33,7 +33,6 @@ import           Control.Concurrent.Async(withAsync)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
-import           Data.Attoparsec.Text(decimal, endOfInput, skipSpace)
 import           Data.Char(intToDigit)
 import qualified Data.IntSet as ISet
 import qualified Data.List as List
@@ -41,8 +40,8 @@ import           Data.List(elem)
 import           Data.Maybe(isJust)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
-import           Data.Text(pack, unpack)
 import qualified Data.Text as Text
+import           Data.Text(pack)
 
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
@@ -50,16 +49,15 @@ import           Imj.Game.Hamazed.Level
 import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
-import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Types
-import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
+import           Imj.Graphics.Render
 import           Imj.Input.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
+import           Imj.Space.Types
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Command
@@ -68,30 +66,25 @@ import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
-import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Infos
 import           Imj.Game.Level
 import           Imj.Game.Network
-import           Imj.Game.Show
 import           Imj.Game.Status
 import           Imj.Game.Timing
-import           Imj.Game.Update
 import           Imj.GameItem.Weapon.Laser
 import           Imj.Geo.Continuous
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Chat
-import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Music hiding(Do)
 import           Imj.Physics.Discrete.Collision
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
+import           Imj.Space.Draw
+import           Imj.Space
 import           Imj.Sums
 
 
@@ -112,24 +105,10 @@ data HamazedGame = HamazedGame {
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
   type ClientOnlyEvtT HamazedGame = HamazedEvent
+  type ClientInfoT    HamazedGame = BattleShip
   type ColorThemeT    HamazedGame = ColorCycles
 
-  gameName _ = "Hamazed - a game with flying numbers."
-
-  cmdParser cmd = case cmd of
-    "color" -> tryReport <|> tryCmd
-    _ -> fail $ "'" <> unpack cmd <> "' is an unknown command."
-   where
-    tryReport = do
-      void endOfInput
-      return $ Right $ Report $ Get ColorSchemeCenterKey
-    tryCmd = do
-      r <- decimal
-      skipSpace
-      g <- decimal
-      skipSpace
-      b <- decimal
-      return $ Do . Put . ColorSchemeCenter <$> userRgb r g b
+  gameName _ = "Hamazed"
 
   onAnimFinished = -- Swap the future world with the current one, and notifies the server using 'IsReady'
     getIGame >>= fmapM (\(HamazedGame _ future j k) -> maybe
@@ -144,16 +123,20 @@ instance GameLogic HamazedGame where
   {-# INLINABLE onCustomEvent #-}
   onCustomEvent = hamazedEvtUpdate
 
-  mkWorldInfos _ _ (Screen _ center) _ Nothing =
-    (Colored worldFrameColors $ mkRectContainerWithCenterAndInnerSize center $ worldSizeFromLevel firstServerLevel Square
-    ,((Successive [""], Successive [""]),[]))
-  mkWorldInfos t trans (Screen _ center) names (Just (HamazedGame current future shotNumbers (Level level _))) =
-    let (World _ ships space _ _) =
-          case trans of
+  onClientCustomCmd = undefined -- we don't have custom commands
+
+  getFrameColor _ = worldFrameColors
+
+  mkWorldInfos t _ (HamazedGame _ _ shotNumbers (Level level _)) =
+    let (u,d) = mkUpDownInfo
+    in Infos u d (mkLeftUpInfo t shotNumbers level) (mkLeftDownInfo t level)
+
+  getClientsInfos t (HamazedGame current future _ _) =
+    let (World _ ships _ _ _) =
+          case t of
             From -> current
             To -> fromMaybe current future
-    in (Colored worldFrameColors $ mkRectContainerWithCenterAndInnerSize center $ getSize space
-       ,mkInfos t ships names shotNumbers level)
+    in ships
 
   {-# INLINABLE getViewport #-}
   getViewport trans (Screen _ center) (HamazedGame current future _ _) =
@@ -161,66 +144,68 @@ instance GameLogic HamazedGame where
           case trans of
             From -> current
             To -> fromMaybe current future
-    in mkRectContainerWithCenterAndInnerSize center $ getSize space
+    in mkCenteredRectContainer center $ getSize space
 
-  {-# INLINABLE drawGame #-}
-  drawGame = gets game >>=
-    \(Game _ (Screen _ screenCenter) (GameState mayG _) animations _ _ _ _ _ _) ->
-      flip fmapM mayG $ \(HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) -> do
-        let worldCorner = getWorldCorner world screenCenter
-        -- draw the walls outside the matrix:
-        fill (materialGlyph Wall) outerWallsColors
-        -- draw the matrix:
-        drawSpace renderedSpace worldCorner
-        mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
-        drawWorld world worldCorner
+  {-# INLINABLE drawBackground #-}
+  drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do
+    let worldCorner = getWorldCorner world screenCenter
+    -- draw the walls outside the matrix:
+    fill (materialGlyph Wall) outerWallsColors
+    -- draw the matrix:
+    drawSpace renderedSpace worldCorner
+    return worldCorner
+
+  {-# INLINABLE drawForeground #-}
+  drawForeground _ worldCorner (HamazedGame world _ _ _) =
+    drawWorld world worldCorner
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
-    Setup -> return $ case key of
-      AlphaNum c -> case c of
-        ' ' -> Just $ ClientAppEvt $ ExitedState Setup
-        '1' -> Just $ OnCommand $ Do $ Put $ WorldShape Square
-        '2' -> Just $ OnCommand $ Do $ Put $ WorldShape Rectangle'2x1
-        --'e' -> Just $ OnCommand $ Do $ Put $ WallDistribution None
-        --'r' -> Just $ OnCommand $ Do $ Put $ WallDistribution $ minRandomBlockSize 0.5
-        'y' -> Just $ OnCommand $ Do $ Succ BlockSize
-        'g' -> Just $ OnCommand $ Do $ Pred BlockSize
-        'u' -> Just $ OnCommand $ Do $ Succ WallProbability
-        'h' -> Just $ OnCommand $ Do $ Pred WallProbability
+    Included x -> case x of
+      Setup -> return $ case key of
+        AlphaNum c -> case c of
+          ' ' -> Just $ ExitedState $ Included Setup
+          '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
+          '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
+          --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
+          --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
+          'y' -> Just $ OnCommand $ Do $ Succ BlockSize
+          'g' -> Just $ OnCommand $ Do $ Pred BlockSize
+          'u' -> Just $ OnCommand $ Do $ Succ WallProbability
+          'h' -> Just $ OnCommand $ Do $ Pred WallProbability
+          _ -> Nothing
         _ -> Nothing
-      _ -> Nothing
-    PlayLevel status -> case status of
-      Running -> maybe
-        (case key of
-          AlphaNum c -> case c of
-            'k' -> Just $ ClientAppEvt $ Action Laser Down
-            'i' -> Just $ ClientAppEvt $ Action Laser Up
-            'j' -> Just $ ClientAppEvt $ Action Laser LEFT
-            'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
-            'd' -> Just $ ClientAppEvt $ Action Ship Down
-            'e' -> Just $ ClientAppEvt $ Action Ship Up
-            's' -> Just $ ClientAppEvt $ Action Ship LEFT
-            'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
-            --'r'-> Just $ Evt ToggleEventRecording
-            _   -> Nothing
-          _ -> Nothing)
-        (const Nothing)
-        <$> getLevelOutcome
-      WhenAllPressedAKey _ (Just _) _ -> return Nothing
-      WhenAllPressedAKey x Nothing havePressed ->
-        (maybe
-          Nothing
+      PlayLevel status -> case status of
+        Running -> maybe
+          (case key of
+            AlphaNum c -> case c of
+              'k' -> Just $ ClientAppEvt $ Action Laser Down
+              'i' -> Just $ ClientAppEvt $ Action Laser Up
+              'j' -> Just $ ClientAppEvt $ Action Laser LEFT
+              'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
+              'd' -> Just $ ClientAppEvt $ Action Ship Down
+              'e' -> Just $ ClientAppEvt $ Action Ship Up
+              's' -> Just $ ClientAppEvt $ Action Ship LEFT
+              'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
+              --'r'-> Just $ Evt ToggleEventRecording
+              _   -> Nothing
+            _ -> Nothing)
+          (const Nothing)
+          <$> getLevelOutcome
+        WhenAllPressedAKey _ (Just _) _ -> return Nothing
+        WhenAllPressedAKey y Nothing havePressed ->
           (maybe
-            (error "logic")
-            (bool (Just $ ClientAppEvt $ CanContinue x) Nothing)
-            . flip Map.lookup havePressed)) <$> getMyId
-      New -> return Nothing
-      Paused _ _ -> return Nothing
-      Countdown _ _ -> return Nothing
-      OutcomeValidated _ -> return Nothing
-      CancelledNoConnectedPlayer -> return Nothing
-      WaitingForOthersToEndLevel _ -> return Nothing)
+            Nothing
+            (maybe
+              (error "logic")
+              (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
+              . flip Map.lookup havePressed)) <$> getMyId
+        New -> return Nothing
+        Paused _ _ -> return Nothing
+        Countdown _ _ -> return Nothing
+        OutcomeValidated _ -> return Nothing
+        CancelledNoConnectedPlayer -> return Nothing
+        WaitingForOthersToEndLevel _ -> return Nothing)
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
 mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _))
@@ -253,7 +238,7 @@ mkIntermediateState newShotNums newLevel essence wid mayState =
 {-# INLINABLE hamazedEvtUpdate #-}
 hamazedEvtUpdate :: (GameLogicT e ~ HamazedGame
                    , MonadState (AppState HamazedGame) m
-                   , MonadReader e m, Client e, HasSizedFace e, AsyncGroups e, Audio e
+                   , MonadReader e m, Client e, AsyncGroups e, Audio e
                    , MonadIO m)
                    => CustomUpdateEvent HamazedGame
                    -> m ()
@@ -286,28 +271,18 @@ hamazedEvtUpdate (Left srvEvt) = case srvEvt of
   ChangeLevel levelEssence worldEssence wid ->
     getIGame >>= \s -> do
       let sameLevels = Just (getLevelNumber' levelEssence) == (fmap (getLevelNumber' . _levelSpec . getGameLevel) s)
-      withAnim (bool ColorAnimated Normal sameLevels) onAnimFinished $
+      withAnim' (bool ColorAnimated Normal sameLevels) $
         putIGame $ mkInitialState levelEssence worldEssence wid s
   PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    withAnim ColorAnimated onAnimFinished $
+    withAnim' ColorAnimated $
       getIGame >>= putIGame . mkIntermediateState shotNums levelEssence worldEssence wid
   GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
     onMove accelerations shipsLosingArmor
   GameEvent (LaserShot dir shipId) -> do
     join (asks triggerLaserSound)
     onLaser shipId dir Add
-  MeetThePlayers eplayers -> do
-    sendToServer $ ExitedState Excluded
-    putClientState $ ClientState Over Excluded
-    let p = Map.map mkPlayer eplayers
-    putPlayers p
-    stateChat $ addMessage $ ChatMessage $ welcome p
   GameInfo notif ->
     stateChat $ addMessage $ ChatMessage $ toTxt' notif
-  EnterState s ->
-    putClientState $ ClientState Ongoing s
-  ExitState s  ->
-    putClientState $ ClientState Over s
 
  where
 

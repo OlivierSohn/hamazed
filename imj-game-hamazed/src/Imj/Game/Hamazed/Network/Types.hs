@@ -11,8 +11,8 @@ module Imj.Game.Hamazed.Network.Types
       , HamazedClient
       -- * Client / Server communication
       , WorldRequestArg(..)
-      , SharedEnumerableValueKey(..)
-      , SharedValue(..)
+      , HamazedEnumValueKey(..)
+      , HamazedValue(..)
       , GameNotif(..)
       , GameStep(..)
       , GameStatus(..)

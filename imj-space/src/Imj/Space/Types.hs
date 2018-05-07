@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Imj.Game.Hamazed.World.Space.Types
+module Imj.Space.Types
     ( Space(..)
     , mkZeroSpace
     , SmallWorldCharacteristics(..)
@@ -42,7 +42,6 @@ module Imj.Game.Hamazed.World.Space.Types
     , MaterialAndKey(..)
     , isAir
     , materialAndKeyToMaterial
-    , WallDistribution(..)
     , DrawGroup(..)
     , Scope(..)
     , Properties(..)
@@ -65,17 +64,6 @@ module Imj.Game.Hamazed.World.Space.Types
     , unsafeGetMaterial
     , readWorld
     , writeWorld
-    -- constants
-    , initialBlockSize
-    , minBlockSize
-    , maxBlockSize
-    , allBlockSizes
-    , initialWallProba
-    , minWallProba
-    , maxWallProba
-    , wallProbaIncrements
-    , allProbasForGame
-    , nProbaSteps
     -- export for tests
     , minCountAirBlocks
     , minCountWallBlocks
@@ -107,57 +95,12 @@ import           Data.Vector.Unboxed(Vector)
 
 import           Imj.Data.UndirectedGraph(Vertex)
 import           Imj.Geo.Discrete.Types
-import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
-import           Imj.Graphics.UI.Slider
 
-import           Imj.Game.Color
 import           Imj.Geo.Discrete.Interleave
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.Font
 import           Imj.Timing
-
--- | Parameters for random walls creation.
-data WallDistribution = WallDistribution {
-    blockSize' :: {-# UNPACK #-} !Int
-    -- ^ The size of a square wall block.
-    --
-    -- Note that the smaller the block size, the harder it will be for the algorithm to find
-    -- a random world with a single component of air.
-  , wallProbability' :: {-# UNPACK #-} !AlmostFloat -- ^ 1 means only walls, 0 means no walls at all
-} deriving(Generic, Show, Eq)
-instance Binary WallDistribution
-instance NFData WallDistribution
-instance UIInstructions WallDistribution where
-  instructions (WallDistribution size wallProba) =
-    [ ConfigUI "Walls size" $ Discrete $
-        Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize)
-              'y' 'g' configColors Compact
-    , ConfigUI "Walls probability" $ Continuous $
-        Slider wallProba minWallProba maxWallProba nProbaSteps
-              'u' 'h' configColors Compact
-    ]
-
-
-initialBlockSize, minBlockSize, maxBlockSize :: Int
-initialBlockSize = maxBlockSize
-minBlockSize = 1
-maxBlockSize = 6
-
-allBlockSizes :: [Int]
-allBlockSizes = [minBlockSize..maxBlockSize]
-
-wallProbaIncrements, initialWallProba, minWallProba, maxWallProba :: AlmostFloat
-initialWallProba = maxWallProba
-minWallProba = 0.1
-maxWallProba = 0.9
-wallProbaIncrements = 0.1
-
-allProbasForGame :: [AlmostFloat]
-allProbasForGame = map (\s -> minWallProba + fromIntegral s * wallProbaIncrements) [0..nProbaSteps-1]
-
-nProbaSteps :: Int
-nProbaSteps = 1 + round ((maxWallProba - minWallProba) / wallProbaIncrements)
 
 data DrawGroup = DrawGroup {
     _drawGroupCoords :: {-# UNPACK #-} !(Coords Pos)

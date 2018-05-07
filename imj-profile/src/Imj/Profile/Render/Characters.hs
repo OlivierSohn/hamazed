@@ -63,7 +63,7 @@ showQuantities' :: (Characters s, Quantifiable a)
                 => a
                 -- ^ Value to use for graphical representation when Left
                 -> [Either s a]
-                -- ^ Values
+                -- ^ ServerContent
                 -> [s]
 showQuantities' leftValue l' =
   showArrayN (listToMaybe header) body

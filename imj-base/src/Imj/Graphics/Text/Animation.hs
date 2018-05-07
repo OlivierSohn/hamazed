@@ -169,7 +169,7 @@ mkSequentialTextTranslationsAnchored :: (DiscreteDistance a)
                                      -> TextAnimation a b
 mkSequentialTextTranslationsAnchored txts from_ to_ duration =
   let strsEv = map (`mkEvolutionEaseQuart` duration) txts
-      fromTosLastFrame = fromMaybe (error "logic") $ maximumMaybe $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
+      fromTosLastFrame = fromMaybe 0 $ maximumMaybe $ map (\(Evolution _ lastFrame _ _) -> lastFrame) strsEv
       evAnchors@(Evolution _ anchorsLastFrame _ _) =
         mkEvolutionEaseQuart (Successive [SequentiallyInterpolatedList from_,
                                           SequentiallyInterpolatedList to_]) duration

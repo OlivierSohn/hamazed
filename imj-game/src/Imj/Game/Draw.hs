@@ -20,6 +20,7 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Interpolation.Evolution
+import           Imj.Graphics.ParticleSystem.Design.Draw
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
@@ -27,6 +28,7 @@ import           Imj.ServerView.Types
 import           Imj.Server.Types
 
 import           Imj.Game.Color
+import           Imj.Game.Priorities
 import           Imj.Game.Status
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.UI.Colored
@@ -43,11 +45,17 @@ draw :: (GameLogic (GameLogicT e)
        , MonadReader e m, Draw e
        , MonadIO m)
      => m ()
-draw = do
-  drawGame
-  gets game >>= \(Game _ screen@(Screen _ center@(Coords rowCenter _)) (GameState mayG anim) _ _ _ _ _ _ chat) -> do
+draw =
+  gets game >>= \(Game _ screen@(Screen _ center@(Coords rowCenter _)) (GameState mayG anim) animations _ _ _ _ _ chat) -> do
+    maybe
+      (return ())
+      (\g -> do
+        worldCorner <- drawBackground screen g
+        mapM_ (\(Prioritized _ a) -> drawSystem a worldCorner) animations
+        drawForeground screen worldCorner g)
+      mayG
     let (_, _, _, Coords _ col) = getSideCenters $ maybe
-          (mkRectContainerWithCenterAndInnerSize center (Size 0 0))
+          (mkCenteredRectContainer center defaultFrameSize)
           (getViewport To screen)
           mayG
     drawUIAnimation anim
@@ -67,7 +75,7 @@ drawStatus :: (GameLogic g
 drawStatus =
   gets game >>= \(Game state screen (GameState g _) _ dcs _ _ (ServerView _ (ServerContent _ worldParams)) _ _) -> do
     case state of
-      ClientState Ongoing Setup ->
+      ClientState Ongoing (Included Setup) ->
         fmapM (drawSetup worldParams . getViewport To screen) g -- TODO using progressivelyInform
       _ ->
         return ()
@@ -77,7 +85,7 @@ drawStatus =
 drawSetup :: (Server s
             , MonadReader e m, Draw e
             , MonadIO m)
-          => Maybe (ServerContentT s)
+          => Maybe (ValuesT s)
           -> RectContainer
           -> m ()
 drawSetup mayWorldParams cont = do
@@ -115,7 +123,7 @@ drawSetup mayWorldParams cont = do
         Discrete slider ->
           section title [] p >>= drawSlider slider)
       pos
-      $ instructions li
+      $ instructions configColors li
 
   section title elts pos = do
     dText_ ("[" <> title <> "]") pos

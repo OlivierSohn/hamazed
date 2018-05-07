@@ -7,7 +7,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Imj.Game.Hamazed.World.Space
+module Imj.Space
     ( Space
     , Material(..)
     , mkEmptySpace
@@ -22,7 +22,7 @@ module Imj.Game.Hamazed.World.Space
     , OverlapKind(..)
     , randomCCCoords
     , bigToSmall
-    -- for tests
+    -- for white-box tests
     , matchAndVariate
     , mkSmallWorld
     , fillSmallVector
@@ -58,13 +58,14 @@ import           System.Random.MWC(GenIO, uniformR, foldMUniforms)
 
 import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Graph as Directed(graphFromSortedEdges, componentsN)
-import qualified Imj.Data.UndirectedGraph as Undirected
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
-import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.World.Space.Strategies
+import qualified Imj.Data.UndirectedGraph as Undirected
+import           Imj.Space.Types
+
 import           Imj.Graphics.Class.Positionable
 import           Imj.Physics.Discrete
+import           Imj.Space.Strategies
 import           Imj.Timing
 import           Imj.Util
 
@@ -142,25 +143,27 @@ mkFilledSpace s@(Size heightEmptySpace widthEmptySpace) =
 
 -- | Creates a rectangular random space of size specified in parameters.
 -- 'IO' is used for random numbers generation.
-mkRandomlyFilledSpace :: WallDistribution
+mkRandomlyFilledSpace :: Int
+                      -- ^ Size of square blocks in the big world.
+                      -> AlmostFloat
+                      -- ^ Wall probability, expected to be between 0 and 1.
                       -> Size
+                      -- ^ Size of the /big/ world
                       -> ComponentCount
+                      -- ^ Number of connected components of 'Air'
                       -> IO Bool
                       -- ^ Computation stops when it returns False
                       -> NonEmpty GenIO
+                      -- ^ Random generator
+                      -> OptimalStrategies
+                      -- ^ Optimal strategies file. It is expected to contain
+                      -- at least one strategy matching the size of the /small/ world,
+                      -- and the required number of components.
                       -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
-mkRandomlyFilledSpace _ s 0 _ _ = return (Success $ mkFilledSpace s, Nothing)
-mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents continue gens
+mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens optStrats
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
       (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
-      {-
-      putStrLn $ unwords
-        [ "Found\n"
-        , prettyShowSWCharacteristics closeWorld]
-      putStrLn $ "Strategy:" ++ show strategy
-      putStrLn $ "Estimated duration:" ++ showTime dt
-      -}
       let property = mkProperties closeWorld $ fmap (toVariants smallSz) strategy
       mkSmallWorld gens property continue >>= \(res, stats) ->
         return
@@ -176,10 +179,17 @@ mkRandomlyFilledSpace (WallDistribution blockSize wallAirRatio) s nComponents co
       putStrLn "try bigger block size"
       go $ bsz + 1)
     return
-    $ closestOptimalStrategy userCharacteristics $ fromSecs 1
+    $ lookupOptimalStrategy userCharacteristics timeBudget optStrats
    where
     userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
+    timeBudget = fromSecs 1
 
+
+bigToSmall :: Size -> Int -> Size
+bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
+  let nCols = quot widthEmptySpace $ fromIntegral blockSize
+      nRows = quot heightEmptySpace $ fromIntegral blockSize
+  in Size nRows nCols
 
 smallWorldToBigWorld :: Size
                      -> Int
@@ -191,13 +201,6 @@ smallWorldToBigWorld s blockSize small@(SmallWorld (SmallMatInfo _ smallWorldMat
   replicateElems :: [a] -> [a]
   replicateElems = replicateElements blockSize
   innerMat = replicateElems $ map replicateElems $ Cyclic.toLists smallWorldMat
-
-bigToSmall :: Size -> Int -> Size
-bigToSmall (Size heightEmptySpace widthEmptySpace) blockSize =
-  let nCols = quot widthEmptySpace $ fromIntegral blockSize
-      nRows = quot heightEmptySpace $ fromIntegral blockSize
-  in Size nRows nCols
-
 
 data MatrixPipeline = MatrixPipeline !MatrixSource !MatrixTransformer
 
@@ -215,8 +218,6 @@ data BestRandomMatrixVariation = BRMV {
 type TopoMatch = Either SmallWorldRejection SmallWorld
 
 
--- We need n locations to store random matrices.
--- We need to wait when more than m locations are used.
 mkMatrixPipeline :: ComponentCount
                  -> AlmostFloat
                  -- ^ Probability to generate a wall
@@ -263,7 +264,7 @@ runPipeline nBlocks generators continue (MatrixPipeline (MatrixSource produce) (
     -- Note that running producer and consummer in separate threads, and forwarding the results
     -- through an MVar is slower than calling them sequentially, like here.
     shortcut gen = do
-      -- we align to 64 byte and allocate a multiple of 64 bytes to avoid false sharing
+      -- we align to 64 bytes and allocate a multiple of 64 bytes to avoid false sharing
       -- (assuming a cache line size of 64 bytes)
       graphArray <- newAlignedPinnedByteArray (ceilToMultiple 64 $ nBlocks * 8) 64 >>= unsafeFreezeByteArray
       -- TODO Take a slice of a bigger vector to avoid false sharing here, too.
@@ -739,11 +740,21 @@ data GraphNode = Node {
     _nodeId              :: {-# UNPACK #-} !Word16
   , _packedNeighboursIds :: {-# UNPACK #-} !Word64 -- 4 Word16 where -1 == no neighbour
 }
+
 data GraphCreationState = GC {
     _listNodes :: [GraphNode]
   , _nMinComps :: {-# UNPACK #-} !ComponentCount
-  , _canContinue :: {-# UNPACK #-} !Int -- 0 : stop, 2: continue 1 : continue , one multi
+  , _canContinue :: {-# UNPACK #-} !Int
+  -- ^ We use an 'Int' instead of an algebraic data type for performance, as we are in
+  -- one of the tight loops of world creation.
+  --
+  -- Values can be
+  --
+  -- * 2 = continue
+  -- * 1 = continue AND one multi
+  -- * 0 = stop
 }
+
 {-# INLINE mkGraphCreationState #-}
 mkGraphCreationState :: GraphCreationState
 mkGraphCreationState = GC [] 0 2

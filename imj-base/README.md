@@ -9,4 +9,5 @@ animated UIs, animated colored text and easing functions.
 
 - IO utilities to read player key-presses.
 
-Also produces a demo-application on text animation, `imj-base-examples-exe`.
+Also produces a demo-application on text animation, `imj-base-examples-exe` :
+[![asciicast](https://asciinema.org/a/156054.png)](https://asciinema.org/a/156054)

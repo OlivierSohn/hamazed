@@ -1,51 +1,94 @@
 # What is it?
 
-The monorepo for "Hamazed" game and its packages. [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
+A multi-player game engine and games made with it. [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
 
-The haddock documentation explains the concepts used, both on the game side and
-on the game engine side.
+The engine allows real-time polyphonic music generation and playback, using a midi-like formalism.
+The game server can send note on / note off events to game clients, allowing
+to perfectly synchronize the music with game events. For an example, see `imj-game-hamazed`.
 
-## Demo
+It is an experimental project, so the APIs will likely change a lot over time.
 
-[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
+# Setup
 
-# Packages list
+## Submodules
 
-- imj-game-hamazed
-  - The game
-- imj-particlesystem
-  - A library to create animated particle systems.
-- imj-base
-The "engine" library containing:
-  - base classes and types,
-  - geometry, text animations,
-  - a "delta renderer" rendering in the terminal without screen tearing,
-  - `imj-base-examples-exe`, a text animation demo:
-  [![asciicast](https://asciinema.org/a/156054.png)](https://asciinema.org/a/156054)
-- imj-measure-stdout
-  - An executable to measure the maximum capacity of stdout, and observe the effect
-  of different buffering modes.
-- imj-prelude
-  - The prelude I use in other packages.
+`imj-bindings-audio` provides bindings to a C++ audio engine,
+compiled from source, in submodules.
 
-# Contributions
+Hence, be sure to `git submodule init && git submodule update`
+after checking out the repo, to avoid errors like:
 
-Contributions are welcome!
+```shell
+/.../imj-bindings-audio/c/library.cpp:7:10: error:
+         fatal error: 'cpp.os.logs/source/unity.build.cpp' file not found
+      |
+    7 | #include "cpp.os.logs/source/unity.build.cpp"
+      |          ^
+    #include "cpp.os.logs/source/unity.build.cpp"
+             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    1 error generated.
+    `gcc' failed in phase `C Compiler'. (Exit code: 1)
+```
 
-# Build / Dependencies
+## Dependencies
 
-## FTGL
+For the `FTGL` package to build, you may need to install `ftgl` on your system,
+unless it is already there.
 
-You need ftgl on your system, it is used to render fonts when using the OpenGL backend.
+- On OSX:
 
-- On OSX, you can install it using `brew install ftgl`
+```shell
+brew install ftgl
+```
 
-## Build
+- On Linux:
+
+```shell
+sudo apt-get update
+sudo apt-get install ftgl-dev
+```
+
+# Build
 
 You can build using [stack](https://docs.haskellstack.org):
 
 `stack build --pedantic`
 
-And test using
+# Packages list
 
-`stack test --pedantic`
+Topologically sorted:
+
+- imj-prelude
+- imj-bindings-audio
+  - Bindings to a C++ audio engine.
+- imj-music
+  - Polyphonic music scores creation and playback.
+- imj-base
+  - geometry, text animations
+  - rendering:
+     - In a GLFW-driven OpenGL window
+     - In the terminal, using a "delta renderer" to render incrementally
+     without screen tearing.
+- imj-measure-stdout
+  - A test executable to measure the maximum capacity of stdout, and observe
+  the effect of different buffering modes.
+- imj-game
+  - Multi-player game engine.
+- imj-particlesystem (was named imj-animation)
+  - Animated particle systems.
+- imj-space
+  - Creates random 2D game levels, given some topological constraints.
+- imj-profile
+  - An executable producing a file that is to be embedded in the game executable,
+  containing optimal strategies to use for random level generation.
+  - Also other profiling tests
+- imj-game-hamazed
+  - The Hamazed game.
+- imj-game-tutorial-increment
+  - A tutorial on how to use `imj-engine` to build a multi-player game.
+
+# Demo
+
+A demo of (an older version of) imj-game-hamazed:
+
+[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)

@@ -68,8 +68,8 @@ before_install:
 script:
 - set -ex
 - |
-  echo "$(stack exec -- which gcc)"
-  echo "$(stack exec -- gcc --version)"
+  echo "$(stack --resolver $RESOLVER exec -- which gcc)"
+  echo "$(stack --resolver $RESOLVER exec -- gcc --version)"
   stack --no-terminal --resolver $RESOLVER build --install-ghc --only-dependencies -j2
 - stack --no-terminal --resolver $RESOLVER test --pedantic --haddock --no-haddock-deps -j2
 - set +ex

@@ -9,12 +9,12 @@ changed.
 
 - Joining... should not appear in tutorial
 - make reconnection work for tutorial : keep track of which client already connected, and
-  is now deconnected, then on reconnection chose an old deconnected client based on maccatcher)
+  is now deconnected, then on reconnection chose an old disconnected client based on maccatcher)
+
+a single MAC can correspond to multiple clientIds.
 
 - make audio enabled / disabled by game to avoid initialization when it's not needed,
 and not show audio-related parameters.
-
-- Game/Network , Game/Network/* belong to imj-server.
 
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 

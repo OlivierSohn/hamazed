@@ -6,21 +6,19 @@ language: generic
 
 os:
   - osx
+  - linux
 
 env:
-  - RESOLVER="lts-11.7"           # ghc 8.2.2 (deactivated on linux because of https://github.com/commercialhaskell/stack/issues/3472)
+  - RESOLVER="lts-11.7"           # ghc 8.2.2
   - RESOLVER="nightly-2018-04-20" # ghc 8.4.1
   - RESOLVER="nightly"
 
 matrix:
-# I encoutered the bug described here:  https://github.com/commercialhaskell/stack/issues/3472
-# The workaround is to use a lts that targets 8.4.1. Hence, I disable ghc < 8.4.1 on linux
-  include:
-    - os: linux
-      env: RESOLVER="nightly-2018-04-20"
   allow_failures:
+    # cf https://github.com/commercialhaskell/stack/issues/3472 : allow linux to fail for ghc < 8.4.1
+    - os: linux
+      env: RESOLVER="lts-11.7"
     - env: RESOLVER="nightly"
-
 
 addons:
   apt:

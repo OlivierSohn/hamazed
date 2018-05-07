@@ -22,9 +22,6 @@ and not show audio-related parameters.
 
 - Wait for all players to press a key before starting the game.
 
-- as a tutorial, use imj-engine to create a mini game that displays a counter in the center of the screen.
-every connected player can increment the counter by hitting the space bar.
-
 - imj-server could depend on a smaller version of imj-base
 
 - make a synth app.

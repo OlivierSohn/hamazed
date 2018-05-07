@@ -5,7 +5,9 @@
 
 module Main where
 
+
 import           Data.Bool(bool)
+import           Data.Monoid((<>))
 import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(modify', gets)
 import           Data.Attoparsec.Text(skipSpace, atEnd, takeText)

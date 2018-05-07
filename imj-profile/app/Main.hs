@@ -21,14 +21,13 @@ import           System.Random.MWC
 import           System.Timeout(timeout)
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Space.Strategies.Internal(optimalStrategiesFilepath)
+import           Imj.Space.Types
 
 import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
 import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Text.Render
 import           Imj.Profile.Intent
 import           Imj.Profile.Render
@@ -42,6 +41,7 @@ import           Imj.Random.MWC.Seeds
 import           Imj.Random.MWC.Util
 import           Imj.Random.Test
 import           Imj.Random.Util
+import           Imj.Space
 import           Imj.Timing
 
 -- commands used to profile:

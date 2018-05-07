@@ -15,15 +15,15 @@ import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)
 
 import           Imj.Game.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Render
+import           Imj.Space.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Graphics.Font
 import           Imj.Graphics.UI.Animation
 import           Imj.Physics.Discrete.Collision
+import           Imj.Space
 
 {-# INLINABLE drawWorld #-}
 drawWorld :: (MonadState (AppState s) m, Draw e, MonadReader e m, MonadIO m)

@@ -2,7 +2,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.World.Space.Draw
+module Imj.Space.Draw
     ( mkRenderedSpace
     , drawSpace
     ) where
@@ -15,8 +15,8 @@ import           Data.List(length, group, concat, mapAccumL)
 import qualified Data.Vector.Unboxed as V ((!))
 
 import           Imj.Data.Matrix.Unboxed(Matrix, getRow)
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Render
+import           Imj.Space.Types
 
 mkRenderedSpace :: (Material -> LayeredColor)
                 -> (Material -> Glyph)

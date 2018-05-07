@@ -9,10 +9,10 @@ import           Imj.Prelude
 
 import qualified Data.Map.Strict as Map
 
-import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Game.Hamazed.World.Space.Strategies(StrategyTag(..))
 import           Imj.Profile.Result
 import           Imj.Profile.Results
+import           Imj.Space.Types
+import           Imj.Space.Strategies(StrategyTag(..))
 
 testShouldTest :: IO ()
 testShouldTest = do

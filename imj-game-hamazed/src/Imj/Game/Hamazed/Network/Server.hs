@@ -61,7 +61,6 @@ import           Data.Tuple(swap)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
 
 import           Imj.ClientView.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Event
@@ -71,6 +70,7 @@ import           Imj.Game.Hamazed.Network.State
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
+import           Imj.Space.Types
 
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level

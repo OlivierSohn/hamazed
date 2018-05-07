@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Imj.Game.Hamazed.World.Space.Types
+module Imj.Space.Types
     ( Space(..)
     , mkZeroSpace
     , SmallWorldCharacteristics(..)

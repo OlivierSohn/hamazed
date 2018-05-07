@@ -26,18 +26,18 @@ import           System.Random.MWC(GenIO)
 
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Space.Types
 
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.World.Size
-import           Imj.Game.Hamazed.World.Space
-import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Game.Hamazed.Space.Strategies
 import           Imj.Graphics.Font
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
+import           Imj.Space
+import           Imj.Space.Draw
+import           Imj.Space.Strategies
 import           Imj.Util
 
 {-# INLINE materialColor #-}

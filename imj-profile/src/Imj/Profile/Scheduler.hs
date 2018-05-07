@@ -30,8 +30,8 @@ import           System.Random.MWC
 import           System.IO(stdout, hFlush)
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Profile.Types
+import           Imj.Space.Types
 
 import           Imj.Graphics.Color
 import qualified Imj.Graphics.Text.ColorString as CS

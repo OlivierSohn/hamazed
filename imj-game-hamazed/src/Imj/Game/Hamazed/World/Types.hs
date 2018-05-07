@@ -69,7 +69,6 @@ import           Data.Set(Set)
 import           Data.Text(pack)
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.Level
 import           Imj.Geo.Continuous.Types
 import           Imj.Graphics.Class.UIInstructions
@@ -78,6 +77,7 @@ import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Text.ColoredGlyphList hiding(take, concat)
 import           Imj.Graphics.UI.Animation.Types
 import           Imj.Physics.Discrete.Types
+import           Imj.Space.Types
 
 import           Imj.Game.Color
 import           Imj.Game.Hamazed.Color

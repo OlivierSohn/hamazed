@@ -21,12 +21,11 @@ import           Data.String(IsString(..))
 import           System.Directory(doesFileExist)
 import           Text.Blaze.Html5(div,Html, toHtml)
 
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as W
 import           Imj.Profile.Types
+import           Imj.Space.Types
 
-import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Color
 import           Imj.Graphics.Text.ColorString (ColorString)
 import qualified Imj.Graphics.Text.ColorString as CS
@@ -34,6 +33,7 @@ import           Imj.Graphics.Text.Render
 import           Imj.Profile.Intent
 import           Imj.Profile.Render
 import           Imj.Profile.Results
+import           Imj.Space.Strategies
 import           Imj.Timing
 
 showStep :: Characters s => TestProgress -> [s]

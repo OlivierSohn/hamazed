@@ -21,7 +21,7 @@ import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.UUID(UUID)
 
-import           Imj.Game.Hamazed.World.Space.Types
+import           Imj.Space.Types
 
 import           Imj.Profile.Result
 import           Imj.Profile.Results

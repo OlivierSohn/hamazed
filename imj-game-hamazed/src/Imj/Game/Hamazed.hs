@@ -50,7 +50,6 @@ import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Types
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
@@ -58,6 +57,7 @@ import           Imj.Graphics.Render
 import           Imj.Input.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
+import           Imj.Space.Types
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Command
@@ -66,8 +66,6 @@ import           Imj.Game.Hamazed.Infos
 import           Imj.Game.Hamazed.Network.Server
 import           Imj.Game.Hamazed.World.Create
 import           Imj.Game.Hamazed.World.Draw
-import           Imj.Game.Hamazed.World.Space.Draw
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Game.Infos
 import           Imj.Game.Level
 import           Imj.Game.Network
@@ -85,6 +83,8 @@ import           Imj.Graphics.UI.RectContainer
 import           Imj.Music hiding(Do)
 import           Imj.Physics.Discrete.Collision
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
+import           Imj.Space.Draw
+import           Imj.Space
 import           Imj.Sums
 
 

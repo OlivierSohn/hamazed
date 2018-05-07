@@ -19,10 +19,10 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Game.Hamazed.World.Space
-                     , Imj.Game.Hamazed.World.Space.Draw
-                     , Imj.Game.Hamazed.World.Space.Strategies
-                     , Imj.Game.Hamazed.World.Space.Types
+  exposed-modules:     Imj.Space
+                     , Imj.Space.Draw
+                     , Imj.Space.Strategies
+                     , Imj.Space.Types
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
                      , async >=2.1 && < 2.3

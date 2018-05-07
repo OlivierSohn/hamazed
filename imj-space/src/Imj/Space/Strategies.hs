@@ -7,7 +7,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Game.Hamazed.World.Space.Strategies
+module Imj.Space.Strategies
     ( OptimalStrategies(..)
     , OptimalStrategy(..)
     , StrategyTag(..)
@@ -30,9 +30,9 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words hiding(intercalate, length)
 import           Imj.Graphics.Text.Render
+import           Imj.Space.Types
 import           Imj.Timing
 import           Imj.Util
 

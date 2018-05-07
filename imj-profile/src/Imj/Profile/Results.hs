@@ -38,14 +38,14 @@ import           Data.Text(pack)
 import           Text.Blaze.Html5 hiding(map)
 import qualified Text.Blaze.Html5.Attributes as A
 
-import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Color.Types
+import           Imj.Space.Types
 
-import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Text.ColorString
 import           Imj.Profile.Render.Characters
 import           Imj.Profile.Result
+import           Imj.Space.Strategies
 import           Imj.Timing
 
 newtype OldMaybeResults k = OldMaybeResults

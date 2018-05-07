@@ -11,8 +11,8 @@ import           Imj.Prelude
 
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.World.Space
 import           Imj.Geo.Discrete.Types
+import           Imj.Space
 import           Imj.Util
 
 maxLevelHeight :: Length Height

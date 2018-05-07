@@ -41,6 +41,8 @@ library
                      , Imj.Game.Hamazed.Network.Setup
                      , Imj.Game.Hamazed.Network.State
                      , Imj.Game.Hamazed.Network.Types
+                     , Imj.Game.Hamazed.Space.Strategies
+                     , Imj.Game.Hamazed.Space.Strategies.Internal
                      , Imj.Game.Hamazed.Timing
                      , Imj.Game.Hamazed.World
                      , Imj.Game.Hamazed.World.Create
@@ -51,8 +53,10 @@ library
                      , async >=2.1 && < 2.3
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
+                     , bytestring == 0.10.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
+                     , file-embed ==0.0.*
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
                      , imj-music ==0.1.*

@@ -32,9 +32,11 @@ library
                      , Imj.Profile.Render.Characters
                      , Imj.Profile.Render.Clay
                      , Imj.Profile.Render.Blaze
+                     , Imj.Profile.Reports
                      , Imj.Profile.Result
                      , Imj.Profile.Results
                      , Imj.Profile.Scheduler
+                     , Imj.Profile.Types
   other-modules:
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*

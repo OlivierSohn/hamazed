@@ -30,6 +30,10 @@ data ConstClientView = ConstClientView {
 data ClientViews c = ClientViews {
     views :: !(Map ClientId (ClientView c))
     -- ^ Only connected clients are here: once a client is disconnected, it is removed from the Map.
+    -- TODO use another Map to map MacAddress to ClientId. When a client wants to connect, check if its mac adress
+    -- is known , if so , and only if the ClientId is not present in the other Map, use this ClientId (else there
+    -- is a Mac adress collision).
+    -- See how to adapt current reconnection strategy in hamazed.
   , getNextClientId :: !ClientId
     -- ^ The 'ClientId' that will be assigned to the next new client.
 } deriving(Generic)

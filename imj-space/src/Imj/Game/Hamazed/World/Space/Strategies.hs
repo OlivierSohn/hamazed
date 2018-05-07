@@ -14,12 +14,12 @@ module Imj.Game.Hamazed.World.Space.Strategies
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
     , lookupOptimalStrategy
+    , embeddedOptimalStrategies
     ) where
 
 import           Imj.Prelude
 import qualified Prelude as Unsafe(last)
 import           Prelude(putStrLn)
-import           Data.FileEmbed(embedFile)
 import           Data.Binary
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as L
@@ -30,7 +30,6 @@ import qualified Data.Set as Set
 import           Data.String(IsString(..))
 
 import           Imj.Data.AlmostFloat
-import           Imj.Game.Hamazed.World.Space.Strategies.Internal
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Graphics.Class.Words hiding(intercalate, length)
 import           Imj.Graphics.Text.Render
@@ -70,52 +69,49 @@ instance Show StrategyTag where
   show Refined = "Refined"
   show (Unrefined _) = "Unrefined" -- for html report
 
--- | Returns 'Right' when the embedded optimal strategies file contains at least one
+-- | Returns 'Right' when the 'OptimalStrategies' contain at least one
 -- 'SmallWorldCharacteristics' 'Program' that matches exactly the 'Size' and 'ComponentCount'
--- of the 'SmallWorldCharacteristics' 'User' passed as parameter, and that can be built within budget.
+-- of the 'SmallWorldCharacteristics' 'User' passed as parameter, and can be built within budget.
 --
 -- Note that the 'AlmostFloat' probability of 'SmallWorldCharacteristics' 'User'
 -- will not be exactly matched, instead, it will be adapted by mapping [0,1] to [l,h],
 -- where l == min probability where duration < budget
 --       h == max probability where duration < budget
--- and then we'll look for the closest sample, by probability.
 --
--- Currently, the optimal strategies file contains only values used in imj-game-hamazed:
--- we sampled exactly the world characteristics that we use in the game using imj-profile / 'mkOptimalStrategies'.
+-- The returned 'SmallWorldCharacteristics Program' will be the one that has a probability
+-- closest to the mapped probability.
 --
--- If you need other optimal strategies values, you will need to run a modified
--- version of 'mkOptimalStrategies' so that it creates the optimal strategy file
--- for the values you need.
+-- 'OptimalStrategies' should contain all combinations of 'Size' and 'ComponentCount' values
+-- used in the game. Typically, the 'OptimalStrategies' will be precalculated :
+-- see imj-profile / 'mkOptimalStrategies' (which currently precalculates for values of imj-game-hamazed).
 lookupOptimalStrategy :: SmallWorldCharacteristics User
                       -> Time Duration System
                       -- ^ The budget duration to create the world.
+                      -> OptimalStrategies
                       -> Either () (SmallWorldCharacteristics Program, OptimalStrategy)
-lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration =
-  case embeddedOptimalStrategies of
-    (OptimalStrategies m) ->
-      let ok = Map.mapKeysMonotonic userWallProbability $
-               Map.filterWithKey
-                (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
-                  dt < maxDuration && sz' == sz && nComps' == nComps)
-                m
-      in case Map.assocs ok of
-          [] -> Left ()
-          l@((minProba,_):_) ->
-            let (maxProba,_) = Unsafe.last l
-                len = length l
-                (_,strategy) = l !! round (proba * (fromIntegral $ len - 1))
-                adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba proba
-            in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
+lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration(OptimalStrategies m)  =
+  let ok = Map.mapKeysMonotonic userWallProbability $
+           Map.filterWithKey
+            (\(SWCharacteristics sz' nComps' _) (OptimalStrategy _ dt) ->
+              dt < maxDuration && sz' == sz && nComps' == nComps)
+            m
+  in case Map.assocs ok of
+      [] -> Left ()
+      l@((minProba,_):_) ->
+        let (maxProba,_) = Unsafe.last l
+            len = length l
+            (_,strategy) = l !! round (proba * (fromIntegral $ len - 1))
+            adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba proba
+        in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
 
-encodeOptimalStrategiesFile :: OptimalStrategies -> IO ()
-encodeOptimalStrategiesFile s = do
+encodeOptimalStrategiesFile :: FilePath
+                            -> OptimalStrategies -> IO ()
+encodeOptimalStrategiesFile path s = do
   encodeFile path s
   putStrLn $ "Wrote optimal strategies file:" ++ show path
- where
-  path = "./imj-space/" <> optimalStrategiesFile
 
-embeddedOptimalStrategies :: OptimalStrategies
-embeddedOptimalStrategies =
+embeddedOptimalStrategies :: B.ByteString -> OptimalStrategies -- TODO this should happen at compile time
+embeddedOptimalStrategies content =
   either
     (\(_,offset,str) -> error $ "The embedded file optstrat.bin is corrupt:" ++ show (offset,str))
     (\(_,offset,res) ->
@@ -126,20 +122,19 @@ embeddedOptimalStrategies =
           error $ "Not all content has been used :" ++ show (len,offset) ) $
     decodeOrFail $ L.fromStrict content
  where
-   content = $(embedFile optimalStrategiesFile)
    len = B.length content
 
 {-
 decodeOptimalStrategiesFileOrFail :: IO OptimalStrategies
 decodeOptimalStrategiesFileOrFail =
-  doesFileExist optimalStrategiesFile >>= \case
-    True -> decodeFileOrFail optimalStrategiesFile >>= either
+  doesFileExist optimalStrategiesFilepath >>= \case
+    True -> decodeFileOrFail optimalStrategiesFilepath >>= either
       (\e -> do
-        putStrLn $ "File " ++ optimalStrategiesFile ++ " seems corrupt: " ++ show e
+        putStrLn $ "File " ++ optimalStrategiesFilepath ++ " seems corrupt: " ++ show e
         return fallback)
       return
     False -> do
-      putStrLn $ "File " ++ optimalStrategiesFile ++ " not found, using default strategy."
+      putStrLn $ "File " ++ optimalStrategiesFilepath ++ " not found, using default strategy."
       return fallback
  where
   fallback = OptimalStrategies mempty

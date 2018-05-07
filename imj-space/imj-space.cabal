@@ -22,7 +22,6 @@ library
   exposed-modules:     Imj.Game.Hamazed.World.Space
                      , Imj.Game.Hamazed.World.Space.Draw
                      , Imj.Game.Hamazed.World.Space.Strategies
-                     , Imj.Game.Hamazed.World.Space.Strategies.Internal
                      , Imj.Game.Hamazed.World.Space.Types
   build-depends:       base >= 4.9 && < 4.12
                      , array == 0.5.*
@@ -31,7 +30,6 @@ library
                      , bytestring == 0.10.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
-                     , file-embed ==0.0.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
                      , mwc-random ==0.13.*

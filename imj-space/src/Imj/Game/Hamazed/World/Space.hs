@@ -151,8 +151,9 @@ mkRandomlyFilledSpace :: Int
                       -> IO Bool
                       -- ^ Computation stops when it returns False
                       -> NonEmpty GenIO
+                      -> OptimalStrategies
                       -> IO (MkSpaceResult BigWorld, Maybe (Properties, Statistics))
-mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens
+mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens optStrats
   | blockSize <= 0 = fail $ "block size should be strictly positive : " ++ show blockSize
   | otherwise = do
       (closeWorld@(SWCharacteristics smallSz _ _), OptimalStrategy strategy _) <- go blockSize
@@ -178,9 +179,10 @@ mkRandomlyFilledSpace blockSize wallAirRatio s nComponents continue gens
       putStrLn "try bigger block size"
       go $ bsz + 1)
     return
-    $ lookupOptimalStrategy userCharacteristics $ fromSecs 1
+    $ lookupOptimalStrategy userCharacteristics timeBudget optStrats
    where
     userCharacteristics = SWCharacteristics (bigToSmall s bsz) nComponents wallAirRatio
+    timeBudget = fromSecs 1
 
 
 bigToSmall :: Size -> Int -> Size

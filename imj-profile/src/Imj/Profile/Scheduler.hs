@@ -11,142 +11,37 @@ module Imj.Profile.Scheduler
   , continue
   , TestProgress
   , mkZeroProgress
+  , showStep
   )
   where
 
 import           Imj.Prelude hiding(div)
 
-import           Prelude(putStrLn, putStr, print, length)
+import           Prelude(putStrLn, putStr, print)
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.MVar.Strict (MVar, readMVar)
-import           Data.Binary
 import           Data.List.NonEmpty (NonEmpty(..))
 import           Data.List as List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
-import           Data.Set(Set)
 import qualified Data.Set as Set
-import           Data.String(IsString(..))
-import           Data.UUID(UUID)
 import           Numeric(showFFloat)
-import           System.Directory(doesFileExist)
 import           System.Random.MWC
 import           System.IO(stdout, hFlush)
-import           Text.Blaze.Html5(div,Html, toHtml)
 
 import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
-import           Imj.Graphics.Class.Words(Characters)
-import qualified Imj.Graphics.Class.Words as W
+import           Imj.Profile.Types
 
-import           Imj.Game.Hamazed.World.Space.Strategies
 import           Imj.Graphics.Color
-import           Imj.Graphics.Text.ColorString (ColorString)
 import qualified Imj.Graphics.Text.ColorString as CS
 import           Imj.Graphics.Text.Render
 import           Imj.Profile.Intent
-import           Imj.Profile.Render
+import           Imj.Profile.Reports
 import           Imj.Profile.Result
 import           Imj.Profile.Results
 import           Imj.Random.MWC.Util
 import           Imj.Timing
-
--- | Represents the progress of 'withTestScheduler''
-data TestProgress = TestProgress {
-    _uuid :: !UUID
-    -- ^ Test unique identifier
-  , _timeoutThisIteration :: !(Time Duration System)
-  , _hintsStrategies :: !(Map (SmallWorldCharacteristics Program) (Maybe MatrixVariantsSpec))
-   -- ^ Hints for the key of the fastest strategies
-  , _allStrategies :: !(Set (Maybe MatrixVariantsSpec))
-  , willTestInIteration :: ![[SmallWorldCharacteristics Program]]
-   -- ^
-   -- The outer list, when filtered on a single ComponentCount, is sorted by /increasing/ areas of the first 'SmallWorldCharacteristics' of the inner list.
-   -- During the current iteration, we will skip the elements of the inner list that come after
-   -- the first one that timeouts.
-  , _willTestNextIteration :: ![[SmallWorldCharacteristics Program]]
-  -- ^ The outer list is sorted by decreasing areas of the first 'SmallWorldCharacteristics' of the inner list
-  -- These are elements of the inner lists that timeouted, or were located after an element that timeouted.
-  , _profileResults :: !(MaybeResults (NonEmpty SeedNumber))
-} deriving (Generic)
-instance Binary TestProgress
-
-mkZeroProgress :: [[SmallWorldCharacteristics Program]]
-               -> Set (Maybe MatrixVariantsSpec)
-               -> IO TestProgress
-mkZeroProgress worlds strategies = do
-  key <- randUUID
-  return $ TestProgress key dt0 Map.empty strategies worlds [] (mkNothingResults $ Set.fromList $ concat worlds)
- where
-  dt0 = fromSecs 0.0001
-
-updateProgress :: Time Duration System
-               -> Map (SmallWorldCharacteristics Program) (Maybe MatrixVariantsSpec)
-               -> [[SmallWorldCharacteristics Program]]
-               -> [[SmallWorldCharacteristics Program]]
-               -> MaybeResults (NonEmpty SeedNumber)
-               -> TestProgress
-               -> TestProgress
-updateProgress a b c d e (TestProgress uu _ _ st _ _ _) =
-  TestProgress uu a b st c d e
-
-writeReports :: TestProgress -> UserIntent -> IO ()
-writeReports progress@(TestProgress key theDt _ _ _ _ valids) i = do
-  let optimalStats = toOptimalStrategies valids
-      divArray :: [ColorString] -> Html
-      divArray = div . mapM_ (div . toHtml)
-      h =
-        div $ do
-          divArray $ showStep progress
-          divArray $ prettyShowOptimalStrategies optimalStats
-          resultsToHtml (Just theDt) valids
-  writeHtmlReport key h i
-  encodeOptimalStrategiesFile optimalStats
-  encodeProgressFile progress
-
-showStep :: Characters s => TestProgress -> [s]
-showStep (TestProgress _ theDt _ strategies worldsNow worldsLater _) =
-  showArrayN Nothing $ map (map (W.colorize (onBlack yellow) . fromString))
-    [ ["Timeout ", showTime theDt]
-    , ["Easy candidates", show nEasy]
-    , ["Difficult candidates", show nDifficult]
-    , ["Later candidates", show nLater]
-    , ["Strategies", show $ length strategies]
-    ]
- where
-   n = sum $ map length worldsNow
-   nLater = sum $ map length worldsLater
-   nEasy = length worldsNow
-   nDifficult = n - nEasy
-
-showResults :: (Characters s) => MaybeResults a -> [s]
-showResults r =
-  prettyShowOptimalStrategies $ toOptimalStrategies r
-
-showRefined :: Maybe MatrixVariantsSpec -> Maybe MatrixVariantsSpec -> ColorString
-showRefined from to =
-  CS.colored "Refined from: " green <>
-  fromString (show from) <>
-  CS.colored " to: " green <>
-  fromString (show to)
-
-progressFile :: FilePath
-progressFile = "testState.bin"
-
-encodeProgressFile :: TestProgress -> IO ()
-encodeProgressFile s = do
-  encodeFile progressFile s
-  putStrLn $ "Wrote test progress file:" ++ show progressFile
-
-decodeProgressFile :: IO (Maybe TestProgress)
-decodeProgressFile =
-  doesFileExist progressFile >>= bool
-    (do
-      putStrLn $ "File " ++ progressFile ++ " not found."
-      return Nothing)
-    (decodeFileOrFail progressFile >>= either
-      (\e -> error $ "File " ++ progressFile ++ " seems corrupt: " ++ show e)
-      (return . Just))
 
 -- | For each world:
 -- Using a single seed group, find /a/ strategy that works within a given time upper bound.
@@ -156,10 +51,12 @@ withTestScheduler' :: MVar UserIntent
                    -> (Maybe (Time Duration System) -> Properties -> NonEmpty GenIO -> IO (Maybe (MkSpaceResult SmallWorld, Statistics)))
                    -- ^ Function to test
                    -> TestProgress
+                   -> (TestProgress -> UserIntent -> IO ())
+                   -- ^ function to write reports
                    -> IO ()
-withTestScheduler' intent testF initialProgress =
+withTestScheduler' intent testF initialProgress report =
   flip (!!) 0 <$> seedGroups >>= start >>= \finalProgress ->
-    readMVar intent >>= writeReports finalProgress
+    readMVar intent >>= report finalProgress
  where
   start firstSeedGroup = do
     mapM_ CS.putStrLn $ showStep initialProgress
@@ -173,7 +70,7 @@ withTestScheduler' intent testF initialProgress =
       putStrLn "tooHard"
       mapM_ print tooHard
       -}
-      onReport (writeReports p) intent
+      onReport (report p) intent
       continue intent >>= bool
         (return p)
         (case remaining of

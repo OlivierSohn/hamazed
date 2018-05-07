@@ -12,7 +12,7 @@ module Imj.Prelude
 import           Prelude as Exported
   ( Eq, Show(..), Real, Num(..), Enum, Bounded, Integral, Fractional, Floating, RealFrac
   , Ord, Monoid(..), Monad(..), Functor, Read, Applicative, Foldable
-  , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..)
+  , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..), FilePath
   , either
   , sum, map, concatMap, filter, mapM_, sequence_
   , all, any, notElem, null

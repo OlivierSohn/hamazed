@@ -1,3 +1,5 @@
+- embedded optimal strategies file should be interpreted at compile time.
+
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
 
@@ -6,8 +8,8 @@ For example, on every action run in the state monad, we could use it and run the
 changed.
 
 - Joining... should not appear in tutorial
-- make reconnection work for tutorial (maybe we need to keep track of which client already connected, and
-  is now deconnected, then on reconnection chose an old deconnected client based on a distance (name, ip, ...))
+- make reconnection work for tutorial : keep track of which client already connected, and
+  is now deconnected, then on reconnection chose an old deconnected client based on maccatcher)
 
 - make audio enabled / disabled by game to avoid initialization when it's not needed,
 and not show audio-related parameters.

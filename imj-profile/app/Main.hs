@@ -23,6 +23,7 @@ import           System.Timeout(timeout)
 import           Imj.Data.AlmostFloat
 import           Imj.Game.Hamazed.World.Space.Types
 import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.Space.Strategies.Internal(optimalStrategiesFilepath)
 
 import           Imj.Control.Concurrent
 import qualified Imj.Data.Matrix.Cyclic as Cyclic
@@ -32,6 +33,7 @@ import           Imj.Graphics.Text.Render
 import           Imj.Profile.Intent
 import           Imj.Profile.Render
 import           Imj.Profile.Result
+import           Imj.Profile.Reports
 import           Imj.Profile.Results
 import           Imj.Profile.Scheduler
 import           Imj.Random.Image
@@ -243,7 +245,7 @@ mkOptimalStrategies = do
         maybe (fmap Just) (timeout . fromIntegral . toMicros) mayDt f
 
   progress <- decodeProgressFile >>= maybe (mkZeroProgress (exhaustiveWorlds exhaustiveSmallSizes allProbasForGame) allStrategies) return
-  (totalDt, _) <- withDuration $ withTestScheduler' intent testF progress
+  (totalDt, _) <- withDuration $ withTestScheduler' intent testF progress (writeReports $ "./imj-game-hamazed/" <> optimalStrategiesFilepath)
 
   putStrLn $ "Test duration = " ++ show totalDt
 

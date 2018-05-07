@@ -1,12 +1,4 @@
-# This is the complex Travis configuration, which is intended for use
-# on open source libraries which need compatibility across multiple GHC
-# versions, must work with cabal-install, and should be
-# cross-platform. For more information and other options, see:
-#
-# https://docs.haskellstack.org/en/stable/travis_ci/
-#
-# Copy these contents into the root directory of your Github project in a file
-# named .travis.yml
+# Based on https://docs.haskellstack.org/en/stable/travis_ci/
 
 sudo: false
 
@@ -17,13 +9,13 @@ os:
   - linux
 
 env:
-  - RESOLVER="--resolver lts-11.5"
-  - RESOLVER="--resolver nightly-2018-04-20"
-  - RESOLVER="--resolver nightly"
+  - RESOLVER="lts-11.5"
+  - RESOLVER="nightly-2018-04-20"
+  - RESOLVER="nightly"
 
 matrix:
   allow_failures:
-    - env: RESOLVER="--resolver nightly"
+    - env: RESOLVER="nightly"
 
 addons:
   apt:
@@ -41,7 +33,6 @@ addons:
     - g++-7
     - libstdc++-7-dev
 
-# Caching so the next build will be fast too.
 cache:
   directories:
   - $HOME/.stack
@@ -72,14 +63,13 @@ before_install:
     travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
 
-- |
-  echo "$(stack exec -- which gcc)"
-  echo "$(stack exec -- gcc --version)"
-  stack --no-terminal build --install-ghc $RESOLVER --only-dependencies -j2
-
 - set +ex
 
 script:
 - set -ex
-- stack --no-terminal $RESOLVER test --pedantic --haddock --no-haddock-deps -j2
+- |
+  echo "$(stack exec -- which gcc)"
+  echo "$(stack exec -- gcc --version)"
+  stack --no-terminal --resolver $RESOLVER build --install-ghc --only-dependencies -j2
+- stack --no-terminal --resolver $RESOLVER test --pedantic --haddock --no-haddock-deps -j2
 - set +ex

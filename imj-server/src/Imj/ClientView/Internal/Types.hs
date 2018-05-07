@@ -16,6 +16,7 @@ module Imj.ClientView.Internal.Types
 import           Imj.Prelude
 import           Data.Int(Int64)
 import           Data.Map.Strict(Map)
+import           Data.Set(Set)
 import           Network.WebSockets(Connection)
 
 import           Imj.Network
@@ -34,6 +35,7 @@ data ClientViews c = ClientViews {
     -- is known , if so , and only if the ClientId is not present in the other Map, use this ClientId (else there
     -- is a Mac adress collision).
     -- See how to adapt current reconnection strategy in hamazed.
+  , macMapping :: !(Map MAC (Set ClientId))
   , getNextClientId :: !ClientId
     -- ^ The 'ClientId' that will be assigned to the next new client.
 } deriving(Generic)

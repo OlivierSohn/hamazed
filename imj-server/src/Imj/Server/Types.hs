@@ -9,6 +9,7 @@ module Imj.Server.Types
       , mkServerState
       , ServerEvent(..)
       , ClientEvent(..)
+      , ClientLifecycle(..)
       , ServerOwnership(..)
       , ServerLogs(..)
       , DisconnectReason(..)
@@ -20,6 +21,7 @@ import           Imj.Prelude
 import qualified Data.Binary as Bin
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict(Map)
+import           Data.Set(Set)
 import           Data.Text.Lazy.Encoding as LazyT
 import qualified Data.Text.Lazy as LazyT
 import           Network.WebSockets
@@ -34,10 +36,10 @@ import           Imj.Server.Class
 
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)
-  | Connect !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
+  | Connect !(Set MAC) !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
-  deriving(Generic)
+  deriving(Generic, Show)
 instance Server s => Binary (ClientEvent s)
 instance Server s => WebSocketsData (ClientEvent s) where
   fromDataMessage (Text t _) =
@@ -48,11 +50,6 @@ instance Server s => WebSocketsData (ClientEvent s) where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
-instance Server s => Show (ClientEvent s) where
-  show (ClientAppEvt e) = show ("ClientAppEvt" ,e)
-  show (Connect s e) = show ("Connect" ,s,e)
-  show (OnCommand x) = show ("OnCommand" ,x)
-  show (ExitedState x) = show ("ExitedState" ,x)
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
@@ -133,7 +130,7 @@ instance Server s => Binary (PlayerNotif s)
 
 mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
 mkServerState logs color c s =
-  ServerState logs (ClientViews Map.empty (ClientId 0)) False c color s
+  ServerState logs (ClientViews Map.empty Map.empty (ClientId 0)) False c color s
 
 {-# INLINE clientsMap #-}
 clientsMap :: ServerState s -> Map ClientId (ClientView (ClientViewT s))

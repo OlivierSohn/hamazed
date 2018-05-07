@@ -89,7 +89,6 @@ instance Server IncServer where
   type StateValueT   IncServer = GameStateValue
 
   type ConnectIdT          IncServer = ClientName Proposed
-  type ReconnectionContext IncServer = ()
   type ClientEventT        IncServer = IncClientEvent
   type ServerEventT        IncServer = IncServerEvent
   type CustomCmdT          IncServer = IncCommand

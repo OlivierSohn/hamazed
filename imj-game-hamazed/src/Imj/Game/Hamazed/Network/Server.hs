@@ -75,7 +75,7 @@ import           Imj.Space.Types
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level
 import           Imj.Game.Status
-import           Imj.Graphics.Text.ColorString(colored)
+import           Imj.Graphics.Text.ColorString(colored, intercalate)
 import           Imj.Music hiding(Do)
 import           Imj.Network
 import           Imj.Server.Connection
@@ -110,10 +110,8 @@ instance Server HamazedServer where
   type ConnectIdT   HamazedServer = ClientName Proposed
   type CustomCmdT   HamazedServer = ()
 
-  type ValuesT HamazedServer = WorldParameters
-  type ClientViewT    HamazedServer = HamazedClient
-  -- Where 'Set ClientId' represents the players in the current game:
-  type ReconnectionContext HamazedServer = Set ClientId
+  type ValuesT      HamazedServer = WorldParameters
+  type ClientViewT  HamazedServer = HamazedClient
 
   mkInitial _ = do
     let lvSpec = LevelSpec firstServerLevel CannotOvershoot
@@ -126,41 +124,42 @@ instance Server HamazedServer where
 
   acceptConnection = maybe (Right ()) (void . checkName)
 
-  tryReconnect _ =
-    gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
-      (do serverLog $ pure "No game is running"
-          return Nothing)
-      (\(CurrentGame _ gamePlayers status _) -> case status of
-          (Paused _ _) -> do
-          -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
-          -- - the game scheduler thread updates it every second only -
-          -- so we recompute the difference:
-            connectedPlayers <- gets onlyPlayersMap
-            let connectedPlayerKeys = Map.keysSet connectedPlayers
-                mayDisconnectedPlayerKey = Set.lookupMin $ Set.difference gamePlayers connectedPlayerKeys
-                gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
-            maybe
-              (do serverLog $ pure "A paused game exists, but has no disconnected player."
-                  return Nothing)
-              (\disconnected -> do
-                  serverLog $ (\i -> "A paused game exists, " <> i <> " is disconnected.") <$> showId disconnected
-                  return $ Just (disconnected, gameConnectedPlayers))
-              mayDisconnectedPlayerKey
-          _ -> do serverLog $ pure "A game is in progress."
-                  return Nothing)
-
   mkInitialClient = HamazedClient Nothing Nothing zeroCoords Nothing
 
-  onReconnection gameConnectedPlayers =
-    gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
-      Created ->
-        -- Since we are in a reconnection scenario, the game is paused, and a world was created,
-        -- so we ask one of the connected players to send it si that the newcomer can get it.
-        gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
-      CreationAssigned _ ->
-        -- A game is in progress and a "next level" is being built:
-        -- add the newcomer to the assigned builders.
-        participateToWorldCreation wid
+  onStartClient = \case
+    NewClient -> return ()
+    ReconnectingClient ->
+      gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
+        (serverLog $ pure "No game is running")
+        (\(CurrentGame _ gamePlayers status _) -> case status of
+            (Paused _ _) -> do
+            -- we /could/ use 'Paused' ignored argument but it's probably out-of-date
+            -- - the game scheduler thread updates it every second only -
+            -- so we recompute the difference:
+              connectedPlayers <- gets onlyPlayersMap
+              let connectedPlayerKeys = Map.keysSet connectedPlayers
+                  disconnected = Set.difference gamePlayers connectedPlayerKeys
+                  gameConnectedPlayers = Map.keysSet $ Map.restrictKeys connectedPlayers gamePlayers
+              bool
+                (do serverLog $ (\i -> "A paused game exists, " <> intercalate " " i <> " are disconnected.")
+                      <$> mapM showId (Set.toList disconnected)
+                    asks clientId >>= bool
+                      (return ())
+                      (gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
+                        Created ->
+                          -- The game is paused, and a world was created:
+                          -- we ask one of the connected players to broadcast the current world
+                          -- so that the newcomer can get it.
+                          gets clientsMap >>= notifyN [WorldRequest wid GetGameState] . Map.take 1 . flip Map.restrictKeys gameConnectedPlayers
+                        CreationAssigned _ ->
+                          -- The game is paused, and a "next level" is being built:
+                          -- add the newcomer to the assigned builders.
+                          participateToWorldCreation wid)
+                      . flip Set.member disconnected)
+                (serverLog $ pure "A paused game exists but all players are connected.")
+                $ Set.null disconnected
+            _ -> serverLog $ pure "A game is in progress.")
+
 
   clientCanJoin _ = gets' intent >>= \case
     IntentSetup -> do
@@ -201,6 +200,7 @@ instance Server HamazedServer where
       IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
 
   acceptCommand = undefined -- we don't have custom commands
+
 
 --------------------------------------------------------------------------------
 -- functions used in 'inParallel' ----------------------------------------------

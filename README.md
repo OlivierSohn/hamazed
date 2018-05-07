@@ -53,9 +53,10 @@ to avoid build errors like:
 
 # Dependencies
 
-To build a dependency (the `FTGL` package), `ftgl` must be installed on your system.
+To build the `FTGL` package, a dependency related to font rendering,
+`ftgl` must be installed on your system.
 
-You can install it (unless it is already there):
+Unless it is already there, you can install `ftgl` this way:
 
 - On OSX:
 
@@ -95,7 +96,8 @@ Using an inverse topological sort on the dependency graph:
   - A test executable to measure the maximum capacity of stdout, and observe
   the effect of different buffering modes.
 - `imj-game`
-  - Multi-player game engine.
+  - Multi-player game engine using [websockets](http://hackage.haskell.org/package/websockets)
+  for networking.
 - `imj-particlesystem` (was named `imj-animation`)
   - Animated particle systems.
 - `imj-space`
@@ -105,7 +107,7 @@ Using an inverse topological sort on the dependency graph:
   containing optimal strategies to use for random level generation.
   - Also other profiling tests
 - `imj-game-hamazed`
-  - The Hamazed game.
+  - The 'Hamazed' game (see the demo below).
 - `imj-game-tutorial-increment`
   - A tutorial on how to use `imj-engine` to build a multi-player game.
 

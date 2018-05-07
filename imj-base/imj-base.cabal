@@ -158,6 +158,7 @@ library
                      , matrix >= 0.3.5.0
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
+                     , network-info ==0.2.*
                      , OpenGL ==3.0.*
                      , optparse-applicative == 0.14.*
                      , primitive ==0.6.*

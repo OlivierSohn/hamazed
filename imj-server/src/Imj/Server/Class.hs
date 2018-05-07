@@ -116,8 +116,6 @@ class (Show (ClientEventT s)
 
   -- | "Server-side" client definition.
   type ClientViewT s = (r :: *) | r -> s
-  -- | Some data used when a client is reconnecting.
-  type ReconnectionContext s
 
   type StateValueT s
 
@@ -177,20 +175,11 @@ The default implementation returns a parser that fails for every command name.
                 => m [ServerEventT s]
   greetNewcomer = return []
 
-  -- | Return 'Just' if the client identified by its 'ConnectIdT' should be considered reconnecting.
-  --
-  -- The default implementation returns 'Nothing'.
-  tryReconnect :: (MonadIO m, MonadState (ServerState s) m)
-               => Maybe (ConnectIdT s)
-               -> m (Maybe (ClientId, ReconnectionContext s))
-  tryReconnect _ = return Nothing
-
-  -- | For reconnection scenario : called once, only if 'tryReconnect' returned a 'Just'.
-  --
+  -- | Called after the client has been added and sent the greeting events (see 'greetNewcomer').
   -- Default implementation does nothing.
-  onReconnection :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                 => ReconnectionContext s -> m ()
-  onReconnection _ = return ()
+  onStartClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                => ClientLifecycle -> m ()
+  onStartClient _ = return ()
 
   -- NOTE the signatures of getValue / onPut / onDelta will be unified later on
   getValue :: ValueKeyT s

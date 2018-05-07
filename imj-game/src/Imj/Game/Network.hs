@@ -37,6 +37,7 @@ import           Imj.Event
 import           Imj.Game.Network.ClientQueues
 import           Imj.Game.Network.Client(appCli)
 import           Imj.Log
+import           Imj.Network
 import           Imj.Server.Color
 import           Imj.Server.Run
 
@@ -91,8 +92,9 @@ startClient proxy cid srv = do
       writeToClient' qs $ FromClient $ Log Info $ msg "Connected"
       appCli qs x
   -- initialize the game connection
+  macAddresses <- getMacAddresses
   sendToServer' qs $
-    Connect cid $
+    Connect macAddresses cid $
       case serverType srv of
         Local {} -> ClientOwnsServer
         Distant {} -> ClientDoesntOwnServer

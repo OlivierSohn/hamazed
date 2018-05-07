@@ -12,9 +12,9 @@ module Imj.Server.Internal.Types
 import           Imj.Prelude
 import           Data.Text(unpack)
 
-data ClientLifecycle c =
+data ClientLifecycle =
     NewClient
-  | ReconnectingClient !c
+  | ReconnectingClient
   deriving(Show)
 
 data ServerLogs =

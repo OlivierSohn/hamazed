@@ -38,7 +38,9 @@ import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modif
 import           Data.Char (isPunctuation, isSpace)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
+import           Data.Map.Strict((!?))
 import           Data.Proxy(Proxy(..))
+import qualified Data.Set as Set
 import           Data.Text(pack, unpack)
 import           Data.Tuple(swap)
 import           Network.WebSockets(PendingConnection, Connection, acceptRequest, receiveData, sendBinaryData, sendPing)
@@ -70,16 +72,16 @@ appSrv st pending =
 application :: Server s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
-    Connect connectId cliType ->
+    Connect macs connectId cliType ->
       either
         refuse
         (\_ ->
           modifyMVar st (fmap swap . runStateT associateClientId) >>=
             either
               refuse
-                (\(cid,lifecycle) ->
-                  runReaderT (handleClient connectId cliType lifecycle st) $ ConstClientView conn cid))
-      $ acceptConnection connectId
+              (\(cid,lifecycle) ->
+                runReaderT (handleClient connectId cliType lifecycle st) $ ConstClientView conn cid))
+        $ acceptConnection connectId
      where
 
       refuse txt =
@@ -91,18 +93,35 @@ application st conn =
         if term
           then
             return $ Left "Server is shutting down"
-          else
-            tryReconnect connectId >>= fmap Right . (maybe
-              (state $ \s ->
-                let (clients,newId) = takeClientId $ clientsViews s
-                in ( (newId, NewClient)
-                   , s { clientsViews = clients } ))
-              (return . fmap ReconnectingClient))
-
-       where
-
-        takeClientId :: ClientViews c -> (ClientViews c, ClientId)
-        takeClientId (ClientViews c i) = (ClientViews c $ succ i, i)
+          else do
+            Right <$>
+              -- if we know some ClientId(s) associated to one of the mac adresses,
+              -- and if one of these ClientIds is disconnected, we re-use it.
+              state (\s ->
+                let (ClientViews connectedCids macToCid nextId) = clientsViews s
+                    mayReconnectingI =
+                      Set.foldl
+                        (\found mac ->
+                          maybe
+                            (maybe
+                              -- this mac address is unknown:
+                              Nothing
+                              -- this mac address is known : we take the first unconnected id
+                              -- associated to it, if it exsits.
+                              (listToMaybe . Set.toList . flip Set.difference (Map.keysSet connectedCids))
+                              $ macToCid !? mac)
+                            Just
+                            found)
+                        Nothing
+                        macs
+                    ((i,lifecycle),s') = maybe
+                        (let newId = nextId
+                             clients = ClientViews connectedCids macToCid $ nextId + 1
+                         in ((newId,NewClient), s { clientsViews = clients } ))
+                        (\prevI -> ((prevI,ReconnectingClient),s))
+                        mayReconnectingI
+                    newMacToCid = Map.unionWith (Set.union) macToCid $ Map.fromSet (const $ Set.singleton i) macs
+                in ((i,lifecycle), s' { clientsViews = (clientsViews s') { macMapping = newMacToCid }}))
 
     msg -> error $ "First sent message should be 'Connect'. " ++ show msg
 
@@ -110,7 +129,7 @@ application st conn =
 handleClient :: (Server s)
              => Maybe (ConnectIdT s)
              -> ServerOwnership
-             -> ClientLifecycle (ReconnectionContext s)
+             -> ClientLifecycle
              -> MVar (ServerState s)
              -> ReaderT ConstClientView IO ()
 handleClient connectId cliType lifecycle st = do
@@ -130,19 +149,20 @@ handleClient connectId cliType lifecycle st = do
       case lifecycle of
         NewClient ->
           log "Is a new client"
-        ReconnectingClient c -> do
+        ReconnectingClient -> do
           log "Is a reconnecting client"
-          onReconnection c
+      onStartClient lifecycle
 
     forever $ liftIO (receiveData conn) >>=
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
+
 
 handleIncomingEvent' :: (Server s
                        , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                      => ClientEvent s
                      -> m ()
 handleIncomingEvent' = \case
-  Connect i _ ->
+  Connect _ i _ ->
     handlerError $ "already connected : " ++ show i
   ClientAppEvt e -> handleClientEvent e
   ExitedState Excluded ->

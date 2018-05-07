@@ -208,9 +208,10 @@ instance Binary ShipStatus
 
 {-# INLINE shipIsAlive #-}
 shipIsAlive :: ShipStatus -> Bool
-shipIsAlive Destroyed = False
-shipIsAlive Unarmored = True
-shipIsAlive Armored = True
+shipIsAlive = \case
+  Destroyed -> False
+  Unarmored -> True
+  Armored -> True
 
 type ShipId = ClientId
 
@@ -251,7 +252,8 @@ getCurrentColor (Number (NumberEssence _ i _) [] Preferred) = preferredNumberCol
 
 makeUnreachable :: Number -> Number
 makeUnreachable n@(Number _ _ Unreachable) = n
-makeUnreachable n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Unreachable
+makeUnreachable n@(Number e@(NumberEssence _ i _) _ _) =
+  Number e newColor Unreachable
  where
   c' = unreachableNumberColor i
   startColor = getCurrentColor n
@@ -259,14 +261,16 @@ makeUnreachable n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Unrea
 
 makeDangerous :: Number -> Number
 makeDangerous n@(Number _ _ Unreachable) = n
-makeDangerous n@(Number e@(NumberEssence _ i _) _ _) = Number e newColor Dangerous
+makeDangerous n@(Number e@(NumberEssence _ i _) _ _) =
+  Number e newColor Dangerous
  where
   c' = dangerousNumberColor i
   startColor = getCurrentColor n
   newColor = take (bresenhamColor8Length startColor c') $ bresenhamColor8 startColor c'
 
 makePreferred :: Number -> Number
-makePreferred n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor Preferred
+makePreferred n@(Number e@(NumberEssence _ i _) _ Reachable) =
+  Number e newColor Preferred
  where
   c' = preferredNumberColor i
   startColor = getCurrentColor n
@@ -274,7 +278,8 @@ makePreferred n@(Number e@(NumberEssence _ i _) _ Reachable) = Number e newColor
 makePreferred n = n
 
 makeReachable :: Number -> Number
-makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) = Number e newColor Reachable
+makeReachable n@(Number e@(NumberEssence _ i _) _ Preferred) =
+  Number e newColor Reachable
  where
   c' = numberColor i
   startColor = getCurrentColor n
@@ -286,12 +291,9 @@ getColliding pos =
   Map.filter ((pos ==) . getPos . getNumPosSpeed . getNumEssence)
 
 envDistance :: Vec2 Pos -> Distance
-envDistance (Vec2 x y) =
-  if abs x > 500 || abs y > 500 -- TODO deduce it from the size of the terminal.
-    then
-      TooFar
-    else
-      DistanceOK
+envDistance (Vec2 x y)
+  | abs x > 500 || abs y > 500 = TooFar -- TODO deduce it from the size of the terminal.
+  | otherwise = DistanceOK
 
 getWorldCorner :: World -> Coords Pos -> Coords Pos
 getWorldCorner world screenCenter =
@@ -319,11 +321,7 @@ scopedLocation :: World
                -- ^ The coordinates to test
                -> Location
 scopedLocation world@(World _ _ space _ _) (Screen mayTermSize screenCenter) scope pos =
-  let termContains (Size h w) =
-        let corner = getWorldCorner world screenCenter
-            (Coords r c) = sumCoords pos corner
-        in r < fromIntegral h && c >= 0 && c < fromIntegral w
-  in case scope of
+  case scope of
     WorldScope mat ->
       if worldArea `contains` pos && mat == unsafeGetMaterial pos space
         then
@@ -344,9 +342,17 @@ scopedLocation world@(World _ _ space _ _) (Screen mayTermSize screenCenter) sco
                 else
                   OutsideWorld)
               mayTermSize
+
  where
+
   worldArea = mkRectArea zeroCoords $ getSize space
   worldViewArea = growRectArea 1 worldArea
+
+  termContains (Size h w) =
+    let corner = getWorldCorner world screenCenter
+        (Coords r c) = sumCoords pos corner
+    in r < fromIntegral h && c >= 0 && c < fromIntegral w
+
 
 {-# INLINE findShip #-}
 findShip :: ShipId -> Map ShipId BattleShip -> BattleShip

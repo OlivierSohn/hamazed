@@ -23,16 +23,15 @@ import           Imj.Util
 data VoidServer = VoidServer
   deriving(Generic,NFData)
 instance Server VoidServer where
-  type StateValueT   VoidServer = ()
+  type StateValueT  VoidServer = ()
 
-  type ConnectIdT          VoidServer = ()
-  type ReconnectionContext VoidServer = ()
-  type ClientEventT        VoidServer = ()
-  type ServerEventT        VoidServer = ()
-  type CustomCmdT          VoidServer = ()
+  type ConnectIdT   VoidServer = ()
+  type ClientEventT VoidServer = ()
+  type ServerEventT VoidServer = ()
+  type CustomCmdT   VoidServer = ()
 
-  type ValuesT       VoidServer = ()
-  type ClientViewT   VoidServer = ()
+  type ValuesT      VoidServer = ()
+  type ClientViewT  VoidServer = ()
 
   type ValueKeyT     VoidServer = ()
   type ValueT        VoidServer = ()

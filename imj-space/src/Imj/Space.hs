@@ -69,8 +69,6 @@ import           Imj.Space.Strategies
 import           Imj.Timing
 import           Imj.Util
 
-
-
 -- | Creates a 'PosSpeed' from a position,
 -- moves to precollision and mirrors speed if a collision is detected for
 -- the next step (see 'mirrorSpeedAndMoveToPrecollisionIfNeeded').

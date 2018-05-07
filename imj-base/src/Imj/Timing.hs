@@ -4,6 +4,8 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 {- | This module exports types and functions related to /monotonic/ timing.
 
@@ -57,6 +59,8 @@ module Imj.Timing
     , Int64
     ) where
 
+import           Language.Haskell.TH.Syntax(lift)
+
 import           Imj.Prelude
 import           GHC.Float(float2Double, double2Float)
 import           Prelude(fromInteger)
@@ -76,7 +80,10 @@ The phantom type 'a' represents the time space. It could be 'System'
 
  The phantom type 'b' specifies the nature of the time (a point on the timeline
  or a duration)-}
-newtype Time a b = Time TimeSpec deriving(Generic, Eq, Ord)
+newtype Time a b = Time TimeSpec
+  deriving(Generic, Eq, Ord)
+instance Lift (Time a b) where
+  lift (Time (TimeSpec s ns)) = [| Time (TimeSpec $(lift s) $(lift ns)) |]
 instance NFData (Time a b) where
   rnf _ = () -- TimeSpec has strict fields so they are already in normal form
 instance Binary (Time Duration a) where
@@ -87,7 +94,6 @@ instance Binary (Time Duration a) where
     s <- Bin.get
     ns <- Bin.get
     return $ Time $ TimeSpec s ns
-
 instance PrettyVal (Time Point b) where
   prettyVal (Time (TimeSpec s n)) = prettyVal ("TimePoint:" :: String, s, n)
 instance PrettyVal (Time Duration b) where

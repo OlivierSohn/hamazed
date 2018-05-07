@@ -3,6 +3,7 @@
 
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 
 module Imj.Data.Matrix.Cyclic (
     -- * Matrix type
@@ -91,7 +92,7 @@ data RotationOrder =
     Rect1 -- rotations : [(r,c) | r <- [-1..1], c <- [-1..1], (r,c) /= (0,0)], or [] if the matrix is too small.
   | Order1 -- rotation across all rows, then rotation across all columns
   | Order2 -- rotation across all rows + columns at the same time
-  deriving(Generic, Show, Eq, Ord)
+  deriving(Generic, Show, Eq, Ord, Lift)
 instance Binary RotationOrder
 instance NFData RotationOrder
 

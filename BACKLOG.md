@@ -1,4 +1,4 @@
-- embedded optimal strategies file should be interpreted at compile time.
+- make a version where we can only move at all times, and not go diagonally.
 
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.

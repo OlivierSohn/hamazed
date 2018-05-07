@@ -11,6 +11,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveLift #-}
 
 module Imj.Space.Types
     ( Space(..)
@@ -72,6 +73,8 @@ module Imj.Space.Types
     , module Imj.Geo.Discrete.Types
     ) where
 
+import           Language.Haskell.TH.Syntax(lift)
+
 import           Imj.Prelude
 import           Prelude(length)
 
@@ -81,8 +84,8 @@ import           GHC.Word(Word16)
 
 import           Control.Arrow((***))
 import           Data.List(unlines, unwords, intercalate)
-import           Data.List.NonEmpty(NonEmpty(..), toList)
-import qualified Data.List.NonEmpty as NE(map)
+import           Data.List.NonEmpty(NonEmpty(..))
+import qualified Data.List.NonEmpty as NE(map, toList, fromList)
 import           Imj.Data.AlmostFloat
 import qualified Imj.Data.Matrix.Unboxed as Unboxed
 import           Imj.Data.Matrix.Cyclic (Storable(..))
@@ -197,7 +200,7 @@ data SmallWorldCharacteristics a = SWCharacteristics {
     -- 'ComponentCount' and 'Size' of the small world.
     --
     -- We use an 'AlmostFloat' to account for numerical errors.
-} deriving(Generic, Show, Eq, Ord)
+} deriving(Generic, Show, Eq, Ord, Lift)
 instance Binary (SmallWorldCharacteristics a)
 instance NFData (SmallWorldCharacteristics a)
 
@@ -216,6 +219,9 @@ instance Show MatrixVariants where
 data MatrixVariantsSpec =
     VariantsSpec !(NonEmpty VariationSpec) !(Maybe MatrixVariantsSpec) -- 'MatrixVariantsSpec' applies to every variation produced by NonEmpty VariationSpec
   deriving(Generic, Eq, Ord)
+instance Lift MatrixVariantsSpec where
+  lift (VariantsSpec l next) =
+    [| VariantsSpec (NE.fromList $(lift (NE.toList l))) $(lift next) |]
 instance Binary MatrixVariantsSpec
 instance NFData MatrixVariantsSpec
 instance Show MatrixVariantsSpec where
@@ -235,7 +241,7 @@ prettyShowMatrixVariants =
  where
   go (Variants v mv) =
     intercalate " . " $
-      intercalate " + " (map show (toList v)) : maybeToList (fmap go mv)
+      intercalate " + " (map show (NE.toList v)) : maybeToList (fmap go mv)
 
 prettyShowMatrixVariantsSpec :: Maybe MatrixVariantsSpec -> String
 prettyShowMatrixVariantsSpec =
@@ -245,7 +251,7 @@ prettyShowMatrixVariantsSpec =
  where
   go (VariantsSpec v mv) =
     intercalate " . " $
-      intercalate " + " (map show (toList v)) : maybeToList (fmap go mv)
+      intercalate " + " (map show (NE.toList v)) : maybeToList (fmap go mv)
 
 humanShowVariants :: Maybe Size -> Maybe MatrixVariants -> String
 humanShowVariants sz variations = txt
@@ -284,7 +290,7 @@ humanShowVariants sz variations = txt
 
   humanShowBranch = maybe
     ""
-    (\(Variants variates next) -> branchingIn ++ humanShowVariates (toList variates) ++ humanShowBranch next)
+    (\(Variants variates next) -> branchingIn ++ humanShowVariates (NE.toList variates) ++ humanShowBranch next)
 
 data Variation =
     Rotate !RotationDetail
@@ -310,7 +316,7 @@ data VariationSpec =
     Rotation !RotationDetail
   | Interleaving
   | Modulation
-  deriving(Generic, Eq, Ord)
+  deriving(Generic, Eq, Ord, Lift)
 instance Binary VariationSpec
 instance NFData VariationSpec
 instance Show VariationSpec where
@@ -343,7 +349,7 @@ data RotationDetail = RotationDetail {
   --
   --  * chose one type of rotation or the other (the choice of Cyclic.RotationOrder could be automated this way)
   --  * chose to rotate "less", i.e take one out of n rotations
-} deriving(Generic, Eq, Ord)
+} deriving(Generic, Eq, Ord, Lift)
 instance Binary RotationDetail
 instance NFData RotationDetail
 instance Show RotationDetail where
@@ -443,7 +449,7 @@ getComponentIndices t = map ComponentIdx [0 .. pred $ countComponents t]
 
 
 newtype ComponentCount = ComponentCount Int
-  deriving(Generic, Eq, Ord, Show, Binary, Num, Enum, Integral, Real)
+  deriving(Generic, Eq, Ord, Show, Binary, Num, Enum, Integral, Real, Lift)
 instance NFData ComponentCount
 
 data SmallWorldTopology = SmallWorldTopology {

@@ -5,7 +5,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Imj.Space.Strategies
     ( OptimalStrategies(..)
@@ -14,15 +16,18 @@ module Imj.Space.Strategies
     , prettyShowOptimalStrategies
     , encodeOptimalStrategiesFile
     , lookupOptimalStrategy
-    , embeddedOptimalStrategies
+    , readOptimalStrategies
     ) where
+
+import qualified Language.Haskell.TH as TH
+import qualified Language.Haskell.TH.Syntax as THS
+import           Language.Haskell.TH.Syntax(lift)
 
 import           Imj.Prelude
 import qualified Prelude as Unsafe(last)
 import           Prelude(putStrLn)
 import           Data.Binary
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy as BL
 import           Data.List
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
@@ -44,6 +49,9 @@ import           Imj.Util
 -- or we can play safe and pick the one they agree on for being good.
 newtype OptimalStrategies = OptimalStrategies (Map (SmallWorldCharacteristics Program) OptimalStrategy)
   deriving(Generic)
+instance Lift OptimalStrategies where
+  lift (OptimalStrategies m) =
+     [| OptimalStrategies (Map.fromList $(lift (Map.toList m))) |]
 instance Binary OptimalStrategies
 instance Show OptimalStrategies where
   show = unlines . prettyShowOptimalStrategies
@@ -51,7 +59,7 @@ instance Show OptimalStrategies where
 data OptimalStrategy = OptimalStrategy {
     _optimalStrategy :: !(Maybe MatrixVariantsSpec)
   , averageDuration :: !(Time Duration System)
-} deriving(Generic)
+} deriving(Generic, Lift)
 instance Binary OptimalStrategy
 instance Ord OptimalStrategy where
   compare a b = compare (averageDuration a) (averageDuration b)
@@ -104,25 +112,28 @@ lookupOptimalStrategy (SWCharacteristics sz nComps proba) maxDuration(OptimalStr
             adjustedProba = fromMaybe (error "logic") $ mapRange 0 1 minProba maxProba proba
         in Right $ (SWCharacteristics sz nComps adjustedProba, strategy)
 
+
 encodeOptimalStrategiesFile :: FilePath
-                            -> OptimalStrategies -> IO ()
+                            -> OptimalStrategies
+                            -> IO ()
 encodeOptimalStrategiesFile path s = do
   encodeFile path s
   putStrLn $ "Wrote optimal strategies file:" ++ show path
 
-embeddedOptimalStrategies :: B.ByteString -> OptimalStrategies -- TODO this should happen at compile time
-embeddedOptimalStrategies content =
+readOptimalStrategies :: FilePath -> TH.ExpQ
+readOptimalStrategies path = do
+  bl <- TH.runIO $ BL.readFile path
+  let len = BL.length bl
   either
-    (\(_,offset,str) -> error $ "The embedded file optstrat.bin is corrupt:" ++ show (offset,str))
-    (\(_,offset,res) ->
+    (\(_,offset,str) -> fail $ "The file '" ++ path ++ "' is corrupt:" ++ show (offset,str))
+    (\(_,offset,res :: OptimalStrategies) ->
       if fromIntegral len == offset
         then
-          res
+          THS.lift res
         else
-          error $ "Not all content has been used :" ++ show (len,offset) ) $
-    decodeOrFail $ L.fromStrict content
- where
-   len = B.length content
+          fail $ "Not all content has been used :" ++ show (len,offset) ) $
+    (decodeOrFail bl)
+
 
 {-
 decodeOptimalStrategiesFileOrFail :: IO OptimalStrategies

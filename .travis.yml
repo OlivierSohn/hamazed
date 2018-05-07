@@ -9,7 +9,7 @@ os:
   - linux
 
 env:
-  - RESOLVER="lts-11.5"
+  - RESOLVER="lts-11.7"
   - RESOLVER="nightly-2018-04-20"
   - RESOLVER="nightly"
 

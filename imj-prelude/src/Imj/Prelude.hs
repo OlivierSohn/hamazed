@@ -51,6 +51,7 @@ import           Data.String as Exported(String)
 import           Data.Text as Exported(Text)
 import           Data.Traversable as Exported(mapM)
 import           Data.Word as Exported(Word8)
+import           Language.Haskell.TH.Syntax as Exported(Lift)
 
 import           Text.Show.Pretty as Exported(PrettyVal(..))
 

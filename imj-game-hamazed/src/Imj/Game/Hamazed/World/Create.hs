@@ -30,14 +30,13 @@ import           Imj.Graphics.Color.Types
 import           Imj.Space.Types
 
 import           Imj.Game.Hamazed.Color
-import           Imj.Game.Hamazed.World.Size
 import           Imj.Game.Hamazed.Space.Strategies
+import           Imj.Game.Hamazed.World.Size
 import           Imj.Graphics.Font
 import           Imj.Geo.Discrete
 import           Imj.Physics.Discrete.Collision
 import           Imj.Space
 import           Imj.Space.Draw
-import           Imj.Space.Strategies
 import           Imj.Util
 
 {-# INLINE materialColor #-}
@@ -114,12 +113,11 @@ mkWorldEssence (WorldSpec s@(LevelSpec levelNum _) shipIds (WorldParameters shap
     mkSpace
      | wallProba > 0 =
         fmap (Map.fromDistinctAscList . maybeToList) <$>
-          liftIO (mkRandomlyFilledSpace blockSize scaledWallProba size n continue gens optStrats)
+          liftIO (mkRandomlyFilledSpace blockSize scaledWallProba size n continue gens optimalStrategies)
       -- with 0 probability, we can't do anything else but return an empty space:
      | otherwise = return (Success $ mkEmptySpace size, Map.empty)
      where
       scaledWallProba = fromMaybe (error "logic") $ mapRange minWallProba maxWallProba 0 1 wallProba
-      optStrats = embeddedOptimalStrategies optimalStrategies
 
 -- | Updates 'PosSpeed' of a movable item, according to 'Space'.
 updateMovableItem :: Space

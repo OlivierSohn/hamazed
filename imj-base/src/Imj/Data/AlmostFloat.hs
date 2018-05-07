@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveLift #-}
 
 module Imj.Data.AlmostFloat
          ( almost
@@ -22,7 +23,7 @@ eps :: Float
 eps = 1e-6
 
 newtype AlmostFloat = AlmostFloat Float
- deriving(Generic, Floating, Fractional, Num, RealFrac, Real)
+ deriving(Generic, Floating, Fractional, Num, RealFrac, Real, Lift)
 instance NFData AlmostFloat
 instance Binary AlmostFloat
 instance Eq AlmostFloat where

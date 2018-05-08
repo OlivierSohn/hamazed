@@ -181,11 +181,15 @@ class (Server (ServerT g)
 
   type ClientOnlyEvtT g = (r :: *) | r -> g
   -- ^ Events generated on the client and handled by the client.
+  type ClientOnlyEvtT g = ()
 
   type ColorThemeT g
   -- ^ The colors used by a player
+  type ColorThemeT g = ()
+
 
   type ClientInfoT g
+  type ClientInfoT g = ()
 
   -- | The name is used to set the title of the game window.
   gameName :: Proxy g -> String
@@ -219,19 +223,24 @@ class (Server (ServerT g)
                  => m ()
   onAnimFinished = return ()
 
-  {- Handle your game's events. These are triggered either by a 'ServerT', or by a key press
-  (see 'keyMaps') -}
-  onCustomEvent :: (g ~ GameLogicT e
+  onServerEvent :: (g ~ GameLogicT e
                   , MonadState (AppState g) m
                   , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                   , MonadIO m)
-                => CustomUpdateEvent g
+                => ServerEventT (ServerT g)
                 -> m ()
+  onClientOnlyEvent :: (g ~ GameLogicT e
+                      , MonadState (AppState g) m
+                      , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
+                      , MonadIO m)
+                    => ClientOnlyEvtT g
+                    -> m ()
 
   onClientCustomCmd :: (MonadState (AppState g) m
                       , MonadIO m)
                     => CustomCmdT (ServerT g)
                     -> m ()
+  onClientCustomCmd = fail "you should implement this if you have custom commands."
 
   -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
   --

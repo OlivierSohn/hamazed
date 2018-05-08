@@ -115,6 +115,7 @@ class (Show (ClientEventT s)
   type ConnectIdT s = ClientName Proposed
 
   type CustomCmdT s
+  type CustomCmdT s = ()
 
   -- | "Server-side" client definition.
   type ClientViewT s = (r :: *) | r -> s
@@ -197,6 +198,7 @@ The default implementation returns a parser that fails for every command name.
   acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => CustomCmdT s
                 -> m (Either Text ())
+  acceptCommand = fail "you should implement this if you have custom commands."
 
   -- | Returns True if the client was included in the game that is being setup.
   clientCanJoin :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)

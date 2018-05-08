@@ -120,10 +120,60 @@ instance GameLogic HamazedGame where
           sendToServer $ IsReady $ getId world)
       future)
 
-  {-# INLINABLE onCustomEvent #-}
-  onCustomEvent = hamazedEvtUpdate
+  {-# INLINABLE onClientOnlyEvent #-}
+  onClientOnlyEvent = \case
+    Interrupt Help -> error "not implemented"
+    PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
+  {-# INLINABLE onServerEvent #-}
+  onServerEvent = \case
+    WorldRequest wid arg -> case arg of
+      GetGameState ->
+        maybe Nothing (mkGameStateEssence wid) <$> getIGame >>= sendToServer . CurrentGameState wid
+      Build dt spec ->
+        asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
+          void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` (fromIntegral wid)) $
+            -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
+            -- and to have no more than one worker per capability.
+            mkOneGenPerCapability >>= \gens -> do
+              let go = do
+                    deadline <- addDuration dt <$> liftIO getSystemTime
+                    -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
+                    -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
+                    -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
+                    let continue = getSystemTime >>= \t -> return (t < deadline)
+                    mkWorldEssence spec continue gens >>= \res -> do
+                      send $ ClientAppEvt $ uncurry (WorldProposal wid) res
+                      case fst res of
+                        NeedMoreTime{} -> go
+                        _ -> return ()
+              go
+      Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
+    ChangeLevel levelEssence worldEssence wid ->
+      getIGame >>= \s -> do
+        let sameLevels = Just (getLevelNumber' levelEssence) == (fmap (getLevelNumber' . _levelSpec . getGameLevel) s)
+        withAnim' (bool ColorAnimated Normal sameLevels) $
+          putIGame $ mkInitialState levelEssence worldEssence wid s
+    PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
+      withAnim' ColorAnimated $
+        getIGame >>= putIGame . mkIntermediateState shotNums levelEssence worldEssence wid
+    GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
+      onMove accelerations shipsLosingArmor
+    GameEvent (LaserShot dir shipId) -> do
+      join (asks triggerLaserSound)
+      onLaser shipId dir Add
+    GameInfo notif ->
+      stateChat $ addMessage $ ChatMessage $ toTxt' notif
 
-  onClientCustomCmd = undefined -- we don't have custom commands
+   where
+
+    toTxt' (LevelResult (LevelNumber n) (Lost reason)) =
+      colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
+    toTxt' (LevelResult (LevelNumber n) Won) =
+      colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
+    toTxt' GameWon =
+      colored "- The game was won! Congratulations!" chatWinColor
+    toTxt' (CannotCreateLevel errs n) =
+      colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
   getFrameColor _ = worldFrameColors
 
@@ -234,66 +284,6 @@ mkIntermediateState newShotNums newLevel essence wid mayState =
   -- during UIAnimation, we need the two worlds.
   in HamazedGame curWorld (Just newWorld) newShotNums (mkLevel newLevel)
 
-
-{-# INLINABLE hamazedEvtUpdate #-}
-hamazedEvtUpdate :: (GameLogicT e ~ HamazedGame
-                   , MonadState (AppState HamazedGame) m
-                   , MonadReader e m, Client e, AsyncGroups e, Audio e
-                   , MonadIO m)
-                   => CustomUpdateEvent HamazedGame
-                   -> m ()
-hamazedEvtUpdate (Right cliEvt) = case cliEvt of
-  Interrupt Help -> error "not implemented"
-  PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
-hamazedEvtUpdate (Left srvEvt) = case srvEvt of
-  WorldRequest wid arg -> case arg of
-    GetGameState ->
-      maybe Nothing (mkGameStateEssence wid) <$> getIGame >>= sendToServer . CurrentGameState wid
-    Build dt spec ->
-      asks sendToServer' >>= \send -> asks belongsTo' >>= \ownedByRequest ->
-        void $ liftIO $ forkIO $ flip withAsync (`ownedByRequest` (fromIntegral wid)) $
-          -- According to benchmarks, it is best to set the number of capabilities to the number of /physical/ cores,
-          -- and to have no more than one worker per capability.
-          mkOneGenPerCapability >>= \gens -> do
-            let go = do
-                  deadline <- addDuration dt <$> liftIO getSystemTime
-                  -- TODO getSystemTime can be costly... instead, we should have a thread that queries time every second,
-                  -- and atomicModifyIORef an IORef Bool. this same IORef Bool can be used to cancel the async gracefully.
-                  -- But we should also read the IORef in the inner loop of matrix transformations to ensure prompt finish.
-                  let continue = getSystemTime >>= \t -> return (t < deadline)
-                  mkWorldEssence spec continue gens >>= \res -> do
-                    send $ ClientAppEvt $ uncurry (WorldProposal wid) res
-                    case fst res of
-                      NeedMoreTime{} -> go
-                      _ -> return ()
-            go
-    Cancel -> asks cancel' >>= \cancelAsyncsOwnedByRequest -> cancelAsyncsOwnedByRequest (fromIntegral wid)
-  ChangeLevel levelEssence worldEssence wid ->
-    getIGame >>= \s -> do
-      let sameLevels = Just (getLevelNumber' levelEssence) == (fmap (getLevelNumber' . _levelSpec . getGameLevel) s)
-      withAnim' (bool ColorAnimated Normal sameLevels) $
-        putIGame $ mkInitialState levelEssence worldEssence wid s
-  PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
-    withAnim' ColorAnimated $
-      getIGame >>= putIGame . mkIntermediateState shotNums levelEssence worldEssence wid
-  GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
-    onMove accelerations shipsLosingArmor
-  GameEvent (LaserShot dir shipId) -> do
-    join (asks triggerLaserSound)
-    onLaser shipId dir Add
-  GameInfo notif ->
-    stateChat $ addMessage $ ChatMessage $ toTxt' notif
-
- where
-
-  toTxt' (LevelResult (LevelNumber n) (Lost reason)) =
-    colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
-  toTxt' (LevelResult (LevelNumber n) Won) =
-    colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
-  toTxt' GameWon =
-    colored "- The game was won! Congratulations!" chatWinColor
-  toTxt' (CannotCreateLevel errs n) =
-    colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
 {-# INLINABLE onLaser #-}
 onLaser :: (GameLogicT e ~ HamazedGame

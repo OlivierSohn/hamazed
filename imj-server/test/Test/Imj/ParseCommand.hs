@@ -27,7 +27,6 @@ instance Server VoidServer where
 
   type ClientEventT VoidServer = ()
   type ServerEventT VoidServer = ()
-  type CustomCmdT   VoidServer = ()
 
   type ValuesT      VoidServer = ()
   type ClientViewT  VoidServer = ()
@@ -42,22 +41,6 @@ instance Server VoidServer where
   onPut _ = return ()
   onDelta _ _ = return ()
   handleClientEvent _ = return ()
-  acceptCommand _ = return $ Right ()
-{-
-data VoidGame
-instance GameLogic VoidGame where
-  type ServerT        VoidGame = VoidServer
-  type ClientOnlyEvtT VoidGame = ()
-  type ColorThemeT    VoidGame = ()
-  type ClientInfoT    VoidGame = ()
-
-  getViewport _ (Screen _ center) _ =
-    mkCenteredRectContainer center defaultFrameSize
-
-  keyMaps _ _ = return Nothing
-
-  onCustomEvent _ = return ()
--}
 
 testMaxOneSpace :: IO ()
 testMaxOneSpace = do

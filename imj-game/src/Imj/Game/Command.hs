@@ -76,13 +76,16 @@ runClientCommand sid cmd = getPlayer sid >>= \p -> do
             detail)
           chatMsgColor
 
-
+-- | Uses 'withAnim' when a condition is met.
 withGameInfoAnimationIf :: (GameLogicT e ~ g
                           , MonadState (AppState (GameLogicT e)) m
                           , MonadReader e m, Client e
                           , MonadIO m)
                         => Bool
+                        -- ^ The condition
                         -> m a
+                        -- ^ The action, which will be just executed or executed
+                        -- inside withAnim
                         -> m a
 withGameInfoAnimationIf condition act =
   f act

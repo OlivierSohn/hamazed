@@ -101,16 +101,44 @@ data HamazedGame = HamazedGame {
   , getGameLevel :: !Level
     -- ^ The current 'Level'
 }
+instance GameExternalUI HamazedGame where
+  type ClientInfoT HamazedGame = BattleShip
+
+  gameWindowTitle _ = "Hamazed"
+
+  getFrameColor _ = worldFrameColors
+
+  getViewport trans (Screen _ center) (HamazedGame current future _ _) =
+    let (World _ _ space _ _) =
+          case trans of
+            From -> current
+            To -> fromMaybe current future
+    in mkCenteredRectContainer center $ getSize space
+
+  mkWorldInfos t _ (HamazedGame _ _ shotNumbers (Level level _)) =
+    let (u,d) = mkUpDownInfo
+    in Infos u d (mkLeftUpInfo t shotNumbers level) (mkLeftDownInfo t level)
+
+  getClientsInfos t (HamazedGame current future _ _) =
+    let (World _ ships _ _ _) =
+          case t of
+            From -> current
+            To -> fromMaybe current future
+    in ships
+
+  {-# INLINABLE gameWindowTitle #-}
+  {-# INLINABLE getFrameColor #-}
+  {-# INLINABLE getViewport #-}
+  {-# INLINABLE mkWorldInfos #-}
+  {-# INLINABLE getClientsInfos #-}
 
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
   type ClientOnlyEvtT HamazedGame = HamazedEvent
-  type ClientInfoT    HamazedGame = BattleShip
   type ColorThemeT    HamazedGame = ColorCycles
 
-  gameName _ = "Hamazed"
-
-  onAnimFinished = -- Swap the future world with the current one, and notifies the server using 'IsReady'
+  -- Swaps the future world with the current one, and notifies the server using 'IsReady'
+  onAnimFinished =
     getIGame >>= fmapM (\(HamazedGame _ future j k) -> maybe
       (return ())
       (\world -> do
@@ -174,27 +202,6 @@ instance GameLogic HamazedGame where
       colored "- The game was won! Congratulations!" chatWinColor
     toTxt' (CannotCreateLevel errs n) =
       colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
-
-  getFrameColor _ = worldFrameColors
-
-  mkWorldInfos t _ (HamazedGame _ _ shotNumbers (Level level _)) =
-    let (u,d) = mkUpDownInfo
-    in Infos u d (mkLeftUpInfo t shotNumbers level) (mkLeftDownInfo t level)
-
-  getClientsInfos t (HamazedGame current future _ _) =
-    let (World _ ships _ _ _) =
-          case t of
-            From -> current
-            To -> fromMaybe current future
-    in ships
-
-  {-# INLINABLE getViewport #-}
-  getViewport trans (Screen _ center) (HamazedGame current future _ _) =
-    let (World _ _ space _ _) =
-          case trans of
-            From -> current
-            To -> fromMaybe current future
-    in mkCenteredRectContainer center $ getSize space
 
   {-# INLINABLE drawBackground #-}
   drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do

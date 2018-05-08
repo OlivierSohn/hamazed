@@ -176,7 +176,7 @@ run prox
           Console ->
             newConsoleBackend >>= runWith useAudio debug queues srv mayConnectId
           OpenGLWindow ->
-            newOpenGLBackend (gameName prox)
+            newOpenGLBackend (gameWindowTitle prox)
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)

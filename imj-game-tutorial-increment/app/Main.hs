@@ -49,8 +49,19 @@ data IncGame = IncGame {
 evenTriangle :: Int -> Int
 evenTriangle = (*) 2 . zigzag 0 5
 
--- The two main classes are 'GameLogic' (which acts client-side) and 'Server'
--- (which acts server-side).
+-- The client-side classes are 'GameLogic', 'GameExternalUI' and 'GameDraw'.
+--
+-- The server-side class is 'Server'.
+
+instance GameExternalUI IncGame where
+
+  gameWindowTitle = const "Increment the counter!"
+
+  -- This defines the size of the outer frame you see when running the game.
+  -- Note that the size depends on the counter value:
+  getViewport _ (Screen _ center) (IncGame n) =
+    let i = evenTriangle $ fromIntegral n
+    in mkCenteredRectContainer center $ Size (10+fromIntegral i) (10+fromIntegral i)
 
 instance GameLogic IncGame where
 
@@ -65,12 +76,6 @@ instance GameLogic IncGame where
   -- from command line arguments. Note however that if you want to do audio in your game,
   -- and use this tutorial as a template, you'll need to remove this line.
   type AudioT IncGame = ()
-
-  -- This defines the size of the outer frame you see when running the game.
-  -- Note that the size depends on the counter value:
-  getViewport _ (Screen _ center) (IncGame n) =
-    let i = evenTriangle $ fromIntegral n
-    in mkCenteredRectContainer center $ Size (10+fromIntegral i) (10+fromIntegral i)
 
   keyMaps key _ = return $ case key of
     -- hitting the space bar will increment the counter, thus changing the size of the frame.

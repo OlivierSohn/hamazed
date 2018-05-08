@@ -120,7 +120,7 @@ withAnim' infoType act = do
       putAnimation $ mkAnim infoType t screen names1 names2 g1 g2
     return res
 
-mkAnim :: (GameLogic g1, GameLogic g2)
+mkAnim :: (GameExternalUI g1, GameExternalUI g2)
        => InfoType
        -> Time Point System
        -> Screen

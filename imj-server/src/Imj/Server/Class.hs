@@ -99,7 +99,7 @@ class (Show (ClientEventT s)
      , Categorized (ServerEventT s)
      )
  =>
-  Server s
+  Server s -- TODO split in specialized classes 
  where
 
   type ValueKeyT s

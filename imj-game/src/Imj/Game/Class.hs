@@ -7,9 +7,11 @@
 
 module Imj.Game.Class
       (
-      -- * Client / GameLogic
+      -- * Classes
         Client(..)
       , GameLogic(..)
+      , GameExternalUI(..)
+      -- * Client / GameLogic
       , EventsForClient(..)
       , Game(..)
       , AnimatedLine(..)
@@ -165,14 +167,52 @@ instance GameLogic g => Show (GenEvent g) where
 -- is 'From', the new one is 'To'.)
 data Transitioning = From | To
 
+-- | 'GameExternalUI' defines informations used by 'withAnim', /before/ and then /after/
+-- applying the action, to compute the resulting external UI animations.
+class (LeftInfo (ClientInfoT g))
+      => GameExternalUI g where
+  type ClientInfoT g
+  type ClientInfoT g = ()
+
+  -- | This name is used to set the title of the game window.
+  gameWindowTitle :: Proxy g -> String
+
+  -- | Returns the color of the external frame. Defaults to 'rgb 2 1 1'.
+  getFrameColor :: Maybe g
+                -> LayeredColor
+  getFrameColor _ = onBlack $ rgb 2 1 1
+
+  -- | Returns the position of the external frame.
+  getViewport :: Transitioning
+              -> Screen
+              -> g
+              -> RectContainer
+
+  -- | See 'ClientInfoT'. It is used to compute the player informations
+  -- on the left of the external frame.
+  --
+  -- Defaults to an empty 'Map'.
+  getClientsInfos :: Transitioning
+                  -> g
+                  -> Map ClientId (ClientInfoT g)
+  getClientsInfos _ _ = mempty
+
+  -- | It is used to compute the player informations on the left of the external frame.
+  mkWorldInfos :: InfoType
+               -> Transitioning
+               -> g
+               -> Infos
+  mkWorldInfos _ _ _ = mkEmptyInfos
+
+
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
-class (Server (ServerT g)
+class (GameExternalUI g
+     , Server (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
      , Binary (ColorThemeT g)
-     , LeftInfo (ClientInfoT g)
      )
       =>
      GameLogic g
@@ -183,7 +223,7 @@ class (Server (ServerT g)
 
   type AudioT g = (r :: *) | r -> g
   -- ^ Audio backend
-  type AudioT g = WithAudio -- assume that by default, the game will do audio
+  type AudioT g = WithAudio -- enable audio by default (use '()' to disable it)
 
   type ClientOnlyEvtT g
   -- ^ Events generated on the client and handled by the client.
@@ -192,43 +232,6 @@ class (Server (ServerT g)
   type ColorThemeT g
   -- ^ The colors used by a player
   type ColorThemeT g = ()
-
-
-  type ClientInfoT g
-  type ClientInfoT g = ()
-
-  -- | The name is used to set the title of the game window.
-  gameName :: Proxy g -> String
-  gameName _ = "Game"
-
-  getViewport :: Transitioning
-              -> Screen
-              -> g
-              -> RectContainer
-              -- ^ The screen region used to draw the game in 'drawGame'
-
-  -- | The methods herein are used by 'withAnim', /before/ and then /after/
-  -- applying the action, to copmute the resulting frame animations.
-
-  -- | See 'ClientInfoT'. It is used to compute the player informations
-  -- displayed on the left of the frame.
-  --
-  -- Defaults to an empty 'Map'.
-  getClientsInfos :: Transitioning
-                  -> g
-                  -> Map ClientId (ClientInfoT g)
-  getClientsInfos _ _ = mempty
-
-  -- | Defines the color of the frame. Defaults to 'rgb 2 1 1'.
-  getFrameColor :: Maybe g
-                -> LayeredColor
-  getFrameColor _ = onBlack $ rgb 2 1 1
-
-  mkWorldInfos :: InfoType
-               -> Transitioning
-               -> g
-               -> Infos
-  mkWorldInfos _ _ _ = mkEmptyInfos
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m

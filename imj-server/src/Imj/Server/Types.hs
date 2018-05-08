@@ -40,9 +40,15 @@ data ClientEvent s =
   | Connect !(Set MAC) !(Maybe (ConnectIdT s)) {-unpack sum-} !ServerOwnership
   | ExitedState {-unpack sum-} !(StateValue (StateValueT s))
   | OnCommand !(Command s)
-  deriving(Generic, Show)
-instance Server s => Binary (ClientEvent s)
-instance Server s => WebSocketsData (ClientEvent s) where
+  deriving(Generic)
+instance (Server s, ServerClientHandler s) => Show (ClientEvent s) where
+  show = \case
+    ClientAppEvt x -> show ("ClientAppEvt",x)
+    Connect x y z -> show ("Connect",x,y,z)
+    ExitedState x -> show ("ExitedState",x)
+    OnCommand x -> show ("OnCommand",x)
+instance (Server s, ServerClientHandler s) => Binary (ClientEvent s)
+instance (Server s, ServerClientHandler s) => WebSocketsData (ClientEvent s) where
   fromDataMessage (Text t _) =
     error $ "Text was received for ClientEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
   fromDataMessage (Binary bytes) = Bin.decode bytes
@@ -76,7 +82,7 @@ data ServerEvent s =
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic)
-instance (Server s) => Show (ServerEvent s) where
+instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
   show = \case
     ServerAppEvt x -> show ("ServerAppEvt",x)
     PlayMusic x y -> show ("PlayMusic",x,y)
@@ -92,8 +98,8 @@ instance (Server s) => Show (ServerEvent s) where
     EnterState x -> show ("EnterState",x)
     ExitState x -> show ("ExitState",x)
     ServerError x -> show ("ServerError",x)
-instance Server s => Binary (ServerEvent s)
-instance Server s => WebSocketsData (ServerEvent s) where
+instance (Server s, ServerClientHandler s) => Binary (ServerEvent s)
+instance (Server s, ServerClientHandler s) => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =
     error $ "Text was received for ServerEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
   fromDataMessage (Binary bytes) = Bin.decode bytes
@@ -102,7 +108,7 @@ instance Server s => WebSocketsData (ServerEvent s) where
   {-# INLINABLE fromDataMessage #-}
   {-# INLINABLE fromLazyByteString #-}
   {-# INLINABLE toLazyByteString #-}
-instance Server s => Categorized (ServerEvent s) where
+instance (Server s, ServerClientHandler s) => Categorized (ServerEvent s) where
   evtCategory = \case
     PlayMusic{} -> Command'
     Reporting _ -> Chat'

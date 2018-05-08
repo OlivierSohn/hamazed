@@ -29,6 +29,7 @@ import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigT
 import           Imj.Game.Exceptions
 import           Imj.Game.Class
 import           Imj.Graphics.Color
+import           Imj.Server.Class
 import           Imj.ServerView.Types
 import           Imj.ServerView
 import           Imj.Server.Types
@@ -42,7 +43,7 @@ import           Imj.Server.Color
 import           Imj.Server.Run
 
 
-startServerIfLocal :: Server s
+startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s, ServerInit s, ServerInParallel s)
                    => Proxy s
                    -> ServerView (ValuesT s)
                    -> MVar (Either String String)
@@ -102,11 +103,13 @@ startClient cid srv = do
   msg x = x <> " to server " <> pack (show srv)
 
 
-installOneHandler :: Server s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
+installOneHandler :: (Server s, ServerClientHandler s, ServerClientLifecycle s, ServerInit s)
+                  => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =
   void $ installHandler sig (Catch $ handleTermination sigName state serverThreadId) Nothing
  where
-  handleTermination :: Server s => Text -> MVar (ServerState s) -> ThreadId -> IO ()
+  handleTermination :: (Server s, ServerClientHandler s, ServerClientLifecycle s, ServerInit s)
+                    => Text -> MVar (ServerState s) -> ThreadId -> IO ()
   handleTermination signalName s serverMainThreadId = do
     modifyMVar_ s $ execStateT (shutdown $ "received " <> signalName)
     -- we are in a forked thread, so to end the server :

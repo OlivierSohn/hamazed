@@ -23,6 +23,7 @@ executable imj-game-tutorial-increment-exe
   build-depends:       base >= 4.9 && < 4.12
                      , attoparsec ==0.13.*
                      , binary ==0.8.*
+                     , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
                      , imj-server ==0.1.*

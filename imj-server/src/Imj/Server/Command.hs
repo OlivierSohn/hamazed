@@ -13,16 +13,16 @@ import           Data.Attoparsec.Text(Parser, takeText, endOfInput, char, decima
                                     , peekChar, peekChar', skipSpace, takeWhile1)
 import           Data.Char(toLower, isAlphaNum)
 import qualified Data.Text as Text
+import           Data.Map((!?))
 
 import           Imj.Graphics.Color.Types
 import           Imj.Network
-import           Imj.Server.Types
 import           Imj.Server.Class
 import           Imj.Util(maxOneSpace)
 
 {- Returns a parser of commands.
 -}
-command :: (Server s) => Parser (Either Text (Command s))
+command :: (ServerCmdParser s) => Parser (Either Text (Command s))
 command = do
   skipSpace
   peekChar' >>= \case -- we peek to issue an error on wrong commands (instead of interpreting them as a message)
@@ -53,5 +53,9 @@ command = do
             skipSpace
             b <- decimal
             return $ Do . Put . ColorSchemeCenter <$> userRgb r g b
-        _ -> cmdParser cmdName
+        _ ->
+          maybe
+            (return $ Left $ "'" <> cmdName <> "' is an unknown command.")
+            (\parser -> Right <$> parser)
+            $ cmdParsers !? cmdName
     _ -> Right . RequestApproval . Says . maxOneSpace <$> (takeText <* endOfInput)

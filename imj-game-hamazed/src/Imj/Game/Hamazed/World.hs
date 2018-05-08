@@ -15,7 +15,6 @@ module Imj.Game.Hamazed.World
 
        A 'Level' is finished once the sum of shot 'Number's amounts to the /target number/. -}
     , checkTargetAndAmmo
-    , checkAllComponentStatus
     , checkSums
     -- * World
     {- | A 'World' brings together:
@@ -35,14 +34,10 @@ module Imj.Game.Hamazed.World
     , worldSizeFromLevel
     -- ** Update World
     -- | Every 'gameMotionPeriod' seconds, the positions of 'BattleShip' and 'Numbers'
-    -- are updated according to their speeds:
+    -- are updated according to their speeds.
     , gameMotionPeriod
-    , moveWorld
     -- ** Draw World
     , drawWorld
-    -- ** World utilities
-    -- | 'laserEventAction' returns the effect a laser shot it has on the 'World'.
-    , laserEventAction
     -- * Space
     {-| 'Space' describes the environment in which 'Number's and the 'BattleShip'
     live.

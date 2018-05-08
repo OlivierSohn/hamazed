@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Draw
       ( draw
@@ -25,6 +26,7 @@ import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.ServerView.Types
+import           Imj.Server.Class
 import           Imj.Server.Types
 
 import           Imj.Game.Color
@@ -82,7 +84,7 @@ drawStatus =
     forM_ dcs $ \(_,AnimatedLine record frame _) -> drawMorphingAt record frame
 
 {-# INLINABLE drawSetup #-}
-drawSetup :: (Server s
+drawSetup :: (ServerClientHandler s
             , MonadReader e m, Draw e
             , MonadIO m)
           => Maybe (ValuesT s)

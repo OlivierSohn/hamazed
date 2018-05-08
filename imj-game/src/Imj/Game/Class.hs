@@ -11,6 +11,7 @@ module Imj.Game.Class
         Client(..)
       , GameLogic(..)
       , GameExternalUI(..)
+      , GameDraw(..)
       -- * Client / GameLogic
       , EventsForClient(..)
       , Game(..)
@@ -58,6 +59,7 @@ module Imj.Game.Class
       , getLastRenderTime
       , hasVisibleNonRenderedUpdates
       -- * Modify
+      , addParticleSystems
       , putGame
       , putAnimation
       , putCurScreen
@@ -69,7 +71,6 @@ module Imj.Game.Class
       , putServerContent
       , putDrawnState
       , stateChat
-      , takeKeys
       -- * reexports
       , MonadState
       , TQueue
@@ -206,8 +207,8 @@ class (LeftInfo (ClientInfoT g))
 
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
-class (GameExternalUI g
-     , Server (ServerT g)
+class (GameExternalUI g, GameDraw g
+     , Server (ServerT g), ServerClientHandler (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
@@ -270,6 +271,11 @@ class (GameExternalUI g
            -> StateValue GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
+
+-- | At every render, first background elements ('drawBackground') are drawn,
+-- then particle systems (see 'addParticleSystems' to add particle systems),
+-- and finally the foreground elements are drawn ('drawForeground')
+class GameDraw g where
 
   -- | Draw the background layer (i.e /before/ particle system animations are drawn)
   -- and returns a reference position that will be used to position particle systems
@@ -571,6 +577,15 @@ takeKeys n
         let key = nextParticleSystemKey s
             endKey = key + fromIntegral n
         in ([key..pred endKey], s {nextParticleSystemKey = endKey })
+
+{-# INLINABLE addParticleSystems #-}
+addParticleSystems :: MonadState (AppState s) m
+                   => [Prioritized ParticleSystem]
+                   -> m ()
+addParticleSystems l = do
+  keys <- takeKeys $ length l
+  let ps2 = Map.fromDistinctAscList $ zip keys l
+  gets game >>= \g -> putGame $ g {gameParticleSystems = Map.union (gameParticleSystems g) ps2}
 
 {-# INLINABLE putDrawnState #-}
 putDrawnState :: (MonadState (AppState g) m)

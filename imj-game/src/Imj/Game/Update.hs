@@ -65,8 +65,9 @@ import           Imj.Log
 import           Imj.Server.Command
 
 {-# INLINABLE updateAppState #-}
-updateAppState :: (g ~ GameLogicT e
-                 , StateValueT (ServerT g) ~ GameStateValue
+updateAppState :: (g ~ GameLogicT e, s ~ ServerT g
+                 , StateValueT s ~ GameStateValue
+                 , ServerCmdParser s
                  , MonadState (AppState g) m
                  , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
                  , MonadIO m)
@@ -357,6 +358,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
 
 
 onSendChatMessage :: (GameLogicT e ~ g
+                    , ServerCmdParser (ServerT g)
                     , MonadState (AppState g) m
                     , MonadReader e m, Client e
                     , MonadIO m)

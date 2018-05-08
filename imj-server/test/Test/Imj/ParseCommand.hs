@@ -23,16 +23,16 @@ import           Imj.Util
 data VoidServer = VoidServer
   deriving(Generic,NFData)
 instance Server VoidServer where
+  type ServerEventT VoidServer = ()
+
+instance ServerCmdParser VoidServer
+
+instance ServerClientHandler VoidServer where
   type StateValueT  VoidServer = ()
 
   type ClientEventT VoidServer = ()
-  type ServerEventT VoidServer = ()
-
   type ValuesT      VoidServer = ()
-  type ClientViewT  VoidServer = ()
 
-  mkInitialState = return ((),VoidServer)
-  mkInitialClient = ()
   handleClientEvent _ = return ()
 
 testMaxOneSpace :: IO ()

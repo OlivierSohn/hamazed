@@ -9,7 +9,15 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Imj.Server.Class
-      ( Server(..)
+      ( -- * Classes
+        Server(..)
+      , ServerInit(..)
+      , ServerCmdParser(..)
+      , ServerInParallel(..)
+      , ServerClientHandler(..)
+      , ServerClientLifecycle(..)
+      , ChatShow(..)
+      -- *
       , Value(..)
       , ValueKey(..)
       , Command(..)
@@ -28,7 +36,6 @@ module Imj.Server.Class
       , DisconnectReason(..)
       , ClientName(..)
       , unClientName
-      , ChatShow(..)
       -- * reexports
       , MonadReader
       , MonadState
@@ -37,7 +44,7 @@ module Imj.Server.Class
 import           Imj.Prelude
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
-import           Data.Text(unpack)
+import           Data.Map(Map)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -53,54 +60,70 @@ import           Imj.Server.Internal.Types
 
 import           Imj.Network
 
-class (Show (ClientEventT s)
-     , Show (ServerEventT s)
-     , Show (ConnectIdT s)
-     , Show (ValuesT s)
-     , Show (ClientViewT s)
-     , Show (ValueKeyT s)
-     , Show (ValueT s)
-     , Show (EnumValueKeyT s)
-     , Show (StateValueT s)
-     , Show (CustomCmdT s)
-     , Generic (ClientEventT s)
-     , Generic (ServerEventT s)
-     , Generic (ConnectIdT s)
-     , Generic (ValuesT s)
+
+-- | Server initialization.
+class (Show (ClientViewT s)
      , Generic (ClientViewT s)
-     , Generic (ValueKeyT s)
-     , Generic (ValueT s)
-     , Generic (EnumValueKeyT s)
-     , Generic (StateValueT s)
-     , Generic (CustomCmdT s)
-     , ChatShow (ValueT s)
-     , Arg (ConnectIdT s)
-     , ClientNameProposal (ConnectIdT s)
-     , Eq (ValueKeyT s)
-     , Eq (ValueT s)
-     , Eq (EnumValueKeyT s)
-     , Eq (CustomCmdT s)
-     , Binary (ValuesT s)
-     , Binary (ClientEventT s)
-     , Binary (ServerEventT s)
-     , Binary (ConnectIdT s)
-     , Binary (ValueKeyT s)
-     , Binary (ValueT s)
-     , Binary (EnumValueKeyT s)
-     , Binary (StateValueT s)
-     , Binary (CustomCmdT s)
-     , NFData s -- because we use Control.Concurrent.MVar.Strict
-     , NFData (ValuesT s)
      , NFData (ClientViewT s)
-     , NFData (ValueKeyT s)
-     , NFData (ValueT s)
-     , NFData (EnumValueKeyT s)
-     , UIInstructions (ValuesT s)
-     , Categorized (ServerEventT s)
      )
- =>
-  Server s -- TODO split in specialized classes 
- where
+     => ServerInit s where
+
+  -- | "Server-side" client definition.
+  type ClientViewT s = (r :: *) | r -> s
+
+  -- | Called to create the server.
+  mkInitialState :: MonadIO m => m (ValuesT s, s)
+
+  -- | Creates the client view
+  mkInitialClient :: ClientViewT s
+
+-- | Actions running in parallel to client handlers ().
+class ServerInParallel s where
+  -- | Actions that will be run concurrently after server initialization.
+  --
+  -- 'MVar' is used to be able to avoid race conditions.
+  --
+  -- Typically, a game server will return actions scheduling the game execution
+  -- (see 'imj-game-hamazed' for an example where players deconnections are taken
+  -- into account to pause the game and inform the players that one player is missing.
+  -- The game continues when the missing player reconnects.).
+  inParallel :: [MVar (ServerState s) -> IO ()]
+  inParallel = []
+
+-- | Methods to handle a client
+class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (ValuesT s)
+     , ChatShow (ValueT s)
+     , Show (ValueKeyT s), Generic (ValueKeyT s), Eq (ValueKeyT s), Binary (ValueKeyT s), NFData (ValueKeyT s)
+     , Show (ValueT s), Generic (ValueT s), Eq (ValueT s), Binary (ValueT s), NFData (ValueT s)
+     , UIInstructions (ValuesT s)
+     , Show (EnumValueKeyT s), Generic (EnumValueKeyT s), Eq (EnumValueKeyT s), Binary (EnumValueKeyT s), NFData (EnumValueKeyT s)
+     , NFData s -- because we use Control.Concurrent.MVar.Strict
+     , Show (StateValueT s), Generic (StateValueT s), Binary (StateValueT s)
+     , Show (ClientEventT s), Generic (ClientEventT s), Binary (ClientEventT s)
+     , Show (ConnectIdT s), Generic (ConnectIdT s), Arg (ConnectIdT s)
+     , ClientNameProposal (ConnectIdT s), Binary (ConnectIdT s)
+     )
+     => ServerClientHandler s where
+
+  type StateValueT s
+
+  type ClientEventT s
+  -- ^ Events sent by the client that must be handled by the server.
+
+  type ConnectIdT s = (r :: *) | r -> s
+  -- ^ Data passed in 'ClientEvent' 'Connect'.
+  type ConnectIdT s = ClientName Proposed
+
+  -- | Handle an incoming client event.
+  handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                    => ClientEventT s -> m ()
+
+  -- | Returns 'Left' to disallow the command, 'Right' to allow it.
+  acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                => CustomCmdT s
+                -> m (Either Text ())
+  acceptCommand = fail "Please implement 'acceptCommand' if you define 'CustomCmdT'."
+
 
   type ValueKeyT s
   type ValueKeyT s = ()
@@ -112,87 +135,14 @@ class (Show (ClientEventT s)
   type EnumValueKeyT s = ()
 
   type ValuesT s = (r :: *) | r -> s
+  type ValuesT s = ()
 
-  type ServerEventT s = (r :: *) | r -> s
-  -- ^ Events sent by the server that must be handled by the client.
-  type ClientEventT s = (r :: *)| r -> s
-  -- ^ Events sent by the client that must be handled by the server.
-  type ConnectIdT s = (r :: *) | r -> s
-  -- ^ Data passed in 'ClientEvent' 'Connect'.
-  type ConnectIdT s = ClientName Proposed
-
-  type CustomCmdT s
-  type CustomCmdT s = ()
-
-  -- | "Server-side" client definition.
-  type ClientViewT s = (r :: *) | r -> s
-
-  type StateValueT s
-
-  {- |
-This method makes /custom/ commands available in the chat window : it returns a
-'Parser' parsing the /parameters/ of the command whose name was passed as argument.
-
-Commands issued in the chat start with a forward slash, followed by the command name
-and optional parameters.
-
-The command name must be composed exclusively of alphanumerical characters.
-
-When this method is called, the input has been consumed up until the beginning
-of the parameters, and the parsed command name didn't match with any default command.
-
-For example:
-
-@
-/color 2 3 4
-       ^
-/color
-      ^
-
-'^' : parse position when this method is called
-@
-
-For an unknown command name, this method returns a parser failing with an
-informative error message which will be displayed in the chat window.
-
-The default implementation returns a parser that fails for every command name.
-  -}
-  cmdParser :: Text
-            -- ^ Command name (lowercased, only alpha numerical characters)
-            -> Parser (Either Text (Command s))
-  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
-
-  -- | Called to create the server.
-  mkInitialState :: MonadIO m => m (ValuesT s, s)
-
-  -- | Returns actions that are not associated to a particular client, and that
-  -- need to be run as long as the server is running. For a game server,
-  -- the list will typically contain a game scheduling action.
-  inParallel :: [MVar (ServerState s) -> IO ()]
-  inParallel = []
-
-  -- | Creates the client view
-  mkInitialClient :: ClientViewT s
-
-  -- | These events are sent to the newly added client.
-  greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
-                => m [ServerEventT s]
-  greetNewcomer = return []
-
-  -- | Called after the client has been added and sent the greeting events (see 'greetNewcomer').
-  -- Default implementation does nothing.
-  onStartClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                => ClientLifecycle -> m ()
-  onStartClient _ = return ()
-
-  getValue :: ValueKeyT s
-           -> ValuesT s
-           -> ValueT s
+  -- | Gets a 'ValueT' from 'ValuesT' by 'ValueKeyT'
+  getValue :: ValueKeyT s -> ValuesT s -> ValueT s
   getValue _ _ = error "Please implement 'getValue' when you define 'ValuesT' / 'ValueKeyT' / 'ValueT'"
 
   onPut :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-        => ValueT s
-        -> m ()
+        => ValueT s -> m ()
   onPut _ = fail "Please implement 'onPut' when you define 'ValueT'"
 
   onDelta :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -201,15 +151,15 @@ The default implementation returns a parser that fails for every command name.
           -> m ()
   onDelta _ _ = fail "Please implement 'onDelta' when you define 'EnumValueKeyT'"
 
-  -- | Handle an incoming client event.
-  handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                    => ClientEventT s -> m ()
-
-  -- | Returns 'Left' to disallow the command, 'Right' to allow it.
-  acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                => CustomCmdT s
-                -> m (Either Text ())
-  acceptCommand = fail "Please implement 'acceptCommand' if you define 'CustomCmdT'."
+-- | Methods related to the lifecycle of a client. Note that client-specific infos
+-- ('ClientId' and connection) are available through 'MonadReader' 'ConstClientView',
+-- or passed as parameter (see 'afterClientLeft').
+class ServerClientLifecycle s where
+  -- | Called after the client has been added and sent the greeting events (see 'greetNewcomer').
+  -- Default implementation does nothing.
+  onStartClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+                => ClientLifecycle -> m ()
+  onStartClient _ = return ()
 
   -- | Returns True if the client was included in the game being set up.
   clientCanJoin :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -229,12 +179,65 @@ The default implementation returns a parser that fails for every command name.
                   -> m ()
   afterClientLeft _ = return ()
 
+class (Show (ServerEventT s)
+     , Show (CustomCmdT s)
+     , Generic (ServerEventT s)
+     , Generic (CustomCmdT s)
+     , Eq (CustomCmdT s)
+     , Binary (ServerEventT s)
+     , Binary (CustomCmdT s)
+     , Categorized (ServerEventT s)
+     )
+ =>
+  Server s
+ where
+
+  type ServerEventT s
+  -- ^ Events sent by the server that must be handled by the client.
+
+  -- | These events are sent to the newly added client. They should include
+  -- state information that the client needs to know to be up-to-date w.r.t the
+  -- current server state.
+  greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
+                => m [ServerEventT s]
+  greetNewcomer = return []
+
+-- | Parsing of custom commands parameters
+class ServerCmdParser s where
+
+  type CustomCmdT s
+  type CustomCmdT s = ()
+
+  {- |
+Commands issued in the chat window start with a forward slash, followed by the command name
+and optional parameters.
+
+The command name must be composed exclusively of alphanumerical characters, and different
+from default command names (@name@ and @color@ at the time of this writing).
+
+The parsers returned should consider that the input has been consumed up until the beginning
+of the parameters, for example:
+
+@
+/setValues 2 3 4
+           ^
+/setValues
+          ^
+
+'^' : parse position when this method is called
+@
+  -}
+  cmdParsers :: Map Text (Parser (Command s))
+  -- ^ the key is the command name (lowercased, using only alpha numerical characters),
+  -- the value is a parser for the command /parameters/.
+  cmdParsers = mempty
+
+
 class Show a => ChatShow a where
   -- | Returns the 'String' to display in the chat window. The default implemention
   -- is 'show'.
   chatShow :: a -> String
   chatShow = show
-
 instance ChatShow ()
 
 data ServerState s = ServerState {
@@ -247,7 +250,7 @@ data ServerState s = ServerState {
   -- ^ The color scheme.
   , unServerState :: !s
 } deriving(Generic)
-instance (Server s) => NFData (ServerState s)
+instance (ServerInit s, ServerClientHandler s) => NFData (ServerState s)
 
 {-# INLINABLE getsState #-}
 getsState :: (MonadState (ServerState s) m)
@@ -274,13 +277,13 @@ data Command s =
   -- ^ A client want to know an information on the server state. The server will answer by
   -- sending a 'Report'.
   deriving(Generic) -- Eq needed for parse tests
-instance Server s => Binary (Command s)
-instance Server s => Show (Command s) where
+instance (ServerClientHandler s, Server s) => Binary (Command s)
+instance (ServerClientHandler s, Server s) => Show (Command s) where
   show = \case
     RequestApproval x -> show ("RequestApproval",x)
     Do x -> show ("Do",x)
     Report x -> show ("Report",x)
-instance Server s => Eq (Command s) where
+instance (ServerClientHandler s, Server s) => Eq (Command s) where
   RequestApproval x == RequestApproval y = x == y
   Report x == Report y = x == y
   Do x == Do y = x == y

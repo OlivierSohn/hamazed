@@ -60,7 +60,8 @@ import           Imj.Server
 import           Imj.Server.Log
 import           Imj.Timing
 
-appSrv :: (Server s) => MVar (ServerState s) -> PendingConnection -> IO ()
+appSrv :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s)
+       => MVar (ServerState s) -> PendingConnection -> IO ()
 appSrv st pending =
   acceptRequest pending >>= application st
 
@@ -68,7 +69,8 @@ appSrv st pending =
 -- (network failures or players disconnections) are handled so that
 -- a broken connection of /another/ client while broadcasting a message
 -- won't impact the handled client.
-application :: Server s => MVar (ServerState s) -> Connection -> IO ()
+application :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s)
+            => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
     Connect macs mayConnectId cliType ->
@@ -125,7 +127,7 @@ application st conn =
     msg -> error $ "First sent message should be 'Connect'. " ++ show msg
 
 
-handleClient :: (Server s)
+handleClient :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s)
              => Maybe (ConnectIdT s)
              -> ServerOwnership
              -> ClientLifecycle
@@ -156,7 +158,7 @@ handleClient mayConnectId cliType lifecycle st = do
       modifyMVar_ st . execStateT . logArg handleIncomingEvent'
 
 
-handleIncomingEvent' :: (Server s
+handleIncomingEvent' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                        , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                      => ClientEvent s
                      -> m ()
@@ -221,8 +223,9 @@ handleIncomingEvent' = \case
 
   acceptCmd cmd = asks clientId >>= notifyEveryone' . flip RunCommand cmd
 
-publish :: (MonadReader ConstClientView m, MonadIO m, Server s,
-            MonadState (ServerState s) m)
+publish :: (MonadReader ConstClientView m, MonadIO m
+          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+          , MonadState (ServerState s) m)
         => PlayerNotif (ValueT s) (EnumValueKeyT s) -> m ()
 publish a = asks clientId >>= notifyEveryone' . PlayerInfo a
 
@@ -255,7 +258,7 @@ pingPong conn dt =
     sendPing conn $ pack $ show i
     go $ i + 1 -- it can overflow, that is ok.
 
-addClient :: (Server s
+addClient :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
             , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
           => Maybe (ConnectIdT s)
           -> ServerOwnership
@@ -289,12 +292,12 @@ addClient connectId cliType = do
     ] ++
     map ServerAppEvt greeters
 
-handlerError :: (Server s
+handlerError :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => String -> m ()
 handlerError = error' "Handler"
 
-error' :: (Server s
+error' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
          , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
        => String -> String -> m ()
 error' from msg = do
@@ -304,7 +307,7 @@ error' from msg = do
  where
   txt = List.intercalate "|" [from, "error from Server", msg]
 
-shutdown :: Server s
+shutdown :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s)
          => Text
          -> StateT (ServerState s) IO ()
 shutdown reason = do

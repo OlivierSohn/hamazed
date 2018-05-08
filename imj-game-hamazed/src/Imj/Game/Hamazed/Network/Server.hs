@@ -96,19 +96,8 @@ data HamazedServer = HamazedServer {
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
 instance NFData HamazedServer
-instance Server HamazedServer where
-
-  type StateValueT   HamazedServer = GameStateValue
-
-  type ValueT        HamazedServer = HamazedValue
-  type ValueKeyT     HamazedServer = HamazedValueKey
-  type EnumValueKeyT HamazedServer = HamazedEnumValueKey
-
-  type ServerEventT HamazedServer = HamazedServerEvent
-  type ClientEventT HamazedServer = HamazedClientEvent
-
-  type ValuesT      HamazedServer = WorldParameters
-  type ClientViewT  HamazedServer = HamazedClient
+instance ServerInit HamazedServer where
+  type ClientViewT HamazedServer = HamazedClient
 
   mkInitialState =
     (,) params . HamazedServer mkGameTiming lvSpec wc IntentSetup <$> newEmptyMVar
@@ -117,9 +106,183 @@ instance Server HamazedServer where
     params = initialParameters
     wc = mkWorldCreation $ WorldSpec lvSpec Set.empty params
 
+  mkInitialClient = HamazedClient Nothing Nothing zeroCoords Nothing
+
+instance ServerCmdParser HamazedServer
+
+instance ServerInParallel HamazedServer where
+
   inParallel = [gameScheduler]
 
-  mkInitialClient = HamazedClient Nothing Nothing zeroCoords Nothing
+instance ServerClientHandler HamazedServer where
+
+  type StateValueT   HamazedServer = GameStateValue
+
+  type ClientEventT HamazedServer = HamazedClientEvent
+
+  handleClientEvent = \case
+    LevelEnded outcome -> do
+      adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
+      getsState intent >>= \case
+        IntentPlayGame Nothing ->
+          modifyState $ \s -> s { intent = IntentPlayGame $ Just outcome }
+        IntentPlayGame (Just candidate) -> -- replace this by using the outcome in client state?
+          case candidate of
+            Won -> when (outcome /= candidate) $
+              gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
+            Lost _ -> case outcome of
+              Won ->  gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
+              Lost _ -> return () -- we allow losing reasons to differ
+        IntentSetup ->
+          gameError "LevelEnded received while in IntentSetup"
+      gets onlyPlayersMap >>= \players' -> do
+        let playing Nothing = error "should not happen"
+            playing (Just ReadyToPlay) = error "should not happen"
+            playing (Just (Playing Nothing)) = True
+            playing (Just (Playing (Just _))) = False
+            (playersPlaying, playersDonePlaying) = Map.partition (playing . getState . unClientView) players'
+            gameStatus =
+              if null playersPlaying
+                then
+                  WhenAllPressedAKey (OutcomeValidated outcome) (Just 2) $ Map.map (const False) playersDonePlaying
+                else
+                  WaitingForOthersToEndLevel $ Map.keysSet playersPlaying
+        notifyN' [EnterState $ Included $ PlayLevel gameStatus] playersDonePlaying
+        getsState scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
+          (warning "LevelEnded sent while game is Nothing")
+          (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
+    CanContinue next ->
+      getsState scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
+        (warning "CanContinue sent while game is Nothing")
+        (\game -> do
+            let curStatus = status' game
+            case curStatus of
+              WhenAllPressedAKey x Nothing havePressed -> do
+                when (x /= next) $ error $ "inconsistent:"  ++ show (x,next)
+                i <- asks clientId
+                let newHavePressed = Map.insert i True havePressed
+                    intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
+                liftIO $ void $ swapMVar g $! game { status' = intermediateStatus }
+                -- update to avoid state where the map is equal to all players:
+                void $ updateCurrentStatus $ Just curStatus
+              _ -> error $ "inconsistent:"  ++ show curStatus)
+
+    WorldProposal wid mkEssenceRes stats -> case mkEssenceRes of
+      Impossible errs -> getsState intent >>= \case
+        IntentSetup -> getsState levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
+        IntentPlayGame _ ->
+          fmap levelNumber (getsState levelSpecification) >>= \ln -> do
+            notifyPlayers $ GameInfo $ CannotCreateLevel errs ln
+            serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
+
+      NeedMoreTime -> addStats stats wid
+      Success essence -> gets unServerState >>= \(HamazedServer _ levelSpec (WorldCreation st key spec prevStats) _ _) -> bool
+        (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
+        (case st of
+          Created ->
+            serverLog $ pure $ colored ("Dropped already created world " <> pack (show wid)) blue
+          CreationAssigned _ -> do
+            -- This is the first valid world essence, so we can cancel the request
+            cancelWorldRequest
+            let !newStats = safeMerge mergeStats prevStats stats
+            log $ colored (pack $ show newStats) white
+            modifyState $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
+            notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
+        $ key == wid
+    CurrentGameState wid mayGameStateEssence -> maybe
+      (handlerError $ "Could not get HamazedGame " ++ show wid)
+      (\gameStateEssence ->
+        getsState scheduledGame >>= liftIO . tryReadMVar >>= \case
+          Just (CurrentGame _ gamePlayers (Paused _ _) _) -> do
+            disconnectedPlayerKeys <- Set.difference gamePlayers . Map.keysSet <$> gets onlyPlayersMap
+            flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
+              notifyN [PutGameState gameStateEssence wid]
+          invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid)
+      mayGameStateEssence
+
+    IsReady wid -> do
+      adjustClient $ \c -> c { getCurrentWorld = Just wid }
+      getsState intent >>= \case
+        IntentSetup ->
+          -- Allow the client to setup the world, now that the world contains its ship.
+          notifyClient' $ EnterState $ Included Setup
+        IntentPlayGame maybeOutcome ->
+          gets unServerState >>= \(HamazedServer _ _ (WorldCreation _ lastWId _ _) _ game) ->
+           liftIO (tryReadMVar game) >>= maybe
+            (do
+              adjustClient $ \c -> c { getState = Just ReadyToPlay }
+              -- start the game when all players have the right world
+              players <- gets onlyPlayersMap
+              let playersAllReady =
+                    all ((== Just lastWId) . getCurrentWorld . unClientView) players
+              when playersAllReady $ do
+                adjustAllClients $ \c ->
+                  case getState c of
+                    Just ReadyToPlay ->
+                      c { getState = Just $ Playing Nothing
+                        , getShipAcceleration = zeroCoords }
+                    _ -> c
+                -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
+                -- of 'ServerState' and we are inside one.
+                void $ liftIO $ putMVar game $ mkCurrentGame lastWId $ Map.keysSet players)
+            -- a game is in progress (reconnection scenario) :
+            (\(CurrentGame wid' _ _ _) -> do
+                when (wid' /= lastWId) $
+                  handlerError $ "reconnection failed " ++ show (wid', lastWId)
+                -- make player join the current game, but do /not/ set getShipSafeUntil,
+                -- else disconnecting / reconnecting intentionally could be a way to cheat
+                -- by having more safe time.
+                adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
+                                       , getShipAcceleration = zeroCoords })
+
+    -- Due to network latency, laser shots may be applied to a world state
+    -- different from what the player saw when the shot was made.
+    -- But since the laser shot will be rendered with latency, too, the player will be
+    -- able to integrate the latency via this visual feedback - provided that latency is stable over time.
+    Action Laser dir ->
+      asks clientId >>= notifyPlayers . GameEvent . LaserShot dir
+    Action Ship dir ->
+      adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
+
+  type ValueT        HamazedServer = HamazedValue
+  type ValueKeyT     HamazedServer = HamazedValueKey
+  type EnumValueKeyT HamazedServer = HamazedEnumValueKey
+  type ValuesT       HamazedServer = WorldParameters
+
+  getValue WorldShapeKey =
+    WorldShape . worldShape
+
+  onPut (WorldShape s) =
+    onChangeWorldParams $ changeWorldShape s
+
+  onDelta i key = onChangeWorldParams $ \wp -> case key of
+    BlockSize -> case wallDistrib wp of
+      p@(WallDistribution prevSize _) ->
+        let adjustedSize
+             | newSize < minBlockSize = minBlockSize
+             | newSize > maxBlockSize = maxBlockSize
+             | otherwise = newSize
+             where newSize = prevSize + i
+        in bool
+          (Just $ wp { wallDistrib = p { blockSize' = adjustedSize } })
+          Nothing $
+          adjustedSize == prevSize
+    WallProbability -> case wallDistrib wp of
+      p@(WallDistribution _ prevProba) ->
+        let adjustedProba
+             | newProba < minWallProba = minWallProba
+             | newProba > maxWallProba = maxWallProba
+             | otherwise = newProba
+             where
+               newProba = wallProbaIncrements * fromIntegral (round (newProba' / wallProbaIncrements) :: Int)
+               newProba' = minWallProba + wallProbaIncrements * fromIntegral nIncrements
+               nIncrements = i + round ((prevProba - minWallProba) / wallProbaIncrements)
+        in bool
+          (Just $ wp { wallDistrib = p { wallProbability' = adjustedProba } })
+          Nothing $
+          adjustedProba == prevProba
+
+instance ServerClientLifecycle HamazedServer where
 
   onStartClient = \case
     NewClient -> return ()
@@ -179,21 +342,15 @@ instance Server HamazedServer where
     PlayLevel _ ->
       return False
 
-  getValue WorldShapeKey =
-    WorldShape . worldShape
-  onPut (WorldShape s) =
-    onChangeWorldParams $ changeWorldShape s
-  onDelta =
-    onDelta'
-
-  handleClientEvent = handleEvent
-
   afterClientLeft cid = do
     unAssign cid
     getsState intent >>= \case
       IntentSetup -> requestWorld -- because the number of players has changed
       IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
 
+instance Server HamazedServer where
+
+  type ServerEventT HamazedServer = HamazedServerEvent
 
 --------------------------------------------------------------------------------
 -- functions used in 'inParallel' ----------------------------------------------
@@ -476,163 +633,6 @@ participateToWorldCreation key = asks clientId >>= \origin ->
 --------------------------------------------------------------------------------
 -- functions used in 'handleClientEvent' ---------------------------------------
 --------------------------------------------------------------------------------
-
-handleEvent :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader ConstClientView m)
-            => ClientEventT HamazedServer -> m ()
-handleEvent = \case
-  LevelEnded outcome -> do
-    adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
-    getsState intent >>= \case
-      IntentPlayGame Nothing ->
-        modifyState $ \s -> s { intent = IntentPlayGame $ Just outcome }
-      IntentPlayGame (Just candidate) -> -- replace this by using the outcome in client state?
-        case candidate of
-          Won -> when (outcome /= candidate) $
-            gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
-          Lost _ -> case outcome of
-            Won ->  gameError $ "inconsistent outcomes:" ++ show (candidate, outcome)
-            Lost _ -> return () -- we allow losing reasons to differ
-      IntentSetup ->
-        gameError "LevelEnded received while in IntentSetup"
-    gets onlyPlayersMap >>= \players' -> do
-      let playing Nothing = error "should not happen"
-          playing (Just ReadyToPlay) = error "should not happen"
-          playing (Just (Playing Nothing)) = True
-          playing (Just (Playing (Just _))) = False
-          (playersPlaying, playersDonePlaying) = Map.partition (playing . getState . unClientView) players'
-          gameStatus =
-            if null playersPlaying
-              then
-                WhenAllPressedAKey (OutcomeValidated outcome) (Just 2) $ Map.map (const False) playersDonePlaying
-              else
-                WaitingForOthersToEndLevel $ Map.keysSet playersPlaying
-      notifyN' [EnterState $ Included $ PlayLevel gameStatus] playersDonePlaying
-      getsState scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
-        (warning "LevelEnded sent while game is Nothing")
-        (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
-  CanContinue next ->
-    getsState scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
-      (warning "CanContinue sent while game is Nothing")
-      (\game -> do
-          let curStatus = status' game
-          case curStatus of
-            WhenAllPressedAKey x Nothing havePressed -> do
-              when (x /= next) $ error $ "inconsistent:"  ++ show (x,next)
-              i <- asks clientId
-              let newHavePressed = Map.insert i True havePressed
-                  intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
-              liftIO $ void $ swapMVar g $! game { status' = intermediateStatus }
-              -- update to avoid state where the map is equal to all players:
-              void $ updateCurrentStatus $ Just curStatus
-            _ -> error $ "inconsistent:"  ++ show curStatus)
-
-  WorldProposal wid mkEssenceRes stats -> case mkEssenceRes of
-    Impossible errs -> getsState intent >>= \case
-      IntentSetup -> getsState levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
-      IntentPlayGame _ ->
-        fmap levelNumber (getsState levelSpecification) >>= \ln -> do
-          notifyPlayers $ GameInfo $ CannotCreateLevel errs ln
-          serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
-
-    NeedMoreTime -> addStats stats wid
-    Success essence -> gets unServerState >>= \(HamazedServer _ levelSpec (WorldCreation st key spec prevStats) _ _) -> bool
-      (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
-      (case st of
-        Created ->
-          serverLog $ pure $ colored ("Dropped already created world " <> pack (show wid)) blue
-        CreationAssigned _ -> do
-          -- This is the first valid world essence, so we can cancel the request
-          cancelWorldRequest
-          let !newStats = safeMerge mergeStats prevStats stats
-          log $ colored (pack $ show newStats) white
-          modifyState $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
-          notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
-      $ key == wid
-  CurrentGameState wid mayGameStateEssence -> maybe
-    (handlerError $ "Could not get HamazedGame " ++ show wid)
-    (\gameStateEssence ->
-      getsState scheduledGame >>= liftIO . tryReadMVar >>= \case
-        Just (CurrentGame _ gamePlayers (Paused _ _) _) -> do
-          disconnectedPlayerKeys <- Set.difference gamePlayers . Map.keysSet <$> gets onlyPlayersMap
-          flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
-            notifyN [PutGameState gameStateEssence wid]
-        invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid)
-    mayGameStateEssence
-
-  IsReady wid -> do
-    adjustClient $ \c -> c { getCurrentWorld = Just wid }
-    getsState intent >>= \case
-      IntentSetup ->
-        -- Allow the client to setup the world, now that the world contains its ship.
-        notifyClient' $ EnterState $ Included Setup
-      IntentPlayGame maybeOutcome ->
-        gets unServerState >>= \(HamazedServer _ _ (WorldCreation _ lastWId _ _) _ game) ->
-         liftIO (tryReadMVar game) >>= maybe
-          (do
-            adjustClient $ \c -> c { getState = Just ReadyToPlay }
-            -- start the game when all players have the right world
-            players <- gets onlyPlayersMap
-            let playersAllReady =
-                  all ((== Just lastWId) . getCurrentWorld . unClientView) players
-            when playersAllReady $ do
-              adjustAllClients $ \c ->
-                case getState c of
-                  Just ReadyToPlay ->
-                    c { getState = Just $ Playing Nothing
-                      , getShipAcceleration = zeroCoords }
-                  _ -> c
-              -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
-              -- of 'ServerState' and we are inside one.
-              void $ liftIO $ putMVar game $ mkCurrentGame lastWId $ Map.keysSet players)
-          -- a game is in progress (reconnection scenario) :
-          (\(CurrentGame wid' _ _ _) -> do
-              when (wid' /= lastWId) $
-                handlerError $ "reconnection failed " ++ show (wid', lastWId)
-              -- make player join the current game, but do /not/ set getShipSafeUntil,
-              -- else disconnecting / reconnecting intentionally could be a way to cheat
-              -- by having more safe time.
-              adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
-                                     , getShipAcceleration = zeroCoords })
-
-  -- Due to network latency, laser shots may be applied to a world state
-  -- different from what the player saw when the shot was made.
-  -- But since the laser shot will be rendered with latency, too, the player will be
-  -- able to integrate the latency via this visual feedback - provided that latency is stable over time.
-  Action Laser dir ->
-    asks clientId >>= notifyPlayers . GameEvent . LaserShot dir
-  Action Ship dir ->
-    adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
-
-onDelta' :: (MonadIO m, MonadState (ServerState HamazedServer) m)
-         => Int
-         -> HamazedEnumValueKey
-         -> m ()
-onDelta' i key = onChangeWorldParams $ \wp -> case key of
-  BlockSize -> case wallDistrib wp of
-    p@(WallDistribution prevSize _) ->
-      let adjustedSize
-           | newSize < minBlockSize = minBlockSize
-           | newSize > maxBlockSize = maxBlockSize
-           | otherwise = newSize
-           where newSize = prevSize + i
-      in bool
-        (Just $ wp { wallDistrib = p { blockSize' = adjustedSize } })
-        Nothing $
-        adjustedSize == prevSize
-  WallProbability -> case wallDistrib wp of
-    p@(WallDistribution _ prevProba) ->
-      let adjustedProba
-           | newProba < minWallProba = minWallProba
-           | newProba > maxWallProba = maxWallProba
-           | otherwise = newProba
-           where
-             newProba = wallProbaIncrements * fromIntegral (round (newProba' / wallProbaIncrements) :: Int)
-             newProba' = minWallProba + wallProbaIncrements * fromIntegral nIncrements
-             nIncrements = i + round ((prevProba - minWallProba) / wallProbaIncrements)
-      in bool
-        (Just $ wp { wallDistrib = p { wallProbability' = adjustedProba } })
-        Nothing $
-        adjustedProba == prevProba
 
 onChangeWorldParams :: (MonadIO m, MonadState (ServerState HamazedServer) m) -- TODO make more generic
                     => (WorldParameters -> Maybe WorldParameters)

@@ -66,7 +66,10 @@ import           Imj.ServerView
 The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 runGame :: (GameLogic g
-          , StateValueT (ServerT g) ~ GameStateValue)
+          , s ~ ServerT g
+          , ServerCmdParser s
+          , StateValueT s ~ GameStateValue
+          , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
         => Proxy g -> IO ()
 runGame p = runOnPlatform p $ run p
 
@@ -103,7 +106,10 @@ toAudio :: Proxy g -> Proxy (AudioT g)
 toAudio _ = Proxy
 
 run :: (GameLogic g
-      , StateValueT (ServerT g) ~ GameStateValue)
+      , s ~ ServerT g
+      , ServerCmdParser s
+      , StateValueT s ~ GameStateValue
+      , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
     => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
@@ -197,7 +203,8 @@ mkServer (Just (ServerName n)) _ _ =
 
 
 {-# INLINABLE runWith #-}
-runWith :: (GameLogic g
+runWith :: (GameLogic g, s ~ ServerT g
+          , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
         => AudioT g

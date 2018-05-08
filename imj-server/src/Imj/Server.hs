@@ -103,7 +103,7 @@ adjustClient' f = do
           }
 
 serverError ::(MonadIO m
-          , Server s
+          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
           , MonadState (ServerState s) m)
           => String
             -> m ()

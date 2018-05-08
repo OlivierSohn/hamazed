@@ -9,20 +9,9 @@
 module Imj.Game.Hamazed
     ( HamazedGame(..)
     , checkComponentStatus
-    , checkAllComponentStatus
     , checkSums
     , checkTargetAndAmmo
     , countAmmo
-    , countLiveAmmo
-    , getLevelOutcome
-    , putLevelOutcome
-    , addParticleSystems
-    , envFunctions
-    , putWorld
-    , getWorld
-    , mkGameStateEssence
-    , moveWorld
-    , laserEventAction
     ) where
 
 import           Imj.Prelude
@@ -132,6 +121,23 @@ instance GameExternalUI HamazedGame where
   {-# INLINABLE mkWorldInfos #-}
   {-# INLINABLE getClientsInfos #-}
 
+instance GameDraw HamazedGame where
+
+  drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do
+    let worldCorner = getWorldCorner world screenCenter
+    -- draw the walls outside the matrix:
+    fill (materialGlyph Wall) outerWallsColors
+    -- draw the matrix:
+    drawSpace renderedSpace worldCorner
+    return worldCorner
+
+  drawForeground _ worldCorner (HamazedGame world _ _ _) =
+    -- this will be drawn after particle systems:
+    drawWorld world worldCorner
+
+  {-# INLINABLE drawForeground #-}
+  {-# INLINABLE drawBackground #-}
+
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
   type ClientOnlyEvtT HamazedGame = HamazedEvent
@@ -202,19 +208,6 @@ instance GameLogic HamazedGame where
       colored "- The game was won! Congratulations!" chatWinColor
     toTxt' (CannotCreateLevel errs n) =
       colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
-
-  {-# INLINABLE drawBackground #-}
-  drawBackground (Screen _ screenCenter) (HamazedGame world@(World _ _ _ renderedSpace _) _ _ _) = do
-    let worldCorner = getWorldCorner world screenCenter
-    -- draw the walls outside the matrix:
-    fill (materialGlyph Wall) outerWallsColors
-    -- draw the matrix:
-    drawSpace renderedSpace worldCorner
-    return worldCorner
-
-  {-# INLINABLE drawForeground #-}
-  drawForeground _ worldCorner (HamazedGame world _ _ _) =
-    drawWorld world worldCorner
 
   keyMaps key val = fmap CliEvt <$> (case val of
     Excluded -> return Nothing
@@ -402,8 +395,6 @@ shipParticleSystems k =
 
 
 -- | Moves elements of game logic ('Number's, 'BattleShip').
---
--- Note that 'ParticleSystem's are not updated.
 moveWorld :: MonadState (AppState HamazedGame) m
           => Map ShipId (Coords Vel)
           -> Set ShipId
@@ -740,14 +731,6 @@ applyOperations =
 getLevelOutcome :: MonadState (AppState HamazedGame) m => m (Maybe LevelOutcome)
 getLevelOutcome = maybe Nothing getLevelOutcome' <$> getLevel
 
-{-# INLINABLE putLevelOutcome #-}
-putLevelOutcome :: MonadState (AppState HamazedGame) m => Maybe LevelOutcome -> m ()
-putLevelOutcome l = getLevel >>= fmapM (\lv -> putLevel lv { getLevelOutcome' = l })
-
-putLevel :: MonadState (AppState HamazedGame) m => Level -> m ()
-putLevel l = getGameState >>= \(GameState mayS a) ->
-  fmapM (\s -> putGameState $ GameState (Just $ s { getGameLevel = l }) a) mayS
-
 {-# INLINABLE getLevel #-}
 getLevel :: MonadState (AppState HamazedGame) m => m (Maybe Level)
 getLevel = fmap getGameLevel <$> getIGame
@@ -760,15 +743,6 @@ putWorld w = getGameState >>= \(GameState mayS a) ->
 {-# INLINABLE getWorld #-}
 getWorld :: MonadState (AppState HamazedGame) m => m (Maybe World)
 getWorld = fmap currentWorld <$> getIGame
-
-{-# INLINABLE addParticleSystems #-}
-addParticleSystems :: MonadState (AppState HamazedGame) m
-                   => [Prioritized ParticleSystem]
-                   -> m ()
-addParticleSystems l = do
-  keys <- takeKeys $ length l
-  let ps2 = Map.fromDistinctAscList $ zip keys l
-  gets game >>= \g -> putGame $ g {gameParticleSystems = Map.union (gameParticleSystems g) ps2}
 
 -- | Creates environment functions taking into account a 'World' and 'Scope'
 {-# INLINABLE envFunctions #-}

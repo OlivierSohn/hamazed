@@ -49,7 +49,7 @@ import           Imj.Server.Log
 
 {-# INLINABLE sendAndHandleExceptions #-}
 sendAndHandleExceptions :: (MonadIO m
-                          , Server s
+                          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                           , MonadState (ServerState s) m)
                         => [ServerEvent s]
                         -> Connection
@@ -66,7 +66,7 @@ sendAndHandleExceptions evts conn i =
 
 -- It's important that this function doesn't throw any exception.
 onBrokenClient :: (Show a, MonadIO m
-                 , Server s
+                 , Server s, ServerInit s, ServerClientLifecycle s, ServerClientHandler s
                  , MonadState (ServerState s) m)
                => Text
                -- ^ Describes the type of thread in which the exception was raised
@@ -87,7 +87,9 @@ onBrokenClient threadCategory infos e i = do
     , s
     ]
 
-disconnect :: (MonadIO m, Server s, MonadState (ServerState s) m)
+disconnect :: (MonadIO m
+             , Server s, ServerInit s, ServerClientLifecycle s, ServerClientHandler s
+             , MonadState (ServerState s) m)
            => DisconnectReason
            -> ClientId
            -> m ()
@@ -111,7 +113,9 @@ disconnect r i =
         -- Finally, shutdown the client connection.
         closeConnection r i c)
  where
-  closeConnection :: (MonadIO m, Server s, MonadState (ServerState s) m)
+  closeConnection :: (MonadIO m
+                    , Server s, ServerClientLifecycle s, ServerInit s, ServerClientHandler s
+                    , MonadState (ServerState s) m)
                   => DisconnectReason -> ClientId -> ClientView (ClientViewT s) -> m ()
   closeConnection reason cid c@(ClientView conn _ name color _) = do
     serverLog $ pure $
@@ -157,7 +161,8 @@ disconnect r i =
 
 {-# INLINABLE notify #-}
 notify :: (MonadIO m
-         , Server s, MonadState (ServerState s) m)
+         , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+         , MonadState (ServerState s) m)
        => Connection
        -> ClientId
        -> ServerEvent s
@@ -166,14 +171,14 @@ notify conn sid evt =
   sendAndHandleExceptions [evt] conn sid
 
 {-# INLINABLE notifyClientN #-}
-notifyClientN :: (Server s
+notifyClientN :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                  , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => [ServerEventT s]
              -> m ()
 notifyClientN = notifyClientN' . map ServerAppEvt
 
 {-# INLINABLE notifyClientN' #-}
-notifyClientN' :: (Server s
+notifyClientN' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                  , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => [ServerEvent s]
              -> m ()
@@ -183,14 +188,14 @@ notifyClientN' evts = do
   sendAndHandleExceptions evts conn sid
 
 {-# INLINABLE notifyClient #-}
-notifyClient :: (Server s
+notifyClient :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                  , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => ServerEventT s
              -> m ()
 notifyClient = notifyClient' . ServerAppEvt
 
 {-# INLINABLE notifyClient' #-}
-notifyClient' :: (Server s
+notifyClient' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                  , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => ServerEvent s
              -> m ()
@@ -200,28 +205,36 @@ notifyClient' evt = do
   notify conn sid evt
 
 {-# INLINABLE notifyEveryone #-}
-notifyEveryone :: (MonadIO m, Server s, MonadState (ServerState s) m)
+notifyEveryone :: (MonadIO m
+                 , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                 , MonadState (ServerState s) m)
                => ServerEventT s
                -> m ()
 notifyEveryone evt =
   notifyN [evt] =<< gets clientsMap
 
 {-# INLINABLE notifyEveryone' #-}
-notifyEveryone' :: (MonadIO m, Server s, MonadState (ServerState s) m)
+notifyEveryone' :: (MonadIO m
+                  , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                  , MonadState (ServerState s) m)
                 => ServerEvent s
                 -> m ()
 notifyEveryone' evt =
   notifyN' [evt] =<< gets clientsMap
 
 {-# INLINABLE notifyEveryoneN #-}
-notifyEveryoneN :: (MonadIO m, Server s, MonadState (ServerState s) m)
+notifyEveryoneN :: (MonadIO m
+                  , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                  , MonadState (ServerState s) m)
                 => [ServerEventT s]
                 -> m ()
 notifyEveryoneN evts =
   notifyN evts =<< gets clientsMap
 
 {-# INLINABLE notifyEveryoneN' #-}
-notifyEveryoneN' :: (MonadIO m, Server s, MonadState (ServerState s) m)
+notifyEveryoneN' :: (MonadIO m
+                   , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
+                   , MonadState (ServerState s) m)
                 => [ServerEvent s]
                 -> m ()
 notifyEveryoneN' evts =
@@ -234,7 +247,7 @@ notifyEveryoneN' evts =
 -- from the Map, and we continue the processing.
 {-# INLINABLE notifyN #-}
 notifyN :: (MonadIO m
-          , Server s
+          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
           , MonadState (ServerState s) m)
         => [ServerEventT s]
         -> Map ClientId (ClientView c)
@@ -243,7 +256,7 @@ notifyN evts = notifyN' (map ServerAppEvt evts)
 
 {-# INLINABLE notifyN' #-}
 notifyN' :: (MonadIO m
-          , Server s
+          , Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
           , MonadState (ServerState s) m)
         => [ServerEvent s]
         -> Map ClientId (ClientView c)

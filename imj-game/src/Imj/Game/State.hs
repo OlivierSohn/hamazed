@@ -53,7 +53,8 @@ import           Imj.Graphics.UI.Chat
 import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
-onEvent :: (GameLogicT e ~ g
+onEvent :: (GameLogicT e ~ g, s ~ ServerT g
+          , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , MonadState (AppState g) m
           , MonadReader e m, Client e, Render e, PlayerInput e, HasSizedFace e, AsyncGroups e, Audio e
@@ -74,7 +75,8 @@ onEvent mayEvt = do
         asks sendToServer' >>= \f -> f $ OnCommand $ RequestApproval $ Leaves $ Right ()
 
 {-# INLINABLE onEvent' #-}
-onEvent' :: (GameLogicT e ~ g
+onEvent' :: (GameLogicT e ~ g, s ~ ServerT g
+           , ServerCmdParser s
            , StateValueT (ServerT g) ~ GameStateValue
            , MonadState (AppState g) m
            , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
@@ -94,8 +96,9 @@ onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and re
     handleEvent $ Just e
 
 {-# INLINABLE handleEvent #-}
-handleEvent :: (GameLogicT e ~ g
-              , StateValueT (ServerT g) ~ GameStateValue
+handleEvent :: (GameLogicT e ~ g, s ~ ServerT g
+              , ServerCmdParser s
+              , StateValueT s ~ GameStateValue
               , MonadState (AppState g) m
               , MonadReader e m, Client e, Render e, HasSizedFace e, AsyncGroups e, Audio e
               , MonadIO m)

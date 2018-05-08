@@ -366,11 +366,7 @@ onSendChatMessage :: (GameLogicT e ~ g
 onSendChatMessage =
   fmap strip (stateChat takeMessage) >>= \msg -> do
     f <- asks sendToServer'
-    let left = stateChat . addMessage . Information Warning . (<>) ("Error while parsing: " <> msg <> " : ")
-        p = parseOnly command msg
     either
-      (left . pack)
-      (either
-        left
-        (f . OnCommand))
-      p
+      (stateChat . addMessage . Information Warning . (<>) ("Error while parsing: " <> msg <> " : ") . pack)
+      (f . OnCommand)
+      $ parseOnly command msg

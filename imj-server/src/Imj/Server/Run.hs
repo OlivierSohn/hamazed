@@ -202,7 +202,7 @@ handleIncomingEvent' = \case
           case x of
             ColorSchemeCenter color -> do
               modify' $ \s -> s { centerColor = color }
-              adjustAllWithKey' $ \i cl -> cl { getColor = mkClientColorFromCenter i color }
+              adjustAllClientsWithKey' $ \i cl -> cl { getColor = mkClientColorFromCenter i color }
               gets clientsMap >>=
                 notifyEveryoneN' .
                   map (\(k, cl) -> RunCommand k (AssignColor $ getColor cl)) .

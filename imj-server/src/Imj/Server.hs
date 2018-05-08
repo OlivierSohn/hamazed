@@ -7,14 +7,13 @@
 module Imj.Server
       ( adjustClient
       , adjustClient'
-      , adjustAllWithKey
-      , adjustAllWithKey'
-      , adjustAll
-      , adjustAll'
+      , adjustAllClientsWithKey
+      , adjustAllClientsWithKey'
+      , adjustAllClients
+      , adjustAllClients'
       , ServerState
       , serverError
       , clientsMap
-      , mapState
       ) where
 
 import           Imj.Prelude
@@ -35,14 +34,10 @@ import           Imj.Graphics.Color
 import           Imj.Server.Connection
 import           Imj.Server.Log
 
-{-# INLINE mapState #-}
-mapState :: (s -> s) -> ServerState s -> ServerState s
-mapState f s = s { unServerState = f $ unServerState s }
-
-{-# INLINABLE adjustAllWithKey #-}
-adjustAllWithKey :: (MonadState (ServerState s) m)
+{-# INLINABLE adjustAllClientsWithKey #-}
+adjustAllClientsWithKey :: (MonadState (ServerState s) m)
                  => (ClientId -> ClientViewT s -> ClientViewT s) -> m ()
-adjustAllWithKey f =
+adjustAllClientsWithKey f =
   modify' $ \s ->
     let clients = clientsViews s
     in s { clientsViews =
@@ -51,10 +46,10 @@ adjustAllWithKey f =
                     }
           }
 
-{-# INLINABLE adjustAllWithKey' #-}
-adjustAllWithKey' :: (MonadState (ServerState s) m)
+{-# INLINABLE adjustAllClientsWithKey' #-}
+adjustAllClientsWithKey' :: (MonadState (ServerState s) m)
                  => (ClientId -> ClientView (ClientViewT s) -> ClientView (ClientViewT s)) -> m ()
-adjustAllWithKey' f =
+adjustAllClientsWithKey' f =
   modify' $ \s ->
     let clients = clientsViews s
     in s { clientsViews =
@@ -63,10 +58,10 @@ adjustAllWithKey' f =
                     }
           }
 
-{-# INLINABLE adjustAll #-}
-adjustAll :: (MonadState (ServerState s) m)
+{-# INLINABLE adjustAllClients #-}
+adjustAllClients :: (MonadState (ServerState s) m)
           => (ClientViewT s -> ClientViewT s) -> m ()
-adjustAll f =
+adjustAllClients f =
   modify' $ \s ->
     let clients = clientsViews s
     in s { clientsViews =
@@ -75,10 +70,10 @@ adjustAll f =
                     }
           }
 
-{-# INLINABLE adjustAll' #-}
-adjustAll' :: (MonadState (ServerState s) m)
+{-# INLINABLE adjustAllClients' #-}
+adjustAllClients' :: (MonadState (ServerState s) m)
            => (ClientViewT s -> Maybe (ClientViewT s)) -> m (Set ClientId)
-adjustAll' f =
+adjustAllClients' f =
   state $ \s ->
     let clients = clientsViews s
         m = views clients

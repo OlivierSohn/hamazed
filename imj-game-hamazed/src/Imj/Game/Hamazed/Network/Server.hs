@@ -124,7 +124,7 @@ instance Server HamazedServer where
   onStartClient = \case
     NewClient -> return ()
     ReconnectingClient ->
-      gets' scheduledGame >>= liftIO . tryReadMVar >>= maybe
+      getsState scheduledGame >>= liftIO . tryReadMVar >>= maybe
         (serverLog $ pure "No game is running")
         (\(CurrentGame _ gamePlayers status _) -> case status of
             (Paused _ _) -> do
@@ -140,7 +140,7 @@ instance Server HamazedServer where
                       <$> mapM showId (Set.toList disconnected)
                     asks clientId >>= bool
                       (return ())
-                      (gets' worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
+                      (getsState worldCreation >>= \(WorldCreation creationSt wid _ _) -> case creationSt of
                         Created ->
                           -- The game is paused, and a world was created:
                           -- we ask one of the connected players to broadcast the current world
@@ -156,7 +156,7 @@ instance Server HamazedServer where
             _ -> serverLog $ pure "A game is in progress.")
 
 
-  clientCanJoin _ = gets' intent >>= \case
+  clientCanJoin _ = getsState intent >>= \case
     IntentSetup -> do
       -- change client state to make it playable
       adjustClient $ \c -> c { getState = Just ReadyToPlay }
@@ -166,9 +166,9 @@ instance Server HamazedServer where
     IntentPlayGame _ ->
       return False
   clientCanTransition = \case
-    Setup -> gets' intent >>= \case
+    Setup -> getsState intent >>= \case
       IntentSetup -> do
-        modify' $ mapState $ \s -> s { intent = IntentPlayGame Nothing }
+        modifyState $ \s -> s { intent = IntentPlayGame Nothing }
         notifyPlayersN' [ExitState $ Included Setup]
         -- we need a new world so that the game starts on a world
         -- that players didn't have time to visually analyze yet.
@@ -190,7 +190,7 @@ instance Server HamazedServer where
 
   afterClientLeft cid = do
     unAssign cid
-    gets' intent >>= \case
+    getsState intent >>= \case
       IntentSetup -> requestWorld -- because the number of players has changed
       IntentPlayGame _ -> return () -- don't create a new world while a game is in progress!
 
@@ -202,15 +202,15 @@ instance Server HamazedServer where
 onLevelOutcome :: (MonadIO m, MonadState (ServerState HamazedServer) m)
                => LevelOutcome -> m ()
 onLevelOutcome outcome =
-  levelNumber <$> gets' levelSpecification >>= \levelN -> do
-    adjustAll (\c -> case getState c of
+  levelNumber <$> getsState levelSpecification >>= \levelN -> do
+    adjustAllClients (\c -> case getState c of
       Just (Playing _) -> c { getState = Just ReadyToPlay }
       _ -> c)
     notifyEveryoneN $
       (GameInfo $ LevelResult levelN outcome):
       [GameInfo GameWon | outcome == Won && levelN == lastLevel]
 
-    modify' $ mapState $ \s ->
+    modifyState $ \s ->
      if outcome == Won && levelN < lastLevel
       then -- next level
         s { levelSpecification = (levelSpecification s) { levelNumber = succ levelN }
@@ -220,10 +220,10 @@ onLevelOutcome outcome =
         s { levelSpecification = (levelSpecification s) { levelNumber = firstServerLevel }
           , intent = IntentSetup
           }
-    gets' intent >>= \case
+    getsState intent >>= \case
       IntentSetup ->
         -- make fresh clients become players
-        adjustAll' (\c -> case getState c of
+        adjustAllClients' (\c -> case getState c of
           Just (Playing _) -> error "inconsistent"
           Just ReadyToPlay -> Nothing
           Nothing -> Just $ c { getState = Just ReadyToPlay })
@@ -237,7 +237,7 @@ updateCurrentStatus :: (MonadState (ServerState HamazedServer) m, MonadIO m)
                     => Maybe GameStatus
                     -- ^ the reference to take into account, if different from current status.
                     -> m (Maybe GameStatus)
-updateCurrentStatus ref = gets' scheduledGame >>= tryReadMVar >>= maybe
+updateCurrentStatus ref = getsState scheduledGame >>= tryReadMVar >>= maybe
   (return Nothing)
   (\(CurrentGame _ gamePlayers status _) -> do
     connectedPlayers' <- gets onlyPlayersMap
@@ -285,7 +285,7 @@ onChangeStatus :: (MonadState (ServerState HamazedServer) m, MonadIO m)
                -> GameStatus
                -> GameStatus
                -> m ()
-onChangeStatus notified status newStatus = gets' scheduledGame >>= \game -> tryReadMVar game >>= maybe
+onChangeStatus notified status newStatus = getsState scheduledGame >>= \game -> tryReadMVar game >>= maybe
   (return ())
   (\g -> do
     -- mayWorld can be concurrently modified from client handler threads, but only from
@@ -400,7 +400,7 @@ gameScheduler st =
 --  initializePlayers :: StateT (ServerState s) IO (Maybe (Time Duration System))
   initializePlayers = liftIO getSystemTime >>= \start -> do
     -- we add one second to take into account the fact that start of game is delayed by one second.
-    adjustAll $ \c -> c { getShipSafeUntil = Just $ addDuration (fromSecs 6) start }
+    adjustAllClients $ \c -> c { getShipSafeUntil = Just $ addDuration (fromSecs 6) start }
     return Nothing
 
 --  stepWorld :: Time Point System -> StateT (ServerState s) IO (Maybe (Time Duration System))
@@ -419,7 +419,7 @@ gameScheduler st =
         notifyPlayersN'
           (map (flip PlayMusic SineSynth) noteChange ++
           [ServerAppEvt $ GameEvent $ PeriodicMotion accs shipsLostArmor])
-    adjustAll $ \p -> p { getShipAcceleration = zeroCoords }
+    adjustAllClients $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod
 
    where
@@ -430,7 +430,7 @@ gameScheduler st =
           (scheduledGame s)
           (\g -> let (newScore, noteChange) = stepScore $ score g in return (g {score = newScore}, noteChange))
 
-    updateSafeShips = adjustAll' $ \c@(HamazedClient _ mayTimeUnsafe _ _) ->
+    updateSafeShips = adjustAllClients' $ \c@(HamazedClient _ mayTimeUnsafe _ _) ->
       maybe
         Nothing
         (\timeUnsafe ->
@@ -453,7 +453,7 @@ participateToWorldCreation :: (MonadIO m, MonadState (ServerState HamazedServer)
                            -- sent by the client).
                            -> m ()
 participateToWorldCreation key = asks clientId >>= \origin ->
-  gets' worldCreation >>= \wc@(WorldCreation st wid _ _) ->
+  getsState worldCreation >>= \wc@(WorldCreation st wid _ _) ->
     bool
       (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
       (case st of
@@ -467,7 +467,7 @@ participateToWorldCreation key = asks clientId >>= \origin ->
           unless (newSize == prevSize) $
             -- a previously assigned client has disconnected, reconnects and sends a non-result
             serverLog $ pure $ colored ("Adding assignee : " <> pack (show origin)) blue
-          modify' $ mapState $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees
+          modifyState $ \s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees
                                                  } }
           gets clientsMap >>= requestWorldBy . flip Map.restrictKeys single)
       $ wid == key
@@ -482,9 +482,9 @@ handleEvent :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader
 handleEvent = \case
   LevelEnded outcome -> do
     adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
-    gets' intent >>= \case
+    getsState intent >>= \case
       IntentPlayGame Nothing ->
-        modify' $ mapState $ \s -> s { intent = IntentPlayGame $ Just outcome }
+        modifyState $ \s -> s { intent = IntentPlayGame $ Just outcome }
       IntentPlayGame (Just candidate) -> -- replace this by using the outcome in client state?
         case candidate of
           Won -> when (outcome /= candidate) $
@@ -507,11 +507,11 @@ handleEvent = \case
               else
                 WaitingForOthersToEndLevel $ Map.keysSet playersPlaying
       notifyN' [EnterState $ Included $ PlayLevel gameStatus] playersDonePlaying
-      gets' scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
+      getsState scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
         (warning "LevelEnded sent while game is Nothing")
         (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
   CanContinue next ->
-    gets' scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
+    getsState scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
       (warning "CanContinue sent while game is Nothing")
       (\game -> do
           let curStatus = status' game
@@ -527,10 +527,10 @@ handleEvent = \case
             _ -> error $ "inconsistent:"  ++ show curStatus)
 
   WorldProposal wid mkEssenceRes stats -> case mkEssenceRes of
-    Impossible errs -> gets' intent >>= \case
-      IntentSetup -> gets' levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
+    Impossible errs -> getsState intent >>= \case
+      IntentSetup -> getsState levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
       IntentPlayGame _ ->
-        fmap levelNumber (gets' levelSpecification) >>= \ln -> do
+        fmap levelNumber (getsState levelSpecification) >>= \ln -> do
           notifyPlayers $ GameInfo $ CannotCreateLevel errs ln
           serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
@@ -545,13 +545,13 @@ handleEvent = \case
           cancelWorldRequest
           let !newStats = safeMerge mergeStats prevStats stats
           log $ colored (pack $ show newStats) white
-          modify' $ mapState $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
+          modifyState $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
           notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
       $ key == wid
   CurrentGameState wid mayGameStateEssence -> maybe
     (handlerError $ "Could not get HamazedGame " ++ show wid)
     (\gameStateEssence ->
-      gets' scheduledGame >>= liftIO . tryReadMVar >>= \case
+      getsState scheduledGame >>= liftIO . tryReadMVar >>= \case
         Just (CurrentGame _ gamePlayers (Paused _ _) _) -> do
           disconnectedPlayerKeys <- Set.difference gamePlayers . Map.keysSet <$> gets onlyPlayersMap
           flip Map.restrictKeys disconnectedPlayerKeys <$> gets clientsMap >>=
@@ -561,7 +561,7 @@ handleEvent = \case
 
   IsReady wid -> do
     adjustClient $ \c -> c { getCurrentWorld = Just wid }
-    gets' intent >>= \case
+    getsState intent >>= \case
       IntentSetup ->
         -- Allow the client to setup the world, now that the world contains its ship.
         notifyClient' $ EnterState $ Included Setup
@@ -575,7 +575,7 @@ handleEvent = \case
             let playersAllReady =
                   all ((== Just lastWId) . getCurrentWorld . unClientView) players
             when playersAllReady $ do
-              adjustAll $ \c ->
+              adjustAllClients $ \c ->
                 case getState c of
                   Just ReadyToPlay ->
                     c { getState = Just $ Playing Nothing
@@ -658,7 +658,7 @@ addStats :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader Co
          -- sent by the client).
          -> m ()
 addStats stats key =
-  gets' worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
+  getsState worldCreation >>= \wc@(WorldCreation st wid _ prevStats) -> do
     let newStats = safeMerge mergeStats prevStats stats
     bool
       (serverLog $ pure $ colored ("Obsolete key " <> pack (show key)) blue)
@@ -667,7 +667,7 @@ addStats stats key =
         Created -> return ()
         CreationAssigned _ -> do
           log $ colored (pack $ show newStats) white
-          modify' $ mapState $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
+          modifyState $ \s -> s { worldCreation = wc { creationStatistics = newStats } })
       $ wid == key
 
 gameError :: (MonadIO m, MonadState (ServerState HamazedServer) m, MonadReader ConstClientView m)
@@ -698,28 +698,28 @@ requestWorld = do
 requestWorldBy :: (MonadIO m, MonadState (ServerState HamazedServer) m)
                => Map ClientId (ClientView HamazedClient) -> m ()
 requestWorldBy x =
-  gets' worldCreation >>= \(WorldCreation _ wid spec _) ->
+  getsState worldCreation >>= \(WorldCreation _ wid spec _) ->
     notifyN [WorldRequest wid $ Build (fromSecs 1) spec] x
 
 cancelWorldRequest :: (MonadIO m, MonadState (ServerState HamazedServer) m)
                    => m ()
-cancelWorldRequest = gets' worldCreation >>= \wc@(WorldCreation st wid _ _) -> case st of
+cancelWorldRequest = getsState worldCreation >>= \wc@(WorldCreation st wid _ _) -> case st of
   Created -> return ()
   CreationAssigned assignees -> unless (Set.null assignees) $ do
     gets clientsMap >>= notifyN [WorldRequest wid Cancel] . flip Map.restrictKeys assignees
-    modify' $ mapState (\s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } })
+    modifyState (\s -> s { worldCreation = wc { creationState = CreationAssigned Set.empty } })
 
 unAssign :: (MonadIO m, MonadState (ServerState HamazedServer) m)
          => ClientId
          -> m ()
-unAssign sid = gets' worldCreation >>= \wc -> case creationState wc of
+unAssign sid = getsState worldCreation >>= \wc -> case creationState wc of
   Created -> return ()
   CreationAssigned assignees -> do
     let s1 = Set.size assignees
         newAssignees = Set.delete sid assignees
         s2 = Set.size newAssignees
     unless (s1 == s2) $
-      modify' $ mapState (\s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees } })
+      modifyState (\s -> s { worldCreation = wc { creationState = CreationAssigned newAssignees } })
 
 onlyPlayersMap :: ServerState HamazedServer
                -> Map ClientId (ClientView HamazedClient)

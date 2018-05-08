@@ -179,7 +179,7 @@ class (Server (ServerT g)
   type ServerT g = (r :: *) | r -> g
   -- ^ Server-side dual of 'GameLogic'
 
-  type ClientOnlyEvtT g = (r :: *) | r -> g
+  type ClientOnlyEvtT g
   -- ^ Events generated on the client and handled by the client.
   type ClientOnlyEvtT g = ()
 

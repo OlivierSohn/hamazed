@@ -31,15 +31,8 @@ instance Server VoidServer where
   type ValuesT      VoidServer = ()
   type ClientViewT  VoidServer = ()
 
-  type ValueKeyT     VoidServer = ()
-  type ValueT        VoidServer = ()
-  type EnumValueKeyT VoidServer = ()
-
   mkInitial _ = return ((),VoidServer)
   mkInitialClient = ()
-  getValue _ _ = ()
-  onPut _ = return ()
-  onDelta _ _ = return ()
   handleClientEvent _ = return ()
 
 testMaxOneSpace :: IO ()

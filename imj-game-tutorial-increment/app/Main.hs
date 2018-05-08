@@ -9,7 +9,6 @@ module Main where
 import           Data.Bool(bool)
 import           Data.Monoid((<>))
 import           Control.DeepSeq(NFData)
-import           Control.Monad.State.Strict(modify', gets)
 import           Data.Attoparsec.Text(skipSpace, atEnd, takeText)
 import           Data.Text(unpack)
 import           Data.Proxy(Proxy(..))
@@ -28,7 +27,6 @@ import           Imj.Graphics.Render.FromMonadReader(drawStr)
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
-import           Imj.Server
 import           Imj.Server.Class
 import           Imj.Server.Connection
 import           Imj.Server.Types
@@ -52,20 +50,21 @@ evenTriangle :: Int -> Int
 evenTriangle = (*) 2 . zigzag 0 5
 
 -- The two main classes are 'GameLogic' (which acts client-side) and 'Server'
--- (which, as the name suggests, acts server-side).
---
--- 'GameLogic' knows about 'Server' via the associated type 'ServerT'
+-- (which acts server-side).
 
 instance GameLogic IncGame where
+
+-- A 'GameLogic' instance is tied to a 'Server' instance via the associated type 'ServerT'
   type ServerT IncGame = IncServer
 
-  -- This defines the size of the outer frame:
+  -- This defines the size of the outer frame you see when running the game.
+  -- Note that the size depends on the counter value:
   getViewport _ (Screen _ center) (IncGame n) =
     let i = evenTriangle $ fromIntegral n
     in mkCenteredRectContainer center $ Size (10+fromIntegral i) (10+fromIntegral i)
 
   keyMaps key _ = return $ case key of
-    -- the space bar increments the counter
+    -- hitting the space bar will increment the counter, thus changing the size of the frame.
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
 
@@ -73,17 +72,20 @@ instance GameLogic IncGame where
     () -> return ()
   onServerEvent  = \case
     CounterValue value ->
-      withAnim $
+      withAnim $ -- using withAnim will /animate/ the outer frame size change.
         putIGame $ IncGame value
 
   onClientCustomCmd ResetCounter =
     stateChat $ addMessage $ ChatMessage $ "The counter has been reset."
 
+  -- The counter value is drawn in the center of the screen:
   drawForeground (Screen _ screenCenter) _ (IncGame counterValue) =
-    -- The counter value is drawn in the center of the screen:
     drawStr (show counterValue) screenCenter $ LayeredColor black (rgb 5 4 2)
+  -- note that we could have used drawBackground to draw the counter value, it doesn't
+  -- make a difference here because in this game we don't use any particle system animation,
+  -- hence there is no layer between the foreground layer and the background layer.
 
--- | This implements the server-side logic of the game
+-- | 'IncServer' is the game-specific state of the server. It just holds the counter:
 data IncServer = IncServer {
   theServerCounter :: !Counter
 } deriving(Generic)
@@ -99,21 +101,13 @@ instance Server IncServer where
   type ValuesT       IncServer = ()
   type ClientViewT   IncServer = ()
 
-  type ValueKeyT     IncServer = ()
-  type ValueT        IncServer = ()
-  type EnumValueKeyT IncServer = ()
-
   mkInitial _ =
     return ((),IncServer 0)
 
   mkInitialClient = ()
 
   greetNewcomer =
-    (:[]) . CounterValue . theServerCounter <$> gets unServerState
-
-  getValue () = return ()
-  onPut ()    = return ()
-  onDelta _ _ = return ()
+    (:[]) . CounterValue <$> getsState theServerCounter
 
   clientCanJoin _ = do
     -- A client has just connected, we make it be part of the current game:
@@ -123,25 +117,26 @@ instance Server IncServer where
   handleClientEvent IncrementCounter = do
     -- modify the global state (we are inside an MVar transaction so there is
     -- no race condition between different clients):
-    modify' $ mapState $ \(IncServer n) -> IncServer $ n+1
+    modifyState $ \(IncServer n) -> IncServer $ n+1
     -- send the updated value to all clients:
-    gets' theServerCounter >>= notifyEveryone . CounterValue
+    getsState theServerCounter >>= notifyEveryone . CounterValue
 
   acceptCommand ResetCounter = do
     -- modify the global state (we are inside an MVar transaction so there is
     -- no race condition between different clients):
-    modify' $ mapState $ const $ IncServer 0
+    modifyState $ const $ IncServer 0
     -- send the updated value to all clients:
-    gets' theServerCounter >>= notifyEveryone . CounterValue
+    getsState theServerCounter >>= notifyEveryone . CounterValue
     return $ Right ()
 
-  cmdParser "reset" = do
-    skipSpace
-    atEnd >>= bool
-      (takeText >>= \t -> fail $ unpack $ "Unexpected \"" <> t <> "\" (reset takes no parameter)" )
-      (return $ Right $ RequestApproval $ CustomCmd ResetCounter)
-
-  cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
+  cmdParser = \case
+    "reset" -> do
+      skipSpace
+      atEnd >>= bool
+        (takeText >>= \t -> fail $ unpack $ "Unexpected \"" <> t <> "\" (reset takes no parameter)" )
+        (return $ Right $ RequestApproval $ CustomCmd ResetCounter)
+    cmd ->
+      fail $ "'" <> unpack cmd <> "' is an unknown command."
 
 -- | This represents events generated by the client and sent to the server.
 data IncClientEvent =

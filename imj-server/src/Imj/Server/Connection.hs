@@ -7,8 +7,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Imj.Server.Connection
-      ( notify
-      , notifyN
+      ( notifyN
       , notifyN'
       , notifyEveryone
       , notifyEveryone'

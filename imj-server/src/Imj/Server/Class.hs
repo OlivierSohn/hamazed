@@ -17,6 +17,9 @@ module Imj.Server.Class
       , ServerCommand(..)
       , ServerReport(..)
       , ServerState(..)
+      , getsState
+      , mapState
+      , modifyState
       , ClientViews(..)
       , ClientView(..)
       , ClientId(..)
@@ -26,7 +29,6 @@ module Imj.Server.Class
       , ClientName(..)
       , unClientName
       , ChatShow(..)
-      , gets'
       -- * reexports
       , MonadReader
       , MonadState
@@ -39,7 +41,7 @@ import           Data.Text(unpack)
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Strict(MonadState, gets)
+import           Control.Monad.State.Strict(MonadState, gets, modify')
 import           Data.Attoparsec.Text(Parser)
 
 import           Imj.Arg.Class
@@ -101,8 +103,13 @@ class (Show (ClientEventT s)
  where
 
   type ValueKeyT s
+  type ValueKeyT s = ()
+
   type ValueT s
+  type ValueT s = ()
+
   type EnumValueKeyT s
+  type EnumValueKeyT s = ()
 
   type ValuesT s = (r :: *) | r -> s
 
@@ -178,17 +185,21 @@ The default implementation returns a parser that fails for every command name.
                 => ClientLifecycle -> m ()
   onStartClient _ = return ()
 
-  -- NOTE the signatures of getValue / onPut / onDelta will be unified later on
   getValue :: ValueKeyT s
            -> ValuesT s
            -> ValueT s
+  getValue _ _ = error "Please implement 'getValue' when you define 'ValuesT' / 'ValueKeyT' / 'ValueT'"
+
   onPut :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
         => ValueT s
         -> m ()
+  onPut _ = fail "Please implement 'onPut' when you define 'ValueT'"
+
   onDelta :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
           => Int
           -> EnumValueKeyT s
           -> m ()
+  onDelta _ _ = fail "Please implement 'onDelta' when you define 'EnumValueKeyT'"
 
   -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -198,9 +209,9 @@ The default implementation returns a parser that fails for every command name.
   acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => CustomCmdT s
                 -> m (Either Text ())
-  acceptCommand = fail "you should implement this if you have custom commands."
+  acceptCommand = fail "Please implement 'acceptCommand' if you define 'CustomCmdT'."
 
-  -- | Returns True if the client was included in the game that is being setup.
+  -- | Returns True if the client was included in the game being set up.
   clientCanJoin :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                 => Proxy s -> m Bool
   clientCanJoin _ = return True
@@ -238,12 +249,19 @@ data ServerState s = ServerState {
 } deriving(Generic)
 instance (Server s) => NFData (ServerState s)
 
-{-# INLINABLE gets' #-}
-gets' :: (MonadState (ServerState s) m)
-      => (s -> a)
-      -> m a
-gets' f = gets (f . unServerState)
+{-# INLINABLE getsState #-}
+getsState :: (MonadState (ServerState s) m)
+          => (s -> a) -> m a
+getsState f = gets (f . unServerState)
 
+{-# INLINE modifyState #-}
+modifyState :: MonadState (ServerState s) m
+            => (s -> s) -> m ()
+modifyState = modify' . mapState
+
+{-# INLINE mapState #-}
+mapState :: (s -> s) -> ServerState s -> ServerState s
+mapState f s = s { unServerState = f $ unServerState s }
 
 data Command s =
     RequestApproval !(ClientCommand (CustomCmdT s) Proposed)

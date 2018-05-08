@@ -22,7 +22,7 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 
 import           Imj.ClientView.Types
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Color.Types

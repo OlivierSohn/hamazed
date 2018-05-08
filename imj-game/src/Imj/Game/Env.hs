@@ -6,6 +6,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Game.Env
       ( Env(..)
@@ -15,7 +16,7 @@ module Imj.Game.Env
 import qualified Control.Concurrent.MVar as Lazy(newMVar)
 import qualified Data.IntMap as Map(empty)
 
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Graphics.Class.Canvas(Canvas(..))
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
@@ -23,7 +24,6 @@ import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Input.Types
 
 import           Imj.Game.Audio.Class
-import           Imj.Game.Configuration
 import           Imj.Game.Network.ClientQueues
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Control.Concurrent.AsyncGroups.Impl
@@ -35,24 +35,29 @@ data Env i g = Env {
   , _envClientQueues :: !(ClientQueues g)
   , asyncGroups :: !AsyncGroupsImpl
   , getSizedFace' :: !SizedFace
-  , audio :: !WithAudio
+  , audio :: !(AudioT g)
   -- ^ Font to draw 'RasterizedString's
 }
 instance HasSizedFace (Env i g) where
   getSizedFace = getSizedFace'
 
-mkEnv :: DeltaEnv -> i -> ClientQueues g -> SizedFace -> WithAudio -> IO (Env i g)
+mkEnv :: DeltaEnv -> i -> ClientQueues g -> SizedFace -> AudioT g -> IO (Env i g)
 mkEnv a b c d e = do
   m <- AsyncGroupsImpl <$> Lazy.newMVar Map.empty
   return $ Env a b c m d e
 
-instance Audio (Env i g) where
+instance Audio (AudioT g) => Audio (Env i g) where
+  defaultAudio = error "logic"
+  withAudio
+    (Env _ _ _ _ _ a) = withAudio a
   triggerLaserSound
     (Env _ _ _ _ _ a) = triggerLaserSound a
   playMusic
     (Env _ _ _ _ _ a) = playMusic a
-  {-# INLINABLE triggerLaserSound #-}
-  {-# INLINABLE playMusic #-}
+  {-# INLINE defaultAudio #-}
+  {-# INLINE triggerLaserSound #-}
+  {-# INLINE playMusic #-}
+  {-# INLINE withAudio #-}
 
 -- | Forwards to the 'Draw' instance of 'DeltaEnv'.
 instance Draw (Env i g) where
@@ -63,9 +68,9 @@ instance Draw (Env i g) where
   drawGlyphs'    (Env a _ _ _ _ _) = drawGlyphs'     a
   drawTxt'       (Env a _ _ _ _ _) = drawTxt'       a
   drawStr'       (Env a _ _ _ _ _) = drawStr'       a
-  {-# INLINABLE setScissor #-}
-  {-# INLINABLE getScissor' #-}
-  {-# INLINABLE fill' #-}
+  {-# INLINE setScissor #-}
+  {-# INLINE getScissor' #-}
+  {-# INLINE fill' #-}
   {-# INLINE drawGlyph' #-}
   {-# INLINE drawGlyphs' #-}
   {-# INLINE drawTxt' #-}
@@ -92,9 +97,9 @@ instance (GameLogic g) => Client (Env i g) where
   sendToServer'  (Env _ _ q _ _ _) = sendToServer' q
   writeToClient' (Env _ _ q _ _ _) = writeToClient' q
   serverQueue    (Env _ _ q _ _ _) = serverQueue q
-  {-# INLINABLE sendToServer' #-}
-  {-# INLINABLE writeToClient' #-}
-  {-# INLINABLE serverQueue #-}
+  {-# INLINE sendToServer' #-}
+  {-# INLINE writeToClient' #-}
+  {-# INLINE serverQueue #-}
 
 instance AsyncGroups (Env i g) where
   belongsTo' (Env _ _ _ g _ _) = belongsTo' g

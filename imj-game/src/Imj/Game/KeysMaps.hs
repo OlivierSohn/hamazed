@@ -16,8 +16,8 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Imj.Event
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.Chat
+import           Imj.Game.Class
 import           Imj.Game.Status
-import           Imj.Game.Types
 import           Imj.Input.Types
 import           Imj.Server.Class
 import           Imj.Server.Types

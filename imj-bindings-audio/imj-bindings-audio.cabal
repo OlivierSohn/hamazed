@@ -23,6 +23,8 @@ library
                      , c/wrapper.cpp
   exposed-modules:     Imj.Audio
   build-depends:       base >= 4.9 && < 4.12
+                     , unliftio ==0.2.*
+                     , unliftio-core ==0.1.*
   default-language:    Haskell2010
 
   extra-libraries:     stdc++

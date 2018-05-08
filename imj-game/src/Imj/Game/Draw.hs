@@ -15,7 +15,7 @@ import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
 
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Positionable

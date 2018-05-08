@@ -13,7 +13,7 @@ module Imj.Game.State
       , toggleRecordEvent
       , addIgnoredOverdues
       -- * reexports
-      , module Imj.Game.Types
+      , module Imj.Game.Class
       ) where
 
 import           Imj.Prelude
@@ -29,8 +29,8 @@ import           Imj.Categorized
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Geo.Discrete.Types
 import           Imj.Event
+import           Imj.Game.Class
 import           Imj.Game.Configuration
-import           Imj.Game.Types
 import           Imj.Graphics.Screen
 import           Imj.Input.Types
 import           Imj.Server.Class

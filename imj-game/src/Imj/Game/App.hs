@@ -33,7 +33,7 @@ import qualified Options.Applicative.Help as Appli (red)
 import           System.Environment(getArgs, getProgName)
 import           System.Info(os)
 
-import           Imj.Audio
+import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
 import           Imj.Game.Env
 import           Imj.Game.Configuration
@@ -99,13 +99,16 @@ withArgs parser app = do
        "(3) Create both a game server and a client connected to it, use optionally [--serverPort]."
        ))
 
+toAudio :: Proxy g -> Proxy (AudioT g)
+toAudio _ = Proxy
+
 run :: (GameLogic g
       , StateValueT (ServerT g) ~ GameStateValue)
     => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName maySrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug useAudio) = do
+    maySrvName maySrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
         , ("Server name", show maySrvName)
@@ -118,7 +121,7 @@ run prox
         , ("PPU             ", show mayPPU)
         , ("Player name     ", show mayConnectId)
         , ("Client Debug    ", show debug)
-        , ("Client Audio    ", show useAudio)
+        , ("Client Audio    ", show mayAudioConf)
         ]
   printServerArgs
   when serverOnly $ do
@@ -166,8 +169,9 @@ run prox
           (baseLog . flip colored chartreuse . pack)
         -- the listening socket is available, we can continue.
 
-        -- The type here determines which game we are playing.
         queues <- startClient prox mayConnectId srv
+        let defaultAudioConf = asProxyTypeOf defaultAudio (toAudio prox)
+            useAudio = fromMaybe defaultAudioConf mayAudioConf
         case backend of
           Console ->
             newConsoleBackend >>= runWith useAudio debug queues srv mayConnectId
@@ -196,21 +200,20 @@ mkServer (Just (ServerName n)) _ _ =
 runWith :: (GameLogic g
           , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
-        => WithAudio
+        => AudioT g
         -> Debug
         -> ClientQueues g
         -> ServerView (ValuesT (ServerT g))
         -> Maybe (ConnectIdT (ServerT g))
         -> i
         -> IO ()
-runWith au@(WithAudio useAudio) debug queues srv player backend =
+runWith au debug queues srv player backend =
   withTempFontFile font fontname $ \path -> withFreeType $ withSizedFace path (Size 16 16) $ \face ->
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
-      let mayAudio = if useAudio then withAudio else id
       void $ createState screen debug player srv NotConnected >>=
-        mayAudio . runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+        withAudio au . runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
 
  where
 

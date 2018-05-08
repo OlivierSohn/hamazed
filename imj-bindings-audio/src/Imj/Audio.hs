@@ -2,7 +2,7 @@
 
 module Imj.Audio
       ( -- * Using audio
-        withAudio
+        usingAudio
       -- * Midi Synth
       , midiNoteOn
       , midiNoteOff
@@ -17,7 +17,8 @@ module Imj.Audio
 
 import Foreign.C
 import Control.Concurrent(threadDelay)
-import Control.Exception(bracket)
+import Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
+import UnliftIO.Exception(bracket)
 
 -- | A test function to emit a beep sound.
 foreign import ccall "beep" beep :: IO ()
@@ -39,16 +40,16 @@ foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.
-withAudio :: IO a -> IO a
-withAudio =
+usingAudio :: MonadUnliftIO m => m a -> m a
+usingAudio =
 
   bracket bra ket . const
 
  where
 
-  bra = initializeAudio
+  bra = liftIO initializeAudio
 
-  ket _ = do
+  ket _ = liftIO $ do
     stopAudioGracefully
     threadDelay maxShutdownDurationMicros
     teardownAudio

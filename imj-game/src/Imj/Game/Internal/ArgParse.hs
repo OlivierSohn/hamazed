@@ -34,11 +34,13 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Game.Configuration
 import           Imj.ServerView.Types
 
-import           Imj.Game.Types
+import           Imj.Game.Audio.Class
+import           Imj.Game.Class
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 
-parserGameArgs :: GameLogic g => Proxy g -> Parser (GameArgs g)
+parserGameArgs :: GameLogic g
+               => Proxy g -> Parser (GameArgs g)
 parserGameArgs _ = GameArgs
   <$> parserServerOnly
   <*> parserSrvName
@@ -50,7 +52,25 @@ parserGameArgs _ = GameArgs
   <*> parserPPU
   <*> parserScreenSize
   <*> parserDebug
-  <*> parserWithAudio
+  <*> parserAudio
+
+parserSrvColorScheme
+  :: Parser (Maybe (ColorScheme))
+parserSrvColorScheme =
+  maybe (NilP $ Just Nothing) optional parseArg
+
+parseConnectId
+  :: GameLogic g
+  => Parser (Maybe (ConnectIdT (ServerT g)))
+parseConnectId =
+  maybe (NilP $ Just Nothing) optional parseArg
+
+parserAudio
+  :: GameLogic g
+  => Parser (Maybe (AudioT g))
+parserAudio =
+  maybe (NilP $ Just $ Just defaultAudio) optional parseArg
+
 
 parserServerOnly :: Parser ServerOnly
 parserServerOnly =
@@ -93,12 +113,6 @@ parserSrvLogs =
        "'none': no server logs. 'console': server logs in the console. " ++ -- TODO merge with -d
        "Default is 'none'. Incompatible with --serverName."
        )))
-
-parserSrvColorScheme :: Parser (Maybe (ColorScheme))
-parserSrvColorScheme = maybe (NilP Nothing) optional parseArg
-
-parseConnectId :: GameLogic g => Parser (Maybe (ConnectIdT (ServerT g)))
-parseConnectId = maybe (NilP Nothing) optional parseArg
 
 parserBackend :: Parser (Maybe BackendType)
 parserBackend =
@@ -144,13 +158,6 @@ parserDebug =
     "[Client] print debug infos in the terminal."
     )
 
-parserWithAudio :: Parser WithAudio
-parserWithAudio =
-  flag (WithAudio True) (WithAudio False)
-    (  long "silent"
-    <> help
-    "[Client] disables music and audio effects."
-    )
 
 renderHelp :: String
 renderHelp =

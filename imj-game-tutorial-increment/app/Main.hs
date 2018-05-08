@@ -17,9 +17,9 @@ import           GHC.Generics(Generic)
 
 import           Imj.Categorized
 import           Imj.Game.App(runGame)
+import           Imj.Game.Class
 import           Imj.Game.Command
 import           Imj.Game.Status
-import           Imj.Game.Types
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Screen
@@ -56,6 +56,15 @@ instance GameLogic IncGame where
 
 -- A 'GameLogic' instance is tied to a 'Server' instance via the associated type 'ServerT'
   type ServerT IncGame = IncServer
+
+  -- This game doesn't do audio. If we omitted the following associated type declaration,
+  -- 'AudioT' would default to 'WithAudio', and if the user doesn't pass the --silent
+  -- option, we would pay the price of audio initialization when the game starts.
+  --
+  -- With the following line, audio is not initialized, and the --silent option is removed
+  -- from command line arguments. Note however that if you want to do audio in your game,
+  -- and use this tutorial as a template, you'll need to remove this line.
+  type AudioT IncGame = ()
 
   -- This defines the size of the outer frame you see when running the game.
   -- Note that the size depends on the counter value:

@@ -1,3 +1,5 @@
+- replace Proxy in arguments with asProxyTypeOf
+
 - take ServerT from a class parameter, see if it makes the code better.
 
 - find a better name for ClientOnlyEvtT / onClientOnlyEvent. How is it different from ServerEventT ?
@@ -37,9 +39,6 @@ changed.
 - Joining... should not appear in tutorial
 we could disable the behavior where before displaying a new string, we display the other one in full.
 Instead, continue the animation to its end and then start the other one, or reverse the animation.
-
-- make audio enabled / disabled by game to avoid initialization when it's not needed,
-and do not show audio-related parameters.
 
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
 

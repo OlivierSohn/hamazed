@@ -45,12 +45,12 @@ import           Data.Text(pack)
 
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
+import           Imj.Game.Class
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Priorities
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Types
+import           Imj.Game.Priorities
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.ParticleSystem.Design.Types
 import           Imj.Graphics.Render

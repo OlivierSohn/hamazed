@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 
-module Imj.Game.Types
+module Imj.Game.Class
       (
       -- * Client / GameLogic
         Client(..)
@@ -86,6 +86,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
 import           Data.Proxy(Proxy(..))
 
+import           Imj.Arg.Class
 import           Imj.Categorized
 import           Imj.ClientView.Types
 import           Imj.Control.Concurrent.AsyncGroups.Class
@@ -166,6 +167,7 @@ data Transitioning = From | To
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Server (ServerT g)
+     , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
@@ -178,6 +180,10 @@ class (Server (ServerT g)
 
   type ServerT g = (r :: *) | r -> g
   -- ^ Server-side dual of 'GameLogic'
+
+  type AudioT g = (r :: *) | r -> g
+  -- ^ Audio backend
+  type AudioT g = WithAudio -- assume that by default, the game will do audio
 
   type ClientOnlyEvtT g
   -- ^ Events generated on the client and handled by the client.
@@ -437,7 +443,7 @@ data GameArgs g = GameArgs
   !(Maybe PPU)
   !(Maybe PreferredScreenSize)
   !Debug
-  !WithAudio
+  !(Maybe (AudioT g))
 
 
 {-# INLINABLE getGameState #-}

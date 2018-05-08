@@ -27,7 +27,7 @@ import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
 
 import           Imj.Game.Exceptions
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Graphics.Color
 import           Imj.ServerView.Types
 import           Imj.ServerView

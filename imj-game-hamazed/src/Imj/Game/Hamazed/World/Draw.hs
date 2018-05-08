@@ -14,7 +14,7 @@ import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Char(intToDigit)
 import qualified Data.Map.Strict as Map(assocs)
 
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Graphics.Render
 import           Imj.Space.Types

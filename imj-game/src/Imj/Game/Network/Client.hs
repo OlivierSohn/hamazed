@@ -15,7 +15,7 @@ import           Control.Exception (try)
 import           Data.Text(pack)
 import           Network.WebSockets(ClientApp, ConnectionException(..), receiveData, sendBinaryData)
 
-import           Imj.Game.Types
+import           Imj.Game.Class
 
 import           Imj.Event
 import           Imj.Game.Network.ClientQueues

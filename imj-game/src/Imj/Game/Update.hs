@@ -29,7 +29,7 @@ import           System.IO(putStrLn)
 
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Audio.Class
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.HasSizedFace

@@ -19,7 +19,7 @@ import           Data.String(IsString)
 import           Data.Text(unpack)
 
 import           Imj.ClientView.Types
-import           Imj.Game.Types
+import           Imj.Game.Class
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString(ColorString)

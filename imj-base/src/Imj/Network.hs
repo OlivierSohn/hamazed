@@ -10,7 +10,8 @@
 module Imj.Network
     ( ClientName(..), unClientName
     , Proposed, Approved
-    , ClientNameSuggestion(..)
+    , ClientNameProposal(..)
+    , checkName
     -- * MAC addresses
     , MAC
     , getMacAddresses
@@ -19,9 +20,11 @@ module Imj.Network
 
 import           Imj.Prelude
 import           Data.Bits(shiftL)
+import           Data.Char (isPunctuation, isSpace)
 import qualified Data.Set as Set
 import           Data.Set(Set)
 import           Data.String(IsString(..))
+import           Data.Text(unpack)
 import           GHC.Word(Word64, Word8(..))
 import qualified Network.Info as N(MAC(..), mac)
 import           Network.Info(getNetworkInterfaces)
@@ -30,22 +33,40 @@ import           Options.Applicative(str, option, long, help, readerError)
 import           Imj.Arg.Class
 
 data Proposed
+  deriving(Generic)
 data Approved
+  deriving(Generic)
 
 newtype ClientName a = ClientName Text
   deriving(Generic, Show, Binary, Eq, NFData, IsString)
 unClientName :: ClientName a -> Text
 unClientName (ClientName t) = t
 
-class ClientNameSuggestion a where
-  extractName :: a -> ClientName Proposed
+class ClientNameProposal a where
+  -- | When 'Nothing' is passed, it is an anonymous connection.
+  -- you can chose to support anonymous connections or
+  -- reject them.
+  --
+  -- When 'Just' is passed, you can check wether the given name is valid
+  acceptConnection :: Maybe a -> Either Text ()
+  extractName :: Maybe a -> ClientName Proposed
 
-instance ClientNameSuggestion () where
+instance ClientNameProposal () where
   extractName = const $ ClientName "void"
+  acceptConnection = const $ Right ()
 
-instance ClientNameSuggestion (ClientName a) where
-  extractName = ClientName . unClientName
+instance ClientNameProposal (ClientName Proposed) where
+  extractName = ClientName . maybe "Player" unClientName
+  acceptConnection = maybe (Right ()) (fmap (const ()) . checkName)
 
+checkName :: ClientName Proposed -> Either Text (ClientName Proposed)
+checkName c@(ClientName txt)
+  | any ($ name) [ null, any isPunctuation, any isSpace] =
+      Left "Name cannot contain punctuation or whitespace, and cannot be empty"
+  | otherwise =
+      Right c
+ where
+  name = unpack txt
 
 instance Arg (ClientName Proposed) where
   parseArg =

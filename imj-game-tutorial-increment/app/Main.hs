@@ -28,7 +28,6 @@ import           Imj.Graphics.Render.FromMonadReader(drawStr)
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Input.Types
-import           Imj.Network
 import           Imj.Server
 import           Imj.Server.Class
 import           Imj.Server.Connection
@@ -88,7 +87,6 @@ data IncServer = IncServer {
 instance Server IncServer where
   type StateValueT   IncServer = GameStateValue
 
-  type ConnectIdT          IncServer = ClientName Proposed
   type ClientEventT        IncServer = IncClientEvent
   type ServerEventT        IncServer = IncServerEvent
   type CustomCmdT          IncServer = IncCommand
@@ -102,9 +100,6 @@ instance Server IncServer where
 
   mkInitial _ =
     return ((),IncServer 0)
-
-  acceptConnection _ =
-    Right ()
 
   mkInitialClient = ()
 

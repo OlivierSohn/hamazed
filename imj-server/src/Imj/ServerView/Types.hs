@@ -16,7 +16,6 @@ import           Data.String(IsString)
 
 import           Imj.ClientView.Internal.Types
 import           Imj.Server.Internal.Types
-import           Imj.Server.Class
 import           Imj.Server.Color
 
 data ConnectionStatus =
@@ -24,12 +23,10 @@ data ConnectionStatus =
   | Connected {-# UNPACK #-} !ClientId
   | ConnectionFailed {-# UNPACK #-} !Text
 
-data ServerView s = ServerView {
+data ServerView values = ServerView {
     serverType :: !ServerType
-  , serverContent :: !(ServerContent (ValuesT s))
-}  deriving(Generic)
-instance Server s => Show (ServerView s) where
-  show (ServerView t c) = show ("ServerView",t,c)
+  , serverContent :: !(ServerContent values)
+}  deriving(Generic, Show)
 
 data ServerContent cached = ServerContent {
     serverPort :: {-# UNPACK #-} !ServerPort

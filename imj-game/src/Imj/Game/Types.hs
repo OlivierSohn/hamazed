@@ -345,7 +345,7 @@ data Game g = Game {
                              ,AnimatedLine)] -- 'AnimatedLine' is used for rendering.
   , getPlayers' :: !(Map ClientId (Player g))
   , _gameSuggestedClientName :: !(Maybe (ConnectIdT (ServerT g)))
-  , getServerView' :: {-unpack sum-} !(ServerView (ServerT g))
+  , getServerView' :: {-unpack sum-} !(ServerView (ValuesT (ServerT g)))
   -- ^ The server that runs the game
   , connection' :: {-unpack sum-} !ConnectionStatus
   , getChat' :: !Chat
@@ -440,7 +440,7 @@ getIGame :: MonadState (AppState g) m => m (Maybe g)
 getIGame = _game <$> getGameState
 
 {-# INLINABLE getServerView #-}
-getServerView :: MonadState (AppState g) m => m (ServerView (ServerT g))
+getServerView :: MonadState (AppState g) m => m (ServerView (ValuesT (ServerT g)))
 getServerView = getServerView' <$> gets game
 
 {-# INLINABLE getChatMode #-}
@@ -484,7 +484,7 @@ putIGame a =
   getGameState >>= \g -> putGameState $ g {_game = Just a}
 
 {-# INLINABLE putServer #-}
-putServer :: MonadState (AppState g) m => (ServerView (ServerT g)) -> m ()
+putServer :: MonadState (AppState g) m => (ServerView (ValuesT (ServerT g))) -> m ()
 putServer s =
   gets game >>= \g -> putGame $ g {getServerView' = s}
 

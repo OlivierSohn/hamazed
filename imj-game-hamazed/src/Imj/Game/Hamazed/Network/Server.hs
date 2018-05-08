@@ -77,7 +77,6 @@ import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored, intercalate)
 import           Imj.Music hiding(Do)
-import           Imj.Network
 import           Imj.Server.Connection
 import           Imj.Server.Log
 import           Imj.Server.Run
@@ -107,7 +106,6 @@ instance Server HamazedServer where
 
   type ServerEventT HamazedServer = HamazedServerEvent
   type ClientEventT HamazedServer = HamazedClientEvent
-  type ConnectIdT   HamazedServer = ClientName Proposed
   type CustomCmdT   HamazedServer = ()
 
   type ValuesT      HamazedServer = WorldParameters
@@ -121,8 +119,6 @@ instance Server HamazedServer where
       HamazedServer mkGameTiming lvSpec wc IntentSetup <$> newEmptyMVar
 
   inParallel = [gameScheduler]
-
-  acceptConnection = maybe (Right ()) (void . checkName)
 
   mkInitialClient = HamazedClient Nothing Nothing zeroCoords Nothing
 

@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Server.Types
       ( Server(..)
@@ -60,9 +61,9 @@ data ServerEvent s =
   | RunCommand {-# UNPACK #-} !ClientId
                {-unpack sum-} !(ClientCommand (CustomCmdT s) Approved)
   -- ^ The server validated the use of the command, now it must be executed.
-  | Reporting {-unpack sum-} !(ServerCommand s)
+  | Reporting {-unpack sum-} !(ServerCommand (ValueT s) (EnumValueKeyT s))
   -- ^ Response to a 'Report'.
-  | PlayerInfo !(PlayerNotif s)
+  | PlayerInfo !(PlayerNotif (ValueT s) (EnumValueKeyT s))
                {-# UNPACK #-} !ClientId
   | ConnectionAccepted {-# UNPACK #-} !ClientId
   | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
@@ -74,7 +75,23 @@ data ServerEvent s =
   | ExitState {-unpack sum-} !(StateValue (StateValueT s))
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
-  deriving(Generic, Show)
+  deriving(Generic)
+instance (Server s) => Show (ServerEvent s) where
+  show = \case
+    ServerAppEvt x -> show ("ServerAppEvt",x)
+    PlayMusic x y -> show ("PlayMusic",x,y)
+    CommandError x y -> show ("CommandError",x, y)
+    RunCommand x y -> show ("RunCommand",x, y)
+    Reporting x -> show ("Reporting",x)
+    PlayerInfo x y -> show ("PlayerInfo",x, y)
+    ConnectionAccepted x -> show ("ConnectionAccepted",x)
+    ConnectionRefused x y -> show ("ConnectionRefused",x,y)
+    Disconnected x -> show ("Disconnected",x)
+    OnContent x -> show ("OnContent",x)
+    AllClients x -> show ("AllClients",x)
+    EnterState x -> show ("EnterState",x)
+    ExitState x -> show ("ExitState",x)
+    ServerError x -> show ("ServerError",x)
 instance Server s => Binary (ServerEvent s)
 instance Server s => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =
@@ -107,26 +124,18 @@ data StateValue s =
     -- ^ The client is not part of the game
   | Included !s
   -- ^ The client is part of the game
-  deriving(Generic)
-instance Show s => Show (StateValue s) where
-  show Excluded = "Excluded"
-  show (Included s) = show ("Included",s)
-instance Eq s => Eq (StateValue s) where
-  Excluded == Excluded = True
-  (Included a) == (Included b) = a == b
-  Excluded == (Included _) = False
-  (Included _) == Excluded = False
+  deriving(Generic, Show, Eq)
 instance Binary s => Binary (StateValue s)
 instance NFData s => NFData (StateValue s)
 
-data PlayerNotif s =
+data PlayerNotif v e =
     Joins
   | WaitsToJoin
   | StartsGame
-  | Done {-unpack sum-} !(ServerCommand s)
+  | Done {-unpack sum-} !(ServerCommand v e)
     -- ^ The server notifies whenever a 'Do' task is finished.
   deriving(Generic, Show)
-instance Server s => Binary (PlayerNotif s)
+instance (Binary v, Binary e) => Binary (PlayerNotif v e)
 
 mkServerState :: ServerLogs -> Color8 Foreground -> ValuesT s -> s -> ServerState s
 mkServerState logs color c s =

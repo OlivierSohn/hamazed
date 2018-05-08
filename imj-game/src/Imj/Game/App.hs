@@ -184,8 +184,8 @@ toSrv _ = Proxy :: Proxy (ServerT g)
 mkServer :: Maybe ServerName
          -> Maybe ColorScheme
          -> Maybe ServerLogs
-         -> ServerContent (ValuesT s)
-         -> ServerView s
+         -> ServerContent values
+         -> ServerView values
 mkServer Nothing conf logs =
   mkLocalServerView (fromMaybe NoLogs logs) conf
 mkServer (Just (ServerName n)) _ _ =
@@ -199,7 +199,7 @@ runWith :: (GameLogic g
         => WithAudio
         -> Debug
         -> ClientQueues g
-        -> ServerView (ServerT g)
+        -> ServerView (ValuesT (ServerT g))
         -> Maybe (ConnectIdT (ServerT g))
         -> i
         -> IO ()

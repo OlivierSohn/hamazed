@@ -161,19 +161,19 @@ updateAppState (Left evt) = case evt of
   ServerError txt ->
     liftIO $ throwIO $ ErrorFromServer txt
 
-toTxt :: (Server s, MonadState (AppState g) m) => ClientId -> PlayerNotif s -> m ColorString
-toTxt i notif =
-  (`mappend` colored (pack $ toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i
+ where
 
-toTxt'' :: Server s => PlayerNotif s -> String
-toTxt'' = \case
-  Joins        -> " joins the game."
-  WaitsToJoin  -> " is waiting to join the game."
-  StartsGame   -> " starts the game."
-  Done cmd@(Put _) ->
-    " changed " ++ chatShow cmd
-  Done cmd ->
-    " " ++ chatShow cmd
+  toTxt i notif =
+    (`mappend` colored (pack $ toTxt'' notif) chatMsgColor) . getPlayerUIName' <$> getPlayer i
+
+  toTxt'' = \case
+    Joins        -> " joins the game."
+    WaitsToJoin  -> " is waiting to join the game."
+    StartsGame   -> " starts the game."
+    Done cmd@(Put _) ->
+      " changed " ++ chatShow cmd
+    Done cmd ->
+      " " ++ chatShow cmd
 
 {-# INLINABLE onTargetSize #-}
 onTargetSize :: (GameLogic g

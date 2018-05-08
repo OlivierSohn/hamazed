@@ -25,7 +25,6 @@ data VoidServer = VoidServer
 instance Server VoidServer where
   type StateValueT  VoidServer = ()
 
-  type ConnectIdT   VoidServer = ()
   type ClientEventT VoidServer = ()
   type ServerEventT VoidServer = ()
   type CustomCmdT   VoidServer = ()
@@ -38,7 +37,6 @@ instance Server VoidServer where
   type EnumValueKeyT VoidServer = ()
 
   mkInitial _ = return ((),VoidServer)
-  acceptConnection _ = Left mempty
   mkInitialClient = ()
   getValue _ _ = ()
   onPut _ = return ()

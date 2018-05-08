@@ -44,7 +44,7 @@ import           Imj.Server.Run
 
 startServerIfLocal :: Server s
                    => Proxy s
-                   -> ServerView s
+                   -> ServerView (ValuesT s)
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
@@ -72,7 +72,7 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
 startClient :: GameLogic g
             => Proxy g
             -> Maybe (ConnectIdT (ServerT g))
-            -> ServerView (ServerT g)
+            -> ServerView (ValuesT (ServerT g))
             -> IO (ClientQueues g)
 startClient proxy cid srv = do
   -- by now, if the server is local, the listening socket has been created.

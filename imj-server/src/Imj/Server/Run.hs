@@ -35,13 +35,12 @@ import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Unlift(MonadIO, MonadUnliftIO)
 import           Control.Monad.Reader(runReaderT, asks)
 import           Control.Monad.State.Strict(StateT, runStateT, execStateT, modify', state, gets)
-import           Data.Char (isPunctuation, isSpace)
 import qualified Data.List as List(intercalate)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?))
 import           Data.Proxy(Proxy(..))
 import qualified Data.Set as Set
-import           Data.Text(pack, unpack)
+import           Data.Text(pack)
 import           Data.Tuple(swap)
 import           Network.WebSockets(PendingConnection, Connection, acceptRequest, receiveData, sendBinaryData, sendPing)
 import           UnliftIO.Exception (SomeException(..), try)
@@ -72,7 +71,7 @@ appSrv st pending =
 application :: Server s => MVar (ServerState s) -> Connection -> IO ()
 application st conn =
   receiveData conn >>= \case
-    Connect macs connectId cliType ->
+    Connect macs mayConnectId cliType ->
       either
         refuse
         (\_ ->
@@ -80,12 +79,12 @@ application st conn =
             either
               refuse
               (\(cid,lifecycle) ->
-                runReaderT (handleClient connectId cliType lifecycle st) $ ConstClientView conn cid))
-        $ acceptConnection connectId
+                runReaderT (handleClient mayConnectId cliType lifecycle st) $ ConstClientView conn cid))
+        $ acceptConnection mayConnectId
      where
 
       refuse txt =
-        let response = ConnectionRefused connectId txt
+        let response = ConnectionRefused mayConnectId txt
         in sendBinaryData conn response
 
       associateClientId = do
@@ -132,7 +131,7 @@ handleClient :: (Server s)
              -> ClientLifecycle
              -> MVar (ServerState s)
              -> ReaderT ConstClientView IO ()
-handleClient connectId cliType lifecycle st = do
+handleClient mayConnectId cliType lifecycle st = do
   i <- asks clientId
   let disconnectOnException :: (MonadUnliftIO m) => Text -> m () -> m ()
       disconnectOnException name action = try action >>= either
@@ -145,7 +144,7 @@ handleClient connectId cliType lifecycle st = do
   void $ liftIO $ forkIO $ disconnectOnException "PingPong" $ pingPong conn $ fromSecs 1
   disconnectOnException "Handler" $ do
     modifyMVar_ st $ execStateT $ do
-      addClient connectId cliType
+      addClient mayConnectId cliType
       case lifecycle of
         NewClient ->
           log "Is a new client"
@@ -224,7 +223,7 @@ handleIncomingEvent' = \case
 
 publish :: (MonadReader ConstClientView m, MonadIO m, Server s,
             MonadState (ServerState s) m)
-        => PlayerNotif s -> m ()
+        => PlayerNotif (ValueT s) (EnumValueKeyT s) -> m ()
 publish a = asks clientId >>= notifyEveryone' . PlayerInfo a
 
 makePlayerName :: (MonadIO m, MonadState (ServerState s) m)
@@ -246,16 +245,6 @@ checkNameAvailability (ClientName name) =
     True  -> return $ Left "Name is already taken"
     False -> return $ Right $ ClientName name
 
-
-checkName :: ClientName Proposed -> Either Text (ClientName Proposed)
-checkName c@(ClientName txt)
-  | any ($ name) [ null, any isPunctuation, any isSpace] =
-      Left "Name cannot contain punctuation or whitespace, and cannot be empty"
-  | otherwise =
-      Right c
- where
-  name = unpack txt
-
 pingPong :: Connection -> Time Duration System -> IO ()
 pingPong conn dt =
   go 0
@@ -275,7 +264,7 @@ addClient connectId cliType = do
   conn <- asks connection
   i <- asks clientId
   color <- fmap (mkClientColorFromCenter i) (gets centerColor)
-  realName <- makePlayerName $ mkClientName connectId
+  realName <- makePlayerName $ extractName connectId
   notifyEveryoneN' $
     map (RunCommand i) [AssignColor color, AssignName realName] -- elts order is important for animations.
 

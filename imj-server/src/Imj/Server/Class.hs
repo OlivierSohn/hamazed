@@ -36,7 +36,6 @@ import           Imj.Prelude
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
 import           Data.Text(unpack)
-import           Data.String(IsString(..))
 import           Control.Concurrent.MVar.Strict (MVar)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
@@ -53,6 +52,7 @@ import           Imj.Server.Internal.Types
 import           Imj.Network
 
 class (Show (ClientEventT s)
+     , Show (ServerEventT s)
      , Show (ConnectIdT s)
      , Show (ValuesT s)
      , Show (ClientViewT s)
@@ -61,7 +61,8 @@ class (Show (ClientEventT s)
      , Show (EnumValueKeyT s)
      , Show (StateValueT s)
      , Show (CustomCmdT s)
-     , Show (ClientEventT s)
+     , Generic (ClientEventT s)
+     , Generic (ServerEventT s)
      , Generic (ConnectIdT s)
      , Generic (ValuesT s)
      , Generic (ClientViewT s)
@@ -72,7 +73,7 @@ class (Show (ClientEventT s)
      , Generic (CustomCmdT s)
      , ChatShow (ValueT s)
      , Arg (ConnectIdT s)
-     , ClientNameSuggestion (ConnectIdT s)
+     , ClientNameProposal (ConnectIdT s)
      , Eq (ValueKeyT s)
      , Eq (ValueT s)
      , Eq (EnumValueKeyT s)
@@ -111,6 +112,7 @@ class (Show (ClientEventT s)
   -- ^ Events sent by the client that must be handled by the server.
   type ConnectIdT s = (r :: *) | r -> s
   -- ^ Data passed in 'ClientEvent' 'Connect'.
+  type ConnectIdT s = ClientName Proposed
 
   type CustomCmdT s
 
@@ -161,14 +163,8 @@ The default implementation returns a parser that fails for every command name.
   inParallel :: [MVar (ServerState s) -> IO ()]
   inParallel = []
 
-  -- | When returning Left, the corresponding client connection is rejected.
-  acceptConnection :: Maybe (ConnectIdT s) -> Either Text ()
-
   -- | Creates the client view
   mkInitialClient :: ClientViewT s
-
-  mkClientName :: Maybe (ConnectIdT s) -> ClientName Proposed
-  mkClientName = maybe (fromString "Player") extractName
 
   -- | These events are sent to the newly added client.
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
@@ -251,14 +247,24 @@ data Command s =
     RequestApproval !(ClientCommand (CustomCmdT s) Proposed)
   -- ^ A Client asks for authorization to run a 'ClientCommand'.
   -- In response the server either sends 'CommandError' to disallow command execution or 'RunCommand' to allow it.
-  | Do !(ServerCommand s)
+  | Do !(ServerCommand (ValueT s) (EnumValueKeyT s))
   -- ^ A Client asks the server to run a 'ServerCommand'.
   -- In response, the server runs the 'ServerCommand' then publishes a 'PlayerNotif' 'Done' 'ServerCommand'.
-  | Report !(ServerReport s)
+  | Report !(ServerReport (ValueKeyT s))
   -- ^ A client want to know an information on the server state. The server will answer by
   -- sending a 'Report'.
-  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+  deriving(Generic) -- Eq needed for parse tests
 instance Server s => Binary (Command s)
+instance Server s => Show (Command s) where
+  show = \case
+    RequestApproval x -> show ("RequestApproval",x)
+    Do x -> show ("Do",x)
+    Report x -> show ("Report",x)
+instance Server s => Eq (Command s) where
+  RequestApproval x == RequestApproval y = x == y
+  Report x == Report y = x == y
+  Do x == Do y = x == y
+  _ == _ = False
 
 -- | Commands initiated by /one/ client or the server, authorized (and in part executed) by the server,
 --  then executed (for the final part) by /every/ client. The 'a' phantom type tracks if the
@@ -275,13 +281,13 @@ data ClientCommand b a =
 instance Binary b => Binary (ClientCommand b a)
 
 -- | Commands initiated by a client, executed by the server.
-data ServerCommand s =
-    Put !(Value s)
-  | Succ !(EnumValueKeyT s)
-  | Pred !(EnumValueKeyT s)
+data ServerCommand v e =
+    Put !(Value v)
+  | Succ !e
+  | Pred !e
   deriving(Generic, Show, Eq) -- Eq needed for parse tests
-instance Server s => Binary (ServerCommand s)
-instance (Server s) => ChatShow (ServerCommand s) where
+instance (Binary v, Binary e) => Binary (ServerCommand v e)
+instance (ChatShow v, Show e) => ChatShow (ServerCommand v e) where
   chatShow (Put x) = chatShow x
   chatShow (Succ x) =
     unwords ["incremented", show x]
@@ -289,48 +295,28 @@ instance (Server s) => ChatShow (ServerCommand s) where
     unwords ["decremented", show x]
 
 -- | Describes what the client wants to know about the server.
-data ServerReport s =
-    Get !(ValueKey s)
-  deriving(Generic)
-instance Server s => Binary (ServerReport s)
-instance Server s => Show (ServerReport s) where
-  show (Get a) = show ("Get",a)
-instance Server s => Eq (ServerReport s) where -- Eq needed for parse tests
-  (Get a) == (Get b) = a == b
+data ServerReport vk =
+    Get !(ValueKey vk)
+  deriving(Generic, Show, Eq)
+instance Binary vk => Binary (ServerReport vk)
 
 -- | Value shared by all clients.
-data Value s =
+data Value v =
     ColorSchemeCenter {-# UNPACK #-} !(Color8 Foreground)
-  | AppValue !(ValueT s)
-  deriving(Generic) -- Eq needed for parse tests
-instance Server s => Eq (Value s) where
-  ColorSchemeCenter x == ColorSchemeCenter y = x == y
-  AppValue x == AppValue y = x == y
-  ColorSchemeCenter _ == AppValue _ = False
-  AppValue _ == ColorSchemeCenter _ = False
-instance Server s => Show (Value s) where
-  show (ColorSchemeCenter x) = show ("ColorSchemeCenter",x)
-  show (AppValue x) = show ("AppValue",x)
-instance Server s => Binary (Value s)
-instance Server s => NFData (Value s)
-instance Server s => ChatShow (Value s) where
+  | AppValue !v
+  deriving(Generic, Show, Eq) -- Eq needed for parse tests
+instance Binary v => Binary (Value v)
+instance NFData v => NFData (Value v)
+instance ChatShow v => ChatShow (Value v) where
   chatShow (ColorSchemeCenter c) =
     unwords ["color scheme center:", show $ color8CodeToXterm256 c]
   chatShow (AppValue x) =
     chatShow x
 
 -- | Identifiers of values shared by all clients.
-data ValueKey s =
+data ValueKey vk =
     ColorSchemeCenterKey
-  | AppValueKey (ValueKeyT s)
-  deriving(Generic) -- Eq needed for parse tests
-instance Server s => Binary (ValueKey s)
-instance Server s => NFData (ValueKey s)
-instance Server s => Eq (ValueKey s) where
-  ColorSchemeCenterKey == ColorSchemeCenterKey = True
-  AppValueKey x == AppValueKey y = x == y
-  ColorSchemeCenterKey == AppValueKey _ = False
-  AppValueKey _ == ColorSchemeCenterKey = False
-instance Server s => Show (ValueKey s) where
-  show ColorSchemeCenterKey = "ColorSchemeCenterKey"
-  show (AppValueKey x) = show ("AppValueKey",x)
+  | AppValueKey !vk
+  deriving(Generic, Eq, Show) -- Eq needed for parse tests
+instance Binary vk => Binary (ValueKey vk)
+instance NFData vk => NFData (ValueKey vk)

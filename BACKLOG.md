@@ -1,3 +1,8 @@
+- OnContent is not handled handled generically.
+maybe content should not be generic at all.
+Re-evaluate pros/cons for that.
+
+pro : Instructions for setup : that is for free (TODO make an app tutorial for that).
 - make a version where we can only move at all times, and not go diagonally.
 
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
@@ -8,17 +13,13 @@ For example, on every action run in the state monad, we could use it and run the
 changed.
 
 - Joining... should not appear in tutorial
-- make reconnection work for tutorial : keep track of which client already connected, and
-  is now deconnected, then on reconnection chose an old disconnected client based on maccatcher)
-
-a single MAC can correspond to multiple clientIds.
+we could disable the behavior where before displaying a new string, we display the other one in full.
+Instead, continue the animation to its end and then start the other one, or reverse the animation.
 
 - make audio enabled / disabled by game to avoid initialization when it's not needed,
-and not show audio-related parameters.
+and do not show audio-related parameters.
 
 - Document why we don't use a deadline technique for server similar to the client (maybe its justified, but I'm not sure)
-
-- remove acceptConnection, replace it by class ConnectId a where checkValidity a :: Either Text ()
 
 - Wait for all players to press a key before starting the game.
 

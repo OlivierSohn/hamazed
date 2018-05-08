@@ -13,16 +13,16 @@ import           Imj.Server.Types
 
 mkLocalServerView :: ServerLogs
                   -> Maybe ColorScheme
-                  -> ServerContent (ValuesT s)
-                  -> ServerView s
+                  -> ServerContent values
+                  -> ServerView values
 mkLocalServerView l p = ServerView (Local l p)
 
 mkDistantServerView :: ServerName
-                    -> ServerContent (ValuesT s)
-                    -> ServerView s
+                    -> ServerContent values
+                    -> ServerView values
 mkDistantServerView n = ServerView (Distant n)
 
 
-getServerNameAndPort :: ServerView s -> (ServerName, ServerPort)
+getServerNameAndPort :: ServerView values -> (ServerName, ServerPort)
 getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "localhost", p)
 getServerNameAndPort (ServerView (Distant name) (ServerContent p _)) = (name, p)

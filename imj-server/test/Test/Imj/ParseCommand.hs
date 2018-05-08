@@ -31,7 +31,7 @@ instance Server VoidServer where
   type ValuesT      VoidServer = ()
   type ClientViewT  VoidServer = ()
 
-  mkInitial _ = return ((),VoidServer)
+  mkInitialState = return ((),VoidServer)
   mkInitialClient = ()
   handleClientEvent _ = return ()
 

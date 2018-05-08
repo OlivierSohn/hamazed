@@ -169,7 +169,7 @@ run prox
           (baseLog . flip colored chartreuse . pack)
         -- the listening socket is available, we can continue.
 
-        queues <- startClient prox mayConnectId srv
+        queues <- startClient mayConnectId srv
         let defaultAudioConf = asProxyTypeOf defaultAudio (toAudio prox)
             useAudio = fromMaybe defaultAudioConf mayAudioConf
         case backend of

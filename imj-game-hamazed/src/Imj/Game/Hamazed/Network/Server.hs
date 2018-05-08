@@ -110,12 +110,12 @@ instance Server HamazedServer where
   type ValuesT      HamazedServer = WorldParameters
   type ClientViewT  HamazedServer = HamazedClient
 
-  mkInitial _ = do
-    let lvSpec = LevelSpec firstServerLevel CannotOvershoot
-        params = initialParameters
-        wc = mkWorldCreation $ WorldSpec lvSpec Set.empty params
-    (,) params .
-      HamazedServer mkGameTiming lvSpec wc IntentSetup <$> newEmptyMVar
+  mkInitialState =
+    (,) params . HamazedServer mkGameTiming lvSpec wc IntentSetup <$> newEmptyMVar
+   where
+    lvSpec = LevelSpec firstServerLevel CannotOvershoot
+    params = initialParameters
+    wc = mkWorldCreation $ WorldSpec lvSpec Set.empty params
 
   inParallel = [gameScheduler]
 

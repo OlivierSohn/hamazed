@@ -163,7 +163,7 @@ The default implementation returns a parser that fails for every command name.
   cmdParser cmd = fail $ "'" <> unpack cmd <> "' is an unknown command."
 
   -- | Called to create the server.
-  mkInitial :: MonadIO m => Proxy s -> m (ValuesT s, s)
+  mkInitialState :: MonadIO m => m (ValuesT s, s)
 
   -- | Returns actions that are not associated to a particular client, and that
   -- need to be run as long as the server is running. For a game server,

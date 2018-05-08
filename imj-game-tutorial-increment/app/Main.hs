@@ -110,8 +110,7 @@ instance Server IncServer where
   type ValuesT       IncServer = ()
   type ClientViewT   IncServer = ()
 
-  mkInitial _ =
-    return ((),IncServer 0)
+  mkInitialState = return ((), IncServer 0)
 
   mkInitialClient = ()
 

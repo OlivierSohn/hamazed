@@ -152,10 +152,10 @@ instance GameLogic HamazedGame where
       getIGame >>= \s -> do
         let sameLevels = Just (getLevelNumber' levelEssence) == (fmap (getLevelNumber' . _levelSpec . getGameLevel) s)
         withAnim' (bool ColorAnimated Normal sameLevels) $
-          putIGame $ mkInitialState levelEssence worldEssence wid s
+          putIGame $ gameFromLevel [] levelEssence worldEssence wid s
     PutGameState (GameStateEssence worldEssence shotNums levelEssence) wid ->
       withAnim' ColorAnimated $
-        getIGame >>= putIGame . mkIntermediateState shotNums levelEssence worldEssence wid
+        getIGame >>= putIGame . gameFromLevel shotNums levelEssence worldEssence wid
     GameEvent (PeriodicMotion accelerations shipsLosingArmor) ->
       onMove accelerations shipsLosingArmor
     GameEvent (LaserShot dir shipId) -> do
@@ -264,20 +264,13 @@ mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelE
  where
   (essence, wid) = worldToEssence $ fromMaybe curWorld mayNewWorld
 
-mkInitialState :: LevelEssence
-               -> WorldEssence
-               -> WorldId
-               -> Maybe HamazedGame
-               -> HamazedGame
-mkInitialState = mkIntermediateState []
-
-mkIntermediateState :: [ShotNumber]
-                    -> LevelEssence
-                    -> WorldEssence
-                    -> WorldId
-                    -> Maybe HamazedGame
-                    -> HamazedGame
-mkIntermediateState newShotNums newLevel essence wid mayState =
+gameFromLevel :: [ShotNumber]
+              -> LevelEssence
+              -> WorldEssence
+              -> WorldId
+              -> Maybe HamazedGame
+              -> HamazedGame
+gameFromLevel newShotNums newLevel essence wid mayState =
   let newWorld = mkWorld essence wid
       curWorld = maybe newWorld (\(HamazedGame w _ _ _) -> w) mayState
   -- only when UIAnimation is over, curWorld will be replaced by newWorld.

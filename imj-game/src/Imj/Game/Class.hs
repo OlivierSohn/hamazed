@@ -207,11 +207,19 @@ class (Server (ServerT g)
               -> RectContainer
               -- ^ The screen region used to draw the game in 'drawGame'
 
+  -- | The methods herein are used by 'withAnim', /before/ and then /after/
+  -- applying the action, to copmute the resulting frame animations.
+
+  -- | See 'ClientInfoT'. It is used to compute the player informations
+  -- displayed on the left of the frame.
+  --
+  -- Defaults to an empty 'Map'.
   getClientsInfos :: Transitioning
                   -> g
                   -> Map ClientId (ClientInfoT g)
   getClientsInfos _ _ = mempty
 
+  -- | Defines the color of the frame. Defaults to 'rgb 2 1 1'.
   getFrameColor :: Maybe g
                 -> LayeredColor
   getFrameColor _ = onBlack $ rgb 2 1 1

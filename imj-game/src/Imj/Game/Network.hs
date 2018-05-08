@@ -54,7 +54,7 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
   listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
-  uncurry (mkServerState logs c) <$> mkInitial prox >>= newMVar >>= \state -> do
+  (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")
@@ -70,13 +70,12 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
     st True = "starts listening ("
 
 startClient :: GameLogic g
-            => Proxy g
-            -> Maybe (ConnectIdT (ServerT g))
+            => Maybe (ConnectIdT (ServerT g))
             -> ServerView (ValuesT (ServerT g))
             -> IO (ClientQueues g)
-startClient proxy cid srv = do
+startClient cid srv = do
   -- by now, if the server is local, the listening socket has been created.
-  qs <- mkQueues proxy
+  qs <- ClientQueues <$> newTQueueIO <*> newTQueueIO
   let reportError x = try x >>= either
         (\(e :: SomeException) ->
           -- Maybe noone is reading at the end of the queue if the client already disconnected.
@@ -102,9 +101,6 @@ startClient proxy cid srv = do
  where
   msg x = x <> " to server " <> pack (show srv)
 
-mkQueues :: Proxy g -> IO (ClientQueues g)
-mkQueues _ =
-  ClientQueues <$> newTQueueIO <*> newTQueueIO
 
 installOneHandler :: Server s => MVar (ServerState s) -> ThreadId -> (CInt, Text) -> IO ()
 installOneHandler state serverThreadId (sig,sigName) =

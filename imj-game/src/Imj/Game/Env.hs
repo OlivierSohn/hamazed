@@ -13,7 +13,6 @@ module Imj.Game.Env
       ) where
 
 import qualified Control.Concurrent.MVar as Lazy(newMVar)
-import           Control.Monad.IO.Class(liftIO)
 import qualified Data.IntMap as Map(empty)
 
 import           Imj.Game.Types
@@ -23,10 +22,8 @@ import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render(Render(..))
 import           Imj.Input.Types
 
-import           Imj.Music
 import           Imj.Game.Audio.Class
 import           Imj.Game.Configuration
-import           Imj.Game.Sound
 import           Imj.Game.Network.ClientQueues
 import           Imj.Graphics.Render.Delta(DeltaEnv)
 import           Imj.Control.Concurrent.AsyncGroups.Impl
@@ -50,12 +47,10 @@ mkEnv a b c d e = do
   return $ Env a b c m d e
 
 instance Audio (Env i g) where
-  triggerLaserSound (Env _ _ _ _ _ (WithAudio a))
-    | a = liftIO laserSound
-    | otherwise = return ()
-  playMusic (Env _ _ _ _ _ (WithAudio a)) mus instr
-    | a = liftIO $ play mus instr
-    | otherwise = return ()
+  triggerLaserSound
+    (Env _ _ _ _ _ a) = triggerLaserSound a
+  playMusic
+    (Env _ _ _ _ _ a) = playMusic a
   {-# INLINABLE triggerLaserSound #-}
   {-# INLINABLE playMusic #-}
 

@@ -39,9 +39,12 @@ import           Imj.Game.Class
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 
+toSks :: Proxy g -> Proxy (StatefullKeysT g)
+toSks _ = Proxy
+
 parserGameArgs :: GameLogic g
                => Proxy g -> Parser (GameArgs g)
-parserGameArgs _ = GameArgs
+parserGameArgs p = GameArgs
   <$> parserServerOnly
   <*> parserSrvName
   <*> parserSrvPort
@@ -53,6 +56,24 @@ parserGameArgs _ = GameArgs
   <*> parserScreenSize
   <*> parserDebug
   <*> parserAudio
+
+ where
+
+  parserBackend  =
+    if needsStatefullKeys (toSks p) p
+      then
+        NilP $ Just $ Just OpenGLWindow -- The terminal backend doesn't support stateful keys.
+      else
+        optional
+          (option backendArg
+            (  long "render"
+            <> short 'r'
+            <> help (
+            "[Client] 'console': play in the console. " ++
+            "'opengl': play in an opengl window (default value)." ++
+            renderHelp)
+            ))
+
 
 parserSrvColorScheme
   :: Parser (Maybe (ColorScheme))
@@ -113,18 +134,6 @@ parserSrvLogs =
        "'none': no server logs. 'console': server logs in the console. " ++ -- TODO merge with -d
        "Default is 'none'. Incompatible with --serverName."
        )))
-
-parserBackend :: Parser (Maybe BackendType)
-parserBackend =
-  optional
-    (option backendArg
-      (  long "render"
-      <> short 'r'
-      <> help (
-      "[Client] 'console': play in the console. " ++
-      "'opengl': play in an opengl window (default value)." ++
-      renderHelp)
-      ))
 
 parserScreenSize :: Parser (Maybe PreferredScreenSize)
 parserScreenSize =

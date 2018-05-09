@@ -108,8 +108,6 @@ instance GameLogic IncGame where
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
 
-  mapStateKey _ _ _ _ = return Nothing
-
   onClientOnlyEvent = \case
     () -> return ()
   onServerEvent  = \case

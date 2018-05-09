@@ -209,7 +209,6 @@ instance GameLogic HamazedGame where
     toTxt' (CannotCreateLevel errs n) =
       colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
-  mapStateKey _ _ _ _ = return Nothing
   mapInterpretedKey key x = fmap CliEvt <$> (case x of
     Setup -> return $ case key of
       AlphaNum c -> case c of

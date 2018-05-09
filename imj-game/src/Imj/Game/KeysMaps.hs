@@ -11,6 +11,7 @@ module Imj.Game.KeysMaps
 
 import           Imj.Prelude
 
+import           Data.Proxy(Proxy(..))
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Event
@@ -22,11 +23,14 @@ import           Imj.Input.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
 
+toStateKeys :: Proxy g -> Proxy (StatefullKeysT g)
+toStateKeys _ = Proxy
+
 translatePlatformEvent :: (GameLogicT e ~ g
                          , MonadState (AppState g) m
                          , MonadReader e m, Client e)
-                       => PlatformEvent -> m (Maybe (GenEvent g))
-translatePlatformEvent = \case
+                       => Proxy g -> PlatformEvent -> m (Maybe (GenEvent g))
+translatePlatformEvent prox = \case
   Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
   StopProgram -> return $ Just $ CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()
   FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
@@ -70,4 +74,4 @@ translatePlatformEvent = \case
           Over -> return Nothing
           Ongoing -> case state of
             Excluded -> return Nothing
-            Included x -> mapStateKey k s m x
+            Included x -> mapStateKey (toStateKeys prox) k s m x

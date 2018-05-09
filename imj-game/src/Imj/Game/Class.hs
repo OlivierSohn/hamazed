@@ -4,6 +4,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Imj.Game.Class
       (
@@ -12,6 +14,7 @@ module Imj.Game.Class
       , GameLogic(..)
       , GameExternalUI(..)
       , GameDraw(..)
+      , GameStatefullKeys(..)
       -- * Client / GameLogic
       , EventsForClient(..)
       , Game(..)
@@ -206,11 +209,47 @@ class (LeftInfo (ClientInfoT g))
                -> Infos
   mkWorldInfos _ _ _ = mkEmptyInfos
 
+-- | Statefull keys are supported only by the GLFW backend.
+-- We can't distinguish key press / key release when using the terminal backend.
+--
+-- Hence, if you need statefull key support (i.e you have some code in 'mapStateKey'),
+-- 'needsStatefullKeys' should return 'True', so as to forbid the usage of the terminal backend
+-- (this will remove the command line option for chosing the render backend,
+-- and the backend value will be forced to GLFW).
+class GameStatefullKeys g s where
+
+  -- | When this returns 'True', the game can be played exclusively on the GLFW window.
+  -- The default implementation returns 'True'
+  needsStatefullKeys :: Proxy s -> Proxy g -> Bool
+  needsStatefullKeys _ = const True
+  {-# INLINE needsStatefullKeys #-}
+
+  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
+  --
+  -- This method is called only when the client 'StateNature' is 'Ongoing', and
+  -- when the 'StateValue' is 'Included' @_@.
+  mapStateKey :: (GameLogic g
+                , GameLogicT e ~ g
+                , s ~ StatefullKeysT g
+                , MonadState (AppState g) m
+                , MonadReader e m, Client e)
+              => Proxy s
+              -> GLFW.Key
+              -> GLFW.KeyState
+              -> GLFW.ModifierKeys
+              -> GameStateValue
+              -- ^ The current client state.
+              -> m (Maybe (GenEvent g))
+
+instance GameStatefullKeys g () where
+  needsStatefullKeys _ = const False
+  mapStateKey _ _ _ _ _ = return Nothing
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (GameExternalUI g, GameDraw g
      , Server (ServerT g), ServerClientHandler (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
+     , GameStatefullKeys g (StatefullKeysT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
@@ -220,20 +259,24 @@ class (GameExternalUI g, GameDraw g
      GameLogic g
      where
 
+  -- | Server-side dual of 'GameLogic'
   type ServerT g = (r :: *) | r -> g
-  -- ^ Server-side dual of 'GameLogic'
 
+  -- | Audio backend
   type AudioT g = (r :: *) | r -> g
-  -- ^ Audio backend
   type AudioT g = WithAudio -- enable audio by default (use '()' to disable it)
 
+  -- | Events generated on the client and handled by the client.
   type ClientOnlyEvtT g
-  -- ^ Events generated on the client and handled by the client.
   type ClientOnlyEvtT g = ()
 
+  -- | The colors used by a player
   type ColorThemeT g
-  -- ^ The colors used by a player
   type ColorThemeT g = ()
+
+  -- | Statefull key handling (i.e key press / key release / key repeat, modifiers).
+  type StatefullKeysT g
+  type StatefullKeysT g = () -- The () instance doesn't support stateful keys.
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m
@@ -269,20 +312,6 @@ class (GameExternalUI g, GameDraw g
             , MonadState (AppState g) m
             , MonadReader e m, Client e)
            => Key
-           -> GameStateValue
-           -- ^ The current client state.
-           -> m (Maybe (GenEvent g))
-
-  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
-  --
-  -- This method is called only when the client 'StateNature' is 'Ongoing', and
-  -- when the 'StateValue' is 'Included' @_@.
-  mapStateKey :: (GameLogicT e ~ g
-            , MonadState (AppState g) m
-            , MonadReader e m, Client e)
-           => GLFW.Key
-           -> GLFW.KeyState
-           -> GLFW.ModifierKeys
            -> GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))

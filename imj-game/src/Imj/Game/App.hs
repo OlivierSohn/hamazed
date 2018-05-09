@@ -187,21 +187,6 @@ run prox
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
 
-toSrv :: Proxy g
-      -> Proxy (ServerT g)
-toSrv _ = Proxy :: Proxy (ServerT g)
-
-mkServer :: Maybe ServerName
-         -> Maybe ColorScheme
-         -> Maybe ServerLogs
-         -> ServerContent values
-         -> ServerView values
-mkServer Nothing conf logs =
-  mkLocalServerView (fromMaybe NoLogs logs) conf
-mkServer (Just (ServerName n)) _ _ =
-  mkDistantServerView (ServerName $ map toLower n)
-
-
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g
           , ServerCmdParser s
@@ -220,7 +205,7 @@ runWith au debug queues srv player backend =
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
       void $ createState screen debug player srv NotConnected >>=
-        withAudio au . runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+        withAudio au . runStateT (runReaderT (loop (translatePlatformEvent (audioToProx au)) onEvent) env)
 
  where
 
@@ -231,3 +216,20 @@ runWith au debug queues srv player backend =
     if ftName == name
       then Just (f,ftName)
       else look name rest
+
+audioToProx :: AudioT g -> Proxy g
+audioToProx _ = Proxy
+
+toSrv :: Proxy g
+      -> Proxy (ServerT g)
+toSrv _ = Proxy :: Proxy (ServerT g)
+
+mkServer :: Maybe ServerName
+         -> Maybe ColorScheme
+         -> Maybe ServerLogs
+         -> ServerContent values
+         -> ServerView values
+mkServer Nothing conf logs =
+  mkLocalServerView (fromMaybe NoLogs logs) conf
+mkServer (Just (ServerName n)) _ _ =
+  mkDistantServerView (ServerName $ map toLower n)

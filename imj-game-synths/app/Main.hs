@@ -3,7 +3,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Main where
 
 import           Control.DeepSeq(NFData)
@@ -59,14 +59,10 @@ instance GameExternalUI SynthsGame where
   getViewport _ (Screen _ center) (SynthsGame _) =
     mkCenteredRectContainer center $ Size 10 10
 
-instance GameLogic SynthsGame where
+data SynthsStatefullKeys
+instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
-  -- A 'GameLogic' instance is tied to a 'Server' instance via the associated type 'ServerT'
-  type ServerT SynthsGame = SynthsServer
-
-  mapInterpretedKey _ _ = return Nothing
-
-  mapStateKey k s _ _ = return $ case k of
+  mapStateKey _ k s _ _ = return $ case k of
     GLFW.Key'A -> CliEvt . ClientAppEvt . flip PlayNote SineSynth <$> n
     _ -> Nothing
    where
@@ -74,6 +70,14 @@ instance GameLogic SynthsGame where
       GLFW.KeyState'Pressed -> Just $ StartNote (NoteSpec Mi noOctave) 1
       GLFW.KeyState'Released -> Just $ StopNote (NoteSpec Mi noOctave)
       GLFW.KeyState'Repeating -> Nothing
+
+instance GameLogic SynthsGame where
+
+  -- A 'GameLogic' instance is tied to a 'Server' instance via the associated type 'ServerT'
+  type ServerT SynthsGame = SynthsServer
+  type StatefullKeysT SynthsGame = SynthsStatefullKeys
+
+  mapInterpretedKey _ _ = return Nothing
 
   onClientOnlyEvent = \case
     () -> return ()

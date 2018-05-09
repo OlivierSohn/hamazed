@@ -12,6 +12,7 @@ packages:
 - './imj-game'
 - './imj-game-tutorial-increment'
 - './imj-game-hamazed'
+- './imj-game-synths'
 - './imj-measure-stdout'
 - './imj-music'
 - './imj-particlesystem'

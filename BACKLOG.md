@@ -1,5 +1,4 @@
-- update Readme of Hamazed
-add link to hamazed in main readme
+- can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
 
 - make a synth app, where music is shared among all players.
 Each player plays a different voice.

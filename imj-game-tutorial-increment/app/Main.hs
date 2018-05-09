@@ -76,9 +76,8 @@ instance Binary IncCommand
 evenTriangle :: Int -> Int
 evenTriangle = (*) 2 . zigzag 0 5
 
--- The client-side classes are 'GameLogic', 'GameExternalUI' and 'GameDraw'.
---
--- The server-side classes are 'Server'.
+-- Client-side classes are prefixed by @Game@, while server-side classes are
+-- prefixed by @Server@.
 
 instance GameExternalUI IncGame where
 

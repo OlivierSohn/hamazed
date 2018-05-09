@@ -8,7 +8,7 @@ import           Imj.Prelude
 import           Options.Applicative(Parser)
 
 class Arg a where
-  -- | The default value returns 'Nothing', meaning that the argument has
+  -- | The default implementation returns 'Nothing', meaning that the argument has
   -- no command line representation.
   parseArg :: Maybe (Parser a)
   parseArg = Nothing

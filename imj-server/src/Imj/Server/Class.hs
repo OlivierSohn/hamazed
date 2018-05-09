@@ -208,12 +208,14 @@ class ServerCmdParser s where
   type CustomCmdT s
   type CustomCmdT s = ()
 
-  {- |
-Commands issued in the chat window start with a forward slash, followed by the command name
-and optional parameters.
+  {- | Returns parsers for command parameters.
 
-The command name must be composed exclusively of alphanumerical characters, and different
-from default command names (@name@ and @color@ at the time of this writing).
+Commands start with a forward slash, followed by the command name and optional parameters.
+
+The command names that are keys in the returned 'Map' must be lowercased and composed
+exclusively of alphanumerical characters. They also must not overlapp with
+the default command names (@name@ and @color@ at the time of this writing) else
+the command will not be reachable.
 
 The parsers returned should consider that the input has been consumed up until the beginning
 of the parameters, for example:

@@ -1,20 +1,95 @@
 # What is it?
 
-The monorepo for `imj-engine`, a multi-player game engine with real-time polyphonic music,
+Monorepo containing a Haskell multi-player game engine with real-time polyphonic music,
 and some games made with it. [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
-
-A tutorial `imj-game-tutorial-increment` shows how to use `imj-engine` to build
-a minimalistic multi-player game. You can start from there to build your own!
-
-If you need a particular feature for your game, and it's not yet in the engine,
-we can discuss it on a gitlab issue. I can also provide some support if you have questions.
 
 Note that it is an experimental project, so the APIs will likely change a lot over time.
 
+# Packages
+
+Packages inverse-topologically sorted wrt dependencies, with some keywords for each of them:
+
+- [imj-bindings-audio](/imj-bindings-audio)
+  - Bindings to a C++ audio engine (submodules contain the C++ sources).
+- [imj-music](/imj-music)
+  - Polyphonic music scores creation and playback.
+- [imj-prelude](/imj-prelude)
+- [imj-base](/imj-base)
+  - Containers (Graph, Matrix, Cyclic matrix, Dynamic vector, etc...)
+  - Geometry, text animations
+  - 8-bit color manipulation in different color spaces
+  - Interpolations / Morphings
+  - Physics
+  - Rendering backends:
+     - In a GLFW-driven OpenGL window
+     - Delta-rendering in the terminal, to avoid screen tearing
+- [imj-space](/imj-space)
+  - Creates random 2D game levels, given some topological constraints.
+- [imj-particlesystem](/imj-particlesystem) (formerly `imj-animation`)
+  - Physics-based and geometric particle systems.
+- [imj-measure-stdout](/imj-measure-stdout)
+  - An executable to measure the maximum capacity of stdout, and observe
+  the effect of different buffering modes.
+- [imj-server](/imj-server)
+  - Using [websockets](http://hackage.haskell.org/package/websockets).
+  - Broadcast messages to all clients
+  - Detect client reconnection
+  - Logging
+- [imj-game](/imj-game)
+  - Multi-player game engine.
+- [imj-game-hamazed](/imj-game-hamazed)
+  - The 'Hamazed' game (see the demo below).
+- [imj-game-tutorial-increment](/imj-game-tutorial-increment)
+  - A tutorial on how to use [imj-base](/imj-base) to build a multi-player game.
+- [imj-profile](/imj-profile)
+  - An executable precomputing optimal strategies used for random level generation.
+  - + other profiling tests.
+
+# Music
+
+Every game using [imj-game](/imj-game) will be able to play music! The game server can send
+midi-like note on / note off events to game clients, allowing
+to perfectly synchronize the music with game events.
+
+Writing melodies can be done using the dedicated `notes` quasiquoter:
+
+```haskell
+[notes|
+  do . .
+  . . sol
+  ré - -
+  - mib fa
+  sol mib do
+  ré . v sol
+  do . .
+  |]
+```
+
+where :
+
+- notes names follow [this](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge) notation
+- `v` and `^` represent down / up one octave for the value that follows
+- `.` indicates a pause
+- `-` extends the preceding value.
+
+More score examples are available [here](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
+
+# Rendering
+
+The screen is conceptually divided in small blocks of equal size,
+where each block can contain a character with 8-bit background and foreground colors.
+
+The font and font size used to render can be modified at runtime.
+
+# Demo
+
+An demo of imj-game-hamazed (at a time when the game was mono-player and had no music yet):
+
+[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
+
 # Command line options
 
-Every option listed hereunder is available by default for any game made with
-`imj-engine`:
+Every game made with [imj-game](/imj-game) inherits from these command line options:
 
 ```shell
 > stack exec -- imj-game-hamazed-exe -h
@@ -67,83 +142,12 @@ Available options:
   --silent                 [Client] disables music and audio effects.
 ```
 
-# Music
+# Build
 
-Every game using `imj-engine` will be able to play music! The game server can send
-midi-like note on / note off events to game clients, allowing
-to perfectly synchronize the music with game events. For an example, see `imj-game-hamazed`.
+After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
 
-Writing simple melodies can be done easily using the dedicated `notes` quasiquoter:
-
-```haskell
-[notes|
-  do . .
-  . . sol
-  ré - -
-  - mib fa
-  sol mib do
-  ré . v sol
-  do . .
-  |]
-```
-
-where notes names follow [this](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge) notation,
-`v` and `^` represent down / up one octave for the value that follows,
-`.` indicates a pause,
-and `-` extends the preceding value.
-
-# Packages list
-
-In inverse-topological sort order (wrt dependencies):
-
-- `imj-prelude`
-- `imj-bindings-audio`
-  - Bindings to a C++ audio engine (submodules contain the C++ sources).
-- `imj-music`
-  - Polyphonic music scores creation and playback.
-- `imj-base`
-  - geometry, text animations
-  - rendering:
-     - In a GLFW-driven OpenGL window
-     - In the terminal, using a "delta renderer" to render incrementally
-     without screen tearing.
-- `imj-measure-stdout`
-  - A test executable to measure the maximum capacity of stdout, and observe
-  the effect of different buffering modes.
-- `imj-game`
-  - Multi-player game engine using [websockets](http://hackage.haskell.org/package/websockets)
-  for networking.
-- `imj-particlesystem` (was named `imj-animation`)
-  - Animated particle systems.
-- `imj-space`
-  - Creates random 2D game levels, given some topological constraints.
-- `imj-profile`
-  - An executable producing a file that is to be embedded in the game executable,
-  containing optimal strategies to use for random level generation.
-  - Also other profiling tests
-- `imj-game-hamazed`
-  - The 'Hamazed' game (see the demo below).
-- `imj-game-tutorial-increment`
-  - A tutorial on how to use `imj-engine` to build a multi-player game.
-
-# Demo
-
-An older version of imj-game-hamazed (at that time the game was mono-player and had no music):
-
-[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
-
-# How to build
-
-## Submodules
-
-After checking out the repo, be sure to `git submodule init && git submodule update`.
-
-## Dependencies
-
-The rendering depends on the `FTGL` package for font rendering, which is a binding
-to `ftgl` library. Hence, `ftgl` must be installed on your system.
-
-Unless it is already there, you can install `ftgl` this way:
+Unless it is already there, install the `ftgl` library on your system
+(it is needed for Font handling) :
 
 - On OSX:
 
@@ -158,27 +162,43 @@ sudo apt-get update
 sudo apt-get install ftgl-dev
 ```
 
-## Build
-
-Using [stack](https://docs.haskellstack.org):
+Build the project using [stack](https://docs.haskellstack.org):
 
 `stack build --pedantic`
 
-Build errors containing `file not found` error message indicate that submodules are missing.
+# Supported GHC versions
 
-If you want to build with another tool than stack, please take a look at [stack.yaml](/stack.yaml)
-to see which packages will be needed (some forks are not on hackage).
+GHC versions 8.2.2 and 8.4.1 are supported.
 
-The CI tests that GHC versions >= 8.2.2 are supported : [.travis.yml](/.travis.yml).
+# Travis CI configuration
 
-# Run games
+To build [the audio engine package](/imj-bindings-audio/imj-bindings-audio.cabal),
+GHC needs to use a C++14 compiler.
+
+The Travis image for linux is Ubuntu lts-14 whose `gcc` doesn't have c++14, so
+the [travis script](/.travis.yml) takes care of installing a newer `gcc`
+(`g++-7` and `libstdc++-7-dev`), setting environment variables for compilers
+and changing the `gcc` symbolink link to point to the new one.
+
+Note that on OSX, the travis image contains a `clang` version recent enough that
+it supports c++14 so nothing special had to be done.
+
+## Allowed failures
+
+On Linux with GHC versions < 8.4.1, the build fails for
+[this](https://github.com/commercialhaskell/stack/issues/3472) reason,
+hence the [travis script](/.travis.yml) allows Linux to fail for ghc versions < 8.4.1.
+
+# Run the games
 
 Run the tutorial game:
+
 `stack exec imj-game-tutorial-increment-exe`
 
 Run Hamazed game:
+
 `stack exec imj-game-hamazed-exe `
 
-Run with some command line args:
+To pass some command line arguments, `--` needs to be written after `exec`:
+
 `stack exec -- imj-game-hamazed-exe -l console`
-(Note the `--` passed after `exec`)

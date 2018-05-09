@@ -1,3 +1,6 @@
+- update Readme of Hamazed
+add link to hamazed in main readme
+
 - make a synth app, where music is shared among all players.
 Each player plays a different voice.
 
@@ -69,40 +72,6 @@ on frame: ?
 instead of using asyncs, use forkIO and IORef Bool signaling when it should stop.
 (On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
 When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
-
-- Add alternative music : (alternate every level?)
-
-  1st voice:
-
-  do ré mib fa
-  sol . do ré
-  mib fa sol .
-  do ré mib fa
-  ré - - -
-  - - - -
-  lab . . .
-  sol . . .
-
-  ^do sib la sol
-  . . ^do sib
-  la sol . .
-  do ré mi fa
-  sol - - -
-  fa - - -
-  mib - - -
-  v sol . . .
-
-  2nd voice:
-  mib fa sol lab
-  sol . sol lab
-  sol fa sol .
-  sol fa mib fa
-  . . sol .
-  v sol . sol .
-  . . sol .
-  mib . ré .
-
-- bug : when client reconnects, it is not reflected in the name until world is there.
 
 - optimize opengl rendering under heavy conditions (no delta rendering, a lot of successive renders,
   like in the resize scenario)

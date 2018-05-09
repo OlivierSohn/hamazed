@@ -10,7 +10,7 @@ Note that it is an experimental project, so the APIs will likely change a lot ov
 Packages inverse-topologically sorted wrt dependencies, with some keywords for each of them:
 
 - [imj-bindings-audio](/imj-bindings-audio)
-  - Bindings to a C++ audio engine (submodules contain the C++ sources).
+  - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-bindings-audio/c).
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
@@ -47,45 +47,72 @@ Packages inverse-topologically sorted wrt dependencies, with some keywords for e
 
 # Music
 
-Every game using [imj-game](/imj-game) will be able to play music! The game server can send
-midi-like note on / note off events to game clients, allowing
+## Playback
+
+Every game made using [imj-game](/imj-game) is able to play music: the game server
+sends midi-like note on / note off events to game clients, allowing
 to perfectly synchronize the music with game events.
 
-Writing melodies can be done using the dedicated `notes` quasiquoter:
+## Notation
 
-```haskell
-[notes|
-  do . .
-  . . sol
-  ré - -
-  - mib fa
-  sol mib do
-  ré . v sol
-  do . .
-  |]
-```
+[Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
+are written using the `notes` quasiquoter, where:
 
-where :
-
-- notes names follow [this](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge) notation
-- `v` and `^` represent down / up one octave for the value that follows
+- notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
+- a note can be shifted by octaves using `v` and `^`
+- `-` extends the preceding note to the next step
 - `.` indicates a pause
-- `-` extends the preceding value.
-
-More score examples are available [here](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
 
 # Rendering
 
 The screen is conceptually divided in small blocks of equal size,
 where each block can contain a character with 8-bit background and foreground colors.
 
-The font and font size used to render can be modified at runtime.
+The [fonts](/imj-base/fonts) and font size for rendering can be modified at runtime.
 
 # Demo
 
-An demo of imj-game-hamazed (at a time when the game was mono-player and had no music yet):
+This is imj-game-hamazed, at a time when the game was mono-player and had no music yet:
 
 [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
+
+# Build
+
+After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
+
+Unless it is already there, install the `ftgl` library on your system
+(it is needed for Font handling) :
+
+- On OSX:
+
+```shell
+brew install ftgl
+```
+
+- On Linux:
+
+```shell
+sudo apt-get update
+sudo apt-get install ftgl-dev
+```
+
+Build the project using [stack](https://docs.haskellstack.org):
+
+`stack build --pedantic`
+
+# Run the games
+
+Run the tutorial game:
+
+`stack exec imj-game-tutorial-increment-exe`
+
+Run Hamazed game:
+
+`stack exec imj-game-hamazed-exe `
+
+To pass some command line arguments, `--` needs to be written after `exec`:
+
+`stack exec -- imj-game-hamazed-exe -l console`
 
 # Command line options
 
@@ -142,35 +169,13 @@ Available options:
   --silent                 [Client] disables music and audio effects.
 ```
 
-# Build
-
-After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
-
-Unless it is already there, install the `ftgl` library on your system
-(it is needed for Font handling) :
-
-- On OSX:
-
-```shell
-brew install ftgl
-```
-
-- On Linux:
-
-```shell
-sudo apt-get update
-sudo apt-get install ftgl-dev
-```
-
-Build the project using [stack](https://docs.haskellstack.org):
-
-`stack build --pedantic`
-
-# Supported GHC versions
+# CI
 
 GHC versions 8.2.2 and 8.4.1 are supported.
 
-# Travis CI configuration
+## Travis script
+
+### Building C++14 with GHC on an old Ubuntu
 
 To build [the audio engine package](/imj-bindings-audio/imj-bindings-audio.cabal),
 GHC needs to use a C++14 compiler.
@@ -183,22 +188,8 @@ and changing the `gcc` symbolink link to point to the new one.
 Note that on OSX, the travis image contains a `clang` version recent enough that
 it supports c++14 so nothing special had to be done.
 
-## Allowed failures
+### Allowed failures
 
 On Linux with GHC versions < 8.4.1, the build fails for
 [this](https://github.com/commercialhaskell/stack/issues/3472) reason,
 hence the [travis script](/.travis.yml) allows Linux to fail for ghc versions < 8.4.1.
-
-# Run the games
-
-Run the tutorial game:
-
-`stack exec imj-game-tutorial-increment-exe`
-
-Run Hamazed game:
-
-`stack exec imj-game-hamazed-exe `
-
-To pass some command line arguments, `--` needs to be written after `exec`:
-
-`stack exec -- imj-game-hamazed-exe -l console`

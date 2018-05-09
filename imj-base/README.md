@@ -1,15 +1,27 @@
 # What is it?
 
-A game-engine library containing:
+A base library containing:
 
 - Types and classes about discrete and continuous geometry, collision detection,
 animated UIs, animated colored text and easing functions.
 
-- A renderer (delta-renderer) optimized to avoid screen tearing in the terminal.
+- Containers (Graph, Matrix, Cyclic matrix, Dynamic vector, etc...)
 
-- IO utilities to read player key-presses.
+- 8-bit color manipulation in different color spaces
 
-Also produces a demo-application on text animation, `imj-base-examples-exe` :
+- Rectangular frame morphing.
+
+- Physics
+
+- Rendering backends:
+   - In a GLFW-driven OpenGL window
+   - Delta-rendering in the terminal, to avoid screen tearing
+
+- UI components building blocks
+
+- Player input, window management.
+
+- demo-application on text animation, `imj-base-examples-exe` :
 [![asciicast](https://asciinema.org/a/156054.png)](https://asciinema.org/a/156054)
 
 # Credits

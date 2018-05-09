@@ -1,3 +1,5 @@
 # What is it?
 
-A library to create music scores and play them (depends on imj-bindings-audio).
+A library to create music scores and play them.
+
+Depends on [imj-bindings-audio](/imj-bindings-audio).

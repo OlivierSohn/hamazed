@@ -1,3 +1,5 @@
 # What is it?
 
-A terminal program I wrote to visually determine the maximal size of stdout.
+A program that can be used to visually determine the maximal size of stdout buffer.
+
+It was used while developping delta rendering.

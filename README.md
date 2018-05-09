@@ -14,15 +14,19 @@ Packages inverse-topologically sorted wrt dependencies, with some keywords for e
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
+  - Prelude library used by packages hereunder, mainly to factorize imports.
 - [imj-base](/imj-base)
   - Containers (Graph, Matrix, Cyclic matrix, Dynamic vector, etc...)
   - Geometry, text animations
   - 8-bit color manipulation in different color spaces
-  - Interpolations / Morphings
+  - Easing, inverse-easing, interpolation, rectangular frame morphing.
   - Physics
-  - Rendering backends:
+  - UI components building blocks
+    - Chat
+  - Rendering backends, using [delta-rendering](/imj-base/src/Imj/Graphics/Render/Delta.hs):
      - In a GLFW-driven OpenGL window
-     - Delta-rendering in the terminal, to avoid screen tearing
+     - In the terminal
+  - Player input, window management.
 - [imj-space](/imj-space)
   - Creates random 2D game levels, given some topological constraints.
 - [imj-particlesystem](/imj-particlesystem) (formerly `imj-animation`)
@@ -31,19 +35,25 @@ Packages inverse-topologically sorted wrt dependencies, with some keywords for e
   - An executable to measure the maximum capacity of stdout, and observe
   the effect of different buffering modes.
 - [imj-server](/imj-server)
-  - Using [websockets](http://hackage.haskell.org/package/websockets).
+  - Using [websockets](http://hackage.haskell.org/package/websockets) to communicate between server and clients.
   - Broadcast messages to all clients
-  - Detect client reconnection
+  - Handle connection failures generically (so that a client handler, when broadcasting a message,
+    won't have to handle exceptions due to another client's connection being down.)
+  - Detect client reconnection (keep track of clients identities using their MAC address)
   - Logging
 - [imj-game](/imj-game)
-  - Multi-player game engine.
+  - Multi-player game engine
+  - Listens to server events, and player events
+  - [Handles generic events](/imj-game/src/Imj/Game/Update.hs), so that the game implementation
+  contains only game-specific code.
+  - Debugging features : record and display events graphically, event logging.
 - [imj-game-hamazed](/imj-game-hamazed)
   - The 'Hamazed' game (see the demo below).
 - [imj-game-tutorial-increment](/imj-game-tutorial-increment)
-  - A tutorial on how to use [imj-base](/imj-base) to build a multi-player game.
+  - A tutorial on how to use [imj-game](/imj-game) to build a multi-player game.
 - [imj-profile](/imj-profile)
   - An executable precomputing optimal strategies used for random level generation.
-  - + other profiling tests.
+  - And other profiling tests.
 
 # Music
 
@@ -116,7 +126,9 @@ To pass some command line arguments, `--` needs to be written after `exec`:
 
 # Command line options
 
-Every game made with [imj-game](/imj-game) inherits from these command line options:
+Every game made with [imj-game](/imj-game) inherits from the same command line options.
+
+The description of client-specific options are prefixed by [Client]:
 
 ```shell
 > stack exec -- imj-game-hamazed-exe -h
@@ -175,12 +187,12 @@ GHC versions 8.2.2 and 8.4.1 are supported.
 
 ## Travis script
 
-### Building C++14 with GHC on an old Ubuntu
+### Building C++14 with GHC on Ubuntu 14.04 LTS (Trusty)
 
 To build [the audio engine package](/imj-bindings-audio/imj-bindings-audio.cabal),
 GHC needs to use a C++14 compiler.
 
-The Travis image for linux is Ubuntu lts-14 whose `gcc` doesn't have c++14, so
+The Travis image for linux is Ubuntu 14.04 LTS (Trusty) whose `gcc` doesn't have c++14, so
 the [travis script](/.travis.yml) takes care of installing a newer `gcc`
 (`g++-7` and `libstdc++-7-dev`), setting environment variables for compilers
 and changing the `gcc` symbolink link to point to the new one.

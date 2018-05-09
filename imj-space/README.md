@@ -2,4 +2,6 @@
 
 A library dedicated to creating randomized spaces given some topological constraints.
 
-It is used in `imj-game-hamazed` to create random levels on the fly.
+It is used in [imj-game-hamazed](/imj-game-hamazed) to create random levels at runtime.
+
+See also [imj-profile](/imj-profile) to precompute optimal strategies given world constraints.

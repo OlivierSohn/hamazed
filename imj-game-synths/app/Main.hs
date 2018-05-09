@@ -4,6 +4,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+
+{-|
+This is a multiplayer game where every player uses the keyboard as a synthesizer.
+
+The music is shared between all players.
+ -}
+
 module Main where
 
 import           Control.DeepSeq(NFData)
@@ -20,7 +27,7 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Music
-import           Imj.Server.Class
+import           Imj.Server.Class hiding(Do)
 import           Imj.Server.Connection
 import           Imj.Server.Types
 
@@ -62,14 +69,53 @@ instance GameExternalUI SynthsGame where
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
-  mapStateKey _ k s _ _ = return $ case k of
-    GLFW.Key'A -> CliEvt . ClientAppEvt . flip PlayNote SineSynth <$> n
-    _ -> Nothing
+  mapStateKey _ k s _ _ =
+    return $ CliEvt . ClientAppEvt . flip PlayNote SineSynth <$> n
    where
-    n = case s of
-      GLFW.KeyState'Pressed -> Just $ StartNote (NoteSpec Mi noOctave) 1
-      GLFW.KeyState'Released -> Just $ StopNote (NoteSpec Mi noOctave)
-      GLFW.KeyState'Repeating -> Nothing
+    n = maybe Nothing (\noteSpec -> case s of
+      GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
+      GLFW.KeyState'Released -> Just $ StopNote noteSpec
+      GLFW.KeyState'Repeating -> Nothing) $ keyToNote k
+    keyToNote = \case
+      GLFW.Key'Z -> Just $ NoteSpec Do $ noOctave - 1
+      GLFW.Key'S -> Just $ NoteSpec Réb $ noOctave - 1
+      GLFW.Key'X -> Just $ NoteSpec Ré $ noOctave - 1
+      GLFW.Key'D -> Just $ NoteSpec Mib $ noOctave - 1
+      GLFW.Key'C -> Just $ NoteSpec Mi $ noOctave - 1
+      GLFW.Key'V -> Just $ NoteSpec Fa $ noOctave - 1
+      GLFW.Key'G -> Just $ NoteSpec Solb $ noOctave - 1
+      GLFW.Key'B -> Just $ NoteSpec Sol $ noOctave - 1
+      GLFW.Key'H -> Just $ NoteSpec Lab $ noOctave - 1
+      GLFW.Key'N -> Just $ NoteSpec La $ noOctave - 1
+      GLFW.Key'J -> Just $ NoteSpec Sib $ noOctave - 1
+      GLFW.Key'M -> Just $ NoteSpec Si $ noOctave - 1
+      GLFW.Key'Comma -> Just $ NoteSpec Do $ noOctave + 0
+      GLFW.Key'L -> Just $ NoteSpec Réb $ noOctave + 0
+      GLFW.Key'Period -> Just $ NoteSpec Ré $ noOctave + 0
+      GLFW.Key'Semicolon -> Just $ NoteSpec Mib $ noOctave + 0
+      GLFW.Key'Slash -> Just $ NoteSpec Mi $ noOctave + 0
+
+      GLFW.Key'Q -> Just $ NoteSpec Do $ noOctave + 0
+      GLFW.Key'2 -> Just $ NoteSpec Réb $ noOctave + 0
+      GLFW.Key'W -> Just $ NoteSpec Ré $ noOctave + 0
+      GLFW.Key'3 -> Just $ NoteSpec Mib $ noOctave + 0
+      GLFW.Key'E -> Just $ NoteSpec Mi $ noOctave + 0
+      GLFW.Key'R -> Just $ NoteSpec Fa $ noOctave + 0
+      GLFW.Key'5 -> Just $ NoteSpec Solb $ noOctave + 0
+      GLFW.Key'T -> Just $ NoteSpec Sol $ noOctave + 0
+      GLFW.Key'6 -> Just $ NoteSpec Lab $ noOctave + 0
+      GLFW.Key'Y -> Just $ NoteSpec La $ noOctave + 0
+      GLFW.Key'7 -> Just $ NoteSpec Sib $ noOctave + 0
+      GLFW.Key'U -> Just $ NoteSpec Si $ noOctave + 0
+      GLFW.Key'I -> Just $ NoteSpec Do $ noOctave + 1
+      GLFW.Key'9 -> Just $ NoteSpec Réb $ noOctave + 1
+      GLFW.Key'O -> Just $ NoteSpec Ré $ noOctave + 1
+      GLFW.Key'0 -> Just $ NoteSpec Mib $ noOctave + 1
+      GLFW.Key'P -> Just $ NoteSpec Mi $ noOctave + 1
+      GLFW.Key'LeftBracket -> Just $ NoteSpec Fa $ noOctave + 1
+      GLFW.Key'Equal -> Just $ NoteSpec Solb $ noOctave + 1
+      GLFW.Key'RightBracket -> Just $ NoteSpec Sol $ noOctave + 1
+      _ -> Nothing
 
 instance GameLogic SynthsGame where
 

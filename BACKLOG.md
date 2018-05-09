@@ -1,3 +1,6 @@
+- some games require key press / released support, for them we should disable terminal backend.
+(like we disable audio when the game doesn't do audio)
+
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
 
 - make a synth app, where music is shared among all players.

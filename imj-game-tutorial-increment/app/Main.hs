@@ -103,10 +103,12 @@ instance GameLogic IncGame where
   -- and use this tutorial as a template, you'll need to remove this line.
   type AudioT IncGame = ()
 
-  keyMaps key _ = return $ case key of
+  mapInterpretedKey key _ = return $ case key of
     -- hitting the space bar will increment the counter, thus changing the size of the frame.
     AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
     _ -> Nothing
+
+  mapStateKey _ _ _ _ = return Nothing
 
   onClientOnlyEvent = \case
     () -> return ()

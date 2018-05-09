@@ -88,6 +88,7 @@ import           Control.Monad.State.Strict(gets, state, modify')
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
 import           Data.Proxy(Proxy(..))
+import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..), ModifierKeys(..))
 
 import           Imj.Arg.Class
 import           Imj.Categorized
@@ -260,15 +261,29 @@ class (GameExternalUI g, GameDraw g
                     -> m ()
   onClientCustomCmd = fail "you should implement this if you have custom commands."
 
-  -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
+  -- | Maps a 'Key' to a 'GenEvent', given a 'GameStateValue'.
   --
-  -- This method is called only when the client 'StateNature' is 'Ongoing'. Hence,
-  -- key presses while the client 'StateNature' is 'Over' are ignored.
-  keyMaps :: (GameLogicT e ~ g
+  -- This method is called only when the client 'StateNature' is 'Ongoing', and
+  -- when the 'StateValue' is 'Included' @_@.
+  mapInterpretedKey :: (GameLogicT e ~ g
             , MonadState (AppState g) m
             , MonadReader e m, Client e)
            => Key
-           -> StateValue GameStateValue
+           -> GameStateValue
+           -- ^ The current client state.
+           -> m (Maybe (GenEvent g))
+
+  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
+  --
+  -- This method is called only when the client 'StateNature' is 'Ongoing', and
+  -- when the 'StateValue' is 'Included' @_@.
+  mapStateKey :: (GameLogicT e ~ g
+            , MonadState (AppState g) m
+            , MonadReader e m, Client e)
+           => GLFW.Key
+           -> GLFW.KeyState
+           -> GLFW.ModifierKeys
+           -> GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 

@@ -44,14 +44,28 @@ import           Imj.Input.Types
 import           Imj.Log
 
 charCallback :: TQueue PlatformEvent -> GLFW.Window -> Char -> IO ()
-charCallback q _ c = atomically $ writeTQueue q $ KeyPress $ AlphaNum c
+charCallback q _ c = atomically $ writeTQueue q $ InterpretedKey $ AlphaNum c
 
 keyCallback :: TQueue PlatformEvent -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
-keyCallback q _ k _ GLFW.KeyState'Pressed _ =
-  case glfwKeyToKey k of
-    Unknown -> return ()
-    key -> atomically $ writeTQueue q $ KeyPress key
-keyCallback _ _ _ _ _ _ = return ()
+keyCallback q _ k _ GLFW.KeyState'Pressed m =
+  maybe
+    (atomically $ writeTQueue q $ StatefullKey k GLFW.KeyState'Pressed m)
+    (atomically . writeTQueue q . InterpretedKey)
+    $ glfwKeyToKey k
+keyCallback q _ k _ s m =
+  atomically $ writeTQueue q $ StatefullKey k s m
+
+glfwKeyToKey :: GLFW.Key -> Maybe Key
+glfwKeyToKey GLFW.Key'Enter  = Just Enter
+glfwKeyToKey GLFW.Key'Escape = Just Escape
+glfwKeyToKey GLFW.Key'Tab    = Just Tab
+glfwKeyToKey GLFW.Key'Delete = Just Delete
+glfwKeyToKey GLFW.Key'Backspace = Just BackSpace
+glfwKeyToKey GLFW.Key'Right = Just $ Arrow RIGHT
+glfwKeyToKey GLFW.Key'Left  = Just $ Arrow LEFT
+glfwKeyToKey GLFW.Key'Down  = Just $ Arrow Down
+glfwKeyToKey GLFW.Key'Up    = Just $ Arrow Up
+glfwKeyToKey _ = Nothing
 
 windowCloseCallback :: TQueue PlatformEvent -> GLFW.Window -> IO ()
 windowCloseCallback q _ =
@@ -179,18 +193,6 @@ instance PlayerInput OpenGLBackend where
   {-# INLINABLE pollKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
   {-# INLINABLE queueType #-}
-
-glfwKeyToKey :: GLFW.Key -> Key
-glfwKeyToKey GLFW.Key'Enter  = Enter
-glfwKeyToKey GLFW.Key'Escape = Escape
-glfwKeyToKey GLFW.Key'Tab    = Tab
-glfwKeyToKey GLFW.Key'Delete = Delete
-glfwKeyToKey GLFW.Key'Backspace = BackSpace
-glfwKeyToKey GLFW.Key'Right = Arrow RIGHT
-glfwKeyToKey GLFW.Key'Left  = Arrow LEFT
-glfwKeyToKey GLFW.Key'Down  = Arrow Down
-glfwKeyToKey GLFW.Key'Up    = Arrow Up
-glfwKeyToKey _ = Unknown
 
 -- there are 3 notions of window size here:
 -- - the preferred size

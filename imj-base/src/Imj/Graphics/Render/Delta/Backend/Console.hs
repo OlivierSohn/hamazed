@@ -85,7 +85,7 @@ newConsoleBackend = do
 
 startWriters :: TQueue PlatformEvent -> IO ()
 startWriters q = do
-  void $ forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . KeyPress
+  void $ forkIO $ forever $ getKeyThenFlush >>= atomically . writeTQueue q . InterpretedKey
   void $ forkIO $ pollConsoleSize Nothing
  where
   pollConsoleSize sz = do

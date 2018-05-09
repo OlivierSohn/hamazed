@@ -121,7 +121,7 @@ instance GameLogic IncGame where
 
 instance GameDraw IncGame where
 
-  drawForeground (Screen _ screenCenter) _ (IncGame counterValue) =
+  drawForeground (Screen _ screenCenter) _ (IncGame (Counter counterValue)) =
     -- The counter value is drawn in the center of the screen:
     drawStr (show counterValue) screenCenter $ LayeredColor black (rgb 5 4 2)
   -- note that we could have used drawBackground to draw the counter value, it doesn't

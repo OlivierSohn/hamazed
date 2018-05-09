@@ -1,5 +1,3 @@
-- replace Proxy in arguments with asProxyTypeOf
-
 - make a synth app, where music is shared among all players.
 Each player plays a different voice.
 
@@ -17,8 +15,8 @@ The server records what is being played and can send the recorded music at any t
 maybe content should not be generic at all.
 Re-evaluate pros/cons for that.
 
-pro : Instructions for setup drawing in the viewport :
-      that is free for the user (TODO make an app tutorial for that).
+pro : Instructions for setup drawing in the viewport.
+
 - make a version where we can only move at all times, and not go diagonally.
 
 - using withAnim requires a bit of thinking, and is not robust because we need to use it
@@ -72,36 +70,8 @@ instead of using asyncs, use forkIO and IORef Bool signaling when it should stop
 (On server cancelation, or on timeout, the IORef Bool is atomically set to False.)
 When the consumer reads False, it putMVar Nothing (or Stats) to unblock the thread waiting for the result.
 
-- Add music :
-  slow (ternary) :
-  1st voice:
-  do . .
-  | . sol
-  ré - -
-  - mib fa
-  sol mib do
-  ré . vsol
-  do . .
-  sol mib v si (alternate with variations :
-    sol fa mib,
-    sol lab sol,
-    fa mi réb,
-    ré . v sol,
-    ré mib ré,
-    sol sol sol,
-    ré sol vsol)
+- Add alternative music : (alternate every level?)
 
-  2nd voice:
-  . . sol
-  . . .
-  . . sol
-  . . .
-  mib . .
-  fa . .
-  mib . .
-  ré . .
-
-  fast: (when game goes faster)
   1st voice:
 
   do ré mib fa

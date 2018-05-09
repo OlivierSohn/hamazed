@@ -17,6 +17,7 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , Intent(..)
       , CurrentGame(..)
       , mkCurrentGame
+      , scoreForLevel
       , firstServerLevel
       , GameTiming(..)
       , WorldRequestArg(..)
@@ -206,8 +207,15 @@ data CurrentGame = CurrentGame {
   , score :: !Score
 } deriving(Generic, Show)
 
-mkCurrentGame :: WorldId -> Set ClientId -> CurrentGame
-mkCurrentGame w s = CurrentGame w s New $ mkScore $ [mainTheme, secondVoice, thirdVoice]
+scoreForLevel :: LevelSpec -> Score
+scoreForLevel (LevelSpec n _) = levelScore $ (n-firstLevel) `mod` 3
+ where
+   levelScore 0 = primaryScore
+   levelScore 1 = secondaryScore
+   levelScore _ = tertiaryScore
+
+mkCurrentGame :: Score -> WorldId -> Set ClientId -> CurrentGame
+mkCurrentGame sc w s = CurrentGame w s New sc
 
 data Intent =
     IntentSetup

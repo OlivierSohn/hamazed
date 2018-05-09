@@ -207,7 +207,7 @@ instance ServerClientHandler HamazedServer where
           -- Allow the client to setup the world, now that the world contains its ship.
           notifyClient' $ EnterState $ Included Setup
         IntentPlayGame maybeOutcome ->
-          gets unServerState >>= \(HamazedServer _ _ (WorldCreation _ lastWId _ _) _ game) ->
+          gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ game) ->
            liftIO (tryReadMVar game) >>= maybe
             (do
               adjustClient $ \c -> c { getState = Just ReadyToPlay }
@@ -224,7 +224,7 @@ instance ServerClientHandler HamazedServer where
                     _ -> c
                 -- 'putMVar' is non blocking because all game changes are done inside a modifyMVar
                 -- of 'ServerState' and we are inside one.
-                void $ liftIO $ putMVar game $ mkCurrentGame lastWId $ Map.keysSet players)
+                void $ liftIO $ putMVar game $ mkCurrentGame (scoreForLevel lev) lastWId $ Map.keysSet players)
             -- a game is in progress (reconnection scenario) :
             (\(CurrentGame wid' _ _ _) -> do
                 when (wid' /= lastWId) $

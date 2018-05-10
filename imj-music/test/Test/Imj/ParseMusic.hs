@@ -5,7 +5,9 @@ module Test.Imj.ParseMusic
           ( testParseMusic
           ) where
 
-import           Imj.Music
+import           Imj.Music.Types
+import           Imj.Music.Compose
+import           Imj.Music.Play
 
 testParseMusic :: IO ()
 testParseMusic = do

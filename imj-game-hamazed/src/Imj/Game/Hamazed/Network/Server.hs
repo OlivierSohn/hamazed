@@ -76,7 +76,8 @@ import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored, intercalate)
-import           Imj.Music hiding(Do)
+import           Imj.Music.Types hiding(Do)
+import           Imj.Music.Play
 import           Imj.Server.Connection
 import           Imj.Server.Log
 import           Imj.Server.Run

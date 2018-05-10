@@ -70,7 +70,9 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Music hiding(Do)
+import           Imj.Music.Types hiding(Do)
+import           Imj.Music.Compose
+import           Imj.Music.Play
 import           Imj.Physics.Discrete.Collision
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 import           Imj.Space.Draw

@@ -35,7 +35,8 @@ import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.Color
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Music
+import           Imj.Music.Types
+import           Imj.Music.Compose
 import           Imj.Server.Class hiding(Do)
 import           Imj.Server.Connection
 import           Imj.Server.Types

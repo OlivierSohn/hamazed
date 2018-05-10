@@ -19,7 +19,9 @@ Tested-With: GHC == 8.0.2, GHC == 8.2.2
 library
   hs-source-dirs:      src
   other-modules:
-  exposed-modules:     Imj.Music
+  exposed-modules:     Imj.Music.Compose
+                     , Imj.Music.Play
+                     , Imj.Music.Types
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
                      , deepseq ==1.4.*

@@ -13,7 +13,8 @@ module Imj.Game.Hamazed.Music
 import           Imj.Prelude
 
 import           Data.List
-import           Imj.Music
+import           Imj.Music.Types
+import           Imj.Music.Compose
 
 primaryScore :: Score
 primaryScore = mkScore [firstVoice, secondVoice, thirdVoice]

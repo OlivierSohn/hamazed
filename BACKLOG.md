@@ -3,10 +3,13 @@
 
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
 
-- make a synth app, where music is shared among all players.
-Each player plays a different voice.
+- The server records what is being played and can send the recorded music at any time.
 
-The server records what is being played and can send the recorded music at any time.
+the server can record loops.
+Use f1 .. f9 to start / stop loops
+
+The server plays loops and what the players send,
+and records what player send.
 
 - OnContent is not handled generically.
 maybe content should not be generic at all.

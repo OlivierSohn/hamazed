@@ -22,7 +22,7 @@ import           Imj.Arg.Class
 import           Imj.Audio
 import           Imj.Game.Audio.Class
 import           Imj.Game.Sound
-import           Imj.Music
+import           Imj.Music.Play
 
 data BackendType =
     Console

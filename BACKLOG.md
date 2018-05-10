@@ -1,7 +1,4 @@
 
-- split Game.Class :
-Game.State
-
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
@@ -9,17 +6,9 @@ Game.State
 - make a synth app, where music is shared among all players.
 Each player plays a different voice.
 
-modes:
-  - A fast mode triggers note on/note off when the event is detected on the client.
-But then players will likely not hear the same thing.
-
-  - a mode where the client plays one octave lower than the server to hear the latency.
-
-  - a sampler mode where a note triggers a melody.
-
 The server records what is being played and can send the recorded music at any time.
 
-- OnContent is not handled handled generically.
+- OnContent is not handled generically.
 maybe content should not be generic at all.
 Re-evaluate pros/cons for that.
 
@@ -27,7 +16,7 @@ pro : Instructions for setup drawing in the viewport.
 
 - make a version where we can only move at all times, and not go diagonally.
 
-- using withAnim requires a bit of thinking, and is not robust because we need to use it
+- using withAnim is tricky: we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
 
 We should come up with a better design where the library user doesn't have to care about these aspects.

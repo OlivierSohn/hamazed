@@ -63,6 +63,14 @@ Every game made using [imj-game](/imj-game) is able to play music: the game serv
 sends midi-like note on / note off events to game clients, allowing
 to perfectly synchronize the music with game events.
 
+### Synthesizers continue playing during garbage collection pauses
+
+We use [a custom-made audio engine](/imj-bindings-audio) whose audio thread is
+/not/ managed by the GHC runtime, and "synthesizers" are creating the sound in the
+audio thread directly.
+
+Hence, the sound is guaranteed /not/ to pause during garbage collection pauses.
+
 ## Notation
 
 [Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
@@ -86,17 +94,28 @@ This is imj-game-hamazed, at a time when the game was mono-player and had no mus
 
 [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 
-# Build
+# Development Setup
 
 After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
 
-Unless it is already there, install the `ftgl` library on your system
-(it is needed for Font handling) :
+## Dependencies
+
+As you can see in the CI scripts ([here](/.travis.yml) and [there](/Brewfile)),
+some c libraries are expected to be installed on your system
+in order to build the game engine:
+
+- [ftgl](http://ftgl.sourceforge.net/docs/html/) is needed by [imj-base](/imj-base)
+to render fonts with OpenGL.
+- [portaudio 19](http://www.portaudio.com/) is needed by [imj-bindings-audio](/imj-bindings-audio)
+for audio I/O.
+
+To install them:
 
 - On OSX:
 
 ```shell
 brew install ftgl
+brew install portaudio
 ```
 
 - On Linux:
@@ -104,11 +123,35 @@ brew install ftgl
 ```shell
 sudo apt-get update
 sudo apt-get install ftgl-dev
+sudo apt-get install portaudio19-dev
 ```
 
-Build the project using [stack](https://docs.haskellstack.org):
+# Build
+
+## With stack
+
+[stack](https://docs.haskellstack.org) is the preferred tool to build the project:
 
 `stack build --pedantic`
+
+## With other tools
+
+You may want to build with another tool, in that case be sure to read the
+[stack.yaml](/stack.yaml) and manually download the right versions of packages
+listed in it:
+
+- hackage packages listed in the `extra-deps` field
+- non-hackage packages listed in the `packages` field with the following syntax:
+
+```yaml
+- location:
+    git: https://github.com/OlivierSohn/clay.git
+    commit: 954476940190873094847939c5f0e6242e324000
+  extra-dep: true
+```
+
+Meaning that the `clay` package will be downloaded from `https://github.com/OlivierSohn/clay.git`
+at commit `954476940190873094847939c5f0e6242e324000`.
 
 # Run the games
 

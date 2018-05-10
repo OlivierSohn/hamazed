@@ -10,6 +10,7 @@ module Imj.Game.Deadlines
     ) where
 
 import           Imj.Prelude
+import           Control.Monad.State.Strict(gets)
 import qualified Data.Map.Strict as Map
 
 import           Data.List( minimumBy, sortBy)

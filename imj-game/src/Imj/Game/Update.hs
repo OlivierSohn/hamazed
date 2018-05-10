@@ -19,6 +19,7 @@ import qualified Prelude as Unsafe(last)
 import           Control.Exception.Base(throwIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.Reader(runReaderT)
+import           Control.Monad.State.Strict(gets)
 import           Data.Attoparsec.Text(parseOnly)
 import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
@@ -30,6 +31,7 @@ import           System.IO(putStrLn)
 import           Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Game.Audio.Class
 import           Imj.Game.Class
+import           Imj.Game.Modify
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.HasSizedFace

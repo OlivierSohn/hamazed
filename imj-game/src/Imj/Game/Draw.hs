@@ -15,6 +15,7 @@ import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.State.Strict(gets)
 
 import           Imj.Game.Class
 import           Imj.Geo.Discrete.Types

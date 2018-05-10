@@ -24,6 +24,7 @@ import           Imj.Input.Types
 
 import           Imj.Event
 import           Imj.Game.Deadlines
+import           Imj.Game.Modify
 import           Imj.Game.State
 
 loop :: (MonadIO m

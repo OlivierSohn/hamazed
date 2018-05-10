@@ -17,6 +17,7 @@ module Imj.Game.Command
 import           Imj.Prelude
 
 import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.State.Strict(gets)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 
@@ -31,6 +32,7 @@ import           Imj.Server.Class
 
 import           Imj.Game.Draw
 import           Imj.Game.Infos
+import           Imj.Game.Modify
 import           Imj.Game.Show
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.Screen

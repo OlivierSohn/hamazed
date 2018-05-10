@@ -35,6 +35,7 @@ import           Data.Text(pack)
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
 import           Imj.Game.Class
+import           Imj.Game.Modify
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types

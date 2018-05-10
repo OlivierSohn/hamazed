@@ -27,6 +27,7 @@ import           Imj.Categorized
 import           Imj.Game.App(runGame)
 import           Imj.Game.Class
 import           Imj.Game.Command
+import           Imj.Game.Modify
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Positionable

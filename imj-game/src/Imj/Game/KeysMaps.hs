@@ -12,6 +12,7 @@ module Imj.Game.KeysMaps
 import           Imj.Prelude
 
 import           Data.Proxy(Proxy(..))
+import           Control.Monad.State.Strict(gets)
 import           Control.Monad.Reader.Class(MonadReader)
 import qualified Graphics.UI.GLFW as GLFW
 
@@ -19,6 +20,7 @@ import           Imj.Event
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.UI.Chat
 import           Imj.Game.Class
+import           Imj.Game.Modify
 import           Imj.Game.Status
 import           Imj.Input.Types
 import           Imj.Server.Class

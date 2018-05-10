@@ -74,6 +74,9 @@ module Imj.Game.Class
       , putServerContent
       , putDrawnState
       , stateChat
+      , keyIsPressed
+      , takeKeyPressed
+      , addKeyPressed
       -- * reexports
       , MonadState
       , TQueue
@@ -88,6 +91,8 @@ import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Control.Monad.State.Strict(gets, state, modify')
+import qualified Data.Set as Set
+import           Data.Set(Set)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict((!?),Map)
 import           Data.Proxy(Proxy(..))
@@ -360,7 +365,7 @@ mkEmptyInfos = Infos (Successive [fromString ""]) (Successive [fromString ""]) [
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
   , _eventGroupHasPrincipal :: !Bool
-  , _eventGroupUpdateDuration :: !(Time Duration System)
+  , evtGroupUpdateDuration :: !(Time Duration System)
   , _eventGroupVisibleTimeRange :: !(Maybe (TimeRange System))
   -- ^ TimeRange of /visible/ events deadlines
 }
@@ -475,13 +480,14 @@ data AppState g = AppState {
     timeAfterRender :: !(Time Point System)
   , game :: !(Game g)
   , eventsGroup :: !(EventGroup g)
-  , _appStateEventHistory :: !OccurencesHist
+  , eventHistory :: !OccurencesHist
   -- ^ Can record which events where handled, for debugging purposes.
-  , _appStateRecordEvents :: !RecordMode
+  , appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
   , nextParticleSystemKey :: !ParticleSystemKey
-  , _appStateDebug :: {-unpack sum-} !Debug
+  , appStateDebug :: {-unpack sum-} !Debug
   -- ^ Print times and group information in the terminal.
+  , pressedKeys :: !(Set GLFW.Key)
 }
 
 data RecordMode = Record
@@ -651,3 +657,27 @@ stateChat f =
 hasVisibleNonRenderedUpdates :: MonadState (AppState g) m => m Bool
 hasVisibleNonRenderedUpdates =
   visible <$> gets eventsGroup
+
+-- | Returns 'True' if a keypress event was handled by 'mapStateKey' without matching release.
+{-# INLINABLE keyIsPressed #-}
+keyIsPressed :: MonadState (AppState g) m => GLFW.Key -> m Bool
+keyIsPressed k = Set.member k <$> gets pressedKeys
+
+-- | Same as 'keyIsPressed', and marks the key as having a matching release,
+-- i.e next call to 'keyIsPressed' will return 'False'.
+{-# INLINABLE takeKeyPressed #-}
+takeKeyPressed :: MonadState (AppState g) m
+               => GLFW.Key -> m Bool
+takeKeyPressed k = state $ \s ->
+  let prev = pressedKeys s
+      szPrev = Set.size prev
+      cur = Set.delete k prev
+      szCur = Set.size cur
+  in (szCur < szPrev, s { pressedKeys = cur })
+
+-- After this call, 'keyIsPressed' @k@  will return 'True'
+{-# INLINABLE addKeyPressed #-}
+addKeyPressed :: MonadState (AppState g) m
+              => GLFW.Key -> m ()
+addKeyPressed k = modify' $ \s ->
+  s { pressedKeys = Set.insert k $ pressedKeys s }

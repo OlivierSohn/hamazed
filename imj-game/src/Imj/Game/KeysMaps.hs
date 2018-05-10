@@ -13,6 +13,7 @@ import           Imj.Prelude
 
 import           Data.Proxy(Proxy(..))
 import           Control.Monad.Reader.Class(MonadReader)
+import qualified Graphics.UI.GLFW as GLFW
 
 import           Imj.Event
 import           Imj.Geo.Discrete.Types
@@ -66,12 +67,22 @@ translatePlatformEvent prox = \case
             Ongoing -> case state of
               Excluded -> return Nothing
               Included x -> mapInterpretedKey key x
-  StatefullKey k s m -> getChatMode >>= \case
-    Editing -> return Nothing
-    NotEditing -> do
-        (ClientState activity state) <- getClientState <$> gets game
-        case activity of
-          Over -> return Nothing
-          Ongoing -> case state of
-            Excluded -> return Nothing
-            Included x -> mapStateKey (toStateKeys prox) k s m x
+  StatefullKey k s m -> do
+    (ClientState activity state) <- getClientState <$> gets game
+    case activity of
+      Over -> return Nothing
+      Ongoing -> case state of
+        Excluded -> return Nothing
+        Included x -> case s of
+          GLFW.KeyState'Released -> -- Let released keys through if a matching pressed key was passed
+                                    -- to the handling function.
+            takeKeyPressed k >>= bool (return Nothing) send -- I'm not sure if modifiers should be taken into account for matching?
+          _ -> getChatMode >>= \case
+            Editing -> return Nothing
+            NotEditing -> do
+              case s of
+                GLFW.KeyState'Pressed -> addKeyPressed k
+                _ -> return ()
+              send
+         where
+          send = mapStateKey (toStateKeys prox) k s m x

@@ -20,7 +20,7 @@ import           Imj.Prelude
 import           Prelude(putStr, putStrLn, length)
 
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.State.Strict(state, get, put)
+import           Control.Monad.State.Strict(get, modify')
 import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(asks)
 import           Data.Text(pack)
@@ -63,7 +63,7 @@ onEvent :: (GameLogicT e ~ g, s ~ ServerT g
         -> m ()
 onEvent mayEvt = do
   checkPlayerEndsProgram
-  debug >>= \case
+  gets appStateDebug >>= \case
     (Debug True) -> liftIO $ putStrLn $ show mayEvt -- TODO make this more configurable (use levels 1, 2 of debugging)
     (Debug False) -> return ()
   onEvent' mayEvt
@@ -85,13 +85,13 @@ onEvent' :: (GameLogicT e ~ g, s ~ ServerT g
 onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and reset the group
   (\case
     CliEvt e -> asks sendToServer' >>= \f -> f e
-    Evt ToggleEventRecording -> state toggleRecordEvent
+    Evt ToggleEventRecording -> modify' toggleRecordEvent
     Evt    evt -> onUpdate $ Right evt
     SrvEvt evt -> onUpdate $ Left evt)
  where
   onUpdate e = do
-    getRecording >>= \case
-      Record -> state $ addEvent e
+    gets appStateRecordEvents >>= \case
+      Record -> modify' $ addEvent e
       DontRecord -> return ()
     handleEvent $ Just e
 
@@ -118,8 +118,9 @@ handleEvent e = do
 addUpdateTime :: MonadState (AppState g) m
               => Time Duration System -> m ()
 addUpdateTime add =
-  get >>= \(AppState t a (EventGroup d e prevT f) b c g de) ->
-    put $ AppState t a (EventGroup d e (add |+| prevT) f) b c g de
+  modify' $
+    \s@(AppState _ _ e@(EventGroup _ _ prevT _) _ _ _ _ _) ->
+      s { eventsGroup = e { evtGroupUpdateDuration = add |+| prevT} }
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
@@ -128,9 +129,9 @@ addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
                                             , MonadIO m)
                                           => Maybe (UpdateEvent g) -> m ()
 addToCurrentGroupOrRenderAndStartNewGroup evt =
-  get >>= \(AppState prevTime _ prevGroup _ _ _ _) -> do
+  get >>= \(AppState prevTime _ prevGroup _ _ _ _ _) -> do
     let onRender = do
-          debug >>= \case
+          gets appStateDebug >>= \case
             (Debug True) -> liftIO $ putStr $ groupStats prevGroup
             (Debug False) -> return ()
           renderAll
@@ -138,9 +139,12 @@ addToCurrentGroupOrRenderAndStartNewGroup evt =
             (error "growing an empty group never fails")
             return
     liftIO (tryGrow evt prevGroup) >>= maybe
-      (onRender >>= \group -> liftIO getSystemTime >>= \curTime -> return (curTime, group))
-      (return . (,) prevTime)
-    >>= \(t,g) -> get >>= \(AppState _ a _ b c d e) -> put $ AppState t a g b c d e
+      (do
+        group <- onRender
+        curTime <- liftIO getSystemTime
+        return $ curTime `deepseq` (curTime, group))
+      (return . (,) prevTime) >>= \(t,g) ->
+        modify' (\s -> s { timeAfterRender = t, eventsGroup = g} )
 
 
 groupStats :: EventGroup s -> String
@@ -168,7 +172,7 @@ renderAll = do
       let msg = "Renderer error :" ++ err
       drawAt msg $ Coords 0 0
       liftIO $ putStrLn msg)
-    (\(dtDelta, dtCmds, dtFlush) -> debug >>= \case
+    (\(dtDelta, dtCmds, dtFlush) -> gets appStateDebug >>= \case
         (Debug True) -> liftIO $ putStrLn $ " d "   ++ showTime' (t1...t2)
                                  ++ " de "  ++ showTime' dtDelta
                                  ++ " cmd " ++ showTime' dtCmds
@@ -186,38 +190,31 @@ renderAll = do
 getEvtStrs :: MonadState (AppState g) m
               => m [ColorString]
 getEvtStrs =
-  get >>= \(AppState _ _ _ h r _ _) ->
+  get >>= \(AppState _ _ _ h r _ _ _) ->
     return $ case r of
       Record -> multiLine 150 $ toColorStr h -- TODO screen width should be dynamic
       DontRecord -> []
 
-{-# INLINABLE getRecording #-}
-getRecording :: MonadState (AppState g) m
-             => m RecordMode
-getRecording = do
-  (AppState _ _ _ _ record _ _) <- get
-  return record
-
 {-# INLINABLE addEvent #-}
 addEvent :: (GameLogic g)
-         => UpdateEvent g -> AppState g -> ((), AppState g)
-addEvent e (AppState t g evts es r b d) =
-  let es' = addEventRepr (evtCategory e) es
-  in ((), AppState t g evts es' r b d)
+         => UpdateEvent g -> AppState g -> AppState g
+addEvent e s =
+  s { eventHistory = addEventRepr (evtCategory e) $ eventHistory s }
 
-toggleRecordEvent :: AppState g -> ((), AppState g)
-toggleRecordEvent (AppState t g e _ r b d) =
-  let r' = case r of
-        Record -> DontRecord
-        DontRecord -> Record
-  in ((), AppState t g e mkEmptyOccurencesHist r' b d)
+toggleRecordEvent :: AppState g -> AppState g
+toggleRecordEvent s@(AppState _ _ _ _ r _ _ _) =
+  s { eventHistory = mkEmptyOccurencesHist
+    , appStateRecordEvents = case r of
+       Record -> DontRecord
+       DontRecord -> Record
+    }
 
 addIgnoredOverdues :: MonadState (AppState g) m
                    => Int -> m ()
 addIgnoredOverdues n =
-  get >>= \(AppState t a e hist record b d) -> do
-    let hist' = iterate (addEventRepr IgnoredOverdue) hist !! n
-    put $ AppState t a e hist' record b d
+  modify' $
+    \s@(AppState _ _ _ hist _ _ _ _) ->
+      s { eventHistory = iterate (addEventRepr IgnoredOverdue) hist !! n }
 
 toColorStr :: OccurencesHist -> ColorString
 toColorStr (OccurencesHist []    tailStr) = tailStr
@@ -243,12 +240,7 @@ createState :: Screen
 createState screen dbg a b c = do
   let g  = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b c mkChat
   t <- getSystemTime
-  return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg
-
-{-# INLINABLE debug #-}
-debug :: MonadState (AppState g) m => m Debug
-debug =
-  get >>= \(AppState _ _ _ _ _ _ d) -> return d
+  return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mempty
 
 toColorStr' :: Occurences EventCategory -> ColorString
 toColorStr' (Occurences n e) =

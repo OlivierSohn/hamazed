@@ -85,7 +85,7 @@ newtype Time a b = Time TimeSpec
 instance Lift (Time a b) where
   lift (Time (TimeSpec s ns)) = [| Time (TimeSpec $(lift s) $(lift ns)) |]
 instance NFData (Time a b) where
-  rnf _ = () -- TimeSpec has strict fields so they are already in normal form
+  rnf (Time (TimeSpec s ns)) = rnf s `seq` rnf ns
 instance Binary (Time Duration a) where
   put (Time (TimeSpec s ns)) = do
     Bin.put s

@@ -1,9 +1,8 @@
 
-- make generic : the server sends the game state to the client (putIGame / withAnim)
+- split Game.Class :
+Game.State
 
-- fix ghost note :
-keyPress in game mode, keyRelease in chat mode. Hence, we should keep track of which keypresses were
-sent to the handling function, and let the corresponding key releases through.
+- make generic : the server sends the game state to the client (putIGame / withAnim)
 
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
 

@@ -10,7 +10,7 @@ import           Data.Bool(bool)
 import           Data.Monoid((<>))
 import           Control.DeepSeq(NFData)
 import           Data.Attoparsec.Text(skipSpace, atEnd, takeText)
-import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map
 import           Data.Text(unpack)
 import           Data.Proxy(Proxy(..))
 import           Data.Binary(Binary(..))
@@ -44,7 +44,7 @@ newtype Counter = Counter Int
 -- | This implements the client-side logic of the game
 data IncGame = IncGame {
   theClientCounter :: !Counter
-}
+} deriving(Show)
 
 -- | 'IncServer' is the game-specific state of the server. It just holds the counter:
 data IncServer = IncServer {

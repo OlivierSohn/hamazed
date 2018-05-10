@@ -246,7 +246,8 @@ instance GameStatefullKeys g () where
   mapStateKey _ _ _ _ _ = return Nothing
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
-class (GameExternalUI g, GameDraw g
+class (Show g
+     , GameExternalUI g, GameDraw g
      , Server (ServerT g), ServerClientHandler (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
      , GameStatefullKeys g (StatefullKeysT g)

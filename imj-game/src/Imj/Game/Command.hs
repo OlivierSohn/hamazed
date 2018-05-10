@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Imj.Game.Command
-      ( Command(..)
-      , runClientCommand
+      ( runClientCommand
       -- * utilities
       , withAnim
       , withAnim'

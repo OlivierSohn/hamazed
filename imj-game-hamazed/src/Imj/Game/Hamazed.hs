@@ -89,7 +89,7 @@ data HamazedGame = HamazedGame {
     -- ^ Which 'Number's were shot
   , getGameLevel :: !Level
     -- ^ The current 'Level'
-}
+} deriving(Show)
 instance GameExternalUI HamazedGame where
   type ClientInfoT HamazedGame = BattleShip
 

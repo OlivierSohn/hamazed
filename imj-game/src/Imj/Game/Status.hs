@@ -5,7 +5,6 @@
 
 module Imj.Game.Status
         ( GameStatus(..)
-        , StateValue(..)
         , StateNature(..)
         , ClientState(..)
         , GameStateValue(..)
@@ -17,7 +16,7 @@ import           Data.Map(Map)
 
 import           Imj.ClientView.Types
 import           Imj.Game.Level
-import           Imj.Server.Types
+import           Imj.Server.Class
 
 data ClientState s = ClientState {-unpack sum-} !StateNature {-unpack sum-} !(StateValue s)
   deriving(Generic, Show, Eq)

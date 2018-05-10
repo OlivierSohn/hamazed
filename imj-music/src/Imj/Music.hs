@@ -10,9 +10,12 @@ module Imj.Music
       ( Symbol(..)
       , Instrument(..)
       , NoteSpec(..)
+      , MidiPitch(..)
+      , noteToMidiPitch
       , musicSymbol
       , musicSymbols
       , NoteName(..)
+      , naturalNote
       , Octave(..)
       , noOctave
       , MidiVelocity(..)
@@ -33,6 +36,8 @@ module Imj.Music
       , play
       , playAtTempo
       , allMusic
+      -- * Reexport
+      , CInt
       ) where
 
 import           Language.Haskell.TH
@@ -84,6 +89,14 @@ instance NFData Symbol
 
 data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave
   deriving(Generic,Show, Eq, Data)
+instance Enum NoteSpec where
+  fromEnum (NoteSpec n oct) = 12 * (fromIntegral oct-1) + fromEnum n
+  toEnum pitch =
+    NoteSpec (toEnum n) $ Octave $ o+1
+   where
+    (o,n) = pitch `divMod` 12
+instance Ord NoteSpec where
+  compare n m = compare (fromEnum n) $ fromEnum m
 instance Binary NoteSpec
 instance NFData NoteSpec
 
@@ -297,13 +310,13 @@ play (StartNote n (MidiVelocity v)) = \case
   SineSynth -> midiNoteOn pitch vel
   Wind i -> effectOn (fromIntegral i) pitch vel
  where
-  pitch = noteToMidiPitch n
+  (MidiPitch pitch) = noteToMidiPitch n
   vel = CFloat v
 play (StopNote n) = \case
   SineSynth -> midiNoteOff pitch
   Wind _ -> effectOff pitch
  where
-  pitch = noteToMidiPitch n
+  (MidiPitch pitch) = noteToMidiPitch n
 
 
 newtype NoteIdx = NoteIdx Int
@@ -328,6 +341,50 @@ data NoteName =
   deriving(Generic,Show,Eq, Data)
 instance Binary NoteName
 instance NFData NoteName
+instance Enum NoteName where
+  fromEnum = \case
+    Do -> 0
+    Réb -> 1
+    Ré -> 2
+    Mib -> 3
+    Mi -> 4
+    Fa -> 5
+    Solb -> 6
+    Sol -> 7
+    Lab -> 8
+    La -> 9
+    Sib -> 10
+    Si -> 11
+
+  toEnum = \case
+    0 -> Do
+    1 -> Réb
+    2 -> Ré
+    3 -> Mib
+    4 -> Mi
+    5 -> Fa
+    6 -> Solb
+    7 -> Sol
+    8 -> Lab
+    9 -> La
+    10 -> Sib
+    11 -> Si
+    n -> error $ "out of range:" ++ show n
+
+naturalNote :: NoteName -> Bool
+naturalNote = \case
+  Do -> True
+  Réb -> False
+  Ré -> True
+  Mib -> False
+  Mi -> True
+  Fa -> True
+  Solb -> False
+  Sol -> True
+  Lab -> False
+  La -> True
+  Sib -> False
+  Si -> True
 
 newtype Octave = Octave Int
   deriving(Generic,Integral, Real, Num, Enum, Ord, Eq,Show,Binary,NFData, Data)
@@ -337,21 +394,12 @@ newtype MidiVelocity = MidiVelocity Float
 instance Binary MidiVelocity
 instance NFData MidiVelocity
 
-
 -- according to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
-noteToMidiPitch :: NoteSpec -> CShort
-noteToMidiPitch (NoteSpec n oct) = 12 * (fromIntegral oct-1) + noteIdx n
+noteToMidiPitch :: NoteSpec -> MidiPitch
+noteToMidiPitch = MidiPitch . fromIntegral . fromEnum
 
-noteIdx :: NoteName -> CShort
-noteIdx Do = 0
-noteIdx Réb = 1
-noteIdx Ré = 2
-noteIdx Mib = 3
-noteIdx Mi = 4
-noteIdx Fa = 5
-noteIdx Solb = 6
-noteIdx Sol = 7
-noteIdx Lab = 8
-noteIdx La = 9
-noteIdx Sib = 10
-noteIdx Si = 11
+newtype MidiPitch = MidiPitch CShort
+  deriving(Show, Ord, Eq, NFData, Generic, Integral, Real, Enum, Num)
+instance Binary MidiPitch where
+  put (MidiPitch a) = put (fromIntegral a :: Int)
+  get = MidiPitch . fromIntegral <$> (get :: Get Int)

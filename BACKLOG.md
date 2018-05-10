@@ -1,3 +1,10 @@
+
+- make generic : the server sends the game state to the client (putIGame / withAnim)
+
+- fix ghost note :
+keyPress in game mode, keyRelease in chat mode. Hence, we should keep track of which keypresses were
+sent to the handling function, and let the corresponding key releases through.
+
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
 
 - make a synth app, where music is shared among all players.

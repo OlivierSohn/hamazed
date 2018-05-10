@@ -284,12 +284,14 @@ addClient connectId cliType = do
     Map.map (\(ClientView _ _ n co _) -> ClientEssence n Present co) <$> gets clientsMap
   wp <- gets content
   greeters <- greetNewcomer
+  greeters' <- greetNewcomer'
 
   notifyClientN' $
     [ ConnectionAccepted i
     , AllClients presentClients
     , OnContent wp
     ] ++
+    greeters' ++
     map ServerAppEvt greeters
 
 handlerError :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s

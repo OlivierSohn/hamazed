@@ -161,7 +161,7 @@ data World = World {
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
   , getId :: {-unpack sum-} !WorldId
-} deriving (Generic)
+} deriving (Generic, Show)
 
 newtype NumId = NumId Int
   deriving (Generic, Ord, Eq, Binary, Show)

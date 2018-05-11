@@ -28,11 +28,13 @@ import           UnliftIO.Exception(finally)
 import           Imj.Graphics.Class.Canvas
 import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.Render
+import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Buffers
 import           Imj.Graphics.Render.Delta.DefaultPolicies
 import           Imj.Graphics.Render.Delta.Draw
 import           Imj.Graphics.Render.Delta.Flush
 import           Imj.Graphics.Render.Delta.Types
+import           Imj.Timing
 
 data DeltaEnv = DeltaEnv {
     _deltaEnvBuffers :: !(IORef Buffers)

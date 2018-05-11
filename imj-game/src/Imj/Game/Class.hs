@@ -53,12 +53,11 @@ module Imj.Game.Class
       , TQueue
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(range)
 import           Prelude(length)
 
 import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Set(Set)
 import           Data.Map.Strict(Map)
@@ -82,6 +81,7 @@ import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..))

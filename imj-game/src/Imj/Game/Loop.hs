@@ -16,7 +16,6 @@ import           Imj.Prelude
 import           Control.Concurrent(threadDelay)
 import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
 

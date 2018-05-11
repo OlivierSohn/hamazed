@@ -9,7 +9,6 @@ module Imj.Space.Draw
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List(length, group, concat, mapAccumL)
 import qualified Data.Vector.Unboxed as V ((!))

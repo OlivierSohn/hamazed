@@ -36,7 +36,6 @@ Anchors interpolation can occur :
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.List(foldl', splitAt, unzip3)
@@ -51,7 +50,6 @@ import           Imj.Graphics.Class.Words(Characters)
 import qualified Imj.Graphics.Class.Words as Words
 import           Imj.Graphics.Render
 import           Imj.Timing
-import           Imj.Util
 
 -- | Draw a string-anchored 'TextAnimation' for a given 'Frame'
 {-# INLINABLE drawAnimatedTextStringAnchored #-}

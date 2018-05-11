@@ -41,6 +41,7 @@ library
                      , imj-base ==0.1.*
                      , imj-music ==0.1.*
                      , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , optparse-applicative == 0.14.*
                      , strict-concurrency ==0.2.*
@@ -61,7 +62,6 @@ test-suite imj-server-test
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server
-                     , text >=1.2.3 && < 1.3
   default-language:    Haskell2010
 
 source-repository head

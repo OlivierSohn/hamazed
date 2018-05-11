@@ -20,12 +20,17 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Music.Compose
+                     , Imj.Music.Piano
                      , Imj.Music.Play
+                     , Imj.Music.Record
                      , Imj.Music.Types
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
+                     , containers ==0.5.*
                      , deepseq ==1.4.*
                      , imj-bindings-audio ==0.1.*
+                     , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
                      , parsec ==3.1.*
                      , template-haskell >=2.12 && < 2.14
                      , text >=1.2.3 && < 1.3

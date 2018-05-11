@@ -16,14 +16,13 @@ module Imj.Graphics.Render.FromMonadReader
        , renderToScreen
        -- * Reexports
        , Scissor, LayeredColor, Coords, Pos, Alignment
-       , Draw, Render, Canvas, MonadReader, MonadIO
+       , Draw, Render, Canvas, MonadReader
        ) where
 
 import           Imj.Prelude
 import qualified Prelude(length)
 
 import           Control.Monad(join)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(Text)
 
@@ -34,6 +33,8 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Color(LayeredColor(..))
+import           Imj.Graphics.Font
+import           Imj.Timing
 
 -- | Executes actions in context of a given 'Scissor'.
 {-# INLINABLE usingScissor #-}

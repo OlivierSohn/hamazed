@@ -35,6 +35,7 @@ import           Imj.Graphics.Text.Animation
 import           Imj.Graphics.Text.ColorString
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Timing
 
 -- | Shows the differences between 'AnchorChars' and 'AnchorStrings', by comparing,
 -- with the same inputs:

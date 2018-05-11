@@ -5,11 +5,11 @@
 module Imj.Graphics.Class.Colorable
             ( Colorable(..)
             -- * reexport
-            , Draw, MonadReader, MonadIO
+            , Draw, MonadReader
             ) where
 
+import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.Draw

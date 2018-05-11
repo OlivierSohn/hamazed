@@ -1,3 +1,7 @@
+- when creating a loop, we should take into account the pause between the last played note and now.
+Trimming the beginning is good, but not the end.
+
+Computing the distace between the last note event and teh current time, and add it as "post pause" in the loop would be enough.
 
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 

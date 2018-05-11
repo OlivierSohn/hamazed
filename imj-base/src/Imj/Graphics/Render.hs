@@ -52,13 +52,12 @@ follows this pattern. -}
   -- * Reexports
   , LayeredColor(..), Coords(..), Pos
   , Alignment(..), Text, Char, String
-  , MonadReader, MonadIO
+  , MonadReader
   ) where
 
 import           Imj.Prelude
 
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text)
 
 import           Imj.Graphics.Class.Draw

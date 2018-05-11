@@ -23,7 +23,6 @@ module Imj.Server.Connection
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', gets, state)
 import           Data.Map.Strict(Map)

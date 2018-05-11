@@ -6,12 +6,9 @@ module Imj.Graphics.Class.Canvas
     ( Canvas(..)
       -- * Reexports
     , Size
-    , MonadIO
     ) where
 
 import           Imj.Prelude
-
-import           Control.Monad.IO.Class(MonadIO)
 
 import           Imj.Geo.Discrete.Types
 

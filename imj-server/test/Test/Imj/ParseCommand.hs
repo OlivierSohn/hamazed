@@ -33,7 +33,7 @@ instance ServerClientHandler VoidServer where
   type ClientEventT VoidServer = ()
   type ValuesT      VoidServer = ()
 
-  handleClientEvent _ = return ()
+  handleClientEvent _ = return []
 
 testMaxOneSpace :: IO ()
 testMaxOneSpace = do

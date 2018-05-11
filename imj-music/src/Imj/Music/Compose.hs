@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -9,12 +10,12 @@
 module Imj.Music.Compose
       ( musicSymbol
       , musicSymbols
-      , naturalNote
-      , noOctave
       , mkScore
       , notes
       , mkVoice
       ) where
+
+import           Imj.Prelude hiding ((<|>))
 
 import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote
@@ -26,9 +27,6 @@ import           Text.Parsec.Text(Parser)
 import           Text.Parsec.Pos(newPos)
 
 import           Imj.Music.Types
-
-noOctave :: Octave
-noOctave = Octave 6
 
 musicSymbol :: Parser Symbol
 musicSymbol = do
@@ -106,18 +104,3 @@ notes = QuasiQuoter {
     , quoteType = undefined
     , quoteDec  = undefined
     }
-
-naturalNote :: NoteName -> Bool
-naturalNote = \case
-  Do -> True
-  Réb -> False
-  Ré -> True
-  Mib -> False
-  Mi -> True
-  Fa -> True
-  Solb -> False
-  Sol -> True
-  Lab -> False
-  La -> True
-  Sib -> False
-  Si -> True

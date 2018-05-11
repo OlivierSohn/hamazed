@@ -32,6 +32,7 @@ library
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
                      , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
                      , primitive ==0.6.*
@@ -48,8 +49,8 @@ test-suite imj-space-test
   main-is:             Spec.hs
   build-depends:       base >= 4.9 && < 4.12
                      , imj-base ==0.1.*
-                     , imj-space
                      , imj-prelude ==0.1.*
+                     , imj-space
                      , mwc-random ==0.13.*
                      , primitive ==0.6.*
                      , vector >= 0.12.0.1 && < 0.13

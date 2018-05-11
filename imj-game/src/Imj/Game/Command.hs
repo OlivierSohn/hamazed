@@ -16,7 +16,6 @@ module Imj.Game.Command
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.State.Strict(gets)
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map

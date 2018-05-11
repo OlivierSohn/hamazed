@@ -41,7 +41,6 @@ import           Prelude(length)
 
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.State.Strict(gets, modify', state)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import qualified Data.Set as Set
 import qualified Data.Map.Strict as Map

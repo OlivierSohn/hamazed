@@ -14,7 +14,6 @@ import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Monad.State.Strict(execStateT)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(pack)
 import           Data.Proxy

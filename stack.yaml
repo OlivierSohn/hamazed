@@ -20,6 +20,7 @@ packages:
 - './imj-profile'
 - './imj-server'
 - './imj-space'
+- './imj-time'
 
 - location:
     git: https://github.com/OlivierSohn/clay.git

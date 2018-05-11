@@ -62,7 +62,6 @@ module Imj.Timing
 import           Language.Haskell.TH.Syntax(lift)
 
 import           Imj.Prelude
-import           GHC.Float(float2Double, double2Float)
 import           Prelude(fromInteger)
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
@@ -70,8 +69,6 @@ import qualified Data.List as List
 import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
-import           Imj.Data.Class.Quantifiable
-import           Imj.Util
 
 {- | Represents a time.
 
@@ -102,14 +99,6 @@ instance Show (Time Point a) where
   show = (++) "Time: " . unpack . prettyShowTime
 instance Show (Time Duration a) where
   show = (++) "Duration: " . showTime
-instance Quantifiable (Time Duration a) where
-  writeFloat = double2Float . unsafeToSecs
-  readFloat = fromSecs . float2Double
-  showQty = showTime
-
-  {-# INLINABLE writeFloat #-}
-  {-# INLINABLE readFloat #-}
-  {-# INLINABLE showQty #-}
 
 {- | A location on a timeline.
 

@@ -14,7 +14,6 @@ module Imj.Graphics.RecordDraw
 import           Imj.Prelude
 import           Prelude(length)
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.IORef(IORef, newIORef, readIORef, modifyIORef')
 

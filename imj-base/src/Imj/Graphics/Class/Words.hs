@@ -14,7 +14,6 @@ import qualified Prelude(splitAt, length)
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad( zipWithM_ )
 import           Data.String(IsString(..))

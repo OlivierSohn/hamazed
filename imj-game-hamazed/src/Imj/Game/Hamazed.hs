@@ -21,7 +21,6 @@ import           Control.Concurrent(forkIO)
 import           Control.Concurrent.Async(withAsync)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.IO.Class(MonadIO)
 import           Data.Char(intToDigit)
 import qualified Data.IntSet as ISet
 import qualified Data.List as List

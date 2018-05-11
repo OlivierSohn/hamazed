@@ -15,8 +15,6 @@ import qualified Data.List as List(intercalate, concat)
 import qualified Data.Vector.Unboxed as U
 import           System.Random.MWC
 
-import           Imj.Util
-
 writeSeedsSource :: IO ()
 writeSeedsSource =
   mkSeedsSourceFile 100 >>= writeFile "./imj-profile/src/Imj/Random/MWC/Seeds.hs"

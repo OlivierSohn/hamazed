@@ -11,8 +11,6 @@ import           Imj.Prelude
 
 import           Data.List(length, replicate, take)
 
-import           Imj.Util(replicateElements)
-
 
 {- | Resamples a list, using the analogy where a list
 is seen as a uniform sampling of a geometrical segment.

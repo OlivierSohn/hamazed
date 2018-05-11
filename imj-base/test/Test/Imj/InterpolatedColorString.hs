@@ -2,7 +2,8 @@
 
 module Test.Imj.InterpolatedColorString(testICS) where
 
-import           Control.Monad.IO.Class(MonadIO)
+import           Imj.Prelude
+
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Data.Monoid((<>))

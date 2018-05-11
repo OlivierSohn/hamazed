@@ -157,6 +157,7 @@ instance ServerClientHandler IncServer where
     modifyState $ \(IncServer n) -> IncServer $ n+1
     -- send the updated value to all clients:
     getsState theServerCounter >>= notifyEveryone . CounterValue
+    return []
 
   acceptCommand ResetCounter = do
     -- modify the global state (we are inside an MVar transaction so there is

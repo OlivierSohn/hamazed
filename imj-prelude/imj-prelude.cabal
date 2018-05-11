@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Prelude
+                     , Imj.Data.List
   build-depends:       base >= 4.9 && < 4.12
                      , binary == 0.8.*
                      , containers ==0.5.*

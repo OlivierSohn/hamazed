@@ -123,7 +123,7 @@ instance ServerClientHandler HamazedServer where
 
   handleClientEvent = \case
     LevelEnded outcome -> do
-      adjustClient $ \c -> c { getState = Just $ Playing $ Just outcome }
+      adjustClient_ $ \c -> c { getState = Just $ Playing $ Just outcome }
       getsState intent >>= \case
         IntentPlayGame Nothing ->
           modifyState $ \s -> s { intent = IntentPlayGame $ Just outcome }
@@ -152,7 +152,8 @@ instance ServerClientHandler HamazedServer where
         getsState scheduledGame >>= \g -> liftIO (tryTakeMVar g) >>= maybe
           (warning "LevelEnded sent while game is Nothing")
           (\game -> void $ liftIO $ putMVar g $! game { status' = gameStatus })
-    CanContinue next ->
+        return []
+    CanContinue next -> do
       getsState scheduledGame >>= \g -> liftIO (tryReadMVar g) >>= maybe
         (warning "CanContinue sent while game is Nothing")
         (\game -> do
@@ -167,8 +168,9 @@ instance ServerClientHandler HamazedServer where
                 -- update to avoid state where the map is equal to all players:
                 void $ updateCurrentStatus $ Just curStatus
               _ -> error $ "inconsistent:"  ++ show curStatus)
-
-    WorldProposal wid mkEssenceRes stats -> case mkEssenceRes of
+      return []
+    WorldProposal wid mkEssenceRes stats -> do
+     case mkEssenceRes of
       Impossible errs -> getsState intent >>= \case
         IntentSetup -> getsState levelSpecification >>= notifyPlayers . GameInfo . CannotCreateLevel errs . levelNumber
         IntentPlayGame _ ->
@@ -190,7 +192,9 @@ instance ServerClientHandler HamazedServer where
             modifyState $ \s -> s { worldCreation = WorldCreation Created key spec newStats }
             notifyPlayers $ ChangeLevel (mkLevelEssence levelSpec) essence key)
         $ key == wid
-    CurrentGameState wid mayGameStateEssence -> maybe
+     return []
+    CurrentGameState wid mayGameStateEssence -> do
+     maybe
       (handlerError $ "Could not get HamazedGame " ++ show wid)
       (\gameStateEssence ->
         getsState scheduledGame >>= liftIO . tryReadMVar >>= \case
@@ -200,9 +204,9 @@ instance ServerClientHandler HamazedServer where
               notifyN [PutGameState gameStateEssence wid]
           invalid -> handlerError $ "CurrentGameState sent while game is " ++ show invalid)
       mayGameStateEssence
-
+     return []
     IsReady wid -> do
-      adjustClient $ \c -> c { getCurrentWorld = Just wid }
+      adjustClient_ $ \c -> c { getCurrentWorld = Just wid }
       getsState intent >>= \case
         IntentSetup ->
           -- Allow the client to setup the world, now that the world contains its ship.
@@ -211,7 +215,7 @@ instance ServerClientHandler HamazedServer where
           gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ game) ->
            liftIO (tryReadMVar game) >>= maybe
             (do
-              adjustClient $ \c -> c { getState = Just ReadyToPlay }
+              adjustClient_ $ \c -> c { getState = Just ReadyToPlay }
               -- start the game when all players have the right world
               players <- gets onlyPlayersMap
               let playersAllReady =
@@ -233,17 +237,20 @@ instance ServerClientHandler HamazedServer where
                 -- make player join the current game, but do /not/ set getShipSafeUntil,
                 -- else disconnecting / reconnecting intentionally could be a way to cheat
                 -- by having more safe time.
-                adjustClient $ \c -> c { getState = Just $ Playing maybeOutcome
+                adjustClient_ $ \c -> c { getState = Just $ Playing maybeOutcome
                                        , getShipAcceleration = zeroCoords })
+      return []
 
     -- Due to network latency, laser shots may be applied to a world state
     -- different from what the player saw when the shot was made.
     -- But since the laser shot will be rendered with latency, too, the player will be
     -- able to integrate the latency via this visual feedback - provided that latency is stable over time.
-    Action Laser dir ->
+    Action Laser dir -> do
       asks clientId >>= notifyPlayers . GameEvent . LaserShot dir
-    Action Ship dir ->
-      adjustClient $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
+      return []
+    Action Ship dir -> do
+      adjustClient_ $ \c -> c { getShipAcceleration = sumCoords (coordsForDirection dir) $ getShipAcceleration c }
+      return []
 
   type ValueT        HamazedServer = HamazedValue
   type ValueKeyT     HamazedServer = HamazedValueKey
@@ -323,7 +330,7 @@ instance ServerClientLifecycle HamazedServer where
   clientCanJoin _ = getsState intent >>= \case
     IntentSetup -> do
       -- change client state to make it playable
-      adjustClient $ \c -> c { getState = Just ReadyToPlay }
+      adjustClient_ $ \c -> c { getState = Just ReadyToPlay }
       -- The number of players just changed, so we need a new world.
       requestWorld
       return True

@@ -45,7 +45,6 @@ import           Data.List(take)
 
 import           Imj.Geo.Discrete.Bresenham
 import           Imj.Geo.Types
-import           Imj.Util
 
 -- | Discrete directions.
 data Direction = Up | Down | LEFT | RIGHT deriving (Eq, Show, Generic)

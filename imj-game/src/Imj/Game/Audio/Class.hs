@@ -5,7 +5,6 @@ module Imj.Game.Audio.Class
   ) where
 
 import           Imj.Prelude
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
 import           Imj.Music.Types
 

@@ -20,7 +20,6 @@ module Imj.Graphics.UI.RectContainer
 import           Imj.Prelude
 
 import           Data.List( mapAccumL, zip )
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Geo.Discrete.Types

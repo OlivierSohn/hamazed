@@ -7,7 +7,6 @@ module Imj.Control.Concurrent.AsyncGroups.Class
 import           Imj.Prelude
 
 import           Control.Concurrent.Async (Async)
-import           Control.Monad.IO.Class(MonadIO)
 
 class AsyncGroups a where
   -- | Attaches an 'Async' to the group, detaches it when the Async is done.

@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -22,6 +23,7 @@ module Imj.Music.Play
       , allMusic
       ) where
 
+import           Imj.Prelude
 import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Monad(void)
 import           Data.Maybe(catMaybes, maybeToList)
@@ -99,11 +101,11 @@ stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
 
 stepVoice :: Voice
           -> (Voice, [Music])
-stepVoice (Voice (NoteIdx i) cur v) =
+stepVoice (Voice i cur v) =
     ( Voice nextI newCur v
     , catMaybes [mayStopCur, mayStartNext])
  where
-  nextNote = v V.! i
+  nextNote = v V.! (fromIntegral i)
 
   newCur = case nextNote of
     Extend -> cur
@@ -127,7 +129,7 @@ stepVoice (Voice (NoteIdx i) cur v) =
   len = V.length v
 
   nextI
-    | i < len-1 = fromIntegral $ i+1
+    | i < fromIntegral len-1 = i+1
     | otherwise = 0
 
 stopVoice :: Voice -> (Voice, [Music])

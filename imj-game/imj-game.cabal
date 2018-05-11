@@ -61,6 +61,7 @@ library
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
+                     , imj-time ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , network ==2.6.*
                      , optparse-applicative == 0.14.*

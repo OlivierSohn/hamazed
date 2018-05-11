@@ -8,6 +8,7 @@ module Imj.Graphics.Class.Drawable
             , Draw, MonadReader
             ) where
 
+import           Imj.Prelude
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.Draw

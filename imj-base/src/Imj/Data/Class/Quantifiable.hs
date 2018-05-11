@@ -11,9 +11,12 @@ import           Imj.Prelude
 import qualified Prelude as Unsafe(maximum,minimum)
 import           Prelude(logBase)
 
+import           GHC.Float(float2Double, double2Float)
+
 import           Data.List(length, foldl')
 
 import           Imj.Util
+import           Imj.Timing
 
 class (Ord a, Show a) => Quantifiable a where
   readFloat :: Float -> a
@@ -63,3 +66,12 @@ logarithmically base l'' =
   l' = map writeFloat l''
   maxD = Unsafe.maximum l'
   minD = Unsafe.minimum l'
+
+instance Quantifiable (Time Duration a) where
+  writeFloat = double2Float . unsafeToSecs
+  readFloat = fromSecs . float2Double
+  showQty = showTime
+
+  {-# INLINABLE writeFloat #-}
+  {-# INLINABLE readFloat #-}
+  {-# INLINABLE showQty #-}

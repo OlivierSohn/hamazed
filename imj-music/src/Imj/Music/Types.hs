@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -6,30 +7,43 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Music.Types
-      ( Symbol(..)
-      , Instrument(..)
+      ( -- * Notes and instruments
+        Symbol(..)
       , NoteSpec(..)
+      , Instrument(..)
       , MidiPitch(..)
       , NoteName(..)
+      , naturalNote
       , Octave(..)
+      , noOctave
       , MidiVelocity(..)
-      , Tempo(..)
+        -- * Sequences of notes
+        -- ** Logical
       , Score(..)
       , mkScore
       , Voice(..)
       , mkVoice
+        -- ** Timed
+      , AbsoluteTimedMusic(..)
+      , RelativeTimedMusic(..)
+      , Recording(..)
+      , mkEmptyRecording
+      , Loop(..)
+        -- * Midi-like instructions
       , Music(..)
-      , NoteIdx(..)
       -- * Reexport
       , CInt
       ) where
 
+import           Imj.Prelude
 import           Control.DeepSeq (NFData(..))
 import           Data.Binary
 import           Data.Data(Data(..))
 import qualified Data.Vector as V
 import           Foreign.C
 import           GHC.Generics (Generic)
+
+import           Imj.Timing
 
 data Symbol =
     Note {-# UNPACK #-} !NoteSpec
@@ -89,9 +103,6 @@ instance NFData Instrument
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
 
-newtype Tempo = Tempo Float -- in beats per second
-  deriving(Generic,Show,Eq)
-
 data NoteName =
     Do
   | Réb
@@ -138,8 +149,25 @@ instance Enum NoteName where
     11 -> Si
     n -> error $ "out of range:" ++ show n
 
+naturalNote :: NoteName -> Bool
+naturalNote = \case
+  Do -> True
+  Réb -> False
+  Ré -> True
+  Mib -> False
+  Mi -> True
+  Fa -> True
+  Solb -> False
+  Sol -> True
+  Lab -> False
+  La -> True
+  Sib -> False
+  Si -> True
+
 newtype Octave = Octave Int
   deriving(Generic,Integral, Real, Num, Enum, Ord, Eq,Show,Binary,NFData, Data)
+noOctave :: Octave
+noOctave = Octave 6
 
 newtype MidiVelocity = MidiVelocity Float
  deriving (Generic, Num,Show,Eq)
@@ -151,3 +179,25 @@ newtype MidiPitch = MidiPitch CShort
 instance Binary MidiPitch where
   put (MidiPitch a) = put (fromIntegral a :: Int)
   get = MidiPitch . fromIntegral <$> (get :: Get Int)
+
+data AbsoluteTimedMusic = ATM !Music !Instrument {-# UNPACK #-} !(Time Point System)
+  deriving(Generic,Show)
+instance NFData AbsoluteTimedMusic
+
+data RelativeTimedMusic = RTM  {
+    _rtmMusic :: !Music
+  , _rtmInstrument :: !Instrument
+  , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
+} deriving(Show)
+
+data Recording = Recording [AbsoluteTimedMusic]
+  -- ^ The list is ordered by inverse time.
+  deriving(Generic, Show)
+instance NFData Recording
+
+mkEmptyRecording :: Recording
+mkEmptyRecording = Recording []
+
+newtype Loop = Loop (V.Vector RelativeTimedMusic)
+  -- ^ The vector is sorted by increasing durations w.r.t the beginning of the loop
+  deriving(Show)

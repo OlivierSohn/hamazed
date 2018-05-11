@@ -21,7 +21,6 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn, putStr)
 import qualified Imj.Graphics.Text.ColorString  as CS(putStr)
 import           Imj.Sums
 import           Imj.Timing
-import           Imj.Util
 
 testSums :: IO ()
 testSums = do

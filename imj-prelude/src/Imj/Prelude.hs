@@ -10,7 +10,7 @@ module Imj.Prelude
           ) where
 
 import           Prelude as Exported
-  ( Eq, Show(..), Real, Num(..), Enum, Bounded, Integral, Fractional, Floating, RealFrac
+  ( Eq, Show(..), Real, Num(..), Enum(..), Bounded, Integral, Fractional, Floating, RealFrac
   , Ord, Monoid(..), Monad(..), Functor, Read, Applicative, Foldable
   , Bool(..), Char, Float, Double, IO, Int, Maybe(..), Either(..), Ordering(..), FilePath
   , either
@@ -37,7 +37,7 @@ import           Control.Exception as Exported(assert)
 import           Control.DeepSeq as Exported(NFData(..), ($!!), deepseq, force)
 import           Control.Monad as Exported(sequence, when, unless, void, (<=<), (>=>), zipWithM_, forever
                               , replicateM, replicateM_, foldM, foldM_, forM_, forM, join)
-import           Control.Monad.IO.Class as Exported(liftIO)
+import           Control.Monad.IO.Class as Exported(MonadIO, liftIO)
 import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Bool as Exported(bool)
 import           Data.Binary as Exported(Binary)
@@ -54,6 +54,8 @@ import           Data.Word as Exported(Word8)
 import           Language.Haskell.TH.Syntax as Exported(Lift)
 
 import           Text.Show.Pretty as Exported(PrettyVal(..))
+
+import           Imj.Data.List as Exported
 
 {-
 -- | A replacement for 'Prelude.!!', that helps debugging.

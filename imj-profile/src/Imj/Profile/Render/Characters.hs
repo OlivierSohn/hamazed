@@ -37,7 +37,6 @@ import           Imj.Graphics.Class.Words
 import           Imj.Data.Class.Quantifiable
 import           Imj.Graphics.Text.Render
 import           Imj.Profile.Result
-import           Imj.Util
 import           Imj.Timing
 
 showQuantities :: (Quantifiable a)

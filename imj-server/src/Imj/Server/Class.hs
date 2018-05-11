@@ -31,6 +31,8 @@ module Imj.Server.Class
       , getsState
       , mapState
       , modifyState
+      , modifyState'
+      , modifyStateM
       , ClientViews(..)
       , ClientView(..)
       , ClientId(..)
@@ -46,14 +48,13 @@ module Imj.Server.Class
 
 import           Imj.Prelude
 import qualified Data.Binary as Bin
-import           Data.Binary(Binary(..))
+import           Data.Binary(Binary)
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
 import           Data.Map(Map)
 import           Control.Concurrent.MVar.Strict (MVar)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Strict(MonadState, gets, modify')
+import           Control.Monad.State.Strict(MonadState, gets, modify', get, put, state)
 import           Data.Attoparsec.Text(Parser)
 import           Data.Text.Lazy.Encoding as LazyT
 import qualified Data.Text.Lazy as LazyT
@@ -116,7 +117,7 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   type StateValueT s
 
-  type ClientEventT s
+  type ClientEventT s = (r :: *) | r -> s
   -- ^ Events sent by the client that must be handled by the server.
 
   type ConnectIdT s = (r :: *) | r -> s
@@ -125,7 +126,9 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                    => ClientEventT s -> m ()
+                    => ClientEventT s
+                    -> m [MVar (ServerState s) -> IO ()]
+                    -- ^ Returns (optional) actions to be executed in parallel.
 
   -- | Returns 'Left' to disallow the command, 'Right' to allow it.
   acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -279,9 +282,28 @@ modifyState :: MonadState (ServerState s) m
             => (s -> s) -> m ()
 modifyState = modify' . mapState
 
+{-# INLINE modifyState' #-}
+modifyState' :: MonadState (ServerState s) m
+             => (s -> (a,s)) -> m a
+modifyState' = state . mapState'
+
+{-# INLINE modifyStateM #-}
+modifyStateM :: MonadState (ServerState s) m
+             => (s -> m s) -> m ()
+modifyStateM f = do
+  s <- get
+  res <- f $ unServerState s
+  put $ s { unServerState = res }
+
 {-# INLINE mapState #-}
 mapState :: (s -> s) -> ServerState s -> ServerState s
 mapState f s = s { unServerState = f $ unServerState s }
+
+{-# INLINE mapState' #-}
+mapState' :: (s -> (a,s)) -> ServerState s -> (a,ServerState s)
+mapState' f s =
+  let (res,s') = f $ unServerState s
+  in (res, s { unServerState = s' })
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)

@@ -198,6 +198,11 @@ instance NFData Recording
 mkEmptyRecording :: Recording
 mkEmptyRecording = Recording []
 
-newtype Loop = Loop (V.Vector RelativeTimedMusic)
+data Loop = Loop {
+    _musics :: !(V.Vector RelativeTimedMusic)
   -- ^ The vector is sorted by increasing durations w.r.t the beginning of the loop
-  deriving(Show)
+  , _loopMinimalDuration :: !(Maybe (Time Duration System))
+  -- ^ If 'Just', it is the time span of the loop. Note that for consistency, this is expected to be @>= max $ map _rtmDt _musics@.
+  --
+  -- If 'Nothing', the duration of the loop is @max $ map _rtmDt _musics@
+} deriving(Show)

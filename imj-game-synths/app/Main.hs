@@ -248,7 +248,8 @@ instance ServerClientHandler SynthsServer where
           fmap (_recording . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
             (return [])
             (\recording -> do
-              let l = mkLoop recording
+              t <- liftIO getSystemTime
+              let l = mkLoop t recording
                   playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
                                 => Proxy SynthsServer -> LoopId -> MVar PianoState -> Music -> Instrument -> m ()
                   playLoopMusic _ loopId p n i = do

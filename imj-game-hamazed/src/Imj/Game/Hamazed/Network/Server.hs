@@ -238,7 +238,7 @@ instance ServerClientHandler HamazedServer where
                 -- else disconnecting / reconnecting intentionally could be a way to cheat
                 -- by having more safe time.
                 adjustClient_ $ \c -> c { getState = Just $ Playing maybeOutcome
-                                       , getShipAcceleration = zeroCoords })
+                                        , getShipAcceleration = zeroCoords })
       return []
 
     -- Due to network latency, laser shots may be applied to a world state

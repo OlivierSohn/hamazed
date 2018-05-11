@@ -1,7 +1,7 @@
-- when creating a loop, we should take into account the pause between the last played note and now.
-Trimming the beginning is good, but not the end.
+- the ability to delete a loop / mute it
 
-Computing the distace between the last note event and teh current time, and add it as "post pause" in the loop would be enough.
+- the loop creation is well-adapted to the first loop.
+For subsequents loops it would be nice to be able to set timing based on other loops.
 
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 
@@ -11,9 +11,6 @@ Computing the distace between the last note event and teh current time, and add 
 
 the server can record loops.
 Use f1 .. f9 to start / stop loops
-
-The server plays loops and what the players send,
-and records what player send.
 
 - OnContent is not handled generically.
 maybe content should not be generic at all.

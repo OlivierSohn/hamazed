@@ -7,14 +7,13 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Imj.Event -- TODO move to imj-engine
+module Imj.Event
         ( Event(..)
         , Deadline(..)
         , DeadlineType(..)
         , EventCategory(..)
         , ParticleSystemKey(..)
         -- * Reexports (for haddock hyperlinks)
-        , Categorized(..) -- TODO remove
         , module Imj.Graphics.ParticleSystem.Design.Create
         ) where
 

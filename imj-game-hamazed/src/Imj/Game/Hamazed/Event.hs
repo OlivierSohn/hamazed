@@ -13,7 +13,7 @@ module Imj.Game.Hamazed.Event
 
 import           Imj.Prelude
 
-import           Imj.Event
+import           Imj.Categorized
 
 data HamazedEvent =
      Interrupt !MetaAction

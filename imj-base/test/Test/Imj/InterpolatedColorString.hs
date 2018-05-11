@@ -1,12 +1,11 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Test.Imj.InterpolatedColorString(testICS) where
 
 import           Imj.Prelude
-
+import qualified Prelude as Unsafe(head)
 import           Control.Monad.Reader.Class(MonadReader)
-
-import           Data.Monoid((<>))
 
 import           Imj.Geo.Discrete
 import           Imj.Graphics.Class.Positionable
@@ -58,7 +57,7 @@ testICS = do
   mapM_
     (\i@(Frame c') -> do
       let cs@(ColorString l) = getValueAt e''' i
-          (_,color) = head l
+          (_,color) = Unsafe.head l
           c = Coord c'
       drawAt cs (Coords (c + 30) 25)
       drawAt (Colored whiteOnBlack $ show color) (Coords (c + 30) 35)

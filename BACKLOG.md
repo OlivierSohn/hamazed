@@ -1,4 +1,5 @@
 - the ability to delete a loop / mute it
+- add command help
 
 - the loop creation is well-adapted to the first loop.
 For subsequents loops it would be nice to be able to set timing based on other loops.

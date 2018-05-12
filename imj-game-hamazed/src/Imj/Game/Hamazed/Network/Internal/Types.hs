@@ -39,6 +39,7 @@ import           Imj.Prelude
 import           Data.List(unwords)
 import           Data.Map.Strict(Map)
 import           Data.Set(Set)
+import qualified Data.Set as Set
 
 import           Imj.Categorized
 import           Imj.Game.Hamazed.World.Types
@@ -46,6 +47,7 @@ import           Imj.Game.Hamazed.Level
 import           Imj.Server.Class
 import           Imj.Space.Types
 
+import           Imj.Game.Class
 import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Game.Hamazed.Timing
@@ -83,6 +85,14 @@ data HamazedServerEvent =
   | GameEvent {-unpack sum-} !GameStep
   deriving(Generic, Show)
 instance Binary HamazedServerEvent
+instance DrawGroupMember HamazedServerEvent where
+  exclusivityKeys = \case
+    GameEvent LaserShot{} -> Set.singleton GameStep
+    GameEvent PeriodicMotion{} -> Set.singleton GameStep
+    WorldRequest{} -> mempty
+    ChangeLevel{} -> mempty
+    PutGameState{} -> mempty
+    GameInfo _ -> mempty
 instance Categorized HamazedServerEvent where
   evtCategory = \case
     GameEvent LaserShot{} -> Laser'

@@ -53,6 +53,8 @@ import           Imj.Input.FromMonadReader
 
 {-# INLINABLE onEvent #-}
 onEvent :: (GameLogicT e ~ g, s ~ ServerT g
+          , DrawGroupMember (ServerEventT s)
+          , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , MonadState (AppState g) m
@@ -75,6 +77,8 @@ onEvent mayEvt = do
 
 {-# INLINABLE onEvent' #-}
 onEvent' :: (GameLogicT e ~ g, s ~ ServerT g
+           , DrawGroupMember (ServerEventT s)
+           , DrawGroupMember (ClientOnlyEvtT g)
            , ServerCmdParser s
            , StateValueT (ServerT g) ~ GameStateValue
            , MonadState (AppState g) m
@@ -96,6 +100,8 @@ onEvent' = maybe (handleEvent Nothing) -- if a rendergroup exists, render and re
 
 {-# INLINABLE handleEvent #-}
 handleEvent :: (GameLogicT e ~ g, s ~ ServerT g
+              , DrawGroupMember (ClientOnlyEvtT g)
+              , DrawGroupMember (ServerEventT s)
               , ServerCmdParser s
               , StateValueT s ~ GameStateValue
               , MonadState (AppState g) m
@@ -123,6 +129,8 @@ addUpdateTime add =
 
 {-# INLINABLE addToCurrentGroupOrRenderAndStartNewGroup #-}
 addToCurrentGroupOrRenderAndStartNewGroup :: (GameLogicT e ~ g
+                                            , DrawGroupMember (ServerEventT (ServerT g))
+                                            , DrawGroupMember (ClientOnlyEvtT g)
                                             , MonadState (AppState g) m
                                             , MonadReader e m, Render e, Client e
                                             , MonadIO m)

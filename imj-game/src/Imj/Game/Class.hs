@@ -6,6 +6,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Game.Class
       (
@@ -15,6 +16,7 @@ module Imj.Game.Class
       , GameExternalUI(..)
       , GameDraw(..)
       , GameStatefullKeys(..)
+      , DrawGroupMember(..)
       -- * Client / GameLogic
       , EventsForClient(..)
       , Game(..)
@@ -23,6 +25,7 @@ module Imj.Game.Class
       , UpdateEvent
       , CustomUpdateEvent
       , EventGroup(..)
+      , DrawGroupKeys(..)
       , defaultFrameSize
       -- * AppState type
       , AppState(..)
@@ -59,6 +62,7 @@ import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.State.Class(MonadState)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Set(Set)
+import qualified Data.Set as Set
 import           Data.Map.Strict(Map)
 import           Data.Proxy(Proxy(..))
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..), ModifierKeys(..))
@@ -333,7 +337,7 @@ mkEmptyInfos = Infos (Successive [fromString ""]) (Successive [fromString ""]) [
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
-  , _eventGroupHasPrincipal :: !Bool
+  , _eventGroupKeys :: !(Set DrawGroupKeys)
   , evtGroupUpdateDuration :: !(Time Duration System)
   , _eventGroupVisibleTimeRange :: !(Maybe (TimeRange System))
   -- ^ TimeRange of /visible/ events deadlines
@@ -343,17 +347,64 @@ data EventGroup g = EventGroup {
 type UpdateEvent g  = Either (ServerEvent (ServerT g)) (Event (ClientOnlyEvtT g))
 type CustomUpdateEvent g = Either (ServerEventT (ServerT g)) (ClientOnlyEvtT g)
 
--- | No 2 principal events can be part of the same 'EventGroup'.
--- It allows to separate important game action on different rendered frames.
-isPrincipal :: UpdateEvent g -> Bool
-isPrincipal (Right e) = case e of
-  (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
-  (Timeout (Deadline _ _ AnimateUI)) -> False
-  _ -> True
-isPrincipal (Left _) = True
+data DrawGroupKeys =
+    RedrawStatusKey
+  | GameStep
+  deriving(Eq, Ord)
+
+class DrawGroupMember e where
+  -- | Any two events of the same 'EventGroup' must have non-overlapping 'exclusivityKeys'.
+  --
+  -- Returning an empty 'Set' will allow the event to be member of any 'EventGroup',
+  -- regardless of events already present in it, and it will not prevent any further event to be included
+  -- in the same 'EventGroup'.
+  exclusivityKeys :: e -> Set DrawGroupKeys
+
+instance (DrawGroupMember e, DrawGroupMember f)
+  => DrawGroupMember (Either e f) where
+  exclusivityKeys = either exclusivityKeys exclusivityKeys
+
+instance DrawGroupMember e
+  => DrawGroupMember (Event e) where
+  exclusivityKeys = \case
+    (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> mempty
+    (Timeout (Deadline _ _ AnimateUI)) -> mempty
+    (Timeout (Deadline _ _ RedrawStatus{})) -> Set.singleton RedrawStatusKey
+    Log {} -> mempty
+    ToggleEventRecording -> mempty
+    CanvasSizeChanged -> mempty
+    RenderingTargetChanged  -> mempty
+    CycleRenderingOptions {}  -> mempty
+    ApplyPPUDelta {} -> mempty
+    ApplyFontMarginDelta {} -> mempty
+    ChatCmd {} -> mempty
+    SendChatMessage -> mempty
+    AppEvent e -> exclusivityKeys e
+
+instance DrawGroupMember () where
+  exclusivityKeys () = mempty
+
+instance DrawGroupMember (ServerEventT e)
+  => DrawGroupMember (ServerEvent e) where
+  exclusivityKeys = \case
+    ServerAppEvt x -> exclusivityKeys x
+    PlayMusic {} -> mempty
+    CommandError {} -> mempty
+    RunCommand {} -> mempty
+    Reporting {} -> mempty
+    PlayerInfo {} -> mempty
+    ConnectionAccepted {} -> mempty
+    ConnectionRefused {} -> mempty
+    Disconnected {} -> mempty
+    OnContent {} -> mempty
+    AllClients {} -> mempty
+    EnterState {} -> mempty
+    ExitState {} -> mempty
+    ServerError {} -> mempty
+    Warn {} -> mempty
 
 mkEmptyGroup :: EventGroup g
-mkEmptyGroup = EventGroup [] False zeroDuration Nothing
+mkEmptyGroup = EventGroup [] mempty zeroDuration Nothing
 
 visible :: EventGroup g -> Bool
 visible (EventGroup _ _ _ Nothing) = False
@@ -362,12 +413,14 @@ visible _ = True
 count :: EventGroup g -> Int
 count (EventGroup l _ _ _) = length l
 
-tryGrow :: Maybe (UpdateEvent g) -> EventGroup g -> IO (Maybe (EventGroup g))
+tryGrow :: (DrawGroupMember (ServerEventT (ServerT g))
+          , DrawGroupMember (ClientOnlyEvtT g))
+        => Maybe (UpdateEvent g) -> EventGroup g -> IO (Maybe (EventGroup g))
 tryGrow Nothing group
  | null $ events group = return $ Just group -- Keep the group opened to NOT do a render
  | otherwise = return Nothing -- to do a render
-tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
- | hasPrincipal && principal = return Nothing -- we don't allow two principal events in the same group
+tryGrow (Just e) (EventGroup l pastKeys updateTime range)
+ | keyConflict = return Nothing
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
  | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> return $
     let -- so that no 2 updates of the same particle system are done in the same group:
@@ -378,8 +431,10 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
       else
         withEvent $ Just range'
  where
-  !principal = isPrincipal e
-  withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime
+  thisKeys = exclusivityKeys e
+  mergedKeys = Set.union pastKeys thisKeys
+  keyConflict = Set.size thisKeys + Set.size pastKeys /= Set.size mergedKeys -- True when pastKeys and thisKeys overlapp
+  withEvent = Just . EventGroup (e:l) mergedKeys updateTime
   time = case e of
     Right (Timeout (Deadline t _ _)) -> return t
     _ -> getSystemTime

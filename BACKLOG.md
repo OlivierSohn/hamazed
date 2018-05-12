@@ -1,5 +1,3 @@
-- the notion of principal seems obsolete, replace it by the notion of "number of similar event in the same frame"
-
 - when making very short loops, we can't play anymore.
 
 When reading events, we first try the server ones:

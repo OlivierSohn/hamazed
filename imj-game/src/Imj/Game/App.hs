@@ -67,6 +67,8 @@ The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 runGame :: (GameLogic g
           , s ~ ServerT g
+          , DrawGroupMember (ServerEventT s)
+          , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
           , StateValueT s ~ GameStateValue
           , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
@@ -108,6 +110,8 @@ toAudio _ = Proxy
 run :: (GameLogic g
       , s ~ ServerT g
       , ServerCmdParser s
+      , DrawGroupMember (ServerEventT s)
+      , DrawGroupMember (ClientOnlyEvtT g)
       , StateValueT s ~ GameStateValue
       , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
     => Proxy g -> GameArgs g -> IO ()
@@ -189,6 +193,8 @@ run prox
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g
+          , DrawGroupMember (ServerEventT s)
+          , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)

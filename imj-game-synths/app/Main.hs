@@ -95,6 +95,13 @@ thePianoValue (SynthsClientView x _ _ _) = x
 data SynthsServerEvent =
   PianoValue !(Either ClientId LoopId) !PianoState
   deriving(Generic, Show)
+instance DrawGroupMember SynthsServerEvent where
+  exclusivityKeys = \case
+    PianoValue {} -> mempty -- we do this is so that interleaving 'PianoValue' events with 'PlayMusic' events
+                           -- will still allow multiple play music events to be part of the same frame.
+                           -- It is a bit of a hack, the better solution would be to handle audio events
+                           -- client-side as soon as they are received (in the listening thread) (TODO).
+
 instance Categorized SynthsServerEvent
 instance NFData SynthsServerEvent
 instance Binary SynthsServerEvent

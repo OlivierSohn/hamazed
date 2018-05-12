@@ -48,28 +48,48 @@ translatePlatformEvent prox = \case
         Arrow dir  -> Just $ Evt $ ChatCmd $ Navigate dir
         Enter      -> Just $ Evt $ SendChatMessage
         _ -> Nothing
-      NotEditing -> case key of
-        Arrow Up    -> return $ Just $ Evt $ CycleRenderingOptions (-1) 0
-        Arrow Down  -> return $ Just $ Evt $ CycleRenderingOptions 1 0
-        Arrow LEFT  -> return $ Just $ Evt $ CycleRenderingOptions 0 (-1)
-        Arrow RIGHT -> return $ Just $ Evt $ CycleRenderingOptions 0 1
-        -- commented out, replaced by precomputed PPU / Margins associations (see 4 lines above)
-        {-
-        AlphaNum 'h' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 1 0
-        AlphaNum 'n' -> return $ Just $ Evt $ ApplyPPUDelta $ Size (-1) 0
-        AlphaNum 'b' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 (-1)
-        AlphaNum 'm' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 1
-        AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
-        AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
-        -}
-        _ -> do
-          (ClientState activity state) <- getClientState <$> gets game
-          case activity of
-            Over -> return Nothing
-            Ongoing -> case state of
-              Excluded -> return Nothing
-              Included x -> mapInterpretedKey key x
-  StatefullKey k s m -> do
+      NotEditing -> do
+        (ClientState activity state) <- getClientState <$> gets game
+        case activity of
+          Over -> return Nothing
+          Ongoing -> case state of
+            Excluded -> return Nothing
+            Included x -> mapInterpretedKey key x
+  StatefullKey k s@GLFW.KeyState'Pressed m ->
+    maybe
+      (statefull k s m)
+      (\dir ->
+        -- I first filtered on 'Control' but it would work only for 'Arrow Up' on OSX
+        -- (or maybe my Macbook air keyboard has a bug?), hence I now filter on 'Shift' instead.
+        if m == GLFW.ModifierKeys {
+              GLFW.modifierKeysShift   = True
+            , GLFW.modifierKeysControl = False
+            , GLFW.modifierKeysAlt     = False
+            , GLFW.modifierKeysSuper   = False
+            }
+          then
+            return $ Just $ Evt $
+              case dir of
+                Up    -> CycleRenderingOptions (-1) 0
+                Down  -> CycleRenderingOptions 1 0
+                LEFT  -> CycleRenderingOptions 0 (-1)
+                RIGHT -> CycleRenderingOptions 0 1
+                -- replaced by precomputed PPU / Margins associations (see 4 lines above)
+                {-
+                AlphaNum 'h' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 1 0
+                AlphaNum 'n' -> return $ Just $ Evt $ ApplyPPUDelta $ Size (-1) 0
+                AlphaNum 'b' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 (-1)
+                AlphaNum 'm' -> return $ Just $ Evt $ ApplyPPUDelta $ Size 0 1
+                AlphaNum 'g' -> return $ Just $ Evt $ ApplyFontMarginDelta $ -1
+                AlphaNum 'v' -> return $ Just $ Evt $ ApplyFontMarginDelta 1
+                -}
+          else
+            statefull k s m)
+      $ isArrow k
+  StatefullKey k s m ->
+    statefull k s m
+ where
+  statefull k s m = do
     (ClientState activity state) <- getClientState <$> gets game
     case activity of
       Over -> return Nothing
@@ -88,3 +108,11 @@ translatePlatformEvent prox = \case
               send
          where
           send = mapStateKey (toStateKeys prox) k s m x
+
+  isArrow :: GLFW.Key -> Maybe Direction
+  isArrow = \case
+    GLFW.Key'Left -> Just LEFT
+    GLFW.Key'Right -> Just RIGHT
+    GLFW.Key'Up -> Just Up
+    GLFW.Key'Down -> Just Down
+    _ -> Nothing

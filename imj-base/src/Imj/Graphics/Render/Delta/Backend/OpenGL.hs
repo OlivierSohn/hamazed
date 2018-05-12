@@ -47,13 +47,15 @@ charCallback :: TQueue PlatformEvent -> GLFW.Window -> Char -> IO ()
 charCallback q _ c = atomically $ writeTQueue q $ InterpretedKey $ AlphaNum c
 
 keyCallback :: TQueue PlatformEvent -> GLFW.Window -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys -> IO ()
-keyCallback q _ k _ GLFW.KeyState'Pressed m =
-  maybe
-    (atomically $ writeTQueue q $ StatefullKey k GLFW.KeyState'Pressed m)
-    (atomically . writeTQueue q . InterpretedKey)
-    $ glfwKeyToKey k
-keyCallback q _ k _ s m =
+keyCallback q _ k _ s m = do
   atomically $ writeTQueue q $ StatefullKey k s m
+  case s of
+    GLFW.KeyState'Pressed ->
+      maybe
+        (return ())
+        (atomically . writeTQueue q . InterpretedKey)
+        $ glfwKeyToKey k
+    _ -> return ()
 
 glfwKeyToKey :: GLFW.Key -> Maybe Key
 glfwKeyToKey GLFW.Key'Enter  = Just Enter

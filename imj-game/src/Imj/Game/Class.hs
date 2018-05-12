@@ -43,7 +43,6 @@ module Imj.Game.Class
       , Infos(..)
       , mkEmptyInfos
       -- * EventGroup
-      , isPrincipal
       , mkEmptyGroup
       , visible
       , count

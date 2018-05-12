@@ -36,7 +36,6 @@ import           Imj.Game.Audio.Class
 import           Imj.Game.Class
 import           Imj.Game.Modify
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Priorities
@@ -69,9 +68,6 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Music.Types hiding(Do)
-import           Imj.Music.Compose
-import           Imj.Music.Play
 import           Imj.Physics.Discrete.Collision
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 import           Imj.Space.Draw
@@ -142,7 +138,7 @@ instance GameDraw HamazedGame where
 
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
-  type ClientOnlyEvtT HamazedGame = HamazedEvent
+  type ClientOnlyEvtT HamazedGame = ()
   type ColorThemeT    HamazedGame = ColorCycles
 
   -- Swaps the future world with the current one, and notifies the server using 'IsReady'
@@ -158,8 +154,7 @@ instance GameLogic HamazedGame where
 
   {-# INLINABLE onClientOnlyEvent #-}
   onClientOnlyEvent = \case
-    Interrupt Help -> error "not implemented"
-    PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
+    () -> return ()
   {-# INLINABLE onServerEvent #-}
   onServerEvent = \case
     WorldRequest wid arg -> case arg of

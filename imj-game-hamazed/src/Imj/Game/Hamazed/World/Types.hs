@@ -7,7 +7,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.World.Types
-        ( WorldId(..)
+        ( ActionTarget(..)
+        , WorldId(..)
         , WorldSpec(..)
         , WorldEssence(..)
         , World(..)
@@ -91,6 +92,15 @@ import           Imj.Iteration
 import           Imj.ClientView.Types(ClientId)
 import           Imj.Physics.Discrete
 import           Imj.Timing
+
+
+data ActionTarget =
+    Ship
+  -- ^ The player wants to accelerate the 'BattleShip'
+  | Laser
+  -- ^ The player wants to shoot with the laser.
+  deriving(Generic, Eq, Show)
+instance Binary ActionTarget
 
 data WorldParameters = WorldParameters {
     worldShape :: !WorldShape

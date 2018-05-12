@@ -1,3 +1,5 @@
+- the notion of principal seems obsolete, replace it by the notion of "number of similar event in the same frame"
+
 - when making very short loops, we can't play anymore.
 
 When reading events, we first try the server ones:
@@ -20,10 +22,23 @@ The other option is to have a dedicated channel + thread for audio: In case of a
 to be synchronized with game events so having a single channel + thread is fine. But in case of an audio app,
 we want the audio to be accurate, and the graphics can be less accurate.
 
-If the graphics become too unaccurate, we should investigate double buffering to incur less latency.
+If the graphics become too unaccurate (i.e
+  if piano events are principal : we see an increasing lag
+  if not: we sometimes don't see any key moving while the audio is very fast)
+ , we should investigate double buffering to incur less latency.
 
 * we could use double buffer rendering
 
+- independantly from the above issue, measure the accuracy of GHC scheduler:
+
+in one thread:
+  start <- measure time
+  go start [start]
+ where
+   go x l = do
+    sleep until start + x
+    t <- measure time
+    go (x + 10) (t:l)
 
 - synth when idle takes 20% cpu, why? is it just the audio engine?
 

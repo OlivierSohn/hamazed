@@ -34,7 +34,6 @@ library
                      , Imj.Game.Hamazed.Color
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.Level
-                     , Imj.Game.Hamazed.Event
                      , Imj.Game.Hamazed.Music
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server

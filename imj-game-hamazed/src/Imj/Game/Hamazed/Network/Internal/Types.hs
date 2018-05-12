@@ -43,7 +43,6 @@ import           Data.Set(Set)
 import           Imj.Categorized
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Event
 import           Imj.Server.Class
 import           Imj.Space.Types
 

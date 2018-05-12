@@ -200,6 +200,9 @@ class GameStatefullKeys g s where
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
+  --
+  -- Note that 'Shift + Arrow' key-presses are dedicated to font selection, and will be filtered
+  -- before reaching this function.
   mapStateKey :: (GameLogic g
                 , GameLogicT e ~ g
                 , s ~ StatefullKeysT g

@@ -1,5 +1,3 @@
-- reserve shift arrows for font selection.
-
 - the ability to delete a loop / mute it
 - add command help
 

@@ -37,7 +37,6 @@ import           Imj.Graphics.Class.DiscreteDistance
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Render
-import           Imj.Graphics.Color.Types
 import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation.Types
@@ -133,6 +132,8 @@ updateAppState (Left evt) = case evt of
       pack (show cmd) <> " failed:" <> err
   Reporting cmd ->
     stateChat $ addMessage $ Information Info $ pack $ chatShow cmd
+  Warn msg ->
+    stateChat $ addMessage $ Information Warning msg
   PlayerInfo notif i ->
     stateChat . addMessage . ChatMessage =<< toTxt i notif
   EnterState s ->
@@ -353,10 +354,6 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
   inform m = return [color m]
   color = flip colored' (messageColor Won)
   showPlayerNames = mapM showPlayerName . Set.toList
-  showPlayerName x = maybe
-    (colored (pack $ show x) white)
-    (\(Player (ClientName name) _ (PlayerColors c _)) -> colored name c)
-    <$> getPlayer x
 
 
 onSendChatMessage :: (GameLogicT e ~ g

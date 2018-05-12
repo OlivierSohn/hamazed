@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Music.Record
       ( recordMusic
@@ -17,8 +18,11 @@ import           Imj.Timing
 recordMusic :: Time Point System -> Recording -> Music -> Instrument -> Recording
 recordMusic t (Recording r) m i = Recording $ flip (:) r $ ATM m i t
 
-mkLoop :: Time Point System -> Recording -> Loop
-mkLoop !endTime (Recording r) = Loop v $ Just minDuration
+mkLoop :: Recording -> Time Point System -> Either Text Loop
+mkLoop (Recording r) !endTime =
+  case r of
+    [] -> Left "loop is empty"
+    _ -> Right $ Loop v $ Just minDuration
  where
   rr = reverse r
   (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr

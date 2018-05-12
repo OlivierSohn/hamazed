@@ -326,6 +326,7 @@ data ServerEvent s =
   | AllClients !(Map ClientId ClientEssence)
   | EnterState {-unpack sum-} !(StateValue (StateValueT s))
   | ExitState {-unpack sum-} !(StateValue (StateValueT s))
+  | Warn !Text
   | ServerError !String
   -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
   deriving(Generic)
@@ -345,6 +346,7 @@ instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
     EnterState x -> show ("EnterState",x)
     ExitState x -> show ("ExitState",x)
     ServerError x -> show ("ServerError",x)
+    Warn x -> show ("Warning",x)
 instance (Server s, ServerClientHandler s) => Binary (ServerEvent s)
 instance (Server s, ServerClientHandler s) => WebSocketsData (ServerEvent s) where
   fromDataMessage (Text t _) =
@@ -370,6 +372,7 @@ instance (Server s, ServerClientHandler s) => Categorized (ServerEvent s) where
     AllClients{} -> Chat'
     EnterState _ -> EnterState'
     ExitState _ -> ExitState'
+    Warn {} -> Chat'
     ServerAppEvt e -> evtCategory e
 
 data StateValue s =

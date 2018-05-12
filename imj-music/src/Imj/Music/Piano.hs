@@ -7,14 +7,12 @@ module Imj.Music.Piano
       , silencePiano
       , addNote
       , removeNote
-      , drawKeys
       ) where
 
 import           Imj.Prelude
 
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
 
 import           Imj.Music.Types
 
@@ -58,40 +56,3 @@ modPiano :: Music -> PianoState -> (Int,PianoState) -- ^ returns the number of c
 modPiano n = case n of
   StartNote spec _ -> addNote spec
   StopNote spec -> removeNote spec
-
-drawKeys :: NoteSpec
-         -- ^ From
-         -> NoteSpec
-         -- ^ To
-         -> PianoState
-         -> String
-drawKeys from to (PianoState m) =
-  go [] [from..to] $ Set.toAscList $ Map.keysSet m
- where
-  go l [] _ = reverse l
-  go l (k@(NoteSpec n _):ks) remainingPressed =
-    case remainingPressed of
-      [] -> go' freeChar remainingPressed
-      p:ps ->
-        if p == k
-          then
-            go' pressedChar ps
-          else
-            go' freeChar remainingPressed
-   where
-    go' c remPressed = go (maybeToList space ++ [c] ++ l) ks remPressed
-
-    space = case ks of
-      [] -> Nothing
-      (NoteSpec s _):_ -> case s of
-        Fa -> Just ' '
-        Do -> Just ' '
-        _ -> Nothing
-
-    freeChar
-      | naturalNote n = '-'
-      | otherwise = '*'--'\''
-
-    pressedChar
-      | naturalNote n = '_'
-      | otherwise = '.'

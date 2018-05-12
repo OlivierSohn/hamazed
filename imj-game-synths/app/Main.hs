@@ -4,7 +4,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
-
+{-# LANGUAGE OverloadedStrings #-}
 {-|
 This is a multiplayer game where every player uses the keyboard as a synthesizer.
 
@@ -20,9 +20,10 @@ import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT)
 import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..))
-import           Data.List(intercalate)
-import           Data.Map.Strict(Map)
+import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import           Data.Text(pack, Text)
 import           Data.Proxy(Proxy(..))
 import           GHC.Generics(Generic)
 import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
@@ -33,12 +34,16 @@ import           Imj.Game.App(runGame)
 import           Imj.Game.Class
 import           Imj.Game.Command
 import           Imj.Game.Modify
+import           Imj.Game.Show
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Positionable
-import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.Color
 import           Imj.Graphics.Screen
+import           Imj.Graphics.Text.ColorString(ColorString)
+import qualified Imj.Graphics.Text.ColorString as CS
+import           Imj.Graphics.Text.Render
+import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
 import           Imj.Music.Types
 import           Imj.Music.Piano
@@ -80,7 +85,7 @@ data SynthsClientView = SynthsClientView {
   , _nextLoopPianoIdx :: !Int
 } deriving(Generic)
 instance Show SynthsClientView where
-  show (SynthsClientView p r s n) = show ("SynthsClientView",p,r,Map.keysSet s, n)
+  show (SynthsClientView p r s n) = show ("SynthsClientView" :: String,p,r,Map.keysSet s, n)
 instance NFData SynthsClientView
 
 thePianoValue :: SynthsClientView -> PianoState
@@ -107,7 +112,7 @@ instance GameExternalUI SynthsGame where
 
   -- NOTE 'getViewport' is never called unless 'putIGame' was called once.
   getViewport _ (Screen _ center) (SynthsGame _ _) =
-    mkCenteredRectContainer center $ Size 10 100
+    mkCenteredRectContainer center $ Size 40 100
 
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
@@ -184,24 +189,24 @@ instance GameLogic SynthsGame where
         withAnim $ putIGame new -- TODO force withAnim when using putIGame ?
 
 instance GameDraw SynthsGame where
-  drawBackground (Screen _ center) (SynthsGame pianoClients pianoLoops) = do
-    c' <- drawPianos pianoClients $ mkCentered center
-    (Alignment _ coords) <- drawPianos pianoLoops c'
-    return coords
 
-{-# INLINABLE drawPianos #-}
-drawPianos :: (Show a, Draw e, MonadReader e m, MonadIO m)
-           => Map a PianoState -> Alignment -> m Alignment
-drawPianos m al = do
-  foldM
-    (\alignment (i,piano) -> do
-      let minNote = NoteSpec Do  $ noOctave - 1
-          maxNote = NoteSpec Sol $ noOctave + 1
-          str = intercalate " " [show i, drawKeys minNote maxNote piano]
-      drawAligned (Colored (onBlack $ rgb 3 1 2) str) alignment
-    )
-    al
-    $ Map.assocs m
+  drawBackground (Screen _ center) (SynthsGame pianoClients pianoLoops) = do
+    strs1 <- showPianos
+              "Players"
+              showPlayerName
+              pianoClients
+    strs2 <- showPianos
+              "Loops"
+              (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
+              pianoLoops
+    let allStrs = strs1 ++ strs2
+        maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs
+        right = move (quot maxL 2) RIGHT center
+    foldM_
+      (\a str -> drawAligned str a)
+      (mkRightAlign right)
+      allStrs
+    return center
 
 instance ServerInit SynthsServer where
 
@@ -238,36 +243,25 @@ instance ServerClientHandler SynthsServer where
           concat <$> forM (silencePiano piano) (flip onRecordableNote SineSynth) >>= notifyEveryoneN'
           fmap (_recording . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
             (return [])
-            (\recording -> do
-              t <- liftIO getSystemTime
-              let l = mkLoop t recording
-                  playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
-                                => LoopId -> MVar PianoState -> Music -> Instrument -> m ()
-                  playLoopMusic loopId p n i = do
-                    (countChangedNotes,newPiano) <- liftIO $ modifyMVar p $ \prevPiano -> do
-                      let (c,newPiano) = modPiano n prevPiano
-                      return (newPiano,(c, newPiano))
-                    notifyEveryoneN' $ if countChangedNotes == 0
-                      then
-                        []
-                      else
-                        [ ServerAppEvt $ PianoValue (Right loopId) newPiano
-                        , PlayMusic n i
-                        ]
-              pianoV <- liftIO $ newMVar mkEmptyPiano
-              creator <- asks clientId
-              (SynthsClientView _ _ _ idx) <- adjustClient
-                (\(SynthsClientView _ _ loops loopIdx) ->
-                  SynthsClientView
-                    mkEmptyPiano
-                    mkEmptyRecording
-                    (Map.insert (LoopId creator loopIdx) pianoV loops)
-                    $ loopIdx + 1)
-              return
-                [ (\v -> forever $ playLoopOnce -- TODO make loops cancelable using an IORef.
-                    (\a -> modifyMVar_ v . execStateT . playLoopMusic (LoopId creator $ idx-1) pianoV a)
-                    l)
-                    ]))
+            (\recording -> mkLoop recording <$> liftIO getSystemTime >>= either
+              (\msg -> do
+                notifyClient' $ Warn msg
+                return [])
+              (\l -> do
+                  pianoV <- liftIO $ newMVar mkEmptyPiano
+                  creator <- asks clientId
+                  (SynthsClientView _ _ _ idx) <- adjustClient
+                    (\(SynthsClientView _ _ loops loopIdx) ->
+                      SynthsClientView
+                        mkEmptyPiano
+                        mkEmptyRecording
+                        (Map.insert (LoopId creator loopIdx) pianoV loops)
+                        $ loopIdx + 1)
+                  return
+                    [ (\v -> forever $ playLoopOnce -- TODO make loops cancelable using an IORef.
+                        (\a -> modifyMVar_ v . execStateT . playLoopMusic (LoopId creator $ idx-1) pianoV a)
+                        l)
+                    ])))
    where
 
     onRecordableNote :: (MonadIO m, MonadState (ServerState SynthsServer) m, MonadReader ConstClientView m)
@@ -294,6 +288,19 @@ instance ServerClientHandler SynthsServer where
                 , PlayMusic n i
                 ])
 
+    playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
+                  => LoopId -> MVar PianoState -> Music -> Instrument -> m ()
+    playLoopMusic loopId p n i = do
+      (countChangedNotes,newPiano) <- liftIO $ modifyMVar p $ \prevPiano -> do
+        let (c,newPiano) = modPiano n prevPiano
+        return (newPiano,(c, newPiano))
+      notifyEveryoneN' $ if countChangedNotes == 0
+        then
+          []
+        else
+          [ ServerAppEvt $ PianoValue (Right loopId) newPiano
+          , PlayMusic n i
+          ]
 instance Server SynthsServer where
 
   type ServerEventT SynthsServer = SynthsServerEvent
@@ -318,3 +325,55 @@ pianoEvts idx v@(PianoState m) =
     (Map.assocs m)
 
 instance ServerCmdParser SynthsServer
+
+
+{-# INLINABLE showPianos #-}
+showPianos :: MonadReader e m
+           => Text
+           -> (a -> m ColorString)
+           -> Map a PianoState
+           -> m [ColorString]
+showPianos _ _ Tip = return []
+showPianos title showKey m = do
+  let minNote = NoteSpec Do  $ noOctave - 1
+      maxNote = NoteSpec Sol $ noOctave + 1
+  showArray (Just (CS.colored title $ rgb 2 1 2,"")) <$> mapM
+    (\(i,piano) -> flip (,) (CS.colored (pack $ showKeys minNote maxNote piano) $ rgb 3 1 2) <$> showKey i)
+    (Map.assocs m)
+
+showKeys :: NoteSpec
+         -- ^ From
+         -> NoteSpec
+         -- ^ To
+         -> PianoState
+         -> String
+showKeys from to (PianoState m) =
+  go [] [from..to] $ Set.toAscList $ Map.keysSet m
+ where
+  go l [] _ = reverse l
+  go l (k@(NoteSpec n _):ks) remainingPressed =
+    case remainingPressed of
+      [] -> go' freeChar remainingPressed
+      p:ps ->
+        if p == k
+          then
+            go' pressedChar ps
+          else
+            go' freeChar remainingPressed
+   where
+    go' c remPressed = go (maybeToList space ++ [c] ++ l) ks remPressed
+
+    space = case ks of
+      [] -> Nothing
+      (NoteSpec s _):_ -> case s of
+        Fa -> Just ' '
+        Do -> Just ' '
+        _ -> Nothing
+
+    freeChar
+      | naturalNote n = '-'
+      | otherwise = '*'--'\''
+
+    pressedChar
+      | naturalNote n = '_'
+      | otherwise = '.'

@@ -1,3 +1,36 @@
+- when making very short loops, we can't play anymore.
+
+When reading events, we first try the server ones:
+```user
+readInput = fmap (Right . dispatch) (readTQueue server)
+        <|> fmap Left (readTQueue platform)
+```
+
+Hence, if the time it takes to handle a server event is longer than the time it takes to generate one,
+we will endlessly handle server events.
+
+In this situation, events are marked "principal", hence they cannot be handled
+in the same render frame: they are "doomed" to be at least 20ms apart (time it take to wait for render frame).
+
+If we don't mark them (pianoevent + musicEvent) as principal, we could handle several of them in one pass.
+
+But (and I will verify this) I guess that doing this will shrink some notes.
+
+The other option is to have a dedicated channel + thread for audio: In case of a game, we want audio
+to be synchronized with game events so having a single channel + thread is fine. But in case of an audio app,
+we want the audio to be accurate, and the graphics can be less accurate.
+
+If the graphics become too unaccurate, we should investigate double buffering to incur less latency.
+
+* we could use double buffer rendering
+
+
+- synth when idle takes 20% cpu, why? is it just the audio engine?
+
+- array frame colors (grey for synths)
+
+- mkLoop : what about empty recordings? we could do nothing, return an error
+
 - the ability to delete a loop / mute it
 - add command help
 

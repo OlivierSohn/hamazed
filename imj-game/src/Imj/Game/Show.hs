@@ -6,7 +6,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Game.Show
-      ( getPlayerUIName'
+      ( showPlayerName
+      , getPlayerUIName'
       , getPlayerUIName''
       , welcome
       ) where
@@ -16,10 +17,11 @@ import           Imj.Prelude
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict(Map)
 import           Data.String(IsString)
-import           Data.Text(unpack)
+import           Data.Text(unpack, pack)
 
 import           Imj.ClientView.Types
 import           Imj.Game.Class
+import           Imj.Game.Modify
 import           Imj.Graphics.Color
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString(ColorString)
@@ -28,6 +30,13 @@ import           Imj.Graphics.Text.ColoredGlyphList(ColoredGlyphList)
 import qualified Imj.Graphics.Text.ColoredGlyphList as ColoredGlyphList(colored)
 import           Imj.Graphics.UI.Chat
 import           Imj.Network
+
+showPlayerName :: MonadState (AppState g) m
+               => ClientId -> m ColorString
+showPlayerName x = maybe -- TODO unify with getPlayerUIName
+  (ColorString.colored (pack $ show x) white)
+  (\(Player (ClientName name) _ (PlayerColors c _)) -> ColorString.colored name c)
+  <$> getPlayer x
 
 getPlayerUIName' :: Maybe (Player g) -> ColorString
 getPlayerUIName' = getPlayerUIName (ColorString.colored . unClientName)

@@ -1,4 +1,4 @@
-
+- try yield in test
 - parallelize player input reading:
 ```user
 readInput = fmap (Right . dispatch) (readTQueue server)

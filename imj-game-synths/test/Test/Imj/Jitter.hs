@@ -8,7 +8,7 @@ module Test.Imj.Jitter
 
 import Prelude(print, putStrLn, unlines)
 import Imj.Prelude
-import Control.Concurrent(threadDelay)
+import Control.Concurrent(threadDelay, yield)
 
 import Imj.Timing
 import Imj.Statistics
@@ -57,6 +57,29 @@ Duration: 100'000 (us)
 | *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  304.26666 326.0
 
 On average, we detect the target time with a 4 micro seconds delay.
+
+A variation of the previous 100%CPU case where here we yield before looping:
+
+test:waitTillYield
+Duration: 100'000 (us)
+| ************************************************************************************************                 0.0 0.93333334
+| ****************************************************************************************************             0.93333334 1.8666667
+| **************************************************************************************************************** 1.8666666 2.8
+| ************************************************************************************************************     2.8 3.7333333
+| *******************************************************************************                                  3.733333 4.6666665
+| **                                                                                                               4.6666665 5.6
+| **                                                                                                               5.6 6.5333333
+|                                                                                                                  6.5333333 7.4666667
+|                                                                                                                  7.466666 8.4
+|                                                                                                                  8.4 9.333333
+|                                                                                                                  9.333333 10.266666
+|                                                                                                                  10.266666 11.2
+|                                                                                                                  11.2 12.133333
+|                                                                                                                  12.133333 13.066667
+| *                                                                                                                13.066667 14.0
+
+
+On average, we detect the target time with a 2 micro seconds delay.
 -}
 testThreadDelay :: IO ()
 testThreadDelay =
@@ -85,6 +108,7 @@ testThreadDelay =
   strategies =
     [(testPeriod,"threadDelay")
     ,(testPeriodEmulate,"waitTill")
+    ,(testPeriodEmulateYield,"waitTillYield")
     ]
 
 testPeriod :: Time Duration System -> Time Point System -> IO [Time Point System]
@@ -119,4 +143,26 @@ testPeriodEmulate period startTime =
       then
         return now
       else
+        waitTill x
+
+-- using 100%CPU + yield, emulate threadDelay by repeatedly calling getSystemTime and
+-- checking if "we are done waiting yet" :
+testPeriodEmulateYield :: Time Duration System -> Time Point System -> IO [Time Point System]
+testPeriodEmulateYield period startTime =
+  go 1 [startTime]
+ where
+  go _ [] = error "logic"
+  go 500 l = return $ reverse l
+  go i l = do
+    let target = addDuration (i .* period) startTime
+    now <- waitTill target
+    go (i+1) (now:l)
+
+  waitTill x = do
+    now <- getSystemTime
+    if now > x
+      then
+        return now
+      else do
+        yield
         waitTill x

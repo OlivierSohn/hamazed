@@ -111,10 +111,14 @@ instance PlayerInput i => PlayerInput (Env i g) where
   plaformQueue     (Env _ a _ _ _ _) = plaformQueue a
   programShouldEnd (Env _ a _ _ _ _) = programShouldEnd a
   pollKeys         (Env _ a _ _ _ _) = pollKeys a
+  waitKeys         (Env _ a _ _ _ _) = waitKeys a
+  stopWaitKeys     (Env _ a _ _ _ _) = stopWaitKeys a
   queueType        (Env _ a _ _ _ _) = queueType a
   waitKeysTimeout  (Env _ a _ _ _ _) = waitKeysTimeout a
   {-# INLINE plaformQueue #-}
   {-# INLINE programShouldEnd #-}
   {-# INLINE pollKeys #-}
+  {-# INLINE waitKeys #-}
+  {-# INLINE stopWaitKeys #-}
   {-# INLINE queueType #-}
   {-# INLINE waitKeysTimeout #-}

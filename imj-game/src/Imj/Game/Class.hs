@@ -355,9 +355,24 @@ data DrawGroupKeys =
 class DrawGroupMember e where
   -- | Any two events of the same 'EventGroup' must have non-overlapping 'exclusivityKeys'.
   --
-  -- Returning an empty 'Set' will allow the event to be member of any 'EventGroup',
+  -- Returning an empty 'Set' ('mempty') will allow the event to be member of any 'EventGroup',
   -- regardless of events already present in it, and it will not prevent any further event to be included
   -- in the same 'EventGroup'.
+  --
+  -- WARNING : If the render backend of your game has a minimal duration @minDt@ between two rendered frames
+  -- (which is the case with single buffered opengl rendering) and if an event for which this function
+  -- returns a non-empty set is generated continuously at a frequency bigger than the inverse of @minDt@::
+  --
+  -- * player input will be ignored (TODO We could "parallelize" platform events consumption
+  -- so that player input can still be handled correctly in that case and still keep the guarantee that
+  -- server events are handled in their order of arrival.)
+  -- * only a single of these event can be present per rendered frame, so the queue of server events
+  -- will grow bigger and bigger, and these events will ultimately overflow the queue / delay other events.
+  -- Also, in a multi-player setting, no 2 players will see the same behaviour,
+  -- unless their respective @minDt@ are strictly equal, which is unlikely.
+  --
+  -- Hence, if an event is generated at high frequency, the recommendation is to
+  -- return 'mempty', else your game / application may exhibit strong lag and/or unresponsiveness.
   exclusivityKeys :: e -> Set DrawGroupKeys
 
 instance (DrawGroupMember e, DrawGroupMember f)

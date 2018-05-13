@@ -187,12 +187,16 @@ instance PlayerInput OpenGLBackend where
   programShouldEnd (OpenGLBackend win _ _) = liftIO $ GLFW.windowShouldClose win
   plaformQueue (OpenGLBackend _ q _) = q
   pollKeys _ = liftIO GLFW.pollEvents
+  waitKeys _ = liftIO GLFW.waitEvents
+  stopWaitKeys _ = liftIO GLFW.postEmptyEvent
   waitKeysTimeout _ = liftIO . GLFW.waitEventsTimeout . unsafeToSecs
   queueType _ = ManualFeed
 
   {-# INLINABLE programShouldEnd #-}
   {-# INLINABLE plaformQueue #-}
+  {-# INLINABLE stopWaitKeys #-}
   {-# INLINABLE pollKeys #-}
+  {-# INLINABLE waitKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
   {-# INLINABLE queueType #-}
 

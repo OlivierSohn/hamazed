@@ -58,12 +58,16 @@ instance PlayerInput ConsoleBackend where
   programShouldEnd _ = return False
   plaformQueue (ConsoleBackend q _) = q
   queueType _ = AutomaticFeed
+  stopWaitKeys _ = return ()
   pollKeys _ = return ()
+  waitKeys _ = return ()
   waitKeysTimeout _ _ = return ()
   {-# INLINABLE programShouldEnd #-}
   {-# INLINABLE plaformQueue #-}
   {-# INLINABLE queueType #-}
   {-# INLINABLE pollKeys #-}
+  {-# INLINABLE waitKeys #-}
+  {-# INLINABLE stopWaitKeys #-}
   {-# INLINABLE waitKeysTimeout #-}
 
 readConsoleSize :: IO (Maybe Size)

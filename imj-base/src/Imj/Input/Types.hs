@@ -69,7 +69,12 @@ class PlayerInput a where
   plaformQueue :: a -> TQueue PlatformEvent
 
   queueType :: a -> FeedType
-  -- | Use only if 'queueType' returns ManualFeed.
+
+  -- | Use 'pollKeys' only if 'queueType' == 'ManualFeed'.
   pollKeys :: a -> IO ()
-  -- | Use only if 'queueType' returns ManualFeed.
+  -- | Use 'waitKeys' only if 'queueType' == 'ManualFeed'.
+  waitKeys :: a -> IO ()
+  -- | Use 'stopWaitKeys' only if 'queueType' == 'ManualFeed'.
+  stopWaitKeys :: a -> IO ()
+  -- | Use 'waitKeysTimeout' only if 'queueType' == 'ManualFeed'.
   waitKeysTimeout :: a -> Time Duration System -> IO ()

@@ -1,31 +1,22 @@
-- when making very short loops, we can't play anymore.
 
-When reading events, we first try the server ones:
+- parallelize player input reading:
 ```user
 readInput = fmap (Right . dispatch) (readTQueue server)
         <|> fmap Left (readTQueue platform)
 ```
+if the server event cannot be handled because of an exclusivity key conflict, we should handle
+platform events instead.
 
-Hence, if the time it takes to handle a server event is longer than the time it takes to generate one,
-we will endlessly handle server events.
+Both streams of events (server events and platform events) are guaranteed to be handled
+by order of arrival in their respective queues.
 
-In this situation, events are marked "principal", hence they cannot be handled
-in the same render frame: they are "doomed" to be at least 20ms apart (time it take to wait for render frame).
+We could let the programmer decide if we break that guarantee for audio events
+, and let them be handled before being put in the queue, to have a better timing precision:
 
-If we don't mark them (pianoevent + musicEvent) as principal, we could handle several of them in one pass.
-
-But (and I will verify this) I guess that doing this will shrink some notes.
-
-The other option is to have a dedicated channel + thread for audio: In case of a game, we want audio
-to be synchronized with game events so having a single channel + thread is fine. But in case of an audio app,
-we want the audio to be accurate, and the graphics can be less accurate.
-
-If the graphics become too unaccurate (i.e
-  if piano events are principal : we see an increasing lag
-  if not: we sometimes don't see any key moving while the audio is very fast)
- , we should investigate double buffering to incur less latency.
-
-* we could use double buffer rendering
+  - In case of an audio app, we want the audio timing to be very accurate.
+The graphics timing can be less accurate.
+  - In case of a game, we want audio to be synchronized with game events
+so handling audio events the same way as game event might be preferrable.
 
 - independantly from the above issue, measure the accuracy of GHC scheduler:
 
@@ -38,7 +29,9 @@ in one thread:
     t <- measure time
     go (x + 10) (t:l)
 
-- synth when idle takes 20% cpu, why? is it just the audio engine?
+do the same thing and send the events, then measure on the client where they are handled.
+
+try with and without some exclusive events to trigger renders and see the effect of rendering on timing.
 
 - array frame colors (grey for synths)
 

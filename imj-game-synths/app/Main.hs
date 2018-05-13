@@ -385,7 +385,7 @@ showKeys from to (PianoState m) =
 
     freeChar
       | naturalNote n = '-'
-      | otherwise = '*'--'\''
+      | otherwise = '*'
 
     pressedChar
       | naturalNote n = '_'

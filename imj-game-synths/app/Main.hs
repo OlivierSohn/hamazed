@@ -81,7 +81,7 @@ data SynthsClientView = SynthsClientView {
     -- ^ The ongoing recording of what is being played, which can be used to create a 'Loop'
   , _serverLoopsPianos :: !(Map LoopId (MVar PianoState))
   -- ^ we don't need an 'MVar' for the 'Map' itself because when we read it or modify it, we
-  -- are guaranteed not to have race condition because the MVar of 'ServerState' is taken.
+  -- are guaranteed not to have race condition, as the MVar of 'ServerState' is taken.
   , _nextLoopPianoIdx :: !Int
 } deriving(Generic)
 instance Show SynthsClientView where
@@ -109,6 +109,7 @@ instance Binary SynthsServerEvent
 data SynthClientEvent =
     PlayNote !Music !Instrument
   | StartLoop
+  | ForgetCurrentRecording
   deriving(Show,Generic)
 instance Binary SynthClientEvent
 instance Categorized SynthClientEvent
@@ -126,6 +127,8 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
   mapStateKey _ (GLFW.Key'Space) GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt StartLoop
+  mapStateKey _ (GLFW.Key'F10) GLFW.KeyState'Pressed _ _ =
+    return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
   mapStateKey _ k s _ _ =
     return $ CliEvt . ClientAppEvt . flip PlayNote SineSynth <$> n
    where
@@ -241,6 +244,9 @@ instance ServerClientHandler SynthsServer where
   handleClientEvent e = case e of
     PlayNote n i -> do
       onRecordableNote n i >>= notifyEveryoneN'
+      return []
+    ForgetCurrentRecording -> do
+      adjustClient_ $ \s -> s {_recording = mkEmptyRecording }
       return []
     StartLoop -> do
       cid <- asks clientId

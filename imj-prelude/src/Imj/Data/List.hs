@@ -76,8 +76,10 @@ mkGroups n elts
 
 splitEvery :: Int -> [a] -> [[a]]
 splitEvery _ [] = []
-splitEvery n xs = as : splitEvery n bs
-  where (as,bs) = splitAt n xs
+splitEvery n xs =
+    as : splitEvery n bs
+  where
+    (as,bs) = splitAt n xs
 
 
 {-# INLINABLE range #-}

@@ -136,6 +136,7 @@ library
                      , Imj.Physics.Discrete.Collision
                      , Imj.Physics.Discrete.Types
                      , Imj.Random.MWC.Parallel
+                     , Imj.Statistics
                      , Imj.Sums
                      , Imj.Util
   build-depends:       base >= 4.9 && < 4.12

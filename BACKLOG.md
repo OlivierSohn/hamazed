@@ -33,6 +33,8 @@ do the same thing and send the events, then measure on the client where they are
 
 try with and without some exclusive events to trigger renders and see the effect of rendering on timing.
 
+without : approx. 2ms precision (see Jitter test)
+
 - array frame colors (grey for synths)
 
 - mkLoop : what about empty recordings? we could do nothing, return an error

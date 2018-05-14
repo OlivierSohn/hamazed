@@ -1,10 +1,10 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: nightly-2018-04-20
+resolver: lts-11.9
 # resolver by ghc version:
 #
 #   8.4.1:  nightly-2018-04-20
-#   8.2.2:  lts-11.7
+#   8.2.2:  lts-11.9
 
 packages:
 - './imj-base'
@@ -29,13 +29,6 @@ packages:
 - location:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
-  extra-dep: true
-# until uuid is ghc-84 compatible:
-- location:
-    git: https://github.com/OlivierSohn/uuid.git
-    commit: 82a74b9d153d0cc5a442c9d9d12b0be76602716f
-    subdirs:
-      - uuid
   extra-dep: true
 
 extra-deps:

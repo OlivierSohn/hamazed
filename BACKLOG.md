@@ -1,4 +1,11 @@
-- try yield in test
+- make a loop depend on another loop for start (point to another loop)
+
+- the ability to delete a loop / mute it
+- add command help
+
+- the loop creation is well-adapted to the first loop.
+For subsequents loops it would be nice to be able to set timing based on other loops.
+
 - parallelize player input reading:
 ```user
 readInput = fmap (Right . dispatch) (readTQueue server)
@@ -36,14 +43,6 @@ try with and without some exclusive events to trigger renders and see the effect
 without : approx. 2ms precision (see Jitter test)
 
 - array frame colors (grey for synths)
-
-- mkLoop : what about empty recordings? we could do nothing, return an error
-
-- the ability to delete a loop / mute it
-- add command help
-
-- the loop creation is well-adapted to the first loop.
-For subsequents loops it would be nice to be able to set timing based on other loops.
 
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 

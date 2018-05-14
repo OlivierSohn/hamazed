@@ -22,7 +22,7 @@ mkLoop :: Recording -> Time Point System -> Either Text Loop
 mkLoop (Recording r) !endTime =
   case r of
     [] -> Left "loop is empty"
-    _ -> Right $ Loop v $ Just minDuration
+    _ -> Right $ Loop Nothing v $ Just minDuration
  where
   rr = reverse r
   (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
@@ -33,16 +33,19 @@ playLoopOnce :: MonadIO m
              => (Music -> Instrument -> m ())
              -> Loop
              -> m ()
-playLoopOnce play (Loop v mayMinDuration) =
-
-  liftIO getSystemTime >>= playL
+playLoopOnce play (Loop mayDelay v mayMinDuration) =
+  maybe id addDuration mayDelay <$> liftIO getSystemTime >>= playL
 
  where
 
   !len = V.length v
 
-  playL begin =
+  playL begin = do
 
+    maybe
+      (return ())
+      (liftIO . threadDelay . fromIntegral . toMicros)
+      mayDelay
     go 0
 
    where

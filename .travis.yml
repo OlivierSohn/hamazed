@@ -9,7 +9,7 @@ os:
   - linux
 
 env:
-  - RESOLVER="lts-11.7"           # ghc 8.2.2
+  - RESOLVER="lts-11.9"           # ghc 8.2.2
   - RESOLVER="nightly-2018-04-20" # ghc 8.4.1
   - RESOLVER="nightly"
 
@@ -17,7 +17,7 @@ matrix:
   allow_failures:
     # cf https://github.com/commercialhaskell/stack/issues/3472 : allow linux to fail for ghc < 8.4.1
     - os: linux
-      env: RESOLVER="lts-11.7"
+      env: RESOLVER="lts-11.9"
     - env: RESOLVER="nightly"
 
 addons:

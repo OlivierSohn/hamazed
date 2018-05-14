@@ -199,7 +199,9 @@ mkEmptyRecording :: Recording
 mkEmptyRecording = Recording []
 
 data Loop = Loop {
-    _musics :: !(V.Vector RelativeTimedMusic)
+    _loopStartDelay :: !(Maybe (Time Duration System))
+  -- ^ The amount of time to wait before the first note is played.
+  , _musics :: !(V.Vector RelativeTimedMusic)
   -- ^ The vector is sorted by increasing durations w.r.t the beginning of the loop
   , _loopMinimalDuration :: !(Maybe (Time Duration System))
   -- ^ If 'Just', it is the time span of the loop. Note that for consistency, this is expected to be @>= max $ map _rtmDt _musics@.

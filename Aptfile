@@ -1,2 +1,8 @@
-libftgl-dev
 portaudio19-dev
+libftgl-dev
+libxcursor-dev
+libxi-dev
+libxinerama-dev
+libxrandr-dev
+libftgl-dev
+libgmp-dev

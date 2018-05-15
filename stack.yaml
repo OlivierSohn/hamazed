@@ -6,6 +6,11 @@ resolver: lts-11.9
 #   8.4.1:  nightly-2018-05-14
 #   8.2.2:  lts-11.9
 
+image:
+  container:
+    name: imj/hamazed
+    base: fpco/stack-run
+
 packages:
 - './imj-base'
 - './imj-bindings-audio'

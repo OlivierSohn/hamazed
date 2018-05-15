@@ -1,6 +1,6 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: lts-11.9
+resolver: nightly-2018-05-14
 # resolver by ghc version:
 #
 #   8.4.1:  nightly-2018-05-14
@@ -8,8 +8,10 @@ resolver: lts-11.9
 
 image:
   container:
-    name: imj/hamazed
-    base: fpco/stack-run
+    # The Dockerfile in this directory references this name
+    name: imajuscule/hamazed
+    # The associated Dockerfile is in docker-rt subdirectory
+    base: imajuscule/imj-game-rt
 
 packages:
 - './imj-base'

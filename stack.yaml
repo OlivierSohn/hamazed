@@ -1,6 +1,6 @@
 # http://docs.haskellstack.org/en/stable/yaml_configuration/
 
-resolver: nightly-2018-05-14
+resolver: lts-11.9
 # resolver by ghc version:
 #
 #   8.4.1:  nightly-2018-05-14

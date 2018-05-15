@@ -100,7 +100,7 @@ testThreadDelay =
       -- "There is no guarantee that the thread will be rescheduled promptly when the delay has expired,
       -- but the thread will never continue to run earlier than specified."
       mapM_
-        (\d -> when (strictlyNegative d) $ error $ "earlier " ++ show d)
+        (\d -> when (strictlyNegative d) $ error $ "earlier " ++ showDetailedTime d)
         differences
  where
   periods = map fromSecs [0.1,0.01,0.001,0.0001]

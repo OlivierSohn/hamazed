@@ -20,6 +20,7 @@ module Imj.Timing
       Time
     , prettyShowTime
     , showTime
+    , showDetailedTime
     , System
     , Point
     , Duration
@@ -33,8 +34,9 @@ module Imj.Timing
     , addDuration
     -- * Produce durations
     , (...)
-    -- * Scale, add, substract durations
+    -- * Scale, ratio, add, substract durations
     , (.*)
+    , (./)
     , (|-|)
     , (|+|)
     -- * Convert durations between time spaces
@@ -100,6 +102,9 @@ instance Show (Time Point a) where
 instance Show (Time Duration a) where
   show = (++) "Duration: " . showTime
 
+showDetailedTime :: Time a b -> String
+showDetailedTime (Time t) = show t
+
 {- | A location on a timeline.
 
 Note that summing 'Time' 'Point' has no meaning, and substracting them is achieved
@@ -145,7 +150,12 @@ Time a |+| Time b = Time $ a+b
 (.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
   fromSecs $ scale * unsafeToSecs t
+{- | 'Time' 'Duration' ratio -}
+(./) :: Time Duration a -> Time Duration a -> Double
+a ./ b =
+  unsafeToSecs a / unsafeToSecs b
 {-# INLINE (.*) #-}
+{-# INLINE (./) #-}
 {-# INLINE (|-|) #-}
 {-# INLINE (|+|) #-}
 

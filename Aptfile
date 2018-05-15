@@ -4,5 +4,4 @@ libxcursor-dev
 libxi-dev
 libxinerama-dev
 libxrandr-dev
-libftgl-dev
 libgmp-dev

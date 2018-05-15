@@ -15,7 +15,8 @@ module Main where
 
 import           Imj.Prelude
 
-import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, readMVar)
+import           Control.Concurrent(forkIO, threadDelay)
+import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar)
 import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT)
 import           Control.Monad.Reader(asks)
@@ -66,10 +67,13 @@ instance NFData LoopId
 
 data SynthsGame = SynthsGame {
     _clientsPianos :: !(Map ClientId PianoState)
-  , _clientLoopsPianos :: !(Map LoopId PianoState)
+  , _clientLoopsPianos :: !(Map SequencerId (Map LoopId PianoState))
 } deriving(Show)
 
-data SynthsServer = SynthsServer
+data SynthsServer = SynthsServer {
+    srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId)))
+  , nextSeqId :: !SequencerId
+}
   deriving(Generic)
 
 instance NFData SynthsServer
@@ -79,24 +83,21 @@ data SynthsClientView = SynthsClientView {
     -- ^ What is currently pressed, by the player (excluding what is played by loops)
   , _recording :: !Recording
     -- ^ The ongoing recording of what is being played, which can be used to create a 'Loop'
-  , _serverLoopsPianos :: !(Map LoopId (MVar PianoState))
-  -- ^ we don't need an 'MVar' for the 'Map' itself because when we read it or modify it, we
-  -- are guaranteed not to have race condition, as the MVar of 'ServerState' is taken.
   , _nextLoopPianoIdx :: !Int
-} deriving(Generic)
-instance Show SynthsClientView where
-  show (SynthsClientView p r s n) = show ("SynthsClientView" :: String,p,r,Map.keysSet s, n)
+} deriving(Generic, Show)
 instance NFData SynthsClientView
 
 thePianoValue :: SynthsClientView -> PianoState
-thePianoValue (SynthsClientView x _ _ _) = x
+thePianoValue (SynthsClientView x _ _) = x
 
 -- | The server will also send 'PlayMusic' events, which are generic events.
 data SynthsServerEvent =
-  PianoValue !(Either ClientId LoopId) !PianoState
+    PianoValue !(Either ClientId (SequencerId, LoopId)) !PianoState
+  | NewLine {-# UNPACK #-} !SequencerId {-# UNPACK #-} !LoopId
   deriving(Generic, Show)
 instance DrawGroupMember SynthsServerEvent where
   exclusivityKeys = \case
+    NewLine {} -> mempty
     PianoValue {} -> mempty -- we do this is so that interleaving 'PianoValue' events with 'PlayMusic' events
                            -- will still allow multiple play music events to be part of the same frame.
                            -- It is a bit of a hack, the better solution would be to handle audio events
@@ -108,7 +109,8 @@ instance Binary SynthsServerEvent
 
 data SynthClientEvent =
     PlayNote !Music !Instrument
-  | StartLoop
+  | WithMultiLineSequencer {-# UNPACK #-} !SequencerId
+  | WithMonoLineSequencer
   | ForgetCurrentRecording
   deriving(Show,Generic)
 instance Binary SynthClientEvent
@@ -126,7 +128,15 @@ data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
   mapStateKey _ (GLFW.Key'Space) GLFW.KeyState'Pressed _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt StartLoop
+    return $ Just $ CliEvt $ ClientAppEvt WithMonoLineSequencer
+  mapStateKey _ (GLFW.Key'F1) GLFW.KeyState'Pressed _ _ =
+    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 1
+  mapStateKey _ (GLFW.Key'F2) GLFW.KeyState'Pressed _ _ =
+    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 2
+  mapStateKey _ (GLFW.Key'F3) GLFW.KeyState'Pressed _ _ =
+    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3
+  mapStateKey _ (GLFW.Key'F4) GLFW.KeyState'Pressed _ _ =
+    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
   mapStateKey _ (GLFW.Key'F10) GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
   mapStateKey _ k s _ _ =
@@ -189,42 +199,53 @@ instance GameLogic SynthsGame where
   onClientOnlyEvent = \case
     () -> return ()
   onServerEvent = \case
+    NewLine seqId loopId ->
+      getIGame >>= \mayG -> do
+        let (c,l) = maybe (mempty,mempty) (\(SynthsGame pianos loopPianos) -> (pianos,loopPianos)) mayG
+            new = SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId mkEmptyPiano) l)
+        withAnim $ putIGame new
     PianoValue creator x ->
       getIGame >>= \mayG -> do
         let (c,l) = maybe (mempty,mempty) (\(SynthsGame pianos loopPianos) -> (pianos,loopPianos)) mayG
             new = either
               (\i -> SynthsGame (Map.insert i x c) l)
-              (\i -> SynthsGame c (Map.insert i x l))
+              (\(seqId,loopId) -> SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId x) l))
               creator
         withAnim $ putIGame new -- TODO force withAnim when using putIGame ?
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center) (SynthsGame pianoClients pianoLoops) = do
-    strs1 <- showPianos
-              "Players"
-              showPlayerName
-              pianoClients
-    strs2 <- showPianos
-              "Loops"
-              (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
-              pianoLoops
-    let allStrs = strs1 ++ strs2
-        maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs
-        right = move (quot maxL 2) RIGHT center
+  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops) = do
+    ref1 <- showPianos
+      "Players"
+      showPlayerName
+      pianoClients >>= drawPiano center
     foldM_
-      (\a str -> drawAligned str a)
-      (mkRightAlign right)
-      allStrs
+      (\ref ((SequencerId seqId), seqPianoLoops) -> do
+        showPianos
+          ("Sequence " <> pack (show seqId))
+          (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
+          seqPianoLoops >>= drawPiano ref)
+        ref1
+        $ Map.assocs pianoLoops
     return center
+   where
+     drawPiano (Coords r _) allStrs = do
+      let maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs
+          right = move (quot maxL 2) RIGHT $ Coords r centerC
+      (Alignment _ res) <- foldM
+        (\a str -> drawAligned str a)
+        (mkRightAlign right)
+        allStrs
+      return res
 
 instance ServerInit SynthsServer where
 
   type ClientViewT SynthsServer = SynthsClientView
 
-  mkInitialState = return ((), SynthsServer)
+  mkInitialState = return ((), SynthsServer mempty $ SequencerId 10) -- the first 9 sequencers are reserved
 
-  mkInitialClient = SynthsClientView mkEmptyPiano mkEmptyRecording mempty 0
+  mkInitialClient = SynthsClientView mkEmptyPiano mkEmptyRecording 0
 
 instance ServerInParallel SynthsServer
 
@@ -248,33 +269,30 @@ instance ServerClientHandler SynthsServer where
     ForgetCurrentRecording -> do
       adjustClient_ $ \s -> s {_recording = mkEmptyRecording }
       return []
-    StartLoop -> do
-      cid <- asks clientId
-      fmap (_piano . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
-        (return [])
-        (\piano -> do
-          concat <$> forM (silencePiano piano) (flip onRecordableNote SineSynth) >>= notifyEveryoneN'
-          fmap (_recording . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
-            (return [])
-            (\recording -> mkLoop recording <$> liftIO getSystemTime >>= either
-              (\msg -> do
-                notifyClient' $ Warn msg
-                return [])
-              (\l -> do
-                  pianoV <- liftIO $ newMVar mkEmptyPiano
-                  creator <- asks clientId
-                  (SynthsClientView _ _ _ idx) <- adjustClient
-                    (\(SynthsClientView _ _ loops loopIdx) ->
-                      SynthsClientView
-                        mkEmptyPiano
-                        mkEmptyRecording
-                        (Map.insert (LoopId creator loopIdx) pianoV loops)
-                        $ loopIdx + 1)
+    WithMonoLineSequencer ->
+      usingRecording $ \loopId recording now ->
+        addSequencer Nothing loopId recording now
+    WithMultiLineSequencer seqId ->
+      usingRecording $ \loopId recording now ->
+        Map.lookup seqId . srvSequencers <$> gets unServerState >>= maybe
+          (addSequencer (Just seqId) loopId recording now)
+          (\sequencer ->
+            liftIO (modifyMVar sequencer (\s@(Sequencer start _ _) ->
+              return $ either
+                (\err -> (s, Left err))
+                (\(s',mus) -> (s', Right (s', mus, start...now)))
+                $ insertRecording recording loopId s)) >>= either
+                (\msg -> do
+                  notifyClient' $ Warn msg
+                  return [])
+                (\((Sequencer start _ _),mus,progress) -> do
+                  notifyEveryone $ NewLine seqId loopId
                   return
-                    [ (\v -> forever $ playLoopOnce -- TODO make loops cancelable using an IORef.
-                        (\a -> modifyMVar_ v . execStateT . playLoopMusic (LoopId creator $ idx-1) pianoV a)
-                        l)
-                    ])))
+                    [ (\v -> startLoopThreadAt
+                          (\a b -> modifyMVar_ v . execStateT . playLoopMusic seqId loopId a b)
+                          start progress mus)
+                    ]))
+
    where
 
     onRecordableNote :: (MonadIO m, MonadState (ServerState SynthsServer) m, MonadReader ConstClientView m)
@@ -293,7 +311,7 @@ instance ServerClientHandler SynthsServer where
             else do
               t <- liftIO getSystemTime
               creator <- asks clientId
-              newpiano <- _piano <$> adjustClient (\s@(SynthsClientView _ recording _ _) ->
+              newpiano <- _piano <$> adjustClient (\s@(SynthsClientView _ recording _) ->
                     s { _piano = piano'
                       , _recording = recordMusic t recording n i })
               return
@@ -302,34 +320,69 @@ instance ServerClientHandler SynthsServer where
                 ])
 
     playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
-                  => LoopId -> MVar PianoState -> Music -> Instrument -> m ()
-    playLoopMusic loopId p n i = do
-      (countChangedNotes,newPiano) <- liftIO $ modifyMVar p $ \prevPiano -> do
-        let (c,newPiano) = modPiano n prevPiano
-        return (newPiano,(c, newPiano))
-      notifyEveryoneN' $ if countChangedNotes == 0
-        then
-          []
-        else
-          [ ServerAppEvt $ PianoValue (Right loopId) newPiano
-          , PlayMusic n i
-          ]
+                  => SequencerId -> LoopId -> PianoState -> Music -> Instrument -> m ()
+    playLoopMusic seqId loopId newPiano n i =
+      notifyEveryoneN'
+        [ ServerAppEvt $ PianoValue (Right (seqId,loopId)) newPiano
+        , PlayMusic n i
+        ]
+
+    addSequencer maySeqId loopId recording now = either
+      (\msg -> do
+        notifyClient' $ Warn msg
+        return [])
+      (\sequencerV -> do
+        sequencer <- liftIO $ newMVar sequencerV
+        seqId <- modifyState' $ \(SynthsServer m i) ->
+          let (sid,succI) = maybe (i,succ i) (\j -> (j,i)) maySeqId
+          in (sid,SynthsServer (Map.insert sid sequencer m) succI)
+        notifyEveryone $ NewLine seqId loopId
+        return
+          [ (\v -> forever $ do
+              now' <- getSystemTime
+              modifyMVar sequencer (\(Sequencer _ a b) -> do
+                let s = (Sequencer now' a b)
+                return (s,s))
+                >>= \(Sequencer startTime duration vecs) -> do
+                  forM_ (Map.assocs vecs) $ \(lid,vec) ->
+                    void $ forkIO $
+                      playOnce (\a b -> modifyMVar_ v . execStateT . playLoopMusic seqId lid a b) vec startTime
+                  threadDelay $ fromIntegral $ toMicros $ duration)
+          ])
+        $ mkSequencerFromRecording loopId recording now
+
+    usingRecording x = do
+      cid <- asks clientId
+      fmap (_piano . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
+        (return [])
+        (\piano -> do
+          concat <$> forM (silencePiano piano) (flip onRecordableNote SineSynth) >>= notifyEveryoneN'
+          fmap (_recording . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
+            (return [])
+            (\recording -> do
+              creator <- asks clientId
+              (SynthsClientView _ _ idx) <- adjustClient
+                (\(SynthsClientView _ _ loopIdx) ->
+                  SynthsClientView
+                    mkEmptyPiano
+                    mkEmptyRecording
+                    $ loopIdx + 1)
+              let loopId = LoopId creator $ idx - 1
+              liftIO getSystemTime >>= x loopId recording))
+
 instance Server SynthsServer where
 
   type ServerEventT SynthsServer = SynthsServerEvent
 
   greetNewcomer' = -- Send the currently started notes so that the newcomer
                    -- hears exactly what other players are hearing.
-    map (fmap unClientView) . Map.assocs <$> gets clientsMap >>= \l -> do
-      concat <$> mapM
-        (\(i,(SynthsClientView piano _ m _)) -> do
-          concat . (:) (pianoEvts (Left i) piano) <$>
-            mapM
-              (\(loopIdx,p) -> pianoEvts (Right loopIdx) <$> liftIO (readMVar p))
-              (Map.assocs m))
-        l
+                   -- Note that the currently started notes of sequencers are not sent
+                   -- because we don't have access to their 'PianoState'
+    map (fmap unClientView) . Map.assocs <$> gets clientsMap >>=
+      return . concatMap
+        (\(i,(SynthsClientView piano _ _)) -> pianoEvts (Left i) piano)
 
-pianoEvts :: Either ClientId LoopId -> PianoState -> [ServerEvent SynthsServer]
+pianoEvts :: Either ClientId (SequencerId,LoopId) -> PianoState -> [ServerEvent SynthsServer]
 pianoEvts idx v@(PianoState m) =
   ServerAppEvt (PianoValue idx v) :
   concatMap

@@ -28,7 +28,8 @@ module Imj.Music.Types
       , RelativeTimedMusic(..)
       , Recording(..)
       , mkEmptyRecording
-      , Loop(..)
+      , Sequencer(..)
+      , SequencerId(..)
         -- * Midi-like instructions
       , Music(..)
       -- * Reexport
@@ -39,6 +40,7 @@ import           Imj.Prelude
 import           Control.DeepSeq (NFData(..))
 import           Data.Binary
 import           Data.Data(Data(..))
+import           Data.Map.Internal(Map(..))
 import qualified Data.Vector as V
 import           Foreign.C
 import           GHC.Generics (Generic)
@@ -188,23 +190,26 @@ data RelativeTimedMusic = RTM  {
     _rtmMusic :: !Music
   , _rtmInstrument :: !Instrument
   , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
-} deriving(Show)
+} deriving(Generic, Show)
+instance NFData RelativeTimedMusic
 
-data Recording = Recording [AbsoluteTimedMusic]
-  -- ^ The list is ordered by inverse time.
-  deriving(Generic, Show)
+data Recording = Recording {
+    _recordedMusic :: ![AbsoluteTimedMusic]
+    -- ^ Ordered by inverse time.
+}  deriving(Generic, Show)
 instance NFData Recording
 
 mkEmptyRecording :: Recording
 mkEmptyRecording = Recording []
 
-data Loop = Loop {
-    _loopStartDelay :: !(Maybe (Time Duration System))
-  -- ^ The amount of time to wait before the first note is played.
-  , _musics :: !(V.Vector RelativeTimedMusic)
-  -- ^ The vector is sorted by increasing durations w.r.t the beginning of the loop
-  , _loopMinimalDuration :: !(Maybe (Time Duration System))
-  -- ^ If 'Just', it is the time span of the loop. Note that for consistency, this is expected to be @>= max $ map _rtmDt _musics@.
-  --
-  -- If 'Nothing', the duration of the loop is @max $ map _rtmDt _musics@
-} deriving(Show)
+data Sequencer k = Sequencer {
+    sequenceStart :: !(Time Point System)
+  , sequencePeriod :: {-# UNPACK #-} !(Time Duration System)
+  , musicLines :: !(Map k (V.Vector RelativeTimedMusic))
+} deriving(Generic)
+instance NFData k => NFData (Sequencer k)
+
+newtype SequencerId = SequencerId Int
+  deriving(Generic, Show, Ord, Eq, Enum)
+instance Binary SequencerId
+instance NFData SequencerId

@@ -1,10 +1,34 @@
-- make a loop depend on another loop for start (point to another loop)
+- https://hackernoon.com/for-all-the-world-to-see-deploying-haskell-with-heroku-7ea46f827ce
+https://github.com/mfine/heroku-buildpack-stack
+
+the heroku build fails because portaudio / ftgl are missing. We should not have to
+install those to build the server.
+
+
+- add game doc. For synth:
+While playing on the computer keyboard, the notes are played in real time, and stored in
+a Recording which can then be used as part of a Sequence.
+
+Pressing 'Space' will start a new singleline Sequence from the current Recording.
+Pressing one of the function keys fn where n is in [1..4] will:
+  if multiline Sequence n doesn't already exist : start a new sequence using the current Recording.
+    The period of the sequence is the length of the current Recording.
+  if multiline Sequence n exists : insert the current Recording in the sequence.
+    If the current Recording is longer than the existing sequence, multiple instances of it will be played at the same time.
+    Note that this could lead to sound saturation if the Sequence period is short w.r.t the length of the Recording.
+Pressing 'f10' empties the current Recording.
+
+- size of UI should adapt:
+- Display sequences in UI, vertically:
+
+          Sequence 0                  Sequence 1
+    ............|..........     ............|..........     -- the progress of the sequence
+
+1: -*-*--*-*-*--*-*--*-*-*-   3:-*-*--*-*-*--*-*--*-*-*-
+2: -*-*--*-*-*--*-*--*-*-*-   4:-*-*--*-*-*--*-*--*-*-*-
 
 - the ability to delete a loop / mute it
 - add command help
-
-- the loop creation is well-adapted to the first loop.
-For subsequents loops it would be nice to be able to set timing based on other loops.
 
 - parallelize player input reading:
 ```user
@@ -23,9 +47,9 @@ We could let the programmer decide if we break that guarantee for audio events
   - In case of an audio app, we want the audio timing to be very accurate.
 The graphics timing can be less accurate.
   - In case of a game, we want audio to be synchronized with game events
-so handling audio events the same way as game event might be preferrable.
+so handling audio events the same way as game event might be preferable.
 
-- independantly from the above issue, measure the accuracy of GHC scheduler:
+- independently from the above issue, measure the accuracy of GHC scheduler:
 
 in one thread:
   start <- measure time

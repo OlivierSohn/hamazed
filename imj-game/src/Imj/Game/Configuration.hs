@@ -10,6 +10,7 @@
 
 module Imj.Game.Configuration
       ( BackendType(..)
+      , BackendTypeValue(..)
       , Debug(..)
       , ServerOnly(..)
       , WithAudio(..)
@@ -24,7 +25,12 @@ import           Imj.Game.Audio.Class
 import           Imj.Game.Sound
 import           Imj.Music.Play
 
-data BackendType =
+data BackendType = BackendType {
+    _fromCLI :: !Bool
+  , _value :: BackendTypeValue
+} deriving (Show)
+
+data BackendTypeValue =
     Console
   | OpenGLWindow
   deriving (Show)

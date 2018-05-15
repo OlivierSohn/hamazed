@@ -140,8 +140,10 @@ run prox
     when (isJust maySrvName)    $ conflict "--serverName"
     when (isJust mayPPU)        $ conflict "--ppu"
     when (isJust mayScreenSize) $ conflict "--screenSize"
-    when (isJust mayConnectId) $ conflict "--connectId"
-    when (isJust maybeBackend)  $ conflict "--render"
+    when (isJust mayConnectId)  $ conflict "--connectId"
+    maybe (return ()) (\b -> case b of
+      BackendType True _ -> conflict "--render"
+      BackendType False _ -> return ()) maybeBackend
   when (isJust mayConfig && isJust maySrvName) $
     error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
   when (isJust maySrvLogs && isJust maySrvName) $
@@ -156,7 +158,7 @@ run prox
         srvIfLocal
       else do
         printClientArgs
-        let backend = fromMaybe OpenGLWindow maybeBackend
+        let backend = maybe OpenGLWindow _value maybeBackend
         case backend of
           Console -> do
             when (isJust mayPPU) $

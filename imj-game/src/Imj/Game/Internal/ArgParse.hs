@@ -62,7 +62,7 @@ parserGameArgs p = GameArgs
   parserBackend  =
     if needsStatefullKeys (toSks p) p
       then
-        NilP $ Just $ Just OpenGLWindow -- The terminal backend doesn't support stateful keys.
+        NilP $ Just $ Just $ BackendType False OpenGLWindow -- The terminal backend doesn't support stateful keys.
       else
         optional
           (option backendArg
@@ -218,17 +218,19 @@ defaultPPU = Size 12 8
 backendArg :: ReadM BackendType
 backendArg =
   str >>= \s -> case map toLower s of
-    "ascii"        -> return Console
-    "console"      -> return Console
-    "term"         -> return Console
-    "terminal"     -> return Console
-    "opengl"       -> return OpenGLWindow
-    "win"          -> return OpenGLWindow
-    "window"       -> return OpenGLWindow
+    "ascii"        -> return $ fromCli Console
+    "console"      -> return $ fromCli Console
+    "term"         -> return $ fromCli Console
+    "terminal"     -> return $ fromCli Console
+    "opengl"       -> return $ fromCli OpenGLWindow
+    "win"          -> return $ fromCli OpenGLWindow
+    "window"       -> return $ fromCli OpenGLWindow
     st -> readerError $ "Encountered an invalid render type:\n\t"
                     ++ show st
                     ++ "\nAccepted render types are 'console' and 'opengl'."
                     ++ renderHelp
+ where
+  fromCli = BackendType True
 
 srvNameArg :: ReadM ServerName
 srvNameArg =

@@ -16,6 +16,7 @@ import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Data.List(length, lines, take)
 import           Data.Text(pack, justifyRight, dropEnd)
 import           UnliftIO.Exception (SomeException(..))
+import           System.IO(hFlush,stdout)
 
 import           Imj.Graphics.Color.Types
 
@@ -43,6 +44,7 @@ baseLog msg = liftIO $ do
     , colored (justifyRight 6 ' ' $ pack $ drop 9 $ show tid) white
     , msg
     ]
+  hFlush stdout
 
 logDetailedException :: (Show a)
                      => Maybe (Text, Text, [a])

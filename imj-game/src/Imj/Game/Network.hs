@@ -53,7 +53,7 @@ startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s,
                    -> IO ()
 startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
 startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
-  let localhostNames = ["0.0.0.0"] -- first trying "0.0.0.0", because for Heroku / docker container, localhost doesn't work.
+  let localhostNames = ["0.0.0.0"] -- first trying "0.0.0.0", because for Heroku / docker container, "localhost" doesn't work.
       cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
   putStrLn ("creating listening socket on port " ++ show port) >> hFlush stdout
   listen <- firstSucceeding cmdsMakeListeSocket `onException` putMVar v (Left $ msg False)

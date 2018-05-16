@@ -1,0 +1,52 @@
+name:                imj-game-synths
+version:             0.1.0.3
+Category:            Game, Music
+Synopsis:            Play music together.
+Description:         A multi player game where each player can play music with the other players.
+homepage:            https://github.com/OlivierSohn/hamazed/blob/master/imj-game-synths//README.md
+bug-reports:         https://github.com/OlivierSohn/hamazed/issues/
+license:             BSD3
+license-file:        LICENSE
+author:              Olivier Sohn
+maintainer:          olivier.sohn@gmail.com
+copyright:           2017 - 2018 Olivier Sohn
+build-type:          Simple
+extra-source-files:  README.md CHANGELOG.md
+cabal-version:       >=1.10
+
+Tested-With: GHC == 8.0.2, GHC == 8.2.2
+
+executable imj-game-synths-exe
+  hs-source-dirs:      app
+  main-is:             Main.hs
+  build-depends:       base >= 4.9 && < 4.12
+                     , binary ==0.8.*
+                     , containers ==0.5.*
+                     , deepseq ==1.4.*
+                     , GLFW-b ==3.2.*
+                     , imj-base ==0.1.*
+                     , imj-game ==0.1.*
+                     , imj-music ==0.1.*
+                     , imj-prelude ==0.1.*
+                     , imj-server ==0.1.*
+                     , imj-time ==0.1.*
+                     , mtl >= 2.2.1 && < 2.3
+                     , strict-concurrency ==0.2.*
+                     , text >=1.2.3 && < 1.3
+  default-language:    Haskell2010
+
+test-suite imj-game-synths-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  other-modules:       Test.Imj.Jitter
+  main-is:             Spec.hs
+  build-depends:       base >= 4.9 && < 4.12
+                     , imj-base ==0.1.*
+                     , imj-time ==0.1.*
+                     , imj-prelude ==0.1.*
+  default-language:    Haskell2010
+
+source-repository head
+  type:     git
+  location: https://github.com/OlivierSohn/hamazed/
+  subdir:   imj-game-synths

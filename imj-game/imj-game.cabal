@@ -37,6 +37,7 @@ library
                      , Imj.Game.KeysMaps
                      , Imj.Game.Level
                      , Imj.Game.Loop
+                     , Imj.Game.Modify
                      , Imj.Game.Network
                      , Imj.Game.Network.Client
                      , Imj.Game.Network.ClientQueues
@@ -53,12 +54,14 @@ library
                      , binary ==0.8.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
+                     , GLFW-b ==3.2.*
                      , imj-base ==0.1.*
                      , imj-bindings-audio ==0.1.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
+                     , imj-time ==0.1.*
                      , mtl >= 2.2.1 && < 2.3
                      , network ==2.6.*
                      , optparse-applicative == 0.14.*

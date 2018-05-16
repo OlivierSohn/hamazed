@@ -13,17 +13,17 @@ module Imj.Game.Loop
 
 import           Imj.Prelude
 
-import           Control.Concurrent(threadDelay)
-import           Control.Concurrent.Async(withAsync, wait, race) -- I can't use UnliftIO because I have State here
+import           Control.Concurrent.Async(wait, withAsync) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
+import           Data.IORef(newIORef, atomicModifyIORef', atomicWriteIORef)
 
 import           Imj.Input.Types
 
 import           Imj.Event
 import           Imj.Game.Deadlines
+import           Imj.Game.Modify
 import           Imj.Game.State
 
 loop :: (MonadIO m
@@ -49,27 +49,6 @@ loop liftPlatformEvent onEventF =
 
 type AnyEvent g = Either PlatformEvent (GenEvent g)
 
--- stats of CPU usage in release, when using 'race (wait res) (threadDelay x)':
--- 10000 ->   3.5% -- ok but 10 ms is a lot
---  1000 ->  18.0%
---   100 ->  20.7%
---     1 -> 117.0%
-
--- stats of CPU usage in release, when using above with 1 and additionnal threadDelay x)':
--- 10000 ->   4.7%
---  1000 ->  23.7%
---   100 ->  23.7%
---     1 -> 118.0%
-
-
--- using 'race (wait res) (threadDelay x)' incurs an overhead: if we don't use it,
--- with glfw:
--- using poll + threadDelay 10000 ->   2.7%
--- using poll + threadDelay  1000 ->  17.2%
--- using poll + threadDelay   100 ->  16.8%
--- using poll + threadDelay    10 ->  82.0%
--- using poll + threadDelay    1  -> 111.0%
-
 -- | MonadState (AppState s) is needed to know if the level is finished or not.
 {-# INLINABLE produceEvent #-}
 produceEvent :: (MonadIO m
@@ -87,8 +66,8 @@ produceEvent = do
 
   let dispatch (FromServer e) = SrvEvt e
       dispatch (FromClient e) = Evt e
-      readInput = fmap (Right . dispatch) (readTQueue server)
-              <|> fmap Left (readTQueue platform)
+      readInput = fmap (Right . dispatch) (readTQueue server) -- this queue is fed by the server
+              <|> fmap Left (readTQueue platform) -- this queue is fed by the platform, and may need polling / waiting for events to be fed
 
   -- We handle pending input events first: they have a higher priority than any other.
   liftIO (tryAtomically readInput) >>= maybe
@@ -111,39 +90,28 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
     then -- we can't afford to wait, we force a render
       return Nothing
     else
-      asks queueType >>= getWaitForResult >>= liftIO . withAsync readInput
- where
-  getWaitForResult = \case
-    AutomaticFeed -> return wait -- 0% CPU usage while waiting
-    ManualFeed -> do
-      --waitKT <- asks waitKeysTimeout
-      polling <- asks pollKeys
-      return $ waitWithPolling polling
-     where
-      waitWithPolling polling a = go
-       where
-        go =
-      -- Using 100 microseconds as minimum interval between consecutive 'pollPlayerEvents'
-      -- seems to be a good trade-off between "CPU usage while waiting" and reactivity.
-      -- There are 3 alternatives hereunder, each of them has a different CPU cost.
-      -- I chose the one that is both reasonnably economical and allows to
-      -- save up-to 100 micro seconds latency. I left the other alternatives commented out
-      -- with measured CPU usage for reference.
-        --{-
-        -- [alternative 1] 20.3% CPU while waiting
-          race (wait a) (threadDelay 100) >>= either
-            return
-            (\_ -> polling >> go)
-        --}
-        {-
-          poll res >>= maybe
-            (do --waitKT (fromSecs 0.0001) -- [alternative 2] 55% CPU while waiting
-                threadDelay 100 >> pollK -- [alternative 3] 15 % CPU while waiting
-                go)
-            (\case
-                Left e -> throwIO e
-                Right r -> return r)
-        -}
+      asks queueType >>= \case
+        AutomaticFeed ->
+          liftIO readInput
+        ManualFeed -> do
+          stopWaiting <- asks stopWaitKeys
+          waitEvts <- asks waitKeys
+          countStopped <- liftIO $ newIORef (0 :: Int)
+          liftIO $ withAsync
+            (do
+              -- forked thread
+              res <- readInput
+              liftIO $ atomicWriteIORef countStopped 1 -- it is important to do this /before/ 'stopWaiting'
+              liftIO $ stopWaiting
+              return res)
+            (\a -> do
+              -- main thread
+              let go = do
+                    waitEvts
+                    liftIO (atomicModifyIORef' countStopped (\v -> (v,v))) >>= \case
+                      0 -> go
+                      _ -> liftIO $ wait a
+              go)
 
 {-# INLINABLE tryAtomically #-}
 tryAtomically :: STM (AnyEvent g)

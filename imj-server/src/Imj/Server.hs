@@ -5,7 +5,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Server
-      ( adjustClient
+      ( adjustClient_
+      , adjustClient_'
+      , adjustClient
       , adjustClient'
       , adjustAllClientsWithKey
       , adjustAllClientsWithKey'
@@ -17,7 +19,6 @@ module Imj.Server
       ) where
 
 import           Imj.Prelude
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader(asks)
 import           Control.Monad.State.Strict(MonadState, modify', state)
 import qualified Data.List as List(intercalate)
@@ -86,13 +87,32 @@ adjustAllClients' f =
 
 {-# INLINABLE adjustClient #-}
 adjustClient :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-             => (ClientViewT s -> ClientViewT s) -> m ()
-adjustClient = adjustClient' . fmap
+             => (ClientViewT s -> ClientViewT s)
+             -> m (ClientViewT s)
+adjustClient = fmap unClientView . adjustClient' . fmap
+
 
 {-# INLINABLE adjustClient' #-}
 adjustClient' :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-             => (ClientView (ClientViewT s) -> ClientView (ClientViewT s)) -> m ()
+             => (ClientView (ClientViewT s) -> ClientView (ClientViewT s))
+             -> m (ClientView (ClientViewT s))
 adjustClient' f = do
+  i <- asks clientId
+  state $ \s ->
+    let clients = clientsViews s
+        (res,views') = Map.updateLookupWithKey (\_ -> Just . f) i $ views clients
+    in (fromMaybe (error "logic") res
+      , s { clientsViews = clients { views = views' } })
+
+{-# INLINABLE adjustClient_ #-}
+adjustClient_ :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+             => (ClientViewT s -> ClientViewT s) -> m ()
+adjustClient_ = adjustClient_' . fmap
+
+{-# INLINABLE adjustClient_' #-}
+adjustClient_' :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
+             => (ClientView (ClientViewT s) -> ClientView (ClientViewT s)) -> m ()
+adjustClient_' f = do
   i <- asks clientId
   modify' $ \s ->
     let clients = clientsViews s

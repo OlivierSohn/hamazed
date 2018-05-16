@@ -1,20 +1,84 @@
-- update Readme of Hamazed
-add link to hamazed in main readme
+- when coming back from idling, the player should see "waiting for server to wake up"
 
-- make a synth app, where music is shared among all players.
-Each player plays a different voice.
+- upon start, the currently played notes of all loops should be sent.
 
-modes:
-  - A fast mode triggers note on/note off when the event is detected on the client.
-But then players will likely not hear the same thing.
+with 2 players, I could generate ghost notes, see if this fixes it.
 
-  - a mode where the client plays one octave lower than the server to hear the latency.
+- https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 
-  - a sampler mode where a note triggers a melody.
+- add game doc. For synth:
+While playing on the computer keyboard, the notes are played in real time, and stored in
+a Recording which can then be used as part of a Sequence.
 
-The server records what is being played and can send the recorded music at any time.
+Pressing 'Space' will start a new singleline Sequence from the current Recording.
+Pressing one of the function keys fn where n is in [1..4] will:
+  if multiline Sequence n doesn't already exist : start a new sequence using the current Recording.
+    The period of the sequence is the length of the current Recording.
+  if multiline Sequence n exists : insert the current Recording in the sequence.
+    If the current Recording is longer than the existing sequence, multiple instances of it will be played at the same time.
+    Note that this could lead to sound saturation if the Sequence period is short w.r.t the length of the Recording.
+Pressing 'f10' empties the current Recording.
 
-- OnContent is not handled handled generically.
+- size of UI should adapt:
+- Display sequences in UI, vertically:
+
+          Sequence 0                  Sequence 1
+    ............|..........     ............|..........     -- the progress of the sequence
+
+1: -*-*--*-*-*--*-*--*-*-*-   3:-*-*--*-*-*--*-*--*-*-*-
+2: -*-*--*-*-*--*-*--*-*-*-   4:-*-*--*-*-*--*-*--*-*-*-
+
+- the ability to delete a loop / mute it
+- add command help
+
+- parallelize player input reading:
+```user
+readInput = fmap (Right . dispatch) (readTQueue server)
+        <|> fmap Left (readTQueue platform)
+```
+if the server event cannot be handled because of an exclusivity key conflict, we should handle
+platform events instead.
+
+Both streams of events (server events and platform events) are guaranteed to be handled
+by order of arrival in their respective queues.
+
+We could let the programmer decide if we break that guarantee for audio events
+, and let them be handled before being put in the queue, to have a better timing precision:
+
+  - In case of an audio app, we want the audio timing to be very accurate.
+The graphics timing can be less accurate.
+  - In case of a game, we want audio to be synchronized with game events
+so handling audio events the same way as game event might be preferable.
+
+- independently from the above issue, measure the accuracy of GHC scheduler:
+
+in one thread:
+  start <- measure time
+  go start [start]
+ where
+   go x l = do
+    sleep until start + x
+    t <- measure time
+    go (x + 10) (t:l)
+
+do the same thing and send the events, then measure on the client where they are handled.
+
+try with and without some exclusive events to trigger renders and see the effect of rendering on timing.
+
+without : approx. 2ms precision (see Jitter test)
+
+- array frame colors (grey for synths)
+
+- make generic : the server sends the game state to the client (putIGame / withAnim)
+
+- can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
+
+- The server records what is being played and can send the recorded music at any time.
+
+the server can record loops.
+Use f1 .. f9 to start / stop loops
+
+- OnContent is not handled generically.
 maybe content should not be generic at all.
 Re-evaluate pros/cons for that.
 
@@ -22,7 +86,7 @@ pro : Instructions for setup drawing in the viewport.
 
 - make a version where we can only move at all times, and not go diagonally.
 
-- using withAnim requires a bit of thinking, and is not robust because we need to use it
+- using withAnim is tricky: we need to use it
 for every state action that may result in a changed 'getClientsInfos', 'getViewport' or 'mkWorldInfos'.
 
 We should come up with a better design where the library user doesn't have to care about these aspects.

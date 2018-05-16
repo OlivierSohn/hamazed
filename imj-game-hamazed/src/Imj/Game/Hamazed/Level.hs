@@ -29,7 +29,7 @@ initialLaserAmmo = 10
 data Level = Level {
     _levelSpec :: {-# UNPACK #-} !LevelEssence
   , getLevelOutcome' :: {-unpack sum-} !(Maybe LevelOutcome)
-} deriving (Generic)
+} deriving (Generic, Show)
 
 mkLevel :: LevelEssence -> Level
 mkLevel = flip Level Nothing

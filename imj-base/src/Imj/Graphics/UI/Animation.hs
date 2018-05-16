@@ -14,7 +14,6 @@ module Imj.Graphics.UI.Animation
 import           Imj.Prelude
 import qualified Prelude as Unsafe(head,last)
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.List(length)
 

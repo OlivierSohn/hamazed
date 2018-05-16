@@ -7,7 +7,7 @@ module Imj.Random.Util
        , withRandomL
        ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(range)
 import           Control.Arrow
 import           Data.List(take)
 import           Data.Word(Word32)

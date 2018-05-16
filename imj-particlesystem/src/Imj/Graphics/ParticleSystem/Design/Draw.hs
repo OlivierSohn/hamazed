@@ -9,7 +9,6 @@ module Imj.Graphics.ParticleSystem.Design.Draw
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 import           Data.Either(partitionEithers)
 

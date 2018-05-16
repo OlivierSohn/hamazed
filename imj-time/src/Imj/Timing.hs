@@ -20,6 +20,7 @@ module Imj.Timing
       Time
     , prettyShowTime
     , showTime
+    , showDetailedTime
     , System
     , Point
     , Duration
@@ -33,8 +34,9 @@ module Imj.Timing
     , addDuration
     -- * Produce durations
     , (...)
-    -- * Scale, add, substract durations
+    -- * Scale, ratio, add, substract durations
     , (.*)
+    , (./)
     , (|-|)
     , (|+|)
     -- * Convert durations between time spaces
@@ -62,7 +64,6 @@ module Imj.Timing
 import           Language.Haskell.TH.Syntax(lift)
 
 import           Imj.Prelude
-import           GHC.Float(float2Double, double2Float)
 import           Prelude(fromInteger)
 import qualified Data.Binary as Bin(Binary(get,put))
 import           Data.Int(Int64)
@@ -70,8 +71,6 @@ import qualified Data.List as List
 import           Data.Text(pack, unpack, justifyRight, intercalate)
 import           System.Clock(TimeSpec(..), Clock(..), getTime, toNanoSecs)
 
-import           Imj.Data.Class.Quantifiable
-import           Imj.Util
 
 {- | Represents a time.
 
@@ -85,7 +84,7 @@ newtype Time a b = Time TimeSpec
 instance Lift (Time a b) where
   lift (Time (TimeSpec s ns)) = [| Time (TimeSpec $(lift s) $(lift ns)) |]
 instance NFData (Time a b) where
-  rnf _ = () -- TimeSpec has strict fields so they are already in normal form
+  rnf (Time (TimeSpec s ns)) = rnf s `seq` rnf ns
 instance Binary (Time Duration a) where
   put (Time (TimeSpec s ns)) = do
     Bin.put s
@@ -102,14 +101,9 @@ instance Show (Time Point a) where
   show = (++) "Time: " . unpack . prettyShowTime
 instance Show (Time Duration a) where
   show = (++) "Duration: " . showTime
-instance Quantifiable (Time Duration a) where
-  writeFloat = double2Float . unsafeToSecs
-  readFloat = fromSecs . float2Double
-  showQty = showTime
 
-  {-# INLINABLE writeFloat #-}
-  {-# INLINABLE readFloat #-}
-  {-# INLINABLE showQty #-}
+showDetailedTime :: Time a b -> String
+showDetailedTime (Time t) = show t
 
 {- | A location on a timeline.
 
@@ -156,7 +150,12 @@ Time a |+| Time b = Time $ a+b
 (.*) :: Double -> Time Duration a -> Time Duration a
 scale .* t =
   fromSecs $ scale * unsafeToSecs t
+{- | 'Time' 'Duration' ratio -}
+(./) :: Time Duration a -> Time Duration a -> Double
+a ./ b =
+  unsafeToSecs a / unsafeToSecs b
 {-# INLINE (.*) #-}
+{-# INLINE (./) #-}
 {-# INLINE (|-|) #-}
 {-# INLINE (|+|) #-}
 

@@ -18,6 +18,9 @@ module Imj.Server.Class
       , ServerClientLifecycle(..)
       , ChatShow(..)
       -- *
+      , ServerEvent(..)
+      , StateValue(..)
+      , PlayerNotif(..)
       , Value(..)
       , ValueKey(..)
       , Command(..)
@@ -28,6 +31,8 @@ module Imj.Server.Class
       , getsState
       , mapState
       , modifyState
+      , modifyState'
+      , modifyStateM
       , ClientViews(..)
       , ClientView(..)
       , ClientId(..)
@@ -42,20 +47,25 @@ module Imj.Server.Class
       ) where
 
 import           Imj.Prelude
+import qualified Data.Binary as Bin
+import           Data.Binary(Binary)
 import           Data.Proxy(Proxy)
 import           Data.List(unwords)
 import           Data.Map(Map)
 import           Control.Concurrent.MVar.Strict (MVar)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Strict(MonadState, gets, modify')
+import           Control.Monad.State.Strict(MonadState, gets, modify', get, put, state)
 import           Data.Attoparsec.Text(Parser)
+import           Data.Text.Lazy.Encoding as LazyT
+import qualified Data.Text.Lazy as LazyT
+import           Network.WebSockets
 
 import           Imj.Arg.Class
 import           Imj.Categorized
 import           Imj.ClientView.Internal.Types
 import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color.Types
+import           Imj.Music.Types hiding(Do)
 import           Imj.Server.Internal.Types
 
 import           Imj.Network
@@ -107,7 +117,7 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   type StateValueT s
 
-  type ClientEventT s
+  type ClientEventT s = (r :: *) | r -> s
   -- ^ Events sent by the client that must be handled by the server.
 
   type ConnectIdT s = (r :: *) | r -> s
@@ -116,7 +126,9 @@ class (Show (ValuesT s), Generic (ValuesT s), Binary (ValuesT s), NFData (Values
 
   -- | Handle an incoming client event.
   handleClientEvent :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
-                    => ClientEventT s -> m ()
+                    => ClientEventT s
+                    -> m [MVar (ServerState s) -> IO ()]
+                    -- ^ Returns (optional) actions to be executed in parallel.
 
   -- | Returns 'Left' to disallow the command, 'Right' to allow it.
   acceptCommand :: (MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
@@ -195,12 +207,18 @@ class (Show (ServerEventT s)
   type ServerEventT s
   -- ^ Events sent by the server that must be handled by the client.
 
-  -- | These events are sent to the newly added client. They should include
+  -- | These 'ServerEventT' are sent to the newly added client. They should include
   -- state information that the client needs to know to be up-to-date w.r.t the
   -- current server state.
   greetNewcomer :: (MonadIO m, MonadState (ServerState s) m)
                 => m [ServerEventT s]
   greetNewcomer = return []
+  -- | These 'ServerEvent' are sent to the newly added client. They should include
+  -- state information that the client needs to know to be up-to-date w.r.t the
+  -- current server state.
+  greetNewcomer' :: (MonadIO m, MonadState (ServerState s) m)
+                 => m [ServerEvent s]
+  greetNewcomer' = return []
 
 -- | Parsing of custom commands parameters
 class ServerCmdParser s where
@@ -264,9 +282,116 @@ modifyState :: MonadState (ServerState s) m
             => (s -> s) -> m ()
 modifyState = modify' . mapState
 
+{-# INLINE modifyState' #-}
+modifyState' :: MonadState (ServerState s) m
+             => (s -> (a,s)) -> m a
+modifyState' = state . mapState'
+
+{-# INLINE modifyStateM #-}
+modifyStateM :: MonadState (ServerState s) m
+             => (s -> m s) -> m ()
+modifyStateM f = do
+  s <- get
+  res <- f $ unServerState s
+  put $ s { unServerState = res }
+
 {-# INLINE mapState #-}
 mapState :: (s -> s) -> ServerState s -> ServerState s
 mapState f s = s { unServerState = f $ unServerState s }
+
+{-# INLINE mapState' #-}
+mapState' :: (s -> (a,s)) -> ServerState s -> (a,ServerState s)
+mapState' f s =
+  let (res,s') = f $ unServerState s
+  in (res, s { unServerState = s' })
+
+data ServerEvent s =
+    ServerAppEvt !(ServerEventT s)
+  | PlayMusic !Music !Instrument
+  | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
+                 {-# UNPACK #-} !Text
+  -- ^ The command cannot be run, with a reason.
+  | RunCommand {-# UNPACK #-} !ClientId
+               {-unpack sum-} !(ClientCommand (CustomCmdT s) Approved)
+  -- ^ The server validated the use of the command, now it must be executed.
+  | Reporting {-unpack sum-} !(ServerCommand (ValueT s) (EnumValueKeyT s))
+  -- ^ Response to a 'Report'.
+  | PlayerInfo !(PlayerNotif (ValueT s) (EnumValueKeyT s))
+               {-# UNPACK #-} !ClientId
+  | ConnectionAccepted {-# UNPACK #-} !ClientId
+  | ConnectionRefused !(Maybe (ConnectIdT s)) {-# UNPACK #-} !Text
+  | Disconnected {-unpack sum-} !DisconnectReason
+  | OnContent !(ValuesT s)
+  -- ^ Sent to every newly connected client, and to all clients whenever the content changes.
+  | AllClients !(Map ClientId ClientEssence)
+  | EnterState {-unpack sum-} !(StateValue (StateValueT s))
+  | ExitState {-unpack sum-} !(StateValue (StateValueT s))
+  | Warn !Text
+  | ServerError !String
+  -- ^ A non-recoverable error occured in the server: before crashing, the server sends the error to its clients.
+  deriving(Generic)
+instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
+  show = \case
+    ServerAppEvt x -> show ("ServerAppEvt",x)
+    PlayMusic x y -> show ("PlayMusic",x,y)
+    CommandError x y -> show ("CommandError",x, y)
+    RunCommand x y -> show ("RunCommand",x, y)
+    Reporting x -> show ("Reporting",x)
+    PlayerInfo x y -> show ("PlayerInfo",x, y)
+    ConnectionAccepted x -> show ("ConnectionAccepted",x)
+    ConnectionRefused x y -> show ("ConnectionRefused",x,y)
+    Disconnected x -> show ("Disconnected",x)
+    OnContent x -> show ("OnContent",x)
+    AllClients x -> show ("AllClients",x)
+    EnterState x -> show ("EnterState",x)
+    ExitState x -> show ("ExitState",x)
+    ServerError x -> show ("ServerError",x)
+    Warn x -> show ("Warning",x)
+instance (Server s, ServerClientHandler s) => Binary (ServerEvent s)
+instance (Server s, ServerClientHandler s) => WebSocketsData (ServerEvent s) where
+  fromDataMessage (Text t _) =
+    error $ "Text was received for ServerEvent : " ++ LazyT.unpack (LazyT.decodeUtf8 t)
+  fromDataMessage (Binary bytes) = Bin.decode bytes
+  fromLazyByteString = Bin.decode
+  toLazyByteString = Bin.encode
+  {-# INLINABLE fromDataMessage #-}
+  {-# INLINABLE fromLazyByteString #-}
+  {-# INLINABLE toLazyByteString #-}
+instance (Server s, ServerClientHandler s) => Categorized (ServerEvent s) where
+  evtCategory = \case
+    PlayMusic{} -> Command'
+    Reporting _ -> Chat'
+    PlayerInfo _ _ -> Chat'
+    ServerError _ -> Error'
+    Disconnected _ -> Disconnected'
+    ConnectionAccepted {} -> ConnectionAccepted'
+    ConnectionRefused {} -> ConnectionRefused'
+    CommandError _ _ -> Error'
+    RunCommand _ _ -> WorldRequest'
+    OnContent _ -> Chat'
+    AllClients{} -> Chat'
+    EnterState _ -> EnterState'
+    ExitState _ -> ExitState'
+    Warn {} -> Chat'
+    ServerAppEvt e -> evtCategory e
+
+data StateValue s =
+    Excluded
+    -- ^ The client is not part of the game
+  | Included !s
+  -- ^ The client is part of the game
+  deriving(Generic, Show, Eq)
+instance Binary s => Binary (StateValue s)
+instance NFData s => NFData (StateValue s)
+
+data PlayerNotif v e =
+    Joins
+  | WaitsToJoin
+  | StartsGame
+  | Done {-unpack sum-} !(ServerCommand v e)
+    -- ^ The server notifies whenever a 'Do' task is finished.
+  deriving(Generic, Show)
+instance (Binary v, Binary e) => Binary (PlayerNotif v e)
 
 data Command s =
     RequestApproval !(ClientCommand (CustomCmdT s) Proposed)

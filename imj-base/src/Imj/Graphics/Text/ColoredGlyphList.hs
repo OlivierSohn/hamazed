@@ -36,7 +36,6 @@ import           Imj.Graphics.Class.Positionable
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColorString.Interpolation
-import           Imj.Util
 
 newtype ColoredGlyphList = ColoredGlyphList [(Glyph, LayeredColor)]
   deriving(Show, Generic)

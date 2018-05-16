@@ -205,7 +205,7 @@ data AlignmentKind = Centered
 data Alignment = Alignment {
     _alignmentKind :: {-unpack sum-} !AlignmentKind
     -- ^ The kind of alignment.
-  , _alignmentRef :: {-# UNPACK #-} !(Coords Pos)
+  , alignmentRef :: {-# UNPACK #-} !(Coords Pos)
     -- ^ The reference coordinates.
 }
 

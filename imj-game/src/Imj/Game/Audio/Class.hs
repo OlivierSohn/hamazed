@@ -5,9 +5,8 @@ module Imj.Game.Audio.Class
   ) where
 
 import           Imj.Prelude
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.IO.Unlift(MonadUnliftIO)
-import           Imj.Music
+import           Imj.Music.Types
 
 class Audio e where
   -- | The value to use when the user didn'T specify one on the command line.

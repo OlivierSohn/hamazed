@@ -41,7 +41,6 @@ import           GHC.Show(showString)
 import           Imj.Prelude
 import qualified Prelude as Unsafe(last)
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.DiscreteInterpolation

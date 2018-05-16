@@ -34,7 +34,7 @@ executable imj-measure-stdout-exe
   other-modules:       Imj.Measure.Stdout
   build-depends:       base >= 4.9 && < 4.12
                      , imj-prelude ==0.1.*
-                     , imj-base ==0.1.*
+                     , imj-time ==0.1.*
                      , optparse-applicative == 0.14.*
   default-language:    Haskell2010
 

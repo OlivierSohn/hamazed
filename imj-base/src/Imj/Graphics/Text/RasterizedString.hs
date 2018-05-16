@@ -17,7 +17,6 @@ module Imj.Graphics.Text.RasterizedString
 import           Imj.Prelude
 
 import           Control.Exception(bracket)
-import           Control.Monad.IO.Class(MonadIO)
 
 import           Foreign.Storable(peek, peekElemOff)
 import           Foreign.Marshal(alloca)

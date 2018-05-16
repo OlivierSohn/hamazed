@@ -20,7 +20,6 @@ import           Test.Imj.Sums
 import           Test.Imj.RectArea
 import           Test.Imj.Resample
 import           Test.Imj.Segment
-import           Test.Imj.Timing
 import           Test.Imj.Util
 import           Test.Imj.Vector
 import           Test.Imj.ZigZag
@@ -33,7 +32,6 @@ main = do
   testBres3 >>= print
   testRectArea >>= print
   testResample >>= print
-  testTiming >>= print
   testSegment >>= print
   testVector >>= print
   testZigZag >>= print

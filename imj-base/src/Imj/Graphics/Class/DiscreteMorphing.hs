@@ -13,7 +13,6 @@ module Imj.Graphics.Class.DiscreteMorphing
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Class.DiscreteDistance

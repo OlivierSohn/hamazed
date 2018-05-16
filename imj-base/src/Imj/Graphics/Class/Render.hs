@@ -4,17 +4,9 @@
 
 module Imj.Graphics.Class.Render
     ( Render(..)
-    -- * Reexports
-    , module Imj.Graphics.Class.Draw
-    , module Imj.Timing
-    , PPU
-    , FontMargin(..)
-    , CycleFont(..)
-    , CycleFontSize(..)
     ) where
 
 import           Imj.Prelude
-import           Control.Monad.IO.Class(MonadIO)
 
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Draw

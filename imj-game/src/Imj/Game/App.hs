@@ -30,8 +30,10 @@ import           Options.Applicative
                   , showHelpOnError, (<*>))
 import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
-import           System.Environment(getArgs, getProgName)
+import           System.Environment(getArgs, lookupEnv, getProgName)
 import           System.Info(os)
+import           System.IO(hFlush, stdout)
+import           Text.Read(readMaybe)
 
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
@@ -67,6 +69,8 @@ The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 runGame :: (GameLogic g
           , s ~ ServerT g
+          , DrawGroupMember (ServerEventT s)
+          , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
           , StateValueT s ~ GameStateValue
           , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
@@ -108,13 +112,16 @@ toAudio _ = Proxy
 run :: (GameLogic g
       , s ~ ServerT g
       , ServerCmdParser s
+      , DrawGroupMember (ServerEventT s)
+      , DrawGroupMember (ClientOnlyEvtT g)
       , StateValueT s ~ GameStateValue
       , ServerClientLifecycle s, ServerInit s, ServerInParallel s)
     => Proxy g -> GameArgs g -> IO ()
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName maySrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+    maySrvName mayArgSrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+  maySrvPort <- maybe (return Nothing) (fmap Just . getServerPort) mayArgSrvPort
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
         , ("Server name", show maySrvName)
@@ -130,14 +137,17 @@ run prox
         , ("Client Audio    ", show mayAudioConf)
         ]
   printServerArgs
+  hFlush stdout
   when serverOnly $ do
     let conflict x = error $ "'--serverOnly' conflicts with '" ++
                           x ++ "' (these options are mutually exclusive)."
     when (isJust maySrvName)    $ conflict "--serverName"
     when (isJust mayPPU)        $ conflict "--ppu"
     when (isJust mayScreenSize) $ conflict "--screenSize"
-    when (isJust mayConnectId) $ conflict "--connectId"
-    when (isJust maybeBackend)  $ conflict "--render"
+    when (isJust mayConnectId)  $ conflict "--connectId"
+    maybe (return ()) (\b -> case b of
+      BackendType True _ -> conflict "--render"
+      BackendType False _ -> return ()) maybeBackend
   when (isJust mayConfig && isJust maySrvName) $
     error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
   when (isJust maySrvLogs && isJust maySrvName) $
@@ -152,7 +162,7 @@ run prox
         srvIfLocal
       else do
         printClientArgs
-        let backend = fromMaybe OpenGLWindow maybeBackend
+        let backend = maybe OpenGLWindow _value maybeBackend
         case backend of
           Console -> do
             when (isJust mayPPU) $
@@ -187,23 +197,21 @@ run prox
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
 
-toSrv :: Proxy g
-      -> Proxy (ServerT g)
-toSrv _ = Proxy :: Proxy (ServerT g)
-
-mkServer :: Maybe ServerName
-         -> Maybe ColorScheme
-         -> Maybe ServerLogs
-         -> ServerContent values
-         -> ServerView values
-mkServer Nothing conf logs =
-  mkLocalServerView (fromMaybe NoLogs logs) conf
-mkServer (Just (ServerName n)) _ _ =
-  mkDistantServerView (ServerName $ map toLower n)
-
+getServerPort :: ArgServerPort -> IO ServerPort
+getServerPort = \case
+  NumServerPort n -> return n
+  EnvServerPort name ->
+    lookupEnv name >>= maybe
+      (error $ "invalid port environment variable: " ++ show name)
+      (\value -> maybe
+        (error $ "environment variable value is not a number: " ++ show value)
+        (return . ServerPort)
+        $ readMaybe value)
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g
+          , DrawGroupMember (ServerEventT s)
+          , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
           , StateValueT (ServerT g) ~ GameStateValue
           , PlayerInput i, DeltaRenderBackend i)
@@ -220,7 +228,7 @@ runWith au debug queues srv player backend =
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
       void $ createState screen debug player srv NotConnected >>=
-        withAudio au . runStateT (runReaderT (loop translatePlatformEvent onEvent) env)
+        withAudio au . runStateT (runReaderT (loop (translatePlatformEvent (audioToProx au)) onEvent) env)
 
  where
 
@@ -231,3 +239,20 @@ runWith au debug queues srv player backend =
     if ftName == name
       then Just (f,ftName)
       else look name rest
+
+audioToProx :: AudioT g -> Proxy g
+audioToProx _ = Proxy
+
+toSrv :: Proxy g
+      -> Proxy (ServerT g)
+toSrv _ = Proxy :: Proxy (ServerT g)
+
+mkServer :: Maybe ServerName
+         -> Maybe ColorScheme
+         -> Maybe ServerLogs
+         -> ServerContent values
+         -> ServerView values
+mkServer Nothing conf logs =
+  mkLocalServerView (fromMaybe NoLogs logs) conf
+mkServer (Just (ServerName n)) _ _ =
+  mkDistantServerView (ServerName $ map toLower n)

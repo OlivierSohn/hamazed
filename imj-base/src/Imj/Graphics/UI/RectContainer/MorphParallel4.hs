@@ -11,13 +11,11 @@ module Imj.Graphics.UI.RectContainer.MorphParallel4
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Geo.Discrete.Types
 
 import           Imj.Graphics.Class.Positionable
-import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Render.FromMonadReader
 import           Imj.Graphics.Font
 

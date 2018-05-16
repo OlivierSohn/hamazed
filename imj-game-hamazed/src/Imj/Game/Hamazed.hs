@@ -21,7 +21,6 @@ import           Control.Concurrent(forkIO)
 import           Control.Concurrent.Async(withAsync)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.IO.Class(MonadIO)
 import           Data.Char(intToDigit)
 import qualified Data.IntSet as ISet
 import qualified Data.List as List
@@ -35,8 +34,8 @@ import           Data.Text(pack)
 import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
 import           Imj.Game.Class
+import           Imj.Game.Modify
 import           Imj.Game.Hamazed.Level
-import           Imj.Game.Hamazed.Event
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Priorities
@@ -69,7 +68,6 @@ import           Imj.Graphics.Text.ColorString hiding(putStrLn)
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Chat
 import           Imj.Graphics.UI.RectContainer
-import           Imj.Music hiding(Do)
 import           Imj.Physics.Discrete.Collision
 import           Imj.Random.MWC.Parallel(mkOneGenPerCapability)
 import           Imj.Space.Draw
@@ -89,7 +87,7 @@ data HamazedGame = HamazedGame {
     -- ^ Which 'Number's were shot
   , getGameLevel :: !Level
     -- ^ The current 'Level'
-}
+} deriving(Show)
 instance GameExternalUI HamazedGame where
   type ClientInfoT HamazedGame = BattleShip
 
@@ -140,7 +138,7 @@ instance GameDraw HamazedGame where
 
 instance GameLogic HamazedGame where
   type ServerT        HamazedGame = HamazedServer
-  type ClientOnlyEvtT HamazedGame = HamazedEvent
+  type ClientOnlyEvtT HamazedGame = ()
   type ColorThemeT    HamazedGame = ColorCycles
 
   -- Swaps the future world with the current one, and notifies the server using 'IsReady'
@@ -156,8 +154,7 @@ instance GameLogic HamazedGame where
 
   {-# INLINABLE onClientOnlyEvent #-}
   onClientOnlyEvent = \case
-    Interrupt Help -> error "not implemented"
-    PlayProgram i -> liftIO $ playAtTempo (Wind i) 120 [notes| vdo vsol do sol ^do|]
+    () -> return ()
   {-# INLINABLE onServerEvent #-}
   onServerEvent = \case
     WorldRequest wid arg -> case arg of
@@ -209,53 +206,51 @@ instance GameLogic HamazedGame where
     toTxt' (CannotCreateLevel errs n) =
       colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
-  keyMaps key val = fmap CliEvt <$> (case val of
-    Excluded -> return Nothing
-    Included x -> case x of
-      Setup -> return $ case key of
-        AlphaNum c -> case c of
-          ' ' -> Just $ ExitedState $ Included Setup
-          '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
-          '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
-          --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
-          --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
-          'y' -> Just $ OnCommand $ Do $ Succ BlockSize
-          'g' -> Just $ OnCommand $ Do $ Pred BlockSize
-          'u' -> Just $ OnCommand $ Do $ Succ WallProbability
-          'h' -> Just $ OnCommand $ Do $ Pred WallProbability
-          _ -> Nothing
+  mapInterpretedKey key x = fmap CliEvt <$> (case x of
+    Setup -> return $ case key of
+      AlphaNum c -> case c of
+        ' ' -> Just $ ExitedState $ Included Setup
+        '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
+        '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
+        --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
+        --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
+        'y' -> Just $ OnCommand $ Do $ Succ BlockSize
+        'g' -> Just $ OnCommand $ Do $ Pred BlockSize
+        'u' -> Just $ OnCommand $ Do $ Succ WallProbability
+        'h' -> Just $ OnCommand $ Do $ Pred WallProbability
         _ -> Nothing
-      PlayLevel status -> case status of
-        Running -> maybe
-          (case key of
-            AlphaNum c -> case c of
-              'k' -> Just $ ClientAppEvt $ Action Laser Down
-              'i' -> Just $ ClientAppEvt $ Action Laser Up
-              'j' -> Just $ ClientAppEvt $ Action Laser LEFT
-              'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
-              'd' -> Just $ ClientAppEvt $ Action Ship Down
-              'e' -> Just $ ClientAppEvt $ Action Ship Up
-              's' -> Just $ ClientAppEvt $ Action Ship LEFT
-              'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
-              --'r'-> Just $ Evt ToggleEventRecording
-              _   -> Nothing
-            _ -> Nothing)
-          (const Nothing)
-          <$> getLevelOutcome
-        WhenAllPressedAKey _ (Just _) _ -> return Nothing
-        WhenAllPressedAKey y Nothing havePressed ->
+      _ -> Nothing
+    PlayLevel status -> case status of
+      Running -> maybe
+        (case key of
+          AlphaNum c -> case c of
+            'k' -> Just $ ClientAppEvt $ Action Laser Down
+            'i' -> Just $ ClientAppEvt $ Action Laser Up
+            'j' -> Just $ ClientAppEvt $ Action Laser LEFT
+            'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
+            'd' -> Just $ ClientAppEvt $ Action Ship Down
+            'e' -> Just $ ClientAppEvt $ Action Ship Up
+            's' -> Just $ ClientAppEvt $ Action Ship LEFT
+            'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
+            --'r'-> Just $ Evt ToggleEventRecording
+            _   -> Nothing
+          _ -> Nothing)
+        (const Nothing)
+        <$> getLevelOutcome
+      WhenAllPressedAKey _ (Just _) _ -> return Nothing
+      WhenAllPressedAKey y Nothing havePressed ->
+        (maybe
+          Nothing
           (maybe
-            Nothing
-            (maybe
-              (error "logic")
-              (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
-              . flip Map.lookup havePressed)) <$> getMyId
-        New -> return Nothing
-        Paused _ _ -> return Nothing
-        Countdown _ _ -> return Nothing
-        OutcomeValidated _ -> return Nothing
-        CancelledNoConnectedPlayer -> return Nothing
-        WaitingForOthersToEndLevel _ -> return Nothing)
+            (error "logic")
+            (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
+            . flip Map.lookup havePressed)) <$> getMyId
+      New -> return Nothing
+      Paused _ _ -> return Nothing
+      Countdown _ _ -> return Nothing
+      OutcomeValidated _ -> return Nothing
+      CancelledNoConnectedPlayer -> return Nothing
+      WaitingForOthersToEndLevel _ -> return Nothing)
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
 mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _))

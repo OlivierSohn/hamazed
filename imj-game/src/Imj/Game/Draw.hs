@@ -14,7 +14,7 @@ module Imj.Game.Draw
 import           Imj.Prelude
 import           Prelude(length)
 
-import           Control.Monad.IO.Class(MonadIO)
+import           Control.Monad.State.Strict(gets)
 
 import           Imj.Game.Class
 import           Imj.Geo.Discrete.Types
@@ -27,7 +27,6 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation
 import           Imj.ServerView.Types
 import           Imj.Server.Class
-import           Imj.Server.Types
 
 import           Imj.Game.Color
 import           Imj.Game.Priorities

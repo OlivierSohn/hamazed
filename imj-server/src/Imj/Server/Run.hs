@@ -154,29 +154,34 @@ handleClient mayConnectId cliType lifecycle st = do
           log "Is a reconnecting client"
       onStartClient lifecycle
 
-    forever $ liftIO (receiveData conn) >>=
-      modifyMVar_ st . execStateT . logArg handleIncomingEvent'
+    forever $ liftIO (receiveData conn) >>= \e ->
+      modifyMVar st (fmap swap . runStateT (logArg handleIncomingEvent' e)) >>=
+        mapM_ (\act -> liftIO $ forkIO $ act st)
 
 
 handleIncomingEvent' :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                        , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
                      => ClientEvent s
-                     -> m ()
+                     -> m ([MVar (ServerState s) -> IO ()])
 handleIncomingEvent' = \case
-  Connect _ i _ ->
+  Connect _ i _ -> do
     handlerError $ "already connected : " ++ show i
+    return []
   ClientAppEvt e -> handleClientEvent e
-  ExitedState Excluded ->
+  ExitedState Excluded -> do
     clientCanJoin (Proxy :: Proxy s) >>= bool
       (do
         notifyClient' $ EnterState Excluded
         publish WaitsToJoin)
       (publish Joins)
-  ExitedState (Included x) ->
+    return []
+  ExitedState (Included x) -> do
     clientCanTransition x >>= bool
       (return ())
       (publish StartsGame)
-  OnCommand c -> case c of
+    return []
+  OnCommand c -> do
+   case c of
     RequestApproval cmd -> case cmd of
       CustomCmd s -> do
         acceptCommand s >>= either
@@ -187,7 +192,7 @@ handleIncomingEvent' = \case
         (\valid -> checkNameAvailability valid >>= either
           (notifyClient' . CommandError cmd)
           (\approved -> do
-            adjustClient' $ \cl -> cl { getName = approved }
+            adjustClient_' $ \cl -> cl { getName = approved }
             acceptCmd $ AssignName approved)
         ) $ checkName suggested
       AssignColor _ ->
@@ -212,12 +217,13 @@ handleIncomingEvent' = \case
             AppValue y ->
               onPut y
       publish $ Done cmd
-    Report x ->
+    Report x -> do
       case x of
         Get ColorSchemeCenterKey ->
           gets centerColor >>= notifyClient' . Reporting . Put . ColorSchemeCenter
         Get (AppValueKey y) ->
           getValue y <$> gets content >>= notifyClient' . Reporting . Put . AppValue
+   return []
 
  where
 
@@ -284,12 +290,14 @@ addClient connectId cliType = do
     Map.map (\(ClientView _ _ n co _) -> ClientEssence n Present co) <$> gets clientsMap
   wp <- gets content
   greeters <- greetNewcomer
+  greeters' <- greetNewcomer'
 
   notifyClientN' $
     [ ConnectionAccepted i
     , AllClients presentClients
     , OnContent wp
     ] ++
+    greeters' ++
     map ServerAppEvt greeters
 
 handlerError :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s

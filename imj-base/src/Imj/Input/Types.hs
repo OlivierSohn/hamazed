@@ -18,15 +18,19 @@ import           Imj.Prelude
 
 import           Control.Concurrent.STM(TQueue)
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Data.Int(Int64)
+import qualified Graphics.UI.GLFW as GLFW
 
 import           Imj.Geo.Discrete.Types(Direction(..))
 import           Imj.Timing
 import           Imj.Log
 
 data PlatformEvent =
-    KeyPress !Key
+    InterpretedKey !Key
+    -- ^ Can correspond to multiple key presses, because it includes character events
+    -- as described <http://www.glfw.org/docs/latest/input_guide.html#input_key here>.
+  | StatefullKey !GLFW.Key !GLFW.KeyState !GLFW.ModifierKeys
+  -- ^ Note that the same key press can generate both a 'InterpretedKey' and 'StatefullKey'
   | Message !MessageLevel !Text
   | StopProgram
   | FramebufferSizeChanges
@@ -65,7 +69,12 @@ class PlayerInput a where
   plaformQueue :: a -> TQueue PlatformEvent
 
   queueType :: a -> FeedType
-  -- | Use only if 'queueType' returns ManualFeed.
+
+  -- | Use 'pollKeys' only if 'queueType' == 'ManualFeed'.
   pollKeys :: a -> IO ()
-  -- | Use only if 'queueType' returns ManualFeed.
+  -- | Use 'waitKeys' only if 'queueType' == 'ManualFeed'.
+  waitKeys :: a -> IO ()
+  -- | Use 'stopWaitKeys' only if 'queueType' == 'ManualFeed'.
+  stopWaitKeys :: a -> IO ()
+  -- | Use 'waitKeysTimeout' only if 'queueType' == 'ManualFeed'.
   waitKeysTimeout :: a -> Time Duration System -> IO ()

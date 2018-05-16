@@ -17,6 +17,7 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color.Types
 import           Imj.Graphics.Font
 import           Imj.Graphics.UI.RectArea
+import           Imj.Timing
 
 {- | FOR TESTS ONLY. For production, please use "Imj.Graphics.Render.Delta".
 

@@ -7,7 +7,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Imj.Game.Hamazed.World.Types
-        ( WorldId(..)
+        ( ActionTarget(..)
+        , WorldId(..)
         , WorldSpec(..)
         , WorldEssence(..)
         , World(..)
@@ -92,6 +93,15 @@ import           Imj.ClientView.Types(ClientId)
 import           Imj.Physics.Discrete
 import           Imj.Timing
 
+
+data ActionTarget =
+    Ship
+  -- ^ The player wants to accelerate the 'BattleShip'
+  | Laser
+  -- ^ The player wants to shoot with the laser.
+  deriving(Generic, Eq, Show)
+instance Binary ActionTarget
+
 data WorldParameters = WorldParameters {
     worldShape :: !WorldShape
   , wallDistrib :: !WallDistribution
@@ -161,7 +171,7 @@ data World = World {
     -- ^ The 'Space' in which 'BattleShip' and 'Number's evolve
   , getWorldRenderedSpace :: !RenderedSpace
   , getId :: {-unpack sum-} !WorldId
-} deriving (Generic)
+} deriving (Generic, Show)
 
 newtype NumId = NumId Int
   deriving (Generic, Ord, Eq, Binary, Show)

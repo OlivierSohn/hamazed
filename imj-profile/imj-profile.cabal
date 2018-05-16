@@ -51,6 +51,7 @@ library
                      , imj-base ==0.1.*
                      , imj-space ==0.1.*
                      , imj-prelude ==0.1.*
+                     , imj-time ==0.1.*
                      , JuicyPixels ==3.2.*
                      , mwc-random ==0.13.*
                      , random ==1.1.*
@@ -73,6 +74,7 @@ executable imj-profile-exe
                      , imj-prelude ==0.1.*
                      , imj-profile
                      , imj-space ==0.1.*
+                     , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , strict-concurrency ==0.2.*
                      , uuid ==1.3.*

@@ -58,7 +58,6 @@ data EventCategory =
   -- game render
   | AnimateParticleSystem'
   | AnimateUI'
-  | Interrupt'
   -- chat
   | Chat'
   deriving(Eq, Show)
@@ -83,7 +82,6 @@ evtCatToRep ExitState'             = EventRepr 'O' cyan
 evtCatToRep ConnectionRefused'     = EventRepr 'R' cyan
 evtCatToRep Error'                 = EventRepr 'X' cyan
 evtCatToRep Command'         = EventRepr 'C' yellow
-evtCatToRep Interrupt'             = EventRepr 'I' yellow
 evtCatToRep CycleRenderingOptions' = EventRepr 'R' yellow
 evtCatToRep ToggleEventRecording'  = EventRepr 'T' yellow
 evtCatToRep MoveFlyingItems' = EventRepr 'M' green

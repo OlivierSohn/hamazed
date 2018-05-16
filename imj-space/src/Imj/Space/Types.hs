@@ -110,10 +110,11 @@ data DrawGroup = DrawGroup {
   , _drawGroupColors :: {-# UNPACK #-} !LayeredColor
   , _drawGroupGlyph :: {-# UNPACK #-} !Glyph
   , _drawGroupCount :: {-# UNPACK #-} !Int
-}
+} deriving(Show)
 
 -- | How to draw the space.
-newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an array to have better memory layout
+newtype RenderedSpace = RenderedSpace [DrawGroup] -- TODO use an unboxed array to have better memory layout
+  deriving (Show)
 
 newtype ComponentIdx = ComponentIdx Int
   deriving(Generic, Enum, Num, Eq, Ord, Show, Binary, Integral, Real)

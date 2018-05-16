@@ -7,7 +7,7 @@ Note that it is an experimental project, so the APIs will likely change a lot ov
 
 # Packages
 
-Packages inverse-topologically sorted wrt dependencies, with some keywords for each of them:
+List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
 - [imj-bindings-audio](/imj-bindings-audio)
   - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-bindings-audio/c).
@@ -57,12 +57,6 @@ Packages inverse-topologically sorted wrt dependencies, with some keywords for e
 
 # Music
 
-## Playback
-
-Every game made using [imj-game](/imj-game) is able to play music: the game server
-sends midi-like note on / note off events to game clients, allowing
-to perfectly synchronize the music with game events.
-
 ## Notation
 
 [Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
@@ -70,8 +64,17 @@ are written using the `notes` quasiquoter, where:
 
 - notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
 - a note can be shifted by octaves using `v` and `^`
-- `-` extends the preceding note to the next step
+- `-` extends the preceding note
 - `.` indicates a pause
+
+## Playback
+
+Every game made with [imj-game](/imj-game) can have the server send midi-like
+note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
+
+The music won't pause during garbage collection because we use
+[a custom-made audio engine](/imj-bindings-audio) whose audio thread is
+not managed by the GHC runtime.
 
 # Rendering
 
@@ -85,101 +88,6 @@ The [fonts](/imj-base/fonts) and font size for rendering can be modified at runt
 This is imj-game-hamazed, at a time when the game was mono-player and had no music yet:
 
 [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
-
-# Build
-
-After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
-
-Unless it is already there, install the `ftgl` library on your system
-(it is needed for Font handling) :
-
-- On OSX:
-
-```shell
-brew install ftgl
-```
-
-- On Linux:
-
-```shell
-sudo apt-get update
-sudo apt-get install ftgl-dev
-```
-
-Build the project using [stack](https://docs.haskellstack.org):
-
-`stack build --pedantic`
-
-# Run the games
-
-Run the tutorial game:
-
-`stack exec imj-game-tutorial-increment-exe`
-
-Run Hamazed game:
-
-`stack exec imj-game-hamazed-exe `
-
-To pass some command line arguments, `--` needs to be written after `exec`:
-
-`stack exec -- imj-game-hamazed-exe -l console`
-
-# Command line options
-
-Every game made with [imj-game](/imj-game) inherits from the same command line options.
-
-The description of client-specific options are prefixed by [Client]:
-
-```shell
-> stack exec -- imj-game-hamazed-exe -h
-
-**** imj-game-hamazed-exe runs a multiplayer client/server game.
-
-Usage: imj-game-hamazed-exe [-s|--serverOnly] [-n|--serverName ARG]
-                            [-p|--serverPort ARG] [-l|--serverLogs ARG]
-                            [-c|--colorScheme ARG] [--connectId ARG]
-                            [-r|--render ARG] [--ppu ARG] [--screenSize ARG]
-                            [-d|--debug] [--silent]
-  If you want to: (1) Create just a game server, use [--serverOnly] and
-  optionally [--serverPort]. (2) Create just a client connected to an existing
-  game server, use [--serverName] and optionally [--serverPort]. (3) Create both
-  a game server and a client connected to it, use optionally [--serverPort].
-
-Available options:
-  -h,--help                Show this help text
-  -s,--serverOnly          Create - only - the server (no client). Incompatible
-                           with --serverName.
-  -n,--serverName ARG      Connect to a server (use "localhost" to target your
-                           machine). Incompatible with --serverOnly.
-  -p,--serverPort ARG      Listening port number of the server to connect to, or
-                           to create. Default is 10052.
-  -l,--serverLogs ARG      'none': no server logs. 'console': server logs in the
-                           console. Default is 'none'. Incompatible with
-                           --serverName.
-  -c,--colorScheme ARG     Defines a rgb color from which player colors are
-                           deduced, cycling through same intensity colors.
-                           Possible values are:
-                           {'blue','olive','orange','reddish','violet'}, 'rgb' |
-                           '"r g b"' where r,g,b are one of {0,1,2,3,4,5},
-                           'time' to chose colors based on server start time.
-                           Default is 322 / "3 2 2". Incompatible with
-                           --serverName.
-  --connectId ARG          [Client] The connection identifier used to connect to
-                           the server.
-  -r,--render ARG          [Client] 'console': play in the console. 'opengl':
-                           play in an opengl window (default value). Accepted
-                           synonyms of 'console' are 'ascii', 'term',
-                           'terminal'. Accepted synonyms of 'opengl' are 'win',
-                           'window'.
-  --ppu ARG                [Client OpenGL] The size of a game element, in
-                           pixels: '"w h"' where w,h are even and >= 4. Default:
-                           "12 8".
-  --screenSize ARG         [Client OpenGL] The size of the opengl window.
-                           'full': fullscreen. '"width height"' : size in
-                           pixels. Default: "600 1400".
-  -d,--debug               [Client] print debug infos in the terminal.
-  --silent                 [Client] disables music and audio effects.
-```
 
 # CI
 
@@ -205,3 +113,123 @@ it supports c++14 so nothing special had to be done.
 On Linux with GHC versions < 8.4.1, the build fails for
 [this](https://github.com/commercialhaskell/stack/issues/3472) reason,
 hence the [travis script](/.travis.yml) allows Linux to fail for ghc versions < 8.4.1.
+
+# Development Setup
+
+After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
+
+## Dependencies
+
+As you can see in the CI scripts ([here](/.travis.yml) and [there](/Brewfile)),
+some c libraries are expected to be installed on your system
+in order to build the game engine:
+
+- [ftgl](http://ftgl.sourceforge.net/docs/html/) is needed by [imj-base](/imj-base)
+to render fonts with OpenGL.
+- [portaudio 19](http://www.portaudio.com/) is needed by [imj-bindings-audio](/imj-bindings-audio)
+for audio I/O.
+
+To install them:
+
+- On OSX:
+
+```shell
+brew install ftgl
+brew install portaudio
+```
+
+- On Linux:
+
+```shell
+sudo apt-get update
+sudo apt-get install ftgl-dev
+sudo apt-get install portaudio19-dev
+```
+
+# Build
+
+[stack](https://docs.haskellstack.org) is the preferred tool to build the project:
+
+`stack build --pedantic`
+
+# Single-player mode
+
+Passing no command line argument will run the games in single player mode:
+
+`stack exec imj-game-tutorial-increment-exe`
+
+`stack exec imj-game-hamazed-exe`
+
+`stack exec imj-game-synths-exe`
+
+# Multi-player mode
+
+In multi-player mode, a game server synchronizes the game, and clients are connected to it.
+The client-server communication is made using websockets.
+
+## Dockerize the game server
+
+Build the base image:
+
+```shell
+cd ./docker-rt
+docker build -t imajuscule/imj-game-rt .
+```
+
+Then, build the game executables and create the image `imajuscule/hamazed` containing them:
+
+```shell
+cd ..
+stack image container
+```
+
+In order for dependencies to be consistent, the system on which the command above is executed
+should match the characteristics of [the base image](./docker-rt/Dockerfile).
+If in doubt, using Ubuntu Xenial (16.04) should work. For other linux distributions,
+you may need to adjust the libstdc++ version in [the base image](./docker-rt/Dockerfile).
+
+In the following section, `imajuscule/hamazed` is used as a base to generate the image
+deployed on Heroku.
+
+## Deploy a game server (to Heroku)
+
+At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host web applications
+deployed using docker containers. We are assuming that you already:
+
+- have an Heroku account where you created the app <herokuAppName> whose associated
+domain is <herokuAppDomain>
+- have installed Heroku command line tools
+
+The following command creates the Heroku container and pushes it on Heroku:
+
+```shell
+cd ./docker-heroku
+heroku container:push web -a <herokuAppName>
+```
+
+The first upload will be long, because the whole image will be uploaded.
+Subsequent uploads however will be very fast, because just the layer that changed
+will be uploaded.
+
+To monitor and verify the deployment status:
+
+```shell
+heroku logs --tail -a <herokuAppName>
+```
+
+Note that accessing `<herokuAppDomain>` in a browser will generate an error
+because the game server sockets are using the websocket protocol, not the HTTP protocol.
+
+## Connect to a running game server
+
+```shell
+stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
+```
+
+### Connect to a Heroku-hosted server
+
+When the game server is hosted on Heroku, the port to connect to is `80`:
+
+```shell
+stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
+```

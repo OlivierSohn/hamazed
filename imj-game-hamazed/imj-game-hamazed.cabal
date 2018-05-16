@@ -34,7 +34,6 @@ library
                      , Imj.Game.Hamazed.Color
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.Level
-                     , Imj.Game.Hamazed.Event
                      , Imj.Game.Hamazed.Music
                      , Imj.Game.Hamazed.Network.Internal.Types
                      , Imj.Game.Hamazed.Network.Server
@@ -61,6 +60,7 @@ library
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
                      , imj-space ==0.1.*
+                     , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
                      , strict-concurrency ==0.2.*

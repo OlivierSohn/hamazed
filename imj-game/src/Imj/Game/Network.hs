@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Network
       ( startClient
@@ -9,12 +10,12 @@ module Imj.Game.Network
       ) where
 
 import           Imj.Prelude
+
 import           Control.Concurrent(ThreadId, forkIO, myThreadId, throwTo)
 import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
 import           Control.Concurrent.MVar.Strict (MVar, newMVar, putMVar, modifyMVar_)
 import           Control.Monad.State.Strict(execStateT)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Data.Text(pack)
 import           Data.Proxy
@@ -29,6 +30,7 @@ import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigT
 import           Imj.Game.Exceptions
 import           Imj.Game.Class
 import           Imj.Graphics.Color
+import           Imj.Graphics.Text.ColorString
 import           Imj.Server.Class
 import           Imj.ServerView.Types
 import           Imj.ServerView
@@ -50,10 +52,15 @@ startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s,
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
 startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
-  let (ServerName host, ServerPort port) = getServerNameAndPort srv
-  listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
-  putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
+startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
+  let localhostNames = ["0.0.0.0"] -- first trying "0.0.0.0", because for Heroku / docker container, "localhost" doesn't work.
+      cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
+  baseLog $ colored ("creating listening socket on port " <> pack (show port)) yellow
+  listen <- firstSucceeding cmdsMakeListeSocket `onException` putMVar v (Left $ msg False)
+  -- now that the listen socket is created, signal it.
+  let str = msg True
+  baseLog $ colored (pack str) green -- Needed for serverOnly (in that case, the MVar is not used)
+  putMVar v $ Right str
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
   (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
@@ -69,6 +76,15 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
    where
     st False = "failed to start ("
     st True = "starts listening ("
+
+firstSucceeding :: [IO a] -> IO a
+firstSucceeding = \case
+  [] -> error "logic"
+  c:[] -> c
+  c:cs -> try c >>= either
+    (\(_ :: SomeException) -> firstSucceeding cs)
+    return
+
 
 startClient :: GameLogic g
             => Maybe (ConnectIdT (ServerT g))
@@ -136,6 +152,7 @@ runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()
 runServerWith' listeningSock opts app =
   forever $ do
     (conn, _) <- accept listeningSock
+    baseLog $ colored ("accepted " <> pack (show conn)) yellow
     void $ forkIO $
       flip finally
         (close conn)

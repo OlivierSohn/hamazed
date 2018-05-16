@@ -39,9 +39,12 @@ import           Imj.Game.Class
 import           Imj.Graphics.Font
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..), mkFixedScreenSize)
 
+toSks :: Proxy g -> Proxy (StatefullKeysT g)
+toSks _ = Proxy
+
 parserGameArgs :: GameLogic g
                => Proxy g -> Parser (GameArgs g)
-parserGameArgs _ = GameArgs
+parserGameArgs p = GameArgs
   <$> parserServerOnly
   <*> parserSrvName
   <*> parserSrvPort
@@ -53,6 +56,24 @@ parserGameArgs _ = GameArgs
   <*> parserScreenSize
   <*> parserDebug
   <*> parserAudio
+
+ where
+
+  parserBackend  =
+    if needsStatefullKeys (toSks p) p
+      then
+        NilP $ Just $ Just $ BackendType False OpenGLWindow -- The terminal backend doesn't support stateful keys.
+      else
+        optional
+          (option backendArg
+            (  long "render"
+            <> short 'r'
+            <> help (
+            "[Client] 'console': play in the console. " ++
+            "'opengl': play in an opengl window (default value)." ++
+            renderHelp)
+            ))
+
 
 parserSrvColorScheme
   :: Parser (Maybe (ColorScheme))
@@ -89,17 +110,17 @@ parserSrvName =
        <> short 'n'
        <> help (
        "Connect to a server " ++
-       "(use \"localhost\" to target your machine). Incompatible with --serverOnly."
+       "(use \"0.0.0.0\" to target your machine). Incompatible with --serverOnly."
        )))
 
-parserSrvPort :: Parser (Maybe ServerPort)
+parserSrvPort :: Parser (Maybe ArgServerPort)
 parserSrvPort =
   optional
     (option srvPortArg
        (  long "serverPort"
        <> short 'p'
        <> help (
-       "Listening port number of the server to connect to, or to create. " ++
+       "Listening port of the server to connect to, or to create. Can be a number or an environment variable. " ++
        "Default is " ++ show (toInteger defaultPort) ++ ".")
        ))
 
@@ -113,18 +134,6 @@ parserSrvLogs =
        "'none': no server logs. 'console': server logs in the console. " ++ -- TODO merge with -d
        "Default is 'none'. Incompatible with --serverName."
        )))
-
-parserBackend :: Parser (Maybe BackendType)
-parserBackend =
-  optional
-    (option backendArg
-      (  long "render"
-      <> short 'r'
-      <> help (
-      "[Client] 'console': play in the console. " ++
-      "'opengl': play in an opengl window (default value)." ++
-      renderHelp)
-      ))
 
 parserScreenSize :: Parser (Maybe PreferredScreenSize)
 parserScreenSize =
@@ -209,17 +218,19 @@ defaultPPU = Size 12 8
 backendArg :: ReadM BackendType
 backendArg =
   str >>= \s -> case map toLower s of
-    "ascii"        -> return Console
-    "console"      -> return Console
-    "term"         -> return Console
-    "terminal"     -> return Console
-    "opengl"       -> return OpenGLWindow
-    "win"          -> return OpenGLWindow
-    "window"       -> return OpenGLWindow
+    "ascii"        -> return $ fromCli Console
+    "console"      -> return $ fromCli Console
+    "term"         -> return $ fromCli Console
+    "terminal"     -> return $ fromCli Console
+    "opengl"       -> return $ fromCli OpenGLWindow
+    "win"          -> return $ fromCli OpenGLWindow
+    "window"       -> return $ fromCli OpenGLWindow
     st -> readerError $ "Encountered an invalid render type:\n\t"
                     ++ show st
                     ++ "\nAccepted render types are 'console' and 'opengl'."
                     ++ renderHelp
+ where
+  fromCli = BackendType True
 
 srvNameArg :: ReadM ServerName
 srvNameArg =
@@ -228,15 +239,15 @@ srvNameArg =
                      ++ renderHelp
     name -> return $ ServerName name
 
-srvPortArg :: ReadM ServerPort
+srvPortArg :: ReadM (ArgServerPort)
 srvPortArg =
-  str >>= \s -> case map toLower s of
+  str >>= \case
     [] -> readerError $ "Encountered an empty serverport."
                      ++ renderHelp
     name ->
       maybe
-        (error $ "invalid number : " ++ show name)
-        (return . ServerPort)
+        (return $ EnvServerPort name)
+        (return . NumServerPort . ServerPort)
           (readMaybe name)
 
 defaultPort :: ServerPort

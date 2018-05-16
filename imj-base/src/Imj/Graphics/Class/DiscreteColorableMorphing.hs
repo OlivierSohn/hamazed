@@ -12,8 +12,6 @@ module Imj.Graphics.Class.DiscreteColorableMorphing
 
 import           Imj.Prelude
 
-
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
 
 import           Imj.Graphics.Color.Types

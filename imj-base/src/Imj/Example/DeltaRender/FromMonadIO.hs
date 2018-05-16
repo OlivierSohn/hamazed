@@ -6,8 +6,8 @@ module Imj.Example.DeltaRender.FromMonadIO
   ( main
   ) where
 
+import Imj.Prelude
 import Control.Monad(void)
-import Control.Monad.IO.Class(MonadIO)
 
 import Imj.Graphics.Color
 import Imj.Graphics.Class.Draw(drawStr')

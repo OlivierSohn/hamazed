@@ -9,13 +9,11 @@ module Imj.Graphics.Class.Draw
     , Canvas
       -- * Reexports
     , Coords, Pos, LayeredColor, Glyph
-    , MonadIO
     , HasRectArea
     ) where
 
 import           Imj.Prelude
 
-import           Control.Monad.IO.Class(MonadIO)
 import           Data.Text(Text, unpack)
 
 import           Imj.Geo.Discrete.Types

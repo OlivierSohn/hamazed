@@ -27,7 +27,6 @@ import           Data.String(IsString(..))
 import           Data.Text(Text, pack)
 
 import           Imj.Graphics.Class.Words
-import           Imj.Util
 
 addRight :: (Characters s) => [s] -> Int -> [s] -> [s]
 addRight l1' margin l2' =

@@ -4,6 +4,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Imj.Game.Class
       (
@@ -12,6 +15,8 @@ module Imj.Game.Class
       , GameLogic(..)
       , GameExternalUI(..)
       , GameDraw(..)
+      , GameStatefullKeys(..)
+      , DrawGroupMember(..)
       -- * Client / GameLogic
       , EventsForClient(..)
       , Game(..)
@@ -20,6 +25,7 @@ module Imj.Game.Class
       , UpdateEvent
       , CustomUpdateEvent
       , EventGroup(..)
+      , DrawGroupKeys(..)
       , defaultFrameSize
       -- * AppState type
       , AppState(..)
@@ -37,57 +43,30 @@ module Imj.Game.Class
       -- * Helper types
       , Transitioning(..)
       , GameArgs(..)
+      , ArgServerPort(..)
       , Infos(..)
       , mkEmptyInfos
       -- * EventGroup
-      , isPrincipal
       , mkEmptyGroup
       , visible
       , count
       , tryGrow
-      -- * Access
-      , getGameState
-      , getIGame
-      , getPlayers
-      , getPlayer
-      , getChatMode
-      , getMyId
-      , getGameConnection
-      , getChat
-      , getServerContent
-      , getCurScreen
-      , getLastRenderTime
-      , hasVisibleNonRenderedUpdates
-      -- * Modify
-      , addParticleSystems
-      , putGame
-      , putAnimation
-      , putCurScreen
-      , putGameState
-      , putIGame
-      , putPlayer
-      , putPlayers
-      , putGameConnection
-      , putServerContent
-      , putDrawnState
-      , stateChat
       -- * reexports
       , MonadState
       , TQueue
-      , gets
       ) where
 
-import           Imj.Prelude
+import           Imj.Prelude hiding(range)
 import           Prelude(length)
 
 import           Control.Concurrent.STM(TQueue)
 import           Control.Monad.State.Class(MonadState)
-import           Control.Monad.IO.Class(MonadIO)
 import           Control.Monad.Reader.Class(MonadReader)
-import           Control.Monad.State.Strict(gets, state, modify')
-import qualified Data.Map.Strict as Map
-import           Data.Map.Strict((!?),Map)
+import           Data.Set(Set)
+import qualified Data.Set as Set
+import           Data.Map.Strict(Map)
 import           Data.Proxy(Proxy(..))
+import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..), ModifierKeys(..))
 
 import           Imj.Arg.Class
 import           Imj.Categorized
@@ -106,6 +85,7 @@ import           Imj.Graphics.Class.Draw
 import           Imj.Graphics.Class.HasSizedFace
 import           Imj.Graphics.Class.Render
 import           Imj.Graphics.Color
+import           Imj.Graphics.Font
 import           Imj.Graphics.Interpolation.Evolution
 import           Imj.Graphics.ParticleSystem
 import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..))
@@ -205,11 +185,51 @@ class (LeftInfo (ClientInfoT g))
                -> Infos
   mkWorldInfos _ _ _ = mkEmptyInfos
 
+-- | Statefull keys are supported only by the GLFW backend.
+-- We can't distinguish key press / key release when using the terminal backend.
+--
+-- Hence, if you need statefull key support (i.e you have some code in 'mapStateKey'),
+-- 'needsStatefullKeys' should return 'True', so as to forbid the usage of the terminal backend
+-- (this will remove the command line option for chosing the render backend,
+-- and the backend value will be forced to GLFW).
+class GameStatefullKeys g s where
+
+  -- | When this returns 'True', the game can be played exclusively on the GLFW window.
+  -- The default implementation returns 'True'
+  needsStatefullKeys :: Proxy s -> Proxy g -> Bool
+  needsStatefullKeys _ = const True
+  {-# INLINE needsStatefullKeys #-}
+
+  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
+  --
+  -- This method is called only when the client 'StateNature' is 'Ongoing', and
+  -- when the 'StateValue' is 'Included' @_@.
+  --
+  -- Note that 'Shift + Arrow' key-presses are dedicated to font selection, and will be filtered
+  -- before reaching this function.
+  mapStateKey :: (GameLogic g
+                , GameLogicT e ~ g
+                , s ~ StatefullKeysT g
+                , MonadState (AppState g) m
+                , MonadReader e m, Client e)
+              => Proxy s
+              -> GLFW.Key
+              -> GLFW.KeyState
+              -> GLFW.ModifierKeys
+              -> GameStateValue
+              -- ^ The current client state.
+              -> m (Maybe (GenEvent g))
+
+instance GameStatefullKeys g () where
+  needsStatefullKeys _ = const False
+  mapStateKey _ _ _ _ _ = return Nothing
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
-class (GameExternalUI g, GameDraw g
+class (Show g
+     , GameExternalUI g, GameDraw g
      , Server (ServerT g), ServerClientHandler (ServerT g)
      , Audio (AudioT g), Arg (AudioT g), Show (AudioT g)
+     , GameStatefullKeys g (StatefullKeysT g)
      , Categorized (ClientOnlyEvtT g)
      , Show (ClientOnlyEvtT g)
      , ColorTheme (ColorThemeT g)
@@ -219,20 +239,24 @@ class (GameExternalUI g, GameDraw g
      GameLogic g
      where
 
+  -- | Server-side dual of 'GameLogic'
   type ServerT g = (r :: *) | r -> g
-  -- ^ Server-side dual of 'GameLogic'
 
+  -- | Audio backend
   type AudioT g = (r :: *) | r -> g
-  -- ^ Audio backend
   type AudioT g = WithAudio -- enable audio by default (use '()' to disable it)
 
+  -- | Events generated on the client and handled by the client.
   type ClientOnlyEvtT g
-  -- ^ Events generated on the client and handled by the client.
   type ClientOnlyEvtT g = ()
 
+  -- | The colors used by a player
   type ColorThemeT g
-  -- ^ The colors used by a player
   type ColorThemeT g = ()
+
+  -- | Statefull key handling (i.e key press / key release / key repeat, modifiers).
+  type StatefullKeysT g
+  type StatefullKeysT g = () -- The () instance doesn't support stateful keys.
 
   onAnimFinished :: (GameLogicT e ~ g
                    , MonadState (AppState (GameLogicT e)) m
@@ -260,15 +284,15 @@ class (GameExternalUI g, GameDraw g
                     -> m ()
   onClientCustomCmd = fail "you should implement this if you have custom commands."
 
-  -- | Maps a 'Key' to a 'GenEvent', given a 'StateValue'.
+  -- | Maps a 'Key' to a 'GenEvent', given a 'GameStateValue'.
   --
-  -- This method is called only when the client 'StateNature' is 'Ongoing'. Hence,
-  -- key presses while the client 'StateNature' is 'Over' are ignored.
-  keyMaps :: (GameLogicT e ~ g
+  -- This method is called only when the client 'StateNature' is 'Ongoing', and
+  -- when the 'StateValue' is 'Included' @_@.
+  mapInterpretedKey :: (GameLogicT e ~ g
             , MonadState (AppState g) m
             , MonadReader e m, Client e)
            => Key
-           -> StateValue GameStateValue
+           -> GameStateValue
            -- ^ The current client state.
            -> m (Maybe (GenEvent g))
 
@@ -314,8 +338,8 @@ mkEmptyInfos = Infos (Successive [fromString ""]) (Successive [fromString ""]) [
 
 data EventGroup g = EventGroup {
     events :: ![UpdateEvent g]
-  , _eventGroupHasPrincipal :: !Bool
-  , _eventGroupUpdateDuration :: !(Time Duration System)
+  , _eventGroupKeys :: !(Set DrawGroupKeys)
+  , evtGroupUpdateDuration :: !(Time Duration System)
   , _eventGroupVisibleTimeRange :: !(Maybe (TimeRange System))
   -- ^ TimeRange of /visible/ events deadlines
 }
@@ -324,17 +348,79 @@ data EventGroup g = EventGroup {
 type UpdateEvent g  = Either (ServerEvent (ServerT g)) (Event (ClientOnlyEvtT g))
 type CustomUpdateEvent g = Either (ServerEventT (ServerT g)) (ClientOnlyEvtT g)
 
--- | No 2 principal events can be part of the same 'EventGroup'.
--- It allows to separate important game action on different rendered frames.
-isPrincipal :: UpdateEvent g -> Bool
-isPrincipal (Right e) = case e of
-  (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> False
-  (Timeout (Deadline _ _ AnimateUI)) -> False
-  _ -> True
-isPrincipal (Left _) = True
+data DrawGroupKeys =
+    RedrawStatusKey
+  | GameStep
+  deriving(Eq, Ord)
+
+class DrawGroupMember e where
+  -- | Any two events of the same 'EventGroup' must have non-overlapping 'exclusivityKeys'.
+  --
+  -- Returning an empty 'Set' ('mempty') will allow the event to be member of any 'EventGroup',
+  -- regardless of events already present in it, and it will not prevent any further event to be included
+  -- in the same 'EventGroup'.
+  --
+  -- WARNING : If the render backend of your game has a minimal duration @minDt@ between two rendered frames
+  -- (which is the case with single buffered opengl rendering) and if an event for which this function
+  -- returns a non-empty set is generated continuously at a frequency bigger than the inverse of @minDt@::
+  --
+  -- * player input will be ignored (TODO We could "parallelize" platform events consumption
+  -- so that player input can still be handled correctly in that case and still keep the guarantee that
+  -- server events are handled in their order of arrival.)
+  -- * only a single of these event can be present per rendered frame, so the queue of server events
+  -- will grow bigger and bigger, and these events will ultimately overflow the queue / delay other events.
+  -- Also, in a multi-player setting, no 2 players will see the same behaviour,
+  -- unless their respective @minDt@ are strictly equal, which is unlikely.
+  --
+  -- Hence, if an event is generated at high frequency, the recommendation is to
+  -- return 'mempty', else your game / application may exhibit strong lag and/or unresponsiveness.
+  exclusivityKeys :: e -> Set DrawGroupKeys
+
+instance (DrawGroupMember e, DrawGroupMember f)
+  => DrawGroupMember (Either e f) where
+  exclusivityKeys = either exclusivityKeys exclusivityKeys
+
+instance DrawGroupMember e
+  => DrawGroupMember (Event e) where
+  exclusivityKeys = \case
+    (Timeout (Deadline _ _ (AnimateParticleSystem _))) -> mempty
+    (Timeout (Deadline _ _ AnimateUI)) -> mempty
+    (Timeout (Deadline _ _ RedrawStatus{})) -> Set.singleton RedrawStatusKey
+    Log {} -> mempty
+    ToggleEventRecording -> mempty
+    CanvasSizeChanged -> mempty
+    RenderingTargetChanged  -> mempty
+    CycleRenderingOptions {}  -> mempty
+    ApplyPPUDelta {} -> mempty
+    ApplyFontMarginDelta {} -> mempty
+    ChatCmd {} -> mempty
+    SendChatMessage -> mempty
+    AppEvent e -> exclusivityKeys e
+
+instance DrawGroupMember () where
+  exclusivityKeys () = mempty
+
+instance DrawGroupMember (ServerEventT e)
+  => DrawGroupMember (ServerEvent e) where
+  exclusivityKeys = \case
+    ServerAppEvt x -> exclusivityKeys x
+    PlayMusic {} -> mempty
+    CommandError {} -> mempty
+    RunCommand {} -> mempty
+    Reporting {} -> mempty
+    PlayerInfo {} -> mempty
+    ConnectionAccepted {} -> mempty
+    ConnectionRefused {} -> mempty
+    Disconnected {} -> mempty
+    OnContent {} -> mempty
+    AllClients {} -> mempty
+    EnterState {} -> mempty
+    ExitState {} -> mempty
+    ServerError {} -> mempty
+    Warn {} -> mempty
 
 mkEmptyGroup :: EventGroup g
-mkEmptyGroup = EventGroup [] False zeroDuration Nothing
+mkEmptyGroup = EventGroup [] mempty zeroDuration Nothing
 
 visible :: EventGroup g -> Bool
 visible (EventGroup _ _ _ Nothing) = False
@@ -343,12 +429,14 @@ visible _ = True
 count :: EventGroup g -> Int
 count (EventGroup l _ _ _) = length l
 
-tryGrow :: Maybe (UpdateEvent g) -> EventGroup g -> IO (Maybe (EventGroup g))
+tryGrow :: (DrawGroupMember (ServerEventT (ServerT g))
+          , DrawGroupMember (ClientOnlyEvtT g))
+        => Maybe (UpdateEvent g) -> EventGroup g -> IO (Maybe (EventGroup g))
 tryGrow Nothing group
  | null $ events group = return $ Just group -- Keep the group opened to NOT do a render
  | otherwise = return Nothing -- to do a render
-tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
- | hasPrincipal && principal = return Nothing -- we don't allow two principal events in the same group
+tryGrow (Just e) (EventGroup l pastKeys updateTime range)
+ | keyConflict = return Nothing
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
  | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> return $
     let -- so that no 2 updates of the same particle system are done in the same group:
@@ -359,8 +447,10 @@ tryGrow (Just e) (EventGroup l hasPrincipal updateTime range)
       else
         withEvent $ Just range'
  where
-  !principal = isPrincipal e
-  withEvent = Just . EventGroup (e:l) (hasPrincipal || principal) updateTime
+  thisKeys = exclusivityKeys e
+  mergedKeys = Set.union pastKeys thisKeys
+  keyConflict = Set.size thisKeys + Set.size pastKeys /= Set.size mergedKeys -- True when pastKeys and thisKeys overlapp
+  withEvent = Just . EventGroup (e:l) mergedKeys updateTime
   time = case e of
     Right (Timeout (Deadline t _ _)) -> return t
     _ -> getSystemTime
@@ -430,13 +520,14 @@ data AppState g = AppState {
     timeAfterRender :: !(Time Point System)
   , game :: !(Game g)
   , eventsGroup :: !(EventGroup g)
-  , _appStateEventHistory :: !OccurencesHist
+  , eventHistory :: !OccurencesHist
   -- ^ Can record which events where handled, for debugging purposes.
-  , _appStateRecordEvents :: !RecordMode
+  , appStateRecordEvents :: !RecordMode
   -- ^ Should the handled events be recorded?
   , nextParticleSystemKey :: !ParticleSystemKey
-  , _appStateDebug :: {-unpack sum-} !Debug
+  , appStateDebug :: {-unpack sum-} !Debug
   -- ^ Print times and group information in the terminal.
+  , pressedKeys :: !(Set GLFW.Key)
 }
 
 data RecordMode = Record
@@ -452,7 +543,7 @@ data OccurencesHist = OccurencesHist {
 data GameArgs g = GameArgs
   !ServerOnly
   !(Maybe ServerName)
-  !(Maybe ServerPort)
+  !(Maybe ArgServerPort)
   !(Maybe ServerLogs)
   !(Maybe ColorScheme)
   !(Maybe (ConnectIdT (ServerT g)))
@@ -462,147 +553,8 @@ data GameArgs g = GameArgs
   !Debug
   !(Maybe (AudioT g))
 
+data ArgServerPort =
+    NumServerPort !ServerPort
+  | EnvServerPort !String
+  deriving(Show)
 
-{-# INLINABLE getGameState #-}
-getGameState :: MonadState (AppState g) m => m (GameState g)
-getGameState = getGameState' <$> gets game
-
-{-# INLINABLE getIGame #-}
-getIGame :: MonadState (AppState g) m => m (Maybe g)
-getIGame = _game <$> getGameState
-
-{-# INLINABLE getServerView #-}
-getServerView :: MonadState (AppState g) m => m (ServerView (ValuesT (ServerT g)))
-getServerView = getServerView' <$> gets game
-
-{-# INLINABLE getChatMode #-}
-getChatMode :: MonadState (AppState g) m => m IsEditing
-getChatMode = getIsEditing <$> getChat
-
-{-# INLINABLE getChat #-}
-getChat :: MonadState (AppState g) m => m Chat
-getChat = getChat' <$> gets game
-
-{-# INLINABLE getCurScreen #-}
-getCurScreen :: MonadState (AppState g) m => m Screen
-getCurScreen = getScreen <$> gets game
-
-{-# INLINABLE putCurScreen #-}
-putCurScreen :: MonadState (AppState g) m => Screen -> m ()
-putCurScreen s = gets game >>= \g -> putGame $ g { getScreen = s }
-
-{-# INLINABLE getLastRenderTime #-}
-getLastRenderTime :: MonadState (AppState g) m => m (Time Point System)
-getLastRenderTime = gets timeAfterRender
-
-{-# INLINABLE putGame #-}
-putGame :: MonadState (AppState g) m => Game g -> m ()
-putGame g = modify' $ \s -> s { game = g }
-
-{-# INLINABLE putAnimation #-}
-putAnimation :: (GameLogicT e ~ g
-               , MonadState (AppState (GameLogicT e)) m
-               , MonadReader e m, Client e
-               , MonadIO m)
-             => UIAnimation
-             -> m ()
-putAnimation a = do
-  getGameState >>= \g -> putGameState $ g {_anim = a}
-  maybe onAnimFinished (const $ return ()) $ _deadline $ getProgress a
-
-{-# INLINABLE putIGame #-}
-putIGame :: MonadState (AppState s) m => s -> m ()
-putIGame a =
-  getGameState >>= \g -> putGameState $ g {_game = Just a}
-
-{-# INLINABLE putServer #-}
-putServer :: MonadState (AppState g) m => (ServerView (ValuesT (ServerT g))) -> m ()
-putServer s =
-  gets game >>= \g -> putGame $ g {getServerView' = s}
-
-{-# INLINABLE putGameState #-}
-putGameState :: MonadState (AppState g) m => GameState g -> m ()
-putGameState s =
-  gets game >>= \g -> putGame $ g {getGameState' = s}
-
-{-# INLINABLE putGameConnection #-}
-putGameConnection :: MonadState (AppState g) m => ConnectionStatus -> m ()
-putGameConnection c =
-  gets game >>= \g -> putGame $ g {connection' = c}
-
-{-# INLINABLE getGameConnection #-}
-getGameConnection :: MonadState (AppState g) m => m ConnectionStatus
-getGameConnection = connection' <$> gets game
-
-{-# INLINABLE getMyId #-}
-getMyId :: MonadState (AppState g) m => m (Maybe ClientId)
-getMyId =
-  (\case
-    Connected myId -> Just myId
-    _ -> Nothing) <$> getGameConnection
-
-{-# INLINABLE putServerContent #-}
-putServerContent :: MonadState (AppState g) m => ValuesT (ServerT g) -> m ()
-putServerContent p =
-  getServerView >>= \s@(ServerView _ c) ->
-    putServer s { serverContent = c { cachedValues = Just p } }
-
-{-# INLINABLE getServerContent #-}
-getServerContent :: MonadState (AppState g) m => m (Maybe (ValuesT (ServerT g)))
-getServerContent =
-  cachedValues . serverContent <$> getServerView
-
-{-# INLINABLE getPlayers #-}
-getPlayers :: MonadState (AppState g) m => m (Map ClientId (Player g))
-getPlayers = getPlayers' <$> gets game
-
-{-# INLINABLE getPlayer #-}
-getPlayer :: MonadState (AppState g) m => ClientId -> m (Maybe (Player g))
-getPlayer i = flip (!?) i <$> getPlayers
-
-{-# INLINABLE putPlayers #-}
-putPlayers :: MonadState (AppState g) m => Map ClientId (Player g) -> m ()
-putPlayers m = gets game >>= \g -> putGame g {getPlayers' = m}
-
-{-# INLINABLE putPlayer #-}
-putPlayer :: MonadState (AppState g) m => ClientId -> Player g -> m ()
-putPlayer sid player = getPlayers >>= \names -> putPlayers $ Map.insert sid player names
-
-{-# INLINABLE takeKeys #-}
-takeKeys :: MonadState (AppState g) m => Int -> m [ParticleSystemKey]
-takeKeys n
-  | n <= 0 = return []
-  | otherwise =
-      state $ \s ->
-        let key = nextParticleSystemKey s
-            endKey = key + fromIntegral n
-        in ([key..pred endKey], s {nextParticleSystemKey = endKey })
-
-{-# INLINABLE addParticleSystems #-}
-addParticleSystems :: MonadState (AppState s) m
-                   => [Prioritized ParticleSystem]
-                   -> m ()
-addParticleSystems l = do
-  keys <- takeKeys $ length l
-  let ps2 = Map.fromDistinctAscList $ zip keys l
-  gets game >>= \g -> putGame $ g {gameParticleSystems = Map.union (gameParticleSystems g) ps2}
-
-{-# INLINABLE putDrawnState #-}
-putDrawnState :: (MonadState (AppState g) m)
-              => [(ColorString, AnimatedLine)]
-              -> m ()
-putDrawnState i =
-  gets game >>= \g -> putGame $ g { getDrawnClientState = i }
-
-{-# INLINABLE stateChat #-}
-stateChat :: MonadState (AppState g) m => (Chat -> (Chat, a)) -> m a
-stateChat f =
-  gets game >>= \g -> do
-    let (newChat, v) = f $ getChat' g
-    putGame $ g { getChat' = newChat }
-    return v
-
-{-# INLINABLE hasVisibleNonRenderedUpdates #-}
-hasVisibleNonRenderedUpdates :: MonadState (AppState g) m => m Bool
-hasVisibleNonRenderedUpdates =
-  visible <$> gets eventsGroup

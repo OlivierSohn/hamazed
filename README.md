@@ -192,7 +192,7 @@ Available options:
   -h,--help                Show this help text
   -s,--serverOnly          Create - only - the server (no client). Incompatible
                            with --serverName.
-  -n,--serverName ARG      Connect to a server (use "localhost" to target your
+  -n,--serverName ARG      Connect to a server (use "0.0.0.0" to target your
                            machine). Incompatible with --serverOnly.
   -p,--serverPort ARG      Listening port number of the server to connect to, or
                            to create. Default is 10052.

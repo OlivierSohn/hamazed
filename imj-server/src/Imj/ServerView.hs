@@ -24,5 +24,5 @@ mkDistantServerView n = ServerView (Distant n)
 
 
 getServerNameAndPort :: ServerView values -> (ServerName, ServerPort)
-getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "localhost", p)
+getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "0.0.0.0", p)
 getServerNameAndPort (ServerView (Distant name) (ServerContent p _)) = (name, p)

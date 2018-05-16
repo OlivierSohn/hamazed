@@ -110,7 +110,7 @@ parserSrvName =
        <> short 'n'
        <> help (
        "Connect to a server " ++
-       "(use \"localhost\" to target your machine). Incompatible with --serverOnly."
+       "(use \"0.0.0.0\" to target your machine). Incompatible with --serverOnly."
        )))
 
 parserSrvPort :: Parser (Maybe ArgServerPort)

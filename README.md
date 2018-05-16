@@ -201,32 +201,31 @@ deployed on Heroku.
 At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host web applications
 deployed using docker containers. We are assuming that you already:
 
-- have an Heroku account where you created the app <herokuAppName>
+- have an Heroku account where you created the app <herokuAppName> whose associated
+domain is <herokuAppDomain>
 - have installed Heroku command line tools
 
-The following command creates the Heroku container and pushes it on Heroku.
-The first upload will be long, because the whole image will be uploaded.
-Subsequent uploads however will be very fast, because just the layer that changed
-will be uploaded.
+The following command creates the Heroku container and pushes it on Heroku:
 
 ```shell
 cd ./docker-heroku
 heroku container:push web -a <herokuAppName>
 ```
 
-Monitor / verify the deployment status:
+The first upload will be long, because the whole image will be uploaded.
+Subsequent uploads however will be very fast, because just the layer that changed
+will be uploaded.
+
+To monitor and verify the deployment status:
 
 ```shell
 heroku logs --tail -a <herokuAppName>
 ```
 
-Note that if you try accessing `<herokuAppDomain>` from a browser, you will get an error,
-and looking at the logs you'll see "Header missing: Sec-WebSocket-Key".
-This is because the game server sockets are using the websocket protocol, not the HTTP protocol.
+Note that accessing `<herokuAppDomain>` in a browser will generate an error
+because the game server sockets are using the websocket protocol, not the HTTP protocol.
 
 ## Connect to a running game server
-
-Once the server is deployed, clients may connect to it by IP/name and port:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
@@ -234,7 +233,7 @@ stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
 
 ### Connect to a Heroku-hosted server
 
-When the game server is hosted on Heroku the port to connect to is `80`:
+When the game server is hosted on Heroku, the port to connect to is `80`:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80

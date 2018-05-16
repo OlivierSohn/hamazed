@@ -153,20 +153,6 @@ listed in it:
 Meaning that the `clay` package will be downloaded from `https://github.com/OlivierSohn/clay.git`
 at commit `954476940190873094847939c5f0e6242e324000`.
 
-# Run the games
-
-Run the tutorial game:
-
-`stack exec imj-game-tutorial-increment-exe`
-
-Run Hamazed game:
-
-`stack exec imj-game-hamazed-exe `
-
-To pass some command line arguments, `--` needs to be written after `exec`:
-
-`stack exec -- imj-game-hamazed-exe -l console`
-
 # Command line options
 
 Every game made with [imj-game](/imj-game) inherits from the same command line options.
@@ -223,6 +209,90 @@ Available options:
   -d,--debug               [Client] print debug infos in the terminal.
   --silent                 [Client] disables music and audio effects.
 ```
+
+# Run the games
+
+## Single-player, local-server
+
+Run the tutorial game:
+
+`stack exec imj-game-tutorial-increment-exe`
+
+Run Hamazed game:
+
+`stack exec imj-game-hamazed-exe `
+
+To pass some command line arguments, `--` needs to be written after `exec`:
+
+`stack exec -- imj-game-hamazed-exe -l console`
+
+## Multi-player, deployed-server
+
+To allow several players to play the same game instance, the game server should be hosted in the cloud.
+
+At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host a web application
+with no location restriction (it is ok for users located in Europe), and accepting several deployment
+methods, including docker containers, which is the approach described here:
+
+### Create the docker container for the game server
+
+First build the base image:
+
+```shell
+cd ./docker-rt
+docker build -t imajuscule/imj-game-rt .
+```
+
+(Note that the name of the image must match the one used in the .yaml file)
+
+
+Then build the imajuscule/hamazed image:
+
+```shell
+cd ..
+stack image container
+```
+
+Optionally, you can build the image locally:
+
+```shell
+docker build -t imajuscule/game-synths-tests .
+```
+
+Optionally, you can test the image locally, overriding the -pPORT in the Dockerfile (see -p10052)
+because Heroku uses the PORT env variable to convey the information on port number.
+
+```shell
+docker run imajuscule/imj-game-synths-test -p10052
+```
+
+Create the container for heroku and push it to heroku
+(assuming you already have an heroku account, have created an app <herokuAppName>, and have installed
+heroku command line tools):
+
+```shell
+heroku container:push web -a <herokuAppName>
+```
+
+You can verify the deployment status and game-server state using
+
+```shell
+heroku logs --tail -a <herokuAppName>
+```
+
+Note that in the Dockerfile, we pass `-l console` so that the server logs in the console, it allows
+to command above to provide relevant applicative logs.
+
+Finally, players can connect to the game server:
+
+```shell
+stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
+```
+
+Note that the http port is used (this is the only available port on Heroku)
+
+If you access <herokuAppDomain> from a browser, you will get an error because the game server sockets
+are using the websocket protocol. Hence, you should see in the logs an error containing "Header missing: Sec-WebSocket-Key".
 
 # CI
 

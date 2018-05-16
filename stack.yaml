@@ -6,32 +6,11 @@
 #   8.2.2:  lts-11.9
 resolver: nightly-2018-05-14
 
-# To build the docker image:
-#
-# First build the base image:
-#
-# > cd ./docker-rt
-# > docker build -t imajuscule/imj-game-rt .
-#
-# Then build the imajuscule/hamazed image:
-#
-# > cd ..
-# > stack image container
-#
-# (Optional) Build the image locally
-# > docker build -t imajuscule/game-synths-tests .
-#
-# (Optional) Test the image locally. We override the -pPORT in the Dockerfile (see -p10052)
-# because Heroku uses the PORT env variable to convey the information on HTTP port number.
-# > docker run imajuscule/imj-game-synths-test -p10052
-#
-# Build and push the heroku image:
-# > heroku container:push web -a imj-game-synth
 image:
   container:
-    # The Dockerfile in this directory references this name
+    # The Dockerfile in the same directory as this .yaml file references this name:
     name: imajuscule/hamazed
-    # The associated Dockerfile is in docker-rt subdirectory
+    # The associated Dockerfile is in ./docker-rt subdirectory
     base: imajuscule/imj-game-rt
 
 packages:

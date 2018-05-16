@@ -31,6 +31,7 @@ import           System.IO(hFlush, stdout)
 import           Imj.Game.Exceptions
 import           Imj.Game.Class
 import           Imj.Graphics.Color
+import           Imj.Graphics.Text.ColorString
 import           Imj.Server.Class
 import           Imj.ServerView.Types
 import           Imj.ServerView
@@ -55,11 +56,11 @@ startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Cli
 startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
   let localhostNames = ["0.0.0.0"] -- first trying "0.0.0.0", because for Heroku / docker container, "localhost" doesn't work.
       cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
-  putStrLn ("creating listening socket on port " ++ show port) >> hFlush stdout
+  baseLog $ colored ("creating listening socket on port " <> pack (show port)) yellow
   listen <- firstSucceeding cmdsMakeListeSocket `onException` putMVar v (Left $ msg False)
   -- now that the listen socket is created, signal it.
   let str = msg True
-  putStrLn str >> hFlush stdout -- Needed for serverOnly (in that case, the MVar is not used)
+  baseLog $ colored (pack str) green -- Needed for serverOnly (in that case, the MVar is not used)
   putMVar v $ Right str
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
   (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
@@ -152,6 +153,7 @@ runServerWith' :: Socket -> ConnectionOptions -> ServerApp -> IO ()
 runServerWith' listeningSock opts app =
   forever $ do
     (conn, _) <- accept listeningSock
+    baseLog $ colored ("accepted " <> pack (show conn)) yellow
     void $ forkIO $
       flip finally
         (close conn)

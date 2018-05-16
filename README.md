@@ -159,15 +159,13 @@ sudo apt-get install portaudio19-dev
 
 # Single-player mode
 
-Passing no command line argument will run the game in single player mode:
-
-- The tutorial game:
+Passing no command line argument will run the games in single player mode:
 
 `stack exec imj-game-tutorial-increment-exe`
 
-- Hamazed game:
+`stack exec imj-game-hamazed-exe`
 
-`stack exec imj-game-hamazed-exe `
+`stack exec imj-game-synths-exe`
 
 # Multi-player mode
 

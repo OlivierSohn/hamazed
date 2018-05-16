@@ -153,130 +153,56 @@ listed in it:
 Meaning that the `clay` package will be downloaded from `https://github.com/OlivierSohn/clay.git`
 at commit `954476940190873094847939c5f0e6242e324000`.
 
-# Command line options
+# Single-player mode
 
-Every game made with [imj-game](/imj-game) inherits from the same command line options.
+Running the games in single player mode was made easy :
+passing no argument will run both a client and a local server.
 
-The description of client-specific options are prefixed by [Client]:
-
-```shell
-> stack exec -- imj-game-hamazed-exe -h
-
-**** imj-game-hamazed-exe runs a multiplayer client/server game.
-
-Usage: imj-game-hamazed-exe [-s|--serverOnly] [-n|--serverName ARG]
-                            [-p|--serverPort ARG] [-l|--serverLogs ARG]
-                            [-c|--colorScheme ARG] [--connectId ARG]
-                            [-r|--render ARG] [--ppu ARG] [--screenSize ARG]
-                            [-d|--debug] [--silent]
-  If you want to: (1) Create just a game server, use [--serverOnly] and
-  optionally [--serverPort]. (2) Create just a client connected to an existing
-  game server, use [--serverName] and optionally [--serverPort]. (3) Create both
-  a game server and a client connected to it, use optionally [--serverPort].
-
-Available options:
-  -h,--help                Show this help text
-  -s,--serverOnly          Create - only - the server (no client). Incompatible
-                           with --serverName.
-  -n,--serverName ARG      Connect to a server (use "0.0.0.0" to target your
-                           machine). Incompatible with --serverOnly.
-  -p,--serverPort ARG      Listening port number of the server to connect to, or
-                           to create. Default is 10052.
-  -l,--serverLogs ARG      'none': no server logs. 'console': server logs in the
-                           console. Default is 'none'. Incompatible with
-                           --serverName.
-  -c,--colorScheme ARG     Defines a rgb color from which player colors are
-                           deduced, cycling through same intensity colors.
-                           Possible values are:
-                           {'blue','olive','orange','reddish','violet'}, 'rgb' |
-                           '"r g b"' where r,g,b are one of {0,1,2,3,4,5},
-                           'time' to chose colors based on server start time.
-                           Default is 322 / "3 2 2". Incompatible with
-                           --serverName.
-  --connectId ARG          [Client] The connection identifier used to connect to
-                           the server.
-  -r,--render ARG          [Client] 'console': play in the console. 'opengl':
-                           play in an opengl window (default value). Accepted
-                           synonyms of 'console' are 'ascii', 'term',
-                           'terminal'. Accepted synonyms of 'opengl' are 'win',
-                           'window'.
-  --ppu ARG                [Client OpenGL] The size of a game element, in
-                           pixels: '"w h"' where w,h are even and >= 4. Default:
-                           "12 8".
-  --screenSize ARG         [Client OpenGL] The size of the opengl window.
-                           'full': fullscreen. '"width height"' : size in
-                           pixels. Default: "600 1400".
-  -d,--debug               [Client] print debug infos in the terminal.
-  --silent                 [Client] disables music and audio effects.
-```
-
-# Run the games
-
-## Single-player
-
-Run the games in single player mode was made easy : the default command line arguments values
-are set such that if no argument is passed, the game executable runs a client and a local server.
-
-- Run the tutorial game:
+- The tutorial game:
 
 `stack exec imj-game-tutorial-increment-exe`
 
-- Run Hamazed game:
+- Hamazed game:
 
 `stack exec imj-game-hamazed-exe `
 
-- To pass some command line arguments, `--` needs to be written after `exec`.
+- Note that to pass some command line arguments, `--` needs to be written after `exec`.
 For example, to activate server logging:
 
 `stack exec -- imj-game-hamazed-exe -l console`
 
-Note that passing `-s` to the above commands will just run the server (no client
-  will be run)
+# Multi-player mode
 
-## Multi-player
+## Deploying a game server
 
-### Connecting a client to a game server
-
-Distant clients may connect to the game server by IP/name and port:
-
-```shell
-stack exec -- imj-game-hamazed-exe -n <serverName> -p<serverPort>
-```
-
-### Deploying a game server
-
-The game server can be contained in a docker container:
-
-#### Create the (base) docker container for the game server
-
-Build the base image:
+To put the game server executable in a container, first build the base image:
 
 ```shell
 cd ./docker-rt
 docker build -t imajuscule/imj-game-rt .
 ```
 
-From this base image, stack will create another image containing the built executables:
-
-(This works only because we have an `image` field inside the [stack.yaml](./stack.yaml):
-the name of the base image must match the one used in the .yaml file)
+Then, using the previous image as base, create a new image containing the game executables:
 
 ```shell
 cd ..
 stack image container
 ```
 
+(it works because we have an `image` field inside the [stack.yaml](./stack.yaml))
+
 Note that the system on which the command above is executed should match the characteristics of
 [the base image](./docker-rt/Dockerfile). If it is not the case, the base image should be adapted
 (especially regarding libstdc++ version).
 
-#### Deploying the game server using Heroku
+The generated image (`imajuscule/hamazed`) now contains the game executables. In the following section,
+we will see how to deploy it on Heroku.
+
+### Deploying a game server to Heroku
 
 At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host a web application
 with no location restriction (it is ok for users located in Europe), and accepting several deployment
-methods, including docker containers, which is the approach described here:
-
-##### Create the Heroku-specific docker container for the game server
+methods, including docker containers:
 
 (Optional) Build and test the heroku container locally:
 
@@ -298,25 +224,30 @@ Create the heroku container and push it on heroku. Assumes that you already:
 heroku container:push web -a <herokuAppName>
 ```
 
-You can verify the deployment status:
+To verify the deployment status:
 
 ```shell
 heroku logs --tail -a <herokuAppName>
 ```
 
-(In the Dockerfile, we pass `-l console` to have a verbose game server logging game state
-  in the console.)
+## Connecting a client to a running game server
 
-##### As a player, connecting to a Heroku-hosted game server
+Distant clients may connect to the game server by IP/name and port:
 
-Players can connect to the game server on port 80:
+```shell
+stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
+```
+
+### Connecting a client to a game server deployed on Heroku
+
+When the game server is hosted on Heroku the port to connect to is `80`:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
 
-Note that when accessing <herokuAppDomain> from a browser, you will get an error
-containing "Header missing: Sec-WebSocket-Key", because the game server sockets
+Note that when accessing `<herokuAppDomain>` from a browser, you will get an error
+mentionning "Header missing: Sec-WebSocket-Key", because the game server sockets
 are using the websocket protocol, not the HTTP protocol.
 
 # CI

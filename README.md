@@ -64,22 +64,17 @@ are written using the `notes` quasiquoter, where:
 
 - notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
 - a note can be shifted by octaves using `v` and `^`
-- `-` extends the preceding note to the next step
+- `-` extends the preceding note
 - `.` indicates a pause
 
 ## Playback
 
-Every game made using [imj-game](/imj-game) is able to play music: the game server
-sends midi-like note on / note off events to game clients, allowing
-to perfectly synchronize the music with game events.
+Every game made with [imj-game](/imj-game) can have the server send midi-like
+note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
 
-### Synthesizers continue playing during garbage collection pauses
-
-We use [a custom-made audio engine](/imj-bindings-audio) whose audio thread is
-/not/ managed by the GHC runtime, and "synthesizers" are creating the sound in the
-audio thread directly.
-
-Hence, the sound is guaranteed /not/ to pause during garbage collection pauses.
+The music won't pause during garbage collection because we use
+[a custom-made audio engine](/imj-bindings-audio) whose audio thread is
+not managed by the GHC runtime.
 
 # Rendering
 

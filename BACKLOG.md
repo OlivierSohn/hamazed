@@ -1,9 +1,10 @@
-- https://hackernoon.com/for-all-the-world-to-see-deploying-haskell-with-heroku-7ea46f827ce
-https://github.com/mfine/heroku-buildpack-stack
+- when coming back from idling, the player should see "waiting for server to wake up"
 
-the heroku build fails because portaudio / ftgl are missing. We should not have to
-install those to build the server.
+- upon start, the currently played notes of all loops should be sent.
 
+with 2 players, I could generate ghost notes, see if this fixes it.
+
+- https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 
 - add game doc. For synth:
 While playing on the computer keyboard, the notes are played in real time, and stored in

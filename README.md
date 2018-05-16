@@ -212,87 +212,112 @@ Available options:
 
 # Run the games
 
-## Single-player, local-server
+## Single-player
 
-Run the tutorial game:
+Run the games in single player mode was made easy : the default command line arguments values
+are set such that if no argument is passed, the game executable runs a client and a local server.
+
+- Run the tutorial game:
 
 `stack exec imj-game-tutorial-increment-exe`
 
-Run Hamazed game:
+- Run Hamazed game:
 
 `stack exec imj-game-hamazed-exe `
 
-To pass some command line arguments, `--` needs to be written after `exec`:
+- To pass some command line arguments, `--` needs to be written after `exec`.
+For example, to activate server logging:
 
 `stack exec -- imj-game-hamazed-exe -l console`
 
-## Multi-player, deployed-server
+Note that passing `-s` to the above commands will just run the server (no client
+  will be run)
 
-To allow several players to play the same game instance, the game server should be hosted in the cloud.
+## Multi-player
 
-At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host a web application
-with no location restriction (it is ok for users located in Europe), and accepting several deployment
-methods, including docker containers, which is the approach described here:
+### Connecting a client to a game server
 
-### Create the docker container for the game server
+Distant clients may connect to the game server by IP/name and port:
 
-First build the base image:
+```shell
+stack exec -- imj-game-hamazed-exe -n <serverName> -p<serverPort>
+```
+
+### Deploying a game server
+
+The game server can be contained in a docker container:
+
+#### Create the (base) docker container for the game server
+
+Build the base image:
 
 ```shell
 cd ./docker-rt
 docker build -t imajuscule/imj-game-rt .
 ```
 
-(Note that the name of the image must match the one used in the .yaml file)
+From this base image, stack will create another image containing the built executables:
 
-
-Then build the imajuscule/hamazed image:
+(This works only because we have an `image` field inside the [stack.yaml](./stack.yaml):
+the name of the base image must match the one used in the .yaml file)
 
 ```shell
 cd ..
 stack image container
 ```
 
-Optionally, you can build the image locally:
+Note that the system on which the command above is executed should match the characteristics of
+[the base image](./docker-rt/Dockerfile). If it is not the case, the base image should be adapted
+(especially regarding libstdc++ version).
+
+#### Deploying the game server using Heroku
+
+At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host a web application
+with no location restriction (it is ok for users located in Europe), and accepting several deployment
+methods, including docker containers, which is the approach described here:
+
+##### Create the Heroku-specific docker container for the game server
+
+(Optional) Build and test the heroku container locally:
 
 ```shell
 docker build -t imajuscule/game-synths-tests .
-```
 
-Optionally, you can test the image locally, overriding the -pPORT in the Dockerfile (see -p10052)
-because Heroku uses the PORT env variable to convey the information on port number.
-
-```shell
+# When testing locally, we need overriding the -p parameter because
+# when running on Heroku, the port number is deduced from the `PORT` env variable.
 docker run imajuscule/imj-game-synths-test -p10052
 ```
 
-Create the container for heroku and push it to heroku
-(assuming you already have an heroku account, have created an app <herokuAppName>, and have installed
-heroku command line tools):
+Create the heroku container and push it on heroku. Assumes that you already:
+
+- have an heroku account
+- have created an app <herokuAppName>
+- and have installed heroku command line tools
 
 ```shell
 heroku container:push web -a <herokuAppName>
 ```
 
-You can verify the deployment status and game-server state using
+You can verify the deployment status:
 
 ```shell
 heroku logs --tail -a <herokuAppName>
 ```
 
-Note that in the Dockerfile, we pass `-l console` so that the server logs in the console, it allows
-to command above to provide relevant applicative logs.
+(In the Dockerfile, we pass `-l console` to have a verbose game server logging game state
+  in the console.)
 
-Finally, players can connect to the game server:
+##### As a player, connecting to a Heroku-hosted game server
+
+Players can connect to the game server on port 80:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
 
-Note that the http port is used (this is the only available port on Heroku)
-
-If you access <herokuAppDomain> from a browser, you will get an error because the game server sockets
-are using the websocket protocol. Hence, you should see in the logs an error containing "Header missing: Sec-WebSocket-Key".
+Note that when accessing <herokuAppDomain> from a browser, you will get an error
+containing "Header missing: Sec-WebSocket-Key", because the game server sockets
+are using the websocket protocol, not the HTTP protocol.
 
 # CI
 

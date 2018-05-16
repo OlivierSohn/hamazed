@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Network
       ( startClient
@@ -9,6 +10,7 @@ module Imj.Game.Network
       ) where
 
 import           Imj.Prelude
+import           Prelude(putStrLn)
 import           Control.Concurrent(ThreadId, forkIO, myThreadId, throwTo)
 import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
@@ -24,6 +26,7 @@ import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnect
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
+import           System.IO(hFlush, stdout)
 
 import           Imj.Game.Exceptions
 import           Imj.Game.Class
@@ -49,10 +52,15 @@ startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s,
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
 startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
-  let (ServerName host, ServerPort port) = getServerNameAndPort srv
-  listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
-  putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
+startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
+  let localhostNames = ["0.0.0.0","localhost"] -- trying first "0.0.0.0" for Heroku
+      cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
+  putStrLn ("creating listening socket on port " ++ show port) >> hFlush stdout
+  listen <- firstSucceeding cmdsMakeListeSocket `onException` putMVar v (Left $ msg False)
+  -- now that the listen socket is created, signal it.
+  let str = msg True
+  putStrLn str >> hFlush stdout -- Needed for serverOnly (in that case, the MVar is not used)
+  putMVar v $ Right str
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
   (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
@@ -68,6 +76,15 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
    where
     st False = "failed to start ("
     st True = "starts listening ("
+
+firstSucceeding :: [IO a] -> IO a
+firstSucceeding = \case
+  [] -> error "logic"
+  c:[] -> c
+  c:cs -> try c >>= either
+    (\(_ :: SomeException) -> firstSucceeding cs)
+    return
+
 
 startClient :: GameLogic g
             => Maybe (ConnectIdT (ServerT g))

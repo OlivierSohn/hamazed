@@ -43,6 +43,7 @@ module Imj.Game.Class
       -- * Helper types
       , Transitioning(..)
       , GameArgs(..)
+      , ArgServerPort(..)
       , Infos(..)
       , mkEmptyInfos
       -- * EventGroup
@@ -542,7 +543,7 @@ data OccurencesHist = OccurencesHist {
 data GameArgs g = GameArgs
   !ServerOnly
   !(Maybe ServerName)
-  !(Maybe ServerPort)
+  !(Maybe ArgServerPort)
   !(Maybe ServerLogs)
   !(Maybe ColorScheme)
   !(Maybe (ConnectIdT (ServerT g)))
@@ -551,3 +552,9 @@ data GameArgs g = GameArgs
   !(Maybe PreferredScreenSize)
   !Debug
   !(Maybe (AudioT g))
+
+data ArgServerPort =
+    NumServerPort !ServerPort
+  | EnvServerPort !String
+  deriving(Show)
+

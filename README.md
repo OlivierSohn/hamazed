@@ -7,7 +7,7 @@ Note that it is an experimental project, so the APIs will likely change a lot ov
 
 # Packages
 
-Packages inverse-topologically sorted wrt dependencies, with some keywords for each of them:
+List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
 - [imj-bindings-audio](/imj-bindings-audio)
   - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-bindings-audio/c).
@@ -57,6 +57,16 @@ Packages inverse-topologically sorted wrt dependencies, with some keywords for e
 
 # Music
 
+## Notation
+
+[Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
+are written using the `notes` quasiquoter, where:
+
+- notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
+- a note can be shifted by octaves using `v` and `^`
+- `-` extends the preceding note to the next step
+- `.` indicates a pause
+
 ## Playback
 
 Every game made using [imj-game](/imj-game) is able to play music: the game server
@@ -70,16 +80,6 @@ We use [a custom-made audio engine](/imj-bindings-audio) whose audio thread is
 audio thread directly.
 
 Hence, the sound is guaranteed /not/ to pause during garbage collection pauses.
-
-## Notation
-
-[Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
-are written using the `notes` quasiquoter, where:
-
-- notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
-- a note can be shifted by octaves using `v` and `^`
-- `-` extends the preceding note to the next step
-- `.` indicates a pause
 
 # Rendering
 
@@ -172,10 +172,9 @@ Passing no command line argument will run the game in single player mode:
 # Multi-player mode
 
 In multi-player mode, a game server synchronizes the game, and clients are connected to it.
+The client-server communication is made using websockets.
 
-## Deploying a game server
-
-### Dockerize the game server
+## Dockerize the game server
 
 Build the base image:
 
@@ -184,47 +183,35 @@ cd ./docker-rt
 docker build -t imajuscule/imj-game-rt .
 ```
 
-Insert the executables in the image:
+The command below builds the game executables and creates `imajuscule/hamazed` containing them.
+In order for dependencies to be consistent, the system on which this command is executed
+should match the characteristics of [the base image](./docker-rt/Dockerfile).
+If in doubt, using Ubuntu Xenial (16.04) should work. For other linux distributions,
+you may need to adjust the libstdc++ version in [the base image](./docker-rt/Dockerfile).
 
 ```shell
 cd ..
 stack image container
 ```
 
-For dependencies to be consistent, the system on which the command above is executed
-should match the characteristics of [the base image](./docker-rt/Dockerfile).
+In the following section, `imajuscule/hamazed` is used as a base to generate the image
+deployed on Heroku.
 
-As a result, the generated image `imajuscule/hamazed` now contains the game executables.
-
-In the following section, `imajuscule/hamazed` is used as a base to generate another image
-that will be deployed on Heroku.
-
-### Deploying a game server to Heroku
+## Deploy a game server (to Heroku)
 
 At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host web applications
-deployed using docker containers.
+deployed using docker containers. We are assuming that you already:
 
-We are assuming that you already:
+- have an Heroku account where you created the app <herokuAppName>
+- have installed Heroku command line tools
 
-- have an heroku account
-- have created an app <herokuAppName>
-- and have installed heroku command line tools
-
-(Optional) Build and test the heroku container locally:
-
-```shell
-docker build -t imajuscule/game-synths-tests .
-
-# When testing locally, we need overriding the -p parameter because
-# when running on Heroku, the port number is deduced from the `PORT` env variable.
-docker run imajuscule/imj-game-synths-test -p10052
-```
-
-Create the heroku container and push it on heroku. This can take a while the first time, but
-once the initial upload is done, the following uploads will be fast because the parts (layers)
-of the docker image that didn't change won't be uploaded.
+The following command creates the Heroku container and pushes it on Heroku.
+The first upload will be long, because the whole image will be uploaded.
+Subsequent uploads however will be very fast, because just the layer that changed
+will be uploaded.
 
 ```shell
+cd ./docker-heroku
 heroku container:push web -a <herokuAppName>
 ```
 
@@ -234,7 +221,11 @@ Monitor / verify the deployment status:
 heroku logs --tail -a <herokuAppName>
 ```
 
-## Connecting a client to a running game server
+Note that if you try accessing `<herokuAppDomain>` from a browser, you will get an error,
+and looking at the logs you'll see "Header missing: Sec-WebSocket-Key".
+This is because the game server sockets are using the websocket protocol, not the HTTP protocol.
+
+## Connect to a running game server
 
 Once the server is deployed, clients may connect to it by IP/name and port:
 
@@ -242,14 +233,10 @@ Once the server is deployed, clients may connect to it by IP/name and port:
 stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
 ```
 
-### on Heroku
+### Connect to a Heroku-hosted server
 
 When the game server is hosted on Heroku the port to connect to is `80`:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
-
-Note that if you try accessing `<herokuAppDomain>` from a browser, you will get an error,
-and looking at the logs you'll see "Header missing: Sec-WebSocket-Key".
-This is because the game server sockets are using the websocket protocol, not the HTTP protocol.

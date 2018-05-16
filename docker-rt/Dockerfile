@@ -1,11 +1,11 @@
-# The game executable covers client and server functionality. Command line arguments can be passed
-# to run just the server, just the client or both (by default).
+# The game executable covers both client and server functionalities.
 #
-# This implies that when running as server, we need to have the client run-time dependencies.
-#
-# This Dockerfile adds client runtime dependencies
+# Hence, even though client functionalities are not used when running the server,
+# client run-time dependencies are required to be present.
 
 FROM phusion/baseimage
+
+# Run-time dependencies for all games based on the 'imj-game' engine:
 
 RUN apt-get update && apt-get install -y \
     libstdc++6 \
@@ -17,8 +17,7 @@ RUN apt-get update && apt-get install -y \
     portaudio19-dev \
     libftgl-dev
 
-# The version of libstdc++ must match the one with which the executable was built.
-# Here, we upgrade libstdc++6:
+# We need this to upgrade libstdc++6:
 
 RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y
 RUN apt-get update -y

@@ -32,6 +32,7 @@ import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
 import           System.Environment(getArgs, lookupEnv, getProgName)
 import           System.Info(os)
+import           System.IO(hFlush, stdout)
 import           Text.Read(readMaybe)
 
 import           Imj.Game.Audio.Class
@@ -136,6 +137,7 @@ run prox
         , ("Client Audio    ", show mayAudioConf)
         ]
   printServerArgs
+  hFlush stdout
   when serverOnly $ do
     let conflict x = error $ "'--serverOnly' conflicts with '" ++
                           x ++ "' (these options are mutually exclusive)."

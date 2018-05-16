@@ -1,6 +1,7 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Imj.Game.Network
       ( startClient
@@ -49,9 +50,10 @@ startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s,
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
 startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
-  let (ServerName host, ServerPort port) = getServerNameAndPort srv
-  listen <- makeListenSocket host port `onException` putMVar v (Left $ msg False)
+startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
+  let localhostNames = ["localhost","0.0.0.0"]
+      cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
+  listen <- firstSucceeding cmdsMakeListeSocket `onException` putMVar v (Left $ msg False)
   putMVar v $ Right $ msg True -- now that the listen socket is created, signal it.
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
   (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
@@ -68,6 +70,15 @@ startServerIfLocal prox srv@(ServerView (Local logs a) _) v = do
    where
     st False = "failed to start ("
     st True = "starts listening ("
+
+firstSucceeding :: [IO a] -> IO a
+firstSucceeding = \case
+  [] -> error "logic"
+  c:[] -> c
+  c:cs -> try c >>= either
+    (\(_ :: SomeException) -> firstSucceeding cs)
+    return
+
 
 startClient :: GameLogic g
             => Maybe (ConnectIdT (ServerT g))

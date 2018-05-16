@@ -113,14 +113,14 @@ parserSrvName =
        "(use \"localhost\" to target your machine). Incompatible with --serverOnly."
        )))
 
-parserSrvPort :: Parser (Maybe ServerPort)
+parserSrvPort :: Parser (Maybe ArgServerPort)
 parserSrvPort =
   optional
     (option srvPortArg
        (  long "serverPort"
        <> short 'p'
        <> help (
-       "Listening port number of the server to connect to, or to create. " ++
+       "Listening port of the server to connect to, or to create. Can be a number or an environment variable. " ++
        "Default is " ++ show (toInteger defaultPort) ++ ".")
        ))
 
@@ -239,15 +239,15 @@ srvNameArg =
                      ++ renderHelp
     name -> return $ ServerName name
 
-srvPortArg :: ReadM ServerPort
+srvPortArg :: ReadM (ArgServerPort)
 srvPortArg =
-  str >>= \s -> case map toLower s of
+  str >>= \case
     [] -> readerError $ "Encountered an empty serverport."
                      ++ renderHelp
     name ->
       maybe
-        (error $ "invalid number : " ++ show name)
-        (return . ServerPort)
+        (return $ EnvServerPort name)
+        (return . NumServerPort . ServerPort)
           (readMaybe name)
 
 defaultPort :: ServerPort

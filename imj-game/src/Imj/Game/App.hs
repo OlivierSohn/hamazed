@@ -30,8 +30,9 @@ import           Options.Applicative
                   , showHelpOnError, (<*>))
 import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
-import           System.Environment(getArgs, getProgName)
+import           System.Environment(getArgs, lookupEnv, getProgName)
 import           System.Info(os)
+import           Text.Read(readMaybe)
 
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
@@ -118,7 +119,8 @@ run :: (GameLogic g
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName maySrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+    maySrvName mayArgSrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+  maySrvPort <- maybe (return Nothing) (fmap Just . getServerPort) mayArgSrvPort
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
         , ("Server name", show maySrvName)
@@ -192,6 +194,17 @@ run prox
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
+
+getServerPort :: ArgServerPort -> IO ServerPort
+getServerPort = \case
+  NumServerPort n -> return n
+  EnvServerPort name ->
+    lookupEnv name >>= maybe
+      (error $ "invalid port environment variable: " ++ show name)
+      (\value -> maybe
+        (error $ "environment variable value is not a number: " ++ show value)
+        (return . ServerPort)
+        $ readMaybe value)
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g

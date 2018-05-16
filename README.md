@@ -181,16 +181,17 @@ cd ./docker-rt
 docker build -t imajuscule/imj-game-rt .
 ```
 
-The command below builds the game executables and creates `imajuscule/hamazed` containing them.
-In order for dependencies to be consistent, the system on which this command is executed
-should match the characteristics of [the base image](./docker-rt/Dockerfile).
-If in doubt, using Ubuntu Xenial (16.04) should work. For other linux distributions,
-you may need to adjust the libstdc++ version in [the base image](./docker-rt/Dockerfile).
+Then, build the game executables and create the image `imajuscule/hamazed` containing them:
 
 ```shell
 cd ..
 stack image container
 ```
+
+In order for dependencies to be consistent, the system on which the command above is executed
+should match the characteristics of [the base image](./docker-rt/Dockerfile).
+If in doubt, using Ubuntu Xenial (16.04) should work. For other linux distributions,
+you may need to adjust the libstdc++ version in [the base image](./docker-rt/Dockerfile).
 
 In the following section, `imajuscule/hamazed` is used as a base to generate the image
 deployed on Heroku.

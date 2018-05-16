@@ -1,7 +1,10 @@
 # What is it?
 
-Monorepo containing a Haskell multi-player game engine with real-time polyphonic music,
-and some games made with it. [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
+Monorepo for a Haskell multi-player game engine and some games made with it.
+[![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
+
+This Readme will explain how to build and deploy the game(s) on Heroku (just using
+the free plan of Heroku), so as to be able to play them in multi-player mode.
 
 Note that it is an experimental project, so the APIs will likely change a lot over time.
 
@@ -46,6 +49,7 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - Listens to server events, and player events
   - [Handles generic events](/imj-game/src/Imj/Game/Update.hs), so that the game implementation
   contains only game-specific code.
+    - Real-time music playback.
   - Debugging features : record and display events graphically, event logging.
 - [imj-game-hamazed](/imj-game-hamazed)
   - The 'Hamazed' game (see the demo below).

@@ -10,7 +10,7 @@ module Imj.Game.Network
       ) where
 
 import           Imj.Prelude
-import           Prelude(putStrLn)
+
 import           Control.Concurrent(ThreadId, forkIO, myThreadId, throwTo)
 import           Control.Concurrent.STM(newTQueueIO)
 import           Control.Exception (SomeException, try, onException, finally, bracket)
@@ -26,7 +26,6 @@ import           Network.WebSockets(ServerApp, ConnectionOptions, defaultConnect
 import           Network.WebSockets.Connection(PendingConnection(..))
 import qualified Network.WebSockets.Stream as Stream(close)
 import           System.Posix.Signals (installHandler, Handler(..), sigINT, sigTERM)
-import           System.IO(hFlush, stdout)
 
 import           Imj.Game.Exceptions
 import           Imj.Game.Class

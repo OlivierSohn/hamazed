@@ -55,11 +55,11 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   contains only game-specific code.
     - Real-time music playback.
   - Debugging features : record and display events graphically, event logging.
+- [imj-game-tutorial-increment](/imj-game-tutorial-increment)
+  - A tutorial on how to use [imj-game](/imj-game) to build a multi-player game.
 - [imj-game-hamazed](/imj-game-hamazed)
   - See this demo, at a time when the game was mono-player and had no music yet:
       [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
-- [imj-game-tutorial-increment](/imj-game-tutorial-increment)
-  - A tutorial on how to use [imj-game](/imj-game) to build a multi-player game.
 - [imj-profile](/imj-profile)
   - An executable precomputing optimal strategies used for random level generation.
   - And other profiling tests.
@@ -95,13 +95,13 @@ The [fonts](/imj-base/fonts) and font size for rendering can be modified at runt
 ## Known issues
 
 The algorithm finding the optimal font size (i.e the font size such that all characters fit
-  within a given rectangle) was developped on OSX, with a particular graphic card driver.
+  within a given block) was developped on OSX, with a particular graphic card driver.
 
-When switching to Linux, on another computer with another card driver, some characters
+When switching to Linux, and using another graphic card driver, some characters
 are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
 
 This should be investigated, maybe font rasterizing (ftgl) behaves differently on different platforms,
-or graphic drivers perform different numerical roundings.
+or the graphic drivers perform different numerical roundings.
 
 # CI
 

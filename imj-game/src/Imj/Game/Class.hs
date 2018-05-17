@@ -43,7 +43,6 @@ module Imj.Game.Class
       -- * Helper types
       , Transitioning(..)
       , GameArgs(..)
-      , ArgServerPort(..)
       , Infos(..)
       , mkEmptyInfos
       -- * EventGroup
@@ -552,9 +551,3 @@ data GameArgs g = GameArgs
   !(Maybe PreferredScreenSize)
   !Debug
   !(Maybe (AudioT g))
-
-data ArgServerPort =
-    NumServerPort !ServerPort
-  | EnvServerPort !String
-  deriving(Show)
-

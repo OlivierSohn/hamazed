@@ -50,7 +50,7 @@ import           Imj.Space.Types
 import           Imj.Game.Class
 import           Imj.Game.Level
 import           Imj.Game.Status
-import           Imj.Game.Hamazed.HighScores
+import           Imj.Game.HighScores
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Hamazed.Music
 import           Imj.Music.Types

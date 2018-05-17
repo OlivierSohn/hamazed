@@ -2,26 +2,38 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Imj.Game.Hamazed.HighScores
-    ( HighScores
+module Imj.Game.HighScores
+    ( HighScores(..)
+    , HighScore(..)
     , mkEmptyHighScores
     , insertScore
     , prettyShowHighScores
     ) where
 
 import           Imj.Prelude
+import           Data.Aeson(ToJSON(..), FromJSON(..))
 import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.Text hiding (map, concatMap)
+
 import           Imj.Network
-import           Imj.Game.Hamazed.Level
+import           Imj.Game.Level
 
 newtype HighScores = HighScores (Map LevelNumber (Set (Set (ClientName Approved))))
   deriving(Generic,Show)
 instance Binary HighScores
 instance NFData HighScores
+instance ToJSON HighScores
+instance FromJSON HighScores
+
+data HighScore = HighScore !LevelNumber !(Set (ClientName Approved))
+  deriving(Generic,Show)
+instance Binary HighScore
+instance NFData HighScore
+instance ToJSON HighScore
+instance FromJSON HighScore
 
 mkEmptyHighScores :: HighScores
 mkEmptyHighScores = HighScores mempty

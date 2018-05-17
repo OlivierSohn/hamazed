@@ -6,7 +6,6 @@ module Imj.ServerView.Types
       ( ServerView(..)
       , ServerType(..)
       , ServerName(..)
-      , ServerPort(..)
       , ServerContent(..)
       , ConnectionStatus(..)
       ) where
@@ -15,6 +14,7 @@ import           Imj.Prelude
 import           Data.String(IsString)
 
 import           Imj.ClientView.Internal.Types
+import           Imj.Network
 import           Imj.Server.Internal.Types
 import           Imj.Server.Color
 
@@ -42,6 +42,3 @@ data ServerType =
 
 newtype ServerName = ServerName String
   deriving (Show, IsString, Eq)
-
-newtype ServerPort = ServerPort Int
-  deriving (Generic, Show, Num, Integral, Real, Ord, Eq, Enum)

@@ -9,6 +9,7 @@ module Imj.Game.Hamazed.World.Size
 
 import           Imj.Prelude
 
+import           Imj.Game.Level
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Geo.Discrete.Types

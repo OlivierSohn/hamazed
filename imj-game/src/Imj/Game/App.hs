@@ -30,10 +30,9 @@ import           Options.Applicative
                   , showHelpOnError, (<*>))
 import           Options.Applicative.Extra(handleParseResult, overFailure)
 import qualified Options.Applicative.Help as Appli (red)
-import           System.Environment(getArgs, lookupEnv, getProgName)
+import           System.Environment(getArgs, getProgName)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
-import           Text.Read(readMaybe)
 
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
@@ -58,6 +57,7 @@ import           Imj.Graphics.Text.ColorString hiding(putStr)
 import           Imj.Graphics.Text.Render
 import           Imj.Input.Types
 import           Imj.Log
+import           Imj.Network
 import           Imj.Server.Class
 import           Imj.Server.Color
 import           Imj.ServerView.Types
@@ -196,17 +196,6 @@ run prox
               (fromMaybe defaultPPU mayPPU)
               (fromMaybe (FixedScreenSize $ Size 600 1400) mayScreenSize)
               >>= either error (runWith useAudio debug queues srv mayConnectId)
-
-getServerPort :: ArgServerPort -> IO ServerPort
-getServerPort = \case
-  NumServerPort n -> return n
-  EnvServerPort name ->
-    lookupEnv name >>= maybe
-      (error $ "invalid port environment variable: " ++ show name)
-      (\value -> maybe
-        (error $ "environment variable value is not a number: " ++ show value)
-        (return . ServerPort)
-        $ readMaybe value)
 
 {-# INLINABLE runWith #-}
 runWith :: (GameLogic g, s ~ ServerT g

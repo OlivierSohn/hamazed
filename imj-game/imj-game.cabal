@@ -35,7 +35,6 @@ library
                      , Imj.Game.Infos
                      , Imj.Game.Internal.ArgParse
                      , Imj.Game.KeysMaps
-                     , Imj.Game.Level
                      , Imj.Game.Loop
                      , Imj.Game.Modify
                      , Imj.Game.Network

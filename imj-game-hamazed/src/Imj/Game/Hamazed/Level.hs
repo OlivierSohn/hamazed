@@ -13,7 +13,6 @@ module Imj.Game.Hamazed.Level
     , mkLevel
     , LevelTarget(..)
     , TargetConstraint(..)
-    , LevelNumber(..)
     , initialLaserAmmo
     , firstLevel
     , lastLevel
@@ -61,9 +60,6 @@ data LevelSpec = LevelSpec {
 } deriving(Generic, Show)
 instance Binary LevelSpec
 instance NFData LevelSpec
-
-newtype LevelNumber = LevelNumber Int
-  deriving(Generic, Show, NFData, Binary, Integral, Ord, Eq, Real, Enum, Num)
 
 mkEmptyLevelEssence :: LevelEssence
 -- we don't use 0 a target else the level would be won immediately.

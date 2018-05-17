@@ -7,6 +7,8 @@ module Imj.ServerView
       ) where
 
 import           Imj.Prelude
+
+import           Imj.Network
 import           Imj.ServerView.Types
 import           Imj.Server.Color
 import           Imj.Server.Types

@@ -25,6 +25,7 @@ packages:
 - './imj-game-tutorial-increment'
 - './imj-game-hamazed'
 - './imj-game-synths'
+- './imj-serve-highscores'
 - './imj-measure-stdout'
 - './imj-music'
 - './imj-particlesystem'

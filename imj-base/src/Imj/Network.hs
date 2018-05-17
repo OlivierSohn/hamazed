@@ -12,6 +12,11 @@ module Imj.Network
     , Proposed, Approved
     , ClientNameProposal(..)
     , checkName
+    -- * Server port
+    , ArgServerPort(..)
+    , ServerPort(..)
+    , srvPortArg
+    , getServerPort
     -- * MAC addresses
     , MAC
     , getMacAddresses
@@ -19,6 +24,7 @@ module Imj.Network
     where
 
 import           Imj.Prelude
+import           Data.Aeson(ToJSON(..), FromJSON(..))
 import           Data.Bits(shiftL)
 import           Data.Char (isPunctuation, isSpace)
 import qualified Data.Set as Set
@@ -28,7 +34,9 @@ import           Data.Text(unpack)
 import           GHC.Word(Word64, Word8(..))
 import qualified Network.Info as N(MAC(..), mac)
 import           Network.Info(getNetworkInterfaces)
-import           Options.Applicative(str, option, long, help, readerError)
+import           Options.Applicative(ReadM, str, option, long, help, readerError)
+import           System.Environment(lookupEnv)
+import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
 
@@ -39,6 +47,9 @@ data Approved
 
 newtype ClientName a = ClientName Text
   deriving(Generic, Show, Binary, Eq, NFData, IsString, Ord)
+instance ToJSON (ClientName a)
+instance FromJSON (ClientName a)
+
 unClientName :: ClientName a -> Text
 unClientName (ClientName t) = t
 
@@ -82,6 +93,36 @@ instance Arg (ClientName Proposed) where
       str >>= \case
         [] -> readerError $ "Encountered an empty connection id."
         name -> return $ fromString name
+
+
+data ArgServerPort =
+    NumServerPort !ServerPort
+  | EnvServerPort !String
+  deriving(Show)
+
+newtype ServerPort = ServerPort { unServerPort :: Int }
+  deriving (Generic, Show, Num, Integral, Real, Ord, Eq, Enum)
+
+srvPortArg :: ReadM (ArgServerPort)
+srvPortArg =
+  str >>= \case
+    [] -> readerError "Encountered an empty serverport."
+    name ->
+      maybe
+        (return $ EnvServerPort name)
+        (return . NumServerPort . ServerPort)
+          (readMaybe name)
+
+getServerPort :: ArgServerPort -> IO ServerPort
+getServerPort = \case
+  NumServerPort n -> return n
+  EnvServerPort name ->
+    lookupEnv name >>= maybe
+      (error $ "invalid port environment variable: " ++ show name)
+      (\value -> maybe
+        (error $ "environment variable value is not a number: " ++ show value)
+        (return . ServerPort)
+        $ readMaybe value)
 
 -- | Memory-efficient representation of a MAC address
 newtype MAC = MAC Word64

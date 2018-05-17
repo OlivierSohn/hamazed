@@ -32,7 +32,6 @@ library
   other-modules:
   exposed-modules:     Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Color
-                     , Imj.Game.Hamazed.HighScores
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.Level
                      , Imj.Game.Hamazed.Music
@@ -56,14 +55,17 @@ library
                      , deepseq ==1.4.*
                      , imj-base ==0.1.*
                      , imj-game ==0.1.*
+                     , http-client ==0.5.*
                      , imj-music ==0.1.*
                      , imj-particlesystem ==0.1.*
                      , imj-prelude ==0.1.*
                      , imj-server ==0.1.*
+                     , imj-serve-highscores ==0.1.*
                      , imj-space ==0.1.*
                      , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
+                     , servant-client ==0.13.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3

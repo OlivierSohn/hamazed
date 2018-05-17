@@ -20,6 +20,7 @@ import           Imj.Game.Color
 import           Imj.Game.Infos
 import           Imj.Game.Hamazed.Color
 import           Imj.Game.Hamazed.Level
+import           Imj.Game.Level
 import           Imj.Graphics.Class.Words
 import           Imj.Graphics.Font
 import           Imj.Graphics.Text.ColoredGlyphList

@@ -46,7 +46,7 @@ module Imj.Game.Hamazed.Network.Server
       ) where
 
 import           Imj.Prelude
-import           Control.Concurrent(threadDelay)
+import           Control.Concurrent(threadDelay, forkIO)
 import           Control.Concurrent.MVar.Strict(MVar)
 import           Control.Monad.IO.Class(MonadIO, liftIO)
 import           Control.Monad.Reader(asks)
@@ -58,15 +58,18 @@ import qualified Data.Set as Set
 import           Data.Text(pack, unpack, unlines)
 import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
+import           Network.HTTP.Client(newManager, defaultManagerSettings)
+import           Servant.Client(ClientEnv(..), BaseUrl(..), Scheme(..), mkClientEnv, runClientM)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
 
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Types
-import           Imj.Game.Hamazed.HighScores
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Setup
 import           Imj.Game.Hamazed.Network.State
+import           Imj.Game.HighScores
+import           Imj.Game.HighScores.Client
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
@@ -93,16 +96,24 @@ data HamazedServer = HamazedServer {
   , worldCreation :: {-unpack sum-} !WorldCreation
   , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
-  , highScores :: !HighScores
   , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
   -- ^ When set, it informs the scheduler thread that it should run the game.
+  , highScoresClientEnv :: !ClientEnv
+  -- ^ The environment for emitting requests to the high score server.
 } deriving(Generic)
-instance NFData HamazedServer
+instance NFData HamazedServer where
+  rnf (HamazedServer a b c d e _) =
+    rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
+
 instance ServerInit HamazedServer where
   type ClientViewT HamazedServer = HamazedClient
 
-  mkInitialState =
-    (,) params . HamazedServer mkGameTiming lvSpec wc IntentSetup mkEmptyHighScores <$> newEmptyMVar
+  mkInitialState = do
+    highScoreEnv <- flip mkClientEnv (BaseUrl Http "todo-find-heroku-domain" 80 "") <$> liftIO (newManager defaultManagerSettings)
+    -- unidle the high score server (ignore errors)
+    void $ liftIO $ forkIO $ void $ runClientM (highScoresServerHealth 0) highScoreEnv
+    (,) params . flip (HamazedServer mkGameTiming lvSpec wc IntentSetup) highScoreEnv
+      <$> newEmptyMVar
    where
     lvSpec = LevelSpec firstServerLevel CannotOvershoot
     params = initialParameters
@@ -212,7 +223,7 @@ instance ServerClientHandler HamazedServer where
           -- Allow the client to setup the world, now that the world contains its ship.
           notifyClient' $ EnterState $ Included Setup
         IntentPlayGame maybeOutcome ->
-          gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ _ game) ->
+          gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ game _) ->
            liftIO (tryReadMVar game) >>= maybe
             (do
               adjustClient_ $ \c -> c { getState = Just ReadyToPlay }
@@ -370,18 +381,22 @@ onLevelOutcome playerIds outcome =
   levelNumber <$> getsState levelSpecification >>= \levelN -> do
     -- by constructions, there will be no collision on 'ClientName Approved'
     players <- Set.fromList . map getName . Map.elems . flip Map.restrictKeys playerIds <$> gets clientsMap
+    let registerScore s =
+          getsState highScoresClientEnv >>=
+            liftIO . runClientM (addHighScore (HighScore s players)) >>= either
+              (\e -> do
+                serverLog $ pure $ "Exception while reaching the high score server: " <> colored (pack $ show e) red
+                return Nothing)
+              (return . Just)
     hs <- case outcome of
       Lost{} ->
-        fmap Just <$> modifyState' $ \s ->
-          let newScores = insertScore (pred levelN) players $ highScores s
-          in (newScores, s { highScores = newScores })
-      Won -> if levelN == lastLevel
-        then
-          fmap Just <$> modifyState' $ \s ->
-            let newScores = insertScore levelN players $ highScores s
-            in (newScores, s { highScores = newScores })
-        else
-          return Nothing
+        registerScore $ pred levelN
+      Won ->
+        if levelN == lastLevel
+          then
+            registerScore levelN
+          else
+            return Nothing
 
     notifyEveryoneN $
       (GameInfo $ LevelResult levelN outcome):
@@ -486,7 +501,7 @@ onChangeStatus notified status newStatus = getsState scheduledGame >>= \game -> 
 
 gameScheduler :: MVar (ServerState HamazedServer) -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ _ mayGame)) ->
+  readMVar st >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ mayGame _)) ->
     if terminate
       then return ()
       else
@@ -533,7 +548,7 @@ gameScheduler st =
       return res
 
    where
-    stopMusic = gets unServerState >>= \(HamazedServer _ _ _ _ _ game) ->
+    stopMusic = gets unServerState >>= \(HamazedServer _ _ _ _ game _) ->
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
@@ -543,7 +558,7 @@ gameScheduler st =
             _:_ -> notifyPlayersN' $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
-    go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ _ game)) ->
+    go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ game _)) ->
       if terminate
         then do
           serverLog $ pure $ colored "Terminating game" yellow

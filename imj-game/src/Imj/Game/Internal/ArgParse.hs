@@ -28,6 +28,7 @@ import           Options.Applicative.Types(Parser(..))
 import           Text.Read(readMaybe)
 
 import           Imj.Arg.Class
+import           Imj.Network
 import           Imj.Server.Class
 import           Imj.Server.Color
 import           Imj.Geo.Discrete.Types
@@ -235,20 +236,8 @@ backendArg =
 srvNameArg :: ReadM ServerName
 srvNameArg =
   str >>= \s -> case map toLower s of
-    [] -> readerError $ "Encountered an empty servername. Accepted names are ip address or domain name."
-                     ++ renderHelp
+    [] -> readerError "Encountered an empty servername. Accepted names are ip address or domain name."
     name -> return $ ServerName name
-
-srvPortArg :: ReadM (ArgServerPort)
-srvPortArg =
-  str >>= \case
-    [] -> readerError $ "Encountered an empty serverport."
-                     ++ renderHelp
-    name ->
-      maybe
-        (return $ EnvServerPort name)
-        (return . NumServerPort . ServerPort)
-          (readMaybe name)
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052

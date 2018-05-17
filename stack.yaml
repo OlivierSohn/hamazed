@@ -8,10 +8,15 @@ resolver: nightly-2018-05-14
 
 image:
   container:
-    # The Dockerfile in the same directory as this .yaml file references this name:
-    name: imajuscule/hamazed
-    # The associated Dockerfile is in ./docker-rt subdirectory
+    # defined in ./docker-rt/Dockerfile
     base: imajuscule/imj-game-rt
+
+    # base of ./docker-heroku/Dockerfile
+    name: imajuscule/hamazed
+
+    # removing the executables field will include all built executables.
+    executables:
+    - imj-game-synths-exe
 
 packages:
 - './imj-base'

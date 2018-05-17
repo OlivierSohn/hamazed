@@ -93,6 +93,7 @@ data HamazedServer = HamazedServer {
   , worldCreation :: {-unpack sum-} !WorldCreation
   , intent :: {-unpack sum-} !Intent
   -- ^ Influences the control flow (how 'ClientEvent's are handled).
+  , highScores :: !HighScores
   , scheduledGame :: {-# UNPACK #-} !(MVar CurrentGame)
   -- ^ When set, it informs the scheduler thread that it should run the game.
 } deriving(Generic)
@@ -101,7 +102,7 @@ instance ServerInit HamazedServer where
   type ClientViewT HamazedServer = HamazedClient
 
   mkInitialState =
-    (,) params . HamazedServer mkGameTiming lvSpec wc IntentSetup <$> newEmptyMVar
+    (,) params . HamazedServer mkGameTiming lvSpec wc IntentSetup mkEmptyHighScores <$> newEmptyMVar
    where
     lvSpec = LevelSpec firstServerLevel CannotOvershoot
     params = initialParameters
@@ -178,7 +179,7 @@ instance ServerClientHandler HamazedServer where
             serverError $ "Could not create level " ++ show ln ++ ":" ++ unpack (Text.intercalate "\n" errs)
 
       NeedMoreTime -> addStats stats wid
-      Success essence -> gets unServerState >>= \(HamazedServer _ levelSpec (WorldCreation st key spec prevStats) _ _) -> bool
+      Success essence -> gets unServerState >>= \(HamazedServer _ levelSpec (WorldCreation st key spec prevStats) _ _ _) -> bool
         (serverLog $ pure $ colored ("Dropped obsolete world " <> pack (show wid)) blue)
         (case st of
           Created ->
@@ -211,7 +212,7 @@ instance ServerClientHandler HamazedServer where
           -- Allow the client to setup the world, now that the world contains its ship.
           notifyClient' $ EnterState $ Included Setup
         IntentPlayGame maybeOutcome ->
-          gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ game) ->
+          gets unServerState >>= \(HamazedServer _ lev (WorldCreation _ lastWId _ _) _ _ game) ->
            liftIO (tryReadMVar game) >>= maybe
             (do
               adjustClient_ $ \c -> c { getState = Just ReadyToPlay }
@@ -364,16 +365,23 @@ instance Server HamazedServer where
 --------------------------------------------------------------------------------
 
 onLevelOutcome :: (MonadIO m, MonadState (ServerState HamazedServer) m)
-               => LevelOutcome -> m ()
-onLevelOutcome outcome =
+               => Set ClientId -> LevelOutcome -> m ()
+onLevelOutcome playerIds outcome =
   levelNumber <$> getsState levelSpecification >>= \levelN -> do
+    -- by constructions, there will be no collision on 'ClientName Approved'
+    players <- Set.fromList . map getName . Map.elems . flip Map.restrictKeys playerIds <$> gets clientsMap
     hs <- case outcome of
-      Lost{} -> return $ Just $ getHighScores
-      Won -> return $ if levelN == lastLevel
+      Lost{} ->
+        fmap Just <$> modifyState' $ \s ->
+          let newScores = insertScore (pred levelN) players $ highScores s
+          in (newScores, s { highScores = newScores })
+      Won -> if levelN == lastLevel
         then
-          Just $ getHighScores
+          fmap Just <$> modifyState' $ \s ->
+            let newScores = insertScore levelN players $ highScores s
+            in (newScores, s { highScores = newScores })
         else
-          Nothing
+          return Nothing
 
     notifyEveryoneN $
       (GameInfo $ LevelResult levelN outcome):
@@ -478,7 +486,7 @@ onChangeStatus notified status newStatus = getsState scheduledGame >>= \game -> 
 
 gameScheduler :: MVar (ServerState HamazedServer) -> IO ()
 gameScheduler st =
-  readMVar st >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ mayGame)) ->
+  readMVar st >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ _ mayGame)) ->
     if terminate
       then return ()
       else
@@ -525,7 +533,7 @@ gameScheduler st =
       return res
 
    where
-    stopMusic = gets unServerState >>= \(HamazedServer _ _ _ _ game) ->
+    stopMusic = gets unServerState >>= \(HamazedServer _ _ _ _ _ game) ->
       tryTakeMVar game >>= maybe
         (return ())
         (\g@(CurrentGame _ _ _ s) -> do
@@ -535,7 +543,7 @@ gameScheduler st =
             _:_ -> notifyPlayersN' $ map (flip PlayMusic SineSynth) notesChanges
           putMVar game $ g{score = newScore})
 
-    go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ game)) ->
+    go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ _ game)) ->
       if terminate
         then do
           serverLog $ pure $ colored "Terminating game" yellow
@@ -545,7 +553,7 @@ gameScheduler st =
           liftIO (tryReadMVar game) >>= maybe
             (do serverError "logic : mayGame is Nothing"
                 return NotExecutedGameCanceled)
-            (\(CurrentGame curWid _ _ _) ->
+            (\(CurrentGame curWid gamePlayers _ _) ->
               if refWid /= curWid
                 then do
                   serverLog $ pure $ colored ("The world has changed: " <> pack (show (curWid, refWid))) yellow
@@ -555,7 +563,7 @@ gameScheduler st =
                     Paused _ _ ->
                       return $ NotExecutedTryAgainLater $ fromSecs 1
                     CancelledNoConnectedPlayer -> do
-                      onLevelOutcome $ Lost "All players left"
+                      onLevelOutcome gamePlayers $ Lost "All players left"
                       return NotExecutedGameCanceled
                     Running ->
                       Executed <$> act
@@ -568,7 +576,7 @@ gameScheduler st =
                     Countdown _ _ ->
                       return $ NotExecutedTryAgainLater $ fromSecs 1
                     OutcomeValidated outcome -> do
-                      onLevelOutcome outcome
+                      onLevelOutcome gamePlayers outcome
                       requestWorld
                       return NotExecutedGameCanceled
                     -- these values are never supposed to be used here:
@@ -704,7 +712,7 @@ requestWorld :: (MonadIO m, MonadState (ServerState HamazedServer) m)
              => m ()
 requestWorld = do
   cancelWorldRequest
-  modify' $ \s@(ServerState _ _ _ params _ (HamazedServer _ level creation _ _)) ->
+  modify' $ \s@(ServerState _ _ _ params _ (HamazedServer _ level creation _ _ _)) ->
     let nextWid = succ $ creationKey creation
     in mapState
       (\v -> v {

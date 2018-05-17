@@ -118,7 +118,7 @@ instance Binary WorldRequestArg
 data GameNotif =
     LevelResult {-# UNPACK #-} !LevelNumber {-unpack sum-} !LevelOutcome
   | GameWon
-  | Highscores {-# UNPACK #-} !HighScores
+  | Highscores !HighScores
   | CannotCreateLevel ![Text] {-# UNPACK #-} !LevelNumber
   deriving(Generic, Show)
 instance Binary GameNotif

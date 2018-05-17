@@ -3,36 +3,37 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Game.Hamazed.HighScores
-    ( getHighScores
-    , HighScores(..)
-    , HighScore(..)
+    ( HighScores
+    , mkEmptyHighScores
+    , insertScore
     , prettyShowHighScores
     ) where
 
 import           Imj.Prelude
-import           Data.Text hiding (map)
+import           Data.Map.Strict(Map)
+import qualified Data.Map.Strict as Map
+import           Data.Set(Set)
+import qualified Data.Set as Set
+import           Data.Text hiding (map, concatMap)
 import           Imj.Network
 import           Imj.Game.Hamazed.Level
 
-newtype HighScores = HighScores [HighScore]
+newtype HighScores = HighScores (Map LevelNumber (Set (Set (ClientName Approved))))
   deriving(Generic,Show)
 instance Binary HighScores
-data HighScore = HighScore {
-    _highScoreName :: [ClientName Approved]
-  , _highScoreLevel :: {-# UNPACK #-} !LevelNumber
-} deriving(Generic,Show)
-instance Binary HighScore
+instance NFData HighScores
 
-getHighScores :: HighScores
-getHighScores = HighScores
-  [ HighScore ["me"] 2
-  , HighScore ["me","you"] 5
-  , HighScore ["her"] 4
-  ]
+mkEmptyHighScores :: HighScores
+mkEmptyHighScores = HighScores mempty
+
+insertScore :: LevelNumber -> Set (ClientName Approved) -> HighScores -> HighScores
+insertScore n players (HighScores hs) =
+  HighScores $ Map.insertWith Set.union n (Set.singleton players) hs
 
 prettyShowHighScores :: HighScores -> Text
-prettyShowHighScores (HighScores h) = unlines $ map prettyShowHighScore h
+prettyShowHighScores (HighScores h) =
+  unlines $ map (uncurry prettyShowHighScore) $ Map.toDescList h
 
-prettyShowHighScore :: HighScore -> Text
-prettyShowHighScore (HighScore players score) =
-  unwords $ map (pack . show) players ++ [pack $ show score]
+prettyShowHighScore :: LevelNumber -> Set (Set (ClientName Approved)) -> Text
+prettyShowHighScore score players =
+  unwords $ map (pack . show . unClientName) (concatMap Set.toList $ Set.toList players) ++ [pack $ show score]

@@ -38,7 +38,7 @@ data Approved
   deriving(Generic)
 
 newtype ClientName a = ClientName Text
-  deriving(Generic, Show, Binary, Eq, NFData, IsString)
+  deriving(Generic, Show, Binary, Eq, NFData, IsString, Ord)
 unClientName :: ClientName a -> Text
 unClientName (ClientName t) = t
 

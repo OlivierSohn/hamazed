@@ -23,7 +23,7 @@ Supported platforms are OSX and Linux.
 
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
 
-- [imj-bindings-audio](/imj-bindings-audio)
+- [imj-bindings-audio]
   - Bindings to a C++14 audio engine. The C++ sources are located in [submodules](/imj-bindings-audio/c).
 - [imj-music](/imj-music)
   - Polyphonic music scores creation and playback.
@@ -49,13 +49,13 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - An executable to measure the maximum capacity of stdout, and observe
   the effect of different buffering modes.
 - [imj-server](/imj-server)
-  - Using [websockets](http://hackage.haskell.org/package/websockets) to communicate between server and clients.
+  - Using [websockets] to communicate between server and clients.
   - Broadcast messages to all clients
   - Handle connection failures generically (so that a client handler, when broadcasting a message,
     won't have to handle exceptions due to another client's connection being down.)
   - Detect client reconnection (keep track of clients identities using their MAC address)
   - Logging
-- [imj-game](/imj-game)
+- [imj-game]
   - Multi-player game engine
   - Listens to server events, and player events
   - [Handles generic events](/imj-game/src/Imj/Game/Update.hs), so that the game implementation
@@ -63,7 +63,7 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
     - Real-time music playback.
   - Debugging features : record and display events graphically, event logging.
 - [imj-game-tutorial-increment](/imj-game-tutorial-increment)
-  - A tutorial on how to use [imj-game](/imj-game) to build a multi-player game.
+  - A tutorial on how to use [imj-game] to build a multi-player game.
 - [imj-game-hamazed](/imj-game-hamazed)
   - See this demo, at a time when the game was mono-player and had no music yet:
       [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
@@ -78,14 +78,14 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
 [Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
 are written using the `notes` quasiquoter, where:
 
-- notes names follow [the solfege notation](https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge)
+- notes names follow [the solfege notation]
 - a note can be shifted by octaves using `v` and `^`
 - `-` extends the preceding note
 - `.` indicates a pause
 
 ## Playback
 
-Every game made with [imj-game](/imj-game) can have the server send midi-like
+Every game made with [imj-game] can have the server send midi-like
 note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
 
 The music won't pause during garbage collection because we use
@@ -145,10 +145,8 @@ As you can see in the CI scripts ([here](/.travis.yml) and [there](/Brewfile)),
 some c libraries are expected to be installed on your system
 in order to build the game engine:
 
-- [ftgl] is needed by [imj-base]
-to render fonts with OpenGL.
-- [portaudio 19](http://www.portaudio.com/) is needed by [imj-bindings-audio](/imj-bindings-audio)
-for audio I/O.
+- [ftgl] is needed by [imj-base] to render fonts with OpenGL.
+- [portaudio 19] is needed by [imj-bindings-audio] for audio I/O.
 
 To install them:
 
@@ -169,7 +167,7 @@ sudo apt-get install portaudio19-dev
 
 # Build
 
-[stack](https://docs.haskellstack.org) is the preferred tool to build the project:
+[stack] is the preferred tool to build the project:
 
 `stack build --pedantic`
 
@@ -190,25 +188,27 @@ The client-server communication is made using websockets.
 
 ## Dockerize the game server
 
-Build the base image:
+Throughout this process, you can use [docker image](https://docs.docker.com/engine/reference/commandline/images/)
+to see which images are created.
+
+First, we build the base image:
 
 ```shell
 cd ./docker-rt
 docker build -t imajuscule/imj-game-rt .
 ```
 
-Then, build the game executables and create the image `imajuscule/hamazed` containing them:
+Then, we build another image containing the game executable(s):
 
 ```shell
 cd ..
 stack image container
 ```
 
-In order for dependencies to be consistent, the OS on which the executables are built
-must match the OS of [the base image](./docker-rt/Dockerfile).
-More info [available here](https://docs.haskellstack.org/en/stable/GUIDE/#docker).
+The OS on which the executables are built must match the OS of [the base image](./docker-rt/Dockerfile)
+(more info [available here](https://docs.haskellstack.org/en/stable/GUIDE/#docker)).
 
-In the following section, `imajuscule/hamazed` is used as a base to generate the image
+In the following section, we will use the last created image as a base to generate an image
 deployed on [Heroku].
 
 ## Deploy a game server (to Heroku)
@@ -228,7 +228,7 @@ heroku container:push web -a <herokuAppName>
 ```
 
 The first upload will be long, because the whole image will be uploaded.
-Subsequent uploads however will be very fast, because just the layer that changed
+Subsequent uploads however will be faster, because just the layer that changed
 will be uploaded.
 
 To monitor and verify the deployment status:
@@ -254,6 +254,12 @@ When the game server is hosted on [Heroku], the port to connect to is `80`:
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
 
-[Heroku]: https://www.heroku.com/
 [ftgl]: http://ftgl.sourceforge.net/docs/html/
+[Heroku]: https://www.heroku.com/
 [imj-base]: /imj-base
+[imj-bindings-audio]: /imj-bindings-audio
+[imj-game]: /imj-game
+[portaudio 19]: http://www.portaudio.com/
+[stack]: https://docs.haskellstack.org
+[the solfege notation]: https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge
+[websockets]: http://hackage.haskell.org/package/websockets

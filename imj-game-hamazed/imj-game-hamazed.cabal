@@ -32,6 +32,7 @@ library
   other-modules:
   exposed-modules:     Imj.Game.Hamazed
                      , Imj.Game.Hamazed.Color
+                     , Imj.Game.Hamazed.HighScores
                      , Imj.Game.Hamazed.Infos
                      , Imj.Game.Hamazed.Level
                      , Imj.Game.Hamazed.Music

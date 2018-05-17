@@ -1,3 +1,13 @@
+- High scores:
+
+We could have a cloud DB, accessed by a single node serving JSON w. servant.
+
+First step : no DB, just a client serving JSON
+0th step : no client, just functions
+
+* modify updateCurrentStatus to support app-custom status with
+CustomStatus ShowHamazedHighscores
+
 - when coming back from idling, the player should see "waiting for server to wake up"
 
 - upon start, the currently played notes of all loops should be sent.

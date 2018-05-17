@@ -93,10 +93,10 @@ class ServerInParallel s where
   --
   -- 'MVar' is used to be able to avoid race conditions.
   --
-  -- Typically, a game server will return actions scheduling the game execution
-  -- (see 'imj-game-hamazed' for an example where players deconnections are taken
-  -- into account to pause the game and inform the players that one player is missing.
-  -- The game continues when the missing player reconnects.).
+  -- Typically, a game server will return actions scheduling the game execution:
+  -- see 'imj-game-hamazed' for an example where when a plyer disconnects, the game
+  -- is paused and other players are informed that we are waiting for one player
+  -- to reconnect.
   inParallel :: [MVar (ServerState s) -> IO ()]
   inParallel = []
 

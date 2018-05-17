@@ -55,7 +55,7 @@ import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 import           Data.Maybe(isJust)
 import qualified Data.Set as Set
-import           Data.Text(pack, unpack)
+import           Data.Text(pack, unpack, unlines)
 import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
@@ -161,8 +161,7 @@ instance ServerClientHandler HamazedServer where
               WhenAllPressedAKey x Nothing havePressed -> do
                 when (x /= next) $ error $ "inconsistent:"  ++ show (x,next)
                 i <- asks clientId
-                let newHavePressed = Map.insert i True havePressed
-                    intermediateStatus = WhenAllPressedAKey x Nothing newHavePressed
+                let intermediateStatus = WhenAllPressedAKey x Nothing $ Map.insert i True havePressed
                 liftIO $ void $ swapMVar g $! game { status' = intermediateStatus }
                 -- update to avoid state where the map is equal to all players:
                 void $ updateCurrentStatus $ Just curStatus
@@ -458,7 +457,12 @@ onChangeStatus notified status newStatus = getsState scheduledGame >>= \game -> 
     -- 'swapMVar' won't block, because in the same 'modifyMVar' transaction, 'tryReadMVar'
     -- returned a 'Just'.
     liftIO $ void $ swapMVar game $! g {status' = newStatus}
-    serverLog $ pure $ colored ("Game status change: " <> pack (show (status, newStatus))) yellow
+    serverLog $ pure $
+      colored (unlines
+        [ "Game status change"
+        , "from: " <> pack (show status)
+        , "to  : " <> pack (show newStatus)
+        ]) yellow
     notifyN' [EnterState $ Included $ PlayLevel newStatus] notified)
 
 gameScheduler :: MVar (ServerState HamazedServer) -> IO ()

@@ -321,7 +321,7 @@ updateStatus mayFrame t = gets game >>= \(Game state (Screen _ ref) _ _ drawnSta
         flip (++) [color "Game paused, waiting for [" <> them <> color "] to reconnect..."]  <$> statusMsg x
     Running -> return []
     WaitingForOthersToEndLevel _ ->
-      -- We silent it because in real life with good connections we won't wait more than typical network latency,
+      -- We silence it because in real life with good connections we won't wait more than typical network latency,
       --  and we don't want to make an exception to the "display in full before transitionning" policy.
       -- Note that if the connection of another player is broken, we are in the 'Paused' branch
       -- NOTE (TODO) The server could test latencies of clients using pings, and take it into account.

@@ -7,6 +7,7 @@ First step : no DB, just a client serving JSON
 
 * modify updateCurrentStatus to support app-custom status with
 CustomStatus ShowHamazedHighscores
+this will be sent to clients by onChangeStatus
 
 - when coming back from idling, the player should see "waiting for server to wake up"
 

@@ -8,6 +8,23 @@ the free plan of Heroku), so as to be able to play them in multi-player mode.
 
 Note that it is an experimental project, so the APIs will likely change a lot over time.
 
+# Supported platforms
+
+Supported platforms are OSX and Linux.
+
+# Known issues
+
+## Font size
+
+The algorithm finding the optimal font size (i.e the font size such that all characters fit
+  within a given rectangle) was developped on OSX, with a particular graphic card driver.
+
+When switching to Linux, on another computer with another card driver, some characters
+are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
+
+This should be investigated, maybe font rasterizing (ftgl) behaves differently on different platforms,
+or graphic drivers perform different numerical roundings.
+
 # Packages
 
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:

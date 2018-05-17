@@ -29,7 +29,7 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
   - Prelude library used by packages hereunder, mainly to factorize imports.
-- [imj-base](/imj-base)
+- [imj-base]
   - Containers (Graph, Matrix, Cyclic matrix, Dynamic vector, etc...)
   - Geometry, text animations
   - 8-bit color manipulation in different color spaces
@@ -107,7 +107,7 @@ The algorithm finding the optimal font size (i.e the font size such that all cha
 When switching to Linux, and using another graphic card driver, some characters
 are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
 
-This should be investigated, maybe font rasterizing (ftgl) behaves differently on different platforms,
+This should be investigated, maybe font rasterizing ([ftgl]) behaves differently on different platforms,
 or the graphic drivers perform different numerical roundings.
 
 # CI
@@ -145,7 +145,7 @@ As you can see in the CI scripts ([here](/.travis.yml) and [there](/Brewfile)),
 some c libraries are expected to be installed on your system
 in order to build the game engine:
 
-- [ftgl](http://ftgl.sourceforge.net/docs/html/) is needed by [imj-base](/imj-base)
+- [ftgl] is needed by [imj-base]
 to render fonts with OpenGL.
 - [portaudio 19](http://www.portaudio.com/) is needed by [imj-bindings-audio](/imj-bindings-audio)
 for audio I/O.
@@ -255,3 +255,5 @@ stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
 
 [Heroku]: https://www.heroku.com/
+[ftgl]: http://ftgl.sourceforge.net/docs/html/
+[imj-base]: /imj-base

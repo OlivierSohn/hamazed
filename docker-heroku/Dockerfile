@@ -1,4 +1,6 @@
-FROM imajuscule/hamazed  # can be built locally using 'stack image container'
+# imajuscule/hamazed can be built locally using 'stack image container'
+
+FROM imajuscule/hamazed  
 
 # To run another game, change the name of the executable hereunder:
 

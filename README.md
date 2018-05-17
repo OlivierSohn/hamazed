@@ -187,10 +187,10 @@ cd ..
 stack image container
 ```
 
-In order for dependencies to be consistent, the system on which the command above is executed
-should match the characteristics of [the base image](./docker-rt/Dockerfile).
-If in doubt, using Ubuntu Xenial (16.04) should work. For other linux distributions,
-you may need to adjust the libstdc++ version in [the base image](./docker-rt/Dockerfile).
+In order for dependencies to be consistent, the system on which the executables are built
+must match the characteristics of [the base image](./docker-rt/Dockerfile).
+Hence, using Ubuntu 18.04 should work. When building on other linux distributions,
+you will need to adjust [the base image](./docker-rt/Dockerfile).
 
 In the following section, `imajuscule/hamazed` is used as a base to generate the image
 deployed on Heroku.

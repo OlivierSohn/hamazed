@@ -3,10 +3,17 @@
 Monorepo for a Haskell multi-player game engine and some games made with it.
 [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
 
-This Readme will explain how to build and deploy the game(s) on Heroku (just using
-the free plan of Heroku), so as to be able to play them in multi-player mode.
+To play a game in single-player mode, no deployment is required, you just need to run the
+corresponding executable.
 
-Note that it is an experimental project, so the APIs will likely change a lot over time.
+To play in multi-player mode, first a game server needs to be deployed. Then, players
+can connect to it.
+
+In this `Readme` we describe a step-by-step [Heroku]-based deployment procedure, using `Docker` containers.
+
+# Disclaimer
+
+This is an experimental project, so the APIs may change anytime.
 
 # Supported platforms
 
@@ -202,18 +209,18 @@ must match the OS of [the base image](./docker-rt/Dockerfile).
 More info [available here](https://docs.haskellstack.org/en/stable/GUIDE/#docker).
 
 In the following section, `imajuscule/hamazed` is used as a base to generate the image
-deployed on Heroku.
+deployed on [Heroku].
 
 ## Deploy a game server (to Heroku)
 
-At the time of this writing, [Heroku](https://www.heroku.com/) has a free plan to host web applications
+At the time of this writing, [Heroku] has a free plan to host web applications
 deployed using docker containers. We are assuming that you already:
 
-- have an Heroku account where you created the app <herokuAppName> whose associated
+- have an [Heroku] account where you created the app <herokuAppName> whose associated
 domain is <herokuAppDomain>
-- have installed Heroku command line tools
+- have installed [Heroku] command line tools
 
-The following command creates the Heroku container and pushes it on Heroku:
+The following command creates the [Heroku] container and pushes it on [Heroku]:
 
 ```shell
 cd ./docker-heroku
@@ -241,8 +248,10 @@ stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
 
 ### Connect to a Heroku-hosted server
 
-When the game server is hosted on Heroku, the port to connect to is `80`:
+When the game server is hosted on [Heroku], the port to connect to is `80`:
 
 ```shell
 stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
 ```
+
+[Heroku]: https://www.heroku.com/

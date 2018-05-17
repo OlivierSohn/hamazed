@@ -62,6 +62,7 @@ import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, try
 
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Types
+import           Imj.Game.Hamazed.HighScores
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Setup
@@ -366,12 +367,22 @@ onLevelOutcome :: (MonadIO m, MonadState (ServerState HamazedServer) m)
                => LevelOutcome -> m ()
 onLevelOutcome outcome =
   levelNumber <$> getsState levelSpecification >>= \levelN -> do
+    hs <- case outcome of
+      Lost{} -> return $ Just $ getHighScores
+      Won -> return $ if levelN == lastLevel
+        then
+          Just $ getHighScores
+        else
+          Nothing
+
+    notifyEveryoneN $
+      (GameInfo $ LevelResult levelN outcome):
+      [GameInfo GameWon | outcome == Won && levelN == lastLevel] ++
+      map (GameInfo . Highscores) (maybeToList hs)
+
     adjustAllClients (\c -> case getState c of
       Just (Playing _) -> c { getState = Just ReadyToPlay }
       _ -> c)
-    notifyEveryoneN $
-      (GameInfo $ LevelResult levelN outcome):
-      [GameInfo GameWon | outcome == Won && levelN == lastLevel]
 
     modifyState $ \s ->
      if outcome == Won && levelN < lastLevel

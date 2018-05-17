@@ -35,6 +35,7 @@ import qualified Imj.Data.Tree as Tree(toList)
 import           Imj.Game.Audio.Class
 import           Imj.Game.Class
 import           Imj.Game.Modify
+import           Imj.Game.Hamazed.HighScores
 import           Imj.Game.Hamazed.Level
 import           Imj.Game.Hamazed.Network.Types
 import           Imj.Game.Hamazed.World.Types
@@ -197,14 +198,17 @@ instance GameLogic HamazedGame where
 
    where
 
-    toTxt' (LevelResult (LevelNumber n) (Lost reason)) =
-      colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
-    toTxt' (LevelResult (LevelNumber n) Won) =
-      colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
-    toTxt' GameWon =
-      colored "- The game was won! Congratulations!" chatWinColor
-    toTxt' (CannotCreateLevel errs n) =
-      colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
+    toTxt' = \case
+      LevelResult (LevelNumber n) (Lost reason) ->
+        colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
+      LevelResult (LevelNumber n) Won ->
+        colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
+      GameWon ->
+        colored "- The game was won! Congratulations!" chatWinColor
+      Highscores h ->
+        colored ("High scores:\n" <> prettyShowHighScores h) chatWinColor
+      CannotCreateLevel errs n ->
+        colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
   mapInterpretedKey key x = fmap CliEvt <$> (case x of
     Setup -> return $ case key of

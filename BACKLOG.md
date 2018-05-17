@@ -2,8 +2,8 @@
 
 We could have a cloud DB, accessed by a single node serving JSON w. servant.
 
-First step : no DB, just a client serving JSON
-0th step : no client, just functions
+First step : no DB, just a client serving JSON.
+The client will be hosted as an Heroku app
 
 * modify updateCurrentStatus to support app-custom status with
 CustomStatus ShowHamazedHighscores

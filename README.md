@@ -12,19 +12,6 @@ Note that it is an experimental project, so the APIs will likely change a lot ov
 
 Supported platforms are OSX and Linux.
 
-# Known issues
-
-## Font size
-
-The algorithm finding the optimal font size (i.e the font size such that all characters fit
-  within a given rectangle) was developped on OSX, with a particular graphic card driver.
-
-When switching to Linux, on another computer with another card driver, some characters
-are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
-
-This should be investigated, maybe font rasterizing (ftgl) behaves differently on different platforms,
-or graphic drivers perform different numerical roundings.
-
 # Packages
 
 List of packages, inverse-topologically sorted wrt dependencies, with keywords / short description for each of them:
@@ -69,7 +56,8 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
     - Real-time music playback.
   - Debugging features : record and display events graphically, event logging.
 - [imj-game-hamazed](/imj-game-hamazed)
-  - The 'Hamazed' game (see the demo below).
+  - See this demo, at a time when the game was mono-player and had no music yet:
+      [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 - [imj-game-tutorial-increment](/imj-game-tutorial-increment)
   - A tutorial on how to use [imj-game](/imj-game) to build a multi-player game.
 - [imj-profile](/imj-profile)
@@ -104,11 +92,16 @@ where each block can contain a character with 8-bit background and foreground co
 
 The [fonts](/imj-base/fonts) and font size for rendering can be modified at runtime.
 
-# Demo
+## Known issues
 
-This is imj-game-hamazed, at a time when the game was mono-player and had no music yet:
+The algorithm finding the optimal font size (i.e the font size such that all characters fit
+  within a given rectangle) was developped on OSX, with a particular graphic card driver.
 
-[![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
+When switching to Linux, on another computer with another card driver, some characters
+are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
+
+This should be investigated, maybe font rasterizing (ftgl) behaves differently on different platforms,
+or graphic drivers perform different numerical roundings.
 
 # CI
 
@@ -204,10 +197,9 @@ cd ..
 stack image container
 ```
 
-In order for dependencies to be consistent, the system on which the executables are built
-must match the characteristics of [the base image](./docker-rt/Dockerfile).
-Hence, using Ubuntu 18.04 should work. When building on other linux distributions,
-you will need to adjust [the base image](./docker-rt/Dockerfile).
+In order for dependencies to be consistent, the OS on which the executables are built
+must match the OS of [the base image](./docker-rt/Dockerfile).
+More info [available here](https://docs.haskellstack.org/en/stable/GUIDE/#docker).
 
 In the following section, `imajuscule/hamazed` is used as a base to generate the image
 deployed on Heroku.

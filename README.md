@@ -188,7 +188,7 @@ or the graphic drivers perform different numerical roundings.
 [imj-game-hamazed]: /imj-game-hamazed
 [imj-game-synths]: /imj-game-synths
 [imj-serve-highscores]: /imj-serve-highscores
-[imj-time] : /imj-time
+[imj-time]: /imj-time
 [portaudio 19]: http://www.portaudio.com/
 [Servant]: http://haskell-servant.readthedocs.io/en/stable/
 [stack]: https://docs.haskellstack.org

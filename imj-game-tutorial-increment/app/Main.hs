@@ -136,7 +136,7 @@ instance ServerInit IncServer where
 
   type ClientViewT IncServer = ()
 
-  mkInitialState = return ((), IncServer 0)
+  mkInitialState _ = return ((), IncServer 0)
 
   mkInitialClient = ()
 

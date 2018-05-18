@@ -243,7 +243,7 @@ instance ServerInit SynthsServer where
 
   type ClientViewT SynthsServer = SynthsClientView
 
-  mkInitialState = return ((), SynthsServer mempty $ SequencerId 10) -- the first 9 sequencers are reserved
+  mkInitialState _ = return ((), SynthsServer mempty $ SequencerId 10) -- the first 9 sequencers are reserved
 
   mkInitialClient = SynthsClientView mkEmptyPiano mkEmptyRecording 0
 

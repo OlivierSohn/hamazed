@@ -7,7 +7,8 @@
 #   Prerequisites:
 #   * The OS on which this script runs matches the OS of the base image ./docker/game-runtime/Dockerfile
 #   * Heroku command line is installed
-#   * The user is logged in (using the command 'heroku login')
+#   * The user is logged in to Docker ('docker login')
+#   * The user is logged in to Heroku ('heroku login' and 'heroku container:login')
 #   * Apps named "imj-game-synth", "imj-game-hamazed" and "imj-highscores" exist in Heroku
 #
 # NOTE: The first script execution will be long, because the entire docker images will be uploaded.
@@ -16,6 +17,17 @@
 # To monitor and verify the deployment status, use:
 #
 # > heroku logs --tail -a <herokuAppName>
+#
+# Common workarounds:
+# ------------------
+#
+# At some point I encountered the following error (it is a silent error, it doesn't fail the script)
+# during the 'heroku container:*' commands:
+#
+#   unauthorized: authentication required
+#     ▸    Error: docker push exited with 1
+#
+# To fix it, I deleted the "registry.heroku.com" key in ~/.docker/config.json, and ran 'heroku container:login' again
 
 
 set -e

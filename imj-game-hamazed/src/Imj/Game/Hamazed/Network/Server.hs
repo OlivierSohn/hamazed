@@ -109,7 +109,7 @@ instance ServerInit HamazedServer where
   type ClientViewT HamazedServer = HamazedClient
 
   mkInitialState = do
-    highScoreEnv <- flip mkClientEnv (BaseUrl Http "todo-find-heroku-domain" 80 "") <$> liftIO (newManager defaultManagerSettings)
+    highScoreEnv <- flip mkClientEnv (BaseUrl Http "imj-highscores.herokuapp.com" 80 "") <$> liftIO (newManager defaultManagerSettings)
     -- unidle the high score server (ignore errors)
     void $ liftIO $ forkIO $ void $ runClientM (highScoresServerHealth 0) highScoreEnv
     (,) params . flip (HamazedServer mkGameTiming lvSpec wc IntentSetup) highScoreEnv

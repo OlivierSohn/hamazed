@@ -6,15 +6,7 @@ Monorepo for a Haskell multi-player game engine and games made with it.
 The games can be played locally, in single-player mode, or in multi-player mode, after having run the [deployment script]
 to host the game server on [Heroku].
 
-You can create your own multi-player game, starting from the [tutorial-game](/imj-game-tutorial-increment).
-
-# Disclaimer
-
-This is an experimental project, so the APIs may change anytime.
-
-# Supported platforms
-
-Supported client platforms are OSX and Linux (but see the rendering limitation).
+You can even create your own multi-player game, starting from the [tutorial-game](/imj-game-tutorial-increment).
 
 # Packages
 
@@ -69,85 +61,19 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - "A jam session, in the cloud, with loops and synthesizers."
   - Players are playing music together, in real-time, using their computer keyboards as synthesizers.
 - [imj-game-hamazed]
-  - See this demo, at a time when the game was mono-player and had no music yet:
+  - You're a ship pilot, shooting at flying numbers.
+  - Randomized levels: you never play the same game twice.
+  - Demo (when the game was mono-player and had no music):
       [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 - [imj-profile](/imj-profile)
   - An executable precomputing optimal strategies used for random level generation.
   - And other profiling tests.
 
-# Music
-
-## Notation
-
-[Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
-are written using the `notes` quasiquoter, where:
-
-- notes names follow [the solfege notation]
-- a note can be shifted by octaves using `v` and `^`
-- `-` extends the preceding note
-- `.` indicates a pause
-
-## Playback
-
-Every game made with [imj-game] can have the server send midi-like
-note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
-
-The music won't pause during garbage collection because we use
-[a custom-made audio engine](/imj-bindings-audio) whose audio thread is
-not managed by the GHC runtime.
-
-# Rendering
-
-The screen is conceptually divided in small blocks of equal size,
-where each block can contain a character with 8-bit background and foreground colors.
-
-The [fonts](/imj-base/fonts) and font size for rendering can be modified at runtime.
-
-## Known issues
-
-The algorithm finding the optimal font size (i.e the font size such that all characters fit
-  within a given block) was developped on OSX, with a particular graphic card driver.
-
-When switching to Linux, and using another graphic card driver, some characters
-are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
-
-This should be investigated, maybe font rasterizing ([ftgl]) behaves differently on different platforms,
-or the graphic drivers perform different numerical roundings.
-
-# CI
-
-GHC versions 8.2.2 and 8.4.1 are supported.
-
-## Travis script
-
-### Building C++14 with GHC on Ubuntu 14.04 LTS (Trusty)
-
-To build [the audio engine package](/imj-bindings-audio/imj-bindings-audio.cabal),
-GHC needs to use a C++14 compiler.
-
-The Travis image for linux is Ubuntu 14.04 LTS (Trusty) whose `gcc` doesn't have c++14, so
-the [travis script](/.travis.yml) takes care of installing a newer `gcc`
-(`g++-7` and `libstdc++-7-dev`), setting environment variables for compilers
-and changing the `gcc` symbolink link to point to the new one.
-
-Note that on OSX, the travis image contains a `clang` version recent enough that
-it supports c++14 so nothing special had to be done.
-
-### Allowed failures
-
-On Linux with GHC versions < 8.4.1, the build fails for
-[this](https://github.com/commercialhaskell/stack/issues/3472) reason,
-hence the [travis script](/.travis.yml) allows Linux to fail for ghc versions < 8.4.1.
-
-# Development Setup
+# Development setup
 
 After checking out the repo, run `git submodule init && git submodule update` to download the submodules.
 
-## Dependencies
-
-As you can see in the CI scripts ([here](/.travis.yml) and [there](/Brewfile)),
-some c libraries are expected to be installed on your system
-in order to build the game engine:
+## Install dependencies (C libraries)
 
 - [ftgl] is needed by [imj-base] to render fonts with OpenGL.
 - [portaudio 19] is needed by [imj-bindings-audio] for audio I/O.
@@ -175,6 +101,9 @@ sudo apt-get install portaudio19-dev
 
 `stack build --pedantic`
 
+A recent enough C compiler should be used by GHC, so as to be able to build C++14.
+For example, the [travis script](/.travis.yml) upgrades gcc on a Ubuntu 14.04 LTS (Trusty).
+
 # Run the games in single-player mode
 
 Passing no command line argument will run the games in single player mode:
@@ -199,6 +128,57 @@ When the game server is hosted on [Heroku], the port to connect to is `80`:
 stack exec -- <game-executable> -n <herokuAppDomain> -p80
 ```
 
+# CI
+
+The [CI script](/.travis.yml) verifies that compilation and tests succeed with
+GHC versions 8.2.2 and 8.4.2.
+
+
+# Game engine highlights
+
+## Supported platforms
+
+Supported client platforms are OSX and Linux (but see the rendering limitation).
+
+## Music
+
+### Notation
+
+[Melodies](/imj-game-hamazed/src/Imj/Game/Hamazed/Music.hs)
+are written using the `notes` quasiquoter, where:
+
+- notes names follow [the solfege notation]
+- a note can be shifted by octaves using `v` and `^`
+- `-` extends the preceding note
+- `.` indicates a pause
+
+### Playback
+
+Every game made with [imj-game] can have the server send midi-like
+note on / note off events to game clients, allowing to perfectly synchronize the music with the game.
+
+The music won't pause during garbage collection because we use
+[a custom-made audio engine](/imj-bindings-audio) whose audio thread is
+not managed by the GHC runtime.
+
+## Rendering
+
+The screen is conceptually divided in small blocks of equal size,
+where each block can contain a character with 8-bit background and foreground colors.
+
+The [fonts](/imj-base/fonts) and font size for rendering can be modified at runtime.
+
+### Known issues
+
+The algorithm finding the optimal font size (i.e the font size such that all characters fit
+  within a given block) was developped on OSX, with a particular graphic card driver.
+
+When switching to Linux, and using another graphic card driver, some characters
+are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
+
+This should be investigated, maybe font rasterizing ([ftgl]) behaves differently on different platforms,
+or the graphic drivers perform different numerical roundings.
+
 [deployment script]: ./deploy-heroku.sh
 [ftgl]: http://ftgl.sourceforge.net/docs/html/
 [Heroku]: https://www.heroku.com/
@@ -207,6 +187,8 @@ stack exec -- <game-executable> -n <herokuAppDomain> -p80
 [imj-game]: /imj-game
 [imj-game-hamazed]: /imj-game-hamazed
 [imj-game-synths]: /imj-game-synths
+[imj-serve-highscores]: /imj-serve-highscores
+[imj-time] : /imj-time
 [portaudio 19]: http://www.portaudio.com/
 [Servant]: http://haskell-servant.readthedocs.io/en/stable/
 [stack]: https://docs.haskellstack.org

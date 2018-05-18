@@ -1,9 +1,12 @@
+- Make a separate deploy script for highscores : we want only one high score server.
+
 - High scores:
 
 We could have a cloud DB, accessed by a single node serving JSON w. servant.
 
 First step : no DB, just a client serving JSON.
-The client will be hosted as an Heroku app
+The client will be hosted as an Heroku app.
+I can't reach the client from the hosted server.
 
 * modify updateCurrentStatus to support app-custom status with
 CustomStatus ShowHamazedHighscores

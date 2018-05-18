@@ -175,7 +175,7 @@ The algorithm determining "the maximal font size such that all characters fit
 On Linux, and using another graphic card driver, some characters
 are bigger than expected : their outer borders "leak" in the incremental rendering process.
 
-Maybe font rasterizing ([ftgl?]) behaves differently on different platforms,
+Maybe font rasterizing ([ftgl] ?) behaves differently on different platforms,
 or the graphic drivers perform different numerical roundings. This should be investigated.
 
 [deployment script]: ./deploy-heroku.sh

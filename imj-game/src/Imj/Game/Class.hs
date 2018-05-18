@@ -468,7 +468,7 @@ data Game g = Game {
   , _gameSuggestedClientName :: !(Maybe (ConnectIdT (ServerT g)))
   , getServerView' :: {-unpack sum-} !(ServerView (ValuesT (ServerT g)))
   -- ^ The server that runs the game
-  , connection' :: {-unpack sum-} !ConnectionStatus
+  , connection' :: (Maybe (Either Text ClientId))
   , getChat' :: !Chat
 }
 

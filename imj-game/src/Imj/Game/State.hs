@@ -242,10 +242,9 @@ createState :: Screen
             -> Debug
             -> Maybe (ConnectIdT (ServerT g))
             -> ServerView (ValuesT (ServerT g))
-            -> ConnectionStatus
             -> IO (AppState g)
-createState screen dbg a b c = do
-  let g  = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b c mkChat
+createState screen dbg a b = do
+  let g  = Game (ClientState Ongoing Excluded) screen (GameState Nothing mkZeroAnimation) mempty [] mempty a b Nothing mkChat
   t <- getSystemTime
   return $ AppState t g mkEmptyGroup mkEmptyOccurencesHist DontRecord (ParticleSystemKey 0) dbg mempty
 

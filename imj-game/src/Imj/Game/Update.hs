@@ -40,7 +40,6 @@ import           Imj.Graphics.Class.Render
 import           Imj.Graphics.ParticleSystem.Design.Update
 import           Imj.Graphics.Screen
 import           Imj.Graphics.UI.Animation.Types
-import           Imj.ServerView.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
 
@@ -100,9 +99,10 @@ updateAppState (Right evt) = case evt of
               $ gameParticleSystems g })
   CanvasSizeChanged ->
     onTargetSize
-  RenderingTargetChanged -> do
-    onTargetChanged >>= either (liftIO . putStrLn) return
-    onTargetSize
+  RenderingTargetChanged ->
+    withAnim $ do -- to make the frame take its initial size
+      onTargetChanged >>= either (liftIO . putStrLn) return
+      onTargetSize
   CycleRenderingOptions i j -> do
     cycleRenderingOptions i j >>= either (liftIO . putStrLn) return
     onTargetSize
@@ -148,9 +148,9 @@ updateAppState (Left evt) = case evt of
     stateChat $ addMessage $ ChatMessage $ welcome p
   ConnectionAccepted i -> do
     withAnim $ -- to make the frame take its initial size
-      putGameConnection $ Connected i
+      putGameConnection $ Right i
   ConnectionRefused sn reason ->
-    putGameConnection $ ConnectionFailed $
+    putGameConnection $ Left $
       "[" <>
       pack (show sn) <>
       "]" <>

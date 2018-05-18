@@ -12,7 +12,6 @@ module Imj.Game.Modify
       , getPlayer
       , getChatMode
       , getMyId
-      , getGameConnection
       , getChat
       , getServerContent
       , getCurScreen
@@ -124,20 +123,13 @@ putGameState s =
   gets game >>= \g -> putGame $ g {getGameState' = s}
 
 {-# INLINABLE putGameConnection #-}
-putGameConnection :: MonadState (AppState g) m => ConnectionStatus -> m ()
+putGameConnection :: MonadState (AppState g) m => Either Text ClientId -> m ()
 putGameConnection c =
-  gets game >>= \g -> putGame $ g {connection' = c}
-
-{-# INLINABLE getGameConnection #-}
-getGameConnection :: MonadState (AppState g) m => m ConnectionStatus
-getGameConnection = connection' <$> gets game
+  gets game >>= \g -> putGame $ g {connection' = Just c}
 
 {-# INLINABLE getMyId #-}
 getMyId :: MonadState (AppState g) m => m (Maybe ClientId)
-getMyId =
-  (\case
-    Connected myId -> Just myId
-    _ -> Nothing) <$> getGameConnection
+getMyId = maybe Nothing (either (const Nothing) Just) . connection' <$> gets game
 
 {-# INLINABLE putServerContent #-}
 putServerContent :: MonadState (AppState g) m => ValuesT (ServerT g) -> m ()

@@ -17,7 +17,7 @@ import           Prelude (putStr)
 
 import           Control.Concurrent(forkIO, readMVar, newEmptyMVar)
 import           Control.Exception (try)
-import           Control.Monad.Reader(runReaderT)
+import           Control.Monad.Reader(runReaderT, asks)
 import           Control.Monad.State(runStateT)
 import           Data.Char(toLower)
 import qualified Data.List as List
@@ -34,11 +34,13 @@ import           System.Environment(getArgs, getProgName)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
 
+import           Imj.Event
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
 import           Imj.Game.Env
 import           Imj.Game.Configuration
 import           Imj.Game.Internal.ArgParse
+import           Imj.Game.Modify
 import           Imj.Game.Network
 import           Imj.Game.Network.ClientQueues
 import           Imj.Game.KeysMaps
@@ -55,6 +57,7 @@ import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.RasterizedString
 import           Imj.Graphics.Text.ColorString hiding(putStr)
 import           Imj.Graphics.Text.Render
+import           Imj.Graphics.UI.Chat
 import           Imj.Input.Types
 import           Imj.Log
 import           Imj.Network
@@ -216,8 +219,14 @@ runWith au debug queues srv player backend =
     flip withDefaultPolicies backend $ \drawEnv -> do
       screen <- mkScreen <$> getDiscreteSize backend
       env <- mkEnv drawEnv backend queues face au
-      void $ createState screen debug player srv NotConnected >>=
-        withAudio au . runStateT (runReaderT (loop (translatePlatformEvent (audioToProx au)) onEvent) env)
+      void $ createState screen debug player srv >>=
+        withAudio au . runStateT (runReaderT
+          (do
+            stateChat $ addMessage $ ChatMessage $ colored "Please wait, we're waking the server up." (rgb 1 3 2)
+            -- initialize rendering
+            asks writeToClient' >>= \f -> f (FromClient RenderingTargetChanged)
+            onEvent Nothing -- trigger the first rendering
+            loop (translatePlatformEvent (audioToProx au)) onEvent) env)
 
  where
 

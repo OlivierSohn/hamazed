@@ -1,3 +1,25 @@
+<!-- TOC depthFrom:1 depthTo:6 withLinks:1 updateOnSave:1 orderedList:0 -->
+
+- [What is it?](#what-is-it)
+- [Packages](#packages)
+- [Development setup](#development-setup)
+	- [Install dependencies (C libraries)](#install-dependencies-c-libraries)
+- [Build](#build)
+- [Run the games in single-player mode](#run-the-games-in-single-player-mode)
+- [Run the games in Multi-player mode](#run-the-games-in-multi-player-mode)
+	- [Connect to a running game server](#connect-to-a-running-game-server)
+		- [Connect to a Heroku-hosted server](#connect-to-a-heroku-hosted-server)
+- [CI](#ci)
+- [Game engine highlights](#game-engine-highlights)
+	- [Supported platforms](#supported-platforms)
+	- [Music](#music)
+		- [Notation](#notation)
+		- [Playback](#playback)
+	- [Rendering](#rendering)
+		- [Known issues](#known-issues)
+
+<!-- /TOC -->
+
 # What is it?
 
 Monorepo for a Haskell multi-player game engine and games made with it.

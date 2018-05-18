@@ -1,15 +1,12 @@
 # What is it?
 
-Monorepo for a Haskell multi-player game engine and some games made with it.
+Monorepo for a Haskell multi-player game engine and games made with it.
 [![Build Status](https://travis-ci.org/OlivierSohn/hamazed.svg?branch=master)](https://travis-ci.org/OlivierSohn/hamazed)
 
-To play a game in single-player mode, no deployment is required, you just need to run the
-corresponding executable.
+The games can be played locally, in single-player mode, or in multi-player mode, after having run the [deployment script]
+to host the game server on [Heroku].
 
-To play in multi-player mode, first a game server needs to be deployed. Then, players
-can connect to it.
-
-In this `Readme` we describe a step-by-step [Heroku]-based deployment procedure, using `Docker` containers.
+You can create your own multi-player game, starting from the [tutorial-game](/imj-game-tutorial-increment).
 
 # Disclaimer
 
@@ -17,7 +14,7 @@ This is an experimental project, so the APIs may change anytime.
 
 # Supported platforms
 
-Supported platforms are OSX and Linux.
+Supported client platforms are OSX and Linux (but see the rendering limitation).
 
 # Packages
 
@@ -29,6 +26,8 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - Polyphonic music scores creation and playback.
 - [imj-prelude](/imj-prelude)
   - Prelude library used by packages hereunder, mainly to factorize imports.
+- [imj-time]
+  - Timing library based on the system monotonic clock.
 - [imj-base]
   - Containers (Graph, Matrix, Cyclic matrix, Dynamic vector, etc...)
   - Geometry, text animations
@@ -55,6 +54,8 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
     won't have to handle exceptions due to another client's connection being down.)
   - Detect client reconnection (keep track of clients identities using their MAC address)
   - Logging
+- [imj-serve-highscores]
+  - [Servant]-based web service to persist and access highscores.
 - [imj-game]
   - Multi-player game engine
   - Listens to server events, and player events
@@ -64,7 +65,10 @@ List of packages, inverse-topologically sorted wrt dependencies, with keywords /
   - Debugging features : record and display events graphically, event logging.
 - [imj-game-tutorial-increment](/imj-game-tutorial-increment)
   - A tutorial on how to use [imj-game] to build a multi-player game.
-- [imj-game-hamazed](/imj-game-hamazed)
+- [imj-game-synths]
+  - "A jam session, in the cloud, with loops and synthesizers."
+  - Players are playing music together, in real-time, using their computer keyboards as synthesizers.
+- [imj-game-hamazed]
   - See this demo, at a time when the game was mono-player and had no music yet:
       [![asciicast](https://asciinema.org/a/156059.png)](https://asciinema.org/a/156059)
 - [imj-profile](/imj-profile)
@@ -171,79 +175,20 @@ sudo apt-get install portaudio19-dev
 
 `stack build --pedantic`
 
-# Single-player mode
+# Run the games in single-player mode
 
 Passing no command line argument will run the games in single player mode:
 
-`stack exec imj-game-tutorial-increment-exe`
+`stack exec <game-executable>`
 
-`stack exec imj-game-hamazed-exe`
+# Run the games in Multi-player mode
 
-`stack exec imj-game-synths-exe`
-
-# Multi-player mode
-
-In multi-player mode, a game server synchronizes the game, and clients are connected to it.
-The client-server communication is made using websockets.
-
-## Dockerize the game server
-
-Throughout this process, you can use [docker image](https://docs.docker.com/engine/reference/commandline/images/)
-to see which images are created.
-
-First, we build the base image:
-
-```shell
-cd ./docker-rt
-docker build -t imajuscule/imj-game-rt .
-```
-
-Then, we build another image containing the game executable(s):
-
-```shell
-cd ..
-stack image container
-```
-
-The OS on which the executables are built must match the OS of [the base image](./docker-rt/Dockerfile)
-(more info [available here](https://docs.haskellstack.org/en/stable/GUIDE/#docker)).
-
-In the following section, we will use the last created image as a base to generate an image
-deployed on [Heroku].
-
-## Deploy a game server (to Heroku)
-
-At the time of this writing, [Heroku] has a free plan to host web applications
-deployed using docker containers. We are assuming that you already:
-
-- have an [Heroku] account where you created the app <herokuAppName> whose associated
-domain is <herokuAppDomain>
-- have installed [Heroku] command line tools
-
-The following command creates the [Heroku] container and pushes it on [Heroku]:
-
-```shell
-cd ./docker-heroku
-heroku container:push web -a <herokuAppName>
-```
-
-The first upload will be long, because the whole image will be uploaded.
-Subsequent uploads however will be faster, because just the layer that changed
-will be uploaded.
-
-To monitor and verify the deployment status:
-
-```shell
-heroku logs --tail -a <herokuAppName>
-```
-
-Note that accessing `<herokuAppDomain>` in a browser will generate an error
-because the game server sockets are using the websocket protocol, not the HTTP protocol.
+Use the [deployment script] to host the games on a [Heroku] server.
 
 ## Connect to a running game server
 
 ```shell
-stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
+stack exec -- <game-executable> -n <serverName> -p<serverPort>
 ```
 
 ### Connect to a Heroku-hosted server
@@ -251,15 +196,19 @@ stack exec -- imj-game-synths-exe -n <serverName> -p<serverPort>
 When the game server is hosted on [Heroku], the port to connect to is `80`:
 
 ```shell
-stack exec -- imj-game-synths-exe -n <herokuAppDomain> -p80
+stack exec -- <game-executable> -n <herokuAppDomain> -p80
 ```
 
+[deployment script]: ./deploy-heroku.sh
 [ftgl]: http://ftgl.sourceforge.net/docs/html/
 [Heroku]: https://www.heroku.com/
 [imj-base]: /imj-base
 [imj-bindings-audio]: /imj-bindings-audio
 [imj-game]: /imj-game
+[imj-game-hamazed]: /imj-game-hamazed
+[imj-game-synths]: /imj-game-synths
 [portaudio 19]: http://www.portaudio.com/
+[Servant]: http://haskell-servant.readthedocs.io/en/stable/
 [stack]: https://docs.haskellstack.org
 [the solfege notation]: https://en.wikipedia.org/wiki/Solf%C3%A8ge#Fixed_do_solf%C3%A8ge
 [websockets]: http://hackage.haskell.org/package/websockets

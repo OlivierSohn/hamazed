@@ -1,11 +1,22 @@
 #!/bin/bash
 
-# This script deploys docker containers to Heroku.
-
+# This script deploys the docker containers needed to rum imj-game-synths and imj-game-hamazed as multiplayer games.
+#
+# Heroku is used to host them (the free plan is sufficient).
+#
 #   Prerequisites:
+#   * The OS on which this script runs matches the OS of the base image ./docker/game-runtime/Dockerfile
 #   * Heroku command line is installed
 #   * The user is logged in (using the command 'heroku login')
 #   * Apps named "imj-game-synth", "imj-game-hamazed" and "imj-highscores" exist in Heroku
+#
+# NOTE: The first script execution will be long, because the entire docker images will be uploaded.
+# Subsequent uploads however will be faster, because just the layer that changed will be uploaded.
+#
+# To monitor and verify the deployment status, use:
+#
+# > heroku logs --tail -a <herokuAppName>
+
 
 set -e
 ROOT="$(pwd)"

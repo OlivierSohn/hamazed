@@ -102,7 +102,6 @@ sudo apt-get install portaudio19-dev
 `stack build --pedantic`
 
 A recent enough C compiler should be used by GHC, so as to be able to build C++14.
-For example, the [travis script](/.travis.yml) upgrades gcc on a Ubuntu 14.04 LTS (Trusty).
 
 # Run the games in single-player mode
 
@@ -170,14 +169,14 @@ The [fonts](/imj-base/fonts) and font size for rendering can be modified at runt
 
 ### Known issues
 
-The algorithm finding the optimal font size (i.e the font size such that all characters fit
-  within a given block) was developped on OSX, with a particular graphic card driver.
+The algorithm determining "the maximal font size such that all characters fit
+  within a given block" was developped on OSX, with a particular graphic card driver.
 
-When switching to Linux, and using another graphic card driver, some characters
-are bigger than they should be, hence their outer border "leaks" in the incremental rendering process.
+On Linux, and using another graphic card driver, some characters
+are bigger than expected : their outer borders "leak" in the incremental rendering process.
 
-This should be investigated, maybe font rasterizing ([ftgl]) behaves differently on different platforms,
-or the graphic drivers perform different numerical roundings.
+Maybe font rasterizing ([ftgl?]) behaves differently on different platforms,
+or the graphic drivers perform different numerical roundings. This should be investigated.
 
 [deployment script]: ./deploy-heroku.sh
 [ftgl]: http://ftgl.sourceforge.net/docs/html/

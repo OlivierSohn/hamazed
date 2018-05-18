@@ -5,14 +5,14 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Imj.Server.Types
-      ( Server(..)
-      , ServerState, unServerState, clientsMap
+      ( clientsMap
       , mkServerState
       , ClientEvent(..)
-      , ClientLifecycle(..)
-      , ServerOwnership(..)
+      , ServerArgs(..)
+      -- * reexport
       , ServerLogs(..)
       , DisconnectReason(..)
+      , ClientLifecycle(..)
       ) where
 
 import           Imj.Prelude
@@ -27,8 +27,11 @@ import           Network.WebSockets
 import           Imj.ClientView.Types
 import           Imj.Graphics.Color
 import           Imj.Network
+import           Imj.Server.Color
 import           Imj.Server.Internal.Types
 import           Imj.Server.Class
+
+data ServerArgs s = ServerArgs !ServerLogs !(Maybe ColorScheme) !(Maybe (ServerArgsT s))
 
 data ClientEvent s =
     ClientAppEvt !(ClientEventT s)

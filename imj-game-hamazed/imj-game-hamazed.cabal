@@ -65,6 +65,7 @@ library
                      , imj-time ==0.1.*
                      , mwc-random ==0.13.*
                      , mtl >= 2.2.1 && < 2.3
+                     , optparse-applicative == 0.14.*
                      , servant-client ==0.13.*
                      , strict-concurrency ==0.2.*
                      , terminal-size >= 0.3.2.1 && < 0.4

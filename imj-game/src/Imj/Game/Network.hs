@@ -48,11 +48,12 @@ import           Imj.Server.Run
 startServerIfLocal :: (Server s, ServerClientHandler s, ServerClientLifecycle s, ServerInit s, ServerInParallel s)
                    => Proxy s
                    -> ServerView (ValuesT s)
+                   -> ServerArgs s
                    -> MVar (Either String String)
                    -- ^ Will be set when the client can connect to the server.
                    -> IO ()
-startServerIfLocal _ srv@(ServerView (Distant _) _) v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
-startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPort port) _)) v = do
+startServerIfLocal _ srv@(ServerView (Distant _) _) _ v = putMVar v $ Right $ "Client will try to connect to: " ++ show srv
+startServerIfLocal prox srv@(ServerView Local (ServerContent (ServerPort port) _)) (ServerArgs logs a args) v = do
   let localhostNames = ["0.0.0.0"] -- first trying "0.0.0.0", because for Heroku / docker container, "localhost" doesn't work.
       cmdsMakeListeSocket = map (flip makeListenSocket port) localhostNames
   baseLog $ colored ("creating listening socket on port " <> pack (show port)) yellow
@@ -62,7 +63,7 @@ startServerIfLocal prox srv@(ServerView (Local logs a) (ServerContent (ServerPor
   baseLog $ colored (pack str) green -- Needed for serverOnly (in that case, the MVar is not used)
   putMVar v $ Right str
   c <- mkCenterColor $ fromMaybe (ColorScheme $ rgb 3 2 2) a
-  (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState >>= newMVar >>= \state -> do
+  (\(vs,s) -> mkServerState logs c vs (asProxyTypeOf s prox)) <$> mkInitialState args >>= newMVar >>= \state -> do
     serverMainThread <- myThreadId
     mapM_ (installOneHandler state serverMainThread)
           [(sigINT,  "sigINT")

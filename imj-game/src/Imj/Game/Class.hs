@@ -545,6 +545,7 @@ data GameArgs g = GameArgs
   !(Maybe ArgServerPort)
   !(Maybe ServerLogs)
   !(Maybe ColorScheme)
+  !(Maybe (ServerArgsT (ServerT g)))
   !(Maybe (ConnectIdT (ServerT g)))
   !(Maybe BackendType)
   !(Maybe PPU)

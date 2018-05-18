@@ -59,9 +59,11 @@ import           Data.Text(pack, unpack, unlines)
 import qualified Data.Text as Text(intercalate)
 import           Data.Tuple(swap)
 import           Network.HTTP.Client(newManager, defaultManagerSettings)
+import           Options.Applicative(option, long, help)
 import           Servant.Client(ClientEnv(..), BaseUrl(..), Scheme(..), mkClientEnv, runClientM)
 import           UnliftIO.MVar (modifyMVar, swapMVar, readMVar, tryReadMVar, tryTakeMVar, putMVar, newEmptyMVar)
 
+import           Imj.Arg.Class
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
@@ -73,8 +75,10 @@ import           Imj.Game.HighScores.Client
 import           Imj.Graphics.Color.Types
 import           Imj.Server.Class
 import           Imj.Server.Types
+import           Imj.ServerView.Types
 import           Imj.Space.Types
 
+import           Imj.Game.ArgParse
 import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level
 import           Imj.Game.Status
@@ -86,7 +90,6 @@ import           Imj.Server.Log
 import           Imj.Server.Run
 import           Imj.Server
 import           Imj.Timing
-
 
 -- | 'Hamazed' handles a single game.
 data HamazedServer = HamazedServer {
@@ -105,15 +108,31 @@ instance NFData HamazedServer where
   rnf (HamazedServer a b c d e _) =
     rnf a `seq` rnf b `seq` rnf c `seq` rnf d `seq` rnf e
 
+data HighScoreServerName = HighScoreServerName !ServerName
+  deriving(Show)
+instance Arg HighScoreServerName where
+  parseArg = Just $ (HighScoreServerName <$>
+    option srvNameArg
+       (  long "highScoresServerName"
+       <> help (
+       "Name of the high score server to connect to. Defaults to \"" ++ defaultHighScoreServerName ++ "\"."
+       )))
+
+defaultHighScoreServerName :: String
+defaultHighScoreServerName = "imj-highscores.herokuapp.com"
+
 instance ServerInit HamazedServer where
   type ClientViewT HamazedServer = HamazedClient
 
-  mkInitialState = do
-    highScoreEnv <- flip mkClientEnv (BaseUrl Http "imj-highscores.herokuapp.com" 80 "") <$> liftIO (newManager defaultManagerSettings)
-    -- unidle the high score server (ignore errors)
-    void $ liftIO $ forkIO $ void $ runClientM (highScoresServerHealth 0) highScoreEnv
-    (,) params . flip (HamazedServer mkGameTiming lvSpec wc IntentSetup) highScoreEnv
-      <$> newEmptyMVar
+  type ServerArgsT HamazedServer = HighScoreServerName
+
+  mkInitialState mayArg = do
+    let hsName = maybe defaultHighScoreServerName (\(HighScoreServerName (ServerName n)) -> n) mayArg
+    hsEnv <- liftIO $ do
+      highScoreEnv <- flip mkClientEnv (BaseUrl Http hsName 80 "") <$> newManager defaultManagerSettings
+      void $ forkIO $ void $ runClientM unidleHighScoresServer highScoreEnv -- ignore errors
+      return highScoreEnv
+    (,) params . flip (HamazedServer mkGameTiming lvSpec wc IntentSetup) hsEnv <$> newEmptyMVar
    where
     lvSpec = LevelSpec firstServerLevel CannotOvershoot
     params = initialParameters

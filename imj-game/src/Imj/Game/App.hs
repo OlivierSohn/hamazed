@@ -34,6 +34,7 @@ import           System.Environment(getArgs, getProgName)
 import           System.Info(os)
 import           System.IO(hFlush, stdout)
 
+import           Imj.Arg.Class
 import           Imj.Event
 import           Imj.Game.Audio.Class
 import           Imj.Game.Exceptions
@@ -62,7 +63,7 @@ import           Imj.Input.Types
 import           Imj.Log
 import           Imj.Network
 import           Imj.Server.Class
-import           Imj.Server.Color
+import           Imj.Server.Types
 import           Imj.ServerView.Types
 import           Imj.ServerView
 
@@ -72,6 +73,7 @@ The game <https://ghc.haskell.org/trac/ghc/ticket/7353 doesn't run on Windows>.
 -}
 runGame :: (GameLogic g
           , s ~ ServerT g
+          , Show (ServerArgsT s)
           , DrawGroupMember (ServerEventT s)
           , DrawGroupMember (ClientOnlyEvtT g)
           , ServerCmdParser s
@@ -80,7 +82,9 @@ runGame :: (GameLogic g
         => Proxy g -> IO ()
 runGame p = runOnPlatform p $ run p
 
-runOnPlatform :: GameLogic g => Proxy g -> (GameArgs g -> IO a) -> IO a
+runOnPlatform :: (GameLogic g
+                , Arg (ServerArgsT (ServerT g)))
+              => Proxy g -> (GameArgs g -> IO a) -> IO a
 runOnPlatform p app = withSocketsDo $
   if os == "mingw32"
     then
@@ -115,6 +119,7 @@ toAudio _ = Proxy
 run :: (GameLogic g
       , s ~ ServerT g
       , ServerCmdParser s
+      , Show (ServerArgsT s)
       , DrawGroupMember (ServerEventT s)
       , DrawGroupMember (ClientOnlyEvtT g)
       , StateValueT s ~ GameStateValue
@@ -123,7 +128,7 @@ run :: (GameLogic g
 run prox
   (GameArgs
     (ServerOnly serverOnly)
-    maySrvName mayArgSrvPort maySrvLogs mayConfig mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
+    maySrvName mayArgSrvPort maySrvLogs mayConfig maySrvArgs mayConnectId maybeBackend mayPPU mayScreenSize debug mayAudioConf) = do
   maySrvPort <- maybe (return Nothing) (fmap Just . getServerPort) mayArgSrvPort
   let printServerArgs = putStr $ List.unlines $ showArray (Just ("Server Arg", ""))
         [ ("Server-only", show serverOnly)
@@ -131,6 +136,7 @@ run prox
         , ("Server port", show maySrvPort)
         , ("Server logs", show maySrvLogs)
         , ("Colorscheme", show mayConfig)
+        , ("CustomArgs", show maySrvArgs)
         ]
       printClientArgs = putStr $ List.unlines $ showArray (Just ("Client Arg", ""))
         [ ("Client Rendering", show maybeBackend)
@@ -155,11 +161,14 @@ run prox
     error "'--colorScheme' conflicts with '--serverName' (these options are mutually exclusive)."
   when (isJust maySrvLogs && isJust maySrvName) $
     error "'--serverLogs' conflicts with '--serverName' (these options are mutually exclusive)."
+  when (isJust maySrvArgs && isJust maySrvName) $
+    error "'--serverLogs' conflicts with another command line server argument."
 
   let srvPort = fromMaybe defaultPort maySrvPort
-      srv = mkServer maySrvName mayConfig maySrvLogs (ServerContent srvPort Nothing)
+      srv = mkServer maySrvName (ServerContent srvPort Nothing)
+      srvArgs = ServerArgs (fromMaybe NoLogs maySrvLogs) mayConfig maySrvArgs
   newEmptyMVar >>= \ready -> do
-    let srvIfLocal = startServerIfLocal (toSrv prox) srv ready
+    let srvIfLocal = startServerIfLocal (toSrv prox) srv srvArgs ready
     if serverOnly
       then
         srvIfLocal
@@ -222,7 +231,10 @@ runWith au debug queues srv player backend =
       void $ createState screen debug player srv >>=
         withAudio au . runStateT (runReaderT
           (do
-            stateChat $ addMessage $ ChatMessage $ colored "Please wait, we're waking the server up." (rgb 1 3 2)
+            stateChat $ addMessage $ ChatMessage $ colored
+              ("Please wait, we're waking the server up. " <>
+              "If the server is hosted on the free plan of Heroku, this operation can take up-to 30 seconds.")
+              (rgb 1 3 2)
             -- initialize rendering
             asks writeToClient' >>= \f -> f (FromClient RenderingTargetChanged)
             onEvent Nothing -- trigger the first rendering
@@ -246,11 +258,9 @@ toSrv :: Proxy g
 toSrv _ = Proxy :: Proxy (ServerT g)
 
 mkServer :: Maybe ServerName
-         -> Maybe ColorScheme
-         -> Maybe ServerLogs
          -> ServerContent values
          -> ServerView values
-mkServer Nothing conf logs =
-  mkLocalServerView (fromMaybe NoLogs logs) conf
-mkServer (Just (ServerName n)) _ _ =
+mkServer Nothing =
+  mkLocalServerView
+mkServer (Just (ServerName n)) =
   mkDistantServerView (ServerName $ map toLower n)

@@ -75,14 +75,19 @@ import           Imj.Network
 class (Show (ClientViewT s)
      , Generic (ClientViewT s)
      , NFData (ClientViewT s)
+     , Arg (ServerArgsT s)
      )
      => ServerInit s where
 
   -- | "Server-side" client definition.
   type ClientViewT s = (r :: *) | r -> s
 
-  -- | Called to create the server.
-  mkInitialState :: MonadIO m => m (ValuesT s, s)
+  type ServerArgsT s
+  type ServerArgsT s = ()
+
+  -- | Create the server.
+  mkInitialState :: MonadIO m
+                 => Maybe (ServerArgsT s) -> m (ValuesT s, s)
 
   -- | Creates the client view
   mkInitialClient :: ClientViewT s

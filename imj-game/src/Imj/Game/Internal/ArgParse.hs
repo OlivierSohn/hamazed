@@ -35,6 +35,7 @@ import           Imj.Geo.Discrete.Types
 import           Imj.Game.Configuration
 import           Imj.ServerView.Types
 
+import           Imj.Game.ArgParse
 import           Imj.Game.Audio.Class
 import           Imj.Game.Class
 import           Imj.Graphics.Font
@@ -43,7 +44,9 @@ import           Imj.Graphics.Render.Delta.Backend.OpenGL(PreferredScreenSize(..
 toSks :: Proxy g -> Proxy (StatefullKeysT g)
 toSks _ = Proxy
 
-parserGameArgs :: GameLogic g
+
+parserGameArgs :: (GameLogic g
+                  ,Arg (ServerArgsT (ServerT g)))
                => Proxy g -> Parser (GameArgs g)
 parserGameArgs p = GameArgs
   <$> parserServerOnly
@@ -51,6 +54,7 @@ parserGameArgs p = GameArgs
   <*> parserSrvPort
   <*> parserSrvLogs
   <*> parserSrvColorScheme
+  <*> maybe (NilP $ Just Nothing) optional parseArg
   <*> parseConnectId
   <*> parserBackend
   <*> parserPPU
@@ -60,7 +64,7 @@ parserGameArgs p = GameArgs
 
  where
 
-  parserBackend  =
+  parserBackend =
     if needsStatefullKeys (toSks p) p
       then
         NilP $ Just $ Just $ BackendType False OpenGLWindow -- The terminal backend doesn't support stateful keys.
@@ -232,12 +236,6 @@ backendArg =
                     ++ renderHelp
  where
   fromCli = BackendType True
-
-srvNameArg :: ReadM ServerName
-srvNameArg =
-  str >>= \s -> case map toLower s of
-    [] -> readerError "Encountered an empty servername. Accepted names are ip address or domain name."
-    name -> return $ ServerName name
 
 defaultPort :: ServerPort
 defaultPort = ServerPort 10052

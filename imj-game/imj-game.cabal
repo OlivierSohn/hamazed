@@ -22,6 +22,7 @@ library
   other-modules:
   exposed-modules:     Imj.Event
                      , Imj.Game.App
+                     , Imj.Game.ArgParse
                      , Imj.Game.Audio.Class
                      , Imj.Game.Class
                      , Imj.Game.Color

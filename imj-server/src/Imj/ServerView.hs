@@ -6,18 +6,12 @@ module Imj.ServerView
       , getServerNameAndPort
       ) where
 
-import           Imj.Prelude
-
 import           Imj.Network
 import           Imj.ServerView.Types
-import           Imj.Server.Color
-import           Imj.Server.Types
 
-mkLocalServerView :: ServerLogs
-                  -> Maybe ColorScheme
-                  -> ServerContent values
+mkLocalServerView :: ServerContent values
                   -> ServerView values
-mkLocalServerView l p = ServerView (Local l p)
+mkLocalServerView = ServerView Local
 
 mkDistantServerView :: ServerName
                     -> ServerContent values
@@ -26,5 +20,5 @@ mkDistantServerView n = ServerView (Distant n)
 
 
 getServerNameAndPort :: ServerView values -> (ServerName, ServerPort)
-getServerNameAndPort (ServerView (Local {}) (ServerContent p _)) = (ServerName "0.0.0.0", p)
+getServerNameAndPort (ServerView Local (ServerContent p _)) = (ServerName "0.0.0.0", p)
 getServerNameAndPort (ServerView (Distant name) (ServerContent p _)) = (name, p)

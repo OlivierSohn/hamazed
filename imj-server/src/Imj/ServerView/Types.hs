@@ -15,18 +15,11 @@ import           Data.String(IsString)
 
 import           Imj.ClientView.Internal.Types
 import           Imj.Network
-import           Imj.Server.Internal.Types
-import           Imj.Server.Color
 
 data ConnectionStatus =
     NotConnected
   | Connected {-# UNPACK #-} !ClientId
   | ConnectionFailed {-# UNPACK #-} !Text
-
-data ServerView values = ServerView {
-    serverType :: !ServerType
-  , serverContent :: !(ServerContent values)
-}  deriving(Generic, Show)
 
 data ServerContent cached = ServerContent {
     serverPort :: {-# UNPACK #-} !ServerPort
@@ -35,9 +28,14 @@ data ServerContent cached = ServerContent {
 }  deriving(Generic, Show)
 
 
+data ServerView values = ServerView {
+    serverType :: !ServerType
+  , serverContent :: !(ServerContent values)
+}  deriving(Generic, Show)
+
 data ServerType =
     Distant !ServerName
-  | Local !ServerLogs !(Maybe ColorScheme)
+  | Local
   deriving(Generic, Show)
 
 newtype ServerName = ServerName String

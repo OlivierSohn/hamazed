@@ -1,4 +1,7 @@
-- Make a separate deploy script for highscores : we want only one high score server.
+- Make a separate deploy script for highscores :
+we want one high score server, associated to possibly multiple game servers.
+make the highscore server location overridable via command line, as server argument:
+by default, use 
 
 - High scores:
 

@@ -1,5 +1,6 @@
-- add doc : to build 'postgresql-libpq' os osx:
+- add doc : to build 'postgresql-libpq':
 brew install postgresql
+apt-get install postgresql libpq-dev
 
 - should one of the containers have the postgres library?
 

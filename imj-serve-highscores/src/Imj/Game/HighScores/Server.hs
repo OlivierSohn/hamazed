@@ -57,7 +57,9 @@ serveHighScoresApp conns = do
               [] -> return Nothing
               [oid] -> do
                 fdescriptor <- loOpen conn (fromOnly oid) ReadMode
-                by <- loRead conn fdescriptor (maxBound :: Int)
+                sz <- loSeek conn fdescriptor SeekFromEnd 0
+                void $ loSeek conn fdescriptor AbsoluteSeek 0
+                by <- loRead conn fdescriptor sz
                 return $ Just (by :: ByteString)
               oids@(_:_) -> fail $ "multiple oids:" ++ show oids)
 
@@ -72,7 +74,9 @@ serveHighScoresApp conns = do
             [] -> return mkEmptyHighScores
             [oid] -> do
               fdescriptor <- loOpen conn (fromOnly oid) ReadMode
-              by <- loRead conn fdescriptor (maxBound :: Int)
+              sz <- loSeek conn fdescriptor SeekFromEnd 0
+              void $ loSeek conn fdescriptor AbsoluteSeek 0
+              by <- loRead conn fdescriptor sz
               return $ decode $ fromStrict by
             oids@(_:_) -> fail $ "multiple oids:" ++ show oids
           destOid <- query_ conn "SELECT fileoid FROM files" >>= \case

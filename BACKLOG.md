@@ -1,25 +1,14 @@
+- add doc : to build 'postgresql-libpq' os osx:
+brew install postgresql
+
+- should one of the containers have the postgres library?
+
 - Make a separate deploy script for highscores :
 we want one high score server, associated to possibly multiple game servers.
-make the highscore server location overridable via command line, as server argument:
-by default, use 
-
-- High scores:
-
-We could have a cloud DB, accessed by a single node serving JSON w. servant.
-
-First step : no DB, just a client serving JSON.
-The client will be hosted as an Heroku app.
-I can't reach the client from the hosted server.
-
-* modify updateCurrentStatus to support app-custom status with
-CustomStatus ShowHamazedHighscores
-this will be sent to clients by onChangeStatus
-
-- when coming back from idling, the player should see "waiting for server to wake up"
 
 - upon start, the currently played notes of all loops should be sent.
 
-with 2 players, I could generate ghost notes, see if this fixes it.
+with 2 players, it is possible to generate ghost notes, see if this fixes it.
 
 - https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 

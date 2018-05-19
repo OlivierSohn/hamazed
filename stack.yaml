@@ -4,7 +4,7 @@
 #
 #   8.4.2:  nightly-2018-05-18
 #   8.2.2:  lts-11.9
-resolver: nightly-2018-05-18
+resolver: lts-11.9
 
 image:
   container:

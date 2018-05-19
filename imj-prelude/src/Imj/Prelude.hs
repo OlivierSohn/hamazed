@@ -41,6 +41,7 @@ import           Control.Monad.IO.Class as Exported(MonadIO, liftIO)
 import           Control.Monad.Reader as Exported(ReaderT)
 import           Data.Bool as Exported(bool)
 import           Data.Binary as Exported(Binary)
+import           Data.Hashable as Exported(Hashable(..), hashUsing)
 import           Data.List as Exported(cycle, repeat)
 import           Data.Maybe as Exported(listToMaybe, maybeToList, fromMaybe, maybe, catMaybes, mapMaybe, isNothing)
 import           Data.Map.Merge.Strict

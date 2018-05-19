@@ -25,6 +25,7 @@ library
                      , binary == 0.8.*
                      , containers ==0.5.*
                      , deepseq ==1.4.*
+                     , hashable ==1.2.*
                      , mtl >= 2.2.1 && < 2.3
                      , template-haskell >=2.12 && < 2.14
                      , text >=1.2.3 && < 1.3

@@ -24,7 +24,7 @@ module Imj.Network
     where
 
 import           Imj.Prelude
-import           Data.Aeson(ToJSON(..), FromJSON(..))
+import           Data.Aeson(ToJSON(..), FromJSON(..), ToJSONKey(..), FromJSONKey(..))
 import           Data.Bits(shiftL)
 import           Data.Char (isPunctuation, isSpace)
 import qualified Data.Set as Set
@@ -46,9 +46,13 @@ data Approved
   deriving(Generic)
 
 newtype ClientName a = ClientName Text
-  deriving(Generic, Show, Binary, Eq, NFData, IsString, Ord)
+  deriving(Generic, Show, Binary, Eq, NFData, IsString, Ord, Hashable)
 instance ToJSON (ClientName a)
 instance FromJSON (ClientName a)
+instance Hashable (Set (ClientName Approved)) where
+  hashWithSalt = hashUsing (Set.toList)
+instance ToJSONKey (Set (ClientName Approved))
+instance FromJSONKey (Set (ClientName Approved))
 
 unClientName :: ClientName a -> Text
 unClientName (ClientName t) = t

@@ -19,7 +19,7 @@ import           Data.HashMap.Strict(HashMap)
 import qualified Data.HashMap.Strict as HMap
 import           Data.Set(Set)
 import qualified Data.Set as Set
-import           Data.Text hiding (map, concatMap, foldl')
+import           Data.Text hiding (map, concatMap, foldl', filter)
 
 import           Imj.Network
 import           Imj.Game.Level
@@ -47,10 +47,17 @@ insertScore :: HighScore -> HighScores -> HighScores
 insertScore (HighScore n players) (HighScores hs) =
   HighScores $ HMap.insertWith max players n hs
 
-prettyShowHighScores :: HighScores -> Text
+prettyShowHighScores :: HighScores -> [Text]
 prettyShowHighScores (HighScores h) =
-  unlines $ map (uncurry prettyShowHighScore) $ Map.assocs $ Map.fromListWith Set.union $ map (fmap Set.singleton . swap) $ HMap.toList h
+  map (uncurry prettyShowHighScore)
+  $ Map.toDescList
+  $ Map.fromListWith
+      Set.union
+      $ map (fmap Set.singleton . swap)
+      $ filter valid $ HMap.toList h
+ where
+  valid (s,_) = not $ Set.null s
 
 prettyShowHighScore :: LevelNumber -> Set (Set (ClientName Approved)) -> Text
-prettyShowHighScore score players =
-  unwords $ map (pack . show . unClientName) (concatMap Set.toList $ Set.toList players) ++ [pack $ show score]
+prettyShowHighScore (LevelNumber score) players =
+  unwords $ map (pack . show . unClientName) (concatMap Set.toList $ Set.toList players) ++ ["..."] ++ [pack $ show score]

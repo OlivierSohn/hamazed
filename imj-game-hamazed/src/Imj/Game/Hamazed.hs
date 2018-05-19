@@ -193,20 +193,22 @@ instance GameLogic HamazedGame where
     GameEvent (LaserShot dir shipId) -> do
       join (asks triggerLaserSound)
       onLaser shipId dir Add
+    GameInfo (Highscores h) -> do
+      stateChat $ addMessage $ ChatMessage $ "High scores:"
+      mapM_ (\t -> stateChat $ addMessage $ ChatMessage $ colored t chatWinColor) $ prettyShowHighScores h
     GameInfo notif ->
       stateChat $ addMessage $ ChatMessage $ toTxt' notif
 
    where
 
     toTxt' = \case
+      (Highscores _) -> error "logic"
       LevelResult (LevelNumber n) (Lost reason) ->
         colored ("- Level " <> pack (show n) <> " was lost : " <> reason <> ".") chatMsgColor
       LevelResult (LevelNumber n) Won ->
         colored ("- Level " <> pack (show n) <> " was won!") chatWinColor
       GameWon ->
         colored "- The game was won! Congratulations!" chatWinColor
-      Highscores h ->
-        colored ("High scores:\n" <> prettyShowHighScores h) chatWinColor
       CannotCreateLevel errs n ->
         colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 

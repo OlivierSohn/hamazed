@@ -400,13 +400,17 @@ onLevelOutcome playerIds outcome =
   levelNumber <$> getsState levelSpecification >>= \levelN -> do
     -- by constructions, there will be no collision on 'ClientName Approved'
     players <- Set.fromList . map getName . Map.elems . flip Map.restrictKeys playerIds <$> gets clientsMap
-    let registerScore s =
-          getsState highScoresClientEnv >>=
-            liftIO . runClientM (addHighScore (HighScore s players)) >>= either
-              (\e -> do
-                serverLog $ pure $ "Exception while reaching the high score server: " <> colored (pack $ show e) red
-                return Nothing)
-              (return . Just)
+    let registerScore s
+          | Set.size playerIds == Set.size players =
+            getsState highScoresClientEnv >>=
+              liftIO . runClientM (addHighScore (HighScore s players)) >>= either
+                (\e -> do
+                  serverLog $ pure $ "Exception while reaching the high score server: " <> colored (pack $ show e) red
+                  return Nothing)
+                (return . Just)
+          | otherwise = do
+              serverLog $ pure $ "Discard highscore, not all player names are known."
+              return Nothing
     hs <- case outcome of
       Lost{} ->
         registerScore $ pred levelN

@@ -54,14 +54,12 @@ serveHighScoresApp conns = do
         withResource conns $ \conn ->
           withTransaction conn $
             query_ conn "SELECT fileoid FROM files" >>= \case
-              [] -> return Nothing
-              [oid] -> do
-                fdescriptor <- loOpen conn (fromOnly oid) ReadMode
-                sz <- loSeek conn fdescriptor SeekFromEnd 0
-                void $ loSeek conn fdescriptor AbsoluteSeek 0
-                by <- loRead conn fdescriptor sz
-                return $ Just (by :: ByteString)
-              oids@(_:_) -> fail $ "multiple oids:" ++ show oids)
+              [] ->
+                return Nothing
+              [oid] ->
+                Just <$> readObject conn oid
+              oids@(_:_) ->
+                fail $ "multiple oids:" ++ show oids)
 
 
   -- in a transaction, removes entries for that key and adds one.
@@ -70,24 +68,28 @@ serveHighScoresApp conns = do
     liftIO $
       withResource conns $ \conn ->
         withTransaction conn $ do
-          currentHighScores <- query_ conn "SELECT fileoid FROM files" >>= \case
-            [] -> return mkEmptyHighScores
-            [oid] -> do
-              fdescriptor <- loOpen conn (fromOnly oid) ReadMode
-              sz <- loSeek conn fdescriptor SeekFromEnd 0
-              void $ loSeek conn fdescriptor AbsoluteSeek 0
-              by <- loRead conn fdescriptor sz
-              return $ decode $ fromStrict by
-            oids@(_:_) -> fail $ "multiple oids:" ++ show oids
-          destOid <- query_ conn "SELECT fileoid FROM files" >>= \case
+          prevOids <- query_ conn "SELECT fileoid FROM files"
+
+          currentHighScores <- case prevOids of
+            [] ->
+              return mkEmptyHighScores
+            [oid] ->
+              decode . fromStrict <$> readObject conn oid
+            oids@(_:_) ->
+              fail $ "multiple oids:" ++ show oids
+
+          destOid <- case prevOids of
             [] -> do
               oid <- loCreat conn
               void $ execute conn
                 "INSERT INTO files VALUES (?)"
                 (Only oid)
               return oid
-            [oid] -> return $ fromOnly oid
-            oids@(_:_) -> fail $ "multiple oids:" ++ show oids
+            [oid] ->
+              return $ fromOnly oid
+            oids@(_:_) ->
+              fail $ "multiple oids:" ++ show oids
+
           let newHighScores = insertScore highScore currentHighScores
           loOpen conn destOid WriteMode >>= \f ->
             -- returns the number of bytes written (errors are handled inside hence the returned value is always >= 0)
@@ -96,6 +98,12 @@ serveHighScoresApp conns = do
 
   healthHandler :: Int -> Handler Int
   healthHandler i = return $ i + 1
+
+  readObject conn oid = do
+    fdescriptor <- loOpen conn (fromOnly oid) ReadMode
+    sz <- loSeek conn fdescriptor SeekFromEnd 0
+    void $ loSeek conn fdescriptor AbsoluteSeek 0
+    loRead conn fdescriptor sz
 
 -- | Reads the environment variable 'DB_CONN_STR' to.
 serveHighScores :: IO ()

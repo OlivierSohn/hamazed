@@ -1,22 +1,28 @@
 #!/bin/bash
 
-# This script deploys the docker containers needed to rum imj-game-synths and imj-game-hamazed as multiplayer games.
+# This script deploys the docker containers needed to
 #
-# Heroku is used to host them (the free plan is sufficient).
+# - host 'imj-game-synths' and 'imj-game-hamazed' multiplayer games
+# - persist highscores of 'imj-game-hamazed'
+#
+# You can edit the script to skip some parts (between the "this part can be removed" comments):
+#   - Unless --highScoresServerName parameter is specified, imj-game-hamazed uses
+#   the highscore server deployed here : https://imj-highscores.herokuapp.com/highscores
+#   Hence, deploying a new highscores server is not necessary.
 #
 #   Prerequisites:
 #   * The OS on which this script runs matches the OS of the base image ./docker/game-runtime/Dockerfile
 #   * Heroku command line is installed
 #   * The user is logged in to Docker ('docker login')
 #   * The user is logged in to Heroku ('heroku login' and 'heroku container:login')
-#   * Apps named "imj-game-synth", "imj-game-hamazed" and "imj-highscores" exist in Heroku
+#   * Apps with names matching the names passed in commands argument ('-a <name>') exist in Heroku.
 #
 # NOTE: The first script execution will be long, because the entire docker images will be uploaded.
 # Subsequent uploads however will be faster, because just the layer that changed will be uploaded.
 #
 # To monitor and verify the deployment status, use:
 #
-# > heroku logs --tail -a <herokuAppName>
+# > heroku logs --tail -a <name>
 #
 # Common workarounds:
 # ------------------
@@ -38,7 +44,7 @@ speak ()
     msg=$1
     bar="-----------------------------------------"
     echo ""
-    echo $bar    
+    echo $bar
     echo $msg
     echo $bar
     echo ""
@@ -68,11 +74,13 @@ mkdir -p "./docker/game-hamazed/usr/local/bin" && cp "$HAMAZED" "$_"
 docker build -t "imajuscule/game-hamazed" "./docker/game-hamazed/"
 rm -rf "./docker/game-hamazed/usr"
 
+# BEGIN -- this part can be removed
 speak "We create and push the Heroku serve-highscores image"
 
 cd "docker/heroku-serve-highscores"
 heroku container:push web -a imj-highscores
 cd "$ROOT"
+# END -- this part can be removed
 
 speak "We create and push the Heroku game-synth image"
 
@@ -87,4 +95,3 @@ heroku container:push web -a imj-game-hamazed
 cd "$ROOT"
 
 speak "Done!"
-

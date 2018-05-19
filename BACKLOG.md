@@ -1,11 +1,14 @@
-- add doc : to build 'postgresql-libpq':
-brew install postgresql
-apt-get install postgresql libpq-dev
+- why do we see [[],0] in the highscore file?
 
-- should one of the containers have the postgres library?
+- when postgresql-simple is 8.4.1 compatible, add
 
-- Make a separate deploy script for highscores :
-we want one high score server, associated to possibly multiple game servers.
+sudo apt-get install libpq-dev
+
+and if needed:
+
+sudo apt-get install postgresql
+
+to travis CI.
 
 - upon start, the currently played notes of all loops should be sent.
 

@@ -99,6 +99,7 @@ After checking out the repo, run `git submodule init && git submodule update` to
 
 - [ftgl] is needed by [imj-base] to render fonts with OpenGL.
 - [portaudio 19] is needed by [imj-bindings-audio] for audio I/O.
+- [libpq] and [postgresql] are needed by a dependency of [imj-serve-highscores].
 
 To install them:
 
@@ -107,6 +108,7 @@ To install them:
 ```shell
 brew install ftgl
 brew install portaudio
+brew install postgresql
 ```
 
 - On Linux:
@@ -115,6 +117,8 @@ brew install portaudio
 sudo apt-get update
 sudo apt-get install ftgl-dev
 sudo apt-get install portaudio19-dev
+sudo apt-get install postgresql
+sudo apt-get install libpq-dev
 ```
 
 # Build
@@ -210,6 +214,8 @@ or the graphic drivers perform different numerical roundings. This should be inv
 [imj-game-synths]: /imj-game-synths
 [imj-serve-highscores]: /imj-serve-highscores
 [imj-time]: /imj-time
+[libpq]: https://www.postgresql.org/docs/9.5/static/libpq.html
+[postgresql]: https://www.postgresql.org/
 [portaudio 19]: http://www.portaudio.com/
 [Servant]: http://haskell-servant.readthedocs.io/en/stable/
 [stack]: https://docs.haskellstack.org

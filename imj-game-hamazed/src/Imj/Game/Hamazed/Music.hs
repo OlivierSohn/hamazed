@@ -2,19 +2,42 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
 
-
 module Imj.Game.Hamazed.Music
-  ( primaryScore
-  , secondaryScore
-  , tertiaryScore
+  ( scoreForLevel
   , alarm
   ) where
 
 import           Imj.Prelude
 
 import           Data.List
-import           Imj.Music.Types
+
+import           Imj.Game.Hamazed.Level
+import           Imj.Music.Alter
 import           Imj.Music.Compose
+import           Imj.Music.Types
+
+scoreForLevel :: LevelSpec -> Score
+scoreForLevel (LevelSpec n _) =
+  hamazedScores !! idx
+ where
+  nScores = length hamazedScores
+  idx = (fromIntegral (n-firstLevel)) `mod` nScores
+
+slower :: Score -> Score
+slower (Score voices) =
+  Score $
+    map
+      (mapVoice $ (\v ->
+        mix (repeat Rest) v
+        )) voices
+
+hamazedScores :: [Score]
+hamazedScores =
+  [ primaryScore
+  , secondaryScore
+  , tertiaryScore
+  , slower quatScore
+  ]
 
 primaryScore :: Score
 primaryScore = mkScore [firstVoice, secondVoice, thirdVoice]
@@ -218,6 +241,94 @@ tertiaryScore =
      ^ré ^do si .
      si . sol .
    |]
+
+quatScore :: Score
+quatScore =
+  mkScore
+    [ voice1
+    , bass1
+    , bass2
+    , bass3
+    ]
+ where
+  voice1 = firstVoice ++ firstVoice ++ firstVoice2
+
+  firstVoice = [notes|
+  ^do . ^sol
+  ^ré . .
+  ^mib ^ré ^do
+  ^ré . .
+  |]
+
+  firstVoice2 = [notes|
+  ^fa ^mib ^ré
+  ^mib ^ré ^do
+  ^fa ^mib ^ré
+  ^mib ^ré ^do
+  ^mib ^fa ^sol
+  ^do ^ré ^mib
+  ^do ^ré ^mib
+  ^ré . .
+  |]
+
+  bass1 = [notes|
+  mib . .
+  fa . .
+  do ré mib
+  fa . .
+  mib . .
+  fa . .
+  do ré mib
+  sol . .
+  sib . .
+  la . .
+  lab sol solb
+  sol . .
+  sib . .
+  la . .
+  fa . .
+  sol . .
+  |]
+
+  bass2 = [notes|
+  lab . .
+  sol . .
+  solb . .
+  sol . .
+  lab . .
+  sol . .
+  solb . .
+  la . .
+  . . .
+  . . .
+  ^do . .
+  ^do . .
+  ^do . .
+  . . .
+  lab . .
+  si . .
+  |]
+
+
+  bass3 = [notes|
+  . . .
+  . . .
+  lab . .
+  . . .
+  . . .
+  . . .
+  la . .
+  la . .
+  . . .
+  . . .
+  . . .
+  . . .
+  . . .
+  . . .
+  . . .
+  . . .
+  |]
+
 
 alarm :: [Symbol]
 alarm =

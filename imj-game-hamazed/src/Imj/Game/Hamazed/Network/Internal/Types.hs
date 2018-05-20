@@ -17,7 +17,6 @@ module Imj.Game.Hamazed.Network.Internal.Types
       , Intent(..)
       , CurrentGame(..)
       , mkCurrentGame
-      , scoreForLevel
       , firstServerLevel
       , GameTiming(..)
       , WorldRequestArg(..)
@@ -52,7 +51,6 @@ import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Game.HighScores
 import           Imj.Game.Hamazed.Timing
-import           Imj.Game.Hamazed.Music
 import           Imj.Music.Types
 import           Imj.Timing
 
@@ -217,13 +215,6 @@ data CurrentGame = CurrentGame {
   , status' :: {-unpack sum-} !GameStatus
   , score :: !Score
 } deriving(Generic, Show)
-
-scoreForLevel :: LevelSpec -> Score
-scoreForLevel (LevelSpec n _) = levelScore $ (n-firstLevel) `mod` 3
- where
-   levelScore 0 = primaryScore
-   levelScore 1 = secondaryScore
-   levelScore _ = tertiaryScore
 
 mkCurrentGame :: Score -> WorldId -> Set ClientId -> CurrentGame
 mkCurrentGame sc w s = CurrentGame w s New sc

@@ -67,6 +67,7 @@ import           Imj.Arg.Class
 import           Imj.ClientView.Types
 import           Imj.Game.Hamazed.World.Types
 import           Imj.Game.Hamazed.Level
+import           Imj.Game.Hamazed.Music
 import           Imj.Game.Hamazed.Network.Internal.Types
 import           Imj.Game.Hamazed.Network.Setup
 import           Imj.Game.Hamazed.Network.State

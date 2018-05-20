@@ -96,7 +96,7 @@ data Voice = Voice {
   , _curNote :: (Maybe Symbol)
   -- ^ The invariant is that this can never be 'Just' 'Extend' : instead,
   -- when a 'Extend' symbol is encountered, we don't change this value.
-  , _noteSequence :: !(V.Vector Symbol)
+  , voiceSymbols :: !(V.Vector Symbol)
 } deriving(Generic,Show, Eq)
 
 mkVoice :: [Symbol] -> Voice

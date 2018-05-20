@@ -1,33 +1,24 @@
-- why do we see [[],0] in the highscore file?
+- develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
+we can reduce the xfade amount : 0 (or small, for fast attacks?)
 
-- when postgresql-simple is 8.4.1 compatible, add
+use leap motion as input for envelope / pitch?
 
-sudo apt-get install libpq-dev
-
-and if needed:
-
-sudo apt-get install postgresql
-
-to travis CI.
-
-- upon start, the currently played notes of all loops should be sent.
-
-with 2 players, it is possible to generate ghost notes, see if this fixes it.
+- synths : verify if with 2 players, ghost notes occur.
 
 - https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 
 - add game doc. For synth:
-While playing on the computer keyboard, the notes are played in real time, and stored in
-a Recording which can then be used as part of a Sequence.
+Use the computer keyboard to play notes.
 
-Pressing 'Space' will start a new singleline Sequence from the current Recording.
-Pressing one of the function keys fn where n is in [1..4] will:
+Played notes are stored in a Recording:
+* Pressing 'Space' will start a new singleline Sequence from the current Recording.
+* Pressing one of the function keys fn where n is in [1..4] will:
   if multiline Sequence n doesn't already exist : start a new sequence using the current Recording.
     The period of the sequence is the length of the current Recording.
   if multiline Sequence n exists : insert the current Recording in the sequence.
     If the current Recording is longer than the existing sequence, multiple instances of it will be played at the same time.
     Note that this could lead to sound saturation if the Sequence period is short w.r.t the length of the Recording.
-Pressing 'f10' empties the current Recording.
+* Pressing 'f10' empties the current Recording.
 
 - size of UI should adapt:
 - Display sequences in UI, vertically:
@@ -60,33 +51,11 @@ The graphics timing can be less accurate.
   - In case of a game, we want audio to be synchronized with game events
 so handling audio events the same way as game event might be preferable.
 
-- independently from the above issue, measure the accuracy of GHC scheduler:
-
-in one thread:
-  start <- measure time
-  go start [start]
- where
-   go x l = do
-    sleep until start + x
-    t <- measure time
-    go (x + 10) (t:l)
-
-do the same thing and send the events, then measure on the client where they are handled.
-
-try with and without some exclusive events to trigger renders and see the effect of rendering on timing.
-
-without : approx. 2ms precision (see Jitter test)
-
 - array frame colors (grey for synths)
 
 - make generic : the server sends the game state to the client (putIGame / withAnim)
 
 - can `notifyClient' $ EnterState $ Included $ PlayLevel Running` in `clientCanJoin` be made generic?
-
-- The server records what is being played and can send the recorded music at any time.
-
-the server can record loops.
-Use f1 .. f9 to start / stop loops
 
 - OnContent is not handled generically.
 maybe content should not be generic at all.
@@ -115,9 +84,6 @@ Instead, continue the animation to its end and then start the other one, or reve
 
 - (while looking at imj-server dependencies):
 GameItem should be moved out of imj-base, it is too game-specific.
-
-- develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
-we can reduce the xfade amount : 0 (or small, for fast attacks?)
 
 - make music evolve with the numbers shot in the game.
 

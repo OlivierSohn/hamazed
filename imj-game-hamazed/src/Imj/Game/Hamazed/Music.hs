@@ -9,7 +9,7 @@ module Imj.Game.Hamazed.Music
 
 import           Imj.Prelude
 
-import           Data.List
+import           Data.List hiding(transpose, intersperse)
 
 import           Imj.Game.Hamazed.Level
 import           Imj.Music.Alter
@@ -23,20 +23,13 @@ scoreForLevel (LevelSpec n _) =
   nScores = length hamazedScores
   idx = (fromIntegral (n-firstLevel)) `mod` nScores
 
-slower :: Score -> Score
-slower (Score voices) =
-  Score $
-    map
-      (mapVoice $ (\v ->
-        mix (repeat Rest) v
-        )) voices
-
 hamazedScores :: [Score]
 hamazedScores =
-  [ primaryScore
-  , secondaryScore
-  , tertiaryScore
-  , slower quatScore
+  [ transpose 2 primaryScore
+  , transpose 2 secondaryScore
+  , transpose 2 tertiaryScore
+  , transpose 2 $ intersperse Rest quatScore
+  , transpose 2 quintScore
   ]
 
 primaryScore :: Score
@@ -144,18 +137,18 @@ secondaryScore =
     fa - mib -
     fa - - -
     . . fa -
-    sol - fa -
-    mib - ré -
+    sol fa mib ré
+    do - ré -
     mib - - -
     . . do -
     vsi - do -
-    ré - mib -
-    ré - - -
+    ré - do -
+    vsi - - -
     do - - -
     vsi . do .
     ré - mib -
 
-    fa - - -
+    ré - - .
     . . fa -
     sol - lab -
     fa - ré -
@@ -251,6 +244,7 @@ quatScore =
     , bass3
     ]
  where
+
   voice1 = firstVoice ++ firstVoice ++ firstVoice2
 
   firstVoice = [notes|
@@ -327,6 +321,35 @@ quatScore =
   . . .
   . . .
   . . .
+  |]
+
+quintScore :: Score
+quintScore =
+  mkScore
+    [ v2
+    , (take (3*12) (cycle v1)) ++ take (3*12) (cycle v1')
+    , (take (3*12) (cycle b1)) ++ take (3*12) (cycle b1')
+    , (take (3*12) (cycle b2)) ++ take (3*12) (cycle b2')
+    ]
+ where
+
+  b1 = [notes|mib . .|]
+  b2 = [notes|lab . .|]
+  v1 = [notes|^do . .|]
+
+  b1' = [notes|mib . .|]
+  b2' = [notes|sol . .|]
+  v1' = [notes|^do . .|]
+
+  v2 = [notes|
+    ^do . . . . . . . .
+    . ^ré ^mib ^fa . . ^mib . .
+    ^ré . . . . . . . .
+    . ^mib ^fa ^sol . . ^fa . .
+    ^mib . . . . . . ^sol .
+    ^mib sol lab sib ^do ^ré ^mib . .
+    ^mib . . . . . . . ^ré
+    ^mib sol lab sib ^do ^ré ^mib . .
   |]
 
 

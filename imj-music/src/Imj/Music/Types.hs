@@ -30,6 +30,10 @@ module Imj.Music.Types
       , mkEmptyRecording
       , Sequencer(..)
       , SequencerId(..)
+      , MusicLine(..)
+      , mkMusicLine
+      , PianoState(..)
+      , mkEmptyPiano
         -- * Midi-like instructions
       , Music(..)
       -- * Reexport
@@ -38,6 +42,7 @@ module Imj.Music.Types
 
 import           Imj.Prelude
 import           Control.DeepSeq (NFData(..))
+import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Binary
 import           Data.Data(Data(..))
 import           Data.Map.Internal(Map(..))
@@ -46,6 +51,16 @@ import           Foreign.C
 import           GHC.Generics (Generic)
 
 import           Imj.Timing
+
+-- | Represents the keys currently pressed. Note that the same key can be pressed
+-- twice if the lower and upper keyboards overlapp.
+data PianoState = PianoState !(Map NoteSpec Int)
+  deriving(Generic, Show)
+instance Binary PianoState
+instance NFData PianoState
+
+mkEmptyPiano :: PianoState
+mkEmptyPiano = PianoState mempty
 
 data Symbol =
     Note {-# UNPACK #-} !NoteSpec
@@ -205,9 +220,16 @@ mkEmptyRecording = Recording []
 data Sequencer k = Sequencer {
     sequenceStart :: !(Time Point System)
   , sequencePeriod :: {-# UNPACK #-} !(Time Duration System)
-  , musicLines :: !(Map k (V.Vector RelativeTimedMusic))
+  , musicLines :: !(Map k MusicLine)
 } deriving(Generic)
 instance NFData k => NFData (Sequencer k)
+
+data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar PianoState)
+  deriving(Generic)
+instance NFData MusicLine
+
+mkMusicLine :: (V.Vector RelativeTimedMusic) -> IO MusicLine
+mkMusicLine v = MusicLine v <$> newMVar mkEmptyPiano
 
 newtype SequencerId = SequencerId Int
   deriving(Generic, Show, Ord, Eq, Enum)

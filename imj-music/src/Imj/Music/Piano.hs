@@ -1,30 +1,15 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Imj.Music.Piano
-      ( PianoState(..)
-      , mkEmptyPiano
-      , modPiano
+      ( modPiano
       , silencePiano
       , addNote
       , removeNote
       ) where
 
-import           Imj.Prelude
-
-import           Data.Map.Strict(Map)
 import qualified Data.Map.Strict as Map
 
 import           Imj.Music.Types
-
--- | Represents the keys currently pressed. Note that the same key can be pressed
--- twice if the lower and upper keyboards overlapp.
-data PianoState = PianoState !(Map NoteSpec Int)
-  deriving(Generic, Show)
-instance Binary PianoState
-instance NFData PianoState
-
-mkEmptyPiano :: PianoState
-mkEmptyPiano = PianoState mempty
 
 addNote :: NoteSpec -> PianoState -> (Int, PianoState)
 addNote n (PianoState s) = (1, PianoState $ Map.insertWith (+) n 1 s)

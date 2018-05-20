@@ -16,16 +16,16 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Vector as V
 
 import           Imj.Music.Types
-import           Imj.Music.Piano
 import           Imj.Timing
 
 recordMusic :: Time Point System -> Recording -> Music -> Instrument -> Recording
 recordMusic t (Recording r) m i = Recording (flip (:) r $ ATM m i t)
 
-mkSequencerFromRecording :: k -> Recording -> Time Point System -> Either Text (Sequencer k)
-mkSequencerFromRecording _ (Recording []) _ = Left "empty recording"
-mkSequencerFromRecording k (Recording r) start =
-  Right $ Sequencer start (firstTime...start) $ Map.singleton k v
+mkSequencerFromRecording :: k -> Recording -> Time Point System -> IO (Either Text (Sequencer k))
+mkSequencerFromRecording _ (Recording []) _ = return $ Left "empty recording"
+mkSequencerFromRecording k (Recording r) start = do
+  mus <- mkMusicLine v
+  return $ Right $ Sequencer start (firstTime...start) $ Map.singleton k mus
  where
   rr = reverse r
   (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
@@ -33,13 +33,15 @@ mkSequencerFromRecording k (Recording r) start =
 
 {-# INLINABLE insertRecording #-}
 insertRecording :: Ord k
-                => Recording -> k -> Sequencer k -> Either Text (Sequencer k, V.Vector RelativeTimedMusic)
-insertRecording (Recording []) _ _ = Left "Recording is empty"
+                => Recording -> k -> Sequencer k -> IO (Either Text (Sequencer k, MusicLine))
+insertRecording (Recording []) _ _ = return $ Left "Recording is empty"
 insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
-  | periodLength == zeroDuration = Left "sequencer with zero duration"
-  | otherwise = Right $
-      (Sequencer curPeriodStart periodLength $ Map.insert k v ls
-     , v)
+  | periodLength == zeroDuration = return $ Left "sequencer with zero duration"
+  | otherwise = do
+      mus <- mkMusicLine v
+      return $ Right $
+        (Sequencer curPeriodStart periodLength $ Map.insert k mus ls
+       , mus)
  where
   rr = reverse r
   (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
@@ -49,7 +51,7 @@ insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
   v = V.fromList $ map (\(ATM m i t) -> RTM m i $ refTime...t) rr
 
 startLoopThreadAt :: MonadIO m
-                  => (PianoState -> Music -> Instrument -> m ())
+                  => (Music -> Instrument -> m ())
                   -> Time Point System
                   -> Time Duration System
                   -> V.Vector RelativeTimedMusic
@@ -60,20 +62,20 @@ startLoopThreadAt play begin elapsed l =
   v = V.dropWhile (\(RTM _ _ dt) -> dt < elapsed) l
 
 playOnce :: MonadIO m
-         => (PianoState -> Music -> Instrument -> m ())
+         => (Music -> Instrument -> m ())
          -> V.Vector RelativeTimedMusic
          -> Time Point System
          -- ^ The reference time
          -> m ()
 playOnce play v begin =
 
-  go mkEmptyPiano 0
+  go 0
 
  where
 
   !len = V.length v
 
-  go piano index
+  go index
     | index == len = return ()
     | otherwise = do
       let (RTM m i dt) = V.unsafeIndex v index
@@ -81,6 +83,5 @@ playOnce play v begin =
       now <- liftIO getSystemTime
       let waitDuration = now...nextEventTime
       liftIO $ threadDelay $ fromIntegral $ toMicros waitDuration
-      let (nChanged,newPiano) = modPiano m piano
-      when (nChanged > 0) $ play newPiano m i
-      go newPiano $ index + 1
+      play m i
+      go $ index + 1

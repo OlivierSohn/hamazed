@@ -16,7 +16,7 @@ module Main where
 import           Imj.Prelude
 
 import           Control.Concurrent(forkIO, threadDelay)
-import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar)
+import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
 import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT)
 import           Control.Monad.Reader(asks)
@@ -249,7 +249,37 @@ instance ServerInit SynthsServer where
 
 instance ServerInParallel SynthsServer
 
+
+instance Server SynthsServer where
+
+  type ServerEventT SynthsServer = SynthsServerEvent
+
+  greetNewcomer' =
+    -- Send the currently started notes so that the newcomer
+    -- hears exactly what other players are hearing.
+
+    -- In this loop we have no race condition because to modify currently pressed keys, a client
+    -- handler must take the MVar lock of server state which we have taken here.
+    map (fmap unClientView) . Map.assocs <$> gets clientsMap >>=
+      return . concatMap
+        (\(i,(SynthsClientView piano _ _)) -> pianoEvts (Left i) piano)
+
 instance ServerClientLifecycle SynthsServer where
+
+  onStartClient _ =
+    Map.assocs <$> getsState srvSequencers >>=
+      mapM_
+        (\(seqId,s) -> do
+          se@(Sequencer _ _ musLines) <- liftIO $ takeMVar s
+          mapM_
+            (\(loopId,(MusicLine _ v)) -> do
+              piano <- liftIO $ takeMVar v
+              case pianoEvts (Right (seqId, loopId)) piano of
+                [] -> return ()
+                evts@(_:_) -> notifyClientN' evts
+              liftIO $ putMVar v piano)
+            $ Map.assocs musLines
+          liftIO $ putMVar s se)
 
   clientCanJoin _ = do
     -- A client has just connected, we make it be part of the current game:
@@ -278,18 +308,22 @@ instance ServerClientHandler SynthsServer where
           (addSequencer (Just seqId) loopId recording now)
           (\sequencer ->
             liftIO (modifyMVar sequencer (\s@(Sequencer start _ _) ->
-              return $ either
+              liftIO (insertRecording recording loopId s) >>= return . either
                 (\err -> (s, Left err))
-                (\(s',mus) -> (s', Right (s', mus, start...now)))
-                $ insertRecording recording loopId s)) >>= either
+                (\(s',mus) -> (s', Right (s', mus, start...now))))) >>= either
                 (\msg -> do
                   notifyClient' $ Warn msg
                   return [])
-                (\((Sequencer start _ _),mus,progress) -> do
+                (\((Sequencer start _ _), (MusicLine mus pianoV), progress) -> do
                   notifyEveryone $ NewLine seqId loopId
                   return
                     [ (\v -> startLoopThreadAt
-                          (\a b -> modifyMVar_ v . execStateT . playLoopMusic seqId loopId a b)
+                          (\m i -> do
+                            (nChanged',newPiano') <- liftIO $ modifyMVar pianoV $ \piano ->
+                              let (nChanged,newPiano) = modPiano m piano
+                              in return $ (newPiano, (nChanged,newPiano))
+                            when (nChanged' > 0) $
+                              modifyMVar_ v $ execStateT $ playLoopMusic seqId loopId newPiano' m i)
                           start progress mus)
                     ]))
 
@@ -327,29 +361,36 @@ instance ServerClientHandler SynthsServer where
         , PlayMusic n i
         ]
 
-    addSequencer maySeqId loopId recording now = either
-      (\msg -> do
-        notifyClient' $ Warn msg
-        return [])
-      (\sequencerV -> do
-        sequencer <- liftIO $ newMVar sequencerV
-        seqId <- modifyState' $ \(SynthsServer m i) ->
-          let (sid,succI) = maybe (i,succ i) (\j -> (j,i)) maySeqId
-          in (sid,SynthsServer (Map.insert sid sequencer m) succI)
-        notifyEveryone $ NewLine seqId loopId
-        return
-          [ (\v -> forever $ do
-              now' <- getSystemTime
-              modifyMVar sequencer (\(Sequencer _ a b) -> do
-                let s = (Sequencer now' a b)
-                return (s,s))
-                >>= \(Sequencer startTime duration vecs) -> do
-                  forM_ (Map.assocs vecs) $ \(lid,vec) ->
-                    void $ forkIO $
-                      playOnce (\a b -> modifyMVar_ v . execStateT . playLoopMusic seqId lid a b) vec startTime
-                  threadDelay $ fromIntegral $ toMicros $ duration)
-          ])
-        $ mkSequencerFromRecording loopId recording now
+    addSequencer maySeqId loopId recording now =
+      liftIO (mkSequencerFromRecording loopId recording now) >>= either
+        (\msg -> do
+          notifyClient' $ Warn msg
+          return [])
+        (\sequencerV -> do
+          sequencer <- liftIO $ newMVar sequencerV
+          seqId <- modifyState' $ \(SynthsServer m i) ->
+            let (sid,succI) = maybe (i,succ i) (\j -> (j,i)) maySeqId
+            in (sid,SynthsServer (Map.insert sid sequencer m) succI)
+          notifyEveryone $ NewLine seqId loopId
+          return
+            [ (\v -> forever $ do
+                now' <- getSystemTime
+                modifyMVar sequencer (\(Sequencer _ a b) -> do
+                  let s = (Sequencer now' a b)
+                  return (s,s))
+                  >>= \(Sequencer startTime duration vecs) -> do
+                    forM_ (Map.assocs vecs) $ \(lid,(MusicLine vec pianoV)) ->
+                      void $ forkIO $
+                        playOnce
+                          (\m i -> do
+                            (nChanged',newPiano') <- modifyMVar pianoV $ \piano ->
+                              let (nChanged,newPiano) = modPiano m piano
+                              in return $ (newPiano, (nChanged,newPiano))
+                            when (nChanged' > 0) $
+                              modifyMVar_ v $ execStateT $ playLoopMusic seqId lid newPiano' m i)
+                          vec
+                          startTime
+                    threadDelay $ fromIntegral $ toMicros $ duration)])
 
     usingRecording x = do
       cid <- asks clientId
@@ -369,18 +410,6 @@ instance ServerClientHandler SynthsServer where
                     $ loopIdx + 1)
               let loopId = LoopId creator $ idx - 1
               liftIO getSystemTime >>= x loopId recording))
-
-instance Server SynthsServer where
-
-  type ServerEventT SynthsServer = SynthsServerEvent
-
-  greetNewcomer' = -- Send the currently started notes so that the newcomer
-                   -- hears exactly what other players are hearing.
-                   -- Note that the currently started notes of sequencers are not sent
-                   -- because we don't have access to their 'PianoState'
-    map (fmap unClientView) . Map.assocs <$> gets clientsMap >>=
-      return . concatMap
-        (\(i,(SynthsClientView piano _ _)) -> pianoEvts (Left i) piano)
 
 pianoEvts :: Either ClientId (SequencerId,LoopId) -> PianoState -> [ServerEvent SynthsServer]
 pianoEvts idx v@(PianoState m) =

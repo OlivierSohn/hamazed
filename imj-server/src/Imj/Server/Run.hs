@@ -300,6 +300,7 @@ addClient connectId cliType = do
     greeters' ++
     map ServerAppEvt greeters
 
+
 handlerError :: (Server s, ServerClientHandler s, ServerInit s, ServerClientLifecycle s
                 , MonadIO m, MonadState (ServerState s) m, MonadReader ConstClientView m)
              => String -> m ()

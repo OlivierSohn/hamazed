@@ -1,21 +1,18 @@
 #!/bin/bash
 
-# This script deploys the docker containers needed to
-#
+# This script deploys the docker containers needed to:
 # - host 'imj-game-synths' and 'imj-game-hamazed' multiplayer games
 # - persist highscores of 'imj-game-hamazed'
-#
-# You can edit the script to skip some parts (between the "this part can be removed" comments):
 #   - Unless --highScoresServerName parameter is specified, imj-game-hamazed uses
-#   the highscore server deployed here : https://imj-highscores.herokuapp.com/highscores
-#   Hence, deploying a new highscores server is not necessary.
+#     the highscore server deployed here : https://imj-highscores.herokuapp.com/highscores
+#     Hence, deploying a new highscores server may not be necessary:
+#     removing the lines between "this part can be removed" will skip this part.
 #
-#   Prerequisites:
+# Before running this script, please ensure that:
 #   * The OS on which this script runs matches the OS of the base image ./docker/game-runtime/Dockerfile
 #   * Heroku command line is installed
-#   * The user is logged in to Docker ('docker login')
-#   * The user is logged in to Heroku ('heroku login' and 'heroku container:login')
-#   * Apps with names matching the names passed in commands argument ('-a <name>') exist in Heroku.
+#   * The user is logged in to Docker ('docker login') and Heroku ('heroku login' and 'heroku container:login')
+#   * Heroku apps were created with names matching the names passed in commands argument ('-a <name>')
 #
 # NOTE: The first script execution will be long, because the entire docker images will be uploaded.
 # Subsequent uploads however will be faster, because just the layer that changed will be uploaded.
@@ -36,7 +33,8 @@
 # To fix it, I deleted the "registry.heroku.com" key in ~/.docker/config.json, and ran 'heroku container:login' again
 
 
-set -e
+set -e    # makes the script fail if a command fails
+
 ROOT="$(pwd)"
 
 speak ()
@@ -58,6 +56,7 @@ speak "Stack compiles binaries and creates the base game-synth image"
 
 stack image container
 
+# BEGIN -- this part can be removed
 speak "We create the base serve-highscores image"
 
 SERVE_HS="$(stack exec which imj-serve-highscores-exe)"
@@ -65,6 +64,7 @@ rm -rf "./docker/serve-highscores/usr"
 mkdir -p "./docker/serve-highscores/usr/local/bin" && cp "$SERVE_HS" "$_"
 docker build -t "imajuscule/serve-highscores" "./docker/serve-highscores/"
 rm -rf "./docker/serve-highscores/usr"
+# END -- this part can be removed
 
 speak "We create the base game-hamazed image"
 

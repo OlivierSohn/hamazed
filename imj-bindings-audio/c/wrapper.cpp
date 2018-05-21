@@ -151,6 +151,11 @@ extern "C" {
         return false;
       }
       s.set_xfade_length(10000);
+
+      if(!windVoice().initialize(a->out().getChannelHandler())) {
+        LG(ERR,"windVoice().initialize failed");
+        return false;
+      }
     }
     return true;
   }

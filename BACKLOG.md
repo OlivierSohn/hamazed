@@ -1,5 +1,8 @@
 - develop enveloppes:
 
+reflect the parameters of enveloppes in a notion of Instrument. Maintain a mapping between c++ synths
+and Instruments. Note that we are limited in the number of Instruments due to the 256 channels limit.
+
 use leap motion as input for envelope / pitch?
 
 if anything, interpolation should be logarithmic, not linear to have a progressive fade in / out.
@@ -9,7 +12,7 @@ TODO do not xfade on open channel when the audio element is envelopped (se need 
   to have more flexibility. see comments in the source code.)
 
 isPlaying should return False when all requests have been handled, and the last
-request is "enveloppedDone"
+request is "enveloppedDone" ?
 
 - synths : verify if with 2 players, ghost notes occur.
 

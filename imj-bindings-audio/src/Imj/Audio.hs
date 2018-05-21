@@ -27,7 +27,7 @@ foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "effectOff" effectOff :: CShort -> IO ()
 
 -- | Should be called prior to using any other function (see 'withAudio')
-foreign import ccall "initializeAudio" initializeAudio :: IO ()
+foreign import ccall "initializeAudio" initializeAudio :: IO Bool
 
 -- | Fades-out all audio quikcly (within 'maxShutdownDurationMicros') and closes
 -- any open audio channel.
@@ -41,9 +41,14 @@ foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.
 usingAudio :: MonadUnliftIO m => m a -> m a
-usingAudio =
+usingAudio act =
 
-  bracket bra ket . const
+  bracket bra ket $ \initialized ->
+    if initialized
+      then
+        act
+      else
+        fail "audio failed to initialize"
 
  where
 

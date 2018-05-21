@@ -10,8 +10,19 @@
 
 namespace imajuscule {
   namespace audioelement {
-    template <typename Float>
-    using VolumeAdjustedOscillator = FinalAudioElement<VolumeAdjusted<OscillatorAlgo<Float, eNormalizePolicy::FAST>>>;
+    template <typename Envel>
+    using VolumeAdjustedOscillator =
+      FinalAudioElement<
+        Envelopped<
+          VolumeAdjusted<
+            OscillatorAlgo<
+              typename Envel::FPT
+            , eNormalizePolicy::FAST
+            >
+          >
+        , Envel
+        >
+      >;
   }
 
   namespace audio {
@@ -50,8 +61,11 @@ namespace imajuscule {
     namespace sine {
       using AudioOutSynth = Synth <
         AudioOut::nAudioOut
-      , XfadePolicy::UseXfade
-      , MonoNoteChannel<1, audioelement::Oscillator<float>>
+      , XfadePolicy::SkipXfade // note that this matters only when the VST wrapper is used.
+                               // in our case, we're bound to the policy of outputData.
+                               // TODO do not depend on AudioOut directly, depend on a new class holding outputData
+                               // so that we can use a OutputData with other xfade settings.
+      , MonoNoteChannel<audioelement::Oscillator<audioelement::SimpleEnveloppe<float>>>
       , true
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -61,8 +75,11 @@ namespace imajuscule {
     namespace vasine {
       using AudioOutSynth = Synth <
         AudioOut::nAudioOut
-      , XfadePolicy::UseXfade
-      , MonoNoteChannel<1, audioelement::VolumeAdjustedOscillator<float>>
+      , XfadePolicy::SkipXfade // note that this matters only when the VST wrapper is used.
+                               // in our case, we're bound to the policy of outputData.
+                               // TODO do not depend on AudioOut directly, depend on a new class holding outputData
+                               // so that we can use a OutputData with other xfade settings.
+      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<audioelement::SimpleEnveloppe<float>>>
       , true
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -70,7 +87,6 @@ namespace imajuscule {
     }
   }
 }
-
 
 // functions herein are /not/ part of the interface
 namespace imajuscule {
@@ -113,7 +129,7 @@ namespace imajuscule {
 // functions herein are part of the interface
 extern "C" {
 
-  void initializeAudio () {
+  bool initializeAudio () {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio::detail;
@@ -128,6 +144,15 @@ extern "C" {
     using namespace imajuscule::audio;
 
     windVoice().initializeSlow();
+    if(auto a = Audio::getInstance()) {
+      auto & s = getSynth();
+      if(!s.initialize(a->out().getChannelHandler())) {
+        LG(ERR,"getSynth().initialize failed");
+        return false;
+      }
+      s.set_xfade_length(10000);
+    }
+    return true;
   }
 
   void stopAudioGracefully() {

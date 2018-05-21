@@ -25,7 +25,7 @@ module Imj.Timing
     , Point
     , Duration
     , zeroDuration
-    -- ** Time TimeRange
+    -- ** TimeRange
     , TimeRange
     , mkRangeSingleton
     , extendRange
@@ -212,7 +212,6 @@ getDurationFromNowTo :: Time Point System
 getDurationFromNowTo t =
   getSystemTime >>= \now -> return $!! now ... t
 
--- | Nice for durations.
 showTime :: Time a b -> String
 showTime (Time x)
  | minutes == 0 = usVal

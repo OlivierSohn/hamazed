@@ -1,13 +1,22 @@
-- develop enveloppes: with enveloppes (assuming the envelopes start and end smoothly at 0)
-we can reduce the xfade amount : 0 (or small, for fast attacks?)
+- develop enveloppes:
 
 use leap motion as input for envelope / pitch?
+
+if anything, interpolation should be logarithmic, not linear to have a progressive fade in / out.
+-> make both options available (linear, linear perceived).
+
+TODO do not xfade on open channel when the audio element is envelopped (se need to refactor AudioOut for this
+  to have more flexibility. see comments in the source code.)
+
+isPlaying should return False when all requests have been handled, and the last
+request is "enveloppedDone"
 
 - synths : verify if with 2 players, ghost notes occur.
 
 - https://devcenter.heroku.com/changelog-items/1418 -- take it into account in doc
 
-- add game doc. For synth:
+- add game doc., with /man /doc commands
+For synth:
 Use the computer keyboard to play notes.
 
 Played notes are stored in a Recording:

@@ -9,7 +9,7 @@
 #     removing the lines between "this part can be removed" will skip this part.
 #
 # Before running this script, please ensure that:
-#   * The OS on which this script runs matches the OS of the base image ./docker/game-runtime/Dockerfile
+#   * The OS on which this script runs matches the OS of the base image ./docker/runtime-game/Dockerfile
 #   * Heroku command line is installed
 #   * The user is logged in to Docker ('docker login') and Heroku ('heroku login' and 'heroku container:login')
 #   * Heroku apps were created with names matching the names passed in commands argument ('-a <name>')
@@ -48,31 +48,17 @@ speak ()
     echo ""
 }
 
-speak "We create the base runtime image"
+speak "We create imajuscule/game-rt"
 
-docker build -t "imajuscule/imj-game-rt" "./docker/game-runtime/"
+docker build -t "imajuscule/game-rt" "./docker/runtime-game/"
 
-speak "Stack compiles binaries and creates the base game-synth image"
+speak "We create imajuscule/serve-highscores-rt"
+
+docker build -t "imajuscule/postgresql-rt" "./docker/runtime-postgresql/"
+
+speak "Stack compiles binaries and creates the base images"
 
 stack image container
-
-# BEGIN -- this part can be removed
-speak "We create the base serve-highscores image"
-
-SERVE_HS="$(stack exec which imj-serve-highscores-exe)"
-rm -rf "./docker/serve-highscores/usr"
-mkdir -p "./docker/serve-highscores/usr/local/bin" && cp "$SERVE_HS" "$_"
-docker build -t "imajuscule/serve-highscores" "./docker/serve-highscores/"
-rm -rf "./docker/serve-highscores/usr"
-# END -- this part can be removed
-
-speak "We create the base game-hamazed image"
-
-HAMAZED="$(stack exec which imj-game-hamazed-exe)"
-rm -rf "./docker/game-hamazed/usr"
-mkdir -p "./docker/game-hamazed/usr/local/bin" && cp "$HAMAZED" "$_"
-docker build -t "imajuscule/game-hamazed" "./docker/game-hamazed/"
-rm -rf "./docker/game-hamazed/usr"
 
 # BEGIN -- this part can be removed
 speak "We create and push the Heroku serve-highscores image"

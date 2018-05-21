@@ -7,16 +7,20 @@
 resolver: lts-11.9
 
 image:
-  container:
-    # defined in ./docker-rt/Dockerfile
-    base: imajuscule/imj-game-rt
-
-    # base of ./docker-heroku/Dockerfile
+  containers:
+  - base: imajuscule/game-rt
     name: imajuscule/hamazed
-
-    # removing the executables field will include all built executables.
     executables:
     - imj-game-synths-exe
+  - base: imajuscule/game-rt
+    name: imajuscule/game-hamazed
+    executables:
+    - imj-game-hamazed-exe
+  - base: imajuscule/postgresql-rt
+    name: imajuscule/serve-highscores
+    executables:
+    - imj-serve-highscores-exe
+
 
 packages:
 - './imj-base'

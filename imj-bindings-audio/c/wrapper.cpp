@@ -65,7 +65,7 @@ namespace imajuscule {
                                // in our case, we're bound to the policy of outputData.
                                // TODO do not depend on AudioOut directly, depend on a new class holding outputData
                                // so that we can use a OutputData with other xfade settings.
-      , MonoNoteChannel<audioelement::Oscillator<audioelement::SimpleEnveloppe<float>>>
+      , MonoNoteChannel<audioelement::Oscillator<audioelement::SimpleEnvelope<float>>>
       , true
       , EventIterator<IEventList>
       , NoteOnEvent
@@ -79,7 +79,7 @@ namespace imajuscule {
                                // in our case, we're bound to the policy of outputData.
                                // TODO do not depend on AudioOut directly, depend on a new class holding outputData
                                // so that we can use a OutputData with other xfade settings.
-      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<audioelement::SimpleEnveloppe<float>>>
+      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<audioelement::SimpleEnvelope<float>>>
       , true
       , EventIterator<IEventList>
       , NoteOnEvent

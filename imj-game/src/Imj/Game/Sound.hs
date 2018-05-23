@@ -7,17 +7,20 @@ module Imj.Game.Sound
 import           Imj.Prelude
 import           Control.Concurrent(threadDelay, forkIO)
 
-import           Imj.Audio
+import           Imj.Music.Types
+import           Imj.Music.Play
 
-laserProgram :: CInt
+laserProgram :: Int
 laserProgram = 11
 
-laserNote :: CShort
+laserNote :: MidiPitch
 laserNote = 60
 
 laserSound :: IO ()
 laserSound = do
-  effectOn laserProgram laserNote 1
+  let (noteName,octave) = midiPitchToNoteAndOctave laserNote
+      n = NoteSpec noteName octave (Wind laserProgram)
+  play $ StartNote n $ MidiVelocity 1
   void $ forkIO $ do
     threadDelay $ 1000*60
-    effectOff laserNote
+    play $ StopNote n

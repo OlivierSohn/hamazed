@@ -1,15 +1,19 @@
-- fix : after 16 laser sounds, the effect channels are exhausted
+
+- do not xfade on open channel when the audio element is envelopped,
+i.e we need to refactor AudioOut to have more flexibility (see comments in the source code).
+in 'imj-bindings-audio', we will use :
+  one outputData with xfades (until soundengine supports enveloppe-based fades)
+  one without xfades for everything based on sine / vasine which already uses enveloppes
 
 - develop enveloppes:
-
-TODO do not xfade on open channel when the audio element is envelopped (se need to refactor AudioOut for this
-  to have more flexibility. see comments in the source code.)
 
 should isPlaying return False when all requests have been handled, and the last
 request is "enveloppedDone" ?
 
-if anything, interpolation should be logarithmic, not linear to have a progressive fade in / out.
--> make both options available (linear, linear perceived).
+make "linear perceived" envelope : Logarithmic, with a negative offset, scaled:.
+* scale:
+    epsilon -> 1
+    0       -> 1
 
 make ADSR enveloppes, factor code between simpleEnveloppe and ADSR enveloppe to not duplicate logics.
 

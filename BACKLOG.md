@@ -11,6 +11,8 @@ request is "enveloppedDone" ?
 if anything, interpolation should be logarithmic, not linear to have a progressive fade in / out.
 -> make both options available (linear, linear perceived).
 
+make ADSR enveloppes, factor code between simpleEnveloppe and ADSR enveloppe to not duplicate logics.
+
 use leap motion as input for envelope / pitch?
 
 - synths : verify if with 2 players, ghost notes occur.

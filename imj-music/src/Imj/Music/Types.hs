@@ -9,9 +9,10 @@
 module Imj.Music.Types
       ( -- * Notes and instruments
         Symbol(..)
-      , NoteSpec(..)
-      , Instrument(..)
-      , MidiPitch(..)
+      , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
+      , Instrument(..), defaultInstrument
+      , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
+      , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
       , naturalNote
       , Octave(..)
@@ -70,18 +71,32 @@ data Symbol =
 instance Binary Symbol
 instance NFData Symbol
 
-data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave
+data NoteSpec = NoteSpec !NoteName {-# UNPACK #-} !Octave !Instrument
   deriving(Generic,Show, Eq, Data)
-instance Enum NoteSpec where
-  fromEnum (NoteSpec n oct) = 12 * (fromIntegral oct-1) + fromEnum n
-  toEnum pitch =
-    NoteSpec (toEnum n) $ Octave $ o+1
-   where
-    (o,n) = pitch `divMod` 12
-instance Ord NoteSpec where
-  compare n m = compare (fromEnum n) $ fromEnum m
 instance Binary NoteSpec
 instance NFData NoteSpec
+instance Ord NoteSpec where
+  compare n@(NoteSpec _ _ a) m@(NoteSpec _ _ b) =
+    compare (noteToMidiPitch n, a) $ (noteToMidiPitch m, b)
+
+-- | According to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
+noteToMidiPitch :: NoteSpec -> MidiPitch
+noteToMidiPitch (NoteSpec n oct _) = noteToMidiPitch' n oct
+
+noteToMidiPitch' :: NoteName -> Octave -> MidiPitch
+noteToMidiPitch' n oct = MidiPitch $ 12 * (fromIntegral oct-1) + fromIntegral (fromEnum n)
+
+mkNoteSpec :: MidiPitch -> Instrument -> NoteSpec
+mkNoteSpec pitch i =
+  NoteSpec n o i
+ where
+  (n,o) = midiPitchToNoteAndOctave pitch
+
+midiPitchToNoteAndOctave :: MidiPitch -> (NoteName, Octave)
+midiPitchToNoteAndOctave pitch =
+  (toEnum n, Octave $ o+1)
+ where
+  (o,n) = (fromIntegral pitch) `divMod` 12
 
 data Score = Score {
   _voices :: ![Voice]
@@ -111,11 +126,27 @@ instance Binary Music
 instance NFData Music
 
 data Instrument =
-    SineSynth
+    SineSynth !EnvelopeCharacteristicTime
   | Wind !Int
-  deriving(Generic,Show, Eq)
+  deriving(Generic,Show, Eq, Data, Ord)
 instance Binary Instrument
 instance NFData Instrument
+
+-- | This instrument is used by default in 'notes' quasi quoter.
+defaultInstrument :: Instrument
+defaultInstrument = SineSynth $ EnvelCharacTime 401
+
+-- | Expressed in number of samples.
+newtype EnvelopeCharacteristicTime = EnvelCharacTime {unEnvelopeCharacteristicTime :: Int}
+  deriving(Generic, Show, Ord, Eq, Data)
+instance Binary EnvelopeCharacteristicTime
+instance NFData EnvelopeCharacteristicTime
+
+mkEnvelopeCharacteristicTime :: Int
+                             -- ^ To avoid audio clics, the audio engine will use the max between this value
+                             -- and a value representing a "very fast" enveloppe.
+                             -> EnvelopeCharacteristicTime
+mkEnvelopeCharacteristicTime = EnvelCharacTime . min 100
 
 newtype NoteIdx = NoteIdx Int
   deriving(Generic,Show, Num, Integral, Real, Ord, Eq, Enum)
@@ -181,6 +212,9 @@ naturalNote = \case
   Sib -> False
   Si -> True
 
+naturalPitch :: MidiPitch -> Bool
+naturalPitch = naturalNote . fst . midiPitchToNoteAndOctave
+
 newtype Octave = Octave Int
   deriving(Generic,Integral, Real, Num, Enum, Ord, Eq,Show,Binary,NFData, Data)
 noOctave :: Octave
@@ -197,13 +231,12 @@ instance Binary MidiPitch where
   put (MidiPitch a) = put (fromIntegral a :: Int)
   get = MidiPitch . fromIntegral <$> (get :: Get Int)
 
-data AbsoluteTimedMusic = ATM !Music !Instrument {-# UNPACK #-} !(Time Point System)
+data AbsoluteTimedMusic = ATM !Music {-# UNPACK #-} !(Time Point System)
   deriving(Generic,Show)
 instance NFData AbsoluteTimedMusic
 
 data RelativeTimedMusic = RTM  {
     _rtmMusic :: !Music
-  , _rtmInstrument :: !Instrument
   , _rtmDt :: {-# UNPACK #-} !(Time Duration System)
 } deriving(Generic, Show)
 instance NFData RelativeTimedMusic
@@ -228,7 +261,7 @@ data MusicLine = MusicLine {-# UNPACK #-} !(V.Vector RelativeTimedMusic) !(MVar 
   deriving(Generic)
 instance NFData MusicLine
 
-mkMusicLine :: (V.Vector RelativeTimedMusic) -> IO MusicLine
+mkMusicLine :: V.Vector RelativeTimedMusic -> IO MusicLine
 mkMusicLine v = MusicLine v <$> newMVar mkEmptyPiano
 
 newtype SequencerId = SequencerId Int

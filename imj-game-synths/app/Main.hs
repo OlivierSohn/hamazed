@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 {-|
 This is a multiplayer game where every player uses the keyboard as a synthesizer.
 
@@ -108,7 +109,7 @@ instance NFData SynthsServerEvent
 instance Binary SynthsServerEvent
 
 data SynthClientEvent =
-    PlayNote !Music !Instrument
+    PlayNote !Music
   | WithMultiLineSequencer {-# UNPACK #-} !SequencerId
   | WithMonoLineSequencer
   | ForgetCurrentRecording
@@ -140,12 +141,12 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
   mapStateKey _ (GLFW.Key'F10) GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
   mapStateKey _ k s _ _ =
-    return $ CliEvt . ClientAppEvt . flip PlayNote SineSynth <$> n
+    return $ CliEvt . ClientAppEvt . PlayNote <$> n
    where
     n = maybe Nothing (\noteSpec -> case s of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
       GLFW.KeyState'Released -> Just $ StopNote noteSpec
-      GLFW.KeyState'Repeating -> Nothing) $ keyToNote k
+      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f defaultInstrument) $ keyToNote k
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys
@@ -293,8 +294,8 @@ instance ServerClientHandler SynthsServer where
   type ClientEventT SynthsServer = SynthClientEvent
 
   handleClientEvent e = case e of
-    PlayNote n i -> do
-      onRecordableNote n i >>= notifyEveryoneN'
+    PlayNote n -> do
+      onRecordableNote n >>= notifyEveryoneN'
       return []
     ForgetCurrentRecording -> do
       adjustClient_ $ \s -> s {_recording = mkEmptyRecording }
@@ -318,12 +319,12 @@ instance ServerClientHandler SynthsServer where
                   notifyEveryone $ NewLine seqId loopId
                   return
                     [ (\v -> startLoopThreadAt
-                          (\m i -> do
+                          (\m -> do
                             (nChanged',newPiano') <- liftIO $ modifyMVar pianoV $ \piano ->
                               let (nChanged,newPiano) = modPiano m piano
                               in return $ (newPiano, (nChanged,newPiano))
                             when (nChanged' > 0) $
-                              modifyMVar_ v $ execStateT $ playLoopMusic seqId loopId newPiano' m i)
+                              modifyMVar_ v $ execStateT $ playLoopMusic seqId loopId newPiano' m)
                           start progress mus)
                     ]))
 
@@ -331,9 +332,8 @@ instance ServerClientHandler SynthsServer where
 
     onRecordableNote :: (MonadIO m, MonadState (ServerState SynthsServer) m, MonadReader ConstClientView m)
                        => Music
-                       -> Instrument
                        -> m [ServerEvent SynthsServer]
-    onRecordableNote n i = do
+    onRecordableNote n = do
       cid <- asks clientId
       fmap (_piano . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
         (return []) -- should never happen
@@ -347,18 +347,18 @@ instance ServerClientHandler SynthsServer where
               creator <- asks clientId
               newpiano <- _piano <$> adjustClient (\s@(SynthsClientView _ recording _) ->
                     s { _piano = piano'
-                      , _recording = recordMusic t recording n i })
+                      , _recording = recordMusic t recording n })
               return
                 [ ServerAppEvt $ PianoValue (Left creator) newpiano
-                , PlayMusic n i
+                , PlayMusic n
                 ])
 
     playLoopMusic :: (MonadState (ServerState SynthsServer) m, MonadIO m)
-                  => SequencerId -> LoopId -> PianoState -> Music -> Instrument -> m ()
-    playLoopMusic seqId loopId newPiano n i =
+                  => SequencerId -> LoopId -> PianoState -> Music -> m ()
+    playLoopMusic seqId loopId newPiano n =
       notifyEveryoneN'
         [ ServerAppEvt $ PianoValue (Right (seqId,loopId)) newPiano
-        , PlayMusic n i
+        , PlayMusic n
         ]
 
     addSequencer maySeqId loopId recording now =
@@ -382,12 +382,12 @@ instance ServerClientHandler SynthsServer where
                     forM_ (Map.assocs vecs) $ \(lid,(MusicLine vec pianoV)) ->
                       void $ forkIO $
                         playOnce
-                          (\m i -> do
+                          (\m -> do
                             (nChanged',newPiano') <- modifyMVar pianoV $ \piano ->
                               let (nChanged,newPiano) = modPiano m piano
                               in return $ (newPiano, (nChanged,newPiano))
                             when (nChanged' > 0) $
-                              modifyMVar_ v $ execStateT $ playLoopMusic seqId lid newPiano' m i)
+                              modifyMVar_ v $ execStateT $ playLoopMusic seqId lid newPiano' m)
                           vec
                           startTime
                     threadDelay $ fromIntegral $ toMicros $ duration)])
@@ -397,7 +397,7 @@ instance ServerClientHandler SynthsServer where
       fmap (_piano . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
         (return [])
         (\piano -> do
-          concat <$> forM (silencePiano piano) (flip onRecordableNote SineSynth) >>= notifyEveryoneN'
+          concat <$> forM (silencePiano piano) onRecordableNote >>= notifyEveryoneN'
           fmap (_recording . unClientView) . Map.lookup cid <$> gets clientsMap >>= maybe
             (return [])
             (\recording -> do
@@ -416,7 +416,7 @@ pianoEvts idx v@(PianoState m) =
   ServerAppEvt (PianoValue idx v) :
   concatMap
     (\(note,n) ->
-      replicate n $ PlayMusic (StartNote note 1) SineSynth)
+      replicate n $ PlayMusic (StartNote note 1))
     (Map.assocs m)
 
 instance ServerCmdParser SynthsServer
@@ -430,15 +430,15 @@ showPianos :: MonadReader e m
            -> m [ColorString]
 showPianos _ _ Tip = return []
 showPianos title showKey m = do
-  let minNote = NoteSpec Do  $ noOctave - 1
-      maxNote = NoteSpec Sol $ noOctave + 1
+  let minNote = noteToMidiPitch' Do $ noOctave - 1
+      maxNote = noteToMidiPitch' Sol $ noOctave + 1
   showArray (Just (CS.colored title $ rgb 2 1 2,"")) <$> mapM
     (\(i,piano) -> flip (,) (CS.colored (pack $ showKeys minNote maxNote piano) $ rgb 3 1 2) <$> showKey i)
     (Map.assocs m)
 
-showKeys :: NoteSpec
+showKeys :: MidiPitch
          -- ^ From
-         -> NoteSpec
+         -> MidiPitch
          -- ^ To
          -> PianoState
          -> String
@@ -446,11 +446,11 @@ showKeys from to (PianoState m) =
   go [] [from..to] $ Set.toAscList $ Map.keysSet m
  where
   go l [] _ = reverse l
-  go l (k@(NoteSpec n _):ks) remainingPressed =
+  go l (k:ks) remainingPressed =
     case remainingPressed of
       [] -> go' freeChar remainingPressed
-      p:ps ->
-        if p == k
+      (NoteSpec pressedNoteName pressedNoteOctave _):ps ->
+        if (pressedNoteName, pressedNoteOctave) == midiPitchToNoteAndOctave k
           then
             go' pressedChar ps
           else
@@ -460,15 +460,15 @@ showKeys from to (PianoState m) =
 
     space = case ks of
       [] -> Nothing
-      (NoteSpec s _):_ -> case s of
+      s:_ -> case fst $ midiPitchToNoteAndOctave s of
         Fa -> Just ' '
         Do -> Just ' '
         _ -> Nothing
 
     freeChar
-      | naturalNote n = '-'
+      | naturalPitch k = '-'
       | otherwise = '*'
 
     pressedChar
-      | naturalNote n = '_'
+      | naturalPitch k = '_'
       | otherwise = '.'

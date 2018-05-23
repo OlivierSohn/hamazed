@@ -84,7 +84,6 @@ import           Imj.Game.Hamazed.Timing
 import           Imj.Game.Level
 import           Imj.Game.Status
 import           Imj.Graphics.Text.ColorString(colored, intercalate)
-import           Imj.Music.Types hiding(Do)
 import           Imj.Music.Play
 import           Imj.Server.Connection
 import           Imj.Server.Log
@@ -579,7 +578,7 @@ gameScheduler st =
           let (newScore, notesChanges) = stopScore s
           case notesChanges of
             [] -> return ()
-            _:_ -> notifyPlayersN' $ map (flip PlayMusic SineSynth) notesChanges
+            _:_ -> notifyPlayersN' $ map PlayMusic notesChanges
           putMVar game $ g{score = newScore})
 
     go = get >>= \(ServerState _ _ terminate _ _ (HamazedServer _ _ _ _ game _)) ->
@@ -643,7 +642,7 @@ gameScheduler st =
     updateSafeShips >>= \shipsLostArmor ->
       updateVoice >>= \noteChange ->
         notifyPlayersN'
-          (map (flip PlayMusic SineSynth) noteChange ++
+          (map PlayMusic noteChange ++
           [ServerAppEvt $ GameEvent $ PeriodicMotion accs shipsLostArmor])
     adjustAllClients $ \p -> p { getShipAcceleration = zeroCoords }
     return $ Just $ toSystemDuration mult gameMotionPeriod

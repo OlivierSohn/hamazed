@@ -33,17 +33,16 @@ import           Foreign.C
 import           Imj.Audio
 import           Imj.Music.Types
 
-playAtTempo :: Instrument
-            -> Float
+playAtTempo :: Float
             -- ^ BPMs
             -> [Symbol]
             -> IO ()
-playAtTempo instr tempo =
+playAtTempo tempo =
   void . forkIO . go . allMusic
  where
   go [] = return()
   go (n:ns) = do
-    mapM_ (flip play instr) n
+    mapM_ play n
     threadDelay pause
     go ns
 
@@ -142,19 +141,15 @@ stopVoice (Voice _ cur l) =
     Note n -> Just $ StopNote n
     Extend -> error "logic") cur
 
-play :: Music -> Instrument -> IO ()
-play (StartNote n (MidiVelocity v)) = \case
-  SineSynth -> midiNoteOn pitch vel
-  Wind i -> effectOn (fromIntegral i) pitch vel
+play :: Music -> IO ()
+play (StartNote n@(NoteSpec _ _ i) (MidiVelocity v)) = case i of
+  SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel
+  Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = noteToMidiPitch n
   vel = CFloat v
-play (StopNote n) = \case
-  SineSynth -> midiNoteOff pitch
+play (StopNote n@(NoteSpec _ _ i)) = case i of
+  SineSynth ect -> midiNoteOff (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch
   Wind _ -> effectOff pitch
  where
   (MidiPitch pitch) = noteToMidiPitch n
-
--- according to http://subsynth.sourceforge.net/midinote2freq.html, C1 has 0 pitch
-noteToMidiPitch :: NoteSpec -> MidiPitch
-noteToMidiPitch = MidiPitch . fromIntegral . fromEnum

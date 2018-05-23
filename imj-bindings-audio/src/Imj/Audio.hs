@@ -35,8 +35,8 @@ foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 
 -- | Stops audio abruptly (see 'withAudio').
 foreign import ccall "teardownAudio" teardownAudio :: IO ()
-foreign import ccall "midiNoteOn" midiNoteOn :: CShort -> CFloat -> IO ()
-foreign import ccall "midiNoteOff" midiNoteOff :: CShort -> IO ()
+foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO ()
+foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO ()
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

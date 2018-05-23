@@ -30,6 +30,7 @@ hamazedScores =
   , transpose 2 tertiaryScore
   , intersperse Rest quatScore
   , transpose (-2) quintScore
+  , sextScore
   ]
 
 primaryScore :: Score
@@ -348,6 +349,85 @@ quintScore =
     ^mib . . . . . . . ^ré
     ^mib sol lab sib ^do ^ré ^mib . .
   |]
+
+sextScore :: Score
+sextScore =
+  mkScore
+    [ take (length v2) $ cycle v1
+    , v2
+    , take (length v2) $ cycle $ skip1 ++ v3
+    , take (length v2) $ cycle (acc n1)
+    , take (length v2) $ cycle (acc n2)
+    , take (length v2) $ cycle (acc n3)
+    ]
+ where
+  v1 = [notes|
+      . . vmi . vsol . vsi . ré - - do# . vla . vsi
+      . . vmi . vsol . vsi . mi . ré . do# - - -
+      . . mi . sol . mi . ré - - dod . vla . vsi
+      . . vmi . vsol . vsi . vla . vsol . vmi - - -
+   |]
+  v2 = [notes|
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . si si . . la . . sol . . . .
+      . . . . si si . . la . . sol . . . .
+      . . la . si si . . la . . sol . . . .
+      . . la . si si . mi sol sol . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . . . . . . . . . . . . .
+      . . . . si si . . la . . sol . . . .
+      . . . . si si . . la . . sol . . . .
+      . . la . si si . . la . . sol . . . .
+      . . la . si si . mi sol sol . . . . . .
+   |]
+
+  skip1 = [notes|
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        . . . . . . . . . . . . . . . .
+        |]
+
+  v3 =
+    [notes|
+    . ré mi sol mi ré sol . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . ré mi ré . . . . . mi ré sol . . . .
+    . . . . . . . . . . . . . . . .
+    . ré mi ré . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . ré . ré . mi ré sol . . . . . . . . .
+    . . . . . . . . . . . . . . .
+    |]
+
+  n1 = [notes|si|]
+  n2 = [notes|^ré|]
+  n3 = [notes|^mi|]
+
+  acc x =
+     [notes|
+     . . . . . . . . . . . . . . . .
+     . . . . . . . . . . . . . . . .
+     . . . . . . . . . . . . . . . .
+     . . . . . . . . . . . . . . . .|]
+     ++ acc' x
+     ++ acc' x
+
+  acc' x = [notes|
+     . . . . . . . .      .|]      ++ x ++ [notes|.      .           . . . .
+     . . . . . . . .|] ++ x ++ [notes|-           .|] ++ x ++ [notes|. . . .|] -- it would be nice to have a live coding app to try these things
+
+
+
 
 
 alarm :: [Symbol]

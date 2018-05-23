@@ -23,14 +23,14 @@ class Audio e where
 
   playMusic
     :: (MonadIO m)
-    => e -> Music -> Instrument -> m ()
+    => e -> Music -> m ()
 
 -- | Muted audio
 instance Audio () where
   defaultAudio = ()
   withAudio _ = id
   triggerLaserSound _ = return ()
-  playMusic _ _ _ = return ()
+  playMusic _ _ = return ()
   {-# INLINE defaultAudio #-}
   {-# INLINE playMusic #-}
   {-# INLINE triggerLaserSound #-}

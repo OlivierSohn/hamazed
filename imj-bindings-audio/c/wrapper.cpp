@@ -96,16 +96,50 @@ namespace imajuscule {
       namespace mySynth = imajuscule::audio::vasine;
       //namespace mySynth = imajuscule::audio::sine;
 
-      mySynth::AudioOutSynth & getSynth() {
-        static mySynth::AudioOutSynth s;
-        return s;
+      mySynth::AudioOutSynth & getSynth(int envelCharacTime)
+      {
+        static std::map<int,std::unique_ptr<mySynth::AudioOutSynth>> sByEnvelCharacTime;
+        auto value = std::max(envelCharacTime, 100);
+        {
+          static std::mutex m;
+
+          // we use a global lock because we can concurrently modify and lookup the map.
+          imajuscule::scoped::MutexLock l(m);
+
+          auto it = sByEnvelCharacTime.find(value);
+          if(it != sByEnvelCharacTime.end()) {
+            return *(it->second.get());
+          }
+          auto unique = std::make_unique<mySynth::AudioOutSynth>();
+          unique->set_xfade_length(value);
+          auto * ret = unique.get();
+          if(auto a = Audio::getInstance()) {
+            if(unique->initialize(a->out().getChannelHandler())) {
+                auto res = sByEnvelCharacTime.emplace(value, std::move(unique));
+                return *(res.first->second.get());
+            }
+            else {
+              LG(ERR,"getSynth().initialize failed");
+            }
+          }
+          else {
+            LG(ERR,"Audio::getInstance() is NULL");
+          }
+          auto oneSynth = sByEnvelCharacTime.begin();
+          if(oneSynth != sByEnvelCharacTime.end()) {
+            LG(ERR, "getSynth : a preexisting synth is returned");
+            return *(oneSynth->second.get());
+          }
+          LG(ERR, "getSynth : an uninitialized synth is returned");
+          return *ret;
+        }
       }
 
-      void midiEvent(Event e) {
+      void midiEvent(int envelCharacTime, Event e) {
         using namespace imajuscule::audio;
         using namespace mySynth;
         if(auto a = Audio::getInstance()) {
-          getSynth().onEvent2(e, a->out().getChannelHandler());
+          getSynth(envelCharacTime).onEvent2(e, a->out().getChannelHandler());
         }
       }
 
@@ -145,13 +179,6 @@ extern "C" {
 
     windVoice().initializeSlow();
     if(auto a = Audio::getInstance()) {
-      auto & s = getSynth();
-      if(!s.initialize(a->out().getChannelHandler())) {
-        LG(ERR,"getSynth().initialize failed");
-        return false;
-      }
-      s.set_xfade_length(10000);
-
       if(!windVoice().initialize(a->out().getChannelHandler())) {
         LG(ERR,"windVoice().initialize failed");
         return false;
@@ -171,15 +198,15 @@ extern "C" {
     Audio::TearDown();
   }
 
-  void midiNoteOn(int16_t pitch, float velocity) {
+  void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEvent(mkNoteOn(pitch,velocity));
+    midiEvent(envelCharacTime, mkNoteOn(pitch,velocity));
   }
-  void midiNoteOff(int16_t pitch) {
+  void midiNoteOff(int envelCharacTime, int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEvent(mkNoteOff(pitch));
+    midiEvent(envelCharacTime, mkNoteOff(pitch));
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {

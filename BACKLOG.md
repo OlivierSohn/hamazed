@@ -1,7 +1,16 @@
+- at some point the effect channels are exhausted (the effect becomes inaudible)
+
+- fix slight clics heard in the funk music.
+
+- to fix build of Alphabet (thread local storage not supported on that platform), try
+the other lib c++ as in : https://stackoverflow.com/questions/23791060/c-thread-local-storage-clang-503-0-40-mac-osx
+
 - develop enveloppes:
 
 reflect the parameters of enveloppes in a notion of Instrument. Maintain a mapping between c++ synths
 and Instruments. Note that we are limited in the number of Instruments due to the 256 channels limit.
+
+* first step :
 
 use leap motion as input for envelope / pitch?
 

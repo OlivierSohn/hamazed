@@ -51,8 +51,8 @@ instance Audio WithAudio where
     | useAudio = liftIO laserSound
     | otherwise = return ()
 
-  playMusic (WithAudio useAudio) mus instr
-    | useAudio = liftIO $ play mus instr
+  playMusic (WithAudio useAudio) mus
+    | useAudio = liftIO $ play mus
     | otherwise = return ()
 
   -- WARNING when changing this, also change 'parseArg'

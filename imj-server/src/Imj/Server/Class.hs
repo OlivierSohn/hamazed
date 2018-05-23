@@ -312,7 +312,7 @@ mapState' f s =
 
 data ServerEvent s =
     ServerAppEvt !(ServerEventT s)
-  | PlayMusic !Music !Instrument
+  | PlayMusic !Music
   | CommandError {-unpack sum-} !(ClientCommand (CustomCmdT s) Proposed)
                  {-# UNPACK #-} !Text
   -- ^ The command cannot be run, with a reason.
@@ -338,7 +338,7 @@ data ServerEvent s =
 instance (Server s, ServerClientHandler s) => Show (ServerEvent s) where
   show = \case
     ServerAppEvt x -> show ("ServerAppEvt",x)
-    PlayMusic x y -> show ("PlayMusic",x,y)
+    PlayMusic x -> show ("PlayMusic",x)
     CommandError x y -> show ("CommandError",x, y)
     RunCommand x y -> show ("RunCommand",x, y)
     Reporting x -> show ("Reporting",x)

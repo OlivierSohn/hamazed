@@ -21,30 +21,42 @@ import           Language.Haskell.TH
 import           Language.Haskell.TH.Quote
 
 import           Data.Text(pack)
-import           Text.Parsec(parse, (<|>), char, anyChar, spaces, space, eof, many1, choice, manyTill
-                            , SourcePos, setPosition)
+import           Text.Parsec((<|>), parse, char, noneOf, spaces, eof, many1, alphaNum, skipMany, choice
+                            , between, SourcePos, setPosition)
 import           Text.Parsec.Text(Parser)
 import           Text.Parsec.Pos(newPos)
 
 import           Imj.Music.Types
 
+-- TODO support multiline / inline comments :
+-- do ré {this is an inline comment} mi fa sol {note that
+--  inline comments can span
+--  over multiple lines! }
+-- TODO support changing instruments (with a statefull parser)
 musicSymbol :: Parser Symbol
 musicSymbol = do
-  spaces
-  choice
-    [ rest
-    , prolong
-    , note 0
-    ]
+  between
+    skipIgnored
+    skipIgnored
+    $ choice
+      [ rest
+      , prolong
+      , note 0
+      ]
+
  where
+  skipIgnored = do
+    spaces
+    skipMany $ do
+      comment
+      spaces
+
   rest = do
     _ <- char '.'
-    spaces
     return Rest
 
   prolong = do
     _ <- char '-'
-    spaces
     return Extend
 
   lower = do
@@ -62,9 +74,10 @@ musicSymbol = do
     , upper >>= note . (+) n
     , go n
     ]
+
    where
      go x = do
-      noteName <- manyTill anyChar (eof <|> (do _ <- space; return ())) >>= \case
+      noteName <- many1 (alphaNum <|> char '#') >>= \case
         "do"   -> return Do
         "ré"   -> return Ré
         "mi"   -> return Mi
@@ -72,14 +85,27 @@ musicSymbol = do
         "sol"  -> return Sol
         "la"   -> return La
         "si"   -> return Si
+        "do#"  -> return Réb
+        "dod"  -> return Réb
         "réb"  -> return Réb
+        "réd"  -> return Réb
+        "ré#"  -> return Réb
         "mib"  -> return Mib
+        "fad" -> return Solb
+        "fa#" -> return Solb
         "solb" -> return Solb
+        "sold"  -> return Lab
+        "sol#"  -> return Lab
         "lab"  -> return Lab
+        "lad"  -> return Sib
+        "la#"  -> return Sib
         "sib"  -> return Sib
         str -> fail $"Wrong note:" ++ str
-      spaces
-      return $ Note $ NoteSpec noteName $ x + noOctave
+      return $ Note $ NoteSpec noteName (x + noOctave) defaultInstrument
+
+  comment = do
+    _ <- char ':'
+    skipMany $ noneOf ['\n','\r']
 
 musicSymbols :: Parser [Symbol]
 musicSymbols = many1 musicSymbol

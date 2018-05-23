@@ -18,8 +18,8 @@ import qualified Data.Vector as V
 import           Imj.Music.Types
 import           Imj.Timing
 
-recordMusic :: Time Point System -> Recording -> Music -> Instrument -> Recording
-recordMusic t (Recording r) m i = Recording (flip (:) r $ ATM m i t)
+recordMusic :: Time Point System -> Recording -> Music -> Recording
+recordMusic t (Recording r) m = Recording (flip (:) r $ ATM m t)
 
 mkSequencerFromRecording :: k -> Recording -> Time Point System -> IO (Either Text (Sequencer k))
 mkSequencerFromRecording _ (Recording []) _ = return $ Left "empty recording"
@@ -28,8 +28,8 @@ mkSequencerFromRecording k (Recording r) start = do
   return $ Right $ Sequencer start (firstTime...start) $ Map.singleton k mus
  where
   rr = reverse r
-  (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
-  v = V.fromList $ map (\(ATM m i t) -> RTM m i $ firstTime...t) rr
+  (ATM _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
+  v = V.fromList $ map (\(ATM m t) -> RTM m $ firstTime...t) rr
 
 {-# INLINABLE insertRecording #-}
 insertRecording :: Ord k
@@ -44,14 +44,14 @@ insertRecording (Recording r@(_:_)) k (Sequencer curPeriodStart periodLength ls)
        , mus)
  where
   rr = reverse r
-  (ATM _ _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
+  (ATM _ firstTime) = fromMaybe (error "logic") $ listToMaybe rr
   recordingTimeShift = (fromIntegral nPeriodsShift) .* periodLength
   nPeriodsShift = floor $ (curPeriodStart...firstTime) ./ periodLength :: Int
   refTime = addDuration recordingTimeShift curPeriodStart
-  v = V.fromList $ map (\(ATM m i t) -> RTM m i $ refTime...t) rr
+  v = V.fromList $ map (\(ATM m t) -> RTM m $ refTime...t) rr
 
 startLoopThreadAt :: MonadIO m
-                  => (Music -> Instrument -> m ())
+                  => (Music -> m ())
                   -> Time Point System
                   -> Time Duration System
                   -> V.Vector RelativeTimedMusic
@@ -59,10 +59,10 @@ startLoopThreadAt :: MonadIO m
 startLoopThreadAt play begin elapsed l =
   playOnce play v begin
  where
-  v = V.dropWhile (\(RTM _ _ dt) -> dt < elapsed) l
+  v = V.dropWhile (\(RTM _ dt) -> dt < elapsed) l
 
 playOnce :: MonadIO m
-         => (Music -> Instrument -> m ())
+         => (Music -> m ())
          -> V.Vector RelativeTimedMusic
          -> Time Point System
          -- ^ The reference time
@@ -78,10 +78,10 @@ playOnce play v begin =
   go index
     | index == len = return ()
     | otherwise = do
-      let (RTM m i dt) = V.unsafeIndex v index
+      let (RTM m dt) = V.unsafeIndex v index
           nextEventTime = addDuration dt begin
       now <- liftIO getSystemTime
       let waitDuration = now...nextEventTime
       liftIO $ threadDelay $ fromIntegral $ toMicros waitDuration
-      play m i
+      play m
       go $ index + 1

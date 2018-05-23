@@ -122,8 +122,8 @@ updateAppState (Right evt) = case evt of
 updateAppState (Left evt) = case evt of
   ServerAppEvt e ->
     onServerEvent e
-  PlayMusic music instr ->
-    asks playMusic >>= \f -> f music instr
+  PlayMusic music ->
+    asks playMusic >>= \f -> f music
   OnContent worldParameters ->
     putServerContent worldParameters
   RunCommand i cmd -> runClientCommand i cmd

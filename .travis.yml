@@ -42,7 +42,7 @@ cache:
   directories:
   - $HOME/.stack
 
- 
+
 before_install:
 
 - set -ex
@@ -63,7 +63,7 @@ before_install:
     brew bundle --verbose
     brew info llvm
     brew update
-    brew install --with-toolchain llvm
+    brew install llvm --with-clang
     brew info llvm
     export PATH="/usr/local/opt/llvm/bin:$PATH"
   fi

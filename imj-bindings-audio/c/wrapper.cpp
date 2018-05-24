@@ -96,18 +96,25 @@ namespace imajuscule {
       namespace mySynth = imajuscule::audio::vasine;
       //namespace mySynth = imajuscule::audio::sine;
 
+      auto & allSynths() {
+        static std::map<int,std::unique_ptr<mySynth::AudioOutSynth>> sByEnvelCharacTime;
+        return sByEnvelCharacTime;
+      }
+
+      auto & synthsMutex() {
+          static std::mutex m;
+          return m;
+      }
+
       mySynth::AudioOutSynth & getSynth(int envelCharacTime)
       {
-        static std::map<int,std::unique_ptr<mySynth::AudioOutSynth>> sByEnvelCharacTime;
         auto value = std::max(envelCharacTime, 100);
         {
-          static std::mutex m;
-
           // we use a global lock because we can concurrently modify and lookup the map.
-          imajuscule::scoped::MutexLock l(m);
+          imajuscule::scoped::MutexLock l(synthsMutex());
 
-          auto it = sByEnvelCharacTime.find(value);
-          if(it != sByEnvelCharacTime.end()) {
+          auto it = allSynths().find(value);
+          if(it != allSynths().end()) {
             return *(it->second.get());
           }
           auto unique = std::make_unique<mySynth::AudioOutSynth>();
@@ -115,7 +122,7 @@ namespace imajuscule {
           auto * ret = unique.get();
           if(auto a = Audio::getInstance()) {
             if(unique->initialize(a->out().getChannelHandler().getChannels())) {
-                auto res = sByEnvelCharacTime.emplace(value, std::move(unique));
+                auto res = allSynths().emplace(value, std::move(unique));
                 return *(res.first->second.get());
             }
             else {
@@ -125,8 +132,8 @@ namespace imajuscule {
           else {
             LG(ERR,"Audio::getInstance() is NULL");
           }
-          auto oneSynth = sByEnvelCharacTime.begin();
-          if(oneSynth != sByEnvelCharacTime.end()) {
+          auto oneSynth = allSynths().begin();
+          if(oneSynth != allSynths().end()) {
             LG(ERR, "getSynth : a preexisting synth is returned");
             return *(oneSynth->second.get());
           }
@@ -195,6 +202,18 @@ extern "C" {
 
   void teardownAudio() {
     using namespace imajuscule;
+    using namespace imajuscule::audio;
+    using namespace imajuscule::audio::detail;
+    using namespace imajuscule::scoped;
+    MutexLock l(synthsMutex());
+
+    if(auto a = Audio::getInstance()) {
+      windVoice().finalize(a->out().getChannelHandler().getChannels());
+      for(auto & s : allSynths()) {
+        s.second->finalize(a->out().getChannelHandler().getChannels());
+      }
+    }
+
     Audio::TearDown();
   }
 

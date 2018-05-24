@@ -34,7 +34,7 @@ addons:
     - libftgl-dev
     - libgmp-dev
     - portaudio19-dev
-    # g++ versions before 7 won't work, as some needed C++ features are not implemented.
+    # g++ versions before 7 won't work, as some needed C++14 features are not implemented.
     - g++-7
     - libstdc++-7-dev
 
@@ -56,7 +56,18 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew bundle --verbose; fi
+- if [[ $TRAVIS_OS_NAME == 'osx' ]]
+  then
+    brew bundle --verbose
+    # following https://embeddedartistry.com/blog/2017/2/20/installing-clangllvm-on-osx
+    # to install / use a c++17 enabled version of clang:
+    brew info llvm
+    brew update
+    brew upgrade
+    brew install --with-toolchain llvm
+    brew info llvm
+    export PATH="/usr/local/opt/llvm/bin:$PATH"
+  fi
 
 - mkdir -p ~/.local/bin
 - export PATH=$HOME/.local/bin:$PATH

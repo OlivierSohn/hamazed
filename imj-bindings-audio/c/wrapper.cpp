@@ -114,7 +114,7 @@ namespace imajuscule {
           unique->set_xfade_length(value);
           auto * ret = unique.get();
           if(auto a = Audio::getInstance()) {
-            if(unique->initialize(a->out().getChannelHandler())) {
+            if(unique->initialize(a->out().getChannelHandler().getChannels())) {
                 auto res = sByEnvelCharacTime.emplace(value, std::move(unique));
                 return *(res.first->second.get());
             }
@@ -179,7 +179,7 @@ extern "C" {
 
     windVoice().initializeSlow();
     if(auto a = Audio::getInstance()) {
-      if(!windVoice().initialize(a->out().getChannelHandler())) {
+      if(!windVoice().initialize(a->out().getChannelHandler().getChannels())) {
         LG(ERR,"windVoice().initialize failed");
         return false;
       }

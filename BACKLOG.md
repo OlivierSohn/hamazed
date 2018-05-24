@@ -7,15 +7,14 @@ in 'imj-bindings-audio', we will use :
 
 - develop enveloppes:
 
-should isPlaying return False when all requests have been handled, and the last
-request is "enveloppedDone" ?
+make ADSR enveloppes
+* we need 4 parameters : 3 times (0 -> attack, attack -> sustain, sustain -> 0) and one ratio (sustain height)
+* factor code between simpleEnveloppe and ADSR enveloppe to not duplicate logics.
 
 make "linear perceived" envelope : Logarithmic, with a negative offset, scaled:.
 * scale:
     epsilon -> 1
     0       -> 1
-
-make ADSR enveloppes, factor code between simpleEnveloppe and ADSR enveloppe to not duplicate logics.
 
 use leap motion as input for envelope / pitch?
 

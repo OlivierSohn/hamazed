@@ -65,9 +65,10 @@ before_install:
     brew update
     brew install llvm --with-clang
     brew info llvm
-    export CC := /usr/local/opt/llvm/bin/clang
-    export CXX := $(CC)++
-    export LDFLAGS="-L/usr/local/opt/llvm/lib" CPPFLAGS="-I/usr/local/opt/llvm/include"
+    export CC="/usr/local/opt/llvm/bin/clang"
+    export CXX="/usr/local/opt/llvm/bin/clang++"
+    export LDFLAGS="-L/usr/local/opt/llvm/lib"
+    export CPPFLAGS="-I/usr/local/opt/llvm/include"
     export PATH="/usr/local/opt/llvm/bin:$PATH"
   fi
 

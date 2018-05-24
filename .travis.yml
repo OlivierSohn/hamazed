@@ -56,7 +56,8 @@ before_install:
     sudo unlink /usr/bin/gcc && sudo ln -s /usr/bin/gcc-7 /usr/bin/gcc
     gcc --version
   fi
-- if [[ $TRAVIS_OS_NAME == 'osx' ]]
+- |
+  if [[ $TRAVIS_OS_NAME == 'osx' ]]
   then
     brew bundle --verbose
     brew info llvm

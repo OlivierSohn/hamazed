@@ -24,8 +24,7 @@ scoreForLevel (LevelSpec n _) =
   idx = (fromIntegral (n-firstLevel)) `mod` nScores
 
 hamazedScores :: [Score]
-hamazedScores = [intersperse Rest quatScore]
-{-
+hamazedScores =
   [ transpose 2 primaryScore
   , transpose 2 secondaryScore
   , transpose 2 tertiaryScore
@@ -33,7 +32,7 @@ hamazedScores = [intersperse Rest quatScore]
   , transpose (-2) quintScore
   , sextScore
   ]
--}
+
 primaryScore :: Score
 primaryScore = mkScore [firstVoice, secondVoice, thirdVoice]
  where

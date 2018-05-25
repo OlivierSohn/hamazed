@@ -4,12 +4,9 @@
 
 #ifdef __cplusplus
 
-#include "cpp.os.logs/source/unity.build.cpp"
 #include "cpp.algorithms/source/unity.build.cpp"
-#include "cpp.model/source/unity.build.cpp"
-#include "cpp.managers/source/unity.build.cpp"
-#include "cpp.audio/source/unity.build.cpp"
-#include "cpp.os.audio/source/unity.build.cpp"
+#include "cpp.os.logs/source/unity.build.cpp"
 #include "cpp.os.storage/source/unity.build.cpp"
+#include "cpp.audio/source/unity.build.cpp"
 
 #endif

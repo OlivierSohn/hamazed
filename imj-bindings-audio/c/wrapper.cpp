@@ -6,7 +6,7 @@
 #include <fenv.h>
 #endif
 
-#include "cpp.os.audio/include/public.h"
+#include "cpp.audio/include/public.h"
 
 namespace imajuscule {
   namespace audioelement {
@@ -26,6 +26,22 @@ namespace imajuscule {
   }
 
   namespace audio {
+    using Ctxt = AudioOutContext<
+      outputDataBase<Channels<2, XfadePolicy::UseXfade, AudioOutPolicy::Master>>, // TODO aggregate 2 different Channels, one with and one without xfade.
+      Features::JustOut,
+      AudioPlatform::PortAudio
+      >;
+
+    auto & getAudioContext() {
+      static constexpr auto n_max_orchestrator_per_channel = 1;
+
+      static Ctxt c {
+          masterAudioLock(),
+          std::numeric_limits<uint8_t>::max(),
+          n_max_orchestrator_per_channel
+        };
+      return c;
+    }
 
     Event mkNoteOn(int pitch, float velocity) {
       Event e;
@@ -60,7 +76,7 @@ namespace imajuscule {
 
     namespace sine {
       using AudioOutSynth = Synth <
-        AudioOut::nAudioOut
+        Ctxt::nAudioOut
       , XfadePolicy::SkipXfade // note that this matters only when the VST wrapper is used.
                                // in our case, we're bound to the policy of outputData.
                                // TODO do not depend on AudioOut directly, depend on a new class holding outputData
@@ -74,7 +90,7 @@ namespace imajuscule {
 
     namespace vasine {
       using AudioOutSynth = Synth <
-        AudioOut::nAudioOut
+        Ctxt::nAudioOut
       , XfadePolicy::SkipXfade // note that this matters only when the VST wrapper is used.
                                // in our case, we're bound to the policy of outputData.
                                // TODO do not depend on AudioOut directly, depend on a new class holding outputData
@@ -120,17 +136,12 @@ namespace imajuscule {
           auto unique = std::make_unique<mySynth::AudioOutSynth>();
           unique->set_xfade_length(value);
           auto * ret = unique.get();
-          if(auto a = Audio::getInstance()) {
-            if(unique->initialize(a->out().getChannelHandler().getChannels())) {
-                auto res = allSynths().emplace(value, std::move(unique));
-                return *(res.first->second.get());
-            }
-            else {
-              LG(ERR,"getSynth().initialize failed");
-            }
+          if(unique->initialize(getAudioContext().getChannelHandler().getChannels())) {
+              auto res = allSynths().emplace(value, std::move(unique));
+              return *(res.first->second.get());
           }
           else {
-            LG(ERR,"Audio::getInstance() is NULL");
+            LG(ERR,"getSynth().initialize failed");
           }
           auto oneSynth = allSynths().begin();
           if(oneSynth != allSynths().end()) {
@@ -145,9 +156,7 @@ namespace imajuscule {
       void midiEvent(int envelCharacTime, Event e) {
         using namespace imajuscule::audio;
         using namespace mySynth;
-        if(auto a = Audio::getInstance()) {
-          getSynth(envelCharacTime).onEvent2(e, a->out().getChannelHandler());
-        }
+        getSynth(envelCharacTime).onEvent2(e, getAudioContext().getChannelHandler());
       }
 
       /*
@@ -163,6 +172,7 @@ namespace imajuscule {
             __builtin_ia32_ldmxcsr(csr);
         #endif
       }
+
     }
   }
 }
@@ -173,31 +183,29 @@ extern "C" {
   bool initializeAudio () {
     using namespace std;
     using namespace imajuscule;
+    using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
 #ifndef NDEBUG
-    cout << "WARNING : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
+    cout << "WARNING : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
 
     disableDenormals();
 
-    // We know we're going to use audio so we force initialization.
-    Audio::Init(Audio::OutInitPolicy::FORCE);
-    using namespace imajuscule::audio;
+    setPortaudioEnvVars();
+
+    getAudioContext().Init();
 
     windVoice().initializeSlow();
-    if(auto a = Audio::getInstance()) {
-      if(!windVoice().initialize(a->out().getChannelHandler().getChannels())) {
-        LG(ERR,"windVoice().initialize failed");
-        return false;
-      }
+    if(!windVoice().initialize(getAudioContext().getChannelHandler().getChannels())) {
+      LG(ERR,"windVoice().initialize failed");
+      return false;
     }
     return true;
   }
 
   void stopAudioGracefully() {
-    if(auto a = Audio::getInstance()) {
-      a->out().onApplicationShouldClose();
-    }
+    using namespace imajuscule::audio;
+    getAudioContext().onApplicationShouldClose();
   }
 
   void teardownAudio() {
@@ -207,14 +215,12 @@ extern "C" {
     using namespace imajuscule::scoped;
     MutexLock l(synthsMutex());
 
-    if(auto a = Audio::getInstance()) {
-      windVoice().finalize(a->out().getChannelHandler().getChannels());
-      for(auto & s : allSynths()) {
-        s.second->finalize(a->out().getChannelHandler().getChannels());
-      }
+    windVoice().finalize(getAudioContext().getChannelHandler().getChannels());
+    for(auto & s : allSynths()) {
+      s.second->finalize(getAudioContext().getChannelHandler().getChannels());
     }
 
-    Audio::TearDown();
+    getAudioContext().TearDown();
   }
 
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
@@ -230,59 +236,14 @@ extern "C" {
 
   void effectOn(int program, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
-    if(auto a = Audio::getInstance()) {
-      auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-      playOneThing(windVoice(),a->out().getChannelHandler(),voicing);
-    }
+    using namespace imajuscule::audio::detail;
+    auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
+    playOneThing(windVoice(),getAudioContext().getChannelHandler(),voicing);
   }
   void effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
-    if(auto a = Audio::getInstance()) {
-      stopPlaying(windVoice(),a->out().getChannelHandler(),pitch);
-    }
-  }
-
-  // Test function to verify that audio can be played : you should hear a beep sound
-  // if audio is well initialized, or see a log in the console describing the issue.
-  void beep () {
-    if(auto a = Audio::getInstance()) {
-        auto xfade = 401;
-        auto c = a->out().openChannel(1.f,
-                                      ChannelClosingPolicy::AutoClose,
-                                      xfade);
-        auto time_unit = 120;
-        auto s = Do;
-        auto half_tone = compute_half_tone(1.f);
-        auto stereo_gain = stereo(0.f);
-        auto volume = 0.6f;
-        auto notespecs = parseMusic("do");
-        using Request = Audio::Request;
-        StackVector<Request> requests(notespecs.size());
-        for(auto const & s : notespecs) {
-            if(s.note == NOTE_ERROR) {
-                LG(WARN,"parseMusic : note error");
-                return;
-            }
-            auto half_tone = compute_half_tone(1.f);
-            auto r = to_request<Audio::nAudioOut>(s,
-                                                  time_unit,
-                                                  1.f,
-                                                  half_tone,
-                                                  a->out().editSounds(),
-                                                  MakeVolume::run<AudioOut::nAudioOut>(volume, stereo_gain));
-            if(r.valid()) {
-                requests.push_back(std::move(r));
-            }
-            else {
-                LG(WARN,"parseMusic : invalid request was ignored");
-            }
-        }
-
-        a->out().play(c, std::move(requests));
-    }
-    else {
-      LG(WARN,"Audio is not initialized");
-    }
+    using namespace imajuscule::audio::detail;
+    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),pitch);
   }
 }
 

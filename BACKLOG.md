@@ -27,12 +27,6 @@ maybe related to bug below, which happens not under contention:
 
 Maybe some computes are not removed well enough. we should check how computes are removed.
 
-- do not xfade on open channel when the audio element is envelopped,
-i.e we need to refactor AudioOut to have more flexibility (see comments in the source code).
-in 'imj-bindings-audio', we will use :
-  one outputData with xfades (until soundengine supports enveloppe-based fades)
-  one without xfades for everything based on sine / vasine which already uses enveloppes
-
 - develop enveloppes:
 
 make ADSR enveloppes

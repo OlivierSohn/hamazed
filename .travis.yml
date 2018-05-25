@@ -61,7 +61,7 @@ before_install:
     brew bundle --verbose
     brew info llvm
     brew update
-    brew install llvm --with-clang
+    brew install llvm
     brew info llvm
     export CC="/usr/local/opt/llvm/bin/clang"
     export CXX="/usr/local/opt/llvm/bin/clang++"

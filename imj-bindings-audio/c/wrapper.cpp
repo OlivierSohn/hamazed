@@ -1,11 +1,5 @@
 #ifdef __cplusplus
 
-#include <iostream>
-
-#if __APPLE__
-#include <fenv.h>
-#endif
-
 #include "cpp.audio/include/public.h"
 
 namespace imajuscule {
@@ -26,8 +20,17 @@ namespace imajuscule {
   }
 
   namespace audio {
+
+    using AllChans = ChannelsAggregate<
+      Channels<2, XfadePolicy::UseXfade, AudioOutPolicy::Master>,
+      Channels<2, XfadePolicy::SkipXfade, AudioOutPolicy::Master>
+    >;
+
     using Ctxt = AudioOutContext<
-      outputDataBase<Channels<2, XfadePolicy::UseXfade, AudioOutPolicy::Master>>, // TODO aggregate 2 different Channels, one with and one without xfade.
+      outputDataBase<
+        AudioOutPolicy::Master,
+        AllChans
+        >,
       Features::JustOut,
       AudioPlatform::PortAudio
       >;
@@ -41,6 +44,13 @@ namespace imajuscule {
           n_max_orchestrator_per_channel
         };
       return c;
+    }
+
+    auto & getXfadeChannels() {
+      return getAudioContext().getChannelHandler().getChannels().getChannels1();
+    }
+    auto & getNoXfadeChannels() {
+      return getAudioContext().getChannelHandler().getChannels().getChannels2();
     }
 
     Event mkNoteOn(int pitch, float velocity) {
@@ -136,7 +146,7 @@ namespace imajuscule {
           auto unique = std::make_unique<mySynth::AudioOutSynth>();
           unique->set_xfade_length(value);
           auto * ret = unique.get();
-          if(unique->initialize(getAudioContext().getChannelHandler().getChannels())) {
+          if(unique->initialize(getNoXfadeChannels())) {
               auto res = allSynths().emplace(value, std::move(unique));
               return *(res.first->second.get());
           }
@@ -156,23 +166,8 @@ namespace imajuscule {
       void midiEvent(int envelCharacTime, Event e) {
         using namespace imajuscule::audio;
         using namespace mySynth;
-        getSynth(envelCharacTime).onEvent2(e, getAudioContext().getChannelHandler());
+        getSynth(envelCharacTime).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
       }
-
-      /*
-      * Denormals can appear in reverb algorithm, when signal becomes close to 0.
-      */
-      void disableDenormals() {
-        #if __APPLE__
-            fesetenv(FE_DFL_DISABLE_SSE_DENORMS_ENV);
-        #else
-        #define CSR_FLUSH_TO_ZERO         (1 << 15)
-            unsigned csr = __builtin_ia32_stmxcsr();
-            csr |= CSR_FLUSH_TO_ZERO;
-            __builtin_ia32_ldmxcsr(csr);
-        #endif
-      }
-
     }
   }
 }
@@ -196,7 +191,7 @@ extern "C" {
     getAudioContext().Init();
 
     windVoice().initializeSlow();
-    if(!windVoice().initialize(getAudioContext().getChannelHandler().getChannels())) {
+    if(!windVoice().initialize(getXfadeChannels())) {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
@@ -215,9 +210,9 @@ extern "C" {
     using namespace imajuscule::scoped;
     MutexLock l(synthsMutex());
 
-    windVoice().finalize(getAudioContext().getChannelHandler().getChannels());
+    windVoice().finalize(getXfadeChannels());
     for(auto & s : allSynths()) {
-      s.second->finalize(getAudioContext().getChannelHandler().getChannels());
+      s.second->finalize(getNoXfadeChannels());
     }
 
     getAudioContext().TearDown();
@@ -238,12 +233,12 @@ extern "C" {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
-    playOneThing(windVoice(),getAudioContext().getChannelHandler(),voicing);
+    playOneThing(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),voicing);
   }
   void effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),pitch);
+    stopPlaying(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),pitch);
   }
 }
 

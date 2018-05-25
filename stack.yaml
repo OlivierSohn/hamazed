@@ -52,7 +52,7 @@ extra-deps:
 - FTGL-2.1              # for all resolvers (not part of stackage)
 - GLFW-b-3.2.1.0        # for 8.2.2 resolver
 - bindings-GLFW-3.2.1.1 # for 8.2.2 resolver
-- postgresql-simple-0.5.4.0 #for 8.4.4 resolver
+- postgresql-simple-0.5.4.0 #for 8.4.4 resolver (TODO remove once it's in nightly)
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

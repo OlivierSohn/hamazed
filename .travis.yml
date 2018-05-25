@@ -19,8 +19,6 @@ matrix:
     - os: linux
       env: RESOLVER="lts-11.9"
     - env: RESOLVER="nightly"
-    # TODO remove once 'postgresql-simple' is 8.4.2 compatible
-    - env: RESOLVER="nightly-2018-05-18"
 
 addons:
   apt:

@@ -11,6 +11,7 @@ module Imj.Music.Types
         Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
       , Instrument(..), defaultInstrument
+      , AHDSR(..), bell
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
@@ -51,6 +52,7 @@ import qualified Data.Vector as V
 import           Foreign.C
 import           GHC.Generics (Generic)
 
+import           Imj.Music.CTypes
 import           Imj.Timing
 
 -- | Represents the keys currently pressed. Note that the same key can be pressed
@@ -127,16 +129,45 @@ instance NFData Music
 
 data Instrument =
     SineSynth !EnvelopeCharacteristicTime
+  | SineSynthAHDSR !AHDSR
   | Wind !Int
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary Instrument
 instance NFData Instrument
 
+-- it would be nice to have a "sustain that fades slowly"
+-- or maybe what I'm looking for is exponential decay
+bell :: AHDSR
+bell = AHDSR 500 200 10000 30000 0.4
+
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument
 defaultInstrument = SineSynth $ EnvelCharacTime 401
+--defaultInstrument = SineSynthAHDSR bell
 
--- | Expressed in number of samples.
+{-
+
+@
+   | c |                | c |
+       __________________                  < 1
+      .                  .
+     .                    .                < s
+    .                      .
+ ___                        _____________  < 0
+   ^                     ^
+   |                     |
+   key is pressed        key is released
+
+   Note that eventhough 'unEnvelopeCharacteristicTime' is expressed in number of samples,
+   it specifies the /slope/ of the signal:
+
+   * If the key is released while the note is sutaining, the enveloppe will touch 0
+   in 'unEnvelopeCharacteristicTime' samples.
+   * If the key is released during attack (i.e we didn't reach the sustain phase yet),
+   the signal will release with the same /slope/ as in the case where the key is released while
+   the note is sustaining.
+@
+-}
 newtype EnvelopeCharacteristicTime = EnvelCharacTime {unEnvelopeCharacteristicTime :: Int}
   deriving(Generic, Show, Ord, Eq, Data)
 instance Binary EnvelopeCharacteristicTime

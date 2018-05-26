@@ -146,7 +146,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     n = maybe Nothing (\noteSpec -> case s of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
       GLFW.KeyState'Released -> Just $ StopNote noteSpec
-      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f defaultInstrument) $ keyToNote k
+      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f (SineSynthAHDSR bell)) $ keyToNote k
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys

@@ -6,10 +6,14 @@ module Imj.Audio
       -- * Midi Synth
       , midiNoteOn
       , midiNoteOff
+      -- * Midi AHDSR Synth
+      , midiNoteOnAHDSR
+      , midiNoteOffAHDSR
       -- * Effect
       , effectOn
       , effectOff
       -- * reexports
+      , module Imj.Music.CTypes
       , CInt, CShort, CFloat
       ) where
 
@@ -17,6 +21,8 @@ import Foreign.C
 import Control.Concurrent(threadDelay)
 import Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
 import UnliftIO.Exception(bracket)
+
+import Imj.Music.CTypes
 
 foreign import ccall "effectOn" effectOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "effectOff" effectOff :: CShort -> IO ()
@@ -32,6 +38,13 @@ foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 foreign import ccall "teardownAudio" teardownAudio :: IO ()
 foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO ()
+foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> CFloat -> IO ()
+foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> IO ()
+
+midiNoteOffAHDSR :: AHDSR -> CShort -> IO ()
+midiNoteOffAHDSR (AHDSR a h d r s) i = midiNoteOffAHDSR_ (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
+midiNoteOnAHDSR :: AHDSR -> CShort -> CFloat -> IO ()
+midiNoteOnAHDSR (AHDSR a h d r s) i v = midiNoteOnAHDSR_ (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

@@ -1,37 +1,10 @@
-- under a lot of notes, we have an assert that fails in synth (too many orchestrators or computes)
-maybe related to bug below, which happens not under contention:
-
-- after some time, playing a simple score with at most 4 notes in parallel, we have:
-
-0|ERR|assert : ' computes.capacity() > computes.size() '
-   |in registerCompute
-   |(c/cpp.audio/include/out.h,706)
-17:24:22:045|
-    ----------------------------------------------------------------------------------------------
-                                           STACK BEGIN
-------------------------------------------------------------------------------------------------------
-
-2   imj-game-hamazed-exe                0x0000000101fcd2f6 effectOff + 45368
-3   imj-game-hamazed-exe                0x0000000101fcd1ab effectOff + 45037
-4   imj-game-hamazed-exe                0x0000000101fcb7f2 effectOff + 38452
-5   imj-game-hamazed-exe                0x0000000101fcb700 effectOff + 38210
-6   imj-game-hamazed-exe                0x0000000101fcb405 effectOff + 37447
-7   imj-game-hamazed-exe                0x0000000101fc1a47 audio::detail::midiEvent(int, audio::Event) + 233
-8   imj-game-hamazed-exe                0x0000000101fc1990 audio::detail::midiEvent(int, audio::Event) + 50
-9   imj-game-hamazed-exe                0x0000000101fc1f59 midiNoteOn + 79
-10  imj-game-hamazed-exe                0x0000000101fa53e7 imjzmmusiczm0zi1zi0zi3zmBqgLOmZZA7q12FCOAJpLJ3d_ImjziMusicziPlay_play1_info + 12855
-
-------------------------------------------------------------------------------------------------------
-                                           STACK END
-    ----------------------------------------------------------------------------------------------
-
-Maybe some computes are not removed well enough. we should check how computes are removed.
+- in hamazed, randomize the instrument used to play musics / use multiple instruments per score
+(one for each voice)
+- on soundengine, instead of using the channel xfade,
+the duration could be interpreted by the channel as "when to trigger the enveloppe keyReleased()"
+(thus, also when to trigger the enveloppe of the following request).
 
 - develop enveloppes:
-
-make ADSR enveloppes
-* we need 4 parameters : 3 times (0 -> attack, attack -> sustain, sustain -> 0) and one ratio (sustain height)
-* factor code between simpleEnveloppe and ADSR enveloppe to not duplicate logics.
 
 make "linear perceived" envelope : Logarithmic, with a negative offset, scaled:.
 * scale:

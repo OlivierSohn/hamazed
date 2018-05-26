@@ -25,6 +25,7 @@ image:
 packages:
 - './imj-base'
 - './imj-bindings-audio'
+- './imj-bindings-audio-types'
 - './imj-game'
 - './imj-game-tutorial-increment'
 - './imj-game-hamazed'

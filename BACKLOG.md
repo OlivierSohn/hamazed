@@ -1,3 +1,6 @@
+- make enveloppes user-parametrable:
+AHDSR, withNoteOff
+
 - in hamazed, randomize the instrument used to play musics / use multiple instruments per score
 (one for each voice)
 - on soundengine, instead of using the channel xfade,

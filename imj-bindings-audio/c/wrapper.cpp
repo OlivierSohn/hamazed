@@ -17,6 +17,73 @@ namespace imajuscule {
         , Envel
         >
       >;
+
+    template<typename S>
+    struct ClampParam;
+    template<typename S>
+    struct SetParam;
+    template<typename S>
+    struct HasNoteOff;
+
+    template<typename T>
+    struct ClampParam<SimpleEnvelope<T>> {
+      static auto clamp(int envelCharacTime) {
+        return std::max(envelCharacTime, 100);
+      }
+    };
+
+    template<typename T>
+    struct ClampParam<AHDSREnvelope<T>> {
+      static auto clamp(AHDSR_t const & env) {
+        return env; // TODO clamp according to AHDSREnvelope
+      }
+    };
+
+    template<typename T, EnvelopeRelease Rel>
+    struct ClampParam<AHPropDerDSREnvelope<T, Rel>> {
+      static auto clamp(AHDSR_t const & env) {
+        return env; // TODO clamp according to AHPropDerDSREnvelope
+      }
+    };
+
+    template<typename T>
+    struct SetParam<SimpleEnvelope<T>> {
+      template<typename A>
+      static void set(int envelCharacTime, A & a) {
+        a.set_xfade_length(envelCharacTime);
+      }
+    };
+
+    template<typename T>
+    struct SetParam<AHDSREnvelope<T>> {
+      template<typename A>
+      static void set(AHDSR_t const & env, A & a) {
+        a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
+      }
+    };
+
+    template<typename T, EnvelopeRelease Rel>
+    struct SetParam<AHPropDerDSREnvelope<T, Rel>> {
+      template<typename A>
+      static void set(AHDSR_t const & env, A & a) {
+        a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
+      }
+    };
+
+    template<typename T>
+    struct HasNoteOff<SimpleEnvelope<T>> {
+      static constexpr bool value = true;
+    };
+
+    template<typename T>
+    struct HasNoteOff<AHDSREnvelope<T>> {
+      static constexpr bool value = true;
+    };
+
+    template<typename T, EnvelopeRelease Rel>
+    struct HasNoteOff<AHPropDerDSREnvelope<T, Rel>> {
+      static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
+    };
   }
 
   namespace audio {
@@ -85,34 +152,24 @@ namespace imajuscule {
     }
 
     namespace sine {
-      using SimpleEnvSynth = Synth <
+      template <typename Env>
+      using SynthT = Synth <
         Ctxt::nAudioOut
-      , XfadePolicy::SkipXfade // note that this matters only when the VST wrapper is used.
-                               // in our case, we're bound to the policy of outputData.
-                               // TODO do not depend on AudioOut directly, depend on a new class holding outputData
-                               // so that we can use a OutputData with other xfade settings.
-      , MonoNoteChannel<audioelement::Oscillator<audioelement::SimpleEnvelope<float>>>
-      , true
+      , XfadePolicy::SkipXfade
+      , MonoNoteChannel<audioelement::Oscillator<Env>>
+      , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
       , NoteOffEvent>;
     }
 
     namespace vasine {
-      using SimpleEnvSynth = Synth <
+      template <typename Env>
+      using SynthT = Synth <
         Ctxt::nAudioOut
       , XfadePolicy::SkipXfade
-      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<audioelement::SimpleEnvelope<float>>>
-      , true
-      , EventIterator<IEventList>
-      , NoteOnEvent
-      , NoteOffEvent>;
-
-      using AHDSRSynth = Synth <
-        Ctxt::nAudioOut
-      , XfadePolicy::SkipXfade
-      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<audioelement::AHDSREnvelope<float>>>
-      , true
+      , MonoNoteChannel<audioelement::VolumeAdjustedOscillator<Env>>
+      , audioelement::HasNoteOff<Env>::value
       , EventIterator<IEventList>
       , NoteOnEvent
       , NoteOffEvent>;
@@ -128,97 +185,68 @@ namespace imajuscule {
       namespace mySynth = imajuscule::audio::vasine;
       //namespace mySynth = imajuscule::audio::sine;
 
-      auto & allSynths() {
-        static std::map<int,std::unique_ptr<mySynth::SimpleEnvSynth>> m;
-        return m;
-      }
+      template <typename Envel>
+      struct Synths {
+        using T = mySynth::SynthT<Envel>;
+        using K = typename Envel::Param;
 
-      auto & synthsMutex() {
-          static std::mutex m;
-          return m;
-      }
+        static auto & get(K const & rawEnvelParam) {
+          using namespace audioelement;
 
-      auto & allAHDSRSynths() {
-        static std::map<AHDSR_t,std::unique_ptr<mySynth::AHDSRSynth>> m;
-        return m;
-      }
+          auto envelParam = ClampParam<Envel>::clamp(rawEnvelParam);
+          {
+            // we use a global lock because we can concurrently modify and lookup the map.
+            imajuscule::scoped::MutexLock l(mutex());
 
-      auto & AHDSRSynthsMutex() {
-          static std::mutex m;
-          return m;
-      }
+            auto & synths = map();
 
-      mySynth::SimpleEnvSynth & getSynth(int envelCharacTime)
-      {
-        auto value = std::max(envelCharacTime, 100);
-        {
-          // we use a global lock because we can concurrently modify and lookup the map.
-          imajuscule::scoped::MutexLock l(synthsMutex());
-
-          auto it = allSynths().find(value);
-          if(it != allSynths().end()) {
-            return *(it->second.get());
+            auto it = synths.find(envelParam);
+            if(it != synths.end()) {
+              return *(it->second.get());
+            }
+            auto unique = std::make_unique<T>();
+            SetParam<Envel>::set(envelParam, *unique);
+            auto * ret = unique.get();
+            if(unique->initialize(getNoXfadeChannels())) {
+                auto res = synths.emplace(envelParam, std::move(unique));
+                return *(res.first->second.get());
+            }
+            else {
+              LG(ERR,"get().initialize failed");
+            }
+            auto oneSynth = synths.begin();
+            if(oneSynth != synths.end()) {
+              LG(ERR, "get : a preexisting synth is returned");
+              return *(oneSynth->second.get());
+            }
+            LG(ERR, "get : an uninitialized synth is returned");
+            return *ret;
           }
-          auto unique = std::make_unique<mySynth::SimpleEnvSynth>();
-          unique->set_xfade_length(value);
-          auto * ret = unique.get();
-          if(unique->initialize(getNoXfadeChannels())) {
-              auto res = allSynths().emplace(value, std::move(unique));
-              return *(res.first->second.get());
-          }
-          else {
-            LG(ERR,"getSynth().initialize failed");
-          }
-          auto oneSynth = allSynths().begin();
-          if(oneSynth != allSynths().end()) {
-            LG(ERR, "getSynth : a preexisting synth is returned");
-            return *(oneSynth->second.get());
-          }
-          LG(ERR, "getSynth : an uninitialized synth is returned");
-          return *ret;
         }
-      }
 
-      mySynth::AHDSRSynth & getSynthAHDSR(AHDSR_t env)
-      {
-        // TODO env should be clamped, cf. audioelement.h
+        static void finalize() {
+          using namespace scoped;
+          MutexLock l(mutex());
+          for(auto & s : map()) {
+            s.second->finalize(getNoXfadeChannels());
+          }
+        }
 
-          // we use a global lock because we can concurrently modify and lookup the map.
-          imajuscule::scoped::MutexLock l(AHDSRSynthsMutex());
+      private:
+        static auto & map() {
+          static std::map<K,std::unique_ptr<T>> m;
+          return m;
+        }
+        static auto & mutex() {
+          static std::mutex m;
+          return m;
+        }
+      };
 
-          auto it = allAHDSRSynths().find(env);
-          if(it != allAHDSRSynths().end()) {
-            return *(it->second.get());
-          }
-          auto unique = std::make_unique<mySynth::AHDSRSynth>();
-          unique->forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
-          auto * ret = unique.get();
-          if(unique->initialize(getNoXfadeChannels())) {
-              auto res = allAHDSRSynths().emplace(env, std::move(unique));
-              return *(res.first->second.get());
-          }
-          else {
-            LG(ERR,"getSynthAHDSR().initialize failed");
-          }
-          auto oneSynth = allAHDSRSynths().begin();
-          if(oneSynth != allAHDSRSynths().end()) {
-            LG(ERR, "getSynthAHDSR : a preexisting synth is returned");
-            return *(oneSynth->second.get());
-          }
-          LG(ERR, "getSynthAHDSR : an uninitialized synth is returned");
-          return *ret;
-      }
-
-      void midiEvent(int envelCharacTime, Event e) {
-        using namespace imajuscule::audio;
+      template<typename Env>
+      void midiEvent(typename Env::Param const & env, Event e) {
         using namespace mySynth;
-        getSynth(envelCharacTime).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
-      }
-
-      void midiEventAHDSR(AHDSR_t env, Event e) {
-        using namespace imajuscule::audio;
-        using namespace mySynth;
-        getSynthAHDSR(env).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
+        Synths<Env>::get(env).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
       }
     }
   }
@@ -258,14 +286,14 @@ extern "C" {
   void teardownAudio() {
     using namespace imajuscule;
     using namespace imajuscule::audio;
+    using namespace imajuscule::audioelement;
     using namespace imajuscule::audio::detail;
-    using namespace imajuscule::scoped;
-    MutexLock l(synthsMutex());
 
     windVoice().finalize(getXfadeChannels());
-    for(auto & s : allSynths()) {
-      s.second->finalize(getNoXfadeChannels());
-    }
+
+    Synths<AHDSREnvelope<float>>::finalize();
+    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<SimpleEnvelope<float>>::finalize();
 
     getAudioContext().TearDown();
   }
@@ -273,23 +301,27 @@ extern "C" {
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEvent(envelCharacTime, mkNoteOn(pitch,velocity));
+    using namespace imajuscule::audioelement;
+    midiEvent<SimpleEnvelope<float>>(envelCharacTime, mkNoteOn(pitch,velocity));
   }
   void midiNoteOff(int envelCharacTime, int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEvent(envelCharacTime, mkNoteOff(pitch));
+    using namespace imajuscule::audioelement;
+    midiEvent<SimpleEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
   void midiNoteOnAHDSR_(int a, int h, int d, float s, int r, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEventAHDSR(AHDSR_t{a,h,d,r,s}, mkNoteOn(pitch,velocity));
+    using namespace imajuscule::audioelement;
+    midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(AHDSR_t{a,h,d,r,s}, mkNoteOn(pitch,velocity));
   }
   void midiNoteOffAHDSR_(int a, int h, int d, float s, int r, int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    midiEventAHDSR(AHDSR_t{a,h,d,r,s}, mkNoteOff(pitch));
+    using namespace imajuscule::audioelement;
+    midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(AHDSR_t{a,h,d,r,s}, mkNoteOff(pitch));
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {

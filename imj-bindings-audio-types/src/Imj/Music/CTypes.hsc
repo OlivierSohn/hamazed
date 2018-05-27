@@ -29,14 +29,8 @@ The AHDSR envelope is like an ADSR envelope, except we allow to hold the value a
    |                     |
    key is pressed        key is released
 
-   Note that eventhough 'release' is expressed in number of samples,
-   it specifies the /slope/ of the signal while releasing:
-
-   * If the key is released while the note is sutaining, the enveloppe will touch 0
-   in 'release' samples.
-   * If the key is released during attack, hold, or decay (i.e we didn't reach the sustain phase yet),
-   the signal will release with the same /slope/ as in the case where the key is released while
-   the note is sustaining.
+   Irrespective of wether the key is released when the note reached sustain or not,
+    the envelope will touch 0 in 'release' samples.
 @
 -}
 data AHDSR = AHDSR {

@@ -138,7 +138,7 @@ instance NFData Instrument
 -- it would be nice to have a "sustain that fades slowly"
 -- or maybe what I'm looking for is exponential decay
 bell :: AHDSR
-bell = AHDSR 500 200 10000 30000 0.4
+bell = AHDSR 500 200 40000 30000 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument

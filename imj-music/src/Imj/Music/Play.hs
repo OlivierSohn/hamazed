@@ -143,14 +143,14 @@ stopVoice (Voice _ cur l) =
 
 play :: Music -> IO ()
 play (StartNote n@(NoteSpec _ _ i) (MidiVelocity v)) = case i of
-  SineSynthAHDSR ahdsr -> midiNoteOnAHDSR ahdsr pitch vel
+  SineSynthAHDSR e ahdsr -> midiNoteOnAHDSR (fromIntegral $ fromEnum e) ahdsr pitch vel
   SineSynth ect -> midiNoteOn (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch vel
   Wind k -> effectOn (fromIntegral k) pitch vel
  where
   (MidiPitch pitch) = noteToMidiPitch n
   vel = CFloat v
 play (StopNote n@(NoteSpec _ _ i)) = case i of
-  SineSynthAHDSR ahdsr -> midiNoteOffAHDSR ahdsr pitch
+  SineSynthAHDSR e ahdsr -> midiNoteOffAHDSR (fromIntegral $ fromEnum e) ahdsr pitch
   SineSynth ect -> midiNoteOff (fromIntegral $ unEnvelopeCharacteristicTime ect) pitch
   Wind _ -> effectOff pitch
  where

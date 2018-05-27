@@ -69,6 +69,7 @@ instance NFData LoopId
 data SynthsGame = SynthsGame {
     _clientsPianos :: !(Map ClientId PianoState)
   , _clientLoopsPianos :: !(Map SequencerId (Map LoopId PianoState))
+  , instrument :: !Instrument
 } deriving(Show)
 
 data SynthsServer = SynthsServer {
@@ -122,7 +123,7 @@ instance GameExternalUI SynthsGame where
   gameWindowTitle = const "Play some music!"
 
   -- NOTE 'getViewport' is never called unless 'putIGame' was called once.
-  getViewport _ (Screen _ center) (SynthsGame _ _) =
+  getViewport _ (Screen _ center) SynthsGame{} =
     mkCenteredRectContainer center $ Size 40 100
 
 data SynthsStatefullKeys
@@ -140,13 +141,14 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
   mapStateKey _ (GLFW.Key'F10) GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
-  mapStateKey _ k s _ _ =
-    return $ CliEvt . ClientAppEvt . PlayNote <$> n
+  mapStateKey _ k s _ _ = do
+    instr <- fromMaybe defaultInstr . fmap instrument <$> getIGame
+    return $ CliEvt . ClientAppEvt . PlayNote <$> n instr
    where
-    n = maybe Nothing (\noteSpec -> case s of
+    n instr = maybe Nothing (\noteSpec -> case s of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
       GLFW.KeyState'Released -> Just $ StopNote noteSpec
-      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f (SineSynthAHDSR bell)) $ keyToNote k
+      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f instr) $ keyToNote k
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys
@@ -190,6 +192,9 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'RightBracket -> Just $ NoteSpec Sol $ noOctave + 1
       _ -> Nothing
 
+defaultInstr :: Instrument
+defaultInstr = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
+
 instance GameLogic SynthsGame where
 
   type ServerT SynthsGame = SynthsServer
@@ -202,21 +207,27 @@ instance GameLogic SynthsGame where
   onServerEvent = \case
     NewLine seqId loopId ->
       getIGame >>= \mayG -> do
-        let (c,l) = maybe (mempty,mempty) (\(SynthsGame pianos loopPianos) -> (pianos,loopPianos)) mayG
-            new = SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId mkEmptyPiano) l)
+        let (c,l,inst) = maybe
+              (mempty,mempty, defaultInstr)
+              (\(SynthsGame pianos loopPianos synth) -> (pianos,loopPianos,synth))
+              mayG
+            new = SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId mkEmptyPiano) l) inst
         withAnim $ putIGame new
     PianoValue creator x ->
       getIGame >>= \mayG -> do
-        let (c,l) = maybe (mempty,mempty) (\(SynthsGame pianos loopPianos) -> (pianos,loopPianos)) mayG
+        let (c,l,inst) = maybe
+              (mempty,mempty, defaultInstr)
+              (\(SynthsGame pianos loopPianos synth) -> (pianos,loopPianos, synth))
+              mayG
             new = either
-              (\i -> SynthsGame (Map.insert i x c) l)
-              (\(seqId,loopId) -> SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId x) l))
+              (\i -> SynthsGame (Map.insert i x c) l inst)
+              (\(seqId,loopId) -> SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId x) l) inst)
               creator
         withAnim $ putIGame new -- TODO force withAnim when using putIGame ?
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops _) = do
     ref1 <- showPianos
       "Players"
       showPlayerName

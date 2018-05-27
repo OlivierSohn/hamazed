@@ -38,13 +38,13 @@ foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 foreign import ccall "teardownAudio" teardownAudio :: IO ()
 foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO ()
-foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> CFloat -> IO ()
-foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> IO ()
+foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> CFloat -> IO ()
+foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> IO ()
 
-midiNoteOffAHDSR :: AHDSR -> CShort -> IO ()
-midiNoteOffAHDSR (AHDSR a h d r s) i = midiNoteOffAHDSR_ (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
-midiNoteOnAHDSR :: AHDSR -> CShort -> CFloat -> IO ()
-midiNoteOnAHDSR (AHDSR a h d r s) i v = midiNoteOnAHDSR_ (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
+midiNoteOffAHDSR :: CInt -> AHDSR -> CShort -> IO ()
+midiNoteOffAHDSR t (AHDSR a h d r s) i = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
+midiNoteOnAHDSR :: CInt -> AHDSR -> CShort -> CFloat -> IO ()
+midiNoteOnAHDSR t (AHDSR a h d r s) i v = midiNoteOnAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

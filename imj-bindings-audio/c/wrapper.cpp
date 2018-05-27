@@ -32,8 +32,8 @@ namespace imajuscule {
       }
     };
 
-    template<typename T>
-    struct ClampParam<AHDSREnvelope<T>> {
+    template<typename T, EnvelopeRelease Rel>
+    struct ClampParam<AHDSREnvelope<T, Rel>> {
       static auto clamp(AHDSR_t const & env) {
         return env; // TODO clamp according to AHDSREnvelope
       }
@@ -54,8 +54,8 @@ namespace imajuscule {
       }
     };
 
-    template<typename T>
-    struct SetParam<AHDSREnvelope<T>> {
+    template<typename T, EnvelopeRelease Rel>
+    struct SetParam<AHDSREnvelope<T, Rel>> {
       template<typename A>
       static void set(AHDSR_t const & env, A & a) {
         a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
@@ -75,9 +75,9 @@ namespace imajuscule {
       static constexpr bool value = true;
     };
 
-    template<typename T>
-    struct HasNoteOff<AHDSREnvelope<T>> {
-      static constexpr bool value = true;
+    template<typename T, EnvelopeRelease Rel>
+    struct HasNoteOff<AHDSREnvelope<T, Rel>> {
+      static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
 
     template<typename T, EnvelopeRelease Rel>
@@ -177,6 +177,15 @@ namespace imajuscule {
   }
 }
 
+extern "C" {
+  enum envelType {
+      AHDSR_WaitForKeyRelease
+    , AHDSR_ReleaseAfterDecay
+    , AHPropDerDSR_WaitForKeyRelease
+    , AHPropDerDSR_ReleaseAfterDecay
+  };
+}
+
 // functions herein are /not/ part of the interface
 namespace imajuscule {
   namespace audio {
@@ -248,6 +257,26 @@ namespace imajuscule {
         using namespace mySynth;
         Synths<Env>::get(env).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
       }
+
+      void midiEventAHDSR(envelType t, AHDSR_t p, Event n) {
+        using namespace audioelement;
+        switch(t) {
+          case AHDSR_ReleaseAfterDecay:
+            midiEvent<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            break;
+          case AHDSR_WaitForKeyRelease:
+            midiEvent<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            break;
+          case AHPropDerDSR_ReleaseAfterDecay:
+            midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            break;
+          case AHPropDerDSR_WaitForKeyRelease:
+            midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            break;
+          default:
+            break;
+        }
+      }
     }
   }
 }
@@ -291,9 +320,11 @@ extern "C" {
 
     windVoice().finalize(getXfadeChannels());
 
-    Synths<AHDSREnvelope<float>>::finalize();
-    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
     Synths<SimpleEnvelope<float>>::finalize();
+    Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
   }
@@ -311,17 +342,19 @@ extern "C" {
     midiEvent<SimpleEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
-  void midiNoteOnAHDSR_(int a, int h, int d, float s, int r, int16_t pitch, float velocity) {
+  void midiNoteOnAHDSR_(envelType t, int a, int h, int d, float s, int r, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    using namespace imajuscule::audioelement;
-    midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(AHDSR_t{a,h,d,r,s}, mkNoteOn(pitch,velocity));
+    auto p = AHDSR_t{a,h,d,r,s};
+    auto n = mkNoteOn(pitch,velocity);
+    midiEventAHDSR(t, p, n);
   }
-  void midiNoteOffAHDSR_(int a, int h, int d, float s, int r, int16_t pitch) {
+  void midiNoteOffAHDSR_(envelType t, int a, int h, int d, float s, int r, int16_t pitch) {
     using namespace imajuscule::audio;
     using namespace imajuscule::audio::detail;
-    using namespace imajuscule::audioelement;
-    midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(AHDSR_t{a,h,d,r,s}, mkNoteOff(pitch));
+    auto p = AHDSR_t{a,h,d,r,s};
+    auto n = mkNoteOff(pitch);
+    midiEventAHDSR(t, p, n);
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {

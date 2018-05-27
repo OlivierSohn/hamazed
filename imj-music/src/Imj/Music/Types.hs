@@ -12,6 +12,7 @@ module Imj.Music.Types
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
       , Instrument(..), defaultInstrument
       , AHDSR(..), bell
+      , Envelope(..)
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
@@ -127,9 +128,30 @@ data Music =
 instance Binary Music
 instance NFData Music
 
+data Envelope =
+    AHDSR_KeyRelease
+  | AHDSR_AutoReleaseAfterDecay
+  | AHPropDerDSR_KeyRelease
+  | AHPropDerDSR_AutoReleaseAfterDecay
+  deriving(Generic, Ord, Data, Eq, Show)
+instance Enum Envelope where
+  fromEnum = \case
+    AHDSR_KeyRelease -> 0
+    AHDSR_AutoReleaseAfterDecay -> 1
+    AHPropDerDSR_KeyRelease -> 2
+    AHPropDerDSR_AutoReleaseAfterDecay -> 3
+  toEnum = \case
+    0 -> AHDSR_KeyRelease
+    1 -> AHDSR_AutoReleaseAfterDecay
+    2 -> AHPropDerDSR_KeyRelease
+    3 -> AHPropDerDSR_AutoReleaseAfterDecay
+    n -> error $ "out of range:" ++ show n
+instance NFData Envelope
+instance Binary Envelope
+
 data Instrument =
     SineSynth !EnvelopeCharacteristicTime
-  | SineSynthAHDSR !AHDSR
+  | SineSynthAHDSR !Envelope !AHDSR
   | Wind !Int
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary Instrument
@@ -142,8 +164,8 @@ bell = AHDSR 500 200 40000 30000 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument
-defaultInstrument = SineSynth $ EnvelCharacTime 401
---defaultInstrument = SineSynthAHDSR bell
+--defaultInstrument = SineSynth $ EnvelCharacTime 401
+defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
 
 {-
 

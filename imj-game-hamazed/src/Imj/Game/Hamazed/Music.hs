@@ -31,6 +31,7 @@ hamazedScores =
   , intersperse Rest quatScore
   , transpose (-2) quintScore
   , sextScore
+  , intersperse Rest $ transpose 12 sevthScore
   ]
 
 primaryScore :: Score
@@ -426,8 +427,46 @@ sextScore =
      . . . . . . . .      .|]      ++ x ++ [notes|.      .           . . . .
      . . . . . . . .|] ++ x ++ [notes|-           .|] ++ x ++ [notes|. . . .|] -- it would be nice to have a live coding app to try these things
 
+sevthScore :: Score
+sevthScore =
+  mkScore
+    [ v1 ++ v1
+    , v2 ++ v2
+    , v3 ++ v3
+    , silence ++ v4
+    , silence ++ v5
+    ]
+ where
+   v1 = [notes|
+   vsol do mib . . ré mib . . . . .
+   vfa vsib ré . . mib ré . . . . .
+   |]
+
+   v2 = [notes|
+   . . . . . . vlab . . . . .
+   . . . . . . vla . . . . .
+   |]
 
 
+   v3 = [notes|
+   . . . . . . vsib . . . . .
+   . . . . . . vsi . . . . .
+   |]
+
+   v4 = [notes|
+   . . . . . . sol . ré mib do .
+   . . . . . . ré . mib . fa .
+   |]
+
+   v5 = [notes|
+   . . . . . . . . . . . .
+   . . . . . . vsi . do . ré .
+   |]
+
+   silence = [notes|
+   . . . . . . . . . . . .
+   . . . . . . . . . . . .
+   |]
 
 
 alarm :: [Symbol]

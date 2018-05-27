@@ -1,5 +1,19 @@
-- make enveloppes user-parametrable:
+- expose noteOff enabled, notOff disabled instruments
+
+- make enveloppes user-parametrizable:
 AHDSR, withNoteOff
+- display enveloppe
+- the 4th, 5th, 6th hamazed song sounds good with bell.
+to hear differences more easily we should have debug commands like
+/inst bell
+to change the instrument used to play
+- today, every instrument uses 32 channels. We have 255 channels, so we support
+7 intruments at the same time.
+
+the 255 limit is arbitrary, is was chosen not too big to avoid wasting memory but
+we could use a template parameter for this limit.
+
+In any case, we should finalize and delete unused instruments to return channels to the pool.
 
 - in hamazed, randomize the instrument used to play musics / use multiple instruments per score
 (one for each voice)

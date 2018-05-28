@@ -153,21 +153,21 @@ instance GameExternalUI SynthsGame where
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
-  mapStateKey _ GLFW.Key'Enter GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'Enter GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ Evt $ AppEvent ToggleEditPlay
-  mapStateKey _ GLFW.Key'Space GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'Space GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt WithMonoLineSequencer
-  mapStateKey _ GLFW.Key'F1 GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F1 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 1
-  mapStateKey _ GLFW.Key'F2 GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F2 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 2
-  mapStateKey _ GLFW.Key'F3 GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F3 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3
-  mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
-  mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
-  mapStateKey _ k s _ _ = getIGame >>= maybe
+  mapStateKey _ k s _ _ g = maybe
     (return Nothing)
     (\(SynthsGame _ _ instr mode_) -> case mode_ of
       EditSynth -> case instr of
@@ -179,6 +179,7 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
         _ -> return Nothing
       PlaySynth ->
         return $ CliEvt . ClientAppEvt . PlayNote <$> n instr)
+    $ _game $ getGameState' g
    where
     n instr = maybe Nothing (\noteSpec -> case s of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
@@ -236,7 +237,7 @@ instance GameLogic SynthsGame where
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
   type ClientOnlyEvtT SynthsGame = SynthsGameEvent
 
-  mapInterpretedKey _ _ = return Nothing
+  mapInterpretedKey _ _ _ = return Nothing
 
   onClientOnlyEvent e =
     fromMaybe initialGame <$> getIGame >>= \g@(SynthsGame _ _ instr _) -> withAnim $ putIGame $ case e of

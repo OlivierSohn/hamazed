@@ -212,8 +212,8 @@ instance GameLogic HamazedGame where
       CannotCreateLevel errs n ->
         colored ( Text.intercalate "\n" errs <> "\nHence, the server cannot create level " <> pack (show n)) red
 
-  mapInterpretedKey key x = fmap CliEvt <$> (case x of
-    Setup -> return $ case key of
+  mapInterpretedKey key x g = return $ fmap CliEvt $ case x of
+    Setup -> case key of
       AlphaNum c -> case c of
         ' ' -> Just $ ExitedState $ Included Setup
         '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
@@ -242,21 +242,22 @@ instance GameLogic HamazedGame where
             _   -> Nothing
           _ -> Nothing)
         (const Nothing)
-        <$> getLevelOutcome
-      WhenAllPressedAKey _ (Just _) _ -> return Nothing
+        $ getLevelOutcome g
+      WhenAllPressedAKey _ (Just _) _ -> Nothing
       WhenAllPressedAKey y Nothing havePressed ->
-        (maybe
+        maybe
           Nothing
           (maybe
             (error "logic")
             (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
-            . flip Map.lookup havePressed)) <$> getMyId
-      New -> return Nothing
-      Paused _ _ -> return Nothing
-      Countdown _ _ -> return Nothing
-      OutcomeValidated _ -> return Nothing
-      CancelledNoConnectedPlayer -> return Nothing
-      WaitingForOthersToEndLevel _ -> return Nothing)
+            . flip Map.lookup havePressed)
+          $ myId g
+      New -> Nothing
+      Paused _ _ -> Nothing
+      Countdown _ _ -> Nothing
+      OutcomeValidated _ -> Nothing
+      CancelledNoConnectedPlayer -> Nothing
+      WaitingForOthersToEndLevel _ -> Nothing
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
 mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _))
@@ -729,12 +730,11 @@ applyOperations =
               Substract -> v - n) 0
 
 {-# INLINABLE getLevelOutcome #-}
-getLevelOutcome :: MonadState (AppState HamazedGame) m => m (Maybe LevelOutcome)
-getLevelOutcome = maybe Nothing getLevelOutcome' <$> getLevel
-
-{-# INLINABLE getLevel #-}
-getLevel :: MonadState (AppState HamazedGame) m => m (Maybe Level)
-getLevel = fmap getGameLevel <$> getIGame
+getLevelOutcome :: Game HamazedGame -> Maybe LevelOutcome
+getLevelOutcome = maybe Nothing getLevelOutcome' . getLevel
+ where
+  getLevel :: Game HamazedGame -> Maybe Level
+  getLevel = fmap getGameLevel . _game . getGameState'
 
 {-# INLINABLE putWorld #-}
 putWorld :: MonadState (AppState HamazedGame) m => World -> m ()

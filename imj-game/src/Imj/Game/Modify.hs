@@ -16,6 +16,7 @@ module Imj.Game.Modify
       , getServerContent
       , getCurScreen
       , getLastRenderTime
+      , myId
       -- * Modify
       , addParticleSystems
       , putGame
@@ -128,7 +129,11 @@ putGameConnection c =
 
 {-# INLINABLE getMyId #-}
 getMyId :: MonadState (AppState g) m => m (Maybe ClientId)
-getMyId = maybe Nothing (either (const Nothing) Just) . connection' <$> gets game
+getMyId = myId <$> gets game
+
+{-# INLINABLE myId #-}
+myId :: Game g -> Maybe ClientId
+myId = maybe Nothing (either (const Nothing) Just) . connection'
 
 {-# INLINABLE putServerContent #-}
 putServerContent :: MonadState (AppState g) m => ValuesT (ServerT g) -> m ()

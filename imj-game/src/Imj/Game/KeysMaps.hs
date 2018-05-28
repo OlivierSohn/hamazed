@@ -49,12 +49,13 @@ translatePlatformEvent prox = \case
         Enter      -> Just $ Evt $ SendChatMessage
         _ -> Nothing
       NotEditing -> do
-        (ClientState activity state) <- getClientState <$> gets game
+        g <- gets game
+        let (ClientState activity state) = getClientState g
         case activity of
           Over -> return Nothing
           Ongoing -> case state of
             Excluded -> return Nothing
-            Included x -> mapInterpretedKey key x
+            Included x -> mapInterpretedKey key x g
   StatefullKey k s@GLFW.KeyState'Pressed m ->
     maybe
       (statefull k s m)
@@ -90,7 +91,8 @@ translatePlatformEvent prox = \case
     statefull k s m
  where
   statefull k s m = do
-    (ClientState activity state) <- getClientState <$> gets game
+    g <- gets game
+    let (ClientState activity state) = getClientState g
     case activity of
       Over -> return Nothing
       Ongoing -> case state of
@@ -107,7 +109,7 @@ translatePlatformEvent prox = \case
                 _ -> return ()
               send
          where
-          send = mapStateKey (toStateKeys prox) k s m x
+          send = mapStateKey (toStateKeys prox) k s m x g
 
   isArrow :: GLFW.Key -> Maybe Direction
   isArrow = \case

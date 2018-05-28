@@ -209,7 +209,6 @@ class GameStatefullKeys g s where
   mapStateKey :: (GameLogic g
                 , GameLogicT e ~ g
                 , s ~ StatefullKeysT g
-                , MonadState (AppState g) m
                 , MonadReader e m, Client e)
               => Proxy s
               -> GLFW.Key
@@ -217,11 +216,12 @@ class GameStatefullKeys g s where
               -> GLFW.ModifierKeys
               -> GameStateValue
               -- ^ The current client state.
+              -> Game g
               -> m (Maybe (GenEvent g))
 
 instance GameStatefullKeys g () where
   needsStatefullKeys _ = const False
-  mapStateKey _ _ _ _ _ = return Nothing
+  mapStateKey _ _ _ _ _ _ = return Nothing
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Show g
@@ -288,12 +288,12 @@ class (Show g
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
   mapInterpretedKey :: (GameLogicT e ~ g
-            , MonadState (AppState g) m
-            , MonadReader e m, Client e)
-           => Key
-           -> GameStateValue
-           -- ^ The current client state.
-           -> m (Maybe (GenEvent g))
+                     , MonadReader e m, Client e)
+                    => Key
+                    -> GameStateValue
+                    -- ^ The current client state.
+                    -> Game g
+                    -> m (Maybe (GenEvent g))
 
 -- | At every render, first background elements ('drawBackground') are drawn,
 -- then particle systems (see 'addParticleSystems' to add particle systems),

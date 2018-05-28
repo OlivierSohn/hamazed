@@ -1,11 +1,7 @@
-- document and change:
--- do not put the code that updates the game inside mapStateKey / mapInterpretedKey,
--- instead return an event that you will handle in onClientOnlyEvent (or generate an event for the server)
--- else redraw will not occur promptly.
--- TODO prevent game modifications by removing the state monad and pass 'AppState g' as argument
-
+- use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
+- remove 256 channels limit (review types for channel ids : uint8_t -> int)
 - fix "an uninitialized synth is returned" when we cycle envelopes 4 times. Alternatives are:
-* have one channel pool per instrument and maintain a global list (under lock) of lambdas pairs:
+* one channel pool per instrument and maintain a global list (under lock) of lambdas pairs:
     - one to know if the synth is playing (by checking if orchestrators and computes are empty
       , hence it's important that the pool is for this instrument only)
     - one to finalize the synth (and hence return the channels) : after calling this we remove the pair.)
@@ -14,7 +10,7 @@
     see if it is better now.
     I think computes are well removed when the enveloppe finishes, but the channel
     in which the request is still active has no way of knowing that the element is done
-    (unless we move the ownership of copmutes to each channel, and use a heuristic:
+    (unless we move the ownership of computes to each channel, and use a heuristic:
       if the request queue is empty, and the current requests are audioelements that have already started
       to be computed (to avoid race conditions), and computes are empty, then the channel is not playing)
 

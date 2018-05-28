@@ -88,10 +88,10 @@ namespace imajuscule {
 
   namespace audio {
 
-    using AllChans = ChannelsAggregate<
-      Channels<2, XfadePolicy::UseXfade, AudioOutPolicy::Master>,
-      Channels<2, XfadePolicy::SkipXfade, AudioOutPolicy::Master>
-    >;
+    using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::Master >;
+
+    using NoXFadeChans = typename AllChans::NoXFadeChans;
+    using XFadeChans = typename AllChans::XFadeChans;
 
     using Ctxt = AudioOutContext<
       outputDataBase<
@@ -103,21 +103,26 @@ namespace imajuscule {
       >;
 
     auto & getAudioContext() {
-      static constexpr auto n_max_orchestrator_per_channel = 1;
-
-      static Ctxt c {
-          masterAudioLock(),
-          std::numeric_limits<uint8_t>::max(),
-          n_max_orchestrator_per_channel
-        };
+      static Ctxt c { masterAudioLock() };
       return c;
     }
 
     auto & getXfadeChannels() {
-      return getAudioContext().getChannelHandler().getChannels().getChannels1();
+      return **(getAudioContext().getChannelHandler().getChannels().getChannelsXFade().begin());
     }
-    auto & getNoXfadeChannels() {
-      return getAudioContext().getChannelHandler().getChannels().getChannels2();
+
+    auto & addNoXfadeChannels(int nVoices) {
+      static constexpr auto n_max_orchestrator_per_channel = 0; // we don't use orchestrators
+      auto p = std::make_unique<NoXFadeChans>(
+        getAudioContext().getChannelHandler().get_lock_policy(),
+        std::min(nVoices, static_cast<int>(std::numeric_limits<uint8_t>::max())),
+        n_max_orchestrator_per_channel);
+      auto & res = *p;
+      {
+        typename Ctxt::Locking l(getAudioContext().getChannelHandler().get_lock());
+        getAudioContext().getChannelHandler().getChannels().getChannelsNoXFade().emplace_back(std::move(p));
+      }
+      return res;
     }
 
     Event mkNoteOn(int pitch, float velocity) {
@@ -194,6 +199,24 @@ namespace imajuscule {
       namespace mySynth = imajuscule::audio::vasine;
       //namespace mySynth = imajuscule::audio::sine;
 
+      // this is very temporary, until mononotechannel uses pointers to the channels instead of ids.
+      template<typename T>
+      struct withChannels {
+        withChannels(NoXFadeChans & chans) : chans(chans) {}
+
+        template<typename Out>
+        void onEvent2(Event e, Out & out) {
+          obj.onEvent2(e, out, chans);
+        }
+
+        void finalize() {
+          obj.finalize(chans);
+        }
+
+        T obj;
+        NoXFadeChans & chans;
+      };
+
       template <typename Envel>
       struct Synths {
         using T = mySynth::SynthT<Envel>;
@@ -213,10 +236,10 @@ namespace imajuscule {
             if(it != synths.end()) {
               return *(it->second.get());
             }
-            auto unique = std::make_unique<T>();
-            SetParam<Envel>::set(envelParam, *unique);
+            auto unique = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
+            SetParam<Envel>::set(envelParam, unique->obj);
             auto * ret = unique.get();
-            if(unique->initialize(getNoXfadeChannels())) {
+            if(unique->obj.initialize(unique->chans)) {
                 auto res = synths.emplace(envelParam, std::move(unique));
                 return *(res.first->second.get());
             }
@@ -237,13 +260,13 @@ namespace imajuscule {
           using namespace scoped;
           MutexLock l(mutex());
           for(auto & s : map()) {
-            s.second->finalize(getNoXfadeChannels());
+            s.second->finalize();
           }
         }
 
       private:
         static auto & map() {
-          static std::map<K,std::unique_ptr<T>> m;
+          static std::map<K,std::unique_ptr<withChannels<T>>> m;
           return m;
         }
         static auto & mutex() {
@@ -255,7 +278,7 @@ namespace imajuscule {
       template<typename Env>
       void midiEvent(typename Env::Param const & env, Event e) {
         using namespace mySynth;
-        Synths<Env>::get(env).onEvent2(e, getAudioContext().getChannelHandler(), getNoXfadeChannels());
+        Synths<Env>::get(env).onEvent2(e, getAudioContext().getChannelHandler());
       }
 
       void midiEventAHDSR(envelType t, AHDSR_t p, Event n) {
@@ -298,6 +321,14 @@ extern "C" {
     setPortaudioEnvVars();
 
     getAudioContext().Init();
+
+    // add a single Xfade channel (needed because soundengine and channel don't support envelopes entirely)
+    static constexpr auto n_max_orchestrator_per_channel = 1;
+    getAudioContext().getChannelHandler().getChannels().getChannelsXFade().emplace_back(
+      std::make_unique<XFadeChans>(
+        getAudioContext().getChannelHandler().get_lock_policy(),
+        std::numeric_limits<uint8_t>::max(),
+        n_max_orchestrator_per_channel));
 
     windVoice().initializeSlow();
     if(!windVoice().initialize(getXfadeChannels())) {

@@ -1,19 +1,22 @@
+
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
 - remove 256 channels limit (review types for channel ids : uint8_t -> int)
-- fix "an uninitialized synth is returned" when we cycle envelopes 4 times. Alternatives are:
-* one channel pool per instrument and maintain a global list (under lock) of lambdas pairs:
-    - one to know if the synth is playing (by checking if orchestrators and computes are empty
-      , hence it's important that the pool is for this instrument only)
-    - one to finalize the synth (and hence return the channels) : after calling this we remove the pair.)
-* do not block 32*2 channels per synth, open when we need to play a note and make channels auto closing.
-  with enveloppes, maybe at the beginning we had limitations that prevented this method from working,
-    see if it is better now.
-    I think computes are well removed when the enveloppe finishes, but the channel
-    in which the request is still active has no way of knowing that the element is done
-    (unless we move the ownership of computes to each channel, and use a heuristic:
-      if the request queue is empty, and the current requests are audioelements that have already started
-      to be computed (to avoid race conditions), and computes are empty, then the channel is not playing)
 
+- maintain a global list (under lock) of lambdas pairs:
+    - one to know if the synth is playing :
+        checks if orchestrators and computes are empty, and
+          if all mononotechannel elements enveloppes are done.
+        the function should take the isUsed lock of the instrument else race conditions will occur.
+    - one to finalize the synth (and hence return the channels) : after calling this we remove the pair.
+
+Use a pool of channels, to prevent memory fragmentation.
+Garbage collection should occur :
+* when the pool is exhausted
+* use a global counter in withChannels, to keep track of last use,
+try to collect old instruments first.
+
+To avoid waiting for memory allocation, we could optionally let the user
+"load" (create + initialize) instruments, "tryUnload". But I would prefer if using the pool was sufficient.
 
 - make enveloppes user-parametrizable:
 AHDSR

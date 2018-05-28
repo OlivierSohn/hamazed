@@ -203,6 +203,9 @@ namespace imajuscule {
       template<typename T>
       struct withChannels {
         withChannels(NoXFadeChans & chans) : chans(chans) {}
+        ~withChannels() {
+          std::lock_guard<std::mutex> l(isUsed); // see 'Using'
+        }
 
         template<typename Out>
         void onEvent2(Event e, Out & out) {
@@ -215,6 +218,33 @@ namespace imajuscule {
 
         T obj;
         NoXFadeChans & chans;
+        std::mutex isUsed;
+      };
+
+      // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
+      // won't be destroyed during the entire lifetime of the instance, iff the following conditions hold:
+      //   (1) T::~T() locks, then unlocks 'o.isUsed'
+      //   (2) 'protectsDestruction' passed to the constructor is currently locked
+      //          and 'o' cannot be destroyed until 'protectsDestruction' is unlocked
+      template<typename T>
+      struct Using {
+        T & o; // this reference makes the object move-only, which is what we want
+
+        Using(std::lock_guard<std::mutex> && protectsDestruction, T&o) : o(o) {
+          o.isUsed.lock();
+          // NOTE here, both the instrument lock (isUsed) and the 'protectsDestruction' lock
+          // are taken.
+          //
+          // The order in which we take the locks is important to avoid deadlocks:
+          // it is OK to take multiple locks at the same time, /only/ if, everywhere in the program,
+          // we take them respecting a global order on the locks of the program.
+          //
+          // Hence, here the global order is:
+          // map lock (protectsDestruction) -> instrument lock (isUsed)
+        }
+        ~Using() {
+          o.isUsed.unlock();
+        }
       };
 
       template <typename Envel>
@@ -222,26 +252,30 @@ namespace imajuscule {
         using T = mySynth::SynthT<Envel>;
         using K = typename Envel::Param;
 
-        static auto & get(K const & rawEnvelParam) {
+        // NOTE the 'Using' is constructed while we hold the lock to the map.
+        // Hence, while garbage collecting, if we take the map lock,
+        // and if the instrument lock is not taken, we have the guarantee that
+        // the instrument lock won't be taken until we release the map lock.
+        static Using<withChannels<T>> get(K const & rawEnvelParam) {
           using namespace audioelement;
 
           auto envelParam = ClampParam<Envel>::clamp(rawEnvelParam);
           {
             // we use a global lock because we can concurrently modify and lookup the map.
-            imajuscule::scoped::MutexLock l(mutex());
+            std::lock_guard<std::mutex> l(mutex());
 
             auto & synths = map();
 
             auto it = synths.find(envelParam);
             if(it != synths.end()) {
-              return *(it->second.get());
+              return Using(std::move(l), *(it->second));
             }
-            auto unique = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
-            SetParam<Envel>::set(envelParam, unique->obj);
-            auto * ret = unique.get();
-            if(unique->obj.initialize(unique->chans)) {
-                auto res = synths.emplace(envelParam, std::move(unique));
-                return *(res.first->second.get());
+            auto p = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
+            auto & res = *p;
+            SetParam<Envel>::set(envelParam, p->obj);
+            if(p->obj.initialize(p->chans)) {
+                auto res = synths.emplace(envelParam, std::move(p));
+                return Using(std::move(l), *(res.first->second));
             }
             else {
               LG(ERR,"get().initialize failed");
@@ -249,19 +283,19 @@ namespace imajuscule {
             auto oneSynth = synths.begin();
             if(oneSynth != synths.end()) {
               LG(ERR, "get : a preexisting synth is returned");
-              return *(oneSynth->second.get());
+              return Using(std::move(l), *(oneSynth->second.get()));
             }
             LG(ERR, "get : an uninitialized synth is returned");
-            return *ret;
+            return Using(std::move(l), res);
           }
         }
 
         static void finalize() {
-          using namespace scoped;
-          MutexLock l(mutex());
+          std::lock_guard<std::mutex> l(mutex());
           for(auto & s : map()) {
             s.second->finalize();
           }
+          map().clear();
         }
 
       private:
@@ -278,7 +312,12 @@ namespace imajuscule {
       template<typename Env>
       void midiEvent(typename Env::Param const & env, Event e) {
         using namespace mySynth;
-        Synths<Env>::get(env).onEvent2(e, getAudioContext().getChannelHandler());
+        // if we garbage collect std::unique_ptr<withChannels<T>>,
+        // we should take the map lock, and we should have a lock in withInstrument
+        // indicating that we're issuing a command using this instrument.
+        // Here, the instrument lock should be taken _while_ the map lock is taken
+        // and released after onEvent2 returns.
+        Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
       }
 
       void midiEventAHDSR(envelType t, AHDSR_t p, Event n) {

@@ -32,6 +32,7 @@ import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
+import           Imj.Event
 import           Imj.Game.App(runGame)
 import           Imj.Game.Class
 import           Imj.Game.Command
@@ -40,6 +41,7 @@ import           Imj.Game.Show
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Positionable
+import           Imj.Graphics.Class.Words hiding(concat, replicate)
 import           Imj.Graphics.Color
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString(ColorString)
@@ -67,10 +69,24 @@ instance Binary LoopId
 instance NFData LoopId
 
 data SynthsGame = SynthsGame {
-    _clientsPianos :: !(Map ClientId PianoState)
-  , _clientLoopsPianos :: !(Map SequencerId (Map LoopId PianoState))
+    pianos :: !(Map ClientId PianoState)
+  , pianoLoops :: !(Map SequencerId (Map LoopId PianoState))
   , instrument :: !Instrument
+  , mode :: !SynthsMode
 } deriving(Show)
+
+initialGame :: SynthsGame
+initialGame = SynthsGame mempty mempty defaultInstr PlaySynth
+
+data SynthsMode =
+    PlaySynth
+  | EditSynth
+  deriving(Show)
+
+toggle :: SynthsMode -> SynthsMode
+toggle = \case
+  PlaySynth -> EditSynth
+  EditSynth -> PlaySynth
 
 data SynthsServer = SynthsServer {
     srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId)))
@@ -118,6 +134,14 @@ data SynthClientEvent =
 instance Binary SynthClientEvent
 instance Categorized SynthClientEvent
 
+data SynthsGameEvent =
+    ToggleEditPlay
+  | CycleEnvelopes
+  deriving(Show)
+instance Categorized SynthsGameEvent
+instance DrawGroupMember SynthsGameEvent where
+  exclusivityKeys _ = mempty
+
 instance GameExternalUI SynthsGame where
 
   gameWindowTitle = const "Play some music!"
@@ -129,21 +153,32 @@ instance GameExternalUI SynthsGame where
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
-  mapStateKey _ (GLFW.Key'Space) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'Enter GLFW.KeyState'Pressed _ _ =
+    return $ Just $ Evt $ AppEvent ToggleEditPlay
+  mapStateKey _ GLFW.Key'Space GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt WithMonoLineSequencer
-  mapStateKey _ (GLFW.Key'F1) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F1 GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 1
-  mapStateKey _ (GLFW.Key'F2) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F2 GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 2
-  mapStateKey _ (GLFW.Key'F3) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F3 GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3
-  mapStateKey _ (GLFW.Key'F4) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
-  mapStateKey _ (GLFW.Key'F10) GLFW.KeyState'Pressed _ _ =
+  mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
-  mapStateKey _ k s _ _ = do
-    instr <- fromMaybe defaultInstr . fmap instrument <$> getIGame
-    return $ CliEvt . ClientAppEvt . PlayNote <$> n instr
+  mapStateKey _ k s _ _ = getIGame >>= maybe
+    (return Nothing)
+    (\(SynthsGame _ _ instr mode_) -> case mode_ of
+      EditSynth -> case instr of
+        SineSynthAHDSR{} -> case s of
+          GLFW.KeyState'Pressed -> case k of
+            GLFW.Key'Q -> return $ Just $ Evt $ AppEvent CycleEnvelopes
+            _ -> return Nothing
+          _ -> return Nothing
+        _ -> return Nothing
+      PlaySynth ->
+        return $ CliEvt . ClientAppEvt . PlayNote <$> n instr)
    where
     n instr = maybe Nothing (\noteSpec -> case s of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
@@ -199,35 +234,43 @@ instance GameLogic SynthsGame where
 
   type ServerT SynthsGame = SynthsServer
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
+  type ClientOnlyEvtT SynthsGame = SynthsGameEvent
 
   mapInterpretedKey _ _ = return Nothing
 
-  onClientOnlyEvent = \case
-    () -> return ()
-  onServerEvent = \case
-    NewLine seqId loopId ->
-      getIGame >>= \mayG -> do
-        let (c,l,inst) = maybe
-              (mempty,mempty, defaultInstr)
-              (\(SynthsGame pianos loopPianos synth) -> (pianos,loopPianos,synth))
-              mayG
-            new = SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId mkEmptyPiano) l) inst
-        withAnim $ putIGame new
-    PianoValue creator x ->
-      getIGame >>= \mayG -> do
-        let (c,l,inst) = maybe
-              (mempty,mempty, defaultInstr)
-              (\(SynthsGame pianos loopPianos synth) -> (pianos,loopPianos, synth))
-              mayG
-            new = either
-              (\i -> SynthsGame (Map.insert i x c) l inst)
-              (\(seqId,loopId) -> SynthsGame c (Map.insertWith (Map.union) seqId (Map.singleton loopId x) l) inst)
-              creator
-        withAnim $ putIGame new -- TODO force withAnim when using putIGame ?
+  onClientOnlyEvent e =
+    fromMaybe initialGame <$> getIGame >>= \g@(SynthsGame _ _ instr _) -> withAnim $ putIGame $ case e of
+      ToggleEditPlay ->
+        g { mode = toggle $ mode g }
+      CycleEnvelopes -> case instr of
+        SineSynthAHDSR env ahdsr ->
+          g {instrument = SineSynthAHDSR (cycleEnvelope env) ahdsr}
+        _ -> g
+
+  onServerEvent e =
+    -- TODO force withAnim when using putIGame ?
+    fromMaybe initialGame <$> getIGame >>= \g -> withAnim $ putIGame $ case e of
+      NewLine seqId loopId ->
+        g { pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId mkEmptyPiano) $ pianoLoops g }
+      PianoValue creator x -> either
+        (\i ->
+          g {pianos = Map.insert i x $ pianos g})
+        (\(seqId,loopId) ->
+          g {pianoLoops = Map.insertWith Map.union seqId (Map.singleton loopId x) $ pianoLoops g})
+        creator
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops_ synth mode_) = do
+    let infos = case mode_ of
+          PlaySynth ->
+            ["You can now play using your keyboard." :: String
+           , "To edit the synth parameters, press 'Enter'."]
+          EditSynth ->
+            ["You can now edit the synth parameters."
+           , "To play the synth, press 'Enter'."]
+    foldM (flip drawAligned) (mkCentered $ move 7 Up center) infos >>= \al ->
+      foldM_ (flip drawAligned) al $ multiLine 100 $ show synth
     ref1 <- showPianos
       "Players"
       showPlayerName
@@ -239,7 +282,7 @@ instance GameDraw SynthsGame where
           (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
           seqPianoLoops >>= drawPiano ref)
         ref1
-        $ Map.assocs pianoLoops
+        $ Map.assocs pianoLoops_
     return center
    where
      drawPiano (Coords r _) allStrs = do

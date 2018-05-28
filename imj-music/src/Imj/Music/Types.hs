@@ -12,7 +12,7 @@ module Imj.Music.Types
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
       , Instrument(..), defaultInstrument
       , AHDSR(..), bell
-      , Envelope(..)
+      , Envelope(..), cycleEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
@@ -148,6 +148,10 @@ instance Enum Envelope where
     n -> error $ "out of range:" ++ show n
 instance NFData Envelope
 instance Binary Envelope
+
+cycleEnvelope :: Envelope -> Envelope
+cycleEnvelope AHPropDerDSR_AutoReleaseAfterDecay = AHDSR_KeyRelease
+cycleEnvelope e = succ e
 
 data Instrument =
     SineSynth !EnvelopeCharacteristicTime

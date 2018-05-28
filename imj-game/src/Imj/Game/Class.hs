@@ -375,6 +375,9 @@ class DrawGroupMember e where
   -- return 'mempty', else your game / application may exhibit strong lag and/or unresponsiveness.
   exclusivityKeys :: e -> Set DrawGroupKeys
 
+instance DrawGroupMember () where
+  exclusivityKeys () = mempty
+
 instance (DrawGroupMember e, DrawGroupMember f)
   => DrawGroupMember (Either e f) where
   exclusivityKeys = either exclusivityKeys exclusivityKeys
@@ -395,9 +398,6 @@ instance DrawGroupMember e
     ChatCmd {} -> mempty
     SendChatMessage -> mempty
     AppEvent e -> exclusivityKeys e
-
-instance DrawGroupMember () where
-  exclusivityKeys () = mempty
 
 instance DrawGroupMember (ServerEventT e)
   => DrawGroupMember (ServerEvent e) where
@@ -438,11 +438,10 @@ tryGrow (Just e) (EventGroup l pastKeys updateTime range)
  | keyConflict = return Nothing
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
  | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> return $
-    let -- so that no 2 updates of the same particle system are done in the same group:
-        maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
+    let maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
     in if timeSpan range' > maxDiameter
       then
-        Nothing
+        Nothing -- trigger a render so that no 2 updates of the same particle system are done in the same group
       else
         withEvent $ Just range'
  where

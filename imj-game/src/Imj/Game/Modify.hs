@@ -16,7 +16,6 @@ module Imj.Game.Modify
       , getServerContent
       , getCurScreen
       , getLastRenderTime
-      , hasVisibleNonRenderedUpdates
       -- * Modify
       , addParticleSystems
       , putGame
@@ -191,11 +190,6 @@ stateChat f =
     let (newChat, v) = f $ getChat' g
     putGame $ g { getChat' = newChat }
     return v
-
-{-# INLINABLE hasVisibleNonRenderedUpdates #-}
-hasVisibleNonRenderedUpdates :: MonadState (AppState g) m => m Bool
-hasVisibleNonRenderedUpdates =
-  visible <$> gets eventsGroup
 
 -- | Returns 'True' if a keypress event was handled by 'mapStateKey' without matching release.
 {-# INLINABLE keyIsPressed #-}

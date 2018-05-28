@@ -16,14 +16,13 @@ import           Imj.Prelude
 import           Control.Concurrent.Async(wait, withAsync) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
 import           Control.Monad.Reader.Class(MonadReader, asks)
-import           Control.Monad.State.Class(MonadState)
+import           Control.Monad.State.Class(MonadState, gets)
 import           Data.IORef(newIORef, atomicModifyIORef', atomicWriteIORef)
 
 import           Imj.Input.Types
 
 import           Imj.Event
 import           Imj.Game.Deadlines
-import           Imj.Game.Modify
 import           Imj.Game.State
 
 loop :: (MonadIO m
@@ -85,7 +84,7 @@ triggerRenderOr :: (MonadIO m
                   , MonadReader e m, PlayerInput e)
                 => IO (Maybe (AnyEvent g))
                 -> m (Maybe (AnyEvent g))
-triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
+triggerRenderOr readInput = visible <$> gets eventsGroup >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
       return Nothing

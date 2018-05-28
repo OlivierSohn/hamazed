@@ -103,7 +103,7 @@ namespace imajuscule {
       >;
 
     auto & getAudioContext() {
-      static Ctxt c { masterAudioLock() };
+      static Ctxt c { GlobalAudioLock<AudioOutPolicy::Master>::get() };
       return c;
     }
 

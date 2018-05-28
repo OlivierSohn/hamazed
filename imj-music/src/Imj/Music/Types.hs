@@ -10,9 +10,9 @@ module Imj.Music.Types
       ( -- * Notes and instruments
         Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
-      , Instrument(..), defaultInstrument
+      , Instrument(..), defaultInstrument, prettyShowInstrument
       , AHDSR(..), bell
-      , Envelope(..), cycleEnvelope
+      , Envelope(..), cycleEnvelope, prettyShowEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
@@ -44,6 +44,7 @@ module Imj.Music.Types
       ) where
 
 import           Imj.Prelude
+import           Prelude(unwords)
 import           Control.DeepSeq (NFData(..))
 import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Binary
@@ -148,6 +149,12 @@ instance Enum Envelope where
     n -> error $ "out of range:" ++ show n
 instance NFData Envelope
 instance Binary Envelope
+prettyShowEnvelope :: Envelope -> String
+prettyShowEnvelope = \case
+  AHDSR_KeyRelease -> "ADHSR"
+  AHDSR_AutoReleaseAfterDecay -> unwords ["ADHSR", "Autorelease"]
+  AHPropDerDSR_KeyRelease -> unwords ["ADHSR", "Exp-decay"]
+  AHPropDerDSR_AutoReleaseAfterDecay -> unwords ["ADHSR", "Exp-decay", "Autorelease"]
 
 cycleEnvelope :: Envelope -> Envelope
 cycleEnvelope AHPropDerDSR_AutoReleaseAfterDecay = AHDSR_KeyRelease
@@ -160,6 +167,16 @@ data Instrument =
   deriving(Generic,Show, Eq, Data, Ord)
 instance Binary Instrument
 instance NFData Instrument
+
+prettyShowInstrument :: Instrument -> [String]
+prettyShowInstrument = \case
+  Wind x -> (:[]) $ unwords ["Wind", "program", show x]
+  SineSynth dt -> (:[]) $ unwords ["Sine", show dt]
+  SineSynthAHDSR e a ->
+    ["Sine"
+    , unwords ["Envelope:", prettyShowEnvelope e]
+    ] ++
+    prettyShowAHDSR a
 
 -- it would be nice to have a "sustain that fades slowly"
 -- or maybe what I'm looking for is exponential decay

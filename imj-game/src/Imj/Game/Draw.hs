@@ -9,6 +9,7 @@
 module Imj.Game.Draw
       ( draw
       , computeViewDistances
+      , drawInstructions
       ) where
 
 import           Imj.Prelude
@@ -112,24 +113,28 @@ drawSetup mayWorldParams cont = do
       , "'Left' 'Right' : Change font size"
       ]
 
+section :: (MonadIO m, Foldable t, Draw e, MonadReader e m)
+        => Text -> t Text -> Coords Pos -> m (Coords Pos)
+section title elts pos = do
+  dText_ ("[" <> title <> "]") pos
+  foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts
+  return $ move (2 + length elts) Down pos
+
+drawInstructions :: (UIInstructions s,
+                    MonadReader e m, Draw e, MonadIO m)
+                  => s -> Coords Pos -> m (Coords Pos)
+drawInstructions li pos =
+  foldM
+    (\p (ConfigUI title i) -> case i of
+      Choice l ->
+        section title l p
+      Continuous slider ->
+        section title [] p >>= drawSlider slider
+      Discrete slider ->
+        section title [] p >>= drawSlider slider)
+    pos
+    $ instructions configColors li
  where
-
-  drawInstructions li pos =
-    foldM
-      (\p (ConfigUI title i) -> case i of
-        Choice l ->
-          section title l p
-        Continuous slider ->
-          section title [] p >>= drawSlider slider
-        Discrete slider ->
-          section title [] p >>= drawSlider slider)
-      pos
-      $ instructions configColors li
-
-  section title elts pos = do
-    dText_ ("[" <> title <> "]") pos
-    foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts
-    return $ move (2 + length elts) Down pos
   drawSlider s upperLeft = do
     drawAt s $ move 2 RIGHT upperLeft
     return $ move (fromIntegral $ height s) Down upperLeft

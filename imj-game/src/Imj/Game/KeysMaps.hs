@@ -7,6 +7,8 @@
 
 module Imj.Game.KeysMaps
     ( translatePlatformEvent
+    , shiftOnly
+    , isArrow
     ) where
 
 import           Imj.Prelude
@@ -28,6 +30,14 @@ import           Imj.Server.Types
 
 toStateKeys :: Proxy g -> Proxy (StatefullKeysT g)
 toStateKeys _ = Proxy
+
+shiftOnly :: GLFW.ModifierKeys
+shiftOnly = GLFW.ModifierKeys {
+    GLFW.modifierKeysShift   = True
+  , GLFW.modifierKeysControl = False
+  , GLFW.modifierKeysAlt     = False
+  , GLFW.modifierKeysSuper   = False
+  }
 
 translatePlatformEvent :: (GameLogicT e ~ g
                          , MonadState (AppState g) m
@@ -62,12 +72,7 @@ translatePlatformEvent prox = \case
       (\dir ->
         -- I first filtered on 'Control' but it would work only for 'Arrow Up' on OSX
         -- (or maybe my Macbook air keyboard has a bug?), hence I now filter on 'Shift' instead.
-        if m == GLFW.ModifierKeys {
-              GLFW.modifierKeysShift   = True
-            , GLFW.modifierKeysControl = False
-            , GLFW.modifierKeysAlt     = False
-            , GLFW.modifierKeysSuper   = False
-            }
+        if m == shiftOnly
           then
             return $ Just $ Evt $
               case dir of
@@ -111,10 +116,10 @@ translatePlatformEvent prox = \case
          where
           send = mapStateKey (toStateKeys prox) k s m x g
 
-  isArrow :: GLFW.Key -> Maybe Direction
-  isArrow = \case
-    GLFW.Key'Left -> Just LEFT
-    GLFW.Key'Right -> Just RIGHT
-    GLFW.Key'Up -> Just Up
-    GLFW.Key'Down -> Just Down
-    _ -> Nothing
+isArrow :: GLFW.Key -> Maybe Direction
+isArrow = \case
+  GLFW.Key'Left -> Just LEFT
+  GLFW.Key'Right -> Just RIGHT
+  GLFW.Key'Up -> Just Up
+  GLFW.Key'Down -> Just Down
+  _ -> Nothing

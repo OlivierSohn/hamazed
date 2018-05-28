@@ -20,6 +20,17 @@ To avoid waiting for memory allocation, we could optionally let the user
 
 - make enveloppes user-parametrizable:
 AHDSR
+use logarithmic scale for predefined values that can be changed using left / right arrows.:
+A:  50 100 200 400 800 1600 3200    attack can be forced if too small
+H:  0 5 10 20 40 80 160 320 640  
+D:  50 100 200 400 800 1600 3200    decay can be forced if too small (according to Sustain)
+S:  0. 0.01 0.02 0.04 0.08 0.16 0.32 0.64 1.0
+R:  50 100 200 400 800 1600 3200    release can be forced if too small (according to Sustain)
+
+the item to change is selected by up down arrows.
+
+at each param change, play a note.
+
 - display enveloppe
 - the 4th, 5th, 6th hamazed song sounds good with bell.
 to hear differences more easily we should have debug commands like

@@ -32,16 +32,20 @@ import qualified Graphics.UI.GLFW as GLFW(Key(..), KeyState(..))
 
 import           Imj.Categorized
 import           Imj.ClientView.Types
+import           Imj.Data.AlmostFloat
 import           Imj.Event
 import           Imj.Game.App(runGame)
+import           Imj.Game.Draw
 import           Imj.Game.Class
+import           Imj.Game.Color
 import           Imj.Game.Command
+import           Imj.Game.KeysMaps
 import           Imj.Game.Modify
 import           Imj.Game.Show
 import           Imj.Game.Status
 import           Imj.Geo.Discrete.Types
 import           Imj.Graphics.Class.Positionable
-import           Imj.Graphics.Class.Words hiding(concat, replicate)
+import           Imj.Graphics.Class.UIInstructions
 import           Imj.Graphics.Color
 import           Imj.Graphics.Screen
 import           Imj.Graphics.Text.ColorString(ColorString)
@@ -49,6 +53,7 @@ import qualified Imj.Graphics.Text.ColorString as CS
 import           Imj.Graphics.Text.Render
 import           Imj.Graphics.UI.Colored
 import           Imj.Graphics.UI.RectContainer
+import           Imj.Graphics.UI.Slider
 import           Imj.Music.Types
 import           Imj.Music.Piano
 import           Imj.Music.Record
@@ -72,21 +77,67 @@ data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PianoState)
   , pianoLoops :: !(Map SequencerId (Map LoopId PianoState))
   , instrument :: !Instrument
-  , mode :: !SynthsMode
+  , editedIndex :: !Int
 } deriving(Show)
+instance UIInstructions SynthsGame where
+  instructions color (SynthsGame _ _ instr idx) = case instr of
+    SineSynthAHDSR env (AHDSR a h d r s) -> [envChoice] ++ ahdsrInstructions
+     where
+      envChoice = ConfigUI "Style" $ Choice $ map pack withCursor
+
+      i = fromEnum env
+
+      l =
+        [ unwords ["ADHSR"]
+        , unwords ["ADHSR", "Autorelease"]
+        , unwords ["ADHSR", "Exp-decay"]
+        , unwords ["ADHSR", "Exp-decay", "Autorelease"]
+        ]
+
+      cursor = "-> "
+
+      withCursor =
+        case splitAt i l of
+          (_,[]) -> error "logic"
+          (l1,e:l2) -> map ((++) "   ") l1 ++ ((cursor ++ e):map ((++) "   ") l2)
+
+      ahdsrInstructions =
+        [ ConfigUI "Attack" $ Discrete $
+            mkSlider 0 a 50 3200 7
+        , ConfigUI "Hold" $ Discrete $
+            mkSlider 1 h 0 640 9
+        , ConfigUI "Decay" $ Discrete $
+            mkSlider 2 d 0 100000 7
+        , ConfigUI "Sustain" $ Continuous $
+            Slider (almost s) (almost 0.0) (almost 1.0) 7
+              (right 3) (left 3) color Compact
+        , ConfigUI "Release" $ Discrete $
+            mkSlider 4 r 50 100000 7
+        ]
+
+      mkSlider x v min_ max_ steps =
+        Slider v min_ max_ steps (right x) (left x) color Compact
+
+      right x = if x == idx `mod` 5
+        then
+          '>'
+        else
+          ' '
+      left x = if x == idx `mod` 5
+        then
+          '<'
+        else
+          ' '
+
+    _ -> []
 
 initialGame :: SynthsGame
-initialGame = SynthsGame mempty mempty defaultInstr PlaySynth
+initialGame = SynthsGame mempty mempty defaultInstr 0
 
 data SynthsMode =
     PlaySynth
   | EditSynth
   deriving(Show)
-
-toggle :: SynthsMode -> SynthsMode
-toggle = \case
-  PlaySynth -> EditSynth
-  EditSynth -> PlaySynth
 
 data SynthsServer = SynthsServer {
     srvSequencers :: !(Map SequencerId (MVar (Sequencer LoopId)))
@@ -135,8 +186,8 @@ instance Binary SynthClientEvent
 instance Categorized SynthClientEvent
 
 data SynthsGameEvent =
-    ToggleEditPlay
-  | CycleEnvelopes
+    ChangeInstrument !Instrument
+  | ChangeEditedFeature {-# UNPACK #-} !Int
   deriving(Show)
 instance Categorized SynthsGameEvent
 instance DrawGroupMember SynthsGameEvent where
@@ -153,8 +204,6 @@ instance GameExternalUI SynthsGame where
 data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
-  mapStateKey _ GLFW.Key'Enter GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ Evt $ AppEvent ToggleEditPlay
   mapStateKey _ GLFW.Key'Space GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt WithMonoLineSequencer
   mapStateKey _ GLFW.Key'F1 GLFW.KeyState'Pressed _ _ _ =
@@ -167,24 +216,35 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
-  mapStateKey _ k s _ _ g = maybe
+  mapStateKey _ k st _ _ g = maybe
     (return Nothing)
-    (\(SynthsGame _ _ instr mode_) -> case mode_ of
-      EditSynth -> case instr of
-        SineSynthAHDSR{} -> case s of
-          GLFW.KeyState'Pressed -> case k of
-            GLFW.Key'Q -> return $ Just $ Evt $ AppEvent CycleEnvelopes
-            _ -> return Nothing
+    (\(SynthsGame _ _ instr idx) -> maybe
+      (case k of
+        GLFW.Key'Enter -> case st of
+          GLFW.KeyState'Pressed ->
+            return $ Just $ Evt $ AppEvent $ ChangeInstrument $ cycleEnvelope' instr
           _ -> return Nothing
-        _ -> return Nothing
-      PlaySynth ->
-        return $ CliEvt . ClientAppEvt . PlayNote <$> n instr)
+        _ -> return $ CliEvt . ClientAppEvt . PlayNote <$> n instr)
+      (\dir -> case instr of
+          SineSynthAHDSR{} -> case st of
+            GLFW.KeyState'Pressed -> configureInstrument
+            GLFW.KeyState'Repeating -> configureInstrument
+            _ -> return Nothing
+           where
+            configureInstrument = case dir of
+              LEFT ->  return $ Just $ Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx (-1)
+              RIGHT -> return $ Just $ Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx 1
+              Up   -> return $ Just $ Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
+              Down -> return $ Just $ Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
+          _ -> return Nothing)
+        $ isArrow k)
     $ _game $ getGameState' g
    where
-    n instr = maybe Nothing (\noteSpec -> case s of
+    n instr = maybe Nothing (\noteSpec -> case st of
       GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
       GLFW.KeyState'Released -> Just $ StopNote noteSpec
       GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f instr) $ keyToNote k
+
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
       -- lower keys
@@ -228,6 +288,22 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
       GLFW.Key'RightBracket -> Just $ NoteSpec Sol $ noOctave + 1
       _ -> Nothing
 
+    cycleEnvelope' = \case
+      SineSynthAHDSR env ahdsr ->
+        SineSynthAHDSR (cycleEnvelope env) ahdsr
+      other -> other
+
+    changeIntrumentValue instr idx inc =
+      case instr of
+        SineSynthAHDSR env p@(AHDSR a h d r s) -> case idx `mod` 5 of
+          0 -> SineSynthAHDSR env p {ahdsrAttack = a + inc}
+          1 -> SineSynthAHDSR env p {ahdsrHold = h + inc}
+          2 -> SineSynthAHDSR env p {ahdsrDecay = d + inc}
+          3 -> SineSynthAHDSR env p {ahdsrSustain = s + (fromIntegral inc) / 10.0}
+          4 -> SineSynthAHDSR env p {ahdsrRelease = r + inc}
+          _ -> error "logic"
+        _ -> instr
+
 defaultInstr :: Instrument
 defaultInstr = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
 
@@ -240,14 +316,9 @@ instance GameLogic SynthsGame where
   mapInterpretedKey _ _ _ = return Nothing
 
   onClientOnlyEvent e =
-    fromMaybe initialGame <$> getIGame >>= \g@(SynthsGame _ _ instr _) -> withAnim $ putIGame $ case e of
-      ToggleEditPlay ->
-        g { mode = toggle $ mode g }
-      CycleEnvelopes -> case instr of
-        SineSynthAHDSR env ahdsr ->
-          g {instrument = SineSynthAHDSR (cycleEnvelope env) ahdsr}
-        _ -> g
-
+    fromMaybe initialGame <$> getIGame >>= \g -> withAnim $ putIGame $ case e of
+      ChangeInstrument i -> g {instrument = i}
+      ChangeEditedFeature i -> g {editedIndex = i}
   onServerEvent e =
     -- TODO force withAnim when using putIGame ?
     fromMaybe initialGame <$> getIGame >>= \g -> withAnim $ putIGame $ case e of
@@ -262,29 +333,28 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) (SynthsGame pianoClients pianoLoops_ synth mode_) = do
-    let infos = case mode_ of
-          PlaySynth ->
-            ["You can now play using your keyboard." :: String
-           , "To edit the synth parameters, press 'Enter'."]
-          EditSynth ->
-            ["You can now edit the synth parameters."
-           , "To play the synth, press 'Enter'."]
-    foldM (flip drawAligned) (mkCentered $ move 7 Up center) infos >>= \al ->
-      foldM_ (flip drawAligned) al $ multiLine 100 $ show synth
-    ref1 <- showPianos
-      "Players"
-      showPlayerName
-      pianoClients >>= drawPiano center
-    foldM_
-      (\ref ((SequencerId seqId), seqPianoLoops) -> do
-        showPianos
-          ("Sequence " <> pack (show seqId))
-          (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
-          seqPianoLoops >>= drawPiano ref)
-        ref1
-        $ Map.assocs pianoLoops_
-    return center
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _) = do
+    let infos =
+          ["Play the synth with your keyboard!"
+          ,"Press [Enter] to cycle the envelope style."
+          ,"Use 4 arrows to change envelope parameters."]
+    foldM
+      (flip $ drawAligned . flip CS.colored configFgColor . pack)
+      (mkCentered $ move 18 Up center) infos >>= \(Alignment _ c) ->
+       drawInstructions g (move 15 LEFT $ move 1 Down c) >>= \ref -> do
+        ref1 <- showPianos
+          "Players"
+          showPlayerName
+          pianoClients >>= drawPiano (move 1 Down ref)
+        foldM_
+          (\r ((SequencerId seqId), seqPianoLoops) -> do
+            showPianos
+              ("Sequence " <> pack (show seqId))
+              (\(LoopId creator idx) -> flip (<>) (" " <> CS.colored (pack (show idx)) (rgb 2 2 2)) <$> showPlayerName creator)
+              seqPianoLoops >>= drawPiano r)
+            ref1
+            $ Map.assocs pianoLoops_
+        return center
    where
      drawPiano (Coords r _) allStrs = do
       let maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs

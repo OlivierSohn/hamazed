@@ -38,7 +38,7 @@ library
   else
     extra-libraries:   uuid
   -- removing -DNDEBUG activates assertions in c/c++ sources.
-  cc-options:          -std=c++17 -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
+  cc-options:          -std=c++17 -DNDEBUG -DNO_AUDIO_IN -DONLY_ROOT -Os -ffast-math
   if os(linux)
     -- -static-libstdc++ is not absolutely necessary.
     cc-options:        -fpermissive -static-libstdc++

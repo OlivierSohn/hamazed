@@ -315,10 +315,10 @@ namespace imajuscule {
           e.step();
           v.push_back(e.value());
           if(!e.afterAttackBeforeSustain()) {
+            splitAt = v.size();
             if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {
               // emulate a key-release
               e.onKeyReleased();
-              splitAt = v.size();
             }
             break;
           }

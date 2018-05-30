@@ -346,23 +346,13 @@ instance GameDraw SynthsGame where
   drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ curves _) = do
     case curves of
       [] -> return ()
-      c:_ -> do
-        let (Size h' w) = Size 20 50
-            h = fromIntegral h'
-            ul = move 2 LEFT $ move 18 Up center
-            ll = move h Down ul
-            nSamples = V.length c
-            --resampled = resampleMinMaxLinear (V.toList c) nSamples $ fromIntegral w
-            resampled = resampleMinMaxLogarithmic (V.toList c) nSamples $ fromIntegral w
-            heights (MinMax a b) = [round (a*fromIntegral h)..round (b*fromIntegral h)]
-        mapM_
-          (\(i,mm) ->
-            mapM_
-              (\j -> drawGlyph (textGlyph '+') (translate ll $ Coords (-j) i) configColors)
-              $ heights mm)
-          $ zip [0..] resampled
-        drawAligned_ (CS.colored (pack $ show nSamples) configFgColor) (mkRightAlign $ move (fromIntegral w - 1) RIGHT $ move 2 Down ll)
-        drawAt (CS.colored "0" configFgColor) (move 2 Down ll)
+      [ahds,r] -> do
+        let coordsEnv = move 2 LEFT $ move 18 Up center
+            szAHDS@(Size _ (Length wAHDS)) = Size 20 30
+            szR = Size 20 20
+        drawEnv ahds coordsEnv szAHDS
+        drawEnv r    (move wAHDS RIGHT coordsEnv) szR
+      _ -> error "logic"
     let infos =
           ["Play the synth with your keyboard!"
           ,"Press [Enter] to cycle the envelope style."
@@ -385,8 +375,10 @@ instance GameDraw SynthsGame where
             ref1
             $ Map.assocs pianoLoops_
         return center
+
    where
-     drawPiano (Coords r _) allStrs = do
+
+    drawPiano (Coords r _) allStrs = do
       let maxL = fromMaybe 0 $ maximumMaybe $ map CS.countChars allStrs
           right = move (quot maxL 2) RIGHT $ Coords r centerC
       (Alignment _ res) <- foldM
@@ -394,6 +386,24 @@ instance GameDraw SynthsGame where
         (mkRightAlign right)
         allStrs
       return res
+
+
+    drawEnv c ul (Size h' w) = do
+      let h = fromIntegral h'
+          ll = move h Down ul
+          nSamples = V.length c
+          --resampled = resampleMinMaxLinear (V.toList c) nSamples $ fromIntegral w
+          -- TODO do not recompute resampleMinMaxLogarithmic at each render frame
+          resampled = resampleMinMaxLogarithmic (V.toList c) nSamples $ fromIntegral w
+          heights (MinMax a b) = [round (a*fromIntegral h)..round (b*fromIntegral h)]
+      mapM_
+        (\(i,mm) ->
+          mapM_
+            (\j -> drawGlyph (textGlyph '+') (translate ll $ Coords (-j) i) configColors)
+            $ heights mm)
+        $ zip [0..] resampled
+      drawAligned_ (CS.colored (pack $ show nSamples) configFgColor) (mkRightAlign $ move (fromIntegral w - 1) RIGHT $ move 2 Down ll)
+      drawAt (CS.colored "0" configFgColor) (move 2 Down ll)
 
 instance ServerInit SynthsServer where
 

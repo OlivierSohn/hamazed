@@ -83,9 +83,9 @@ analyzeAHDSREnvelope t (AHDSR a h d r s) =
       unsafeFreeze uv
 
 midiNoteOffAHDSR :: CInt -> AHDSR -> CShort -> IO ()
-midiNoteOffAHDSR t (AHDSR a h d r s) i = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
 midiNoteOnAHDSR :: CInt -> AHDSR -> CShort -> CFloat -> IO ()
-midiNoteOnAHDSR t (AHDSR a h d r s) i v = midiNoteOnAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
+midiNoteOffAHDSR t (AHDSR a h d r s) i   = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
+midiNoteOnAHDSR  t (AHDSR a h d r s) i v = midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

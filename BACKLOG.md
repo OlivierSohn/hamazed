@@ -1,4 +1,4 @@
-
+- do the envelope buckets computation only when the instruments change, not at every render.
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
 - remove 256 channels limit (review types for channel ids : uint8_t -> int)
 

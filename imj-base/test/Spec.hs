@@ -15,6 +15,7 @@ import           Test.Imj.Font
 import           Test.Imj.Interleave
 import           Test.Imj.Interpolation
 import           Test.Imj.InterpolatedColorString
+import           Test.Imj.Newton
 import           Test.Imj.StdoutBuffer
 import           Test.Imj.Sums
 import           Test.Imj.RectArea
@@ -27,6 +28,8 @@ import           Test.Imj.ZigZag
 main :: IO ()
 main = do
   putStrLn "" -- for readablilty
+
+  testNewton
 
   testBres2 >>= print
   testBres3 >>= print

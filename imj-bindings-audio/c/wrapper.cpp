@@ -32,17 +32,10 @@ namespace imajuscule {
       }
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct ClampParam<AHDSREnvelope<T, Rel>> {
+    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    struct ClampParam<AHDSREnvelope<T, DecayItp, Rel>> {
       static auto clamp(AHDSR_t const & env) {
         return env; // TODO clamp according to AHDSREnvelope
-      }
-    };
-
-    template<typename T, EnvelopeRelease Rel>
-    struct ClampParam<AHPropDerDSREnvelope<T, Rel>> {
-      static auto clamp(AHDSR_t const & env) {
-        return env; // TODO clamp according to AHPropDerDSREnvelope
       }
     };
 
@@ -54,16 +47,8 @@ namespace imajuscule {
       }
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct SetParam<AHDSREnvelope<T, Rel>> {
-      template<typename A>
-      static void set(AHDSR_t const & env, A & a) {
-        a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
-      }
-    };
-
-    template<typename T, EnvelopeRelease Rel>
-    struct SetParam<AHPropDerDSREnvelope<T, Rel>> {
+    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    struct SetParam<AHDSREnvelope<T, DecayItp, Rel>> {
       template<typename A>
       static void set(AHDSR_t const & env, A & a) {
         a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
@@ -75,13 +60,8 @@ namespace imajuscule {
       static constexpr bool value = true;
     };
 
-    template<typename T, EnvelopeRelease Rel>
-    struct HasNoteOff<AHDSREnvelope<T, Rel>> {
-      static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
-    };
-
-    template<typename T, EnvelopeRelease Rel>
-    struct HasNoteOff<AHPropDerDSREnvelope<T, Rel>> {
+    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    struct HasNoteOff<AHDSREnvelope<T, DecayItp, Rel>> {
       static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
   }
@@ -311,7 +291,6 @@ namespace imajuscule {
 
       template<typename Env>
       void midiEvent(typename Env::Param const & env, Event e) {
-        using namespace mySynth;
         // if we garbage collect std::unique_ptr<withChannels<T>>,
         // we should take the map lock, and we should have a lock in withInstrument
         // indicating that we're issuing a command using this instrument.
@@ -320,23 +299,87 @@ namespace imajuscule {
         Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
       }
 
+      template<typename Env>
+      std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & rawEnvParams) {
+        Env e;
+        using namespace audioelement;
+        auto envParams = ClampParam<Env>::clamp(rawEnvParams);
+        e.setAHDSR(envParams);
+        // emulate a key-press
+        e.onKeyPressed();
+        int splitAt = -1;
+
+        std::vector<float> v, v2;
+        v.reserve(10000);
+        for(int i=0; e.getState() != EnvelopeState::EnvelopeDone1; ++i) {
+          e.step();
+          v.push_back(e.value());
+          if(!e.afterAttackBeforeSustain()) {
+            if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {
+              // emulate a key-release
+              e.onKeyReleased();
+              splitAt = v.size();
+            }
+            break;
+          }
+        }
+        while(e.getState() != EnvelopeState::EnvelopeDone1) {
+          e.step();
+          v.push_back(e.value());
+        }
+        return {std::move(v),splitAt};
+      }
+
+      template<typename Env>
+      float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+        std::vector<float> v;
+        int split;
+        std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
+        if(nElems) {
+          *nElems = v.size();
+        }
+        if(splitAt) {
+          *splitAt = split;
+        }
+        auto n_bytes = v.size()*sizeof(decltype(v[0]));
+        auto c_arr = malloc(n_bytes); // will be freed by haskell finalizer.
+        memcpy(c_arr, v.data(), n_bytes);
+        return static_cast<float*>(c_arr);
+      }
+
       void midiEventAHDSR(envelType t, AHDSR_t p, Event n) {
         using namespace audioelement;
         switch(t) {
           case AHDSR_ReleaseAfterDecay:
-            midiEvent<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
             break;
           case AHDSR_WaitForKeyRelease:
-            midiEvent<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>(p, n);
             break;
           case AHPropDerDSR_ReleaseAfterDecay:
-            midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
             break;
           case AHPropDerDSR_WaitForKeyRelease:
-            midiEvent<AHPropDerDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>(p, n);
             break;
           default:
             break;
+        }
+      }
+
+      float* analyzeEnvelopeGraph(envelType t, AHDSR_t p, int* nElems, int*splitAt) {
+        using namespace audioelement;
+        switch(t) {
+          case AHDSR_ReleaseAfterDecay:
+            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+          case AHDSR_WaitForKeyRelease:
+            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+          case AHPropDerDSR_ReleaseAfterDecay:
+            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+          case AHPropDerDSR_WaitForKeyRelease:
+            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+          default:
+            return {};
         }
       }
     }
@@ -391,10 +434,10 @@ extern "C" {
     windVoice().finalize(getXfadeChannels());
 
     Synths<SimpleEnvelope<float>>::finalize();
-    Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
-    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHPropDerDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
   }
@@ -425,6 +468,13 @@ extern "C" {
     auto p = AHDSR_t{a,h,d,r,s};
     auto n = mkNoteOff(pitch);
     midiEventAHDSR(t, p, n);
+  }
+
+  float* analyzeAHDSREnvelope_(envelType t, int a, int h, int d, float s, int r, int*nElems, int*splitAt) {
+    using namespace imajuscule::audio;
+    using namespace imajuscule::audio::detail;
+    auto p = AHDSR_t{a,h,d,r,s};
+    return analyzeEnvelopeGraph(t, p, nElems, splitAt);
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {

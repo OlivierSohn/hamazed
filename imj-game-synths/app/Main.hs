@@ -88,23 +88,37 @@ data EnvelopePart = EnvelopePart {
 
 widthAHDS, widthRel :: Int
 widthAHDS = 30
-widthRel = 20
+widthRel = 30
 
-toParts :: [Vector Float] -> [EnvelopePart]
-toParts =
+toParts :: EnvelopeViewMode -> [Vector Float] -> [EnvelopePart]
+toParts mode =
   map (uncurry mkMinMaxEnv) . zip [widthAHDS, widthRel]
  where
   mkMinMaxEnv w c =
     EnvelopePart
-      --(resampleMinMaxLinear (V.toList c) (V.length c) $ fromIntegral w)
-      (resampleMinMaxLogarithmic (V.toList c) (V.length c) $ fromIntegral w)
+      (case mode of
+        LogView -> resampleMinMaxLogarithmic (V.toList c) (V.length c) $ fromIntegral w
+        LinearView -> resampleMinMaxLinear (V.toList c) (V.length c) $ fromIntegral w)
       $ V.length c
+
+data EnvelopePlot = EnvelopePlot {
+    envParts :: [EnvelopePart]
+  , envViewMode :: !EnvelopeViewMode
+} deriving(Show)
+
+data EnvelopeViewMode = LinearView | LogView
+  deriving(Show)
+
+toggleView :: EnvelopeViewMode -> EnvelopeViewMode
+toggleView = \case
+  LinearView -> LogView
+  LogView -> LinearView
 
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PianoState)
   , pianoLoops :: !(Map SequencerId (Map LoopId PianoState))
   , instrument :: !Instrument
-  , enveloppePlot :: [EnvelopePart]
+  , envelopePlot :: EnvelopePlot
   , editedIndex :: !Int
 } deriving(Show)
 instance UIInstructions SynthsGame where
@@ -158,7 +172,8 @@ instance UIInstructions SynthsGame where
 initialGame :: IO SynthsGame
 initialGame = do
   let i = defaultInstr
-  p <- toParts <$> envelopeToVectors i
+      initialViewMode = LogView
+  p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeToVectors i
   return $ SynthsGame mempty mempty i p 0
 
 data SynthsMode =
@@ -213,6 +228,7 @@ instance Categorized SynthClientEvent
 data SynthsGameEvent =
     ChangeInstrument !Instrument
   | ChangeEditedFeature {-# UNPACK #-} !Int
+  | ToggleEnvelopeViewMode
   deriving(Show)
 instance Categorized SynthsGameEvent
 instance DrawGroupMember SynthsGameEvent where
@@ -239,6 +255,8 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3
   mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
+  mapStateKey _ GLFW.Key'F5 GLFW.KeyState'Pressed _ _ _ =
+    return $ Just $ Evt $ AppEvent $ ToggleEnvelopeViewMode
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
     return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
   mapStateKey _ k st _ _ g = maybe
@@ -342,11 +360,18 @@ instance GameLogic SynthsGame where
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      case e of
-        ChangeInstrument i -> Just . toParts <$> liftIO (envelopeToVectors i)
-        _ -> return Nothing
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ instr (EnvelopePlot _ viewmode) _) ->
+        case e of
+          ChangeInstrument i -> Just . toParts viewmode <$> liftIO (envelopeToVectors i)
+          ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeToVectors instr)
+          _ -> return Nothing
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ putIGame $ case e of
-      ChangeInstrument i -> g {instrument = i, enveloppePlot = fromMaybe (error "logic") mayNewEnvMinMaxs}
+      ChangeInstrument i -> g {
+          instrument = i
+        , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
+      }
+      ToggleEnvelopeViewMode -> g {
+        envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ChangeEditedFeature i -> g {editedIndex = i}
 
 
@@ -364,15 +389,15 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ curves _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ (EnvelopePlot curves _) _) = do
     case curves of
       [] -> return ()
       [ahds,r] -> do
-        let coordsEnv = move 2 LEFT $ move 18 Up center
+        let coordsEnv = move 15 LEFT $ move 18 Up center
             szAHDS = Size 20 $ fromIntegral widthAHDS
             szR = Size 20 $ fromIntegral widthRel
-        drawEnv ahds coordsEnv                        szAHDS (rgb 3 2 1)
-        drawEnv r    (move widthAHDS RIGHT coordsEnv) szR    (rgb 2 3 1)
+        drawEnv 0 ahds coordsEnv                        szAHDS (rgb 3 2 1)
+        drawEnv 2 r    (move widthAHDS RIGHT coordsEnv) szR    (rgb 2 3 1)
       _ -> error "logic"
     let infos =
           ["Play the synth with your keyboard!"
@@ -380,9 +405,9 @@ instance GameDraw SynthsGame where
           ,"Use 4 arrows to change envelope parameters."]
     foldM
       (flip $ drawAligned . flip CS.colored configFgColor . pack)
-      (mkCentered $ move 25 LEFT $ move 18 Up center)
+      (mkCentered $ move 28 LEFT $ move 21 Up center)
       infos >>= \(Alignment _ c) ->
-       drawInstructions g (move 15 LEFT $ move 1 Down c) >>= \ref -> do
+       drawInstructions g (move 21 LEFT $ move 1 Down c) >>= \ref -> do
         ref1 <- showPianos
           "Players"
           showPlayerName
@@ -409,7 +434,7 @@ instance GameDraw SynthsGame where
       return res
 
 
-    drawEnv (EnvelopePart resampled _) ul (Size h' _) fgColor = do
+    drawEnv offsetLegend (EnvelopePart resampled _) ul (Size h' _) fgColor = do
       let h = fromIntegral h'
           ll = move h Down ul
           color = onBlack fgColor
@@ -426,7 +451,7 @@ instance GameDraw SynthsGame where
               he
                 | mod q 2 == 0 = 2
                 | otherwise = 3
-          when (r == 0) $ drawAt (CS.colored (pack $ show cur) fgColor) (move pos RIGHT $ move he Down ll)
+          when (r == 0) $ drawAt (CS.colored (pack $ show cur) fgColor) (move pos RIGHT $ move (offsetLegend + he) Down ll)
           return (cur + n,pos+1))
         (0,0)
         resampled

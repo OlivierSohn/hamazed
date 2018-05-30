@@ -1,4 +1,4 @@
-- do the envelope buckets computation only when the instruments change, not at every render.
+- we should probably exp. the release, like the decay
 - use larger steps:
 A:  50 100 200 400 800 1600 3200    attack can be forced if too small
 H:  0 5 10 20 40 80 160 320 640

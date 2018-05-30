@@ -138,22 +138,23 @@ resampleWithExtremities input' n m
 data MinMax a = MinMax {
     _min :: !a
   , _max :: !a
+  , _countSamples :: {-# UNPACK #-} !Int
 } deriving(Show, Eq)
 
 {-# INLINABLE mmSpan #-}
 mmSpan :: (Num a) => MinMax a -> a
-mmSpan (MinMax a b) = b - a
+mmSpan (MinMax a b _) = b - a
 
 {-# INLINABLE mkMinMax #-}
 mkMinMax :: Ord a
          => [a] -> MinMax a
 mkMinMax [] = error "logic"
-mkMinMax (e:rest) = go rest $ MinMax e e
+mkMinMax (e:rest) = go rest $ MinMax e e 1
  where
   go [] x = x
-  go (v:vs) c@(MinMax l h)
-   | v < l = go vs $ MinMax v h
-   | v > h = go vs $ MinMax l v
+  go (v:vs) c@(MinMax l h n)
+   | v < l = go vs $ MinMax v h $ n + 1
+   | v > h = go vs $ MinMax l v $ n + 1
    | otherwise = go vs c
 
 

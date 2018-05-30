@@ -80,11 +80,31 @@ data LoopId = LoopId {
 instance Binary LoopId
 instance NFData LoopId
 
+
+data EnvelopePart = EnvelopePart {
+    _plot :: [MinMax Float]
+  , _nSamples :: !Int
+} deriving(Show)
+
+widthAHDS, widthRel :: Int
+widthAHDS = 30
+widthRel = 20
+
+toParts :: [Vector Float] -> [EnvelopePart]
+toParts =
+  map (uncurry mkMinMaxEnv) . zip [widthAHDS, widthRel]
+ where
+  mkMinMaxEnv w c =
+    EnvelopePart
+      --(resampleMinMaxLinear (V.toList c) (V.length c) $ fromIntegral w)
+      (resampleMinMaxLogarithmic (V.toList c) (V.length c) $ fromIntegral w)
+      $ V.length c
+
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PianoState)
   , pianoLoops :: !(Map SequencerId (Map LoopId PianoState))
   , instrument :: !Instrument
-  , enveloppePlot :: [Vector Float]
+  , enveloppePlot :: [EnvelopePart]
   , editedIndex :: !Int
 } deriving(Show)
 instance UIInstructions SynthsGame where
@@ -138,8 +158,8 @@ instance UIInstructions SynthsGame where
 initialGame :: IO SynthsGame
 initialGame = do
   let i = defaultInstr
-  vec <- envelopeToVectors i
-  return $ SynthsGame mempty mempty i vec 0
+  p <- toParts <$> envelopeToVectors i
+  return $ SynthsGame mempty mempty i p 0
 
 data SynthsMode =
     PlaySynth
@@ -321,13 +341,14 @@ instance GameLogic SynthsGame where
   mapInterpretedKey _ _ _ = return Nothing
 
   onClientOnlyEvent e = do
-    mayNewEnvVectors <-
+    mayNewEnvMinMaxs <-
       case e of
-        ChangeInstrument i -> Just <$> liftIO (envelopeToVectors i)
+        ChangeInstrument i -> Just . toParts <$> liftIO (envelopeToVectors i)
         _ -> return Nothing
     getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ putIGame $ case e of
-      ChangeInstrument i -> g {instrument = i, enveloppePlot = fromMaybe (error "logic") mayNewEnvVectors}
+      ChangeInstrument i -> g {instrument = i, enveloppePlot = fromMaybe (error "logic") mayNewEnvMinMaxs}
       ChangeEditedFeature i -> g {editedIndex = i}
+
 
   onServerEvent e =
     -- TODO force withAnim when using putIGame ?
@@ -348,10 +369,10 @@ instance GameDraw SynthsGame where
       [] -> return ()
       [ahds,r] -> do
         let coordsEnv = move 2 LEFT $ move 18 Up center
-            szAHDS@(Size _ (Length wAHDS)) = Size 20 30
-            szR = Size 20 20
-        drawEnv ahds coordsEnv szAHDS
-        drawEnv r    (move wAHDS RIGHT coordsEnv) szR
+            szAHDS = Size 20 $ fromIntegral widthAHDS
+            szR = Size 20 $ fromIntegral widthRel
+        drawEnv ahds coordsEnv                        szAHDS (rgb 3 2 1)
+        drawEnv r    (move widthAHDS RIGHT coordsEnv) szR    (rgb 2 3 1)
       _ -> error "logic"
     let infos =
           ["Play the synth with your keyboard!"
@@ -388,23 +409,32 @@ instance GameDraw SynthsGame where
       return res
 
 
-    drawEnv c ul (Size h' w) = do
+    drawEnv (EnvelopePart resampled _) ul (Size h' _) fgColor = do
       let h = fromIntegral h'
           ll = move h Down ul
-          nSamples = V.length c
-          --resampled = resampleMinMaxLinear (V.toList c) nSamples $ fromIntegral w
-          -- TODO do not recompute resampleMinMaxLogarithmic at each render frame
-          resampled = resampleMinMaxLogarithmic (V.toList c) nSamples $ fromIntegral w
-          heights (MinMax a b) = [round (a*fromIntegral h)..round (b*fromIntegral h)]
+          color = onBlack fgColor
+          heights (MinMax a b _) = [round (a*fromIntegral h)..round (b*fromIntegral h)]
       mapM_
         (\(i,mm) ->
           mapM_
-            (\j -> drawGlyph (textGlyph '+') (translate ll $ Coords (-j) i) configColors)
+            (\j -> drawGlyph (textGlyph '+') (translate ll $ Coords (-j) i) color)
             $ heights mm)
         $ zip [0..] resampled
-      drawAligned_ (CS.colored (pack $ show nSamples) configFgColor) (mkRightAlign $ move (fromIntegral w - 1) RIGHT $ move 2 Down ll)
-      drawAt (CS.colored "0" configFgColor) (move 2 Down ll)
-
+      foldM_
+        (\(cur,pos) (MinMax _ _ n) -> do
+          let (q,r) = quotRem pos 4
+              he
+                | mod q 2 == 0 = 2
+                | otherwise = 3
+          when (r == 0) $ drawAt (CS.colored (pack $ show cur) fgColor) (move pos RIGHT $ move he Down ll)
+          return (cur + n,pos+1))
+        (0,0)
+        resampled
+        {-
+      drawAligned_
+        (CS.colored (pack $ show nSamples) color)
+        $ mkRightAlign $ move (fromIntegral w - 1) RIGHT $ move 3 Down ll
+-}
 instance ServerInit SynthsServer where
 
   type ClientViewT SynthsServer = SynthsClientView

@@ -1,3 +1,4 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
@@ -17,6 +18,7 @@ The music is shared between all players.
 module Main where
 
 import           Imj.Prelude
+import           Prelude(length, putStrLn)
 
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
@@ -24,6 +26,7 @@ import           Control.DeepSeq(NFData)
 import           Control.Monad.State.Strict(gets, execStateT)
 import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..))
+import           Data.List(replicate, concat, take, splitAt, unwords)
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
 import           Data.Set(Set)
@@ -87,12 +90,16 @@ data EnvelopePart = EnvelopePart {
   , _nSamples :: !Int
 } deriving(Show)
 
+widthPart :: EnvelopePart -> Int
+widthPart = length . _plot
+
 widthEnvelope :: Int
 widthEnvelope = 60
 
 toParts :: EnvelopeViewMode -> [Vector Float] -> [EnvelopePart]
-toParts mode =
-  map (uncurry mkMinMaxEnv) . zip [widthAHDS, widthRel]
+toParts mode l@[ahds,r]
+  | totalSamples == 0 = []
+  | otherwise = map (uncurry mkMinMaxEnv) $ zip [widthAHDS, widthEnvelope - widthAHDS] l
  where
   mkMinMaxEnv w c =
     EnvelopePart
@@ -100,6 +107,11 @@ toParts mode =
         LogView -> resampleMinMaxLogarithmic (V.toList c) (V.length c) $ fromIntegral w
         LinearView -> resampleMinMaxLinear (V.toList c) (V.length c) $ fromIntegral w)
       $ V.length c
+  ahdsSamples = V.length ahds
+  rSamples = V.length r
+  totalSamples = rSamples + ahdsSamples
+  widthAHDS = round (fromIntegral widthEnvelope * fromIntegral ahdsSamples / fromIntegral totalSamples :: Float)
+toParts _ _ = error "not supported"
 
 data EnvelopePlot = EnvelopePlot {
     envParts :: [EnvelopePart]
@@ -416,10 +428,11 @@ instance GameDraw SynthsGame where
       [] -> return ()
       [ahds,r] -> do
         let coordsEnv = move 15 LEFT $ move 18 Up center
-            szAHDS = Size 20 $ fromIntegral widthAHDS
-            szR = Size 20 $ fromIntegral widthRel
+            szAHDS = Size 20 $ fromIntegral $ widthPart ahds
+            szR = Size 20 $ fromIntegral $ widthPart r
+        liftIO $ putStrLn $ show (widthPart ahds, widthPart r)
         drawEnv 0 ahds coordsEnv                        szAHDS (rgb 3 2 1)
-        drawEnv 2 r    (move widthAHDS RIGHT coordsEnv) szR    (rgb 2 3 1)
+        drawEnv 2 r    (move (widthPart ahds) RIGHT coordsEnv) szR    (rgb 2 3 1)
       _ -> error "logic"
     let infos =
           ["Play the synth with your keyboard!"

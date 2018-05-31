@@ -19,7 +19,7 @@ testBres2 = do
 -- | returns 1 on success, else errors
 test :: ((Int, Int),(Int, Int)) -> IO Int
 test (from, to) = do
-  putStrLn $ show from ++ show to
+  --putStrLn $ show from ++ show to
   let d = blaLength from to
       br = take d $ bla from to
       !res -- we use a bang here so that it is concomittent with previous putStrLn

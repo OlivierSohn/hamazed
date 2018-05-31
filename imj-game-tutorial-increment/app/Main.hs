@@ -110,8 +110,8 @@ instance GameLogic IncGame where
 
   mapInterpretedKey key _ _ = return $ case key of
     -- hitting the space bar will increment the counter, thus changing the size of the frame.
-    AlphaNum ' ' -> Just $ CliEvt $ ClientAppEvt IncrementCounter
-    _ -> Nothing
+    AlphaNum ' ' -> [CliEvt $ ClientAppEvt IncrementCounter]
+    _ -> []
 
   onClientOnlyEvent = \case
     () -> return ()

@@ -1,3 +1,4 @@
+- bug : on linux, hamazed game freezes sometimes
 - we should probably exp. the release, like the decay
 - at each param change, play a note?
 

@@ -215,49 +215,49 @@ instance GameLogic HamazedGame where
   mapInterpretedKey key x g = return $ fmap CliEvt $ case x of
     Setup -> case key of
       AlphaNum c -> case c of
-        ' ' -> Just $ ExitedState $ Included Setup
-        '1' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Square
-        '2' -> Just $ OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1
+        ' ' -> [ExitedState $ Included Setup]
+        '1' -> [OnCommand $ Do $ Put $ AppValue $ WorldShape Square]
+        '2' -> [OnCommand $ Do $ Put $ AppValue $ WorldShape Rectangle'2x1]
         --'e' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution None
         --'r' -> Just $ OnCommand $ Do $ Put $ AppValue $ WallDistribution $ minRandomBlockSize 0.5
-        'y' -> Just $ OnCommand $ Do $ Succ BlockSize
-        'g' -> Just $ OnCommand $ Do $ Pred BlockSize
-        'u' -> Just $ OnCommand $ Do $ Succ WallProbability
-        'h' -> Just $ OnCommand $ Do $ Pred WallProbability
-        _ -> Nothing
-      _ -> Nothing
+        'y' -> [OnCommand $ Do $ Succ BlockSize]
+        'g' -> [OnCommand $ Do $ Pred BlockSize]
+        'u' -> [OnCommand $ Do $ Succ WallProbability]
+        'h' -> [OnCommand $ Do $ Pred WallProbability]
+        _ -> []
+      _ -> []
     PlayLevel status -> case status of
       Running -> maybe
         (case key of
           AlphaNum c -> case c of
-            'k' -> Just $ ClientAppEvt $ Action Laser Down
-            'i' -> Just $ ClientAppEvt $ Action Laser Up
-            'j' -> Just $ ClientAppEvt $ Action Laser LEFT
-            'l' -> Just $ ClientAppEvt $ Action Laser RIGHT
-            'd' -> Just $ ClientAppEvt $ Action Ship Down
-            'e' -> Just $ ClientAppEvt $ Action Ship Up
-            's' -> Just $ ClientAppEvt $ Action Ship LEFT
-            'f' -> Just $ ClientAppEvt $ Action Ship RIGHT
-            --'r'-> Just $ Evt ToggleEventRecording
-            _   -> Nothing
-          _ -> Nothing)
-        (const Nothing)
+            'k' -> [ClientAppEvt $ Action Laser Down]
+            'i' -> [ClientAppEvt $ Action Laser Up]
+            'j' -> [ClientAppEvt $ Action Laser LEFT]
+            'l' -> [ClientAppEvt $ Action Laser RIGHT]
+            'd' -> [ClientAppEvt $ Action Ship Down]
+            'e' -> [ClientAppEvt $ Action Ship Up]
+            's' -> [ClientAppEvt $ Action Ship LEFT]
+            'f' -> [ClientAppEvt $ Action Ship RIGHT]
+            --'r'-> [Evt ToggleEventRecording]
+            _   -> []
+          _ -> [])
+        (const [])
         $ getLevelOutcome g
-      WhenAllPressedAKey _ (Just _) _ -> Nothing
+      WhenAllPressedAKey _ (Just _) _ -> []
       WhenAllPressedAKey y Nothing havePressed ->
         maybe
-          Nothing
+          []
           (maybe
             (error "logic")
-            (bool (Just $ ClientAppEvt $ CanContinue y) Nothing)
+            (bool [ClientAppEvt $ CanContinue y] [])
             . flip Map.lookup havePressed)
           $ myId g
-      New -> Nothing
-      Paused _ _ -> Nothing
-      Countdown _ _ -> Nothing
-      OutcomeValidated _ -> Nothing
-      CancelledNoConnectedPlayer -> Nothing
-      WaitingForOthersToEndLevel _ -> Nothing
+      New -> []
+      Paused _ _ -> []
+      Countdown _ _ -> []
+      OutcomeValidated _ -> []
+      CancelledNoConnectedPlayer -> []
+      WaitingForOthersToEndLevel _ -> []
 
 mkGameStateEssence :: WorldId -> HamazedGame -> Maybe GameStateEssence
 mkGameStateEssence wid' (HamazedGame curWorld mayNewWorld shotNums (Level levelEssence _))

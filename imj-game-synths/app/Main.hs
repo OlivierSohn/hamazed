@@ -129,12 +129,14 @@ toggleView = \case
 data SynthsGame = SynthsGame {
     pianos :: !(Map ClientId PianoState)
   , pianoLoops :: !(Map SequencerId (Map LoopId PianoState))
+  , clientPressedKeys :: !(Map GLFW.Key NoteSpec)
   , instrument :: !Instrument
   , envelopePlot :: EnvelopePlot
   , editedIndex :: !Int
+  -- ^ Index of the enveloppe parameter that will be edited on left/right arrows.
 } deriving(Show)
 instance UIInstructions SynthsGame where
-  instructions color (SynthsGame _ _ instr _ idx) = case instr of
+  instructions color (SynthsGame _ _ _ instr _ idx) = case instr of
     SineSynthAHDSR env (AHDSR a h d r s) -> [envChoice] ++ ahdsrInstructions
      where
       envChoice = ConfigUI "Style" $ Choice $ map pack withCursor
@@ -183,7 +185,6 @@ instance UIInstructions SynthsGame where
 
 predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
 predefinedSustains :: Set Float
-
 predefinedAttack =
   let l = 50:map (*2) l
   in Set.fromDistinctAscList $ take 12 l
@@ -201,7 +202,7 @@ initialGame = do
   let i = defaultInstr
       initialViewMode = LogView
   p <- flip EnvelopePlot initialViewMode . toParts initialViewMode <$> envelopeToVectors i
-  return $ SynthsGame mempty mempty i p 0
+  return $ SynthsGame mempty mempty mempty i p 0
 
 data SynthsMode =
     PlaySynth
@@ -256,6 +257,8 @@ data SynthsGameEvent =
     ChangeInstrument !Instrument
   | ChangeEditedFeature {-# UNPACK #-} !Int
   | ToggleEnvelopeViewMode
+  | InsertPressedKey !GLFW.Key !NoteSpec
+  | RemovePressedKey !GLFW.Key
   deriving(Show)
 instance Categorized SynthsGameEvent
 instance DrawGroupMember SynthsGameEvent where
@@ -273,47 +276,61 @@ data SynthsStatefullKeys
 instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
 
   mapStateKey _ GLFW.Key'Space GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt WithMonoLineSequencer
+    return [CliEvt $ ClientAppEvt WithMonoLineSequencer]
   mapStateKey _ GLFW.Key'F1 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 1
+    return [CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 1]
   mapStateKey _ GLFW.Key'F2 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 2
+    return [CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 2]
   mapStateKey _ GLFW.Key'F3 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3
+    return [CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 3]
   mapStateKey _ GLFW.Key'F4 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4
+    return [CliEvt $ ClientAppEvt $ WithMultiLineSequencer $ SequencerId 4]
   mapStateKey _ GLFW.Key'F5 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ Evt $ AppEvent $ ToggleEnvelopeViewMode
+    return [Evt $ AppEvent $ ToggleEnvelopeViewMode]
   mapStateKey _ GLFW.Key'F10 GLFW.KeyState'Pressed _ _ _ =
-    return $ Just $ CliEvt $ ClientAppEvt ForgetCurrentRecording
+    return [CliEvt $ ClientAppEvt ForgetCurrentRecording]
   mapStateKey _ k st _ _ g = maybe
-    (return Nothing)
-    (\(SynthsGame _ _ instr _ idx) -> maybe
+    (return [])
+    (\(SynthsGame _ _ pressed instr _ idx) -> maybe
       (case k of
         GLFW.Key'Enter -> case st of
           GLFW.KeyState'Pressed ->
-            return $ Just $ Evt $ AppEvent $ ChangeInstrument $ cycleEnvelope' instr
-          _ -> return Nothing
-        _ -> return $ CliEvt . ClientAppEvt . PlayNote <$> n instr)
-      (\dir -> case instr of
+            return [Evt $ AppEvent $ ChangeInstrument $ cycleEnvelope' instr]
+          _ -> return []
+        _ -> return $ case st of
+          GLFW.KeyState'Repeating -> []
+          GLFW.KeyState'Pressed -> maybe
+              []
+              (\noteSpec ->
+                let spec = noteSpec instr
+                in [CliEvt $ ClientAppEvt $ PlayNote $ StartNote spec 1
+                  , Evt $ AppEvent $ InsertPressedKey k spec])
+              $ keyToNote k
+          GLFW.KeyState'Released -> maybe
+              []
+              (\spec ->
+                 [CliEvt $ ClientAppEvt $ PlayNote $ StopNote spec
+                , Evt $ AppEvent $ RemovePressedKey k])
+              $ Map.lookup k pressed)
+      (\dir -> return $ case instr of
           SineSynthAHDSR{} -> case st of
-            GLFW.KeyState'Pressed -> configureInstrument
-            GLFW.KeyState'Repeating -> configureInstrument
-            _ -> return Nothing
+            GLFW.KeyState'Pressed -> [configureInstrument]
+            GLFW.KeyState'Repeating -> [configureInstrument]
+            _ -> []
+
            where
+
             configureInstrument = case dir of
-              LEFT ->  return $ Just $ Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx (-1)
-              RIGHT -> return $ Just $ Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx 1
-              Up   -> return $ Just $ Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
-              Down -> return $ Just $ Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
-          _ -> return Nothing)
+              LEFT  -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx (-1)
+              RIGHT -> Evt $ AppEvent $ ChangeInstrument $ changeIntrumentValue instr idx 1
+              Up   -> Evt $ AppEvent $ ChangeEditedFeature $ idx - 1
+              Down -> Evt $ AppEvent $ ChangeEditedFeature $ idx + 1
+
+          _ -> [])
         $ isArrow k)
     $ _game $ getGameState' g
+
    where
-    n instr = maybe Nothing (\noteSpec -> case st of
-      GLFW.KeyState'Pressed -> Just $ StartNote noteSpec 1
-      GLFW.KeyState'Released -> Just $ StopNote noteSpec
-      GLFW.KeyState'Repeating -> Nothing) $ fmap (\f -> f instr) $ keyToNote k
 
     keyToNote = \case
       -- NOTE GLFW uses the US keyboard layout to name keys: https://en.wikipedia.org/wiki/British_and_American_keyboards
@@ -390,16 +407,16 @@ instance GameLogic SynthsGame where
   type StatefullKeysT SynthsGame = SynthsStatefullKeys
   type ClientOnlyEvtT SynthsGame = SynthsGameEvent
 
-  mapInterpretedKey _ _ _ = return Nothing
+  mapInterpretedKey _ _ _ = return []
 
   onClientOnlyEvent e = do
     mayNewEnvMinMaxs <-
-      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ instr (EnvelopePlot _ viewmode) _) ->
+      getIGame >>= maybe (liftIO initialGame) return >>= \(SynthsGame _ _ _ instr (EnvelopePlot _ viewmode) _) ->
         case e of
           ChangeInstrument i -> Just . toParts viewmode <$> liftIO (envelopeToVectors i)
           ToggleEnvelopeViewMode -> Just . toParts (toggleView viewmode) <$> liftIO (envelopeToVectors instr)
           _ -> return Nothing
-    getIGame >>= maybe (liftIO initialGame) return >>= \g -> withAnim $ putIGame $ case e of
+    getIGame >>= maybe (liftIO initialGame) return >>= \g@(SynthsGame _ _ pressed _ _ _) -> withAnim $ putIGame $ case e of
       ChangeInstrument i -> g {
           instrument = i
         , envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ envViewMode $ envelopePlot g
@@ -407,6 +424,8 @@ instance GameLogic SynthsGame where
       ToggleEnvelopeViewMode -> g {
         envelopePlot = EnvelopePlot (fromMaybe (error "logic") mayNewEnvMinMaxs) $ toggleView $ envViewMode $ envelopePlot g }
       ChangeEditedFeature i -> g {editedIndex = i}
+      InsertPressedKey k n -> g { clientPressedKeys = Map.insert k n pressed }
+      RemovePressedKey k -> g { clientPressedKeys = Map.delete k pressed }
 
 
   onServerEvent e =
@@ -423,7 +442,7 @@ instance GameLogic SynthsGame where
 
 instance GameDraw SynthsGame where
 
-  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ (EnvelopePlot curves _) _) = do
+  drawBackground (Screen _ center@(Coords _ centerC)) g@(SynthsGame pianoClients pianoLoops_ _ _ (EnvelopePlot curves _) _) = do
     case curves of
       [] -> return ()
       [ahds,r] -> do

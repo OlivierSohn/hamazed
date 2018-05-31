@@ -199,7 +199,7 @@ class GameStatefullKeys g s where
   needsStatefullKeys _ = const True
   {-# INLINE needsStatefullKeys #-}
 
-  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
+  -- | Maps a 'GLFW.Key' to a list of 'GenEvent', given a 'GameStateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
@@ -217,11 +217,11 @@ class GameStatefullKeys g s where
               -> GameStateValue
               -- ^ The current client state.
               -> Game g
-              -> m (Maybe (GenEvent g))
+              -> m [GenEvent g]
 
 instance GameStatefullKeys g () where
   needsStatefullKeys _ = const False
-  mapStateKey _ _ _ _ _ _ = return Nothing
+  mapStateKey _ _ _ _ _ _ = return []
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Show g
@@ -283,7 +283,7 @@ class (Show g
                     -> m ()
   onClientCustomCmd = fail "you should implement this if you have custom commands."
 
-  -- | Maps a 'Key' to a 'GenEvent', given a 'GameStateValue'.
+  -- | Maps a 'Key' to a list of 'GenEvent', given a 'GameStateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
@@ -293,7 +293,7 @@ class (Show g
                     -> GameStateValue
                     -- ^ The current client state.
                     -> Game g
-                    -> m (Maybe (GenEvent g))
+                    -> m [GenEvent g]
 
 -- | At every render, first background elements ('drawBackground') are drawn,
 -- then particle systems (see 'addParticleSystems' to add particle systems),

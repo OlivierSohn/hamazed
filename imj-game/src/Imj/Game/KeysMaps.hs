@@ -42,29 +42,29 @@ shiftOnly = GLFW.ModifierKeys {
 translatePlatformEvent :: (GameLogicT e ~ g
                          , MonadState (AppState g) m
                          , MonadReader e m, Client e)
-                       => Proxy g -> PlatformEvent -> m (Maybe (GenEvent g))
+                       => Proxy g -> PlatformEvent -> m [GenEvent g]
 translatePlatformEvent prox = \case
-  Message msgLevel txt -> return $ Just $ Evt $ Log msgLevel txt
-  StopProgram -> return $ Just $ CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()
-  FramebufferSizeChanges -> return $ Just $ Evt RenderingTargetChanged
+  Message msgLevel txt -> return $ [Evt $ Log msgLevel txt]
+  StopProgram -> return $ [CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()]
+  FramebufferSizeChanges -> return $ [Evt RenderingTargetChanged]
   InterpretedKey key -> case key of
-    Escape -> return $ Just $ CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()
-    Tab -> return $ Just $ Evt $ ChatCmd ToggleEditing
+    Escape -> return $ [CliEvt $ OnCommand $ RequestApproval $ Leaves $ Right ()]
+    Tab -> return $ [Evt $ ChatCmd ToggleEditing]
     _ -> getChatMode >>= \case
       Editing -> return $ case key of
-        Delete     -> Just $ Evt $ ChatCmd DeleteAtEditingPosition
-        BackSpace  -> Just $ Evt $ ChatCmd DeleteBeforeEditingPosition
-        AlphaNum c -> Just $ Evt $ ChatCmd $ Insert c
-        Arrow dir  -> Just $ Evt $ ChatCmd $ Navigate dir
-        Enter      -> Just $ Evt $ SendChatMessage
-        _ -> Nothing
+        Delete     -> [Evt $ ChatCmd DeleteAtEditingPosition]
+        BackSpace  -> [Evt $ ChatCmd DeleteBeforeEditingPosition]
+        AlphaNum c -> [Evt $ ChatCmd $ Insert c]
+        Arrow dir  -> [Evt $ ChatCmd $ Navigate dir]
+        Enter      -> [Evt $ SendChatMessage]
+        _ -> []
       NotEditing -> do
         g <- gets game
         let (ClientState activity state) = getClientState g
         case activity of
-          Over -> return Nothing
+          Over -> return []
           Ongoing -> case state of
-            Excluded -> return Nothing
+            Excluded -> return []
             Included x -> mapInterpretedKey key x g
   StatefullKey k s@GLFW.KeyState'Pressed m ->
     maybe
@@ -74,7 +74,7 @@ translatePlatformEvent prox = \case
         -- (or maybe my Macbook air keyboard has a bug?), hence I now filter on 'Shift' instead.
         if m == shiftOnly
           then
-            return $ Just $ Evt $
+            return $ (:[]) $ Evt $
               case dir of
                 Up    -> CycleRenderingOptions (-1) 0
                 Down  -> CycleRenderingOptions 1 0
@@ -99,15 +99,15 @@ translatePlatformEvent prox = \case
     g <- gets game
     let (ClientState activity state) = getClientState g
     case activity of
-      Over -> return Nothing
+      Over -> return []
       Ongoing -> case state of
-        Excluded -> return Nothing
+        Excluded -> return []
         Included x -> case s of
           GLFW.KeyState'Released -> -- Let released keys through if a matching pressed key was passed
                                     -- to the handling function.
-            takeKeyPressed k >>= bool (return Nothing) send -- I'm not sure if modifiers should be taken into account for matching?
+            takeKeyPressed k >>= bool (return []) send -- I'm not sure if modifiers should be taken into account for matching?
           _ -> getChatMode >>= \case
-            Editing -> return Nothing
+            Editing -> return []
             NotEditing -> do
               case s of
                 GLFW.KeyState'Pressed -> addKeyPressed k

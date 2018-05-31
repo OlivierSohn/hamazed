@@ -151,10 +151,10 @@ instance NFData Envelope
 instance Binary Envelope
 prettyShowEnvelope :: Envelope -> String
 prettyShowEnvelope = \case
-  AHDSR_KeyRelease -> "ADHSR"
-  AHDSR_AutoReleaseAfterDecay -> unwords ["ADHSR", "Autorelease"]
-  AHPropDerDSR_KeyRelease -> unwords ["ADHSR", "Exp-decay"]
-  AHPropDerDSR_AutoReleaseAfterDecay -> unwords ["ADHSR", "Exp-decay", "Autorelease"]
+  AHDSR_KeyRelease -> "Lin-decay"
+  AHDSR_AutoReleaseAfterDecay -> unwords ["Lin-decay", "Autorelease"]
+  AHPropDerDSR_KeyRelease -> unwords ["Exp-decay"]
+  AHPropDerDSR_AutoReleaseAfterDecay -> unwords ["Exp-decay", "Autorelease"]
 
 cycleEnvelope :: Envelope -> Envelope
 cycleEnvelope AHPropDerDSR_AutoReleaseAfterDecay = AHDSR_KeyRelease

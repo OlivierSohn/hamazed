@@ -29,21 +29,21 @@ loop :: (MonadIO m
        , g ~ GameLogicT e
        , MonadState (AppState g) m
        , MonadReader e m, PlayerInput e, Client e)
-     => (PlatformEvent -> m (Maybe (GenEvent g)))
+     => (PlatformEvent -> m [GenEvent g])
        -- ^ Translates a 'PlatformEvent' to a 'GenEvent'
      -> (Maybe (GenEvent g) -> m ())
        -- ^ Handles a 'GenEvent'
      -> m ()
 loop liftPlatformEvent onEventF =
-  forever $ nextEvent >>= onEventF
+  forever $ nextEvent >>= mapM_ onEventF
  where
   nextEvent = produceEvent >>= maybe
-    (return Nothing) -- means we need to render now.
+    (return [Nothing]) -- means we need to render now.
     (either
-      (\k -> liftPlatformEvent k >>= maybe
-        nextEvent -- the event was unknown, retry.
-        (return . Just))
-      (return . Just))
+      (\k -> liftPlatformEvent k >>= \case
+        [] -> nextEvent -- the event was unknown, retry.
+        l -> return $ map Just l)
+      (return . (:[]) . Just))
 
 
 type AnyEvent g = Either PlatformEvent (GenEvent g)

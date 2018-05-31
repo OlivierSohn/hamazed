@@ -87,9 +87,8 @@ data EnvelopePart = EnvelopePart {
   , _nSamples :: !Int
 } deriving(Show)
 
-widthAHDS, widthRel :: Int
-widthAHDS = 30
-widthRel = 30
+widthEnvelope :: Int
+widthEnvelope = 60
 
 toParts :: EnvelopeViewMode -> [Vector Float] -> [EnvelopePart]
 toParts mode =

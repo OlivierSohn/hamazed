@@ -143,8 +143,6 @@ GameItem should be moved out of imj-base, it is too game-specific.
 - add a keyboard so that players can play music collaboratively:
 the note should transit through the server before being played so that both players have the latency.
 
-- on linux glfw (or is it due to the graphic driver?), some fonts are too big.
-
 - animate on rebound on Z wall : wave
 on frame: ?
 

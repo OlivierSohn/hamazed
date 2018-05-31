@@ -42,7 +42,7 @@ library
                      , binary == 0.8.*
                      , blaze-html ==0.9.*
                      , bytestring == 0.10.*
-                     , clay ==0.13.*
+                     , clay >=0.13.1 && < 0.14
                      , containers ==0.5.*
                      , deepseq ==1.4.*
                      , directory ==1.3.*

@@ -41,10 +41,6 @@ packages:
 - './imj-time'
 
 - location:
-    git: https://github.com/OlivierSohn/clay.git
-    commit: 954476940190873094847939c5f0e6242e324000
-  extra-dep: true
-- location:
     git: https://github.com/OlivierSohn/mwc-random.git
     commit: 89a5657db7cf0a6b95a6fba8467445208f9313e6
   extra-dep: true
@@ -53,6 +49,7 @@ extra-deps:
 - FTGL-2.1              # for all resolvers (not part of stackage)
 - GLFW-b-3.2.1.0        # for 8.2.2 resolver
 - bindings-GLFW-3.2.1.1 # for 8.2.2 resolver
+- clay-0.13.1           # for 8.2.2 resolver
 # to build ghc-mod:
 #- https://hackage.haskell.org/package/ghc-mod-5.9.0.0/candidate/ghc-mod-5.9.0.0.tar.gz
 #- cabal-helper-0.8.0.0

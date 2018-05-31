@@ -371,7 +371,7 @@ changeParam predefined current direction
   | otherwise = current
 
 defaultInstr :: Instrument
-defaultInstr = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
+defaultInstr = SineSynthAHDSR AHPropDerDSR_KeyRelease bell
 
 instance GameLogic SynthsGame where
 

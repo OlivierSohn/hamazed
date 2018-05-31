@@ -185,8 +185,8 @@ bell = AHDSR 500 200 40000 30000 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument
---defaultInstrument = SineSynth $ EnvelCharacTime 401
-defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
+defaultInstrument = SineSynth $ EnvelCharacTime 401
+--defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
 
 {-
 

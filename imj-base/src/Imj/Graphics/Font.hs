@@ -317,22 +317,9 @@ setFontSize x font =
       error $ "Font sizes mismatch: " ++ show (s, x)
 
 createFont :: PPU -> FontMargin -> CharSet ForOffset -> FTGL.Font -> IO (Either String Font)
-createFont ppu@(Size ppuH _) fontMargin charset font =
-  if font == nullPtr
-    then
-      return $ Left "nullPtr"
-  else do
-    let maxFontSize = 2 * fromIntegral ppuH
-        minFontSize = 1
-        !rectAABB = unitRectangleAABB ppu
-        setSize x = setFontSize x font
-        condition x = do
-          setSize x
-          charsetAABB charset font >>= \aabb -> do
-            let (_, offsetAABB) = offsetToCenterAABB aabb ppu
-            -- return True if the translated bounding box of the character set is contained in the unit rectangle:
-            return $ margin offsetAABB rectAABB >= fontMargin
-
+createFont ppu@(Size ppuH _) fontMargin charset font
+  | font == nullPtr = return $ Left "nullPtr"
+  | otherwise =
     -- find the max font size such that the charset will be strictly contained
     -- in a unit rectangle.
     lastAbove False condition minFontSize maxFontSize >>= maybe
@@ -342,6 +329,22 @@ createFont ppu@(Size ppuH _) fontMargin charset font =
             -- maybe 'optimalSize' was not the last condition checked, in that case we set it again:
             when (curSize /= optimalSize) $ setSize optimalSize
           Right . Font font (fromIntegral optimalSize) . fst . flip offsetToCenterAABB ppu <$> charsetAABB charset font)
+
+ where
+
+  setSize x = setFontSize x font
+
+  condition x = do
+    setSize x
+    charsetAABB charset font >>= \aabb -> do
+      let (_, offsetAABB) = offsetToCenterAABB aabb ppu
+      -- return True if the translated bounding box of the character set is contained in the unit rectangle:
+      return $ margin offsetAABB rectAABB >= fontMargin
+
+  rectAABB = unitRectangleAABB ppu
+
+  maxFontSize = 2 * fromIntegral ppuH
+  minFontSize = 1
 
 
 loadFont :: ByteString -> String -> IO FTGL.Font

@@ -26,6 +26,7 @@ import           Control.Monad.Reader(asks)
 import           Data.Binary(Binary(..))
 import           Data.Map.Internal(Map(..))
 import qualified Data.Map.Strict as Map
+import           Data.Set(Set)
 import qualified Data.Set as Set
 import           Data.Text(pack, Text)
 import           Data.Vector.Unboxed(Vector)
@@ -168,6 +169,21 @@ instance UIInstructions SynthsGame where
         | otherwise = ' '
 
     _ -> []
+
+predefinedAttack, predefinedHolds, predefinedDecays, predefinedReleases :: Set Int
+predefinedSustains :: Set Float
+
+predefinedAttack =
+  let l = 50:map (*2) l
+  in Set.fromDistinctAscList $ take 12 l
+predefinedHolds =
+  let l = 5:map (*2) l
+  in Set.fromDistinctAscList $ 0:take 12 l
+predefinedDecays = predefinedAttack
+predefinedReleases = predefinedAttack
+predefinedSustains =
+  let l = 0.01:map (*1.3) l
+  in Set.fromDistinctAscList $ 0:takeWhile (< 1) l ++ [1]
 
 initialGame :: IO SynthsGame
 initialGame = do
@@ -339,13 +355,20 @@ instance GameStatefullKeys SynthsGame SynthsStatefullKeys where
     changeIntrumentValue instr idx inc =
       case instr of
         SineSynthAHDSR env p@(AHDSR a h d r s) -> case idx `mod` 5 of
-          0 -> SineSynthAHDSR env p {ahdsrAttack = a + inc}
-          1 -> SineSynthAHDSR env p {ahdsrHold = h + inc}
-          2 -> SineSynthAHDSR env p {ahdsrDecay = d + inc}
-          3 -> SineSynthAHDSR env p {ahdsrSustain = s + (fromIntegral inc) / 10.0}
-          4 -> SineSynthAHDSR env p {ahdsrRelease = r + inc}
+          0 -> SineSynthAHDSR env p {ahdsrAttack = changeParam predefinedAttack a inc}
+          1 -> SineSynthAHDSR env p {ahdsrHold = changeParam predefinedHolds h inc}
+          2 -> SineSynthAHDSR env p {ahdsrDecay = changeParam predefinedDecays d inc}
+          3 -> SineSynthAHDSR env p {ahdsrSustain = changeParam predefinedSustains s inc}
+          4 -> SineSynthAHDSR env p {ahdsrRelease = changeParam predefinedReleases r inc}
           _ -> error "logic"
         _ -> instr
+
+
+changeParam :: (Ord a) => Set a -> a -> Int -> a
+changeParam predefined current direction
+  | direction < 0 = fromMaybe current $ Set.lookupLT current predefined
+  | direction > 0 = fromMaybe current $ Set.lookupGT current predefined
+  | otherwise = current
 
 defaultInstr :: Instrument
 defaultInstr = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell

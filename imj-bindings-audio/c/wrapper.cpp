@@ -42,8 +42,8 @@ namespace imajuscule {
     template<typename T>
     struct SetParam<SimpleEnvelope<T>> {
       template<typename A>
-      static void set(int envelCharacTime, A & a) {
-        a.set_xfade_length(envelCharacTime);
+      static void set(int dt, A & a) {
+        a.forEachElems([dt](auto & e) { e.algo.editEnveloppe().setEnvelopeCharacTime(dt); });
       }
     };
 

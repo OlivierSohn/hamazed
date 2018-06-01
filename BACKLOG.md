@@ -1,6 +1,7 @@
 - adjust volumes of music in hamazed
 
-- we should probably exp. the release, like the decay
+- we should probably exp. the release : the user specifies the time to 1/10 of sustain.
+
 - at each param change, play a note?
 
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)

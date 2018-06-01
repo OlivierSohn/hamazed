@@ -199,7 +199,7 @@ class GameStatefullKeys g s where
   needsStatefullKeys _ = const True
   {-# INLINE needsStatefullKeys #-}
 
-  -- | Maps a 'GLFW.Key' to a 'GenEvent', given a 'GameStateValue'.
+  -- | Maps a 'GLFW.Key' to a list of 'GenEvent', given a 'GameStateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
@@ -209,7 +209,6 @@ class GameStatefullKeys g s where
   mapStateKey :: (GameLogic g
                 , GameLogicT e ~ g
                 , s ~ StatefullKeysT g
-                , MonadState (AppState g) m
                 , MonadReader e m, Client e)
               => Proxy s
               -> GLFW.Key
@@ -217,11 +216,12 @@ class GameStatefullKeys g s where
               -> GLFW.ModifierKeys
               -> GameStateValue
               -- ^ The current client state.
-              -> m (Maybe (GenEvent g))
+              -> Game g
+              -> m [GenEvent g]
 
 instance GameStatefullKeys g () where
   needsStatefullKeys _ = const False
-  mapStateKey _ _ _ _ _ = return Nothing
+  mapStateKey _ _ _ _ _ _ = return []
 
 -- | 'GameLogic' Formalizes the client-side logic of a multiplayer game.
 class (Show g
@@ -283,17 +283,17 @@ class (Show g
                     -> m ()
   onClientCustomCmd = fail "you should implement this if you have custom commands."
 
-  -- | Maps a 'Key' to a 'GenEvent', given a 'GameStateValue'.
+  -- | Maps a 'Key' to a list of 'GenEvent', given a 'GameStateValue'.
   --
   -- This method is called only when the client 'StateNature' is 'Ongoing', and
   -- when the 'StateValue' is 'Included' @_@.
   mapInterpretedKey :: (GameLogicT e ~ g
-            , MonadState (AppState g) m
-            , MonadReader e m, Client e)
-           => Key
-           -> GameStateValue
-           -- ^ The current client state.
-           -> m (Maybe (GenEvent g))
+                     , MonadReader e m, Client e)
+                    => Key
+                    -> GameStateValue
+                    -- ^ The current client state.
+                    -> Game g
+                    -> m [GenEvent g]
 
 -- | At every render, first background elements ('drawBackground') are drawn,
 -- then particle systems (see 'addParticleSystems' to add particle systems),
@@ -375,6 +375,9 @@ class DrawGroupMember e where
   -- return 'mempty', else your game / application may exhibit strong lag and/or unresponsiveness.
   exclusivityKeys :: e -> Set DrawGroupKeys
 
+instance DrawGroupMember () where
+  exclusivityKeys () = mempty
+
 instance (DrawGroupMember e, DrawGroupMember f)
   => DrawGroupMember (Either e f) where
   exclusivityKeys = either exclusivityKeys exclusivityKeys
@@ -395,9 +398,6 @@ instance DrawGroupMember e
     ChatCmd {} -> mempty
     SendChatMessage -> mempty
     AppEvent e -> exclusivityKeys e
-
-instance DrawGroupMember () where
-  exclusivityKeys () = mempty
 
 instance DrawGroupMember (ServerEventT e)
   => DrawGroupMember (ServerEvent e) where
@@ -438,11 +438,10 @@ tryGrow (Just e) (EventGroup l pastKeys updateTime range)
  | keyConflict = return Nothing
  | updateTime > fromSecs 0.01 = return Nothing -- we limit the duration of updates, to keep a stable render rate
  | otherwise = maybe mkRangeSingleton (flip extendRange) range <$> time >>= \range' -> return $
-    let -- so that no 2 updates of the same particle system are done in the same group:
-        maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
+    let maxDiameter = particleSystemDurationToSystemDuration $ 0.99 .* particleSystemPeriod
     in if timeSpan range' > maxDiameter
       then
-        Nothing
+        Nothing -- trigger a render so that no 2 updates of the same particle system are done in the same group
       else
         withEvent $ Just range'
  where

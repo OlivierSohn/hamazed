@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   other-modules:
   exposed-modules:     Imj.Music.Alter
+                     , Imj.Music.Analyze
                      , Imj.Music.Compose
                      , Imj.Music.Piano
                      , Imj.Music.Play

@@ -33,7 +33,7 @@ data Slider a = Slider {
   , sliderPresentation :: !SliderPresentation
 }
 
-{- | 
+{- |
 'Compact' mode:
 
 @
@@ -95,8 +95,12 @@ instance (Real a, Show a) => Positionable (Slider a) where
       Large ->
         drawAligned_ (Colored color upDown) (mkCentered upDownCenter)
       Compact -> do
-        drawAt (Colored color compactLabel1) coords
-        drawAt (Colored color compactLabel2) $ move nSteps RIGHT barLeft
+        case down of
+          ' ' -> return ()
+          _ -> drawAt (Colored color compactLabel1) coords
+        case up of
+          ' ' -> return ()
+          _ -> drawAt (Colored color compactLabel2) $ move nSteps RIGHT barLeft
    where
     i = getDiscreteIndex s
     barLeft = case pres of

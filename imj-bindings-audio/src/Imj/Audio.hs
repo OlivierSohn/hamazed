@@ -6,9 +6,11 @@ module Imj.Audio
       -- * Midi Synth
       , midiNoteOn
       , midiNoteOff
-      -- * Midi AHDSR Synth
+      -- * Midi AHDSR Synths
       , midiNoteOnAHDSR
       , midiNoteOffAHDSR
+      -- * Envelope graph
+      , analyzeAHDSREnvelope
       -- * Effect
       , effectOn
       , effectOff
@@ -17,10 +19,15 @@ module Imj.Audio
       , CInt, CShort, CFloat
       ) where
 
-import Foreign.C
-import Control.Concurrent(threadDelay)
-import Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
-import UnliftIO.Exception(bracket)
+import           Control.Concurrent(threadDelay)
+import           Control.Monad.IO.Unlift(MonadUnliftIO, liftIO)
+import           Data.Vector.Unboxed(Vector, unsafeFreeze)
+import           Data.Vector.Unboxed.Mutable(new, unsafeWrite)
+import           Foreign.C
+import           Foreign.Marshal.Alloc
+import           Foreign.Ptr
+import           Foreign.Storable
+import           UnliftIO.Exception(bracket)
 
 import Imj.Music.CTypes
 
@@ -40,11 +47,45 @@ foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO (
 foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO ()
 foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> IO ()
+foreign import ccall "analyzeAHDSREnvelope_" analyzeAHDSREnvelope_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> Ptr CInt -> Ptr CInt -> IO (Ptr CFloat)
+
+-- https://stackoverflow.com/questions/43372363/releasing-memory-allocated-by-c-runtime-from-haskell
+foreign import ccall "stdlib.h free" c_free :: Ptr CFloat -> IO ()
+
+analyzeAHDSREnvelope :: CInt
+                     -> AHDSR
+                     -> IO [Vector Float]
+analyzeAHDSREnvelope t (AHDSR a h d r s) =
+  alloca $ \ptrNElems -> alloca $ \ptrSplitAt -> do
+    buf <- analyzeAHDSREnvelope_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) ptrNElems ptrSplitAt
+    nElems <- fromIntegral <$> peek ptrNElems
+    split <- fromIntegral <$> peek ptrSplitAt
+    let slices =
+          if split < 0
+            then
+              [(0,nElems-1)
+              ]
+            else
+              [(0,split-1)
+              ,(split,nElems-1)
+              ]
+    res <- mapM (uncurry $ takeBuffer buf) slices
+    c_free buf
+    return res
+   where
+    takeBuffer buf iStart iEnd = do
+      uv <- new (1 + iEnd - iStart)
+      mapM_
+        (\i -> do
+          val <- (peek $ plusPtr buf $ i * (sizeOf (undefined :: CFloat))) :: IO CFloat
+          unsafeWrite uv (i-iStart) $ realToFrac val)
+        [iStart..iEnd]
+      unsafeFreeze uv
 
 midiNoteOffAHDSR :: CInt -> AHDSR -> CShort -> IO ()
-midiNoteOffAHDSR t (AHDSR a h d r s) i = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
 midiNoteOnAHDSR :: CInt -> AHDSR -> CShort -> CFloat -> IO ()
-midiNoteOnAHDSR t (AHDSR a h d r s) i v = midiNoteOnAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
+midiNoteOffAHDSR t (AHDSR a h d r s) i   = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
+midiNoteOnAHDSR  t (AHDSR a h d r s) i v = midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

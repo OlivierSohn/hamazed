@@ -10,9 +10,9 @@ module Imj.Music.Types
       ( -- * Notes and instruments
         Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
-      , Instrument(..), defaultInstrument
+      , Instrument(..), defaultInstrument, prettyShowInstrument
       , AHDSR(..), bell
-      , Envelope(..)
+      , Envelope(..), cycleEnvelope, prettyShowEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
       , NoteName(..)
@@ -44,6 +44,7 @@ module Imj.Music.Types
       ) where
 
 import           Imj.Prelude
+import           Prelude(unwords)
 import           Control.DeepSeq (NFData(..))
 import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Binary
@@ -148,6 +149,16 @@ instance Enum Envelope where
     n -> error $ "out of range:" ++ show n
 instance NFData Envelope
 instance Binary Envelope
+prettyShowEnvelope :: Envelope -> String
+prettyShowEnvelope = \case
+  AHDSR_KeyRelease -> "Lin-decay"
+  AHDSR_AutoReleaseAfterDecay -> unwords ["Lin-decay", "Autorelease"]
+  AHPropDerDSR_KeyRelease -> unwords ["Exp-decay"]
+  AHPropDerDSR_AutoReleaseAfterDecay -> unwords ["Exp-decay", "Autorelease"]
+
+cycleEnvelope :: Envelope -> Envelope
+cycleEnvelope AHPropDerDSR_AutoReleaseAfterDecay = AHDSR_KeyRelease
+cycleEnvelope e = succ e
 
 data Instrument =
     SineSynth !EnvelopeCharacteristicTime
@@ -157,6 +168,16 @@ data Instrument =
 instance Binary Instrument
 instance NFData Instrument
 
+prettyShowInstrument :: Instrument -> [String]
+prettyShowInstrument = \case
+  Wind x -> (:[]) $ unwords ["Wind", "program", show x]
+  SineSynth dt -> (:[]) $ unwords ["Sine", show dt]
+  SineSynthAHDSR e a ->
+    ["Sine"
+    , unwords ["Envelope:", prettyShowEnvelope e]
+    ] ++
+    prettyShowAHDSR a
+
 -- it would be nice to have a "sustain that fades slowly"
 -- or maybe what I'm looking for is exponential decay
 bell :: AHDSR
@@ -164,8 +185,8 @@ bell = AHDSR 500 200 40000 30000 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument
---defaultInstrument = SineSynth $ EnvelCharacTime 401
-defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
+defaultInstrument = SineSynth $ EnvelCharacTime 401
+--defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
 
 {-
 

@@ -306,7 +306,8 @@ renderDelta :: GLFW.Window
             -> Dim Width
             -> IO ()
 renderDelta win ppu fonts rs delta' w = do
-  fbSz <- getFramebufferSize win
+  fbSz@(Size he wi) <- getFramebufferSize win
+  GL.viewport GL.$= (GL.Position 0 0,GL.Size (fromIntegral wi) (fromIntegral he))
   sz <- Dyn.length delta'
   delta <- Dyn.accessUnderlying delta'
       -- We pass the underlying vector, and the size instead of the dynamicVector

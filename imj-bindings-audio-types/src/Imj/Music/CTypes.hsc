@@ -4,7 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module Imj.Music.CTypes
-      ( AHDSR(..)
+      ( AHDSR(..), prettyShowAHDSR
       ) where
 
 import           Data.Data(Data(..))
@@ -58,3 +58,12 @@ instance Storable AHDSR where
     #{poke AHDSR_t, decay}   p ahdsrDecay
     #{poke AHDSR_t, release} p ahdsrRelease
     #{poke AHDSR_t, sustain} p ahdsrSustain
+
+prettyShowAHDSR :: AHDSR -> [String]
+prettyShowAHDSR (AHDSR a h d r s) =
+  [ "Attack  " ++ show a
+  , "Hold    " ++ show h
+  , "Decay   " ++ show d
+  , "Sustain " ++ show s
+  , "Release " ++ show r
+  ]

@@ -1,14 +1,33 @@
-- expose noteOff enabled, notOff disabled instruments
+- adjust volumes of music in hamazed
 
-- make enveloppes user-parametrizable:
-AHDSR, withNoteOff
-- display enveloppe
+- we should probably exp. the release, like the decay
+- at each param change, play a note?
+
+- use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
+- remove 256 channels limit (review types for channel ids : uint8_t -> int)
+
+- maintain a global list (under lock) of lambdas pairs:
+    - one to know if the synth is playing :
+        checks if orchestrators and computes are empty, and
+          if all mononotechannel elements enveloppes are done.
+        the function should take the isUsed lock of the instrument else race conditions will occur.
+    - one to finalize the synth (and hence return the channels) : after calling this we remove the pair.
+
+Use a pool of channels, to prevent memory fragmentation.
+Garbage collection should occur :
+* when the pool is exhausted
+* use a global counter in withChannels, to keep track of last use,
+try to collect old instruments first.
+
+To avoid waiting for memory allocation, we could optionally let the user
+"load" (create + initialize) instruments, "tryUnload". But I would prefer if using the pool was sufficient.
+
 - the 4th, 5th, 6th hamazed song sounds good with bell.
 to hear differences more easily we should have debug commands like
 /inst bell
 to change the instrument used to play
-- today, every instrument uses 32 channels. We have 255 channels, so we support
-7 intruments at the same time.
+- today, every instrument uses 32*2 channels. We have 255 channels, so we support
+3 intruments at the same time.
 
 the 255 limit is arbitrary, is was chosen not too big to avoid wasting memory but
 we could use a template parameter for this limit.
@@ -125,8 +144,6 @@ GameItem should be moved out of imj-base, it is too game-specific.
 - on client termination, sound should close gracefully, i.e fade out.
 - add a keyboard so that players can play music collaboratively:
 the note should transit through the server before being played so that both players have the latency.
-
-- on linux glfw (or is it due to the graphic driver?), some fonts are too big.
 
 - animate on rebound on Z wall : wave
 on frame: ?

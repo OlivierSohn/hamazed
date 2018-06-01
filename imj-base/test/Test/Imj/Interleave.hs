@@ -5,11 +5,10 @@ module Test.Imj.Interleave
          ) where
 
 import           Imj.Prelude
-import           Prelude(putStrLn)
 import           Data.List(elem,splitAt)
 
 import           Imj.Geo.Discrete.Interleave
-import           Imj.Graphics.Text.Render
+--import           Imj.Graphics.Text.Render
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =
@@ -71,6 +70,7 @@ testInterleaveHalves = do
     [1..20]
 
   -- print values
+  {-
   putStrLn ""
   mapM_
     (\len ->
@@ -81,6 +81,7 @@ testInterleaveHalves = do
           " = " ++
           justifyR 3 (show (value::Int))))
     [1..100]
+  -}
 
   --------------------------------------------------------------------------
   -- verify that interleaveHalves and interleaveHalves' are the same

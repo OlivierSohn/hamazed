@@ -5,10 +5,8 @@ module Test.Imj.CyclicMatrix
            ) where
 
 import           Imj.Prelude
-import           Prelude(print, take, putStrLn)
 
 import           Imj.Data.Matrix.Cyclic
-import           Imj.Geo.Discrete.Interleave
 
 testCyclicMatrix :: IO ()
 testCyclicMatrix = do
@@ -18,8 +16,11 @@ testCyclicMatrix = do
 
 testRotations :: IO ()
 testRotations = do
+  return ()
+  {-
   let m = fromList 3 5 $ take 30 [0 :: Int ..]
   mapM_ print $ produceRotations Order1 m
+  -}
 
 testModulate :: IO ()
 testModulate = do
@@ -32,13 +33,15 @@ testModulate = do
 
 testInterleave :: IO ()
 testInterleave = do
+  return ()
+  {-
   let nRows = 9
       nCols = 18
       m = matrix nRows nCols $ \rIdx _ c -> rIdx + c
   putStrLn "interleave"
   print m
   mapM_ print $ produceUsefulInterleavedVariations (mkInterleaveInfo nRows) (mkInterleaveInfo nCols) m
-
+  -}
 
 shouldBe :: (Show a, Eq a) => a -> a -> IO ()
 shouldBe actual expected =

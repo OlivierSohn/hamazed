@@ -131,6 +131,7 @@ library
                      , Imj.Input.Types
                      , Imj.Iteration
                      , Imj.Log
+                     , Imj.Math.Root.Newton
                      , Imj.Network
                      , Imj.Physics
                      , Imj.Physics.Continuous.Types
@@ -204,6 +205,7 @@ test-suite imj-base-test
                      , Test.Imj.Interleave
                      , Test.Imj.InterpolatedColorString
                      , Test.Imj.Interpolation
+                     , Test.Imj.Newton
                      , Test.Imj.StdoutBuffer
                      , Test.Imj.RectArea
                      , Test.Imj.Resample

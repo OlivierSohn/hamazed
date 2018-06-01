@@ -13,38 +13,39 @@ module Imj.Game.Loop
 
 import           Imj.Prelude
 
+import           Control.Concurrent(forkIO, threadDelay, throwTo)
 import           Control.Concurrent.Async(wait, withAsync) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
+import           Control.Exception(Exception(..))
 import           Control.Monad.Reader.Class(MonadReader, asks)
-import           Control.Monad.State.Class(MonadState)
+import           Control.Monad.State.Class(MonadState, gets)
 import           Data.IORef(newIORef, atomicModifyIORef', atomicWriteIORef)
 
 import           Imj.Input.Types
 
 import           Imj.Event
 import           Imj.Game.Deadlines
-import           Imj.Game.Modify
 import           Imj.Game.State
 
 loop :: (MonadIO m
        , g ~ GameLogicT e
        , MonadState (AppState g) m
        , MonadReader e m, PlayerInput e, Client e)
-     => (PlatformEvent -> m (Maybe (GenEvent g)))
+     => (PlatformEvent -> m [GenEvent g])
        -- ^ Translates a 'PlatformEvent' to a 'GenEvent'
      -> (Maybe (GenEvent g) -> m ())
        -- ^ Handles a 'GenEvent'
      -> m ()
 loop liftPlatformEvent onEventF =
-  forever $ nextEvent >>= onEventF
+  forever $ nextEvent >>= mapM_ onEventF
  where
   nextEvent = produceEvent >>= maybe
-    (return Nothing) -- means we need to render now.
+    (return [Nothing]) -- means we need to render now.
     (either
-      (\k -> liftPlatformEvent k >>= maybe
-        nextEvent -- the event was unknown, retry.
-        (return . Just))
-      (return . Just))
+      (\k -> liftPlatformEvent k >>= \case
+        [] -> nextEvent -- the event was unknown, retry.
+        l -> return $ map Just l)
+      (return . (:[]) . Just))
 
 
 type AnyEvent g = Either PlatformEvent (GenEvent g)
@@ -80,12 +81,16 @@ produceEvent = do
           triggerRenderOr $ tryAtomicallyBefore deadlineTime readInput))
     (return . Just)
 
+data MyException = MyException
+  deriving(Show)
+instance Exception MyException
+
 triggerRenderOr :: (MonadIO m
                   , MonadState (AppState g) m
                   , MonadReader e m, PlayerInput e)
                 => IO (Maybe (AnyEvent g))
                 -> m (Maybe (AnyEvent g))
-triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
+triggerRenderOr readInput = visible <$> gets eventsGroup >>= \needsRender ->
   if needsRender
     then -- we can't afford to wait, we force a render
       return Nothing
@@ -101,16 +106,23 @@ triggerRenderOr readInput = hasVisibleNonRenderedUpdates >>= \needsRender ->
             (do
               -- forked thread
               res <- readInput
-              liftIO $ atomicWriteIORef countStopped 1 -- it is important to do this /before/ 'stopWaiting'
-              liftIO $ stopWaiting
-              return res)
+              tid <- liftIO $ do
+                atomicWriteIORef countStopped 1 -- it is important to do this /before/ 'stopWaiting'
+                stopWaiting
+                -- workaround for <https://github.com/glfw/glfw/issues/1281 this glfw bug>:
+                -- due to a race condition between stopWaiting and waitEvts, we need to call stopWaiting one more time.
+                -- Note that we could activate this workaround on linux/X11 only.
+                forkIO $ threadDelay 1000 >> stopWaiting
+              return (res,tid))
             (\a -> do
               -- main thread
               let go = do
                     waitEvts
                     liftIO (atomicModifyIORef' countStopped (\v -> (v,v))) >>= \case
                       0 -> go
-                      _ -> liftIO $ wait a
+                      _ -> liftIO (wait a >>= \(res,tid) -> do
+                        void $ forkIO $ throwTo tid MyException
+                        return res)
               go)
 
 {-# INLINABLE tryAtomically #-}

@@ -13,10 +13,9 @@ module Imj.Game.Loop
 
 import           Imj.Prelude
 
-import           Control.Concurrent(forkIO, threadDelay, throwTo)
-import           Control.Concurrent.Async(wait, withAsync) -- I can't use UnliftIO because I have State here
+import           Control.Concurrent(forkIO, threadDelay)
+import           Control.Concurrent.Async(wait, withAsync, async, cancel) -- I can't use UnliftIO because I have State here
 import           Control.Concurrent.STM(STM, check, atomically, readTQueue, readTVar, registerDelay)
-import           Control.Exception(Exception(..))
 import           Control.Monad.Reader.Class(MonadReader, asks)
 import           Control.Monad.State.Class(MonadState, gets)
 import           Data.IORef(newIORef, atomicModifyIORef', atomicWriteIORef)
@@ -81,10 +80,6 @@ produceEvent = do
           triggerRenderOr $ tryAtomicallyBefore deadlineTime readInput))
     (return . Just)
 
-data MyException = MyException
-  deriving(Show)
-instance Exception MyException
-
 triggerRenderOr :: (MonadIO m
                   , MonadState (AppState g) m
                   , MonadReader e m, PlayerInput e)
@@ -106,22 +101,22 @@ triggerRenderOr readInput = visible <$> gets eventsGroup >>= \needsRender ->
             (do
               -- forked thread
               res <- readInput
-              tid <- liftIO $ do
+              asy <- liftIO $ do
                 atomicWriteIORef countStopped 1 -- it is important to do this /before/ 'stopWaiting'
                 stopWaiting
                 -- workaround for <https://github.com/glfw/glfw/issues/1281 this glfw bug>:
                 -- due to a race condition between stopWaiting and waitEvts, we need to call stopWaiting one more time.
                 -- Note that we could activate this workaround on linux/X11 only.
-                forkIO $ threadDelay 1000 >> stopWaiting
-              return (res,tid))
+                async $ threadDelay 1000 >> stopWaiting
+              return (res,asy))
             (\a -> do
               -- main thread
               let go = do
                     waitEvts
                     liftIO (atomicModifyIORef' countStopped (\v -> (v,v))) >>= \case
                       0 -> go
-                      _ -> liftIO (wait a >>= \(res,tid) -> do
-                        void $ forkIO $ throwTo tid MyException
+                      _ -> liftIO (wait a >>= \(res,asy) -> do
+                        void $ forkIO $ cancel asy
                         return res)
               go)
 

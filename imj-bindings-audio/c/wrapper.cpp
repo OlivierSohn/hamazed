@@ -32,7 +32,7 @@ namespace imajuscule {
       }
     };
 
-    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
     struct ClampParam<AHDSREnvelope<T, DecayItp, Rel>> {
       static auto clamp(AHDSR_t const & env) {
         return env; // TODO clamp according to AHDSREnvelope
@@ -47,7 +47,7 @@ namespace imajuscule {
       }
     };
 
-    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
     struct SetParam<AHDSREnvelope<T, DecayItp, Rel>> {
       template<typename A>
       static void set(AHDSR_t const & env, A & a) {
@@ -60,7 +60,7 @@ namespace imajuscule {
       static constexpr bool value = true;
     };
 
-    template<typename T, DecayInterpolation DecayItp, EnvelopeRelease Rel>
+    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
     struct HasNoteOff<AHDSREnvelope<T, DecayItp, Rel>> {
       static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
@@ -351,16 +351,16 @@ namespace imajuscule {
         using namespace audioelement;
         switch(t) {
           case AHDSR_ReleaseAfterDecay:
-            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            midiEvent<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
             break;
           case AHDSR_WaitForKeyRelease:
-            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            midiEvent<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>(p, n);
             break;
           case AHPropDerDSR_ReleaseAfterDecay:
-            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+            midiEvent<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
             break;
           case AHPropDerDSR_WaitForKeyRelease:
-            midiEvent<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+            midiEvent<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>(p, n);
             break;
           default:
             break;
@@ -371,13 +371,13 @@ namespace imajuscule {
         using namespace audioelement;
         switch(t) {
           case AHDSR_ReleaseAfterDecay:
-            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+            return envelopeGraph<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
           case AHDSR_WaitForKeyRelease:
-            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+            return envelopeGraph<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
           case AHPropDerDSR_ReleaseAfterDecay:
-            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+            return envelopeGraph<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
           case AHPropDerDSR_WaitForKeyRelease:
-            return envelopeGraph<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+            return envelopeGraph<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
           default:
             return {};
         }
@@ -434,10 +434,10 @@ extern "C" {
     windVoice().finalize(getXfadeChannels());
 
     Synths<SimpleEnvelope<float>>::finalize();
-    Synths<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, DecayInterpolation::DecayLinear, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
-    Synths<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, DecayInterpolation::DecayProportionalDerivative, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
   }

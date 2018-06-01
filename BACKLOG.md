@@ -1,11 +1,12 @@
 - adjust volumes of music in hamazed
 
-- we should probably exp. the release : the user specifies the time to 1/10 of sustain.
+- Use template params for release and attack interpolations : the user specifies the time it takes to go to 1/0.
+All interpolations are valid.
 
 - at each param change, play a note?
 
 - use 64 bit audio to reduce numerical errors (especially when summing a big signal with a small one)
-- remove 256 channels limit (review types for channel ids : uint8_t -> int)
+- remove 256 channels limit (review types for channel ids : uint8_t -> int, use -1 or maxBound for None)
 
 - maintain a global list (under lock) of lambdas pairs:
     - one to know if the synth is playing :

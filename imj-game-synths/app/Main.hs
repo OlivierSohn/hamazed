@@ -18,7 +18,7 @@ The music is shared between all players.
 module Main where
 
 import           Imj.Prelude
-import           Prelude(length, putStrLn)
+import           Prelude(length)
 
 import           Control.Concurrent(forkIO, threadDelay)
 import           Control.Concurrent.MVar.Strict(MVar, modifyMVar, modifyMVar_, newMVar, putMVar, takeMVar)
@@ -449,7 +449,6 @@ instance GameDraw SynthsGame where
         let coordsEnv = move 15 LEFT $ move 18 Up center
             szAHDS = Size 20 $ fromIntegral $ widthPart ahds
             szR = Size 20 $ fromIntegral $ widthPart r
-        liftIO $ putStrLn $ show (widthPart ahds, widthPart r)
         drawEnv 0 ahds coordsEnv                        szAHDS (rgb 3 2 1)
         drawEnv 2 r    (move (widthPart ahds) RIGHT coordsEnv) szR    (rgb 2 3 1)
       _ -> error "logic"

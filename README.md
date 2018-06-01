@@ -16,7 +16,6 @@
 		- [Notation](#notation)
 		- [Playback](#playback)
 	- [Rendering](#rendering)
-		- [Known issues](#known-issues)
 
 <!-- /TOC -->
 
@@ -192,18 +191,7 @@ not managed by the GHC runtime.
 The screen is conceptually divided in small blocks of equal size,
 where each block can contain a character with 8-bit background and foreground colors.
 
-The [fonts](/imj-base/fonts) and font size for rendering can be modified at runtime.
-
-### Known issues
-
-The algorithm determining "the maximal font size such that all characters fit
-  within a given block" was developped on OSX, with a particular graphic card driver.
-
-On Linux, and using another graphic card driver, some characters
-are bigger than expected : their outer borders "leak" in the incremental rendering process.
-
-Maybe font rasterizing ([ftgl] ?) behaves differently on different platforms,
-or the graphic drivers perform different numerical roundings. This should be investigated.
+The [fonts](/imj-base/fonts) and font size for rendering can be modified at run time.
 
 [deployment script]: ./deploy-heroku.sh
 [ftgl]: http://ftgl.sourceforge.net/docs/html/

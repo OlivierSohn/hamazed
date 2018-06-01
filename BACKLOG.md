@@ -1,4 +1,5 @@
-- bug : on linux, hamazed game freezes sometimes
+- adjust volumes of music in hamazed
+
 - we should probably exp. the release, like the decay
 - at each param change, play a note?
 

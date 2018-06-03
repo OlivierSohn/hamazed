@@ -54,6 +54,8 @@ In any case, we should finalize and delete unused instruments to return channels
 the duration could be interpreted by the channel as "when to trigger the enveloppe keyReleased()"
 (thus, also when to trigger the enveloppe of the following request).
 
+- use travis_wait 119 if haddock is too long
+
 - develop enveloppes:
 
 make "linear perceived" envelope : Logarithmic, with a negative offset, scaled:.

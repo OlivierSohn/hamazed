@@ -10,16 +10,25 @@ module Imj.Music.Alter
       , mapVoice
       -- * alter Score
       , intersperse
+      , intercalate
       , transpose
+      , mute
       ) where
 
 import           Imj.Prelude
 import qualified Data.Vector as V
 
+import qualified Data.List as List
 import           Imj.Music.Types
+
+mute :: [Symbol] -> [Symbol]
+mute l = List.replicate (List.length l) Rest
 
 mixSymbols :: [Symbol] -> [Symbol] -> [Symbol]
 mixSymbols v1 v2 = concatMap (\(a,b) -> [a,b]) $ zip v1 v2
+
+intercalateSymbols :: [Symbol] -> [Symbol] -> [Symbol]
+intercalateSymbols s i = concatMap (\sy -> [sy] ++ i) s
 
 mapVoice :: ([Symbol] -> [Symbol]) -> Voice -> Voice
 mapVoice f v = v { voiceSymbols = V.fromList $ f $ V.toList $ voiceSymbols v }
@@ -38,6 +47,14 @@ intersperse s (Score voices) =
     map
       (mapVoice $ (\v ->
         mixSymbols v (repeat s)
+        )) voices
+
+intercalate :: [Symbol] -> Score -> Score
+intercalate symbols (Score voices) =
+  Score $
+    map
+      (mapVoice $ (\v ->
+        intercalateSymbols v symbols
         )) voices
 
 transpose :: Int -> Score -> Score

@@ -9,7 +9,7 @@ module Imj.Game.Hamazed.Music
 
 import           Imj.Prelude
 
-import           Data.List hiding(transpose, intersperse)
+import           Data.List hiding(transpose, intersperse, intercalate)
 
 import           Imj.Game.Hamazed.Level
 import           Imj.Music.Alter
@@ -37,6 +37,7 @@ hamazedScores =
   , ninthScore
   , intersperse Rest tenthScore
   , eleventhScore
+  , intercalate [Extend,Extend] twelvthScore
   ]
 
 primaryScore :: Score
@@ -664,7 +665,41 @@ eleventhScore = mkScore
     lab . sol . mi .
     |]
 
+twelvthScore :: Score
+twelvthScore = Score
+  [ mkVoice stringsInstrument $ concat $ replicate 8 melody
+  , mkVoice stringsInstrument $ concat $ replicate 8 bass1
+  , mkVoice stringsInstrument $ concat $ replicate 8 bass2
+  , mkVoice shortInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice)
+  , mkVoice longInstrument $ concat (replicate 4 $ mute melody) ++ concat (replicate 4 voice2)
+  ]
 
+ where
+
+  melody = [notes|
+    do ré fa sol - - - -
+    do ré ré - - - - -
+  |]
+
+  bass1 = [notes|
+    . . vfa - - - - -
+    . . vmi - - - - -
+  |]
+
+  bass2 = [notes|
+    . . vla - - - - -
+    . . vsol - - - - -
+  |]
+
+  voice = [notes|
+    . . . . ^mi - ^do -
+    - - - - - - - -
+  |]
+
+  voice2 = [notes|
+    . . ^mi - - - - -
+    - - - - - - - -
+  |]
 
 alarm :: [Symbol]
 alarm =

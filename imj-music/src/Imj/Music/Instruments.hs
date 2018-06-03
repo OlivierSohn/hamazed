@@ -6,6 +6,8 @@ module Imj.Music.Instruments
       , organicInstrument
       , shortInstrument
       , testInstrument
+      , stringsInstrument
+      , longInstrument
       ) where
 
 import           Imj.Prelude
@@ -17,7 +19,8 @@ bell :: AHDSR
 bell = AHDSR 500 200 40000 30000 Linear ProportionaValueDerivative Linear 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
-simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument :: Instrument
+simpleInstrument, bellInstrument, organicInstrument, shortInstrument, testInstrument, stringsInstrument :: Instrument
+longInstrument :: Instrument
 simpleInstrument = SineSynth $ mkEnvelopeCharacteristicTime 401
 bellInstrument = SineSynthAHDSR AutoRelease bell
 organicInstrument = SineSynthAHDSR AutoRelease
@@ -34,7 +37,6 @@ shortInstrument = SineSynthAHDSR AutoRelease
       Linear
       (Eased EaseIn Circ)
       1.0
-
 testInstrument = SineSynthAHDSR AutoRelease
   $ AHDSR
       800 160 3200 6400
@@ -42,3 +44,17 @@ testInstrument = SineSynthAHDSR AutoRelease
       ProportionaValueDerivative
       (Eased EaseInOut Circ)
       0.865
+stringsInstrument = SineSynthAHDSR KeyRelease
+  $ AHDSR
+      12800 160 3200 6400
+      Linear
+      Linear
+      (Eased EaseInOut Circ)
+      1.0
+longInstrument = SineSynthAHDSR KeyRelease
+  $ AHDSR
+      50 160 102400 6400
+      Linear
+      ProportionaValueDerivative
+      (Eased EaseInOut Circ)
+      0.138

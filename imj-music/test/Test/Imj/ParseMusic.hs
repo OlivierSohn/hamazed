@@ -7,11 +7,12 @@ module Test.Imj.ParseMusic
 
 import           Imj.Music.Types
 import           Imj.Music.Compose
+import           Imj.Music.Instruments
 import           Imj.Music.Play
 
 testParseMusic :: IO ()
 testParseMusic = do
-  let i = defaultInstrument
+  let i = bellInstrument
 
   testParseMusicWithComments
 

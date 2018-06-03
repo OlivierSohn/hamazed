@@ -36,6 +36,7 @@ hamazedScores =
   , heighthScore
   , ninthScore
   , intersperse Rest tenthScore
+  , eleventhScore
   ]
 
 primaryScore :: Score
@@ -595,6 +596,74 @@ tenthScore = mkScore
     do mi vfa vla do vfa
     vla do vmi vla vdo vmi
   |]
+
+eleventhScore :: Score
+eleventhScore = mkScore
+  testInstrument
+  [ melody
+  , melody2
+  , bass
+  ]
+
+ where
+
+  melody = [notes|
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do ^réb
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do ^réb
+    ^do sib ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do ^réb
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do .
+    ^do ^réb ^do ^réb ^do ^réb
+    ^do . . ^réb ^do ^réb
+    ^do . . . . .
+  |]
+
+  melody2 = [notes|
+    . . . . . .
+    . . . . . .
+    ^mi ^fa ^mi ^fa ^mi ^fa
+    ^mi ^fa ^sol ^fa ^mi .
+    . . . . . .
+    . . . . . .
+    ^mi ^fa ^mi ^fa ^mi ^fa
+    ^mi ^fa ^mi ^fa ^mi .
+    . . . . . .
+    . . . . . .
+    ^mi ^fa ^mi ^fa ^mi ^fa
+    ^mi ^fa ^sol ^fa ^mi .
+    . . . . . .
+    . . . . . .
+    ^mi . . ^fa ^mi ^fa
+    ^mi . . . . .
+  |]
+
+  bass = [notes|
+    do . sol . sib .
+    do . fa . lab .
+    do . mi . sol .
+    lab . sol . mi .
+    do . sol . sib .
+    do . fa . lab .
+    do . mi . sol .
+    lab . sol . mi .
+    do . sol . sib .
+    do . fa . lab .
+    do . mi . sol .
+    lab . sol . mi .
+    do . sol . sib .
+    do . fa . lab .
+    do do mi . sol .
+    lab . sol . mi .
+    |]
+
 
 
 alarm :: [Symbol]

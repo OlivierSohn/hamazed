@@ -572,7 +572,8 @@ ninthScore = mkScore shortInstrument
   |]
 
 tenthScore :: Score
-tenthScore = mkScore shortInstrument
+tenthScore = mkScore
+  shortInstrument
   [ concat $ replicate 2 melody
   , bass
   ]

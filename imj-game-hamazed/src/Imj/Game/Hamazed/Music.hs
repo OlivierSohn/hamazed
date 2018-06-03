@@ -35,6 +35,7 @@ hamazedScores =
   , intersperse Rest $ transpose 12 sevthScore
   , heighthScore
   , ninthScore
+  , intersperse Rest tenthScore
   ]
 
 primaryScore :: Score
@@ -569,6 +570,31 @@ ninthScore = mkScore shortInstrument
   bass3 = [notes|
     . . mi . . . . . . . . .
   |]
+
+tenthScore :: Score
+tenthScore = mkScore shortInstrument
+  [ concat $ replicate 2 melody
+  , bass
+  ]
+
+ where
+
+  melody = [notes|
+    ^do si la . la si ^do ^ré ^mi . . .
+    ^ré ^do si . . . ^do si la . . .
+    |]
+
+  bass = [notes|
+    . . vla do mi vla
+    do mi vsol do mi vsol
+    do mi vfa vla do vfa
+    vla do vmi vla do vmi
+    . . vla do mi vla
+    do mi vsol do mi vsol
+    do mi vfa vla do vfa
+    vla do vmi vla vdo vmi
+  |]
+
 
 alarm :: [Symbol]
 alarm =

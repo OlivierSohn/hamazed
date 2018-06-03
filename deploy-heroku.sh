@@ -52,10 +52,6 @@ speak "We create imajuscule/game-rt"
 
 docker build -t "imajuscule/game-rt" "./docker/runtime-game/"
 
-speak "We create imajuscule/serve-highscores-rt"
-
-docker build -t "imajuscule/postgresql-rt" "./docker/runtime-postgresql/"
-
 speak "Stack compiles binaries and creates the base images"
 
 stack image container
@@ -65,6 +61,7 @@ speak "We create and push the Heroku serve-highscores image"
 
 cd "docker/heroku-serve-highscores"
 heroku container:push web -a imj-highscores
+heroku container:release web -a imj-highscores
 cd "$ROOT"
 # END -- this part can be removed
 
@@ -72,12 +69,15 @@ speak "We create and push the Heroku game-synth image"
 
 cd "docker/heroku-game-synth"
 heroku container:push web -a imj-game-synth
+heroku container:release web -a imj-game-synth
 cd "$ROOT"
 
 speak "We create and push the Heroku game-hamazed image"
 
 cd "docker/heroku-game-hamazed"
 heroku container:push web -a imj-game-hamazed
+heroku container:release web -a imj-game-hamazed
 cd "$ROOT"
+
 
 speak "Done!"

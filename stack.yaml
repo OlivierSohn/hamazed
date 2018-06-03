@@ -16,7 +16,7 @@ image:
     name: imajuscule/game-hamazed
     executables:
     - imj-game-hamazed-exe
-  - base: imajuscule/postgresql-rt
+  - base: imajuscule/game-rt
     name: imajuscule/serve-highscores
     executables:
     - imj-serve-highscores-exe

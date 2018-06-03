@@ -9,6 +9,7 @@ FROM ubuntu:18.04
 
 RUN apt-get update -y
 
+# libpq is needed by a dependency of imj-serve-highscores
 RUN apt-get install -y \
     libxcursor-dev \
     libxi-dev \
@@ -16,5 +17,6 @@ RUN apt-get install -y \
     libxrandr-dev \
     libgmp-dev \
     portaudio19-dev \
-    libftgl-dev
+    libftgl-dev \
+    libpq-dev
 

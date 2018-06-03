@@ -26,7 +26,7 @@ scoreForLevel (LevelSpec n _) =
 
 hamazedScores :: [Score]
 hamazedScores =
-  [ transpose 2 primaryScore
+  [ ninthScore, transpose 2 primaryScore
   , transpose 2 secondaryScore
   , transpose 2 tertiaryScore
   , intersperse Rest quatScore
@@ -34,7 +34,7 @@ hamazedScores =
   , sextScore
   , intersperse Rest $ transpose 12 sevthScore
   , heighthScore
-  , ninthScore
+
   ]
 
 primaryScore :: Score
@@ -477,8 +477,8 @@ sevthScore =
 
 heighthScore :: Score
 heighthScore = mkScore organicInstrument
-  [ take (8*length melody) $ cycle melody
-  , take (4*length bass) $ cycle bass ++ bass
+  [ concat $ replicate 8 melody
+  , concat $ replicate 4 bass
   , silence ++ upperVoice ++ silence ++ upperVoice
   , silence ++ silence ++ silence ++ upperVoice2
   ]
@@ -539,6 +539,9 @@ heighthScore = mkScore organicInstrument
 ninthScore :: Score
 ninthScore = mkScore shortInstrument
   [ melody
+  , bass1
+  , bass2
+  , concat $ replicate 4 bass3
   ]
 
  where
@@ -549,6 +552,23 @@ ninthScore = mkScore shortInstrument
     sol . . . . . ^do ^ré ^mi . sol .
     fad . . . . . ^mi ^mib ^ré ^réb ^do si
     |]
+
+  bass1 = [notes|
+    do . . . . . . . . . . .
+    vsi . . . . . . . . . . .
+    vsib . . . . . . . . . . .
+    vla . . . . . . . . . . .
+  |]
+
+  bass2 = [notes|
+    mi . . . . . . . . . . .
+    mi . . . . . . . . . . .
+    ré . . . . . . . . . . .
+    ré . . . . . . . . . . .
+  |]
+  bass3 = [notes|
+    . . mi . . . . . . . . .
+  |]
 
 alarm :: [Symbol]
 alarm =

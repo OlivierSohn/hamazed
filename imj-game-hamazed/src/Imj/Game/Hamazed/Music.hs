@@ -26,7 +26,7 @@ scoreForLevel (LevelSpec n _) =
 
 hamazedScores :: [Score]
 hamazedScores =
-  [ ninthScore, transpose 2 primaryScore
+  [ transpose 2 primaryScore
   , transpose 2 secondaryScore
   , transpose 2 tertiaryScore
   , intersperse Rest quatScore
@@ -34,7 +34,7 @@ hamazedScores =
   , sextScore
   , intersperse Rest $ transpose 12 sevthScore
   , heighthScore
-
+  , ninthScore
   ]
 
 primaryScore :: Score

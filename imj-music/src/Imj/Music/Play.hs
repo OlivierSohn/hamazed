@@ -9,11 +9,9 @@
 
 module Imj.Music.Play
       ( noteToMidiPitch
-      , mkScore
       , stepScore
       , stopScore
       , sizeVoice
-      , mkVoice
       , stepVoice
       , stopVoice
       , stepNVoice
@@ -35,10 +33,11 @@ import           Imj.Music.Types
 
 playAtTempo :: Float
             -- ^ BPMs
+            -> Instrument
             -> [Symbol]
             -> IO ()
-playAtTempo tempo =
-  void . forkIO . go . allMusic
+playAtTempo tempo i =
+  void . forkIO . go . allMusic i
  where
   go [] = return()
   go (n:ns) = do
@@ -70,14 +69,14 @@ stopScore (Score l) = (s,m)
   s = Score $ map fst nv
   m = concatMap snd nv
 
-allMusic :: [Symbol] -> [[Music]]
-allMusic x =
+allMusic :: Instrument -> [Symbol] -> [[Music]]
+allMusic i x =
   snd $ stepNVoiceAndStop (sizeVoice s) s
  where
-  s = mkVoice x
+  s = mkVoice i x
 
 sizeVoice :: Voice -> Int
-sizeVoice (Voice _ _ v) = V.length v
+sizeVoice (Voice _ _ v _) = V.length v
 
 -- | Like 'stepNVoice' but also uses 'stopVoice' to finalize the music.
 stepNVoiceAndStop :: Int -> Voice -> (Voice, [[Music]])
@@ -100,8 +99,8 @@ stepNVoice n score = let (s,l) = stepNVoiceReversed n score in (s,reverse l)
 
 stepVoice :: Voice
           -> (Voice, [Music])
-stepVoice (Voice i cur v) =
-    ( Voice nextI newCur v
+stepVoice (Voice i cur v inst) =
+    ( Voice nextI newCur v inst
     , catMaybes [mayStopCur, mayStartNext])
  where
   nextNote = v V.! (fromIntegral i)
@@ -116,13 +115,13 @@ stepVoice (Voice i cur v) =
       (\case
         Rest -> Nothing
         Extend -> error "logic"
-        (Note n) -> case nextNote of
+        (Note n o) -> case nextNote of
           Extend -> Nothing
-          _ -> Just $ StopNote n)
+          _ -> Just $ StopNote (NoteSpec n o inst))
       cur
 
   mayStartNext = case nextNote of
-    (Note n) -> Just $ StartNote n 1
+    (Note n o) -> Just $ StartNote (NoteSpec n o inst) 1
     _ -> Nothing
 
   len = V.length v
@@ -132,13 +131,13 @@ stepVoice (Voice i cur v) =
     | otherwise = 0
 
 stopVoice :: Voice -> (Voice, [Music])
-stopVoice (Voice _ cur l) =
-    ( Voice 0 Nothing l
+stopVoice (Voice _ cur l i) =
+    ( Voice 0 Nothing l i
     , maybeToList noteChange)
  where
   noteChange = maybe Nothing (\case
     Rest -> Nothing
-    Note n -> Just $ StopNote n
+    Note n o -> Just $ StopNote $ NoteSpec n o i
     Extend -> error "logic") cur
 
 play :: Music -> IO ()

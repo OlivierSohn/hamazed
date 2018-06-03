@@ -45,9 +45,9 @@ foreign import ccall "stopAudioGracefully" stopAudioGracefully :: IO ()
 foreign import ccall "teardownAudio" teardownAudio :: IO ()
 foreign import ccall "midiNoteOn" midiNoteOn :: CInt -> CShort -> CFloat -> IO ()
 foreign import ccall "midiNoteOff" midiNoteOff :: CInt -> CShort -> IO ()
-foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> CFloat -> IO ()
-foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CShort -> IO ()
-foreign import ccall "analyzeAHDSREnvelope_" analyzeAHDSREnvelope_ :: CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> Ptr CInt -> Ptr CInt -> IO (Ptr CFloat)
+foreign import ccall "midiNoteOnAHDSR_" midiNoteOnAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> CFloat -> IO ()
+foreign import ccall "midiNoteOffAHDSR_" midiNoteOffAHDSR_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> CShort -> IO ()
+foreign import ccall "analyzeAHDSREnvelope_" analyzeAHDSREnvelope_ :: CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CFloat -> CInt -> CInt -> Ptr CInt -> Ptr CInt -> IO (Ptr CFloat)
 
 -- https://stackoverflow.com/questions/43372363/releasing-memory-allocated-by-c-runtime-from-haskell
 foreign import ccall "stdlib.h free" c_free :: Ptr CFloat -> IO ()
@@ -55,9 +55,9 @@ foreign import ccall "stdlib.h free" c_free :: Ptr CFloat -> IO ()
 analyzeAHDSREnvelope :: CInt
                      -> AHDSR
                      -> IO [Vector Float]
-analyzeAHDSREnvelope t (AHDSR a h d r s) =
+analyzeAHDSREnvelope t (AHDSR a h d r ai di ri s) =
   alloca $ \ptrNElems -> alloca $ \ptrSplitAt -> do
-    buf <- analyzeAHDSREnvelope_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) ptrNElems ptrSplitAt
+    buf <- analyzeAHDSREnvelope_ t (fromIntegral a) (fromIntegral $ itpToInt ai) (fromIntegral h) (fromIntegral d) (fromIntegral $ itpToInt di) (realToFrac s) (fromIntegral r) (fromIntegral $ itpToInt ri) ptrNElems ptrSplitAt
     nElems <- fromIntegral <$> peek ptrNElems
     split <- fromIntegral <$> peek ptrSplitAt
     let slices =
@@ -84,8 +84,10 @@ analyzeAHDSREnvelope t (AHDSR a h d r s) =
 
 midiNoteOffAHDSR :: CInt -> AHDSR -> CShort -> IO ()
 midiNoteOnAHDSR :: CInt -> AHDSR -> CShort -> CFloat -> IO ()
-midiNoteOffAHDSR t (AHDSR a h d r s) i   = midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i
-midiNoteOnAHDSR  t (AHDSR a h d r s) i v = midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral h) (fromIntegral d) (realToFrac s) (fromIntegral r) i v
+midiNoteOffAHDSR t (AHDSR a h d r ai di ri s) i   =
+  midiNoteOffAHDSR_ t (fromIntegral a) (fromIntegral $ itpToInt ai) (fromIntegral h) (fromIntegral d) (fromIntegral $ itpToInt di) (realToFrac s) (fromIntegral r) (fromIntegral $ itpToInt ri) i
+midiNoteOnAHDSR  t (AHDSR a h d r ai di ri s) i v =
+  midiNoteOnAHDSR_  t (fromIntegral a) (fromIntegral $ itpToInt ai) (fromIntegral h) (fromIntegral d) (fromIntegral $ itpToInt di) (realToFrac s) (fromIntegral r) (fromIntegral $ itpToInt ri) i v
 
 -- | Initializes audio, runs the action, shutdowns audio gracefully and waits
 -- until audio is shutdown completely before returning.

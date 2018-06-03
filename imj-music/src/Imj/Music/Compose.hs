@@ -8,11 +8,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Imj.Music.Compose
-      ( musicSymbol
-      , musicSymbols
-      , mkScore
-      , notes
-      , mkVoice
+      ( notes
       ) where
 
 import           Imj.Prelude hiding ((<|>))
@@ -32,7 +28,6 @@ import           Imj.Music.Types
 -- do ré {this is an inline comment} mi fa sol {note that
 --  inline comments can span
 --  over multiple lines! }
--- TODO support changing instruments (with a statefull parser)
 musicSymbol :: Parser Symbol
 musicSymbol = do
   between
@@ -101,7 +96,7 @@ musicSymbol = do
         "la#"  -> return Sib
         "sib"  -> return Sib
         str -> fail $"Wrong note:" ++ str
-      return $ Note $ NoteSpec noteName (x + noOctave) defaultInstrument
+      return $ Note noteName (x + noOctave)
 
   comment = do
     _ <- char ':'

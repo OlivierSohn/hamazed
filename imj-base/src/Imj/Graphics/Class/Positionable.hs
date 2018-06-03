@@ -12,9 +12,8 @@ module Imj.Graphics.Class.Positionable
             , Alignment(..)
             , mkRightAlign
             , mkCentered
-            -- * Helpers
-            , toNextLine
             -- * Utilities
+            , moveAlignment
             , align
             , align'
             ) where
@@ -59,7 +58,7 @@ class Positionable a where
     let w = width p
         pos = align' alignment w
     drawAt p pos
-    return $ toNextLine alignment
+    return $ moveAlignment (fromIntegral $ height p) Down alignment
 
   {-# INLINABLE drawAligned_ #-}
   -- | Draw 'Positionable' aligned w.r.t alignment and reference coordinates.
@@ -263,6 +262,6 @@ align a count =
       LeftAligned -> 0
 
 -- | Moves the reference coordinate one line down.
-toNextLine :: Alignment -> Alignment
-toNextLine (Alignment a pos) =
-  Alignment a $ translateInDir Down pos
+moveAlignment :: Int -> Direction -> Alignment -> Alignment
+moveAlignment n d (Alignment a pos) =
+  Alignment a $ move n d pos

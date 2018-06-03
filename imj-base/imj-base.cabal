@@ -47,6 +47,7 @@ library
                      , Imj.Example.DeltaRender.FromMonadIO
                      , Imj.Example.DeltaRender.FromMonadReader
                      , Imj.Example.SequentialTextTranslationsAnchored
+                     , Imj.File
                      , Imj.Game.HighScores
                      , Imj.Game.Level
                      , Imj.GameItem.Weapon.Laser.Types
@@ -118,6 +119,7 @@ library
                      , Imj.Graphics.UI.Animation
                      , Imj.Graphics.UI.Animation.Types
                      , Imj.Graphics.UI.Chat
+                     , Imj.Graphics.UI.Choice
                      , Imj.Graphics.UI.Colored
                      , Imj.Graphics.UI.RectArea
                      , Imj.Graphics.UI.RectContainer
@@ -153,6 +155,8 @@ library
                      , containers ==0.5.*
                      , unordered-containers ==0.2.*
                      , deepseq ==1.4.*
+                     , directory ==1.3.*
+                     , filepath ==1.4.*
                      , file-embed ==0.0.*
                      , freetype2 ==0.1.*
                      , FTGL ==2.1.*
@@ -173,9 +177,11 @@ library
                      , temporary >= 1.2.0.0 && < 1.4
                      , terminal-size >= 0.3.2.1 && < 0.4
                      , text >=1.2.3 && < 1.3
+                     , time ==1.8.*
                      , transformers == 0.5.*
                      , unliftio ==0.2.*
                      , unliftio-core ==0.1.*
+                     , uuid ==1.3.*
                      , utf8-string ==1.0.*
                      , vector >= 0.12.0.1 && < 0.13
                      , vector-algorithms >= 0.7.0.1 && < 0.8

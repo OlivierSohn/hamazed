@@ -2,6 +2,13 @@
 
 #include "cpp.audio/include/public.h"
 
+extern "C" {
+  enum envelType {
+      AHDSR_WaitForKeyRelease
+    , AHDSR_ReleaseAfterDecay
+  };
+}
+
 namespace imajuscule {
   namespace audioelement {
     template <typename Envel>
@@ -26,46 +33,104 @@ namespace imajuscule {
     struct HasNoteOff;
 
     template<typename T>
-    struct ClampParam<SimpleEnvelope<T>> {
+    struct ClampParam<SimpleLinearEnvelope<T>> {
       static auto clamp(int envelCharacTime) {
         return std::max(envelCharacTime, 100);
       }
     };
 
-    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
-    struct ClampParam<AHDSREnvelope<T, DecayItp, Rel>> {
-      static auto clamp(AHDSR_t const & env) {
+    template<typename T, EnvelopeRelease Rel>
+    struct ClampParam<AHDSREnvelope<T, Rel>> {
+      static auto clamp(AHDSR const & env) {
         return env; // TODO clamp according to AHDSREnvelope
       }
     };
 
     template<typename T>
-    struct SetParam<SimpleEnvelope<T>> {
+    struct SetParam<SimpleLinearEnvelope<T>> {
       template<typename A>
       static void set(int dt, A & a) {
         a.forEachElems([dt](auto & e) { e.algo.editEnveloppe().setEnvelopeCharacTime(dt); });
       }
     };
 
-    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
-    struct SetParam<AHDSREnvelope<T, DecayItp, Rel>> {
+    template<typename T, EnvelopeRelease Rel>
+    struct SetParam<AHDSREnvelope<T, Rel>> {
       template<typename A>
-      static void set(AHDSR_t const & env, A & a) {
+      static void set(AHDSR const & env, A & a) {
         a.forEachElems([&env](auto & e) { e.algo.editEnveloppe().setAHDSR(env); });
       }
     };
 
     template<typename T>
-    struct HasNoteOff<SimpleEnvelope<T>> {
+    struct HasNoteOff<SimpleLinearEnvelope<T>> {
       static constexpr bool value = true;
     };
 
-    template<typename T, itp::interpolation DecayItp, EnvelopeRelease Rel>
-    struct HasNoteOff<AHDSREnvelope<T, DecayItp, Rel>> {
+    template<typename T, EnvelopeRelease Rel>
+    struct HasNoteOff<AHDSREnvelope<T, Rel>> {
       static constexpr bool value = Rel == EnvelopeRelease::WaitForKeyRelease;
     };
-  }
 
+
+    template<typename Env>
+    std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & rawEnvParams) {
+      Env e;
+      auto envParams = ClampParam<Env>::clamp(rawEnvParams);
+      e.setAHDSR(envParams);
+      // emulate a key-press
+      e.onKeyPressed();
+      int splitAt = -1;
+
+      std::vector<float> v, v2;
+      v.reserve(10000);
+      for(int i=0; e.getState() != EnvelopeState::EnvelopeDone1; ++i) {
+        e.step();
+        v.push_back(e.value());
+        if(!e.afterAttackBeforeSustain()) {
+          splitAt = v.size();
+          if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {
+            // emulate a key-release
+            e.onKeyReleased();
+          }
+          break;
+        }
+      }
+      while(e.getState() != EnvelopeState::EnvelopeDone1) {
+        e.step();
+        v.push_back(e.value());
+      }
+      return {std::move(v),splitAt};
+    }
+
+    template<typename Env>
+    float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
+      std::vector<float> v;
+      int split;
+      std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
+      if(nElems) {
+        *nElems = v.size();
+      }
+      if(splitAt) {
+        *splitAt = split;
+      }
+      auto n_bytes = v.size()*sizeof(decltype(v[0]));
+      auto c_arr = malloc(n_bytes); // will be freed by haskell finalizer.
+      memcpy(c_arr, v.data(), n_bytes);
+      return static_cast<float*>(c_arr);
+    }
+
+    float* analyzeEnvelopeGraph(envelType t, AHDSR p, int* nElems, int*splitAt) {
+      switch(t) {
+        case AHDSR_ReleaseAfterDecay:
+          return envelopeGraph<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
+        case AHDSR_WaitForKeyRelease:
+          return envelopeGraph<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
+        default:
+          return {};
+      }
+    }
+  }
   namespace audio {
 
     using AllChans = ChannelsVecAggregate< 2, AudioOutPolicy::Master >;
@@ -159,232 +224,151 @@ namespace imajuscule {
       , NoteOnEvent
       , NoteOffEvent>;
     }
-  }
-}
+    namespace mySynth = imajuscule::audio::vasine;
+    //namespace mySynth = imajuscule::audio::sine;
 
-extern "C" {
-  enum envelType {
-      AHDSR_WaitForKeyRelease
-    , AHDSR_ReleaseAfterDecay
-    , AHPropDerDSR_WaitForKeyRelease
-    , AHPropDerDSR_ReleaseAfterDecay
-  };
-}
+    // this is very temporary, until mononotechannel uses pointers to the channels instead of ids.
+    template<typename T>
+    struct withChannels {
+      withChannels(NoXFadeChans & chans) : chans(chans) {}
+      ~withChannels() {
+        std::lock_guard<std::mutex> l(isUsed); // see 'Using'
+      }
 
-// functions herein are /not/ part of the interface
-namespace imajuscule {
-  namespace audio {
-    namespace detail {
+      template<typename Out>
+      void onEvent2(Event e, Out & out) {
+        obj.onEvent2(e, out, chans);
+      }
 
-      namespace mySynth = imajuscule::audio::vasine;
-      //namespace mySynth = imajuscule::audio::sine;
+      void finalize() {
+        obj.finalize(chans);
+      }
 
-      // this is very temporary, until mononotechannel uses pointers to the channels instead of ids.
-      template<typename T>
-      struct withChannels {
-        withChannels(NoXFadeChans & chans) : chans(chans) {}
-        ~withChannels() {
-          std::lock_guard<std::mutex> l(isUsed); // see 'Using'
-        }
+      T obj;
+      NoXFadeChans & chans;
+      std::mutex isUsed;
+    };
 
-        template<typename Out>
-        void onEvent2(Event e, Out & out) {
-          obj.onEvent2(e, out, chans);
-        }
+    // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
+    // won't be destroyed during the entire lifetime of the instance, iff the following conditions hold:
+    //   (1) T::~T() locks, then unlocks 'o.isUsed'
+    //   (2) 'protectsDestruction' passed to the constructor is currently locked
+    //          and 'o' cannot be destroyed until 'protectsDestruction' is unlocked
+    template<typename T>
+    struct Using {
+      T & o; // this reference makes the object move-only, which is what we want
 
-        void finalize() {
-          obj.finalize(chans);
-        }
+      Using(std::lock_guard<std::mutex> && protectsDestruction, T&o) : o(o) {
+        o.isUsed.lock();
+        // NOTE here, both the instrument lock (isUsed) and the 'protectsDestruction' lock
+        // are taken.
+        //
+        // The order in which we take the locks is important to avoid deadlocks:
+        // it is OK to take multiple locks at the same time, /only/ if, everywhere in the program,
+        // we take them respecting a global order on the locks of the program.
+        //
+        // Hence, here the global order is:
+        // map lock (protectsDestruction) -> instrument lock (isUsed)
+      }
+      ~Using() {
+        o.isUsed.unlock();
+      }
+    };
 
-        T obj;
-        NoXFadeChans & chans;
-        std::mutex isUsed;
-      };
+    template <typename Envel>
+    struct Synths {
+      using T = mySynth::SynthT<Envel>;
+      using K = typename Envel::Param;
 
-      // a 'Using' instance gives the guarantee that the object 'o' passed to its constructor
-      // won't be destroyed during the entire lifetime of the instance, iff the following conditions hold:
-      //   (1) T::~T() locks, then unlocks 'o.isUsed'
-      //   (2) 'protectsDestruction' passed to the constructor is currently locked
-      //          and 'o' cannot be destroyed until 'protectsDestruction' is unlocked
-      template<typename T>
-      struct Using {
-        T & o; // this reference makes the object move-only, which is what we want
+      // NOTE the 'Using' is constructed while we hold the lock to the map.
+      // Hence, while garbage collecting, if we take the map lock,
+      // and if the instrument lock is not taken, we have the guarantee that
+      // the instrument lock won't be taken until we release the map lock.
+      static Using<withChannels<T>> get(K const & rawEnvelParam) {
+        using namespace audioelement;
 
-        Using(std::lock_guard<std::mutex> && protectsDestruction, T&o) : o(o) {
-          o.isUsed.lock();
-          // NOTE here, both the instrument lock (isUsed) and the 'protectsDestruction' lock
-          // are taken.
-          //
-          // The order in which we take the locks is important to avoid deadlocks:
-          // it is OK to take multiple locks at the same time, /only/ if, everywhere in the program,
-          // we take them respecting a global order on the locks of the program.
-          //
-          // Hence, here the global order is:
-          // map lock (protectsDestruction) -> instrument lock (isUsed)
-        }
-        ~Using() {
-          o.isUsed.unlock();
-        }
-      };
-
-      template <typename Envel>
-      struct Synths {
-        using T = mySynth::SynthT<Envel>;
-        using K = typename Envel::Param;
-
-        // NOTE the 'Using' is constructed while we hold the lock to the map.
-        // Hence, while garbage collecting, if we take the map lock,
-        // and if the instrument lock is not taken, we have the guarantee that
-        // the instrument lock won't be taken until we release the map lock.
-        static Using<withChannels<T>> get(K const & rawEnvelParam) {
-          using namespace audioelement;
-
-          auto envelParam = ClampParam<Envel>::clamp(rawEnvelParam);
-          {
-            // we use a global lock because we can concurrently modify and lookup the map.
-            std::lock_guard<std::mutex> l(mutex());
-
-            auto & synths = map();
-
-            auto it = synths.find(envelParam);
-            if(it != synths.end()) {
-              return Using(std::move(l), *(it->second));
-            }
-            auto p = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
-            auto & res = *p;
-            SetParam<Envel>::set(envelParam, p->obj);
-            if(p->obj.initialize(p->chans)) {
-                auto res = synths.emplace(envelParam, std::move(p));
-                return Using(std::move(l), *(res.first->second));
-            }
-            else {
-              LG(ERR,"get().initialize failed");
-            }
-            auto oneSynth = synths.begin();
-            if(oneSynth != synths.end()) {
-              LG(ERR, "get : a preexisting synth is returned");
-              return Using(std::move(l), *(oneSynth->second.get()));
-            }
-            LG(ERR, "get : an uninitialized synth is returned");
-            return Using(std::move(l), res);
-          }
-        }
-
-        static void finalize() {
+        auto envelParam = ClampParam<Envel>::clamp(rawEnvelParam);
+        {
+          // we use a global lock because we can concurrently modify and lookup the map.
           std::lock_guard<std::mutex> l(mutex());
-          for(auto & s : map()) {
-            s.second->finalize();
+
+          auto & synths = map();
+
+          auto it = synths.find(envelParam);
+          if(it != synths.end()) {
+            return Using(std::move(l), *(it->second));
           }
-          map().clear();
-        }
-
-      private:
-        static auto & map() {
-          static std::map<K,std::unique_ptr<withChannels<T>>> m;
-          return m;
-        }
-        static auto & mutex() {
-          static std::mutex m;
-          return m;
-        }
-      };
-
-      template<typename Env>
-      void midiEvent(typename Env::Param const & env, Event e) {
-        // if we garbage collect std::unique_ptr<withChannels<T>>,
-        // we should take the map lock, and we should have a lock in withInstrument
-        // indicating that we're issuing a command using this instrument.
-        // Here, the instrument lock should be taken _while_ the map lock is taken
-        // and released after onEvent2 returns.
-        Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
-      }
-
-      template<typename Env>
-      std::pair<std::vector<float>, int> envelopeGraphVec(typename Env::Param const & rawEnvParams) {
-        Env e;
-        using namespace audioelement;
-        auto envParams = ClampParam<Env>::clamp(rawEnvParams);
-        e.setAHDSR(envParams);
-        // emulate a key-press
-        e.onKeyPressed();
-        int splitAt = -1;
-
-        std::vector<float> v, v2;
-        v.reserve(10000);
-        for(int i=0; e.getState() != EnvelopeState::EnvelopeDone1; ++i) {
-          e.step();
-          v.push_back(e.value());
-          if(!e.afterAttackBeforeSustain()) {
-            splitAt = v.size();
-            if constexpr (Env::Release == EnvelopeRelease::WaitForKeyRelease) {
-              // emulate a key-release
-              e.onKeyReleased();
-            }
-            break;
+          auto p = std::make_unique<withChannels<T>>(addNoXfadeChannels(T::n_channels));
+          auto & res = *p;
+          SetParam<Envel>::set(envelParam, p->obj);
+          if(p->obj.initialize(p->chans)) {
+              auto res = synths.emplace(envelParam, std::move(p));
+              return Using(std::move(l), *(res.first->second));
           }
-        }
-        while(e.getState() != EnvelopeState::EnvelopeDone1) {
-          e.step();
-          v.push_back(e.value());
-        }
-        return {std::move(v),splitAt};
-      }
-
-      template<typename Env>
-      float* envelopeGraph(typename Env::Param const & rawEnvParams, int*nElems, int*splitAt) {
-        std::vector<float> v;
-        int split;
-        std::tie(v, split) = envelopeGraphVec<Env>(rawEnvParams);
-        if(nElems) {
-          *nElems = v.size();
-        }
-        if(splitAt) {
-          *splitAt = split;
-        }
-        auto n_bytes = v.size()*sizeof(decltype(v[0]));
-        auto c_arr = malloc(n_bytes); // will be freed by haskell finalizer.
-        memcpy(c_arr, v.data(), n_bytes);
-        return static_cast<float*>(c_arr);
-      }
-
-      void midiEventAHDSR(envelType t, AHDSR_t p, Event n) {
-        using namespace audioelement;
-        switch(t) {
-          case AHDSR_ReleaseAfterDecay:
-            midiEvent<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
-            break;
-          case AHDSR_WaitForKeyRelease:
-            midiEvent<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>(p, n);
-            break;
-          case AHPropDerDSR_ReleaseAfterDecay:
-            midiEvent<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
-            break;
-          case AHPropDerDSR_WaitForKeyRelease:
-            midiEvent<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>(p, n);
-            break;
-          default:
-            break;
+          else {
+            LG(ERR,"get().initialize failed");
+          }
+          auto oneSynth = synths.begin();
+          if(oneSynth != synths.end()) {
+            LG(ERR, "get : a preexisting synth is returned");
+            return Using(std::move(l), *(oneSynth->second.get()));
+          }
+          LG(ERR, "get : an uninitialized synth is returned");
+          return Using(std::move(l), res);
         }
       }
 
-      float* analyzeEnvelopeGraph(envelType t, AHDSR_t p, int* nElems, int*splitAt) {
-        using namespace audioelement;
-        switch(t) {
-          case AHDSR_ReleaseAfterDecay:
-            return envelopeGraph<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
-          case AHDSR_WaitForKeyRelease:
-            return envelopeGraph<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
-          case AHPropDerDSR_ReleaseAfterDecay:
-            return envelopeGraph<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>(p, nElems, splitAt);
-          case AHPropDerDSR_WaitForKeyRelease:
-            return envelopeGraph<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>(p, nElems, splitAt);
-          default:
-            return {};
+      static void finalize() {
+        std::lock_guard<std::mutex> l(mutex());
+        for(auto & s : map()) {
+          s.second->finalize();
         }
+        map().clear();
+      }
+
+    private:
+      static auto & map() {
+        static std::map<K,std::unique_ptr<withChannels<T>>> m;
+        return m;
+      }
+      static auto & mutex() {
+        static std::mutex m;
+        return m;
+      }
+    };
+
+    template<typename Env>
+    void midiEvent(typename Env::Param const & env, Event e) {
+      // if we garbage collect std::unique_ptr<withChannels<T>>,
+      // we should take the map lock, and we should have a lock in withInstrument
+      // indicating that we're issuing a command using this instrument.
+      // Here, the instrument lock should be taken _while_ the map lock is taken
+      // and released after onEvent2 returns.
+      Synths<Env>::get(env).o.onEvent2(e, getAudioContext().getChannelHandler());
+    }
+  } // NS audio
+
+  namespace audioelement {
+
+    void midiEventAHDSR(envelType t, AHDSR p, audio::Event n) {
+      using namespace audio;
+      switch(t) {
+        case AHDSR_ReleaseAfterDecay:
+          midiEvent<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>(p, n);
+          break;
+        case AHDSR_WaitForKeyRelease:
+          midiEvent<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>(p, n);
+          break;
+        default:
+          break;
       }
     }
-  }
+
+
+  } // NS audioelement
+
 }
+
 
 // functions herein are part of the interface
 extern "C" {
@@ -393,7 +377,6 @@ extern "C" {
     using namespace std;
     using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
 #ifndef NDEBUG
     cout << "WARNING : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
@@ -429,63 +412,59 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
     using namespace imajuscule::audioelement;
-    using namespace imajuscule::audio::detail;
 
     windVoice().finalize(getXfadeChannels());
 
-    Synths<SimpleEnvelope<float>>::finalize();
-    Synths<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, itp::LINEAR, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
-    Synths<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::WaitForKeyRelease>>::finalize();
-    Synths<AHDSREnvelope<float, itp::PROPORTIONAL_VALUE_DERIVATIVE, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
+    Synths<SimpleLinearEnvelope<float>>::finalize();
+    Synths<AHDSREnvelope<float, EnvelopeRelease::WaitForKeyRelease>>::finalize();
+    Synths<AHDSREnvelope<float, EnvelopeRelease::ReleaseAfterDecay>>::finalize();
 
     getAudioContext().TearDown();
   }
 
   void midiNoteOn(int envelCharacTime, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
     using namespace imajuscule::audioelement;
-    midiEvent<SimpleEnvelope<float>>(envelCharacTime, mkNoteOn(pitch,velocity));
+    midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOn(pitch,velocity));
   }
   void midiNoteOff(int envelCharacTime, int16_t pitch) {
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
     using namespace imajuscule::audioelement;
-    midiEvent<SimpleEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
+    midiEvent<SimpleLinearEnvelope<float>>(envelCharacTime, mkNoteOff(pitch));
   }
 
-  void midiNoteOnAHDSR_(envelType t, int a, int h, int d, float s, int r, int16_t pitch, float velocity) {
+  void midiNoteOnAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch, float velocity) {
+    using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
-    auto p = AHDSR_t{a,h,d,r,s};
+    using namespace imajuscule::audioelement;
+    auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOn(pitch,velocity);
     midiEventAHDSR(t, p, n);
   }
-  void midiNoteOffAHDSR_(envelType t, int a, int h, int d, float s, int r, int16_t pitch) {
+  void midiNoteOffAHDSR_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int16_t pitch) {
+    using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
-    auto p = AHDSR_t{a,h,d,r,s};
+    using namespace imajuscule::audioelement;
+    auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     auto n = mkNoteOff(pitch);
     midiEventAHDSR(t, p, n);
   }
 
-  float* analyzeAHDSREnvelope_(envelType t, int a, int h, int d, float s, int r, int*nElems, int*splitAt) {
+  float* analyzeAHDSREnvelope_(envelType t, int a, int ai, int h, int d, int di, float s, int r, int ri, int*nElems, int*splitAt) {
+    using namespace imajuscule;
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
-    auto p = AHDSR_t{a,h,d,r,s};
+    using namespace imajuscule::audioelement;
+    auto p = AHDSR{a,itp::toItp(ai),h,d,itp::toItp(di),r,itp::toItp(ri),s};
     return analyzeEnvelopeGraph(t, p, nElems, splitAt);
   }
 
   void effectOn(int program, int16_t pitch, float velocity) {
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
     auto voicing = Voicing(program,pitch,velocity,0.f,true,0);
     playOneThing(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),voicing);
   }
   void effectOff(int16_t pitch) {
     using namespace imajuscule::audio;
-    using namespace imajuscule::audio::detail;
     stopPlaying(windVoice(),getAudioContext().getChannelHandler(),getXfadeChannels(),pitch);
   }
 }

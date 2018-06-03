@@ -16,116 +16,116 @@ testParseMusic = do
   testParseMusicWithComments
 
   [notes|do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i]
+    [Note Do noOctave]
 
   [notes|do ré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré noOctave i
+    [Note Do noOctave
+    ,Note Ré noOctave
     ]
 
   [notes|do ré
 |] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré noOctave i
+    [Note Do noOctave
+    ,Note Ré noOctave
     ]
 
   [notes|do ré
  |] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré noOctave i
+    [Note Do noOctave
+    ,Note Ré noOctave
     ]
 
   [notes|
   do ré
   |] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré noOctave i
+    [Note Do noOctave
+    ,Note Ré noOctave
     ]
 
   [notes|do v ré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave-1) i
+    [Note Do noOctave
+    ,Note Ré (noOctave-1)
     ]
 
   [notes|do vré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave-1) i
+    [Note Do noOctave
+    ,Note Ré (noOctave-1)
     ]
 
   [notes|do ^ré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave+1) i
+    [Note Do noOctave
+    ,Note Ré (noOctave+1)
     ]
 
   [notes|do ^^ré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave+2) i
+    [Note Do noOctave
+    ,Note Ré (noOctave+2)
     ]
 
   [notes|do ^vré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré noOctave i
+    [Note Do noOctave
+    ,Note Ré noOctave
     ]
 
   [notes|do vvré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave-2) i
+    [Note Do noOctave
+    ,Note Ré (noOctave-2)
     ]
 
   [notes|do v v ré|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
-    ,Note $ NoteSpec Ré (noOctave-2) i
+    [Note Do noOctave
+    ,Note Ré (noOctave-2)
     ]
 
   [notes|do . do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
+    [Note Do noOctave
     ,Rest
-    ,Note $ NoteSpec Do noOctave i
+    ,Note Do noOctave
     ]
 
   [notes|do - do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
+    [Note Do noOctave
     ,Extend
-    ,Note $ NoteSpec Do noOctave i
+    ,Note Do noOctave
     ]
 
   [notes|do - - do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
+    [Note Do noOctave
     ,Extend
     ,Extend
-    ,Note $ NoteSpec Do noOctave i
+    ,Note Do noOctave
     ]
 
   [notes|do - . do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
+    [Note Do noOctave
     ,Extend
     ,Rest
-    ,Note $ NoteSpec Do noOctave i
+    ,Note Do noOctave
     ]
 
   [notes|do . - - do|] `shouldBe`
-    [Note $ NoteSpec Do noOctave i
+    [Note Do noOctave
     ,Rest
     ,Extend
     ,Extend
-    ,Note $ NoteSpec Do noOctave i
+    ,Note Do noOctave
     ]
 
-  (allMusic [notes|do ré mi|]) `shouldBe`
+  (allMusic i [notes|do ré mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i), StartNote (NoteSpec Ré (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Ré (Octave 6) i), StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do - mi|]) `shouldBe`
+  (allMusic i [notes|do - mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , []
     , [StopNote (NoteSpec Do (Octave 6) i), StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do - - mi|]) `shouldBe`
+  (allMusic i [notes|do - - mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , []
     , []
@@ -133,7 +133,7 @@ testParseMusic = do
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do - . mi|]) `shouldBe`
+  (allMusic i [notes|do - . mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , []
     , [StopNote (NoteSpec Do (Octave 6) i)]
@@ -141,7 +141,7 @@ testParseMusic = do
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do . - mi|]) `shouldBe`
+  (allMusic i [notes|do . - mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i)]
     , []
@@ -149,7 +149,7 @@ testParseMusic = do
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do . . mi|]) `shouldBe`
+  (allMusic i [notes|do . . mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i)]
     , []
@@ -157,14 +157,14 @@ testParseMusic = do
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|do . mi|]) `shouldBe`
+  (allMusic i [notes|do . mi|]) `shouldBe`
     [ [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i)]
     , [StartNote (NoteSpec Mi (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|- do . mi|]) `shouldBe`
+  (allMusic i [notes|- do . mi|]) `shouldBe`
     [ []
     , [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i)]
@@ -172,7 +172,7 @@ testParseMusic = do
     , [StopNote (NoteSpec Mi (Octave 6) i)]
     ]
 
-  (allMusic [notes|. do . mi|]) `shouldBe`
+  (allMusic i [notes|. do . mi|]) `shouldBe`
     [ []
     , [StartNote (NoteSpec Do (Octave 6) i) (MidiVelocity 1.0)]
     , [StopNote (NoteSpec Do (Octave 6) i)]
@@ -183,10 +183,9 @@ testParseMusic = do
 testParseMusicWithComments :: IO ()
 testParseMusicWithComments = do
   let expected =
-        fmap (\f -> f defaultInstrument)
-          [Note . NoteSpec Do noOctave
-          ,Note . NoteSpec Ré noOctave
-          ]
+        [ Note Do noOctave
+        , Note Ré noOctave
+        ]
   [notes|do:
     ré|]
     `shouldBe` expected

@@ -122,7 +122,7 @@ data WorldShape = Square
                 deriving(Generic, Show, Eq)
 instance UIInstructions WorldShape where
   instructions _ shape =
-    [ ConfigUI "World shape" $ Choice $ map pack withCursor ]
+    [ ConfigUI "World shape" [List configColors $ map pack withCursor ]]
    where
     i = case shape of
       Square -> 0
@@ -392,12 +392,12 @@ instance Binary WallDistribution
 instance NFData WallDistribution
 instance UIInstructions WallDistribution where
   instructions color (WallDistribution size wallProba) =
-    [ ConfigUI "Walls size" $ Discrete $
+    [ ConfigUI "Walls size" [Discrete $
         Slider size minBlockSize maxBlockSize (1 + maxBlockSize - minBlockSize)
-              'y' 'g' color Compact
-    , ConfigUI "Walls probability" $ Continuous $
+              'y' 'g' color Compact]
+    , ConfigUI "Walls probability" [Continuous $
         Slider wallProba minWallProba maxWallProba nProbaSteps
-              'u' 'h' color Compact
+              'u' 'h' color Compact]
     ]
 
 initialBlockSize, minBlockSize, maxBlockSize :: Int

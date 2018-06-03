@@ -37,11 +37,11 @@ data Slider a = Slider {
 'Compact' mode:
 
 @
-                           6
-      Block size : 'g' ....|...... 'y'
+                         6
+      Block size : g ....|...... y
 
-                            0.01
-      Wall probability : 'h' |............... 'u'
+                          0.01
+      Wall probability : h |............... u
 @
 
 'Large' mode:
@@ -50,11 +50,11 @@ data Slider a = Slider {
 
                      6                 < numeric value (Int / Float)
       block size ....|......           < label, slider
-               'g' <   > 'y'           < Up / down chars
+                 g <   > y             < Up / down chars
 
                       0.01
       wall probability |.................
-                 'h' <   > 'u'
+                   h <   > u
 
 @
 -}
@@ -69,15 +69,15 @@ data SliderPresentation =
 @
       X   6
       ----|-------- block size
-    'g' <   > 'y'
+      g <   > y
 @
 
 'Compact' mode:
 
 @
 
-      X                    6
-      block size : 'g' ....|...... 'y'
+      X                  6
+      block size : g ....|...... y
 @
 
 For width in Positionable instance, we don't take increase / decrease keys
@@ -97,28 +97,28 @@ instance (Real a, Show a) => Positionable (Slider a) where
       Compact -> do
         case down of
           ' ' -> return ()
-          _ -> drawAt (Colored color compactLabel1) coords
+          _ -> drawAt (Colored color downTxt) $ move 1 Down $ coords
         case up of
           ' ' -> return ()
-          _ -> drawAt (Colored color compactLabel2) $ move nSteps RIGHT barLeft
+          _ -> drawAt (Colored color upTxt) $ move nSteps RIGHT barLeft
    where
     i = getDiscreteIndex s
-    barLeft = case pres of
-      Large -> move 1 Down coords
-      Compact -> move (Text.length compactLabel1) RIGHT coords
+    barLeft = move 1 Down $ case pres of
+      Large -> coords
+      Compact -> move (Text.length downTxt) RIGHT coords
     indicator = move i RIGHT barLeft
     numCenter = move 1 Up indicator
     upDownCenter = move 1 Down indicator
     num = colored' (map gameGlyph $ show v) color
+    downTxt = pack [down, ' ']
+    upTxt = pack [' ', up]
     upDown = case pres of
-      Large -> '\'' : down : "' <   > '" ++ [up, '\'']
-      Compact -> '\'' : down : "'/'" ++ [up, '\'']
-    compactLabel1 = pack ['\'', down, '\'']
-    compactLabel2 = pack ['\'', up, '\'']
+      Large -> down : " <   > " ++ [up]
+      Compact -> down : "/" ++ [up]
     barChar = case pres of
       Large -> '-'
       Compact -> '.'
-  width = fromIntegral . sliderStepCount
+  width = (+4) . fromIntegral . sliderStepCount
 
   height = (\case
     Large -> 3

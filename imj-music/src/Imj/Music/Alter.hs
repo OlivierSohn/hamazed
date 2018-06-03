@@ -26,8 +26,9 @@ mapVoice f v = v { voiceSymbols = V.fromList $ f $ V.toList $ voiceSymbols v }
 
 transposeSymbol :: Int
                 -- ^ Count of semi-tones
-                -> Symbol -> Symbol
-transposeSymbol n (Note s@(NoteSpec _ _ i)) = Note $ mkNoteSpec (fromIntegral n + noteToMidiPitch s) i
+                -> Symbol
+                -> Symbol
+transposeSymbol s (Note n o) = uncurry Note $ midiPitchToNoteAndOctave (fromIntegral s + noteToMidiPitch' n o)
 transposeSymbol _ Rest   = Rest
 transposeSymbol _ Extend = Extend
 

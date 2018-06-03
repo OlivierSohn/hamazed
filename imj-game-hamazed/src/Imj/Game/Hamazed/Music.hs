@@ -32,10 +32,14 @@ hamazedScores =
   , transpose (-2) quintScore
   , sextScore
   , intersperse Rest $ transpose 12 sevthScore
+  , heighthScore
   ]
 
 primaryScore :: Score
-primaryScore = mkScore [firstVoice, secondVoice, thirdVoice]
+primaryScore = mkScore organicInstrument
+  [ firstVoice
+  , secondVoice
+  , thirdVoice]
  where
   firstVoice =
     concatMap ((++) begin) variations
@@ -87,7 +91,7 @@ primaryScore = mkScore [firstVoice, secondVoice, thirdVoice]
 
 secondaryScore :: Score
 secondaryScore =
-  mkScore
+  mkScore organicInstrument
     [ firstVoice
     , secondVoice
     ]
@@ -167,7 +171,7 @@ secondaryScore =
 
 tertiaryScore :: Score
 tertiaryScore =
-  mkScore
+  mkScore organicInstrument
     [ firstVoice ++ secondVoice
     , concat (replicate (length firstVoice) silence) ++ firstVoice']
  where
@@ -227,7 +231,7 @@ tertiaryScore =
      do mib ré fa
      mib . do mib
      ré sol mib lab
-     sol mib do ^do
+     sol . . ^do
      si ^do ^ré .
      sol lab sol ^mib
      ^ré ^do si .
@@ -236,7 +240,7 @@ tertiaryScore =
 
 quatScore :: Score
 quatScore =
-  mkScore
+  mkScore organicInstrument
     [ voice1
     , bass1
     , bass2
@@ -324,7 +328,7 @@ quatScore =
 
 quintScore :: Score
 quintScore =
-  mkScore
+  mkScore defaultInstrument
     [ v2
     , (take (3*12) (cycle v1)) ++ take (3*12) (cycle v1')
     , (take (3*12) (cycle b1)) ++ take (3*12) (cycle b1')
@@ -353,7 +357,7 @@ quintScore =
 
 sextScore :: Score
 sextScore =
-  mkScore
+  mkScore organicInstrument
     [ take (length v2) $ cycle v1
     , v2
     , take (length v2) $ cycle $ skip1 ++ v3
@@ -429,7 +433,7 @@ sextScore =
 
 sevthScore :: Score
 sevthScore =
-  mkScore
+  mkScore organicInstrument
     [ v1 ++ v1
     , v2 ++ v2
     , v3 ++ v3
@@ -467,6 +471,76 @@ sevthScore =
    . . . . . . . . . . . .
    . . . . . . . . . . . .
    |]
+
+
+heighthScore :: Score
+heighthScore = mkScore organicInstrument
+  [ take (8*length melody) $ cycle melody
+  , take (4*length bass) $ cycle bass ++ bass
+  , silence ++ upperVoice ++ silence ++ upperVoice
+  , silence ++ silence ++ silence ++ upperVoice2
+  ]
+
+ where
+
+  melody = [notes|
+    si . . sol . . mi .
+    . . sol . la . si .
+    ^do . . fad . . ré .
+    . . fad . sol . la .
+    |]
+
+  bass = [notes|
+    mi . . . . . . .
+    . . . . . . . .
+    ré . . . . . . .
+    . . . . . . . mi
+    . . . . . . . .
+    . . . . . . . ré
+    . . . . . . . .
+    mi . . . . . . .
+    |]
+
+  silence = [notes|
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    |]
+  upperVoice = [notes|
+    ^mi . . ^mi . . ^sol ^sol
+    . . ^mi . . si . .
+    ^fad . . ^fad . . . .
+    . . . . . . . .
+    ^mi . . ^mi . . . .
+    . . . . . . . .
+    ^fad . . ^fad . . . .
+    . . . . . . . .
+    |]
+
+  upperVoice2 = [notes|
+    ^si . . ^si . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    ^si . . ^si . . . .
+    . . . . . . . .
+    . . . . . . . .
+    . . . . . . . .
+    |]
+
+organicInstrument :: Instrument
+organicInstrument = SineSynthAHDSR AutoRelease
+  $ AHDSR
+      400 5120 50 12800
+      (Eased EaseIn Sine)
+      ProportionaValueDerivative
+      (Eased EaseOut Circ)
+      1.0
 
 
 alarm :: [Symbol]

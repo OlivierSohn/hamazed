@@ -10,12 +10,14 @@ module Imj.Game.Draw
       ( draw
       , computeViewDistances
       , drawInstructions
+      , Layout(..)
       ) where
 
 import           Imj.Prelude
 import           Prelude(length)
 
 import           Control.Monad.State.Strict(gets)
+import           Data.List(foldl')
 
 import           Imj.Game.Class
 import           Imj.Geo.Discrete.Types
@@ -93,68 +95,80 @@ drawSetup :: (ServerClientHandler s
 drawSetup mayWorldParams cont = do
   let (topMiddle@(Coords _ c), bottomCenter, Coords r _, _) =
         getSideCenters cont
-      left = move 12 LEFT (Coords r c)
   dTextAl "Game configuration" (mkCentered $ move 2 Down topMiddle)
     >>= dTextAl_ "------------------"
   dTextAl_ "Hit 'Space' to start game" (mkCentered $ move 2 Up bottomCenter)
 
-  let initialPos = move 5 Up left
-
-  void $ return initialPos
-    >>= maybe return drawInstructions mayWorldParams
+  void $ return (mkCentered $ move 5 Up $ Coords r c)
+    >>= maybe return (drawInstructions Vertically Nothing) mayWorldParams
       {-
     >>= section "Center view"
       [ "'d' : On space"
       , "'f' : On ship"
       ]
       -}
-    >>= section "OpenGL rendering"
-      [ "'Up' 'Down' : Change font"
-      , "'Left' 'Right' : Change font size"
-      ]
+    >>= section "OpenGL rendering" >>= drawAligned (List configColors
+      [ "Shift + 'Up' / 'Down' : Change font"
+      , "Shift + 'Left' / 'Right' : Change font size"
+      ])
 
-section :: (MonadIO m, Foldable t, Draw e, MonadReader e m)
-        => Text -> t Text -> Coords Pos -> m (Coords Pos)
-section title elts pos = do
-  dText_ ("[" <> title <> "]") pos
-  foldM_ (flip dText) (translateInDir Down $ move 2 RIGHT pos) elts
-  return $ move (2 + length elts) Down pos
+section :: (MonadIO m, Draw e, MonadReader e m)
+        => Text -> Alignment -> m Alignment
+section title =
+  dTextAl ("[" <> title <> "]")
+
+data Layout = Vertically | Horizontally
 
 drawInstructions :: (UIInstructions s,
                     MonadReader e m, Draw e, MonadIO m)
-                  => s -> Coords Pos -> m (Coords Pos)
-drawInstructions li pos =
-  foldM
-    (\p (ConfigUI title i) -> case i of
-      Choice l ->
-        section title l p
-      Continuous slider ->
-        section title [] p >>= drawSlider slider
-      Discrete slider ->
-        section title [] p >>= drawSlider slider)
-    pos
-    $ instructions configColors li
+                  => Layout
+                  -> Maybe (Length Width)
+                  -- ^ Width of a column. When Nothing, the max width of instructions is used.
+                  -> s -> Alignment -> m Alignment
+drawInstructions layout mayWidth instr al@(Alignment a (Coords yRef xRef)) =
+  case layout of
+    Vertically -> foldM
+      (\p (ConfigUI title li) -> do
+        p2 <- section title p
+        p3 <- foldM (flip drawAligned) p2 li
+        return $ moveAlignment 1 Down p3)
+      al
+      is
+    Horizontally -> do
+      als <- mapM
+        (\(ConfigUI title li, oneAl) -> do
+            p2 <- section title oneAl
+            foldM (flip drawAligned) p2 li)
+        $ zip is
+        $ distributeHorizontally al maxWidth $ length is
+      let y = foldl' max yRef $ map (_coordsY . alignmentRef) als
+      return $ Alignment a $ Coords y xRef
+
  where
-  drawSlider s upperLeft = do
-    drawAt s $ move 2 RIGHT upperLeft
-    return $ move (fromIntegral $ height s) Down upperLeft
 
+  is = instructions configColors instr
 
-{-# INLINABLE dText #-}
-dText :: (Draw e, MonadReader e m, MonadIO m)
-      => Text
-      -> Coords Pos
-      -> m (Coords Pos)
-dText txt pos =
-  drawTxt txt pos configColors >> return (translateInDir Down pos)
+  widths = map (\(ConfigUI title li) -> fromMaybe (error "logic") $ maximumMaybe $ width title: map width li) is
 
-{-# INLINABLE dText_ #-}
-dText_ :: (Draw e, MonadReader e m, MonadIO m)
-       => Text
-       -> Coords Pos
-       -> m ()
-dText_ txt pos =
-  void (dText txt pos)
+  maxWidth' = fromMaybe 0 $ maximumMaybe widths
+  maxWidth = fromMaybe maxWidth' mayWidth
+
+distributeHorizontally :: Alignment -> Length Width -> Int -> [Alignment]
+distributeHorizontally (Alignment al ref) (Length w) n = case al of
+  Centered ->
+    let totalWidth = margin + (w + margin) * n
+        refLeft = move (quot totalWidth 2) LEFT ref
+        firstCenter = move (quot w 2 + margin) RIGHT refLeft
+    in map (\i -> Alignment Centered $ move (i * (w + margin)) RIGHT firstCenter) [0..n-1]
+  RightAligned ->
+    map (\i -> Alignment RightAligned $ move (i * (w + margin)) LEFT ref) $ reverse [0..n-1]
+  LeftAligned ->
+    map (\i -> Alignment LeftAligned $ move (i * (w + margin)) RIGHT ref) [0..n-1]
+
+ where
+
+  margin = 1
+
 
 dTextAl :: (Draw e, MonadReader e m, MonadIO m)
         => Text -> Alignment -> m Alignment

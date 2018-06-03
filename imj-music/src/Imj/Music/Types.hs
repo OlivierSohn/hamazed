@@ -10,8 +10,8 @@ module Imj.Music.Types
       ( -- * Notes and instruments
         Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
-      , Instrument(..), defaultInstrument, prettyShowInstrument
-      , AHDSR(..), bell
+      , Instrument(..), defaultInstrument
+      , bell
       , Envelope(..), cycleEnvelope, prettyShowEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
@@ -40,11 +40,15 @@ module Imj.Music.Types
         -- * Midi-like instructions
       , Music(..)
       -- * Reexport
+      , AHDSR(..)
+      , Interpolation(..), allInterpolations
+      , Ease(..)
+      , EasedInterpolation(..)
       , CInt
       ) where
 
 import           Imj.Prelude
-import           Prelude(unwords)
+
 import           Control.DeepSeq (NFData(..))
 import           Control.Concurrent.MVar.Strict(MVar, newMVar)
 import           Data.Binary
@@ -68,7 +72,7 @@ mkEmptyPiano :: PianoState
 mkEmptyPiano = PianoState mempty
 
 data Symbol =
-    Note {-# UNPACK #-} !NoteSpec
+    Note !NoteName {-# UNPACK #-} !Octave
   | Extend
   | Rest
   deriving(Generic,Show, Eq, Data)
@@ -106,8 +110,8 @@ data Score = Score {
   _voices :: ![Voice]
 } deriving(Generic,Show, Eq)
 
-mkScore :: [[Symbol]] -> Score
-mkScore = Score . map mkVoice
+mkScore :: Instrument -> [[Symbol]] -> Score
+mkScore i s = Score $ map (mkVoice i) s
 
 -- | Keeps track of progress, and loops when the end is found.
 data Voice = Voice {
@@ -116,10 +120,11 @@ data Voice = Voice {
   -- ^ The invariant is that this can never be 'Just' 'Extend' : instead,
   -- when a 'Extend' symbol is encountered, we don't change this value.
   , voiceSymbols :: !(V.Vector Symbol)
+  , voiceInstrument :: !Instrument
 } deriving(Generic,Show, Eq)
 
-mkVoice :: [Symbol] -> Voice
-mkVoice l = Voice 0 Nothing $ V.fromList l
+mkVoice :: Instrument -> [Symbol] -> Voice
+mkVoice i l = Voice 0 Nothing (V.fromList l) i
 
 -- | A music fragment
 data Music =
@@ -130,34 +135,26 @@ instance Binary Music
 instance NFData Music
 
 data Envelope =
-    AHDSR_KeyRelease
-  | AHDSR_AutoReleaseAfterDecay
-  | AHPropDerDSR_KeyRelease
-  | AHPropDerDSR_AutoReleaseAfterDecay
+    KeyRelease
+  | AutoRelease
   deriving(Generic, Ord, Data, Eq, Show)
 instance Enum Envelope where
   fromEnum = \case
-    AHDSR_KeyRelease -> 0
-    AHDSR_AutoReleaseAfterDecay -> 1
-    AHPropDerDSR_KeyRelease -> 2
-    AHPropDerDSR_AutoReleaseAfterDecay -> 3
+    KeyRelease -> 0
+    AutoRelease -> 1
   toEnum = \case
-    0 -> AHDSR_KeyRelease
-    1 -> AHDSR_AutoReleaseAfterDecay
-    2 -> AHPropDerDSR_KeyRelease
-    3 -> AHPropDerDSR_AutoReleaseAfterDecay
+    0 -> KeyRelease
+    1 -> AutoRelease
     n -> error $ "out of range:" ++ show n
 instance NFData Envelope
 instance Binary Envelope
 prettyShowEnvelope :: Envelope -> String
 prettyShowEnvelope = \case
-  AHDSR_KeyRelease -> "Lin-decay"
-  AHDSR_AutoReleaseAfterDecay -> unwords ["Lin-decay", "Autorelease"]
-  AHPropDerDSR_KeyRelease -> unwords ["Exp-decay"]
-  AHPropDerDSR_AutoReleaseAfterDecay -> unwords ["Exp-decay", "Autorelease"]
+  KeyRelease -> "Key release"
+  AutoRelease -> "Autorelease after decay"
 
 cycleEnvelope :: Envelope -> Envelope
-cycleEnvelope AHPropDerDSR_AutoReleaseAfterDecay = AHDSR_KeyRelease
+cycleEnvelope AutoRelease = KeyRelease
 cycleEnvelope e = succ e
 
 data Instrument =
@@ -168,20 +165,11 @@ data Instrument =
 instance Binary Instrument
 instance NFData Instrument
 
-prettyShowInstrument :: Instrument -> [String]
-prettyShowInstrument = \case
-  Wind x -> (:[]) $ unwords ["Wind", "program", show x]
-  SineSynth dt -> (:[]) $ unwords ["Sine", show dt]
-  SineSynthAHDSR e a ->
-    ["Sine"
-    , unwords ["Envelope:", prettyShowEnvelope e]
-    ] ++
-    prettyShowAHDSR a
 
 -- it would be nice to have a "sustain that fades slowly"
 -- or maybe what I'm looking for is exponential decay
 bell :: AHDSR
-bell = AHDSR 500 200 40000 30000 0.01
+bell = AHDSR 500 200 40000 30000 Linear ProportionaValueDerivative Linear 0.01
 
 -- | This instrument is used by default in 'notes' quasi quoter.
 defaultInstrument :: Instrument

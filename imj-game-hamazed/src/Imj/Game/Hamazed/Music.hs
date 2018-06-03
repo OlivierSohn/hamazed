@@ -34,6 +34,7 @@ hamazedScores =
   , sextScore
   , intersperse Rest $ transpose 12 sevthScore
   , heighthScore
+  , ninthScore
   ]
 
 primaryScore :: Score
@@ -532,6 +533,21 @@ heighthScore = mkScore organicInstrument
     . . . . . . . .
     . . . . . . . .
     . . . . . . . .
+    |]
+
+
+ninthScore :: Score
+ninthScore = mkScore shortInstrument
+  [ melody
+  ]
+
+ where
+
+  melody = [notes|
+    la . . . . . ^do ^ré ^mi . la .
+    lab . . . . . ^mib ^mi ^mib ^mi ^mib ^mi
+    sol . . . . . ^do ^ré ^mi . sol .
+    fad . . . . . ^mi ^mib ^ré ^réb ^do si
     |]
 
 alarm :: [Symbol]

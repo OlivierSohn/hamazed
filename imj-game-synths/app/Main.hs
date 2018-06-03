@@ -70,6 +70,7 @@ import           Imj.Graphics.UI.RectContainer
 import qualified Imj.Graphics.UI.Choice as UI
 import           Imj.Music.Types
 import           Imj.Music.Analyze
+import           Imj.Music.Instruments
 import           Imj.Music.Piano
 import           Imj.Music.Record
 import           Imj.Server.Class hiding(Do)
@@ -409,7 +410,7 @@ instrumentFile = "instruments/last.inst"
 
 loadInstrument :: IO Instrument
 loadInstrument = doesFileExist instrumentFile >>= bool
-  (return defaultInstr)
+  (return organicInstrument)
   (do
     bl <- BL.readFile instrumentFile
     let len = BL.length bl
@@ -422,10 +423,6 @@ loadInstrument = doesFileExist instrumentFile >>= bool
           else
             fail $ "Not all content has been used :" ++ show (len,offset) ) $
       (decodeOrFail bl))
-
- where
-
-  defaultInstr = SineSynthAHDSR KeyRelease bell
 
 saveInstrument :: Instrument -> IO ()
 saveInstrument i = do

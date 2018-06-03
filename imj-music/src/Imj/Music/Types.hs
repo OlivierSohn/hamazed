@@ -10,8 +10,7 @@ module Imj.Music.Types
       ( -- * Notes and instruments
         Symbol(..)
       , NoteSpec(..), mkNoteSpec, noteToMidiPitch, noteToMidiPitch'
-      , Instrument(..), defaultInstrument
-      , bell
+      , Instrument(..)
       , Envelope(..), cycleEnvelope, prettyShowEnvelope
       , EnvelopeCharacteristicTime, mkEnvelopeCharacteristicTime, unEnvelopeCharacteristicTime
       , MidiPitch(..), midiPitchToNoteAndOctave, naturalPitch
@@ -165,16 +164,6 @@ data Instrument =
 instance Binary Instrument
 instance NFData Instrument
 
-
--- it would be nice to have a "sustain that fades slowly"
--- or maybe what I'm looking for is exponential decay
-bell :: AHDSR
-bell = AHDSR 500 200 40000 30000 Linear ProportionaValueDerivative Linear 0.01
-
--- | This instrument is used by default in 'notes' quasi quoter.
-defaultInstrument :: Instrument
-defaultInstrument = SineSynth $ EnvelCharacTime 401
---defaultInstrument = SineSynthAHDSR AHPropDerDSR_AutoReleaseAfterDecay bell
 
 {-
 

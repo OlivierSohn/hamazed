@@ -14,6 +14,7 @@ import           Data.List hiding(transpose, intersperse)
 import           Imj.Game.Hamazed.Level
 import           Imj.Music.Alter
 import           Imj.Music.Compose
+import           Imj.Music.Instruments
 import           Imj.Music.Types
 
 scoreForLevel :: LevelSpec -> Score
@@ -328,7 +329,7 @@ quatScore =
 
 quintScore :: Score
 quintScore =
-  mkScore defaultInstrument
+  mkScore bellInstrument
     [ v2
     , (take (3*12) (cycle v1)) ++ take (3*12) (cycle v1')
     , (take (3*12) (cycle b1)) ++ take (3*12) (cycle b1')
@@ -532,16 +533,6 @@ heighthScore = mkScore organicInstrument
     . . . . . . . .
     . . . . . . . .
     |]
-
-organicInstrument :: Instrument
-organicInstrument = SineSynthAHDSR AutoRelease
-  $ AHDSR
-      400 5120 50 12800
-      (Eased EaseIn Sine)
-      ProportionaValueDerivative
-      (Eased EaseOut Circ)
-      1.0
-
 
 alarm :: [Symbol]
 alarm =

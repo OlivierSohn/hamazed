@@ -22,6 +22,7 @@ library
   exposed-modules:     Imj.Music.Alter
                      , Imj.Music.Analyze
                      , Imj.Music.Compose
+                     , Imj.Music.Instruments
                      , Imj.Music.Piano
                      , Imj.Music.Play
                      , Imj.Music.Record

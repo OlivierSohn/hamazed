@@ -1,4 +1,4 @@
-FROM imajuscule/serve-highscores
+FROM imajuscule/game-rt
 
 ENTRYPOINT ["/usr/local/bin/imj-serve-highscores-exe"]
 

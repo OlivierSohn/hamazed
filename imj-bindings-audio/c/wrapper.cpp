@@ -393,9 +393,8 @@ extern "C" {
     using namespace imajuscule;
     using namespace imajuscule::audio;
 #ifndef NDEBUG
-    cout << "WARNING : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
+    cout << "Warning : C++ sources of imj-bindings-audio were built without NDEBUG" << endl;
 #endif
-
     disableDenormals();
 
     setPortaudioEnvVars();
@@ -424,6 +423,19 @@ extern "C" {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
+    
+    if(thread::priorityIsReadOnly()) {    
+        cout << endl;
+        cout << "Warning :" << endl;
+        cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;
+        cout << "  to avoid the priority inversion effect while holding the audio lock." << endl;
+        cout << "  We detected that the system doesn't allow setting thread priorities, hence" << endl;
+        cout << "  you may occasionally hear some audio clics/cracks. To fix this, please" << endl;
+        cout << "  run the command again using 'sudo' : root privileges are required on Linux" << endl;
+        cout << "  to use 'pthread_setschedparam'." << endl;
+        cout << endl;
+    }
+
     return true;
   }
 

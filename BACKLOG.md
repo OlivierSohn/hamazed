@@ -9,7 +9,10 @@ still, sometimes the pool will need to grow : the user of the library is free to
 the initial pool size, in terms of number of concurrent instruments, so that the pool
 never has to grow, in a particular use-case.
 
-Garbage collection should occur when a new instrument is created :
+Note that if we restrict ourselves to the hamazed case where we are called from a single thread, we could omit locks.
+
+- To improve memory usage, garbage collect instruments / channels
+when a new instrument is created :
 
 maintain a global list (under lock) of lambdas pairs:
   - one to know if the synth is playing :

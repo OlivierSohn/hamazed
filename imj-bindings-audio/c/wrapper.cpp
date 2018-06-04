@@ -423,8 +423,8 @@ extern "C" {
       LG(ERR,"windVoice().initialize failed");
       return false;
     }
-    
-    if(thread::priorityIsReadOnly()) {    
+
+    if(imajuscule::thread::priorityIsReadOnly()) {    
         cout << endl;
         cout << "Warning :" << endl;
         cout << "  The audio engine needs to be able to dynamically change a thread priority" << endl;

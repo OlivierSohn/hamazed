@@ -1,13 +1,15 @@
-- Use memory pools for :
+- To improve latency, use memory pools for :
 * channels
 * instruments.
 
 https://github.com/foonathan/memory/blob/master/include/foonathan/memory/memory_pool.hpp
 
-The user of the library is free to specify the initial pool sizes, in number of concurrent instruments?
+A garbage collection mechanism will be implemented for instruments and channels,
+still, sometimes the pool will need to grow : the user of the library is free to specify
+the initial pool size, in terms of number of concurrent instruments, so that the pool
+never has to grow, in a particular use-case.
 
-Garbage collection should occur
-* when a new instrument is created
+Garbage collection should occur when a new instrument is created :
 
 maintain a global list (under lock) of lambdas pairs:
   - one to know if the synth is playing :

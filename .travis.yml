@@ -39,7 +39,7 @@ addons:
 cache:
   directories:
   - $HOME/.stack
-
+  timeout: 1800
 
 before_install:
 
